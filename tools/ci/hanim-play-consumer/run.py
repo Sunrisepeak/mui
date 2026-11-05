@@ -174,7 +174,8 @@ def main() -> int:
                     raise RuntimeError("real retarget target/continuity failed")
             agent_results = []
             for label, bend, mode in (("agent-linear", 0, ""), ("agent-curved", .35, ""),
-                                      ("agent-properties", .35, "properties"), ("agent-parts", 0, "parts")):
+                                      ("agent-properties", .35, "properties"), ("agent-parts", 0, "parts"),
+                                      ("agent-channels", 0, "channels")):
                 png = artifacts / f"{profile}-{label}.png"
                 text = run(profile + "-" + label, [args.mcpp, "run", "--locked", "--profile", profile, "--",
                            "--out", str(png), "--bend", str(bend), "--agent-review", *(["--"+mode] if mode else [])])
@@ -186,6 +187,9 @@ def main() -> int:
                     raise RuntimeError("property review did not exercise the public property recipe")
                 if mode == "parts" and (result["fixture"] != "selected-parts" or result["parts"] != 4 or result["contours"] != 3):
                     raise RuntimeError("selected-part review did not use the public multi-part recipe")
+                if mode == "channels" and (result["fixture"] != "independent-channels" or len(result["channels"]) != 4 or
+                                           result["sample_progress"] is not None):
+                    raise RuntimeError("channel review did not use independent compiled property tracks")
                 review = result["agent_review"]
                 if review["authorization"] != "mlibs.control/openas" or review["reverse_replayed"] != 61:
                     raise RuntimeError("shared authority or process replay missing")
@@ -196,7 +200,7 @@ def main() -> int:
                 frames = review["frames"]
                 if len(frames) != 61 or len({frame["pixel_fnv1a"] for frame in frames}) != 61:
                     raise RuntimeError("expected 61 distinct actual process frames")
-                if mode == "parts" and (any("kept_region_fnv1a" not in f for f in frames) or
+                if mode in ("parts", "channels") and (any("kept_region_fnv1a" not in f for f in frames) or
                                         len({f["kept_region_fnv1a"] for f in frames}) != 1):
                     raise RuntimeError("unselected part's actual pixels did not stay fixed throughout the process")
                 for index, frame in enumerate(frames):

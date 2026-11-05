@@ -6,7 +6,7 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 4;
+inline constexpr std::uint32_t program_contract_version = 5;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
@@ -174,13 +174,15 @@ struct ProgramLimits {
     std::size_t max_total_parts = 65536, max_total_cubics = 1048576, max_total_effect_parameters = 65536;
     EffectLimits effects;
     std::size_t max_scopes = 1024;
+    std::size_t max_total_property_channels = 65536;
 };
 enum class ProgramError : std::uint8_t {
     unprepared, invalid_limits, empty_program, invalid_snapshot, invalid_source,
     invalid_time, invalid_ease, node_budget, depth_budget, track_budget,
     segment_budget, part_budget, cubic_budget, effect_parameter_budget,
     source_version_mismatch, binding_conflict, animation, effect,
-    invalid_track, output_too_small, unresolved_object, object, scope_budget
+    invalid_track, output_too_small, unresolved_object, object, scope_budget,
+    channel_budget, scope_conflict
 };
 struct ProgramFailure {
     ProgramError code;
@@ -191,15 +193,25 @@ struct ProgramFailure {
     std::size_t scope = invalid_program_index;
 };
 [[nodiscard]] std::string_view program_error_name(ProgramError error) noexcept;
+struct ProgramContribution {
+    std::size_t node = 0;
+    std::string path;
+    seconds start{0};
+    SegmentOptions options;
+};
 struct PreparedSegment {
     std::size_t track = 0, node = 0;
     std::string path;
     seconds start{0};
     SegmentOptions options;
-    PreparedObjectMorph animation;
+    PreparedObjectAnimation animation;
     PreparedEffects effects;
     bool anchor_source = false;
     std::size_t scope = invalid_program_index;
+    // Nonempty only when overlapping property leaves compile to one object
+    // output. Original author nodes/times remain inspectable; clip indices in
+    // animation.channels() address this array, not a rewritten author tree.
+    std::vector<ProgramContribution> contributions;
 };
 // Author preorder; [node, subtree_end) is contiguous. Timing is absolute.
 struct ProgramNodeInfo {
@@ -207,6 +219,7 @@ struct ProgramNodeInfo {
     std::size_t parent = invalid_program_index, subtree_end = 0;
     seconds start{0}, duration{0};
     std::size_t scope = invalid_program_index, track = invalid_program_index, segment = invalid_program_index;
+    std::size_t contribution = invalid_program_index;
 };
 struct PreparedScope {
     std::size_t node = 0, parent = invalid_program_index, depth = 1, parameter_offset = 0;

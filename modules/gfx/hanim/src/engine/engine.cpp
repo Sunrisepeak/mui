@@ -59,7 +59,9 @@ EngineFailure program_failure(ProgramFailure error) noexcept {
         case ProgramError::object: code = EngineError::object; break;
         case ProgramError::node_budget: case ProgramError::depth_budget: case ProgramError::track_budget:
         case ProgramError::segment_budget: case ProgramError::part_budget: case ProgramError::cubic_budget:
-        case ProgramError::effect_parameter_budget: case ProgramError::scope_budget: code = EngineError::capacity; break;
+        case ProgramError::effect_parameter_budget: case ProgramError::scope_budget:
+        case ProgramError::channel_budget: code = EngineError::capacity; break;
+        case ProgramError::scope_conflict: code = EngineError::unsupported_operation; break;
         default: break;
     }
     return {.code = code, .object = error.object, .animation = error.animation, .effect = error.effect, .program = error};
@@ -96,7 +98,8 @@ PlaybackInfo info(const detail::EngineData& data, detail::PlaybackKey key, const
         const auto& current = playback.tracks[0];
         const auto& animation = playback.program.segments()[current.segment].animation;
         result.object = animation.source_object(); result.target = animation.to().object();
-        result.target_revision = animation.to().revision(); result.sample_progress = current.progress;
+        result.target_revision = animation.to().revision();
+        if(animation.channels().empty())result.sample_progress = current.progress;
     }
     return result;
 }
@@ -455,6 +458,10 @@ Status Engine::advance(seconds elapsed) {
 std::expected<PlaybackInfo, EngineFailure> Engine::inspect(PlaybackRef ref) const noexcept {
     const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());
     return info(*data_, {ref.slot, ref.generation}, **playback);
+}
+std::expected<PreparedProgram, EngineFailure> Engine::plan(PlaybackRef ref) const noexcept {
+    const auto playback=resolve(data_.get(),ref);if(!playback)return std::unexpected(playback.error());
+    return (*playback)->program;
 }
 std::expected<EngineFrame, EngineFailure> Engine::frame(PlaybackRef ref) const noexcept {
     const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());

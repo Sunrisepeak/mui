@@ -443,5 +443,162 @@ int main(int argc,char** argv) {
         Buffer output(independent.tracks()[0]);const auto pose=output.sample(independent,0,1).geometry.parts[0];
         check(pose.local.tx==2 && pose.local.rotate==1 && pose.fill->g==1);
     });
+    suite.test("parallel channels keep independent timing and retain the authored contribution graph",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(
+            anim::move_to(f.a,{20,8}).duration(seconds(2)),
+            anim::rotate_to(f.a,std::numbers::pi).duration(seconds(1)).easing(ease::in_quad))));
+        check(plan.tracks().size()==1 && plan.segments().size()==1 && plan.duration()==seconds(2));
+        check(plan.nodes().size()==3 && plan.nodes()[1].contribution==0 && plan.nodes()[2].contribution==1);
+        check(plan.nodes()[1].duration==seconds(2) && plan.nodes()[2].duration==seconds(1));
+        check(plan.segments()[0].contributions.size()==2 && plan.segments()[0].animation.channels().size()==2);
+        Buffer out(plan.tracks()[0]);
+        for(int i=0;i<=120;++i) {
+            const double t=i/60.;const auto value=out.sample(plan,0,t).geometry.parts[0].local;
+            check(std::abs(value.tx-10*t)<1e-12 && std::abs(value.ty-4*t)<1e-12);
+            const auto u=std::min(t,1.);check(std::abs(value.rotate-std::numbers::pi*u*u)<1e-12);
+        }
+        const auto reverse=out.sample(plan,0,.25).geometry.parts[0].local;
+        check(reverse.tx==2.5 && reverse.rotate==std::numbers::pi/16);
+    });
+    suite.test("a serial channel branch chains actual endpoints while another channel remains active",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(
+            sequence(anim::move_to(f.a,{10,0}).duration(seconds(.5)),anim::move_by(f.a,{5,0}).duration(seconds(.5))),
+            anim::rotate_to(f.a,2).duration(seconds(2)))));
+        check(plan.segments().size()==1 && plan.segments()[0].contributions.size()==3);
+        Buffer out(plan.tracks()[0]);
+        check(out.sample(plan,0,.5).geometry.parts[0].local.tx==10);
+        const auto mid=out.sample(plan,0,.75).geometry.parts[0].local;
+        check(mid.tx==12.5 && mid.rotate==.75);
+        const auto late=out.sample(plan,0,1.5).geometry.parts[0].local;
+        check(late.tx==15 && late.rotate==1.5);
+        const auto restore=out.sample(plan,0,2,true).geometry.parts[0].local;
+        check(restore.tx==0 && restore.rotate==0);
+    });
+    suite.test("property groups compose with morph segments and one shared image scope",[] {
+        Fixture f;
+        const auto group=composite(parallel(anim::move_by(f.a,{10,4}),anim::rotate_to(f.a,2))).with_effect(fx::blur(0,4));
+        const auto plan=take(PreparedProgram::prepare(sequence(anim::morph(f.a,f.b),group,anim::morph(f.a,f.c))));
+        check(plan.segments().size()==3 && plan.scopes().size()==1);
+        Buffer out(plan.tracks()[0]);const auto middle=out.sample(plan,0,1.5).geometry.parts[0].local;
+        check(middle.tx==15 && middle.ty==2 && middle.rotate==1);
+        const auto boundary=out.sample(plan,0,2).geometry.parts[0].local;
+        check(boundary.tx==20 && boundary.ty==4 && boundary.rotate==2);
+        const auto end=out.sample(plan,0,3).geometry.parts[0].local;check(end.tx==30 && end.rotate==0);
+        std::array<float,1> fx{};take(plan.sample_scopes(seconds(1.5),fx));check(fx[0]==2);
+    });
+    suite.test("parallel channel conflict scope and budget failures identify the responsible author node",[] {
+        Fixture f;
+        const auto conflict=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}),anim::move_by(f.a,{1,0})));
+        check(!conflict && conflict.error().code==ProgramError::binding_conflict && conflict.error().node==2);
+        check(conflict.error().animation && conflict.error().animation->channel==PropertyChannel::translation);
+        const auto scope=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}).with_effect(fx::blur(0,4)),anim::rotate_to(f.a,1)));
+        check(!scope && scope.error().code==ProgramError::scope_conflict);
+        const auto nested=PreparedProgram::prepare(parallel(composite(anim::move_to(f.a,{10,0})).with_effect(fx::blur(0,4)),anim::rotate_to(f.a,1)));
+        check(!nested && nested.error().code==ProgramError::scope_conflict);
+        const auto reset=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}).source(ProgramSource::snapshot),anim::rotate_to(f.a,1)));
+        check(!reset && reset.error().code==ProgramError::binding_conflict);
+        const auto budget=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}),anim::rotate_to(f.a,1)),{.max_total_property_channels=1});
+        check(!budget && budget.error().code==ProgramError::channel_budget);
+    });
+    suite.test("independent instantaneous writers combine while ambiguous instantaneous ownership is refused",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}).duration(seconds(0)),
+            anim::rotate_to(f.a,2).duration(seconds(0)))));
+        Buffer out(plan.tracks()[0]);const auto pose=out.sample(plan,0,0).geometry.parts[0].local;
+        check(pose.tx==10 && pose.rotate==2);
+        check(out.sample(plan,0,0,true).geometry.parts[0].local.tx==0);
+        const auto rejected=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}).duration(seconds(0)),anim::move_by(f.a,{2,0})));
+        check(!rejected && rejected.error().code==ProgramError::binding_conflict);
+        const auto serial=take(PreparedProgram::prepare(parallel(sequence(anim::move_to(f.a,{10,0}).duration(seconds(0)),
+            anim::move_by(f.a,{2,0})),anim::rotate_to(f.a,2))));
+        Buffer serial_out(serial.tracks()[0]);
+        check(serial_out.sample(serial,0,0).geometry.parts[0].local.tx==10);
+        check(serial_out.sample(serial,0,.5).geometry.parts[0].local.tx==11);
+    });
+    suite.test("channel steps distinguish normal zero-time sampling from exact source restoration",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(
+            anim::move_to(f.a,{20,0}).easing(Ease::stepped(4,StepPosition::jump_start)),anim::rotate_to(f.a,2))));
+        Buffer out(plan.tracks()[0]);
+        check(out.sample(plan,0,0).geometry.parts[0].local.tx==5);
+        check(out.sample(plan,0,-1).geometry.parts[0].local.tx==0);
+        check(out.sample(plan,0,0,true).geometry.parts[0].local.tx==0);
+        const auto delayed=take(PreparedProgram::prepare(stagger(seconds(1),anim::move_to(f.b,{50,0}).duration(seconds(0)),
+            parallel(anim::move_to(f.a,{20,0}).easing(Ease::stepped(4,StepPosition::jump_start)),anim::rotate_to(f.a,2)))));
+        const auto track=delayed.tracks()[0].object==f.ar?0u:1u;Buffer delayed_out(delayed.tracks()[track]);
+        check(delayed_out.sample(delayed,track,.5).geometry.parts[0].local.tx==0);
+        check(delayed_out.sample(delayed,track,1).geometry.parts[0].local.tx==5);
+    });
+    suite.test("channel sampling allocates nothing and preflights every writer before touching output",[] {
+        Fixture f;const auto plan=take(PreparedProgram::prepare(parallel(
+            anim::move_to(f.a,{20,8}).with_effect(fx::translation_path(PointPath::bend(.2))),anim::rotate_to(f.a,2))));
+        Buffer out(plan.tracks()[0]);omui::trace::start();out.sample(plan,0,0);
+        const auto before=allocations.load();bool good=true;
+        for(int i=0;i<1000;++i)good=good && bool(plan.sample(0,seconds((i%197)/196.),{out.parts,out.cubics},out.effects));
+        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        const auto huge=take(PreparedProgram::prepare(parallel(
+            anim::move_to(f.a,{1e308,1e308}).with_effect(fx::translation_path(PointPath::bend(2))),anim::rotate_to(f.a,2))));
+        Buffer failed(huge.tracks()[0]);failed.parts[0].local.tx=99;failed.cubics[0].end.x=77;
+        const auto invalid=huge.sample(0,seconds(.5),{failed.parts,failed.cubics},failed.effects);
+        check(!invalid && failed.parts[0].local.tx==99 && failed.cubics[0].end.x==77);
+    });
+    suite.test("advanced timelines reset only selected source channels without replacing geometry",[] {
+        Fixture f;auto changed=shape(20,true);changed.parts[0].local.rotate=7;changed.parts[0].fill=Rgba{0,0,1,1};
+        take(f.registry.update(f.ar,changed));const auto frozen=take(f.registry.capture(f.ar));
+        const std::array clips{
+            PropertyClip{.targets={{.position=Vec2{10,0}}},.duration=seconds(1)},
+            PropertyClip{.targets={{.offset=Vec2{5,0}}},.start=seconds(1),.duration=seconds(1),.source=frozen},
+            PropertyClip{.targets={{.rotation=2}},.duration=seconds(2)}};
+        const auto timeline=take(PreparedObjectAnimation::property_timeline(f.a,clips));
+        const auto plan=take(PreparedProgram::single(timeline,take(PreparedEffects::prepare({})),{.duration=seconds(2)}));
+        Buffer out(plan.tracks()[0]);const auto reset=out.sample(plan,0,1).geometry;
+        check(reset.parts[0].local.tx==20 && reset.parts[0].local.rotate==1 && reset.parts[0].fill==Rgba{1,0,0,1});
+        const auto middle=out.sample(plan,0,1.5).geometry;
+        check(middle.parts[0].local.tx==22.5 && middle.parts[0].local.rotate==1.5);
+        check(middle.cubics.size()==3,"source channel snapshots do not replace the triangle with their circle geometry");
+    });
+    suite.test("advanced timeline limits and numeric time failures are explicit",[] {
+        Fixture f;
+        const std::array clip{PropertyClip{.targets={{.position=Vec2{1,2},.rotation=1,.scale=Vec2{2,2},.fill=Rgba{0,0,1,1}}}}};
+        const auto budget=PreparedObjectAnimation::property_timeline(f.a,clip,{.max_channels=3});
+        check(!budget && budget.error().code==MorphError::channel_budget && budget.error().channel==PropertyChannel::fill);
+        auto invalid=clip;invalid[0].start=seconds(1e300);
+        check(PreparedObjectAnimation::property_timeline(f.a,invalid).error().code==MorphError::invalid_time);
+        invalid=clip;invalid[0].options.shape.point_path=PointPath::bend(.2);
+        check(PreparedObjectAnimation::property_timeline(f.a,invalid).error().code==MorphError::unsupported_property_effect);
+        invalid=clip;invalid[0].source=Snapshot{};
+        check(PreparedObjectAnimation::property_timeline(f.a,invalid).error().code==MorphError::invalid_snapshot);
+    });
+    suite.test("zero-duration cohorts do not hide an unordered writer behind a serial prefix",[] {
+        Fixture f;
+        const auto bad=PreparedProgram::prepare(parallel(
+            sequence(anim::move_to(f.a,{10,0}).duration(seconds(0)),anim::rotate_to(f.a,2).duration(seconds(0))),
+            anim::move_by(f.a,{1,0}).duration(seconds(0))));
+        check(!bad && bad.error().code==ProgramError::binding_conflict);
+        const auto good=take(PreparedProgram::prepare(sequence(
+            parallel(anim::move_to(f.a,{10,0}).duration(seconds(0)),anim::rotate_to(f.a,2).duration(seconds(0))),
+            anim::morph(f.a,f.b).duration(seconds(0)),
+            parallel(anim::scale_to(f.a,{2,2}).duration(seconds(0)),anim::fill_to(f.a,{0,0,1,1}).duration(seconds(0))))));
+        check(good.segments().size()==3);
+        Buffer out(good.tracks()[0]);const auto final=out.sample(good,0,0).geometry;
+        check(final.parts[0].local.tx==10 && final.parts[0].local.rotate==0 && final.parts[0].local.sx==2);
+        check(final.parts[0].fill==Rgba{0,0,1,1} && final.cubics.size()>3);
+        const auto source=out.sample(good,0,0,true).geometry;
+        check(source.parts[0].local.tx==0 && source.parts[0].local.sx==1 && source.cubics.size()==3);
+    });
+    suite.test("a delayed authored leaf keeps its path when it owns a group's draw order",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(
+            sequence(anim::move_by(f.b,{1,0}),anim::move_to(f.a,{10,0})),anim::rotate_to(f.a,2).duration(seconds(2)))));
+        const auto track=plan.tracks()[0].object==f.ar?0u:1u;
+        const auto& segment=plan.segments()[plan.tracks()[track].first_segment];
+        check(segment.node==3 && segment.path=="0/0/1");
+        check(segment.contributions.size()==2 && segment.contributions[0].node==4 && segment.contributions[1].node==3);
+        Buffer out(plan.tracks()[track]);const auto before=out.sample(plan,track,.5).geometry.parts[0].local;
+        check(before.tx==0 && before.rotate==.5);
+        const auto during=out.sample(plan,track,1.5).geometry.parts[0].local;check(during.tx==5 && during.rotate==1.5);
+    });
     return suite.run(argc,argv);
 }

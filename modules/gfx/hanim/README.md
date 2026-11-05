@@ -9,7 +9,7 @@ layer, using only the standard library and `mlibs.math`.
 |---|---|
 | [hanim.effect](src/effect) / `effect` | Owned ordered parameter plans and reusable effect recipes; backend binding stays optional |
 | [hanim.engine](src/engine) / `engine` | Explicit-clock playback and batch sampling, controls, current-pose retarget and typed queries |
-| [hanim.library](src/library) / `library` | Strict public named-part contour morph plans, caller-owned frames and deep C0 retarget preparation |
+| [hanim.library](src/library) / `library` | Named-part contour morphs, property recipes and independent channel plans, caller-owned frames and deep C0 retarget preparation |
 | [hanim.object](src/object) / `object` | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
 | [hanim.program](src/program) / `program` | Immutable nested bindings compiled into owned object schedules; bounded arbitrary-time sampling without a player |
 | [hanim.render.vector](src/render/vector) / `render-vector` | Optional renderer consumer: current vector frames, shared native material mixing and effects |
@@ -102,9 +102,32 @@ performed. `PreparedObjectMorph::to()` is empty for a computed property target.
 
 This first property domain is the existing closed vector object representation.
 Open contours, arbitrary application channels, cameras and rigs are not yet
-covered. Parallel writers to the same object still conflict even for different
-properties; use `anim::to` for an atomic multi-property change. This is five new
-recipes, not completion of the 40-animation catalog or UI adapter migration.
+covered. For different timings on the same object, compose independent channels:
+
+```cpp
+auto independent = hanim::composite(hanim::parallel(
+    hanim::anim::move_to(card, {120, 40}).duration(600ms),
+    hanim::anim::to(card, {.rotation = std::numbers::pi, .part = "icon"})
+        .duration(250ms).easing(hanim::ease::out_quad)))
+    .with_effect(hanim::fx::blur(0, 2));
+auto playing = hengine.play(independent);
+```
+
+Translation, rotation, scale and fill are distinct channel groups; each part
+has its own channels. Sequence branches can run alongside other channels.
+Overlapping writes to one channel still fail; whole-object morph and explicit
+snapshot-reset bindings remain exclusive. Shared image effects wrap the
+parallel expression; overlapping leaf image effects or different image scopes
+are rejected instead of silently widened or duplicated. Additive blending,
+world-space constraints and complete UI adapter migration remain future work.
+
+The compiler retains author nodes plus `segments().contributions`, and exposes
+prepared channel timing, easing and path metadata. `hengine.plan(playback)`
+returns an immutable plan lease for native tools/Agents, including simple play.
+The advanced library entry is `PreparedObjectAnimation::property_timeline`;
+`PreparedObjectMorph` remains the same compatible type. Its `sample_source`
+restores the exact source, distinct from authored jump-start/instant clips at
+ordinary time zero. New capability is not counted as completing 40 recipes.
 
 ```cpp
 import std;

@@ -122,6 +122,10 @@ public:
     [[nodiscard]] std::expected<void, EngineFailure> release(PlaybackRef);
     [[nodiscard]] std::expected<void, EngineFailure> advance(seconds elapsed);
     [[nodiscard]] std::expected<PlaybackInfo, EngineFailure> inspect(PlaybackRef) const noexcept;
+    // O(1) immutable lease for tools/Agents, including convenience play().
+    // Retaining it preserves author hierarchy and channel metadata after the
+    // playback is released; it does not retain mutable frame buffers.
+    [[nodiscard]] std::expected<PreparedProgram, EngineFailure> plan(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<EngineFrame, EngineFailure> frame(PlaybackRef, std::size_t track) const noexcept;
     [[nodiscard]] std::expected<EngineProgramFrame, EngineFailure> program_frame(PlaybackRef) const noexcept;

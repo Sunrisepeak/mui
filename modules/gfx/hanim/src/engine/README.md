@@ -18,6 +18,13 @@ are rejected and failures preserve existing playbacks. No new clock, automatic
 business-state writes or channel blending is implied. Explicit `composite(...)`
 uses the same player and publishes image-scope parameters with its child frames.
 
+Independent property channels on one object may overlap. The compiler retains
+their author contributions but the player publishes one composed pose, with
+shared geometry buffers and one clock. Each channel keeps its own time/ease;
+`PlaybackInfo::sample_progress` is absent for such a pose. `plan(handle)` returns
+an immutable O(1) lease for native tool/Agent inspection, also after convenience
+play. Retaining that plan does not retain mutable player frame spans.
+
 `Engine::play(object, anim::morph_to(target), effects, options)` captures owned
 endpoints from its registry. External hosts can instead publish two public
 Snapshots to the same player. Sampling never calls a business setter. Every
@@ -53,6 +60,10 @@ and scope-preserving retarget remain future work.
 `retarget(playback, PropertyTargets{...})` uses the same replacement path as
 morph retarget. Relative offsets start at the current pose, and unmodified
 properties remain intact. Neither branch partially publishes failed targets.
+Retarget still replaces the complete single-object playback plan: untouched
+channel values are held at the captured pose; their previous timelines do not
+continue. Selective replacement/continuation of channel schedules is separate
+future work. A shared image scope is still refused by this replacement path.
 Cancelled bindings retain source occupancy until release. Restore bypasses
 easing to sample the exact source. Retargeted noninstant segments anchor time
 zero to the captured pose consistently for initial display and arbitrary seek;
@@ -90,9 +101,10 @@ span. Log callbacks may query committed state, but reentrant mutation is refused
 
 See the [play API composition design](../../../../../.agents/docs/2026-11-04-hanim-play-api-design.md)
 for the target Object/Animation/Effect/Config scopes. The current compiler supports
-nested sequence/parallel/stagger and prior-boundary sources on strict whole-object
-tracks. Same-object overlap is rejected. General channel blending, effect/group
-scopes, complete domains and UI migration remain open.
+nested sequence/parallel/stagger, prior-boundary sources, shared image scopes and
+independent translation/rotation/scale/fill channels. Whole-object morph/reset
+overlap and same-channel overlap remain conflicts. General channel blending,
+resource/device scheduling, complete domains and UI migration remain open.
 
 The [external CLI consumer](../../../../../tools/ci/hanim-play-consumer/README.md)
 uses these public operations and the optional renderer without UI/window

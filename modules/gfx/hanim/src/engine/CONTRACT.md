@@ -1,20 +1,22 @@
-# Playback contract: strict morph programs and explicit image scopes
+# Playback contract: object animations, property channels and image scopes
 
 This implementation contract covers owned endpoints, explicit relative time,
-strict morph/effect segments, nested Program schedules and common lifecycle.
-General typed channels and device/resource composition remain implementation work.
+strict morph/effect segments, independent 2D property channels, nested Program
+schedules and common lifecycle. Arbitrary typed channels, channel blending and
+device/resource composition remain implementation work.
 
 | Operation | Observable behavior |
 |---|---|
 | play | Normalize the single-object form to PreparedProgram::single, or accept a frozen compiled Program. Prepare two frame buffers per track before consuming a slot. Resolve ObjectRefs at preparation; accept external Snapshots through the same player. Every logical source track is exclusively occupied until release. |
 | advance | Validate nonnegative finite elapsed time, stage every active playback, publish only if the whole batch samples successfully. Failure consumes no elapsed time and preserves all visible poses/effects. This is owning-thread failure atomicity, not GPU/physics/business rollback. |
 | pause/resume | Change running intent without moving the frame. A finished directional endpoint remains finished until seek or reverse makes it active. |
-| seek/seek_progress | Clamp finite local time/linear progress; preserve pause intent. Inspection reports both linear and sampled progress. Invalid values preserve visible state. |
+| seek/seek_progress | Clamp finite local time/linear progress; preserve pause intent. Inspection reports linear progress, and sampled progress when one eased value describes the output. A compiled property timeline omits that single value; its channels retain their own times/curves. Invalid values preserve visible state. |
 | reverse/rate | Finite nonzero rate controls direction and speed. Reverse at a finished forward endpoint enables backward playback. Large finite elapsed/rate values saturate before multiplication overflow. |
-| retarget | For one track, deep-prepare the actual current phase as new source, replacing a sequence if present. Preserve active effect values/targets and pause intent; begin a forward segment with the old speed magnitude. Multi-track-to-one-target replacement is explicitly unsupported. New plan revision invalidates old renderer bindings. Failure preserves prior state/budgets. |
+| retarget | For one track, deep-prepare the actual complete current pose as new source, replacing the old plan. Property targets preserve unselected current values; unselected old schedules do not continue. Preserve active effect values/targets and pause intent; begin a forward segment with the old speed magnitude. Multi-track-to-one-target replacement is explicitly unsupported. New plan revision invalidates old renderer bindings. Failure preserves prior state/budgets. |
 | cancel | Hold retains current pose; restore samples the exact segment source, bypassing easing. No business state is undone. Both retain source occupancy/resources until release; cancelled playbacks cannot resume/seek. |
 | release | Free retained buffers/plans, return cardinality quota and invalidate the playback generation. Other handles are unaffected. |
-| inspect/frame/list | Read committed native state without resampling or formatting logs. Inspect has global time and counts; sampled progress/object/target exist for one track only. frame(ref,index) identifies the active segment; frame(ref) refuses ambiguous multiple tracks. Too-small list output is rejected before writing. Borrowed spans/pointers expire at the next Engine mutation or destruction. |
+| inspect/frame/list | Read committed native state without resampling or formatting logs. Inspect has global time and counts; object/target exist for one track only, with sampled progress subject to the condition above. frame(ref,index) identifies the active segment; frame(ref) refuses ambiguous multiple tracks. Too-small list output is rejected before writing. Borrowed spans/pointers expire at the next Engine mutation or destruction. |
+| plan | Return an O(1) immutable PreparedProgram lease, including after convenience play. It exposes author hierarchy, original contributions, property-channel timing/easing/paths and image scopes. A retained lease survives retarget/release; querying a stale playback is refused. The lease owns no mutable frame buffers. |
 
 Zero duration samples the target immediately. For retargeted noninstant
 segments, time zero is persistently anchored to the captured source, including

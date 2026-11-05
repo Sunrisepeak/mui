@@ -204,5 +204,45 @@ int main(int argc,char** argv) {
         }
         const auto after=allocations.load();(void)omui::trace::stop();check(good && before==after);
     });
+    suite.test("independent channels render one object under one shared image scope",[] {
+        Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
+            anim::move_by(f.a,{20,0}).duration(seconds(2)),anim::scale_to(f.a,{1.2,1.2}).duration(seconds(1))))
+            .with_effect(fx::blur(0,4))));
+        const auto playback=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));
+        Storage storage(renderer.requirements());
+        for(double time:{0.,.25,.5,.75,1.,1.5,2.}) {
+            take(f.engine.seek(playback,seconds(time)));render::DisplayList actual;
+            take(renderer.record(take(f.engine.program_frame(playback)).scene,actual,storage.get()));
+            Fixture reference;const double scale=lerp(1.,1.2,std::min(time,1.));
+            const float radius=static_cast<float>(time*2);
+            const auto expected_plan=take(reference.engine.prepare(composite(anim::to(reference.a,
+                {.position=Vec2{16+10*time,16},.scale=Vec2{scale,scale}}).duration(seconds(0)))
+                .with_effect(fx::blur(radius,radius))));
+            const auto expected_play=take(reference.engine.play(expected_plan));
+            const auto expected_renderer=take(PreparedVectorProgram::bind(expected_plan));
+            Storage expected_storage(expected_renderer.requirements());render::DisplayList expected;
+            take(expected_renderer.record(take(reference.engine.program_frame(expected_play)).scene,expected,expected_storage.get()));
+            check(layers(actual)==1 && draw(actual).hash()==draw(expected).hash(),
+                "the composed pose and one blur match an independently authored endpoint, including translucent fill");
+        }
+    });
+    suite.test("independent channel playback and scoped recording remain allocation free after preparation",[] {
+        Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
+            anim::move_by(f.a,{20,0}).duration(seconds(2)),anim::rotate_to(f.a,.4).duration(seconds(1))))
+            .with_effect(fx::blur(0,4))));
+        const auto playback=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));
+        Storage storage(renderer.requirements());render::DisplayList output;omui::trace::start();
+        for(int i=0;i<16;++i) {
+            take(f.engine.seek_progress(playback,i/15.));output.clear();
+            take(renderer.record(take(f.engine.program_frame(playback)).scene,output,storage.get()));
+        }
+        const auto before=allocations.load();bool good=true;
+        for(int i=0;i<512;++i) {
+            good &= f.engine.seek_progress(playback,(i%97)/96.).has_value();
+            const auto frame=f.engine.program_frame(playback);output.clear();
+            good &= frame.has_value() && renderer.record(frame->scene,output,storage.get()).has_value();
+        }
+        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+    });
     return suite.run(argc,argv);
 }

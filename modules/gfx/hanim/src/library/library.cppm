@@ -29,12 +29,35 @@ struct PropertyTargets {
 // One atomic animation may target several parts and independent properties.
 // Duplicate writes to a part/channel are errors, never implicit last-wins.
 using PropertySet = std::vector<PropertyTargets>;
+enum class PropertyChannel : std::uint8_t { translation, rotation, scale, fill };
+[[nodiscard]] std::string_view property_channel_name(PropertyChannel) noexcept;
+struct PropertyClip {
+    PropertySet targets;
+    seconds start{0}, duration{1};
+    Ease easing = ease::linear;
+    MorphOptions options;
+    // Omitted: derive this clip from the actual prior channel output. An
+    // explicit snapshot supplies only the selected local source properties.
+    std::optional<Snapshot> source;
+    bool anchor_source = false;
+};
+struct PropertyTimelineLimits { std::size_t max_clips = 4096, max_channels = 65536; };
+struct PropertyChannelInfo {
+    std::size_t part = 0, clip = 0;
+    PropertyChannel channel = PropertyChannel::translation;
+    seconds start{0}, duration{0};
+    bool anchor_source = false;
+    Ease easing = ease::linear;
+    PointPath translation_path;
+    bool source_snapshot = false;
+};
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
     part_budget, contour_budget, cubic_budget, part_set_mismatch,
     hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
     missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
-    output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict
+    output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict,
+    invalid_time, invalid_ease, channel_budget, unsupported_property_effect
 };
 [[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
 struct MorphFailure {
@@ -42,6 +65,8 @@ struct MorphFailure {
     std::size_t part = std::numeric_limits<std::size_t>::max();
     std::size_t contour = std::numeric_limits<std::size_t>::max();
     std::optional<ShapeMorphError> shape;
+    std::size_t clip = std::numeric_limits<std::size_t>::max();
+    std::optional<PropertyChannel> channel;
 };
 struct MorphPartInfo {
     std::string_view id;
@@ -97,6 +122,16 @@ public:
         properties(Snapshot from, std::span<const PropertyTargets>, MorphOptions options = {});
     [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
         properties(FrameView current, std::span<const PropertyTargets>, MorphOptions options = {});
+    // Pure prepared property tracks with independent timing. Input order
+    // explicitly orders zero-duration writes at a shared start. Positive
+    // overlap on one part/channel is rejected; geometry stays unchanged.
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        property_timeline(Snapshot from, std::span<const PropertyClip>, PropertyTimelineLimits limits = {});
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        property_timeline(FrameView current, std::span<const PropertyClip>, PropertyTimelineLimits limits = {});
+    [[nodiscard]] std::span<const PropertyChannelInfo> channels() const & noexcept;
+    std::span<const PropertyChannelInfo> channels() const && = delete;
+    [[nodiscard]] seconds timeline_duration() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] FrameRequirements requirements() const noexcept;
     [[nodiscard]] std::span<const MorphPartInfo> parts() const & noexcept;
@@ -113,12 +148,19 @@ public:
     // Finite progress clamps uniformly to [0,1]. All returned failures occur
     // before touching output. No matching/allocation/mutable sampling cache.
     [[nodiscard]] std::expected<FrameView, MorphFailure> sample(double progress, FrameBuffer output) const noexcept;
+    // Restore bypasses every channel curve, including instantaneous / jump-
+    // start clips. Ordinary sample(0) still follows their authored semantics.
+    [[nodiscard]] std::expected<FrameView, MorphFailure> sample_source(FrameBuffer output) const noexcept;
 private:
+    [[nodiscard]] std::expected<FrameView, MorphFailure> sample_at(double, FrameBuffer, bool exact_source) const noexcept;
     Snapshot from_, to_;
     ObjectRef source_;
     std::uint64_t revision_ = 0;
     std::shared_ptr<const detail::ObjectMorphData> data_;
 };
+// Canonical name covers morph, property recipes and prepared channel timelines;
+// the original name remains the same type for source compatibility.
+using PreparedObjectAnimation = PreparedObjectMorph;
 
 namespace anim {
 struct MorphTo { ObjectRef target; MorphOptions options; };

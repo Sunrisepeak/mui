@@ -22,6 +22,32 @@ depend on another entry. Unselected local fields persist; parent inheritance
 still applies. This contract does not claim world-space constraints or channel
 blending between separate overlapping Program leaves.
 
+## Prepared property timelines
+
+`PreparedObjectAnimation` is the canonical alias of the original prepared type.
+`property_timeline(snapshot_or_frame, clips, limits)` retains one unchanged
+geometry representation and independent part/channel segments. Source limits
+are the intersection of the clip limits; shape correspondence direction/phase
+is irrelevant for unchanged geometry. Vertex-path effects are explicitly
+unsupported in this timeline form; each translation channel keeps its own path.
+
+Clips have independent start, duration and easing. Unspecified source fields
+come from the actual preceding writer of that channel; an explicit library
+`PropertyClip::source` supplies only selected local source fields, not its
+geometry. This advanced local-source option is distinct from ProgramSource's
+legacy whole-object snapshot reset. Repeated channel writes may be serial but
+not overlap. Input order explicitly orders instantaneous ties in this flat
+library form; Program additionally checks its author dependency graph.
+
+Preparation validates finite representable intervals, source fields, duplicate
+writes and channel count, then indexes each channel's ordered segments.
+`channels()` exposes immutable timing/easing/path/source metadata; a clip index
+refers to its input description (or Program contribution). `timeline_duration()`
+is the maximum clip end. `sample(progress)` maps normalized progress to that
+duration; `sample_source` bypasses every event/curve for exact restoration.
+Sampling checks all active values before publishing any part or cubic. No
+mutable history, callback or allocation is used to seek backwards.
+
 The plan is immutable and O(1) copyable. `prepare` owns both endpoint snapshots
 and a shared immutable payload of copied ids, endpoint states, contour plans
 and ranges. Canonical order is source-root-first DFS in the source's existing

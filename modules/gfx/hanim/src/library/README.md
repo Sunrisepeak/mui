@@ -30,8 +30,12 @@ if (plan) {
 
 `anim::morph_to(target_ref, options)` is a descriptor for a caller's Engine;
 it starts no clock, modifies no registry and resolves no target by itself.
-The single recipe here does not constitute 40 designs, a complete animation
-catalog, an Engine, a clip graph, pixel transport or arbitrary topology support.
+The library also prepares property targets and independent property timelines.
+The canonical prepared type is `PreparedObjectAnimation` (the same type as the
+compatible `PreparedObjectMorph`). Timelines retain one source geometry and
+indexed translation/rotation/scale/fill channel segments; arbitrary-time sampling
+does not replay history. These recipes do not constitute 40 designs, a complete
+animation catalog, pixel transport or arbitrary topology support.
 See [CONTRACT.md](CONTRACT.md) for the strict capability and lifetime contract.
 
 

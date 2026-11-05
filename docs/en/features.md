@@ -46,6 +46,27 @@ be passed to `hengine.play(animation)` or prepared once with
 explicit snapshots stay frozen. The same player supports seek, pause, reverse
 and current-pose retargeting without changing the application's business state.
 
+Common property recipes include `move_to`, `move_by`, `rotate_to`, `scale_to`
+and `fill_to`. `anim::to(object, PropertySet{...})` selects several parts and
+properties with one timing. Separate leaves can animate independent channels
+of the same object with different timings. Here `card` is an HObject with a
+part whose stable id is `icon`:
+
+```cpp
+auto animation = hanim::composite(hanim::parallel(
+    hanim::anim::move_to(card, {120, 40}).duration(600ms),
+    hanim::anim::to(card, {.rotation = std::numbers::pi, .part = "icon"})
+        .duration(250ms).easing(hanim::ease::out_quad)))
+    .with_effect(hanim::fx::blur(0, 2));
+auto playback = hengine.play(animation);
+```
+
+The object is drawn once. Unselected local properties retain their values;
+parent transforms still apply. Overlapping writes to the same channel are
+reported as conflicts. Shared image effects wrap the parallel expression;
+different image scopes are not silently merged. Native tools and Agents can
+inspect the retained author graph and channel timing through `hengine.plan`.
+
 Typed `fx::vertex_path(PointPath::bend(0.25))` and `fx::translation_path(...)`
 modify matched geometry or local positions before rendering. They can be
 combined with blur/tone, preserve endpoints, and share the core point operator
@@ -70,13 +91,14 @@ or hit contours. Reduced transitions omit this displacement.
 dev/release; a separate consumer uses the shared CPU renderer for actual pixels
 and region exports. Rendering is opt-in; the base `hanim.core` stays independent.
 
-**Next**: general property/channel mixing, group effect scopes, image/pixel/rig
-domains and broader UI integration. Current UI motion primarily uses core primitives;
+**Next**: additive/weighted channel mixing, world-space constraints, shared
+geometry conversions, 3D/image/rig domains and configurable UI integration.
+Nested image scopes and independent 2D property channels are available; current UI motion primarily uses core primitives;
 the website's scene count is not a count of public engine recipes.
 
 ## 6. Rendering: a CPU reference and a GPU path; effects first-class
 
-**What**: one renderer. The CPU backend is the deterministic reference; the GPU backend runs on `omui.rhi` within stated tolerances of it. Custom effects are Slang (a reload in about 50 ms); backdrop effects such as liquid glass are a general capability; style packs change the look and leave the semantic tree as it is.
+**What**: one renderer. The CPU backend is the deterministic reference; the GPU backend runs on `mlibs.rhi` within stated tolerances of it. Custom effects are Slang (a reload in about 50 ms); backdrop effects such as liquid glass are a general capability; style packs change the look and leave the semantic tree as it is.
 
 **Evidence**: GPU tests against the CPU reference, scene by scene; the benchmark report (`docs/en/benchmarks/`, 2026-10-27) — on an RTX 4080 the five style packs take 0.36–1.38 ms a frame at p95 (the runtime's frame and the GPU's, submitted and waited for), ten liquid-glass panels at 1080p 1.61 ms.
 

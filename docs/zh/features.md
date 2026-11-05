@@ -42,6 +42,19 @@
 
 **已有能力**：`import hanim;` 提供对象、可复用的严格轮廓形变、按序效果参数、sequence/parallel/stagger与显式时钟Engine。`hanim::anim::morph(source, target).duration(600ms)`这样的叶子可直接交给 `hengine.play(animation)`，或通过 `hengine.prepare(animation)`准备后复用。实时引用在准备时捕获，显式快照保持冻结；同一播放器支持跳转、暂停、倒放和从当前姿态重定向，不替应用修改业务状态。
 
+常见属性配方有 `move_to`、`move_by`、`rotate_to`、`scale_to` 和 `fill_to`。`anim::to(object, PropertySet{...})` 可在同一时序中选择多个部件／属性；不同叶子则可为同一对象的独立通道使用不同时间和曲线。下面的 `card` 是含有稳定部件 ID `icon` 的 HObject：
+
+```cpp
+auto animation = hanim::composite(hanim::parallel(
+    hanim::anim::move_to(card, {120, 40}).duration(600ms),
+    hanim::anim::to(card, {.rotation = std::numbers::pi, .part = "icon"})
+        .duration(250ms).easing(hanim::ease::out_quad)))
+    .with_effect(hanim::fx::blur(0, 2));
+auto playback = hengine.play(animation);
+```
+
+同一对象只绘制一次，未选择的局部属性保持，父级变换仍会作用。相同通道的重叠写入会报告冲突；共用图像效果包围并行表达式，不静默合并不同效果作用域。原生工具和 Agent 可以通过 `hengine.plan` 查询保留的原始编排及通道时间。
+
 类型化的 `fx::vertex_path(PointPath::bend(0.25))` 和 `fx::translation_path(...)` 在渲染前改变匹配后的几何或局部位置轨迹，可与模糊／色调组合，保留端点。C++ UI路径adapter复用同一个core算子；重复的路径修饰在同一端点坐标系中叠加位移，不修改匹配规则。
 
 UI动效通过普通配置使用同一算子：
@@ -56,11 +69,11 @@ drawing.prop("motion", Source(motion));
 
 **证据**：独立公共消费者在dev/release验证几何与控制；另一个消费者通过共享CPU renderer输出真实像素和指定区域。渲染显式选用，基础 `hanim.core` 保持独立。
 
-**待完成**：通用属性／通道混合、组合效果作用域、图像／像素／骨骼域与更广的UI接入。当前UI动效主要使用core原语；官网场景数量不等于公共引擎配方数量。
+**待完成**：通道加法／权重混合、世界空间约束、共享几何转换、3D／图像／骨骼域和配置式 UI 接入。嵌套图像作用域及独立的 2D 属性通道已可用；当前 UI 动效主要使用 core 原语，官网场景数量不等于公共引擎配方数量。
 
 ## 6. 渲染：CPU 参考 + GPU，效果是一等公民
 
-**是什么**：渲染器只写一次。CPU 参考后端是确定性的基准，GPU 后端基于 `omui.rhi`，与 CPU 的差别有明确的容差。自定义效果用 Slang 写，热重载约 50ms；液态玻璃等背景效果是通用能力；风格包切换外观，语义树不变。
+**是什么**：渲染器只写一次。CPU 参考后端是确定性的基准，GPU 后端基于 `mlibs.rhi`，与 CPU 的差别有明确的容差。自定义效果用 Slang 写，热重载约 50ms；液态玻璃等背景效果是通用能力；风格包切换外观，语义树不变。
 
 **证据**：GPU 测试逐场景对比 CPU 参考；基准报告（`docs/zh/benchmarks/`，2026-10-27）：RTX 4080 上五种风格每帧 p95 0.36–1.38ms（运行时一帧加 GPU 提交并等待完成），1080p 十块液态玻璃 1.61ms。
 

@@ -21,7 +21,7 @@ struct Options {
     double bend = 0;
     int width = 320, height = 240;
     std::array<int,4> region{0,0,320,240};
-    bool cropped = false, retarget = false, agent_review = false, deny_capture = false, properties = false, parts = false;
+    bool cropped = false, retarget = false, agent_review = false, deny_capture = false, properties = false, parts = false, channels = false;
     std::string output;
 };
 int fail(std::string_view message,int code=1) {
@@ -49,6 +49,7 @@ std::optional<Options> parse(int argc,char** argv) {
         if(key=="--retarget") {options.retarget=true;continue;}
         if(key=="--properties") {options.properties=true;continue;}
         if(key=="--parts") {options.parts=true;continue;}
+        if(key=="--channels") {options.channels=true;continue;}
         if(key=="--agent-review") {options.agent_review=true;continue;}
         if(key=="--agent-deny-capture") {options.deny_capture=true;continue;}
         if(i+1==argc)return {};
@@ -63,8 +64,8 @@ std::optional<Options> parse(int argc,char** argv) {
         } else return {};
     }
     if(options.deny_capture && !options.agent_review)return {};
-    if((options.properties || options.parts) && options.retarget)return {}; // separate property retarget contract is tested by the API probe
-    if(options.properties && options.parts)return {};
+    if((options.properties || options.parts || options.channels) && options.retarget)return {}; // separate property retarget contract is tested by the API probe
+    if(int(options.properties)+int(options.parts)+int(options.channels)>1)return {};
     if(!options.cropped)options.region={0,0,options.width,options.height};
     const auto [x,y,w,h]=options.region;
     if(!std::isfinite(options.time) || options.time<0 || options.time>1 || !std::isfinite(options.bend) ||
@@ -127,7 +128,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
             {"sample_time_seconds",info->position.count()},{"plan_revision",info->plan_revision},
             {"target_revision",info->target_revision},{"pixel_fnv1a",std::format("{:016x}",pixels.hash())},
             {"png",options.output+suffix}});
-        if(options.parts) {
+        if(options.parts || options.channels) {
             omui::hash::Fnv1a hash;
             const int cx=static_cast<int>(options.width*.85),cy=static_cast<int>(options.height*.14);
             for(int y=std::max(0,cy-12);y<std::min(options.height,cy+12);++y)
@@ -180,7 +181,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
 
 int main(int argc,char** argv) {
     const auto parsed=parse(argc,argv);
-    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties | --parts] [--agent-review] [--agent-deny-capture]",2);
+    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties | --parts | --channels] [--agent-review] [--agent-deny-capture]",2);
     const auto& options=*parsed;
     auto made=Engine::make();if(!made)return fail("Engine::make");
     auto engine=std::move(*made);
@@ -214,24 +215,30 @@ int main(int argc,char** argv) {
     if(!engine.reverse(*instance) || !engine.resume(*instance) || !engine.advance(seconds(.5)) ||
        engine.inspect(*instance)->position!=seconds(1) || !engine.cancel(*instance,CancelMode::restore) || !engine.release(*instance))
         return fail("program reverse/restore/release");
-    if(options.parts) {
+    if(options.parts || options.channels) {
         ObjectDescription group{{{.id="group"},
             {.id="left",.parent="group",.local={.tx=options.width*.25,.ty=options.height*.45,.sx=25,.sy=25},.contours={*triangle},.fill=Rgba{1,.25f,.1f,1}},
             {.id="right",.parent="group",.local={.tx=options.width*.7,.ty=options.height*.55,.sx=28,.sy=28},.contours={*triangle},.fill=Rgba{.8f,.6f,.1f,1}},
             {.id="badge",.parent="group",.local={.tx=options.width*.85,.ty=options.height*.14,.sx=8,.sy=8},.contours={*triangle},.fill=Rgba{.2f,.9f,.4f,1}}}};
         source=engine.create_object(group);if(!source)return fail("selected-part object creation");
     }
-    auto animation=options.parts ? anim::to(*source,PropertySet{
+    auto animation=(options.parts || options.channels) ? anim::to(*source,PropertySet{
         {.position=Vec2{options.width*.42,options.height*.58},.part="left"},
         {.rotation=std::numbers::pi,.part="right"}, {.fill=Rgba{.1f,.6f,1,1},.part="right"}})
         : options.properties ? anim::to(*source,{.position=Vec2{options.width*.66,options.height*.5},
         .rotation=std::numbers::pi,.scale=Vec2{options.height*.19,options.height*.19},.fill=Rgba{.1f,.6f,1,1}})
         : anim::morph(*source,*target);
     animation=animation.duration(seconds(1)).easing(ease::linear);
-    if(options.properties || options.parts)animation=animation.with_effect(fx::translation_path(PointPath::bend(options.bend)));
+    if(options.properties || options.parts || options.channels)animation=animation.with_effect(fx::translation_path(PointPath::bend(options.bend)));
     else animation=animation.with_effect(fx::vertex_path(PointPath::bend(options.bend)));
-    if(!options.parts)for(const auto& effect:effects)animation=animation.with_effect(effect);
-    const auto played=engine.play(animation);
+    if(!options.parts && !options.channels)for(const auto& effect:effects)animation=animation.with_effect(effect);
+    const Program program=options.channels?parallel(
+        anim::to(*source,{.position=Vec2{options.width*.42,options.height*.58},.part="left"}).duration(seconds(1))
+            .easing(ease::in_out_cubic).with_effect(fx::translation_path(PointPath::bend(options.bend))),
+        sequence(anim::to(*source,{.rotation=std::numbers::pi,.part="right"}).duration(seconds(.5)).easing(ease::out_quad),
+                 anim::to(*source,{.rotation=2*std::numbers::pi,.part="right"}).duration(seconds(.5)).easing(ease::in_quad)),
+        anim::to(*source,{.fill=Rgba{.1f,.6f,1,1},.part="right"}).duration(seconds(.75))) : Program(animation);
+    const auto played=engine.play(program);
     if(!played)return fail("Engine::play");
     // Execute real controls, then explicitly select the requested output time.
     if(!engine.pause(*played) || !engine.advance(seconds{.1}))return fail("pause/advance");
@@ -340,7 +347,7 @@ int main(int argc,char** argv) {
     const auto output=mcpplibs::os::fs::from_utf8(options.output);
     const auto write=mcpplibs::os::fs::write_atomic(output,std::string_view(reinterpret_cast<const char*>(encoded->data()),encoded->size()));
     if(!write)return fail(write.error().message());
-    Json result{{"kind","hanim.play-consumer"},{"ok",true},{"fixture",options.parts?"selected-parts":options.properties?"triangle-properties":"triangle-circle"},
+    Json result{{"kind","hanim.play-consumer"},{"ok",true},{"fixture",options.channels?"independent-channels":options.parts?"selected-parts":options.properties?"triangle-properties":"triangle-circle"},
         {"source",object(*source)},{"initial_target",object(*target)},{"target",object(frame->info.target)},
         {"requested_time_seconds",options.time},{"sample_time_seconds",frame->info.position.count()},
         {"duration_seconds",frame->info.duration.count()},{"sample_progress",frame->info.sample_progress?Json(*frame->info.sample_progress):Json(nullptr)},{"playback_state",frame->info.state==PlaybackState::paused?"paused":"other"},{"playback_rate",frame->info.rate},
@@ -349,11 +356,21 @@ int main(int argc,char** argv) {
         {"backend","cpu-reference"},{"output",options.output},{"png_bytes",encoded->size()},
         {"pixel_fnv1a",pixel_hash.hex()},{"visible_pixels",visible},{"crop_roundtrip_max_u8",crop_delta},
         {"parts",frame->geometry.parts.size()},{"contours",frame->geometry.contours.size()},{"cubics",frame->geometry.cubics.size()},
-        {"effects",options.parts?Json::array():Json::array({"blur","tone"})},{"controls",{{"pause_holds",true},{"reverse_moves_backwards",true},{"seek",true},
+        {"effects",(options.parts || options.channels)?Json::array():Json::array({"blur","tone"})},{"controls",{{"pause_holds",true},{"reverse_moves_backwards",true},{"seek",true},
             {"retarget",options.retarget},{"retarget_from_seconds",options.retarget?.7:0},{"retarget_pixel_max_u8",continuity_max},{"retarget_coverage_max_u8",coverage_max},
             {"retarget_coverage_off_boundary",coverage_off_boundary},{"retarget_styled_off_boundary",styled_off_boundary},
             {"retarget_coverage_total_u8",coverage_sum}}}};
-    result[(options.properties || options.parts)?"translation_path":"vertex_path"]={{"stage","after-correspondence"},{"space","endpoint-chord"},{"bend",options.bend}};
+    result[(options.properties || options.parts || options.channels)?"translation_path":"vertex_path"]={{"stage","after-correspondence"},{"space","endpoint-chord"},{"bend",options.bend}};
+    if(options.channels) {
+        result["channels"]=Json::array();
+        for(const auto& channel:frame->animation->channels())result["channels"].push_back({
+            {"part",std::string(frame->animation->parts()[channel.part].id)}, {"channel",std::string(property_channel_name(channel.channel))},
+            {"clip",channel.clip},{"start",channel.start.count()},{"duration",channel.duration.count()},
+            {"ease_kind",static_cast<unsigned>(channel.easing.kind)},{"ease_parameters",channel.easing.p},
+            {"path_control1",Json::array({channel.translation_path.control1.x,channel.translation_path.control1.y})},
+            {"path_control2",Json::array({channel.translation_path.control2.x,channel.translation_path.control2.y})},
+            {"anchor_source",channel.anchor_source},{"source_snapshot",channel.source_snapshot}});
+    }
     if(options.agent_review)result["agent_review"]=std::move(agent_review);
     const auto provenance=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+".provenance.omui.json"),result.dump(2)+"\n");
     if(!provenance)return fail(provenance.error().message());

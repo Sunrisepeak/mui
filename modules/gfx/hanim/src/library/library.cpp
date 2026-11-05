@@ -7,6 +7,9 @@ import openmui.trace;
 
 namespace hanim::detail {
 struct MorphEndpoints { Transform2D from, to; std::optional<Rgba> from_fill, to_fill; };
+struct PropertyValue { Vec2 vector; double scalar = 0; Rgba color; };
+struct PropertyEndpoints { PropertyValue from, to; };
+struct ChannelRun { std::size_t first=0, count=0; };
 struct ObjectMorphData {
     std::vector<std::string> ids;
     std::vector<MorphPartInfo> parts;
@@ -16,6 +19,10 @@ struct ObjectMorphData {
     std::vector<ShapeCubic> static_cubics;
     std::size_t cubic_count = 0;
     PointPath translation_path;
+    std::vector<PropertyChannelInfo> channels;
+    std::vector<PropertyEndpoints> channel_values;
+    std::vector<ChannelRun> channel_runs;
+    seconds timeline_duration{0};
 };
 }
 namespace hanim {
@@ -52,6 +59,93 @@ struct PartInput {
     std::vector<CurveInput> contours;
 };
 struct Input { std::vector<PartInput> parts; };
+struct PartPose { Transform2D local; std::optional<Rgba> fill; };
+struct PropertyIndex {
+    const Input& input;
+    std::vector<std::size_t> names;
+    std::size_t root=none;
+    explicit PropertyIndex(const Input& value):input(value),names(value.parts.size()) {
+        std::iota(names.begin(),names.end(),std::size_t{0});
+        std::ranges::sort(names,[&](auto a,auto b){return input.parts[a].id<input.parts[b].id;});
+        for(std::size_t i=0;i<input.parts.size();++i)if(input.parts[i].parent==invalid_object_slot)root=i;
+    }
+    std::size_t find(std::string_view id) const {
+        if(id.empty())return root;
+        const auto found=std::ranges::lower_bound(names,id,{},[&](auto i)->std::string_view{return input.parts[i].id;});
+        return found!=names.end() && input.parts[*found].id==id?*found:none;
+    }
+};
+struct PropertyWrite { std::size_t part; std::uint8_t mask; const PropertyTargets* target; };
+std::expected<std::vector<PropertyWrite>,MorphFailure> resolve_properties(
+    const PropertyIndex& index,std::span<const PropertyTargets> targets) {
+    if(targets.empty() || targets.size()>index.input.parts.size()*4)
+        return std::unexpected(failure(MorphError::invalid_property));
+    std::vector<std::uint8_t> masks(index.input.parts.size(),0);
+    std::vector<PropertyWrite> writes;writes.reserve(targets.size());
+    for(const auto& values:targets) {
+        if((values.position && values.offset) ||
+            (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
+            return std::unexpected(failure(MorphError::invalid_property));
+        const auto part=index.find(values.part);
+        if(part==none)return std::unexpected(failure(MorphError::unknown_part));
+        const auto mask=static_cast<std::uint8_t>((values.position || values.offset?1:0) |
+            (values.rotation?2:0) | (values.scale?4:0) | (values.fill?8:0));
+        if(masks[part]&mask)return std::unexpected(failure(MorphError::property_conflict,part));
+        masks[part]|=mask;writes.push_back({part,mask,&values});
+    }
+    return writes;
+}
+std::expected<PartPose,MorphFailure> apply_property(PartPose pose,const PropertyTargets& values,std::size_t part) {
+    if(values.position){pose.local.tx=values.position->x;pose.local.ty=values.position->y;}
+    if(values.offset){pose.local.tx+=values.offset->x;pose.local.ty+=values.offset->y;}
+    if(values.rotation)pose.local.rotate=*values.rotation;
+    if(values.scale){pose.local.sx=values.scale->x;pose.local.sy=values.scale->y;}
+    if(values.fill) {
+        if(!pose.fill)return std::unexpected(failure(MorphError::missing_fill,part));
+        pose.fill=*values.fill;
+    }
+    if(!finite(pose.local) || !valid(pose.fill))return std::unexpected(failure(MorphError::invalid_property,part));
+    return pose;
+}
+detail::PropertyValue property_value(PartPose pose,PropertyChannel channel) {
+    switch(channel) {
+        case PropertyChannel::translation:return {.vector={pose.local.tx,pose.local.ty}};
+        case PropertyChannel::rotation:return {.scalar=pose.local.rotate};
+        case PropertyChannel::scale:return {.vector={pose.local.sx,pose.local.sy}};
+        case PropertyChannel::fill:return {.color=*pose.fill};
+    }return {};
+}
+void assign_property(Transform2D& local,std::optional<Rgba>& fill,PropertyChannel channel,const detail::PropertyValue& value) {
+    switch(channel) {
+        case PropertyChannel::translation:local.tx=value.vector.x;local.ty=value.vector.y;break;
+        case PropertyChannel::rotation:local.rotate=value.scalar;break;
+        case PropertyChannel::scale:local.sx=value.vector.x;local.sy=value.vector.y;break;
+        case PropertyChannel::fill:fill=value.color;break;
+    }
+}
+MorphFailure channel_failure(MorphError code,const PropertyChannelInfo& info) {
+    auto error=failure(code,info.part);error.clip=info.clip;error.channel=info.channel;return error;
+}
+std::expected<detail::PropertyValue,MorphFailure> sample_channel(
+    const PropertyChannelInfo& info,const detail::PropertyEndpoints& values,seconds time) {
+    if(time<info.start || (info.anchor_source && info.duration.count()>0 && time==info.start))return values.from;
+    const auto linear=info.duration.count()==0?1:Tween<double>{.from=0,.to=1,.duration=info.duration,
+        .ease=ease::linear,.delay=info.start}.value(time);
+    const auto eased=info.easing(linear);
+    if(!std::isfinite(eased))return std::unexpected(channel_failure(MorphError::invalid_ease,info));
+    const double u=std::clamp(eased,0.,1.);detail::PropertyValue result;
+    switch(info.channel) {
+        case PropertyChannel::translation:
+            result.vector=info.translation_path.linear()?lerp(values.from.vector,values.to.vector,u)
+                :info.translation_path.interpolate(values.from.vector,values.to.vector,u);break;
+        case PropertyChannel::rotation:result.scalar=lerp(values.from.scalar,values.to.scalar,u);break;
+        case PropertyChannel::scale:result.vector=lerp(values.from.vector,values.to.vector,u);break;
+        case PropertyChannel::fill:result.color=lerp(values.from.color,values.to.color,u);break;
+    }
+    if(!std::isfinite(result.vector.x) || !std::isfinite(result.vector.y) || !std::isfinite(result.scalar) || !valid(result.color))
+        return std::unexpected(channel_failure(MorphError::nonfinite_transform,info));
+    return result;
+}
 
 std::expected<Input,MorphFailure> snapshot_input(const Snapshot& snapshot, MorphOptions options) {
     if (!snapshot) return std::unexpected(failure(MorphError::invalid_snapshot));
@@ -141,7 +235,7 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
     return result;
 }
 
-std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
+std::expected<std::shared_ptr<detail::ObjectMorphData>,MorphFailure>
 compile(Input from, Input to, MorphOptions options, bool property_only = false) {
     if (from.parts.size()!=to.parts.size()) return std::unexpected(failure(MorphError::part_set_mismatch));
     const auto count=from.parts.size();
@@ -210,38 +304,123 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
     }
     omui::trace::count("morph.parts",static_cast<double>(count),"hanim.library");
     omui::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
-    return std::shared_ptr<const detail::ObjectMorphData>(std::move(result));
+    return result;
 }
 std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
 compile_properties(Input from, std::span<const PropertyTargets> targets, MorphOptions options) {
-    if (targets.empty() || targets.size()>from.parts.size()*4)
-        return std::unexpected(failure(MorphError::invalid_property));
+    const PropertyIndex index(from);const auto writes=resolve_properties(index,targets);
+    if(!writes)return std::unexpected(writes.error());
     Input to=from;
-    std::vector<std::uint8_t> writes(to.parts.size(),0);
-    for (const auto& values:targets) {
-        if ((values.position && values.offset) ||
-            (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
-            return std::unexpected(failure(MorphError::invalid_property));
-        auto selected=values.part.empty() ? std::ranges::find(to.parts,invalid_object_slot,&PartInput::parent)
-            : std::ranges::find(to.parts,values.part,&PartInput::id);
-        if (selected==to.parts.end()) return std::unexpected(failure(MorphError::unknown_part));
-        const auto index=static_cast<std::size_t>(selected-to.parts.begin());
-        const auto mask=static_cast<std::uint8_t>((values.position || values.offset ? 1 : 0) |
-            (values.rotation ? 2 : 0) | (values.scale ? 4 : 0) | (values.fill ? 8 : 0));
-        if (writes[index]&mask) return std::unexpected(failure(MorphError::property_conflict,index));
-        writes[index]|=mask;
-        if (values.position) {selected->local.tx=values.position->x;selected->local.ty=values.position->y;}
-        if (values.offset) {selected->local.tx+=values.offset->x;selected->local.ty+=values.offset->y;}
-        if (values.rotation) selected->local.rotate=*values.rotation;
-        if (values.scale) {selected->local.sx=values.scale->x;selected->local.sy=values.scale->y;}
-        if (values.fill) {
-            if (!selected->fill) return std::unexpected(failure(MorphError::missing_fill,index));
-            selected->fill=*values.fill;
-        }
-        if (!finite(selected->local) || !valid(selected->fill))
-            return std::unexpected(failure(MorphError::invalid_property,index));
+    for(const auto& write:*writes) {
+        auto& part=to.parts[write.part];const auto applied=apply_property({part.local,part.fill},*write.target,write.part);
+        if(!applied)return std::unexpected(applied.error());part.local=applied->local;part.fill=applied->fill;
     }
     return compile(std::move(from),std::move(to),options,true);
+}
+std::expected<MorphOptions,MorphFailure> timeline_options(std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
+    if(!limits.max_clips || limits.max_clips>65536 || !limits.max_channels || limits.max_channels>(1u<<20))
+        return std::unexpected(failure(MorphError::invalid_options));
+    if(clips.empty() || clips.size()>limits.max_clips)return std::unexpected(failure(MorphError::channel_budget));
+    MorphOptions result=clips.front().options;
+    for(std::size_t i=0;i<clips.size();++i) {
+        const auto& clip=clips[i];const auto& o=clip.options;
+        auto refuse=[&](MorphError code)->std::expected<MorphOptions,MorphFailure>{auto e=failure(code);e.clip=i;return std::unexpected(e);};
+        if(!std::isfinite(clip.start.count()) || clip.start.count()<0 || !std::isfinite(clip.duration.count()) || clip.duration.count()<0 ||
+           clip.start.count()>std::numeric_limits<double>::max()-clip.duration.count())return refuse(MorphError::invalid_time);
+        if(!clip.easing.valid())return refuse(MorphError::invalid_ease);
+        if(clip.source && !*clip.source)return refuse(MorphError::invalid_snapshot);
+        if(clip.duration.count()>0 && clip.start.count()+clip.duration.count()==clip.start.count())return refuse(MorphError::invalid_time);
+        if(!valid(o) || !o.shape.max_input_segments || o.shape.max_input_segments>4096 ||
+           !o.shape.max_output_segments || o.shape.max_output_segments>16384 ||
+           o.shape.arc_samples<4 || o.shape.arc_samples>256 || o.shape.alignment_samples<4 || o.shape.alignment_samples>128)
+            return refuse(MorphError::invalid_options);
+        if(!o.shape.point_path.linear())return refuse(MorphError::unsupported_property_effect);
+        result.max_parts=std::min(result.max_parts,o.max_parts);result.max_contours=std::min(result.max_contours,o.max_contours);
+        result.max_cubics=std::min(result.max_cubics,o.max_cubics);
+        result.shape.max_input_segments=std::min(result.shape.max_input_segments,o.shape.max_input_segments);
+        result.shape.max_output_segments=std::min(result.shape.max_output_segments,o.shape.max_output_segments);
+        result.shape.arc_samples=std::max(result.shape.arc_samples,o.shape.arc_samples);
+        result.shape.alignment_samples=std::max(result.shape.alignment_samples,o.shape.alignment_samples);
+    }
+    // A property timeline retains source geometry: correspondence direction /
+    // phase is irrelevant, while all declared representation limits still hold.
+    result.shape.align_direction=false;result.shape.align_start=false;
+    result.translation_path={};result.shape.point_path={};return result;
+}
+std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compile_timeline(
+    Input source,std::span<const PropertyClip> clips,MorphOptions options,PropertyTimelineLimits limits) {
+    const PropertyIndex index(source);
+    auto prepared=compile(source,source,options,true);if(!prepared)return std::unexpected(prepared.error());
+    auto data=std::move(*prepared);
+    std::vector<std::size_t> order(clips.size()),last(source.parts.size()*4,none);
+    std::iota(order.begin(),order.end(),std::size_t{0});
+    std::ranges::stable_sort(order,[&](auto a,auto b){return clips[a].start<clips[b].start;});
+    for(const auto clip_index:order) {
+        const auto& clip=clips[clip_index];
+        data->timeline_duration=std::max(data->timeline_duration,clip.start+clip.duration);
+        const auto writes=resolve_properties(index,clip.targets);
+        if(!writes){auto e=writes.error();e.clip=clip_index;return std::unexpected(e);}
+        for(const auto& write:*writes) {
+            const auto& part=source.parts[write.part];PartPose from{part.local,part.fill};
+            if(clip.source) {
+                const auto ref=clip.source->find(part.id);
+                if(!ref){auto e=failure(MorphError::unknown_part,write.part);e.clip=clip_index;return std::unexpected(e);}
+                const auto captured=clip.source->get(*ref);
+                if(!captured){auto e=failure(MorphError::invalid_snapshot,write.part);e.clip=clip_index;return std::unexpected(e);}
+                from={(*captured)->local,(*captured)->fill};
+            }
+            for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
+                const auto previous=last[write.part*4+c];
+                PropertyChannelInfo info{write.part,clip_index,static_cast<PropertyChannel>(c),clip.start,clip.duration};
+                if(c==3 && (!from.fill || !part.fill))return std::unexpected(channel_failure(MorphError::missing_fill,info));
+                if(previous==none)continue;
+                const auto& old=data->channels[previous];
+                if(clip.start<old.start+old.duration)return std::unexpected(channel_failure(MorphError::property_conflict,info));
+                if(!clip.source) {
+                    const auto value=sample_channel(old,data->channel_values[previous],clip.start);
+                    if(!value)return std::unexpected(value.error());
+                    assign_property(from.local,from.fill,info.channel,*value);
+                }
+            }
+            const auto to=apply_property(from,*write.target,write.part);
+            if(!to){auto e=to.error();e.clip=clip_index;return std::unexpected(e);}
+            for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
+                const auto key=write.part*4+c;const auto channel=static_cast<PropertyChannel>(c);
+                PropertyChannelInfo info{write.part,clip_index,channel,clip.start,clip.duration,
+                    clip.anchor_source || (!clip.source && last[key]!=none)};
+                info.easing=clip.easing;
+                if(channel==PropertyChannel::translation)info.translation_path=clip.options.translation_path;
+                info.source_snapshot=clip.source.has_value();
+                if(data->channels.size()>=limits.max_channels)return std::unexpected(channel_failure(MorphError::channel_budget,info));
+                last[key]=data->channels.size();data->channels.push_back(info);
+                data->channel_values.push_back({property_value(from,channel),property_value(*to,channel)});
+            }
+        }
+    }
+    // One run per part/channel. Sampling finds just its current segment rather
+    // than replaying every earlier writer or allocating a mutable pose cache.
+    std::vector<std::size_t> sorted(data->channels.size());std::iota(sorted.begin(),sorted.end(),std::size_t{0});
+    std::ranges::stable_sort(sorted,[&](auto a,auto b){
+        const auto& x=data->channels[a];const auto& y=data->channels[b];
+        return x.part!=y.part?x.part<y.part:x.channel!=y.channel?x.channel<y.channel:x.start<y.start;
+    });
+    std::vector<PropertyChannelInfo> infos;std::vector<detail::PropertyEndpoints> values;
+    infos.reserve(sorted.size());values.reserve(sorted.size());
+    for(auto i:sorted) {
+        const auto& info=data->channels[i];
+        if(infos.empty() || infos.back().part!=info.part || infos.back().channel!=info.channel)
+            data->channel_runs.push_back({infos.size(),0});
+        ++data->channel_runs.back().count;infos.push_back(info);values.push_back(data->channel_values[i]);
+    }
+    data->channels=std::move(infos);data->channel_values=std::move(values);
+    omui::trace::count("property.channels",static_cast<double>(data->channels.size()),"hanim.library");
+    diagnostic.info("prepared {} property channel segments",data->channels.size());
+    return std::shared_ptr<const detail::ObjectMorphData>(std::move(data));
+}
+std::size_t current_channel(const detail::ObjectMorphData& data,detail::ChannelRun run,seconds time) {
+    const auto begin=data.channels.begin()+static_cast<std::ptrdiff_t>(run.first);
+    const auto after=std::ranges::upper_bound(begin,begin+static_cast<std::ptrdiff_t>(run.count),time,{},&PropertyChannelInfo::start);
+    return after==begin?none:static_cast<std::size_t>((after-1)-data.channels.begin());
 }
 }
 
@@ -260,8 +439,18 @@ std::string_view morph_error_name(MorphError error) noexcept {
         case MorphError::invalid_property:return "invalid-property";
         case MorphError::unknown_part:return "unknown-part";
         case MorphError::property_conflict:return "property-conflict";
+        case MorphError::invalid_time:return "invalid-time";case MorphError::invalid_ease:return "invalid-ease";
+        case MorphError::channel_budget:return "channel-budget";case MorphError::unsupported_property_effect:return "unsupported-property-effect";
     }
     return "unprepared";
+}
+std::string_view property_channel_name(PropertyChannel channel) noexcept {
+    switch(channel) {
+        case PropertyChannel::translation:return "translation";
+        case PropertyChannel::rotation:return "rotation";
+        case PropertyChannel::scale:return "scale";
+        case PropertyChannel::fill:return "fill";
+    }return "unknown";
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::prepare(Snapshot from, Snapshot to, MorphOptions options) {
     omui::trace::Span span("morph.prepare","hanim.library");
@@ -312,15 +501,60 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
 FrameRequirements PreparedObjectMorph::requirements() const noexcept {
     return data_ ? FrameRequirements{data_->parts.size(),data_->contours.size(),data_->cubic_count} : FrameRequirements{};
 }
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
+    Snapshot from,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
+    omui::trace::Span span("property-timeline.prepare","hanim.library");
+    auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
+    auto input=snapshot_input(from,*options);if(!input)return std::unexpected(input.error());
+    auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
+    PreparedObjectMorph result;result.source_=from.object();result.revision_=from.revision();
+    result.from_=std::move(from);result.data_=std::move(*data);return result;
+}
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
+    FrameView current,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
+    omui::trace::Span span("property-timeline.retarget","hanim.library");
+    auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
+    auto input=frame_input(current,*options);if(!input)return std::unexpected(input.error());
+    auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
+    PreparedObjectMorph result;result.source_=current.source_object;result.revision_=current.source_revision;
+    result.data_=std::move(*data);return result;
+}
+std::span<const PropertyChannelInfo> PreparedObjectMorph::channels() const & noexcept {
+    return data_?std::span<const PropertyChannelInfo>(data_->channels):std::span<const PropertyChannelInfo>{};
+}
+seconds PreparedObjectMorph::timeline_duration() const noexcept {return data_?data_->timeline_duration:seconds(0);}
 std::span<const MorphPartInfo> PreparedObjectMorph::parts() const & noexcept { return data_ ? std::span<const MorphPartInfo>(data_->parts) : std::span<const MorphPartInfo>{}; }
 std::span<const MorphContourInfo> PreparedObjectMorph::contours() const & noexcept { return data_ ? std::span<const MorphContourInfo>(data_->contours) : std::span<const MorphContourInfo>{}; }
-std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample(double progress, FrameBuffer output) const noexcept {
+std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample(double progress,FrameBuffer output) const noexcept {
+    return sample_at(progress,output,false);
+}
+std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_source(FrameBuffer output) const noexcept {
+    return sample_at(0,output,true);
+}
+std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double progress, FrameBuffer output,bool exact_source) const noexcept {
     omui::trace::Span span("morph.sample","hanim.library");
     if (!data_) return std::unexpected(failure(MorphError::unprepared));
     if (!std::isfinite(progress)) return std::unexpected(failure(MorphError::invalid_progress));
     const auto needed=requirements();
     if (output.parts.size()<needed.parts || output.cubics.size()<needed.cubics) return std::unexpected(failure(MorphError::output_too_small));
     const double u=std::clamp(progress,0.0,1.0);
+    if(!data_->channels.empty()) {
+        const auto time=seconds(u==1?data_->timeline_duration.count():u*data_->timeline_duration.count());
+        if(!exact_source)for(const auto run:data_->channel_runs) {
+            const auto i=current_channel(*data_,run,time);if(i==none)continue;
+            const auto value=sample_channel(data_->channels[i],data_->channel_values[i],time);
+            if(!value)return std::unexpected(value.error());
+        }
+        for(std::size_t i=0;i<needed.parts;++i)
+            output.parts[i]={data_->parts[i],data_->states[i].from,data_->states[i].from_fill};
+        if(!exact_source)for(const auto run:data_->channel_runs) {
+            const auto i=current_channel(*data_,run,time);if(i==none)continue;
+            const auto& info=data_->channels[i];const auto value=sample_channel(info,data_->channel_values[i],time);
+            auto& part=output.parts[info.part];assign_property(part.local,part.fill,info.channel,*value);
+        }
+        std::ranges::copy(data_->static_cubics,output.cubics.begin());
+        return FrameView{output.parts.first(needed.parts),data_->contours,output.cubics.first(needed.cubics),u,source_,revision_,identity()};
+    }
     auto transform = [&](const detail::MorphEndpoints& state) {
         auto value=lerp(state.from,state.to,u);
         if (!data_->translation_path.linear()) {

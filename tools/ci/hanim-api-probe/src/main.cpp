@@ -389,5 +389,40 @@ int main() {
         "overlapping_property_set_is_rejected_atomically");
     check(bool(hengine.release(*selected)) && bool(hengine.destroy_object(*selected_object)),
         "selected_parts_resources_released");
+    const auto channel_object=hengine.create_object(*shape(false,0));
+    if(!check(bool(channel_object),"channel_object_created"))return finish();
+    const auto channel_program=hengine.prepare(h::parallel(
+        h::sequence(anim::move_to(*channel_object,{10,0}).duration(500ms),anim::move_by(*channel_object,{5,0}).duration(500ms)),
+        anim::rotate_to(*channel_object,2).duration(2s)));
+    if(!check(channel_program && channel_program->segments().size()==1 && channel_program->nodes().size()==5,
+        "independent_channels_compile_to_one_object_output_with_retained_author_nodes"))return finish();
+    check(channel_program->segments()[0].contributions.size()==3 && channel_program->segments()[0].animation.channels().size()==3,
+        "public_plan_exposes_property_channels_and_original_contributions");
+    const auto channel_play=hengine.play(*channel_program);
+    if(!check(channel_play && hengine.seek(*channel_play,750ms),"independent_channel_program_plays"))return finish();
+    const auto inspected_plan=hengine.plan(*channel_play);
+    check(inspected_plan && inspected_plan->identity()==channel_program->identity() && inspected_plan->segments()[0].contributions.size()==3,
+        "playback_exposes_an_owned_immutable_plan_for_agent_inspection");
+    const auto channel_frame=hengine.frame(*channel_play);
+    check(channel_frame && channel_frame->geometry.parts[0].local.tx==12.5 && channel_frame->geometry.parts[0].local.rotate==.75,
+        "independent_channel_times_are_preserved");
+    check(!hengine.inspect(*channel_play)->sample_progress,"multi_channel_plan_has_no_misleading_single_eased_progress");
+    const auto channel_pose=copy(*channel_frame);
+    check(bool(hengine.retarget(*channel_play,h::PropertyTargets{.offset=h::Vec2{3,1}})) &&
+        equal(channel_pose,copy(*hengine.frame(*channel_play))),"retarget_captures_the_complete_composed_pose");
+    check(bool(hengine.seek(*channel_play,1s)) && hengine.frame(*channel_play)->geometry.parts[0].local.tx==15.5 &&
+        hengine.frame(*channel_play)->geometry.parts[0].local.rotate==.75,"retarget_preserves_other_composed_channels");
+    check(bool(hengine.cancel(*channel_play,h::CancelMode::restore)) &&
+        equal(channel_pose,copy(*hengine.frame(*channel_play))),"retarget_restore_recovers_the_composed_source");
+    check(bool(hengine.release(*channel_play)),"composed_channel_resources_released");
+    check(inspected_plan && inspected_plan->nodes().size()==5 && !hengine.plan(*channel_play),
+        "retained_plan_survives_retarget_and_release_while_stale_handle_is_refused");
+    const auto raw_channel=hanim::PreparedObjectAnimation::property_timeline(*hengine.capture_object(*channel_object),
+        std::array{h::PropertyClip{.targets={{.position=h::Vec2{10,0}}},.duration=1s},
+                   h::PropertyClip{.targets={{.rotation=2}},.duration=2s}});
+    check(raw_channel && raw_channel->channels().size()==2 && raw_channel->timeline_duration()==2s,
+        "advanced_property_timeline_is_an_independent_public_library_plan");
+    check(h::property_channel_name(h::PropertyChannel::rotation)=="rotation","channel_names_are_stable_public_diagnostics");
+    check(bool(hengine.destroy_object(*channel_object)),"channel_object_released");
     return finish();
 }

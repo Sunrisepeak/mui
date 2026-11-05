@@ -84,6 +84,10 @@ value reuse, live capture/frozen snapshots, nesting, explicit source reset,
 legacy composition, stale/foreign/generation errors and resource lifetime.
 Typed vertex/translation paths also exercise direct/prepared equivalence,
 changed middle geometry, exact endpoints and simultaneous image effects.
+Property recipes and multi-part targets share that compiler. Independent
+part/property channels are checked with different timings, retained author
+contributions, complete-pose retarget and restore. `hengine.plan(playback)`
+retains the immutable plan after retarget/release and refuses stale handles.
 These are assertions, not animation-library entries. The separate
 [rendering consumer](../hanim-play-consumer/README.md) exercises this public
 entry with the shared CPU renderer and real cropped pixels.

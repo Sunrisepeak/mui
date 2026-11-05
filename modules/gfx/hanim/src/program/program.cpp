@@ -18,6 +18,7 @@ struct ProgramData {
     std::vector<ProgramNodeInfo> nodes;
     std::vector<PreparedScope> scopes;
     std::size_t scope_parameters = 0;
+    std::size_t property_channels = 0;
     seconds duration{0};
 };
 }
@@ -37,7 +38,7 @@ ProgramFailure effect_failure(EffectError error, std::size_t node, std::size_t t
 bool valid_limits(ProgramLimits limits) noexcept {
     return limits.max_nodes && limits.max_nodes<=65536 && limits.max_depth && limits.max_depth<=256 &&
         limits.max_tracks && limits.max_tracks<=65536 && limits.max_segments && limits.max_segments<=65536 &&
-        limits.max_total_parts && limits.max_scopes<=65536;
+        limits.max_total_parts && limits.max_scopes<=65536 && limits.max_total_property_channels<=(1u<<20);
 }
 std::optional<ProgramError> invalid_options(SegmentOptions options) noexcept {
     if (!std::isfinite(options.duration.count()) || options.duration.count()<0) return ProgramError::invalid_time;
@@ -103,6 +104,8 @@ struct Collect {
             if(!binding->properties && !binding->additional_properties.empty())
                 return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             if(const auto invalid=invalid_options(binding->options))return std::unexpected(failure(*invalid,node));
+            if(binding->options.duration.count()>0 && start+binding->options.duration.count()==start)
+                return std::unexpected(failure(ProgramError::invalid_time,node));
             if(leaves.size()>=limits.max_segments)return std::unexpected(failure(ProgramError::segment_budget,node));
             Snapshot from=binding->from,to=binding->to;
             if(const auto* inputs=value.inputs()) {
@@ -181,14 +184,167 @@ std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSe
     if(!result)return std::unexpected(animation_failure(result.error(),node,track,segment));
     return *result;
 }
+PropertySet property_targets(const ProgramBinding& binding) {
+    PropertySet result;
+    if(binding.properties) {
+        result.reserve(1+binding.additional_properties.size());result.push_back(*binding.properties);
+        result.insert(result.end(),binding.additional_properties.begin(),binding.additional_properties.end());
+    }
+    return result;
+}
+bool overlaps_time(const Leaf& first,const Leaf& second) {
+    return second.start<first.start+first.binding->options.duration ||
+        (second.start==first.start &&
+         (first.binding->options.duration.count()==0 || second.binding->options.duration.count()==0) && !serial_before(first,second));
+}
+struct PropertySchedule {
+    std::vector<Leaf> leaves;
+    std::vector<std::pair<std::size_t,std::size_t>> groups;
+};
+PropertySchedule schedule_groups(std::vector<Leaf> input) {
+    PropertySchedule result;result.leaves.reserve(input.size());result.groups.reserve(input.size());
+    auto append=[&](std::span<const std::size_t> indices) {
+        const auto begin=result.leaves.size();
+        for(auto index:indices)result.leaves.push_back(std::move(input[index]));
+        result.groups.emplace_back(begin,result.leaves.size());
+    };
+    for(std::size_t begin=0;begin<input.size();) {
+        std::size_t end=begin+1;auto until=input[begin].start+input[begin].binding->options.duration;
+        bool zero=input[begin].binding->options.duration.count()==0,concurrent=false;
+        while(end<input.size() && input[end].track==input[begin].track &&
+              (input[end].start<until || input[end].start==input[begin].start)) {
+            concurrent |= input[end].start<until || overlaps_time(input[end-1],input[end]);
+            zero |= input[end].binding->options.duration.count()==0;
+            until=std::max(until,input[end].start+input[end].binding->options.duration);++end;
+        }
+        std::vector<std::size_t> indices(end-begin);std::iota(indices.begin(),indices.end(),begin);
+        if(!concurrent)for(auto i:indices)append(std::span(&i,1));
+        else if(!zero)append(indices);
+        else {
+            // Instantaneous writes need the author dependency relation, not
+            // just half-open intervals. Retain ordered zero-duration barriers
+            // (including morphs) between actual concurrent components.
+            std::vector<std::size_t> parent(indices.size());std::iota(parent.begin(),parent.end(),std::size_t{0});
+            auto root=[&](std::size_t i) {
+                while(parent[i]!=i){parent[i]=parent[parent[i]];i=parent[i];}return i;
+            };
+            for(std::size_t j=1;j<indices.size();++j)for(std::size_t i=0;i<j;++i)
+                if(overlaps_time(input[begin+i],input[begin+j])) {
+                    const auto a=root(i),b=root(j);if(a!=b)parent[std::max(a,b)]=std::min(a,b);
+                }
+            for(std::size_t i=0;i<parent.size();++i)parent[i]=root(i);
+            std::ranges::stable_sort(indices,[&](auto a,auto b){return parent[a-begin]<parent[b-begin];});
+            for(std::size_t i=0;i<indices.size();) {
+                std::size_t j=i+1;while(j<indices.size() && parent[indices[j]-begin]==parent[indices[i]-begin])++j;
+                append(std::span(indices).subspan(i,j-i));i=j;
+            }
+        }
+        begin=end;
+    }
+    return result;
+}
+std::uint8_t property_mask(const PropertyTargets& target) {
+    return static_cast<std::uint8_t>((target.position || target.offset?1:0) | (target.rotation?2:0) |
+        (target.scale?4:0) | (target.fill?8:0));
+}
+std::string_view part_name(const Leaf& leaf,const PropertyTargets& target) {
+    if(!target.part.empty())return target.part;
+    const auto root=leaf.from.get(leaf.from.root());return root?std::string_view((*root)->id):std::string_view{};
+}
+std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<const Leaf> leaves,
+    const PreparedSegment* previous,std::size_t index,std::size_t channel_budget) {
+    const auto& first=leaves.front();
+    auto conflict=[&](std::size_t i){return failure(ProgramError::binding_conflict,leaves[i].node,first.track,index);};
+    // Full geometry writes and explicit whole-object source resets retain the
+    // old exclusive domain. Only actual property writers may share an output.
+    const auto full=std::ranges::find_if(leaves,[](const Leaf& leaf){
+        return !leaf.binding->properties || leaf.binding->source==ProgramSource::snapshot;
+    });
+    if(full!=leaves.end()) {
+        const auto at=static_cast<std::size_t>(full-leaves.begin());
+        for(std::size_t k=0;k<leaves.size();++k)if(k!=at) {
+            const auto i=std::min(at,k),j=std::max(at,k);
+            if(overlaps_time(leaves[i],leaves[j]))
+                return std::unexpected(failure(ProgramError::binding_conflict,leaves[j].node,first.track,index+j));
+        }
+        return std::unexpected(conflict(at));
+    }
+    std::vector<PropertyClip> clips;clips.reserve(leaves.size());
+    std::vector<ProgramContribution> contributions;contributions.reserve(leaves.size());
+    std::size_t draw_node=first.node;std::string_view draw_path=first.path;
+    for(std::size_t i=0;i<leaves.size();++i) {
+        const auto& leaf=leaves[i];const auto& binding=*leaf.binding;
+        if(!binding.properties || binding.source==ProgramSource::snapshot)return std::unexpected(conflict(i));
+        if(leaf.scope!=first.scope || !binding.effects.empty()) {
+            auto error=failure(ProgramError::scope_conflict,leaf.node,leaf.track,index);error.scope=leaf.scope;
+            return std::unexpected(error);
+        }
+        clips.push_back({property_targets(binding),leaf.start-first.start,binding.options.duration,
+            binding.options.easing,binding.morph,{},previous && leaf.start==first.start});
+        contributions.push_back({leaf.node,leaf.path,leaf.start,binding.options});
+        if(leaf.node<draw_node){draw_node=leaf.node;draw_path=leaf.path;}
+    }
+    // A flat library schedule has explicit input order. The author tree is
+    // stricter: unordered instantaneous writes cannot gain an ordering merely
+    // by being listed first in a parallel branch.
+    for(std::size_t begin=0;begin<leaves.size();) {
+        std::size_t end=begin+1;bool zero=clips[begin].duration.count()==0;
+        while(end<leaves.size() && leaves[end].start==leaves[begin].start){zero|=clips[end].duration.count()==0;++end;}
+        if(zero) {
+            struct Write { std::string_view part; std::size_t channel,leaf; };
+            std::vector<Write> writes;
+            for(std::size_t i=begin;i<end;++i)for(const auto& target:clips[i].targets)for(std::size_t c=0;c<4;++c)
+                if(property_mask(target)&(1u<<c)) {
+                    if(writes.size()>=channel_budget)return std::unexpected(failure(ProgramError::channel_budget,leaves[i].node,first.track,index));
+                    writes.push_back({part_name(leaves[i],target),c,i});
+                }
+            std::ranges::sort(writes,[](const Write& a,const Write& b){
+                return a.part!=b.part?a.part<b.part:a.channel!=b.channel?a.channel<b.channel:a.leaf<b.leaf;
+            });
+            for(std::size_t k=1;k<writes.size();++k) {
+                const auto& a=writes[k-1];const auto& b=writes[k];
+                if(a.part==b.part && a.channel==b.channel && a.leaf!=b.leaf &&
+                   (clips[a.leaf].duration.count()==0 || clips[b.leaf].duration.count()==0) && !serial_before(leaves[a.leaf],leaves[b.leaf]))
+                    return std::unexpected(conflict(b.leaf));
+            }
+        }
+        begin=end;
+    }
+    if(!channel_budget)return std::unexpected(failure(ProgramError::channel_budget,first.node,first.track,index));
+    const PropertyTimelineLimits limits{leaves.size(),channel_budget};
+    std::expected<PreparedObjectAnimation,MorphFailure> result=std::unexpected(MorphFailure{});
+    if(previous) {
+        const auto count=previous->animation.requirements();
+        std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
+        const auto progress=progress_at(*previous,previous->start+previous->options.duration,false,index-1);
+        if(!progress)return std::unexpected(progress.error());
+        const auto pose=previous->animation.sample(progress->sampled,{parts,cubics});
+        if(!pose)return std::unexpected(animation_failure(pose.error(),first.node,first.track,index));
+        result=PreparedObjectAnimation::property_timeline(*pose,clips,limits);
+    }else result=PreparedObjectAnimation::property_timeline(first.from,clips,limits);
+    if(!result) {
+        const auto& cause=result.error();const auto c=cause.clip<leaves.size()?cause.clip:0;
+        auto error=animation_failure(cause,leaves[c].node,first.track,index);
+        if(cause.code==MorphError::property_conflict)error.code=ProgramError::binding_conflict;
+        if(cause.code==MorphError::channel_budget)error.code=ProgramError::channel_budget;
+        return std::unexpected(error);
+    }
+    const auto empty=PreparedEffects::prepare({});
+    if(!empty)return std::unexpected(effect_failure(empty.error(),first.node,first.track,index));
+    return PreparedSegment{first.track,draw_node,std::string(draw_path),first.start,{result->timeline_duration(),ease::linear},
+        std::move(*result),*empty,false,first.scope,std::move(contributions)};
+}
 std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSegment segment,ProgramLimits limits,
     std::size_t& parts,std::size_t& cubics,std::size_t& parameters) {
     const auto count=segment.animation.requirements();const auto params=segment.effects.parameter_count();
     const auto index=data.segments.size();
+    const auto channels=segment.animation.channels().size();
+    if(channels>limits.max_total_property_channels-data.property_channels)
+        return std::unexpected(failure(ProgramError::channel_budget,segment.node,segment.track,index));
     if(count.parts>limits.max_total_parts-parts)return std::unexpected(failure(ProgramError::part_budget,segment.node,segment.track,index));
     if(count.cubics>limits.max_total_cubics-cubics)return std::unexpected(failure(ProgramError::cubic_budget,segment.node,segment.track,index));
     if(params>limits.max_total_effect_parameters-parameters)return std::unexpected(failure(ProgramError::effect_parameter_budget,segment.node,segment.track,index));
-    parts+=count.parts;cubics+=count.cubics;parameters+=params;
+    parts+=count.parts;cubics+=count.cubics;parameters+=params;data.property_channels+=channels;
     auto& track=data.tracks[segment.track];
     track.requirements.parts=std::max(track.requirements.parts,count.parts);
     track.requirements.contours=std::max(track.requirements.contours,count.contours);
@@ -256,6 +412,8 @@ std::string_view program_error_name(ProgramError error) noexcept {
         case ProgramError::unresolved_object:return "unresolved-object";
         case ProgramError::object:return "object";
         case ProgramError::scope_budget:return "scope-budget";
+        case ProgramError::channel_budget:return "channel-budget";
+        case ProgramError::scope_conflict:return "scope-conflict";
     }return "unknown";
 }
 std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Program& program,ProgramLimits limits) {
@@ -300,9 +458,11 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         if(a.start!=b.start)return a.start<b.start;
         return a.node<b.node;
     });
+    auto schedule=schedule_groups(std::move(collect.leaves));
     std::size_t parts=0,cubics=0,parameters=data->scope_parameters;
     const Leaf* previous_leaf=nullptr;
-    for(const auto& leaf:collect.leaves) {
+    for(const auto [begin,end]:schedule.groups) {
+        const auto& leaf=schedule.leaves[begin];
         const auto& binding=*leaf.binding;auto& track=data->tracks[leaf.track];
         const auto index=data->segments.size();const PreparedSegment* previous=nullptr;
         if(!track.segment_count)track.source_revision=leaf.from.revision();
@@ -315,13 +475,23 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
             if(binding.source==ProgramSource::previous_endpoint && leaf.from.revision()!=track.source_revision)
                 return refuse(failure(ProgramError::source_version_mismatch,leaf.node,leaf.track,index));
         }
+        for(std::size_t i=begin+1;i<end;++i)
+            if(schedule.leaves[i].binding->source==ProgramSource::previous_endpoint && schedule.leaves[i].from.revision()!=track.source_revision)
+                return refuse(failure(ProgramError::source_version_mismatch,schedule.leaves[i].node,leaf.track,index));
+        if(end>begin+1) {
+            auto prepared=compile_property_group(std::span(schedule.leaves).subspan(begin,end-begin),previous,index,
+                limits.max_total_property_channels-data->property_channels);
+            if(!prepared)return refuse(prepared.error());
+            const auto added=account(*data,std::move(*prepared),limits,parts,cubics,parameters);
+            if(!added)return refuse(added.error());
+            for(std::size_t i=begin;i<end;++i) {
+                auto& node=data->nodes[schedule.leaves[i].node];node.track=leaf.track;node.segment=index;node.contribution=i-begin;
+            }
+            previous_leaf=&schedule.leaves[end-1];continue;
+        }
         std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
         const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
-        PropertySet targets;
-        if(binding.properties) {
-            targets.reserve(1+binding.additional_properties.size());targets.push_back(*binding.properties);
-            targets.insert(targets.end(),binding.additional_properties.begin(),binding.additional_properties.end());
-        }
+        const auto targets=property_targets(binding);
         if(chained)animation=from_previous(*previous,leaf.to,binding.morph,targets,leaf.node,leaf.track,index);
         else {
             const auto result=binding.properties ? PreparedObjectMorph::properties(leaf.from,targets,binding.morph)
@@ -405,7 +575,9 @@ std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t 
     if(output.parts.size()<count.parts || output.cubics.size()<count.cubics || values.size()<segment.effects.parameter_count())
         return std::unexpected(failure(ProgramError::output_too_small,segment.node,track_index,index));
     const auto progress=progress_at(segment,time,exact_source,index);if(!progress)return std::unexpected(progress.error());
-    const auto geometry=segment.animation.sample(progress->sampled,output);
+    const bool raw_source=exact_source || time<segment.start ||
+        (segment.anchor_source && segment.options.duration.count()>0 && time==segment.start);
+    const auto geometry=raw_source?segment.animation.sample_source(output):segment.animation.sample(progress->sampled,output);
     if(!geometry)return std::unexpected(animation_failure(geometry.error(),segment.node,track_index,index));
     // Bounds and finite progress were checked before geometry was written;
     // this immutable effect plan has no remaining sample failure condition.

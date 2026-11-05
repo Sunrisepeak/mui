@@ -26,8 +26,10 @@ The second stage begins at the first stage's actual boundary pose. Every stage
 is prepared once, so sampling 1.5, 0.25, 2, 0 in arbitrary order gives the same
 results as forward playback. B remains a separate object if explicitly bound as
 `sequence({bind(a,b),bind(b,c)})`; target identity never implicitly merges tracks.
-Nested sequence/parallel/stagger preserve explicit scheduling. Strict whole-object
-overlap is rejected; complete per-channel blends and device resource scheduling
+Nested sequence/parallel/stagger preserve explicit scheduling. Independent
+translation/rotation/scale/fill channels on the same object may overlap, with
+their own timings; whole-object morph/reset overlap and conflicting channel
+writes are rejected. Complete per-channel blends and device resource scheduling
 remain work in the [composition design](../../../../../.agents/docs/2026-11-04-hanim-play-api-design.md).
 
 `composite(parallel(anim::morph(a,b), anim::morph(c,d))).with_effect(fx::blur(0,4))`
@@ -43,6 +45,14 @@ and `scope_parameter_count()` reports its size. Plain groups introduce no scopes
 The [contract](CONTRACT.md) defines boundaries, gaps, instantaneous stages,
 versions, preparation limits and failure atomicity. Read tracks()/segments() for
 queryable node paths, versions, schedules, plans and output requirements.
+
+Overlapping property leaves compile to one geometry output, while `nodes()`
+retains the original author tree and each participating node's `contribution`
+indexes the compiled segment's `contributions`. `animation.channels()` exposes
+part, channel, original clip, time, easing, translation path and source policy.
+Compiled segment count and authored binding count are different quantities.
+Shared image scopes remain explicit; an overlapping group with leaf image
+effects or differing image-scope membership reports `scope-conflict`.
 sample(track,time,buffers,effects) writes caller-owned reusable storage; the
 returned segment index locates the current plans for an optional renderer.
 PreparedProgram::single normalizes already-prepared morph/effects, including a

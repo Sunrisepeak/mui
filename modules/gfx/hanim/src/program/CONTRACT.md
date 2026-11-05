@@ -1,4 +1,4 @@
-# Program contract v4: object schedules, selected property sets and image scopes
+# Program contract v5: retained author graphs, property channels and image scopes
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -17,12 +17,16 @@ binding explicitly marked snapshot uses its authored frozen source and can jump.
 Default previous bindings must agree with the track's initial source revision;
 explicit snapshot mode can deliberately introduce a different frozen revision.
 
-All non-overlapping segments of one object write the strict whole-object domain.
-Overlapping writes fail with node/track/segment indices. Shared positive-duration
-boundaries are permitted. Multiple instantaneous writes at the same start require
-an explicit sequence dependency; parallel instantaneous writers conflict. Child
+Morph and explicit snapshot-reset bindings write the strict whole-object domain.
+Overlapping writes fail with node/track/segment indices. Property bindings with
+previous-endpoint sources may overlap on different parts or translation,
+rotation, scale and fill channels. Each keeps its own duration/easing/path.
+Shared positive-duration
+boundaries are permitted. Multiple instantaneous writes to the same channel at
+the same start require an explicit sequence dependency; unordered writers to
+that channel conflict. Child
 order is retained for a sequence of instantaneous changes. This first stage does
-not claim per-channel blending, group transforms/foreach or repeat/reverse time
+not claim additive/weighted channel blending, group transforms/foreach or repeat/reverse time
 expressions. Explicit image scopes are defined below.
 
 Unary leaves may carry `PropertyTargets`: absolute position, relative offset,
@@ -33,16 +37,18 @@ is no second target registry object. The target is derived from the actual
 segment source after previous-endpoint chaining, preserving all unspecified
 fields and descendant local transforms. Explicit snapshot mode still resets
 that source. Rotation is a decomposed radian lane, including requested turns.
-The same strict whole-object write domain remains: two parallel property
-bindings to one object conflict; a single `anim::to` combines multiple fields.
+One `anim::to` combines multiple fields with shared timing. Separate property
+leaves may have independent timing on different part/channel keys. Translation
+and scale are currently Vec2 channel groups; x/y are not separately writable.
+Snapshot-reset mode remains a whole-object operation and cannot overlap.
 
 One property leaf can carry a `PropertySet` across multiple named parts.
 Its primary target plus additional targets share one time/ease/effect scope.
 Each target resolves to the actual part before channel conflicts are checked;
 empty root selection and that root's explicit id cannot evade the check.
 Different fields on the same part combine; repeated writes to a channel fail,
-without implicit order dependence. This is not independent per-channel tracks
-or blend support. Local fields omitted from the set preserve the source, while
+without implicit order dependence. Independent timing uses separate leaves;
+additive/weighted blend support is not yet implemented. Local fields omitted from the set preserve the source, while
 hierarchical transforms still apply. The old single-target authoring remains
 the one-element case of the same compiler and sampler.
 
@@ -53,6 +59,48 @@ Existing Process effects and explicit composite image scopes use the same
 preparation and player. Property-only geometry is retained and copied at sample
 time when no vertex path is requested; cold preparation still uses the existing
 strict contour validation/compiler. This is not the general typed-channel IR.
+
+## Independent property channels
+
+The compiler groups actually concurrent property leaves on one logical object
+into one geometry output. The original `nodes()` hierarchy, times and scope
+relations remain intact. Each participating node identifies its compiled
+segment and contribution; `segments().contributions` retains original node,
+path, start and options. Geometry is stored once for the group, while
+`animation.channels()` exposes part/channel, original clip, timing, easing,
+translation path, source kind and boundary anchoring. Compiled segment count
+is not authored leaf count. Drawing uses the earliest author node of the group.
+
+Same-key overlap is refused. A serial branch can write a channel again after its
+prior interval: its source is the prior actual eased output, including a
+relative target. Other channels continue at their own times. Before a channel
+starts, retain its source; after it ends, retain its actual endpoint. Exact
+source restoration bypasses all curves and instantaneous events. Ordinary zero
+time still runs authored jump-start curves and instantaneous writes.
+
+Instantaneous cohorts preserve the author dependency relation. Unordered writes
+to the same key fail; ordered instantaneous barriers, including whole-object
+morphs between parallel groups, remain separate. Ordinary positive-duration
+grouping is linear after sorting; mixed instantaneous cohorts currently use
+bounded pairwise dependency checks during preparation. This is not a constant-
+time cold-prepare guarantee for large instantaneous programs.
+
+Each concurrent group must have one shared image-scope membership and no leaf
+image effects. Use `composite(parallel(...)).with_effect(...)` for the composed
+object. A different image scope or leaf image effect reports `scope-conflict`;
+geometry path effects on concurrent property leaves report unsupported instead
+of being discarded. Translation-path effects belong to their translation
+channel. Nested effect scopes remain supported around the shared group.
+
+`max_total_property_channels` bounds retained channel segments, separately from
+author-node/leaf limits and geometry/effect capacities. It may be zero to refuse
+these grouped plans. Runtime sampling binary-searches the current segment of
+each part/channel and uses the shared core interpolation functions. Every active
+channel is preflighted before output buffers are touched; sampling and warmed
+renderer recording allocate nothing. `PlaybackInfo::sample_progress` is absent
+for these groups because no single eased object progress describes all channels.
+`Engine::plan(handle)` gives tools/Agents an immutable O(1) plan lease, including
+for convenience play, without retaining mutable playback frame buffers.
 
 The compiler retains one immutable preparation per segment and no AST or producer
 registry. Preparation limits bound expanded node/depth/track/segment counts and
@@ -107,8 +155,10 @@ subtree end, absolute start/duration and nearest image scope. Segments retain
 their author node and scope. Scope records retain their parent, node, timing,
 effect easing, ordered effects and parameter range. This is a hierarchy/time
 view of the same compiled Program, not a second AST, player or renderer. The
-strict whole-object write domain is unchanged; general typed channels and
-resource/device scheduling remain separate work.
+write domain is whole-object for morphs and source resets, and part/property
+for the independent property timelines described above. Concurrent property
+leaves sharing an output must share their nearest scope and have no leaf image
+effects. General typed channels and resource/device scheduling remain separate work.
 
 Scope duration is derived from its subtree. Its easing controls effect
 parameters only; it does not warp child clocks. Before its start, hold raw

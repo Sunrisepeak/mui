@@ -1,10 +1,10 @@
-module openmui.render.vector;
+module xengine.render.vector.api;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import hanim.core;
 
-namespace omui::render {
+namespace xengine::render {
 
 Affine rotate(float radians) noexcept {
     auto co = static_cast<float>(hanim::dm::cos(radians));
@@ -195,7 +195,7 @@ DisplayList& DisplayList::operator=(DisplayList&& other) noexcept {
 }
 
 std::expected<RecordedPath, PathRecordError> DisplayList::record_path(
-    std::size_t verb_count, std::size_t point_count, omui::FunctionRef<void(MutablePathView)> writer) {
+    std::size_t verb_count, std::size_t point_count, mlibs::memory::FunctionRef<void(MutablePathView)> writer) {
     if (verb_count == 0 || point_count == 0 ||
         verb_count > std::numeric_limits<std::size_t>::max() / sizeof(PathVerb) ||
         point_count > std::numeric_limits<std::size_t>::max() / sizeof(Point))
@@ -246,7 +246,7 @@ bool DisplayList::stroke_path(const RecordedPath& path, const StrokeStyle& style
 }
 
 std::expected<Paint, PaintMixError> DisplayList::record_paint_mix(
-    std::size_t count, omui::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity) {
+    std::size_t count, mlibs::memory::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity) {
     if (count == 0 || count > max_paint_mix_terms) return std::unexpected(PaintMixError::term_budget);
     auto* storage = static_cast<WeightedPaint*>(arena_.allocate(sizeof(WeightedPaint) * count, alignof(WeightedPaint)));
     for (std::size_t i = 0; i < count; ++i) std::construct_at(storage + i);
@@ -502,15 +502,15 @@ bool DisplayList::balanced() const noexcept {
 namespace {
 
 struct Hasher {
-    std::uint64_t h = hash::Fnv1a::offset;
+    std::uint64_t h = mlibs::hash::Fnv1a::offset;
     template <class T>
         requires std::is_arithmetic_v<T> || std::is_enum_v<T>
     void put(T v) {
         if constexpr (std::is_enum_v<T>) put(static_cast<std::underlying_type_t<T>>(v));
         else if constexpr (std::is_floating_point_v<T>) {
             using Bits = std::conditional_t<sizeof(T) == 4, std::uint32_t, std::uint64_t>;
-            h = hash::Fnv1a(h).le(std::bit_cast<Bits>(v), sizeof v).value();
-        } else h = hash::Fnv1a(h).le(static_cast<std::uint64_t>(v), sizeof v).value();
+            h = mlibs::hash::Fnv1a(h).le(std::bit_cast<Bits>(v), sizeof v).value();
+        } else h = mlibs::hash::Fnv1a(h).le(static_cast<std::uint64_t>(v), sizeof v).value();
     }
     void put(const Point& p) { put(p.x); put(p.y); }
     void put(const Rect& r) { put(r.x); put(r.y); put(r.width); put(r.height); }
@@ -602,4 +602,4 @@ void DisplayList::clear() noexcept {
     material_.at = nullptr;
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

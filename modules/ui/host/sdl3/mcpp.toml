@@ -29,7 +29,7 @@ openmui.semantic = { path = "../../semantic" }
 openmui.agent    = { path = "../../agent" }
 openmui.accessibility = { path = "../../accessibility" }
 mlibs.raster   = { path = "../../../gfx/raster" }
-openmui.render.vector   = { path = "../../../gfx/render/vector" }
+xengine.render.vector   = { path = "../../../gfx/render/vector" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.trace    = { path = "../../../base/trace" }
@@ -37,7 +37,7 @@ mlibs.trace    = { path = "../../../base/trace" }
 # inline table `mlibs.rhi`, which TOML forbids.
 "mlibs.rhi"         = { path = "../../../gfx/rhi" }
 "mlibs.rhi.sdl"     = { path = "../../../gfx/rhi/sdl" }
-openmui.render.effect   = { path = "../../../gfx/render/effect" }
+xengine.render.effect   = { path = "../../../gfx/render/effect" }
 mcpplibs.os      = "0.2.2"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 

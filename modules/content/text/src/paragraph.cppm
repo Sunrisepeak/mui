@@ -10,7 +10,7 @@ export module mlibs.text.api:paragraph;
 
 import std;
 import mlibs.geom;
-import openmui.render.vector;
+import xengine.render.vector;
 import :font;
 
 export namespace mlibs::text {
@@ -75,7 +75,7 @@ struct GlyphRun {
     FontRef                    font;
     float                      size = 0;
     Color                      color;
-    std::vector<omui::render::Glyph> glyphs;  // positions relative to the paragraph origin (baseline)
+    std::vector<xengine::render::Glyph> glyphs;  // positions relative to the paragraph origin (baseline)
     std::size_t                begin = 0, end = 0;  // bytes
     bool                       rtl = false;
     float                      x = 0, width = 0;
@@ -140,7 +140,7 @@ public:
     [[nodiscard]] std::size_t offset_below(std::size_t offset, float x) const;
 
     // Draws the glyph runs (and decorations) with the paragraph's origin at `origin`.
-    void paint(omui::render::DisplayList& list, Point origin) const;
+    void paint(xengine::render::DisplayList& list, Point origin) const;
 
     struct Shaped;  // the shaped text; defined by the implementation (openmui.text:shaped)
 

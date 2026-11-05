@@ -6,8 +6,8 @@ executable when temporary projects would select a different launcher.
 
 The gate packs twenty mlibs libraries: hash, math, log, trace, testing, geom,
 memory, unicode, fuzzy, session, pipeline, image, rhi, raster, shader, text,
-layout, markdown, i18n and i18n.cldr, plus the unchanged hanim.core, render and
-render.vector dependencies (23 archives). It then builds six independent
+layout, markdown, i18n and i18n.cldr, plus hanim.core and the three xengine.render,
+xengine.render.vector and xengine.render.effect packages (24 archives). It then builds six independent
 release consumers: source or compiled archives, each with canonical, legacy
 or mixed imports and dependency keys. The mixed form must resolve one copy
 of each library. Runtime checks cover shared log and trace state, geometry, arena/slot ownership, Unicode and
@@ -17,7 +17,10 @@ mux/demux are exercised through mixed APIs. RHI commands and wire words,
 raster clips and a PNG round trip, and real Slang compilation to SPIR-V,
 WGSL and ESSL are exercised. Viewport reflow, Markdown stream/HTML, shared
 locale/CLDR formatting and real Latin/Chinese/Arabic text PNGs complete the
-twenty runtime cases. Every import style and repeated run must have identical
+first twenty runtime cases. Three renderer cases verify shared registry identity,
+mixed display-list/CPU-renderer intermediate effect pixels, and a real Slang
+effect asset compiled and registered through the new/old loader APIs (23 total).
+Every import style and repeated run must have identical
 text pixels. Fonts are explicit fixture assets, not implicitly bundled by the
 text library archive. No GUI or display server is required.
 
@@ -47,7 +50,7 @@ actual index closure and its one OS backend must match the repository lock
 (version, source and identity digest). Current mcpp hashes the namespace, lock
 key spelling and version, not artifact contents; the fixture verifies short
 and qualified lock spellings through the shared `mlibs.hash` implementation.
-Third-party compilation is recorded separately from the twenty-three local libraries;
+Third-party compilation is recorded separately from the twenty-four local libraries;
 their implementation sources must never appear in a packed consumer's compile
 commands. The shader package also has a CLI target: pack explicitly selects
 `mlibs-shader`; its compiled CLI entry must be absent from the consumer link.

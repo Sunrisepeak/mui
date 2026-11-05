@@ -1,17 +1,17 @@
-module openmui.render.vector;
+module xengine.render.vector.api;
 
 import std;
-import openmui.hash;
-import openmui.geom;
+import mlibs.hash;
+import mlibs.geom;
 import :effects;
 
-namespace omui::render {
+namespace xengine::render {
 
 namespace {
 
-constexpr std::uint64_t fnv_basis = hash::Fnv1a::offset;
+constexpr std::uint64_t fnv_basis = mlibs::hash::Fnv1a::offset;
 
-std::uint64_t mix(std::uint64_t h, std::uint64_t v) noexcept { return hash::Fnv1a(h).u64(v).value(); }
+std::uint64_t mix(std::uint64_t h, std::uint64_t v) noexcept { return mlibs::hash::Fnv1a(h).u64(v).value(); }
 
 Rect points_bounds(std::span<const Point> points) noexcept {
     if (points.empty()) return {};
@@ -89,7 +89,7 @@ std::optional<Rect> device_bounds(const Command& command, const Affine& m, Glyph
                         const Point d = m.apply({c.origin.x + g.position.x, c.origin.y + g.position.y});
                         const float ix = std::floor(d.x), iy = std::floor(d.y);
                         const GlyphMask gm = glyphs->mask(c.font, g.id, c.size * m.a, {d.x - ix, d.y - iy});
-                        geom::PixelRect pr;
+                        mlibs::geom::PixelRect pr;
                         if (gm.color) pr = gm.color_bounds;
                         else if (gm.coverage) pr = gm.coverage->bounds;
                         else continue;
@@ -270,4 +270,4 @@ std::span<const RowSpan> DamageTracker::update(const DisplayList& list, std::int
     return rows_;
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

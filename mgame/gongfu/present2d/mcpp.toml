@@ -27,7 +27,7 @@ gongfu                = { path = ".." }
 marzer.tomlplusplus   = "3.4.0"
 hanim.core                 = { path = "../../../modules/base/hanim/core" }
 mlibs.geom          = { path = "../../../modules/base/geom" }
-openmui.render.vector = { path = "../../../modules/gfx/render/vector" }
+xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../modules/base/testing" }

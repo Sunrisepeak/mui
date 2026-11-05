@@ -31,7 +31,7 @@ mlibs.memory   = { path = "../../base/memory" }
 "hanim"               = { path = "../../gfx/hanim", default-features = false, features = ["effect"] }
 mlibs.layout   = { path = "../../content/layout" }
 mlibs.raster   = { path = "../../gfx/raster" }
-openmui.render.vector   = { path = "../../gfx/render/vector" }
+xengine.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
 mlibs.image    = { path = "../../base/image" }
 mlibs.text     = { path = "../../content/text" }

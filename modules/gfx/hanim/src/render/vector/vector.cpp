@@ -6,7 +6,7 @@ import openmui.trace;
 
 namespace hanim::detail {
 struct VectorParameter { std::size_t source; float value, min, max; };
-struct VectorEffect { omui::render::EffectRef ref; std::uint64_t generation; std::size_t offset, count; };
+struct VectorEffect { xengine::render::EffectRef ref; std::uint64_t generation; std::size_t offset, count; };
 struct VectorEffects {
     PreparedEffects plan;
     std::vector<VectorEffect> bindings;
@@ -15,7 +15,7 @@ struct VectorEffects {
 struct VectorData {
     PreparedObjectMorph geometry;
     VectorEffects effects;
-    std::vector<std::optional<omui::render::PreparedPaintMix>> materials;
+    std::vector<std::optional<xengine::render::PreparedPaintMix>> materials;
 };
 struct VectorProgramData {
     PreparedProgram program;

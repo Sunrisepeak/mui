@@ -32,7 +32,7 @@ nlohmann.json    = "3.12.0"
 mlibs.raster   = { path = "../../../modules/gfx/raster" }
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.hash     = { path = "../../../modules/base/hash" }
-openmui.render.vector = { path = "../../../modules/gfx/render/vector" }
+xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../modules/base/testing" }

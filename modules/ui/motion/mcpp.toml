@@ -29,7 +29,7 @@ mlibs.math          = { path = "../../base/math" }
 mlibs.hash          = { path = "../../base/hash" }
 mlibs.geom          = { path = "../../base/geom" }
 hanim.core                 = { path = "../../base/hanim/core" }
-openmui.render.vector = { path = "../../gfx/render/vector" }
+xengine.render.vector = { path = "../../gfx/render/vector" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }

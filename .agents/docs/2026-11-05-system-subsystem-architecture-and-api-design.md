@@ -211,7 +211,7 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 ## 5. 目标代码树与兼容迁移
 
-命名补充 D-100：`openmui` 归 UI 规范，UI 实现用 `omui`，hanim 等具名产品保留自身身份；通用库用 `mlibs`，尚未定名的领域引擎用 `xengine`。**物理分层和命名归属分别判断**，下列目录不意味着所有包继续叫 openmui；完整映射与分阶段源码／包兼容见[命名迁移方案](2026-11-05-product-namespace-migration-design.md)。既有技术名继续作为迁移期间的兼容入口。 N1 已迁移 hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image 及 gfx 的 rhi／后端／cts、shader／rules、raster，以及 content 的 text／layout／markdown／i18n／cldr 到 `mlibs.*`，同包保留旧源码入口；不代表其余基础库、引擎和 UI 已完成更名。
+命名补充 D-100：`openmui` 归 UI 规范，UI 实现用 `omui`，hanim 等具名产品保留自身身份；通用库用 `mlibs`，尚未定名的领域引擎用 `xengine`。**物理分层和命名归属分别判断**，下列目录不意味着所有包继续叫 openmui；完整映射与分阶段源码／包兼容见[命名迁移方案](2026-11-05-product-namespace-migration-design.md)。既有技术名继续作为迁移期间的兼容入口。 N1 已迁移 hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image 及 gfx 的 rhi／后端／cts、shader／rules、raster，以及 content 的 text／layout／markdown／i18n／cldr 到 `mlibs.*`，同包保留旧源码入口；N2 的 render／vector／effect／cts 已迁至 xengine.render.*；其余引擎和 UI 仍待迁移。
 
 以下是**职责与归属方向树，不是逐目录建包清单**：`[新增]` 表示待实现职责；内部小能力优先放所属包的`src/<职责>/`，达到§5.1的独立库／必要隔离门槛才新建`mcpp.toml`。不铺空目录或按一个`.cppm`拆一个包。未标注的目录为已有成员或分组；已有拆分也可按证据收敛。目录层次表达允许依赖，仍需实际package DAG和包内模块依赖检查同层环。
 
@@ -223,7 +223,7 @@ modules/
     unicode/ image/ fuzzy/
     log/ trace/ session/ pipeline/
     hanim/
-      core/                        保留 hanim.core：std + openmui.math
+      core/                        保留 hanim.core：std + mlibs.math
       core/src/contract/           [新增] 最小域类型先归core；确有独立边界再提取
     time/                          [新增] 时间值/映射；不拥有各域时钟
     control/                       mlibs.control：共享授权/会话/调用上下文；provider注册仍待实现

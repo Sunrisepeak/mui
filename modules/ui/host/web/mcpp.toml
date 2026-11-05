@@ -44,7 +44,7 @@ openmui.agent    = { path = "../../agent" }
 "openmui.native"       = { path = "../../native" }
 "openmui.native.store" = { path = "../../native/store" }
 mlibs.raster   = { path = "../../../gfx/raster" }
-openmui.render.vector = { path = "../../../gfx/render/vector" }
+xengine.render.vector = { path = "../../../gfx/render/vector" }
 "mlibs.rhi"         = { path = "../../../gfx/rhi" }
 "mlibs.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
 "mlibs.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }

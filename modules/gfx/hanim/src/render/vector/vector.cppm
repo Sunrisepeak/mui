@@ -5,7 +5,7 @@ import std;
 export import hanim.library;
 export import hanim.effect;
 export import hanim.program;
-export import openmui.render.vector;
+export import xengine.render.vector;
 export import mlibs.geom;
 
 namespace hanim::detail { struct VectorData; struct VectorProgramData; }
@@ -27,7 +27,7 @@ struct VectorFailure {
 [[nodiscard]] std::string_view vector_error_name(VectorError code) noexcept;
 struct MaterialBinding {
     std::string part;
-    omui::render::Paint from, to;
+    xengine::render::Paint from, to;
 };
 struct VectorRequirements {
     std::size_t world_transforms = 0, backend_parameters = 0, effect_layers = 0;
@@ -35,7 +35,7 @@ struct VectorRequirements {
 struct VectorScratch {
     // Reused native recording arena ensures failed recording never appends
     // partial commands to the destination. Must differ from destination.
-    omui::render::DisplayList* recording = nullptr;
+    xengine::render::DisplayList* recording = nullptr;
     std::span<mlibs::geom::Affine> world;
     std::span<float> backend_parameters;
     std::span<mlibs::geom::Rect> effect_layers;
@@ -54,7 +54,7 @@ public:
     // failure and exclusive per concurrent caller, as are destination/buffers.
     [[nodiscard]] std::expected<void, VectorFailure> record(
         FrameView frame, std::span<const float> effect_values,
-        omui::render::DisplayList& destination, VectorScratch scratch) const;
+        xengine::render::DisplayList& destination, VectorScratch scratch) const;
 private:
     friend class PreparedVectorProgram;
     std::shared_ptr<const detail::VectorData> data_;
@@ -81,7 +81,7 @@ public:
     // Draws selected bindings in author preorder; nested effects apply once
     // after their subtree. No Engine dependency and no private rasterizer.
     [[nodiscard]] std::expected<void, VectorFailure> record(
-        ProgramFrameView frame, omui::render::DisplayList& destination, ProgramVectorScratch scratch) const;
+        ProgramFrameView frame, xengine::render::DisplayList& destination, ProgramVectorScratch scratch) const;
 private:
     std::shared_ptr<const detail::VectorProgramData> data_;
 };

@@ -81,10 +81,20 @@ fi
 # 3. Every shader the Web build wrote for the page: of each partition, the
 # newest that holds WGSL or ESSL.
 mapfile -t partitions < <(python3 - <<'PY'
-import glob, os
+import glob, os, pathlib, tomllib
 newest = {}
+root = pathlib.Path('.')
+workspace = tomllib.loads((root / 'mcpp.toml').read_text())
+# Namespace migrations leave old generated trees in incremental caches. Only
+# current workspace owners may supply the browser's shader checks.
+owners = set()
+for member in ['.', *workspace['workspace']['members']]:
+    package = tomllib.loads((root / member / 'mcpp.toml').read_text())['package']
+    owners.add(package.get('namespace', 'mcpplibs') + '.' + package['name'])
 for f in glob.glob("target/.build-mcpp/out/*/*/mlibs/shader/*_shaders.cppm"):
     key = (f.split(os.sep)[-4], os.path.basename(f))
+    if key[0] not in owners:
+        continue
     text = open(f, encoding="utf-8").read()
     if "_wgsl{" not in text and "_essl{" not in text:
         continue

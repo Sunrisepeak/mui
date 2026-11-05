@@ -4,7 +4,7 @@
 # later sprites, meshes, particles — records its passes into one graph, so
 # 2D and 3D share the device, the pool, the order and the tracing.
 [package]
-namespace   = "openmui"
+namespace   = "xengine"
 name        = "render"
 version     = "0.1.0"
 description = "The rendering architecture: a frame as a checked graph of passes over device textures, transient textures pooled across frames, a trace span per pass"
@@ -15,7 +15,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-render]
+[targets.xengine-render]
 kind = "lib"
 
 [build]

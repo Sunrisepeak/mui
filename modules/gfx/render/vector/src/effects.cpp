@@ -2,26 +2,26 @@
 // pure function of its inputs: integer hashing for randomness, anim's
 // deterministic sine and cosine, no fused multiply-add — the same bytes on
 // every platform and compiler (spec R-2).
-module openmui.render.vector;
+module xengine.render.vector.api;
 
 import std;
-import openmui.math;
-import openmui.geom;
-import openmui.raster;
+import mlibs.math;
+import mlibs.geom;
+import mlibs.raster;
 import hanim.core;
 import :display;
 import :effects;
 import :cpu;
 
-namespace omui::render {
+namespace xengine::render {
 
 namespace {
 
-using raster::Rgba8;
-using raster::Surface;
+using mlibs::raster::Rgba8;
+using mlibs::raster::Surface;
 
 std::uint64_t mix(std::uint64_t x) noexcept {
-    return math::mix64(x);
+    return mlibs::math::mix64(x);
 }
 // A number in [0, 1) for (seed, x, y, salt), the same everywhere.
 float hash01(float seed, std::int64_t x, std::int64_t y, std::uint64_t salt = 0) noexcept {
@@ -97,11 +97,11 @@ void dissolve(const EffectInput& in) {
 struct WipeFrame {
     float c, sn, lo, span;
 };
-WipeFrame wipe_frame(std::span<const float> params, geom::Rect r) {
+WipeFrame wipe_frame(std::span<const float> params, mlibs::geom::Rect r) {
     const double a = static_cast<double>(params[1]) * hanim::dm::pi / 180.0;
     const auto c = static_cast<float>(hanim::dm::cos(a)), sn = static_cast<float>(hanim::dm::sin(a));
     float lo = std::numeric_limits<float>::max(), hi = -lo;
-    for (geom::Point q : {geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}}) {
+    for (mlibs::geom::Point q : {mlibs::geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}}) {
         lo = std::min(lo, q.x * c + q.y * sn);
         hi = std::max(hi, q.x * c + q.y * sn);
     }
@@ -122,10 +122,10 @@ void wipe(const EffectInput& in) {
 struct RevealFrame {
     float cx, cy, far;
 };
-RevealFrame reveal_frame(std::span<const float> params, geom::Rect r) {
+RevealFrame reveal_frame(std::span<const float> params, mlibs::geom::Rect r) {
     const float cx = r.x + r.width * params[1], cy = r.y + r.height * params[2];
     float far = 0;
-    for (geom::Point q : {geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}})
+    for (mlibs::geom::Point q : {mlibs::geom::Point{r.x, r.y}, {r.right(), r.y}, {r.x, r.bottom()}, {r.right(), r.bottom()}})
         far = std::max(far, std::sqrt((q.x - cx) * (q.x - cx) + (q.y - cy) * (q.y - cy)));
     return {cx, cy, std::max(far, 1.0f)};
 }
@@ -170,7 +170,7 @@ void noise(const EffectInput& in) {
     });
 }
 
-geom::Point chromatic_offset(std::span<const float> params, float scale) {
+mlibs::geom::Point chromatic_offset(std::span<const float> params, float scale) {
     const double a = static_cast<double>(params[1]) * hanim::dm::pi / 180.0;
     return {params[0] * scale * static_cast<float>(hanim::dm::cos(a)), params[0] * scale * static_cast<float>(hanim::dm::sin(a))};
 }
@@ -241,7 +241,7 @@ void blur(const EffectInput& in) {
 struct PixelGrid {
     int size, x, y, weight;
 };
-PixelGrid pixelate_grid(std::span<const float> p, float scale, geom::Rect layer) {
+PixelGrid pixelate_grid(std::span<const float> p, float scale, mlibs::geom::Rect layer) {
     const float unit = p[2] >= 0.5f ? 1.0f : scale;
     return {std::max(1, static_cast<int>(std::round(p[0] * unit))),
             static_cast<int>(std::floor(layer.x + p[3] * unit)),
@@ -301,7 +301,7 @@ struct ParticlesFrame {
     float stagger;
     int   x0, y0, x1, y1;
 };
-ParticlesFrame particles_frame(std::span<const float> params, float scale, geom::Rect layer) {
+ParticlesFrame particles_frame(std::span<const float> params, float scale, mlibs::geom::Rect layer) {
     return {params[2] * scale,
             params[3] * scale,
             std::max(1, static_cast<int>(std::round(params[4] * scale))),
@@ -653,7 +653,7 @@ void metaball(const EffectInput& in) {
     });
 }
 
-void derive_glass(std::span<const float>, float, geom::Rect, EffectFrame&) {}
+void derive_glass(std::span<const float>, float, mlibs::geom::Rect, EffectFrame&) {}
 
 float no_reach(std::span<const float>) { return 0; }
 
@@ -661,38 +661,38 @@ float no_reach(std::span<const float>) { return 0; }
 
 namespace fx = shaders;  // effects/*.slang
 
-void derive_dissolve(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) { out.derived[0] = dissolve_cell(p, scale); }
-void derive_wipe(std::span<const float> p, float, geom::Rect layer, EffectFrame& out) {
+void derive_dissolve(std::span<const float> p, float scale, mlibs::geom::Rect, EffectFrame& out) { out.derived[0] = dissolve_cell(p, scale); }
+void derive_wipe(std::span<const float> p, float, mlibs::geom::Rect layer, EffectFrame& out) {
     const WipeFrame w = wipe_frame(p, layer);
     out.derived = {w.c, w.sn, w.lo, w.span, 0, 0, 0, 0};
 }
-void derive_reveal(std::span<const float> p, float, geom::Rect layer, EffectFrame& out) {
+void derive_reveal(std::span<const float> p, float, mlibs::geom::Rect layer, EffectFrame& out) {
     const RevealFrame r = reveal_frame(p, layer);
     out.derived = {r.cx, r.cy, r.far, 0, 0, 0, 0, 0};
 }
 void rows_displace(std::span<const float> p, float scale, std::span<float> out) {
     for (std::size_t y = 0; y < out.size(); ++y) out[y] = displace_row(p, scale, static_cast<int>(y));
 }
-void derive_chromatic(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) {
-    const geom::Point o = chromatic_offset(p, scale);
+void derive_chromatic(std::span<const float> p, float scale, mlibs::geom::Rect, EffectFrame& out) {
+    const mlibs::geom::Point o = chromatic_offset(p, scale);
     out.derived[0] = o.x;
     out.derived[1] = o.y;
 }
-void derive_blur(std::span<const float> p, float scale, geom::Rect, EffectFrame& out) { out.derived[0] = static_cast<float>(blur_radius(p, scale)); }
-void derive_pixelate(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
+void derive_blur(std::span<const float> p, float scale, mlibs::geom::Rect, EffectFrame& out) { out.derived[0] = static_cast<float>(blur_radius(p, scale)); }
+void derive_pixelate(std::span<const float> p, float scale, mlibs::geom::Rect layer, EffectFrame& out) {
     const auto [size, x, y, weight] = pixelate_grid(p, scale, layer);
     out.derived[0] = static_cast<float>(size);
     out.derived[1] = static_cast<float>(x);
     out.derived[2] = static_cast<float>(y);
     out.derived[3] = static_cast<float>(weight);
 }
-void derive_particles(std::span<const float> p, float scale, geom::Rect layer, EffectFrame& out) {
+void derive_particles(std::span<const float> p, float scale, mlibs::geom::Rect layer, EffectFrame& out) {
     const ParticlesFrame f = particles_frame(p, scale, layer);
     out.derived = {static_cast<float>(f.size), static_cast<float>(f.x0), static_cast<float>(f.y0), static_cast<float>(f.x1),
                    static_cast<float>(f.y1),   f.stagger,                  f.spread,                   f.gravity};
 }
 
-EffectGpu pixel(const rhi::ShaderDesc& fs, decltype(EffectGpu::derive) derive = nullptr, decltype(EffectGpu::rows) rows = nullptr) {
+EffectGpu pixel(const mlibs::rhi::ShaderDesc& fs, decltype(EffectGpu::derive) derive = nullptr, decltype(EffectGpu::rows) rows = nullptr) {
     return {EffectPass::pixel, &fs, derive, rows};
 }
 
@@ -771,13 +771,13 @@ void register_builtins(EffectRegistry& r) {
                                       {"vignette", 0.6f, 0, 1, "darkening towards the corners"}},
                                      no_reach, crt, pixel(fx::crt::crt_fs, nullptr, rows_crt)});
         // The bulge, as crt samples it: what is seen at p was drawn further out.
-        crt_info.source_of = [](geom::Point p, geom::Rect layer, std::span<const float> params) {
+        crt_info.source_of = [](mlibs::geom::Point p, mlibs::geom::Rect layer, std::span<const float> params) {
             const float curve = std::clamp(params.empty() ? 0.0f : params[0], 0.0f, 0.5f);
             const float hw = std::max(layer.width * 0.5f, 1.0f), hh = std::max(layer.height * 0.5f, 1.0f);
             const float cx = layer.x + hw, cy = layer.y + hh;
             const float u = (p.x - cx) / hw, v = (p.y - cy) / hh;
             const float f = 1 + curve * (u * u + v * v);
-            return geom::Point{cx + u * f * hw, cy + v * f * hh};
+            return mlibs::geom::Point{cx + u * f * hw, cy + v * f * hh};
         };
         r.add(std::move(crt_info));
     }
@@ -879,11 +879,11 @@ void run_cpu_effect(const EffectInfo& info, const EffectInput& in, Parallel* par
     });
 }
 
-float shape_distance(const EffectShape& shape, geom::Point p) noexcept {
-    const geom::Rect& r = shape.rect;
+float shape_distance(const EffectShape& shape, mlibs::geom::Point p) noexcept {
+    const mlibs::geom::Rect& r = shape.rect;
     const float hx = r.width * 0.5f, hy = r.height * 0.5f;
     const float px = p.x - (r.x + hx), py = p.y - (r.y + hy);
-    const geom::CornerRadii& c = shape.radii;
+    const mlibs::geom::CornerRadii& c = shape.radii;
     float rad = px < 0 ? (py < 0 ? c.top_left : c.bottom_left) : (py < 0 ? c.top_right : c.bottom_right);
     rad = std::max(0.0f, std::min(rad, std::min(hx, hy)));
     const float qx = std::abs(px) - hx + rad, qy = std::abs(py) - hy + rad;
@@ -898,9 +898,9 @@ float smooth_min(float a, float b, float k) noexcept {
     return std::min(a, b) - h * h * k * 0.25f;
 }
 
-void box_blur(raster::Surface& surface, int radius, Parallel* parallel) {
+void box_blur(mlibs::raster::Surface& surface, int radius, Parallel* parallel) {
     if (radius <= 0) return;
-    raster::Surface scratch(surface.width(), surface.height());
+    mlibs::raster::Surface scratch(surface.width(), surface.height());
     // Each pass's lines are independent: in groups on the pool, the same bytes.
     auto pass = [&](const Surface& from, Surface& to, bool horizontal) {
         const int lines = horizontal ? from.height() : from.width();
@@ -999,4 +999,4 @@ EffectRegistry& effects() {
     return r;
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

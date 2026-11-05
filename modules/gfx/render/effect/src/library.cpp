@@ -1,14 +1,14 @@
 // The effect library: files read, shaders compiled for the device, effects
 // registered with the renderer and loaded again when their files change.
-module openmui.render.effect;
+module xengine.render.effect.api;
 
 import std;
-import openmui.rhi;
-import openmui.render.vector;
-import openmui.shader;
-import openmui.trace;
+import mlibs.rhi;
+import xengine.render.vector;
+import mlibs.shader;
+import mlibs.trace;
 
-namespace omui::effect {
+namespace xengine::render::effect {
 
 namespace {
 
@@ -26,8 +26,8 @@ std::string utf8(const std::filesystem::path& p) {
 }
 
 // The one format an effect is compiled to: the first the device takes.
-std::optional<rhi::ShaderFormat> format_for(rhi::ShaderFormats formats) {
-    for (rhi::ShaderFormat f : {rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl, rhi::ShaderFormat::dxil, rhi::ShaderFormat::dxbc})
+std::optional<mlibs::rhi::ShaderFormat> format_for(mlibs::rhi::ShaderFormats formats) {
+    for (mlibs::rhi::ShaderFormat f : {mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl, mlibs::rhi::ShaderFormat::dxil, mlibs::rhi::ShaderFormat::dxbc})
         if (formats.has(f)) return f;
     return std::nullopt;
 }
@@ -108,9 +108,9 @@ Diagnostics slangc_diagnostics(std::string_view message, const std::filesystem::
 struct Owned {
     std::string                 file;
     Declaration                 declaration;
-    shader::Program              program;
-    std::vector<rhi::ShaderCode> codes;
-    rhi::ShaderDesc             desc;
+    mlibs::shader::Program              program;
+    std::vector<mlibs::rhi::ShaderCode> codes;
+    mlibs::rhi::ShaderDesc             desc;
     std::string                 label;
 };
 
@@ -123,7 +123,7 @@ struct Library::Impl {
     struct Entry {
         std::filesystem::path file;
         std::string           name;
-        render::EffectRef     ref;
+        xengine::render::EffectRef     ref;
         // What the effect was made of, and when each last changed.
         std::vector<std::pair<std::filesystem::path, std::filesystem::file_time_type>> watched;
     };
@@ -133,7 +133,7 @@ struct Library::Impl {
     // so a program built with another template never reads a stale one).
     std::expected<std::filesystem::path, Diagnostics> templates() {
         if (!template_dir.empty()) return template_dir;
-        const std::string_view text = render::effect_template;
+        const std::string_view text = xengine::render::effect_template;
         std::error_code ec;
         const auto dir = std::filesystem::temp_directory_path(ec) / std::format("openmui-effect-template-{:016x}", std::hash<std::string_view>{}(text));
         const auto file = dir / "openmui_effect.slang";
@@ -159,7 +159,7 @@ struct Library::Impl {
     }
 
     std::expected<Loaded, Diagnostics> load(const std::filesystem::path& file) {
-        trace::Span span("effect.load", "effect");
+        mlibs::trace::Span span("effect.load", "effect");
         const auto from = std::chrono::steady_clock::now();
         const std::string where = utf8(file);
         const auto text = read_text(file);
@@ -179,25 +179,25 @@ struct Library::Impl {
         auto dir = templates();
         if (!dir) return std::unexpected(std::move(dir.error()));
         const auto shader = file.parent_path() / d.shader;
-        auto program = shader::compile(shader, {.slangc = options.slangc,
-                                               .formats = rhi::formats({*format}),
+        auto program = mlibs::shader::compile(shader, {.slangc = options.slangc,
+                                               .formats = mlibs::rhi::formats({*format}),
                                                .includes = {*dir},
-                                               .entries = {{d.entry, rhi::Stage::fragment}}});
+                                               .entries = {{d.entry, mlibs::rhi::Stage::fragment}}});
         if (!program) return std::unexpected(slangc_diagnostics(program.error(), shader));
         owned->program = std::move(*program);
-        const shader::Entry* entry = owned->program.entry(d.entry);
+        const mlibs::shader::Entry* entry = owned->program.entry(d.entry);
         if (!entry) return std::unexpected(Diagnostics{{utf8(shader), 0, 0, std::format("no fragment entry point `{}`", d.entry), "[shader(\"fragment\")]"}});
         // Only what the template offers (architecture §8): the source and aux
         // textures, the uniforms, nothing written.
-        const rhi::Counts c = entry->counts;
+        const mlibs::rhi::Counts c = entry->counts;
         if (c.samplers > 2 || c.uniform_buffers > 1 || c.storage_textures || c.storage_buffers || c.rw_storage_textures || c.rw_storage_buffers)
             return std::unexpected(Diagnostics{{utf8(shader), 0, 0, std::format("`{}` binds resources of its own", d.entry),
                                                 "an effect reads what the template declares (effect_source, effect_aux, effect) and nothing else"}});
         owned->label = std::format("effect {}", d.name);
-        owned->desc = shader::desc(*entry, owned->codes, owned->label);
+        owned->desc = mlibs::shader::desc(*entry, owned->codes, owned->label);
 
         // The registry's entry: the names point into what it owns.
-        render::EffectInfo info;
+        xengine::render::EffectInfo info;
         info.name = d.name;
         info.doc = d.doc;
         for (const Param& p : d.params) info.params.push_back({p.name, p.value, p.min, p.max, p.doc});
@@ -207,14 +207,14 @@ struct Library::Impl {
         } else {
             info.reach = [r = d.reach](std::span<const float>) { return r; };
         }
-        info.gpu = {render::EffectPass::pixel, &owned->desc, nullptr, nullptr};
+        info.gpu = {xengine::render::EffectPass::pixel, &owned->desc, nullptr, nullptr};
         owned->file = where;
         info.source = owned->file;
         info.storage = owned;
 
-        render::EffectRegistry& registry = render::effects();
+        xengine::render::EffectRegistry& registry = xengine::render::effects();
         auto mine = std::ranges::find(entries, d.name, &Entry::name);
-        render::EffectRef ref;
+        xengine::render::EffectRef ref;
         if (mine != entries.end()) {
             ref = mine->ref;
             registry.replace(ref, std::move(info));
@@ -223,7 +223,7 @@ struct Library::Impl {
             // effect file took (this library's before, or another's) is
             // replaced in place, its ref unchanged.
             if (const auto existing = registry.find(d.name)) {
-                const render::EffectInfo* other = registry.info(*existing);
+                const xengine::render::EffectInfo* other = registry.info(*existing);
                 if (!other || other->source.empty())
                     return std::unexpected(Diagnostics{{where, 1, 1, std::format("an effect named `{}` is registered already", d.name),
                                                         "the built-ins are dissolve, wipe, reveal, displace, noise, chromatic, blur, pixelate, particles"}});
@@ -243,7 +243,7 @@ struct Library::Impl {
             if (std::ranges::find(mine->watched, dep, &std::pair<std::filesystem::path, std::filesystem::file_time_type>::first) == mine->watched.end())
                 mine->watched.emplace_back(dep, changed(dep));
         const auto took = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - from);
-        trace::count("effect.load_ms", static_cast<double>(took.count()) / 1000.0, "effect");
+        mlibs::trace::count("effect.load_ms", static_cast<double>(took.count()) / 1000.0, "effect");
         return Loaded{file, d.name, ref, took};
     }
 };
@@ -279,11 +279,11 @@ std::vector<Reload> Library::poll() {
         Impl::Entry& e = impl_->entries[i];
         const bool stale = std::ranges::any_of(e.watched, [](const auto& w) { return Impl::changed(w.first) != w.second; });
         if (!stale) continue;
-        trace::mark("effect.reload", "effect");
+        mlibs::trace::mark("effect.reload", "effect");
         const auto from = std::chrono::steady_clock::now();
         const std::filesystem::path file = e.file;
         const std::string name = e.name;
-        const render::EffectRef ref = e.ref;
+        const xengine::render::EffectRef ref = e.ref;
         auto r = impl_->load(file);
         Reload reload{file, name, ref, std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - from), {}};
         if (!r) {
@@ -304,4 +304,4 @@ std::vector<std::string> Library::names() const {
     return out;
 }
 
-}  // namespace omui::effect
+}  // namespace xengine::render::effect

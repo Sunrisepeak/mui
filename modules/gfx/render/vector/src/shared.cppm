@@ -3,22 +3,22 @@
 // drawn from (one placement for the CPU renderer, its glyph pass and the GPU
 // renderer, so all ask the glyph source the same questions and put the
 // answers in the same place).
-module openmui.render.vector:shared;
+module xengine.render.vector.api:shared;
 
 import std;
-import openmui.geom;
-import openmui.raster;
+import mlibs.geom;
+import mlibs.raster;
 import :display;
 
-namespace omui::render {
+namespace xengine::render {
 
 // A display list's path as the rasteriser's (the verbs are the same, in the
 // same order; the conversion keeps the verb array).
 struct PathConv {
-    std::vector<raster::Verb> verbs;
-    raster::PathData data(const PathView& v) {
+    std::vector<mlibs::raster::Verb> verbs;
+    mlibs::raster::PathData data(const PathView& v) {
         verbs.resize(v.verbs.size());
-        for (std::size_t i = 0; i < v.verbs.size(); ++i) verbs[i] = static_cast<raster::Verb>(v.verbs[i]);
+        for (std::size_t i = 0; i < v.verbs.size(); ++i) verbs[i] = static_cast<mlibs::raster::Verb>(v.verbs[i]);
         return {verbs, v.points};
     }
 };
@@ -94,4 +94,4 @@ inline Ring stroke_ring(const Rect& r, const CornerRadii& radii, float width) no
     return ring;
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

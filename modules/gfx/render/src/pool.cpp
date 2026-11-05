@@ -1,9 +1,9 @@
-module openmui.render;
+module xengine.render.api;
 
 import std;
-import openmui.rhi;
+import mlibs.rhi;
 
-namespace omui::render {
+namespace xengine::render {
 
 TexturePool::TexturePool(TexturePool&& other) noexcept
     : device_(other.device_), keep_(other.keep_), entries_(std::move(other.entries_)), frame_(other.frame_), made_(other.made_),
@@ -48,22 +48,22 @@ void TexturePool::restart_frame() noexcept {
         if (e.last == frame_) e.used = false;
 }
 
-rhi::Result<rhi::Texture> TexturePool::acquire(const TextureNeed& need, std::string_view label) {
+mlibs::rhi::Result<mlibs::rhi::Texture> TexturePool::acquire(const TextureNeed& need, std::string_view label) {
     for (Entry& e : entries_)
         if (!e.used && e.need == need) {
             e.used = true;
             e.last = frame_;
             return e.texture;
         }
-    auto t = device_->create(rhi::TextureDesc{need.format, need.width, need.height, need.usage, label});
+    auto t = device_->create(mlibs::rhi::TextureDesc{need.format, need.width, need.height, need.usage, label});
     if (!t) return std::unexpected(t.error());
     entries_.push_back({*t, need, true, frame_});
     ++made_;
     return *t;
 }
 
-bool TexturePool::owns(rhi::Texture t) const noexcept {
+bool TexturePool::owns(mlibs::rhi::Texture t) const noexcept {
     return std::ranges::any_of(entries_, [&](const Entry& e) { return e.texture == t; });
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

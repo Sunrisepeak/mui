@@ -19,24 +19,24 @@
 //
 //     render::TexturePool pool(device);
 //     render::Graph graph(pool);
-//     auto layer = graph.transient({w, h, rhi::Format::rgba8_unorm, color_target | sampled}, "layer");
-//     graph.pass({.name = "ui.layer", .writes = {*layer}}, [&](rhi::CommandList& l) { … });
-//     graph.pass({.name = "ui.composite", .reads = {*layer}, .writes = {target}}, [&](rhi::CommandList& l) { … });
+//     auto layer = graph.transient({w, h, mlibs::rhi::Format::rgba8_unorm, color_target | sampled}, "layer");
+//     graph.pass({.name = "ui.layer", .writes = {*layer}}, [&](mlibs::rhi::CommandList& l) { … });
+//     graph.pass({.name = "ui.composite", .reads = {*layer}, .writes = {target}}, [&](mlibs::rhi::CommandList& l) { … });
 //     auto report = graph.record(list, {&target, 1});
-export module openmui.render:graph;
+export module xengine.render.api:graph;
 
 import std;
-import openmui.rhi;
+import mlibs.rhi;
 import :pool;
 
-export namespace omui::render {
+export namespace xengine::render {
 
 struct PassDesc {
     // What a trace span calls it: a string that outlives the program (a literal).
     const char*               name = "render.pass";
     // What a problem calls it: anything that tells this pass from the others.
     std::string               label;
-    std::vector<rhi::Texture> reads, writes;
+    std::vector<mlibs::rhi::Texture> reads, writes;
 };
 
 struct GraphProblem {
@@ -58,39 +58,39 @@ public:
     explicit Graph(TexturePool& pool) : pool_(&pool) {}
 
     // A texture made for this frame: the pool's, free again at its next frame.
-    [[nodiscard]] rhi::Result<rhi::Texture> transient(const TextureNeed& need, std::string_view label);
+    [[nodiscard]] mlibs::rhi::Result<mlibs::rhi::Texture> transient(const TextureNeed& need, std::string_view label);
 
     // A pass, run after the passes added before it.
-    void pass(PassDesc desc, std::function<void(rhi::CommandList&)> record);
+    void pass(PassDesc desc, std::function<void(mlibs::rhi::CommandList&)> record);
 
     // What would run, or what is wrong.
-    [[nodiscard]] std::expected<GraphPlan, std::vector<GraphProblem>> plan(std::span<const rhi::Texture> outputs) const;
+    [[nodiscard]] std::expected<GraphPlan, std::vector<GraphProblem>> plan(std::span<const mlibs::rhi::Texture> outputs) const;
 
     // Checks and plans the graph, then records the passes that run into
     // `list`, in order, each in its trace span.
-    [[nodiscard]] std::expected<GraphReport, std::vector<GraphProblem>> record(rhi::CommandList& list, std::span<const rhi::Texture> outputs);
+    [[nodiscard]] std::expected<GraphReport, std::vector<GraphProblem>> record(mlibs::rhi::CommandList& list, std::span<const mlibs::rhi::Texture> outputs);
 
     // Ready for the next frame: the passes and transients forgotten (the pool keeps the textures).
     void clear();
 
     [[nodiscard]] std::size_t size() const noexcept { return passes_.size(); }
     [[nodiscard]] const PassDesc& desc(std::size_t i) const { return passes_.at(i).desc; }
-    [[nodiscard]] bool transient(rhi::Texture t) const noexcept;
+    [[nodiscard]] bool transient(mlibs::rhi::Texture t) const noexcept;
 
 private:
     struct Pass {
         PassDesc                                 desc;
-        std::function<void(rhi::CommandList&)> record;
+        std::function<void(mlibs::rhi::CommandList&)> record;
     };
     struct Made {
-        rhi::Texture texture;
+        mlibs::rhi::Texture texture;
         std::string  label;
     };
-    [[nodiscard]] const Made* made(rhi::Texture t) const noexcept;
+    [[nodiscard]] const Made* made(mlibs::rhi::Texture t) const noexcept;
 
     TexturePool*      pool_;
     std::vector<Pass> passes_;
     std::vector<Made> transients_;
 };
 
-}  // namespace omui::render
+}  // namespace xengine::render

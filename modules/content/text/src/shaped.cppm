@@ -5,7 +5,7 @@ module mlibs.text.api:shaped;
 
 import std;
 import mlibs.geom;
-import openmui.render.vector;
+import xengine.render.vector;
 import mlibs.unicode;
 import :font;
 import :paragraph;

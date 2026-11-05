@@ -1,11 +1,11 @@
 // Reading *.effect.omui.toml: toml++ reports a malformed file by throwing,
 // which this unit — the library's adapter — turns into a diagnostic.
-module openmui.render.effect;
+module xengine.render.effect.api;
 
 import std;
 import tomlplusplus;
 
-namespace omui::effect {
+namespace xengine::render::effect {
 
 namespace {
 
@@ -170,4 +170,4 @@ std::expected<Declaration, Diagnostics> read(std::string_view source, std::strin
     return d;
 }
 
-}  // namespace omui::effect
+}  // namespace xengine::render::effect

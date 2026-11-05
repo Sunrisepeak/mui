@@ -49,6 +49,35 @@ def identity(name: str) -> str:
     return "mlibs." + name if name in NAMES else name
 
 
+def renderer_boundaries(packages: list[dict]) -> dict:
+    """Check actual target dependency edges, excluding host build programs."""
+    edges = {p["package"]["canonical"]: set() for p in packages}
+    for package in packages:
+        if "target" not in package["instances"]:
+            continue
+        for request in package.get("requested_by", []):
+            table = request["table"]
+            excluded = table in {"[build-dependencies]", "[dev-dependencies]"} or table.endswith((".build-dependencies]", ".dev-dependencies]"))
+            if request["requester"] in edges and not excluded:
+                edges[request["requester"]].add(package["package"]["canonical"])
+    closures = {}
+    for root in ("xengine.render", "xengine.render.vector", "xengine.render.effect"):
+        start = next(name for name in edges if name.startswith(root + "@"))
+        seen, pending = {start}, [start]
+        while pending:
+            for dependency in edges[pending.pop()] - seen:
+                seen.add(dependency)
+                pending.append(dependency)
+        closures[root] = sorted(name.split("@")[0] for name in seen)
+    if set(closures["xengine.render"]) != {"xengine.render", "mlibs.rhi", "mlibs.memory", "mlibs.hash", "mlibs.trace"}:
+        raise RuntimeError("render graph no longer has its independent minimal target closure")
+    if {"xengine.render.effect", "mlibs.shader", "marzer.tomlplusplus"} & set(closures["xengine.render.vector"]):
+        raise RuntimeError("vector rendering acquired optional runtime effect-loader dependencies")
+    if not {"mlibs.shader", "marzer.tomlplusplus"}.issubset(closures["xengine.render.effect"]):
+        raise RuntimeError("dynamic effect loader lost its actual runtime compiler/parser")
+    return closures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mcpp", default=os.environ.get("MCPP", "mcpp"))
@@ -107,8 +136,9 @@ def main() -> int:
         external_identities = None
         source_paths = {name: repo / "modules" / ("gfx" if name in GFX else "content" if name in CONTENT else "base") / name.replace(".", "/") for name in NAMES}
         source_paths["hanim.core"] = repo / "modules/base/hanim/core"
-        source_paths["openmui.render"] = repo / "modules/gfx/render"
-        source_paths["openmui.render.vector"] = repo / "modules/gfx/render/vector"
+        source_paths["xengine.render"] = repo / "modules/gfx/render"
+        source_paths["xengine.render.vector"] = repo / "modules/gfx/render/vector"
+        source_paths["xengine.render.effect"] = repo / "modules/gfx/render/effect"
         packed_paths = {}
         for name, path in source_paths.items():
             # shader also publishes the omui-shader executable; select its
@@ -140,7 +170,8 @@ def main() -> int:
             packed = manifests[0].parent
             units = list((packed / "interface").glob("*.cppm"))
             text = "\n".join(unit.read_text() for unit in units)
-            for module in (("mlibs." + name, "openmui." + name) if name in NAMES else (name,)):
+            for module in (("mlibs." + name, "openmui." + name) if name in NAMES else
+                           (name, name.replace("xengine.", "openmui.", 1)) if name.startswith("xengine.") else (name,)):
                 if "export module " + module + ";" not in text:
                     raise RuntimeError(f"packed public interface is missing {module}")
             if list(packed.rglob("*.cpp")):
@@ -160,8 +191,11 @@ def main() -> int:
                 prefixes = ("mlibs", "openmui") if style == "mixed" else (("mlibs",) if style == "canonical" else ("openmui",))
                 dependencies = "\n".join(f'{json.dumps(prefix + "." + name)} = {{ path = {json.dumps(str(paths[name]))} }}'
                                          for prefix in prefixes for name in NAMES)
-                for name in ("hanim.core", "openmui.render", "openmui.render.vector"):
-                    dependencies += "\n" + json.dumps(name) + " = { path = " + json.dumps(str(paths[name])) + " }"
+                dependencies += "\n\"hanim.core\" = { path = " + json.dumps(str(paths["hanim.core"])) + " }"
+                render_prefixes = ("xengine", "openmui") if style == "mixed" else (("xengine",) if style == "canonical" else ("openmui",))
+                for prefix in render_prefixes:
+                    for suffix in ("", ".vector", ".effect"):
+                        dependencies += "\n" + json.dumps(prefix + ".render" + suffix) + " = { path = " + json.dumps(str(paths["xengine.render" + suffix])) + " }"
                 if source_kind == "packed":
                     # Current pack omits dependency metadata. Supply the actual
                     # direct external edges here without editing the archives.
@@ -171,7 +205,7 @@ def main() -> int:
                         value = '{ version = ' + version + ', features = ["demux", "mux"] }' if name.endswith(".libwebp") else version
                         dependencies += f"\n{name} = {value}"
                 imports = "\n".join(f"import {prefix}.{name};" for prefix in prefixes for name in NAMES)
-                imports += "\nimport openmui.render.vector;"
+                imports += "\n" + "\n".join("import " + prefix + ".render" + suffix + ";" for prefix in render_prefixes for suffix in ("", ".vector", ".effect"))
                 archive_link_flags = ""
                 if source_kind == "packed":
                     # mcpp pack omits path-dependency edges, so GNU ld cannot
@@ -188,10 +222,12 @@ def main() -> int:
                                                       .replace("{{lock_identities}}", ", ".join(map(json.dumps, identity_inputs)))
                                                       .replace("{{fonts_directory}}", json.dumps(str(repo / "modules/content/text/fonts"))))
                 shutil.copyfile(fixture / "consumer.slang", project / "consumer.slang")
+                for resource in ("scanlines.effect.omui.toml", "scanlines.slang"):
+                    shutil.copyfile(repo / "modules/gfx/render/effect/tests/data" / resource, project / resource)
                 argv = [args.mcpp, "run", "--profile", "release"]
                 stdout = command(label, argv, project, bootstrap=True)
                 result = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"kind":"mlibs.namespace-consumer"')]
-                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 20:
+                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 23:
                     raise RuntimeError(label + ": missing real successful consumer result")
                 png_digest = sha(project / "content.png")
                 if png_digest is None or not result[0].get("content_pixel_hash"):
@@ -210,6 +246,7 @@ def main() -> int:
                 if graph.get("schema_version") != 2:
                     raise RuntimeError("unsupported mcpp resolution schema")
                 packages = graph["graph"]["packages"]
+                boundaries = renderer_boundaries(packages) if source_kind == "source" else None
                 identities = []
                 external_packages = {}
                 host_packages = {}
@@ -263,8 +300,8 @@ def main() -> int:
                 generated_expected = {(output_dir("mlibs.shader") / "mlibs/slang_provisioned.cppm").resolve():
                                       "mlibs.shader.api:provisioned"}
                 for folder in ("shaders", "effects"):
-                    for shader in (source_paths["openmui.render.vector"] / folder).glob("*.slang"):
-                        generated_expected[(output_dir("openmui.render.vector") / "mlibs/shader" / (shader.stem + "_shaders.cppm")).resolve()] = "openmui.render.vector:" + shader.stem + "_shaders"
+                    for shader in (source_paths["xengine.render.vector"] / folder).glob("*.slang"):
+                        generated_expected[(output_dir("xengine.render.vector") / "mlibs/shader" / (shader.stem + "_shaders.cppm")).resolve()] = "xengine.render.vector.api:" + shader.stem + "_shaders"
                 for data in (source_paths["i18n.cldr"] / "data").glob("*.locale.omui.json"):
                     stem = data.name.removesuffix(".locale.omui.json").replace("-", "_").replace(".", "_") + "_locale"
                     generated_expected[(output_dir("mlibs.i18n.cldr") / "openmui" / (stem + ".cppm")).resolve()] = "mlibs.i18n.cldr.api:" + stem
@@ -325,6 +362,7 @@ def main() -> int:
                                        "declared_tool_sources_excluded_from_consumer_link": tool_sources,
                                        "external_sources": external_sources, "external_packages": external_packages,
                                        "host_only_packages": host_packages,
+                                       "renderer_target_boundaries": boundaries,
                                        "generated_sources": generated_sources,
                                        "explicit_archive_rescan_group": source_kind == "packed",
                                        "toolchain": graph["toolchain"]})

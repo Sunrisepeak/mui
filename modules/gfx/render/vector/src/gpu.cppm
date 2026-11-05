@@ -29,11 +29,11 @@
 // (GpuOptions::external), drawn over their rectangle like an image. Effects
 // without a GPU path are counted in effects_skipped. Object ids are the CPU
 // renderer's.
-export module openmui.render.vector:gpu;
+export module xengine.render.vector.api:gpu;
 
 import std;
-import openmui.geom;
-import openmui.rhi;
+import mlibs.geom;
+import mlibs.rhi;
 import :display;
 import :resources;
 import :cpu;
@@ -41,7 +41,7 @@ export import :ui_shaders;
 export import :material_shaders;
 export import :blend_shaders;
 
-export namespace omui::render {
+export namespace xengine::render {
 
 struct GpuOptions {
     float scale = 1.0f;  // physical pixels per logical pixel
@@ -51,21 +51,21 @@ struct GpuOptions {
     // what the program made on the same device — a video frame it decoded,
     // an engine's view — premultiplied, sampled. None for an id: skipped and
     // counted, as the CPU renderer counts every one.
-    std::function<std::optional<rhi::Texture>(std::uint64_t id)> external;
+    std::function<std::optional<mlibs::rhi::Texture>(std::uint64_t id)> external;
 };
 
 class GpuRenderer {
 public:
     // The renderer's pipelines and textures on `device`; nullopt with why
     // when the device cannot take them (its shader formats).
-    [[nodiscard]] static rhi::Result<GpuRenderer> create(rhi::Device& device);
+    [[nodiscard]] static mlibs::rhi::Result<GpuRenderer> create(mlibs::rhi::Device& device);
 
     // Draws `list` into `target` (an rgba8_unorm colour target) and submits
     // the work; read the target back, or present it, after.
-    [[nodiscard]] rhi::Result<RenderReport> render(const DisplayList& list, rhi::Texture target, const Resources& resources,
+    [[nodiscard]] mlibs::rhi::Result<RenderReport> render(const DisplayList& list, mlibs::rhi::Texture target, const Resources& resources,
                                                    const GpuOptions& options = {});
 
-    [[nodiscard]] rhi::Device& device() const noexcept;
+    [[nodiscard]] mlibs::rhi::Device& device() const noexcept;
 
     GpuRenderer(GpuRenderer&&) noexcept;
     GpuRenderer& operator=(GpuRenderer&&) noexcept;
@@ -79,6 +79,6 @@ private:
 
 // The shader formats the renderer's shaders were compiled to by this build:
 // a device must take one.
-[[nodiscard]] rhi::ShaderFormats gpu_shader_formats() noexcept;
+[[nodiscard]] mlibs::rhi::ShaderFormats gpu_shader_formats() noexcept;
 
-}  // namespace omui::render
+}  // namespace xengine::render

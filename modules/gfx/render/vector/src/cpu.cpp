@@ -1,22 +1,22 @@
-module openmui.render.vector;
+module xengine.render.vector.api;
 
 import std;
-import openmui.hash;
-import openmui.raster;
+import mlibs.hash;
+import mlibs.raster;
 import :shared;
 
-namespace omui::render {
+namespace xengine::render {
 
 namespace {
 
-static_assert(static_cast<int>(PathVerb::close) == static_cast<int>(raster::Verb::close));
-static_assert(static_cast<int>(BlendMode::erase) == static_cast<int>(raster::Blend::erase),
+static_assert(static_cast<int>(PathVerb::close) == static_cast<int>(mlibs::raster::Verb::close));
+static_assert(static_cast<int>(BlendMode::erase) == static_cast<int>(mlibs::raster::Blend::erase),
               "render and raster list the blend modes in the same order");
 
 // A render material as raster's: its normal map found (missing: unlit, and counted).
-const raster::Material* material_of(const Material* m, const Resources& res, RenderReport& report, raster::Material& out) {
+const mlibs::raster::Material* material_of(const Material* m, const Resources& res, RenderReport& report, mlibs::raster::Material& out) {
     if (!m) return nullptr;
-    const raster::Surface* normal = res.images ? res.images->get(m->normal) : nullptr;
+    const mlibs::raster::Surface* normal = res.images ? res.images->get(m->normal) : nullptr;
     if (!normal) {
         ++report.missing_images;
         return nullptr;
@@ -38,30 +38,30 @@ const raster::Material* material_of(const Material* m, const Resources& res, Ren
 
 struct PaintConv {
     std::vector<PaintConv> leaves;
-    std::vector<raster::WeightedPaint> terms;
-    std::vector<raster::Stop> stops;
-    raster::Material          material;  // the converted paint's (one paint is drawn at a time)
-    raster::Paint convert(const Paint& p, const Resources& res, RenderReport& report) {
-        raster::Paint out;
+    std::vector<mlibs::raster::WeightedPaint> terms;
+    std::vector<mlibs::raster::Stop> stops;
+    mlibs::raster::Material          material;  // the converted paint's (one paint is drawn at a time)
+    mlibs::raster::Paint convert(const Paint& p, const Resources& res, RenderReport& report) {
+        mlibs::raster::Paint out;
         switch (p.kind) {
             case Paint::Kind::mix: {
-                if (!validate_paint_mix(p)) { ++report.invalid_paints; return raster::Paint::solid(Color::transparent()); }
+                if (!validate_paint_mix(p)) { ++report.invalid_paints; return mlibs::raster::Paint::solid(Color::transparent()); }
                 leaves.resize(p.mix.size()); terms.resize(p.mix.size());
                 for (std::size_t i = 0; i < p.mix.size(); ++i)
                     terms[i] = {leaves[i].convert(p.mix[i].paint, res, report), p.mix[i].weight};
-                out.kind = raster::Paint::Kind::mix; out.mix = terms; out.opacity = p.mix_opacity;
+                out.kind = mlibs::raster::Paint::Kind::mix; out.mix = terms; out.opacity = p.mix_opacity;
                 break;
             }
             case Paint::Kind::solid:
-                out = raster::Paint::solid(p.color);
+                out = mlibs::raster::Paint::solid(p.color);
                 break;
             case Paint::Kind::gradient: {
-                out.kind = raster::Paint::Kind::gradient;
-                out.gradient = static_cast<raster::GradientKind>(p.gradient.kind);
+                out.kind = mlibs::raster::Paint::Kind::gradient;
+                out.gradient = static_cast<mlibs::raster::GradientKind>(p.gradient.kind);
                 out.start = p.gradient.start;
                 out.end = p.gradient.end;
                 out.radius = p.gradient.radius;
-                out.spread = static_cast<raster::Spread>(p.gradient.spread);
+                out.spread = static_cast<mlibs::raster::Spread>(p.gradient.spread);
                 stops.clear();
                 for (const GradientStop& s : p.gradient.stops) stops.push_back({s.offset, s.color});
                 out.stops = stops;
@@ -69,16 +69,16 @@ struct PaintConv {
             }
             case Paint::Kind::image:
             case Paint::Kind::image_mask: {
-                const raster::Surface* img = res.images ? res.images->get(p.image) : nullptr;
+                const mlibs::raster::Surface* img = res.images ? res.images->get(p.image) : nullptr;
                 if (!img) {
                     ++report.missing_images;
-                    out = raster::Paint::solid(Color::transparent());
+                    out = mlibs::raster::Paint::solid(Color::transparent());
                     break;
                 }
-                out.kind = p.kind == Paint::Kind::image ? raster::Paint::Kind::image : raster::Paint::Kind::image_mask;
+                out.kind = p.kind == Paint::Kind::image ? mlibs::raster::Paint::Kind::image : mlibs::raster::Paint::Kind::image_mask;
                 out.image = img->view();
                 out.color = p.color;
-                out.sampling = static_cast<raster::Sampling>(p.sampling);
+                out.sampling = static_cast<mlibs::raster::Sampling>(p.sampling);
                 out.transform = p.image_transform;
                 out.material = material_of(p.material, res, report, material);
                 break;
@@ -88,10 +88,10 @@ struct PaintConv {
     }
 };
 
-raster::Stroke stroke_of(const StrokeStyle& s) {
+mlibs::raster::Stroke stroke_of(const StrokeStyle& s) {
     return {.width = s.width,
-            .cap = static_cast<raster::Cap>(s.cap),
-            .join = static_cast<raster::Join>(s.join),
+            .cap = static_cast<mlibs::raster::Cap>(s.cap),
+            .join = static_cast<mlibs::raster::Join>(s.join),
             .miter_limit = s.miter_limit,
             .dashes = s.dashes,
             .dash_offset = s.dash_offset};
@@ -108,13 +108,13 @@ std::string_view command_kind_name(std::size_t index) noexcept {
 }
 
 struct CpuRenderer::Scratch {
-    raster::Canvas             canvas;
+    mlibs::raster::Canvas             canvas;
     std::vector<Affine>        transforms;
     std::vector<std::uint32_t> nodes;
     PathConv                   paths;
     PaintConv                  paints;
     Path                       path;
-    explicit Scratch(raster::Surface& target) : canvas(target) {}
+    explicit Scratch(mlibs::raster::Surface& target) : canvas(target) {}
 };
 
 namespace {
@@ -142,7 +142,7 @@ public:
         const MaskSlot* s = find(k, false);  // read only: bands call this at the same time
         return s && s->used ? s->mask : GlyphMask{};
     }
-    raster::PathData outline(FontRef font, std::uint32_t glyph) override {
+    mlibs::raster::PathData outline(FontRef font, std::uint32_t glyph) override {
         const std::uint64_t k = (static_cast<std::uint64_t>(font.id) << 32) | glyph;
         if (resolving_) {
             if (OutlineSlot* s = find_outline(k, true); s && !s->used) {
@@ -152,7 +152,7 @@ public:
             return {};
         }
         const OutlineSlot* s = find_outline(k, false);
-        return s && s->used ? s->data : raster::PathData{};
+        return s && s->used ? s->data : mlibs::raster::PathData{};
     }
     // While resolving, calls go to the source and are recorded; afterwards
     // they are answered from the record.
@@ -179,11 +179,11 @@ private:
     };
     struct OutlineSlot {
         std::uint64_t    key = 0;
-        raster::PathData data{};
+        mlibs::raster::PathData data{};
         bool             used = false;
     };
     static std::uint64_t hash(const MaskKey& k) noexcept {
-        hash::Fnv1a h;
+        mlibs::hash::Fnv1a h;
         for (std::uint32_t v : {k.font, k.glyph, std::bit_cast<std::uint32_t>(k.size), std::bit_cast<std::uint32_t>(k.fx),
                                 std::bit_cast<std::uint32_t>(k.fy)})
             h.word(v);
@@ -288,7 +288,7 @@ struct CpuRenderer::Impl {
     struct EffectLayer {
         std::size_t                  push = 0, pop = 0;
         Rect                         device;
-        raster::Surface              source, result;
+        mlibs::raster::Surface              source, result;
         DisplayList                  inner;
         std::unique_ptr<CpuRenderer> offscreen;
         // An effect that reads its backdrop runs when the draw reaches it,
@@ -299,12 +299,12 @@ struct CpuRenderer::Impl {
         float                        scale = 1;
         Rect                         layer;   // in the surface
         std::vector<EffectShape>     shapes;  // in the surface
-        raster::Surface              under;
+        mlibs::raster::Surface              under;
     };
     std::vector<EffectLayer> effect_layers;
     std::size_t              effect_count = 0;
 
-    Scratch& take(raster::Surface& target) {
+    Scratch& take(mlibs::raster::Surface& target) {
         std::scoped_lock g(lock);
         if (free.empty()) {
             pool.push_back(std::make_unique<Scratch>(target));
@@ -330,7 +330,7 @@ std::span<const std::uint32_t> CpuRenderer::object_ids() const noexcept {
     return impl_->ids;
 }
 
-RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options) {
+RenderReport CpuRenderer::render(const DisplayList& list, mlibs::raster::Surface& target, const Resources& res, const CpuOptions& options) {
     RenderReport report;
     Impl& d = *impl_;
     d.ids_on = options.object_ids;
@@ -429,7 +429,7 @@ RenderReport CpuRenderer::render(const DisplayList& list, raster::Surface& targe
     return report;
 }
 
-void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface& target, const Resources& res, const CpuOptions& options,
+void CpuRenderer::prepare_effects(const DisplayList& list, const mlibs::raster::Surface& target, const Resources& res, const CpuOptions& options,
                                   RenderReport& report) {
     Impl& d = *impl_;
     d.effect_count = 0;
@@ -513,14 +513,14 @@ void CpuRenderer::prepare_effects(const DisplayList& list, const raster::Surface
     }
 }
 
-void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& target, const Resources& res, const CpuOptions& options,
+void CpuRenderer::draw(Scratch& sc, const DisplayList& list, mlibs::raster::Surface& target, const Resources& res, const CpuOptions& options,
                        RowSpan band, bool whole, RenderReport& report) {
-    raster::Canvas& canvas = sc.canvas;
+    mlibs::raster::Canvas& canvas = sc.canvas;
     canvas.reset(target);
     if (!whole) canvas.restrict_rows(band.top, band.bottom);
     report.rows += static_cast<std::size_t>(band.bottom - band.top);
     if (options.clear) {
-        const raster::Rgba8 bg = raster::premultiply(options.background);
+        const mlibs::raster::Rgba8 bg = mlibs::raster::premultiply(options.background);
         if (whole) target.clear(bg);
         else
             for (std::int32_t y = band.top; y < band.bottom; ++y) std::fill_n(target.row(y), target.width(), bg);
@@ -540,8 +540,8 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
     auto m = [&]() -> const Affine& { return transforms.back(); };
     // The paint's own transform is in logical space; the device needs it after the current matrix.
     auto device_paint = [&](const Paint& p) {
-        raster::Paint rp = paints.convert(p, res, report);
-        if (rp.kind != raster::Paint::Kind::solid) rp.transform = m() * rp.transform;
+        mlibs::raster::Paint rp = paints.convert(p, res, report);
+        if (rp.kind != mlibs::raster::Paint::Kind::solid) rp.transform = m() * rp.transform;
         return rp;
     };
 
@@ -573,10 +573,10 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                 run_cpu_effect(*layer.info, {layer.source, layer.result, layer.params, layer.scale, layer.layer, &layer.under, layer.shapes}, options.parallel);
             }
             const bool blended = push.blend != BlendMode::normal;
-            if (blended) canvas.push_layer(1, static_cast<raster::Blend>(push.blend));
+            if (blended) canvas.push_layer(1, static_cast<mlibs::raster::Blend>(push.blend));
             if (layer.device.width > 0 && layer.result.width() > 0)
                 canvas.draw_image(layer.result.view(), {0, 0, static_cast<float>(layer.result.width()), static_cast<float>(layer.result.height())},
-                                  layer.device, raster::Sampling::nearest, push.opacity, Affine{});
+                                  layer.device, mlibs::raster::Sampling::nearest, push.opacity, Affine{});
             if (blended) canvas.pop_layer();
             report.commands += layer.pop - layer.push + 1;
             index = layer.pop;
@@ -613,32 +613,32 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                     sc.path.clear();
                     sc.path.add_rounded_rect(ring.outer, ring.outer_radii);
                     if (ring.hollow) sc.path.add_rounded_rect(ring.inner, ring.inner_radii);
-                    canvas.fill_path(paths.data(sc.path.view()), raster::FillRule::even_odd, device_paint(c.paint), m());
+                    canvas.fill_path(paths.data(sc.path.view()), mlibs::raster::FillRule::even_odd, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     canvas.box_shadow(c.rect, c.radii, c.offset, c.blur, c.spread, c.color, c.inset, m());
                 } else if constexpr (std::same_as<T, FillPath>) {
-                    canvas.fill_path(paths.data(c.path), static_cast<raster::FillRule>(c.rule), device_paint(c.paint), m());
+                    canvas.fill_path(paths.data(c.path), static_cast<mlibs::raster::FillRule>(c.rule), device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokePath>) {
                     canvas.stroke_path(paths.data(c.path), stroke_of(c.style), device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, DrawImage>) {
-                    const raster::Surface* img = res.images ? res.images->get(c.image) : nullptr;
+                    const mlibs::raster::Surface* img = res.images ? res.images->get(c.image) : nullptr;
                     if (!img) {
                         ++report.missing_images;
                         return;
                     }
-                    canvas.draw_image(img->view(), c.source, c.dest, static_cast<raster::Sampling>(c.sampling), c.opacity, m());
+                    canvas.draw_image(img->view(), c.source, c.dest, static_cast<mlibs::raster::Sampling>(c.sampling), c.opacity, m());
                 } else if constexpr (std::same_as<T, DrawGlyphs>) {
                     if (!res.glyphs) {
                         report.missing_glyphs += c.glyphs.size();
                         return;
                     }
-                    const raster::Paint run_paint = device_paint(c.paint);
+                    const mlibs::raster::Paint run_paint = device_paint(c.paint);
                     const Affine& mm = m();
                     for (std::size_t i = 0; i < c.glyphs.size(); ++i) {
                         const Glyph& g = c.glyphs[i];
                         const Placed pl = place(c, i, mm);
                         float opacity = 1;
-                        raster::Paint paint = run_paint;
+                        mlibs::raster::Paint paint = run_paint;
                         if (pl.style) {
                             // The glyph's own opacity and tint over the run's colour (D-68).
                             opacity = std::clamp(pl.style->opacity, 0.0f, 1.0f);
@@ -650,7 +650,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                                 col = {col.r + (t.r - col.r) * k, col.g + (t.g - col.g) * k, col.b + (t.b - col.b) * k, col.a * opacity};
                                 paint = device_paint(Paint::solid(col));
                             } else if (opacity < 1) {
-                                canvas.push_layer(opacity, raster::Blend::normal);
+                                canvas.push_layer(opacity, mlibs::raster::Blend::normal);
                             }
                         }
                         const bool layered = pl.style && c.paint.kind != Paint::Kind::solid && opacity < 1;
@@ -661,16 +661,16 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                                 const auto& b = gm.color_bounds;
                                 canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},
                                                   {call.ix + b.x, call.iy + b.y, static_cast<float>(b.width), static_cast<float>(b.height)},
-                                                  raster::Sampling::nearest, c.paint.color.a * opacity);
+                                                  mlibs::raster::Sampling::nearest, c.paint.color.a * opacity);
                             } else if (gm.coverage) {
                                 canvas.fill_coverage(*gm.coverage, paint, static_cast<int>(call.ix), static_cast<int>(call.iy));
                             } else {
                                 ++report.missing_glyphs;
                             }
                         } else {
-                            raster::PathData outline = res.glyphs->outline(c.font, g.id);
+                            mlibs::raster::PathData outline = res.glyphs->outline(c.font, g.id);
                             if (!outline.verbs.empty()) {
-                                canvas.fill_path(outline, raster::FillRule::nonzero, paint, pl.outline);
+                                canvas.fill_path(outline, mlibs::raster::FillRule::nonzero, paint, pl.outline);
                             } else {
                                 // A colour glyph (emoji) has an image, not an outline: drawn at
                                 // device size, then under the glyph's transform.
@@ -683,7 +683,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                                     canvas.draw_image(gm.color->view(), {0, 0, static_cast<float>(b.width), static_cast<float>(b.height)},
                                                       {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.width),
                                                        static_cast<float>(b.height)},
-                                                      raster::Sampling::linear, c.paint.color.a * opacity, to);
+                                                      mlibs::raster::Sampling::linear, c.paint.color.a * opacity, to);
                                 } else if (!gm.coverage || !gm.coverage->empty()) {
                                     // A known empty mask is a valid blank glyph. A nonempty
                                     // coverage-only bitmap still needs transform support:
@@ -697,7 +697,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                 } else if constexpr (std::same_as<T, PushClipRect>) {
                     canvas.push_clip_round_rect(c.rect, c.radii, m());
                 } else if constexpr (std::same_as<T, PushClipPath>) {
-                    canvas.push_clip_path(paths.data(c.path), static_cast<raster::FillRule>(c.rule), m());
+                    canvas.push_clip_path(paths.data(c.path), static_cast<mlibs::raster::FillRule>(c.rule), m());
                 } else if constexpr (std::same_as<T, PopClip>) {
                     canvas.pop_clip();
                 } else if constexpr (std::same_as<T, PushTransform>) {
@@ -706,7 +706,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
                     if (transforms.size() > 1) transforms.pop_back();
                 } else if constexpr (std::same_as<T, PushLayer>) {
                     // An effect that is not registered (counted by prepare_effects): the layer without it.
-                    canvas.push_layer(c.opacity, static_cast<raster::Blend>(c.blend));
+                    canvas.push_layer(c.opacity, static_cast<mlibs::raster::Blend>(c.blend));
                 } else if constexpr (std::same_as<T, PopLayer>) {
                     canvas.pop_layer();
                 } else if constexpr (std::same_as<T, ExternalTexture>) {
@@ -723,4 +723,4 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, raster::Surface& ta
     }
 }
 
-}  // namespace omui::render
+}  // namespace xengine::render

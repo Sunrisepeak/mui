@@ -16,16 +16,16 @@
 //
 // The damage is returned as bands of whole rows: the CPU raster renders a
 // band byte-for-byte as it renders the same rows of the whole surface
-// (raster::Canvas::restrict_rows), so an incremental frame is exactly the
+// (mlibs::raster::Canvas::restrict_rows), so an incremental frame is exactly the
 // frame a full render would give. Tests hold every backend to that.
-export module openmui.render.vector:damage;
+export module xengine.render.vector.api:damage;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :display;
 import :resources;
 
-export namespace omui::render {
+export namespace xengine::render {
 
 // Rows [top, bottom) of a surface, in device pixels.
 struct RowSpan {
@@ -91,4 +91,4 @@ private:
     bool                       full_ = false;
 };
 
-}  // namespace omui::render
+}  // namespace xengine::render

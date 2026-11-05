@@ -16,12 +16,12 @@
 //
 //     auto ref = render::effects().find("dissolve");
 //     list.push_layer(1, BlendMode::normal, *ref, params, bounds);
-export module openmui.render.vector:effects;
+export module xengine.render.vector.api:effects;
 
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.rhi;
+import mlibs.geom;
+import mlibs.raster;
+import mlibs.rhi;
 import :display;
 // The built-ins' GPU paths (effects/*.slang), compiled by build.mcpp.
 export import :quad_shaders;
@@ -45,7 +45,7 @@ export import :tone_shaders;
 // effects compiled while it runs (openmui.render.effect).
 export import :effect_template;
 
-export namespace omui::render {
+export namespace xengine::render {
 
 struct EffectParam {
     std::string_view name;
@@ -58,14 +58,14 @@ struct EffectParam {
 // RGBA, device pixels), and where the layer's own rectangle lies in it (the
 // surface is larger by the effect's reach on every side).
 struct EffectInput {
-    const raster::Surface& source;
-    raster::Surface&       target;   // the same size, transparent: the result
+    const mlibs::raster::Surface& source;
+    mlibs::raster::Surface&       target;   // the same size, transparent: the result
     std::span<const float> params;   // every parameter, in the effect's order
     float                  scale = 1;  // device pixels per logical pixel (sizes in params are logical)
-    geom::Rect             layer;    // the layer's rectangle in source and target
+    mlibs::geom::Rect             layer;    // the layer's rectangle in source and target
     // What lies under the layer, the same size and place as source
     // (EffectInfo::backdrop; transparent beyond the target); else null.
-    const raster::Surface* backdrop = nullptr;
+    const mlibs::raster::Surface* backdrop = nullptr;
     // The layer's shapes in the surface's pixels (at least one: its bounds).
     std::span<const EffectShape> shapes;
     // The rows of target to compute, [row_begin, row_end) (row_end < 0: to
@@ -78,7 +78,7 @@ struct EffectInput {
 // The signed distance from p to a shape's edge, negative inside (pixels,
 // the shape's corners rounded): the effect template's shape_distance, in the
 // same operations.
-[[nodiscard]] float shape_distance(const EffectShape& shape, geom::Point p) noexcept;
+[[nodiscard]] float shape_distance(const EffectShape& shape, mlibs::geom::Point p) noexcept;
 // The smooth minimum of two distances, `k` wide (k ≤ 0: the minimum): how a
 // glass group's shapes merge like drops (the template's smooth_min).
 [[nodiscard]] float smooth_min(float a, float b, float k) noexcept;
@@ -86,7 +86,7 @@ struct EffectInput {
 // Three box passes each way of `radius` pixels, in integers: the blur
 // effect's, and how a backdrop is frosted. The radius for `logical` pixels
 // at a scale is box_radius's.
-void box_blur(raster::Surface& surface, int radius, class Parallel* parallel = nullptr);
+void box_blur(mlibs::raster::Surface& surface, int radius, class Parallel* parallel = nullptr);
 [[nodiscard]] int box_radius(float logical, float scale) noexcept;
 
 // How the GPU renderer runs an effect.
@@ -107,8 +107,8 @@ struct EffectFrame {
 
 struct EffectGpu {
     EffectPass             pass = EffectPass::none;
-    const rhi::ShaderDesc* fragment = nullptr;  // pass pixel
-    void (*derive)(std::span<const float> params, float scale, geom::Rect layer, EffectFrame& out) = nullptr;
+    const mlibs::rhi::ShaderDesc* fragment = nullptr;  // pass pixel
+    void (*derive)(std::span<const float> params, float scale, mlibs::geom::Rect layer, EffectFrame& out) = nullptr;
     // pass pixel: the aux texture's values, one a row (r32_float), when set.
     void (*rows)(std::span<const float> params, float scale, std::span<float> out) = nullptr;
 };
@@ -142,7 +142,7 @@ struct EffectInfo {
     // coordinates, the layer `layer` — so a pointer aimed at what is seen
     // reaches what is drawn there (the runtime's hit testing). None: every
     // pixel is seen where it is drawn (or within a pixel or two of it).
-    std::function<geom::Point(geom::Point p, geom::Rect layer, std::span<const float> params)> source_of;
+    std::function<mlibs::geom::Point(mlibs::geom::Point p, mlibs::geom::Rect layer, std::span<const float> params)> source_of;
     // Where it runs (performance tiers §1, D-94; bit t: tier T<t> — T0 an
     // MCU … T4 a discrete GPU) and what stands in for it below them: another
     // effect's name, or none (the layer drawn as it is).
@@ -208,4 +208,4 @@ private:
 // chromatic, blur, pixelate, particles; then what the program adds.
 [[nodiscard]] EffectRegistry& effects();
 
-}  // namespace omui::render
+}  // namespace xengine::render

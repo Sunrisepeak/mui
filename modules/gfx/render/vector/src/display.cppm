@@ -9,20 +9,20 @@
 // `begin_node`/`end_node` bracket what a node drew: the renderer can write an
 // object-id buffer from them, which is how devtools trace a pixel to the node
 // and the source line that produced it.
-export module openmui.render.vector:display;
+export module xengine.render.vector.api:display;
 
 import std;
-import openmui.geom;
-import openmui.memory;
+import mlibs.geom;
+import mlibs.memory;
 
-export namespace omui::render {
+export namespace xengine::render {
 
-using geom::Affine;
-using geom::Color;
-using geom::CornerRadii;
-using geom::Point;
-using geom::Rect;
-using geom::Size;
+using mlibs::geom::Affine;
+using mlibs::geom::Color;
+using mlibs::geom::CornerRadii;
+using mlibs::geom::Point;
+using mlibs::geom::Rect;
+using mlibs::geom::Size;
 
 // A rotation with the deterministic sine and cosine of hanim: the same
 // matrix on every platform.
@@ -323,13 +323,13 @@ public:
     // It expires on clear, move or destruction and cannot be used in another
     // list. Invalid/stale recordings return false without appending commands.
     [[nodiscard]] std::expected<RecordedPath, PathRecordError> record_path(
-        std::size_t verbs, std::size_t points, omui::FunctionRef<void(MutablePathView)> writer);
+        std::size_t verbs, std::size_t points, mlibs::memory::FunctionRef<void(MutablePathView)> writer);
     [[nodiscard]] bool fill_path(const RecordedPath& path, FillRule rule, const Paint& p);
     [[nodiscard]] bool stroke_path(const RecordedPath& path, const StrokeStyle& style, const Paint& p);
     // Native writer is called once into this list's reusable arena. Leaf
     // payloads (stops/materials) are owned before returning the Paint.
     [[nodiscard]] std::expected<Paint, PaintMixError> record_paint_mix(
-        std::size_t terms, omui::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity = 1);
+        std::size_t terms, mlibs::memory::FunctionRef<void(std::span<WeightedPaint>)> writer, float opacity = 1);
     void draw_image(ImageRef image, const Rect& source, const Rect& dest, Sampling s = Sampling::linear, float opacity = 1);
     // A textured mesh (2D skinning: a picture bent by bones): triangles of
     // `indices` over `positions` (where each vertex is drawn) and `uvs` (where
@@ -432,8 +432,8 @@ private:
     Command own(const Command& c);
 
     std::vector<Command> commands_;
-    Arena                arena_{16 * 1024};
+    mlibs::memory::Arena                arena_{16 * 1024};
     std::uint64_t        path_generation_ = 1;
 };
 
-}  // namespace omui::render
+}  // namespace xengine::render

@@ -704,3 +704,45 @@ tools/ci/hanim-play-consumer/tests/  # 三个真实渲染集成测试
 - 全仓 lint、变更 TOML／Python 语法、Markdown 本地链接及 diff 检查通过；新增 feature／安装包门禁接入 CI。本地结果作为检查点依据，不等待其他平台 CI。
 
 这些证据证明包收敛、选择边界与既有行为保持，不证明冷构建更快、体积优化比例、新动画功能、硬件 GPU 性能或整体视觉质量。其余微型清单继续逐项评估，不机械全并；N2 引擎与 N3 UI／工具／规范命名、N4 发布、S1–S10、高级 hanim IR／GPU、40／20 的公共可用性及质量、PPet 与多后端完整目标仍开放。
+
+## 22. D-100／N2首组：渲染引擎、效果加载和实际输出
+
+基线 `5947869`。三个运行时包及桌面 CTS 迁至 `xengine.render`／`.vector`／`.effect`／`.cts`。公开 C++ 类型归 `xengine::render`，动态效果加载 API 归 `xengine::render::effect`；同包保留旧 import 和 `omui::render`／`omui::effect` alias。细节见[命名方案 §10](2026-11-05-product-namespace-migration-design.md#10-n2首组渲染引擎及可选效果加载)，机器证据见[本轮报告](../../tools/ci/2026-11-05-render-engine-namespace.report.omui.json)。
+
+### 22.1 边界与兼容
+
+25 个原接口／实现单元仅有身份和底层类型限定变化，渲染、混色、damage、效果与 shader 算法未重写。原始 Slang 文件、模板名 `openmui_effect.slang`、effect ID／参数、数据后缀、RHI wire、UI C ABI 和标准子模块未变。模板经当前 omui-gen 真实重生成，字节与期望一致；生成的 shader 分区归 `xengine.render.vector.api`。Hanim adapter 与 text 直接用新 renderer 入口；UI／官网用旧入口验证渐进兼容。
+
+本轮保留四个清单，workspace 仍 123；README 写明理由，并在三种真实源码消费者的 resolver 图中审计 target 边，排除 host-build 边：
+
+| 边界 | 本机 target 依赖闭包，含自身 | 保留理由 |
+|---|---:|---|
+| render graph／pool | 5 | 自身＋RHI／memory／hash／trace；完整的设备 pass／纹理池任务，不带 vector、hanim、raster、shader。实际设备 CTS 直接记录图并读回纹理 |
+| vector | 10 | 完整的显示列表、资源、damage、CPU／GPU 渲染；Hanim、文字、UI、工具均直接消费；运行时没有 effect loader／Slang 编译／TOML |
+| dynamic effect loader | 17 | 原生宿主选用文件轮询、TOML 与运行时 shader 编译；与内置效果分开，复用同一个 registry 和 renderer |
+| CTS | 不进入普通运行时 | SDL／桌面设备验证；portable CPU 测试继续支持 Web，未造空运行时库 |
+
+内部 pass、paint、效果实现与解析辅助不各建包。旧 C++ 名字在重建后可用，namespace alias 不可重新打开；旧 `-p openmui.render.*` 选择器不属于兼容保证。没有承诺 BMI／C++ 二进制 ABI 不变。
+
+### 22.2 本地真实验证
+
+| 范围 | 结果与限制 |
+|---|---|
+| Linux GCC 16 dev／release | 每个 profile 77 个选中程序、551 项套件用例；包含 graph／vector、实际设备 CTS、动态效果、text、hanim、gen、view／motion／theme、headless、C ABI、Inspector、官网 |
+| Wasm／Node | 40 个程序、332 项套件用例；graph／vector、text、hanim、view／motion。原有线程能力分支保留，不据此宣称 Web 已支持共享内存多线程 |
+| 本机设备 | `OMUI_REQUIRE_GPU=1`＋SDL offscreen，缺设备必须失败；4 个设备程序共 11 项，另动态效果 3 项，包含图剔除／纹理读回、paint mix、效果输出边界、实际 shader 热更新。保留原 500ms 断言；不作物理 GPU 性能声明 |
+| 浏览器 GPU | WebGPU／WebGL2 各 19 项 RHI CTS、host.web 实际画面读回；WebGL compute 检查明确拒绝 unsupported。33 个 WGSL、30 个 ESSL、25 个生成分区共 70 项 shader 编译／链接检查 |
+| 24 个静态包 | 20 个 mlibs 库＋hanim.core＋三个 renderer 库。源码／安装包 × 新名／旧名／混用六个真实工程，各 23 项、重复运行；类型和 registry 唯一、CPU 效果中间态一致、真实 Slang 资产加载与注册 |
+| 独立 Hanim | 七种 feature 组合及默认安装包的 104 项创作检查；播放／Agent 授权、拒绝输出、反向重放和三个渲染集成测试继续通过。244 个过程 PNG／pixel 摘要与上一检查点一致 |
+| 官网 | 重新构建 Web、原生 release prerender 与 Agent 指南；Chromium 14 项交互通过，25 个固定状态／PNG 与反应工作台原基线一致；实际查看中文窄屏与中间帧 |
+
+总数按选中程序／套件报告计，不把 C ABI C 程序的内部原始断言另算套件用例，也不把外部重复运行当作更多功能。每帧采样不自动证明实速节奏、美术或所有平台已达标。
+
+### 22.3 发现的问题与剩余工作
+
+- WebGPU 默认 headless 呈现首次仍报 `Device was destroyed`；现有 runner 用 Vulkan／SwiftShader 参数重试后同一真实呈现检查通过，未改为跳过或关闭 GPU。报告同时记录首次失败与最终路径。WebGL2 呈现通过；物理设备／其他平台继续由相应门禁验收。
+- 浏览器 shader 收集器原本会捞到旧命名留下的生成缓存；现按当前 workspace owner 过滤，再对该 owner 最新的 Web 分区检查，避免过期 shader 覆盖当前结果。
+- 扩大 namespace fixture 时，初版误在 shader rules 段复制了不需要的效果文件步骤，并留下旧的 20 项结果计数。修正脚本语法与计数为 23；实际断言未删减。后续 source／archive 六种工程及三个 rules 工程全部通过。
+- mcpp pack 本地 path 依赖边和归档排序缺口仍按 §20.2 处理；显式依赖及 GNU archive group 的消费证明不等于顶层单依赖发布完成。源码 closure 审计与安装包兼容是不同证据。
+
+最终 lint、TOML／Python／shell 语法、文档本地链接、生成器一致性和 diff 检查通过；用户既有锁文件不提交。该检查点完成 N2 的 renderer 组，simulation／audio／timeline／video、N3 UI／工具／标准连接及 N4 发布仍继续。没有增加 3D 能力、动画数量、40／20 质量或 S1–S10 的完成计数。

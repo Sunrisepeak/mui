@@ -10,20 +10,20 @@
 //
 // Given bands of rows (CpuOptions::rows, from a DamageTracker), it draws only
 // those rows of a surface that still holds the previous frame, and the result
-// is byte-for-byte the full render (raster::Canvas::restrict_rows). The
+// is byte-for-byte the full render (mlibs::raster::Canvas::restrict_rows). The
 // canvas and its buffers live as long as the renderer: a frame of the same
 // shape as the last allocates nothing.
-export module openmui.render.vector:cpu;
+export module xengine.render.vector.api:cpu;
 
 import std;
-import openmui.geom;
-import openmui.memory;
-import openmui.raster;
+import mlibs.geom;
+import mlibs.memory;
+import mlibs.raster;
 import :display;
 import :resources;
 import :damage;
 
-export namespace omui::render {
+export namespace xengine::render {
 
 struct RenderReport {
     std::size_t commands = 0;
@@ -63,7 +63,7 @@ struct RenderReport {
 // other). This package has none of its own.
 class Parallel {
 public:
-    virtual void run(std::size_t count, FunctionRef<void(std::size_t)> body) = 0;
+    virtual void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) = 0;
 
 protected:
     ~Parallel() = default;
@@ -91,7 +91,7 @@ class CpuRenderer {
 public:
     CpuRenderer();
 
-    RenderReport render(const DisplayList& list, raster::Surface& target, const Resources& resources,
+    RenderReport render(const DisplayList& list, mlibs::raster::Surface& target, const Resources& resources,
                         const CpuOptions& options = {});
 
     CpuRenderer(CpuRenderer&&) noexcept;
@@ -110,11 +110,11 @@ public:
 private:
     struct Scratch;
     struct Impl;
-    void draw(Scratch& scratch, const DisplayList& list, raster::Surface& target, const Resources& resources, const CpuOptions& options,
+    void draw(Scratch& scratch, const DisplayList& list, mlibs::raster::Surface& target, const Resources& resources, const CpuOptions& options,
               RowSpan band, bool whole, RenderReport& report);
-    void prepare_effects(const DisplayList& list, const raster::Surface& target, const Resources& resources, const CpuOptions& options,
+    void prepare_effects(const DisplayList& list, const mlibs::raster::Surface& target, const Resources& resources, const CpuOptions& options,
                          RenderReport& report);
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::render
+}  // namespace xengine::render

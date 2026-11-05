@@ -10,18 +10,18 @@ export module mlibs.text.api:glyphs;
 import std;
 import mlibs.geom;
 import mlibs.raster;
-import openmui.render.vector;
+import xengine.render.vector;
 import :font;
 
 export namespace mlibs::text {
 
-class GlyphCache final : public omui::render::GlyphSource {
+class GlyphCache final : public xengine::render::GlyphSource {
 public:
     explicit GlyphCache(FontCollection& fonts);
     ~GlyphCache() override;
 
-    omui::render::GlyphMask mask(omui::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
-    raster::PathData outline(omui::render::FontRef font, std::uint32_t glyph) override;
+    xengine::render::GlyphMask mask(xengine::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
+    raster::PathData outline(xengine::render::FontRef font, std::uint32_t glyph) override;
 
     [[nodiscard]] std::size_t size() const noexcept;  // cached entries
     void clear();

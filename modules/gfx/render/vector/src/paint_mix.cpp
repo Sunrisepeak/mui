@@ -1,7 +1,7 @@
-module openmui.render.vector;
+module xengine.render.vector.api;
 import std;
 
-namespace omui::render {
+namespace xengine::render {
 namespace {
 bool same_leaf(const Paint& a, const Paint& b) {
     if (a.kind != b.kind || a.color != b.color || (a.material == nullptr) != (b.material == nullptr)) return false;
@@ -90,4 +90,4 @@ std::expected<Paint, PaintMixError> PreparedPaintMix::record(double progress, Di
     if (!std::isfinite(progress)) return std::unexpected(PaintMixError::invalid_progress);
     return output.record_paint_mix(leaves_.size(), [&](std::span<WeightedPaint> buffer) { (void)sample(progress, buffer); }, opacity);
 }
-} // namespace omui::render
+} // namespace xengine::render

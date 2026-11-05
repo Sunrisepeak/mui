@@ -11,6 +11,6 @@ Depends on: [base](../base). Used by: [content](../content), [ui](../ui).
 | [shader](shader) | `mlibs.shader`: Slang shaders compiled per backend format, bindings read back, emitted as C++; its build rule inside it |
 | [simulation](simulation) | Optional domain compute adapters: prepared integer cellular rules on the shared RHI |
 | [raster](raster) | `mlibs.raster`: the deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
-| [render](render) | The rendering architecture: a frame as a checked graph of passes, transient textures pooled; inside it the rendering features — [vector](render/vector) (the display list, its CPU reference and GPU renderers) and [effect](render/effect) (a program's own pixel effects) |
+| [xengine.render](render) | The rendering architecture: a frame as a checked graph of passes, transient textures pooled; inside it the rendering features — [vector](render/vector) (the display list, its CPU reference and GPU renderers) and [effect](render/effect) (a program's own pixel effects) |
 
 Start with [render](render/README.md).

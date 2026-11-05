@@ -78,7 +78,7 @@ struct GlyphCache::Impl {
     // Outlines in em units (1 em = 1.0), per (font, glyph).
     std::unordered_map<std::uint64_t, std::unique_ptr<raster::PathBuilder>> outlines;
 
-    raster::PathBuilder& outline_of(omui::render::FontRef font, std::uint32_t glyph) {
+    raster::PathBuilder& outline_of(xengine::render::FontRef font, std::uint32_t glyph) {
         std::uint64_t key = (static_cast<std::uint64_t>(font.id) << 32) | glyph;
         auto& slot = outlines[key];
         if (!slot) {
@@ -127,11 +127,11 @@ void GlyphCache::clear() {
     impl_->outlines.clear();
 }
 
-raster::PathData GlyphCache::outline(omui::render::FontRef font, std::uint32_t glyph) {
+raster::PathData GlyphCache::outline(xengine::render::FontRef font, std::uint32_t glyph) {
     return impl_->outline_of(font, glyph).data();
 }
 
-omui::render::GlyphMask GlyphCache::mask(omui::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
+xengine::render::GlyphMask GlyphCache::mask(xengine::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
     auto quant = [](float f) {
         int q = static_cast<int>(std::floor(f * phases + 0.5f));
         return static_cast<std::uint8_t>(std::clamp(q, 0, phases - 1));

@@ -476,17 +476,17 @@ std::size_t Paragraph::offset_below(std::size_t offset, float x) const {
     return offset_at({x, l.top + l.height / 2});
 }
 
-void Paragraph::paint(omui::render::DisplayList& list, Point origin) const {
+void Paragraph::paint(xengine::render::DisplayList& list, Point origin) const {
     for (const Line& l : lines_) {
         for (const GlyphRun& r : l.runs) {
             if (r.glyphs.empty()) continue;
-            list.draw_glyphs(r.font, r.size, origin, r.glyphs, omui::render::Paint::solid(r.color));
+            list.draw_glyphs(r.font, r.size, origin, r.glyphs, xengine::render::Paint::solid(r.color));
             if (r.underline)
                 list.fill_rect({origin.x + r.x, origin.y + r.baseline + r.decoration_offset, r.width, r.decoration_thickness},
-                               omui::render::Paint::solid(r.color));
+                               xengine::render::Paint::solid(r.color));
             if (r.strikethrough)
                 list.fill_rect({origin.x + r.x, origin.y + r.baseline - r.size * 0.3f, r.width, r.decoration_thickness},
-                               omui::render::Paint::solid(r.color));
+                               xengine::render::Paint::solid(r.color));
         }
     }
 }

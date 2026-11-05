@@ -39,7 +39,7 @@ mlibs.log = { path = "../../base/log" }
 mlibs.trace = { path = "../../base/trace" }
 
 [feature-deps.render-vector]
-openmui.render.vector = { path = "../render/vector" }
+xengine.render.vector = { path = "../render/vector" }
 mlibs.geom = { path = "../../base/geom" }
 
 [dev-dependencies]

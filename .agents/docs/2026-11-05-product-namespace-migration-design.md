@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库、八个 gfx 包和五个 content 包，实际入口和兼容范围见 §5–§9；UI 实现包的后续迁移另行验收。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库、八个 gfx 包和五个 content 包，实际入口和兼容范围见 §5–§9；N2 的渲染引擎四包见 §10；其余引擎和 UI 实现的后续迁移另行验收。
 
 ## 1. 五类归属
 
@@ -31,7 +31,7 @@
 | base 的 math／geom／hash／memory／unicode／fuzzy／log／trace／session／pipeline／image／testing | 对应 `mlibs.*` | N1 十二库已迁移，保留同包旧源码入口，见 §5–§7 |
 | gfx 的 rhi／shader／raster 及其子包 | 对应 `mlibs.*` | N1 八包已迁移，见 §8 |
 | content 的 text／layout／markdown／i18n 与 cldr | 对应 `mlibs.*` | N1 五包已迁移，见 §9 |
-| `modules/gfx/render/`：`openmui.render.*` | `xengine.render.*` | N2，渲染特性仍记录进同一张图 |
+| `modules/gfx/render/`：原 `openmui.render.*` | `xengine.render.*` | N2 本轮迁移，渲染特性仍记录进同一张图，见 §10 |
 | `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2，不重复时钟／重建／规则实现 |
 | `modules/media/audio/`：`openmui.audio.*` | `xengine.audio.*` | N2，实时边界不随改名改变 |
 | media 的 timeline／video | 通用核心 `mlibs.timeline`／`mlibs.video.*`；音频 adapter 归 `xengine.audio.timeline` | adapter 随 N2 移至 audio 的子包目录并保留兼容；有新的完整执行引擎时再单独评审 |
@@ -213,3 +213,30 @@ CLDR 的四个 JSON 原文件、数据格式／版本、`.locale.omui.json`／`.
 ### 9.3 安装包的链接顺序限制
 
 真实 CLDR 静态包消费暴露了本地 path 依赖边缺失的另一后果：GNU ld 按错误顺序扫描 i18n／CLDR 归档，留下未解析符号。当前独立安装包 fixture 显式列出所用归档并通过 GNU ld group 重新扫描；没有编辑生成的包、改变接口摘要、强制导出全部对象或回退编译原实现。此结果只证明显式集成可用，正式 N4 发布仍需 mcpp 保留依赖边、正确自动链接顺序与仅声明顶层库的消费验证。
+
+## 10. N2首组：渲染引擎及可选效果加载
+
+| 现有目录 | 当前包／主要 module | 当前 C++ API | 同包兼容入口 |
+|---|---|---|---|
+| `modules/gfx/render` | `xengine.render` | `xengine::render` 的 Graph／TexturePool | `openmui.render`／`omui::render` |
+| `render/vector` | `xengine.render.vector` | `xengine::render` 的 DisplayList／CpuRenderer／GpuRenderer／effects | `openmui.render.vector`／`omui::render` |
+| `render/effect` | `xengine.render.effect` | `xengine::render::effect` | `openmui.render.effect`／`omui::effect` |
+| `render/cts` | `xengine.render.cts`，仅设备测试 | 不导出运行时 module | CLI 选择器改为新身份 |
+
+### 10.1 四个包的保留理由
+
+这里按实际使用边界保留四个清单，workspace 仍为 123。Graph／TexturePool 有独立设备 pass 的完整任务；实际 CTS 在不构造 DisplayList 的情况下创建、裁剪、执行图并读回纹理。只用图与纹理池的消费者不用引入矢量几何、hanim、raster 或 shader 生成。vector 是完整的显示列表、资源、damage、CPU／GPU 渲染特性，被 Hanim、text、UI 与工具直接消费；内部 paint／pass／effect 不再各建清单。
+
+effect 加载器隔离文件轮询、TOML 与运行时 Slang 编译，原生宿主可选；普通 vector／文字／动画使用内置效果不引入这个加载器。CTS 只隔离 SDL 与桌面设备测试，不制造运行时空库，Web 保留 portable CPU 测试。每个 README 已记录用途和隔离收益。后续新特性仍先比较包内目录／feature，不能将本轮保留理解为一特性一清单的规则。
+
+### 10.2 唯一实现、生成链与实际消费者
+
+三个运行时包采用 N1 已验证的主入口＋`.api`＋legacy 布局；Graph、DisplayList、资源、paint 和 EffectRegistry 的类型与状态只有一份。新旧 namespace 指向相同类型／函数；旧 namespace alias 不可重新打开，C++ 消费者需要重建。动态效果原来位于 `omui::effect`，新归属明确为 renderer 的 `xengine::render::effect`，不与 hanim 的参数计划或其他引擎的效果混用命名。
+
+Hanim vector adapter 与 text 直接消费新 renderer 入口和类型；UI／官网保留旧源码入口验证兼容，清单依赖键更新为真实新身份。25 个原接口／实现单元仅作明确的 module、namespace 与底层类型限定调整，渲染、damage、混色、shader 算法不重写。
+
+生成的绘图／效果 shader 分区现在归 `xengine.render.vector.api`／`xengine::render::shaders`；嵌入模板由真实 omui-gen 重新生成并通过一致性测试。`openmui_effect.slang`、effect ID、参数名、`.effect.omui.toml`、RHI wire 与 UI C ABI 保留。浏览器 shader 收集器按当前 workspace owner 过滤旧命名留下的缓存目录，不能让过期产物替代当前构建验收。
+
+独立 namespace gate 包含 20 个 mlibs 库、hanim.core、三个 renderer 包，共 24 个实际归档。源码／安装包 × 新名／旧名／混用，增加共享注册表、真实 CPU 中间态像素和真实 Slang 动态效果注册，共 23 项；渲染 GPU／Web 与官网过程回归另行验收。§9.3 的显式依赖／归档组限制继续保留。完整证据归[实施台账](2026-11-05-system-implementation-checkpoints-design.md)的 N2 渲染检查点。
+
+simulation、audio、timeline／video、UI／工具与标准连接继续按 N2／N3 迁移；本轮不宣称 3D 渲染、任意 GPU 调度、完整公共动画目录或整体美术已达标。

@@ -225,9 +225,9 @@ int main(int argc, char** argv) {
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         check(!text.empty(), "effects/lib/openmui_effect.slang");
         check(read(render / "src" / "generated" / "effect_template.cppm") ==
-                  gen::emit_embed(text, "openmui_effect.slang", "openmui.render.vector", "omui::render", "effect_template"),
-              "modules/gfx/render/vector: run omui-gen embed modules/gfx/render/vector/effects/lib/openmui_effect.slang --module openmui.render.vector "
-              "--name effect_template --namespace omui::render --out modules/gfx/render/vector/src/generated");
+                  gen::emit_embed(text, "openmui_effect.slang", "xengine.render.vector.api", "xengine::render", "effect_template"),
+              "modules/gfx/render/vector: run omui-gen embed modules/gfx/render/vector/effects/lib/openmui_effect.slang --module xengine.render.vector.api "
+              "--name effect_template --namespace xengine::render --out modules/gfx/render/vector/src/generated");
     });
 
     return s.run(argc, argv);

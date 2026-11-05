@@ -6,7 +6,7 @@
 # effects, and loads it again when it — or anything the shader imports —
 # changes, without the program changing a line of C++.
 [package]
-namespace   = "openmui.render"
+namespace   = "xengine.render"
 name        = "effect"
 version     = "0.1.0"
 description = "A program's own Slang pixel effects from *.effect.omui.toml: checked, compiled for the device, registered and reloaded while it runs"
@@ -16,14 +16,14 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-effect]
+[targets.xengine-render-effect]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui.render.vector = { path = "../vector" }
+xengine.render.vector = { path = "../vector" }
 mlibs.rhi    = { path = "../../rhi" }
 mlibs.shader = { path = "../../shader" }
 mlibs.trace  = { path = "../../../base/trace" }

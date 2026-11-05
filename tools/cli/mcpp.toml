@@ -32,7 +32,7 @@ openmui.ui.markdown = { path = "../../components/markdown" }
 openmui.audio       = { path = "../../modules/media/audio" }
 "openmui.timeline" = { path = "../../modules/media/timeline" }
 "openmui.timeline.audio" = { path = "../../modules/media/timeline/audio" }
-openmui.render.vector = { path = "../../modules/gfx/render/vector" }
+xengine.render.vector = { path = "../../modules/gfx/render/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }
 mcpplibs.cmdline = "0.0.2"

@@ -26,7 +26,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openmui.core   = { path = "../../modules/ui/core" }
 openmui.view   = { path = "../../modules/ui/view" }
-openmui.render.vector = { path = "../../modules/gfx/render/vector" }
+xengine.render.vector = { path = "../../modules/gfx/render/vector" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }

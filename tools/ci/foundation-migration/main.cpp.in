@@ -29,6 +29,11 @@ static_assert(std::same_as<mlibs::text::FontCollection, omui::typeset::FontColle
 static_assert(std::same_as<mlibs::layout::Engine, omui::layout::Engine>);
 static_assert(std::same_as<mlibs::markdown::Document, omui::md::Document>);
 static_assert(std::same_as<mlibs::i18n::Locale, omui::i18n::Locale>);
+static_assert(std::same_as<xengine::render::Graph, omui::render::Graph>);
+static_assert(std::same_as<xengine::render::TexturePool, omui::render::TexturePool>);
+static_assert(std::same_as<xengine::render::DisplayList, omui::render::DisplayList>);
+static_assert(std::same_as<xengine::render::Paint, omui::render::Paint>);
+static_assert(std::same_as<xengine::render::effect::Library, omui::effect::Library>);
 static_assert(mlibs::session::format_name == "openmui.session@0.1");
 
 struct Counter { int value = 0; };
@@ -375,12 +380,60 @@ int main() {
         output.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
         mlibs::testing::check(output.good());
     });
+    suite.test("renderer names share one effect registry and stable references", [] {
+        auto& current = xengine::render::effects();
+        auto& legacy = omui::render::effects();
+        mlibs::testing::check(&current == &legacy);
+        const auto ref = current.add({"consumer_shared", "Shared registry identity", {}, nullptr, nullptr});
+        const auto old = legacy.find("consumer_shared");
+        mlibs::testing::check(old && old->id == ref.id);
+        mlibs::testing::check(legacy.add({"consumer_shared", "Already exists", {}, nullptr, nullptr}).id == ref.id);
+        mlibs::testing::check(current.info(ref) == legacy.info(ref));
+    });
+    suite.test("mixed display lists and CPU renderers retain actual intermediate effect pixels", [] {
+        const auto effect = xengine::render::effects().find("pixelate");
+        mlibs::testing::check(effect.has_value()); if (!effect) return;
+        std::array<std::uint64_t, 3> hashes{};
+        for (int i = 0; i < 3; ++i) {
+            xengine::render::DisplayList list;
+            omui::render::DisplayList& legacy = list;
+            const std::array<std::pair<std::string_view,float>,2> params{{{"size", 7}, {"amount", float(i) / 2}}};
+            list.push_layer(1, xengine::render::BlendMode::normal, *effect,
+                omui::render::effects().params(*effect, params), {0,0,48,40});
+            legacy.fill_round_rect({5,7,23,17}, {5,5,5,5}, omui::render::Paint::solid(mlibs::geom::Color::hex(0x7354e8)));
+            list.pop_layer();
+            mlibs::raster::Surface a(48,40), b(48,40);
+            xengine::render::CpuRenderer current;
+            omui::render::CpuRenderer old;
+            const auto first = current.render(legacy,a,{}), second = old.render(list,b,{});
+            mlibs::testing::check(first.effects_skipped == 0 && second.effects_skipped == 0);
+            mlibs::testing::check(a.hash() == b.hash());
+            hashes[std::size_t(i)] = a.hash();
+        }
+        mlibs::testing::check(hashes[0] != hashes[1] && hashes[1] != hashes[2]);
+    });
+    suite.test("a real dynamic effect loads through either name into the one renderer", [] {
+        std::ifstream input("scanlines.effect.omui.toml");
+        const std::string source{std::istreambuf_iterator<char>(input), {}};
+        const auto declaration = xengine::render::effect::read(source, "scanlines.effect.omui.toml");
+        mlibs::testing::check(declaration && declaration->name == "scanlines");
+        mlibs::testing::check(&xengine::render::effect::read == &omui::effect::read);
+        xengine::render::effect::Library library;
+        omui::effect::Library& old = library;
+        const auto loaded = old.load("scanlines.effect.omui.toml");
+        mlibs::testing::check(loaded.has_value()); if (!loaded) return;
+        const auto ref = xengine::render::effects().find("scanlines");
+        mlibs::testing::check(ref && ref->id == loaded->ref.id);
+        mlibs::testing::check(omui::render::effects().info(*ref) == xengine::render::effects().info(loaded->ref));
+        mlibs::testing::check(library.names() == std::vector<std::string>{"scanlines"});
+        mlibs::testing::check(old.poll().empty());
+    });
     const int result = suite.run();
     std::string identities;
     for (std::string_view identity : std::array{ {{lock_identities}} }) {
         if (!identities.empty()) identities += ',';
         identities += std::format("\"{}\":\"fnv1a:{}\"", identity, mlibs::hash::Fnv1a().text(identity).hex());
     }
-    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":20,\"content_pixel_hash\":\"{}\",\"identity_hashes\":{{{}}}}}", result == 0, content_pixel_hash, identities);
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":23,\"content_pixel_hash\":\"{}\",\"identity_hashes\":{{{}}}}}", result == 0, content_pixel_hash, identities);
     return result;
 }

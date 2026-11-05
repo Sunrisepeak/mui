@@ -1,9 +1,9 @@
 // A prepared material transition is graphics data, independent of UI/hanim.
-export module openmui.render.vector:paint_mix;
+export module xengine.render.vector.api:paint_mix;
 import std;
 import :display;
 
-export namespace omui::render {
+export namespace xengine::render {
 struct PaintMixOptions { std::size_t max_terms = max_paint_mix_terms; };
 
 // Flat, owned leaf brushes; no recursively growing rendering layers. Preparing
@@ -37,4 +37,4 @@ private:
     std::vector<Leaf> leaves_;
     std::vector<double> from_, to_;
 };
-} // namespace omui::render
+} // namespace xengine::render

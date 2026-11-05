@@ -3,7 +3,7 @@
 # backend and its GPU backend (D-57). Knows nothing of nodes or views;
 # anything that produces a display list can render it.
 [package]
-namespace   = "openmui.render"
+namespace   = "xengine.render"
 name        = "vector"
 version     = "0.1.0"
 description = "2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, byte-for-byte where it can be"
@@ -14,7 +14,7 @@ platforms   = ["linux", "macos", "windows", "emscripten"]
 [package.metadata.openmui]
 kind = "backend"
 
-[targets.openmui-render-vector]
+[targets.xengine-render-vector]
 kind = "lib"
 
 [build]
@@ -27,7 +27,7 @@ mlibs.shader.rules = { path = "../../shader/rules", host-module = true }
 [dependencies]
 mlibs.math = { path = "../../../base/math" }
 mlibs.hash = { path = "../../../base/hash" }
-openmui.render = { path = ".." }
+xengine.render = { path = ".." }
 mlibs.rhi    = { path = "../../rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }

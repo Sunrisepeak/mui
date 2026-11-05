@@ -1,6 +1,6 @@
 # Desktop device CTS only. No runtime artifact or empty library target.
 [package]
-namespace = "openmui.render"
+namespace = "xengine.render"
 name = "cts"
 version = "0.1.0"
 description = "Desktop device conformance for rendering graphs, vector pixels and effects"
@@ -12,8 +12,8 @@ repo = "https://github.com/Sunrisepeak/mui"
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dev-dependencies]
-"openmui.render" = { path = ".." }
-"openmui.render.vector" = { path = "../vector" }
+"xengine.render" = { path = ".." }
+"xengine.render.vector" = { path = "../vector" }
 "mlibs.rhi" = { path = "../../rhi" }
 "mlibs.rhi.sdl" = { path = "../../rhi/sdl" }
 mlibs.geom = { path = "../../../base/geom" }

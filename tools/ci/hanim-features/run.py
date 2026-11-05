@@ -134,7 +134,7 @@ int main() {
             packages = {p['package']['canonical'].split('@')[0] for p in data['graph']['packages'] if 'target' in p['instances']}
             if any(p.startswith(('openmui.ui.', 'openmui.host.')) or p in {'openmui.core','openmui.sdk','mlibs.testing','openlifa.openmui'} for p in packages):
                 raise RuntimeError('UI or test dependency in public product')
-            if name != 'render-vector' and any(p.startswith(('openmui.render','mlibs.rhi','mlibs.raster','mlibs.shader')) for p in packages):
+            if name != 'render-vector' and any(p.startswith(('openmui.render','xengine.render','mlibs.rhi','mlibs.raster','mlibs.shader')) for p in packages):
                 raise RuntimeError('renderer enabled without opt-in')
             if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))

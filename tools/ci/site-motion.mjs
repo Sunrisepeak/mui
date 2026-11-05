@@ -243,6 +243,50 @@ try {
     await shot('basic-motion-interactive');
   });
 
+  await scenario('component-motion', async () => {
+    await core('motion'); const root = gallery('motion');
+    await findDesign(root, 'component-motion');
+    check(!await exists(root + '/details/selection'), 'component motion opens with one stage and collapsed details');
+    await pointer(root + '/transport/buttons/details');
+    await requireCheck(() => exists(root + '/details/selection'), 'Details reveals reusable component animation selection');
+    await pointer(root + '/transport/buttons/state-a');
+    const card = root + '/stage/scene/composition/card';
+    const atA = (await node(card)).bounds;
+    await pointer(root + '/transport/buttons/state-b');
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - atA[0] - 24) < .5,
+      'the actual component group translates by the public recipe');
+    await pointer(root + '/transport/buttons/play');
+    await requireCheck(async () => {
+      const progress = await scalar(root + '/transport/seek');
+      return progress > .05 && progress < .9;
+    }, 'the native Hanim host advances intermediate frames in the actual browser');
+    await pauseTransport(root);
+    await pointer(root + '/details/selection'); await key('Home', 'Home', 36); await key('ArrowDown', 'ArrowDown', 40); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/selection') === 'parts', 'keyboard selects independently animated parts');
+    await pointer(root + '/transport/buttons/state-a');
+    const titleA = (await node(card + '/title')).bounds;
+    const partCardA = (await node(card)).bounds;
+    await pointer(root + '/transport/buttons/state-b');
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - partCardA[0]) < .5 &&
+      Math.abs((await node(card + '/title')).bounds[0] - titleA[0]) > 2,
+      'part animation preserves the card layout while moving its selected title');
+    await pointer(root + '/details/copy');
+    const source = await page.value('navigator.clipboard.readText()');
+    check(source.includes('hanim::parallel') && source.includes('.part="title"') && source.includes('playback.play'),
+      'the browser clipboard receives the public C++ component recipe fragment');
+    await type(card + '/editor', 'A browser-made note');
+    await pointer(card + '/pin'); const pinned = await checked(card + '/pin');
+    await pointer(card + '/actions/save');
+    await requireCheck(() => page.value(`navigator.clipboard.readText().then(t=>{try{const n=JSON.parse(t);return n.title==='A browser-made note'&&n.pinned===${pinned}}catch{return false}})`),
+      'real component input copies the edited note JSON to the browser clipboard');
+    await key('Escape', 'Escape', 27);
+    await requireCheck(async () => (await label(root + '/transport/hint')).includes('real interface'),
+      'focus in the animated note keeps the stage in real interaction mode');
+    await shot('component-motion-live-note');
+    await pointer(root + '/transport/buttons/details');
+    await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
+  });
+
   await scenario('creative-demos', async () => {
     await top('explore'); const root = gallery('explore');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 20, 'creative catalog contains at least twenty designs');

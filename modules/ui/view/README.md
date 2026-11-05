@@ -218,13 +218,76 @@ This first tier supports finite 2D local transforms. It refuses cross-portal
 selections and geometry/material/image-effect frames rather than dropping
 their data. Historical crossfade snapshots remain captured images of their
 original presentation. General constraint/hold-world solving, sampled-base
-anchor tracking during unrelated layout morphs, geometry/3D adapters and
-automatic clock/policy integration remain separate work. Explicit time
+anchor tracking during unrelated layout morphs and geometry/3D adapters
+remain separate work. Explicit time
 sampling can inspect poses with UI automatic motion disabled; an application's
-live driver must enforce its motion preferences and input policy.
+live driver must enforce its motion preferences and input policy. The optional
+owning `Playback` below supplies that host transport without another engine.
 
 The [independent consumer](../../../tools/ci/omui-hanim-consumer/src/main.cpp)
 uses the real button/popover, shaped text, public Hanim composition, renderer
 and Agent actions. Its [runner](../../../tools/ci/omui-hanim-consumer/run.py)
-exports 61 real frames and checks exact reverse replay in native dev/release
-and optional Wasm/Node, without changing the source workspace's lock.
+exports 61 explicit samples and 61 host-driven frames, with exact reverse
+replay in native dev/release and optional Wasm/Node, without changing the
+source workspace's lock.
+
+## Optional owning playback host
+
+Use `omui::animation::Playback` when one selected UI object owns its program;
+use the lower-level `Binding` above when the application already owns a shared
+Hanim Engine. Both use the same public Hanim programs, player and presentation
+leases. The host adds no GUI, script, timer thread or separate interpolator.
+
+```cpp
+auto attached = omui::animation::Playback::attach(runtime, selection);
+if (!attached) return; // Check typed binding/engine failure; busy can be retried.
+auto playback = std::move(*attached);
+auto started = playback.play(hanim::anim::move_to(playback.object(), {24, 0}),
+                             {.alternate = true});
+if (!started) return;
+// Store playback for as long as the selected UI scene lives.
+```
+
+Install a native frame pipeline stage which calls
+`playback.update({.visible=visible, .foreground=foreground, .interacting=editing})`
+**after input/regions/layout and before bounds/paint**, on the UI thread.
+Declare both `tree` and `layout` reads, the `tree` write, stage cost and trace
+category, and the ordering edge into `bounds`. Check registration/build/update
+results. This explicit integration is required: calling `update` before the
+Runtime latches its frame clock would sample the previous time. The independent
+consumer's `DriveStage` is a complete working example. A stopped, still-attached
+host stage is idle and permits paint; a stale selection returns a typed error.
+
+The transport uses Runtime time and Hanim's existing `TimeMap` (including
+backward time queries and repeat direction). `pause`, `resume`, `reverse`,
+nonzero signed `rate`, `seek`, `seek_progress` and `stop` control the same native
+playback. A second `play` returns `occupied` until explicitly stopped.
+`stop(restore)` publishes the initial program pose; `stop(hold)` retains the
+last pose. Destruction releases the binding and demand along with its owned
+Engine. No background work survives a destroyed Runtime.
+
+Hidden/background/interactive gates and Runtime reduced/off preferences
+suspend automatic sampling, release continuous frame demand and retain the
+visible pose. Returning from a gate starts there without catching up hidden
+time. An explicit pause is not undone by a gate reopening. Explicit `seek`
+pauses automatic transport and can still inspect any frame with automatic
+motion disabled. A paused Runtime clock requests no busy frames; an explicit
+Runtime time seek is still honored. This API does not select visibility or
+focus policy on the application's behalf, nor does it implement a general
+budget/representation downgrade controller.
+
+`status()` reports the actual native position/rate/state, requested intent,
+suspension reason, paused clock and frame demand; `plan()` exposes the immutable
+Hanim plan. A publication remains distinct from successful paint: inspect the
+selected nodes' committed presentation after a frame. Application openas
+actions can call these same methods under their existing authorization; no
+network endpoint or model dependency is added.
+
+Headless SOP: load fonts/assets, mount and settle initial feedback, resolve
+selection IDs, attach and install the stage, play, then drive Runtime frames at
+known times. Render the display list, inspect semantics/presentation, and sample
+the process forward and backward. Verify interruption, gates, default feedback
+and actual control actions, then stop/detach on scene teardown. The site's
+`component-motion` scene applies this flow to a real editable/copyable note,
+with whole-card, independently selected parts and title-only recipes; recipe
+details are exposed only on request.

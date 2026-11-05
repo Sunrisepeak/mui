@@ -12,7 +12,7 @@
 
 推荐：**以独立产品为边界、以本域能力为内核、以类型化契约组合全局；日常 API 简短，复杂约束逐级显露，所有层级复用同一执行体系。**
 
-当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。S2分批贯通通用PointPath、typed过程效果、UI动效配置和官网形变开场，并扩展显式组合图像scope、编译层级与原子Program帧，详见[实施台账§6–§8](2026-11-05-system-implementation-checkpoints-design.md)。UI默认动效仍主要消费 `hanim.core`，通用通道IR／混合、GPU资源编排及组合scope的公共UI接入仍未完成。官网目前41个基础场景、20个创意场景，也不能等同框架用户可带走的40个公共动画和20个完整组合工程。
+当前主要问题是能力链路尚未全部贯通。S1已将严格 2D hanim的真实对象、编排、播放和动画中心authoring接到公共 `import hanim`；渲染仍显式可选。S2分批贯通通用PointPath、typed过程效果、UI动效配置和官网形变开场，并扩展显式组合图像scope、编译层级与原子Program帧，详见[实施台账§6–§8](2026-11-05-system-implementation-checkpoints-design.md)。UI默认动效仍主要消费 `hanim.core`，通用通道IR／混合、GPU资源编排及组合scope的公共UI接入仍未完成。官网目前42个基础场景、20个创意场景，也不能等同框架用户可带走的40个公共动画和20个完整组合工程。
 
 功能推进补充：在 `6d3a64f` 模拟收敛后，Hanim 增加五个公开属性配方（move_to／move_by／rotate_to／scale_to／fill_to）和类型化多属性 `anim::to`，复用既有编排、路径效果、图像 scope、播放与当前姿态重定向；随后 `PropertySet` 支持同一时序多部件目标。最新 A2 子集支持同一对象的位移／旋转／缩放／填充通道独立编排，保留作者层级和效果作用域，汇成一个对象输出；相同通道重叠仍拒绝，形变及整对象源重置仍独占。当前范围是已有闭合矢量 HObject，不是任意通道／相机／骨骼系统，也未自动迁移 UI 默认动效。证据与限制见[实施台账 §24–§26](2026-11-05-system-implementation-checkpoints-design.md#26-独立属性通道保留编排与单一对象输出)。
 
@@ -29,7 +29,7 @@
 
 共享表示已推进首条真实链路：路径数据／校验和已有曲线离散化收敛到 `mlibs.geom`，renderer、raster、Hanim 共用；Hanim 的 `import_path` 捕获拥有生命周期的曲线与源命令映射，UI 现有形变及独立离屏消费者已使用该入口。此次是 A3 的 2D 子集，完整选择策略、文字／3D／材质 adapter 与 A4 的呈现／命中一致性仍按任务验证，见[实施台账 §27](2026-11-05-system-implementation-checkpoints-design.md#27-共享路径基础与公开几何捕获)。
 
-A4 首条属性接入见[实施台账 §28](2026-11-05-system-implementation-checkpoints-design.md#28-可选-hanim-接入与组件属性呈现)：现有 view 包的可选 `hanim` feature 提供 `omui.hanim`，显式选择组／文字／控件的变换通道，使用公共 Engine 求值后发布到同一呈现与命中链路；保留内部状态反馈，浮层目标跟随与 IME 使用相应呈现信息。它是局部 offset 表示，完整几何捕获、世界保持、自动播放／预算策略与官网舞台接入尚未完成。性能分级按[表示方案 §1.4](2026-11-05-hanim-representations-selection-policy-design.md#14-性能策略在三个阶段生效)分别作用于 feature 闭包、prepare 和执行，不把降级做成不同平台的另一套上层框架。
+A4 首条属性接入见[实施台账 §28](2026-11-05-system-implementation-checkpoints-design.md#28-可选-hanim-接入与组件属性呈现)：现有 view 包的可选 `hanim` feature 提供 `omui.hanim`，显式选择组／文字／控件的变换通道，使用公共 Engine 求值后发布到同一呈现与命中链路；保留内部状态反馈，浮层目标跟随与 IME 使用相应呈现信息。后续[§29](2026-11-05-system-implementation-checkpoints-design.md#29-原生播放宿主与官网组件编排)增加拥有 Engine 的 `Playback`，共用 Runtime 时钟与 Hanim TimeMap，接入暂停／反向／往返、可见性／交互／动态偏好门控，并映射到官网可编辑、可复制的便笺舞台。宿主仍需明确安装原生管线 stage；该局部 offset 接口不等于完整几何捕获、世界保持或自动预算控制。性能分级按[表示方案 §1.4](2026-11-05-hanim-representations-selection-policy-design.md#14-性能策略在三个阶段生效)分别作用于 feature 闭包、prepare 和执行，不把降级做成不同平台的另一套上层框架。
 
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 

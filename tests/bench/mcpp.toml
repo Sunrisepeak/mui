@@ -31,6 +31,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "hanim.core" = { path = "../../modules/base/hanim/core" }
 "hanim" = { path = "../../modules/gfx/hanim" }
 openmui.sdk             = { path = "../.." }
+openmui.view            = { path = "../../modules/ui/view", features = ["hanim"] }
 mlibs.trace           = { path = "../../modules/base/trace" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 openmui.audio           = { path = "../../modules/media/audio" }

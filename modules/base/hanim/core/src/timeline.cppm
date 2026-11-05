@@ -117,6 +117,18 @@ struct TimeMap {
 // apply at t. `natural` is the clip's own length.
 [[nodiscard]] std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept;
 
+// The same mapping with transport metadata. Hosts can synchronize a native
+// player's direction and lifecycle without implementing repeat/alternate
+// arithmetic a second time. This describes time, not an animation player.
+struct MappedTime {
+    seconds position{0};
+    double iteration = 0;
+    bool backwards = false;
+    bool before_start = false;
+    bool ended = false;
+};
+[[nodiscard]] std::optional<MappedTime> sample_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept;
+
 // The parent-time length of a clip placed with `map` (infinite when it repeats
 // forever).
 [[nodiscard]] seconds mapped_length(const TimeMap& map, seconds natural) noexcept;

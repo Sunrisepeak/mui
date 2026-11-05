@@ -344,6 +344,10 @@ int main(int argc, char** argv) {
     suite.test("every basic configuration is reusable on another target rather than tied to its gallery scene", [] {
         site::MotionGallery gallery;
         for (const auto& info : site::basic_motions()) {
+            // Authored Hanim programs use the public binding API instead of a
+            // state-motion JSON slot; component_motion_test covers reuse on a
+            // second UI hierarchy, outside the site's note scene.
+            if(info.authored_program)continue;
             const auto config = site::motion_gallery_config(gallery, info);
             check(parse_motions(config, Theme::light()).has_value(), std::string(info.id));
             Headless h(HeadlessOptions{.size = {260, 100}, .parallel_raster = false});

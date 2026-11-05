@@ -25,13 +25,14 @@ seconds mapped_length(const TimeMap& map, seconds natural) noexcept {
     return seconds(total / rate);
 }
 
-std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept {
+std::optional<MappedTime> sample_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept {
     double L = local_length(map, natural);
     double repeat = std::max(0.0, map.repeat);
     double total = repeat == infinity ? infinity : L * repeat;
     double rate = map.rate > 0 ? map.rate : 1.0;
     double u = (t - start).count() * rate;
 
+    const bool before_start = u < 0.0;
     bool ended = false;
     if (u < 0.0) {
         if (!fills_backwards(map.fill)) return std::nullopt;
@@ -41,7 +42,7 @@ std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natur
         u = total;
         ended = true;
     }
-    if (L <= 0.0) return map.trim;
+    if (L <= 0.0) return MappedTime{map.trim, 0, map.reverse, before_start, true};
 
     double iteration = 0;
     double within = 0;
@@ -57,7 +58,12 @@ std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natur
     bool odd = std::fmod(iteration, 2.0) == 1.0;
     bool backwards = map.reverse != (map.alternate && odd);
     double local = backwards ? L - within : within;
-    return seconds(map.trim.count() + local);
+    return MappedTime{seconds(map.trim.count() + local), iteration, backwards, before_start, ended};
+}
+
+std::optional<seconds> map_time(const TimeMap& map, seconds start, seconds natural, seconds t) noexcept {
+    const auto sampled = sample_time(map, start, natural, t);
+    return sampled ? std::optional(sampled->position) : std::nullopt;
 }
 
 Timeline& Timeline::at(seconds start, std::string target, Clip clip, TimeMap map) {

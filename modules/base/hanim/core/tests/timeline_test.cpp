@@ -24,6 +24,23 @@ std::map<std::string, double> at(const hanim::Timeline& tl, double t) {
 int main(int argc, char** argv) {
     Suite s{"hanim.timeline"};
 
+    s.test("transport metadata shares the exact repeat mapping including boundary direction", [] {
+        hanim::TimeMap map;map.repeat=std::numeric_limits<double>::infinity();map.alternate=true;map.fill=hanim::Fill::both;
+        for(const double t:{0.,.25,1.,1.25,2.,8.25}) {
+            const auto sample=hanim::sample_time(map,seconds(0),seconds(1),seconds(t));
+            check(sample.has_value());if(!sample)return;
+            check_bits(sample->position.count(),hanim::map_time(map,seconds(0),seconds(1),seconds(t))->count());
+            check(!sample->ended);
+        }
+        const auto turn=hanim::sample_time(map,seconds(0),seconds(1),seconds(1));
+        check(turn->backwards && turn->iteration==1 && turn->position==seconds(1));
+        map.repeat=1;
+        const auto end=hanim::sample_time(map,seconds(0),seconds(1),seconds(3));
+        check(end->ended && !end->backwards && end->position==seconds(1));
+        const auto before=hanim::sample_time(map,seconds(1),seconds(1),seconds(0));
+        check(before->before_start && !before->ended && before->position==seconds(0));
+    });
+
     s.test("time maps: offset, rate, trim, fill", [] {
         hanim::TimeMap m;
         auto natural = seconds(2);

@@ -754,6 +754,25 @@ private:
     int           motion_band_ = -1;
 };
 
+class ProgramMotionStage final : public pipeline::Stage {
+public:
+    explicit ProgramMotionStage(Site& site):site_(site){}
+    [[nodiscard]] std::vector<pipeline::Port> reads() const override {
+        return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),
+                pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
+    }
+    [[nodiscard]] std::vector<pipeline::Port> writes() const override {
+        return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+    }
+    std::expected<void,std::string> run(pipeline::Context&) override {
+        if(site_.place.peek()=="motion")motion_gallery_update(site_.basic,site_.basic_site);
+        if(site_.place.peek()=="explore")motion_gallery_update(site_.creative,site_.creative_site);
+        return {};
+    }
+private:
+    Site& site_;
+};
+
 // A lens's switch: highlighted when it is the lens.
 Element lens_button(const std::shared_ptr<Site>& s, std::string_view id, std::string_view name) {
     const std::string key(id), label(name);
@@ -1438,11 +1457,11 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         s->basic_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .open_detail = [p = s.get()](std::string id) { p->open_example(false, std::move(id)); },
                          .style = [p = s.get()](std::string pack) { p->apply_scope("motion-preview", std::move(pack)); },
-                         .root = "main/body/view/motion/page/motion_gallery", .scope = "motion-preview"};
+                         .root = "main/body/view/motion/page/motion_gallery", .scope = "motion-preview", .foreground=&s->foreground};
         s->creative_site = {.runtime = &s->runtime, .lang = &s->lang,
                             .open_detail = [p = s.get()](std::string id) { p->open_example(true, std::move(id)); },
                             .style = [p = s.get()](std::string pack) { p->apply_scope("creative-preview", std::move(pack)); },
-                            .root = "main/body/view/explore/page/motion_gallery", .scope = "creative-preview"};
+                            .root = "main/body/view/explore/page/motion_gallery", .scope = "creative-preview", .foreground=&s->foreground};
         s->style_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .style = [p = s.get()](std::string pack) { p->apply_scope("style-feature", std::move(pack)); },
                          .go = [p = s.get()](std::string id) { p->go(id); },
@@ -1478,6 +1497,17 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         auto guarded = rt.frame_pipeline().description();
         guarded.stages.insert(guarded.stages.begin(), {"preview_input_guard", "openmui.site.preview_input_guard", {}, {}});
         for (auto& stage : guarded.stages) if (stage.name == "timers") stage.after.push_back("preview_input_guard");
+        (void)rt.stage_plugins().add({.name="omui.site.program_motion",.kind="stage",
+            .description="public Hanim programs publish selected UI poses before bounds and paint",
+            .trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=50}},
+            [site=s.get()](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{
+                return std::make_unique<ProgramMotionStage>(*site);
+            });
+        const auto bounds=std::ranges::find_if(guarded.stages,[](const auto& stage){return stage.name=="bounds";});
+        if(bounds!=guarded.stages.end()) {
+            bounds->after.push_back("program_motion");
+            guarded.stages.insert(bounds,{"program_motion","omui.site.program_motion",{"layout"},{}});
+        }
         const std::array<pipeline::Port, 2> frame_inputs{
             pipeline::port<FrameInput>(std::string(frame_resource::input)), pipeline::port<FrameTree>(std::string(frame_resource::tree))};
         if (auto ready = pipeline::Pipeline::build(guarded, rt.stage_plugins(), frame_inputs); ready)

@@ -5,16 +5,21 @@ module openmui.site;
 import std;
 import openmui;
 import :motion_catalog;
+import :component_motion;
 
 namespace omui::site {
 
 namespace {
 
-constexpr std::array<MotionCaseInfo, 41> examples{{
+constexpr std::array<MotionCaseInfo, 42> examples{{
     {.id = "shape-morph", .en = "Shape the journey", .zh = "让形状自由流动", .group = "transform",
      .purpose_en = "A triangle becomes a circle. Shape each point's journey, then copy the reusable motion.",
      .purpose_zh = "三角形变为圆。调整每个点经过的路径，再复制可复用的动效配置。",
      .components = "painter, button", .vertex_path = true, .bend = 0.22, .curve = "motion.slow"},
+    {.id="component-motion",.en="One note, many ways to move",.zh="一张便笺，自由编排",
+     .group="transform",.purpose_en="Move the whole note, its title, or its controls. Hover to edit and copy the same note.",
+     .purpose_zh="整张便笺、标题和控件分别编排。移入画布，即可编辑并复制这张便笺。",
+     .components="text, text_box, checkbox, button, popover",.authored_program=true},
     {"surface-color", "Surface colour", "表面换色", "appearance", "A status surface changes its tone without changing its shape.", "状态表面换一种色调，形状与位置保持连续。", "box, text"},
     {"outline-weight", "Outline emphasis", "边框强调", "appearance", "A selected document gains a stronger outline.", "文档被选中时，用边框粗细传达强调。", "box, text"},
     {"corner-shape", "Corner shape", "圆角变形", "appearance", "A compact tile softens into a rounded token.", "紧凑图块过渡为圆润的标记。", "box, text"},
@@ -131,6 +136,7 @@ std::span<const MotionCaseInfo> basic_motions() { return examples; }
 
 Element basic_motion_scene(std::string_view id, const MotionSceneContext& context) {
     if (!context.state) return text({.id = "unavailable", .text = "Choose a motion", .style = "body"});
+    if(id=="component-motion")return component_motion_scene(context);
     const Scene s(context, id);
     const float card_w = std::min(s.w - 24, 300.0f), cx = (s.w - card_w) / 2;
     const float top = std::max(12.0f, (s.h - 210) / 2);

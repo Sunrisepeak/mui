@@ -11,17 +11,111 @@ namespace raster=mlibs::raster;
 
 namespace {
 Value::List checks;
+Value::List driver_frames;
 bool check(bool ok,std::string_view name) {checks.push_back(Value{}.set("name",name).set("ok",ok));return ok;}
 int finish(Value::List frames={}) {
     const bool ok=std::ranges::all_of(checks,[](const Value& v){return v.get("ok")->as_bool();});
     std::println("{}",Value{}.set("kind","omui.hanim-consumer").set("ok",ok).set("checks",Value(std::move(checks)))
-        .set("frames",Value(std::move(frames))).json());return ok?0:1;
+        .set("frames",Value(std::move(frames))).set("driver_frames",Value(std::move(driver_frames))).json());return ok?0:1;
 }
 PointerEvent pointer(PointerKind kind,Point at) {
     PointerEvent event;event.kind=kind;event.position=at;event.button=MouseButton::left;
     event.buttons=kind==PointerKind::down?1u:0u;return event;
 }
 std::string pixel_hash(const raster::Surface& pixels) {return mlibs::hash::Fnv1a{}.bytes(std::as_bytes(pixels.pixels())).hex();}
+
+class DriveStage final : public pipeline::Stage {
+public:
+    DriveStage(std::weak_ptr<animation::Playback> playback,animation::PlaybackGate& gate):playback_(std::move(playback)),gate_(gate){}
+    std::vector<pipeline::Port> reads() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),pipeline::port<FrameLayout>(std::string(frame_resource::layout))};}
+    std::vector<pipeline::Port> writes() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
+    std::expected<void,std::string> run(pipeline::Context&) override {
+        if(auto playback=playback_.lock())if(auto result=playback->update(gate_);!result)return std::unexpected("public playback update failed");
+        return {};
+    }
+private:
+    std::weak_ptr<animation::Playback> playback_;
+    animation::PlaybackGate& gate_;
+};
+
+void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+    std::shared_ptr<animation::Playback> retained;
+    {
+        animation::PlaybackGate gate;
+        RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
+        Runtime runtime(options);
+        typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+        runtime.mount("main",column({.padding=20},{column({.id="card",.width=150,.height=100,.background="surface"},{
+            text({.id="title",.text="Same frame"}),button({.id="action",.text="Use"})})}));
+        (void)runtime.frame({0s,{}});(void)runtime.frame({2s,{}});
+        const auto card=runtime.find("main/card");const auto baseline=runtime.drawn_bounds(card);
+        auto attached=animation::Playback::attach(runtime,std::array{animation::Target{"card",card}});
+        if(!check(bool(attached),"host_adapter_attaches_without_a_window"))return;
+        retained=std::make_shared<animation::Playback>(std::move(*attached));
+        const auto registered=runtime.stage_plugins().add({.name="validation.playback",.kind="stage",
+            .description="public playback before current UI bounds",.trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=50}},
+            [weak=std::weak_ptr(retained),&gate](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<DriveStage>(weak,gate);});
+        if(!check(bool(registered),"host_stage_declares_cost_and_registers"))return;
+        auto graph=runtime.frame_pipeline().description();
+        const auto before=std::ranges::find_if(graph.stages,[](const auto& stage){return stage.name=="bounds";});
+        before->after.push_back("public_playback");graph.stages.insert(before,{"public_playback","validation.playback",{"layout"},{}});
+        const std::array inputs{pipeline::port<FrameInput>(std::string(frame_resource::input)),pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+        auto built=pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
+        if(!built)std::println(std::cerr,"{}",pipeline::to_text(built.error()));
+        if(!check(bool(built),"host_update_stage_is_before_bounds_and_paint"))return;
+        runtime.frame_pipeline()=std::move(*built);
+        const auto recipe=hanim::anim::move_to(retained->object(),{100,0}).duration(1s);
+        if(!check(bool(retained->play(recipe)),"host_plays_a_public_recipe"))return;
+        bool frames_ok=true;
+        auto frame=[&](double time){const auto output=runtime.frame({hanim::seconds(time),{}});
+            frames_ok=frames_ok && output.failure.empty();
+            const auto rendered=renderer.render(runtime.display_list(),pixels,{&runtime.images(),&glyphs});
+            frames_ok=frames_ok && rendered.missing_glyphs==0;return output;};
+        auto pose=[&](double position){return std::abs(retained->status().native->position.count()-position)<1e-7 &&
+            std::abs(runtime.drawn_bounds(card).x-baseline.x-100*position)<.03 && runtime.presentation(card)->applied;};
+        bool sampled=true;std::vector<std::string> reference;
+        for(int i=0;i<=60;++i) {
+            frame(2+i/60.);sampled=sampled && pose(i/60.);
+            const auto file=output/std::format("driver-{:03}.png",i);
+            sampled=sampled && bool(mlibs::image::save_png(file,{reinterpret_cast<const std::uint8_t*>(pixels.pixels().data()),400,220,400*4}));
+            reference.push_back(pixel_hash(pixels));
+            driver_frames.push_back(Value{}.set("index",i).set("time",i/60.).set("pixel_fnv1a",reference.back()).set("png",mcpplibs::os::fs::utf8(file)));
+        }
+        for(int i=60;i>=0;--i){frame(2+i/60.);sampled=sampled && pose(i/60.) && pixel_hash(pixels)==reference[static_cast<std::size_t>(i)];}
+        check(sampled,"host_clock_renders_all_61_current_frames_and_exact_reverse_replay");
+        frame(2.25);check(pose(.25) && retained->status().demanding_frames,"host_time_publishes_the_current_pose_in_the_same_frame");
+        check(!retained->play(recipe),"a_second_program_cannot_silently_replace_the_first");
+        (void)retained->pause();const auto paused=frame(10);
+        check(pose(.25) && paused.demand.idle() && !retained->status().demanding_frames,"pause_preserves_pose_and_releases_continuous_frame_demand");
+        (void)retained->resume();frame(10.25);check(pose(.5),"resume_keeps_continuity");
+        gate.visible=false;frame(11);frame(19);check(pose(.5) && !retained->status().demanding_frames,"hidden_time_does_not_advance_the_native_player");
+        gate.visible=true;frame(20);frame(20.1);check(pose(.6),"visible_again_without_catching_up_hidden_time");
+        frame(20.05);check(pose(.55),"a_backward_host_clock_uses_the_same_time_mapping");
+        (void)retained->reverse();frame(20.15);check(pose(.45),"reverse_is_continuous");
+        (void)retained->rate(-2);frame(20.25);check(pose(.25),"rate_changes_are_continuous");
+        runtime.set_motion_level(MotionLevel::off);(void)retained->seek_progress(.4);frame(21);
+        check(pose(.4) && !retained->status().requested,"explicit_sampling_remains_available_with_automatic_motion_off");
+        (void)retained->resume();frame(22);
+        check(pose(.4) && retained->status().suspended==animation::Suspension::motion_preference && !retained->status().demanding_frames,
+              "automatic_playback_respects_the_runtime_motion_preference");
+        runtime.set_motion_level(MotionLevel::full);frame(30);frame(30.1);check(pose(.2),"motion_preference_resume_does_not_jump");
+        runtime.pause_time(true);const auto frozen=frame(31);
+        check(pose(.2) && retained->status().clock_paused && frozen.demand.idle(),"a_paused_runtime_clock_does_not_request_busy_frames");
+        runtime.seek_time(hanim::seconds(30.05));frame(31);check(pose(.3),"explicit_runtime_time_seek_still_samples_while_the_clock_is_paused");
+        runtime.release_time();(void)retained->pause();frame(32);
+        check(!retained->seek_progress(std::numeric_limits<double>::quiet_NaN()) && pose(.3),"invalid_sampling_keeps_the_accepted_pose");
+        (void)retained->stop();frame(32.1);check(std::abs(runtime.drawn_bounds(card).x-baseline.x)<.03,"stop_restores_the_initial_offset");
+        check(bool(retained->play(recipe,{.alternate=true})),"alternating_transport_uses_the_public_time_map");
+        frame(34.35);check(pose(.25),"large_time_steps_preserve_repeated_phase");
+        frame(35.35);check(pose(.75) && retained->status().native->rate<0,"alternate_boundary_direction_is_observable");
+        gate.interacting=true;frame(36);check(pose(.75) && !retained->status().demanding_frames,"interaction_gate_preserves_the_visible_pose");
+        (void)retained->pause();gate.interacting=false;frame(40);check(pose(.75) && !retained->status().requested,"leaving_interaction_cannot_undo_an_explicit_pause");
+        check(bool(retained->plan()),"the_host_exposes_the_actual_immutable_hanim_plan");
+        check(frames_ok,"host_pipeline_frames_render_without_failures");
+    }
+    check(retained && !retained->attached() && !retained->update() && !retained->status().demanding_frames,
+          "retained_host_adapter_is_safe_after_runtime_destruction");
+}
 }
 int main(int argc,char** argv) {
     if(!check(argc==2,"output_directory_argument"))return finish();
@@ -134,5 +228,6 @@ int main(int argc,char** argv) {
     const auto object=binding->object();binding->detach();(void)runtime.frame({9s,{}});
     check(!binding->attached() && std::abs(runtime.drawn_bounds(root).x-base.x)<.03,"detach_restores_live_base_presentation");
     check(bool(hengine.destroy_object(object)) && !hengine.capture_object(object) && hengine.size()==0,"engine_objects_and_playbacks_released");
+    driver_checks(fonts,output);
     return finish(std::move(frames));
 }

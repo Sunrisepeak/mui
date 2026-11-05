@@ -15,6 +15,7 @@ struct MotionCaseInfo {
     bool vertex_path = false;
     double bend = 0;
     std::string_view curve;
+    bool authored_program = false;
 };
 
 struct MotionSceneState {

@@ -1,0 +1,149 @@
+import std;
+import openmui;
+import openmui.site;
+import mlibs.testing;
+
+using namespace omui;
+using namespace mlibs::testing;
+namespace {
+constexpr std::string_view root="main/body/view/motion/page/motion_gallery";
+const std::filesystem::path& media(){static const auto path=scratch_dir("site-component-motion");return path;}
+struct Run {
+    Headless h;
+    explicit Run(float width=1100,std::string_view lang="en"):h(HeadlessOptions{.size={width,1000},.parallel_raster=false}) {
+        auto app=site::app("motion",lang);h.runtime().set_theme(app.theme);app.setup(h.runtime());
+        for(auto& verb:app.verbs)(void)h.runtime().verbs().add(verb.desc,verb.fn);
+        h.mount("main",app.view());for(int i=0;i<6;++i)step();
+        act("choose");act("browse/choices/component-motion");
+        for(int i=0;i<120 && !bound();++i)step();
+        check(bound(),"the real site attaches its public Hanim binding");
+    }
+    std::string path(std::string_view suffix) const{return std::string(root)+"/"+std::string(suffix);}
+    NodeId node(std::string_view suffix){return h.runtime().find(path(suffix));}
+    void step(double dt=1./60){check(h.advance(seconds(dt)).failure.empty());}
+    void act(std::string_view suffix,std::string_view action="activate",Value args={}) {
+        Invocation call;call.actor={"agent","component-motion-review",{}};call.args=std::move(args);
+        check(h.tree().act(path(suffix),action,call).exit_code()==0,std::string(suffix));step();
+    }
+    bool bound() {
+        const auto state=h.runtime().presentation(node("stage/scene/composition/card"));
+        return state && state->channels!=PresentationChannel::none && state->applied && !state->error;
+    }
+    void details() {act("transport/buttons/details");for(int i=0;i<4;++i)step();}
+    void seek(double progress) {act("transport/seek","set_value",Value{}.set("value",progress));step();}
+    std::uint64_t pixels() {
+        const auto area=h.runtime().drawn_bounds(node("stage"));const auto& pixels=h.pixels();Hash hash;
+        const int x0=std::clamp(static_cast<int>(area.x),0,pixels.width()),x1=std::clamp(static_cast<int>(area.right()),x0,pixels.width());
+        const int y0=std::clamp(static_cast<int>(area.y),0,pixels.height()),y1=std::clamp(static_cast<int>(area.bottom()),y0,pixels.height());
+        for(int y=y0;y<y1;++y)hash.bytes(std::as_bytes(std::span(pixels.row(y)+x0,static_cast<std::size_t>(x1-x0))));
+        return hash.value();
+    }
+};
+}
+int main(int argc,char** argv) {
+    Suite suite{"site.component-motion"};
+    suite.test("the authored recipes animate an unrelated UI hierarchy through public part bindings",[] {
+        for(const auto selection:{"together","parts","title"}) {
+            Headless h(HeadlessOptions{.size={480,240},.parallel_raster=false});
+            h.mount("other",column({.padding=24},{row({.id="toolbar",.padding=10,.gap=20,.background="surface"},{
+                text({.id="caption",.text="Another application"}),button({.id="publish",.text="Publish"})})}));
+            h.settle(seconds(1));
+            auto engine=hanim::Engine::make();check(engine.has_value());if(!engine)return;
+            const std::array targets{animation::Target{"card",h.runtime().find("other/toolbar")},
+                animation::Target{"title",h.runtime().find("other/toolbar/caption")},
+                animation::Target{"save",h.runtime().find("other/toolbar/publish")}};
+            auto binding=animation::Binding::attach(h.runtime(),targets,*engine);check(binding.has_value());if(!binding)return;
+            auto recipe=site::component_motion_program(binding->object(),selection);check(recipe.has_value());if(!recipe)return;
+            auto played=engine->play(*recipe);check(played.has_value());if(!played)return;
+            std::vector<std::uint64_t> hashes;
+            for(const auto progress:{0.,.25,.5,.75,1.}) {
+                check(engine->seek_progress(*played,progress).has_value());
+                auto frame=engine->frame(*played);check(frame.has_value());if(!frame)return;
+                check(binding->present(*frame).has_value());check(h.step().failure.empty());
+                hashes.push_back(site::frame_hash(h.pixels()));
+                check(h.runtime().presentation(targets.front().node)->applied);
+            }
+            check(hashes.front()!=hashes[2] && hashes[2]!=hashes.back(),"recipe produces real intermediate pixels outside the website scene");
+            check(engine->release(*played).has_value());const auto object=binding->object();binding->detach();
+            check(engine->destroy_object(object).has_value());
+        }
+    });
+    suite.test("one live stage exposes three public recipes only after details and samples the whole process",[] {
+        Run r;check(!r.h.tree().node(r.path("details/selection")));r.details();
+        for(const std::string_view selection:{"together","parts","title"}) {
+            r.act("details/selection","set_value",Value{}.set("value",selection));r.seek(0);
+            const auto card=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card"));
+            const auto title=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card/title"));
+            const auto action=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card/actions/save"));
+            std::vector<std::uint64_t> frames;
+            for(int i=0;i<=60;++i) {
+                r.seek(i/60.);check(r.bound());frames.push_back(r.pixels());
+                check(r.h.save_png(media()/std::format("{}-{:03}.png",selection,i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+                const auto actual=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card"));
+                check_near(actual.x,card.x+(selection=="together"?24*i/60.:0),.1);
+            }
+            check(frames.front()!=frames[30] && frames[30]!=frames.back(),"actual intermediate images change");
+            if(selection!="together") {
+                check(r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card/title"))!=title);
+                if(selection=="title")check(r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card/actions/save"))==action);
+            }
+            for(int i=60;i>=0;--i){r.seek(i/60.);check(r.pixels()==frames[static_cast<std::size_t>(i)],"all reversed process frames reproduce");}
+            r.act("details/copy");const auto source=r.h.runtime().clipboard_text();
+            check(source==site::component_motion_source(selection,true,1));
+            check(source.find("playback.play")!=std::string::npos && source.find("hanim::parallel")!=std::string::npos);
+        }
+    });
+    suite.test("real input takes over without changing data and the same controls remain agent operable",[] {
+        Run r;r.details();r.seek(.5);
+        const auto card=r.node("stage/scene/composition/card"),save=r.node("stage/scene/composition/card/actions/save");
+        const auto before=r.h.runtime().drawn_bounds(card);
+        r.act("stage/scene/composition/card/editor","set_value",Value{}.set("value","An idea worth keeping"));
+        r.act("stage/scene/composition/card/pin","toggle");
+        r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
+        const auto copied=parse_json(r.h.runtime().clipboard_text());check(copied.has_value());
+        if(copied)check(copied->get("title")->as_string()=="An idea worth keeping" && copied->get("pinned")->as_bool());
+        r.step(.8);check_near(r.h.runtime().drawn_bounds(card).x,before.x,.1);
+        const auto popup=r.node("stage/scene/composition/card/actions/receipt");
+        check(r.h.runtime().drawn_bounds(popup).width>0);
+        r.act("stage/scene/composition/card/actions/receipt","dismiss");
+        r.act("stage/scene/composition/card/actions/save");
+        check(r.h.tree().node(r.path("stage/scene/composition/card/actions/saved"))->name.find('2')!=std::string::npos);
+        check(r.h.save_png(media()/"real-note-and-receipt.png").has_value());
+    });
+    suite.test("a first pointer press takes over a moving component in the same input frame",[] {
+        Run r;r.details();r.seek(.25);r.act("transport/buttons/play");r.step(.1);
+        const auto card=r.node("stage/scene/composition/card");
+        const auto before=r.h.runtime().drawn_bounds(card);
+        const auto point=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card/actions/save")).center();
+        PointerEvent move;move.kind=PointerKind::move;move.position=point;
+        PointerEvent down=move;down.kind=PointerKind::down;down.button=MouseButton::left;down.buttons=1;
+        PointerEvent up=down;up.kind=PointerKind::up;up.buttons=0;
+        check(r.h.step({move,down,up}).failure.empty());
+        check_near(r.h.runtime().drawn_bounds(card).x,before.x,.1);
+        check(parse_json(r.h.runtime().clipboard_text()).has_value(),"the first click still copies the actual note");
+        r.step(.5);check_near(r.h.runtime().drawn_bounds(card).x,before.x,.1);
+        check(r.h.tree().node(r.path("transport/hint"))->name.find("real interface")!=std::string::npos);
+    });
+    suite.test("preferences, hidden pages and teardown release the preview demand while explicit sampling stays available",[] {
+        Run r;r.details();r.seek(.25);const auto card=r.node("stage/scene/composition/card");
+        const auto held=r.h.runtime().drawn_bounds(card);
+        r.h.runtime().set_motion_level(MotionLevel::off);r.act("transport/buttons/play");r.step(.8);
+        check_near(r.h.runtime().drawn_bounds(card).x,held.x,.1);
+        r.seek(.75);check(r.h.runtime().drawn_bounds(card).x>held.x+8);
+        r.step(.8);check(r.h.runtime().frame_demand().idle());
+        r.h.runtime().set_route(site::canonical_route("home","en"));r.h.settle(seconds(1));
+        check(!r.h.runtime().valid(card));check(r.h.runtime().frame_demand().idle());
+    });
+    suite.test("the same note and controls fit narrow English and Chinese stages",[] {
+        for(const auto lang:{"en","zh"}) {
+            Run r(360,lang);r.details();r.seek(.5);
+            const auto stage=r.h.runtime().drawn_bounds(r.node("stage"));
+            for(const auto tail:{"card","card/title","card/editor","card/pin","card/actions/save"}) {
+                const auto bounds=r.h.runtime().drawn_bounds(r.node(std::string("stage/scene/composition/")+tail));
+                check(bounds.x>=stage.x-.5 && bounds.right()<=stage.right()+.5,std::string(tail));
+            }
+            check(r.h.save_png(media()/std::format("phone-{}.png",lang)).has_value());
+        }
+    });
+    return suite.run(argc,argv);
+}

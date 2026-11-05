@@ -6,6 +6,10 @@ import :motion_gallery;
 namespace omui::site {
 namespace {
 Runtime* runtime(const MotionGalleryContext& c) { return c.runtime ? *c.runtime : nullptr; }
+animation::Playback* player(MotionGallery& g) {return g.component && g.component->playback?&*g.component->playback:nullptr;}
+void record(MotionGallery& g,std::expected<void,animation::PlaybackFailure> result) {
+    if(!result && g.component)g.component->error.set("This animation operation is unavailable.");
+}
 std::string words(const MotionGalleryContext& c, std::string_view en, std::string_view zh) {
     return std::string(c.lang && c.lang->get() == "zh" ? zh : en);
 }
@@ -27,6 +31,7 @@ void finish_pending(MotionGallery& g, Runtime* rt) {
 }
 void rates(MotionGallery& g, Runtime* rt) {
     if (!rt) return;
+    if(g.authored_program){if(auto* p=player(g))record(g,p->rate((p->status().native->rate<0?-1:1)*std::clamp(g.speed.peek(),.1,3.)));return;}
     for (const auto& h : g.held) rt->set_motion_rate(h.node, g.direction * std::clamp(g.speed.peek(), 0.1, 3.0));
 }
 void begin(MotionGallery& g, const MotionGalleryContext& c) {
@@ -39,8 +44,14 @@ void prepare(MotionGallery& g, const MotionGalleryContext& c, bool creative, con
     if (g.active_id == info.id && g.creative == creative && g.scene_root == c.root + "/stage/scene") return;
     const bool play_intent = g.active_id.empty() || g.playing.peek() || g.resume_on_view || (g.interactive.peek() && g.resume_after_interaction);
     release(g, runtime(c), true);
+    if(g.component)g.component->playback.reset();
     g.active_id = info.id; g.creative = creative; g.stage_root = c.root + "/stage"; g.scene_root = g.stage_root + "/scene";
+    g.authored_program=info.authored_program;
     g.scene = MotionSceneState{};
+    if(g.authored_program) {
+        if(!g.component)g.component=std::make_shared<ComponentMotion>();
+        g.scene.text.set(c.lang && c.lang->peek()=="zh"?"下一件想做的事":"My next idea");g.scene.count.set(0);
+    }
     g.pending = false; g.started = false; g.resetting = false; g.resume_on_view = false; g.stage = {}; g.direction = 1; g.seek_target = -1;
     g.interactive.set(false); g.playing.set(play_intent); g.progress.set(0); g.page.set(0);
     g.style.set(std::string(info.style)); g.curve.set("default"); g.stagger.set(-1); g.bend.set(info.bend);
@@ -130,6 +141,7 @@ Element controls(MotionGallery& g, const MotionGalleryContext& c, float width) {
             in_details(button({.id = "reset", .text = words(c, "Reset", "重置"), .on_activated = [&g, c] { motion_gallery_reset(g, c); }}), g.detail),
             in_details(button({.id = "state-a", .text = "A", .on_activated = [&g, c] { motion_gallery_reset(g, c); }}), g.detail),
             in_details(button({.id = "state-b", .text = "B", .on_activated = [&g, c] {
+                if(g.authored_program){motion_gallery_seek(g,c,1);return;}
                 release(g, runtime(c), true); g.scene.end.set(true); g.interactive.set(false); g.playing.set(false); g.resume_on_view = false;
                 g.pending = true; g.resetting = true; if (auto* rt = runtime(c)) { g.requested_at = rt->now().count(); rt->request_frame(); }
             }}), g.detail),
@@ -147,6 +159,30 @@ Element controls(MotionGallery& g, const MotionGalleryContext& c, float width) {
         }), .style = "caption", .color = "text_muted", .max_width = Dim(width)})});
 }
 Element detail(MotionGallery& g, const MotionGalleryContext& c, const MotionCaseInfo& info, float width) {
+    if(info.authored_program && g.component) {
+        auto study=g.component;const float inner=std::max(160.f,width-40);
+        return column({.id="details",.padding=20,.gap=16,.background="surface_variant",.radius=16},{
+            text({.id="explanation",.text=words(c,"Choose what moves. Editing the recipe restarts its preview; your note stays intact.",
+                "选择哪些内容参与动画。更改配方会重新预览，便笺内容保持不变。"),.max_width=Dim(inner)}),
+            select({.id="selection",.label=words(c,"Animate","动画对象"),
+                .labels=std::vector<std::string>{words(c,"Whole note","整张便笺"),words(c,"Title and button","标题与按钮"),words(c,"Title only","仅标题")},
+                .options=std::vector<std::string>{"together","parts","title"},.value=study->selection,
+                .on_changed=[&g](std::string){g.progress.set(0);g.direction=1;g.playing.set(true);g.interactive.set(false);},.width=Dim(std::min(inner,260.f))}),
+            toggle({.id="loop",.checked=g.loop,.label=words(c,"Loop while visible","可见时循环")}),
+            slider({.id="speed",.label=words(c,"Playback speed","播放速度"),.max=2.,.min=.25,.step=.25,.value=g.speed,
+                .on_changed=[&g,c](double){rates(g,runtime(c));},.width=Dim(inner)}),
+            select({.id="style",.label=words(c,"Style in this scene","此场景的风格"),
+                .labels=std::vector<std::string>{words(c,"Plain","原色"),words(c,"Glass","玻璃"),words(c,"Neon","霓虹"),words(c,"Retro","复古"),words(c,"Ink","水墨"),words(c,"Liquid","流体")},
+                .options=std::vector<std::string>{"plain","glass","neon","retro","ink","liquid"},.value=g.style,
+                .on_changed=[&g,c](std::string pack){motion_gallery_pause(g,c);if(c.style)c.style(std::move(pack));},.width=Dim(std::min(inner,260.f))}),
+            text({.id="config-label",.text=words(c,"Reusable animation recipe · C++","可复用动画配方 · C++"),.style="label"}),
+            text({.id="config-scope",.text=words(c,"Bind your nodes as card, title and save with omui.hanim. This recipe changes presentation; controls keep their data and feedback. Style is configured separately.",
+                "通过 omui.hanim 将节点绑定为 card、title 和 save。配方改变呈现，控件保留数据与反馈；风格单独设置。"),.style="caption",.max_width=Dim(inner)}),
+            code_editor({.id="config",.language=CodeEditorLanguage::cpp,.lines=8,.readonly=true,
+                .text=computed([study,&g]{return component_motion_source(study->selection.get(),g.loop.get(),g.speed.get());}),.width=Dim(inner)}),
+            button({.id="copy",.text=words(c,"Copy recipe","复制配方"),.on_activated=[study,&g,c]{if(auto* rt=runtime(c))rt->set_clipboard_text(component_motion_source(study->selection.peek(),g.loop.peek(),g.speed.peek()));g.copied.set(true);}}),
+            text({.id="status",.text=study->error,.style="caption",.color="text_muted",.max_width=Dim(inner)})});
+    }
     auto recompose = [&g, c] { g.interactive.set(false); g.playing.set(true); g.resetting = false; g.direction = 1; begin(g, c); };
     std::vector<Element> children{
         text({.id = "components", .text = std::string(info.components), .style = "label", .max_width = Dim(std::max(1.0f, width - 40))}),
@@ -188,6 +224,7 @@ const MotionCaseInfo* find_motion_case(std::string_view id, bool creative) {
     return nullptr;
 }
 Value motion_gallery_config(const MotionGallery& g, const MotionCaseInfo& info) {
+    if(info.authored_program)return Value("none"); // only this root's state-morph slot; the public recipe is copied separately
     const std::string_view order = g.stagger.peek() > 0 && info.order == "together" ? "document" : info.order;
     Value main = Value{}.set("use", info.use).set("order", order).set("stagger", g.stagger.peek() < 0 ? info.stagger : g.stagger.peek())
         .set("rise", info.rise).set("grow", info.grow).set("stretch", info.stretch);
@@ -201,10 +238,19 @@ void motion_gallery_cancel(MotionGallery& g, const MotionGalleryContext& c) {
     // Preserve intent across an unmount. Repeated inactive ticks must not
     // overwrite a playing intent with the suspended transport's false.
     g.resume_on_view = g.resume_on_view || g.playing.peek();
+    if(g.authored_program) {
+        if(g.component)g.component->playback.reset();
+        g.playing.set(false);g.started=false;return;
+    }
     finish_pending(g, runtime(c));
     release(g, runtime(c), true); g.started = false; g.resetting = false; g.playing.set(false);
 }
 void motion_gallery_play(MotionGallery& g, const MotionGalleryContext& c) {
+    if(g.authored_program) {
+        g.resume_on_view=false;g.interactive.set(false);g.playing.set(true);
+        if(auto* p=player(g))record(g,p->resume());
+        if(auto* rt=runtime(c))rt->request_frame();return;
+    }
     g.resume_on_view = false;
     if (g.interactive.peek()) { motion_gallery_interact(g, c, false); }
     g.playing.set(true);
@@ -218,19 +264,30 @@ void motion_gallery_play(MotionGallery& g, const MotionGalleryContext& c) {
 void motion_gallery_pause(MotionGallery& g, const MotionGalleryContext& c) {
     g.resume_on_view = false;
     g.playing.set(false);
+    if(g.authored_program){g.resume_after_interaction=false;if(auto* p=player(g))record(g,p->pause());return;}
     if (auto* rt = runtime(c)) for (const auto& h : g.held) rt->pause_motion(h.node);
 }
 void motion_gallery_reverse(MotionGallery& g, const MotionGalleryContext& c) {
     g.direction = -g.direction;
+    if(g.authored_program){if(auto* p=player(g))record(g,p->reverse());return;}
     if (g.held.empty()) { g.seek_target = g.direction < 0 ? 1 : 0; if (!g.pending) begin(g, c); }
     rates(g, runtime(c));
 }
 void motion_gallery_seek(MotionGallery& g, const MotionGalleryContext& c, double position) {
     position = std::clamp(position, 0.0, 1.0); g.progress.set(position); g.playing.set(false);
+    if(g.authored_program) {
+        g.resume_after_interaction=false;g.resume_on_view=false;
+        if(auto* p=player(g))record(g,p->seek_progress(position));
+        if(auto* rt=runtime(c))rt->request_frame();return;
+    }
     if (g.held.empty()) { g.seek_target = position; if (!g.pending) begin(g, c); return; }
     if (auto* rt = runtime(c)) for (const auto& h : g.held) { rt->pause_motion(h.node); rt->seek_motion(h.node, position * g.duration); }
 }
 void motion_gallery_reset(MotionGallery& g, const MotionGalleryContext& c) {
+    if(g.authored_program) {
+        motion_gallery_seek(g,c,0);g.direction=1;g.interactive.set(false);
+        if(auto* p=player(g))record(g,p->rate(g.speed.peek()));return;
+    }
     release(g, runtime(c), true); g.interactive.set(false); g.playing.set(false); g.resume_on_view = false; g.direction = 1;
     g.scene.end.set(false); g.resetting = true; g.pending = true; g.seek_target = -1;
     if (auto* rt = runtime(c)) { g.requested_at = rt->now().count(); rt->request_frame(); }
@@ -238,6 +295,12 @@ void motion_gallery_reset(MotionGallery& g, const MotionGalleryContext& c) {
 void motion_gallery_interact(MotionGallery& g, const MotionGalleryContext& c, bool interactive) {
     if (g.interactive.peek() == interactive) return;
     g.automatic_interaction = false;
+    if(g.authored_program) {
+        if(interactive){g.resume_after_interaction=g.playing.peek();g.playing.set(false);}
+        else if(g.resume_after_interaction)g.playing.set(true);
+        g.interactive.set(interactive);
+        if(auto* rt=runtime(c))rt->request_frame();return;
+    }
     if (interactive) {
         g.resume_after_interaction = g.playing.peek();
         g.finish_preview = g.pending;
@@ -248,6 +311,18 @@ void motion_gallery_interact(MotionGallery& g, const MotionGalleryContext& c, bo
         if (g.resume_after_interaction) { g.playing.set(true); begin(g, c); }
     }
 }
+void motion_gallery_update(MotionGallery& g,const MotionGalleryContext& c) {
+    auto* rt=runtime(c);auto* native=player(g);
+    if(!g.authored_program || !rt || !native || !native->attached())return;
+    // Existing bindings can reconfigure before the current paint. First
+    // attachment waits for the post-paint observer's actual node boundaries.
+    const bool wanted=native->status().requested || g.playing.peek();
+    if(!prepare_component_motion(*g.component,*rt,g.scene_root,g.progress.peek(),g.direction,g.speed.peek(),g.loop.peek(),wanted))return;
+    const bool interacting=g.interactive.peek() || (rt->valid(g.stage) && (rt->state(g.stage).hovered || contains_focus(*rt,g.stage)));
+    const auto updated=player(g)->update({.visible=g.visible.peek() && on_screen(*rt,g.stage),
+        .foreground=!c.foreground || *c.foreground,.interacting=interacting});
+    if(!updated){record(g,updated);motion_gallery_pause(g,c);}
+}
 void motion_gallery_tick(MotionGallery& g, const MotionGalleryContext& c) {
     auto* rt = runtime(c); if (!rt || g.stage_root.empty()) return;
     // find() currently materialises a path string. Keep the stable node
@@ -256,6 +331,29 @@ void motion_gallery_tick(MotionGallery& g, const MotionGalleryContext& c) {
     if (!rt->valid(stage)) { motion_gallery_cancel(g, c); g.stage = {}; return; }
     if (stage != g.stage) { g.stage = stage; g.started = false; }
     const bool visible = g.visible.peek() && on_screen(*rt, stage);
+    if(g.authored_program && g.component) {
+        const bool focused=contains_focus(*rt,stage);
+        if(!g.interactive.peek() && focused){motion_gallery_interact(g,c);g.automatic_interaction=true;}
+        if(g.interactive.peek() && g.automatic_interaction && !focused && !rt->state(stage).hovered)motion_gallery_interact(g,c,false);
+        const bool wanted=g.playing.peek() || g.resume_on_view || g.resume_after_interaction;
+        if(!player(g) || !player(g)->attached()) {
+            if(!visible)return;
+            if(!prepare_component_motion(*g.component,*rt,g.scene_root,g.progress.peek(),g.direction,g.speed.peek(),g.loop.peek(),wanted))return;
+        }
+        // Reconcile current visibility at the same latched time. A newly
+        // visible scene wakes the next frame, without sampling a later pose
+        // after paint or replaying hidden time.
+        record(g,player(g)->update({.visible=visible,.foreground=!c.foreground || *c.foreground,
+            .interacting=g.interactive.peek() || rt->state(stage).hovered || focused}));
+        const auto status=player(g)->status();
+        if(status.native) {
+            g.duration=status.native->duration.count();g.direction=status.native->rate<0?-1:1;
+            if(std::abs(g.progress.peek()-status.native->progress)>.0001)g.progress.set(status.native->progress);
+            const bool playing=status.requested && status.suspended==animation::Suspension::none && status.native->state==hanim::PlaybackState::playing;
+            if(g.playing.peek()!=playing)g.playing.set(playing);
+        }
+        g.started=true;return;
+    }
     if (!visible) {
         g.resume_on_view = g.resume_on_view || g.playing.peek();
         finish_pending(g, rt); release(g, rt, true); g.playing.set(false); return;
@@ -303,7 +401,7 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
     prepare(g, c, creative, *info);
     const float inset = width < 520 ? 8.0f : 16.0f;
     const float scene_width = std::max(200.0f, width - 2 * inset);
-    const float scene_height = info->id == "palette-studio" || info->vertex_path ? 300.0f : width < 520 && info->id == "list-grid" ? 280.0f : width < 520 ? 430.0f : 360.0f;
+    const float scene_height = info->authored_program ? 360.0f : info->id == "palette-studio" || info->vertex_path ? 300.0f : width < 520 && info->id == "list-grid" ? 280.0f : width < 520 ? 430.0f : 360.0f;
     const MotionCaseInfo current = *info;
     auto scene = box({.id = "scene", .width = Dim(scene_width), .height = Dim(scene_height)}, {dynamic([&g, c, current, creative, scene_width, scene_height] {
         MotionSceneContext context{.state = &g.scene, .language = c.lang, .width = scene_width, .height = scene_height,

@@ -3,6 +3,7 @@ export module openmui.site:motion_gallery;
 import std;
 import openmui;
 export import :motion_catalog;
+export import :component_motion;
 
 export namespace omui::site {
 struct MotionGallery {
@@ -14,6 +15,8 @@ struct MotionGallery {
     Signal<std::int64_t> page = signal(std::int64_t{0});
     Signal<bool> copied = signal(false);
     MotionSceneState scene;
+    std::shared_ptr<ComponentMotion> component;
+    bool authored_program=false;
     struct Held { NodeId node; double duration = 0; };
     std::vector<Held> held;
     NodeId anchor, stage;
@@ -31,12 +34,15 @@ struct MotionGalleryContext {
     std::function<void(std::string)> style;
     std::string root;
     std::string scope = "motion-preview";
+    const bool* foreground = nullptr;
 };
 [[nodiscard]] const MotionCaseInfo* find_motion_case(std::string_view id, bool creative);
 [[nodiscard]] Value motion_gallery_config(const MotionGallery& gallery, const MotionCaseInfo& info);
 [[nodiscard]] Element motion_gallery(MotionGallery& gallery, const MotionGalleryContext& context, bool creative, float width);
 // Called after paint by the site's frame stage. No timer or clock lives in a scene.
 void motion_gallery_tick(MotionGallery& gallery, const MotionGalleryContext& context);
+// Public program sampling is a pre-paint operation, after input and regions.
+void motion_gallery_update(MotionGallery&,const MotionGalleryContext&);
 void motion_gallery_cancel(MotionGallery& gallery, const MotionGalleryContext& context);
 void motion_gallery_play(MotionGallery& gallery, const MotionGalleryContext& context);
 void motion_gallery_pause(MotionGallery& gallery, const MotionGalleryContext& context);

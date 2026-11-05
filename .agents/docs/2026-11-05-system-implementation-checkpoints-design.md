@@ -956,3 +956,46 @@ geom／raster／hanim／vector／motion 五个包的原生 dev／release 各 32 
 完整 lint（含文档 schema）、清单／Python／JSON、文档链接及 diff 检查通过。源仓库用户已有 `mcpp.lock` 原样保留、不纳入提交；宿主构建缓存的临时锁按本地所需构建程序重建。当前检查点以本地真实验证推进，后续继续把公开绑定和选择策略用于官网配置舞台，再补完整几何、自动策略及其他架构任务。
 
 维护者追加空间清理后，移除了 `/tmp` 与项目内 87 个已过期构建缓存目录、530 份旧日志，文件系统实际可用空间增加约 17.25 GiB，清理后约 20.18 GiB 可用。保留各工作树源代码／git 元数据、正在运行的应用、最新 native／Wasm 测试增量与仓外消费者，以及本轮图像／测试／基准证据。详情在 `target/omui-presentation/cleanup.report.omui.json`，摘要写入本轮检查点报告。
+
+
+## 29. 原生播放宿主与官网组件编排
+
+2026-11-06，基线 `97db51c`。继续 A4 的实际接入：可选原生宿主把公共 Hanim 编排用于活的 UI，官网用同一接口提供可编辑便笺。仍不把这条属性链路记为完整 A4 或 40／20 验收。
+
+### 29.1 同一个 player，分层暴露控制
+
+现有 `openmui.view` 的 `hanim` feature 内增加 `omui::animation::Playback`，无新增包。`Binding` 保留给已有共享 Engine 的应用；`Playback::attach(runtime, targets)` 拥有自己的 Engine、Binding 和帧请求 lease，简单使用为 `play(animation, options)`。对象、公开属性配方、parallel／sequence、prepared plan 及实际求值仍来自 Hanim；UI 宿主没有重新实现插值或新设 timer／线程。
+
+宿主显式安装原生 stage，在 input／regions／layout 后、bounds／paint 前调用 `update(gate)`。必须声明 tree／layout 读取、tree 写入、成本、trace 与进入 bounds 的顺序边；不能在 Runtime 尚未锁定本帧时间前采样上一帧时间。应用决定可见／前台／交互 gate，驱动读取 Runtime 减少动态效果及 motion level，自动接到帧请求；没有暗中安装全局 registry，也没有让脚本进入每帧路径。
+
+`pause`／`resume`／`reverse`／非零有符号 `rate`／`seek`／`seek_progress`／`stop(restore|hold)` 控制同一个原生 playback。第二次 play 要先显式 stop；关闭自动动态仍可 seek 审查画面。暂停、不可见、后台、交互或动态偏好抑制时保留可见姿态并释放持续帧请求，恢复不追赶隐藏时间，显式暂停不被门控恢复撤销。Runtime 时钟暂停后不忙等，显式 seek_time 仍可取样。stop 后管线保持可用，下一帧提交恢复／保留的姿态。
+
+绝对时间、倒退查询和往返循环复用 `hanim.core::TimeMap`；新增 `sample_time` 仅把既有映射的位置、迭代、方向与边界状态公开，旧 `map_time` 委托同一实现。宿主使用相对时间差再加入相位，避免将小时间偏移先叠加到很大的绝对时钟。原生 status／plan 与 Runtime 已提交的 presentation 分别可观察；无新增远端权限入口，应用通过已有 openas 操作映射到同一领域方法。
+
+### 29.2 官网：真实便笺与渐进披露
+
+基础动画目录新增 `component-motion`，使用同一真实便笺的三种配方：**整体**移动完整卡片；**部件**分别移动／轻转标题并缩放按钮；**标题**只改变选中的标题。文字与标准输入框、checkbox、button、popover 都保持活的业务状态；首次鼠标进入／按下即接管正在播放的预览。复制按钮将当前标题／置顶状态输出为可用 JSON，弹出真实回执，不用计时器伪造保存成功。
+
+仍只展示一个舞台；初始只有播放、交互、详情，选择集／速度／往返／局部风格／源码在详情中展开。C++ 内容明确标注为依赖已绑定对象的配方片段，不冒充完整工程；显示代码与实际 program 共享同一 Recipe 数据。plain／glass／neon／retro／ink／liquid 继续通过现有局部 UI scope 组合，未宣称此 adapter 已接通 Hanim 图像效果 scope。目录计数为 42 个基础场景，含独立编排实例；不能据此宣布 40 个公共基础动画库验收完成。
+
+### 29.3 验证方法与自审发现
+
+仓外消费者增加原生宿主 stage，采样 61 个 host-clock 时刻，并倒退 Runtime 时间逐帧复现；加上原有 61 帧显式采样，检查 shaped text、真实按钮、同帧 bounds、暂停／反向／速率、循环跨界、门控、减少动态效果、时钟暂停、非法输入、释放和 Runtime 寿命。三个构建各自产生真实图像，既对比原始像素也对比 PNG 摘要。关闭 feature 的真实第二个应用仍检查实际构建 DAG；缺字体必须失败。
+
+官网另测三种选择各 61 帧及逆向 replay、真实鼠标／Agent 操作、首次点击接管、偏好／路由释放、360px 中英文布局；同一公开配方还绑定到另一套工具栏层级，验证不是只能用于该便笺。浏览器验证通过真实导航／选择／键盘输入和剪贴板检验实际发布路径。新增 `ui/presentation/hanim-frame-100` 基准，测 100 个独立卡片部件的公共 Engine 求值、宿主时间映射、属性发布及 302 节点 Runtime paint；raster／GPU／准备阶段另计，不推导低端设备吞吐。
+
+本轮自审修复 stop 后 update 错把空闲宿主当作管线故障的问题；仓外 stage 的验证还发现漏声明 cost／tree read，已按真实管线契约修正。通用 TreeWatch 的时序调整影响了既有固定过程图，恢复其原有阶段后参考像素重新一致，未以重写 golden 掩盖变化。旧 JSON 动效复用测试与新 Program 配方分别验证实际复用，不把无动作 JSON 当作 Hanim 配方。
+
+本轮 native dev／release 的六个相关包各 **47 个测试程序、395 项**通过；Wasm／Node 的 47 个程序中 **391 项**通过，线程式本地 IPC 的不支持项明确跳过。官网原有 20 个程序／129 项通过；新增程序修复测试声明顺序的编译错误后单独重跑 **6 项**通过，合计覆盖 21 个程序／135 项；同一新增程序另做 release 构建并通过 6 项。参考像素总摘要仍为 `3027fb6720e6078d`，59 帧参考表未改。
+
+仓外 native dev／release／Wasm 三种 profile 各 **51 项检查、122 张过程 PNG**通过：显式采样与宿主驱动各 61 帧，全部逆放可重现，相同时刻跨 profile 的像素和 PNG 摘要一致；共 366 张。另保留官网三种选择各 61 帧及移动端／实际便笺回执图。关闭 feature 的独立应用与缺字体拒绝检查也通过。
+
+本机 i9-13900K、Linux release 的 `hanim-frame-100` 平均 **0.154 ms**、p95 **0.159 ms**，包含上述 100 组动画和 302 节点 Runtime paint；普通 C++ `new`／`new[]` 记录为 **0**。对应直接发布平均 2.60 μs，发布＋paint 平均 0.146 ms；都是特定预热工作负载，未计 raster／GPU／prepare，不推广成整屏帧或移动设备性能保证。最终源码摘要、命令与浏览器交付结果见[本轮报告](../../tools/ci/2026-11-06-ui-playback.report.omui.json)。
+
+新生成的 site-web（LLVM -Oz）包在 Chromium 中通过 **151 项**实际浏览器检查，保留 8 张截图。新场景验证实际自动推进到中间态、整组／部件变化、渐进详情、键盘选项、便笺编辑、真实系统剪贴板与焦点交互；既有基础／创意／Agent／统一接口／局部风格流程同时通过。
+
+停止构建后，以独立冷启动、20 Mbit/s／40 ms、1280×800 测量：总传输 **4,858,067 B**，首帧前 **2,955,838 B**，首帧代理 **1,759.4 ms**、ready **1,722.6 ms**，rAF p95 **16.8 ms**、长帧 **1**，页面异常 **0**，原有 **7／7** 预算通过。5 MB 总量门禁余 **141,933 B**，未调整预算；这是本机单份 cache-enabled 样本，首帧代理不是 FCP／LCP，rAF 不是实际 GPU 绘制成本，不与旧源版本做单因果性能提升结论。
+
+### 29.4 仍开放的范围
+
+完整 UI 内容／几何 HObject、按顶点和 3D 控制、通道混合／hold-world、通用状态与约束、image-effect scope 到 UI 的映射、任意布局 morph 的采样锚点和动态层级再分区、预算／降级控制、自动宿主安装等仍未完成。默认组件配方批量迁移、40／20 的库与完整工程、其他引擎、AI／PPet、工具、后端和发布门槛继续保留。当前过程图与本机耗时不替代实机跨平台节奏、GPU 或整体产品视觉验收。

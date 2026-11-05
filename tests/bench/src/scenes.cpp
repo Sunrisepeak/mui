@@ -3,6 +3,7 @@ module openmui.bench;
 import std;
 import openmui.core;
 import openmui.view;
+import omui.hanim;
 import openmui.semantic;
 import openmui.render.vector;
 import openmui.raster;
@@ -24,6 +25,21 @@ import mcpplibs.os;
 namespace omui::bench {
 
 namespace {
+
+class PlaybackStage final : public pipeline::Stage {
+public:
+    explicit PlaybackStage(animation::Playback& playback):playback_(playback){}
+    std::vector<pipeline::Port> reads() const override {
+        return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
+    }
+    std::vector<pipeline::Port> writes() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
+    std::expected<void,std::string> run(pipeline::Context&) override {
+        if(auto result=playback_.update();!result)return std::unexpected("Hanim host update failed");
+        return {};
+    }
+private:
+    animation::Playback& playback_;
+};
 
 constexpr Size        full_hd{1920, 1080};
 constexpr std::size_t columns = 14;
@@ -251,7 +267,7 @@ void add_framework_benchmarks() {
     add_simulation_benchmarks();
     add_public_motion_benchmarks();
 
-    auto presentation = [](State& s, bool draw) {
+    auto presentation = [](State& s, bool draw, bool drive=false) {
         constexpr std::size_t count=100;
         RuntimeOptions options;options.stages=Stages::paint;options.size={1280,720};
         typeset::FontCollection fonts;
@@ -265,16 +281,45 @@ void add_framework_benchmarks() {
         (void)runtime.frame({seconds(0),{}});(void)runtime.frame({seconds(2),{}});
         std::vector<PresentationTarget> targets;targets.reserve(count);
         for(std::size_t i=0;i<count;++i)targets.push_back({runtime.find(std::format("main/c{}",i)),PresentationChannel::translation});
-        auto lease=runtime.acquire_presentation(targets);
-        if(!lease){s.fail("presentation attachment failed");return;}
+        std::optional<PresentationLease> lease;
+        std::optional<animation::Playback> playback;
+        if(drive) {
+            std::vector<animation::Target> selected{{"root",runtime.find("main"),PresentationChannel::translation}};
+            for(std::size_t i=0;i<count;++i)selected.push_back({std::format("c{}",i),targets[i].node,PresentationChannel::translation});
+            auto made=animation::Playback::attach(runtime,selected);
+            if(!made){s.fail("Hanim host attachment failed");return;}
+            playback.emplace(std::move(*made));
+            std::vector<hanim::Program> programs;programs.reserve(count);
+            for(std::size_t i=0;i<count;++i)programs.push_back(hanim::anim::to(playback->object(),
+                {.position=hanim::Vec2{20+static_cast<double>(i%5),0},.part=std::format("c{}",i)}).duration(hanim::seconds(1)));
+            if(!playback->play(hanim::parallel(programs),{.alternate=true})){s.fail("Hanim public program failed");return;}
+            auto added=runtime.stage_plugins().add({.name="omui.bench.playback",.kind="stage",.description="public Hanim host before paint",
+                .trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=500}},
+                [&](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<PlaybackStage>(*playback);});
+            if(!added){s.fail("Hanim stage registration failed");return;}
+            auto graph=runtime.frame_pipeline().description();
+            auto bounds=std::ranges::find_if(graph.stages,[](const auto& stage){return stage.name=="bounds";});
+            bounds->after.push_back("hanim");graph.stages.insert(bounds,{"hanim","omui.bench.playback",{"layout"},{}});
+            const std::array inputs{pipeline::port<FrameInput>(std::string(frame_resource::input)),pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+            auto built=pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
+            if(!built){s.fail(pipeline::to_text(built.error()));return;}
+            runtime.frame_pipeline()=std::move(*built);
+        } else {
+            auto acquired=runtime.acquire_presentation(targets);
+            if(!acquired){s.fail("presentation attachment failed");return;}
+            lease.emplace(std::move(*acquired));
+        }
         std::array<hanim::Transform2D,count> poses;
         s.items(count);
-        s.note("scope",draw?"100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+        s.note("scope",drive?"100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
+                           :draw?"100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
                            :"100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness.");
         std::size_t tick=0;
         while(s.next()) {
-            for(std::size_t i=0;i<count;++i)poses[i].tx=static_cast<double>((tick+i)%61)/2.;
-            if(!lease->publish(poses)){s.fail("presentation publication failed");return;}
+            if(!drive) {
+                for(std::size_t i=0;i<count;++i)poses[i].tx=static_cast<double>((tick+i)%61)/2.;
+                if(!lease->publish(poses)){s.fail("presentation publication failed");return;}
+            }
             if(draw) {
                 const auto frame=runtime.frame({seconds(3+tick/120.),{}});
                 if(!frame.failure.empty()){s.fail(frame.failure);return;}
@@ -288,6 +333,7 @@ void add_framework_benchmarks() {
     };
     add("ui/presentation/publish-100","100 group offsets published through typed channel leases",[presentation](State& s){presentation(s,false);});
     add("ui/presentation/frame-100","100 live component groups projected into current paint and input geometry",[presentation](State& s){presentation(s,true);});
+    add("ui/presentation/hanim-frame-100","100 component parts animated by the public native Hanim host",[presentation](State& s){presentation(s,true,true);});
 
     // ── canvas-markdown §3.5: the canvas's frame while the camera moves ──
     register_canvas_component();

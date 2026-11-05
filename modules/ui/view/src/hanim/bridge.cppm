@@ -1,4 +1,4 @@
-export module omui.hanim;
+export module omui.hanim:binding;
 import std;
 export import hanim;
 export import openmui.view;

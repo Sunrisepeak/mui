@@ -35,10 +35,11 @@ def main() -> int:
             'base_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=repo,text=True).strip(),
             'source_lock_before':lock,'commands':[],'profiles':[],
             'fixture_sha256':{str(p.relative_to(fixture)):digest(p) for p in [fixture/'run.py',fixture/'mcpp.toml.in',fixture/'src/main.cpp']},
-            'scope':['Explicit sampled local presentation offsets; public Engine remains the only player.',
+            'scope':['Local presentation offsets and reusable host transport; public Engine and TimeMap remain the execution/time owners.',
                      'Actual standard button, shaped text, mouse and Agent semantic activation without GUI/display server.',
                      'Projected target anchors follow in the current frame; complete sampled-layout constraints remain out of scope.',
-                     'No claim of complete UI geometry capture, automatic playback integration or 3D/image-effect support.']}
+                     'Host controls, visibility/interaction/preferences, frame demand and arbitrary clock sampling are exercised without a window.',
+                     'No claim of complete UI geometry capture or 3D/image-effect support.']}
 
     def run(label: str,argv: list[str],bootstrap=False,expected_exit=0,overrides=None) -> str:
         env=os.environ.copy();env.setdefault('MCPP_JOBS','2');env.pop('DISPLAY',None);env.pop('WAYLAND_DISPLAY',None)
@@ -102,8 +103,8 @@ def main() -> int:
             stdout=run(profile,['run','--locked','--profile',profile,*target,'--',str(images)])
             records=[json.loads(line) for line in stdout.splitlines() if line.startswith('{')]
             result=next(row for row in records if row.get('kind')=='omui.hanim-consumer')
-            if not result['ok'] or len(result['frames'])!=61:raise RuntimeError('consumer did not complete the real task')
-            for frame in result['frames']:
+            if not result['ok'] or len(result['frames'])!=61 or len(result['driver_frames'])!=61:raise RuntimeError('consumer did not complete the real task')
+            for frame in result['frames']+result['driver_frames']:
                 path=Path(frame['png']);frame['png_sha256']=digest(path)
                 if not path.is_relative_to(images) or path.stat().st_size<100:raise RuntimeError('invalid pixel artifact')
             run(profile+'-metadata',['build','--locked','--profile',profile,*target,'--configure-only'])
@@ -124,9 +125,10 @@ def main() -> int:
             report['profiles'].append({'profile':profile,'result':result,'packages':packages,
                 'source_files_sha256':{str(p.relative_to(repo)):digest(p) for p in sorted(set(sources)) if p.is_relative_to(repo)}})
             if digest(project/'mcpp.lock')!=consumer_lock:raise RuntimeError('consumer lock changed')
-        reference=report['profiles'][0]['result']['frames']
+        reference=report['profiles'][0]['result']['frames']+report['profiles'][0]['result']['driver_frames']
         for profile in report['profiles'][1:]:
-            if any(a['pixel_fnv1a']!=b['pixel_fnv1a'] or a['png_sha256']!=b['png_sha256'] for a,b in zip(reference,profile['result']['frames'])):
+            frames=profile['result']['frames']+profile['result']['driver_frames']
+            if any(a['pixel_fnv1a']!=b['pixel_fnv1a'] or a['png_sha256']!=b['png_sha256'] for a,b in zip(reference,frames)):
                 raise RuntimeError('profile process pixels differ')
         stdout=run('missing-fonts',['run','--locked','--profile','release','--',str(artifacts/'release')],
                    expected_exit=1,overrides={'OMUI_FONTS':str(project/'missing-fonts')})

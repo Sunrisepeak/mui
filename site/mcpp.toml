@@ -42,6 +42,7 @@ sources = ["src/targets/web.cppm"]
 
 [dependencies]
 openmui.sdk         = { path = ".." }
+openmui.view        = { path = "../modules/ui/view", features = ["hanim"] }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
 openmui.timeline    = { path = "../modules/media/timeline" }  # the monitor: what plays at the playhead

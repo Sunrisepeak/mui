@@ -14,15 +14,11 @@ import :surface;
 
 export namespace mlibs::raster {
 
-// The same values as openmui.render's PathVerb, so a display list's paths are
-// rasterised without conversion.
-enum class Verb : std::uint8_t { move, line, quad, cubic, close };
-enum class FillRule : std::uint8_t { nonzero, even_odd };
-
-struct PathData {
-    std::span<const Verb>  verbs;
-    std::span<const Point> points;
-};
+// Source-compatible names for the shared geometry contract. No enum or
+// operand-array conversion is needed at the renderer/raster boundary.
+using Verb = mlibs::geom::PathVerb;
+using FillRule = mlibs::geom::FillRule;
+using PathData = mlibs::geom::PathView;
 
 // A path built by hand (tests, glyph outlines).
 class PathBuilder {
@@ -45,27 +41,7 @@ private:
     std::vector<Point> points_;
 };
 
-// Flattened outline: closed polygons in device space.
-struct Polygons {
-    std::vector<Point>       points;
-    std::vector<std::size_t> starts;  // index of each polygon's first point
-    std::vector<bool>        closed;  // the path closed it explicitly (strokes join its ends)
-
-    [[nodiscard]] std::size_t count() const noexcept { return starts.size(); }
-    [[nodiscard]] std::span<const Point> polygon(std::size_t i) const noexcept {
-        std::size_t b = starts[i], e = i + 1 < starts.size() ? starts[i + 1] : points.size();
-        return {points.data() + b, e - b};
-    }
-    void begin() {
-        starts.push_back(points.size());
-        closed.push_back(false);
-    }
-    void clear() noexcept {
-        points.clear();
-        starts.clear();
-        closed.clear();
-    }
-};
+using Polygons = mlibs::geom::PathPolylines;
 
 // Curves become line segments within `tolerance` device pixels. The default,
 // 1/32 pixel, keeps the area lost to chords below 0.1% at UI sizes, so curved

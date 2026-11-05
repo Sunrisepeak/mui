@@ -424,5 +424,29 @@ int main() {
         "advanced_property_timeline_is_an_independent_public_library_plan");
     check(h::property_channel_name(h::PropertyChannel::rotation)=="rotation","channel_names_are_stable_public_diagnostics");
     check(bool(hengine.destroy_object(*channel_object)),"channel_object_released");
+    const std::array path_verbs{mlibs::geom::PathVerb::move,mlibs::geom::PathVerb::line,
+        mlibs::geom::PathVerb::line,mlibs::geom::PathVerb::close};
+    std::array path_points{mlibs::geom::Point{0,0},mlibs::geom::Point{12,0},mlibs::geom::Point{0,12}};
+    const auto path=h::import_path({path_verbs,path_points});
+    if(!check(path && path->contours.size()==1,"neutral_geometry_path_imported_without_renderer"))return finish();
+    path_points[1]={99,99};const auto captured=path->contours[0].geometry.view();
+    check(captured && captured->segments[0].end==h::Vec2{12,0} &&
+        path->contours[0].segment_commands==std::vector<std::size_t>{1,2},"path_capture_owns_geometry_and_preserves_source_indices");
+    const auto path_object=hengine.create_object({{{.id="path",.contours={path->contours[0].geometry},.fill=h::Rgba{1,0,0,1}}}});
+    if(!check(bool(path_object),"imported_path_creates_public_object"))return finish();
+    const auto path_play=hengine.play(anim::move_to(*path_object,{20,10}));bool path_samples=bool(path_play);
+    for(int i=0;path_samples && i<=60;++i) {
+        path_samples=bool(hengine.seek_progress(*path_play,i/60.));
+        const auto frame=hengine.frame(*path_play);
+        path_samples=path_samples && frame && frame->geometry.parts[0].local.tx==20*(i/60.) &&
+            frame->geometry.cubics.size()==3;
+    }
+    check(path_samples,"imported_geometry_animates_through_61_public_samples");
+    const auto malformed=h::import_path({path_verbs,std::span(path_points).first(1)});
+    check(!malformed && malformed.error().path && malformed.error().path->code==mlibs::geom::PathError::missing_points,
+        "malformed_path_keeps_shared_source_diagnostic");
+    const auto bounded=h::import_path({path_verbs,path_points},{.max_segments=1});
+    check(!bounded && bounded.error().code==h::ObjectError::capacity,"path_import_respects_geometry_budget");
+    check(path_play && hengine.release(*path_play) && hengine.destroy_object(*path_object),"imported_path_resources_released");
     return finish();
 }

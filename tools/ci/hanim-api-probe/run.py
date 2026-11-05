@@ -37,7 +37,7 @@ def main() -> int:
                        'Real strict contour/transform/fill morph and parameter effects only.',
                        'ObjectRef uses borrowed Engine registry; external hosts use explicit Snapshot inputs.',
                        'Explicit nested composite scopes, hierarchy and atomic program frames; no renderer required.',
-                       'No GPU execution, move/reveal, general typed channels or Agent provider.',
+                       'Public property recipes, independent channel timing and shared-path capture are included; GPU execution, general channel blending and a generic Agent provider remain outside this probe.',
                        'No hot-path performance/allocation or sanitizer claim.']}
     def run(label, argv, bootstrap=False):
         env=os.environ.copy(); env.setdefault('MCPP_JOBS','2')

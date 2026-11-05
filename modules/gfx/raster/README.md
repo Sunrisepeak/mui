@@ -2,6 +2,11 @@
 
 A deterministic CPU 2D rasterizer (module `mlibs.raster`, D-43): the shared CPU reference used by omui and hanim.
 
+Path data, fill rules and polyline storage are aliases of the shared
+`mlibs.geom` contract. Curve flattening now lives there; `raster::flatten`
+preserves the existing entry and numeric output. Raster owns coverage,
+stroking and compositing, without a second path encoding or geometry converter.
+
 - **Sparse cells, runs of coverage.** Only the cells an edge touches are kept (sorted by row and column); between two cells the coverage is the winding's alone, so the sweep yields runs, and a fill composites a run of one value as one colour — a store for an opaque one. Axis-aligned solid rectangles skip coverage altogether. The cost follows the outline, not the area, and the bytes are the dense sweep's.
 - **Coverage in exact integers.** Curves are flattened in floating point (1/32 px tolerance, no contraction), endpoints rounded to 1/256 px, and each edge adds cover and area to the cells it crosses (the scheme of FreeType's ftgrays); a sweep per row applies the non-zero or even-odd rule. Axis-aligned rectangles have an analytic fast path.
 - **Paints**: solid colours, linear / radial / conic gradients (pad, repeat, reflect) through premultiplied lookup tables, bilinear or nearest image patterns; an image as a mask (`Paint::Kind::image_mask`: its alpha as coverage of the paint's colour). An image paint can be **lit** by a `Material` (`Paint::material`): a normal map sampled where the colour is, turned by the orthogonal part of the paint's transform (`orthogonal_part`: rotation, and mirror), shaded by a light in device space — lambert cut into soft-edged cel bands toward a shadow colour, a rim where the normal grazes toward the light — in IEEE single precision without contraction (`Shader::lit`, `material_setup`; the GPU renderer shades with the same constants). Without a material an image fill takes the same path as before.

@@ -205,25 +205,11 @@ std::expected<RecordedPath, PathRecordError> DisplayList::record_path(
     for (std::size_t i = 0; i < point_count; ++i) std::construct_at(points + i);
     const std::span<Point> positions(points, point_count);
     writer({verbs, positions});
-    std::size_t used = 0;
-    bool moved = false;
-    for (const auto verb : verbs) {
-        std::size_t count = 0;
-        switch (verb) {
-        case PathVerb::move: count = 1; moved = true; break;
-        case PathVerb::line: count = 1; break;
-        case PathVerb::quad: count = 2; break;
-        case PathVerb::cubic: count = 3; break;
-        case PathVerb::close: break;
-        default: return std::unexpected(PathRecordError::invalid_path);
-        }
-        if (!moved || count > point_count - used) return std::unexpected(PathRecordError::invalid_path);
-        used += count;
-    }
-    if (used != point_count) return std::unexpected(PathRecordError::invalid_path);
+    // Retain the caller's capacity policy and share encoding/coordinate checks.
+    if(!mlibs::geom::inspect_path({verbs,positions},{verb_count,point_count,verb_count}))
+        return std::unexpected(PathRecordError::invalid_path);
     Point lo = points[0], hi = lo;
     for (const auto point : positions) {
-        if (!std::isfinite(point.x) || !std::isfinite(point.y)) return std::unexpected(PathRecordError::invalid_path);
         lo.x = std::min(lo.x, point.x); lo.y = std::min(lo.y, point.y);
         hi.x = std::max(hi.x, point.x); hi.y = std::max(hi.y, point.y);
     }

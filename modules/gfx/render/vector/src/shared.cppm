@@ -12,17 +12,6 @@ import :display;
 
 namespace xengine::render {
 
-// A display list's path as the rasteriser's (the verbs are the same, in the
-// same order; the conversion keeps the verb array).
-struct PathConv {
-    std::vector<mlibs::raster::Verb> verbs;
-    mlibs::raster::PathData data(const PathView& v) {
-        verbs.resize(v.verbs.size());
-        for (std::size_t i = 0; i < v.verbs.size(); ++i) verbs[i] = static_cast<mlibs::raster::Verb>(v.verbs[i]);
-        return {verbs, v.points};
-    }
-};
-
 // Where a glyph's mask is asked for and placed: one function for the bands
 // and for the pass that resolves their glyphs first, so both ask the same.
 inline bool simple_glyphs(const Affine& m) noexcept { return m.b == 0 && m.c == 0 && m.a == m.d && m.a > 0; }

@@ -6,13 +6,13 @@ animation catalog. It does not implement pixels, images, glyph assets, mesh,
 materials, effects, live host callbacks or a UI adapter.
 
 The package lives under `modules/gfx/hanim` so `modules/base/hanim/core` keeps
-its strict standard-library plus `openmui.math` dependency boundary. Object
+its strict standard-library plus `mlibs.math` dependency boundary. Object
 data itself does not depend on a renderer, UI, OpenLifa specification or site.
-Its dependencies are `hanim.core`, independent `openmui.log`,
+Its dependencies are `hanim.core`, independent `mlibs.geom`, `mlibs.log`,
 `mlibs.trace` and `mlibs.memory`. Object and part slots reuse memory's
 single `SlotStorage` implementation; the registry owns names, graph validation,
 owner identities and immutable captures, not a second free-list or generation
-algorithm. The complete hanim umbrella migration is separate work.
+algorithm. The public `hanim` product exports this layer through its object feature.
 
 ```cpp
 import std;
@@ -40,6 +40,23 @@ int main() {
     return geometry->segments.size() == 2 ? 0 : 1;
 }
 ```
+
+`hanim::import_path(mlibs::geom::PathView, limits)` captures neutral renderer,
+font-outline or application paths through the same validated geometry reader.
+It retains line/quadratic/cubic controls and open/closed contours, converts float
+coordinates losslessly to the existing double representation, and owns all
+resulting geometry. No renderer is required. `ImportedContour` maps each segment
+to its original source command and records command/operand ranges; the host
+attaches its source id/version. An implicit start after close inherits the prior
+contour's start, so its first operand need not be that starting coordinate.
+
+The result can populate `PartDescription::contours` and then use the normal
+object/library/program/player. Its owning Contours survive source-array changes
+or destruction. Source budgets and total import contour/segment limits are
+checked before conversion; failures carry ObjectError and the shared path
+diagnostic where applicable. Empty paths are valid captures. Importing open or
+compound paths does not imply that every current morph supports their topology.
+This captures geometry, not UI interaction, materials, glyph shaping or 3D assets.
 
 `ObjectRef` (`HObject`) includes a registry owner, slot and 64-bit generation.
 `PartRef` also includes that complete object reference and its own part slot

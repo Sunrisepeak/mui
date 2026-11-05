@@ -6,6 +6,11 @@ resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
 dependencies. The source repository's lock must stay unchanged.
 
+The source triangle is now captured from the renderer's real `Path` through
+public `hanim::import_path`, using the shared geometry view and owning contours.
+All playback modes exercise that representation boundary before the same public
+player and renderer produce their process pixels; no consumer-local parser is used.
+
 The host explicitly selects `mlibs.control` for shared openas authorization;
 hanim's default dependency graph does not import it. Both profiles also run
 `--agent-review`: 61 real CPU frames each for linear and curved morph paths and

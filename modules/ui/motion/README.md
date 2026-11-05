@@ -7,6 +7,13 @@ Universal motion ([D-93](../../../.agents/docs/2026-11-01-openmui-universal-moti
 
 It knows display lists, not views: the view runtime ([view](../view)) gives node markers their keys and decides when a drawing changed and which motion its slot holds.
 
+Prepared path morphs capture their geometry through the public
+`hanim::import_path` adapter and shared `mlibs.geom` path validation. The local
+path-to-contour parser is removed. This module selects the Hanim object feature
+without its player or renderer features; it continues to use the existing core
+shape plan for time sampling. Shared data capture does not yet provide the full
+configurable UI-to-HObject animation policy or migrate all UI motion to Engine.
+
 The C++ `motion::Options::vertex_path` consumes the public `hanim::PointPath`
 operator for matched filled/stroked paths. It works on prepared contour
 correspondence and compatible paths (including legacy open paths); no UI-local

@@ -768,7 +768,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
             Rect         device;  // effect: where its surface lies in the parent's
         };
         std::vector<Open> open;
-        PathConv paths;
+
         std::vector<mlibs::raster::Stop> stops;
         Path scratch_path;
 
@@ -1274,7 +1274,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         const auto key = device_key(3).path(c.path).u64(static_cast<std::uint64_t>(c.rule)).value();
                         mask(g.cover(key,
                                      [&](mlibs::raster::Coverage& cov) {
-                                         mlibs::raster::fill_coverage(paths.data(c.path), m(), static_cast<mlibs::raster::FillRule>(c.rule), pixels(clips.back()), cov);
+                                         mlibs::raster::fill_coverage(c.path, m(), c.rule, pixels(clips.back()), cov);
                                      }),
                              0, 0, c.paint);
                     } else if constexpr (std::same_as<T, StrokePath>) {
@@ -1282,7 +1282,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         k.u64(static_cast<std::uint64_t>(c.style.join)).f32(c.style.miter_limit).f32(c.style.dash_offset).bytes(std::as_bytes(std::span(c.style.dashes)));
                         mask(g.cover(k.value(),
                                      [&](mlibs::raster::Coverage& cov) {
-                                         mlibs::raster::stroke_coverage(paths.data(c.path),
+                                         mlibs::raster::stroke_coverage(c.path,
                                                                  {.width = c.style.width,
                                                                   .cap = static_cast<mlibs::raster::Cap>(c.style.cap),
                                                                   .join = static_cast<mlibs::raster::Join>(c.style.join),
@@ -1401,7 +1401,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                         Key k;
                         k.u64(8).affine(m()).path(c.path).u64(static_cast<std::uint64_t>(c.rule));
                         push_mask_clip(k, [&](mlibs::raster::Coverage& cov) {
-                            mlibs::raster::fill_coverage(paths.data(c.path), m(), static_cast<mlibs::raster::FillRule>(c.rule), whole(), cov);
+                            mlibs::raster::fill_coverage(c.path, m(), c.rule, whole(), cov);
                         });
                     } else if constexpr (std::same_as<T, PopClip>) {
                         if (clips.size() > 1) clips.pop_back();

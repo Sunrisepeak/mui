@@ -3,6 +3,7 @@ export module hanim.object;
 
 import std;
 export import hanim.core;
+export import mlibs.geom;
 
 namespace hanim::detail {
 struct ContourData;
@@ -40,7 +41,7 @@ enum class ObjectError : std::uint8_t {
     invalid_part, stale_part, part_not_found, invalid_id, duplicate_id,
     missing_parent, multiple_roots, cycle, depth_limit, capacity,
     invalid_coordinate, invalid_verb, invalid_transform, invalid_color,
-    invalid_resource, unsupported_capability, reentrant_mutation
+    invalid_resource, unsupported_capability, reentrant_mutation, invalid_path
 };
 [[nodiscard]] std::string_view object_error_name(ObjectError error) noexcept;
 
@@ -58,6 +59,30 @@ public:
 private:
     std::shared_ptr<const detail::ContourData> data_;
 };
+
+struct PathImportLimits {
+    std::size_t max_contours = 4096, max_segments = 65536;
+    mlibs::geom::PathLimits source;
+};
+struct PathImportFailure {
+    ObjectError code;
+    std::optional<mlibs::geom::PathFailure> path;
+    std::size_t contour = std::numeric_limits<std::size_t>::max();
+};
+struct ImportedContour {
+    Contour geometry;
+    // Half-open command/operand ranges in the captured source. For an implicit
+    // start after close, the starting coordinate is inherited from the prior
+    // contour; first_point addresses the first explicit operand of this range.
+    std::size_t first_command=0, end_command=0, first_point=0, point_count=0;
+    std::vector<std::size_t> segment_commands;
+};
+struct ImportedPath { std::vector<ImportedContour> contours; };
+// Own the actual line/quadratic/cubic controls and closure without polygonizing
+// them or importing a renderer. Source indices preserve provenance; the host
+// associates its own stable source id/revision. No input spans are retained.
+[[nodiscard]] std::expected<ImportedPath,PathImportFailure>
+import_path(mlibs::geom::PathView path,PathImportLimits limits = {});
 
 // Explicit ids are stable host keys, never derived from displayed labels or
 // drawing order. They are unique across an object; an empty parent is its root.

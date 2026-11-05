@@ -33,6 +33,7 @@ on the owning thread; this is failure atomicity, not concurrent mutation.
 |---|---|---|
 | Registry make | Invalid positive/hard limits, owner identity exhausted | No registry created |
 | Contour copy | Invalid limit, segment budget, nonfinite used coordinates, unknown verb | No resource published |
+| Path import | Invalid import/source limits, malformed path with source command/point index, contour/segment capacity | No partial result or registry mutation |
 | Create | Registry uninitialized, capacity, invalid graph/data | No slot/identity/revision committed |
 | Update | Foreign owner, stale object, invalid graph/data, capacity, revision exhausted | Old snapshot/part refs unchanged |
 | Destroy | Foreign owner, stale/invalid object | No other object affected |
@@ -54,6 +55,17 @@ API provides no mutable alias. Updating an object never edits an old capture.
 Destroying the last owning registry/capture/resource releases its storage.
 Borrowed query views are valid only while one of their corresponding owners
 is kept alive. Queries return const payloads; rvalue borrowing is prohibited.
+
+`import_path` consumes the shared `mlibs.geom::PathView` through its validated
+reader. It owns exact line/quadratic/cubic controls and closure, including empty
+moved contours and implicit starts after close. Float coordinates widen exactly
+to the current double representation; there is no flattening, topology repair
+or renderer dependency. Source ranges and per-segment command indices remain
+available alongside each immutable Contour. They describe this captured source;
+the host supplies its persistent identity/revision and owns any cross-revision
+mapping. Import limits bound total contours/segments; Contour's existing 65,536
+segment cap still applies per contour. A source must stay unchanged throughout
+the call, but no producer memory is retained after success.
 
 Snapshot queries are immutable, allocation-free and can run concurrently.
 Capture is O(1); named lookup uses a prepared sorted index, ref lookup a
@@ -77,6 +89,7 @@ Binding, playback Handle, rendering, world matrix calculation or automatic
 reprepare loop here. An external consumer can explicitly check a registry's
 content revision, capture again and prepare a new plan.
 
-Future Engine/adapters must use these public owned identities and captures;
+Engine/adapters must use these public owned identities and captures;
 they may not bypass ownership by borrowing a UI DisplayList or private host
-buffer. That integration and full A1/Manim coverage remain unimplemented.
+buffer. Full configurable UI integration and complete animation-domain coverage
+remain unimplemented.

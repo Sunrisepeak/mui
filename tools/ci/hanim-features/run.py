@@ -31,6 +31,10 @@ EFFECT = '''
     take(effects.sample(0, values)); require(values[0] == 0);
 '''
 OBJECT = '''
+    const std::array path_verbs{mlibs::geom::PathVerb::move,mlibs::geom::PathVerb::line,mlibs::geom::PathVerb::close};
+    const std::array path_points{mlibs::geom::Point{0,0},mlibs::geom::Point{1,1}};
+    auto imported=take(import_path({path_verbs,path_points}));
+    require(imported.contours.size()==1 && imported.contours[0].geometry.segment_count()==1);
     auto objects = take(ObjectRegistry::make());
     auto a = take(objects.create({{{.id="item"}}}));
     auto b = take(objects.create({{{.id="item",.local={.tx=40}}}}));
@@ -138,6 +142,8 @@ int main() {
                 raise RuntimeError('renderer enabled without opt-in')
             if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))
+            if ('object' in roles) != ('mlibs.geom' in packages):
+                raise RuntimeError('shared geometry must follow the object feature')
             cdb = resolution.parent / 'compile_commands.json'; entries = json.loads(cdb.read_text())
             sources = set()
             for entry in entries:
@@ -180,7 +186,7 @@ int main() {
         manifest = ('[package]\nnamespace="hanim.validation"\nname="packed_consumer"\nversion="0.1.0"\n'
                     '[targets.consumer]\nkind="bin"\nmain="src/main.cpp"\n[build]\nsources=["src/*.cpp"]\n'
                     '[dependencies]\n"hanim" = { path = '+json.dumps(str(installed))+' }\n')
-        for identity, relative in {'hanim.core':'hanim/core', 'mlibs.memory':'memory', 'mlibs.log':'log', 'mlibs.trace':'trace'}.items():
+        for identity, relative in {'hanim.core':'hanim/core', 'mlibs.geom':'geom', 'mlibs.memory':'memory', 'mlibs.log':'log', 'mlibs.trace':'trace'}.items():
             manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules/base'/relative))+' }\n'
         (project/'mcpp.toml').write_text(manifest)
         shutil.copyfile(repo/'tools/ci/hanim-api-probe/src/main.cpp',project/'src/main.cpp')

@@ -9,7 +9,6 @@ namespace xengine::render {
 
 namespace {
 
-static_assert(static_cast<int>(PathVerb::close) == static_cast<int>(mlibs::raster::Verb::close));
 static_assert(static_cast<int>(BlendMode::erase) == static_cast<int>(mlibs::raster::Blend::erase),
               "render and raster list the blend modes in the same order");
 
@@ -111,7 +110,7 @@ struct CpuRenderer::Scratch {
     mlibs::raster::Canvas             canvas;
     std::vector<Affine>        transforms;
     std::vector<std::uint32_t> nodes;
-    PathConv                   paths;
+
     PaintConv                  paints;
     Path                       path;
     explicit Scratch(mlibs::raster::Surface& target) : canvas(target) {}
@@ -532,7 +531,6 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, mlibs::raster::Surf
 
     auto& transforms = sc.transforms;
     auto& nodes = sc.nodes;
-    auto& paths = sc.paths;
     auto& paints = sc.paints;
     transforms.assign(1, options.transform.value_or(Affine::scale(options.scale, options.scale)));
     nodes.assign(1, 0);
@@ -613,13 +611,13 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, mlibs::raster::Surf
                     sc.path.clear();
                     sc.path.add_rounded_rect(ring.outer, ring.outer_radii);
                     if (ring.hollow) sc.path.add_rounded_rect(ring.inner, ring.inner_radii);
-                    canvas.fill_path(paths.data(sc.path.view()), mlibs::raster::FillRule::even_odd, device_paint(c.paint), m());
+                    canvas.fill_path(sc.path.view(), mlibs::raster::FillRule::even_odd, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     canvas.box_shadow(c.rect, c.radii, c.offset, c.blur, c.spread, c.color, c.inset, m());
                 } else if constexpr (std::same_as<T, FillPath>) {
-                    canvas.fill_path(paths.data(c.path), static_cast<mlibs::raster::FillRule>(c.rule), device_paint(c.paint), m());
+                    canvas.fill_path(c.path, c.rule, device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, StrokePath>) {
-                    canvas.stroke_path(paths.data(c.path), stroke_of(c.style), device_paint(c.paint), m());
+                    canvas.stroke_path(c.path, stroke_of(c.style), device_paint(c.paint), m());
                 } else if constexpr (std::same_as<T, DrawImage>) {
                     const mlibs::raster::Surface* img = res.images ? res.images->get(c.image) : nullptr;
                     if (!img) {
@@ -697,7 +695,7 @@ void CpuRenderer::draw(Scratch& sc, const DisplayList& list, mlibs::raster::Surf
                 } else if constexpr (std::same_as<T, PushClipRect>) {
                     canvas.push_clip_round_rect(c.rect, c.radii, m());
                 } else if constexpr (std::same_as<T, PushClipPath>) {
-                    canvas.push_clip_path(paths.data(c.path), static_cast<mlibs::raster::FillRule>(c.rule), m());
+                    canvas.push_clip_path(c.path, c.rule, m());
                 } else if constexpr (std::same_as<T, PopClip>) {
                     canvas.pop_clip();
                 } else if constexpr (std::same_as<T, PushTransform>) {

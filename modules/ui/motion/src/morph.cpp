@@ -3,6 +3,7 @@ module openmui.motion;
 
 import std;
 import hanim.core;
+import hanim.object;
 import openmui.math;
 import openmui.geom;
 import openmui.render.vector;
@@ -86,39 +87,26 @@ Path path_of(const PathView& v) {
 bool compatible_paths(const PathView& a, const PathView& b) {
     return a.verbs.size() == b.verbs.size() && a.points.size() == b.points.size() && std::ranges::equal(a.verbs, b.verbs);
 }
-struct ShapeInput {
-    hanim::Vec2 start;
-    std::vector<hanim::ShapeSegment> segments;
+struct ShapeInputFailure {
+    PathMorphIssue issue;
+    std::optional<hanim::ShapeMorphError> geometry;
 };
-std::expected<ShapeInput, PathMorphIssue> shape_input(PathView path) {
-    if (path.verbs.empty() || path.verbs.front() != PathVerb::move || path.points.empty())
-        return std::unexpected(PathMorphIssue::malformed_path);
-    if (path.verbs.back() != PathVerb::close || std::ranges::count(path.verbs, PathVerb::move) != 1 ||
-        std::ranges::count(path.verbs, PathVerb::close) != 1)
-        return std::unexpected(PathMorphIssue::unsupported_contours);
-    ShapeInput result;
-    result.start = {path.points[0].x, path.points[0].y};
-    result.segments.reserve(std::min(path.verbs.size(), std::size_t{257}));
-    std::size_t point = 1;
-    auto at = [&](std::size_t offset) { const auto p = path.points[point + offset]; return hanim::Vec2{p.x, p.y}; };
-    for (std::size_t i = 1; i < path.verbs.size(); ++i) {
-        const auto verb = path.verbs[i];
-        const std::size_t needed = verb == PathVerb::line ? 1 : verb == PathVerb::quad ? 2 : verb == PathVerb::cubic ? 3 : 0;
-        if (needed > path.points.size() - point) return std::unexpected(PathMorphIssue::malformed_path);
-        switch (verb) {
-        case PathVerb::line: result.segments.push_back(hanim::ShapeSegment::line(at(0))); break;
-        case PathVerb::quad: result.segments.push_back(hanim::ShapeSegment::quadratic(at(0), at(1))); break;
-        case PathVerb::cubic: result.segments.push_back(hanim::ShapeSegment::cubic(at(0), at(1), at(2))); break;
-        case PathVerb::close: break;
-        default: return std::unexpected(PathMorphIssue::malformed_path);
-        }
-        point += needed;
-        // Stop before allocating unbounded preparation scratch. The neutral
-        // plan will report its own default segment budget for this sentinel.
-        if (result.segments.size() > 256) break;
+std::expected<hanim::Contour, ShapeInputFailure> shape_input(PathView path) {
+    auto imported=hanim::import_path(path,{.max_contours=1,.max_segments=256,.source={.max_contours=1}});
+    if(!imported) {
+        const auto& error=imported.error();
+        if(error.path && error.path->code==mlibs::geom::PathError::contour_budget)
+            return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
+        if(error.code==hanim::ObjectError::capacity)
+            return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,hanim::ShapeMorphError::segment_budget});
+        if(error.path && error.path->code==mlibs::geom::PathError::nonfinite_coordinate)
+            return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,hanim::ShapeMorphError::nonfinite_coordinate});
+        return std::unexpected(ShapeInputFailure{PathMorphIssue::malformed_path});
     }
-    if (result.segments.size() <= 256 && point != path.points.size()) return std::unexpected(PathMorphIssue::malformed_path);
-    return result;
+    if(imported->contours.empty())return std::unexpected(ShapeInputFailure{PathMorphIssue::malformed_path});
+    auto contour=std::move(imported->contours.front().geometry);
+    if(!contour.view()->closed)return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
+    return contour;
 }
 
 // Caller-owned arena storage, never a shared Morph scratch or per-frame Path
@@ -1017,10 +1005,13 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
                 status.mode = PathMorphMode::compatible; ++stats_.paths_compatible;
             } else {
                 auto aa = shape_input(a_path), bb = shape_input(b_path);
-                if (!aa || !bb) status.issue = !aa ? aa.error() : bb.error();
+                if (!aa || !bb) {
+                    const auto& error=!aa?aa.error():bb.error();
+                    status.issue=error.issue;status.geometry_error=error.geometry;
+                }
                 else {
                     hanim::ShapeMorphOptions shape_options; shape_options.point_path = options_.vertex_path;
-                    auto prepared = hanim::PreparedShapeMorph::prepare({aa->start, aa->segments}, {bb->start, bb->segments}, shape_options);
+                    auto prepared = hanim::PreparedShapeMorph::prepare(*aa->view(), *bb->view(), shape_options);
                     if (prepared) {
                         p.path = std::move(*prepared); status.mode = PathMorphMode::prepared; ++stats_.paths_prepared;
                     } else { status.issue = PathMorphIssue::geometry; status.geometry_error = prepared.error(); }

@@ -49,11 +49,17 @@ independent version/release manifests. `hanim.core` remains a separate library:
 UI motion, raster and animation share its deterministic std-plus-math functions
 without depending on the object registry, player, logging or renderer.
 
-Run `mcpp test -p hanim --locked` for the eight renderer-free test programs.
+Run `mcpp test -p hanim --locked` for the nine renderer-free test programs.
 The [feature consumer](../../../tools/ci/hanim-features/README.md) checks seven
 actual source/dependency closures. Renderer tests live in the existing external
 [playback consumer](../../../tools/ci/hanim-play-consumer/README.md), which tests
 the opt-in feature separately from its production program's dependency audit.
+
+For neutral paths from applications, rendering or glyph outlines,
+`hanim::import_path(mlibs::geom::PathView)` captures owned contours with source
+command mappings. Its output feeds ordinary HObjects without a renderer
+dependency. The object feature includes the std-only shared geometry library;
+the core/effect-only choices do not. See the [object contract](src/object/README.md).
 
 For ordinary motion, supply an object and the property target:
 

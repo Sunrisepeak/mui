@@ -224,6 +224,7 @@ std::string_view object_error_name(ObjectError error) noexcept {
         case ObjectError::invalid_resource: return "invalid-resource";
         case ObjectError::unsupported_capability: return "unsupported-capability";
         case ObjectError::reentrant_mutation: return "reentrant-mutation";
+        case ObjectError::invalid_path: return "invalid-path";
     }
     return "unknown";
 }

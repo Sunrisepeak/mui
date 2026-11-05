@@ -2,6 +2,11 @@
 
 2D vector rendering (module `xengine.render.vector`, D-57), a rendering feature of [xengine.render](..) (D-81) — its GPU passes are recorded through the render graph: the display list of contract ⑤ (paths, paints, gradients, strokes, clips, transforms, layers with blend modes and effect parameters, glyph runs, images, external textures, node markers), resources by reference (an image store; glyphs from the text engine through `GlyphSource`), and backends. The CPU backend renders through openmui.raster, byte-for-byte the same on every platform, records pixel provenance, and reports what a CPU cannot draw (effects, external textures — spec R-3). Knows nothing of nodes or views.
 
+Path views, command verbs and fill rules are the shared `mlibs.geom` types.
+CPU/GPU paths reach rasterization without allocating or copying a second command
+array; validation uses the same geometry contract as Hanim's path capture.
+Renderer-specific recording, arena ownership and drawing remain here.
+
 **Prepared geometry and materials.** `DisplayList::record_path` writes geometry
 directly into the caller's arena; its checked recording can feed a fill and
 stroke without copying the path. A cleared, moved or foreign list invalidates

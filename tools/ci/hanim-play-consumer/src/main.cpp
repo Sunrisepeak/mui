@@ -186,13 +186,17 @@ int main(int argc,char** argv) {
     auto made=Engine::make();if(!made)return fail("Engine::make");
     auto engine=std::move(*made);
     constexpr double k=.5522847498307936;
-    const std::array lines{ShapeSegment::line({-1,1}),ShapeSegment::line({1,1})};
+    render::Path source_path;
+    source_path.move_to({0,-1}).line_to({-1,1}).line_to({1,1}).close();
+    const auto imported=import_path(source_path.view());
+    if(!imported || imported->contours.size()!=1)return fail("shared path import");
+    const auto triangle=imported->contours[0].geometry;
     const std::array curves{ShapeSegment::cubic({k,-1},{1,-k},{1,0}),ShapeSegment::cubic({1,k},{k,1},{0,1}),
         ShapeSegment::cubic({-k,1},{-1,k},{-1,0}),ShapeSegment::cubic({-1,-k},{-k,-1},{0,-1})};
     const std::array diamond{ShapeSegment::line({-1,0}),ShapeSegment::line({0,1}),ShapeSegment::line({1,0})};
-    const auto triangle=Contour::copy({{0,-1},lines}),circle=Contour::copy({{0,-1},curves}),third=Contour::copy({{0,-1},diamond});
+    const auto circle=Contour::copy({{0,-1},curves}),third=Contour::copy({{0,-1},diamond});
     if(!triangle || !circle || !third)return fail("public contour preparation");
-    auto source=engine.create_object(describe(*triangle,{1,.25f,.1f,1},options.width,options.height));
+    auto source=engine.create_object(describe(triangle,{1,.25f,.1f,1},options.width,options.height));
     const auto target=engine.create_object(describe(*circle,{.1f,.6f,1,1},options.width,options.height));
     const auto next=engine.create_object(describe(*third,{.8f,.15f,.9f,1},options.width,options.height));
     if(!source || !target || !next)return fail("public object creation");
@@ -217,9 +221,9 @@ int main(int argc,char** argv) {
         return fail("program reverse/restore/release");
     if(options.parts || options.channels) {
         ObjectDescription group{{{.id="group"},
-            {.id="left",.parent="group",.local={.tx=options.width*.25,.ty=options.height*.45,.sx=25,.sy=25},.contours={*triangle},.fill=Rgba{1,.25f,.1f,1}},
-            {.id="right",.parent="group",.local={.tx=options.width*.7,.ty=options.height*.55,.sx=28,.sy=28},.contours={*triangle},.fill=Rgba{.8f,.6f,.1f,1}},
-            {.id="badge",.parent="group",.local={.tx=options.width*.85,.ty=options.height*.14,.sx=8,.sy=8},.contours={*triangle},.fill=Rgba{.2f,.9f,.4f,1}}}};
+            {.id="left",.parent="group",.local={.tx=options.width*.25,.ty=options.height*.45,.sx=25,.sy=25},.contours={triangle},.fill=Rgba{1,.25f,.1f,1}},
+            {.id="right",.parent="group",.local={.tx=options.width*.7,.ty=options.height*.55,.sx=28,.sy=28},.contours={triangle},.fill=Rgba{.8f,.6f,.1f,1}},
+            {.id="badge",.parent="group",.local={.tx=options.width*.85,.ty=options.height*.14,.sx=8,.sy=8},.contours={triangle},.fill=Rgba{.2f,.9f,.4f,1}}}};
         source=engine.create_object(group);if(!source)return fail("selected-part object creation");
     }
     auto animation=(options.parts || options.channels) ? anim::to(*source,PropertySet{

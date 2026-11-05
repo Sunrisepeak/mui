@@ -28,25 +28,17 @@ using mlibs::geom::Size;
 // matrix on every platform.
 [[nodiscard]] Affine rotate(float radians) noexcept;
 
-enum class FillRule : std::uint8_t { nonzero, even_odd };
+using mlibs::geom::FillRule;
 enum class LineCap : std::uint8_t { butt, round, square };
 enum class LineJoin : std::uint8_t { miter, round, bevel };
 
-enum class PathVerb : std::uint8_t { move, line, quad, cubic, close };
-
-// A path's data inside a display list (arena-owned).
-struct PathView {
-    std::span<const PathVerb> verbs;
-    std::span<const Point>    points;
-};
+using mlibs::geom::PathVerb;
+using mlibs::geom::PathView;
 
 // Direct, one-call recording into a display list's own arena. A writer
 // populates every element; it must not clear/move/reenter that list or retain
 // writable spans. The list validates commands and finite coordinates after it.
-struct MutablePathView {
-    std::span<PathVerb> verbs;
-    std::span<Point> points;
-};
+using mlibs::geom::MutablePathView;
 enum class PathRecordError : std::uint8_t { invalid_storage_count, invalid_path };
 
 class DisplayList;

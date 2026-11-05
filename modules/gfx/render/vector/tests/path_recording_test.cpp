@@ -1,11 +1,15 @@
 import std;
 import openmui.geom;
 import openmui.render.vector;
+import mlibs.raster;
 import openmui.testing;
 
 using namespace omui::testing;
 namespace render = omui::render;
 namespace geom = omui::geom;
+static_assert(std::same_as<render::PathView,mlibs::raster::PathData>);
+static_assert(std::same_as<render::PathVerb,geom::PathVerb>);
+static_assert(std::same_as<render::FillRule,mlibs::raster::FillRule>);
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
     allocations.fetch_add(1, std::memory_order_relaxed);

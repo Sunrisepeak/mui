@@ -30,6 +30,7 @@ engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.
 render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
 
 [feature-deps.object]
+mlibs.geom = { path = "../../base/geom" }
 mlibs.memory = { path = "../../base/memory" }
 mlibs.log = { path = "../../base/log" }
 mlibs.trace = { path = "../../base/trace" }

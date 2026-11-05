@@ -1044,3 +1044,26 @@ release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均�
 按维护者要求再次清理了 38 个过期生成缓存，移除占用约 0.79 GiB，文件系统实际增加约 0.78 GiB；清理后可用 14.55 GiB。保留源码、worktree／git 元数据、正在运行的应用、当前各 profile 增量和验证图像；过程见 `target/omui-ui-effects/cleanup.report.omui.json`。后续构建会再次使用空间。
 
 完整 UI 几何／顶点／3D、任意跨对象／跨树及逐部件 image-scope IR、空间扭曲的输入映射、backdrop／GPU-only UI 路径、hold-world／混合／动态约束、自动资源与降级控制仍开放；当前 provider registry 重载要求静止边界，不是并发不可变资源租约。现有 blur 内核含整数半径量化，本轮使官网选项进入实际有效范围，没有声称实现连续高品质滤镜内核。完整组件默认配方、40／20 的可带走库和工程、其他引擎、AI／PPet、工具与更多后端按总计划继续，过程采样不替代实机节奏和产品美术验收。
+
+
+## 31. 原生播放宿主的效果插件重绑
+
+2026-11-06，基线 `b1ecdf8`。本轮完成 A4 的插件恢复入口：以前低层 Binding 可重新准备 provider，owning Playback 的调用者却只能停止并重建动画；现在公开 `Playback::rebind()`，在原有 view 包／可选 hanim feature 内复用当前不可变计划、公开图像绑定和同一 Engine 样本。没有增加包、计时器、插值实现或官网专用分支。
+
+### 31.1 恢复契约
+
+- 在 UI 线程的静止边界替换 provider，然后调用 `rebind()`。这是可分配的冷操作，不进入每帧路径；替换不得与 prepare／sample／render 并发。
+- 重绑不重新 play，也不重置当前进度、方向、速率、宿主时间映射或暂停／门控意图；成功请求一次绘制，不隐式恢复连续播放。
+- 无计划／已销毁对象返回原有 `no_program`／`stale`；provider 不兼容返回带底层原因的 binding failure。过期采样拒绝并恢复播放器进度；失败重绑保留已接受的 UI 姿态／参数。恢复兼容 provider 后可重试。
+- 已接受的参数不是旧插件代码的资源租约。旧代际被替换后，不保证旧 shader 仍可绘制原图；调用者需检查真实 paint／presentation 结果。动态二进制加载、并发不可变 registry 与 GPU 资源租约继续开放。
+- 人和 Agent 使用同一 API；应用通过已有授权的 openas 操作调用，不新开网络权限。公共 README 包含恢复步骤和失败边界。
+
+### 31.2 本地证据与持续验证
+
+仓外消费者 native debug、release、Wasm／Node 各 **90 项**检查通过，比前一检查点各新增 14 项。实际替换 tone provider 的代际，验证过期 seek 拒绝且保留进度／姿态；同一计划重绑后原始像素一致，暂停意图保持；不兼容交互几何声明被拒绝，兼容 provider 恢复后像素复现；运行时重绑继续原 host-clock 映射，纯属性和 Runtime 销毁后的调用也验收。图像验证检查真实 glyph 与效果执行，不仅检查成功返回值。
+
+三个 profile 各导出 **183 张**过程 PNG（显式、宿主、三层效果各 61 帧），共 **549 张**；逆放及同时间跨 profile 像素／PNG 摘要一致。新增重载回归直接比较真实 renderer 的内存像素，不冒充新增的 61 帧过程集。缺字体负例拒绝；feature-off 的第二个应用实际运行，704 个编译单元的构建图中没有可选 UI adapter、完整 Hanim Engine 或 Hanim vector adapter。用户已有 `mcpp.lock` 字节保持。全仓库 lint 为零。
+
+检查发现该仓外 UI 消费者此前尚未挂到 CI。本轮把同一 `--web` runner 接入 Linux GCC release 行，并在成功／失败时上传原始报告、依赖图和图像；本地结果是本轮验收依据，不等待远端其他平台 CI。CI 接入本身不代表远端已通过。
+
+结构化摘要为 `tools/ci/2026-11-06-ui-provider-rebind.report.omui.json`，原始结果在 `target/omui-rebind/`。本轮没有改变官网布局或配方，也没有重跑浏览器／性能测试；官网使用的公共宿主恢复能力已补齐，但不增加 40／20 的可交付库计数。后续继续推进通用部件／图像作用域、完整默认动效配方与可带走的库和工程；全局架构、平台和产品验收仍保持开放。

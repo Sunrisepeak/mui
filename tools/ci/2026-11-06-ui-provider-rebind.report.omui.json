@@ -1,0 +1,436 @@
+{
+  "format": "omui.ui-provider-rebind-checkpoint@0.1",
+  "recorded_at": "2026-11-05T22:22:11.014752+00:00",
+  "ok": true,
+  "base_commit": "b1ecdf818d5819c1c79ff15e73557f147a219ed6",
+  "scope": [
+    "Owning UI Playback refreshes renderer bindings of the current immutable Hanim plan and publishes its current sample.",
+    "Retains transport and host clock mapping; rejects stale/incompatible providers without changing accepted UI values.",
+    "Native/Wasm independent consumer and feature-off regression now connected to CI."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "da90b4a4ba739f9f4395299d855c33daca3613f15e1ea5e910a75c8bb96d49fa",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "6d12b8838e09c3a2492914a729f81842fad9c54c364e602e45d3f6d3c1c5f8b1",
+    ".agents/docs/2026-11-06-hanim-ui-image-scope-design.md": "dce55381646a270c92b028de8de8309a0ea8b2c636ea6a023183a960cc5edf63",
+    ".agents/docs/README.md": "ad4198658a0eb54ec0416c99c36819682a55b8d0d82b48b5f8b00cc75790f82b",
+    ".github/workflows/ci.yml": "4fef7c59bd9a910bf66f0f5e7e277f7e37084653a9aab3eff8b58d916c56a7b5",
+    "modules/ui/view/README.md": "fbe49c0f806ceea1396f2df71bb7cb32f3592de974cbad3aa5efa62d03abf48a",
+    "modules/ui/view/src/hanim/playback.cpp": "569f3b1dfac1cd7c8722cc7bfbc571083d00f192cebd4276e3c5d192a817981c",
+    "modules/ui/view/src/hanim/playback.cppm": "cc01b8018cc2f364185aca75f03bd086998069fed0af431ae239a390eeb99972",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "3a04a1e8c19fcf0422d3ee2b1fdfc5f46deb922d481044d067eb3b6dd6e661d9"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "consumer": {
+      "path": "target/omui-rebind/consumer.report.omui.json",
+      "sha256": "67b71eb49e35a8f63e139c7997a2eec3001ce021d9259a12cf38c7ce6adecbef",
+      "ok": true,
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 90,
+          "passed": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61
+          },
+          "provider_checks": [
+            {
+              "name": "rebind_requires_an_existing_program",
+              "ok": true
+            },
+            {
+              "name": "host_image_program_is_ready_for_provider_reload",
+              "ok": true
+            },
+            {
+              "name": "host_provider_reload_advances_generation",
+              "ok": true
+            },
+            {
+              "name": "owning_host_rebinds_without_restarting_the_program",
+              "ok": true
+            },
+            {
+              "name": "rebind_preserves_pixels_plan_position_and_pause_intent",
+              "ok": true
+            },
+            {
+              "name": "provider_can_publish_an_incompatible_capability",
+              "ok": true
+            },
+            {
+              "name": "incompatible_rebind_retains_accepted_state",
+              "ok": true
+            },
+            {
+              "name": "compatible_provider_recovers_after_a_failed_rebind",
+              "ok": true
+            },
+            {
+              "name": "recovered_provider_restores_the_actual_image",
+              "ok": true
+            },
+            {
+              "name": "explicit_resume_continues_from_the_preserved_position",
+              "ok": true
+            },
+            {
+              "name": "rebind_also_preserves_running_intent",
+              "ok": true
+            },
+            {
+              "name": "running_rebind_keeps_the_existing_host_clock_mapping",
+              "ok": true
+            },
+            {
+              "name": "pure_property_programs_keep_the_same_rebind_contract",
+              "ok": true
+            },
+            {
+              "name": "effect_provider_can_reload_without_replacing_the_ui",
+              "ok": true
+            },
+            {
+              "name": "explicit_rebind_restores_identical_pixels_after_provider_reload",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "profile": "release",
+          "checks": 90,
+          "passed": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61
+          },
+          "provider_checks": [
+            {
+              "name": "rebind_requires_an_existing_program",
+              "ok": true
+            },
+            {
+              "name": "host_image_program_is_ready_for_provider_reload",
+              "ok": true
+            },
+            {
+              "name": "host_provider_reload_advances_generation",
+              "ok": true
+            },
+            {
+              "name": "owning_host_rebinds_without_restarting_the_program",
+              "ok": true
+            },
+            {
+              "name": "rebind_preserves_pixels_plan_position_and_pause_intent",
+              "ok": true
+            },
+            {
+              "name": "provider_can_publish_an_incompatible_capability",
+              "ok": true
+            },
+            {
+              "name": "incompatible_rebind_retains_accepted_state",
+              "ok": true
+            },
+            {
+              "name": "compatible_provider_recovers_after_a_failed_rebind",
+              "ok": true
+            },
+            {
+              "name": "recovered_provider_restores_the_actual_image",
+              "ok": true
+            },
+            {
+              "name": "explicit_resume_continues_from_the_preserved_position",
+              "ok": true
+            },
+            {
+              "name": "rebind_also_preserves_running_intent",
+              "ok": true
+            },
+            {
+              "name": "running_rebind_keeps_the_existing_host_clock_mapping",
+              "ok": true
+            },
+            {
+              "name": "pure_property_programs_keep_the_same_rebind_contract",
+              "ok": true
+            },
+            {
+              "name": "effect_provider_can_reload_without_replacing_the_ui",
+              "ok": true
+            },
+            {
+              "name": "explicit_rebind_restores_identical_pixels_after_provider_reload",
+              "ok": true
+            }
+          ]
+        },
+        {
+          "profile": "wasm-test",
+          "checks": 90,
+          "passed": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61
+          },
+          "provider_checks": [
+            {
+              "name": "rebind_requires_an_existing_program",
+              "ok": true
+            },
+            {
+              "name": "host_image_program_is_ready_for_provider_reload",
+              "ok": true
+            },
+            {
+              "name": "host_provider_reload_advances_generation",
+              "ok": true
+            },
+            {
+              "name": "owning_host_rebinds_without_restarting_the_program",
+              "ok": true
+            },
+            {
+              "name": "rebind_preserves_pixels_plan_position_and_pause_intent",
+              "ok": true
+            },
+            {
+              "name": "provider_can_publish_an_incompatible_capability",
+              "ok": true
+            },
+            {
+              "name": "incompatible_rebind_retains_accepted_state",
+              "ok": true
+            },
+            {
+              "name": "compatible_provider_recovers_after_a_failed_rebind",
+              "ok": true
+            },
+            {
+              "name": "recovered_provider_restores_the_actual_image",
+              "ok": true
+            },
+            {
+              "name": "explicit_resume_continues_from_the_preserved_position",
+              "ok": true
+            },
+            {
+              "name": "rebind_also_preserves_running_intent",
+              "ok": true
+            },
+            {
+              "name": "running_rebind_keeps_the_existing_host_clock_mapping",
+              "ok": true
+            },
+            {
+              "name": "pure_property_programs_keep_the_same_rebind_contract",
+              "ok": true
+            },
+            {
+              "name": "effect_provider_can_reload_without_replacing_the_ui",
+              "ok": true
+            },
+            {
+              "name": "explicit_rebind_restores_identical_pixels_after_provider_reload",
+              "ok": true
+            }
+          ]
+        }
+      ],
+      "exact_reverse_and_cross_profile_process_pixels": true,
+      "png_count": 549,
+      "missing_fonts_refused": true,
+      "feature_off": {
+        "ok": true,
+        "compiled_units": 704,
+        "adapter_and_engine_absent": true,
+        "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+      },
+      "commands": [
+        {
+          "argv": [
+            "build",
+            "--profile",
+            "dev",
+            "--locked"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 74.31857358093839,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/bootstrap.log"
+        },
+        {
+          "argv": [
+            "build",
+            "--target",
+            "wasm32-emscripten",
+            "--profile",
+            "wasm-test",
+            "--configure-only"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 3.365031620953232,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/bootstrap-web.log"
+        },
+        {
+          "argv": [
+            "run",
+            "--locked",
+            "--profile",
+            "dev",
+            "--",
+            "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/dev"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 6.1221478540683165,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/dev.log"
+        },
+        {
+          "argv": [
+            "build",
+            "--locked",
+            "--profile",
+            "dev",
+            "--configure-only"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 2.4500029479386285,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/dev-metadata.log"
+        },
+        {
+          "argv": [
+            "run",
+            "--locked",
+            "--profile",
+            "release",
+            "--",
+            "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/release"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 10.274454108905047,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/release.log"
+        },
+        {
+          "argv": [
+            "build",
+            "--locked",
+            "--profile",
+            "release",
+            "--configure-only"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 2.585947957006283,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/release-metadata.log"
+        },
+        {
+          "argv": [
+            "run",
+            "--locked",
+            "--profile",
+            "wasm-test",
+            "--target",
+            "wasm32-emscripten",
+            "--",
+            "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/wasm-test"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 6.840989772928879,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/wasm-test.log"
+        },
+        {
+          "argv": [
+            "build",
+            "--locked",
+            "--profile",
+            "wasm-test",
+            "--target",
+            "wasm32-emscripten",
+            "--configure-only"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 2.565435998956673,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/wasm-test-metadata.log"
+        },
+        {
+          "argv": [
+            "run",
+            "--locked",
+            "--profile",
+            "release",
+            "--",
+            "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/release"
+          ],
+          "exit": 1,
+          "expected_exit": 1,
+          "seconds": 2.764626615913585,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/missing-fonts.log"
+        },
+        {
+          "argv": [
+            "run",
+            "--locked",
+            "--profile",
+            "dev"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 68.47462545905728,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/without-player.log"
+        },
+        {
+          "argv": [
+            "build",
+            "--locked",
+            "--profile",
+            "dev",
+            "--configure-only"
+          ],
+          "exit": 0,
+          "expected_exit": 0,
+          "seconds": 2.296459912904538,
+          "log": "/home/speak/workspace/mui/target/omui-rebind/consumer.report.omui-artifacts/without-player-metadata.log"
+        }
+      ]
+    },
+    "lint": {
+      "log": "/tmp/omui-rebind-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "source_fingerprints_match": true,
+    "local_markdown_targets_exist": true,
+    "workflow_yaml_parsed": true,
+    "ci": {
+      "workflow": ".github/workflows/ci.yml",
+      "row": "ubuntu-24.04 gcc@16.1.0 release",
+      "runner": "python3 tools/ci/omui-hanim-consumer/run.py --web --output target/omui-hanim-consumer/report.omui.json",
+      "remote_result": "not awaited; local execution is acceptance evidence"
+    }
+  },
+  "limits": [
+    "Cold rebind at a quiescent UI-thread boundary; may allocate. No concurrent provider replacement or binary loader.",
+    "Retained parameters do not lease old provider code or guarantee old pixels after incompatible replacement.",
+    "New recovery checks compare actual in-memory renderer pixels; the 549 exported process images cover existing explicit/host/image paths, not 549 new reload cases.",
+    "No website layout/recipe change, no new browser/performance run and no increased 40/20 deliverable count.",
+    "Complete geometry/3D, per-part and cross-object scope IR, resource leases, full component default recipes and global milestones remain open."
+  ]
+}

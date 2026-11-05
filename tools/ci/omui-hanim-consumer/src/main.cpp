@@ -139,6 +139,7 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         auto attached=animation::Playback::attach(runtime,std::array{animation::Target{"card",card}});
         if(!check(bool(attached),"host_adapter_attaches_without_a_window"))return;
         retained=std::make_shared<animation::Playback>(std::move(*attached));
+        check(!retained->rebind(),"rebind_requires_an_existing_program");
         const auto registered=runtime.stage_plugins().add({.name="validation.playback",.kind="stage",
             .description="public playback before current UI bounds",.trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=50}},
             [weak=std::weak_ptr(retained),&gate](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<DriveStage>(weak,gate);});
@@ -157,7 +158,7 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         auto frame=[&](double time){const auto output=runtime.frame({hanim::seconds(time),{}});
             frames_ok=frames_ok && output.failure.empty();
             const auto rendered=renderer.render(runtime.display_list(),pixels,{&runtime.images(),&glyphs});
-            frames_ok=frames_ok && rendered.missing_glyphs==0;return output;};
+            frames_ok=frames_ok && rendered.missing_glyphs==0 && rendered.effects_skipped==0;return output;};
         auto pose=[&](double position){return std::abs(retained->status().native->position.count()-position)<1e-7 &&
             std::abs(runtime.drawn_bounds(card).x-baseline.x-100*position)<.03 && runtime.presentation(card)->applied;};
         bool sampled=true;std::vector<std::string> reference;
@@ -199,8 +200,36 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         (void)retained->pause();gate.interacting=false;frame(40);check(pose(.75) && !retained->status().requested,"leaving_interaction_cannot_undo_an_explicit_pause");
         check(bool(retained->plan()),"the_host_exposes_the_actual_immutable_hanim_plan");
         check(frames_ok,"host_pipeline_frames_render_without_failures");
+        (void)retained->stop(hanim::CancelMode::hold);
+        const auto image_recipe=hanim::composite(hanim::anim::move_to(retained->object(),{30,0}).duration(1s))
+            .with_effect(hanim::fx::tone({.amount=0},{.amount=.3f}));
+        if(!check(bool(retained->play(image_recipe)) && bool(retained->seek_progress(.4)),"host_image_program_is_ready_for_provider_reload"))return;
+        frame(41);const auto accepted=pixel_hash(pixels);const auto identity=retained->plan()->identity();
+        const auto pose_before=runtime.presentation(card)->pose;
+        const auto tone=*render::effects().find("tone");const auto original=*render::effects().info(tone);
+        check(render::effects().replace(tone,original),"host_provider_reload_advances_generation");
+        check(!retained->seek_progress(.6) && retained->status().native->position==hanim::seconds(.4) &&
+            runtime.presentation(card)->pose==pose_before,"stale_host_sampling_preserves_player_position_and_accepted_pose");
+        check(bool(retained->rebind()),"owning_host_rebinds_without_restarting_the_program");frame(42);
+        check(pixel_hash(pixels)==accepted && retained->plan()->identity()==identity &&
+            !retained->status().requested && !retained->status().demanding_frames &&
+            retained->status().native->position==hanim::seconds(.4),"rebind_preserves_pixels_plan_position_and_pause_intent");
+        auto incompatible=original;incompatible.preserves_hit_geometry=false;
+        check(render::effects().replace(tone,incompatible),"provider_can_publish_an_incompatible_capability");
+        check(!retained->rebind() && runtime.presentation(card)->pose==pose_before &&
+            retained->status().native->position==hanim::seconds(.4),"incompatible_rebind_retains_accepted_state");
+        check(render::effects().replace(tone,original) && bool(retained->rebind()),"compatible_provider_recovers_after_a_failed_rebind");
+        frame(43);check(pixel_hash(pixels)==accepted,"recovered_provider_restores_the_actual_image");
+        (void)retained->resume();frame(43.1);
+        check(std::abs(retained->status().native->position.count()-.5)<1e-7,"explicit_resume_continues_from_the_preserved_position");
+        check(render::effects().replace(tone,original) && bool(retained->rebind()) && retained->status().requested,
+              "rebind_also_preserves_running_intent");
+        frame(43.2);check(std::abs(retained->status().native->position.count()-.6)<1e-7 && frames_ok,
+              "running_rebind_keeps_the_existing_host_clock_mapping");
+        (void)retained->stop();
+        check(bool(retained->play(recipe)) && bool(retained->rebind()),"pure_property_programs_keep_the_same_rebind_contract");
     }
-    check(retained && !retained->attached() && !retained->update() && !retained->status().demanding_frames,
+    check(retained && !retained->attached() && !retained->update() && !retained->rebind() && !retained->status().demanding_frames,
           "retained_host_adapter_is_safe_after_runtime_destruction");
 }
 }

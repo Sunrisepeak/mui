@@ -277,6 +277,10 @@ retain control identity and location; unknown/deforming providers are refused.
 Changing a provider generation requires rebind at a quiescent boundary. Publication
 failure retains accepted values; paint-time provider invalidation is observable
 as a presentation error and does not promise to reproduce the old shader output.
+For an externally owned Engine, prepare the existing plan again on `Binding`
+and publish a fresh `program_frame`. For the owning host, call
+`playback.rebind()` as described below; do not restart the animation to refresh
+its renderer bindings.
 
 The Hanim image scope covers the selected **root**, regardless of which child
 transform channels animate. Select text itself as another binding's root for a
@@ -320,6 +324,24 @@ playback. A second `play` returns `occupied` until explicitly stopped.
 `stop(restore)` publishes the initial program pose; `stop(hold)` retains the
 last pose. Destruction releases the binding and demand along with its owned
 Engine. No background work survives a destroyed Runtime.
+
+After replacing an effect provider, call `rebind()` on the UI thread at a
+quiescent boundary, before the next sample/paint. It rebuilds the renderer
+bindings for the existing immutable plan and republishes its current sample.
+Position, direction, rate, host clock mapping and pause/gate intent are retained;
+success requests one frame, without implicitly resuming continuous playback.
+This is a cold operation that may allocate, not a per-frame callback. Provider
+replacement must not race preparation, sampling or rendering.
+
+Check the returned `PlaybackFailure`: `no_program` means there is no current
+plan, `stale` means the selection/Runtime no longer exists, and `binding` or
+`engine` carries the underlying typed error. An incompatible provider is
+refused without changing the accepted UI values or restarting transport.
+Restore a compatible provider and retry `rebind()`, then render and inspect the
+selected nodes. Old accepted parameters are not a lease on old provider code;
+failure does not guarantee that the replaced shader can still draw the old
+image. This API neither loads plugin binaries nor supplies concurrent registry
+replacement. Pure property programs accept the same operation.
 
 Hidden/background/interactive gates and Runtime reduced/off preferences
 suspend automatic sampling, release continuous frame demand and retain the

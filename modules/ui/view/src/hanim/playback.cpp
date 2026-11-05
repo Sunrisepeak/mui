@@ -78,6 +78,14 @@ Status Playback::pause() {
     const auto paused=engine_.pause(*playback_);if(!paused)return std::unexpected(failure(paused.error()));
     requested_=false;reanchor();demand(false);runtime_->request_frame();return {};
 }
+Status Playback::rebind() {
+    mlibs::trace::Span span("rebind","omui.hanim.playback");
+    if(auto r=ready();!r)return r;
+    const auto prepared=engine_.plan(*playback_);if(!prepared)return std::unexpected(failure(prepared.error()));
+    if(auto bound=binding_.prepare(*prepared);!bound)return std::unexpected(failure(bound.error()));
+    if(auto shown=publish();!shown)return shown;
+    runtime_->request_frame();return {};
+}
 Status Playback::resume() {
     if(auto r=ready();!r)return r;
     const auto info=engine_.inspect(*playback_);

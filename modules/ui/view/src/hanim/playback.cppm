@@ -56,6 +56,10 @@ public:
     // available when automatic motion is suppressed by host preferences.
     [[nodiscard]] std::expected<void,PlaybackFailure> seek(hanim::seconds);
     [[nodiscard]] std::expected<void,PlaybackFailure> seek_progress(double);
+    // Cold refresh after provider replacement at a quiescent boundary.
+    // Reuse the current plan/sample, without restarting transport or changing
+    // pause/gate intent. Provider replacement must not race this operation.
+    [[nodiscard]] std::expected<void,PlaybackFailure> rebind();
     [[nodiscard]] std::expected<void,PlaybackFailure> stop(hanim::CancelMode = hanim::CancelMode::restore);
     [[nodiscard]] std::expected<void,PlaybackFailure> update(PlaybackGate = {});
     [[nodiscard]] PlaybackStatus status() const noexcept;

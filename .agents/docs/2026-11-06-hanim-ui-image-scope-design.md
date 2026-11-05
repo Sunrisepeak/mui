@@ -40,6 +40,8 @@ UI 的像素效果／局部样式可以组合，但这不等于 Hanim 编排的 
 
 Hanim adapter 冷准备各叶子／scope 的参数映射及最大 buffer，热路径消费 EngineProgramFrame 并发布当前活动路径。owning Playback 在 play 前准备，stop／hold／restore 与显式 seek 保持可解释语义；纯属性轻量路径不为未选效果做转换或逐帧扫描。
 
+插件换代恢复：低层 Binding 可重新 `prepare` 同一计划；owning `Playback::rebind()` 在静止边界重新绑定当前计划并发布当前样本，不重新 `play`，保留进度、方向／速率、宿主时间映射和暂停／门控意图。成功只请求一次绘制，不自动恢复连续播放；失败返回原有类型化错误，保留已接受的 UI 值。调用者恢复兼容 provider 后可再次尝试。此为可分配的冷操作；registry 的并发替换、二进制加载和旧代码资源租约不由它实现。已接受的参数不保证被替换的 provider 仍能重画原像素，须实际 render／inspect 验收。局部检查点见台账 §31。
+
 ## 6. 真实消费者与官网
 
 先用仓外 headless 应用验证同一公开 Program 作用于真实文字、button 和 popover，再把可用路径接到官网便笺：整体／部件选择保留，图像效果和局部风格独立选择；复制内容仍是实际公共配方。输入接管、暂停、反向、reduced/off 和无窗口操作保持。

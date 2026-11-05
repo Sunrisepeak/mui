@@ -32,11 +32,11 @@ openmui.raster = { path = "../../modules/gfx/raster" }
 openmui.geom   = { path = "../../modules/base/geom" }
 openmui.text   = { path = "../../modules/content/text" }
 hanim.core          = { path = "../../modules/base/hanim/core" }
-openmui.trace  = { path = "../../modules/base/trace" }
+mlibs.trace  = { path = "../../modules/base/trace" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-openmui.testing       = { path = "../../modules/base/testing" }
+mlibs.testing       = { path = "../../modules/base/testing" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }

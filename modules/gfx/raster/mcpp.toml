@@ -21,9 +21,9 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.hash = { path = "../../base/hash" }
+mlibs.hash = { path = "../../base/hash" }
 openmui.geom = { path = "../../base/geom" }
 hanim.core        = { path = "../../base/hanim/core" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

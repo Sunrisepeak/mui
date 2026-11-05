@@ -1,8 +1,8 @@
-module openmui.trace;
+module mlibs.trace.api;
 
 import std;
 
-namespace omui::trace {
+namespace mlibs::trace {
 
 namespace {
 
@@ -222,4 +222,4 @@ std::string Trace::table() const {
     return out;
 }
 
-}  // namespace omui::trace
+}  // namespace mlibs::trace

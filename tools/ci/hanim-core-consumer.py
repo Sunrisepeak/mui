@@ -81,7 +81,7 @@ def main() -> int:
         # subsequent invocation; an absent lock must remain absent.
         report["temporary_lock_required"] = temporary_lock is not None
         expected_paths = {"hanim.validation.core_consumer": project, "hanim.core": repo / "modules/base/hanim/core",
-                          "openmui.math": repo / "modules/base/math", "openmui.log": repo / "modules/base/log"}
+                          "mlibs.math": repo / "modules/base/math", "mlibs.log": repo / "modules/base/log"}
         expected = set(expected_paths)
         for profile in ("dev", "release"):
             run = command(profile, [args.mcpp, "run", "--locked", "--profile", profile])

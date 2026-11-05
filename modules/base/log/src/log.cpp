@@ -1,8 +1,8 @@
-module openmui.log;
+module mlibs.log.api;
 
 import std;
 
-namespace omui {
+namespace mlibs::log {
 
 namespace {
 
@@ -169,4 +169,4 @@ void fatal(std::string_view what, std::source_location where) {
     std::abort();
 }
 
-}  // namespace omui
+}  // namespace mlibs::log

@@ -24,4 +24,4 @@ mgame.input = { path = "../input" }
 mgame.sim   = { path = "../sim" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../modules/base/testing" }
+mlibs.testing = { path = "../../modules/base/testing" }

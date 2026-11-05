@@ -24,4 +24,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 gongfu = { path = ".." }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../modules/base/testing" }
+mlibs.testing = { path = "../../../modules/base/testing" }

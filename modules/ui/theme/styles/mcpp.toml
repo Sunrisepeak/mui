@@ -30,4 +30,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.build.embed = { path = "../../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

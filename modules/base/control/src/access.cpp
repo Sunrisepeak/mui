@@ -2,12 +2,12 @@ module mlibs.control;
 
 import std;
 import openas;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 
 namespace mlibs::control {
 namespace {
-constexpr omui::Log policy_log{"agent"};
+constexpr mlibs::log::Log policy_log{"agent"};
 bool covers(std::string_view pattern, std::string_view name) {
     return pattern == "*" || pattern == name || (pattern.ends_with(".*") && name.starts_with(pattern.substr(0, pattern.size() - 1)));
 }
@@ -87,7 +87,7 @@ void Access::set_cap(openas::Cap cap) {
 }
 openas::Cap Access::cap() const { return effective().cap; }
 void Access::set_policy(Policy policy) {
-    omui::trace::Span span("control.policy", "control");
+    mlibs::trace::Span span("control.policy", "control");
     if (policy.mode == Mode::automatic) policy.mode = Mode::dual_user;
     const auto mode = policy.mode;
     const auto cap = cap_name(policy.cap);
@@ -131,7 +131,7 @@ PolicyState Access::effective(const Session* session) const {
     return effective_locked(session);
 }
 std::shared_ptr<const Session> Access::open_session(Restrictions restrictions) {
-    omui::trace::Span span("control.open_session", "control");
+    mlibs::trace::Span span("control.open_session", "control");
     std::shared_ptr<const Session> session;
     bool development = false;
     std::string name;
@@ -148,7 +148,7 @@ std::shared_ptr<const Session> Access::open_session(Restrictions restrictions) {
     return session;
 }
 bool Access::revoke_session(const Session& session) {
-    omui::trace::Span span("control.revoke_session", "control");
+    mlibs::trace::Span span("control.revoke_session", "control");
     if (!owns(session)) return false;
     const bool revoked = session.active_.exchange(false);
     if (revoked) policy_log.debug("Agent session revoked: {}", session.owner());
@@ -186,7 +186,7 @@ std::vector<openas::Grant> Access::grants() const {
 }
 openas::Decision Access::decide(std::string_view name, openas::Effect effect, bool person, const openas::Actor& actor, const Session* session,
                                      std::string_view operation) const {
-    omui::trace::Span span("control.decide", "control");
+    mlibs::trace::Span span("control.decide", "control");
     const openas::Verb verb{.name = std::string(name), .effect = effect, .person = person};
     std::scoped_lock lock(mutex_);
     const auto policy = effective_locked(session);

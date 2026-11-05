@@ -24,9 +24,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.core     = { path = "../core" }
 openmui.view     = { path = "../view" }
 openmui.semantic = { path = "../semantic" }
-openmui.trace    = { path = "../../base/trace" }
+mlibs.trace    = { path = "../../base/trace" }
 openmui.pipeline = { path = "../../base/pipeline" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

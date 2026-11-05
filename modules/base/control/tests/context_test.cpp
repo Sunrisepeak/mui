@@ -1,11 +1,11 @@
 import std;
 import mlibs.control;
-import openmui.log;
-import openmui.trace;
-import openmui.testing;
+import mlibs.log;
+import mlibs.trace;
+import mlibs.testing;
 
 using namespace mlibs::control;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite suite{"control.context"};
@@ -66,24 +66,24 @@ int main(int argc, char** argv) {
     });
     suite.test("shared logging remains reentrant and control decisions have trace spans", [] {
         struct Observer { Access access; int count = 0; } observer;
-        check(omui::set_log_filter("agent=debug,*=warning").has_value());
-        omui::set_log_sink([](void* data, const omui::LogRecord& record) {
+        check(mlibs::log::set_log_filter("agent=debug,*=warning").has_value());
+        mlibs::log::set_log_sink([](void* data, const mlibs::log::LogRecord& record) {
             if (record.category != "agent") return;
             auto& value = *static_cast<Observer*>(data);
             (void)value.access.effective();
             ++value.count;
         }, &observer);
-        omui::trace::start();
+        mlibs::trace::start();
         observer.access.set_policy(policy_for_profile("dev"));
         auto session = observer.access.open_session();
         const auto decision = observer.access.decide("animation.seek", openas::Effect::reversible, false,
             {openas::Kind::agent, "reviewer", {}}, session.get(), "animation.seek");
         check(observer.access.revoke_session(*session));
-        const auto recording = omui::trace::stop();
-        omui::set_log_sink(nullptr, nullptr);
-        check(omui::set_log_filter("*=info").has_value());
+        const auto recording = mlibs::trace::stop();
+        mlibs::log::set_log_sink(nullptr, nullptr);
+        check(mlibs::log::set_log_filter("*=info").has_value());
         check(observer.count >= 3 && decision == openas::Decision::run);
-        check(std::ranges::any_of(recording.summary(), [](const omui::trace::Stat& span) {
+        check(std::ranges::any_of(recording.summary(), [](const mlibs::trace::Stat& span) {
             return span.name == "control.decide" && span.category == "control" && span.count == 1;
         }));
     });

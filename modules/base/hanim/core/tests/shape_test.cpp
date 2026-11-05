@@ -1,9 +1,9 @@
 // A consumer of hanim alone: no renderer, UI, site or third-party geometry.
 import std;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace hanim;
 
 namespace { std::atomic<std::size_t> allocations{0}; }

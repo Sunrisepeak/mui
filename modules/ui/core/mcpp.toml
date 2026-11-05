@@ -29,7 +29,7 @@ sources = ["src/native/web/*.cpp"]
 
 [dependencies]
 mlibs.control = { path = "../../base/control" }
-openmui.log = { path = "../../base/log" }
+mlibs.log = { path = "../../base/log" }
 openlifa.openmui = { path = "../../../spec" }
 hanim.core            = { path = "../../base/hanim/core" }
 openmui.geom     = { path = "../../base/geom" }
@@ -41,4 +41,4 @@ mcpplibs.mwrap.concurrentqueue = "1.0.5"
 mcpplibs.os                    = "0.2.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

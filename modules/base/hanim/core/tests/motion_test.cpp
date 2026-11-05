@@ -3,9 +3,9 @@
 // and give the same value however a time is reached.
 import std;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using hanim::seconds;
 
 namespace {
@@ -13,8 +13,8 @@ namespace {
 struct Sequence {
     std::uint64_t s;
     double next() {
-        s += omui::math::golden;
-        return omui::math::unit53(omui::math::finalize(s));
+        s += mlibs::math::golden;
+        return mlibs::math::unit53(mlibs::math::finalize(s));
     }
 };
 

@@ -9,7 +9,7 @@
 # plugin package (openmui.video.webm). Descriptions are data
 # (`*.video.omui.toml`).
 # An independent component (D-55): the standard library, hanim.core (exact frame
-# rates, deterministic math), openmui.image, openmui.audio, openmui.trace
+# rates, deterministic math), openmui.image, openmui.audio, mlibs.trace
 # (spans in category "video") and toml++.
 [package]
 namespace   = "openmui"
@@ -31,12 +31,12 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.hash = { path = "../../base/hash" }
+mlibs.hash = { path = "../../base/hash" }
 hanim.core               = { path = "../../base/hanim/core" }
 openmui.image       = { path = "../../base/image" }
-openmui.trace       = { path = "../../base/trace" }
+mlibs.trace       = { path = "../../base/trace" }
 openmui.audio       = { path = "../audio" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

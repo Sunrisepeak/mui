@@ -22,4 +22,4 @@ openmui.shader.rules = { path = "../../../shader/rules", host-module = true }
 [dependencies]
 openmui.simulation.cellular = { path = "../../../../base/simulation/cellular" }
 openmui.rhi = { path = "../../../rhi" }
-openmui.trace = { path = "../../../../base/trace" }
+mlibs.trace = { path = "../../../../base/trace" }

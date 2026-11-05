@@ -23,12 +23,12 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.math = { path = "../../../modules/base/math" }
-openmui.hash = { path = "../../../modules/base/hash" }
+mlibs.math = { path = "../../../modules/base/math" }
+mlibs.hash = { path = "../../../modules/base/hash" }
 mgame.world   = { path = "../../../mgame/world" }
 mgame.input   = { path = "../../../mgame/input" }
 mgame.physics = { path = "../../../mgame/physics" }
 mgame.sim     = { path = "../../../mgame/sim" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../modules/base/testing" }
+mlibs.testing = { path = "../../../modules/base/testing" }

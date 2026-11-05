@@ -20,11 +20,11 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 hanim.program = { path = "../program" }
 openmui.memory = { path = "../../../base/memory" }
-openmui.log = { path = "../../../base/log" }
-openmui.trace = { path = "../../../base/trace" }
+mlibs.log = { path = "../../../base/log" }
+mlibs.trace = { path = "../../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }
 hanim.render.vector = { path = "../render/vector" }
 openmui.raster = { path = "../../raster" }
 openmui.image = { path = "../../../base/image" }

@@ -4,7 +4,7 @@
 # replaced, added or removed between runs. Pipelines are described by
 # `<name>.pipeline.omui.toml` (read by omui-gen at build time, or sent as
 # JSON by tools); this package parses nothing.
-# An independent component (D-55): the standard library and openmui.trace.
+# An independent component (D-55): the standard library and mlibs.trace.
 [package]
 namespace   = "openmui"
 name        = "pipeline"
@@ -24,7 +24,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.trace = { path = "../trace" }
+mlibs.trace = { path = "../trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }

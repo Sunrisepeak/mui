@@ -1,6 +1,6 @@
 # Independent diagnostics: the standard library only; no UI/spec/renderer.
 [package]
-namespace = "openmui"
+namespace = "mlibs"
 name = "log"
 version = "0.1.0"
 description = "Independent logging and invariants: categories, filters, sinks, history and JSON lines"
@@ -11,12 +11,12 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-log]
+[targets.mlibs-log]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }
 mcpplibs.os = "0.2.2"

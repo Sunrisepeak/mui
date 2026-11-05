@@ -29,4 +29,4 @@ nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.2.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../modules/base/testing" }
+mlibs.testing = { path = "../../modules/base/testing" }

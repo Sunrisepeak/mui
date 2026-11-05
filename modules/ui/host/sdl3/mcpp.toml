@@ -32,7 +32,7 @@ openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector   = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }
 openmui.image    = { path = "../../../base/image" }
-openmui.trace    = { path = "../../../base/trace" }
+mlibs.trace    = { path = "../../../base/trace" }
 # Quoted: as dotted keys of one table, `openmui.rhi.sdl` would extend the
 # inline table `openmui.rhi`, which TOML forbids.
 "openmui.rhi"         = { path = "../../../gfx/rhi" }
@@ -42,4 +42,4 @@ mcpplibs.os      = "0.2.2"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

@@ -28,4 +28,4 @@ cxxflags = ["-ffp-contract=off"]
 openmui.unicode = { path = "../unicode" }
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }

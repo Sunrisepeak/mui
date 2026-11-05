@@ -1,0 +1,75 @@
+// The runner varies the import spelling and dependency keys independently
+// of the library implementation. This is an external consumer, not a member.
+import std;
+{{imports}}
+
+static_assert(std::same_as<mlibs::hash::Fnv1a, omui::hash::Fnv1a>);
+static_assert(std::same_as<mlibs::math::SplitMix64, omui::math::SplitMix64>);
+static_assert(std::same_as<mlibs::log::LogRecord, omui::LogRecord>);
+static_assert(std::same_as<mlibs::trace::Span, omui::trace::Span>);
+static_assert(std::same_as<mlibs::testing::Suite, omui::testing::Suite>);
+static_assert(std::same_as<mlibs::testing::Hash, omui::hash::Fnv1a>);
+
+int main() {
+    mlibs::testing::Suite suite("foundation namespace compatibility");
+    suite.test("hash and math retain their values and one function identity", [] {
+        mlibs::testing::check_eq(mlibs::hash::Fnv1a().text("foobar").hex(), std::string("85944171f73967e8"));
+        omui::testing::check_eq(omui::hash::Fnv1a().text("foobar").hex(), std::string("85944171f73967e8"));
+        mlibs::testing::check(&mlibs::hash::Fnv1a::hex == &omui::hash::Fnv1a::hex);
+        mlibs::testing::check(&mlibs::math::det::sin == &omui::math::det::sin);
+        omui::testing::check_bits(mlibs::math::det::sin(0.75), omui::math::det::sin(0.75));
+        mlibs::testing::check_eq(mlibs::math::SplitMix64{1234567}.next(), omui::math::SplitMix64{1234567}.next());
+    });
+    suite.test("new and legacy log APIs share sink filter and history", [] {
+        struct Sink { std::vector<std::string> messages; } sink;
+        mlibs::log::set_log_history(0);
+        omui::set_log_history(8);
+        mlibs::log::set_log_sink([](void* user, const mlibs::log::LogRecord& record) {
+            static_cast<Sink*>(user)->messages.emplace_back(record.message);
+        }, &sink);
+        mlibs::testing::check(omui::set_log_filter("migration=info,*=error").has_value());
+        constexpr mlibs::log::Log current{"migration"};
+        constexpr omui::Log legacy{"migration"};
+        legacy.info("legacy {}", 1);
+        current.info("current {}", 2);
+        current.debug("filtered");
+        mlibs::testing::check_eq(sink.messages.size(), std::size_t{2});
+        const auto old_history = omui::recent_logs();
+        const auto new_history = mlibs::log::recent_logs();
+        mlibs::testing::check_eq(old_history.size(), std::size_t{2});
+        mlibs::testing::check_eq(new_history.size(), old_history.size());
+        if (old_history.size() == 2 && new_history.size() == 2) {
+            omui::testing::check_eq(old_history[0].message, new_history[0].message);
+            omui::testing::check_eq(old_history[1].message, new_history[1].message);
+        }
+        mlibs::testing::check(&mlibs::log::set_log_sink == &omui::set_log_sink);
+        mlibs::testing::check(mlibs::log::set_log_filter("*=warning").has_value());
+        omui::testing::check(!omui::log_enabled(omui::Level::info, "migration"));
+        omui::set_log_sink(nullptr, nullptr);
+        omui::set_log_history(0);
+    });
+    suite.test("new and legacy trace APIs share a recording", [] {
+        mlibs::trace::start({64});
+        mlibs::testing::check(omui::trace::enabled());
+        {
+            omui::trace::Span span("legacy span", "migration");
+            mlibs::trace::mark("current mark", "migration");
+        }
+        const auto trace = omui::trace::stop();
+        mlibs::testing::check(!mlibs::trace::enabled());
+        mlibs::testing::check_eq(trace.events.size(), std::size_t{3});
+        mlibs::testing::check_eq(trace.summary().size(), std::size_t{1});
+        mlibs::testing::check(&mlibs::trace::start == &omui::trace::start);
+        omui::trace::start({64});
+        omui::trace::mark("legacy mark", "migration");
+        mlibs::testing::check_eq(mlibs::trace::stop().events.size(), std::size_t{1});
+    });
+    suite.test("test helpers share the running suite state", [] {
+        mlibs::testing::check(&mlibs::testing::failures == &omui::testing::failures);
+        mlibs::testing::check(&mlibs::testing::check == &omui::testing::check);
+        omui::testing::check_eq(mlibs::testing::failures(), 0);
+    });
+    const int result = suite.run();
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":4}}", result == 0);
+    return result;
+}

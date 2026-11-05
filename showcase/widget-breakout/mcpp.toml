@@ -29,8 +29,8 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.math = { path = "../../modules/base/math" }
-openmui.hash = { path = "../../modules/base/hash" }
+mlibs.math = { path = "../../modules/base/math" }
+mlibs.hash = { path = "../../modules/base/hash" }
 openmui.sdk = { path = "../.." }
 "openmui.showcase.widget_breakout.sim" = { path = "sim" }
 mgame.input = { path = "../../mgame/input" }
@@ -52,4 +52,4 @@ openmui.build.embed     = { path = "../../mcpp/embed", host-module = true }
 openmui.build.toy       = { path = "../../mcpp/toy", host-module = true }
 
 [dev-dependencies]
-openmui.testing = { path = "../../modules/base/testing" }
+mlibs.testing = { path = "../../modules/base/testing" }

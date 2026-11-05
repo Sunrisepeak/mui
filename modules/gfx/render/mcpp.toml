@@ -24,8 +24,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 openmui.rhi   = { path = "../rhi" }
-openmui.trace = { path = "../../base/trace" }
+mlibs.trace = { path = "../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }
 openmui.memory  = { path = "../../base/memory" }

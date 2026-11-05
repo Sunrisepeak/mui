@@ -20,8 +20,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 "hanim.core" = { path = "../../../base/hanim/core" }
 "hanim.object" = { path = "../object" }
-openmui.log = { path = "../../../base/log" }
-openmui.trace = { path = "../../../base/trace" }
+mlibs.log = { path = "../../../base/log" }
+mlibs.trace = { path = "../../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

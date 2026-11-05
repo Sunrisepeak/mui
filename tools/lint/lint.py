@@ -35,9 +35,9 @@ Rules:
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
   hash          no private FNV-1a (its offset bases and primes) outside modules/base/hash: one
-                implementation, openmui.hash, so a pinned hash means the same thing everywhere
+                implementation, mlibs.hash, so a pinned hash means the same thing everywhere
   math          no private splitmix64 (its finaliser's constants) or fdlibm (its constants)
-                outside modules/base/math: one implementation, openmui.math (D-87)
+                outside modules/base/math: one implementation, mlibs.math (D-87)
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
   documents     every view document (*.view.omui.json) is valid against the committed schema,
@@ -96,7 +96,7 @@ LAYERS: dict[str, set[str]] = {
     "site": {"*"},
     ".": {"*"},
 }
-# openmui.hash is the base layer's bottom: whoever may use the base may use it.
+# mlibs.hash is the base layer's bottom: whoever may use the base may use it.
 for _allowed in LAYERS.values():
     if "modules/base" in _allowed:
         _allowed.add("modules/base/hash")
@@ -112,14 +112,14 @@ OS_HEADERS = re.compile(
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
 # FNV-1a's offset bases and primes, 64- and 32-bit, in hex and in decimal
 # (and the 64-bit basis with its last digit lost, as copies had it): only
-# openmui.hash has them.
+# mlibs.hash has them.
 FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665603[0-9]?|\b1099511628211\b|\b16777619u?\b|\b2166136261u?\b",
                            re.IGNORECASE)
 # What may keep its own: gongfu's core takes the standard library alone (D-82),
 # so its world checksum is written there.
 FNV_OWN = ("modules/base/hash/", "mgame/gongfu/src/")
 
-# splitmix64's finaliser and fdlibm's exp/log constants: only openmui.math has them.
+# splitmix64's finaliser and fdlibm's exp/log constants: only mlibs.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
 
 # A component animating itself (universal motion, D-93): it draws its state;
@@ -271,17 +271,17 @@ def check_sources(root: Path) -> list[Problem]:
                                             "a component animating itself; draw the state and let its slots move it "
                                             "(universal motion, D-93: the `motion` property, a style's motion rules)"))
 
-        # One FNV-1a: openmui.hash.
+        # One FNV-1a: mlibs.hash.
         if not rel_s.startswith(FNV_OWN):
             for no, line in enumerate(lines, 1):
                 if FNV_CONSTANTS.search(line):
-                    problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use openmui.hash (omui::hash::Fnv1a, fnv1a, fnv1a32)"))
+                    problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use mlibs.hash (mlibs::hash::Fnv1a, fnv1a, fnv1a32)"))
 
-        # One splitmix64, one fdlibm: openmui.math.
+        # One splitmix64, one fdlibm: mlibs.math.
         if not rel_s.startswith("modules/base/math/"):
             for no, line in enumerate(lines, 1):
                 if MATH_CONSTANTS.search(line):
-                    problems.append(Problem("math", f"{rel_s}:{no}", "a private splitmix64 or fdlibm; use openmui.math (math::mix64, SplitMix64, det::)"))
+                    problems.append(Problem("math", f"{rel_s}:{no}", "a private splitmix64 or fdlibm; use mlibs.math (math::mix64, SplitMix64, det::)"))
 
         for member in DETERMINISTIC:
             if rel_s.startswith(member + "/src/"):
@@ -289,7 +289,7 @@ def check_sources(root: Path) -> list[Problem]:
                     m = TRANSCENDENTAL.search(line)
                     if m:
                         problems.append(Problem("determinism", f"{rel_s}:{no}",
-                                                f"std::{m.group(1)} differs between platforms' libm; use openmui.math's det (hanim::dm)"))
+                                                f"std::{m.group(1)} differs between platforms' libm; use mlibs.math's det (hanim::dm)"))
     return problems
 
 
@@ -345,7 +345,7 @@ def check_manifests(root: Path) -> list[Problem]:
                     continue
                 dep_layer = layer_of(dep_rel) if dep_rel != "" else "."
                 if dep_rel == "modules/base/testing":
-                    problems.append(Problem("layering", member, f"`{name}`: openmui.testing belongs in [dev-dependencies]"))
+                    problems.append(Problem("layering", member, f"`{name}`: mlibs.testing belongs in [dev-dependencies]"))
                     continue
                 if "*" in allowed:
                     continue

@@ -18,7 +18,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 "hanim.render.vector" = { path = {{adapter_path}} }
 openmui.raster = { path = {{raster_path}} }
 openmui.image = { path = {{image_path}} }
-openmui.hash = { path = {{hash_path}} }
+mlibs.hash = { path = {{hash_path}} }
 mlibs.control = { path = {{control_path}} }
 mcpplibs.os = "0.2.2"
 nlohmann.json = "3.12.0"

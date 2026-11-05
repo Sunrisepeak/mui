@@ -27,4 +27,4 @@ openmui.audio            = { path = ".." }
 mcpplibs.mwrap.miniaudio = "0.11.25"
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

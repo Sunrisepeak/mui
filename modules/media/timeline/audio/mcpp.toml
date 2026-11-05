@@ -21,7 +21,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.timeline = { path = ".." }
 openmui.audio = { path = "../../audio" }
 hanim.core = { path = "../../../base/hanim/core" }
-openmui.trace = { path = "../../../base/trace" }
+mlibs.trace = { path = "../../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

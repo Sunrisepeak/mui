@@ -1,22 +1,22 @@
-# openmui.testing — the checks openmui's test programs share.
+# mlibs.testing — the checks openmui's test programs share.
 #
 # Every member names it under [dev-dependencies], so it is part of no artifact.
 [package]
-namespace   = "openmui"
+namespace = "mlibs"
 name        = "testing"
 version     = "0.1.0"
 description = "Test checks, suites and determinism hashes for openmui test programs"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
-[targets.openmui-testing]
+[targets.mlibs-testing]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.hash = { path = "../hash" }
+mlibs.hash = { path = "../hash" }
 
 # What the target can do, as constants (:target): the Web row runs no threads.
 [target.'cfg(not(os = "emscripten"))'.build]

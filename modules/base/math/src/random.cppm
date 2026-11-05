@@ -1,4 +1,4 @@
-// openmui.math:random — the randomness that must be the same everywhere (a
+// mlibs.math.api:random — the randomness that must be the same everywhere (a
 // spark's scatter after a rollback, a test's data, a glyph's jitter):
 // splitmix64 (Steele, Lea and Flood, 2014; Vigna's reference code), integer
 // arithmetic only.
@@ -6,11 +6,11 @@
 //     SplitMix64 rng{seed};                 // a stream
 //     const auto bits = rng.next();
 //     const double u = unit24(mix64(key));  // a number from a key, no state
-export module openmui.math:random;
+export module mlibs.math.api:random;
 
 import std;
 
-export namespace omui::math {
+export namespace mlibs::math {
 
 // The golden ratio's 64-bit fraction: splitmix64's increment, and Fibonacci hashing's multiplier.
 inline constexpr std::uint64_t golden = 0x9e3779b97f4a7c15ull;
@@ -41,4 +41,4 @@ struct SplitMix64 {
 // Vigna's reference: the first outputs of a stream from 1234567.
 static_assert(SplitMix64{1234567}.next() == 6457827717110365317ull);
 
-}  // namespace omui::math
+}  // namespace mlibs::math

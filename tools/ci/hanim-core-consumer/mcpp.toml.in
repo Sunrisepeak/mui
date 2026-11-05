@@ -16,4 +16,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = {{core_path}} }
-openmui.log = { path = {{log_path}} }
+mlibs.log = { path = {{log_path}} }

@@ -1,4 +1,4 @@
-// openmui.math:det — elementary functions with the same bits on every platform
+// mlibs.math.api:det — elementary functions with the same bits on every platform
 // (D-87: moved from hanim:math, whose hanim::dm is now this namespace).
 //
 // WHY NOT <cmath>
@@ -19,11 +19,11 @@
 // Accuracy is fdlibm's: below one ulp for exp, log, sin, cos, atan, atan2 and
 // cbrt; `pow` is exp(y·log x) and is accurate to a few ulp for the magnitudes
 // animation uses (gamma curves, easing exponents).
-export module openmui.math:det;
+export module mlibs.math.api:det;
 
 import std;
 
-export namespace omui::math::det {
+export namespace mlibs::math::det {
 
 inline constexpr double pi      = 3.14159265358979311600e+00;
 inline constexpr double two_pi  = 6.28318530717958623200e+00;
@@ -66,4 +66,4 @@ inline constexpr double ln2     = 6.93147180559945286227e-01;
     return a + (b - a) * t;
 }
 
-}  // namespace omui::math::det
+}  // namespace mlibs::math::det

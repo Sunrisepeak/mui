@@ -1,11 +1,11 @@
-# openmui.math — the repository's mathematics, one implementation each (D-87):
+# mlibs.math — the repository's mathematics, one implementation each (D-87):
 # elementary functions with the same bits everywhere (:det) and the
 # randomness that must be the same everywhere (:random). It grows only with
 # users: curves, vectors, fixed point and batches come when something uses
 # them (the math-fighter design, §3.1).
 # An independent component (D-55): the standard library only.
 [package]
-namespace   = "openmui"
+namespace = "mlibs"
 name        = "math"
 version     = "0.1.0"
 description = "Deterministic mathematics: elementary functions with the same bits everywhere, splitmix64 randomness"
@@ -16,7 +16,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-math]
+[targets.mlibs-math]
 kind = "lib"
 
 [build]
@@ -26,4 +26,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }

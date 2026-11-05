@@ -24,4 +24,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.geom = { path = "../../base/geom" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

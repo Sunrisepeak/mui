@@ -2,11 +2,11 @@
 // modify, and distribute this software is freely granted, provided that this
 // notice is preserved"), transcribed to C++ with the words of a double read and
 // written through `std::bit_cast` instead of pointer punning.
-module openmui.math;
+module mlibs.math.api;
 
 import std;
 
-namespace omui::math::det {
+namespace mlibs::math::det {
 
 namespace {
 
@@ -398,4 +398,4 @@ double pow(double x, double y) noexcept {
     return exp(y * log(x));
 }
 
-}  // namespace omui::math::det
+}  // namespace mlibs::math::det

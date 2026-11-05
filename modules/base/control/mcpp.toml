@@ -19,8 +19,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openlifa.openas = "0.2.0"
-openmui.log = { path = "../log" }
-openmui.trace = { path = "../trace" }
+mlibs.log = { path = "../log" }
+mlibs.trace = { path = "../trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }

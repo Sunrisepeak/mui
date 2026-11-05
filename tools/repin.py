@@ -3,7 +3,7 @@
 
     mcpp test … 2>&1 | python3 tools/repin.py [--dry-run]
 
-Reads `openmui.testing`'s failures — `<file>:<line>: check failed: expected
+Reads `mlibs.testing`'s failures — `<file>:<line>: check failed: expected
 <old>, got <new>` — and, on that very line, puts <new> where <old> stood. A
 pin is a 64-bit number (printed in decimal, written `0x` and 16 hex digits)
 or a hex string (`"03892ce45ed9729c"`). A line where the old value is not

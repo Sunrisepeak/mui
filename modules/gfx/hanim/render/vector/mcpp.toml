@@ -23,9 +23,9 @@ hanim.effect = { path = "../../effect" }
 hanim.program = { path = "../../program" }
 openmui.render.vector = { path = "../../../render/vector" }
 openmui.geom = { path = "../../../../base/geom" }
-openmui.log = { path = "../../../../base/log" }
-openmui.trace = { path = "../../../../base/trace" }
+mlibs.log = { path = "../../../../base/log" }
+mlibs.trace = { path = "../../../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../../base/testing" }
+mlibs.testing = { path = "../../../../base/testing" }
 openmui.raster = { path = "../../../raster" }

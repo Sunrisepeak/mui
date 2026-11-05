@@ -1,6 +1,6 @@
 # hanim.core — deterministic time, values, curves and prepared geometry.
 #
-# The standard library and openmui.math only (D-49, D-55, D-87: its
+# The standard library and mlibs.math only (D-49, D-55, D-87: its
 # deterministic functions moved there, an independent component too): the two
 # can leave this repository unchanged. Every animation is a pure function of time, and its
 # results are the same bits on every platform (A-level conformance), which is
@@ -28,7 +28,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.math = { path = "../../math" }
+mlibs.math = { path = "../../math" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../testing" }
+mlibs.testing = { path = "../../testing" }

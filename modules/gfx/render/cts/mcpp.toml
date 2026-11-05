@@ -20,6 +20,6 @@ openmui.geom = { path = "../../../base/geom" }
 openmui.memory = { path = "../../../base/memory" }
 openmui.raster = { path = "../../raster" }
 openmui.image = { path = "../../../base/image" }
-openmui.trace = { path = "../../../base/trace" }
-openmui.testing = { path = "../../../base/testing" }
+mlibs.trace = { path = "../../../base/trace" }
+mlibs.testing = { path = "../../../base/testing" }
 mcpplibs.os = "0.2.2"

@@ -20,4 +20,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "openmui.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
 "openmui.simulation.cellular.rhi" = { path = ".." }
 openmui.rhi = { path = "../../../../rhi" }
-openmui.hash = { path = "../../../../../base/hash" }
+mlibs.hash = { path = "../../../../../base/hash" }

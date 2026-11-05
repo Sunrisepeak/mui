@@ -5,7 +5,7 @@
 - 品牌（2026-11-03）：官网、实现介绍、应用界面使用 **omui**；介绍标准时使用 **openmui 规范**。omui 标志是大写 **O** 内包含小写 **mui**，用框架自身的矢量代码构造，作为品牌和官方可交互作品共用同一来源。`mui` 只允许作为该标志内部字形，不是独立产品名。现有 `openmui.*` 包、模块、协议、schema 和仓库标识保持兼容；品牌变更不等于全仓库标识迁移。
 
 - 仓库暂时是私有的 `Sunrisepeak/mui`。**命名按产品职责归属**（D-100）：`openmui` 专属 UI 协议／规范，UI 框架、组件和宿主使用 `omui`；已有独立名字的引擎／库使用自身名字（如包／模块／C++ 命名空间 `hanim`）。尚未独立命名的通用基础库放 `mlibs.<职责>`／`mlibs::<职责>`，领域引擎放 `xengine.<领域>`／`xengine::<领域>`；它们是归类命名空间，不是强制依赖的大伞包。暂名须见名知意，有明确 owner，不把同一能力在两处实现。不要使用裸的 `mui`。详见[命名与迁移方案](.agents/docs/2026-11-05-product-namespace-migration-design.md)。
-- **新代码按新归属命名，既有公开身份按依赖顺序迁移**：迁移期间 `openmui.*` 实现包／import 是兼容旧名，不再是新增实现的默认前缀；本轮新增共享控制层为 `mlibs.control`。协议字段、schema、`[package.metadata.openmui]`、生成头文件路径、数据文件后缀和第三方包不随命名空间批量替换。UI C ABI 的 `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*` 和命令行 `omui` 保持；C++ Modules 迁移须重新构建，不承诺二进制兼容。
+- **新代码按新归属命名，既有公开身份按依赖顺序迁移**：迁移期间 `openmui.*` 实现包／import 是兼容旧名，不再是新增实现的默认前缀；共享控制层为 `mlibs.control`；hash／math／log／trace／testing 已迁为对应 `mlibs.*`，旧 import 在同包内转发，依赖键使用新身份。协议字段、schema、`[package.metadata.openmui]`、生成头文件路径、数据文件后缀和第三方包不随命名空间批量替换。UI C ABI 的 `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*` 和命令行 `omui` 保持；C++ Modules 迁移须重新构建，不承诺二进制兼容。
 - 设计记录在 `.agents/docs/`，从 `.agents/docs/README.md` 开始读。总体架构文档里的决策记录（D-xx）和待决问题（Q-xx）是当前的基线。
 - 当前阶段：按[官网重构方案](.agents/docs/2026-11-03-openmui-site-redesign-implementation-design.md)的 R0–R6 推进实现与评审，同时保留[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)的技术与质量基线。开始实施不等于 C2 或后续检查点已验收，完成状态必须有证据。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。带命名空间的依赖写成 `[dependencies]` 里的点分键（`compat.sdl3 = "3.4.18"`、`nlohmann.json = "3.12.0"`），不单独开 `[dependencies.<ns>]` 表（lint 规则 `manifest`）。
@@ -44,7 +44,7 @@
 - **路径就是包名**（D-80，lint `layout`）：库的叶子目录名是包名的最后一段（下划线写成连字符），包里面的包以它命名（`openmui.rhi.sdl` 在 `modules/gfx/rhi/sdl`）；分组目录只做归类；有包的目录都有 README，列出下面的每个包。按角色命名，不按实现命名（`shader` 不叫 slang）；动画引擎叫 `hanim`（`import hanim;`，命名空间 `hanim::`）。父包和子包同时出现在一个依赖表里时，键要加引号（`"openmui.rhi"`、`"openmui.rhi.sdl"`），否则不是合法的 TOML。
 - **优先使用 mcpp 生态**：mcpp-index 里已经有知名、跨平台的库时直接使用（JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务用 `taskflow`……），不自己实现；只有生态里没有、或者无法满足确定性要求时才自己写（D-56）。
 - **第三方 C 库经 mwrap 使用**（D-83，lint `thirdparty`）：`compat.<库>` 加 `mcpplibs.mwrap.<库>`，只在 `native/` 单元里 `import mcpplibs.mwrap.<库>;`；上游先做好、发布，再在本仓库使用。选高质量、跨平台、依赖少、高性能的库；**不用 GPL / AGPL（动态链接也不行）**，LGPL 只能作为可选插件动态链接，MPL 不修改即可；默认用免版税的格式。
-- 动画内核 `modules/base/hanim/core/` 只依赖标准库和 `openmui.math`（D-87：它的确定性函数在那里）；完整产品入口 `hanim` 在 `modules/gfx/hanim/`，导出对象、库、效果、编排和引擎，renderer显式可选，不允许依赖任何 UI 模块。全仓库的数学（确定性函数、随机数）在 `openmui.math`，FNV-1a 在 `openmui.hash`，不自己再写一份（lint 规则 `math`、`hash`）；纯动画是时间的函数（可以任意跳转、结果确定），有状态反应遵循显式模拟／重建契约；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
+- 动画内核 `modules/base/hanim/core/` 只依赖标准库和 `mlibs.math`（D-87：它的确定性函数在那里）；完整产品入口 `hanim` 在 `modules/gfx/hanim/`，导出对象、库、效果、编排和引擎，renderer显式可选，不允许依赖任何 UI 模块。全仓库的数学（确定性函数、随机数）在 `mlibs.math`，FNV-1a 在 `mlibs.hash`，不自己再写一份（lint 规则 `math`、`hash`）；纯动画是时间的函数（可以任意跳转、结果确定），有状态反应遵循显式模拟／重建契约；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
 - 协作：当前的工作都放在同一个 PR（分支 `openmui-design`）里，每一轮修改提交一个 commit 作为检查点。
 - 验收标准见实施计划 §19；能自动检查的都要进 CI。
 - 组件和 native 模块都是“契约优先”：先写 `*.contract.omui.toml` / `*.native.omui.toml`，绑定由生成器产出，不手写。

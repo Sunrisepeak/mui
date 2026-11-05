@@ -31,8 +31,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.sdk          = { path = "../.." }
 openmui.theme.styles = { path = "../../modules/ui/theme/styles" }
 "openmui.theme"      = { path = "../../modules/ui/theme" }
-openmui.math         = { path = "../../modules/base/math" }
+mlibs.math         = { path = "../../modules/base/math" }
 mcpplibs.os          = "0.2.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../modules/base/testing" }
+mlibs.testing = { path = "../../modules/base/testing" }

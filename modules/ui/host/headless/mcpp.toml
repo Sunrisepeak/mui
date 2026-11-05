@@ -29,7 +29,7 @@ openmui.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector   = { path = "../../../gfx/render/vector" }
 openmui.text     = { path = "../../../content/text" }
 openmui.image    = { path = "../../../base/image" }
-openmui.trace    = { path = "../../../base/trace" }
+mlibs.trace    = { path = "../../../base/trace" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

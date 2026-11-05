@@ -25,11 +25,11 @@ sources  = ["src/*.cppm", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.hash = { path = "../../../base/hash" }
+mlibs.hash = { path = "../../../base/hash" }
 openmui.video         = { path = ".." }
 mcpplibs.mwrap.libvpx = "1.17.0"
 mcpplibs.mwrap.opus   = "1.6.1"
 
 [dev-dependencies]
 hanim.core = { path = "../../../base/hanim/core" }
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

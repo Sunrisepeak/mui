@@ -1,0 +1,18 @@
+[package]
+namespace = "mlibs.validation"
+name = "namespace_consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.namespace-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# testing is deliberately an explicit dependency of this test-only external
+# consumer. The production hanim consumers separately reject test runtimes.
+[dependencies]
+{{dependencies}}

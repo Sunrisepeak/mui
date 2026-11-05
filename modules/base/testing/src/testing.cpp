@@ -1,8 +1,8 @@
-module openmui.testing;
+module mlibs.testing.api;
 
 import std;
 
-namespace omui::testing {
+namespace mlibs::testing {
 
 namespace {
 
@@ -89,4 +89,4 @@ std::filesystem::path scratch_dir(std::string_view test_name) {
     return dir;
 }
 
-}  // namespace omui::testing
+}  // namespace mlibs::testing

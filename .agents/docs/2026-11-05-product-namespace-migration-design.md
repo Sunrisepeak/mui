@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** 本批实际迁移公共控制的归属，原有 UI API 继续可用。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 首组 hash／math／log／trace／testing 的实际入口和兼容范围见 §5，原有 UI API 继续可用。
 
 ## 1. 五类归属
 
@@ -59,3 +59,44 @@
 | N4：收口 | 清理已到期兼容入口、文档与发布元数据，冻结新的规范检查 | 实际依赖闭包、重复实现扫描、旧消费者迁移说明、独立发布验证 |
 
 每步仍提交到 PR #1，优先本地真实验证，其他平台 CI 异步反馈。N1–N4不替代 S1–S10 的功能验收，单纯改名不增加“40 动画／20 创意工程”的完成数量。涉及高扇出的基础包时，先做一个有新旧消费者的最小迁移验证，再扩展；不得只替换源码字符串后将整仓改名记为完成。
+
+## 5. N1首组五个基础库的实际迁移
+
+| 现有目录 | 当前包／推荐 import | 当前 C++ API | 保留的旧 import／API |
+|---|---|---|---|
+| `modules/base/hash` | `mlibs.hash` | `mlibs::hash` | `openmui.hash`／`omui::hash` |
+| `modules/base/math` | `mlibs.math` | `mlibs::math` | `openmui.math`／`omui::math` |
+| `modules/base/log` | `mlibs.log` | `mlibs::log` | `openmui.log`／`omui` 内原日志声明 |
+| `modules/base/trace` | `mlibs.trace` | `mlibs::trace` | `openmui.trace`／`omui::trace` |
+| `modules/base/testing` | `mlibs.testing` | `mlibs::testing` | `openmui.testing`／`omui::testing` |
+
+仓内清单和模板的依赖键已同步为实际新身份；hanim.core 与 mlibs.control 直接使用新源码入口。UI、官网等现有消费者仍可使用旧 import，验证渐进迁移。产物使用 `mlibs-<name>`。testing 仍是测试依赖，不进入产品运行时；没有新增 workspace 成员，也没有改变算法、默认日志类别、协议字段、规范子模块或 C ABI。
+
+### 5.1 一个包与实现，两种源码入口
+
+每个现有清单内按以下方式组织：
+
+```text
+src/api.cppm       mlibs.<name>.api：唯一的声明和实际类型归属
+src/<name>.cppm    mlibs.<name>：主要入口，export import api 与 legacy
+src/legacy.cppm    openmui.<name>：export import api，导出旧 namespace alias／using
+src/*.cpp         module mlibs.<name>.api：原实现
+```
+
+`.api` 是同包接口单元，未成为另一个库或清单。math 的 det／random／color、testing 的平台选择继续是同包分区。旧入口没有第二份数学、日志历史、sink、trace recorder 或测试状态；类型与非内联函数身份相同。公共使用仍推荐短入口 `import mlibs.math;`，不要求调用方理解兼容布局。
+
+主要入口显式导出 legacy 是安装包正确性的要求：mcpp 的公开接口收集以 lib 根及其导出闭包为基础；不在闭包里的旁置转发模块可能只在源码树可用，未随包发出。该布局经当前 mcpp `2026.11.2.2` 实际打包验证，也符合其[二进制分发说明](https://github.com/mcpp-community/mcpp/blob/main/docs/12-binary-distribution.md)。兼容期结束后可再评估接口单元收敛，不能先删旧入口再宣布兼容。
+
+### 5.2 包解析与发布边界
+
+- **源码 path 消费**：当前 mcpp 按路径所指清单的真实 `mlibs.*` 身份解析；旧依赖键产生建议更名的提示，新旧键并存仍只有一个实际包。新清单使用 `mlibs.*`，不把这一行为称为永久的包别名协议。
+- **构建命令**：workspace 选择器使用实际新身份，如 `mcpp test -p mlibs.math`；旧 `openmui.math` 选择器不列入兼容承诺。源码 import 兼容不代表命令行、库产物名称也自动成为别名。
+- **真实二进制消费**：五个库分别 `mcpp pack`，只携带接口与静态库，不携带 `.cpp` 实现；临时外部工程实际链接这些产物并通过新名／旧名／混用验证。不得用在仓内编译通过替代安装包验证。
+- **尚未发布索引别名**：没有发布新版本到 mcpp-index，没有承诺旧 registry 身份自动解析到新库，也不承诺 BMI／C++ 二进制 ABI 兼容。依赖更新后重新构建。
+- **传递依赖打包缺口**：当前工具生成的 testing 二进制清单未保留对 hash 的依赖；本轮二进制消费者显式声明五个包，包括 hash。这证明实际新旧接口可以共同链接，但**不代表 testing 单依赖安装已经完整**。正式发布前应修复 mcpp 的依赖清单生成，并补一个只声明 testing 的外部消费用例；不在库里复制 hash 或另造空壳包补洞。
+
+### 5.3 可复现验收
+
+`tools/ci/foundation-migration/run.py` 创建仓外工程，覆盖 source／packed × canonical／legacy／mixed 六种组合，各含首次构建与未修改后的运行。它验证类型及函数身份、hash／math 值、共享 log sink／filter／history、共享 trace 开关及记录、同一测试上下文；检查实际 `resolution.json`、编译源和静态产物，拒绝重复 package、双编译或二进制消费者偷用源码实现。测试库是此验证工程明确选择的工具；原有独立 hanim 消费者继续禁止测试运行时进入产品图。
+
+报告记录命令、版本、耗时、包尺寸与摘要。首次构建指新的消费工程，编译器全局缓存可能已热，不能据此宣称冷机性能改善。跨平台与实际消费者的回归记录在[实施台账](2026-11-05-system-implementation-checkpoints-design.md)，各平台 CI 异步执行。

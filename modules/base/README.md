@@ -23,3 +23,9 @@ Depends on: the standard library and third-party libraries. Used by: every other
 | [testing](testing) | Checks, suites and determinism hashes for test programs |
 
 Start with [hanim](hanim/README.md).
+
+The current canonical packages are `mlibs.control`, `mlibs.hash`, `mlibs.math`,
+`mlibs.log`, `mlibs.trace` and `mlibs.testing`. The last five retain their old
+`openmui.*` import within the same package. Other foundations are still being
+migrated; use their manifest identity. `mlibs` is a grouping, not an umbrella
+dependency. See the [migration plan](../../.agents/docs/2026-11-05-product-namespace-migration-design.md).

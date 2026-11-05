@@ -24,4 +24,4 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 openmui.theme = { path = ".." }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }

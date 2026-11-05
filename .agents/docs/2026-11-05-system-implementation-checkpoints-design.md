@@ -502,3 +502,38 @@ dev／release各执行直线路径与扰动路径两组动画，每组61时刻�
 [D-100方案](2026-11-05-product-namespace-migration-design.md)明确openmui规范、omui UI、具名产品、mlibs通用库与xengine暂名引擎的代码树归属；AGENTS、主架构与中英文仓库入口同步。当前实际新入口是`mlibs.control`；其他`openmui.*`实现包仍在兼容迁移期，标准子模块、schema、协议字段、C ABI、第三方包及用户lock没有随之更名。
 
 后续按N1基础库→N2引擎→N3 UI与标准连接→N4兼容收口推进，包别名能力须先实际验证，不能用源码转发冒充包解析兼容或成倍预建空壳包。S6的通用provider注册、资源范围／revision／取消、IR编辑、完整观测与传输接入仍开放；S1–S10的其他功能与40／20、PPet目标不因命名或这批共享控制而计为完成。
+
+## 16. D-100／N1首组基础库命名迁移
+
+执行基线 `8910702`。本批将 hash、math、log、trace、testing 的包、主要 module、C++ namespace 和产物归属迁至 `mlibs`；**只完成 N1 的首个依赖组，没有完成全仓迁移或增加功能验收数量。** 实际命令、摘要、依赖与画面回归见[验证报告](../../tools/ci/2026-11-05-foundation-namespaces.report.omui.json)，兼容使用方式见[迁移方案 §5](2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移)。
+
+### 16.1 实现与兼容边界
+
+- 五个原清单保留原目录，新身份为 `mlibs.hash/math/log/trace/testing`，命名空间分别是 `mlibs::hash/math/log/trace/testing`。仓内 120 个清单以及相关外部消费模板更新依赖键；129 个 workspace 成员总数不变，无新增兼容包。hanim.core 与 mlibs.control 直接消费新 API，其余 UI／官网旧 import 继续工作。
+- 每库只有一份 `.api` 声明／实现，主要入口及旧 `openmui.*` 转发在同一个包内。旧命名空间用 namespace alias／using 共享类型与函数；日志 sink／filter／history、trace recorder 与测试状态也只保留一份。声明与旧版本经过归属替换后相同，原算法及数值常量没有重写。
+- `.api` 是兼容布局的接口单元，不是新 library；主要入口导出 legacy，保证 `mcpp pack` 真正包含旧模块。新旧 import、依赖键混用的实际图中每个库只有一个包，未重复编译实现。包选择器和产物改用新名，旧 CLI 名称不作为别名承诺。
+- 规范子模块、schema／协议字段、生成 C ABI、元数据键、数据后缀和默认日志类别未随之批量更名；用户已有 `mcpp.lock` 保持原字节且不提交。源码消费者重新构建，不承诺 C++ 二进制兼容。
+
+### 16.2 本地真实验证
+
+| 范围 | 通过结果 |
+|---|---|
+| Linux GCC 16.1 dev | 58 个测试程序；344 个具名用例，另有 hash 独立检查程序 |
+| Linux GCC 16.1 release | 58 个测试程序；344 个具名用例，另有 hash 独立检查程序 |
+| Wasm／Node 实际执行 | 28 个测试程序；138 个具名用例，另有 hash 独立检查程序；覆盖五库的可执行测试、control、hanim.core、UI core |
+| 外部 foundation 消费者 | 源码／真实静态安装包 × 新名／旧名／混用，6 种组合；各运行首次构建及未修改后的增量命令，类型／函数／状态与实际依赖闭包检查通过 |
+| 独立 hanim 消费者 | core、公开创作 API、完整 playback／共享控制分别在 dev／release 通过，产品图未引入 testing 或 UI |
+| 动画过程 | 两个 profile 各两组 61 时刻真实 PNG，合计 244 帧及逐帧反向重放，授权／撤销／跨实例／拒绝导出继续通过 |
+| 官网 | 两个原生 profile 各 20 个程序／129 用例；新 Web 打包、原生 prerender 与 Agent 指南生成成功；Chromium 14 项交互检查通过 |
+| 画面稳定性 | 浏览器 25 个固定状态和画布 PNG 摘要与前批反应工作台记录逐一一致；检查了中文窄屏与中间态实际图像 |
+
+合计 144 次仓内测试程序执行、826 次具名用例执行；这不是 144 个不同功能。独立消费者和浏览器另列，不混入这个分母。保留确定性 math／hanim 摘要；页面整体截图含实时时序，不声称整体 PNG 逐字节不变。没有重新认定首帧性能、GPU／设备覆盖或人的美术观感达标。
+
+### 16.3 工程问题与发布前缺口
+
+- namespace 改动使宿主工具源码摘要改变，mcpp 新建的工具 scratch 在 `--locked` 下缺失 json／tomlplusplus 锁项，首次大回归有四个成员在构建阶段失败。通过仓库锁实际重建 gen／shader，再用 mcpp 支持的 `MCPP_TOOL_*` 指向这些工具完成回归；未修改锁、未使用旧二进制、未关闭锁验证。报告保留初次失败及工具摘要。CI 正常构建仍异步执行。
+- 当前 mcpp 的 testing 安装包清单遗漏传递 hash 依赖。安装包消费者显式列出五个包，证明同一实现的实际链接与兼容；**testing 单依赖安装尚未验收**，正式发布前需修复上游打包清单并补对应独立消费验证。没有用复制算法或新增空壳包掩盖缺口，也未发布 registry 名称别名。
+- 新增 `tools/ci/foundation-migration` 为现有 CI 内的外部消费 fixture，不是 workspace 库；已接入 Linux release CI 并保留日志／图／产物信息。记录首次工程构建、增量命令时间和静态包大小，仅作为本机观察，不宣称全冷构建或性能提升。
+- 后续继续迁移其余基础库，再处理 renderer／simulation／audio 和 UI／标准连接；正式发布和兼容退役各自验收。S1–S10、40／20、完整默认动效、PPet 与后端覆盖的剩余工作保持开放。
+
+最终检查：全仓 lint 为零、变更清单 TOML／Python 语法、本地文档链接、`git diff --check`；本批以本地证据提交 PR #1，不等待其他平台 CI。

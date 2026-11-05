@@ -1,8 +1,8 @@
 import std;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using hanim::seconds;
 
 namespace {

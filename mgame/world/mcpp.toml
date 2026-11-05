@@ -21,7 +21,7 @@ kind = "lib"
 sources = ["src/*.cppm"]
 
 [dev-dependencies]
-openmui.testing = { path = "../../modules/base/testing" }
+mlibs.testing = { path = "../../modules/base/testing" }
 
 [dependencies]
-openmui.hash = { path = "../../modules/base/hash" }
+mlibs.hash = { path = "../../modules/base/hash" }

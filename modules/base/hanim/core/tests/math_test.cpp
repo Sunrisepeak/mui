@@ -3,9 +3,9 @@
 // every platform must reproduce.
 import std;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace dm = hanim::dm;
 
 namespace {
@@ -24,8 +24,8 @@ std::int64_t ulps(double a, double b) {
 struct Sequence {
     std::uint64_t s;
     std::uint64_t next() {
-        s += omui::math::golden;
-        return omui::math::finalize(s);
+        s += mlibs::math::golden;
+        return mlibs::math::finalize(s);
     }
     double uniform(double lo, double hi) { return lo + (hi - lo) * static_cast<double>(next() >> 11) * 0x1.0p-53; }
 };

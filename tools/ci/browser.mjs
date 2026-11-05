@@ -3,7 +3,7 @@
 // headless Chromium opens it from a server on localhost (a secure context,
 // as WebGPU asks), the page sends back what the program prints, line by
 // line and in order, and its exit code. Under Asyncify a main() that
-// suspended returns its code to nobody, so an openmui.testing suite's own
+// suspended returns its code to nobody, so a mlibs.testing suite's own
 // summary line (`<suite>: N passed, M failed`) is read too. Exit: 1 when
 // the program exits non-zero, a suite failed or said nothing, the page
 // failed to load it, or the time ran out; else 0.

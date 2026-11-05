@@ -25,4 +25,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 "gongfu.ai" = { path = "../ai" }  # the pads that ask for a move: a move list plays each one
 
 [dev-dependencies]
-openmui.testing = { path = "../../../modules/base/testing" }
+mlibs.testing = { path = "../../../modules/base/testing" }

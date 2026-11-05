@@ -33,6 +33,6 @@ openmui.rhi    = { path = ".." }
 openmui.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }
 openmui.rhi.cts = { path = "../cts" }
 mcpplibs.os     = "0.2.2"

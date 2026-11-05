@@ -19,10 +19,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = "../../../base/hanim/core" }
-openmui.log = { path = "../../../base/log" }
-openmui.trace = { path = "../../../base/trace" }
+mlibs.log = { path = "../../../base/log" }
+mlibs.trace = { path = "../../../base/trace" }
 openmui.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../../base/testing" }
+mlibs.testing = { path = "../../../base/testing" }
 mcpplibs.os = "0.2.2"

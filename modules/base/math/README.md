@@ -1,14 +1,14 @@
-# openmui.math
+# mlibs.math
 
 The repository's mathematics, one implementation each (D-87, [math-fighter design](../../../.agents/docs/2026-10-29-math-fighter-tech-design.md) §3). An independent component (D-55): the standard library only. It grows only with users: curves, vectors, fixed point and batches come when something uses them.
 
 ```cpp
-import openmui.math;
+import mlibs.math;
 
-const double y = omui::math::det::sin(x);            // the same bits everywhere
-omui::math::SplitMix64 rng{seed};
-const double u = omui::math::unit24(rng.next());      // [0, 1)
-const double v = omui::math::unit53(omui::math::mix64(key));   // a number from a key, no stream
+const double y = mlibs::math::det::sin(x);            // the same bits everywhere
+mlibs::math::SplitMix64 rng{seed};
+const double u = mlibs::math::unit24(rng.next());      // [0, 1)
+const double v = mlibs::math::unit53(mlibs::math::mix64(key));   // a number from a key, no stream
 ```
 
 | Partition | |
@@ -30,3 +30,9 @@ Invalid domains return a canonical quiet NaN; an infinite divisor retains a
 finite dividend. The raster dash walker uses this common operation to wrap
 large finite offsets. Its CTS includes exact integer witnesses at the largest
 finite double and subnormal phases; no caller implements another reducer.
+
+The package and public import are `mlibs.math`. The legacy
+`import openmui.math;` and `omui::math` API remain source-compatible
+within this same package; rebuild C++ consumers. Both entry points share the
+same types, implementation and state. No extra compatibility package is needed.
+See the [namespace migration guide](../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移).

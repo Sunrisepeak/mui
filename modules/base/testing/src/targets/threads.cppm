@@ -1,11 +1,11 @@
-// openmui.testing:target — what the target the tests run on can do, as
+// mlibs.testing.api:target — what the target the tests run on can do, as
 // constants (chosen by the manifest per target; no macro). Here: a target
 // that runs threads.
-export module openmui.testing:target;
+export module mlibs.testing.api:target;
 
-export namespace omui::testing {
+export namespace mlibs::testing {
 
 // Whether the program can start threads (std::thread, std::jthread).
 inline constexpr bool threads = true;
 
-}  // namespace omui::testing
+}  // namespace mlibs::testing

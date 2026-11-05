@@ -26,7 +26,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
     if data.get("schema_version") != 2:
         raise RuntimeError("unrecognized resolution schema")
     names = []
-    forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "openlifa.openmui", "openmui.spec"}
+    forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
     required = {"mcpplibs.hanim", "hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
                 "hanim.render.vector", "openmui.render.vector", "openmui.raster", "openmui.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:

@@ -22,4 +22,4 @@ hanim.core = { path = "../../base/hanim/core" }
 hanim.engine = { path = "engine" }
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

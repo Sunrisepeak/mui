@@ -1,9 +1,9 @@
 import std;
 import mlibs.control;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace mlibs::control;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"control.policy"};

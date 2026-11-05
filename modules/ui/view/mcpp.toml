@@ -22,8 +22,8 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.math = { path = "../../base/math" }
-openmui.hash = { path = "../../base/hash" }
+mlibs.math = { path = "../../base/math" }
+mlibs.hash = { path = "../../base/hash" }
 openmui.core     = { path = "../core" }
 openmui.geom     = { path = "../../base/geom" }
 openmui.memory   = { path = "../../base/memory" }
@@ -35,10 +35,10 @@ openmui.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
 openmui.image    = { path = "../../base/image" }
 openmui.text     = { path = "../../content/text" }
-openmui.trace    = { path = "../../base/trace" }
+mlibs.trace    = { path = "../../base/trace" }
 openmui.pipeline = { path = "../../base/pipeline" }
 openmui.i18n     = { path = "../../content/i18n" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
-openmui.testing = { path = "../../base/testing" }
+mlibs.testing = { path = "../../base/testing" }

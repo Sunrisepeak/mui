@@ -1,8 +1,8 @@
 import std;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using hanim::seconds;
 
 int main(int argc, char** argv) {
@@ -68,8 +68,8 @@ int main(int argc, char** argv) {
         // Seeked: the finished channel asked about any time — its segments are its history.
         std::uint64_t state = 20261027;
         auto next_random = [&] {
-            state += omui::math::golden;
-            return omui::math::finalize(state);
+            state += mlibs::math::golden;
+            return mlibs::math::finalize(state);
         };
         int differing = 0;
         for (int i = 0; i < 1000; ++i) {

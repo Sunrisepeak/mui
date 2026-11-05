@@ -1,7 +1,7 @@
 // hanim.core — deterministic animation primitives: every animation a pure function
 // of time.
 //
-// Standard library and openmui.math only. It knows nothing of nodes, views or rendering; the
+// Standard library and mlibs.math only. It knows nothing of nodes, views or rendering; the
 // view layer of openmui maps its values onto properties, and a game, a video
 // composition or another UI framework can use it the same way.
 //

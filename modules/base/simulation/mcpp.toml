@@ -18,8 +18,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
-openmui.trace = { path = "../trace" }
-openmui.log = { path = "../log" }
+mlibs.trace = { path = "../trace" }
+mlibs.log = { path = "../log" }
 
 [dev-dependencies]
-openmui.testing = { path = "../testing" }
+mlibs.testing = { path = "../testing" }

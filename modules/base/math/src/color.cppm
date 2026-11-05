@@ -1,12 +1,12 @@
 // Shared sRGB readability math. WCAG's relative-luminance definition:
 // https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html
 // Inputs are finite normalized components; pow uses our deterministic core.
-export module openmui.math:color;
+export module mlibs.math.api:color;
 
 import std;
 import :det;
 
-export namespace omui::math::color {
+export namespace mlibs::math::color {
 
 [[nodiscard]] inline double relative_luminance(double r, double g, double b) noexcept {
     const auto linear = [](double c) {
@@ -22,4 +22,4 @@ export namespace omui::math::color {
     return (std::max(a, b) + 0.05) / (std::min(a, b) + 0.05);
 }
 
-}  // namespace omui::math::color
+}  // namespace mlibs::math::color

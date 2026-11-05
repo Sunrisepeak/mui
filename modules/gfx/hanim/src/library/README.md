@@ -35,11 +35,9 @@ catalog, an Engine, a clip graph, pixel transport or arbitrary topology support.
 See [CONTRACT.md](CONTRACT.md) for the strict capability and lifetime contract.
 
 
-The public CTS in `tests/morph_test.cpp` checks strict contracts, geometry
+The public CTS in `../../tests/library/morph_test.cpp` checks strict contracts, geometry
 endpoints, C0 retarget with destruction of the old payload/snapshot tables,
 caller-buffer failure atomicity, warm sampling with active shared trace, and
-native concurrent reads. Run `mcpp test -p hanim.library` after registering the
-member in the containing workspace, or consume it as a path dependency from
-an external test project. Web runs the
+native concurrent reads. Run `mcpp test library/ -p hanim` in the containing workspace. Web runs the
 same non-threaded contracts; native
 thread support additionally enables the concurrent-buffer case.

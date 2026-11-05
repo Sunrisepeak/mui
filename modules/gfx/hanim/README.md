@@ -1,31 +1,59 @@
 # hanim — the independent animation product
 
 The object and playback layers of the independent hanim product. These
-packages do not depend on the UI framework, its specification or games.
+language modules do not depend on the UI framework, its specification or games.
 The deterministic [hanim.core](../../base/hanim/core) remains below this
-layer, using only the standard library and `openmui.math`.
+layer, using only the standard library and `mlibs.math`.
 
-| Package | Responsibility |
+| Internal module / feature | Responsibility |
 |---|---|
-| [hanim.effect](effect) | Owned ordered parameter plans and reusable effect recipes; backend binding stays optional |
-| [hanim.engine](engine) | Explicit-clock playback and batch sampling, controls, current-pose retarget and typed queries |
-| [hanim.library](library) | Strict public named-part contour morph plans, caller-owned frames and deep C0 retarget preparation |
-| [hanim.object](object) | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
-| [hanim.program](program) | Immutable nested bindings compiled into owned object schedules; bounded arbitrary-time sampling without a player |
-| [render](render) | Optional renderer consumers: current vector frames, shared native material mixing and effects |
+| [hanim.effect](src/effect) / `effect` | Owned ordered parameter plans and reusable effect recipes; backend binding stays optional |
+| [hanim.engine](src/engine) / `engine` | Explicit-clock playback and batch sampling, controls, current-pose retarget and typed queries |
+| [hanim.library](src/library) / `library` | Strict public named-part contour morph plans, caller-owned frames and deep C0 retarget preparation |
+| [hanim.object](src/object) / `object` | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
+| [hanim.program](src/program) / `program` | Immutable nested bindings compiled into owned object schedules; bounded arbitrary-time sampling without a player |
+| [hanim.render.vector](src/render/vector) / `render-vector` | Optional renderer consumer: current vector frames, shared native material mixing and effects |
 
 This is the only `hanim` package, exporting core, object, library, effect,
 program and engine. `import hanim;` preserves the existing core vocabulary;
 `hanim.core` stays at `modules/base/hanim/core` for minimal consumers. Local
 path dependencies formerly pointing to `modules/base/hanim` must point here.
-There is no UI, specification, renderer, RHI or window dependency in the product
-closure. Rendering is a separate, explicitly selected adapter.
+There is no UI, specification, renderer, RHI or window dependency in the default
+product closure. Rendering is an explicitly selected feature in this same package.
 
 mcpp currently normalizes this existing unnamespaced package to
 `mcpplibs.hanim` in resolution metadata; the dependency key and module are
-`hanim`. When selecting both the umbrella and an adapter in TOML, quote both
-keys (`"hanim"`, `"hanim.render.vector"`) so the dotted key is not parsed as
-a nested field of the umbrella dependency.
+`hanim`. The six old child-package dependency keys and `-p` selectors are
+replaced by this package plus features; their C++ module imports are unchanged.
+There are no forwarding micro-packages or duplicate implementations.
+
+```toml
+[dependencies]
+# Full animation product, no renderer (default engine implies program/library/object/effect):
+hanim = { path = ".../modules/gfx/hanim" }
+# Alternatives to the line above:
+# hanim = { path = ".../modules/gfx/hanim", default-features = false, features = ["effect"] }
+# hanim = { path = ".../modules/gfx/hanim", features = ["render-vector"] }
+```
+
+`render-vector` implies program/library/object/effect, not the player. A consumer
+can turn defaults off and use it without Engine. Feature requests are additive
+across dependency edges. The generated `hanim:selected` partition exports only
+selected modules; disabled sources and dependencies are not compiled. There is
+no runtime feature dispatch or separate authoring API.
+
+This package is independent because unrelated hosts can create, prepare, sample
+and control animations through its owned public contracts without UI or windows.
+The effect/object/program layers cooperate inside that product and need no
+independent version/release manifests. `hanim.core` remains a separate library:
+UI motion, raster and animation share its deterministic std-plus-math functions
+without depending on the object registry, player, logging or renderer.
+
+Run `mcpp test -p hanim --locked` for the eight renderer-free test programs.
+The [feature consumer](../../../tools/ci/hanim-features/README.md) checks seven
+actual source/dependency closures. Renderer tests live in the existing external
+[playback consumer](../../../tools/ci/hanim-play-consumer/README.md), which tests
+the opt-in feature separately from its production program's dependency audit.
 
 ```cpp
 import std;
@@ -63,7 +91,7 @@ reserves playback buffers. Advanced bindings and the prior
 `play(object, anim::morph_to(target), effects, options)` remain available.
 Typed `fx::vertex_path(PointPath)` and `fx::translation_path(PointPath)` alter
 matched control-point and local-position trajectories before rendering. They
-compose with the ordered image-effect parameters. See [the effect contract](effect/README.md)
+compose with the ordered image-effect parameters. See [the effect contract](src/effect/README.md)
 for units, additive path composition and limitations. These are leaf effects,
 not group/image scopes. For the latter, use an explicit animation expression:
 

@@ -4,14 +4,14 @@
 // a、b和c). Each is a function of the value and the locale's data alone:
 // digits come from the standard library's exact conversions, never from the
 // C locale or the system, so every platform writes the same text.
-export module openmui.i18n:format;
+export module mlibs.i18n.api:format;
 
 import std;
 import :locale;
 import :plural;
 import :data;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 struct NumberOptions {
     enum class Style : std::uint8_t { decimal, percent, compact_short, compact_long };
@@ -70,4 +70,4 @@ private:
     std::shared_ptr<const LocaleData> data_;
 };
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

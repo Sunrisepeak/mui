@@ -13,13 +13,13 @@
 //   stretch;
 // - alignment of items in their cells by justify_self / align_self
 //   (stretch by default).
-module openmui.layout;
+module mlibs.layout.api;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :internal;
 
-namespace omui::layout {
+namespace mlibs::layout {
 
 namespace {
 
@@ -401,4 +401,4 @@ Size GridAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r) {
     return {width, height};
 }
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

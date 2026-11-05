@@ -81,18 +81,18 @@ presentation/hit mapping are subsequent integration work.
 
 Public inspect/list/pause/seek/reverse/rate/retarget/cancel operations are
 native control primitives for GUI/CLI/Agent adapters. The all-engine openas
-provider/transport is not implemented by this package. Trace category and log
+provider/transport is not implemented by this internal module. Trace category and log
 category are `hanim.engine`; queries never format logs, advance records a batch
 span. Log callbacks may query committed state, but reentrant mutation is refused.
 
-See the [play API composition design](../../../../.agents/docs/2026-11-04-hanim-play-api-design.md)
+See the [play API composition design](../../../../../.agents/docs/2026-11-04-hanim-play-api-design.md)
 for the target Object/Animation/Effect/Config scopes. The current compiler supports
 nested sequence/parallel/stagger and prior-boundary sources on strict whole-object
 tracks. Same-object overlap is rejected. General channel blending, effect/group
 scopes, complete domains and UI migration remain open.
 
-The [external CLI consumer](../../../../tools/ci/hanim-play-consumer/README.md)
+The [external CLI consumer](../../../../../tools/ci/hanim-play-consumer/README.md)
 uses these public operations and the optional renderer without UI/window
 dependencies, outputs actual PNG regions and JSON provenance, and validates
-crop pixels and geometric retarget continuity. The package's visual CTS also
+crop pixels and geometric retarget continuity. The external consumer visual CTS also
 exports three real frames and a region through the same native renderer.

@@ -1,8 +1,8 @@
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -170,4 +170,4 @@ std::vector<Plural> PluralRules::categories() const {
     return out;
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

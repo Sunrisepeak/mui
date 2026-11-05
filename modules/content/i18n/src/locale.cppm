@@ -1,11 +1,11 @@
 // openmui.i18n:locale — who the text is for: BCP 47 language tags, CLDR's
 // likely subtags, and the negotiation of what a person asked for against
 // what an application has.
-export module openmui.i18n:locale;
+export module mlibs.i18n.api:locale;
 
 import std;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 struct Locale {
     std::string              language = "und";  // lower case: en, zh (und: undetermined)
@@ -54,4 +54,4 @@ private:
 [[nodiscard]] std::vector<Locale> negotiate(std::span<const Locale> requested, std::span<const Locale> available,
                                             const LikelySubtags& likely, const Locale& fallback);
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

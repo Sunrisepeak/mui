@@ -46,7 +46,7 @@
 - **控制及发布**：pause、seek、reverse、retarget、cancel、restore、release；retarget当前支持单轨（包括单轨sequence），多轨选择性替换未实现；批次先准备再原子发布，失败不提交部分新姿态。
 - **独立消费**：外部 CLI 工程无需 UI／窗口，可输出真实 PNG 区域及来源信息；可选 renderer adapter 使用已有 renderer。
 
-具体入口在 [core](../../modules/base/hanim/core/README.md)、[object](../../modules/gfx/hanim/object/src/object.cppm)、[library](../../modules/gfx/hanim/library/src/library.cppm)、[effect](../../modules/gfx/hanim/effect/README.md)、[program](../../modules/gfx/hanim/program/src/program.cppm)、[engine](../../modules/gfx/hanim/engine/README.md)、[render.vector](../../modules/gfx/hanim/render/vector/README.md)。
+具体入口在 [core](../../modules/base/hanim/core/README.md)、[object](../../modules/gfx/hanim/src/object/object.cppm)、[library](../../modules/gfx/hanim/src/library/library.cppm)、[effect](../../modules/gfx/hanim/src/effect/README.md)、[program](../../modules/gfx/hanim/src/program/program.cppm)、[engine](../../modules/gfx/hanim/src/engine/README.md)、[render.vector](../../modules/gfx/hanim/src/render/vector/README.md)。
 
 ### 3.2 尚不能支持的承诺
 

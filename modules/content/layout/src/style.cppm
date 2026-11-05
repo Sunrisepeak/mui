@@ -4,12 +4,12 @@
 // ratio, min/max sizes, padding, border, margins and gaps; the names and
 // defaults are CSS's except where a UI toolkit's are clearer (a stack, and
 // `direction` defaulting to row as CSS does).
-export module openmui.layout:style;
+export module mlibs.layout.api:style;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 
-export namespace omui::layout {
+export namespace mlibs::layout {
 
 using geom::Insets;
 using geom::Point;
@@ -129,4 +129,4 @@ struct Style {
     friend bool operator==(const Style&, const Style&) noexcept;
 };
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

@@ -5,11 +5,11 @@
 // cluster or by word (UAX #29), so a caret never lands inside a family emoji
 // or between a base and its accent. Vertical movement needs layout and is the
 // text field's (Paragraph::offset_above / offset_below).
-export module openmui.text:edit;
+export module mlibs.text.api:edit;
 
 import std;
 
-export namespace omui::typeset {
+export namespace mlibs::text {
 
 struct Selection {
     std::size_t anchor = 0, focus = 0;
@@ -88,4 +88,4 @@ private:
     std::uint64_t     revision_ = 0;
 };
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

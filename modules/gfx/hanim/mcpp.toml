@@ -1,8 +1,8 @@
-# Public hanim product: core plus object/library/effect/program/engine. Rendering is opt-in.
+# One product package; internal language modules are selected by features.
 [package]
 name = "hanim"
 version = "0.1.0"
-description = "hanim public animation product umbrella"
+description = "Independent composable animation engine with optional vector rendering"
 license = "Apache-2.0"
 platforms = ["linux", "macos", "windows", "emscripten"]
 repo = "https://github.com/Sunrisepeak/mui"
@@ -19,7 +19,29 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = "../../base/hanim/core" }
-hanim.engine = { path = "engine" }
+
+[features]
+default = ["engine"]
+object = { sources = ["src/object/*.cppm", "src/object/*.cpp"] }
+effect = { sources = ["src/effect/*.cppm", "src/effect/*.cpp"] }
+library = { implies = ["object"], sources = ["src/library/*.cppm", "src/library/*.cpp"] }
+program = { implies = ["library", "effect"], sources = ["src/program/*.cppm", "src/program/*.cpp"] }
+engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.cpp"] }
+render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
+
+[feature-deps.object]
+mlibs.memory = { path = "../../base/memory" }
+mlibs.log = { path = "../../base/log" }
+mlibs.trace = { path = "../../base/trace" }
+
+[feature-deps.effect]
+mlibs.log = { path = "../../base/log" }
+mlibs.trace = { path = "../../base/trace" }
+
+[feature-deps.render-vector]
+openmui.render.vector = { path = "../render/vector" }
+mlibs.geom = { path = "../../base/geom" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }
+mcpplibs.os = "0.2.2"

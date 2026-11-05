@@ -1,8 +1,8 @@
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -488,4 +488,4 @@ std::string Formatter::list(std::span<const std::string> items, ListType type, W
     return substitute(p.start, items[0], tail);
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

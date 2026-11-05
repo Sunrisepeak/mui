@@ -15,10 +15,13 @@ import time
 import tomllib
 
 NAMES = ("hash", "math", "log", "trace", "testing", "geom", "memory", "unicode", "fuzzy", "session", "pipeline", "image",
-         "rhi", "raster", "shader")
+         "rhi", "raster", "shader", "text", "layout", "markdown", "i18n", "i18n.cldr")
 GFX = {"rhi", "raster", "shader"}
+CONTENT = {"text", "layout", "markdown", "i18n", "i18n.cldr"}
 EXTERNAL = {"mcpplibs.os", "mcpplibs.openkal", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp",
-            "compat.libpng", "compat.libwebp", "compat.zlib"}
+            "compat.libpng", "compat.libwebp", "compat.zlib", "marzer.tomlplusplus", "mcpplibs.mwrap.md4c",
+            "mcpplibs.mwrap.harfbuzz", "mcpplibs.mwrap.sheenbidi", "compat.md4c", "compat.harfbuzz",
+            "compat.sheenbidi", "compat.freetype"}
 
 
 def locked_packages(path: Path) -> dict:
@@ -69,6 +72,7 @@ def main() -> int:
                    "The packed consumer explicitly declares foundation dependencies, hanim.core and external index dependencies.",
                    "Shader provisioning is tested on this machine; relocation of the recorded Slang tool path is not verified.",
                    "mcpp index lock hashes describe namespace/name/version, not downloaded artifact content.",
+                   "Packed GNU ld consumers explicitly rescan the installed archives because mcpp pack omits path-dependency ordering edges.",
                    "No package publication or claim that mcpp pack preserves dependency metadata."],
     }
 
@@ -101,8 +105,10 @@ def main() -> int:
         identity_inputs = sorted({f'{data["namespace"]}:{key}@{data["version"]}'
                                   for name, data in allowed_external.items() for key in (name, name.rsplit(".", 1)[1])})
         external_identities = None
-        source_paths = {name: repo / "modules" / ("gfx" if name in GFX else "base") / name for name in NAMES}
+        source_paths = {name: repo / "modules" / ("gfx" if name in GFX else "content" if name in CONTENT else "base") / name.replace(".", "/") for name in NAMES}
         source_paths["hanim.core"] = repo / "modules/base/hanim/core"
+        source_paths["openmui.render"] = repo / "modules/gfx/render"
+        source_paths["openmui.render.vector"] = repo / "modules/gfx/render/vector"
         packed_paths = {}
         for name, path in source_paths.items():
             # shader also publishes the omui-shader executable; select its
@@ -152,28 +158,48 @@ def main() -> int:
                 project = work / label
                 (project / "src").mkdir(parents=True)
                 prefixes = ("mlibs", "openmui") if style == "mixed" else (("mlibs",) if style == "canonical" else ("openmui",))
-                dependencies = "\n".join(f'{prefix}.{name} = {{ path = {json.dumps(str(paths[name]))} }}'
+                dependencies = "\n".join(f'{json.dumps(prefix + "." + name)} = {{ path = {json.dumps(str(paths[name]))} }}'
                                          for prefix in prefixes for name in NAMES)
-                dependencies += '\nhanim.core = { path = ' + json.dumps(str(paths["hanim.core"])) + ' }'
+                for name in ("hanim.core", "openmui.render", "openmui.render.vector"):
+                    dependencies += "\n" + json.dumps(name) + " = { path = " + json.dumps(str(paths[name])) + " }"
                 if source_kind == "packed":
                     # Current pack omits dependency metadata. Supply the actual
                     # direct external edges here without editing the archives.
-                    for name in ("mcpplibs.os", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp"):
+                    for name in ("mcpplibs.os", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp", "marzer.tomlplusplus",
+                                 "mcpplibs.mwrap.md4c", "mcpplibs.mwrap.harfbuzz", "mcpplibs.mwrap.sheenbidi"):
                         version = json.dumps(source_lock[name]["version"])
                         value = '{ version = ' + version + ', features = ["demux", "mux"] }' if name.endswith(".libwebp") else version
                         dependencies += f"\n{name} = {value}"
                 imports = "\n".join(f"import {prefix}.{name};" for prefix in prefixes for name in NAMES)
-                (project / "mcpp.toml").write_text((fixture / "mcpp.toml.in").read_text().replace("{{dependencies}}", dependencies))
+                imports += "\nimport openmui.render.vector;"
+                archive_link_flags = ""
+                if source_kind == "packed":
+                    # mcpp pack omits path-dependency edges, so GNU ld cannot
+                    # infer the archive order (CLDR -> i18n exposes this).
+                    # Supply the explicit installed archive set as a rescan
+                    # group. Do not edit package metadata or interface digests,
+                    # force-load objects, or compile source implementations.
+                    archives = sorted(str(p) for root in paths.values() for p in root.rglob("*.a"))
+                    archive_link_flags = "ldflags = " + json.dumps(["-Wl,--start-group", *archives, "-Wl,--end-group"])
+                (project / "mcpp.toml").write_text((fixture / "mcpp.toml.in").read_text()
+                                                   .replace("{{dependencies}}", dependencies)
+                                                   .replace("{{archive_link_flags}}", archive_link_flags))
                 (project / "src/main.cpp").write_text((fixture / "main.cpp.in").read_text().replace("{{imports}}", imports)
-                                                      .replace("{{lock_identities}}", ", ".join(map(json.dumps, identity_inputs))))
+                                                      .replace("{{lock_identities}}", ", ".join(map(json.dumps, identity_inputs)))
+                                                      .replace("{{fonts_directory}}", json.dumps(str(repo / "modules/content/text/fonts"))))
                 shutil.copyfile(fixture / "consumer.slang", project / "consumer.slang")
                 argv = [args.mcpp, "run", "--profile", "release"]
                 stdout = command(label, argv, project, bootstrap=True)
                 result = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"kind":"mlibs.namespace-consumer"')]
-                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 15:
+                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 20:
                     raise RuntimeError(label + ": missing real successful consumer result")
+                png_digest = sha(project / "content.png")
+                if png_digest is None or not result[0].get("content_pixel_hash"):
+                    raise RuntimeError(label + ": missing actual rendered text PNG")
                 own_lock = sha(project / "mcpp.lock")
                 command(label + "-incremental", argv + ["--locked"], project)
+                if sha(project / "content.png") != png_digest:
+                    raise RuntimeError(label + ": text PNG changed between repeated runs")
                 if sha(project / "mcpp.lock") != own_lock:
                     raise RuntimeError("consumer lock changed on incremental run")
                 command(label + "-metadata", [args.mcpp, "build", "--profile", "release", "--locked", "--configure-only"], project)
@@ -186,10 +212,21 @@ def main() -> int:
                 packages = graph["graph"]["packages"]
                 identities = []
                 external_packages = {}
+                host_packages = {}
+                host_paths = {"openmui.build.embed": repo / "mcpp/embed",
+                              "openmui.build.plan": repo / "mcpp/plan",
+                              "mlibs.shader.rules": repo / "modules/gfx/shader/rules",
+                              "openmui.gen": repo / "tools/gen"}
                 consumer_lock = locked_packages(project / "mcpp.lock")
                 for package in packages:
                     data = package["package"]
                     package_id = (data.get("namespace", "") + "." + data["name"]).lstrip(".")
+                    if package_id in host_paths:
+                        if (source_kind != "source" or package.get("instances") != ["build-program"]
+                                or data.get("source") != "path+" + str(host_paths[package_id])):
+                            raise RuntimeError(label + ": host-only dependency escaped its build phase: " + package_id)
+                        host_packages[package_id] = data
+                        continue
                     identities.append(package_id)
                     if package_id in allowed_external:
                         pinned = allowed_external[package_id]
@@ -221,8 +258,16 @@ def main() -> int:
                 sources = []
                 external_sources = []
                 generated_sources = []
-                shader_package = next(p for p in packages if p["package"]["canonical"].startswith("mlibs.shader@"))
-                provisioned = (Path(shader_package["outDir"]) / "mlibs/slang_provisioned.cppm").resolve()
+                def output_dir(name: str) -> Path:
+                    return Path(next(p["outDir"] for p in packages if p["package"]["canonical"].startswith(name + "@")))
+                generated_expected = {(output_dir("mlibs.shader") / "mlibs/slang_provisioned.cppm").resolve():
+                                      "mlibs.shader.api:provisioned"}
+                for folder in ("shaders", "effects"):
+                    for shader in (source_paths["openmui.render.vector"] / folder).glob("*.slang"):
+                        generated_expected[(output_dir("openmui.render.vector") / "mlibs/shader" / (shader.stem + "_shaders.cppm")).resolve()] = "openmui.render.vector:" + shader.stem + "_shaders"
+                for data in (source_paths["i18n.cldr"] / "data").glob("*.locale.omui.json"):
+                    stem = data.name.removesuffix(".locale.omui.json").replace("-", "_").replace(".", "_") + "_locale"
+                    generated_expected[(output_dir("mlibs.i18n.cldr") / "openmui" / (stem + ".cppm")).resolve()] = "mlibs.i18n.cldr.api:" + stem
                 for entry in cdb:
                     directory = Path(entry["directory"])
                     if not directory.is_absolute():
@@ -231,9 +276,9 @@ def main() -> int:
                     path = (directory / path).resolve() if not path.is_absolute() else path.resolve()
                     if path == (project / "src/main.cpp") or any(path.is_relative_to(root) for root in paths.values()):
                         sources.append(str(path))
-                    elif source_kind == "source" and path == provisioned:
-                        if "export module mlibs.shader.api:provisioned;" not in path.read_text():
-                            raise RuntimeError(label + ": incorrect generated shader interface")
+                    elif source_kind == "source" and path in generated_expected:
+                        if "export module " + generated_expected[path] + ";" not in path.read_text():
+                            raise RuntimeError(label + ": incorrect generated interface")
                         generated_sources.append({"path": str(path), "sha256": sha(path)})
                     elif path.name in {"std.cc", "std.cppm"} and path.is_relative_to(Path(entry["arguments"][0]).resolve().parent.parent):
                         continue  # the selected compiler's standard-library module
@@ -268,15 +313,20 @@ def main() -> int:
                     raise RuntimeError(label + ": missing or unexpected implementation units; missing=" +
                                        str(sorted(expected_implementations - set(implementations))) + "; extra=" +
                                        str(sorted(set(implementations) - expected_implementations)))
-                if source_kind == "source" and len(generated_sources) != 1:
-                    raise RuntimeError(label + ": missing generated Slang provisioning interface")
+                if source_kind == "source" and {x["path"] for x in generated_sources} != set(map(str, generated_expected)):
+                    raise RuntimeError(label + ": missing generated provisioning/shader/locale interfaces")
+                shutil.copyfile(project / "content.png", artifacts / (label + ".content.png"))
+                if report["runs"] and (png_digest != report["runs"][0]["content_png_sha256"] or result[0]["content_pixel_hash"] != report["runs"][0]["result"]["content_pixel_hash"]):
+                    raise RuntimeError(label + ": content pixels differ between source/archive or import styles")
                 shutil.copyfile(resolution, artifacts / (label + ".resolution.json"))
                 shutil.copyfile(project / "mcpp.toml", artifacts / (label + ".mcpp.toml"))
                 report["runs"].append({"kind": source_kind, "style": style, "result": result[0],
-                                       "packages": sorted(identities), "compiled_sources": sources,
+                                       "packages": sorted(identities), "compiled_sources": sources, "content_png_sha256": png_digest,
                                        "declared_tool_sources_excluded_from_consumer_link": tool_sources,
                                        "external_sources": external_sources, "external_packages": external_packages,
+                                       "host_only_packages": host_packages,
                                        "generated_sources": generated_sources,
+                                       "explicit_archive_rescan_group": source_kind == "packed",
                                        "toolchain": graph["toolchain"]})
         # Host modules are build-time plugins, not runtime library archives.
         # Exercise their new/old imports with real out-of-workspace generated

@@ -14,12 +14,12 @@
 // sentinel comes back as a top-level paragraph of its own — had a fence, an
 // HTML block or a list still been open, the sentinel would be inside it. The
 // scanner may be wrong in either direction; the result never is.
-module openmui.markdown;
+module mlibs.markdown.api;
 
 import std;
-import openmui.trace;
+import mlibs.trace;
 
-namespace omui::md {
+namespace mlibs::markdown {
 
 namespace {
 
@@ -259,4 +259,4 @@ void Stream::reparse_tail() {
     doc_.root.hash = h;
 }
 
-}  // namespace omui::md
+}  // namespace mlibs::markdown

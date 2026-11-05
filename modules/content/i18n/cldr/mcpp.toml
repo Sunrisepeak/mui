@@ -4,7 +4,7 @@
 # the engine (modules/content/i18n) knows no language, and an application links the
 # packs it ships.
 [package]
-namespace   = "openmui.i18n"
+namespace   = "mlibs.i18n"
 name        = "cldr"
 version     = "0.1.0"
 description = "CLDR 49 locale packs for openmui.i18n: en, zh (Simplified), zh-Hant, and likely subtags"
@@ -15,14 +15,14 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "data"
 
-[targets.openmui-i18n-cldr]
+[targets.mlibs-i18n-cldr]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"openmui.i18n" = { path = ".." }
+"mlibs.i18n" = { path = ".." }
 
 [build-dependencies]
 openmui.build.embed = { path = "../../../../mcpp/embed", host-module = true }

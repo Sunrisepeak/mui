@@ -365,7 +365,7 @@ ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 o
 
 ## 16. 首条公开播放器与无GUI消费者证据
 
-本轮新增四个独立公开包：`hanim.library`、`hanim.effect`、`hanim.engine`、`hanim.render.vector`。Engine运行依赖不含UI、renderer、窗口或网络；可选vector adapter复用现有唯一renderer。具体实现和契约见[engine README](../../modules/gfx/hanim/engine/README.md)、[播放契约](../../modules/gfx/hanim/engine/CONTRACT.md)与[组合接口review](2026-11-04-hanim-play-api-design.md)。本节记录可运行的首阶段，不宣称完整A1或Program已经交付。
+本轮新增四个独立公开包：`hanim.library`、`hanim.effect`、`hanim.engine`、`hanim.render.vector`。Engine运行依赖不含UI、renderer、窗口或网络；可选vector adapter复用现有唯一renderer。具体实现和契约见[engine README](../../modules/gfx/hanim/src/engine/README.md)、[播放契约](../../modules/gfx/hanim/src/engine/CONTRACT.md)与[组合接口review](2026-11-04-hanim-play-api-design.md)。本节记录可运行的首阶段，不宣称完整A1或Program已经交付。
 
 **真实范围。** 对象可以包含多个命名部件和闭合轮廓；严格匹配保持层级、子顺序和非零填充孔洞方向。library准备后采样transform／fill／cubic，retarget深拥有当前姿态，不保留无界历史链。effect保存有序描述和参数；只有adapter成功绑定才算实际视觉支持。Engine提供ObjectRef及外部Snapshot入口，同一原生播放器统一几何与效果的时间和控制；整批advance先写预分配暂存，再发布，任一失败均不消费本批elapsed。源绑定、播放槽位、代次和配额复用已有memory。结束／取消保留资源至release；不撤销业务模型。
 
@@ -389,7 +389,7 @@ ObjectRegistry 删除自己的两套空闲表、代次与存活计数；保留 o
 
 维护者进一步澄清：对象中心／动画中心只是供比较的思路，目标是在通用性、效果质量和性能上超过Manim及常见动画／游戏动画系统。新增[通用性／风格／GPU比较稿](2026-11-04-hanim-generality-style-gpu-review-design.md)，对照Manim已有OpenGL／匹配、成熟游戏系统的混合／GPU及独立高性能库，分别评估创作API和执行内核；主入口仍待review，不把callable候选语法写成已实现。core／matching／effects／异构执行的能力目标完整保留。
 
-**当前交付。** 新增[hanim.program](../../modules/gfx/hanim/program/README.md)：不可变bind／sequence／parallel／stagger展开为有界逻辑对象轨道和分段；固定端点、前段真正边界的深拥有、显式snapshot跳变、源版本、节点路径、同轨重叠冲突与准备预算均可查询。`sequence(bind(A,B),bind(A,C))`保持A身份并执行A→B→C；`bind(B,C)`明确是B轨道，不猜测身份别名。当前严格整对象通道，不支持任意通道blend／效果隔离作用域。
+**当前交付。** 新增[hanim.program](../../modules/gfx/hanim/src/program/README.md)：不可变bind／sequence／parallel／stagger展开为有界逻辑对象轨道和分段；固定端点、前段真正边界的深拥有、显式snapshot跳变、源版本、节点路径、同轨重叠冲突与准备预算均可查询。`sequence(bind(A,B),bind(A,C))`保持A身份并执行A→B→C；`bind(B,C)`明确是B轨道，不猜测身份别名。当前严格整对象通道，不支持任意通道blend／效果隔离作用域。
 
 Engine四参数入口规范化为PreparedProgram::single，`play(PreparedProgram)`复用同一时间、槽位、控制、双缓冲和发布逻辑。每轨预分配最大输出容量；所有活动实例及其轨道成功采样后才发布。`frame(ref,index)`返回当前段的实际几何／效果范围，单参数frame拒绝多轨含糊结果；inspect区分全局时间和仅单轨有效的可选采样进度。单轨序列可从当前实际阶段retarget，多轨替换到单目标明确报unsupported_operation；并未完成选择性通道替换。
 

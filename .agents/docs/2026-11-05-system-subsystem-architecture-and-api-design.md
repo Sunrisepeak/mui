@@ -211,7 +211,7 @@ HObject 是动画域身份及表示能力，允许属性、路径、轮廓、mes
 
 ## 5. 目标代码树与兼容迁移
 
-命名补充 D-100：`openmui` 归 UI 规范，UI 实现用 `omui`，hanim 等具名产品保留自身身份；通用库用 `mlibs`，尚未定名的领域引擎用 `xengine`。**物理分层和命名归属分别判断**，下列目录不意味着所有包继续叫 openmui；完整映射与分阶段源码／包兼容见[命名迁移方案](2026-11-05-product-namespace-migration-design.md)。既有技术名继续作为迁移期间的兼容入口。 N1 已迁移 hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image 及 gfx 的 rhi／后端／cts、shader／rules、raster 到 `mlibs.*`，同包保留旧源码入口；不代表其余基础库、引擎和 UI 已完成更名。
+命名补充 D-100：`openmui` 归 UI 规范，UI 实现用 `omui`，hanim 等具名产品保留自身身份；通用库用 `mlibs`，尚未定名的领域引擎用 `xengine`。**物理分层和命名归属分别判断**，下列目录不意味着所有包继续叫 openmui；完整映射与分阶段源码／包兼容见[命名迁移方案](2026-11-05-product-namespace-migration-design.md)。既有技术名继续作为迁移期间的兼容入口。 N1 已迁移 hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image 及 gfx 的 rhi／后端／cts、shader／rules、raster，以及 content 的 text／layout／markdown／i18n／cldr 到 `mlibs.*`，同包保留旧源码入口；不代表其余基础库、引擎和 UI 已完成更名。
 
 以下是**职责与归属方向树，不是逐目录建包清单**：`[新增]` 表示待实现职责；内部小能力优先放所属包的`src/<职责>/`，达到§5.1的独立库／必要隔离门槛才新建`mcpp.toml`。不铺空目录或按一个`.cppm`拆一个包。未标注的目录为已有成员或分组；已有拆分也可按证据收敛。目录层次表达允许依赖，仍需实际package DAG和包内模块依赖检查同层环。
 
@@ -301,15 +301,15 @@ src/entry/                         宿主/应用入口；根包当前openmui.sdk
 
 | 现有边界 | 判断与后续动作 |
 |---|---|
-| `hanim`内的object／effect／library／program／engine | 优先评估收敛为产品包内部职责，保留逻辑模块和公共API；当前UI view直接选用effect，renderer也直接选用若干子包，合并必须保留这些轻量选择。先核对消费者、import身份、feature与最小闭包，不再顺势为IR／新算子增加微型包 |
-| `hanim.core`与可选render adapter | core的std＋math轻量边界、renderer的显式依赖隔离有实际价值；内部收敛不能把UI／renderer强加给独立动画用户 |
+| `hanim`内的object／effect／library／program／engine | 已收敛为产品 `src/<职责>/`，保留原 C++ module／API。UI view 使用 `hanim` 的 effect feature；object／library／program／engine 依次按需选择，不再各有清单；新IR／算子也按此组织 |
+| `hanim.core`与可选render adapter | core 的 std＋math 独立包供 motion／raster／timeline 共用，保留并写明理由。vector adapter 收入 `src/render/vector`，由 `render-vector` feature 隔离 renderer 依赖，关闭默认 feature 时不需要播放器 |
 | `hash`／`geom`／`log`／`trace` | 代码小但职责稳定、多个独立消费者使用；保留共享owner，不塞入任意大引擎造成反向依赖或复制 |
 | `simulation`与`simulation.cellular` | 已分别作为时钟／历史和无时钟规则库使用，属于有具体独立用途的早期库；不因只有两份C++源文件就机械合并，也不为每个规则／邻域再建包 |
 | `simulation.cellular.rhi`、`audio.device`、`timeline.audio`、`shader.rules` | 分别隔离GPU／shader构建、miniaudio设备、跨域可选依赖、host-build工具；源码短不取消实际隔离，新的同类细分仍需比较feature方案 |
 | 共享GPU CTS与`mgame.sim`兼容入口 | CTS由两个真实后端测试共用且不进入普通运行时闭包；旧sim只转发到唯一实现。保留当前用途，后续随消费者迁移评估，不把测试包／兼容包复制为每个场景的包 |
 | 新工具、AI、素材与控制能力 | 先在既有owner的`src/<领域>/`完成真实任务；工具具备独立完整用途、共享模型出现实际消费者或需隔离重依赖时再提取库／产品 |
 
-本轮修订不等于既有包已迁移。实际合并须在同一检查点更新清单、源码归属、公开入口兼容、消费者、文档与测试，记录前后依赖闭包、冷／增量构建及产物成本；移除重复实现，必要转发不产生第二套逻辑。不为少几个清单破坏可选性，也不为保留清单长期重复维护。
+Hanim 本轮从七个清单收敛为一个产品清单，另保留 base 层的独立 core；workspace 129 → 123。原 C++ import 保留，旧子包依赖键／`-p` 参数改为 `hanim` 加 feature，不为保留旧清单制造空壳包。实测 feature 闭包及源码／安装包消费见实施台账 §21；冷构建性能或美术改善没有由此推断。其他既有包仍须逐项评审。不为少几个清单破坏可选性，也不为保留清单长期重复维护。
 
 ### 5.2 兼容与跨层迁移
 

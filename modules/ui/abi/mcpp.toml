@@ -35,7 +35,7 @@ openmui.semantic = { path = "../semantic" }
 openmui.agent    = { path = "../agent" }
 openmui.render.vector   = { path = "../../gfx/render/vector" }
 mlibs.raster   = { path = "../../gfx/raster" }
-openmui.text     = { path = "../../content/text" }
+mlibs.text     = { path = "../../content/text" }
 openmui.native   = { path = "../native" }
 openmui.theme    = { path = "../theme" }
 nlohmann.json    = "3.12.0"

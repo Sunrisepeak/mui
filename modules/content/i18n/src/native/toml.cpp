@@ -1,12 +1,12 @@
 // Reading *.messages.omui.toml: toml++ reports a malformed file by throwing,
 // which this unit — the library's adapter — turns into a diagnostic; every
 // message is parsed, and each problem keeps its line and column.
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 import tomlplusplus;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -43,4 +43,4 @@ std::expected<Catalog, std::vector<Diagnostic>> read_messages(std::string_view t
     return out;
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

@@ -110,11 +110,11 @@ Log callbacks may capture committed state; reentrant mutation returns
 `reentrant_mutation` without another log.
 
 See [CONTRACT.md](CONTRACT.md) for the lifecycle and failure matrix.
-Tests: `mcpp test -p hanim.object --locked` after workspace registration.
+Tests: `mcpp test object/ -p hanim --locked` after workspace registration.
 The three test programs contain thirteen cases. Native lifecycle tests also run
 four concurrent snapshot readers; the default Emscripten build skips only
 that thread phase, retaining all owned-lifetime and synchronous queries.
-Web command: `mcpp test -p hanim.object --target wasm32-emscripten --profile wasm-test --locked`.
+Web command: `mcpp test object/ -p hanim --target wasm32-emscripten --profile wasm-test --locked`.
 
 The bounded-churn cases also check failed fresh/recycled creation, replacement
 of every part key at full capacity, description order independence, and the

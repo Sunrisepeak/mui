@@ -1,12 +1,12 @@
 // Reading *.locale.omui.json: nlohmann/json reports a malformed file by
 // throwing, which this unit — the library's adapter — turns into a
 // diagnostic; a pack's shape is checked whole, each problem by its path.
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 import nlohmann.json;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -314,4 +314,4 @@ std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::s
     return out;
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

@@ -1,9 +1,9 @@
-module openmui.text;
+module mlibs.text.api;
 
 import std;
-import openmui.unicode;
+import mlibs.unicode;
 
-namespace omui::typeset {
+namespace mlibs::text {
 
 TextEditor::TextEditor(std::string text, EditorOptions options) : options_(options) { set_text(std::move(text)); }
 
@@ -238,4 +238,4 @@ bool TextEditor::redo() {
     return true;
 }
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

@@ -2,11 +2,11 @@
 // the rules of a locale are its pack's text (`i = 1 and v = 0`), parsed and
 // evaluated here, so a language is added without code. A number is chosen
 // by the digits it is shown with: "1" is one in English, "1.0" is other.
-export module openmui.i18n:plural;
+export module mlibs.i18n.api:plural;
 
 import std;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 enum class Plural : std::uint8_t { zero, one, two, few, many, other };
 
@@ -57,4 +57,4 @@ private:
     std::vector<Rule> rules_;
 };
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

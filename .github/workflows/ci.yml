@@ -287,6 +287,19 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         run: python3 tools/ci/hanim-api-probe/run.py --output target/hanim-public-authoring/report.omui.json
 
+      - name: Hanim features exclude unselected sources and renderer dependencies
+        timeout-minutes: 15
+        if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        run: python3 tools/ci/hanim-features/run.py --output target/hanim-features/report.omui.json
+
+      - name: Keep Hanim feature dependency evidence
+        if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hanim-features
+          path: target/hanim-features
+          if-no-files-found: ignore
+
       - name: Keep public authoring checks and dependency evidence
         if: always() && matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         uses: actions/upload-artifact@v4

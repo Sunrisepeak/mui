@@ -1,8 +1,8 @@
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -601,4 +601,4 @@ std::string Message::format(const Formatter& fmt, const Args& args, std::vector<
     return best ? c.format(best->pattern) : std::string{};
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

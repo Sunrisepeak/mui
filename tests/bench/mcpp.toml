@@ -28,12 +28,11 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 "openmui.simulation" = { path = "../../modules/base/simulation" }
 "openmui.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
-hanim.core = { path = "../../modules/base/hanim/core" }
-hanim.object = { path = "../../modules/gfx/hanim/object" }
-hanim.engine = { path = "../../modules/gfx/hanim/engine" }
+"hanim.core" = { path = "../../modules/base/hanim/core" }
+"hanim" = { path = "../../modules/gfx/hanim" }
 openmui.sdk             = { path = "../.." }
 mlibs.trace           = { path = "../../modules/base/trace" }
-openmui.markdown        = { path = "../../modules/content/markdown" }
+mlibs.markdown        = { path = "../../modules/content/markdown" }
 openmui.audio           = { path = "../../modules/media/audio" }
 "openmui.timeline"       = { path = "../../modules/media/timeline" }
 "openmui.timeline.audio" = { path = "../../modules/media/timeline/audio" }

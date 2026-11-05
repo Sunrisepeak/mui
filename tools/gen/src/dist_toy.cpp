@@ -37,7 +37,8 @@ std::string content_hash(std::string_view bytes) {
     return std::format("{:012x}", omui::hash::fnv1a(bytes) & 0xffffffffffffull);
 }
 
-// openmui.text's directory of default fonts, from mcpp's resolved graph.
+// The text library's default fonts from the resolved graph. Older projects
+// may still resolve the original package identity during the migration.
 std::optional<fs::path> text_fonts(const fs::path& graph) {
     if (graph.empty()) return std::nullopt;
     auto text = read(graph);
@@ -46,7 +47,9 @@ std::optional<fs::path> text_fonts(const fs::path& graph) {
         const auto g = nlohmann::json::parse(*text);
         for (const auto& p : g.at("packages")) {
             const auto& id = p.at("package");
-            if (id.value("namespace", "") == "openmui" && id.value("name", "") == "text") return fs::path(p.value("manifest_dir", "")) / "fonts";
+            const auto owner = id.value("namespace", "");
+            if ((owner == "mlibs" || owner == "openmui") && id.value("name", "") == "text")
+                return fs::path(p.value("manifest_dir", "")) / "fonts";
         }
     } catch (const nlohmann::json::exception&) {
     }

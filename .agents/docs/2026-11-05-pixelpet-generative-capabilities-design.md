@@ -218,7 +218,7 @@ CLI可以完成创作、校验、准备、装备、查询、修改、保存和�
 | 业务技能 | 公共资产保存定义，AI任务编排＋领域计划执行 | 不新增包办全部领域的万能播放器或只靠聊天记忆 |
 | 衣柜／包裹／装备UX | pixelpet应用状态，复用公共catalog/operations | 角色业务不进入渲染或动画内核 |
 
-现有实现依据：[hanim.object](../../modules/gfx/hanim/object/README.md)、[hanim.program](../../modules/gfx/hanim/program/README.md)、[二维网格接口](../../modules/gfx/render/vector/src/display.cppm)、[gongfu.present2d](../../mgame/gongfu/present2d/README.md)、[素材方案](2026-11-04-indie-game-tools-assets-design.md)。这些提供原料，不能据此报告pixelpet已具备生成服装、技能学习、完整3D或动态表面UI。
+现有实现依据：[hanim.object](../../modules/gfx/hanim/src/object/README.md)、[hanim.program](../../modules/gfx/hanim/src/program/README.md)、[二维网格接口](../../modules/gfx/render/vector/src/display.cppm)、[gongfu.present2d](../../mgame/gongfu/present2d/README.md)、[素材方案](2026-11-04-indie-game-tools-assets-design.md)。这些提供原料，不能据此报告pixelpet已具备生成服装、技能学习、完整3D或动态表面UI。
 
 feature按角色消费、创作工具、内置AI、外部委派、二维rig、3D/voxel、表面UI和资产变体按需组织；运行已有技能不要求携带生成器或模型。关闭生成能力后，已保存的内容仍可在其实际运行依赖齐全时执行。新技能的依赖闭包／安装包和构建版本可检查，避免一件帽子把整个编辑器带进Web首包。
 

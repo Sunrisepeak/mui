@@ -1,13 +1,13 @@
 // Glyph outlines through hb_font_draw_glyph, colour layers through the OT
 // COLR/CPAL API, both rasterised by openmui.raster.
-module openmui.text;
+module mlibs.text.api;
 
 import std;
-import openmui.raster;
+import mlibs.raster;
 import mcpplibs.mwrap.harfbuzz;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
 
-namespace omui::typeset {
+namespace mlibs::text {
 
 namespace {
 
@@ -78,7 +78,7 @@ struct GlyphCache::Impl {
     // Outlines in em units (1 em = 1.0), per (font, glyph).
     std::unordered_map<std::uint64_t, std::unique_ptr<raster::PathBuilder>> outlines;
 
-    raster::PathBuilder& outline_of(render::FontRef font, std::uint32_t glyph) {
+    raster::PathBuilder& outline_of(omui::render::FontRef font, std::uint32_t glyph) {
         std::uint64_t key = (static_cast<std::uint64_t>(font.id) << 32) | glyph;
         auto& slot = outlines[key];
         if (!slot) {
@@ -127,11 +127,11 @@ void GlyphCache::clear() {
     impl_->outlines.clear();
 }
 
-raster::PathData GlyphCache::outline(render::FontRef font, std::uint32_t glyph) {
+raster::PathData GlyphCache::outline(omui::render::FontRef font, std::uint32_t glyph) {
     return impl_->outline_of(font, glyph).data();
 }
 
-render::GlyphMask GlyphCache::mask(render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
+omui::render::GlyphMask GlyphCache::mask(omui::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
     auto quant = [](float f) {
         int q = static_cast<int>(std::floor(f * phases + 0.5f));
         return static_cast<std::uint8_t>(std::clamp(q, 0, phases - 1));
@@ -193,4 +193,4 @@ render::GlyphMask GlyphCache::mask(render::FontRef font, std::uint32_t glyph, fl
     return {&e.coverage, nullptr, {}};
 }
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

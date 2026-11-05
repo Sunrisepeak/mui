@@ -27,8 +27,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
         raise RuntimeError("unrecognized resolution schema")
     names = []
     forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
-    required = {"mcpplibs.hanim", "hanim.engine", "hanim.program", "hanim.library", "hanim.object", "hanim.core", "hanim.effect",
-                "hanim.render.vector", "openmui.render.vector", "mlibs.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
+    required = {"mcpplibs.hanim", "hanim.core", "openmui.render.vector", "mlibs.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
         if path.is_relative_to(repo):
@@ -60,6 +59,11 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
         sources.append(str(source.resolve()))
     if str(project / "src/main.cpp") not in sources:
         raise RuntimeError("actual CDB omitted consumer")
+    required_sources = {str(repo / "modules/gfx/hanim/src" / role / (role + ".cpp"))
+                        for role in ("object", "effect", "library", "program", "engine")}
+    required_sources.add(str(repo / "modules/gfx/hanim/src/render/vector/vector.cpp"))
+    if not required_sources.issubset(sources):
+        raise RuntimeError("actual CDB omitted a selected product implementation")
     shutil.copyfile(resolution, artifacts / f"{profile}.resolution.json")
     shutil.copyfile(cdb, artifacts / f"{profile}.compile_commands.json")
     return {"packages": sorted(names), "compiled_sources": sources,
@@ -97,7 +101,7 @@ def main() -> int:
                   "Native hanim consumer uses shared authorization/context; no generic provider registry or new wire protocol.",
                   "No sanitizer claim: this gate runs dev and release."]}
 
-    def run(label: str, argv: list[str], bootstrap: bool = False, expected: int = 0) -> str:
+    def run(label: str, argv: list[str], bootstrap: bool = False, expected: int = 0, cwd: Path | None = None) -> str:
         env = os.environ.copy()
         env.pop("DISPLAY", None)
         env.pop("WAYLAND_DISPLAY", None)
@@ -106,7 +110,7 @@ def main() -> int:
             env.pop("MCPP_LOCKED", None)
         else:
             env["MCPP_LOCKED"] = "1"
-        result = subprocess.run(argv, cwd=project, env=env, capture_output=True, text=True)
+        result = subprocess.run(argv, cwd=cwd or project, env=env, capture_output=True, text=True)
         stdout, stderr = artifacts / f"{label}.stdout.log", artifacts / f"{label}.stderr.log"
         stdout.write_text(result.stdout)
         stderr.write_text(result.stderr)
@@ -118,7 +122,7 @@ def main() -> int:
     try:
         (project / "src").mkdir()
         manifest = (fixture / "mcpp.toml.in").read_text()
-        for key, relative in {"engine": "gfx/hanim", "adapter": "gfx/hanim/render/vector", "raster": "gfx/raster",
+        for key, relative in {"engine": "gfx/hanim", "raster": "gfx/raster",
                               "image": "base/image", "hash": "base/hash", "control": "base/control"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
         (project / "mcpp.toml").write_text(manifest)
@@ -218,6 +222,17 @@ def main() -> int:
                                       **audit(project, repo, artifacts, profile)})
             if digest(project / "mcpp.lock") != temporary_lock:
                 raise RuntimeError("locked runs changed the temporary project's resolution")
+        # Test-only dependencies live in a second real consumer, never in the
+        # production program's resolution or compilation database.
+        integration = project / "integration"
+        (integration / "src").mkdir(parents=True)
+        (integration / "mcpp.toml").write_text(manifest + '\n[dev-dependencies]\nmlibs.testing = { path = ' +
+                                              json.dumps(str(repo / "modules/base/testing")) + ' }\n')
+        shutil.copyfile(fixture / "src/main.cpp", integration / "src/main.cpp")
+        shutil.copytree(fixture / "tests", integration / "tests")
+        for profile in ("dev", "release"):
+            run(profile + "-integration-tests", [args.mcpp, "test", "--profile", profile],
+                bootstrap=profile == "dev", cwd=integration)
         report["ok"] = True
     except (OSError, RuntimeError, KeyError, ValueError) as error:
         report["error"] = str(error)

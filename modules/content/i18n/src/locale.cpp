@@ -1,8 +1,8 @@
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -157,4 +157,4 @@ std::vector<Locale> negotiate(std::span<const Locale> requested, std::span<const
     return out;
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

@@ -6,6 +6,7 @@ import std;
 import openmui.gen.dist_toy;
 import openmui.testing;
 import openmui.text;
+import nlohmann.json;
 
 using namespace omui::testing;
 namespace gen = omui::gen;
@@ -110,6 +111,38 @@ int main(int argc, char** argv) {
         check(!gen::package_for_toy(p).has_value());
         put(t.root / "stage" / "bin" / "game.data", "preloaded");
         check(!gen::package_for_toy(t.package()).has_value(), "--preload-file's .data is not how a Toy page gets its files");
+    });
+
+    s.test("resolved canonical and legacy text packages deliver real default fonts", [] {
+        Tree t;
+        fs::copy_file(omui::typeset::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf",
+                      fs::copy_options::overwrite_existing);
+        for (const std::string owner : {"mlibs", "openmui"}) {
+            const auto package = [&](std::string_view ns, const fs::path& dir) {
+                return nlohmann::json{{"package", {{"namespace", ns}, {"name", "text"}}}, {"manifest_dir", dir.generic_string()}};
+            };
+            const nlohmann::json graph{{"packages", {package("unrelated", t.root / "absent"), package(owner, t.root)}}};
+            auto p = t.package();
+            p.fonts_dir.clear();
+            p.graph = t.root / "graph.json";
+            p.out = t.root / "out" / owner;
+            put(p.graph, graph.dump());
+            auto result = gen::package_for_toy(p);
+            check(result.has_value(), result ? owner : result.error());
+            if (!result) continue;
+            std::size_t fonts = 0;
+            for (const auto& asset : result->files) {
+                if (!asset.path.ends_with(".ttf")) continue;
+                ++fonts;
+                omui::typeset::FontCollection faces;
+                const auto face = faces.add_file(p.out / asset.path);
+                check(face.has_value(), "the packaged asset is a loadable font");
+                if (face) check(faces.covers(*face, U'A'), "actual Latin glyph retained");
+            }
+            check_eq(fonts, std::size_t{1});
+            put(p.graph, nlohmann::json{{"packages", {package("unrelated", t.root)}}}.dump());
+            check(!gen::package_for_toy(p).has_value(), "unrelated text package is not the font owner");
+        }
     });
 
     s.test("files fetched once the program is drawn: hashed assets, listed with where they go, written by the page after it starts", [] {

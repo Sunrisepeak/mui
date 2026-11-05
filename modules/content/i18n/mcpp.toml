@@ -7,7 +7,7 @@
 # the same text on every platform. An independent component (D-55): it knows
 # nothing of openmui and can be released as a library of its own.
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "i18n"
 version     = "0.1.0"
 description = "Internationalisation without ICU: locales, plural rules, number, date, relative-time and list formatting, MessageFormat 2, catalogs"
@@ -18,7 +18,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-i18n]
+[targets.mlibs-i18n]
 kind = "lib"
 
 [build]

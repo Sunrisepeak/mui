@@ -1,10 +1,10 @@
 // Reading a document as text: a block's visible text, heading slugs, and the
 // styled runs a text engine lays out.
-module openmui.markdown;
+module mlibs.markdown.api;
 
 import std;
 
-namespace omui::md {
+namespace mlibs::markdown {
 
 namespace {
 
@@ -114,4 +114,4 @@ bool operator==(const Document& a, const Document& b) noexcept {
 }
 bool operator==(const Run& a, const Run& b) noexcept { return a.begin == b.begin && a.end == b.end && a.spans == b.spans && a.link == b.link; }
 
-}  // namespace omui::md
+}  // namespace mlibs::markdown

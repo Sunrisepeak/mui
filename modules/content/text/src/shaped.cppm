@@ -1,16 +1,16 @@
 // openmui.text:shaped — a paragraph after shaping, before line layout. Plain
 // data shared by the shaping unit (HarfBuzz, SheenBidi) and the layout unit;
 // exported to no one.
-module openmui.text:shaped;
+module mlibs.text.api:shaped;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import openmui.render.vector;
-import openmui.unicode;
+import mlibs.unicode;
 import :font;
 import :paragraph;
 
-namespace omui::typeset {
+namespace mlibs::text {
 
 struct ShapedGlyph {
     std::uint32_t id = 0;
@@ -56,4 +56,4 @@ struct Paragraph::Shaped {
 // Shapes `text` (implemented over HarfBuzz and SheenBidi in native/shape.cpp).
 void shape(Paragraph::Shaped& s);
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

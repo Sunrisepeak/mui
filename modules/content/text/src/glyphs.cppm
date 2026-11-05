@@ -5,23 +5,23 @@
 // rasterises it with openmui.raster, so text pixels are as deterministic as
 // any other shape. Colour glyphs (COLR layers, as emoji fonts have) become
 // premultiplied images composed from the font's palette.
-export module openmui.text:glyphs;
+export module mlibs.text.api:glyphs;
 
 import std;
-import openmui.geom;
-import openmui.raster;
+import mlibs.geom;
+import mlibs.raster;
 import openmui.render.vector;
 import :font;
 
-export namespace omui::typeset {
+export namespace mlibs::text {
 
-class GlyphCache final : public render::GlyphSource {
+class GlyphCache final : public omui::render::GlyphSource {
 public:
     explicit GlyphCache(FontCollection& fonts);
     ~GlyphCache() override;
 
-    render::GlyphMask mask(render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
-    raster::PathData outline(render::FontRef font, std::uint32_t glyph) override;
+    omui::render::GlyphMask mask(omui::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
+    raster::PathData outline(omui::render::FontRef font, std::uint32_t glyph) override;
 
     [[nodiscard]] std::size_t size() const noexcept;  // cached entries
     void clear();
@@ -34,4 +34,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

@@ -36,4 +36,4 @@ openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 mlibs.testing       = { path = "../../modules/base/testing" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }
 openmui.semantic      = { path = "../../modules/ui/semantic" }
-openmui.i18n.cldr     = { path = "../../modules/content/i18n/cldr" }
+mlibs.i18n.cldr     = { path = "../../modules/content/i18n/cldr" }

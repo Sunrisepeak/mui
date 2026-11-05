@@ -1,9 +1,9 @@
-module openmui.i18n.cldr;
+module mlibs.i18n.cldr.api;
 
 import std;
-import openmui.i18n;
+import mlibs.i18n;
 
-namespace omui::i18n::cldr {
+namespace mlibs::i18n::cldr {
 
 namespace {
 
@@ -50,4 +50,4 @@ void add_to(Library& library) {
     library.set_likely(likely());
 }
 
-}  // namespace omui::i18n::cldr
+}  // namespace mlibs::i18n::cldr

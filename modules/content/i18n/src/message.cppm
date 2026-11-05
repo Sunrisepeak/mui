@@ -17,14 +17,14 @@
 // width). Markup ({#b} … {/b}) and attributes are read and left out of the
 // text. Formatting never fails: what cannot be resolved is shown as its
 // fallback ({$name}) and reported.
-export module openmui.i18n:message;
+export module mlibs.i18n.api:message;
 
 import std;
 import :plural;
 import :data;
 import :format;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 using Arg = std::variant<std::monostate, bool, std::int64_t, double, std::string, CivilTime, std::vector<std::string>>;
 
@@ -85,4 +85,4 @@ private:
     Pattern                  pattern_;   // without
 };
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

@@ -1,7 +1,7 @@
 # External CLI playback consumer
 
 `run.py` creates a fresh project outside this repository, uses absolute `path`
-dependencies on the public hanim umbrella and vector adapter, bootstraps only that project's
+dependencies on the public hanim product with `features = ["render-vector"]`, bootstraps only that project's
 resolution, then builds/runs dev and release with `--locked`. It checks actual
 `resolution.json` and compilation commands for UI, spec, testing, site, host or SDK
 dependencies. The source repository's lock must stay unchanged.
@@ -18,14 +18,14 @@ policy/context library, not a new wire protocol or universal provider registry.
 The source imports `hanim` and creates its pixel fixture through
 `engine.play(anim::morph(source,target).with_effect(...))`. It also retains an
 advanced snapshot Program, proving both authoring levels use the same player.
-The TOML quotes both `"hanim"` and `"hanim.render.vector"`; the audit checks the
+The audit checks the
 umbrella's existing mcpp-normalized identity `mcpplibs.hanim`.
 
 Before the fixed pixel fixture, each invocation directly compiles a nested
 two-track/three-segment Program through the public API and exercises shared
 pause/seek/reverse/advance/restore/release. The graph audit requires the actual
-hanim.program package. Program composite pixels are covered by the engine's
-separate visual CTS; this CLI's exported PNG remains the fixture below.
+hanim product and its selected source modules. Program composite pixels are covered by the three integration tests under `tests/`, copied to a
+separate test consumer to keep `mlibs.testing` out of production resolution; this CLI's exported PNG remains the fixture below.
 
 ```sh
 python3 tools/ci/hanim-play-consumer/run.py --mcpp /path/to/mcpp \

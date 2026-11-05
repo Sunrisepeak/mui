@@ -2,7 +2,7 @@
 # rasterisation and the editing model, over HarfBuzz and SheenBidi as C++ modules (mcpp-index's mwrap)
 # and mlibs.unicode, mlibs.raster and openmui.render.
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "text"
 version     = "0.1.0"
 description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph rasterisation, editing"
@@ -12,7 +12,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-text]
+[targets.mlibs-text]
 kind = "lib"
 
 [build]

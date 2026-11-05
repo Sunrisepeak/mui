@@ -27,17 +27,17 @@ mlibs.hash = { path = "../../base/hash" }
 openmui.core     = { path = "../core" }
 mlibs.geom     = { path = "../../base/geom" }
 mlibs.memory   = { path = "../../base/memory" }
-hanim.core            = { path = "../../base/hanim/core" }
-hanim.effect          = { path = "../../gfx/hanim/effect" }
-openmui.layout   = { path = "../../content/layout" }
+"hanim.core"          = { path = "../../base/hanim/core" }
+"hanim"               = { path = "../../gfx/hanim", default-features = false, features = ["effect"] }
+mlibs.layout   = { path = "../../content/layout" }
 mlibs.raster   = { path = "../../gfx/raster" }
 openmui.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
 mlibs.image    = { path = "../../base/image" }
-openmui.text     = { path = "../../content/text" }
+mlibs.text     = { path = "../../content/text" }
 mlibs.trace    = { path = "../../base/trace" }
 mlibs.pipeline = { path = "../../base/pipeline" }
-openmui.i18n     = { path = "../../content/i18n" }
+mlibs.i18n     = { path = "../../content/i18n" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]

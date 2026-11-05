@@ -5,7 +5,7 @@
 // each message from the first locale in that chain that has it, its numbers
 // and dates in that locale's ways. Pseudo-localisation makes a catalog that
 // shows what a translation would break.
-export module openmui.i18n:catalog;
+export module mlibs.i18n.api:catalog;
 
 import std;
 import :locale;
@@ -14,7 +14,7 @@ import :data;
 import :format;
 import :message;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 class Catalog {
 public:
@@ -90,4 +90,4 @@ private:
 [[nodiscard]] std::string pseudo_localize(std::string_view message_source);
 [[nodiscard]] Catalog pseudo_catalog(const Catalog& source);
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

@@ -1,13 +1,13 @@
-# openmui.i18n
+# mlibs.i18n
 
 Internationalisation as an engine without data (D-74). Nothing here knows a language: the languages are data packs, generated from CLDR (`modules/content/i18n/cldr`, `omui-gen cldr`), and an application's catalogs. It depends on the standard library, nlohmann/json and toml++, knows nothing of openmui, and can be released as a library of its own.
 
 ```cpp
-import openmui.i18n;
-using namespace omui::i18n;
+import mlibs.i18n;
+using namespace mlibs::i18n;
 
 Library lib;
-lib.add(std::make_shared<LocaleData>(*read_locale_data(zh_pack)));   // or openmui.i18n.cldr's add_to(lib)
+lib.add(std::make_shared<LocaleData>(*read_locale_data(zh_pack)));   // or mlibs.i18n.cldr's add_to(lib)
 lib.set_likely(*read_likely_subtags(likely_pack));
 lib.catalog(*Locale::parse("zh-Hans")) = *read_messages(toml, "app.zh-Hans.messages.omui.toml");
 
@@ -33,4 +33,9 @@ The tests (`tests/i18n_test.cpp`) check the engine against CLDR's own answers fo
 
 ## Inside
 
-- [cldr](cldr) (`openmui.i18n.cldr`): CLDR 49 locale packs — en, zh (Simplified), zh-Hant — and likely subtags.
+- [cldr](cldr) (`mlibs.i18n.cldr`): CLDR 49 locale packs — en, zh (Simplified), zh-Hant — and likely subtags.
+
+Canonical package/module: `mlibs.i18n`; C++ API: `mlibs::i18n`.
+The same package retains `import openmui.i18n;` and `omui::i18n`
+as aliases of the same implementation after rebuilding. Use the canonical
+namespace for extension blocks; a namespace alias cannot be reopened.

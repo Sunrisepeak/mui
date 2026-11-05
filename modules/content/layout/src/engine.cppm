@@ -10,13 +10,13 @@
 // Results are floats in logical pixels, unrounded; the renderer snaps edges
 // (geom::snap). The package is compiled without floating-point contraction,
 // so the same tree gives the same frames on every platform (A-level, V-2).
-export module openmui.layout:engine;
+export module mlibs.layout.api:engine;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :style;
 
-export namespace omui::layout {
+export namespace mlibs::layout {
 
 using NodeId = std::uint32_t;
 inline constexpr NodeId no_node = std::numeric_limits<NodeId>::max();
@@ -109,4 +109,4 @@ private:
     Stats               stats_;
 };
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

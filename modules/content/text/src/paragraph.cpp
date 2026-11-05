@@ -2,13 +2,13 @@
 // hanging spaces, overflow breaks inside a word wider than the line), bidi
 // reordering per line (UBA L2 over runs), alignment and justification,
 // ellipsis; and the queries carets and selections need.
-module openmui.text;
+module mlibs.text.api;
 
 import std;
-import openmui.unicode;
+import mlibs.unicode;
 import :shaped;
 
-namespace omui::typeset {
+namespace mlibs::text {
 
 bool Paragraph::stale() const noexcept { return shaped_ && shaped_->fonts && shaped_->fonts->revision() != fonts_revision_; }
 
@@ -476,19 +476,19 @@ std::size_t Paragraph::offset_below(std::size_t offset, float x) const {
     return offset_at({x, l.top + l.height / 2});
 }
 
-void Paragraph::paint(render::DisplayList& list, Point origin) const {
+void Paragraph::paint(omui::render::DisplayList& list, Point origin) const {
     for (const Line& l : lines_) {
         for (const GlyphRun& r : l.runs) {
             if (r.glyphs.empty()) continue;
-            list.draw_glyphs(r.font, r.size, origin, r.glyphs, render::Paint::solid(r.color));
+            list.draw_glyphs(r.font, r.size, origin, r.glyphs, omui::render::Paint::solid(r.color));
             if (r.underline)
                 list.fill_rect({origin.x + r.x, origin.y + r.baseline + r.decoration_offset, r.width, r.decoration_thickness},
-                               render::Paint::solid(r.color));
+                               omui::render::Paint::solid(r.color));
             if (r.strikethrough)
                 list.fill_rect({origin.x + r.x, origin.y + r.baseline - r.size * 0.3f, r.width, r.decoration_thickness},
-                               render::Paint::solid(r.color));
+                               omui::render::Paint::solid(r.color));
         }
     }
 }
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

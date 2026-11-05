@@ -3,13 +3,13 @@
 // freeze loop of §9.7, cross sizes with stretch and baseline alignment,
 // justify-content, align-content, reversal, and scroll containers (an axis
 // that scrolls does not shrink its content).
-module openmui.layout;
+module mlibs.layout.api;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :internal;
 
-namespace omui::layout {
+namespace mlibs::layout {
 
 namespace {
 
@@ -495,4 +495,4 @@ Size FlexAlgorithm::run(Engine& e, NodeId node, const Engine::Request& r, FlexSc
     return {width, height};
 }
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

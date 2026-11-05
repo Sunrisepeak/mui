@@ -25,6 +25,10 @@ static_assert(std::same_as<mlibs::image::Image, omui::imageio::Image>);
 static_assert(std::same_as<mlibs::rhi::Buffer, omui::rhi::Buffer>);
 static_assert(std::same_as<mlibs::raster::Canvas, omui::raster::Canvas>);
 static_assert(std::same_as<mlibs::shader::Program, omui::shader::Program>);
+static_assert(std::same_as<mlibs::text::FontCollection, omui::typeset::FontCollection>);
+static_assert(std::same_as<mlibs::layout::Engine, omui::layout::Engine>);
+static_assert(std::same_as<mlibs::markdown::Document, omui::md::Document>);
+static_assert(std::same_as<mlibs::i18n::Locale, omui::i18n::Locale>);
 static_assert(mlibs::session::format_name == "openmui.session@0.1");
 
 struct Counter { int value = 0; };
@@ -46,6 +50,7 @@ struct Add final : mlibs::pipeline::Stage {
 };
 
 int main() {
+    std::string content_pixel_hash;
     mlibs::testing::Suite suite("foundation namespace compatibility");
     suite.test("hash and math retain their values and one function identity", [] {
         mlibs::testing::check_eq(mlibs::hash::Fnv1a().text("foobar").hex(), std::string("85944171f73967e8"));
@@ -279,12 +284,103 @@ int main() {
         mlibs::testing::check(code.contains("import mlibs.rhi;") && code.contains("mlibs::rhi::ShaderDesc consumer_fs"));
         mlibs::testing::check(&mlibs::shader::emit_cpp == &omui::shader::emit_cpp);
     });
+    suite.test("one layout tree reflows across viewport sizes through either API", [] {
+        mlibs::layout::Engine engine;
+        omui::layout::Engine& old = engine;
+        mlibs::layout::Style row;
+        row.wrap = mlibs::layout::Wrap::wrap;
+        row.column_gap = 4;
+        const auto root = engine.create(row);
+        std::array<mlibs::layout::NodeId, 3> children;
+        for (auto& child : children) {
+            child = old.create({.width = omui::layout::pt(60), .height = omui::layout::pt(24), .shrink = 0});
+            engine.append(root, child);
+        }
+        old.compute(root, {132, 100});
+        mlibs::testing::check_eq(engine.frame(children[1]).x, 64.0f);
+        mlibs::testing::check_eq(engine.frame(children[2]).y, 24.0f);
+        engine.compute(root, {64, 100});
+        mlibs::testing::check_eq(old.frame(children[1]).y, 24.0f);
+        mlibs::testing::check_eq(old.frame(children[2]).y, 48.0f);
+        mlibs::testing::check(&mlibs::layout::Engine::compute == &omui::layout::Engine::compute);
+    });
+    suite.test("Markdown stream and parsed document share semantic content and HTML", [] {
+        const std::string first = "# Title\n\n";
+        const std::string second = "**中文** and [a link](https://example.com).\n";
+        mlibs::markdown::Stream stream;
+        stream.append(first);
+        omui::md::Stream& old = stream;
+        old.append(second);
+        const auto parsed = omui::md::parse(first + second);
+        const auto html = mlibs::markdown::to_html(parsed);
+        mlibs::testing::check(html == omui::md::to_html(stream.document()));
+        mlibs::testing::check(html.contains("<strong>中文</strong>"));
+        mlibs::testing::check(parsed.root.children[0].anchor == "title");
+        mlibs::testing::check(&mlibs::markdown::parse == &omui::md::parse);
+    });
+    suite.test("locale parsing and likely subtags share types and operations", [] {
+        const auto locale = mlibs::i18n::Locale::parse("zh_HK.UTF-8");
+        mlibs::testing::check(locale.has_value());
+        if (!locale) return;
+        const omui::i18n::Locale old = *locale;
+        mlibs::testing::check(old.tag() == "zh-HK");
+        mlibs::i18n::LikelySubtags likely;
+        likely.add("zh-HK", "zh-Hant-HK");
+        const omui::i18n::LikelySubtags& shared = likely;
+        mlibs::testing::check(shared.maximize(old).tag() == "zh-Hant-HK");
+        mlibs::testing::check(&mlibs::i18n::Locale::parse == &omui::i18n::Locale::parse);
+    });
+    suite.test("embedded CLDR packs have one cache and retain real localized output", [] {
+        mlibs::testing::check(mlibs::i18n::cldr::data("zh") == omui::i18n::cldr::data("zh"));
+        mlibs::testing::check(mlibs::i18n::cldr::data("zh") != nullptr);
+        mlibs::testing::check(&mlibs::i18n::cldr::likely() == &omui::i18n::cldr::likely());
+        mlibs::i18n::Library library;
+        omui::i18n::cldr::add_to(library);
+        const std::array requested{*mlibs::i18n::Locale::parse("zh-HK")};
+        omui::i18n::Translator translator(library, requested, *mlibs::i18n::Locale::parse("en"));
+        mlibs::testing::check(translator.formatter().number(123456.0, {.style = mlibs::i18n::NumberOptions::Style::compact_short}).text == "12萬");
+        mlibs::testing::check(translator.formatter().date({2026, 10, 28}, mlibs::i18n::DateStyle::full) == "2026年10月28日 星期三");
+    });
+    suite.test("mixed-script text shapes and renders through one font collection and renderer", [&] {
+        mlibs::text::FontCollection fonts;
+        const auto loaded = fonts.add_defaults({{fonts_directory}});
+        mlibs::testing::check(loaded.has_value(), loaded ? "" : loaded.error());
+        if (!loaded) return;
+        mlibs::testing::check(omui::typeset::FontCollection::alive(fonts.id()));
+        const std::array<std::string, 1> family{"Inter"};
+        mlibs::testing::check(fonts.covers(fonts.select(family, U"中"), U'中'));
+        mlibs::testing::check(fonts.covers(fonts.select(family, U"ب"), U'ب'));
+        mlibs::text::ParagraphStyle style;
+        style.style.size = 24;
+        omui::typeset::Paragraph paragraph(fonts, "omui 中文 العربية", style);
+        paragraph.layout(280);
+        mlibs::testing::check(!paragraph.lines().empty() && paragraph.size().height > 0);
+        omui::render::DisplayList list;
+        paragraph.paint(list, {8, 8});
+        mlibs::text::GlyphCache glyphs(fonts);
+        mlibs::raster::Surface pixels(320, 100);
+        omui::render::CpuRenderer renderer;
+        (void)renderer.render(list, pixels, {nullptr, &glyphs}, {.background = mlibs::geom::Color::white()});
+        std::size_t ink = 0;
+        for (int y = 0; y < pixels.height(); ++y)
+            for (int x = 0; x < pixels.width(); ++x)
+                if (pixels.at(x, y).r < 100) ++ink;
+        mlibs::testing::check(ink > 200, "actual glyph coverage");
+        content_pixel_hash = std::format("{:016x}", pixels.hash());
+        const mlibs::image::View view{pixels.bytes().data(), 320, 100, 1280, mlibs::image::Alpha::premultiplied};
+        const auto png = mlibs::image::encode_png(view);
+        mlibs::testing::check(png.has_value());
+        if (!png) return;
+        std::ofstream output("content.png", std::ios::binary);
+        output.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+        mlibs::testing::check(output.good());
+    });
     const int result = suite.run();
     std::string identities;
     for (std::string_view identity : std::array{ {{lock_identities}} }) {
         if (!identities.empty()) identities += ',';
         identities += std::format("\"{}\":\"fnv1a:{}\"", identity, mlibs::hash::Fnv1a().text(identity).hex());
     }
-    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":15,\"identity_hashes\":{{{}}}}}", result == 0, identities);
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":20,\"content_pixel_hash\":\"{}\",\"identity_hashes\":{{{}}}}}", result == 0, content_pixel_hash, identities);
     return result;
 }

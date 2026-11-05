@@ -1,20 +1,20 @@
 // openmui.text:font — font files, faces, sized instances, fallback.
 //
 // A face is one font file (variable fonts have axes); a font is a face at a
-// weight and slant, the unit shaping and rendering refer to (render::FontRef).
+// weight and slant, the unit shaping and rendering refer to (omui::render::FontRef).
 // Fallback is per grapheme cluster: the family list first, then the
 // collection's fallback chain (CJK, Arabic, emoji, monospace), so mixed text
 // renders with no tofu and the same face choice on every platform.
-export module openmui.text:font;
+export module mlibs.text.api:font;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import openmui.render.vector;
 
-export namespace omui::typeset {
+export namespace mlibs::text {
 
 using FaceId = std::uint32_t;
-using render::FontRef;
+using omui::render::FontRef;
 
 enum class Slant : std::uint8_t { normal, italic };
 
@@ -106,4 +106,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

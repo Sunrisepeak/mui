@@ -1,13 +1,13 @@
 // openmui.layout:internal — the engine's node storage and requests, shared by
 // the implementation units (engine, flex, grid) and exported to no one.
-module openmui.layout:internal;
+module mlibs.layout.api:internal;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :style;
 import :engine;
 
-namespace omui::layout {
+namespace mlibs::layout {
 
 // ── nodes and caches ──────────────────────────────────────────────────────
 
@@ -61,4 +61,4 @@ struct Engine::Node {
     }
 };
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

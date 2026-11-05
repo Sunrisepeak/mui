@@ -2,7 +2,7 @@
 
 | Package | Responsibility |
 |---|---|
-| [hanim.core](core) | Deterministic time, values, curves, springs, paths, prepared closed-contour morphs, timelines and channel batches; standard library and openmui.math only |
+| [hanim.core](core) | Deterministic time, values, curves, springs, paths, prepared closed-contour morphs, timelines and channel batches; standard library and mlibs.math only |
 
 This is a grouping directory, not a second `hanim` package. The product
 umbrella is [modules/gfx/hanim](../../gfx/hanim): `import hanim;` retains the

@@ -1,6 +1,6 @@
-# openmui.markdown
+# mlibs.markdown
 
-Markdown to a document of blocks and inline marks (module `openmui.markdown`): CommonMark 0.31 and GitHub's extensions, parsed by md4c through [`mcpplibs.mwrap.md4c`](https://github.com/mcpplibs/md4c-m). An independent component (D-55): it depends on the standard library, md4c and openmui.trace.
+Markdown to a document of blocks and inline marks (module `mlibs.markdown`): CommonMark 0.31 and GitHub's extensions, parsed by md4c through [`mcpplibs.mwrap.md4c`](https://github.com/mcpplibs/md4c-m). An independent component (D-55): it depends on the standard library, md4c and mlibs.trace.
 
 - **The document**: blocks nested as in the source (quotes, bullet and ordered lists, items with their task state and the task mark's byte in the source, headings with unique GitHub-style anchors, fenced and indented code with info and language, raw HTML, tables with alignment). Every leaf has its text, with entities decoded, and its inline structure as ordered open / close / break marks, so nesting survives (`*(*a*)*`). Links, images and wikilinks are in a side table. Every block has a hash of its content, equal wherever the block is, which a renderer can use as the key of a layout cache.
 - **`runs`**: the marks flattened into styled stretches (`bit(Span::strong) | bit(Span::link)` …), which a text engine can lay out.
@@ -9,8 +9,8 @@ Markdown to a document of blocks and inline marks (module `openmui.markdown`): C
 - **`Stream`**: text that arrives in pieces. An append re-parses only what follows the last stable block boundary. A line scanner proposes each boundary, and md4c confirms it by parsing the segment followed by a sentinel line. Link reference definitions switch the stream to re-parsing the whole source.
 
 ```cpp
-import openmui.markdown;
-namespace md = omui::md;
+import mlibs.markdown;
+namespace md = mlibs::markdown;
 
 auto doc = md::parse("# Notes\n\n- [x] parse\n- [ ] render\n");
 doc.root.children[0].anchor;                 // "notes"
@@ -29,3 +29,8 @@ answer.document();                           // always equal to md::parse(answer
 - `markdown_test`: the document model.
 
 Benchmarks (`tests/bench`, with budgets): `markdown/parse` takes about 10 ns per byte, `markdown/stream-token` under 1 µs per token, and `markdown/to-html` about 3 ns per byte.
+
+Canonical package/module: `mlibs.markdown`; C++ API: `mlibs::markdown`.
+The same package retains `import openmui.markdown;` and `omui::md`
+as aliases of the same implementation after rebuilding. Use the canonical
+namespace for extension blocks; a namespace alias cannot be reopened.

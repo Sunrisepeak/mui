@@ -11,6 +11,7 @@ main = "src/main.cpp"
 [build]
 sources = ["src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+{{archive_link_flags}}
 
 # testing is deliberately an explicit dependency of this test-only external
 # consumer. The production hanim consumers separately reject test runtimes.

@@ -4,13 +4,13 @@
 // Sizes are border-box sizes (CSS box-sizing: border-box, as UI toolkits use):
 // `width` includes padding and border. Percentages resolve against the
 // parent's content box and are auto where that is indefinite.
-module openmui.layout;
+module mlibs.layout.api;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :internal;
 
-namespace omui::layout {
+namespace mlibs::layout {
 
 bool operator==(const Style& a, const Style& b) noexcept {
     // Compared in place: equality runs every frame a style is set, and allocates nothing.
@@ -404,4 +404,4 @@ void Engine::layout_absolute(NodeId node, Size border_box, bool perform) {
     }
 }
 
-}  // namespace omui::layout
+}  // namespace mlibs::layout

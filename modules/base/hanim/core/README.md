@@ -1,6 +1,6 @@
 # hanim.core
 
-The renderer-independent deterministic core of the hanim animation product, in C++23 modules. It depends on the standard library and `openmui.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can consume it directly. The public [hanim umbrella](../../../gfx/hanim) re-exports these same entities and adds object/player packages; pixel-domain animation remains separate work.
+The renderer-independent deterministic core of the hanim animation product, in C++23 modules. It depends on the standard library and `mlibs.math` only (its deterministic functions, D-87) and knows nothing of UI, so a game, a video composition or another framework can consume it directly. The public [hanim umbrella](../../../gfx/hanim) re-exports these same entities and adds optional object/player modules; pixel-domain animation remains separate work.
 
 **Every animation is a pure function of time.** The value at time *t* is computed from *t* and the parameters alone, so a frame can be rendered in any order, a game can rewind, and a test is reproducible bit for bit. Results are **the same bits on every platform**: the elementary functions are fdlibm transcriptions (`hanim::dm`), the package is compiled with `-ffp-contract=off`, and the tests pin hashes of sampled curves that GCC and Clang on Linux, macOS and Windows must all reproduce.
 
@@ -46,7 +46,7 @@ pair; it is neither tied to contours nor to UI. Finite bounded controls are
 validated during preparation. Zero controls keep the original direct sampling
 loop. Endpoints, correspondence and exact contour connectivity are preserved;
 seek order never changes results. It does not guarantee simple topology or
-constant-speed travel. See [typed effect semantics](../../../gfx/hanim/effect/README.md).
+constant-speed travel. See [typed effect semantics](../../../gfx/hanim/src/effect/README.md).
 
 The graphics consumer in [render/vector's CTS](../../../gfx/render/vector/tests/shape_morph_test.cpp)
 uses this public plan without a UI Runtime or site dependency. It renders a
@@ -146,3 +146,8 @@ seek and re-preparation, invalid inputs/budgets, atomic output failures, and
 10,000 samples with scalar/array allocation instrumentation. These are geometry
 CTS checks; renderer pixel comparisons and UI adapter integration are separate
 acceptance work.
+
+The separate manifest is intentional: UI motion, the rasterizer and the media
+timeline all directly share this std-plus-math library. Keeping it below the
+product excludes object registries, player, renderer and observability
+dependencies from those consumers; the product re-exports these same entities.

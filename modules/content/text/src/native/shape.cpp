@@ -1,17 +1,17 @@
 // Shaping: bidi levels (SheenBidi), grapheme clusters and line-break
 // opportunities (openmui.unicode), script runs, font fallback per cluster,
 // and HarfBuzz shaping of each run with the whole text as context.
-module openmui.text;
+module mlibs.text.api;
 
 import std;
-import openmui.unicode;
+import mlibs.unicode;
 import :shaped;
 import mcpplibs.mwrap.harfbuzz;
 import mcpplibs.mwrap.sheenbidi;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
 using namespace mcpplibs::mwrap::sheenbidi::macros;
 
-namespace omui::typeset {
+namespace mlibs::text {
 
 namespace {
 
@@ -363,4 +363,4 @@ void shape(Paragraph::Shaped& s) {
     hb_buffer_destroy(buf);
 }
 
-}  // namespace omui::typeset
+}  // namespace mlibs::text

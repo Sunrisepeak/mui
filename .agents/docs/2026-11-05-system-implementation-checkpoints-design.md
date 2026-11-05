@@ -633,3 +633,74 @@ RHI 父包、后端与 CTS 使用 `mlibs::rhi` 及其子空间；raster、shader
 - 官网整体截图含实时时序，只对固定画布与动画采样做逐字节比较；没有因此认定实时节奏、美术、全部默认动效或 40／20 已达标。下一依赖组为 content，随后是引擎和 UI／标准连接。
 
 本批收尾检查为全仓 lint 零问题、TOML／Python／JS／shell 语法、本地文档链接与 `git diff --check`；以同一 PR #1 的 Signed-off-by 检查点保存。
+
+## 20. D-100／N1第五组：content 与字体交付
+
+执行基线 `8005848`，与下面的 Hanim 包收敛组成同一检查点。text／layout／markdown／i18n／i18n.cldr 五个既有包迁至 `mlibs.*`，同包旧入口仍导出同一声明／类型／状态。39 个原接口与实现单元仅有明确的 module／namespace／依赖限定调整，字体文件与 CLDR 数据未改变。没有为 api／legacy 新建清单。证据见[content 与 Hanim 检查点报告](../../tools/ci/2026-11-05-content-hanim-consolidation.report.omui.json)。
+
+### 20.1 实际交付和测试
+
+- 五库在 Linux GCC 16 dev／release、Wasm／Node 各通过 8 个程序、77 项套件用例。
+- 字体打包器同时接受 `mlibs.text` 与旧 `openmui.text`，拒绝其他 owner 的同名包。真实 graph → 打包 → 重新载入 Inter 字体并检查字形的新增回归通过；gen 测试为 5 个程序、33 项。首次官网打包仍指向旧工具，改用 mcpp `--print-launch` 返回的新产物路径后成功，未用 `--fonts-dir` 绕过真实 graph。
+- content 迁移后的 native 消费者选择在 dev 为 43 个程序／315 项，release 含 gen 为 48 个程序／348 项；覆盖 view、headless、Agent、Inspector、C ABI、官网。Hanim 收敛后，另运行 view＋canvas／markdown／timeline／window＋expr，在两个 profile 各通过 17 个程序／179 项。选择之间有重复，不相加当作独立功能计数。
+- Wasm 消费者报告 24 个程序正常退出、220 项套件用例；本机 IPC 程序和相关用例明确跳过，不算 Web 本机 IPC 验收。Hanim 自身另见 §21。
+- 官网重新构建 Wasm、原生 prerender 和 Agent 指南，Chromium 14 项交互检查通过，25 个固定状态及真实 PNG 摘要与之前反应工作台基线一致。实际查看窄屏中文、三语文字和弯曲变形中间帧；这不是新增美术或实时性能达标声明。
+
+### 20.2 独立包与宿主／目标边界
+
+namespace consumer 真实打包 20 个 mlibs 库，加上 hanim.core、render、render.vector，共 23 个库。源码／静态安装包 × 新名／旧名／混用六个外部工程，各实际执行 20 项并重复运行。新增视口重排、Markdown stream／HTML、Locale／CLDR 共享格式化、拉丁／中文／阿拉伯文字 PNG；六种方式及其重复运行的像素完全一致。三个独立 shader rules 构建工程也通过。
+
+target 图要求精确的 23 个本仓库包＋17 个第三方包＋消费者。embed／plan／rules／gen 只允许作为四个已知 host build-program 实例出现，不能把宿主工具误算为 target 依赖，也不允许其源文件进入 target 编译。生成接口限定为实际 owner 的 provisioning、绘图／effect shader 与四个 locale 分区；每个检查 module 声明并记录摘要。此前只枚举绘图 shader 的审计遗漏已修正。
+
+真实安装包暴露 GNU ld 的 CLDR → i18n 链接顺序失败。原因是当前 mcpp pack 没有保留本地 path 依赖边。fixture 现在显式声明实际依赖与归档 rescan group，没有修改包／接口摘要、没有强制链接全部对象或重新编译本仓实现。这证明**显式集成的安装包可用**；自动传递依赖、正确自动排序、只声明顶层库的安装与 shader 工具重定位仍属于 N4 发布缺口，不能由本轮结果抵消。
+
+## 21. D-99：Hanim 产品收敛与真实按需选择
+
+维护者明确：内部独立子项目必须有具体库／引擎价值和理由。多模块互用本身不是拆包理由；局部职责与全局消费者、可选依赖边界交叉评估。该要求已补入 AGENTS.md 和局部×全局设计准则。
+
+### 21.1 代码树与 API
+
+```text
+modules/base/hanim/core/     # 独立 std＋mlibs.math 库；motion/raster/timeline 共用
+modules/gfx/hanim/
+  mcpp.toml                 # 一个动画产品清单
+  build.mcpp                # 从已解析 features 生成 hanim:selected 导出分区
+  src/
+    hanim.cppm
+    object/ effect/ library/ program/ engine/
+    render/vector/          # 可选 renderer adapter
+  tests/
+    compatibility_test.cpp
+    object/ effect/ library/ program/ engine/
+tools/ci/hanim-play-consumer/tests/  # 三个真实渲染集成测试
+```
+
+移除六个微型清单，workspace **129 → 123**。12 个搬迁的实现／接口文件逐字节不变；公开 `hanim.object/effect/library/program/engine/render.vector` 仍是原 C++ Modules，由一个包管理。旧子包依赖键和 `-p hanim.engine` 等选择器迁为 `hanim`＋feature／测试路径；不保留空壳 manifest。产品默认仍支持 `import hanim;`、简单动画创作和高级组合编排，共用原有 compiler/player。
+
+`hanim.core` 保留独立清单，README 写明三个真实共享消费者与 std＋math 依赖收益。renderer adapter 的可选性由同包 feature 实现，因此无需额外清单。UI view 明确关闭默认 feature、仅选择 effect；bench 和独立用户选择产品入口。
+
+### 21.2 真实 feature 闭包
+
+| 选择 | 选中内部模块 | 产品源码数，不含生成入口／core | target 包数，含消费者 |
+|---|---|---:|---:|
+| 关闭 defaults，无额外 feature | core 公共导出 | 1 | 4 |
+| effect | effect | 3 | 6 |
+| object | object | 3 | 7 |
+| library | object＋library | 5 | 7 |
+| program | object＋library＋effect＋program | 9 | 7 |
+| 默认 engine | 上述＋engine | 11 | 7 |
+| 关闭 defaults，render-vector | object＋library＋effect＋program＋render/vector | 11 | 13 |
+
+七个独立工程均经公开 `import hanim` 实际执行，检查精确源码集合、生成导出和依赖闭包，重复 locked 运行。effect-only 无 object／player／renderer；默认完整动画无 renderer／RHI；vector adapter 可不带 player。跨依赖边的 feature 是并集，应用中另一消费者显式启用 engine 后，不能仍把整应用描述成 effect-only。
+
+源码按 feature 裁剪，安装包则固定打包时选择。默认产品真实打包为七个接口和预编译库，外部工程运行全部 104 项公共 API 检查，未编译原产品 `.cpp`。当前 pack 的本地依赖边限制仍要求显式 foundation 依赖；不承诺安装同一二进制包后重新裁剪 features 或单顶层依赖发布完成。
+
+### 21.3 验证与边界
+
+- renderer-free 的八个程序：native dev／release 各 78 项，Wasm／Node 76 项；并发能力不同按原契约处理，没有放宽数值或像素断言。
+- 独立创作 API：dev／release 各 104 项；默认产品不依赖 UI、spec、testing、renderer 或窗口。
+- 外部 renderer 集成：两个 profile 各三个测试程序／18 项，覆盖矢量效果、中间态、组合 scope、无 GUI 采样与失败原子性。测试另建临时消费者，testing 不进入生产消费者图。
+- 播放／Agent 消费者：两个 profile，各两组 61 时刻、反向重放及授权／撤销／拒绝输出，总计 244 帧；pixel 与 PNG 摘要全部匹配前检查点。没有增加第二套渲染器、对象插值器或 Agent 操作逻辑。
+- 全仓 lint、变更 TOML／Python 语法、Markdown 本地链接及 diff 检查通过；新增 feature／安装包门禁接入 CI。本地结果作为检查点依据，不等待其他平台 CI。
+
+这些证据证明包收敛、选择边界与既有行为保持，不证明冷构建更快、体积优化比例、新动画功能、硬件 GPU 性能或整体视觉质量。其余微型清单继续逐项评估，不机械全并；N2 引擎与 N3 UI／工具／规范命名、N4 发布、S1–S10、高级 hanim IR／GPU、40／20 的公共可用性及质量、PPet 与多后端完整目标仍开放。

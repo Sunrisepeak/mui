@@ -48,7 +48,7 @@ openmui.render.vector = { path = "../../../gfx/render/vector" }
 "mlibs.rhi"         = { path = "../../../gfx/rhi" }
 "mlibs.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
 "mlibs.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
-openmui.text     = { path = "../../../content/text" }
+mlibs.text     = { path = "../../../content/text" }
 mlibs.trace    = { path = "../../../base/trace" }
 mlibs.image    = { path = "../../../base/image" }
 mcpplibs.os      = "0.2.2"

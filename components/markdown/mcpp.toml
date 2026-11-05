@@ -26,7 +26,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.hash = { path = "../../modules/base/hash" }
 openmui.core     = { path = "../../modules/ui/core" }
 openmui.view     = { path = "../../modules/ui/view" }
-openmui.markdown = { path = "../../modules/content/markdown" }
+mlibs.markdown = { path = "../../modules/content/markdown" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }

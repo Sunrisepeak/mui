@@ -2,11 +2,11 @@
 // the same tags and newlines, the same escaping of text (& < > ") and of URLs
 // (percent-encoding but for the characters md4c-html keeps), alt text without
 // tags inside images, paragraphs of tight lists without <p>.
-module openmui.markdown;
+module mlibs.markdown.api;
 
 import std;
 
-namespace omui::md {
+namespace mlibs::markdown {
 
 namespace {
 
@@ -257,4 +257,4 @@ std::string to_html(const Document& doc) {
     return std::move(w.out);
 }
 
-}  // namespace omui::md
+}  // namespace mlibs::markdown

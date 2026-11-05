@@ -6,7 +6,7 @@ Depends on: [base](../base). Used by: [content](../content), [ui](../ui).
 
 | Package | |
 |---|---|
-| [hanim](hanim) | Independent object, library, effect, nested program and playback packages, with an optional shared-renderer adapter; generalized domains, effect scopes and GPU evaluation remain planned |
+| [hanim](hanim) | One independent animation product with internal object, library, effect, nested program and playback modules, with an optional shared-renderer adapter; generalized domains, effect scopes and GPU evaluation remain planned |
 | [rhi](rhi) | The GPU abstraction (`mlibs.rhi`): descriptions checked before a backend sees them, command lists as data; backends (SDL_GPU, WebGPU, WebGL2) and their conformance suite inside it |
 | [shader](shader) | `mlibs.shader`: Slang shaders compiled per backend format, bindings read back, emitted as C++; its build rule inside it |
 | [simulation](simulation) | Optional domain compute adapters: prepared integer cellular rules on the shared RHI |

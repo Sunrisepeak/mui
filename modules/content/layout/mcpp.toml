@@ -2,7 +2,7 @@
 # positioning, aspect ratio, scroll containers; incremental with per-node
 # caches. Deterministic: compiled without floating-point contraction (A-level).
 [package]
-namespace   = "openmui"
+namespace   = "mlibs"
 name        = "layout"
 version     = "0.1.0"
 description = "Flexbox, grid, stack and absolute layout: incremental, cached and deterministic"
@@ -13,7 +13,7 @@ repo        = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-layout]
+[targets.mlibs-layout]
 kind = "lib"
 
 [build]

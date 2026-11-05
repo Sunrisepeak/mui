@@ -30,7 +30,7 @@ openmui.agent    = { path = "../../agent" }
 openmui.accessibility = { path = "../../accessibility" }
 mlibs.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector   = { path = "../../../gfx/render/vector" }
-openmui.text     = { path = "../../../content/text" }
+mlibs.text     = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.trace    = { path = "../../../base/trace" }
 # Quoted: as dotted keys of one table, `mlibs.rhi.sdl` would extend the

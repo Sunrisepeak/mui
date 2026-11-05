@@ -81,7 +81,7 @@ def main() -> int:
                            if p['package']['name']=='hanim'),None)
             if not umbrella or umbrella['source']!='path+'+str(repo/'modules/gfx/hanim'):
                 raise RuntimeError('umbrella did not resolve to the public source package')
-            if not {'mcpplibs.hanim','hanim.engine','hanim.program','hanim.library','hanim.effect','hanim.object','hanim.core'}.issubset(names):
+            if not {'mcpplibs.hanim','hanim.core'}.issubset(names):
                 raise RuntimeError('real public hanim package missing')
             cdb=resolution.parent/'compile_commands.json';entries=json.loads(cdb.read_text())
             sources=[];source_hashes={}
@@ -96,6 +96,10 @@ def main() -> int:
                     raise RuntimeError('consumer was not compiled as C++23')
             if not {str(project/'src/main.cpp')}.issubset(sources):
                 raise RuntimeError('actual compilation omitted consumer source')
+            required = {str(repo/'modules/gfx/hanim/src'/role/(role+'.cpp'))
+                        for role in ('object','effect','library','program','engine')}
+            if not required.issubset(sources):
+                raise RuntimeError('public product omitted an internal implementation')
             shutil.copyfile(resolution,artifacts/(profile+'.resolution.json'))
             shutil.copyfile(cdb,artifacts/(profile+'.compile_commands.json'))
             if digest(project/'mcpp.lock')!=temp_lock:raise RuntimeError('consumer lock changed')

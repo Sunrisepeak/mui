@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库与八个 gfx 包，实际入口和兼容范围见 §5–§8；UI 实现包的后续迁移另行验收。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库、八个 gfx 包和五个 content 包，实际入口和兼容范围见 §5–§9；UI 实现包的后续迁移另行验收。
 
 ## 1. 五类归属
 
@@ -30,7 +30,7 @@
 | `modules/base/control/` | `mlibs.control`／`mlibs::control` | 本批直接使用新身份；从 UI 提取已有实现 |
 | base 的 math／geom／hash／memory／unicode／fuzzy／log／trace／session／pipeline／image／testing | 对应 `mlibs.*` | N1 十二库已迁移，保留同包旧源码入口，见 §5–§7 |
 | gfx 的 rhi／shader／raster 及其子包 | 对应 `mlibs.*` | N1 八包已迁移，见 §8 |
-| content 的 text／layout／markdown／i18n | 对应 `mlibs.*` | N1 待实施，子包沿同一 owner |
+| content 的 text／layout／markdown／i18n 与 cldr | 对应 `mlibs.*` | N1 五包已迁移，见 §9 |
 | `modules/gfx/render/`：`openmui.render.*` | `xengine.render.*` | N2，渲染特性仍记录进同一张图 |
 | `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2，不重复时钟／重建／规则实现 |
 | `modules/media/audio/`：`openmui.audio.*` | `xengine.audio.*` | N2，实时边界不随改名改变 |
@@ -181,3 +181,35 @@ N1 余下 gfx／content 基础库，N2 的 render／simulation／audio 与 N3 �
 当前 mcpp 的安装包传递依赖元数据缺口仍在，fixture 显式提供各依赖。shader 包内生成的 Slang provisioned 路径在本机有效，跨机器重定位尚未验收。此轮证明源码／静态包 API 兼容和实际生成链，未发布 registry 别名，也不承诺可搬到任意机器后直接运行的编译器安装包。完整记录见[实施台账 §19](2026-11-05-system-implementation-checkpoints-design.md#19-d-100n1第四组gfx-基础库与实际后端)。
 
 N1 的 content 组和 N2／N3 继续开放；已有二十个包的迁移不等于全仓库命名收口，也不增加动画、效果或作品的功能数量。
+
+## 9. N1第五组：文字、布局、Markdown 和本地化
+
+| 目录 | 当前包／主要 module | 当前 C++ API | 同包旧 API |
+|---|---|---|---|
+| `modules/content/text` | `mlibs.text` | `mlibs::text` | `openmui.text`／`omui::typeset` |
+| `modules/content/layout` | `mlibs.layout` | `mlibs::layout` | `openmui.layout`／`omui::layout` |
+| `modules/content/markdown` | `mlibs.markdown` | `mlibs::markdown` | `openmui.markdown`／`omui::md` |
+| `modules/content/i18n` | `mlibs.i18n` | `mlibs::i18n` | `openmui.i18n`／`omui::i18n` |
+| `modules/content/i18n/cldr` | `mlibs.i18n.cldr` | `mlibs::i18n::cldr` | `openmui.i18n.cldr`／`omui::i18n::cldr` |
+
+五个原有清单直接改为新归属，内部源码、分区和兼容入口共用清单。text 和 markdown 的新 C++ 名字与各自包名一致；旧 typeset／md 只是别名，不是另一套排版／文档实现。字体集合的身份和存活注册、CLDR 的惰性共享缓存、布局树与 Markdown stream 均只有一个 owner。namespace alias 不可重新打开；旧扩展块需改用实际命名空间。
+
+文字库继续消费同一个矢量 renderer 的 FontRef、GlyphSource 和 DisplayList，使用限定名 `omui::render` 标明当前尚待 N2 迁移的 owner；未另外创建字体或显示列表类型，也不因其处于 mlibs 就宣称 renderer 已被裁掉。i18n 核心不默认带语言包，CLDR 仍是按需选择的既有数据包。content 迁移没有增加清单；同一检查点的 Hanim 内部收敛另移除六个清单，workspace 从 129 个成员降为 123 个。
+
+### 9.1 资源、生成器和兼容
+
+CLDR 的四个 JSON 原文件、数据格式／版本、`.locale.omui.json`／`.messages.omui.toml` 后缀及 `OMUI_FONTS` 环境选项保留；只调整 embed 的目标 module／namespace 为 `mlibs.i18n.cldr.api`／`mlibs::i18n::cldr`。通用 embed 构建插件仍用原身份，迁移在 N3 单独处理；不将宿主构建工具误算为 i18n 的 UI 运行时依赖。
+
+官网／Toy 的字体目录查找原先只识别 graph 中的 `openmui.text`。现在接受 `mlibs.text` 和旧身份，拒绝其他 owner 的同名 `text` 包。回归分别从两种身份的 graph 实际打包、重新加载真实 Inter 字体并检查字形；官网另从真实 mcpp graph 重新打包，避免仅依赖测试工程的 `fonts_dir` 覆盖值掩盖资产丢失。
+
+### 9.2 独立消费及后续
+
+原 namespace consumer 扩为二十个 mlibs 库，并带上真实依赖的 hanim.core、render 与 render.vector，合计二十三个静态包。六种新／旧／混用 × 源码／静态包组合增加视口重排、Markdown stream／HTML、Locale 及共享 CLDR 格式化，以及拉丁／中文／阿拉伯文字的真实 PNG；比对六个工程及其重复运行的像素和 PNG 摘要。字体作为应用选择的资源显式提供，不宣称二进制 text 包已经自动捆绑字体。
+
+审计只允许实际包 outDir 下明确的 shader、provisioned 和四个 locale 生成分区，校验 module 声明；不放行任意生成目录。各编译器／第三方包仍保留原身份。打包清单传递依赖缺口和 shader 工具重定位限制继续见 §8；此检查不是 mcpp-index 发布或顶层单依赖安装验收。
+
+本地 CPU／Web、字体交付、官网与过程结果见[实施台账 §20](2026-11-05-system-implementation-checkpoints-design.md#20-d-100n1第五组content-与字体交付)。N1 列出的 base／gfx／content 身份已迁移；N2 的渲染／模拟／音频及 media 公共库、N3 的 UI／工具／标准类型、N4 的正式发布与兼容收口仍需独立验收。
+
+### 9.3 安装包的链接顺序限制
+
+真实 CLDR 静态包消费暴露了本地 path 依赖边缺失的另一后果：GNU ld 按错误顺序扫描 i18n／CLDR 归档，留下未解析符号。当前独立安装包 fixture 显式列出所用归档并通过 GNU ld group 重新扫描；没有编辑生成的包、改变接口摘要、强制导出全部对象或回退编译原实现。此结果只证明显式集成可用，正式 N4 发布仍需 mcpp 保留依赖边、正确自动链接顺序与仅声明顶层库的消费验证。

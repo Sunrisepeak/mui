@@ -1,13 +1,13 @@
 // md4c's callbacks to the document: a stack of open blocks, the inline text
 // and marks of the current leaf, links collected on the side.
-module openmui.markdown;
+module mlibs.markdown.api;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import mcpplibs.mwrap.md4c;
-import openmui.trace;
+import mlibs.trace;
 
-namespace omui::md {
+namespace mlibs::markdown {
 
 namespace {
 
@@ -422,4 +422,4 @@ std::string_view name(Kind k) noexcept {
     return names[static_cast<std::size_t>(k)];
 }
 
-}  // namespace omui::md
+}  // namespace mlibs::markdown

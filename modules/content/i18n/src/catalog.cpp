@@ -1,8 +1,8 @@
-module openmui.i18n;
+module mlibs.i18n.api;
 
 import std;
 
-namespace omui::i18n {
+namespace mlibs::i18n {
 
 namespace {
 
@@ -219,4 +219,4 @@ Catalog pseudo_catalog(const Catalog& source) {
     return out;
 }
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

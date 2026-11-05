@@ -33,12 +33,6 @@ members = [
     "modules/base/trace",
     "modules/base/unicode",
     "modules/gfx/hanim",
-    "modules/gfx/hanim/object",
-    "modules/gfx/hanim/effect",
-    "modules/gfx/hanim/library",
-    "modules/gfx/hanim/program",
-    "modules/gfx/hanim/engine",
-    "modules/gfx/hanim/render/vector",
     "modules/gfx/raster",
     "modules/gfx/render",
     "modules/gfx/render/cts",
@@ -241,8 +235,8 @@ mlibs.trace         = { path = "modules/base/trace" }
 openmui.ui.base       = { path = "components/base" }
 openmui.ui.window     = { path = "components/window" }
 openmui.host.headless = { path = "modules/ui/host/headless" }
-"openmui.i18n"        = { path = "modules/content/i18n" }
-"openmui.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
+"mlibs.i18n"        = { path = "modules/content/i18n" }
+"mlibs.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
 mcpplibs.os           = "0.2.2"
 
 # Where `omui::run` shows an application (D-84): a desktop window, or on the

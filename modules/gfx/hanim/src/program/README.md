@@ -1,6 +1,6 @@
 # hanim.program
 
-Immutable bound expressions and prepared per-object schedules. This package
+Immutable bound expressions and prepared per-object schedules. This internal module
 consumes the existing object morph/effect plans and core time mapping, with no
 UI, renderer, window, script, transport or player dependency.
 
@@ -28,7 +28,7 @@ results as forward playback. B remains a separate object if explicitly bound as
 `sequence({bind(a,b),bind(b,c)})`; target identity never implicitly merges tracks.
 Nested sequence/parallel/stagger preserve explicit scheduling. Strict whole-object
 overlap is rejected; complete per-channel blends and device resource scheduling
-remain work in the [composition design](../../../../.agents/docs/2026-11-04-hanim-play-api-design.md).
+remain work in the [composition design](../../../../../.agents/docs/2026-11-04-hanim-play-api-design.md).
 
 `composite(parallel(anim::morph(a,b), anim::morph(c,d))).with_effect(fx::blur(0,4))`
 processes the composed subtree once. Nested scopes preserve their own ordered
@@ -51,5 +51,5 @@ retarget with an empty from() Snapshot, into this same sampling path.
 Preparing may allocate; steady sampling does not. Preparation budgets count all
 retained segments while track capacities count maxima needed for mutable output.
 Effects retain explicitly authored per-stage endpoints; geometry continuity does
-not imply automatic effect/material history matching. This package owns no
+not imply automatic effect/material history matching. This internal module owns no
 clock or mutable playback lifecycle: the engine consumes its prepared data.

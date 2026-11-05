@@ -3,13 +3,13 @@
 // patterns, compact forms, calendar names and patterns, relative times and
 // list patterns. The engine knows languages only through these; a pack is
 // read whole (a problem is a diagnostic with its place), never compiled in.
-export module openmui.i18n:data;
+export module mlibs.i18n.api:data;
 
 import std;
 import :locale;
 import :plural;
 
-export namespace omui::i18n {
+export namespace mlibs::i18n {
 
 // The widths CLDR gives names and patterns in.
 enum class Width : std::uint8_t { wide, abbreviated, narrow };
@@ -97,4 +97,4 @@ struct Diagnostic {
 // `likely.locale.omui.json`: CLDR's likely subtags for the languages packed.
 [[nodiscard]] std::expected<LikelySubtags, std::vector<Diagnostic>> read_likely_subtags(std::string_view json, std::string_view file = "likely.locale.omui.json");
 
-}  // namespace omui::i18n
+}  // namespace mlibs::i18n

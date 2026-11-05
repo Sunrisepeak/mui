@@ -213,25 +213,34 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
     return std::shared_ptr<const detail::ObjectMorphData>(std::move(result));
 }
 std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
-compile_properties(Input from, const PropertyTargets& values, MorphOptions options) {
-    if ((values.position && values.offset) ||
-        (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
+compile_properties(Input from, std::span<const PropertyTargets> targets, MorphOptions options) {
+    if (targets.empty() || targets.size()>from.parts.size()*4)
         return std::unexpected(failure(MorphError::invalid_property));
     Input to=from;
-    auto selected=values.part.empty() ? std::ranges::find(to.parts,invalid_object_slot,&PartInput::parent)
-        : std::ranges::find(to.parts,values.part,&PartInput::id);
-    if (selected==to.parts.end()) return std::unexpected(failure(MorphError::unknown_part));
-    const auto index=static_cast<std::size_t>(selected-to.parts.begin());
-    if (values.position) {selected->local.tx=values.position->x;selected->local.ty=values.position->y;}
-    if (values.offset) {selected->local.tx+=values.offset->x;selected->local.ty+=values.offset->y;}
-    if (values.rotation) selected->local.rotate=*values.rotation;
-    if (values.scale) {selected->local.sx=values.scale->x;selected->local.sy=values.scale->y;}
-    if (values.fill) {
-        if (!selected->fill) return std::unexpected(failure(MorphError::missing_fill,index));
-        selected->fill=*values.fill;
+    std::vector<std::uint8_t> writes(to.parts.size(),0);
+    for (const auto& values:targets) {
+        if ((values.position && values.offset) ||
+            (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
+            return std::unexpected(failure(MorphError::invalid_property));
+        auto selected=values.part.empty() ? std::ranges::find(to.parts,invalid_object_slot,&PartInput::parent)
+            : std::ranges::find(to.parts,values.part,&PartInput::id);
+        if (selected==to.parts.end()) return std::unexpected(failure(MorphError::unknown_part));
+        const auto index=static_cast<std::size_t>(selected-to.parts.begin());
+        const auto mask=static_cast<std::uint8_t>((values.position || values.offset ? 1 : 0) |
+            (values.rotation ? 2 : 0) | (values.scale ? 4 : 0) | (values.fill ? 8 : 0));
+        if (writes[index]&mask) return std::unexpected(failure(MorphError::property_conflict,index));
+        writes[index]|=mask;
+        if (values.position) {selected->local.tx=values.position->x;selected->local.ty=values.position->y;}
+        if (values.offset) {selected->local.tx+=values.offset->x;selected->local.ty+=values.offset->y;}
+        if (values.rotation) selected->local.rotate=*values.rotation;
+        if (values.scale) {selected->local.sx=values.scale->x;selected->local.sy=values.scale->y;}
+        if (values.fill) {
+            if (!selected->fill) return std::unexpected(failure(MorphError::missing_fill,index));
+            selected->fill=*values.fill;
+        }
+        if (!finite(selected->local) || !valid(selected->fill))
+            return std::unexpected(failure(MorphError::invalid_property,index));
     }
-    if (!finite(selected->local) || !valid(selected->fill))
-        return std::unexpected(failure(MorphError::invalid_property,index));
     return compile(std::move(from),std::move(to),options,true);
 }
 }
@@ -250,6 +259,7 @@ std::string_view morph_error_name(MorphError error) noexcept {
         case MorphError::nonfinite_transform:return "nonfinite-transform";
         case MorphError::invalid_property:return "invalid-property";
         case MorphError::unknown_part:return "unknown-part";
+        case MorphError::property_conflict:return "property-conflict";
     }
     return "unprepared";
 }
@@ -275,6 +285,14 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::retarget(Fr
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
     Snapshot from, const PropertyTargets& values, MorphOptions options) {
+    return properties(std::move(from),std::span(&values,1),options);
+}
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+    FrameView current, const PropertyTargets& values, MorphOptions options) {
+    return properties(current,std::span(&values,1),options);
+}
+std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+    Snapshot from, std::span<const PropertyTargets> values, MorphOptions options) {
     omui::trace::Span span("properties.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=snapshot_input(from,options);if(!input)return std::unexpected(input.error());
@@ -283,7 +301,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
     result.from_=std::move(from);result.data_=std::move(*compiled);return result;
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
-    FrameView current, const PropertyTargets& values, MorphOptions options) {
+    FrameView current, std::span<const PropertyTargets> values, MorphOptions options) {
     omui::trace::Span span("properties.retarget","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=frame_input(current,options);if(!input)return std::unexpected(input.error());

@@ -1,4 +1,4 @@
-# Program contract v3: object schedules, partial property targets and image scopes
+# Program contract v4: object schedules, selected property sets and image scopes
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -35,6 +35,16 @@ fields and descendant local transforms. Explicit snapshot mode still resets
 that source. Rotation is a decomposed radian lane, including requested turns.
 The same strict whole-object write domain remains: two parallel property
 bindings to one object conflict; a single `anim::to` combines multiple fields.
+
+One property leaf can carry a `PropertySet` across multiple named parts.
+Its primary target plus additional targets share one time/ease/effect scope.
+Each target resolves to the actual part before channel conflicts are checked;
+empty root selection and that root's explicit id cannot evade the check.
+Different fields on the same part combine; repeated writes to a channel fail,
+without implicit order dependence. This is not independent per-channel tracks
+or blend support. Local fields omitted from the set preserve the source, while
+hierarchical transforms still apply. The old single-target authoring remains
+the one-element case of the same compiler and sampler.
 
 `anim::BoundAnimation` is the shared value builder for morph and properties;
 `anim::Morph` remains a source-compatible alias. Property and morph leaves can

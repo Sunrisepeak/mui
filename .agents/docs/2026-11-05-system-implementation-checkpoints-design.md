@@ -809,3 +809,38 @@ auto prepared = hengine.prepare(animation);
 renderer 的两个 profile 各 18 项集成用例继续通过。新增属性组合由同源 CPU renderer 各采样 61 帧，并反向重放 61 帧，dev／release PNG 一致；另有 Agent 授权、只读、dry-run、撤销与拒绝像素输出检查。实际查看 0／15／30／45／60 帧，平移、旋转、缩放与所选 tone／blur 连续呈现，参考视口未见裁剪。既有形变的 244 个过程 PNG／pixel 摘要均匹配前基线。采样不替代实速节奏、美术或硬件性能验收。
 
 **下一检查点必须补真实消费者接入。** UI 默认动效仍主要使用 hanim.core；本次五个新配方尚未进入组件默认动画和官网主舞台。先做可复用 UI／HObject adapter，并接一组组件状态与官网交互，再按公共库补足 ≥40 基础动画和 ≥20 创意组合的真实使用与视觉质量。不能用五个函数的参数排列凑数量，也不将已有官网场景数量等同本轮新增公共能力。属性通道仲裁／混合、GPU 资源编排、后续引擎／AI／PPet／工具与发布目标继续保留。
+
+## 25. 配置式局部控制的边界修正与多部件属性目标
+
+基线 `033cf2e`。维护者进一步明确：整体／局部／文字／子组件的动画选择与简化必须可配置；2D／3D 可视源应按需提供属性、部件、几何／顶点和采样表示；通用几何转换属于共享基础设施，Hanim、renderer、模拟与 UI 共同消费；分级同时包含性能预算、平台适配和许可降级。详见[新增方案](2026-11-05-hanim-representations-selection-policy-design.md)，核心约束已加入 AGENTS.md。
+
+原先准备的整节点独占变换原型固定了 UI／Hanim 的处理边界，无法表达这些组合要求，已从工作树撤回。其临时构建也未完成验收，不计作 UI 接入。§24 的消费者目标继续有效，按新方案的 A1–A5 补齐必要基础，不将错误边界包装成完成的 adapter。
+
+### 25.1 A1 实际实现
+
+公开 `PropertySet` 允许**同一个动画、同一时序**配置多个部件及独立属性：
+
+```cpp
+auto animation = hanim::anim::to(object, hanim::PropertySet{
+    {.position = hanim::Vec2{120, 40}, .part = "body"},
+    {.rotation = std::numbers::pi, .part = "icon"},
+    {.fill = hanim::Rgba{0, 0, 1, 1}, .part = "icon"}
+}).duration(600ms);
+auto playback = hengine.play(animation);
+```
+
+未选择的局部字段保持源值，仍遵守父子变换继承；这不等于世界空间固定。不同属性可以组合，指向同一实际部件同一通道的重复写入返回 `property-conflict`，不按声明顺序静默覆盖；空根选择和根部件 ID 的别名也不能绕过冲突。位置与相对位移属于同一通道。
+
+`retarget(playback, PropertySet)` 将所有目标从当前完整姿态派生，再一次性替换；未写入的属性保留，失败不部分发布。旧单目标是同一编译／采样实现的一元素形式，旧简接口保持。Program contract 更新为 v4；没有新增包、UI／renderer 依赖或第二套插值器。
+
+### 25.2 验证
+
+机器证据见[本轮报告](../../tools/ci/2026-11-05-hanim-selection.report.omui.json)。Linux dev／release 各八个程序、85 项；Wasm／Node 83 项。独立 `import hanim` 源码消费者 dev／release 各 128 项，实际默认安装包也通过 128 项，七种 feature 闭包保持通过。
+
+同源 CPU renderer 的多部件场景在两个 profile 各生成 61 张 PNG，左侧部件移动、右侧部件旋转／换色、未选徽标不变；徽标实际像素区域的摘要在整个过程中严格一致。61 帧反向重放一致，dev／release 图像一致，实际查看首帧／中点／终帧。既有形变与属性动画共 366 帧保持原基线；两个 profile 的 renderer 集成各 18 项通过。Agent 的只读、dry-run、委派／撤销边界及拒绝视觉输出检查仍走共享控制层。
+
+### 25.3 后续范围
+
+本轮 A1 不等于独立通道的并行时间／混合，不等于 hold-world，不是 UI、3D mesh／骨骼或像素场已经实现。下阶段必须把选择／读写集、继承／保持与多表示契约用于真实组合组件／官网场景。组件默认动效也是可覆盖的库配方；内容、排版与输入的 owner 不成为动画处理的固定分区。
+
+共享几何数据／转换、渲染设备表示、Hanim 的时间控制和模拟状态演化按新方案分工。性能分级的契约已明确，但没有新增硬件吞吐、自动降级或成熟 3D 支持的完成结论。其余 S1–S10、40／20、PPet、工具、Web／Toy／TUI、多平台与发布范围保持开放。

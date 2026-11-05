@@ -12,6 +12,16 @@ explicit vertex paths retain the shared geometry sampler. Rotation uses the
 existing decomposed Transform2D lane and colors the existing OKLab machinery.
 No alternate tween, matching implementation or frame callback is introduced.
 
+A span of PropertyTargets is one atomic set across parts. It must be nonempty
+and no larger than four times the part count: translation, rotation, scale and
+fill are the currently supported channel groups. Root aliases resolve before
+conflict detection. Repeated writes to any one resolved part/channel return
+`property-conflict`, even if the values agree; independent fields combine.
+Targets use the same source pose, so declaration order cannot make an offset
+depend on another entry. Unselected local fields persist; parent inheritance
+still applies. This contract does not claim world-space constraints or channel
+blending between separate overlapping Program leaves.
+
 The plan is immutable and O(1) copyable. `prepare` owns both endpoint snapshots
 and a shared immutable payload of copied ids, endpoint states, contour plans
 and ranges. Canonical order is source-root-first DFS in the source's existing

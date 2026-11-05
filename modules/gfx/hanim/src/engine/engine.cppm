@@ -105,6 +105,11 @@ public:
         PlaybackRef playback, anim::MorphTo animation, PlayOptions options = {});
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
         PlaybackRef playback, const PropertyTargets& values, PlayOptions options = {}, MorphOptions morph = {});
+    template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, PropertySet>
+    [[nodiscard]] std::expected<void, EngineFailure> retarget(
+        PlaybackRef playback, Targets&& values, PlayOptions options = {}, MorphOptions morph = {}) {
+        return retarget_properties(playback, values, options, morph);
+    }
     // Retarget preserves effect order/targets, starting them at current values.
     // A different material program requires the renderer's explicit rebind.
     [[nodiscard]] std::expected<void, EngineFailure> pause(PlaybackRef);
@@ -122,6 +127,8 @@ public:
     [[nodiscard]] std::expected<EngineProgramFrame, EngineFailure> program_frame(PlaybackRef) const noexcept;
     [[nodiscard]] std::expected<std::size_t, EngineFailure> list(std::span<PlaybackInfo> output) const noexcept;
 private:
+    [[nodiscard]] std::expected<void, EngineFailure> retarget_properties(
+        PlaybackRef, std::span<const PropertyTargets>, PlayOptions, MorphOptions);
     std::unique_ptr<detail::EngineData> data_;
     bool writing_ = false;
 };

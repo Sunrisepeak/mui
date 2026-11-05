@@ -78,7 +78,19 @@ auto change = hanim::anim::to(card, {
     .scale = hanim::Vec2{1.2, 1.2}})
     .with_effect(hanim::fx::translation_path(hanim::PointPath::bend(.25)));
 auto badge = hanim::anim::to(card, {.fill = hanim::Rgba{1, 0, 0, 1}, .part = "badge"});
+auto selected = hanim::anim::to(card, hanim::PropertySet{
+    {.position = hanim::Vec2{120, 40}, .part = "body"},
+    {.rotation = std::numbers::pi, .part = "icon"},
+    {.fill = hanim::Rgba{0, 0, 1, 1}, .part = "icon"}});
 ```
+
+A `PropertySet` applies different properties to several parts in one atomic
+animation with shared timing. Unselected local fields retain their source;
+parent transforms still propagate. This is not a world-space pin or independent
+per-part timing. Two entries writing the same part's translation (including
+position versus offset), rotation, scale or fill return `property-conflict`,
+including aliases of the root. Retarget accepts the same set and derives every
+target from the complete current pose before replacing the plan.
 
 The default selection is the unique object root; named parts use stable ids.
 Positions are local to the parent, and rotation/scale use the part's local

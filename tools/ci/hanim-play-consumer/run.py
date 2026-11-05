@@ -173,16 +173,19 @@ def main() -> int:
                 if result["target"] == result["initial_target"] or result["controls"]["retarget_pixel_max_u8"] > 18 or result["controls"]["retarget_coverage_off_boundary"] or result["controls"]["retarget_styled_off_boundary"]:
                     raise RuntimeError("real retarget target/continuity failed")
             agent_results = []
-            for label, bend, properties in (("agent-linear", 0, False), ("agent-curved", .35, False), ("agent-properties", .35, True)):
+            for label, bend, mode in (("agent-linear", 0, ""), ("agent-curved", .35, ""),
+                                      ("agent-properties", .35, "properties"), ("agent-parts", 0, "parts")):
                 png = artifacts / f"{profile}-{label}.png"
                 text = run(profile + "-" + label, [args.mcpp, "run", "--locked", "--profile", profile, "--",
-                           "--out", str(png), "--bend", str(bend), "--agent-review", *(["--properties"] if properties else [])])
+                           "--out", str(png), "--bend", str(bend), "--agent-review", *(["--"+mode] if mode else [])])
                 rows = [json.loads(line) for line in text.splitlines() if line.lstrip().startswith("{")]
                 result = next((row for row in rows if row.get("kind") == "hanim.play-consumer"), None)
                 if not result or not result.get("ok"):
                     raise RuntimeError("independent Agent review did not finish")
-                if properties and result["fixture"] != "triangle-properties":
+                if mode == "properties" and result["fixture"] != "triangle-properties":
                     raise RuntimeError("property review did not exercise the public property recipe")
+                if mode == "parts" and (result["fixture"] != "selected-parts" or result["parts"] != 4 or result["contours"] != 3):
+                    raise RuntimeError("selected-part review did not use the public multi-part recipe")
                 review = result["agent_review"]
                 if review["authorization"] != "mlibs.control/openas" or review["reverse_replayed"] != 61:
                     raise RuntimeError("shared authority or process replay missing")
@@ -193,6 +196,9 @@ def main() -> int:
                 frames = review["frames"]
                 if len(frames) != 61 or len({frame["pixel_fnv1a"] for frame in frames}) != 61:
                     raise RuntimeError("expected 61 distinct actual process frames")
+                if mode == "parts" and (any("kept_region_fnv1a" not in f for f in frames) or
+                                        len({f["kept_region_fnv1a"] for f in frames}) != 1):
+                    raise RuntimeError("unselected part's actual pixels did not stay fixed throughout the process")
                 for index, frame in enumerate(frames):
                     if (frame["index"], frame["time_numerator"], frame["time_denominator"]) != (index, index, 60):
                         raise RuntimeError("process frame time provenance disagrees")

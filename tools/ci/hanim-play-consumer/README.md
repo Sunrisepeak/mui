@@ -10,6 +10,8 @@ The host explicitly selects `mlibs.control` for shared openas authorization;
 hanim's default dependency graph does not import it. Both profiles also run
 `--agent-review`: 61 real CPU frames each for linear and curved morph paths and
 the `--properties` partial-target animation (translation/rotation/scale/color),
+plus `--parts` (one part moves, another rotates/recolors, an unselected badge
+keeps its actual pixel region unchanged),
 followed by exact reverse replay, with time/revision/pixel provenance. DISPLAY
 and WAYLAND_DISPLAY are removed. Read-only policy, dry run, foreign sessions,
 revoked worker continuations and a denied capture that publishes no files are

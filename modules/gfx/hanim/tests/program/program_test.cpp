@@ -404,5 +404,44 @@ int main(int argc,char** argv) {
         const auto after=allocations.load();omui::trace::stop();check(good && before==after);
         check(output.parts[0].local.tx==12 && output.parts[0].local.ty==8);
     });
+    suite.test("one animation targets multiple parts and preserves the unselected sibling",[] {
+        Fixture f;auto description=shape(4);description.parts[0].parent="group";
+        auto sibling=description.parts[0];sibling.id="title";sibling.local.tx=7;description.parts.push_back(sibling);
+        sibling.id="badge";sibling.local.tx=11;description.parts.push_back(sibling);
+        description.parts.push_back({.id="group"});
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        const PropertySet targets{{.position=Vec2{24,8},.part="shape"},
+            {.rotation=std::numbers::pi,.part="title"}, {.scale=Vec2{2,3},.part="title"}};
+        const auto plan=take(PreparedProgram::prepare(anim::to(source,targets)));
+        Buffer output(plan.tracks()[0]);
+        for(int i=0;i<=60;++i) {
+            const auto pose=output.sample(plan,0,i/60.).geometry;
+            for(const auto& part:pose.parts) {
+                if(part.info.id=="badge")check(part.local.tx==11 && part.local.rotate==0 && part.local.sx==1);
+                if(part.info.id=="title")check(part.local.tx==7);
+                if(part.info.id=="group")check(part.local==Transform2D{});
+            }
+        }
+        const auto end=output.sample(plan,0,1).geometry;
+        for(const auto& part:end.parts) {
+            if(part.info.id=="shape")check(part.local.tx==24 && part.local.ty==8);
+            if(part.info.id=="title")check(part.local.rotate==std::numbers::pi && part.local.sx==2 && part.local.sy==3);
+        }
+        const auto reverse=output.sample(plan,0,0).geometry;
+        for(const auto& part:reverse.parts)if(part.info.id=="title")check(part.local.rotate==0 && part.local.sx==1);
+    });
+    suite.test("property sets reject aliasing channel writers instead of depending on declaration order",[] {
+        Fixture f;
+        const auto collision=PreparedProgram::prepare(anim::to(f.a,PropertySet{
+            {.position=Vec2{2,4}}, {.offset=Vec2{1,1},.part="shape"}}));
+        check(!collision && collision.error().animation->code==MorphError::property_conflict);
+        check(collision.error().animation->part==0);
+        const auto empty=PreparedProgram::prepare(anim::to(f.a,PropertySet{}));
+        check(!empty && empty.error().animation->code==MorphError::invalid_property);
+        const auto independent=take(PreparedProgram::prepare(anim::to(f.a,PropertySet{
+            {.position=Vec2{2,4}}, {.rotation=1,.part="shape"}, {.fill=Rgba{0,1,0,1}}})));
+        Buffer output(independent.tracks()[0]);const auto pose=output.sample(independent,0,1).geometry.parts[0];
+        check(pose.local.tx==2 && pose.local.rotate==1 && pose.fill->g==1);
+    });
     return suite.run(argc,argv);
 }

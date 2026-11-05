@@ -21,7 +21,7 @@ struct Options {
     double bend = 0;
     int width = 320, height = 240;
     std::array<int,4> region{0,0,320,240};
-    bool cropped = false, retarget = false, agent_review = false, deny_capture = false, properties = false;
+    bool cropped = false, retarget = false, agent_review = false, deny_capture = false, properties = false, parts = false;
     std::string output;
 };
 int fail(std::string_view message,int code=1) {
@@ -48,6 +48,7 @@ std::optional<Options> parse(int argc,char** argv) {
         const std::string_view key=argv[i];
         if(key=="--retarget") {options.retarget=true;continue;}
         if(key=="--properties") {options.properties=true;continue;}
+        if(key=="--parts") {options.parts=true;continue;}
         if(key=="--agent-review") {options.agent_review=true;continue;}
         if(key=="--agent-deny-capture") {options.deny_capture=true;continue;}
         if(i+1==argc)return {};
@@ -62,7 +63,8 @@ std::optional<Options> parse(int argc,char** argv) {
         } else return {};
     }
     if(options.deny_capture && !options.agent_review)return {};
-    if(options.properties && options.retarget)return {}; // separate property retarget contract is tested by the API probe
+    if((options.properties || options.parts) && options.retarget)return {}; // separate property retarget contract is tested by the API probe
+    if(options.properties && options.parts)return {};
     if(!options.cropped)options.region={0,0,options.width,options.height};
     const auto [x,y,w,h]=options.region;
     if(!std::isfinite(options.time) || options.time<0 || options.time>1 || !std::isfinite(options.bend) ||
@@ -111,7 +113,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
     if(options.deny_capture) {
         auto policy=access->policy();policy.user.operations=std::vector<std::string>{"animation.seek"};access->set_policy(policy);
     }
-    Json samples=Json::array();std::vector<std::uint64_t> hashes;
+    Json samples=Json::array();std::vector<std::uint64_t> hashes;std::string kept_region;
     for(int i=0;i<=60;++i) {
         const double time=static_cast<double>(i)/60;
         if(!seek(request,time))return std::unexpected("Agent seek refused");
@@ -125,6 +127,16 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
             {"sample_time_seconds",info->position.count()},{"plan_revision",info->plan_revision},
             {"target_revision",info->target_revision},{"pixel_fnv1a",std::format("{:016x}",pixels.hash())},
             {"png",options.output+suffix}});
+        if(options.parts) {
+            omui::hash::Fnv1a hash;
+            const int cx=static_cast<int>(options.width*.85),cy=static_cast<int>(options.height*.14);
+            for(int y=std::max(0,cy-12);y<std::min(options.height,cy+12);++y)
+                for(int x=std::max(0,cx-12);x<std::min(options.width,cx+12);++x)
+                hash.bytes(std::bit_cast<std::array<std::uint8_t,4>>(pixels.at(x,y)));
+            const auto value=hash.hex();
+            if(i && value!=kept_region)return std::unexpected("unselected part's real pixel region changed");
+            kept_region=value;samples.back()["kept_region_fnv1a"]=value;
+        }
     }
     for(int i=60;i>=0;--i)
         if(!seek(request,static_cast<double>(i)/60) || !capture(request) || pixels.hash()!=hashes[static_cast<std::size_t>(i)])
@@ -168,7 +180,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
 
 int main(int argc,char** argv) {
     const auto parsed=parse(argc,argv);
-    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties] [--agent-review] [--agent-deny-capture]",2);
+    if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties | --parts] [--agent-review] [--agent-deny-capture]",2);
     const auto& options=*parsed;
     auto made=Engine::make();if(!made)return fail("Engine::make");
     auto engine=std::move(*made);
@@ -179,7 +191,7 @@ int main(int argc,char** argv) {
     const std::array diamond{ShapeSegment::line({-1,0}),ShapeSegment::line({0,1}),ShapeSegment::line({1,0})};
     const auto triangle=Contour::copy({{0,-1},lines}),circle=Contour::copy({{0,-1},curves}),third=Contour::copy({{0,-1},diamond});
     if(!triangle || !circle || !third)return fail("public contour preparation");
-    const auto source=engine.create_object(describe(*triangle,{1,.25f,.1f,1},options.width,options.height));
+    auto source=engine.create_object(describe(*triangle,{1,.25f,.1f,1},options.width,options.height));
     const auto target=engine.create_object(describe(*circle,{.1f,.6f,1,1},options.width,options.height));
     const auto next=engine.create_object(describe(*third,{.8f,.15f,.9f,1},options.width,options.height));
     if(!source || !target || !next)return fail("public object creation");
@@ -202,13 +214,23 @@ int main(int argc,char** argv) {
     if(!engine.reverse(*instance) || !engine.resume(*instance) || !engine.advance(seconds(.5)) ||
        engine.inspect(*instance)->position!=seconds(1) || !engine.cancel(*instance,CancelMode::restore) || !engine.release(*instance))
         return fail("program reverse/restore/release");
-    auto animation=options.properties ? anim::to(*source,{.position=Vec2{options.width*.66,options.height*.5},
+    if(options.parts) {
+        ObjectDescription group{{{.id="group"},
+            {.id="left",.parent="group",.local={.tx=options.width*.25,.ty=options.height*.45,.sx=25,.sy=25},.contours={*triangle},.fill=Rgba{1,.25f,.1f,1}},
+            {.id="right",.parent="group",.local={.tx=options.width*.7,.ty=options.height*.55,.sx=28,.sy=28},.contours={*triangle},.fill=Rgba{.8f,.6f,.1f,1}},
+            {.id="badge",.parent="group",.local={.tx=options.width*.85,.ty=options.height*.14,.sx=8,.sy=8},.contours={*triangle},.fill=Rgba{.2f,.9f,.4f,1}}}};
+        source=engine.create_object(group);if(!source)return fail("selected-part object creation");
+    }
+    auto animation=options.parts ? anim::to(*source,PropertySet{
+        {.position=Vec2{options.width*.42,options.height*.58},.part="left"},
+        {.rotation=std::numbers::pi,.part="right"}, {.fill=Rgba{.1f,.6f,1,1},.part="right"}})
+        : options.properties ? anim::to(*source,{.position=Vec2{options.width*.66,options.height*.5},
         .rotation=std::numbers::pi,.scale=Vec2{options.height*.19,options.height*.19},.fill=Rgba{.1f,.6f,1,1}})
         : anim::morph(*source,*target);
     animation=animation.duration(seconds(1)).easing(ease::linear);
-    if(options.properties)animation=animation.with_effect(fx::translation_path(PointPath::bend(options.bend)));
+    if(options.properties || options.parts)animation=animation.with_effect(fx::translation_path(PointPath::bend(options.bend)));
     else animation=animation.with_effect(fx::vertex_path(PointPath::bend(options.bend)));
-    for(const auto& effect:effects)animation=animation.with_effect(effect);
+    if(!options.parts)for(const auto& effect:effects)animation=animation.with_effect(effect);
     const auto played=engine.play(animation);
     if(!played)return fail("Engine::play");
     // Execute real controls, then explicitly select the requested output time.
@@ -318,7 +340,7 @@ int main(int argc,char** argv) {
     const auto output=mcpplibs::os::fs::from_utf8(options.output);
     const auto write=mcpplibs::os::fs::write_atomic(output,std::string_view(reinterpret_cast<const char*>(encoded->data()),encoded->size()));
     if(!write)return fail(write.error().message());
-    Json result{{"kind","hanim.play-consumer"},{"ok",true},{"fixture",options.properties?"triangle-properties":"triangle-circle"},
+    Json result{{"kind","hanim.play-consumer"},{"ok",true},{"fixture",options.parts?"selected-parts":options.properties?"triangle-properties":"triangle-circle"},
         {"source",object(*source)},{"initial_target",object(*target)},{"target",object(frame->info.target)},
         {"requested_time_seconds",options.time},{"sample_time_seconds",frame->info.position.count()},
         {"duration_seconds",frame->info.duration.count()},{"sample_progress",frame->info.sample_progress?Json(*frame->info.sample_progress):Json(nullptr)},{"playback_state",frame->info.state==PlaybackState::paused?"paused":"other"},{"playback_rate",frame->info.rate},
@@ -327,11 +349,11 @@ int main(int argc,char** argv) {
         {"backend","cpu-reference"},{"output",options.output},{"png_bytes",encoded->size()},
         {"pixel_fnv1a",pixel_hash.hex()},{"visible_pixels",visible},{"crop_roundtrip_max_u8",crop_delta},
         {"parts",frame->geometry.parts.size()},{"contours",frame->geometry.contours.size()},{"cubics",frame->geometry.cubics.size()},
-        {"effects",Json::array({"blur","tone"})},{"controls",{{"pause_holds",true},{"reverse_moves_backwards",true},{"seek",true},
+        {"effects",options.parts?Json::array():Json::array({"blur","tone"})},{"controls",{{"pause_holds",true},{"reverse_moves_backwards",true},{"seek",true},
             {"retarget",options.retarget},{"retarget_from_seconds",options.retarget?.7:0},{"retarget_pixel_max_u8",continuity_max},{"retarget_coverage_max_u8",coverage_max},
             {"retarget_coverage_off_boundary",coverage_off_boundary},{"retarget_styled_off_boundary",styled_off_boundary},
             {"retarget_coverage_total_u8",coverage_sum}}}};
-    result[options.properties?"translation_path":"vertex_path"]={{"stage","after-correspondence"},{"space","endpoint-chord"},{"bend",options.bend}};
+    result[(options.properties || options.parts)?"translation_path":"vertex_path"]={{"stage","after-correspondence"},{"space","endpoint-chord"},{"bend",options.bend}};
     if(options.agent_review)result["agent_review"]=std::move(agent_review);
     const auto provenance=mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(options.output+".provenance.omui.json"),result.dump(2)+"\n");
     if(!provenance)return fail(provenance.error().message());

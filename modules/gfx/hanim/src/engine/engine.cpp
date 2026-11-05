@@ -364,6 +364,9 @@ Status Engine::retarget(PlaybackRef ref, Snapshot to, PlayOptions options, Morph
     });
 }
 Status Engine::retarget(PlaybackRef ref, const PropertyTargets& values, PlayOptions options, MorphOptions morph) {
+    return retarget_properties(ref,std::span(&values,1),options,morph);
+}
+Status Engine::retarget_properties(PlaybackRef ref,std::span<const PropertyTargets> values,PlayOptions options,MorphOptions morph) {
     return mutate(data_.get(),writing_,ref,"retarget-properties",[&](detail::Playback& old) -> Status {
         return replace_plan(*data_,old,options,[&](FrameView current) {
             return PreparedObjectMorph::properties(current,values,morph);

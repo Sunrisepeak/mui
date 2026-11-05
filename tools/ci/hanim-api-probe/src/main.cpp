@@ -350,5 +350,44 @@ int main() {
         "property_scope_parameters_use_shared_playback_time");
     check(bool(hengine.release(*image_scope)) && bool(hengine.destroy_object(*property_object)),
         "public_property_consumer_releases_all_resources");
+    auto group_description=*shape(false,0);
+    group_description.parts[0].parent="group";
+    auto title=group_description.parts[0];title.id="title";title.local.tx=8;
+    group_description.parts.push_back(title);
+    auto fixed=title;fixed.id="badge";fixed.local.tx=16;group_description.parts.push_back(fixed);
+    group_description.parts.push_back({.id="group"});
+    const auto selected_object=hengine.create_object(group_description);
+    if(!check(bool(selected_object),"selected_parts_object_created"))return finish();
+    const auto selected=hengine.play(anim::to(*selected_object,h::PropertySet{
+        {.position=h::Vec2{20,4},.part="shape"},
+        {.rotation=std::numbers::pi,.part="title"}, {.scale=h::Vec2{2,2},.part="title"}}));
+    if(!check(selected && hengine.seek(*selected,500ms),"multi_part_property_set_plays_through_public_api"))return finish();
+    const auto selected_pose=copy(*hengine.frame(*selected));
+    bool selected_values=true;
+    for(const auto& part:hengine.frame(*selected)->geometry.parts) {
+        if(part.info.id=="shape")selected_values &= part.local.tx==10 && part.local.ty==2;
+        if(part.info.id=="title")selected_values &= part.local.tx==8 && part.local.rotate==std::numbers::pi/2 && part.local.sx==1.5;
+        if(part.info.id=="badge")selected_values &= part.local.tx==16 && part.local.rotate==0 && part.local.sx==1;
+    }
+    check(selected_values,"selected_properties_and_unselected_sibling_remain_independent");
+    check(bool(hengine.retarget(*selected,h::PropertySet{
+        {.offset=h::Vec2{-4,2},.part="shape"}, {.rotation=0,.part="title"}})),
+        "multi_part_retarget_accepts_one_atomic_target_set");
+    check(equal(selected_pose,copy(*hengine.frame(*selected))),"multi_part_retarget_starts_at_complete_current_pose");
+    check(bool(hengine.seek(*selected,1s)),"multi_part_retarget_reaches_end");
+    bool final_values=true;
+    for(const auto& part:hengine.frame(*selected)->geometry.parts) {
+        if(part.info.id=="shape")final_values &= part.local.tx==6 && part.local.ty==4;
+        if(part.info.id=="title")final_values &= part.local.rotate==0 && part.local.sx==1.5;
+        if(part.info.id=="badge")final_values &= part.local.tx==16;
+    }
+    check(final_values,"retarget_preserves_unwritten_part_channels");
+    const auto selected_revision=hengine.inspect(*selected)->plan_revision;
+    const auto duplicate=hengine.retarget(*selected,h::PropertySet{
+        {.position=h::Vec2{1,2},.part="title"}, {.offset=h::Vec2{3,4},.part="title"}});
+    check(!duplicate && hengine.inspect(*selected)->plan_revision==selected_revision,
+        "overlapping_property_set_is_rejected_atomically");
+    check(bool(hengine.release(*selected)) && bool(hengine.destroy_object(*selected_object)),
+        "selected_parts_resources_released");
     return finish();
 }

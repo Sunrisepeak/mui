@@ -100,6 +100,8 @@ struct Collect {
             const auto* binding=value.binding();
             if(!binding)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             if(binding->source>ProgramSource::snapshot)return std::unexpected(failure(ProgramError::invalid_source,node));
+            if(!binding->properties && !binding->additional_properties.empty())
+                return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             if(const auto invalid=invalid_options(binding->options))return std::unexpected(failure(*invalid,node));
             if(leaves.size()>=limits.max_segments)return std::unexpected(failure(ProgramError::segment_budget,node));
             Snapshot from=binding->from,to=binding->to;
@@ -167,14 +169,14 @@ std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segmen
         failure(ProgramError::invalid_ease,segment.node,segment.track,index));
 }
 std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
-    MorphOptions options,const std::optional<PropertyTargets>& properties,std::size_t node,std::size_t track,std::size_t segment) {
+    MorphOptions options,std::span<const PropertyTargets> properties,std::size_t node,std::size_t track,std::size_t segment) {
     const auto count=previous.animation.requirements();
     std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
     const auto progress=progress_at(previous,previous.start+previous.options.duration,false,segment-1);
     if(!progress)return std::unexpected(progress.error());
     const auto pose=previous.animation.sample(progress->sampled,{parts,cubics});
     if(!pose)return std::unexpected(animation_failure(pose.error(),node,track,segment));
-    const auto result=properties ? PreparedObjectMorph::properties(*pose,*properties,options)
+    const auto result=!properties.empty() ? PreparedObjectMorph::properties(*pose,properties,options)
         : PreparedObjectMorph::retarget(*pose,to,options);
     if(!result)return std::unexpected(animation_failure(result.error(),node,track,segment));
     return *result;
@@ -208,9 +210,9 @@ Program bind(Snapshot from,Snapshot to,Effects effects,SegmentOptions options,Mo
     node->binding={std::move(from),std::move(to),std::move(effects),options,morph,source};return Program(std::move(node));
 }
 Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOptions morph,ProgramSource source,
-    std::optional<PropertyTargets> properties) {
+    std::optional<PropertyTargets> properties,PropertySet additional_properties) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
-    node->binding={{},{},std::move(effects),options,morph,source,std::move(properties)};
+    node->binding={{},{},std::move(effects),options,morph,source,std::move(properties),std::move(additional_properties)};
     node->inputs=std::move(inputs);return Program(std::move(node));
 }
 Program sequence(std::span<const Program> children) {
@@ -315,9 +317,14 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         }
         std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
         const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
-        if(chained)animation=from_previous(*previous,leaf.to,binding.morph,binding.properties,leaf.node,leaf.track,index);
+        PropertySet targets;
+        if(binding.properties) {
+            targets.reserve(1+binding.additional_properties.size());targets.push_back(*binding.properties);
+            targets.insert(targets.end(),binding.additional_properties.begin(),binding.additional_properties.end());
+        }
+        if(chained)animation=from_previous(*previous,leaf.to,binding.morph,targets,leaf.node,leaf.track,index);
         else {
-            const auto result=binding.properties ? PreparedObjectMorph::properties(leaf.from,*binding.properties,binding.morph)
+            const auto result=binding.properties ? PreparedObjectMorph::properties(leaf.from,targets,binding.morph)
                 : PreparedObjectMorph::prepare(leaf.from,leaf.to,binding.morph);
             if(!result)return refuse(animation_failure(result.error(),leaf.node,leaf.track,index));
             animation=*result;

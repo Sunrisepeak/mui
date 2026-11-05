@@ -6,7 +6,7 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 3;
+inline constexpr std::uint32_t program_contract_version = 4;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
@@ -22,6 +22,7 @@ struct ProgramBinding {
     MorphOptions morph;
     ProgramSource source = ProgramSource::previous_endpoint;
     std::optional<PropertyTargets> properties;
+    PropertySet additional_properties;
 };
 // Live inputs resolve together at preparation; explicit snapshots retain their
 // captured revision. Neither form owns or mutates the application's registry.
@@ -45,7 +46,7 @@ public:
     [[nodiscard]] seconds step() const noexcept;
 private:
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
-    friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>);
+    friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>, PropertySet);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -57,7 +58,7 @@ private:
                            MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint);
 [[nodiscard]] Program bind(ProgramInputs inputs, Effects effects = {}, SegmentOptions options = {},
                            MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint,
-                           std::optional<PropertyTargets> properties = {});
+                           std::optional<PropertyTargets> properties = {}, PropertySet additional_properties = {});
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
 [[nodiscard]] Program parallel(std::span<const Program> children);
@@ -76,6 +77,15 @@ public:
     template<class Values> requires std::same_as<std::remove_cvref_t<Values>, PropertyTargets>
     BoundAnimation(ObjectInput object, Values&& values, MorphOptions options = {})
         : inputs_{object, std::move(object)} { binding_.morph = options; binding_.properties = std::forward<Values>(values); }
+    template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, PropertySet>
+    BoundAnimation(ObjectInput object, Targets&& values, MorphOptions options = {})
+        : inputs_{object, std::move(object)} {
+        binding_.morph=options;
+        // An empty property set is still a property animation, refused by
+        // preparation rather than accidentally interpreted as a morph.
+        binding_.properties=values.empty()?PropertyTargets{}:values.front();
+        if(!values.empty())binding_.additional_properties.assign(values.begin()+1,values.end());
+    }
     [[nodiscard]] BoundAnimation duration(seconds value) const {
         auto result = *this; result.binding_.options.duration = value; return result;
     }
@@ -100,7 +110,7 @@ public:
     [[nodiscard]] const ProgramBinding& binding() const & noexcept { return binding_; }
     const ProgramBinding& binding() const && = delete;
     [[nodiscard]] operator Program() const {
-        return bind(inputs_, binding_.effects, binding_.options, binding_.morph, binding_.source, binding_.properties);
+        return bind(inputs_, binding_.effects, binding_.options, binding_.morph, binding_.source, binding_.properties, binding_.additional_properties);
     }
 private:
     ProgramInputs inputs_;
@@ -112,6 +122,10 @@ using Morph = BoundAnimation; // source-compatible name for the original recipe
 }
 [[nodiscard]] inline BoundAnimation to(ObjectInput object, PropertyTargets values, MorphOptions options = {}) {
     return BoundAnimation{std::move(object), std::move(values), options};
+}
+template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, PropertySet>
+[[nodiscard]] BoundAnimation to(ObjectInput object, Targets&& values, MorphOptions options = {}) {
+    return BoundAnimation{std::move(object),std::forward<Targets>(values),options};
 }
 [[nodiscard]] inline BoundAnimation move_to(ObjectInput object, Vec2 position) {
     return to(std::move(object), {.position=position});

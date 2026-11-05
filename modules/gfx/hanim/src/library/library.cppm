@@ -26,12 +26,15 @@ struct PropertyTargets {
     std::optional<Rgba> fill;
     std::string part;
 };
+// One atomic animation may target several parts and independent properties.
+// Duplicate writes to a part/channel are errors, never implicit last-wins.
+using PropertySet = std::vector<PropertyTargets>;
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
     part_budget, contour_budget, cubic_budget, part_set_mismatch,
     hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
     missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
-    output_too_small, nonfinite_transform, invalid_property, unknown_part
+    output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict
 };
 [[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
 struct MorphFailure {
@@ -90,6 +93,10 @@ public:
         properties(Snapshot from, const PropertyTargets&, MorphOptions options = {});
     [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
         properties(FrameView current, const PropertyTargets&, MorphOptions options = {});
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        properties(Snapshot from, std::span<const PropertyTargets>, MorphOptions options = {});
+    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+        properties(FrameView current, std::span<const PropertyTargets>, MorphOptions options = {});
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] FrameRequirements requirements() const noexcept;
     [[nodiscard]] std::span<const MorphPartInfo> parts() const & noexcept;

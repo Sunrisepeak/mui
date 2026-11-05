@@ -16,7 +16,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import mgame.input;
-import mgame.sim;
+import xengine.simulation;
 
 export namespace mgame::ui {
 

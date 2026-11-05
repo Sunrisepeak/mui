@@ -1,5 +1,5 @@
 [package]
-namespace = "openmui"
+namespace = "xengine"
 name = "simulation"
 version = "0.1.0"
 description = "Independent fixed-step clocks and owned checkpoint/input replay"
@@ -10,7 +10,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-simulation]
+[targets.xengine-simulation]
 kind = "lib"
 
 [build]

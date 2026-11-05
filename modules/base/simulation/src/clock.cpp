@@ -1,7 +1,7 @@
-module openmui.simulation;
+module xengine.simulation.api;
 import std;
 
-namespace omui::simulation {
+namespace xengine::simulation {
 Clock::Clock(double steps_per_second, std::int32_t catch_up) noexcept
     : step_(1.0 / (std::isfinite(steps_per_second) ? std::max(1.0, steps_per_second) : 1.0)),
       catch_up_(std::max(1, catch_up)) {}

@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库、八个 gfx 包和五个 content 包，实际入口和兼容范围见 §5–§9；N2 的渲染引擎四包见 §10；其余引擎和 UI 实现的后续迁移另行验收。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库、八个 gfx 包和五个 content 包，实际入口和兼容范围见 §5–§9；N2 的渲染引擎四包见 §10；N2 模拟组与旧 game facade 收敛见 §11；其余引擎和 UI 实现的后续迁移另行验收。
 
 ## 1. 五类归属
 
@@ -32,7 +32,7 @@
 | gfx 的 rhi／shader／raster 及其子包 | 对应 `mlibs.*` | N1 八包已迁移，见 §8 |
 | content 的 text／layout／markdown／i18n 与 cldr | 对应 `mlibs.*` | N1 五包已迁移，见 §9 |
 | `modules/gfx/render/`：原 `openmui.render.*` | `xengine.render.*` | N2 本轮迁移，渲染特性仍记录进同一张图，见 §10 |
-| `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2，不重复时钟／重建／规则实现 |
+| `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2 本轮迁移；旧 mgame.sim facade 收进本包，见 §11 |
 | `modules/media/audio/`：`openmui.audio.*` | `xengine.audio.*` | N2，实时边界不随改名改变 |
 | media 的 timeline／video | 通用核心 `mlibs.timeline`／`mlibs.video.*`；音频 adapter 归 `xengine.audio.timeline` | adapter 随 N2 移至 audio 的子包目录并保留兼容；有新的完整执行引擎时再单独评审 |
 | hanim 各层及 renderer adapter | `hanim`／`hanim.*` | 保持已有产品身份 |
@@ -240,3 +240,17 @@ Hanim vector adapter 与 text 直接消费新 renderer 入口和类型；UI／�
 独立 namespace gate 包含 20 个 mlibs 库、hanim.core、三个 renderer 包，共 24 个实际归档。源码／安装包 × 新名／旧名／混用，增加共享注册表、真实 CPU 中间态像素和真实 Slang 动态效果注册，共 23 项；渲染 GPU／Web 与官网过程回归另行验收。§9.3 的显式依赖／归档组限制继续保留。完整证据归[实施台账](2026-11-05-system-implementation-checkpoints-design.md)的 N2 渲染检查点。
 
 simulation、audio、timeline／video、UI／工具与标准连接继续按 N2／N3 迁移；本轮不宣称 3D 渲染、任意 GPU 调度、完整公共动画目录或整体美术已达标。
+
+## 11. N2第二组：模拟归属与游戏时钟空壳收敛
+
+四个既有产品边界改为 `xengine.simulation`、`xengine.simulation.cellular`、`xengine.simulation.cellular.rhi`、`xengine.simulation.cellular.rhi.cts`，C++ 归 `xengine::simulation` 及其子命名空间。每包的主入口、`.api` 和旧 import 共用清单与实现；shader 生成模块归新 API，规则、整数算子和 Slang 内核保持原行为。
+
+保留独立边界是因为消费者确实不同：Clock／Timeline 供应用和游戏使用；CPU 规则库可不使用时钟；GPU adapter 显式添加 RHI；CTS 隔离测试，并同时服务 SDL／Vulkan 与 WebGPU。真实 resolver 图检查 CPU 不带 GPU、规则和 GPU 不反向引入 Clock。没有为兼容入口新增清单。
+
+`mgame.sim` 原来只转发共享时钟并增加 trivially-copyable State 的 Game 约束，不构成独立实现。本轮删除其清单，源码入口移入 `modules/base/simulation/src/legacy_mgame.cppm`，原三项测试移到该包。canonical 入口也导出这个兼容模块，真实静态包包含它；workspace 从 123 减为 122。游戏 UI 和 breakout 改为依赖 `xengine.simulation`。旧 `import mgame.sim;`、`mgame::Clock`／`Timeline` 及更严格的 Game 约束仍可用。
+
+兼容范围必须分开：旧 **C++ import** 有真实 source／packed 消费证据，旧 **依赖键** `mgame.sim` 指向新路径会被 mcpp 因包名 `sim`／`simulation` 不同而拒绝，旧目录及 `-p mgame.sim` 也不保留。应用须改清单键，不再为这个选择器建立一个空包。
+
+旧根 `omui::simulation` 使用 Clock／Model／Timeline 的 using 声明；旧 cellular 入口仅给其下 cellular 子命名空间加 alias，因此单独使用规则库不会被兼容层带入时钟。它们没有重复实现或状态。
+
+此后命名工作作为功能实现的配套事项；下一条主线是 Hanim 公共属性动画及实际消费者。命名收敛不增加公共动画、创意作品或平台完成数。

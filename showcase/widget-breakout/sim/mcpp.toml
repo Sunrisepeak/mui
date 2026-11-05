@@ -28,7 +28,7 @@ mlibs.hash = { path = "../../../modules/base/hash" }
 mgame.world   = { path = "../../../mgame/world" }
 mgame.input   = { path = "../../../mgame/input" }
 mgame.physics = { path = "../../../mgame/physics" }
-mgame.sim     = { path = "../../../mgame/sim" }
+xengine.simulation = { path = "../../../modules/base/simulation" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../modules/base/testing" }

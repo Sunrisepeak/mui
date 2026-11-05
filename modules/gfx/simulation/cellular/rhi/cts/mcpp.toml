@@ -1,5 +1,5 @@
 [package]
-namespace = "openmui.simulation.cellular.rhi"
+namespace = "xengine.simulation.cellular.rhi"
 name = "cts"
 version = "0.1.0"
 description = "Integer cellular CPU/GPU conformance on a caller-provided RHI device"
@@ -10,14 +10,14 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "backend"
 
-[targets.openmui-simulation-cellular-rhi-cts]
+[targets.xengine-simulation-cellular-rhi-cts]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"openmui.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
-"openmui.simulation.cellular.rhi" = { path = ".." }
+"xengine.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
+"xengine.simulation.cellular.rhi" = { path = ".." }
 mlibs.rhi = { path = "../../../../rhi" }
 mlibs.hash = { path = "../../../../../base/hash" }

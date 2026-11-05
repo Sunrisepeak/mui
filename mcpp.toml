@@ -89,7 +89,6 @@ members = [
     "mgame/gongfu/ai",
     "mgame/net",
     "mgame/world",
-    "mgame/sim",
     "mgame/input",
     "mgame/physics",
     "mgame/ui",

@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
@@ -18,6 +19,12 @@ NAMES = ("hash", "math", "log", "trace", "testing", "geom", "memory", "unicode",
          "rhi", "raster", "shader", "text", "layout", "markdown", "i18n", "i18n.cldr")
 GFX = {"rhi", "raster", "shader"}
 CONTENT = {"text", "layout", "markdown", "i18n", "i18n.cldr"}
+SIMULATION = {
+    "xengine.simulation": "modules/base/simulation",
+    "xengine.simulation.cellular": "modules/base/simulation/cellular",
+    "xengine.simulation.cellular.rhi": "modules/gfx/simulation/cellular/rhi",
+    "xengine.simulation.cellular.rhi.cts": "modules/gfx/simulation/cellular/rhi/cts",
+}
 EXTERNAL = {"mcpplibs.os", "mcpplibs.openkal", "nlohmann.json", "mcpplibs.mwrap.libpng", "mcpplibs.mwrap.libwebp",
             "compat.libpng", "compat.libwebp", "compat.zlib", "marzer.tomlplusplus", "mcpplibs.mwrap.md4c",
             "mcpplibs.mwrap.harfbuzz", "mcpplibs.mwrap.sheenbidi", "compat.md4c", "compat.harfbuzz",
@@ -49,7 +56,7 @@ def identity(name: str) -> str:
     return "mlibs." + name if name in NAMES else name
 
 
-def renderer_boundaries(packages: list[dict]) -> dict:
+def target_closures(packages: list[dict], roots: tuple[str, ...]) -> dict:
     """Check actual target dependency edges, excluding host build programs."""
     edges = {p["package"]["canonical"]: set() for p in packages}
     for package in packages:
@@ -61,7 +68,7 @@ def renderer_boundaries(packages: list[dict]) -> dict:
             if request["requester"] in edges and not excluded:
                 edges[request["requester"]].add(package["package"]["canonical"])
     closures = {}
-    for root in ("xengine.render", "xengine.render.vector", "xengine.render.effect"):
+    for root in roots:
         start = next(name for name in edges if name.startswith(root + "@"))
         seen, pending = {start}, [start]
         while pending:
@@ -69,12 +76,33 @@ def renderer_boundaries(packages: list[dict]) -> dict:
                 seen.add(dependency)
                 pending.append(dependency)
         closures[root] = sorted(name.split("@")[0] for name in seen)
+    return closures
+
+
+def renderer_boundaries(packages: list[dict]) -> dict:
+    closures = target_closures(packages, ("xengine.render", "xengine.render.vector", "xengine.render.effect"))
     if set(closures["xengine.render"]) != {"xengine.render", "mlibs.rhi", "mlibs.memory", "mlibs.hash", "mlibs.trace"}:
         raise RuntimeError("render graph no longer has its independent minimal target closure")
     if {"xengine.render.effect", "mlibs.shader", "marzer.tomlplusplus"} & set(closures["xengine.render.vector"]):
         raise RuntimeError("vector rendering acquired optional runtime effect-loader dependencies")
     if not {"mlibs.shader", "marzer.tomlplusplus"}.issubset(closures["xengine.render.effect"]):
         raise RuntimeError("dynamic effect loader lost its actual runtime compiler/parser")
+    return closures
+
+
+def simulation_boundaries(packages: list[dict]) -> dict:
+    closures = target_closures(packages, tuple(SIMULATION))
+    for root, closure in closures.items():
+        if any(name.startswith(("mgame.", "openmui.", "xengine.render", "mlibs.testing")) for name in closure):
+            raise RuntimeError(root + ": simulation acquired a game/UI/renderer/test runtime")
+        if root != "xengine.simulation" and "xengine.simulation" in closure:
+            raise RuntimeError(root + ": optional clock/history became mandatory")
+        if root in ("xengine.simulation", "xengine.simulation.cellular") and any(name.startswith(("mlibs.rhi", "mlibs.shader")) for name in closure):
+            raise RuntimeError(root + ": CPU package acquired GPU/compiler dependencies")
+    if "xengine.simulation.cellular" in closures["xengine.simulation"]:
+        raise RuntimeError("clock/history acquired optional cellular rules")
+    if not {"xengine.simulation.cellular", "mlibs.rhi"}.issubset(closures["xengine.simulation.cellular.rhi"]):
+        raise RuntimeError("GPU adapter lost its shared rule/device contracts")
     return closures
 
 
@@ -139,6 +167,7 @@ def main() -> int:
         source_paths["xengine.render"] = repo / "modules/gfx/render"
         source_paths["xengine.render.vector"] = repo / "modules/gfx/render/vector"
         source_paths["xengine.render.effect"] = repo / "modules/gfx/render/effect"
+        source_paths.update({name: repo / path for name, path in SIMULATION.items()})
         packed_paths = {}
         for name, path in source_paths.items():
             # shader also publishes the omui-shader executable; select its
@@ -176,6 +205,8 @@ def main() -> int:
                     raise RuntimeError(f"packed public interface is missing {module}")
             if list(packed.rglob("*.cpp")):
                 raise RuntimeError("packed consumer must link compiled implementations")
+            if name == "xengine.simulation" and "export module mgame.sim;" not in text:
+                raise RuntimeError("simulation archive omitted the same-package game compatibility entry")
             packed_paths[name] = packed
             shutil.copyfile(manifests[0], artifacts / (name + ".packed.mcpp.toml"))
             report["packs"].append({"name": identity(name), "archive": str(archive), "sha256": sha(archive),
@@ -192,10 +223,11 @@ def main() -> int:
                 dependencies = "\n".join(f'{json.dumps(prefix + "." + name)} = {{ path = {json.dumps(str(paths[name]))} }}'
                                          for prefix in prefixes for name in NAMES)
                 dependencies += "\n\"hanim.core\" = { path = " + json.dumps(str(paths["hanim.core"])) + " }"
-                render_prefixes = ("xengine", "openmui") if style == "mixed" else (("xengine",) if style == "canonical" else ("openmui",))
-                for prefix in render_prefixes:
-                    for suffix in ("", ".vector", ".effect"):
-                        dependencies += "\n" + json.dumps(prefix + ".render" + suffix) + " = { path = " + json.dumps(str(paths["xengine.render" + suffix])) + " }"
+                engine_prefixes = ("xengine", "openmui") if style == "mixed" else (("xengine",) if style == "canonical" else ("openmui",))
+                engines = [name for name in paths if name.startswith("xengine.")]
+                for prefix in engine_prefixes:
+                    for name in engines:
+                        dependencies += "\n" + json.dumps(name.replace("xengine", prefix, 1)) + " = { path = " + json.dumps(str(paths[name])) + " }"
                 if source_kind == "packed":
                     # Current pack omits dependency metadata. Supply the actual
                     # direct external edges here without editing the archives.
@@ -205,7 +237,8 @@ def main() -> int:
                         value = '{ version = ' + version + ', features = ["demux", "mux"] }' if name.endswith(".libwebp") else version
                         dependencies += f"\n{name} = {value}"
                 imports = "\n".join(f"import {prefix}.{name};" for prefix in prefixes for name in NAMES)
-                imports += "\n" + "\n".join("import " + prefix + ".render" + suffix + ";" for prefix in render_prefixes for suffix in ("", ".vector", ".effect"))
+                imports += "\n" + "\n".join("import " + name.replace("xengine", prefix, 1) + ";" for prefix in engine_prefixes for name in engines)
+                imports += "\nimport mgame.sim;"
                 archive_link_flags = ""
                 if source_kind == "packed":
                     # mcpp pack omits path-dependency edges, so GNU ld cannot
@@ -227,8 +260,10 @@ def main() -> int:
                 argv = [args.mcpp, "run", "--profile", "release"]
                 stdout = command(label, argv, project, bootstrap=True)
                 result = [json.loads(line) for line in stdout.splitlines() if line.startswith('{"kind":"mlibs.namespace-consumer"')]
-                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 23:
+                if len(result) != 1 or not result[0].get("ok") or result[0].get("cases") != 26:
                     raise RuntimeError(label + ": missing real successful consumer result")
+                if not re.search(r"^foundation namespace compatibility: 26 passed, 0 failed$", stdout, re.M):
+                    raise RuntimeError(label + ": reported case count does not match the actual executed suite")
                 png_digest = sha(project / "content.png")
                 if png_digest is None or not result[0].get("content_pixel_hash"):
                     raise RuntimeError(label + ": missing actual rendered text PNG")
@@ -247,6 +282,7 @@ def main() -> int:
                     raise RuntimeError("unsupported mcpp resolution schema")
                 packages = graph["graph"]["packages"]
                 boundaries = renderer_boundaries(packages) if source_kind == "source" else None
+                simulation = simulation_boundaries(packages) if source_kind == "source" else None
                 identities = []
                 external_packages = {}
                 host_packages = {}
@@ -305,6 +341,8 @@ def main() -> int:
                 for data in (source_paths["i18n.cldr"] / "data").glob("*.locale.omui.json"):
                     stem = data.name.removesuffix(".locale.omui.json").replace("-", "_").replace(".", "_") + "_locale"
                     generated_expected[(output_dir("mlibs.i18n.cldr") / "openmui" / (stem + ".cppm")).resolve()] = "mlibs.i18n.cldr.api:" + stem
+                for shader in (source_paths["xengine.simulation.cellular.rhi"] / "shaders").glob("*.slang"):
+                    generated_expected[(output_dir("xengine.simulation.cellular.rhi") / "mlibs/shader" / (shader.stem + "_shaders.cppm")).resolve()] = "xengine.simulation.cellular.rhi.api:" + shader.stem + "_shaders"
                 for entry in cdb:
                     directory = Path(entry["directory"])
                     if not directory.is_absolute():
@@ -363,6 +401,7 @@ def main() -> int:
                                        "external_sources": external_sources, "external_packages": external_packages,
                                        "host_only_packages": host_packages,
                                        "renderer_target_boundaries": boundaries,
+                                       "simulation_target_boundaries": simulation,
                                        "generated_sources": generated_sources,
                                        "explicit_archive_rescan_group": source_kind == "packed",
                                        "toolchain": graph["toolchain"]})

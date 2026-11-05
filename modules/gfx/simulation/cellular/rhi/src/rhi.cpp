@@ -1,14 +1,14 @@
-module openmui.simulation.cellular.rhi;
+module xengine.simulation.cellular.rhi.api;
 import std;
-import openmui.trace;
+import mlibs.trace;
 import :rules_shaders;
 
-namespace omui::simulation::cellular::gpu {
-namespace r=omui::rhi;
+namespace xengine::simulation::cellular::gpu {
+namespace r=mlibs::rhi;
 r::ShaderFormats shader_formats() {return shaders::rules::evolve.formats();}
 Kernel::~Kernel() {if(rules_)device_.destroy(rules_);if(pipeline_)device_.destroy(pipeline_);}
 r::Result<std::unique_ptr<Kernel>> Kernel::prepare(r::Device& device,const Program& program) {
-    trace::Span span("simulation.cellular.gpu.prepare","simulation");
+    mlibs::trace::Span span("simulation.cellular.gpu.prepare","simulation");
     if(!program.channels() || program.words().empty() || program.words()[0]!=1)
         return std::unexpected(r::Error{r::Errc::invalid,"unprepared cellular program or unsupported encoding"});
     if(!device.caps().compute)return std::unexpected(r::Error{r::Errc::unsupported,"cellular execution requires compute"});
@@ -22,7 +22,7 @@ r::Result<std::unique_ptr<Kernel>> Kernel::prepare(r::Device& device,const Progr
     result->ready_=*submitted;return result;
 }
 r::Result<void> Kernel::record(r::CommandList& list,Field input,Field output,Boundary boundary) const {
-    trace::Span span("simulation.cellular.gpu.record","simulation");
+    mlibs::trace::Span span("simulation.cellular.gpu.record","simulation");
     const auto invalid=[](std::string message){return std::unexpected(r::Error{r::Errc::invalid,std::move(message)});};
     if(input.owner!=&device_ || output.owner!=&device_)return invalid("cellular field belongs to another device");
     if(input.channels!=program_.channels() || output.channels!=input.channels || input.shape.width!=output.shape.width || input.shape.height!=output.shape.height)

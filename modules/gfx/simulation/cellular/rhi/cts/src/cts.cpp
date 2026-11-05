@@ -1,11 +1,11 @@
-module openmui.simulation.cellular.rhi.cts;
+module xengine.simulation.cellular.rhi.cts.api;
 import std;
-import openmui.simulation.cellular;
-import openmui.simulation.cellular.rhi;
-import openmui.hash;
+import xengine.simulation.cellular;
+import xengine.simulation.cellular.rhi;
+import mlibs.hash;
 
-namespace omui::simulation::cellular::gpu::cts {
-namespace r=omui::rhi;
+namespace xengine::simulation::cellular::gpu::cts {
+namespace r=mlibs::rhi;
 namespace {
 using C=Condition;using W=WriteKind;
 struct Buffers {
@@ -13,7 +13,7 @@ struct Buffers {
     ~Buffers(){if(a)device.destroy(a);if(b)device.destroy(b);}
 };
 r::Result<void> compare(r::Device& device,r::Buffer buffer,std::span<const std::uint32_t> expected,
-        std::string_view label,std::uint32_t tick,Report& report,omui::hash::Fnv1a& hash) {
+        std::string_view label,std::uint32_t tick,Report& report,mlibs::hash::Fnv1a& hash) {
     std::vector<std::uint32_t> actual(expected.size());
     auto read=device.read(buffer,0,std::as_writable_bytes(std::span(actual)));if(!read)return read;
     for(std::size_t i=0;i<actual.size();++i) {
@@ -24,7 +24,7 @@ r::Result<void> compare(r::Device& device,r::Buffer buffer,std::span<const std::
 }
 r::Result<void> exercise(r::Device& device,std::string_view label,Shape shape,std::uint32_t channels,
         std::span<const Rule> rules,std::vector<std::uint32_t> initial,Boundary boundary,std::uint32_t ticks,
-        std::uint32_t batch,Report& report,omui::hash::Fnv1a& hash) {
+        std::uint32_t batch,Report& report,mlibs::hash::Fnv1a& hash) {
     auto p=Program::prepare(channels,rules);if(!p)return r::fail(r::Errc::invalid,"invalid CTS fixture");
     auto kernel=Kernel::prepare(device,*p);if(!kernel)return std::unexpected(kernel.error());
     Buffers buffers{device};
@@ -82,7 +82,7 @@ r::Result<void> exercise(r::Device& device,std::string_view label,Shape shape,st
 }
 }
 r::Result<Report> run(r::Device& device) {
-    Report report;omui::hash::Fnv1a hash;
+    Report report;mlibs::hash::Fnv1a hash;
     if(!device.caps().compute)return r::fail(r::Errc::unsupported,"cellular CTS requires compute and readback");
     const std::vector<Rule> reaction{
         {{C::self({1,{1,1}}),C::self({2,{3,0xffffffffu}})},{{1,W::set,2}}},

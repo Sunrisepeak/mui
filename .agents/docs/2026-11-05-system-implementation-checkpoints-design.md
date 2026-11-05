@@ -746,3 +746,24 @@ tools/ci/hanim-play-consumer/tests/  # 三个真实渲染集成测试
 - mcpp pack 本地 path 依赖边和归档排序缺口仍按 §20.2 处理；显式依赖及 GNU archive group 的消费证明不等于顶层单依赖发布完成。源码 closure 审计与安装包兼容是不同证据。
 
 最终 lint、TOML／Python／shell 语法、文档本地链接、生成器一致性和 diff 检查通过；用户既有锁文件不提交。该检查点完成 N2 的 renderer 组，simulation／audio／timeline／video、N3 UI／工具／标准连接及 N4 发布仍继续。没有增加 3D 能力、动画数量、40／20 质量或 S1–S10 的完成计数。
+
+## 23. 模拟的唯一归属与下一条功能主线
+
+基线 `9893ab9`。模拟时钟、CPU 元胞规则、可选 RHI 执行和跨设备 CTS 迁到 `xengine.simulation*`；共享同一实现，保留同包旧 import。`mgame.sim` 只剩约束与转发，已并入时钟包的 `src/legacy_mgame.cppm`，删除其独立清单，workspace 为 122。边界与清单迁移要求见[命名方案 §11](2026-11-05-product-namespace-migration-design.md#11-n2第二组模拟归属与游戏时钟空壳收敛)，证据见[机器报告](../../tools/ci/2026-11-05-simulation-namespace.report.omui.json)。
+
+### 23.1 实际可用性与本地验收
+
+- Clock／Timeline 与 CPU 规则的实际 target 闭包各为三个包（自身、log、trace），两者互不强制依赖。GPU adapter 为七包，CTS 为八包，均不带 Clock、UI、renderer 或游戏运行时。
+- 原生 dev／release 各五个程序、38 项，覆盖时钟、原 mgame 三项兼容测试、规则、游戏 UI 和 breakout；Wasm／Node 四个程序、36 项。Inspector 与官网 dev 共 22 个程序、138 项。
+- 源码／静态包 × 新名／旧名／混用六种仓外工程，各 26 项；共 28 个归档，三个真实 shader 构建插件消费者。直接 `import mgame.sim` 在安装包中也通过，Game 对 State 的原约束未放宽。旧包依赖键不兼容，必须改为 `xengine.simulation`，不额外造兼容空包。
+- 必须实际创建设备的 Vulkan dev／release 各两个程序、10 项；CPU／Vulkan／WebGPU 比较 16 场景、266 步、61,320 个值，过程摘要均为 `0769cee00d2cbf3a`。WebGL 的 compute 仍按实际能力报告 unsupported，不计作 compute 实现。
+- 当前 release Inspector 在移除 DISPLAY／WAYLAND_DISPLAY 后导出 61 张真实 PNG、时间化 WebP、工程与过程报告；PNG 全部匹配原工作台基线。新进程重载后演化到 tick 62，与从头运行一致；缺参数及不存在文件返回结构化失败与非零退出码。
+- 重新构建官网 Web，当前 native dev 产物执行 prerender 和 Agent 指南导出；Chromium 的 14 项交互检查通过，25 个中间态状态与 PNG 匹配原基线。没有将此次检查称作官网美术或整体动效已经验收。
+
+### 23.2 问题、限制与优先级调整
+
+SDL 首次测试发生 SIGSEGV；GDB 显示同进程混入 LLVM 20 与 LLVM 22。沿用 `tools/ci/gpu.sh` 的 Vulkan loader／lavapipe ICD 选择后，GDB 只见 LLVM 22，同一测试正常退出。设备为软件 llvmpipe，不作物理 GPU 性能声明，未删弱断言。
+
+simulation 预算测试本轮未执行：root locked 解析之后，fighting 的宿主构建临时工程缺六个图像／TOML 锁项，直接重建该临时工程仍在下一次规划时复现。用户的根锁文件没有修改或提交，原预算没有放宽；此项是构建工具门禁待处理，不能据此报告性能改善，也不阻塞已验证的功能推进。
+
+**后续优先级改为真实功能交付。** 命名迁移继续作为配套工作，下一条主线为独立 Hanim 的公开位移／属性动画、组合与 effect、播放控制、过程画面以及官网真实消费。现有 41 个官网基础场景不等于 41 个独立公共 API，20 个组合也仍需按复用性和视觉质量验收。完整属性通道／GPU 编排、UI 默认动画迁移、AI／PPet、后端、发布与工具仍未完成；本轮不增加这些目标的完成计数。

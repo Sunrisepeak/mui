@@ -25,7 +25,7 @@ mlibs.memory = { path = "../../../base/memory" }
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
-openmui.simulation.cellular.rhi.cts = { path = "../../simulation/cellular/rhi/cts" }
+xengine.simulation.cellular.rhi.cts = { path = "../../simulation/cellular/rhi/cts" }
 mlibs.testing = { path = "../../../base/testing" }
 mlibs.rhi.cts = { path = "../cts" }
 mcpplibs.os     = "0.2.2"

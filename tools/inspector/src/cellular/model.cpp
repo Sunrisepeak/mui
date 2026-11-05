@@ -2,11 +2,11 @@ module openmui.inspector;
 import std;
 import openmui;
 import openmui.hash;
-import openmui.simulation;
-import openmui.simulation.cellular;
+import xengine.simulation;
+import xengine.simulation.cellular;
 
 namespace omui::inspector::cellular {
-namespace ca = omui::simulation::cellular;
+namespace ca = xengine::simulation::cellular;
 namespace {
 constexpr std::uint32_t max_values = 16384;
 const Value missing;
@@ -193,7 +193,7 @@ struct Model {
         }
     }
 };
-using History = omui::simulation::Timeline<Model>;
+using History = xengine::simulation::Timeline<Model>;
 Model::State initial(std::shared_ptr<const Project> p) {
     Model::State s{p,p->cells,p->cells,p->tick};return s;
 }
@@ -201,7 +201,7 @@ Model::State initial(std::shared_ptr<const Project> p) {
 
 struct Session::Impl {
     std::unique_ptr<History> history;
-    omui::simulation::Clock clock{12,4};
+    xengine::simulation::Clock clock{12,4};
     std::int64_t revision=0;
     bool playing=false;
     std::uint64_t timer=0;
@@ -347,7 +347,7 @@ VerbResult Session::perform(std::string_view op,const Value& args) {
         if (field(args,"enabled").as_bool()) {
             if (!runtime || weak_from_this().expired()) return fail("play needs an attached host; batch clients use advance");
             d.authority=runtime->current_invocation().value_or(Invocation{});
-            d.clock=omui::simulation::Clock(d.history->state().project->rate,4);d.clock.reset(runtime->now().count());
+            d.clock=xengine::simulation::Clock(d.history->state().project->rate,4);d.clock.reset(runtime->now().count());
             d.playing=true;schedule();
         } else pause();
     } else return fail("unknown cellular operation");

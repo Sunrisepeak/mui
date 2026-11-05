@@ -1,5 +1,5 @@
 [package]
-namespace = "openmui.simulation.cellular"
+namespace = "xengine.simulation.cellular"
 name = "rhi"
 version = "0.1.0"
 description = "Optional RHI compute execution of the prepared integer cellular rule contract"
@@ -10,7 +10,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "backend"
 
-[targets.openmui-simulation-cellular-rhi]
+[targets.xengine-simulation-cellular-rhi]
 kind = "lib"
 
 [build]
@@ -20,6 +20,6 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.shader.rules = { path = "../../../shader/rules", host-module = true }
 
 [dependencies]
-openmui.simulation.cellular = { path = "../../../../base/simulation/cellular" }
+xengine.simulation.cellular = { path = "../../../../base/simulation/cellular" }
 mlibs.rhi = { path = "../../../rhi" }
 mlibs.trace = { path = "../../../../base/trace" }

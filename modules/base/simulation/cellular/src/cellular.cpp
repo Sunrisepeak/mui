@@ -1,9 +1,9 @@
-module openmui.simulation.cellular;
+module xengine.simulation.cellular.api;
 import std;
-import openmui.trace;
-import openmui.log;
+import mlibs.trace;
+import mlibs.log;
 
-namespace omui::simulation::cellular {
+namespace xengine::simulation::cellular {
 std::string_view error_name(Error e) noexcept {
     switch(e) {
         case Error::unprepared: return "unprepared"; case Error::channels: return "channels";
@@ -15,7 +15,7 @@ std::string_view error_name(Error e) noexcept {
     return "unknown";
 }
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
-    trace::Span span("simulation.cellular.prepare", "simulation");
+    mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
     if (!channels || channels > limits.max_channels || channels > limits.max_values) return std::unexpected(Failure{Error::channels});
     if (rules.size()>limits.max_rules || limits.max_words<4 || limits.max_values==0 ||
         limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
@@ -65,7 +65,7 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
         for(const auto w:rule.writes)p.words_.insert(p.words_.end(),{w.channel,static_cast<std::uint32_t>(w.kind),w.value});
         p.words_[start]=static_cast<std::uint32_t>(p.words_.size());
     }
-    omui::Log{"simulation"}.debug("cellular plan prepared: {} channels, {} rules, halo {}, {} words",channels,p.rules_,halo,p.words_.size());
+    mlibs::log::Log{"simulation"}.debug("cellular plan prepared: {} channels, {} rules, halo {}, {} words",channels,p.rules_,halo,p.words_.size());
     return p;
 }
 
@@ -135,7 +135,7 @@ Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32
 }
 std::expected<Statistics,Failure> Program::step_tile(Shape shape, Tile tile, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Boundary boundary) const noexcept {
-    trace::Span span("simulation.cellular.tile", "simulation");
+    mlibs::trace::Span span("simulation.cellular.tile", "simulation");
     auto v=validate(shape,in,out,boundary);if(!v)return std::unexpected(v.error());
     if(!tile.width || !tile.height || tile.x>=shape.width || tile.y>=shape.height ||
         tile.width>shape.width-tile.x || tile.height>shape.height-tile.y)return std::unexpected(Failure{Error::tile});
@@ -143,7 +143,7 @@ std::expected<Statistics,Failure> Program::step_tile(Shape shape, Tile tile, std
 }
 std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Execution execution) const noexcept {
-    trace::Span span("simulation.cellular.step", "simulation");
+    mlibs::trace::Span span("simulation.cellular.step", "simulation");
     auto v=validate(shape,in,out,execution.boundary);if(!v)return std::unexpected(v.error());
     if(!execution.tile.width || !execution.tile.height)return std::unexpected(Failure{Error::tile});
     const auto columns=1+(shape.width-1)/execution.tile.width,rows=1+(shape.height-1)/execution.tile.height;
@@ -154,7 +154,7 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
         const auto s=run_tile(shape,{x,y,std::min(execution.tile.width,shape.width-x),std::min(execution.tile.height,shape.height-y)},in,out,execution.boundary);
         stats.cells+=s.cells;stats.matched+=s.matched;stats.changed+=s.changed;
     }
-    trace::count("simulation.cellular.changed",static_cast<double>(stats.changed),"simulation");
+    mlibs::trace::count("simulation.cellular.changed",static_cast<double>(stats.changed),"simulation");
     return stats;
 }
 }

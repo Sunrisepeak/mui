@@ -26,7 +26,7 @@ import std;
 export import mgame.world;    // its state's types are these packages' (worlds, actions, vectors)
 export import mgame.input;
 export import mgame.physics;
-export import mgame.sim;     // its Game is a timeline's
+export import xengine.simulation;     // its Game is a timeline's
 
 export namespace omui::breakout {
 

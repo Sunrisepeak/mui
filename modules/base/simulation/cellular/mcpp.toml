@@ -1,5 +1,5 @@
 [package]
-namespace = "openmui.simulation"
+namespace = "xengine.simulation"
 name = "cellular"
 version = "0.1.0"
 description = "Prepared integer field rules with immutable reads, bounded neighborhoods and tiled writes"
@@ -10,7 +10,7 @@ repo = "https://github.com/Sunrisepeak/mui"
 [package.metadata.openmui]
 kind = "module"
 
-[targets.openmui-simulation-cellular]
+[targets.xengine-simulation-cellular]
 kind = "lib"
 
 [build]
@@ -22,4 +22,4 @@ mlibs.log = { path = "../../log" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../testing" }
-openmui.simulation = { path = ".." }
+xengine.simulation = { path = ".." }

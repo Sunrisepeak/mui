@@ -1,5 +1,10 @@
 # openmui Inspector
 
+The [Reaction lab](docs/cellular.md) is an additional workspace for editing
+and inspecting integer cellular projects. It shares one model and operation
+set across its omui view, Agent endpoint, batch CLI and website embedding;
+the simulation engine remains an independent library.
+
 A tool written in openmui that inspects any running openmui application
 (D-61, D-63, D-67): the first flagship of F1 (unified semantics) and F4
 (time). It connects to the application's agent endpoint — the same

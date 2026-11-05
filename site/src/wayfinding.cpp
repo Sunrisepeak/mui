@@ -115,7 +115,7 @@ Element docs_landing(DocsState& docs, const SiteLinks& links, float width) {
 
 Element explore_landing(const SiteLinks& links, float width) {
     std::vector<Element> tools;
-    for (const auto& [id, en, zh] : {std::tuple{"brand", "The mark", "标志构造"}, std::tuple{"timeline", "Timeline editor", "时间线编辑器"}, std::tuple{"release", "Release workspace", "发布工作台"}})
+    for (const auto& [id, en, zh] : {std::tuple{"brand", "The mark", "标志构造"}, std::tuple{"timeline", "Timeline editor", "时间线编辑器"}, std::tuple{"reactions", "Reaction lab", "反应实验室"}, std::tuple{"release", "Release workspace", "发布工作台"}})
         tools.push_back(column({.id = id}, {button({.id = "open", .text = words(links, en, zh), .variant = ButtonVariant::ghost,
             .on_activated = [go = links.go, id] { if (go) go(id); }})}));
     return column({.id = "explore", .max_width = Dim(width), .gap = 12}, {

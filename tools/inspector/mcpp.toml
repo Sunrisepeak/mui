@@ -24,11 +24,13 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp"]
 
 [dependencies]
 openmui.hash = { path = "../../modules/base/hash" }
 openmui.sdk = { path = "../.." }
+"openmui.simulation" = { path = "../../modules/base/simulation" }
+"openmui.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]

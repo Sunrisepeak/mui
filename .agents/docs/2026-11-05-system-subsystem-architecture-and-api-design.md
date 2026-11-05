@@ -279,6 +279,7 @@ mgame/                             玩法/ECS/输入/联网/保存及游戏集�
   gongfu/                          格斗规则独立，不被UI或底层引擎反依赖
 tools/
   cli/ gen/ mcp/ inspector/         现有工具先复用
+  inspector/src/cellular/          已有反应工作台：模型/视图/命令，共用Inspector清单
   cli/src/<领域>/                  [新增] 首批领域任务优先复用现有工具入口
   project/                         [候选共享库] 两个真实工具有共同工程/任务模型后提取
   animation/ ui-design/ audio/     [候选独立工具] 完整制作任务与可选GUI，同一CLI/API
@@ -359,7 +360,9 @@ src/entry/                         宿主/应用入口；根包仍是 openmui.sd
 
 GPU 近似误差可能改变离散反应分支，不能只用图像 epsilon 证明状态等价。区分逐位确定、可重复误差界和视觉近似；权威状态默认采用被验证的数值配置。带状态反应通过 checkpoint＋输入重放恢复，不承诺所有 seek 为 O(1)。
 
-首批实现见[实施台账§12](2026-11-05-system-implementation-checkpoints-design.md#12-s4首批独立模拟与整数反应的cpugpu过程一致性)：原`mgame.sim`时钟／回放下沉为唯一`openmui.simulation`实现；可选cellular库以类型化规则生成一份整数执行描述，CPU与RHI kernel消费相同数据。通道／状态／邻域不硬编码材料场景，GPU不拥有第二世界或时钟。逻辑halo、完整状态过程比对和重放已验证；稀疏物理halo交换、守恒移动、科学solver、可视化材料画布及Noita规模预算仍开放。
+首批实现见[实施台账§12](2026-11-05-system-implementation-checkpoints-design.md#12-s4首批独立模拟与整数反应的cpugpu过程一致性)：原`mgame.sim`时钟／回放下沉为唯一`openmui.simulation`实现；可选cellular库以类型化规则生成一份整数执行描述，CPU与RHI kernel消费相同数据。通道／状态／邻域不硬编码材料场景，GPU不拥有第二世界或时钟。逻辑halo、完整状态过程比对和重放已验证。
+
+下一批已将公共库接入现有Inspector的`src/cellular/`，模型／视图／CLI共用清单，官网作为普通消费者嵌入同一反应工作台。十二个`cellular.*`操作覆盖读取、规则配置、画笔、逐步／回放、工程加载与导出，沿用openas授权、actor撤销、共享Timeline和真实headless renderer；浏览器与CLI均验证多个中间状态，见[实施台账§14](2026-11-05-system-implementation-checkpoints-design.md#14-s4反应工作台共享库inspector官网与无窗口过程验收)。默认火种配方位于工具层，规则和调色板是可编辑数据，不进入模拟内核。此工作台执行CPU程序，仍未接入GPU驻留画布；稀疏物理halo交换、守恒移动、科学solver、通用反应图与Noita规模预算继续开放。工具内部feature裁剪也尚未交付，不能把“没有新增包”当作“关闭后零成本”。
 
 ### 7.2 compute、RHI 与分块渲染
 

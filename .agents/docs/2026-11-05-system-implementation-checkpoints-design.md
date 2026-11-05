@@ -417,3 +417,47 @@ GPU域CTS的16组场景覆盖逐tick读回、12步驻留批次、checkpoint上�
 下一阶段的新IR、AI内部职责、领域控制和工具命令，默认进入已有owner的源码目录；独立材料工具仍以完整制作任务与复用边界决定是否提取。既有小包的合并需要单独记录API兼容、feature／平台裁剪、独立消费者和构建成本验证。本轮未迁移源码或更改运行时依赖，不将规范修订计为S4工具或包收敛实现完成；动画过程继续遵循[核心准则§9.6](2026-11-05-local-global-composable-architecture-design.md#96-动画以过程采样和实际播放验收)的真实帧采样与实际播放验收。
 
 验证：全仓lint为0问题；新增／修改的本地文档链接与锚点、`git diff --check`通过。现有lint的members／layout已经只约束实际清单和成员，并不要求普通源码目录带清单，无需添加按行数拆包的lint。仅文档变化，没有重复运行无关的引擎测试；源`mcpp.lock`保持原字节且不纳入提交。
+
+## 14. S4反应工作台：共享库、Inspector、官网与无窗口过程验收
+
+执行基线`ed87ec7`。本批把§12的公共模拟能力接到可操作工具和官网；没有新增workspace成员。**S4仍在实施，不能据此宣布通用模拟、材料编辑器或Noita级规模完成。** 可复现命令、源码／产物摘要和逐项结果见[验证报告](../../tools/ci/2026-11-05-cellular-workbench.report.omui.json)，公共操作与最小SOP见[工具文档](../../tools/inspector/docs/cellular.md)。
+
+### 14.1 归属与真实功能
+
+- `tools/inspector/src/cellular/`在现有Inspector清单内组织模型、示例配方、视图和批处理，公开`openmui.inspector:cellular`分区；按D-99用源码目录表达职责，不建立一文件一包。
+- 整数规则执行、时钟和检查点分别复用`openmui.simulation.cellular`与`openmui.simulation`；视图用现有Painter／组件、headless和renderer，撤销走现有actor history。工具层只负责工程数据、调色板、操作和呈现。默认火种／路径／屏障是可编辑配方，未引入内核材料类型或另一份模拟器。
+- 官网在`#/explore/reactions`直接嵌入同一工作台，从Creative demos进入；首页不增加一屏。先呈现画布、播放／单步／回退和画笔，规则JSON及工程操作经“规则与工程”展开。支持中英文、窄屏、键盘光标和实际指针定位；离开路由／窗口失焦会停播。
+- 工程包括大小、命名通道、整数field、边界、规则、调色板、画笔和rate／tick。载入／配置先完整验证再发布；浮点冒充整数、非法偏移／通道、容量超限及过期revision拒绝。导出当前field和规则，重新载入可继续相同演化；历史日志未序列化。
+
+### 14.2 人与Agent共享操作、时间和权限
+
+十二个`cellular.*` verb：`describe`、`snapshot`、`project`、`config`、`inspect`；`load`、`configure`、`paint`、`advance`、`seek`、`reset`、`play`。沿用openas的effect、actor、session和回执。默认批处理显式绑定可信本地开发实例，不改全局fallback策略；常规`--cellular --headless --serve`继续使用SDK的发布／开发策略。
+
+`Runtime::current_invocation()`只给可信C++延续代码复制当前调用上下文；定时播放每次仍通过`Runtime::invoke`重新判定权限，不能把Agent发起的播放换成无session的人类调用。已验证启动后撤销session会停止推进、只读层允许查询而拒绝写入；人的本地操作继续按人的身份处理。
+
+paint是记录输入，不消耗模拟tick；seek使用history frame，二者不能混淆。编辑的undo／redo恢复拥有的前后状态并开始新的本地重放历史；时间推进使用240输入容量、每30输入的检查点，不为每个tick建立UI逆操作。换工程和undo后同步合法画笔、光标边界和规则文本，避免旧工程的选择越界。
+
+### 14.3 本地验证与真实过程证据
+
+| 范围 | 实际结果 |
+|---|---|
+| Inspector原生dev | 2程序／9用例通过；含已有连接Inspector的回归和8项新工作台用例 |
+| Inspector原生release | 工作台8用例通过；独立release CLI另实际运行 |
+| Wasm／Node | `wasm-test`实际执行8用例通过，不仅编译 |
+| 官网原生回归 | 20程序／129用例通过；含新工作台6种宽度／语言组合、路由停播及现有首页／组件／动效／Agent测试 |
+| 状态与像素过程 | 71个前向状态逐个反向重建；960英文／260中文／640中文2×DPI各25幅实际画布状态逐个反向像素核对，含窗口缩放后真实点击 |
+| Chromium官网 | 14项检查通过；真实鼠标绘制与Agent同状态，25个连续实际画布PNG及17／8／0帧反向像素一致，真实键盘改规则、播放、离页停播和390中文布局 |
+| 无显示环境CLI | 移除DISPLAY／WAYLAND_DISPLAY后，release导出61个PNG、WebP、工程和报告；新进程载入后演化到tick62，与从原输入推进的参考一致；缺参数／缺文件为非零退出及结构化失败 |
+
+浏览器脚本`tools/ci/site-reactions.mjs`已接到现有site browser检查，CI保留画面与报告。本轮不等待跨平台CI；没有宣称Windows／macOS／手机真机已验证。原生与浏览器画面分别按自身后端核对，不把它们误报为跨后端逐像素相等。
+
+批处理逐帧保存合理时间的有理数分子／分母、revision／state hash、像素hash、viewport／DPI、renderer、输入工程和操作回执。WebP把累计时间舍入到毫秒，避免逐帧舍入累计漂移；离线采样证明过程可审查，实播按钮验证功能，**均不等于实时帧时延或人的观感预算已经验收**。已实际查看窄屏中文和中间态，确认画布有过程变化、文字与控制可读。
+
+### 14.4 自审与后续边界
+
+- 本工作台目前执行CPU规则程序；独立GPU kernel仍是§12的能力，尚未形成GPU驻留模拟→共享帧图→画布的完整通路。稀疏／活动区域、物理halo、多cell移动与守恒、通用反应图、科学solver、设备丢失与Noita规模预算继续开放。
+- 本轮没有新增包，但Inspector尚未提供关闭cellular源码和依赖的内部feature；该项成本裁剪不能标为完成。公共模拟库仍可不依赖UI／Inspector独立使用。当前site-web构建的Wasm及gzip体积已记录在验证报告；这是本地产物观察，不是新的首帧性能验收。
+- `state_hash`只覆盖维度／通道数／tick／cells，规则与风格改动应结合revision和导出工程核对。保存当前状态、回放历史、actor撤销与外部文件输出分别定义；多个导出文件不是一个原子事务，失败会返回已写路径。
+- 工具仍是有限整数场工作台：人通过展开的JSON修改规则，尚非成熟节点编辑器；没有刷拖、多工程资产管理或远程协作事务。不把一个新增作品计为40种动画或20个创意作品的整体验收。
+
+最终静态检查：全仓lint、JS／shell语法、变更链接与`git diff --check`；用户已有的`mcpp.lock`保持原字节并排除提交。下一步仍按全局S1–S10的实际缺口推进，复用既有owner和公开契约。

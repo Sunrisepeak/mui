@@ -1,0 +1,1253 @@
+{
+  "format": "omui.cellular-workbench.validation@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T00:42:42.890735+00:00",
+  "base_commit": "ed87ec74a2d0c5a9cd3ad1502fecab521f96b2bd",
+  "scope": "Partial S4: existing Inspector workspace, shared CPU simulation/replay, same domain operations for GUI/openas/headless batch and website embedding. No new workspace member; not GPU-resident UI, scientific simulation, complete material editor or Noita-scale validation.",
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "283526d526e5bc2d3fdd43f7388994a47a6a2947a72b3a411869503781e1f129",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "1158088a6f98c20320a5ed1f703dd317e5ebaa60cdb9368928aa04058864fb25",
+    ".agents/docs/README.md": "125630792006031db30d6cc65295b96756b7fe3efd368172157dac917eb07d8a",
+    ".github/workflows/pages.yml": "830264517e5bde8b297ad512e4ed4fe4ba87dd2d99d2576cb549133e10461f3f",
+    "AGENTS.md": "455f342ba99db49b7b1b6388bbc87f5c458128468fb8e0c57a9a54f9f612bab6",
+    "mcpp.toml": "640ee50d106f9d0be0bfa7516d6fabb9754d95e7681a001f2225e40d7e8a2dc7",
+    "modules/ui/view/src/history.cpp": "f5ae55f47b677f2c5f3e4b62672c528b4919200cdf179f252acd42237ad7bc25",
+    "modules/ui/view/src/runtime.cppm": "31e5347d27ab63e60413e1a90898c92dc17205a97d861d69b96d48b75563709f",
+    "site/mcpp.toml": "6f80a835eee715d7eea478eeb623e225720e9981219f62cbcfb8885b7b017217",
+    "site/src/app.cpp": "a5119853021f84af5b8b9817fb3ece736c7d0dda124b93cc7ec8a399853103e1",
+    "site/src/routes.cppm": "fb0151a89f8bea8a4f3242061e3c629ab98ed8056df738dfff1fac7f16b02627",
+    "site/src/wayfinding.cpp": "e1ec76003a173999fe64551e2f4a3bd966299bdd6c03c7ef1f7e0b860bd2aab8",
+    "site/tests/reactions_test.cpp": "a4e29bcf727aa9cdb1e77c48b113025ee4a2fe518c5a3baf3fc2b3455b00ea9a",
+    "site/tests/site_test.cpp": "c4e088ad62366cd6d069d68bdab97ea5cb44485c6b1a63598b3d26e927d7964b",
+    "tools/README.md": "a5f8eb0f93cbd0a391dbeda884efa45cc13da3298d584acf5d33d49582c1e797",
+    "tools/ci/site-browser.sh": "2510943bd3cf5e2bf7225d7ee47071c601d7d0b96365a43ed78f0185d0dfaccd",
+    "tools/ci/site-reactions.mjs": "7b629769b2f7b89abafce14fdd94cd67a8b63392443bd5f2ffc51d45b5a36cdf",
+    "tools/inspector/README.md": "9d26df67dd354245b52dee7c78d3631e1195c898b2d69b8dc52fa148739ba7b5",
+    "tools/inspector/docs/cellular.md": "db49a6ed1b4187e0ac349c1be7a09428d39cce92f1587114d88b0645c65ac139",
+    "tools/inspector/examples/spark.batch.omui.json": "2acde1f9febf00d78c7aa54428b1999168b68df5c6f445772e8d7920f3bc0b32",
+    "tools/inspector/mcpp.toml": "93e8937238395bb0b9deef139ea83ffc55bba9c1da45b3ea01302e8b82392ce0",
+    "tools/inspector/src/cellular/batch.cpp": "3fddc156ddd5b2e4317b1bded4c721fb99f9c401bba69dadf90bf957ec3815d0",
+    "tools/inspector/src/cellular/cellular.cppm": "4a4efc8922d90da4086765b75f97f779ed51f8d78190a61697dacf6582c8f204",
+    "tools/inspector/src/cellular/example.cpp": "6799e8a7d7670707c72e97781f6776ffe80f348942ec42412e5d880e67199788",
+    "tools/inspector/src/cellular/model.cpp": "e1d342eb0383961ddd9a385c1a5ab2b270539bbf1d30c792aa500822045d5f1b",
+    "tools/inspector/src/cellular/view.cpp": "b5250c90e9b8f2f6ae68da5f44977226c27a5347da0b5c4d929e1c7753717cf2",
+    "tools/inspector/src/inspector.cppm": "61c01afeb0e6a6a8f77958c7f7eea458da83cccc7a80ace8d873604cfbc5ff14",
+    "tools/inspector/src/main.cpp": "10d6bf3c247b35c29d17d12baaa56a4e3b84d0969384775b52c9cb5acebc2de9",
+    "tools/inspector/tests/cellular_test.cpp": "57392be531cfa4986552444b522f06a8d28f9118199a61ec5ff39bcbf12dbd55"
+  },
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "identity_note": "Base commit plus source hashes identify changes. User-owned lock remains unchanged and uncommitted. Native CLI main argument handling was verified through the actual release executable; browser consumes the library, not this entry point.",
+  "toolchains": {
+    "mcpp": "2026.11.2.2",
+    "native": "GCC 16.1.0 x86_64-linux-gnu",
+    "wasm": "Emscripten 6.0.9; actual Node execution of wasm-test"
+  },
+  "tests": [
+    {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.inspector",
+      "exit_code": 0,
+      "programs": 2,
+      "cases": 9,
+      "suites": [
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        }
+      ],
+      "timing": "120.60s (build 19.91s + run 14.28s)",
+      "log": "/tmp/omui-cellular-test.log",
+      "log_sha256": "24a63853d62e1dbdcb2a2f2bfd4d430e6de07cdcf5b1c642a2ded638298d0c1d"
+    },
+    {
+      "command": "TMPDIR=/tmp/omui-s4-release-scratch MCPP_JOBS=2 mcpp test --locked --profile release -p openmui.inspector cellular_test",
+      "exit_code": 0,
+      "programs": 1,
+      "cases": 8,
+      "suites": [
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        }
+      ],
+      "timing": "34.94s (build 8.45s + run 7.74s)",
+      "log": "/tmp/omui-cellular-release.log",
+      "log_sha256": "27d26d1ff2b6078053027b781e4c4d7b2fbf240148ff78f98499bcf8a48335a6"
+    },
+    {
+      "command": "TMPDIR=/tmp/omui-s4-wasm-scratch MCPP_JOBS=2 mcpp test --locked --target wasm32-emscripten --profile wasm-test -p openmui.inspector cellular_test",
+      "exit_code": 0,
+      "programs": 1,
+      "cases": 8,
+      "suites": [
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        }
+      ],
+      "timing": "19.02s (build 1.30s + run 5.83s)",
+      "log": "/tmp/omui-cellular-wasm.log",
+      "log_sha256": "c3df96f0e0e626e0cc20f86ab07ded936daa20939d0870d332ac8216e52f4829"
+    },
+    {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site",
+      "exit_code": 0,
+      "programs": 20,
+      "cases": 129,
+      "suites": [
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "timing": "375.09s (build 95.83s + run 187.68s)",
+      "log": "/tmp/omui-reactions-site-tests.log",
+      "log_sha256": "9e302e1dd5bf410b8c2d3ed23151490261b91da751452a389e20e8a6eb36ff2f",
+      "source_note": "The full 129-case website run precedes a descriptor-only addition of the optional reset revision argument. Final Inspector and browser tests, and the following route test, reran after that addition."
+    }
+  ],
+  "browser": {
+    "command": "CHROME=<Chromium> node tools/ci/site-reactions.mjs target/site-reactions-app",
+    "report": "target/site-reactions.report.omui.json",
+    "report_sha256": "7032fbf6f57643004dfa4f7de4406fb14bd15415b9771a0364fa455096f6a698",
+    "version": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "samples": [
+      {
+        "frame": 0,
+        "tick": 0,
+        "state_hash": "2ff7d08ffe731c7d",
+        "time_numerator": 0,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-00.png",
+        "sha256": "abd52bfed00303d91fd814fd4783bd2e9c5cb8e57c3f7c049ff8cb1ccb1ad749"
+      },
+      {
+        "frame": 1,
+        "tick": 1,
+        "state_hash": "ec170e52102cb39d",
+        "time_numerator": 1,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-01.png",
+        "sha256": "3b518b0a5e46e3487c21d9777f2e513fbf23bf65d641386131a4d05fc097dee8"
+      },
+      {
+        "frame": 2,
+        "tick": 2,
+        "state_hash": "8056bc6ce42a1cfd",
+        "time_numerator": 2,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-02.png",
+        "sha256": "862d43515187f9044fc77d507c297e3c84596566d24513d45d4ea5ba83048075"
+      },
+      {
+        "frame": 3,
+        "tick": 3,
+        "state_hash": "844dd6adb4db6bdd",
+        "time_numerator": 3,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-03.png",
+        "sha256": "c7d384c96d4c0b7c3af44896b1a244a27e5ada96fde1ea83a7c0946070ee57b0"
+      },
+      {
+        "frame": 4,
+        "tick": 4,
+        "state_hash": "cb96e63134aa59fc",
+        "time_numerator": 4,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-04.png",
+        "sha256": "c1183678a6abc0bf986adcb911e4b389d7aac8f3f69725f9a925b76662095df2"
+      },
+      {
+        "frame": 5,
+        "tick": 5,
+        "state_hash": "7c13aadd540658fe",
+        "time_numerator": 5,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-05.png",
+        "sha256": "b8715ffd65ca50505b35274bcfeff96ea5323e9c5747cc79d734b65074a09441"
+      },
+      {
+        "frame": 6,
+        "tick": 6,
+        "state_hash": "47b2258a2a003b7e",
+        "time_numerator": 6,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-06.png",
+        "sha256": "2095b9e0efe7f253ad29a04431d59217b59ebcbb5133f8fbf7456c72c39c412b"
+      },
+      {
+        "frame": 7,
+        "tick": 7,
+        "state_hash": "022f9f346d639b1d",
+        "time_numerator": 7,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-07.png",
+        "sha256": "18a85f9482e625f16939b27a9228c506fcf8c263d8a62a922e6e458725de81ae"
+      },
+      {
+        "frame": 8,
+        "tick": 8,
+        "state_hash": "25fe19de75ae88f7",
+        "time_numerator": 8,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-08.png",
+        "sha256": "169fcadea1969cfea2f3ab9ba393c30c19be8769d777cfda1c0b41c7f37bfff0"
+      },
+      {
+        "frame": 9,
+        "tick": 9,
+        "state_hash": "f8f50e8df01111b0",
+        "time_numerator": 9,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-09.png",
+        "sha256": "eb0db1ec19af09313f1ddaa26caa414844ed5c7782fdbbb3200948db02e4bab8"
+      },
+      {
+        "frame": 10,
+        "tick": 10,
+        "state_hash": "d375b10843373075",
+        "time_numerator": 10,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-10.png",
+        "sha256": "3ce85d7b97431b371e601b686c7d20693f607881e0490cfcfbd0f041d31a03d0"
+      },
+      {
+        "frame": 11,
+        "tick": 11,
+        "state_hash": "f24141e649251a32",
+        "time_numerator": 11,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-11.png",
+        "sha256": "4a1485b137c6465bbcb5521780e7a66359a98e1eaaae77a65fb9c12b1bafdf2c"
+      },
+      {
+        "frame": 12,
+        "tick": 12,
+        "state_hash": "44bebac312368c73",
+        "time_numerator": 12,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-12.png",
+        "sha256": "7d45f68196988cc2cf3b3c4acd4def193639d5240e536e927b225feefa9e4819"
+      },
+      {
+        "frame": 13,
+        "tick": 13,
+        "state_hash": "f376a0d27901a7b5",
+        "time_numerator": 13,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-13.png",
+        "sha256": "83804e6e8b1c31e944b13f78edd06ee390a1bb2ba926e6d6a0be5e44416f2a86"
+      },
+      {
+        "frame": 14,
+        "tick": 14,
+        "state_hash": "3db6f4da09b86b71",
+        "time_numerator": 14,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-14.png",
+        "sha256": "d88eb7f1111a57e19bd6f26b9d0ba1981c6c30c35f511695f90487b77a645c05"
+      },
+      {
+        "frame": 15,
+        "tick": 15,
+        "state_hash": "83d356969b5342f5",
+        "time_numerator": 15,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-15.png",
+        "sha256": "35432e69b850635743e8fbb8c8110eb96d9551cc905f8d676b7f9e14ddb41aba"
+      },
+      {
+        "frame": 16,
+        "tick": 16,
+        "state_hash": "c5d720973a7b9bed",
+        "time_numerator": 16,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-16.png",
+        "sha256": "ed10e8811868ba2d9c5ba3e3779fce57759f4555a8895a6a5551721fbad1dd5b"
+      },
+      {
+        "frame": 17,
+        "tick": 17,
+        "state_hash": "be05e913cf3593ac",
+        "time_numerator": 17,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-17.png",
+        "sha256": "3adbbd44ff51457e92fafb8183f472ba9387ec2e6d20807635a0bd3cc0b2e654"
+      },
+      {
+        "frame": 18,
+        "tick": 18,
+        "state_hash": "ecb00af823ce6d8a",
+        "time_numerator": 18,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-18.png",
+        "sha256": "f4edf52a25734cb16b064b0c0549f1273589df9ab0d5adf82a52f12a94818eb1"
+      },
+      {
+        "frame": 19,
+        "tick": 19,
+        "state_hash": "de785e3726fdbfae",
+        "time_numerator": 19,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-19.png",
+        "sha256": "0365dafe36eb3d72501937e58e68bfd5817fae0b8d33f52bd62417c4efecbe54"
+      },
+      {
+        "frame": 20,
+        "tick": 20,
+        "state_hash": "074974761bab8c2d",
+        "time_numerator": 20,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-20.png",
+        "sha256": "79fb9dc8450d8d1e0e9172c3baaf5a859edcac19b6cb7fbdec2a8130ef3dfdcf"
+      },
+      {
+        "frame": 21,
+        "tick": 21,
+        "state_hash": "4f827679bedd646f",
+        "time_numerator": 21,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-21.png",
+        "sha256": "04a12c3586355b8af772458eb4114a4318b486b8dd14a5d9466375efa0c39e11"
+      },
+      {
+        "frame": 22,
+        "tick": 22,
+        "state_hash": "698bedbc5bf0934d",
+        "time_numerator": 22,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-22.png",
+        "sha256": "f9d768309fec0e5e33e87363bc49a55994facf210f8ad7fffd0b5746bdf65105"
+      },
+      {
+        "frame": 23,
+        "tick": 23,
+        "state_hash": "d12390c4377c9a0c",
+        "time_numerator": 23,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-23.png",
+        "sha256": "b65dd3fa35a3a6ed011b6ad96bdce88944fd84253533a505ca8a6e93dc25adff"
+      },
+      {
+        "frame": 24,
+        "tick": 24,
+        "state_hash": "98d8ecf3acedd2c0",
+        "time_numerator": 24,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-24.png",
+        "sha256": "4bc5b62d2d8e2bbb21a45217e83ebf8b4b745b2339a7a771317a71364a036fe9"
+      }
+    ],
+    "opening": {
+      "image": "target/site-reactions/opening-en.png",
+      "sha256": "368b5be3ec6a0c4ffa451f959c57b31974612d0d51473e26744aea58cd54b641"
+    },
+    "phone": {
+      "image": "target/site-reactions/phone-zh.png",
+      "sha256": "442adfdcdaa75a4199d127ff5917cde28e33a84b9fc98caff8b5fd93f838f6b3"
+    },
+    "scope": "Real browser pointer/keyboard/transport plus 25 actual canvas PNGs, reverse comparisons at 17/8/0. No cross-backend pixel equivalence or hardware frame-time claim."
+  },
+  "cli": {
+    "launch_command": "TMPDIR=/tmp/omui-s4-release-scratch MCPP_JOBS=2 mcpp run omui-inspector --locked -p openmui.inspector --profile release --print-launch",
+    "launch_report": "/tmp/omui-cellular-cli.launch.json",
+    "launch_report_sha256": "0dffa0eaa3b3f4ba7608f037541520e501601a7ca54d1152de9cd12a56f1cf1c",
+    "report": "target/cellular-workbench/validation.report.omui.json",
+    "report_sha256": "a01da95f55b7d2fa603773ad667638ac503e1cd90b4c78d99e750c3457201199",
+    "environment_removed": [
+      "DISPLAY",
+      "WAYLAND_DISPLAY"
+    ],
+    "checks": [
+      "release CLI without DISPLAY/WAYLAND_DISPLAY produced 61 real PNGs, timed WebP, project and report",
+      "saved project reloaded in a fresh process and reproduced subsequent evolution at tick 62",
+      "missing arguments and absent input returned structured failure and nonzero status without opening a GUI"
+    ],
+    "runs": [
+      {
+        "args": [
+          "--cellular-batch",
+          "tools/inspector/examples/spark.batch.omui.json",
+          "--out",
+          "target/cellular-workbench/process"
+        ],
+        "exit_code": 0,
+        "wall_seconds": 2.382698983012233,
+        "stderr": ""
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "target/cellular-workbench/reload.batch.omui.json",
+          "--out",
+          "target/cellular-workbench/reload"
+        ],
+        "exit_code": 0,
+        "wall_seconds": 0.13788957596989349,
+        "stderr": ""
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "target/cellular-workbench/reference.batch.omui.json",
+          "--out",
+          "target/cellular-workbench/reference"
+        ],
+        "exit_code": 0,
+        "wall_seconds": 0.04634354397421703,
+        "stderr": ""
+      },
+      {
+        "args": [
+          "--cellular-batch"
+        ],
+        "exit_code": 2,
+        "wall_seconds": 0.001649314013775438,
+        "stderr": ""
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "tools/inspector/examples/spark.batch.omui.json",
+          "--out"
+        ],
+        "exit_code": 2,
+        "wall_seconds": 0.0015985109494067729,
+        "stderr": ""
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "target/cellular-workbench/absent.batch.omui.json",
+          "--out",
+          "target/cellular-workbench/absent"
+        ],
+        "exit_code": 1,
+        "wall_seconds": 0.0015045839827507734,
+        "stderr": ""
+      }
+    ],
+    "files": [
+      {
+        "path": "target/cellular-workbench/process.cellular.omui.json",
+        "bytes": 14974,
+        "sha256": "baa9ed347b2d0211154e177f3bceacb57b2f1c19d1c22ec0831d851f35f5c86a"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-000.png",
+        "bytes": 41600,
+        "sha256": "ac1849156d64fdfcd9a651a1441fca99ba52179d2ff8d8bc83cbc9c43c6ccfd5"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-001.png",
+        "bytes": 41769,
+        "sha256": "93885f39774534e671c1fdb835dd6424edadd4999bf1f8dcd223a6dbd9c2bc6a"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-002.png",
+        "bytes": 42287,
+        "sha256": "0cc7926f057c776466fdf2ef24444be40ed46ec5992310f2ca54a0b90234a8f2"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-003.png",
+        "bytes": 42662,
+        "sha256": "c8b655b2d64486d119da30423d553537ba52b148226e239f42dfb89116dfa4f8"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-004.png",
+        "bytes": 43036,
+        "sha256": "ebd4df76c9a8f966775dfdbc3e0f3e8a9416e911cb726d7ec935ed020d42a5de"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-005.png",
+        "bytes": 43506,
+        "sha256": "0076b0ab7eead5a456363c9a2e8123859f9326a5a10aafe585cff84257c0ae8c"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-006.png",
+        "bytes": 43871,
+        "sha256": "39febaf8c6c4b3c93ff1cb34cd2bf440fea24b4cc4fa33b5eb643307a09008c1"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-007.png",
+        "bytes": 44268,
+        "sha256": "b0a647bfecdf05c506f95b82ebf5b18eb905500319458be9df22e0ffa89caab9"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-008.png",
+        "bytes": 44883,
+        "sha256": "621b51b5071b16594123fdee3c05fa2bdd53f60549b917fe206bb463079d4b4b"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-009.png",
+        "bytes": 45414,
+        "sha256": "87e89de0dad4b26d118bb57e539ec0bdecbef89a9be750ea7cf5f87e5c9d1595"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-010.png",
+        "bytes": 45539,
+        "sha256": "ec1b087f40151741161aec6c08ff3e2935e30e7471c7a31f815e96546c8988d0"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-011.png",
+        "bytes": 45764,
+        "sha256": "a76853b070a089aee8f1f0e65309aad0f232439e74a7fa254aae1ba49833dbff"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-012.png",
+        "bytes": 46410,
+        "sha256": "9e25cad8b16131611990a09fb8c80deb2ca03c836fdd2d97ffb5ae17add3b742"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-013.png",
+        "bytes": 46595,
+        "sha256": "da6682519382f841fd20f82e34350736b6d86b02c118265471172443b2ee6562"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-014.png",
+        "bytes": 46574,
+        "sha256": "8a3a95ad5d8d39e1a06e07c88f9b3120c75150e6b6edc9434b124ddf21f38f26"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-015.png",
+        "bytes": 46620,
+        "sha256": "c47ee9857f2353e24a519b5deff429e52ff8931b8063f79cae13a0059f44285b"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-016.png",
+        "bytes": 46656,
+        "sha256": "e4b2d27fb189c16acf2f623d178ad3e166bc3f5062b1848e85b9c2f19c1e6753"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-017.png",
+        "bytes": 46754,
+        "sha256": "f658269e2192b03d95d2505b9a782c92c9878b8ac578e4aa12eece1ebb79b71b"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-018.png",
+        "bytes": 46631,
+        "sha256": "9ad1c9b78217a303d0385de1742284c59c6234d2f325b2eb529ac22ebc3cc90c"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-019.png",
+        "bytes": 46631,
+        "sha256": "40fe7f84fc264fbac4519bc0b7dee3fd1ef53866909eaf5ae26b6450fe5ce0b2"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-020.png",
+        "bytes": 46605,
+        "sha256": "f1ebaf99e71ec07cab0d9c21fe69c523968e1134fd6c22f7967bd8883ab18765"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-021.png",
+        "bytes": 46301,
+        "sha256": "a36d0c928eb41a6967e9228fb444d5f0e54937832a971dabeb2a5a54c631b6a9"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-022.png",
+        "bytes": 46192,
+        "sha256": "619649bfbfa919db50964c5fd9d18acc88ba61b0af9e6df9bd16f195c33d792e"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-023.png",
+        "bytes": 46164,
+        "sha256": "57fa0ecdb62f711b856acefedef5f3f5230b96508dcef7174bd807e47067140c"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-024.png",
+        "bytes": 45822,
+        "sha256": "94336fc77ecf71a1b63a27ab7296c40d8d80bd878b23c368dd315158b87dd946"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-025.png",
+        "bytes": 45631,
+        "sha256": "94d1e9c55fe987ea7c012a251c4a77aadb5fb35dc668a6e7fbf8c272e506fca3"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-026.png",
+        "bytes": 45404,
+        "sha256": "d4825bdac83cc0fccf7bbc2e6a7e99d655618e910e54d1bb2caa02b9b6bdfc11"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-027.png",
+        "bytes": 45057,
+        "sha256": "3b22b509ad53dc4d7b7b23dfd1e4914288592dd728535a6a0525ca02dee3254c"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-028.png",
+        "bytes": 44807,
+        "sha256": "22af0fa3342f526b39dae5b4e1772a4d752ad0a8c33f34730470d5a3240dc584"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-029.png",
+        "bytes": 44303,
+        "sha256": "269b155b282728501c667b2fdcb72dbe3d8e460f3434b646f8d74eb563528764"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-030.png",
+        "bytes": 43988,
+        "sha256": "763a8f6c17ff3154ae6bc7efd9ae0acb2f8841064702c70540f4c950da30d082"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-031.png",
+        "bytes": 43651,
+        "sha256": "5c7865444db4fa548acb3f1a375096cac4baa1f501eaf94af417db7c1e873aea"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-032.png",
+        "bytes": 43635,
+        "sha256": "1b2385e6c7d125d8b57bf820365a474ba688f57411f1c69c285ff0994bb91b2d"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-033.png",
+        "bytes": 43508,
+        "sha256": "cd84101b84c2f32d2598bd3f2d472e26cb84ad0fe5a6e09ed39a89a8a5aed663"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-034.png",
+        "bytes": 43419,
+        "sha256": "957fcb9d223e64d02fb544beee932addf482e53ede78c8df9fd8a84a99dc8511"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-035.png",
+        "bytes": 43205,
+        "sha256": "bb409ecfa1cd56593000aa7a309793dbf1ae80668aa792d888e9be11caf88f12"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-036.png",
+        "bytes": 43100,
+        "sha256": "2a045782bd72bfec0be510cd7377ccec318a366d3a593d22cf43e9b0815c5398"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-037.png",
+        "bytes": 42983,
+        "sha256": "471b1bdf22f119ebfe26a9da266d23c8192a7cc5ed0acb7e241a41b7c965f751"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-038.png",
+        "bytes": 42915,
+        "sha256": "493c81a76c1e30e810b9f224c315139c3b584c4a6f2a5e33d1724567ec931524"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-039.png",
+        "bytes": 42787,
+        "sha256": "888ae9595f59f597a63e3aec20393de3e5b57775f39dd65e2f0262a016bc25fc"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-040.png",
+        "bytes": 42342,
+        "sha256": "781a81a004cdf105d5375a678a7d7d204486bf9cb7e5b45135fc65d4daf61ba0"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-041.png",
+        "bytes": 42119,
+        "sha256": "f564f0b73adb5dfeab5e7df388687800f79664b1587596f1f255f3f468bba9d5"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-042.png",
+        "bytes": 42263,
+        "sha256": "683ba6aad80a9e5bc8a9f151a5d102c733228ce30289f7b2d3801123704eb32a"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-043.png",
+        "bytes": 41932,
+        "sha256": "ade1e8c2fd6c6e0231411d7450856724114584a820064ae49b05d80832b5ed3e"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-044.png",
+        "bytes": 41697,
+        "sha256": "1594acce1688c81c635f7f95d5fdf448a7979e28e5c8800689b7ee5d6cacc580"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-045.png",
+        "bytes": 41876,
+        "sha256": "ac6770bbe35754237c7b62a524a4b908a709bfd79b0ce404c8967028062cc487"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-046.png",
+        "bytes": 41692,
+        "sha256": "3f309d51192acd0210614d94d7e5cca4abce8602401761149661e29466cdac6d"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-047.png",
+        "bytes": 41434,
+        "sha256": "a6ac52af8707ff6292d80adcbf37daf9ac2e9761d029696cce3300a1c2565a68"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-048.png",
+        "bytes": 41563,
+        "sha256": "0ef4e23f5cc2dd4e90320d348bc9eeca7c87348741a19e9c8410626cddc30b0d"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-049.png",
+        "bytes": 41490,
+        "sha256": "78145f3608d98a14912f905be132a8975156f36a6da6092aea8d6afe8a409aa3"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-050.png",
+        "bytes": 41211,
+        "sha256": "f98dbf00b3d71456eb7cda42f1a117b1b5c16dca5a9978e32133b4e2bba869f0"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-051.png",
+        "bytes": 41154,
+        "sha256": "f211d9e47cb989a6d79ea58eb39ee50948547d59ffc9a304f61baa41d9023f96"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-052.png",
+        "bytes": 41144,
+        "sha256": "e6bbf7818b4972906a0b066f415deb6deafea7f5b4813dcd281f07f4a7a8f650"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-053.png",
+        "bytes": 41060,
+        "sha256": "8877f919ad63ee48bf34f07e1b86bb56fcbfd9f8afa22a92766844c1b306e71a"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-054.png",
+        "bytes": 41142,
+        "sha256": "cbc584859da1079d2667aec93a798a6a5731a25f6c8abe9683e893a059536f87"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-055.png",
+        "bytes": 41265,
+        "sha256": "9f61164d4165cec2b6947a3efef0defb3dbea682ce224faf9ca84ebb559dd68d"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-056.png",
+        "bytes": 40993,
+        "sha256": "4bad6c81e8c1d81857c7ddba5bf064f0aedac50d86a75d88cede4eb0af7fae9e"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-057.png",
+        "bytes": 41135,
+        "sha256": "e79e91b1a82bcc82c7b77e2f217f017fcf91a6aa498947edbb575056a84d1dfd"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-058.png",
+        "bytes": 41098,
+        "sha256": "e6b2b51253306c97620e2ecc547e5b16c35fbb58d499baf31bcd52e75f79b38c"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-059.png",
+        "bytes": 41313,
+        "sha256": "c14b25335cf65fbf9a77be16ec34bd35e267b9a1f7590bfcf69af00dae50fd25"
+      },
+      {
+        "path": "target/cellular-workbench/process.frame-060.png",
+        "bytes": 41135,
+        "sha256": "b36fa73f50175dfc9a0024573cf60e5916416a5124e6a11ef631137b177135d8"
+      },
+      {
+        "path": "target/cellular-workbench/process.report.omui.json",
+        "bytes": 94113,
+        "sha256": "80559e9aea98b0d10cea51b7745dfdf0dabf4b48c6f5963577d2d1f87ab8a742"
+      },
+      {
+        "path": "target/cellular-workbench/process.webp",
+        "bytes": 125046,
+        "sha256": "e655d35ce55bfaf613cd06ba2adb3f3a77138741608ff80a9c17063f8177e3be"
+      },
+      {
+        "path": "target/cellular-workbench/reference.batch.omui.json",
+        "bytes": 152,
+        "sha256": "df8143a31e7d01f261cd74af8feb818c45dbbbfb09f28def9c5de5ebb0fd48da"
+      },
+      {
+        "path": "target/cellular-workbench/reference.cellular.omui.json",
+        "bytes": 14974,
+        "sha256": "520dcb228b1576ec14db23a4ef703471ab4e1adfdd1dd323c9636686939fb933"
+      },
+      {
+        "path": "target/cellular-workbench/reference.frame-000.png",
+        "bytes": 41260,
+        "sha256": "47b6daee726f388e7bccd466f39ce6cc32fd799c1ddc1af8110d534873364e80"
+      },
+      {
+        "path": "target/cellular-workbench/reference.report.omui.json",
+        "bytes": 17502,
+        "sha256": "45501adcc10230ede84b25fbafa9c4d2204023e5f1def77f41bb20e39d456879"
+      },
+      {
+        "path": "target/cellular-workbench/reload.batch.omui.json",
+        "bytes": 22142,
+        "sha256": "890d4ddf2baf97de5e410c3c7010d7b1632c73c090bc971a79f48ca8e0a0c90c"
+      },
+      {
+        "path": "target/cellular-workbench/reload.cellular.omui.json",
+        "bytes": 14974,
+        "sha256": "520dcb228b1576ec14db23a4ef703471ab4e1adfdd1dd323c9636686939fb933"
+      },
+      {
+        "path": "target/cellular-workbench/reload.frame-000.png",
+        "bytes": 41208,
+        "sha256": "4bc2ca32fa3d96f95aa8baa0d7d4d8b44c98db1698731a2563ef00a220d70ac8"
+      },
+      {
+        "path": "target/cellular-workbench/reload.frame-001.png",
+        "bytes": 40758,
+        "sha256": "eee6ed10d95d25af6f3ae769da1d85e95b027cc1a2fe4ba586ef463a9f7f2040"
+      },
+      {
+        "path": "target/cellular-workbench/reload.frame-002.png",
+        "bytes": 40977,
+        "sha256": "ba80a12b4d926e9508baea55548651f435dff959c52b584824420248bc6160c0"
+      },
+      {
+        "path": "target/cellular-workbench/reload.report.omui.json",
+        "bytes": 49333,
+        "sha256": "d177f9d8f58a99840a6dc3a32f069741ba2dced63bcabcedcbeb7f3cec30ab62"
+      },
+      {
+        "path": "target/cellular-workbench/reload.webp",
+        "bytes": 16398,
+        "sha256": "9ab3a8ef13437e24a776a591800450c4fa662209c0bc2af8dd6965cea9511371"
+      }
+    ],
+    "frames": 61,
+    "reload_tick": 62,
+    "terminal_observation": {
+      "tick": 60,
+      "active_cells": 0,
+      "cells_unchanged_through_tick": 62,
+      "scope": "Observed for the supplied recipe, not an arbitrary-rule termination guarantee."
+    }
+  },
+  "native_pixel_samples": [
+    {
+      "path": "/tmp/openmui-tests/cellular-960-1/first.png",
+      "bytes": 42147,
+      "sha256": "c306dbcffaa6b6c525fe24419355e4aff87391984ae7be10e1e448b44f87f58f"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-960-1/tick-16.png",
+      "bytes": 44637,
+      "sha256": "51f5e3c9b6975cbc8e01144477fa5067ecf57080ba239e5a575b3bc9de207daf"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-960-1/tick-24.png",
+      "bytes": 44732,
+      "sha256": "366a22010f49e0f0577359d3b1c3161ca4db3270243893165b969c81e031d682"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-960-1/tick-8.png",
+      "bytes": 43432,
+      "sha256": "f8be48e0e00af44385b1f434bac8c8055089b28e462d725996c619a633c98aec"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-260-1/first.png",
+      "bytes": 42288,
+      "sha256": "fceef48db44a8d30d795da08c6e238f913417fea0498d1b8ab058ec7a93e5cd9"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-260-1/tick-16.png",
+      "bytes": 45427,
+      "sha256": "68891ed46d1509360f28421ab6ac70634de63cf397e29a8632267c8f65828717"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-260-1/tick-24.png",
+      "bytes": 46376,
+      "sha256": "8d3e5c32b4485fd22bf1669d74c31bfd8061897bcadbfc80cbe81625eac75513"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-260-1/tick-8.png",
+      "bytes": 43555,
+      "sha256": "d20d4ec90816eb4c3d781810a1584e60ad3cbdeffa74149a13843098564807b7"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-640-2/first.png",
+      "bytes": 90830,
+      "sha256": "0cd7c9ee53802129960088e329bd93b10d321a968bc2da3a7265fbc0f1b8e3ae"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-640-2/tick-16.png",
+      "bytes": 93618,
+      "sha256": "2bbe9d0efdcb381d6edbc9b6f699bdff5f21b395453eafec33615d13f3944755"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-640-2/tick-24.png",
+      "bytes": 93420,
+      "sha256": "d06b6af9b44480547be27fe93a2ab99a2910d3e741bca1e5548b40410eb4e359"
+    },
+    {
+      "path": "/tmp/openmui-tests/cellular-640-2/tick-8.png",
+      "bytes": 91930,
+      "sha256": "1004c040f8e6e43b795e146328c2966ad1cecca3cd9297de258b0f0b86a8cf60"
+    }
+  ],
+  "pack": {
+    "command": "TMPDIR=/tmp/omui-s4-wasm-scratch MCPP_JOBS=2 mcpp pack --locked -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json",
+    "prerender": "mcpp-selected native omui-site --prerender target/site-reactions-app/index.html; --agent-guide target/site-reactions-app",
+    "artifacts": [
+      {
+        "path": "target/site-reactions-app/agent.md",
+        "bytes": 8193,
+        "gzip6_bytes": 3555,
+        "sha256": "d1a20b36f966a19f75e0cf1f13feebeb2e6f0eb32f1367731d26068b9c6a2850"
+      },
+      {
+        "path": "target/site-reactions-app/index.html",
+        "bytes": 263328,
+        "gzip6_bytes": 56950,
+        "sha256": "30b8c47f9264fe78243b71f6283edca5ca031e5f035752338943fe3aa4b79219"
+      },
+      {
+        "path": "target/site-reactions-app/omui-site-057bc5e7bdad.wasm",
+        "bytes": 7071256,
+        "gzip6_bytes": 2419917,
+        "sha256": "1ad21dfbcd7c0303eae47d2f7a7d6bdaf97abc700aba558c27abc15d52059fbd"
+      },
+      {
+        "path": "target/site-reactions-app/omui-site-3ad35b095e5d.js",
+        "bytes": 182431,
+        "gzip6_bytes": 46517,
+        "sha256": "af1ee0bf0d41658201e7381a6910782f0d1a9859b90b0c61d1fe26e6aa749e32"
+      }
+    ],
+    "final_native_prerender_matches_tested_browser_page": true
+  },
+  "visual_review": [
+    "Actually inspected native 260px Chinese intermediate frame, native 1280px website opening, real browser phone Chinese layout and frame 17. Controls/text fit; discrete wave and barrier visibly present. No claim of complete artistic review or realtime smoothness.",
+    "Also inspected CLI frames 30 and 60: reaction fronts wrap around barriers, then the final field has no active cells. Saved state remained unchanged through tick 62 apart from its clock."
+  ],
+  "limits": [
+    "CPU workspace; GPU kernel is separate prior work, not integrated into this canvas.",
+    "No sparse/active-region world, physical halo exchange, conservative movement, scientific solver or Noita-scale benchmark.",
+    "Internal Inspector feature pruning not implemented; no new package does not mean zero optional cost.",
+    "Project saves current state and configuration, not history. State hash excludes palette/rules; revision and exported project identify configuration.",
+    "Export files are individually checked, not one atomic transaction.",
+    "WebP rounds cumulative rational sample times to milliseconds. Offline samples do not certify real-time pacing.",
+    "Native Linux, Node Wasm and local Chromium checked; no new Windows/macOS/mobile-device claim.",
+    "S1-S10 and 40/20 targets remain active."
+  ],
+  "final_route_test": {
+    "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site reactions_test",
+    "exit_code": 0,
+    "programs": 1,
+    "cases": 2,
+    "log": "/tmp/omui-reactions-site-final.log",
+    "log_sha256": "dae161db17ee02620c9c2f7dc982040bff2247bc664afb9069eba90c80c4f8d4"
+  },
+  "static_checks": {
+    "lint": {
+      "problems": 0,
+      "log": "/tmp/omui-cellular-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+    },
+    "changed_markdown_links_and_anchors": 7,
+    "javascript_syntax": true,
+    "shell_syntax": true,
+    "git_diff_check": true
+  }
+}

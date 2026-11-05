@@ -98,6 +98,16 @@ for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 WORKSPACE
 [ "$workspace" = 0 ] || { echo "::error::release workspace checks failed (target/site-workspace.report.omui.json)"; status=1; }
+reactions=0
+CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-reactions.mjs target/site > target/site-reactions.report.omui.json || reactions=$?
+python3 - target/site-reactions.report.omui.json <<'REACTIONS'
+import json, sys
+r = json.load(open(sys.argv[1]))
+print("site reaction workspace:")
+for c in r["checks"]:
+    print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
+REACTIONS
+[ "$reactions" = 0 ] || { echo "::error::reaction workspace checks failed (target/site-reactions.report.omui.json)"; status=1; }
 motion=0
 CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-motion.mjs target/site > target/site-motion.report.omui.json || motion=$?
 python3 - target/site-motion.report.omui.json <<'MOTION'

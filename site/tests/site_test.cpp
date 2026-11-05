@@ -50,7 +50,7 @@ struct Site {
             h.settle();
             return h.click(std::format("main/body/view/docs/page/directory/to_{}", place));
         }
-        if (place == "brand" || place == "timeline" || place == "release") {
+        if (place == "brand" || place == "timeline" || place == "reactions" || place == "release") {
             if (!h.click("main/bar/nav/to_explore")) return false;
             h.settle();
             const auto open = std::format("main/body/view/explore/page/explore/works/{}/open", place);

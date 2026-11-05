@@ -105,6 +105,7 @@ jobs:
             target/site-fonts/
             target/site-catalog/
             target/site-workspace/
+            target/site-reactions/
             target/site-motion/
             target/site-presentation/
             target/site-loading/

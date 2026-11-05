@@ -14,6 +14,7 @@
 export module openmui.inspector;
 
 export import :connection;
+export import :cellular;
 import std;
 import openmui.core;
 import openmui.view;

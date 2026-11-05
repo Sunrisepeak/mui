@@ -258,6 +258,12 @@ std::optional<Actor> Runtime::acting() const {
     return d.actors.back();
 }
 
+std::optional<Invocation> Runtime::current_invocation() const {
+    const Impl& d = *impl_;
+    if (const auto* call = d.invocation_context.current()) return *call;
+    return d.input_call;
+}
+
 void Runtime::taken_back_by(std::function<void()> undo, std::function<void()> redo) {
     Impl& d = *impl_;
     if (d.acting == 0 || d.replaying > 0 || !undo) return;

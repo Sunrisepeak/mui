@@ -387,6 +387,10 @@ public:
     // (openas: an agent's click that takes a card takes it as the agent).
     // None outside an action.
     [[nodiscard]] std::optional<Actor> acting() const;
+    // Trusted host code may retain the current authority for a deferred
+    // continuation. Resubmit through invoke/act: permissions are checked
+    // again, and revoked sessions remain revoked. Never accept this from JSON.
+    [[nodiscard]] std::optional<Invocation> current_invocation() const;
     // The press under way: its number (each press of a pointer counts one),
     // none while no pointer is held. What a drag changes, step by step, is one
     // gesture: a program's own history joins its steps by it (a slider

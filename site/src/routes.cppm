@@ -14,7 +14,7 @@ struct Place {
 };
 
 [[nodiscard]] inline std::span<const Place> places() {
-    static constexpr std::array<Place, 14> all{{
+    static constexpr std::array<Place, 15> all{{
         {"home", "Home", "首页", false, "", "home"},
         {"components", "UI components", "UI 组件", true, "components", "core"},
         {"motion", "Basic animation", "基础动画", true, "motion", "core"},
@@ -27,6 +27,7 @@ struct Place {
         {"practices", "Practical guide", "实践指南", false, "docs/practices", "docs"},
         {"hello", "Get started", "开始使用", false, "docs/start", "docs"},
         {"timeline", "Timeline editor", "时间线编辑器", false, "explore/timeline", "explore"},
+        {"reactions", "Reaction lab", "反应实验室", false, "explore/reactions", "explore"},
         {"brand", "The mark", "标志", false, "explore/brand", "explore"},
         {"release", "Release workspace", "发布工作台", false, "scenes/release", "explore"},
     }};

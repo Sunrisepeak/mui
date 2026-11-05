@@ -136,8 +136,14 @@ template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, Prop
 [[nodiscard]] inline BoundAnimation rotate_to(ObjectInput object, double radians) {
     return to(std::move(object), {.rotation=radians});
 }
+[[nodiscard]] inline BoundAnimation rotate_by(ObjectInput object, double radians) {
+    return to(std::move(object), {.rotation_offset=radians});
+}
 [[nodiscard]] inline BoundAnimation scale_to(ObjectInput object, Vec2 scale) {
     return to(std::move(object), {.scale=scale});
+}
+[[nodiscard]] inline BoundAnimation scale_by(ObjectInput object, Vec2 factor) {
+    return to(std::move(object), {.scale_factor=factor});
 }
 [[nodiscard]] inline BoundAnimation fill_to(ObjectInput object, Rgba fill) {
     return to(std::move(object), {.fill=fill});

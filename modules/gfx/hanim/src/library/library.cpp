@@ -83,13 +83,13 @@ std::expected<std::vector<PropertyWrite>,MorphFailure> resolve_properties(
     std::vector<std::uint8_t> masks(index.input.parts.size(),0);
     std::vector<PropertyWrite> writes;writes.reserve(targets.size());
     for(const auto& values:targets) {
-        if((values.position && values.offset) ||
-            (!values.position && !values.offset && !values.rotation && !values.scale && !values.fill))
+        if((values.position && values.offset) || (values.rotation && values.rotation_offset) || (values.scale && values.scale_factor) ||
+            (!values.position && !values.offset && !values.rotation && !values.rotation_offset && !values.scale && !values.scale_factor && !values.fill))
             return std::unexpected(failure(MorphError::invalid_property));
         const auto part=index.find(values.part);
         if(part==none)return std::unexpected(failure(MorphError::unknown_part));
         const auto mask=static_cast<std::uint8_t>((values.position || values.offset?1:0) |
-            (values.rotation?2:0) | (values.scale?4:0) | (values.fill?8:0));
+            (values.rotation || values.rotation_offset?2:0) | (values.scale || values.scale_factor?4:0) | (values.fill?8:0));
         if(masks[part]&mask)return std::unexpected(failure(MorphError::property_conflict,part));
         masks[part]|=mask;writes.push_back({part,mask,&values});
     }
@@ -99,7 +99,9 @@ std::expected<PartPose,MorphFailure> apply_property(PartPose pose,const Property
     if(values.position){pose.local.tx=values.position->x;pose.local.ty=values.position->y;}
     if(values.offset){pose.local.tx+=values.offset->x;pose.local.ty+=values.offset->y;}
     if(values.rotation)pose.local.rotate=*values.rotation;
+    if(values.rotation_offset)pose.local.rotate+=*values.rotation_offset;
     if(values.scale){pose.local.sx=values.scale->x;pose.local.sy=values.scale->y;}
+    if(values.scale_factor){pose.local.sx*=values.scale_factor->x;pose.local.sy*=values.scale_factor->y;}
     if(values.fill) {
         if(!pose.fill)return std::unexpected(failure(MorphError::missing_fill,part));
         pose.fill=*values.fill;

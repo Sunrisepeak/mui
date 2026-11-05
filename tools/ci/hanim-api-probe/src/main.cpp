@@ -342,6 +342,21 @@ int main() {
     check(!invalid_property && hengine.inspect(*property_play)->plan_revision==old_revision,
         "invalid_property_retarget_preserves_playback");
     check(bool(hengine.release(*property_play)),"property_resources_released");
+    const auto relative=hengine.play(h::sequence(
+        anim::to(*property_object,{.rotation=.5,.scale=h::Vec2{2,3}}),
+        h::parallel(anim::rotate_by(*property_object,.5),anim::scale_by(*property_object,{2,.5}))));
+    if(!check(relative && hengine.seek(*relative,1500ms),"public_relative_rotation_and_scale_compose_after_nonidentity_sources"))return finish();
+    const auto relative_pose=hengine.frame(*relative)->geometry.parts[0].local;
+    check(relative_pose.rotate==.75 && relative_pose.sx==3 && relative_pose.sy==2.25,
+        "relative_recipes_use_prior_channel_values_not_registry_defaults");
+    const auto relative_held=copy(*hengine.frame(*relative));
+    check(bool(hengine.retarget(*relative,h::PropertyTargets{.rotation_offset=.5,.scale_factor=h::Vec2{.5,2}})) &&
+        equal(relative_held,copy(*hengine.frame(*relative))),"relative_retarget_starts_at_the_complete_current_pose");
+    check(bool(hengine.seek(*relative,1s)),"relative_retarget_samples_its_endpoint");
+    const auto relative_end=hengine.frame(*relative)->geometry.parts[0].local;
+    check(relative_end.rotate==1.25 && relative_end.sx==1.5 && relative_end.sy==4.5,
+        "relative_retarget_adds_rotation_and_multiplies_scale");
+    check(bool(hengine.release(*relative)),"relative_playback_resources_released");
     const auto image_scope=hengine.play(h::composite(anim::to(*property_object,
         {.position=h::Vec2{20,5},.rotation=std::numbers::pi,.scale=h::Vec2{2,2}})
         .with_effect(h::fx::translation_path(h::PointPath::bend(.25)))).with_effect(h::fx::blur(0,4)));

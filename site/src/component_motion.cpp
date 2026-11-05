@@ -29,8 +29,8 @@ std::expected<hanim::Program,std::string> component_motion_program(hanim::Object
     const auto image=image_recipe(effect);if(!image)return std::unexpected("Unknown scene effect");
     auto animation=hanim::parallel(
         hanim::anim::move_to(object,{values->move,0}).duration(1200ms),
-        hanim::anim::to(object,{.offset=hanim::Vec2{values->title_x,values->title_y},.rotation=values->turn,.part="title"}).duration(1200ms),
-        hanim::anim::to(object,{.scale=hanim::Vec2{values->scale,values->scale},.part="save"}).duration(800ms));
+        hanim::anim::to(object,{.offset=hanim::Vec2{values->title_x,values->title_y},.part="title",.rotation_offset=values->turn}).duration(1200ms),
+        hanim::anim::to(object,{.part="save",.scale_factor=hanim::Vec2{values->scale,values->scale}}).duration(800ms));
     if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
         animation=hanim::composite(animation).with_effect(hanim::fx::blur(0,image->blur));
     if(image->kind==ImageKind::tone || image->kind==ImageKind::layered)
@@ -48,9 +48,9 @@ using namespace std::chrono_literals;
 auto animation = hanim::parallel(
     hanim::anim::move_to(object, {{{}, 0}}).duration(1200ms),
     hanim::anim::to(object, {{.offset=hanim::Vec2{{{}, {}}},
-        .rotation={}, .part="title"}}).duration(1200ms),
-    hanim::anim::to(object, {{.scale=hanim::Vec2{{{}, {}}},
-        .part="save"}}).duration(800ms));
+        .part="title", .rotation_offset={}}}).duration(1200ms),
+    hanim::anim::to(object, {{.part="save",
+        .scale_factor=hanim::Vec2{{{}, {}}}}}).duration(800ms));
 )",values->move,values->title_x,values->title_y,values->turn,values->scale,values->scale);
     if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
         source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::blur(0, {}));\n",image->blur);

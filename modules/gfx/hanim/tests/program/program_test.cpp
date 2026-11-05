@@ -354,6 +354,48 @@ int main(int argc,char** argv) {
         check(reset_output.sample(reset,0,1).geometry.parts[0].local.tx==0);
         check(reset_output.sample(reset,0,2).geometry.parts[0].local.tx==6);
     });
+    suite.test("relative rotation and scale compose actual channel endpoints with stateless zero allocation sampling",[] {
+        Fixture f;auto description=shape(4);description.parts[0].local.rotate=.5;
+        description.parts[0].local.sx=2;description.parts[0].local.sy=-3;
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        const auto plan=take(PreparedProgram::prepare(parallel(
+            sequence(anim::rotate_by(source,1),anim::rotate_by(source,-.5)),
+            sequence(anim::scale_by(source,{2,.5}),anim::scale_by(source,{.5,2})))));
+        std::size_t channels=0;for(const auto& segment:plan.segments())channels+=segment.animation.channels().size();
+        check(channels==4);
+        Buffer output(plan.tracks()[0]);bool good=true;
+        const auto before=allocations.load();
+        for(int direction:{1,-1})for(int k=0;k<=120;++k) {
+            const double t=(direction==1?k:120-k)/60.;
+            const auto value=output.sample(plan,0,t).geometry.parts[0].local;
+            const double rotate=t<=1?.5+t:1.5-.5*(t-1);
+            const double sx=t<=1?2+2*t:4-2*(t-1),sy=t<=1?-3+1.5*t:-1.5-1.5*(t-1);
+            good=good && std::abs(value.rotate-rotate)<1e-12 && std::abs(value.sx-sx)<1e-12 &&
+                std::abs(value.sy-sy)<1e-12 && value.tx==4;
+        }
+        const auto after=allocations.load();check(good && before==after);
+        const auto reset=take(PreparedProgram::prepare(sequence(anim::rotate_by(source,1),
+            anim::rotate_by(source,-.5).source(ProgramSource::snapshot))));
+        Buffer reset_output(reset.tracks()[0]);
+        check(reset_output.sample(reset,0,2).geometry.parts[0].local.rotate==0);
+        const auto snapshot=take(f.registry.capture(source.object()));
+        check(snapshot.revision()==source.revision() && snapshot.parts()[0].local.sx==2);
+    });
+    suite.test("absolute and relative writes share conflicts and reject invalid or overflowing targets",[] {
+        Fixture f;
+        for(const auto targets:{PropertyTargets{.rotation=0,.rotation_offset=1},
+            PropertyTargets{.scale=Vec2{1,1},.scale_factor=Vec2{2,2}},
+            PropertyTargets{.rotation_offset=std::numeric_limits<double>::infinity()},
+            PropertyTargets{.scale_factor=Vec2{1,std::numeric_limits<double>::quiet_NaN()}}})
+            check(!PreparedProgram::prepare(anim::to(f.a,targets)));
+        check(!PreparedProgram::prepare(parallel(anim::rotate_to(f.a,1),anim::rotate_by(f.a,1))));
+        check(!PreparedProgram::prepare(parallel(anim::scale_to(f.a,{2,2}),anim::scale_by(f.a,{2,2}))));
+        check(!PreparedProgram::prepare(anim::to(f.a,PropertySet{
+            {.rotation=1},{.part="shape",.rotation_offset=1}})));
+        auto description=shape(0);description.parts[0].local.sx=2;
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        check(!PreparedProgram::prepare(anim::scale_by(source,{std::numeric_limits<double>::max(),1})));
+    });
     suite.test("property selection changes one named part and keeps unrelated hierarchy and geometry",[] {
         Fixture f;auto description=shape(4);description.parts[0].parent="pivot";
         description.parts.push_back({.id="pivot",.local={.tx=7,.ty=9}});

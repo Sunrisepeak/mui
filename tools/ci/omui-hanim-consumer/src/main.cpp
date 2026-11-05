@@ -264,9 +264,9 @@ int main(int argc,char** argv) {
     const auto program=hanim::parallel(
         hanim::anim::move_to(binding->object(),{100,20}).duration(1s),
         hanim::sequence(
-            hanim::anim::to(binding->object(),{.rotation=.12,.part="title"}).duration(500ms),
-            hanim::anim::to(binding->object(),{.rotation=0,.part="title"}).duration(500ms)),
-        hanim::anim::to(binding->object(),{.scale=hanim::Vec2{1.1,1.1},.part="save"}).duration(750ms));
+            hanim::anim::to(binding->object(),{.part="title",.rotation_offset=.12}).duration(500ms),
+            hanim::anim::to(binding->object(),{.part="title",.rotation_offset=-.12}).duration(500ms)),
+        hanim::anim::to(binding->object(),{.part="save",.scale_factor=hanim::Vec2{1.1,1.1}}).duration(750ms));
     auto played=hengine.play(program);
     if(!check(bool(played),"public_independent_channel_program_plays"))return finish();
     Value::List frames;std::vector<std::string> hashes;bool good=true,has_glyphs=false;

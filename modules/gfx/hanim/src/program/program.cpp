@@ -244,8 +244,8 @@ PropertySchedule schedule_groups(std::vector<Leaf> input) {
     return result;
 }
 std::uint8_t property_mask(const PropertyTargets& target) {
-    return static_cast<std::uint8_t>((target.position || target.offset?1:0) | (target.rotation?2:0) |
-        (target.scale?4:0) | (target.fill?8:0));
+    return static_cast<std::uint8_t>((target.position || target.offset?1:0) | (target.rotation || target.rotation_offset?2:0) |
+        (target.scale || target.scale_factor?4:0) | (target.fill?8:0));
 }
 std::string_view part_name(const Leaf& leaf,const PropertyTargets& target) {
     if(!target.part.empty())return target.part;

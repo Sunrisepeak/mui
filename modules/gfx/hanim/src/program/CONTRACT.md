@@ -30,8 +30,9 @@ not claim additive/weighted channel blending, group transforms/foreach or repeat
 expressions. Explicit image scopes are defined below.
 
 Unary leaves may carry `PropertyTargets`: absolute position, relative offset,
-rotation, scale and fill, applied to the unique root or one named part. Position
-and offset are mutually exclusive; an empty target, unknown part or nonfinite /
+absolute/relative rotation, absolute/factor scale and fill, applied to the unique
+root or one named part. Position/offset, rotation/rotation_offset and
+scale/scale_factor are mutually exclusive pairs; an empty target, unknown part or nonfinite /
 invalid color value fails preparation. The source is captured only once; there
 is no second target registry object. The target is derived from the actual
 segment source after previous-endpoint chaining, preserving all unspecified

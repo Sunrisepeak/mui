@@ -1067,3 +1067,28 @@ release 基准：64 个效果共 160 个 backend 参数的采样／绑定平均�
 检查发现该仓外 UI 消费者此前尚未挂到 CI。本轮把同一 `--web` runner 接入 Linux GCC release 行，并在成功／失败时上传原始报告、依赖图和图像；本地结果是本轮验收依据，不等待远端其他平台 CI。CI 接入本身不代表远端已通过。
 
 结构化摘要为 `tools/ci/2026-11-06-ui-provider-rebind.report.omui.json`，原始结果在 `target/omui-rebind/`。本轮没有改变官网布局或配方，也没有重跑浏览器／性能测试；官网使用的公共宿主恢复能力已补齐，但不增加 40／20 的可交付库计数。后续继续推进通用部件／图像作用域、完整默认动效配方与可带走的库和工程；全局架构、平台和产品验收仍保持开放。
+
+
+## 32. 相对旋转缩放与公共部件配方
+
+2026-11-06，基线 `b25783c`。本轮继续 S2 的公共动画库与官网复用链路。此前 `move_by` 支持相对位移，但旋转／缩放配方只能写绝对目标；可复用反馈容易覆盖实际源的朝向或大小。新增 `anim::rotate_by(object, radians)`／`scale_by(object, factors)`，以及 `PropertyTargets::rotation_offset`／`scale_factor`。它们仍是同一个 BoundAnimation，支持 duration／easing、叶子或祖先 image effects、sequence／parallel／stagger 和同一 Engine。
+
+### 32.1 设计与实际归属
+
+- 目标在 library 的准备阶段计算：旋转为实际源角度加偏移；缩放为实际源有符号 x/y scale 乘系数。采样继续既有线性 scale lane／easing，并非每帧重复相乘或指数插值。
+- 实际源遵循既有契约：顺序编排取前阶段／前通道端点，显式 snapshot 模式取指定快照，retarget 取当前完整姿态。独立启动新 Program 仍使用它自己的输入，不暗中查询 UI 最后一次画面或另起时钟。
+- 新字段追加在原聚合末尾，既有字段顺序和旧接口保留；模块消费者须重建。唯一实现留在原 library，program 负责同一通道的编排／冲突；没有新包或重复插值器。
+- rotation 与 rotation_offset、scale 与 scale_factor 互斥。跨叶子／跨 PropertySet 的绝对和相对写入使用相同冲突键；没有隐式叠加冲突。输入与计算结果需有限，溢出在 prepare 拒绝。负缩放／零缩放遵循原表示契约，UI 的可逆命中要求另行验证。
+- 官网便笺的 title 旋转和 save 缩放已改为相对部件配方，复制的 C++ 同步；真实 UI 仓外消费者以同一语义实现文字先转后回和控件缩放。没有改变页面布局，未增加场景或独立设计计数。
+
+### 32.2 验证
+
+Hanim 九个程序在 native debug／release 各 **102 项**通过，Wasm／Node **100 项**通过；两项线程验证仅在原生运行。新增用例覆盖非零旋转、有符号非单位缩放、相邻阶段与独立通道、显式 snapshot reset、冲突、NaN／Infinity／乘积溢出，以及不改业务 registry。两秒程序按 1/60 秒间隔正反采样共 242 次，检查实际姿态和该循环零新增 C++ allocation；没有由此推导整体渲染耗时或 GPU 性能。
+
+独立公共 `import hanim` 消费者 debug／release 各 **156 项**通过，新增检查验证先有非单位姿态再做相对动画，以及中途 retarget 的 C0 和正确终点；不依赖 UI 或 renderer。首轮新增测试误把 compiler 的分段当成单段，实际按重叠区间分组，已改为检查保留的通道总数及真实采样；没有为迁就测试改写编译器。
+
+真实 UI 消费者三种 profile 各 **90 项**通过，各导出 183 张过程 PNG，共 **549 张**；正反采样及跨 profile 像素／PNG 一致。与 §31 的同类默认姿态过程图逐一比较，全部原始像素和 PNG 摘要仍一致，没有改参考图掩盖变化。缺字体负例和 feature-off 第二应用通过；其实际 DAG 排除 UI adapter、完整 Engine 和 Hanim vector adapter。官网原生 **21 个程序／136 项**通过，包含三个部件配方各 61 帧、实际人／Agent 操作和复制内容。
+
+最新 site-web 在 Chromium 中通过 **153 项**真实浏览器检查，保留 **9 张**截图，异常为零。剪贴板检查明确要求实际 C++ 配方中的 `rotation_offset` 和 `scale_factor`，原有选择／编辑／嵌套效果／人机接管继续通过。20 Mbit/s、40 ms、新 browser profile、缓存开启、1280×800 的单次交付测量：总传输 **4,869,838 B**，首帧前 **2,967,609 B**，首帧代理 **1,694.4 ms**、ready **1,658.4 ms**，rAF p95 **16.8 ms**、长帧 **1**、异常 **0**，原有 **7／7** 预算通过。较 §30 总传输增加 **233 B**，5 MB 门槛余 **130,162 B**。未调预算；首帧代理不是 FCP／LCP，rAF 不是 GPU 成本，不由单个样本宣称提速或变慢。
+
+原始日志保留于 `target/omui-relative-motion/`，摘要见 `tools/ci/2026-11-06-hanim-relative-properties.report.omui.json`。既有 public authoring、UI consumer 和浏览器 runner 已在 CI，本轮增强的检查随之执行，本地推进不等远端矩阵。用户原有锁文件保持不变。本轮不把既有线程／ABI warning 当成新的平台保证；完整通道混合、任意属性／3D adapter、40／20 交付及整体架构目标继续开放。

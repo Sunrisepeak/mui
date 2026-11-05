@@ -25,6 +25,10 @@ struct PropertyTargets {
     std::optional<Vec2> scale;
     std::optional<Rgba> fill;
     std::string part;
+    // Relative operations use the actual segment/channel source. Absolute
+    // and relative forms of the same channel are mutually exclusive.
+    std::optional<double> rotation_offset;
+    std::optional<Vec2> scale_factor;
 };
 // One atomic animation may target several parts and independent properties.
 // Duplicate writes to a part/channel are errors, never implicit last-wins.

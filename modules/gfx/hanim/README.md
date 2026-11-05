@@ -73,8 +73,8 @@ auto trip = hanim::sequence(
 auto prepared = hengine.prepare(trip);
 ```
 
-`move_to`, `move_by`, `rotate_to`, `scale_to` and `fill_to` are five public
-recipes. They accept live ObjectRefs or frozen Snapshots, the same duration,
+`move_to`, `move_by`, `rotate_to`, `rotate_by`, `scale_to`, `scale_by` and
+`fill_to` are public property recipes. They accept live ObjectRefs or frozen Snapshots, the same duration,
 easing and effects as morph, and the same sequence/parallel/stagger/player.
 For several properties on one object, use one typed target:
 
@@ -105,6 +105,30 @@ shortest-angle guesses. A sequence preserves unmodified properties from its
 actual prior endpoint. `move_by` and `retarget(playback, PropertyTargets{...})`
 use that actual pose. No synthetic target object or business-state mutation is
 performed. `PreparedObjectMorph::to()` is empty for a computed property target.
+
+`rotate_by(object, radians)` adds to the actual source angle; it does not wrap
+or choose the shortest turn. `scale_by(object, {x, y})` multiplies each source
+scale by the requested factor, then interpolates between those endpoints with
+the existing scale lane. It is not exponential interpolation or an additive
+scale offset. These operations preserve pre-existing orientation/size and can
+be composed on independent channels:
+
+```cpp
+auto feedback = hanim::parallel(
+    hanim::anim::rotate_by(card, .12).duration(200ms),
+    hanim::anim::scale_by(card, {1.08, 1.08}).duration(200ms));
+auto title_feedback = hanim::anim::to(card, {
+    .part = "title", .rotation_offset = .12,
+    .scale_factor = hanim::Vec2{1.08, 1.08}});
+```
+
+Relative fields also work in atomic part sets, direct library timelines and
+retargets. Absolute/relative forms of the same channel are mutually exclusive;
+parallel writes still conflict, even if one is relative. Negative/zero factors
+follow the underlying object's signed/singular scale contract; a UI adapter
+may reject a pose that cannot support its input mapping. All values and computed
+endpoints must be finite. This extends the property vocabulary, not the count
+of independently designed animations toward the 40-design acceptance gate.
 
 This first property domain is the existing closed vector object representation.
 Open contours, arbitrary application channels, cameras and rigs are not yet

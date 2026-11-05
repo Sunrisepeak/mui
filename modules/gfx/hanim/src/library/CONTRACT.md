@@ -5,7 +5,14 @@ partial target from the source without registry writes or a synthetic ObjectRef.
 They retain source identity/revision; `to()` is empty because no application
 target snapshot exists. The root or explicit named part owns the changed local
 lanes, all others are retained. Position and offset are exclusive; offset is
-relative to the supplied snapshot/frame. Targets validate before publication.
+relative to the supplied snapshot/frame. `rotation_offset` adds radians to that
+source; `scale_factor` multiplies its signed x/y scales. Rotation versus offset
+and scale versus factor are mutually exclusive within a target and share the
+same conflict keys across targets. Finite computed endpoints are required;
+scale sampling remains the existing linear lane between source and product,
+with no per-sample multiplication or accumulated history. Appended fields keep
+existing aggregate field order; C++ module consumers must rebuild.
+Targets validate before publication.
 The same closed-vector contour domain and limits below apply. With no vertex
 path effect, static cubics are prepared once and copied during sampling;
 explicit vertex paths retain the shared geometry sampler. Rotation uses the

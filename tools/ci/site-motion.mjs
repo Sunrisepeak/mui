@@ -277,8 +277,9 @@ try {
     await pointer(root + '/details/copy');
     const source = await page.value('navigator.clipboard.readText()');
     check(source.includes('hanim::parallel') && source.includes('.part="title"') && source.includes('playback.play') &&
+      source.includes('.rotation_offset=') && source.includes('.scale_factor=') &&
       source.includes('hanim::composite') && source.includes('fx::blur') && source.includes('fx::tone'),
-      'the browser clipboard receives the public C++ component recipe fragment');
+      'the browser clipboard receives the public C++ component recipe with relative part transforms');
     await type(card + '/editor', 'A browser-made note');
     await pointer(card + '/pin'); const pinned = await checked(card + '/pin');
     await pointer(card + '/actions/save');

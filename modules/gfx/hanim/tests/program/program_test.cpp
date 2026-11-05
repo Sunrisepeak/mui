@@ -381,6 +381,35 @@ int main(int argc,char** argv) {
         const auto snapshot=take(f.registry.capture(source.object()));
         check(snapshot.revision()==source.revision() && snapshot.parts()[0].local.sx==2);
     });
+    suite.test("public feedback recipes lower to shared channels and return without a runtime clock",[] {
+        Fixture f;auto description=shape(4);description.parts[0].local.rotate=.5;
+        description.parts[0].local.sx=2;description.parts[0].local.sy=-3;
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        const anim::FeedbackOptions options{.duration=seconds(1),.easing=ease::linear};
+        const auto recipe=parallel(anim::shake(source,{8,4},options),anim::wobble(source,.4,options),anim::pulse(source,{2,.5},options));
+        const auto plan=take(PreparedProgram::prepare(recipe));
+        check(plan.duration()==seconds(1) && plan.scopes().empty());
+        Buffer output(plan.tracks()[0]);bool good=true;
+        const auto before=allocations.load();
+        for(int direction:{1,-1})for(int i=0;i<=60;++i) {
+            const double t=(direction==1?i:60-i)/60.;
+            const double swing=t<=.25?4*t:t<=.75?2-4*t:4*t-4;
+            const double pulse=t<=.5?2*t:2-2*t;
+            const auto pose=output.sample(plan,0,t).geometry.parts[0].local;
+            good=good && std::abs(pose.tx-(4+8*swing))<1e-12 && std::abs(pose.ty-4*swing)<1e-12 &&
+                std::abs(pose.rotate-(.5+.4*swing))<1e-12 && std::abs(pose.sx-(2+2*pulse))<1e-12 &&
+                std::abs(pose.sy-(-3+1.5*pulse))<1e-12;
+        }
+        const auto after=allocations.load();check(good && before==after);
+        const auto scoped=take(PreparedProgram::prepare(composite(recipe).with_effect(fx::blur(0,4))));
+        std::array<float,1> values{};take(scoped.sample_scopes(seconds(.5),values));check(values[0]==2);
+        const auto staged=take(PreparedProgram::prepare(sequence(anim::move_to(source,{20,30}),anim::shake(source,{8,4},options))));
+        Buffer staged_output(staged.tracks()[0]);check(staged_output.sample(staged,0,1.25).geometry.parts[0].local.tx==28);
+        check(staged_output.sample(staged,0,2).geometry.parts[0].local.tx==20);
+        check(!PreparedProgram::prepare(anim::pulse(source,{0,1})));
+        check(!PreparedProgram::prepare(anim::shake(source,{1,1},{.duration=seconds(-1)})));
+        check(!PreparedProgram::prepare(anim::wobble(source,std::numeric_limits<double>::infinity())));
+    });
     suite.test("absolute and relative writes share conflicts and reject invalid or overflowing targets",[] {
         Fixture f;
         for(const auto targets:{PropertyTargets{.rotation=0,.rotation_offset=1},

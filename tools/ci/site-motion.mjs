@@ -292,6 +292,17 @@ try {
     await pointer(root + '/details/effect'); await key('Home', 'Home', 36); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/effect') === 'none' && await scalar(card + '/editor') === 'A browser-made note',
       'removing the effect preserves the actual edited component data');
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/selection') === 'feedback', 'keyboard selects public feedback composition');
+    await pointer(root + '/transport/buttons/state-a'); const feedbackA = (await node(card)).bounds;
+    await pointer(root + '/transport/buttons/state-b');
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - feedbackA[0]) < .5, 'feedback returns the note to its starting position');
+    await pointer(root + '/details/copy'); const feedbackSource = await page.value('navigator.clipboard.readText()');
+    check(['pulse', 'shake', 'wobble'].every(name => feedbackSource.includes('hanim::anim::' + name)),
+      'the browser copies the actual public feedback library calls');
+    await pointer(root + '/transport/buttons/play');
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - feedbackA[0]) > 2, 'public feedback moves through an actual intermediate frame');
+    await pauseTransport(root); await shot('component-motion-feedback');
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
   });

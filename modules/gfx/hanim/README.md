@@ -222,3 +222,51 @@ current geometry through the existing renderer. Pixel/glyph/rig domains, full
 channel mixing and catalog, GPU resource scheduling and the complete UI adapter remain
 implementation work. CPU/GPU renderer support is evaluated by its own adapter
 tests, not inferred from effect-parameter interpolation.
+
+Three reusable feedback designs are public ordinary `Program` factories:
+
+| Recipe | Default | Motion over normalized time |
+|---|---|---|
+| `anim::pulse(object, factor, options)` | scale factor `{1.08, 1.08}` | source → scaled peak at 1/2 → source |
+| `anim::shake(object, amplitude, options)` | parent-space offset `{8, 0}` | source → +offset at 1/4 → −offset at 3/4 → source |
+| `anim::wobble(object, radians, options)` | angular amplitude `0.12` radians | source → +angle at 1/4 → −angle at 3/4 → source |
+
+All arguments after `object` are optional. `anim::FeedbackOptions` supplies
+`duration` (400 ms by default), per-leg `easing` (`in_out_sine` by default), and
+an optional stable `part` id (empty selects the root). Rotation and scale use
+that part's local origin; these recipes do not introduce a different pivot or
+world-space constraint. No UI, renderer, event loop or script is needed.
+
+```cpp
+auto response = hanim::parallel(
+    hanim::anim::shake(card, {8, 0}, {.duration=400ms}),
+    hanim::anim::pulse(card, {1.12, 1.12}, {.duration=400ms, .part="action"}));
+auto animation = hanim::composite(response).with_effect(hanim::fx::tone(
+    {.amount=0}, {.amount=.2f}));
+auto playback = hengine.play(animation); // Check the normal typed result.
+```
+
+The factories lower into the existing property sequences at authoring time.
+They have no hidden state or per-frame arithmetic beyond the shared sampler.
+The high-level definitions live in `src/program/feedback.cpp` because they
+compose Programs; `hanim.library` still owns prepared property/geometry plans
+and never depends upwards on the compiler. No new package or runtime is added.
+
+Each return leg is relative to its actual preceding endpoint. Pulse factors
+must have finite, nonzero representable reciprocals and finite derived targets;
+invalid options/targets fail normal preparation before publication. Signed
+factors inherit the base representation's scale behavior and can be unsuitable
+for an interactive UI's inverse mapping. Returning to the source is subject
+to normal floating-point arithmetic, not a bitwise undo contract. Repeated
+sampling of a fixed prepared plan does not accumulate drift. Unselected
+channels and business state remain intact; external image effects retain their
+own timing/endpoints and do not implicitly undo when a motion returns.
+
+Headless review: prepare with the actual target, inspect the retained Program
+nodes/channels, sample the whole duration including 0, 1/4, 1/2, 3/4 and 1,
+render intermediate frames with the selected renderer, then reverse the sample
+order and verify the same pixels. Check real component actions at displaced
+poses; use the host's ordinary motion preferences and cancellation policy for
+live playback. The site note's “Feedback combination” and independent UI
+consumer use these same factories. These are three feedback designs, not three
+new runtime primitives or proof that the full 40/20 catalog is complete.

@@ -100,6 +100,25 @@ int main(int argc,char** argv) {
             check(source.find("playback.play")!=std::string::npos && source.find("hanim::parallel")!=std::string::npos);
         }
     });
+    suite.test("the public feedback combination samples its swings and pulse and returns the real note",[] {
+        Run r;r.details();r.act("details/selection","set_value",Value{}.set("value","feedback"));r.seek(0);
+        const auto card=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card"));
+        std::vector<std::uint64_t> frames;
+        for(int i=0;i<=60;++i) {
+            r.seek(i/60.);check(r.bound());frames.push_back(r.pixels());
+            check(r.h.save_png(media()/std::format("feedback-{:03}.png",i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        }
+        check(frames.front()==frames.back() && frames[15]!=frames.front() && frames[30]!=frames.front());
+        check(r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card"))==card);
+        for(int i=60;i>=0;--i){r.seek(i/60.);check(r.pixels()==frames[static_cast<std::size_t>(i)]);}
+        r.act("details/copy");const auto source=r.h.runtime().clipboard_text();
+        check(source==site::component_motion_source("feedback",true,1));
+        check(source.find("hanim::anim::pulse")!=std::string::npos && source.find("hanim::anim::shake")!=std::string::npos &&
+            source.find("hanim::anim::wobble")!=std::string::npos);
+        r.seek(.25);const auto save=r.node("stage/scene/composition/card/actions/save");
+        r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
+        check(parse_json(r.h.runtime().clipboard_text()).has_value(),"the pulsing button keeps its real pointer action");
+    });
     suite.test("real input takes over without changing data and the same controls remain agent operable",[] {
         Run r;r.details();r.seek(.5);
         const auto card=r.node("stage/scene/composition/card"),save=r.node("stage/scene/composition/card/actions/save");

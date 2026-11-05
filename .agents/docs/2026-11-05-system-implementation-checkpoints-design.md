@@ -1092,3 +1092,38 @@ Hanim 九个程序在 native debug／release 各 **102 项**通过，Wasm／Node
 最新 site-web 在 Chromium 中通过 **153 项**真实浏览器检查，保留 **9 张**截图，异常为零。剪贴板检查明确要求实际 C++ 配方中的 `rotation_offset` 和 `scale_factor`，原有选择／编辑／嵌套效果／人机接管继续通过。20 Mbit/s、40 ms、新 browser profile、缓存开启、1280×800 的单次交付测量：总传输 **4,869,838 B**，首帧前 **2,967,609 B**，首帧代理 **1,694.4 ms**、ready **1,658.4 ms**，rAF p95 **16.8 ms**、长帧 **1**、异常 **0**，原有 **7／7** 预算通过。较 §30 总传输增加 **233 B**，5 MB 门槛余 **130,162 B**。未调预算；首帧代理不是 FCP／LCP，rAF 不是 GPU 成本，不由单个样本宣称提速或变慢。
 
 原始日志保留于 `target/omui-relative-motion/`，摘要见 `tools/ci/2026-11-06-hanim-relative-properties.report.omui.json`。既有 public authoring、UI consumer 和浏览器 runner 已在 CI，本轮增强的检查随之执行，本地推进不等远端矩阵。用户原有锁文件保持不变。本轮不把既有线程／ABI warning 当成新的平台保证；完整通道混合、任意属性／3D adapter、40／20 交付及整体架构目标继续开放。
+
+
+## 33. 公共反馈配方与官网组合
+
+2026-11-06，基线 `de155cc`。本轮继续 S2／S8，把可复用的反馈编排直接放进 Hanim，官网作为普通消费者使用。新增三个具明确过程的公共配方，不以颜色／速度变体计数，也不把现有 42 个官网场景当作 40 个可交付动画库定义。
+
+### 33.1 API、层次与过程契约
+
+| 入口 | 默认参数与过程 |
+|---|---|
+| `anim::pulse(object, factor, options)` | factor `{1.08, 1.08}`；一半时长达到缩放峰值，然后返回 |
+| `anim::shake(object, amplitude, options)` | offset `{8, 0}`；1/4 时长到正峰，3/4 到负峰，结束返回 |
+| `anim::wobble(object, radians, options)` | 角度幅度 `0.12` radians；相同四分点上的正／负角度峰与返回 |
+
+三者返回现有 `Program`，`object` 可为 live ref 或 snapshot；其余参数可省略。共用 `anim::FeedbackOptions`：默认总时长 400 ms、每段 `in_out_sine`、可选稳定 part id。高级用法仍是 sequence／parallel／stagger 和 `composite(program).with_effect(...)`，不引入另一种编排树、时钟、播放器或默认图像隔离层。
+
+实现位于既有产品的 `src/program/feedback.cpp`：这些是依赖 Program 的高级配方，不能反向塞入仅负责 prepared leaf／timeline 的 `hanim.library`。固定序列由原有 relative property 准备出端点，采样继续同一通道实现；无新包／清单、无每帧脚本和场景专用内核。公共 README 包含参数、分段点、失败边界及无 GUI SOP，Agent／人共用同一领域入口；应用授权沿用既有宿主控制边界。
+
+返回过程采用实际前一阶段源，保留未选部件／通道；pulse 的倒数与派生目标必须有限，非法目标／时长走已有类型化 prepare 失败。浮点返回不承诺任意数值下的 bitwise undo；固定 prepared plan 的重复采样不累积漂移。外层 image effect 有自己的端点，运动返回不隐式撤销染色／模糊。旋转／缩放仍是部件局部原点，世界保持、pivot 约束和通道混合不在这三个配方中偷偷实现。
+
+### 33.2 实际消费与验证
+
+官网便笺在 Details 的动画选择中增加“反馈组合”：整张便笺 shake、标题 wobble、按钮 pulse，分别使用公共函数，仍可叠加整组图像效果及局部风格；复制出的 C++ 是同一参数配方。没有新增一个仅供官网的动画算法或改变组件业务状态。
+
+Hanim 原生 debug／release 各 **103 项**通过；Wasm **101 项**通过，两项线程验证仍按能力选择。新增程序检查非默认角度／有符号缩放、独立通道、前序源、准确的峰值时刻、正反 122 次采样与循环零新增 C++ allocation；再验证共享图像 scope 和非法目标／时长，不把此循环当作整帧性能基准。公共独立 `import hanim` 消费者 debug／release 各 **161 项**通过，验证真正的 factory→prepare/play→中间态／返回／释放，不依赖 UI 或 renderer。
+
+真实 UI 仓外消费者三种 profile 各 **94 项**通过。新增 61 张 feedback 过程图，连同原有显式、宿主、嵌套效果三组，各 profile **244 张**，共 **732 张**；全部正反及跨 profile 像素／PNG 一致。检查实际 glyph、效果执行和 presentation 状态，峰值画面确实改变，默认配方结束回到原图。缺字体负例和 feature-off 独立应用通过；关闭可选 feature 的实际 DAG 不含 UI adapter、完整 Hanim Engine 或 Hanim vector adapter。
+
+官网定向 `component_motion_test` **8 项**通过，包含新配方 61 帧及反向 replay、三个公共函数的实际复制内容、动画中按钮的真实鼠标操作，同时回归原有部件／效果／交互接管及手机布局。本轮是定向验证，没有记为再次全站原生回归。
+
+最新 site-web 的 Chromium **158 项**检查通过，保留 **10 张**截图，异常为零；实际键盘选择反馈组合，确认返回起点、播放中间态及剪贴板中的三个公共库调用。20 Mbit/s／40 ms、新 profile、缓存开启、1280×800 的交付样本总传输 **4,871,083 B**，首帧前 **2,968,854 B**，首帧代理 **1,772.9 ms**、ready **1,737.1 ms**，rAF p95 **16.7 ms**、长帧 **1**、异常 **0**，原有 **7／7** 预算通过。较 §32 增加 **1,245 B**，5 MB 预算余 **128,917 B**。单次样本不作提速／退化定论；首帧代理不是 FCP／LCP，rAF 不是 GPU 成本。
+
+此前三组共 549 张 UI 过程图仍与 §32 逐像素／PNG 一致，新增 feedback 帧独立计数。源码／fixture 摘要、原始命令和截图保留于 `target/omui-feedback/`，摘要为 `tools/ci/2026-11-06-hanim-feedback-recipes.report.omui.json`；全仓库 lint 为零，用户既有 `mcpp.lock` 字节未变。增强后的公共 API、UI consumer 与浏览器检查沿用既有 CI 入口，不等待远端矩阵才推进。
+
+这三个反馈设计已成为公共能力，但完整 40／20 库／工程、所有组件默认配方迁移、通用时间作用域、任意表示／3D／资源图及全局引擎计划仍开放。

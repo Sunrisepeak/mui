@@ -148,6 +148,17 @@ template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, Prop
 [[nodiscard]] inline BoundAnimation fill_to(ObjectInput object, Rgba fill) {
     return to(std::move(object), {.fill=fill});
 }
+// Reusable feedback recipes lower to ordinary property sequences. No clock,
+// callback or separate runtime is introduced. Effects can wrap the returned
+// Program with composite(...).with_effect(...).
+struct FeedbackOptions {
+    seconds duration{.4};
+    Ease easing = ease::in_out_sine;
+    std::string part;
+};
+[[nodiscard]] Program pulse(ObjectInput object, Vec2 factor = {1.08,1.08}, FeedbackOptions = {});
+[[nodiscard]] Program shake(ObjectInput object, Vec2 amplitude = {8,0}, FeedbackOptions = {});
+[[nodiscard]] Program wobble(ObjectInput object, double radians = .12, FeedbackOptions = {});
 class Composite {
 public:
     explicit Composite(Program child) : child_(std::move(child)) {}

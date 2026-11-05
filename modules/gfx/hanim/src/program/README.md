@@ -63,3 +63,11 @@ retained segments while track capacities count maxima needed for mutable output.
 Effects retain explicitly authored per-stage endpoints; geometry continuity does
 not imply automatic effect/material history matching. This internal module owns no
 clock or mutable playback lifecycle: the engine consumes its prepared data.
+
+`anim::pulse`, `anim::shake` and `anim::wobble` are reusable public Program
+factories in `feedback.cpp`. They lower to the ordinary relative property
+sequences, so the same preparation limits, part/channel conflict detection,
+source chaining, scoped image effects, arbitrary-time samples and Engine apply.
+`FeedbackOptions` shares duration, per-leg ease and named-part selection.
+They add no scope when unadorned and no special sampling branch. See the
+[product guide](../../README.md) for parameters, phase landmarks and headless SOP.

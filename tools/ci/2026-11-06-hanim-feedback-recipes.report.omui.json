@@ -1,0 +1,337 @@
+{
+  "format": "hanim.feedback-recipes-checkpoint@0.1",
+  "recorded_at": "2026-11-05T22:58:09.141366+00:00",
+  "ok": true,
+  "base_commit": "de155ccc93e2c9628544a6be56ebabcbc53754a7",
+  "scope": [
+    "Public pulse/shake/wobble factories lower to existing relative property sequences with typed shared FeedbackOptions.",
+    "No separate runtime, clock, per-frame script, package or default image scope.",
+    "The same public recipes drive the editable site note and an independent headless UI application."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "76ce92f10416e98359ea7f56ef266ad97908a0c5bd26af39fd098c610ab276f0",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "f1394ac8fa0317d6f1585aa56de1ea3d9e9d1f0786fa8e956369632ad6b00b6c",
+    ".agents/docs/README.md": "eaaa9753cfe1e00b43f4024983379e26372cd2210edd9051e2aac8fef1ad3e5a",
+    "modules/gfx/hanim/README.md": "2cbdc30b216df6416f032ce7919a24285d4948359678de65318cb9d964e8e832",
+    "modules/gfx/hanim/src/program/README.md": "cd1c996f2103e6b621f2a7d237811d567cd14e83fe4346c216dc1bfac2cd9631",
+    "modules/gfx/hanim/src/program/feedback.cpp": "b905b2af357d4c835bc27513ce2beeb5e5416055302f0553e47a1cf97ca40b87",
+    "modules/gfx/hanim/src/program/program.cppm": "6baf5cf9bbb4887afba17ea197e7e3bf95a62319d377b7efffb12bf152861c0b",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "b3cc02c367aabf2597ea3451cfc5f6d2a1b5b61f280bd557f2f867cf43deb17f",
+    "modules/ui/view/README.md": "a30a9052aba1667d0cd98ce9b89f4bf37b21357ad62faa39179c86a6e6eef898",
+    "site/src/component_motion.cpp": "e68cbd8b38a341b6b70d277a777bf222bd7066989315f120549d104f210353fc",
+    "site/src/motion_gallery.cpp": "78596c2fb62e706fed19d3b833775ca5e4244b410482dc2a1a844bcf00e03be2",
+    "site/tests/component_motion_test.cpp": "759e475e0cfd49ee41de18f01c9f6a5e287c89cb07229afc05bb4fcd6d23d0f2",
+    "tools/ci/hanim-api-probe/src/main.cpp": "ef258ce880c84e766c7d8e1a45ea394a0e75eb9ab1f986a2951f4eecf150c795",
+    "tools/ci/omui-hanim-consumer/run.py": "61cad3a13afad5e3b9cb1dba384bd9f2545a0f92c89038ebec4f1e815992af94",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "7c916eef292b5bd3e75430810f55ccc4238937ed1d74e7dc322a8a15bbf00984",
+    "tools/ci/site-motion.mjs": "69f8e241fabcc4fccce8a24a0db206f365f960b9ef952046d34ec5483542a700"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "tests": {
+      "hanim-dev": {
+        "programs": 9,
+        "cases": 103,
+        "failed": 0,
+        "log": "target/omui-feedback/hanim-dev.log",
+        "sha256": "caf2ab07a5f23238cf3d84f5bfb48396bddb80ed8ae137c2349feb336a147162"
+      },
+      "hanim-release": {
+        "programs": 9,
+        "cases": 103,
+        "failed": 0,
+        "log": "target/omui-feedback/hanim-release.log",
+        "sha256": "0b7debaa74266b726b44ff45a5049a84ae3435a234079ff35eed3fda330fc324"
+      },
+      "hanim-web": {
+        "programs": 9,
+        "cases": 101,
+        "failed": 0,
+        "log": "target/omui-feedback/hanim-web.log",
+        "sha256": "7866244946fbf8ec0546951aca2296063701fe724be313db28770e2f3ae74e23"
+      },
+      "site-native": {
+        "programs": 1,
+        "cases": 8,
+        "failed": 0,
+        "log": "target/omui-feedback/site-native.log",
+        "sha256": "7460cff1bb660eda48b6c0ceb21e48056fafcecc5ca58e9e54ad5c783ec2d1f3"
+      }
+    },
+    "public_consumer": {
+      "path": "target/omui-feedback/api.report.omui.json",
+      "sha256": "6d60a395f6e4c460463af2c7bfc1fdf28ff4392071bac56ed0cb4421c03e6770",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 161,
+          "ok": true
+        },
+        {
+          "profile": "release",
+          "checks": 161,
+          "ok": true
+        }
+      ]
+    },
+    "ui_consumer": {
+      "path": "target/omui-feedback/ui.report.omui.json",
+      "sha256": "d29a0be4f8a8f5776d5d91dd66714317f5cf7e31e7f18fc280b32ca46f39d89f",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 94,
+          "ok": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61,
+            "feedback_frames": 61
+          }
+        },
+        {
+          "profile": "release",
+          "checks": 94,
+          "ok": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61,
+            "feedback_frames": 61
+          }
+        },
+        {
+          "profile": "wasm-test",
+          "checks": 94,
+          "ok": true,
+          "frames": {
+            "frames": 61,
+            "driver_frames": 61,
+            "effect_frames": 61,
+            "feedback_frames": 61
+          }
+        }
+      ],
+      "png_count": 732,
+      "reverse_and_cross_profile_pixels_identical": true,
+      "prior_process_images_unchanged": 549,
+      "previous_report_sha256": "bc9e187e795a48fa8c2c878c628650086ee4028319e4d8d6e571953341b60fbd",
+      "missing_fonts_refused": true,
+      "feature_off": {
+        "ok": true,
+        "compiled_units": 704,
+        "adapter_and_engine_absent": true,
+        "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+      }
+    },
+    "browser": {
+      "path": "target/omui-feedback/browser/report.json",
+      "sha256": "6878b7b653eac424e0bd7f450594ac049d3b76293e3da725e6129e6ff586724b",
+      "checks": 158,
+      "screenshots": 10,
+      "exceptions": [],
+      "ok": true
+    },
+    "delivery": {
+      "url": "http://127.0.0.1:45893/",
+      "size": [
+        1280,
+        800
+      ],
+      "network": "20/40",
+      "cache": "enabled",
+      "browser": "HeadlessChrome/156.0.8078.4",
+      "transfer": {
+        "total": 4871083,
+        "before_first_frame": 2968854,
+        "by_kind": {
+          "document": 61030,
+          "fetch": 4751022,
+          "image": 11922,
+          "script": 47109
+        }
+      },
+      "first_frame_ms": 1772.8999999761581,
+      "ready_ms": 1737.1000000238419,
+      "frames": {
+        "acted": [
+          {
+            "node": "main/bar/nav/to_docs",
+            "exitCode": 0
+          },
+          {
+            "node": "main/body/view/docs/page/directory/to_features",
+            "exitCode": 0
+          },
+          {
+            "node": "main/bar/mark",
+            "exitCode": 0
+          }
+        ],
+        "frames": 319,
+        "p50": 16.699999999999818,
+        "p95": 16.700000000000728,
+        "p99": 16.800000000000182,
+        "max": 66.60000000000036,
+        "long": 1
+      },
+      "memory": {
+        "heap": 13400000,
+        "wasm": 28704768
+      },
+      "errors": [],
+      "budgets": [
+        {
+          "metric": "transfer.total",
+          "value": 4871083,
+          "max": 5000000,
+          "pass": true
+        },
+        {
+          "metric": "transfer.before_first_frame",
+          "value": 2968854,
+          "max": 3800000,
+          "pass": true
+        },
+        {
+          "metric": "first_frame_ms",
+          "value": 1772.8999999761581,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "ready_ms",
+          "value": 1737.1000000238419,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "frames.p95",
+          "value": 16.700000000000728,
+          "max": 34,
+          "pass": true
+        },
+        {
+          "metric": "frames.long",
+          "value": 1,
+          "max": 15,
+          "pass": true
+        },
+        {
+          "metric": "errors.length",
+          "value": 0,
+          "max": 0,
+          "pass": true
+        }
+      ]
+    },
+    "lint": {
+      "log": "/tmp/omui-feedback-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "commands": [
+      {
+        "label": "hanim-release",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--profile",
+          "release",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 12.387765310006216,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/hanim-release.log"
+      },
+      {
+        "label": "hanim-web",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 14.923916311003268,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/hanim-web.log"
+      },
+      {
+        "label": "site-native",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "openmui.site",
+          "component_motion_test",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 120.85298404097557,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/site-native.log"
+      },
+      {
+        "label": "site-pack",
+        "argv": [
+          "bash",
+          "tools/ci/site.sh"
+        ],
+        "exit": 0,
+        "seconds": 69.81742379302159,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/site-pack.log"
+      },
+      {
+        "label": "browser",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+          "tools/ci/site-motion.mjs",
+          "target/site"
+        ],
+        "exit": 0,
+        "seconds": 33.338780330028385,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/browser.log"
+      },
+      {
+        "label": "delivery",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+          "tools/ci/site-perf.mjs",
+          "--serve",
+          "target/site",
+          "--network",
+          "20/40",
+          "--budget",
+          "site/delivery.budget.omui.json",
+          "--request-log",
+          "target/omui-feedback/delivery-requests.json"
+        ],
+        "exit": 0,
+        "seconds": 9.121130315004848,
+        "log": "/home/speak/workspace/mui/target/omui-feedback/delivery.log"
+      }
+    ],
+    "source_fingerprints_match": true,
+    "documentation_links_resolve": true
+  },
+  "limits": [
+    "Three feedback designs do not complete the 40/20 public catalog or all default component motion migrations.",
+    "Return legs use floating-point arithmetic, not a universal bitwise undo contract; fixed prepared-plan sampling does not accumulate state.",
+    "External image effects have independent endpoints; motion returning does not implicitly undo them.",
+    "Site native validation is the focused 8-case component-motion suite, not another full-site native run.",
+    "No generic time-warp scope, channel blending, pivot/world constraints, arbitrary/3D representation, new GPU performance or global completion claim.",
+    "Delivery is one local cold-browser 20 Mbit/s, 40 ms sample; first-frame proxy is not FCP/LCP and rAF is not GPU cost."
+  ]
+}

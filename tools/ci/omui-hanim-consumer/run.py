@@ -104,8 +104,8 @@ def main() -> int:
             stdout=run(profile,['run','--locked','--profile',profile,*target,'--',str(images)])
             records=[json.loads(line) for line in stdout.splitlines() if line.startswith('{')]
             result=next(row for row in records if row.get('kind')=='omui.hanim-consumer')
-            if not result['ok'] or any(len(result[key])!=61 for key in ['frames','driver_frames','effect_frames']):raise RuntimeError('consumer did not complete the real task')
-            for frame in result['frames']+result['driver_frames']+result['effect_frames']:
+            if not result['ok'] or any(len(result[key])!=61 for key in ['frames','driver_frames','effect_frames','feedback_frames']):raise RuntimeError('consumer did not complete the real task')
+            for frame in result['frames']+result['driver_frames']+result['effect_frames']+result['feedback_frames']:
                 path=Path(frame['png']);frame['png_sha256']=digest(path)
                 if not path.is_relative_to(images) or path.stat().st_size<100:raise RuntimeError('invalid pixel artifact')
             run(profile+'-metadata',['build','--locked','--profile',profile,*target,'--configure-only'])
@@ -126,9 +126,9 @@ def main() -> int:
             report['profiles'].append({'profile':profile,'result':result,'packages':packages,
                 'source_files_sha256':{str(p.relative_to(repo)):digest(p) for p in sorted(set(sources)) if p.is_relative_to(repo)}})
             if digest(project/'mcpp.lock')!=consumer_lock:raise RuntimeError('consumer lock changed')
-        reference=sum((report['profiles'][0]['result'][key] for key in ['frames','driver_frames','effect_frames']),[])
+        reference=sum((report['profiles'][0]['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames']),[])
         for profile in report['profiles'][1:]:
-            frames=sum((profile['result'][key] for key in ['frames','driver_frames','effect_frames']),[])
+            frames=sum((profile['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames']),[])
             if any(a['pixel_fnv1a']!=b['pixel_fnv1a'] or a['png_sha256']!=b['png_sha256'] for a,b in zip(reference,frames)):
                 raise RuntimeError('profile process pixels differ')
         stdout=run('missing-fonts',['run','--locked','--profile','release','--',str(artifacts/'release')],

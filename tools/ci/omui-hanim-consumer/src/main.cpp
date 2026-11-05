@@ -13,12 +13,13 @@ namespace {
 Value::List checks;
 Value::List driver_frames;
 Value::List effect_frames;
+Value::List feedback_frames;
 bool check(bool ok,std::string_view name) {checks.push_back(Value{}.set("name",name).set("ok",ok));return ok;}
 int finish(Value::List frames={}) {
     const bool ok=std::ranges::all_of(checks,[](const Value& v){return v.get("ok")->as_bool();});
     std::println("{}",Value{}.set("kind","omui.hanim-consumer").set("ok",ok).set("checks",Value(std::move(checks)))
         .set("frames",Value(std::move(frames))).set("driver_frames",Value(std::move(driver_frames)))
-        .set("effect_frames",Value(std::move(effect_frames))).json());return ok?0:1;
+        .set("effect_frames",Value(std::move(effect_frames))).set("feedback_frames",Value(std::move(feedback_frames))).json());return ok?0:1;
 }
 PointerEvent pointer(PointerKind kind,Point at) {
     PointerEvent event;event.kind=kind;event.position=at;event.button=MouseButton::left;
@@ -344,6 +345,35 @@ int main(int argc,char** argv) {
     const auto object=binding->object();binding->detach();(void)runtime.frame({9s,{}});
     check(!binding->attached() && std::abs(runtime.drawn_bounds(root).x-base.x)<.03,"detach_restores_live_base_presentation");
     check(bool(hengine.destroy_object(object)) && !hengine.capture_object(object) && hengine.size()==0,"engine_objects_and_playbacks_released");
+    {
+    (void)runtime.frame({10s,{}});(void)runtime.frame({11s,{}});
+    auto feedback=animation::Playback::attach(runtime,targets);
+    if(!check(bool(feedback),"public_feedback_attaches_to_real_text_and_controls"))return finish(std::move(frames));
+    const auto feedback_program=hanim::parallel(
+        hanim::anim::shake(feedback->object(),{8,0},{.duration=1s}),
+        hanim::anim::wobble(feedback->object(),.12,{.duration=1s,.part="title"}),
+        hanim::anim::pulse(feedback->object(),{1.125,1.125},{.duration=1s,.part="save"}));
+    if(!check(bool(feedback->play(feedback_program)),"public_feedback_composes_without_a_site_dependency"))return finish(std::move(frames));
+    raster::Surface feedback_pixels(480,260);std::vector<std::string> feedback_hashes;bool feedback_ok=true;
+    auto feedback_sample=[&](int i) {
+        if(!feedback->seek_progress(i/60.))return false;
+        const auto frame=runtime.frame({hanim::seconds(12+i/60.),{}});
+        const auto rendered=renderer.render(runtime.display_list(),feedback_pixels,{&runtime.images(),&glyphs});
+        const auto state=runtime.presentation(root);
+        return frame.failure.empty() && rendered.missing_glyphs==0 && rendered.effects_skipped==0 && state && state->applied && !state->error;
+    };
+    for(int i=0;i<=60;++i) {
+        feedback_ok=feedback_sample(i) && feedback_ok;feedback_hashes.push_back(pixel_hash(feedback_pixels));
+        const auto file=output/std::format("feedback-{:03}.png",i);
+        feedback_ok=bool(mlibs::image::save_png(file,{reinterpret_cast<const std::uint8_t*>(feedback_pixels.pixels().data()),480,260,480*4})) && feedback_ok;
+        feedback_frames.push_back(Value{}.set("index",i).set("time",i/60.).set("pixel_fnv1a",feedback_hashes.back()).set("png",mcpplibs::os::fs::utf8(file)));
+    }
+    check(feedback_ok && feedback_hashes.front()==feedback_hashes.back() && feedback_hashes[15]!=feedback_hashes.front() &&
+        feedback_hashes[30]!=feedback_hashes.front(),"61_feedback_frames_cover_swings_pulse_and_return");
+    for(int i=60;i>=0;--i)feedback_ok=feedback_sample(i) && pixel_hash(feedback_pixels)==feedback_hashes[static_cast<std::size_t>(i)] && feedback_ok;
+    check(feedback_ok,"public_feedback_replays_all_intermediate_pixels_backwards");
+    (void)feedback->stop();
+    }
     driver_checks(fonts,output);
     image_checks(fonts,output);
     return finish(std::move(frames));

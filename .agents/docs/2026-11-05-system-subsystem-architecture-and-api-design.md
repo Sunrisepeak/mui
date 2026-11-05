@@ -37,6 +37,8 @@ A4 图像作用域补充见[实施设计](2026-11-06-hanim-ui-image-scope-design
 
 相对属性配方见[台账 §32](2026-11-05-system-implementation-checkpoints-design.md#32-相对旋转缩放与公共部件配方)：`rotate_by`／`scale_by` 及命名部件的 `rotation_offset`／`scale_factor` 复用同一通道准备与求值，基于实际阶段源或 retarget 当前姿态计算目标。官网部件配方直接消费这一能力；API 便捷入口不增加独立动画设计的验收数。
 
+公共反馈配方见[台账 §33](2026-11-05-system-implementation-checkpoints-design.md#33-公共反馈配方与官网组合)：pulse／shake／wobble 在现有 Program 层组合底层属性能力，公开时长／缓动／部件参数，复用同一 compiler／Engine／renderer；官网“反馈组合”和独立 headless 应用使用同一实现。它们不替代所有默认组件配方的迁移，也不意味着 40／20 整体验收完成。
+
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 
 ## 2. 产品边界与共同契约

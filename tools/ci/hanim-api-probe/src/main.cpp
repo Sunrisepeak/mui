@@ -357,6 +357,19 @@ int main() {
     check(relative_end.rotate==1.25 && relative_end.sx==1.5 && relative_end.sy==4.5,
         "relative_retarget_adds_rotation_and_multiplies_scale");
     check(bool(hengine.release(*relative)),"relative_playback_resources_released");
+    const auto feedback=hengine.play(h::parallel(
+        anim::pulse(*property_object,{2,2},{.duration=1s}),
+        anim::shake(*property_object,{8,0},{.duration=1s}),
+        anim::wobble(*property_object,.2,{.duration=1s})));
+    if(!check(bool(feedback),"public_feedback_recipes_are_ordinary_programs"))return finish();
+    const auto feedback_source=copy(*hengine.frame(*feedback));
+    check(bool(hengine.seek(*feedback,500ms)),"feedback_samples_without_an_event_loop");
+    const auto feedback_peak=hengine.frame(*feedback)->geometry.parts[0].local;
+    check(feedback_peak.sx==2 && std::abs(feedback_peak.tx-3)<1e-12 && std::abs(feedback_peak.rotate)<1e-12,
+        "independent_feedback_channels_have_their_defined_midpoints");
+    check(bool(hengine.seek(*feedback,1s)) && equal(feedback_source,copy(*hengine.frame(*feedback))),
+        "feedback_returns_to_its_source_without_registry_mutation");
+    check(bool(hengine.release(*feedback)),"feedback_resources_released");
     const auto image_scope=hengine.play(h::composite(anim::to(*property_object,
         {.position=h::Vec2{20,5},.rotation=std::numbers::pi,.scale=h::Vec2{2,2}})
         .with_effect(h::fx::translation_path(h::PointPath::bend(.25)))).with_effect(h::fx::blur(0,4)));

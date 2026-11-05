@@ -14,8 +14,8 @@
 // that breaks the convention, on stderr.
 import std;
 import mcpplibs.os;
-import openmui.rhi;
-import openmui.shader;
+import mlibs.rhi;
+import mlibs.shader;
 
 namespace os = mcpplibs::os;
 
@@ -57,8 +57,8 @@ std::string escape_make(std::string_view path) {
 int main(int argc, char** argv) {
     std::vector<std::string> args(argv + 1, argv + argc);
     std::filesystem::path source, out, depfile;
-    omui::shader::Options options;
-    omui::shader::EmitOptions emit;
+    mlibs::shader::Options options;
+    mlibs::shader::EmitOptions emit;
     bool formats_given = false;
     std::string target_os, host_os;
     for (std::size_t i = 0; i < args.size(); ++i) {
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
                 options.formats = {};
                 for (auto part : std::views::split(*v, ',')) {
                     const std::string_view f(part.begin(), part.end());
-                    const auto format = omui::rhi::shader_format(f);
+                    const auto format = mlibs::rhi::shader_format(f);
                     if (!format) return usage(std::format("`{}` is not a shader format (spirv, msl, metallib, dxbc, dxil, wgsl, essl)", f));
                     options.formats.add(*format);
                 }
@@ -102,15 +102,15 @@ int main(int argc, char** argv) {
     if (source.empty() || out.empty() || emit.module.empty() || emit.partition.empty() || emit.ns.empty())
         return usage("FILE.slang, --out, --module, --partition and --namespace are needed");
     if (!formats_given)
-        options.formats = target_os.empty() ? omui::rhi::formats({omui::rhi::ShaderFormat::spirv})
-                                            : omui::shader::formats_for(target_os, host_os.empty() ? target_os : host_os);
+        options.formats = target_os.empty() ? mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv})
+                                            : mlibs::shader::formats_for(target_os, host_os.empty() ? target_os : host_os);
 
-    auto program = omui::shader::compile(source, options);
+    auto program = mlibs::shader::compile(source, options);
     if (!program) {
         std::println(std::cerr, "{}", program.error());
         return 1;
     }
-    if (!write_if_changed(out, omui::shader::emit_cpp(*program, emit))) {
+    if (!write_if_changed(out, mlibs::shader::emit_cpp(*program, emit))) {
         std::println(std::cerr, "omui-shader: cannot write {}", os::fs::utf8(out));
         return 1;
     }

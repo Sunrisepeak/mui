@@ -3,7 +3,7 @@
 # headless Chromium (tools/ci/browser.mjs serves the program on localhost
 # and reads back what it prints):
 #
-#   1. openmui.rhi.webgpu's and openmui.rhi.webgl's tests — the omui.rhi
+#   1. mlibs.rhi.webgpu's and mlibs.rhi.webgl's tests — the mlibs.rhi
 #      conformance suite among them — on the page's WebGPU and WebGL2, built
 #      with the wasm-browser profile (linked to suspend, so the suite can
 #      read WebGPU back);
@@ -43,7 +43,7 @@ node_bin=$(command -v node || ls -d "$HOME"/.xlings/data/xpkgs/xim-x-node/*/bin/
 echo "browser: $("$chrome" --version 2>/dev/null || echo "$chrome")"
 
 # 1. rhi.webgpu and rhi.webgl on the page's WebGPU and WebGL2.
-"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p openmui.rhi.webgpu -p openmui.rhi.webgl --no-run \
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p mlibs.rhi.webgpu -p mlibs.rhi.webgl --no-run \
   || { echo "::error::the page backends' tests did not build for the browser"; exit 1; }
 for backend in webgpu webgl; do
   program=$(ls -t target/wasm32-emscripten/*/bin/$backend/${backend}_test.js 2>/dev/null | head -1)
@@ -83,7 +83,7 @@ fi
 mapfile -t partitions < <(python3 - <<'PY'
 import glob, os
 newest = {}
-for f in glob.glob("target/.build-mcpp/out/*/*/openmui/shader/*_shaders.cppm"):
+for f in glob.glob("target/.build-mcpp/out/*/*/mlibs/shader/*_shaders.cppm"):
     key = (f.split(os.sep)[-4], os.path.basename(f))
     text = open(f, encoding="utf-8").read()
     if "_wgsl{" not in text and "_essl{" not in text:

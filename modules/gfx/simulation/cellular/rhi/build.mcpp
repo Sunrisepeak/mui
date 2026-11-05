@@ -1,5 +1,5 @@
 import mcpp;
-import openmui.shader.rules;
+import mlibs.shader.rules;
 int main() {
-    return openmui::shader::rules::shaders({.module="openmui.simulation.cellular.rhi",.ns="omui::simulation::cellular::gpu::shaders"}) ? 0 : 1;
+    return mlibs::shader::rules::shaders({.module="openmui.simulation.cellular.rhi",.ns="omui::simulation::cellular::gpu::shaders"}) ? 0 : 1;
 }

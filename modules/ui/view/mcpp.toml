@@ -30,7 +30,7 @@ mlibs.memory   = { path = "../../base/memory" }
 hanim.core            = { path = "../../base/hanim/core" }
 hanim.effect          = { path = "../../gfx/hanim/effect" }
 openmui.layout   = { path = "../../content/layout" }
-openmui.raster   = { path = "../../gfx/raster" }
+mlibs.raster   = { path = "../../gfx/raster" }
 openmui.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
 mlibs.image    = { path = "../../base/image" }

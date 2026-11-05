@@ -6,16 +6,16 @@
 // rectangle and, for anything else, a coverage mask. An optional object-id
 // buffer records which node drew each pixel — the CPU half of pixel
 // provenance (devtools trace a pixel to the source that produced it).
-export module openmui.raster:canvas;
+export module mlibs.raster.api:canvas;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :surface;
 import :rasterizer;
 import :paint;
 import :stroke;
 
-export namespace omui::raster {
+export namespace mlibs::raster {
 
 using geom::CornerRadii;
 
@@ -136,4 +136,4 @@ void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii)
 void box_shadow_coverage(const Rect& r, const CornerRadii& radii, Point offset, float blur, float spread, bool inset,
                          const Affine& m, PixelRect scissor, Coverage& out, Polygons& polygons, Rasterizer& rasterizer);
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

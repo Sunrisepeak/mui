@@ -1,14 +1,14 @@
 // The device: resources remembered by description (what validation reads),
 // each made in the page under its slot index; a submission encoded as rhi's
 // wire words and handed to the page in one call.
-module openmui.rhi.webgpu;
+module mlibs.rhi.webgpu.api;
 
 import std;
-import openmui.memory;
-import openmui.rhi;
+import mlibs.memory;
+import mlibs.rhi;
 import :page;
 
-namespace omui::rhi::webgpu {
+namespace mlibs::rhi::webgpu {
 
 namespace {
 
@@ -197,11 +197,11 @@ private:
 
     Caps                                                   caps_;
     bool                                                   canvas_ = false;
-    SlotMap<BufferDesc, BufferTag>                         buffers_;
-    SlotMap<TextureDesc, TextureTag>                       textures_;
-    SlotMap<SamplerDesc, SamplerTag>                       samplers_;
-    SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag>     graphics_;
-    SlotMap<ComputePipelineInfo, ComputePipelineTag>       compute_;
+    memory::SlotMap<BufferDesc, BufferTag>                         buffers_;
+    memory::SlotMap<TextureDesc, TextureTag>                       textures_;
+    memory::SlotMap<SamplerDesc, SamplerTag>                       samplers_;
+    memory::SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag>     graphics_;
+    memory::SlotMap<ComputePipelineInfo, ComputePipelineTag>       compute_;
     std::vector<std::uint32_t>                             words_;
     std::uint64_t                                          next_ = 1;
 };
@@ -230,4 +230,4 @@ bool available() { return page::device().has_value(); }
 
 bool can_wait() { return page::suspends(); }
 
-}  // namespace omui::rhi::webgpu
+}  // namespace mlibs::rhi::webgpu

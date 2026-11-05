@@ -26,5 +26,5 @@ mlibs.trace = { path = "../../../base/trace" }
 [dev-dependencies]
 mlibs.testing = { path = "../../../base/testing" }
 hanim.render.vector = { path = "../render/vector" }
-openmui.raster = { path = "../../raster" }
+mlibs.raster = { path = "../../raster" }
 mlibs.image = { path = "../../../base/image" }

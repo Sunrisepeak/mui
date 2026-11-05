@@ -1,0 +1,7 @@
+import mcpp;
+{{imports}}
+
+int main() {
+    return {{rule_namespace}}::shaders({.module = "mlibs.validation.rules_consumer", .ns = "consumer::compiled",
+                                       .shaders = ".", .formats = "spirv,wgsl,essl"}) ? 0 : 1;
+}

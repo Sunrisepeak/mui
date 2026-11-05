@@ -1,11 +1,11 @@
 // No page (any target but the Web): no WebGPU. create() answers
 // Errc::unsupported with this reason, and nothing else is reached.
-module openmui.rhi.webgpu;
+module mlibs.rhi.webgpu.api;
 
 import std;
 import :page;
 
-namespace omui::rhi::webgpu::page {
+namespace mlibs::rhi::webgpu::page {
 
 std::expected<Adapter, std::string> device() { return std::unexpected(std::string("WebGPU is the Web's: this program runs in no page")); }
 bool suspends() { return false; }
@@ -27,4 +27,4 @@ bool lost() { return false; }
 bool canvas(std::string_view) { return false; }
 int present(std::uint32_t) { return -1; }
 
-}  // namespace omui::rhi::webgpu::page
+}  // namespace mlibs::rhi::webgpu::page

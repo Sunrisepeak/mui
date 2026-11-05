@@ -1,10 +1,10 @@
-module openmui.shader;
+module mlibs.shader.api;
 
 import std;
 import mcpplibs.os;
 import :session;
 
-namespace omui::shader {
+namespace mlibs::shader {
 
 namespace {
 
@@ -212,4 +212,4 @@ std::expected<InProcessOutput, std::string> InProcess::run(std::span<const std::
     return out;
 }
 
-}  // namespace omui::shader
+}  // namespace mlibs::shader

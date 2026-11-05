@@ -1,6 +1,6 @@
 # openmui.text — fonts, shaping, bidi, line breaking, paragraphs, glyph
 # rasterisation and the editing model, over HarfBuzz and SheenBidi as C++ modules (mcpp-index's mwrap)
-# and mlibs.unicode, openmui.raster and openmui.render.
+# and mlibs.unicode, mlibs.raster and openmui.render.
 [package]
 namespace   = "openmui"
 name        = "text"
@@ -22,7 +22,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.geom    = { path = "../../base/geom" }
 mlibs.unicode = { path = "../../base/unicode" }
-openmui.raster  = { path = "../../gfx/raster" }
+mlibs.raster  = { path = "../../gfx/raster" }
 openmui.render.vector  = { path = "../../gfx/render/vector" }
 mcpplibs.os     = "0.2.2"
 mcpplibs.mwrap.harfbuzz = "14.3.0"

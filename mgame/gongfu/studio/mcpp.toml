@@ -29,7 +29,7 @@ gongfu.ai        = { path = "../ai" }
 gongfu.data      = { path = "../data" }
 gongfu.present2d = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
-openmui.raster   = { path = "../../../modules/gfx/raster" }
+mlibs.raster   = { path = "../../../modules/gfx/raster" }
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.hash     = { path = "../../../modules/base/hash" }
 openmui.render.vector = { path = "../../../modules/gfx/render/vector" }

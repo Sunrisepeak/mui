@@ -1,8 +1,8 @@
-module openmui.raster;
+module mlibs.raster.api;
 
 import std;
 
-namespace omui::raster {
+namespace mlibs::raster {
 
 // ── paths ─────────────────────────────────────────────────────────────────
 
@@ -376,4 +376,4 @@ void fill_coverage(PathData path, const Affine& m, FillRule rule, PixelRect clip
     r.rasterize(polys, rule, clip, out);
 }
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

@@ -1,16 +1,16 @@
-// openmui.shader.rules — shaders(): for each `<dir>/*.slang`, one action runs
+// mlibs.shader.rules — shaders(): for each `<dir>/*.slang`, one action runs
 // omui-shader, writing the partition `<module>:<stem>_shaders` (namespace
 // `<ns>::<stem>`) into the build's output. The partition joins the
 // package's compile set; the action re-runs when the shader, a file it
 // imports (its depfile) or omui-shader changes. The formats are the target's
 // (omui-shader --target-os/--host-os), unless options::formats names them.
-export module openmui.shader.rules;
+export module mlibs.shader.rules.api;
 
 import std;
 import mcpp;
 
 // Module linkage, not exported: the exported inline functions name them.
-namespace openmui::shader::rules {
+namespace mlibs::shader::rules {
 
 std::string utf8(const std::filesystem::path& p) {
     const std::u8string u = p.generic_u8string();
@@ -26,9 +26,9 @@ std::string os_of(std::string_view triple) {
     return "linux";
 }
 
-}  // namespace openmui::shader::rules
+}  // namespace mlibs::shader::rules
 
-export namespace openmui::shader::rules {
+export namespace mlibs::shader::rules {
 
 struct options {
     std::string              module;             // the package's module: acme.render
@@ -43,12 +43,12 @@ struct options {
 inline bool shaders(const options& opt) {
     const std::string root = mcpp::manifest_dir();
     if (root.empty() || opt.module.empty()) {
-        std::println(std::cerr, "openmui.shader.rules: shaders() runs from build.mcpp, and options::module names the package's module");
+        std::println(std::cerr, "mlibs.shader.rules: shaders() runs from build.mcpp, and options::module names the package's module");
         return false;
     }
-    const std::string tool = std::string(mcpp::dep_bin("openmui.shader", "omui-shader"));
+    const std::string tool = std::string(mcpp::dep_bin("mlibs.shader", "omui-shader"));
     if (tool.empty()) {
-        std::println(std::cerr, "openmui.shader.rules: omui-shader was not built for this build (the rule depends on openmui.shader with "
+        std::println(std::cerr, "mlibs.shader.rules: omui-shader was not built for this build (the rule depends on mlibs.shader with "
                                 "tools = [\"omui-shader\"])");
         return false;
     }
@@ -64,10 +64,10 @@ inline bool shaders(const options& opt) {
         if (e.path().extension() == ".slang") files.push_back(e.path());
     std::ranges::sort(files);
     if (files.empty()) {
-        std::println(std::cerr, "openmui.shader.rules: no shader in {}/ (files named <name>.slang)", opt.shaders);
+        std::println(std::cerr, "mlibs.shader.rules: no shader in {}/ (files named <name>.slang)", opt.shaders);
         return false;
     }
-    const std::filesystem::path out = std::filesystem::path(opt.out_dir) / "openmui" / "shader";
+    const std::filesystem::path out = std::filesystem::path(opt.out_dir) / "mlibs" / "shader";
     std::filesystem::create_directories(out, ec);
     const std::string target_os = *mcpp::target_os() ? std::string(mcpp::target_os()) : os_of(mcpp::target());
     const std::string host_os = os_of(mcpp::host());
@@ -76,7 +76,7 @@ inline bool shaders(const options& opt) {
         const std::string partition = stem + "_shaders";
         const std::string cppm = utf8(out / (partition + ".cppm"));
         const std::string dep = cppm + ".d";
-        const std::string id = std::format("openmui.shader:{}", stem);
+        const std::string id = std::format("mlibs.shader:{}", stem);
         const std::string description = std::format("slang {} → {}:{}", utf8(f.filename()), opt.module, partition);
         mcpp::action a;
         a.id = id.c_str();
@@ -96,10 +96,10 @@ inline bool shaders(const options& opt) {
         const std::string provides = opt.module + ":" + partition;
         a.provides(provides.c_str());
         a.imports("std");
-        a.imports("openmui.rhi");
+        a.imports("mlibs.rhi");
         a.submit();
     }
     return true;
 }
 
-}  // namespace openmui::shader::rules
+}  // namespace mlibs::shader::rules

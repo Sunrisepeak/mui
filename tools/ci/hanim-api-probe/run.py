@@ -73,7 +73,7 @@ def main() -> int:
             if data.get('schema_version')!=2:raise RuntimeError('unsupported resolution schema')
             for entry in data['graph']['packages']:
                 p=entry['package'];name=(p.get('namespace','')+'.'+p['name']).lstrip('.');names.append(name)
-                if name in {'openmui.core','openmui.sdk','openmui.testing','mlibs.testing','openlifa.openmui','openmui.spec'} or name.startswith(('openmui.ui.','openmui.host.','openmui.site','openmui.rhi','openmui.render')):
+                if name in {'openmui.core','openmui.sdk','openmui.testing','mlibs.testing','openlifa.openmui','openmui.spec'} or name.startswith(('openmui.ui.','openmui.host.','openmui.site','openmui.rhi','mlibs.rhi','openmui.render')):
                     raise RuntimeError(f'forbidden UI/renderer dependency: {name}')
             # mcpp's existing default namespace normalizes the unqualified
             # package hanim to mcpplibs.hanim; the module/import stays hanim.

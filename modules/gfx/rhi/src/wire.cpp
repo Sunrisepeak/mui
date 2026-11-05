@@ -1,8 +1,8 @@
-module openmui.rhi;
+module mlibs.rhi.api;
 
 import std;
 
-namespace omui::rhi::wire {
+namespace mlibs::rhi::wire {
 
 namespace {
 
@@ -24,7 +24,7 @@ struct Writer {
     void i(std::int32_t v) { out.push_back(std::bit_cast<std::uint32_t>(v)); }
     void f(float v) { out.push_back(std::bit_cast<std::uint32_t>(v)); }
     template <class Tag>
-    void h(Handle<Tag> handle) {
+    void h(memory::Handle<Tag> handle) {
         out.push_back(handle ? handle.index : none);
     }
     void payload(std::span<const std::byte> bytes) {
@@ -118,4 +118,4 @@ void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& w) {
     w.insert(w.end(), {s.samplers, s.storage_textures, s.storage_buffers, s.uniform_buffers, s.rw_storage_textures, s.rw_storage_buffers});
 }
 
-}  // namespace omui::rhi::wire
+}  // namespace mlibs::rhi::wire

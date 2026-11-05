@@ -2,7 +2,7 @@
 // program by build.mcpp (an Emscripten library). Every call is a plain one
 // across the boundary — numbers, and pointers into this program's memory —
 // and everything leaves as the partition's types.
-module openmui.rhi.webgl;
+module mlibs.rhi.webgl.api;
 
 import std;
 import :page;
@@ -26,7 +26,7 @@ int   omui_webgl_lost();
 int   omui_webgl_present(std::uint32_t id);
 }
 
-namespace omui::rhi::webgl::page {
+namespace mlibs::rhi::webgl::page {
 
 namespace {
 
@@ -84,4 +84,4 @@ bool lost() { return omui_webgl_lost() != 0; }
 
 int present(std::uint32_t texture) { return omui_webgl_present(texture); }
 
-}  // namespace omui::rhi::webgl::page
+}  // namespace mlibs::rhi::webgl::page

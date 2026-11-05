@@ -1,9 +1,9 @@
-module openmui.raster;
+module mlibs.raster.api;
 
 import std;
 import hanim.core;
 
-namespace omui::raster {
+namespace mlibs::raster {
 
 namespace {
 
@@ -220,4 +220,4 @@ void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, Pixel
     r.rasterize(polygons, FillRule::nonzero, clip, out);
 }
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

@@ -43,11 +43,11 @@ openmui.agent    = { path = "../../agent" }
 # Quoted: a package and its subpackage in one table (TOML).
 "openmui.native"       = { path = "../../native" }
 "openmui.native.store" = { path = "../../native/store" }
-openmui.raster   = { path = "../../../gfx/raster" }
+mlibs.raster   = { path = "../../../gfx/raster" }
 openmui.render.vector = { path = "../../../gfx/render/vector" }
-"openmui.rhi"         = { path = "../../../gfx/rhi" }
-"openmui.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
-"openmui.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
+"mlibs.rhi"         = { path = "../../../gfx/rhi" }
+"mlibs.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
+"mlibs.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
 openmui.text     = { path = "../../../content/text" }
 mlibs.trace    = { path = "../../../base/trace" }
 mlibs.image    = { path = "../../../base/image" }

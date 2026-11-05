@@ -1,9 +1,9 @@
 // Every shader a Web build compiled for the page's backends — the shader
-// partitions openmui.shader.rules wrote: each entry point's `<entry>_wgsl`
+// partitions mlibs.shader.rules wrote: each entry point's `<entry>_wgsl`
 // and `<entry>_essl` byte arrays — as one script for browser.mjs: the
 // page's WebGPU compiles each WGSL entry, its WebGL2 compiles each ESSL one
 // and links each vertex entry of a file with each fragment entry of it. What
-// Slang writes and openmui.shader rewrites is checked by the compilers that
+// Slang writes and mlibs.shader rewrites is checked by the compilers that
 // will run it; each failure says the entry and the compiler's message.
 //
 //   node tools/ci/shaders.mjs OUT.js PARTITION.cppm…
@@ -19,7 +19,7 @@ const wgsl = {}, essl = {};
 for (const f of files) {
   const text = readFileSync(f, 'utf8');
   const file = basename(f, '.cppm');
-  const stages = Object.fromEntries([...text.matchAll(/inline constexpr omui::rhi::ShaderDesc (\w+)\{\n {4}\.stage = omui::rhi::Stage::(\w+)/g)]
+  const stages = Object.fromEntries([...text.matchAll(/inline constexpr (?:mlibs|omui)::rhi::ShaderDesc (\w+)\{\n {4}\.stage = (?:mlibs|omui)::rhi::Stage::(\w+)/g)]
     .map((m) => [m[1], m[2]]));
   for (const m of text.matchAll(/std::array<std::byte, \d+> (\w+)_(wgsl|essl)\{([\s\S]*?)\};/g)) {
     const bytes = Uint8Array.from([...m[3].matchAll(/0x([0-9a-f]{2})/g)].map((b) => parseInt(b[1], 16)));

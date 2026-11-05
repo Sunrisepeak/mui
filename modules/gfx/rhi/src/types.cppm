@@ -8,12 +8,12 @@
 // pushed by value, one blend state and one depth test per pipeline, compute.
 // No bindless, no GPU timestamps (SDL_GPU has none: issue #3). Mapped thinly
 // onto a backend (SDL_GPU first).
-export module openmui.rhi:types;
+export module mlibs.rhi.api:types;
 
 import std;
-import openmui.memory;
+import mlibs.memory;
 
-export namespace omui::rhi {
+export namespace mlibs::rhi {
 
 // ── errors ───────────────────────────────────────────────────────────────
 
@@ -96,11 +96,11 @@ struct TextureTag;
 struct SamplerTag;
 struct GraphicsPipelineTag;
 struct ComputePipelineTag;
-using Buffer           = Handle<BufferTag>;
-using Texture          = Handle<TextureTag>;
-using Sampler          = Handle<SamplerTag>;
-using GraphicsPipeline = Handle<GraphicsPipelineTag>;
-using ComputePipeline  = Handle<ComputePipelineTag>;
+using Buffer           = memory::Handle<BufferTag>;
+using Texture          = memory::Handle<TextureTag>;
+using Sampler          = memory::Handle<SamplerTag>;
+using GraphicsPipeline = memory::Handle<GraphicsPipelineTag>;
+using ComputePipeline  = memory::Handle<ComputePipelineTag>;
 
 enum class Format : std::uint8_t {
     rgba8_unorm,    // the renderer's premultiplied RGBA, byte order R G B A
@@ -341,4 +341,4 @@ struct Submission {
 [[nodiscard]] std::string check(const GraphicsPipelineDesc& d, ShaderFormats accepted);
 [[nodiscard]] std::string check(const ComputePipelineDesc& d, ShaderFormats accepted);
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

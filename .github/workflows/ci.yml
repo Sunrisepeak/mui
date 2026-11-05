@@ -251,7 +251,7 @@ jobs:
         if: runner.os == 'Linux' && matrix.profile == 'dev'
         run: tools/ci/templates.sh
 
-      - name: Foundation source and packed consumers share canonical and legacy APIs
+      - name: Foundation consumers and shader rules share canonical and legacy APIs
         timeout-minutes: 15
         if: matrix.os == 'ubuntu-24.04' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'release'
         run: python3 tools/ci/foundation-migration/run.py

@@ -2,7 +2,7 @@
 import std;
 import hanim;
 import hanim.render.vector;
-import openmui.raster;
+import mlibs.raster;
 import mlibs.image;
 import openmui.hash;
 import mlibs.control;
@@ -11,7 +11,7 @@ import nlohmann.json;
 
 using namespace hanim;
 namespace render = omui::render;
-namespace raster = omui::raster;
+namespace raster = mlibs::raster;
 namespace geom = omui::geom;
 using Json = nlohmann::json;
 

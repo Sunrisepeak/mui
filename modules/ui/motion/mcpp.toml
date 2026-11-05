@@ -33,4 +33,4 @@ openmui.render.vector = { path = "../../gfx/render/vector" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }
-openmui.raster  = { path = "../../gfx/raster" }
+mlibs.raster  = { path = "../../gfx/raster" }

@@ -23,7 +23,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.rhi   = { path = "../rhi" }
+mlibs.rhi   = { path = "../rhi" }
 mlibs.trace = { path = "../../base/trace" }
 
 [dev-dependencies]

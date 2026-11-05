@@ -7,11 +7,11 @@
 // would write: the code, the reflection JSON, the files it read, its
 // diagnostics in slangc's words. Where the library is not there (or
 // OMUI_SLANGC_PROCESS is set) slangc runs, as before.
-module openmui.shader:session;
+module mlibs.shader.api:session;
 
 import std;
 
-namespace omui::shader {
+namespace mlibs::shader {
 
 struct InProcessOutput {
     std::vector<std::byte>   code;          // what -o would hold
@@ -48,4 +48,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-}  // namespace omui::shader
+}  // namespace mlibs::shader

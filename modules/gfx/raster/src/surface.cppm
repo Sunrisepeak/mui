@@ -4,12 +4,12 @@
 // (the render interface's format, spec §7 R-1; a host that wants BGRA swaps
 // at presentation). A Mask is 8-bit coverage. Both own their memory; views
 // borrow it.
-export module openmui.raster:surface;
+export module mlibs.raster.api:surface;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 
-export namespace omui::raster {
+export namespace mlibs::raster {
 
 using geom::Affine;
 using geom::Color;
@@ -106,4 +106,4 @@ struct Coverage {
     [[nodiscard]] bool empty() const noexcept { return bounds.empty(); }
 };
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

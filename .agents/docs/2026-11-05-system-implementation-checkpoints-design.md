@@ -598,3 +598,38 @@ Unicode 生成器一起修改，并从官方 17.0.0 UCD 实际重新生成。对
 - N1 仍需 gfx／content 基础库，之后 N2 的 render／simulation／audio 与 N3 的 UI／标准连接按依赖推进。S1–S10、40 个公共动画／20 个完整作品、完整默认动效、PPet、多后端与性能预算继续开放。
 
 最终全仓 lint 为零；变更 Python／TOML、本地文档链接与 diff 检查通过。以本地真实验证提交到同一 PR #1，其他平台 CI 异步反馈。
+
+## 19. D-100／N1第四组：gfx 基础库与实际后端
+
+执行基线 `33e1f73`。RHI、三个设备后端、CTS、raster、shader 及其构建规则共八个原包迁入 `mlibs.*`。**N1 尚未整体完成**，本批没有增加动画／效果或作品的功能计数。接口与生成链说明见[命名方案 §8](2026-11-05-product-namespace-migration-design.md#8-n1第四组gpu-契约光栅器和着色器工具)，机器记录见[本轮报告](../../tools/ci/2026-11-05-gfx-namespaces.report.omui.json)。
+
+### 19.1 归属和兼容
+
+RHI 父包、后端与 CTS 使用 `mlibs::rhi` 及其子空间；raster、shader 分别使用 `mlibs::raster`、`mlibs::shader`。同包 `.api` 保持唯一声明与实现，旧 module 导出原 API 别名。宿主 rules 独立于运行时 shader，旧 `openmui::shader::rules` 仍转发到同一构建规则。没有新增清单，workspace 仍为 129 个成员。
+
+仓内依赖键、构建插件及生成 C++ 同步到新身份；`omui-shader` 命令、既有 `OMUI_*` 选项、JS／C 桥符号、wire 编码、规范子模块和元数据键保留。41 个实现／接口单元在显式还原 module、namespace、内存类型限定和生成路径后与基线一致；新转发单元和清单另行审查，不将此检查当作功能测试。RHI 复用同一 memory、hash，raster 继续复用 geom 与 hanim.core。
+
+### 19.2 本地验证
+
+| 范围 | 结果与边界 |
+|---|---|
+| Linux GCC 16.1 dev／release | 每个配置最终选集 65 次测试程序执行、460 个具名用例通过；覆盖三个 gfx 库、SDL 后端及 hanim.engine、render、vector、view、headless、agent、inspector、C ABI、官网。不同包可有同名测试文件，不以文件名去重或当作功能数量 |
+| Wasm／Node | RHI、raster 的 4 个程序、32 个用例实际执行通过；shader 编译器本身在原生宿主验证，未声称可在 Wasm 内运行 |
+| 外部源码／静态包 | 十五个 mlibs 库和未改名的 hanim.core 共 16 个真实 pack；6 种消费组合，各 15 个用例，首次和增量运行均通过。每个实际 graph 为 26 个身份，没有 UI 或重复包；安装包消费没有编译本仓库的实现 cpp |
+| 外部构建插件 | 新名／旧名／混用 3 个仓外 build.mcpp，实际生成、编译、读取两个 shader entry 和三种格式；三份生成分区摘要相同 |
+| 原生 Vulkan | 无窗口的 SDL offscreen＋`OMUI_REQUIRE_GPU=1`，lavapipe／llvmpipe 软件设备实际执行 19 项 RHI CTS；元胞 16 场景、266 步、168 次比较／61320 个值、129 个校验通过，过程摘要 `0769cee00d2cbf3a` |
+| Chromium WebGPU／WebGL2 | 各跑 19 项 CTS；WebGL 的 compute 项验证明确 unsupported，不算计算执行。WebGPU 元胞过程与 CPU 对齐；真实宿主页面与 CPU 比较均为最大差 4、76800 像素中 64 个差值超过 1。25 个生成分区的 33 个 WGSL、30 个 ESSL entry 完成 70 项 shader 检查 |
+| 独立 hanim | 无 renderer 的创作 API：dev／release 各 104 项检查；带公开 renderer adapter 的播放消费者：244 张过程 PNG、逐帧反向和授权验证通过，采样时间／像素／PNG 与上批逐一一致 |
+| 官网真实交互 | 重新生成 Web 包、原生 prerender 与 Agent 指南；Chromium 14 项交互通过，25 个固定画布状态和 PNG 与既有反应工作台记录相同。实际查看中文窄屏、反应中间态和 hanim 中间帧 |
+
+所有构建、测试和打包使用 mcpp；本机生成工具以仓库锁重新构建，再通过 mcpp 支持的工具路径配置供消费者使用。原有用户 `mcpp.lock` 修改保持原样，没有进入此提交。未等待其他平台 CI；没有给出硬件 GPU、macOS／Windows／手机的新验收或性能提升结论。
+
+### 19.3 保留的问题与边界
+
+- 初次 shader 测试有一条字符串断言仍期待旧 `omui::rhi` 生成文本，更新为真实的新 API 后 11 项全部通过。初次 SDL 运行未选择离屏 video driver，在无显示服务的本机初始化失败；显式使用 offscreen 后仍要求设备成功，没有跳过设备测试。
+- 浏览器第一次 WebGPU canvas 呈现报 `Device was destroyed`；既有脚本以 Vulkan／SwiftShader 参数重试同一测试后通过，未使用 offscreen 降级分支。该环境依赖保留在报告中，不写成首次运行全绿，也不将软件设备结果描述为显卡性能。
+- 外部消费者的运行断言先已通过，但编译源审计遇到 shader 生成的 provisioned 分区和同包 CLI 入口。审计现仅接受准确生成路径，单列工具源并检查不进入消费程序 link；同时修正 Ninja 空白解析。没有放开任意生成目录或把 CLI main 算入库实现。
+- mcpp pack 的依赖元数据缺口继续存在，二进制 fixture 显式列出依赖；shader 的 provisioned Slang 路径尚未验证跨机器重定位。这些结果不能宣称单个顶层包安装或正式索引发布完成。namespace alias 不能重新打开，旧扩展块需使用新的实际命名空间；C++ 使用方需要重建。
+- 官网整体截图含实时时序，只对固定画布与动画采样做逐字节比较；没有因此认定实时节奏、美术、全部默认动效或 40／20 已达标。下一依赖组为 content，随后是引擎和 UI／标准连接。
+
+本批收尾检查为全仓 lint 零问题、TOML／Python／JS／shell 语法、本地文档链接与 `git diff --check`；以同一 PR #1 的 Signed-off-by 检查点保存。

@@ -2,14 +2,14 @@
 // each made in the page under its slot index; a submission encoded as rhi's
 // wire words and handed to the page in one call. What WebGL2 cannot do is
 // refused here, before the page sees it.
-module openmui.rhi.webgl;
+module mlibs.rhi.webgl.api;
 
 import std;
-import openmui.memory;
-import openmui.rhi;
+import mlibs.memory;
+import mlibs.rhi;
 import :page;
 
-namespace omui::rhi::webgl {
+namespace mlibs::rhi::webgl {
 
 namespace {
 
@@ -166,10 +166,10 @@ private:
     Caps                                               caps_;
     page::Context                                      context_;
     bool                                               canvas_ = false;
-    SlotMap<BufferDesc, BufferTag>                     buffers_;
-    SlotMap<TextureDesc, TextureTag>                   textures_;
-    SlotMap<SamplerDesc, SamplerTag>                   samplers_;
-    SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag> graphics_;
+    memory::SlotMap<BufferDesc, BufferTag>                     buffers_;
+    memory::SlotMap<TextureDesc, TextureTag>                   textures_;
+    memory::SlotMap<SamplerDesc, SamplerTag>                   samplers_;
+    memory::SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag> graphics_;
     std::vector<std::uint32_t>                         words_;
     std::uint64_t                                      next_ = 1;
 };
@@ -193,4 +193,4 @@ Result<std::unique_ptr<Device>> create(const Options& options) {
     return std::unique_ptr<Device>(std::make_unique<WebGlDevice>(std::move(caps), std::move(*context), !options.canvas.empty()));
 }
 
-}  // namespace omui::rhi::webgl
+}  // namespace mlibs::rhi::webgl

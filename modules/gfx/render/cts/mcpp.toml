@@ -14,11 +14,11 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dev-dependencies]
 "openmui.render" = { path = ".." }
 "openmui.render.vector" = { path = "../vector" }
-"openmui.rhi" = { path = "../../rhi" }
-"openmui.rhi.sdl" = { path = "../../rhi/sdl" }
+"mlibs.rhi" = { path = "../../rhi" }
+"mlibs.rhi.sdl" = { path = "../../rhi/sdl" }
 mlibs.geom = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
-openmui.raster = { path = "../../raster" }
+mlibs.raster = { path = "../../raster" }
 mlibs.image = { path = "../../../base/image" }
 mlibs.trace = { path = "../../../base/trace" }
 mlibs.testing = { path = "../../../base/testing" }

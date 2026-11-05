@@ -7,13 +7,13 @@
 // mask (its alpha tinted with the paint's colour), and either can be lit by a
 // Material: its normal map, sampled where the colour is, turned by the
 // paint's transform and shaded by a light in device space.
-export module openmui.raster:paint;
+export module mlibs.raster.api:paint;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :surface;
 
-export namespace omui::raster {
+export namespace mlibs::raster {
 
 struct Stop {
     float offset = 0;
@@ -156,4 +156,4 @@ private:
     Rgba8 color_{};
 };
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

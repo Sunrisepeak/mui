@@ -22,17 +22,17 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [build-dependencies]
-openmui.shader.rules = { path = "../../shader/rules", host-module = true }
+mlibs.shader.rules = { path = "../../shader/rules", host-module = true }
 
 [dependencies]
 mlibs.math = { path = "../../../base/math" }
 mlibs.hash = { path = "../../../base/hash" }
 openmui.render = { path = ".." }
-openmui.rhi    = { path = "../../rhi" }
+mlibs.rhi    = { path = "../../rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
 hanim.core          = { path = "../../../base/hanim/core" }
-openmui.raster = { path = "../../raster" }
+mlibs.raster = { path = "../../raster" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../../base/testing" }

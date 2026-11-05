@@ -1,8 +1,8 @@
-module openmui.rhi;
+module mlibs.rhi.api;
 
 import std;
 
-namespace omui::rhi {
+namespace mlibs::rhi {
 
 namespace {
 
@@ -299,4 +299,4 @@ std::string validate(const CommandList& list, const Device& device) {
     return {};
 }
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

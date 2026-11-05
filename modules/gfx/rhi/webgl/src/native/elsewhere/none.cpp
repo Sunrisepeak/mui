@@ -1,11 +1,11 @@
 // No page (any target but the Web): no WebGL2. create() answers
 // Errc::unsupported with this reason, and nothing else is reached.
-module openmui.rhi.webgl;
+module mlibs.rhi.webgl.api;
 
 import std;
 import :page;
 
-namespace omui::rhi::webgl::page {
+namespace mlibs::rhi::webgl::page {
 
 std::expected<Context, std::string> open(std::string_view) { return std::unexpected(std::string("WebGL2 is the Web's: this program runs in no page")); }
 void close() {}
@@ -21,4 +21,4 @@ std::string error() { return {}; }
 bool lost() { return false; }
 int present(std::uint32_t) { return -1; }
 
-}  // namespace omui::rhi::webgl::page
+}  // namespace mlibs::rhi::webgl::page

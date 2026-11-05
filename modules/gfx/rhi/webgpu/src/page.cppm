@@ -2,11 +2,11 @@
 // Emscripten type crosses this line (the page is native/browser/page.cpp,
 // calling src/js/omui_webgpu.js; off the Web, native/elsewhere/none.cpp).
 // Enumerations cross as rhi's values; resources by their slot index.
-module openmui.rhi.webgpu:page;
+module mlibs.rhi.webgpu.api:page;
 
 import std;
 
-namespace omui::rhi::webgpu::page {
+namespace mlibs::rhi::webgpu::page {
 
 struct Adapter {
     std::string   name;
@@ -48,4 +48,4 @@ bool canvas(std::string_view selector);
 // 1 shown, 0 nothing to show, -1 failed.
 [[nodiscard]] int present(std::uint32_t texture);
 
-}  // namespace omui::rhi::webgpu::page
+}  // namespace mlibs::rhi::webgpu::page

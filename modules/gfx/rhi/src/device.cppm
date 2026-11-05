@@ -7,13 +7,13 @@
 // (`validate`), readback sizes — so a backend translates only well-formed
 // work, and a mistake is an Errc::invalid naming the command, not a driver
 // crash.
-export module openmui.rhi:device;
+export module mlibs.rhi.api:device;
 
 import std;
 import :types;
 import :commands;
 
-export namespace omui::rhi {
+export namespace mlibs::rhi {
 
 class Device {
 public:
@@ -88,4 +88,4 @@ protected:
 // first problem, with the command's index and kind.
 [[nodiscard]] std::string validate(const CommandList& list, const Device& device);
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

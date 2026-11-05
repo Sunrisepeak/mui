@@ -17,9 +17,9 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [build-dependencies]
-openmui.shader.rules = { path = "../../../shader/rules", host-module = true }
+mlibs.shader.rules = { path = "../../../shader/rules", host-module = true }
 
 [dependencies]
 openmui.simulation.cellular = { path = "../../../../base/simulation/cellular" }
-openmui.rhi = { path = "../../../rhi" }
+mlibs.rhi = { path = "../../../rhi" }
 mlibs.trace = { path = "../../../../base/trace" }

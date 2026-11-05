@@ -1,9 +1,9 @@
-module openmui.raster;
+module mlibs.raster.api;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 
-namespace omui::raster {
+namespace mlibs::raster {
 
 Surface::Surface(int width, int height) { resize(width, height); }
 
@@ -32,4 +32,4 @@ void Mask::resize(int width, int height, std::uint8_t fill) {
 
 void Mask::fill(std::uint8_t v) { std::ranges::fill(data_, v); }
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

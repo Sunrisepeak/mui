@@ -19,5 +19,5 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 "openmui.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
 "openmui.simulation.cellular.rhi" = { path = ".." }
-openmui.rhi = { path = "../../../../rhi" }
+mlibs.rhi = { path = "../../../../rhi" }
 mlibs.hash = { path = "../../../../../base/hash" }

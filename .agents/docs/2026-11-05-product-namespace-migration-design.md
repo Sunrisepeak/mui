@@ -1,6 +1,6 @@
 # 产品归属、命名空间与兼容迁移
 
-2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个基础库，实际入口和兼容范围见 §5–§7；UI 实现包的后续迁移另行验收。
+2026-11-05。维护者补充形成 D-100，修订原“所有实现包都使用 openmui”规则；包粒度继续遵循 D-99。**命名规则立即用于新增能力；既有仓库尚未全量完成改名。** N0 已交付共享控制；N1 已迁移十二个 base 库与八个 gfx 包，实际入口和兼容范围见 §5–§8；UI 实现包的后续迁移另行验收。
 
 ## 1. 五类归属
 
@@ -29,7 +29,8 @@
 | 根 `openmui.sdk`／`import openmui` | `omui.sdk`／`import omui` | 保留旧入口，N3 一起迁移 |
 | `modules/base/control/` | `mlibs.control`／`mlibs::control` | 本批直接使用新身份；从 UI 提取已有实现 |
 | base 的 math／geom／hash／memory／unicode／fuzzy／log／trace／session／pipeline／image／testing | 对应 `mlibs.*` | N1 十二库已迁移，保留同包旧源码入口，见 §5–§7 |
-| gfx 的 rhi／shader／raster；content 的 text／layout／markdown／i18n | 对应 `mlibs.*` | N1，子包沿同一 owner |
+| gfx 的 rhi／shader／raster 及其子包 | 对应 `mlibs.*` | N1 八包已迁移，见 §8 |
+| content 的 text／layout／markdown／i18n | 对应 `mlibs.*` | N1 待实施，子包沿同一 owner |
 | `modules/gfx/render/`：`openmui.render.*` | `xengine.render.*` | N2，渲染特性仍记录进同一张图 |
 | `modules/base/simulation/` 和 gfx 下模拟 GPU adapter | `xengine.simulation.*` | N2，不重复时钟／重建／规则实现 |
 | `modules/media/audio/`：`openmui.audio.*` | `xengine.audio.*` | N2，实时边界不随改名改变 |
@@ -150,3 +151,33 @@ mcpp 目前的安装包依赖元数据缺口同时影响 pipeline→trace、sess
 锁检查需区分身份摘要与内容摘要：mcpp `v2026.11.2.2` 的 `index_package_digest` 对 `<namespace>:<lock-key>@<version>` 求值，短键 `os` 与限定键 `mcpplibs.os` 可对应同一个解析身份，却有不同 hash。gate 对照版本／来源，并通过现有 `mlibs.hash` 验证各自合法的身份摘要；不复制 hash 算法，不把该字段宣称为下载内容完整性证明，也不为测试改写仓库锁。依据为固定版本的[锁摘要实现](https://github.com/mcpp-community/mcpp/blob/v2026.11.2.2/src/pm/lock_io.cppm)与[记录入口](https://github.com/mcpp-community/mcpp/blob/v2026.11.2.2/src/build/prepare/records.cpp)。
 
 N1 余下 gfx／content 基础库，N2 的 render／simulation／audio 与 N3 的 UI／标准连接继续按依赖顺序推进。名称迁移不增加 S1–S10 或 40／20 的功能验收计数。
+
+## 8. N1第四组：GPU 契约、光栅器和着色器工具
+
+| 原目录／职责 | 当前包／主要 module | 当前 C++ API |
+|---|---|---|
+| `modules/gfx/rhi` | `mlibs.rhi` | `mlibs::rhi` |
+| `rhi/sdl`、`rhi/webgpu`、`rhi/webgl` | `mlibs.rhi.sdl`、`.webgpu`、`.webgl` | `mlibs::rhi::sdl`、`::webgpu`、`::webgl` |
+| `rhi/cts` | `mlibs.rhi.cts` | `mlibs::rhi::cts` |
+| `modules/gfx/raster` | `mlibs.raster` | `mlibs::raster` |
+| `modules/gfx/shader` | `mlibs.shader` | `mlibs::shader` |
+| `shader/rules`（宿主构建插件） | `mlibs.shader.rules` | `mlibs::shader::rules` |
+
+八个既有包的目录和职责保留，不再按 api／legacy 增设清单。新旧入口指向同一 `.api` 声明和实现，`omui::rhi`、`omui::raster`、`omui::shader` 是新命名空间的别名。RHI 后端与 CTS 的旧入口同时导出父 RHI，子命名空间自然可达；不能再打开 `namespace omui::rhi` 写扩展，扩展应在 `mlibs::rhi` 下定义。构建插件保留 `openmui::shader::rules` 别名；它是宿主阶段的独立边界，不将 mcpp 的构建 API 带入运行时 shader 库。
+
+### 8.1 生成链和数据兼容
+
+- 清单依赖及 build.mcpp 使用新身份；生成器写出 `import mlibs.rhi;` 和 `mlibs::rhi::ShaderDesc`，输出放在构建目录的 `mlibs/shader/`。RHI CTS 的生成分区归 `mlibs.rhi.cts.api`。shader 自身的 Slang 路径分区归 `mlibs.shader.api:provisioned`。
+- 命令行仍为 `omui-shader`，现有 `OMUI_*` 环境选项、Web JS／C 桥符号及 RHI wire 数字编码保留。改变包的 owner 不要求已配套的浏览器桥和着色器资源名字一起升级。
+- RHI 的 Handle／SlotMap 和命令 arena 直接复用 `mlibs.memory`；raster 复用 `mlibs.geom` 与 `hanim.core`。没有复制句柄、数学或像素实现，也没有将 renderer 反向拉入动画创作内核。
+- render／simulation 的构建插件消费者已使用新 rules，但它们自己的模块身份在 N2 迁移。源码 import 兼容、生成源码重建和构建 CLI 选择器是三个不同承诺；旧 `-p openmui.rhi` 不列入兼容保证。
+
+### 8.2 独立消费者与交付边界
+
+`foundation-migration` 扩展到十五个 mlibs 库，加上 raster 实际需要且未改名的 `hanim.core`，分别打包十六个库。source／packed × 新名／旧名／混用六种真实工程检查 RHI 命令和 wire、同一画布的裁剪与 PNG 回环、Slang 实际生成 SPIR-V／WGSL／ESSL，以及既有基础库的状态与类型身份。shader 同包有库和工具两个 target，打包显式选 `mlibs-shader`；工具入口不计入库实现，检查实际 consumer link 中没有它。
+
+另有三个仓外 build.mcpp 消费工程，分别经新、旧和混合 rules 生成模块分区、编译并读取实际 ShaderDesc。它们复用原宿主插件，不是三个新的库。GPU 后端由各自真实 CTS 和浏览器门禁验证；不能把原生平台上返回 unsupported 的 Web 后端分支记作 WebGPU／WebGL 的设备验收。
+
+当前 mcpp 的安装包传递依赖元数据缺口仍在，fixture 显式提供各依赖。shader 包内生成的 Slang provisioned 路径在本机有效，跨机器重定位尚未验收。此轮证明源码／静态包 API 兼容和实际生成链，未发布 registry 别名，也不承诺可搬到任意机器后直接运行的编译器安装包。完整记录见[实施台账 §19](2026-11-05-system-implementation-checkpoints-design.md#19-d-100n1第四组gfx-基础库与实际后端)。
+
+N1 的 content 组和 N2／N3 继续开放；已有二十个包的迁移不等于全仓库命名收口，也不增加动画、效果或作品的功能数量。

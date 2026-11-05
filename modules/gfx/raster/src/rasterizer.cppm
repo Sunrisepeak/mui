@@ -6,13 +6,13 @@
 // crosses (the scheme of FreeType's ftgrays), and a sweep per row turns the
 // accumulated winding into coverage under the non-zero or even-odd rule. The
 // same path gives the same bytes on every platform (D-43, spec R-2).
-export module openmui.raster:rasterizer;
+export module mlibs.raster.api:rasterizer;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :surface;
 
-export namespace omui::raster {
+export namespace mlibs::raster {
 
 // The same values as openmui.render's PathVerb, so a display list's paths are
 // rasterised without conversion.
@@ -119,4 +119,4 @@ private:
 // Convenience: flatten and rasterise in one step.
 void fill_coverage(PathData path, const Affine& m, FillRule rule, PixelRect clip, Coverage& out);
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

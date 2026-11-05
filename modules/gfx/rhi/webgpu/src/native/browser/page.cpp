@@ -2,7 +2,7 @@
 // the program by build.mcpp (an Emscripten library). Every call is a plain
 // one across the boundary — numbers, and pointers into this program's
 // memory — and everything leaves as the partition's types.
-module openmui.rhi.webgpu;
+module mlibs.rhi.webgpu.api;
 
 import std;
 import :page;
@@ -31,7 +31,7 @@ int   omui_webgpu_canvas(const char* selector);
 int   omui_webgpu_present(std::uint32_t id);
 }
 
-namespace omui::rhi::webgpu::page {
+namespace mlibs::rhi::webgpu::page {
 
 namespace {
 
@@ -103,4 +103,4 @@ bool canvas(std::string_view selector) { return omui_webgpu_canvas(z(selector).c
 
 int present(std::uint32_t texture) { return omui_webgpu_present(texture); }
 
-}  // namespace omui::rhi::webgpu::page
+}  // namespace mlibs::rhi::webgpu::page

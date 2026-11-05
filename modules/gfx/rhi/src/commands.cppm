@@ -7,13 +7,13 @@
 // command carries (uploads, uniforms) are copied into the list's arena, so a
 // list of the same shape as the last allocates nothing, and two lists can be
 // compared and hashed — what tests and the trace read.
-export module openmui.rhi:commands;
+export module mlibs.rhi.api:commands;
 
 import std;
-import openmui.memory;
+import mlibs.memory;
 import :types;
 
-export namespace omui::rhi {
+export namespace mlibs::rhi {
 
 enum class LoadOp : std::uint8_t { clear, load, dont_care };
 
@@ -141,7 +141,7 @@ private:
     std::span<const std::byte> own(std::span<const std::byte> bytes);
 
     std::vector<Command> commands_;
-    Arena                arena_{16 * 1024};
+    memory::Arena                arena_{16 * 1024};
 };
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

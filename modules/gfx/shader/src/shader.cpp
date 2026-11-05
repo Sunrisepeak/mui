@@ -1,12 +1,12 @@
-module openmui.shader;
+module mlibs.shader.api;
 
 import std;
 import mcpplibs.os;
 import nlohmann.json;
-import openmui.rhi;
+import mlibs.rhi;
 import :session;
 
-namespace omui::shader {
+namespace mlibs::shader {
 
 namespace {
 
@@ -810,4 +810,4 @@ rhi::ShaderFormats formats_for(std::string_view target_os, std::string_view host
     return f;
 }
 
-}  // namespace omui::shader
+}  // namespace mlibs::shader

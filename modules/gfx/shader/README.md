@@ -1,6 +1,6 @@
-# openmui.shader
+# mlibs.shader
 
-Slang shaders to what an [omui.rhi](../rhi) device takes (architecture §8.3, D-34). Every entry point of a `.slang` file is compiled by slangc to each format a target's backends take, its resources are checked against rhi's binding convention, and the result is written as a C++ module partition of `rhi::ShaderDesc` constants. The same compile works in memory, which is how a shader edited while a program runs is compiled again.
+Slang shaders to what an [mlibs.rhi](../rhi) device takes (architecture §8.3, D-34). Every entry point of a `.slang` file is compiled by slangc to each format a target's backends take, its resources are checked against rhi's binding convention, and the result is written as a C++ module partition of `rhi::ShaderDesc` constants. The same compile works in memory, which is how a shader edited while a program runs is compiled again.
 
 ```sh
 omui-shader shaders/quad.slang --out gen/quad_shaders.cppm \
@@ -42,4 +42,9 @@ The tests (`tests/shader_test.cpp`) compile real shaders with the provisioned sl
 
 ## Inside
 
-- [rules](rules) (`openmui.shader.rules`): the build rule that compiles a package's `shaders/*.slang` at build time.
+- [rules](rules) (`mlibs.shader.rules`): the build rule that compiles a package's `shaders/*.slang` at build time.
+
+Canonical ownership: package/module `mlibs.shader`, C++ `mlibs::shader`.
+The original package keeps `import openmui.shader;` as a same-implementation
+source entry after rebuilding. Select builds/tests using `mlibs.shader`.
+Namespace aliases cannot be reopened; define extensions in the canonical namespace.

@@ -3,13 +3,13 @@
 // A stroke becomes polygons — one per segment, join and cap — each oriented
 // positively, so filling them under the non-zero rule gives their union:
 // overlaps never double the coverage, and no seam appears between pieces.
-export module openmui.raster:stroke;
+export module mlibs.raster.api:stroke;
 
 import std;
-import openmui.geom;
+import mlibs.geom;
 import :rasterizer;
 
-export namespace omui::raster {
+export namespace mlibs::raster {
 
 enum class Cap : std::uint8_t { butt, round, square };
 enum class Join : std::uint8_t { miter, round, bevel };
@@ -33,4 +33,4 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
 // outline filled nonzero), cut to `clip`.
 void stroke_coverage(PathData path, const Stroke& stroke, const Affine& m, PixelRect clip, Coverage& out);
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

@@ -5,7 +5,7 @@
 - 品牌（2026-11-03）：官网、实现介绍、应用界面使用 **omui**；介绍标准时使用 **openmui 规范**。omui 标志是大写 **O** 内包含小写 **mui**，用框架自身的矢量代码构造，作为品牌和官方可交互作品共用同一来源。`mui` 只允许作为该标志内部字形，不是独立产品名。现有 `openmui.*` 包、模块、协议、schema 和仓库标识保持兼容；品牌变更不等于全仓库标识迁移。
 
 - 仓库暂时是私有的 `Sunrisepeak/mui`。**命名按产品职责归属**（D-100）：`openmui` 专属 UI 协议／规范，UI 框架、组件和宿主使用 `omui`；已有独立名字的引擎／库使用自身名字（如包／模块／C++ 命名空间 `hanim`）。尚未独立命名的通用基础库放 `mlibs.<职责>`／`mlibs::<职责>`，领域引擎放 `xengine.<领域>`／`xengine::<领域>`；它们是归类命名空间，不是强制依赖的大伞包。暂名须见名知意，有明确 owner，不把同一能力在两处实现。不要使用裸的 `mui`。详见[命名与迁移方案](.agents/docs/2026-11-05-product-namespace-migration-design.md)。
-- **新代码按新归属命名，既有公开身份按依赖顺序迁移**：迁移期间 `openmui.*` 实现包／import 是兼容旧名，不再是新增实现的默认前缀；共享控制层为 `mlibs.control`；hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image 已迁为对应 `mlibs.*`，旧 import 在同包内转发，依赖键使用新身份。协议字段、schema、`[package.metadata.openmui]`、生成头文件路径、数据文件后缀和第三方包不随命名空间批量替换。UI C ABI 的 `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*` 和命令行 `omui` 保持；C++ Modules 迁移须重新构建，不承诺二进制兼容。
+- **新代码按新归属命名，既有公开身份按依赖顺序迁移**：迁移期间 `openmui.*` 实现包／import 是兼容旧名，不再是新增实现的默认前缀；共享控制层为 `mlibs.control`；hash／math／log／trace／testing／geom／memory／unicode／fuzzy／session／pipeline／image，以及 gfx 的 rhi（含 sdl／webgpu／webgl／cts）、raster、shader（含 rules）已迁为对应 `mlibs.*`，旧 import 在同包内转发，依赖键使用新身份。协议字段、schema、`[package.metadata.openmui]`、生成头文件路径、数据文件后缀和第三方包不随命名空间批量替换。UI C ABI 的 `omui*` / `Omui*` / `OMUI_*`、`OMUI_EXT_*` 和命令行 `omui` 保持；C++ Modules 迁移须重新构建，不承诺二进制兼容。
 - 设计记录在 `.agents/docs/`，从 `.agents/docs/README.md` 开始读。总体架构文档里的决策记录（D-xx）和待决问题（Q-xx）是当前的基线。
 - 当前阶段：按[官网重构方案](.agents/docs/2026-11-03-openmui-site-redesign-implementation-design.md)的 R0–R6 推进实现与评审，同时保留[实施计划](.agents/docs/2026-10-26-openmui-implementation-plan.md)的技术与质量基线。开始实施不等于 C2 或后续检查点已验收，完成状态必须有证据。
 - 工程文件只有 `mcpp.toml`（openmui 自己的声明放在 `[package.metadata.openmui]`）；构建、测试、打包都使用 mcpp；工具通过 xlings 安装。带命名空间的依赖写成 `[dependencies]` 里的点分键（`compat.sdl3 = "3.4.18"`、`nlohmann.json = "3.12.0"`），不单独开 `[dependencies.<ns>]` 表（lint 规则 `manifest`）。
@@ -41,7 +41,7 @@
 - **按库／产品边界建包，不按文件或目录拆包**（D-99）：少量 `.cppm`／`.cpp`、几百行的内部职责，默认放所属包的 `src/<职责>/`，用源码目录、实现单元或模块分区组织，共用一个 `mcpp.toml`。只有形成有足够内聚实现的可复用库、明确计划独立使用／发布的产品，或确需依赖、平台／工具链、许可、构建阶段隔离时，才新建 workspace 成员；小型必要契约／适配包可以例外，但要写明消费者、隔离收益和边界，不以“以后可能复用”作为空泛理由。不设机械行数门槛，插件也不要求一插件一包；优先用已有包内目录和 feature，实际需要时再提取。详见[包粒度准则](.agents/docs/2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断)。
 - **已成立的独立包**各有一个 `mcpp.toml`，成员之间只通过声明的 `path` 依赖引用，不允许跨成员用相对路径引用源文件。内部整理与包迁移分开；合并既有包需检查公开 import／包名兼容、依赖闭包、feature 裁剪与消费者，不为减少清单数量破坏真正的独立性。
 - **独立组件放在 `modules/{base,gfx,content,media}` 下**（hanim、geom、memory、unicode、trace、session、pipeline、image；rhi、shader、raster、render；text、layout、markdown、i18n）：不依赖 UI 框架／组件／宿主或 openmui UI 规范包，只依赖标准库、彼此和外部库／标准，所以随时可以拆成独立仓库（D-55）。命名归属按 D-100，依赖层级仍由实际职责与目录判定。
-- **路径就是包名**（D-80，lint `layout`）：库的叶子目录名是包名的最后一段（下划线写成连字符），包里面的包以它命名（`openmui.rhi.sdl` 在 `modules/gfx/rhi/sdl`）；分组目录只做归类；有包的目录都有 README，列出下面的每个包。按角色命名，不按实现命名（`shader` 不叫 slang）；动画引擎叫 `hanim`（`import hanim;`，命名空间 `hanim::`）。父包和子包同时出现在一个依赖表里时，键要加引号（`"openmui.rhi"`、`"openmui.rhi.sdl"`），否则不是合法的 TOML。
+- **路径就是包名**（D-80，lint `layout`）：库的叶子目录名是包名的最后一段（下划线写成连字符），包里面的包以它命名（`mlibs.rhi.sdl` 在 `modules/gfx/rhi/sdl`）；分组目录只做归类；有包的目录都有 README，列出下面的每个包。按角色命名，不按实现命名（`shader` 不叫 slang）；动画引擎叫 `hanim`（`import hanim;`，命名空间 `hanim::`）。父包和子包同时出现在一个依赖表里时，键要加引号（`"mlibs.rhi"`、`"mlibs.rhi.sdl"`），否则不是合法的 TOML。
 - **优先使用 mcpp 生态**：mcpp-index 里已经有知名、跨平台的库时直接使用（JSON 用 `nlohmann.json`，TOML 用 `marzer.tomlplusplus`，任务用 `taskflow`……），不自己实现；只有生态里没有、或者无法满足确定性要求时才自己写（D-56）。
 - **第三方 C 库经 mwrap 使用**（D-83，lint `thirdparty`）：`compat.<库>` 加 `mcpplibs.mwrap.<库>`，只在 `native/` 单元里 `import mcpplibs.mwrap.<库>;`；上游先做好、发布，再在本仓库使用。选高质量、跨平台、依赖少、高性能的库；**不用 GPL / AGPL（动态链接也不行）**，LGPL 只能作为可选插件动态链接，MPL 不修改即可；默认用免版税的格式。
 - 动画内核 `modules/base/hanim/core/` 只依赖标准库和 `mlibs.math`（D-87：它的确定性函数在那里）；完整产品入口 `hanim` 在 `modules/gfx/hanim/`，导出对象、库、效果、编排和引擎，renderer显式可选，不允许依赖任何 UI 模块。全仓库的数学（确定性函数、随机数）在 `mlibs.math`，FNV-1a 在 `mlibs.hash`，不自己再写一份（lint 规则 `math`、`hash`）；纯动画是时间的函数（可以任意跳转、结果确定），有状态反应遵循显式模拟／重建契约；动画、布局、光栅器模块不允许使用 fast-math 和浮点收缩。
@@ -53,7 +53,7 @@
 - ID 不能依赖显示文本；可交互的节点要写显式 ID。
 - 视图代码优先（各语言原生的 builder）；数据文件一律命名为 `<名字>.<种类>.omui.{toml,json}`（逐行记录用 `.jsonl`，例如 `*.session.omui.jsonl`）；着色器用 `.slang`；逻辑代码保持原生后缀。builder 和数据文件都要让人和 agent 容易读懂（`view-data-files` 设计文档 §2）。
 - 仓库根目录当前是 `openmui.sdk` 伞包（`import openmui`），命名目标是 `omui.sdk`（`import omui`，D-100）；`mcpp/` 只放构建系统的代码；入口在 `src/entry/`。
-- 渲染器只写一次：`modules/gfx/render` 是渲染架构（渲染图和纹理池，D-81），2D 矢量渲染是它的渲染特性 `render/vector`，以后的 sprite、mesh、particle 也是；GPU 路径基于 `omui.rhi` 抽象层，各后端只依赖这个抽象层的接口；每个渲染特性的 pass 都记录进同一张渲染图。
+- 渲染器只写一次：`modules/gfx/render` 是渲染架构（渲染图和纹理池，D-81），2D 矢量渲染是它的渲染特性 `render/vector`，以后的 sprite、mesh、particle 也是；GPU 路径基于 `mlibs.rhi` 抽象层，各后端只依赖这个抽象层的接口；每个渲染特性的 pass 都记录进同一张渲染图。
 - **平台相关的代码一律经由 `mcpplibs.os`**（文件、目录、进程、管道、IPC）；窗口和输入经由 SDL3（D-57）。
 - **开发和分析工具都有两种界面**：完整的 CLI／openas 控制入口（结构化输出，CLI 提供退出码，给 Agent 和 CI）与可选启动的 omui GUI／TUI 视图（给人审查和交互）；共用领域操作与数据，遵循上面的双第一优先级规范。每个工具的界面都要突出框架的特色，工具本身就是展示（D-61）。
 - **作品双视角**（D-63）：示例和展示要做成真实可用的工具、组件或内容，同时展示一项框架特色，并且有能在 headless 下确定重现的招牌镜头；不做只为演示而存在的 demo。

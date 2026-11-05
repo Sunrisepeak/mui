@@ -1,20 +1,20 @@
-# openmui.shader.rules — a package's Slang shaders compiled in its build:
+# mlibs.shader.rules — a package's Slang shaders compiled in its build:
 # each `shaders/*.slang` becomes the module partition `<module>:<stem>_shaders`
 # of rhi::ShaderDesc constants, for the formats the build's target takes
 # (omui-shader, built for the build machine). Only build-system code.
 #
 #   [build-dependencies]
-#   openmui.shader.rules = { path = "…/modules/gfx/shader/rules", host-module = true }
+#   mlibs.shader.rules = { path = "…/modules/gfx/shader/rules", host-module = true }
 #
 #   // build.mcpp
 #   import mcpp;
-#   import openmui.shader.rules;
-#   int main() { return openmui::shader::rules::shaders({.module = "acme.render"}) ? 0 : 1; }
+#   import mlibs.shader.rules;
+#   int main() { return mlibs::shader::rules::shaders({.module = "acme.render"}) ? 0 : 1; }
 [package]
 name        = "rules"
-namespace   = "openmui.shader"
+namespace   = "mlibs.shader"
 version     = "0.1.0"
-description = "Build rule: a package's Slang shaders to omui.rhi shader descriptions, at build time"
+description = "Build rule: a package's Slang shaders to mlibs.rhi shader descriptions, at build time"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -22,4 +22,4 @@ repo        = "https://github.com/Sunrisepeak/mui"
 kind = "rules"
 
 [dependencies]
-openmui.shader = { path = "..", tools = ["omui-shader"], reexport = true }
+mlibs.shader = { path = "..", tools = ["omui-shader"], reexport = true }

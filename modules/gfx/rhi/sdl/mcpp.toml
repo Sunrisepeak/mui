@@ -1,31 +1,31 @@
-# openmui.rhi.sdl — the first omui.rhi backend: a thin mapping onto SDL_GPU,
+# mlibs.rhi.sdl — the first mlibs.rhi backend: a thin mapping onto SDL_GPU,
 # which runs on Vulkan (Linux, Windows, Android; lavapipe on a machine with
 # no GPU), Metal (macOS, iOS) and Direct3D 12 (Windows). SDL's headers stay
 # in src/native.
 [package]
-namespace   = "openmui.rhi"
+namespace   = "mlibs.rhi"
 name        = "sdl"
 version     = "0.1.0"
-description = "omui.rhi on SDL_GPU: Vulkan, Metal and Direct3D 12"
+description = "mlibs.rhi on SDL_GPU: Vulkan, Metal and Direct3D 12"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "backend"
 
-[targets.openmui-rhi-sdl]
+[targets.mlibs-rhi-sdl]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui.rhi    = { path = ".." }
+mlibs.rhi    = { path = ".." }
 mlibs.memory = { path = "../../../base/memory" }
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
 openmui.simulation.cellular.rhi.cts = { path = "../../simulation/cellular/rhi/cts" }
 mlibs.testing = { path = "../../../base/testing" }
-openmui.rhi.cts = { path = "../cts" }
+mlibs.rhi.cts = { path = "../cts" }
 mcpplibs.os     = "0.2.2"

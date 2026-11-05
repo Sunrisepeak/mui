@@ -1,8 +1,8 @@
-module openmui.rhi;
+module mlibs.rhi.api;
 
 import std;
 
-namespace omui::rhi {
+namespace mlibs::rhi {
 
 std::string_view name(Errc code) noexcept {
     switch (code) {
@@ -178,4 +178,4 @@ std::string check(const ComputePipelineDesc& d, ShaderFormats accepted) {
     return check(*d.shader, accepted);
 }
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

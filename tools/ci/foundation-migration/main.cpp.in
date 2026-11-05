@@ -22,6 +22,9 @@ static_assert(std::same_as<mlibs::fuzzy::Match, omui::fuzzy::Match>);
 static_assert(std::same_as<mlibs::session::Session, omui::session::Session>);
 static_assert(std::same_as<mlibs::pipeline::Pipeline, omui::pipeline::Pipeline>);
 static_assert(std::same_as<mlibs::image::Image, omui::imageio::Image>);
+static_assert(std::same_as<mlibs::rhi::Buffer, omui::rhi::Buffer>);
+static_assert(std::same_as<mlibs::raster::Canvas, omui::raster::Canvas>);
+static_assert(std::same_as<mlibs::shader::Program, omui::shader::Program>);
 static_assert(mlibs::session::format_name == "openmui.session@0.1");
 
 struct Counter { int value = 0; };
@@ -230,12 +233,58 @@ int main() {
         mlibs::testing::check(decoded->frames[0].image.rgba == a.rgba && decoded->frames[1].image.rgba == b.rgba);
         mlibs::testing::check(decoded->frames[0].delay_ms == 100 && decoded->frames[1].delay_ms == 100);
     });
+    suite.test("RHI command ownership and wire words cross legacy and canonical APIs", [] {
+        mlibs::rhi::CommandList list;
+        omui::rhi::CommandList& old = list;
+        old.set_scissor({2, 3, 40, 50});
+        list.draw(6, 2);
+        std::vector<std::uint32_t> a, b;
+        mlibs::rhi::wire::encode(old, a);
+        omui::rhi::wire::encode(list, b);
+        mlibs::testing::check(!a.empty() && a == b);
+        if (!a.empty()) mlibs::testing::check(mlibs::rhi::wire::op(a[0]) == omui::rhi::wire::Op::set_scissor);
+        mlibs::testing::check(&mlibs::rhi::CommandList::hash == &omui::rhi::CommandList::hash);
+        const auto buffer = mlibs::rhi::Buffer::from_bits(0x1234567800000003ull);
+        const omui::rhi::Buffer legacy = buffer;
+        mlibs::testing::check(legacy.bits() == 0x1234567800000003ull);
+    });
+    suite.test("one raster canvas retains clips pixels and PNG output across names", [] {
+        mlibs::raster::Surface surface{16, 16};
+        mlibs::raster::Canvas canvas{surface};
+        omui::raster::Canvas& old = canvas;
+        old.push_clip_rect({3, 2, 5, 6});
+        canvas.fill_rect({0, 0, 16, 16}, mlibs::raster::Paint::solid(mlibs::geom::Color{1, 0, 0, 1}));
+        old.pop_clip();
+        mlibs::testing::check(surface.at(3, 2) == omui::raster::Rgba8{255, 0, 0, 255});
+        mlibs::testing::check(surface.at(2, 2) == mlibs::raster::Rgba8{} && surface.at(8, 8) == mlibs::raster::Rgba8{});
+        const mlibs::image::View pixels{surface.bytes().data(), 16, 16, 64, mlibs::image::Alpha::premultiplied};
+        const auto png = omui::imageio::encode_png(pixels);
+        mlibs::testing::check(png.has_value());
+        if (!png) return;
+        const auto decoded = mlibs::image::decode_png(*png);
+        mlibs::testing::check(decoded && std::ranges::equal(decoded->rgba, surface.bytes()));
+        mlibs::testing::check(&mlibs::raster::Surface::hash == &omui::raster::Surface::hash);
+    });
+    suite.test("actual Slang compilation emits canonical RHI constants through either API", [] {
+        const auto program = mlibs::shader::compile("consumer.slang",
+            {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::wgsl, mlibs::rhi::ShaderFormat::essl})});
+        mlibs::testing::check(program.has_value(), program ? "" : program.error());
+        if (!program) return;
+        const auto* vertex = program->entry("consumer_vs");
+        const auto* fragment = program->entry("consumer_fs");
+        mlibs::testing::check(vertex && fragment && vertex->code.size() == 3 && fragment->code.size() == 3);
+        const mlibs::shader::EmitOptions options{.module = "consumer.graphics", .partition = "compiled", .ns = "consumer::graphics"};
+        const auto code = omui::shader::emit_cpp(*program, options);
+        mlibs::testing::check(code == mlibs::shader::emit_cpp(*program, options));
+        mlibs::testing::check(code.contains("import mlibs.rhi;") && code.contains("mlibs::rhi::ShaderDesc consumer_fs"));
+        mlibs::testing::check(&mlibs::shader::emit_cpp == &omui::shader::emit_cpp);
+    });
     const int result = suite.run();
     std::string identities;
     for (std::string_view identity : std::array{ {{lock_identities}} }) {
         if (!identities.empty()) identities += ',';
         identities += std::format("\"{}\":\"fnv1a:{}\"", identity, mlibs::hash::Fnv1a().text(identity).hex());
     }
-    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":12,\"identity_hashes\":{{{}}}}}", result == 0, identities);
+    std::println("{{\"kind\":\"mlibs.namespace-consumer\",\"ok\":{},\"cases\":15,\"identity_hashes\":{{{}}}}}", result == 0, identities);
     return result;
 }

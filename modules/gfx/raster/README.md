@@ -1,6 +1,6 @@
-# openmui.raster
+# mlibs.raster
 
-A deterministic CPU 2D rasterizer (module `openmui.raster`, D-43): the reference renderer of openmui.
+A deterministic CPU 2D rasterizer (module `mlibs.raster`, D-43): the shared CPU reference used by omui and hanim.
 
 - **Sparse cells, runs of coverage.** Only the cells an edge touches are kept (sorted by row and column); between two cells the coverage is the winding's alone, so the sweep yields runs, and a fill composites a run of one value as one colour — a store for an opaque one. Axis-aligned solid rectangles skip coverage altogether. The cost follows the outline, not the area, and the bytes are the dense sweep's.
 - **Coverage in exact integers.** Curves are flattened in floating point (1/32 px tolerance, no contraction), endpoints rounded to 1/256 px, and each edge adds cover and area to the cells it crosses (the scheme of FreeType's ftgrays); a sweep per row applies the non-zero or even-odd rule. Axis-aligned rectangles have an analytic fast path.
@@ -24,3 +24,8 @@ actual coverage with an explicitly doubled list and checks invalid inputs
 that previously trapped a frame. This does not claim dashed morph phase
 continuity under contour start/winding alignment, complete zero-length cap
 semantics, or a bounded tessellation budget for arbitrarily tiny dash lengths.
+
+Canonical ownership: package/module `mlibs.raster`, C++ `mlibs::raster`.
+The original package keeps `import openmui.raster;` as a same-implementation
+source entry after rebuilding. Select builds/tests using `mlibs.raster`.
+Namespace aliases cannot be reopened; define extensions in the canonical namespace.

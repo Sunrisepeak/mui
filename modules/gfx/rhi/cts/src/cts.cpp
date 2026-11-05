@@ -1,9 +1,9 @@
-module openmui.rhi.cts;
+module mlibs.rhi.cts.api;
 
 import std;
-import openmui.rhi;
+import mlibs.rhi;
 
-namespace omui::rhi::cts {
+namespace mlibs::rhi::cts {
 
 namespace {
 
@@ -540,4 +540,4 @@ std::vector<Outcome> run(Device& device) {
     return out;
 }
 
-}  // namespace omui::rhi::cts
+}  // namespace mlibs::rhi::cts

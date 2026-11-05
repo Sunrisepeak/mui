@@ -16,7 +16,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 "hanim" = { path = {{engine_path}} }
 "hanim.render.vector" = { path = {{adapter_path}} }
-openmui.raster = { path = {{raster_path}} }
+mlibs.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.hash = { path = {{hash_path}} }
 mlibs.control = { path = {{control_path}} }

@@ -1,12 +1,12 @@
-# openmui.rhi.cts
+# mlibs.rhi.cts
 
-The conformance suite every [omui.rhi](..) backend runs (level B, plan §15). Each case builds its resources on the device it is given, records a command list, submits it, reads the result back, and compares it with what an exact device produces. 8-bit colours that are multiples of 1/5 convert exactly, so only blending and a resolved edge allow ±1.
+The conformance suite every [mlibs.rhi](..) backend runs (level B, plan §15). Each case builds its resources on the device it is given, records a command list, submits it, reads the result back, and compares it with what an exact device produces. 8-bit colours that are multiples of 1/5 convert exactly, so only blending and a resolved edge allow ±1.
 
 ```cpp
-import openmui.rhi.cts;
+import mlibs.rhi.cts;
 
-auto device = omui::rhi::sdl::create({.formats = omui::rhi::cts::shader_formats()});
-for (const auto& o : omui::rhi::cts::run(**device)) check(o.passed, o.name + ": " + o.detail);
+auto device = mlibs::rhi::sdl::create({.formats = mlibs::rhi::cts::shader_formats()});
+for (const auto& o : mlibs::rhi::cts::run(**device)) check(o.passed, o.name + ": " + o.detail);
 ```
 
 | Case | What must hold |
@@ -32,4 +32,9 @@ for (const auto& o : omui::rhi::cts::run(**device)) check(o.passed, o.name + ": 
 
 A failure names the first difference (`pixel (0, 0) is (255, 0, 0, 255); it should be (0, 0, 0, 255)`).
 
-The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`, `depth`). [openmui.shader.rules](../../shader/rules) compiles them at build time for the target's formats (WGSL on the Web), so the package exports them as `omui::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [openmui.rhi.sdl](../sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI; [openmui.rhi.webgpu](../webgpu)'s run it on the page's WebGPU in headless Chromium (`tools/ci/browser.sh`).
+The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`, `depth`). [mlibs.shader.rules](../../shader/rules) compiles them at build time for the target's formats (WGSL on the Web), so the package exports them as `mlibs::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [mlibs.rhi.sdl](../sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI; [mlibs.rhi.webgpu](../webgpu)'s run it on the page's WebGPU in headless Chromium (`tools/ci/browser.sh`).
+
+Canonical ownership: package/module `mlibs.rhi.cts`, C++ `mlibs::rhi::cts`.
+The original package keeps `import openmui.rhi.cts;` as a same-implementation
+source entry after rebuilding. Select builds/tests using `mlibs.rhi.cts`.
+Namespace aliases cannot be reopened; define extensions in the canonical namespace.

@@ -1,9 +1,9 @@
-module openmui.rhi;
+module mlibs.rhi.api;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 
-namespace omui::rhi {
+namespace mlibs::rhi {
 
 namespace {
 
@@ -29,7 +29,7 @@ struct Fnv {
 
 // Field by field: padding never reaches the hash.
 template <class Tag>
-void handle(Fnv& f, Handle<Tag> h) noexcept {
+void handle(Fnv& f, memory::Handle<Tag> h) noexcept {
     f.value(h.index);
     f.value(h.generation);
 }
@@ -163,4 +163,4 @@ std::uint64_t CommandList::hash() const noexcept {
     return f.h.value();
 }
 
-}  // namespace omui::rhi
+}  // namespace mlibs::rhi

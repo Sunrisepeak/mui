@@ -2,15 +2,15 @@
 // module, mcpplibs.mwrap.sdl3). rhi's
 // descriptions become SDL's create-infos, a validated CommandList becomes one
 // SDL command buffer.
-module openmui.rhi.sdl;
+module mlibs.rhi.sdl.api;
 
 import std;
 import mcpplibs.mwrap.sdl3;
-import openmui.memory;
-import openmui.rhi;
+import mlibs.memory;
+import mlibs.rhi;
 using namespace mcpplibs::mwrap::sdl3::macros;
 
-namespace omui::rhi::sdl {
+namespace mlibs::rhi::sdl {
 
 namespace {
 
@@ -557,11 +557,11 @@ private:
     SDL_GPUDevice*                                    device_;
     Caps                                              caps_;
     std::vector<ShaderFormat>                         preference_;
-    SlotMap<BufferSlot, BufferTag>                    buffers_;
-    SlotMap<TextureSlot, TextureTag>                  textures_;
-    SlotMap<SDL_GPUSampler*, SamplerTag>              samplers_;
-    SlotMap<GraphicsSlot, GraphicsPipelineTag>        graphics_;
-    SlotMap<ComputeSlot, ComputePipelineTag>          compute_;
+    memory::SlotMap<BufferSlot, BufferTag>                    buffers_;
+    memory::SlotMap<TextureSlot, TextureTag>                  textures_;
+    memory::SlotMap<SDL_GPUSampler*, SamplerTag>              samplers_;
+    memory::SlotMap<GraphicsSlot, GraphicsPipelineTag>        graphics_;
+    memory::SlotMap<ComputeSlot, ComputePipelineTag>          compute_;
     std::map<std::uint64_t, SDL_GPUFence*>            fences_;
     std::uint64_t                                     next_submission_ = 1;
     SDL_GPUTransferBuffer*                            upload_ = nullptr;
@@ -863,4 +863,4 @@ std::vector<Backend> backends() {
     return out;
 }
 
-}  // namespace omui::rhi::sdl
+}  // namespace mlibs::rhi::sdl

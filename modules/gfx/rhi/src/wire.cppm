@@ -44,13 +44,13 @@
 //             21    samples                   22    vertex buffers, then each: stride, per instance,
 //                                                   attributes, then each: location, VertexFormat, offset
 //   compute   0–5   samplers, storage textures, storage buffers, uniform buffers, read-write textures, read-write buffers
-export module openmui.rhi:wire;
+export module mlibs.rhi.api:wire;
 
 import std;
 import :types;
 import :commands;
 
-export namespace omui::rhi::wire {
+export namespace mlibs::rhi::wire {
 
 // A command's kind on the wire: its index in rhi::Command.
 enum class Op : std::uint8_t {
@@ -74,4 +74,4 @@ void encode(const CommandList& list, std::vector<std::uint32_t>& out);
 void encode(const GraphicsPipelineDesc& d, std::vector<std::uint32_t>& out);
 void encode(const ComputePipelineDesc& d, std::vector<std::uint32_t>& out);
 
-}  // namespace omui::rhi::wire
+}  // namespace mlibs::rhi::wire

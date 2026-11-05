@@ -2,11 +2,11 @@
 // Emscripten type crosses this line (the page is native/browser/page.cpp,
 // calling src/js/omui_webgl.js; off the Web, native/elsewhere/none.cpp).
 // Enumerations cross as rhi's values; resources by their slot index.
-module openmui.rhi.webgl:page;
+module mlibs.rhi.webgl.api:page;
 
 import std;
 
-namespace omui::rhi::webgl::page {
+namespace mlibs::rhi::webgl::page {
 
 struct Context {
     std::string   name;
@@ -44,4 +44,4 @@ bool read(std::uint32_t buffer, std::uint32_t offset, std::span<std::byte> out);
 // 1 shown, 0 nothing to show, -1 failed.
 [[nodiscard]] int present(std::uint32_t texture);
 
-}  // namespace omui::rhi::webgl::page
+}  // namespace mlibs::rhi::webgl::page

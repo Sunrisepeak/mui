@@ -1,8 +1,8 @@
-module openmui.raster;
+module mlibs.raster.api;
 
 import std;
 
-namespace omui::raster {
+namespace mlibs::raster {
 
 namespace {
 
@@ -681,4 +681,4 @@ void Canvas::pop_layer() {
     }
 }
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

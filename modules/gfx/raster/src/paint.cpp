@@ -1,9 +1,9 @@
-module openmui.raster;
+module mlibs.raster.api;
 
 import std;
 import hanim.core;
 
-namespace omui::raster {
+namespace mlibs::raster {
 
 namespace {
 
@@ -448,4 +448,4 @@ void MixShader::shade(int x, int y, int count, Rgba8* output) const {
     for (int j = 0; j < count; ++j) output[j] = mix_bytes(sums_[static_cast<std::size_t>(j)], opacity_);
 }
 
-}  // namespace omui::raster
+}  // namespace mlibs::raster

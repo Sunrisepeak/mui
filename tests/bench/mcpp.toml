@@ -46,8 +46,8 @@ openmui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 gongfu                  = { path = "../../mgame/gongfu" }
 "gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
-"openmui.rhi"           = { path = "../../modules/gfx/rhi" }
-"openmui.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }
+"mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
+"mlibs.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }
 mcpplibs.os           = "0.2.2"
 
 [dev-dependencies]

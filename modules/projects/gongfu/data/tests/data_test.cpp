@@ -4,9 +4,9 @@
 // nearest right one.
 import std;
 import gongfu.data;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 
 namespace {

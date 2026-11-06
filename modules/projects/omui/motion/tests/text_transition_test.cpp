@@ -2,13 +2,13 @@
 // showed. These public-Morph probes need no text engine or component clock.
 import std;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 import openmui.motion;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace mo = omui::motion;
 
 namespace {
@@ -22,63 +22,63 @@ mo::Options linear() {
     o.curve.ease = hanim::ease::linear;
     return o;
 }
-std::vector<render::Glyph> glyphs(std::initializer_list<std::uint32_t> ids) {
-    std::vector<render::Glyph> result;
+std::vector<xrender::Glyph> glyphs(std::initializer_list<std::uint32_t> ids) {
+    std::vector<xrender::Glyph> result;
     for (const auto id : ids) {
         const auto n = static_cast<std::uint32_t>(result.size());
         result.push_back({.id = id, .position = {static_cast<float>(n) * 10, 0}, .cluster = n, .grapheme = n});
     }
     return result;
 }
-render::DisplayList drawing(std::span<const render::Glyph> g, render::GlyphStyle style = {},
-                            geom::Affine parent = {}, float size = 20, geom::Point origin = {20, 40}) {
-    render::DisplayList list;
+xrender::DisplayList drawing(std::span<const xrender::Glyph> g, xrender::GlyphStyle style = {},
+                            mlibs::geom::Affine parent = {}, float size = 20, mlibs::geom::Point origin = {20, 40}) {
+    xrender::DisplayList list;
     list.begin_node(1);
     list.push_transform(parent);
-    std::vector<render::GlyphStyle> styles(g.size(), style);
-    list.draw_glyphs(render::FontRef{1}, size, origin, g, render::Paint::solid(geom::Color::hex(0x182030)), styles);
+    std::vector<xrender::GlyphStyle> styles(g.size(), style);
+    list.draw_glyphs(xrender::FontRef{1}, size, origin, g, xrender::Paint::solid(mlibs::geom::Color::hex(0x182030)), styles);
     list.pop_transform();
     list.end_node();
     return list;
 }
-mo::Morph transition(render::DisplayList a, render::DisplayList b, mo::Options options = linear()) {
+mo::Morph transition(xrender::DisplayList a, xrender::DisplayList b, mo::Options options = linear()) {
     return mo::Morph(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), std::move(options), 0);
 }
 struct VisibleGlyph {
     std::uint32_t id;
-    geom::Affine outline;
+    mlibs::geom::Affine outline;
     float opacity;
-    geom::Color tint;
+    mlibs::geom::Color tint;
 };
-std::vector<VisibleGlyph> visible(const render::DisplayList& list) {
+std::vector<VisibleGlyph> visible(const xrender::DisplayList& list) {
     std::vector<VisibleGlyph> result;
-    std::vector<geom::Affine> transforms{geom::Affine{}};
+    std::vector<mlibs::geom::Affine> transforms{mlibs::geom::Affine{}};
     for (const auto& command : list.commands()) {
-        if (const auto* p = std::get_if<render::PushTransform>(&command)) transforms.push_back(transforms.back() * p->transform);
-        else if (std::holds_alternative<render::PopTransform>(command)) transforms.pop_back();
-        else if (const auto* g = std::get_if<render::DrawGlyphs>(&command)) {
+        if (const auto* p = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * p->transform);
+        else if (std::holds_alternative<xrender::PopTransform>(command)) transforms.pop_back();
+        else if (const auto* g = std::get_if<xrender::DrawGlyphs>(&command)) {
             for (std::size_t i = 0; i < g->glyphs.size(); ++i) {
-                const auto style = g->styles.empty() ? render::GlyphStyle{} : g->styles[i];
-                const auto pen = geom::Point{g->origin.x + g->glyphs[i].position.x, g->origin.y + g->glyphs[i].position.y};
+                const auto style = g->styles.empty() ? xrender::GlyphStyle{} : g->styles[i];
+                const auto pen = mlibs::geom::Point{g->origin.x + g->glyphs[i].position.x, g->origin.y + g->glyphs[i].position.y};
                 result.push_back({g->glyphs[i].id,
-                                  transforms.back() * geom::Affine::translate(pen.x, pen.y) * style.transform * geom::Affine::scale(g->size, g->size),
+                                  transforms.back() * mlibs::geom::Affine::translate(pen.x, pen.y) * style.transform * mlibs::geom::Affine::scale(g->size, g->size),
                                   g->paint.color.a * style.opacity, style.tint});
             }
         }
     }
     return result;
 }
-render::DisplayList at(const mo::Morph& morph, double t) {
-    render::DisplayList list;
+xrender::DisplayList at(const mo::Morph& morph, double t) {
+    xrender::DisplayList list;
     morph.draw(t, list);
     return list;
 }
-void near(const geom::Affine& a, const geom::Affine& b, double tolerance = 0.002) {
+void near(const mlibs::geom::Affine& a, const mlibs::geom::Affine& b, double tolerance = 0.002) {
     check_near(a.a, b.a, tolerance); check_near(a.b, b.b, tolerance);
     check_near(a.c, b.c, tolerance); check_near(a.d, b.d, tolerance);
     check_near(a.e, b.e, tolerance); check_near(a.f, b.f, tolerance);
 }
-void near(const geom::Color& a, const geom::Color& b, double tolerance = 0.002) {
+void near(const mlibs::geom::Color& a, const mlibs::geom::Color& b, double tolerance = 0.002) {
     check_near(a.r, b.r, tolerance); check_near(a.g, b.g, tolerance);
     check_near(a.b, b.b, tolerance); check_near(a.a, b.a, tolerance);
 }
@@ -88,12 +88,12 @@ int main(int argc, char** argv) {
     Suite suite{"motion.text-transition"};
     suite.test("kept glyph keeps source affine, opacity and tint at zero plus", [] {
         const auto g = glyphs({7});
-        const render::GlyphStyle source{
-            .transform = geom::Affine::translate(40, 8) * geom::Affine::rotation(0.8f, 0.6f) * geom::Affine::scale(1.4f, 0.7f),
+        const xrender::GlyphStyle source{
+            .transform = mlibs::geom::Affine::translate(40, 8) * mlibs::geom::Affine::rotation(0.8f, 0.6f) * mlibs::geom::Affine::scale(1.4f, 0.7f),
             .opacity = 0.35f, .tint = {0.9f, 0.15f, 0.1f, 0.8f}};
-        const render::GlyphStyle target{.transform = geom::Affine::rotation(0.6f, -0.8f), .opacity = 0.9f, .tint = {0.1f, 0.2f, 0.8f, 0.4f}};
-        auto morph = transition(drawing(g, source, geom::Affine::translate(7, 5), 17),
-                                drawing(g, target, geom::Affine::translate(90, 12) * geom::Affine::scale(0.8f, 1.2f), 29));
+        const xrender::GlyphStyle target{.transform = mlibs::geom::Affine::rotation(0.6f, -0.8f), .opacity = 0.9f, .tint = {0.1f, 0.2f, 0.8f, 0.4f}};
+        auto morph = transition(drawing(g, source, mlibs::geom::Affine::translate(7, 5), 17),
+                                drawing(g, target, mlibs::geom::Affine::translate(90, 12) * mlibs::geom::Affine::scale(0.8f, 1.2f), 29));
         const auto start = visible(at(morph, 0));
         const auto next = visible(at(morph, 0.000001));
         check(start.size() == 1 && next.size() == 1);
@@ -107,14 +107,14 @@ int main(int argc, char** argv) {
         if (middle.size() == 1 && end.size() == 1) {
             check(middle[0].outline != start[0].outline && middle[0].outline != end[0].outline, "a real intermediate affine");
             check_near(middle[0].opacity, 0.35 + (0.9 - 0.35) * 0.4, 0.0001);
-            near(end[0].outline, visible(drawing(g, target, geom::Affine::translate(90, 12) * geom::Affine::scale(0.8f, 1.2f), 29))[0].outline);
+            near(end[0].outline, visible(drawing(g, target, mlibs::geom::Affine::translate(90, 12) * mlibs::geom::Affine::scale(0.8f, 1.2f), 29))[0].outline);
         }
     });
     suite.test("retarget starts from the styled snapshot, not its untransformed pens", [] {
         const auto g = glyphs({11, 12, 13});
-        auto first = transition(drawing(g), drawing(g, {}, geom::Affine::translate(90, 15) * geom::Affine::rotation(0.8f, 0.6f), 26));
+        auto first = transition(drawing(g), drawing(g, {}, mlibs::geom::Affine::translate(90, 15) * mlibs::geom::Affine::rotation(0.8f, 0.6f), 26));
         const auto previous = visible(at(first, 0.37));
-        auto target = drawing(g, {.transform = geom::Affine::scale(0.9f, 1.1f), .opacity = 0.6f, .tint = {0.2f, 0.6f, 0.1f, 0.5f}}, {}, 18);
+        auto target = drawing(g, {.transform = mlibs::geom::Affine::scale(0.9f, 1.1f), .opacity = 0.6f, .tint = {0.2f, 0.6f, 0.1f, 0.5f}}, {}, 18);
         mo::Morph second(first.snapshot(0.37), mo::Matter::extract(target, resolver()), linear(), 0);
         const auto next = visible(at(second, 0.000001));
         check_eq(next.size(), previous.size());
@@ -130,8 +130,8 @@ int main(int argc, char** argv) {
     });
     suite.test("transparent tint retains straight RGB continuously in both directions and across retarget", [] {
         const auto g = glyphs({17});
-        const geom::Color clear{0.1f, 0.4f, 0.9f, 0};
-        const geom::Color tinted{0.8f, 0.2f, 0.1f, 0.7f};
+        const mlibs::geom::Color clear{0.1f, 0.4f, 0.9f, 0};
+        const mlibs::geom::Color tinted{0.8f, 0.2f, 0.1f, 0.7f};
         for (const bool reverse : {false, true}) {
             const auto source = reverse ? tinted : clear;
             const auto target = reverse ? clear : tinted;
@@ -226,11 +226,11 @@ int main(int argc, char** argv) {
         const auto b = glyphs({4, 5, 6, 7});
         const auto c = glyphs({8, 9});
         auto clipped = [&](const auto& glyphs) {
-            render::DisplayList list;
+            xrender::DisplayList list;
             list.begin_node(1);
-            list.push_transform(geom::Affine::translate(9, 6));
-            list.push_clip(geom::Rect{12, 15, 95, 32});
-            list.draw_glyphs(render::FontRef{1}, 20, {20, 40}, glyphs, render::Paint::solid(geom::Color::hex(0x182030)));
+            list.push_transform(mlibs::geom::Affine::translate(9, 6));
+            list.push_clip(mlibs::geom::Rect{12, 15, 95, 32});
+            list.draw_glyphs(xrender::FontRef{1}, 20, {20, 40}, glyphs, xrender::Paint::solid(mlibs::geom::Color::hex(0x182030)));
             list.pop_clip(); list.pop_transform(); list.end_node();
             return list;
         };
@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
         auto first = transition(drawing(a), drawing(b));
         const auto previous = visible(at(first, 0.37));
         check(previous.size() == 4 && previous.back().opacity > 0 && previous.back().opacity < 0.5);
-        auto target = drawing(b, {}, geom::Affine::translate(40, 0));
+        auto target = drawing(b, {}, mlibs::geom::Affine::translate(40, 0));
         mo::Morph next(first.snapshot(0.37), mo::Matter::extract(target, resolver()), linear(), 0);
         const auto after = visible(at(next, 0.000001));
         check_eq(after.size(), previous.size());
@@ -273,7 +273,7 @@ int main(int argc, char** argv) {
     });
     suite.test("zero-size and singular-transform boundaries stay finite and continuous", [] {
         const auto g = glyphs({1});
-        auto morph = transition(drawing(g), drawing(g, {}, geom::Affine::scale(0, 0), 0));
+        auto morph = transition(drawing(g), drawing(g, {}, mlibs::geom::Affine::scale(0, 0), 0));
         const auto start = visible(at(morph, 0));
         const auto next = visible(at(morph, 0.000001));
         check(!start.empty() && !next.empty());

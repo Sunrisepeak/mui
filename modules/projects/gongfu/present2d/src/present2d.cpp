@@ -1,20 +1,20 @@
 module gongfu.present2d;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import gongfu;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 
 namespace gongfu::present2d {
 
 namespace {
 
 namespace dm = hanim::dm;
-using omui::geom::Affine;
-using omui::geom::Rect;
-namespace render = omui::render;
+using mlibs::geom::Affine;
+using mlibs::geom::Rect;
+namespace render = xrender;
 
 constexpr std::array<std::string_view, mode_count> mode_clips{"idle",      "walk_forward", "walk_back", "crouch", "prejump", "air",   "landing",
                                                               "move",      "hitstun",      "blockstun", "knockdown", "wakeup", "thrown", "ko",
@@ -105,10 +105,10 @@ double falloff(std::int32_t age, std::int32_t frames) noexcept {
 // same on every machine and after every rollback.
 double scatter(const Effects::Kept& k, std::uint32_t i) noexcept {
     // splitmix64 over each field in turn: every bit of the input moves every bit of the result.
-    std::uint64_t h = omui::math::golden;
+    std::uint64_t h = mlibs::math::golden;
     for (const std::uint64_t v : {static_cast<std::uint64_t>(k.frame), static_cast<std::uint64_t>(k.event.attacker), static_cast<std::uint64_t>(k.event.move),
                                   static_cast<std::uint64_t>(k.event.hit), static_cast<std::uint64_t>(i)})
-        h = omui::math::mix64(h + v);
+        h = mlibs::math::mix64(h + v);
     return static_cast<double>(h >> 40) / static_cast<double>(1u << 24);
 }
 
@@ -937,7 +937,7 @@ void Painter::draw_cel(const Look& look, const Cel& cel, const FighterState& s, 
     const Picture& pic = look.pictures[static_cast<std::size_t>(cel.picture)];
     if (pic.ref.id == 0) return;
     const View view{scene, camera};
-    const omui::geom::Rect& r = cel.source;
+    const mlibs::geom::Rect& r = cel.source;
     const std::array<Point, 4> pixel{Point{r.x, r.y}, {r.x + r.width, r.y}, {r.x + r.width, r.y + r.height}, {r.x, r.y + r.height}};
     mesh_at_.clear();
     mesh_uv_.clear();
@@ -1308,7 +1308,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const double out_ = cine->backdrop_out[1] > cine->backdrop_out[0] ? 1 - between(t, cine->backdrop_out[0], cine->backdrop_out[1]) : 1.0;
         out.fill_rect({0, 0, scene.width, scene.height}, fade(cine->backdrop, in * out_));
         // Its clouds: each three puffs, where a number from its index puts it (the same everywhere).
-        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
+        auto unit = [](std::uint64_t z) { return mlibs::math::unit24(mlibs::math::mix64(z)); };
         for (std::int32_t n = 0; n < cine->clouds.count; ++n) {
             const auto k = static_cast<std::uint64_t>(n) * 4;
             const double x = stage(st.lock.x) + (unit(k) * 2 - 1) * 700, y = stage(st.lock.y) + cine->clouds.low + unit(k + 1) * (cine->clouds.high - cine->clouds.low);
@@ -1317,7 +1317,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
             const render::Paint paint = render::Paint::solid(fade(cine->clouds.color, (0.55 + 0.35 * unit(k + 3)) * in * out_));
             for (const auto& [dx, dy, s] : {std::tuple{-0.32f, 0.f, 0.7f}, std::tuple{0.f, -0.25f, 1.f}, std::tuple{0.34f, 0.05f, 0.75f}}) {
                 const float pw = w * s, ph = h * s * 1.4f;
-                out.fill_round_rect({c.x + dx * w - pw / 2, c.y + dy * h - ph / 2, pw, ph}, omui::geom::CornerRadii::all(ph / 2), paint);
+                out.fill_round_rect({c.x + dx * w - pw / 2, c.y + dy * h - ph / 2, pw, ph}, mlibs::geom::CornerRadii::all(ph / 2), paint);
             }
         }
     }
@@ -1613,7 +1613,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         std::int32_t landed = 0;
         if (md.cinematic)
             for (const CinematicHit& h : md.cinematic->hits) landed += h.frame <= st.lock.frame;
-        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
+        auto unit = [](std::uint64_t z) { return mlibs::math::unit24(mlibs::math::mix64(z)); };
         for (std::int32_t n = 0; n < landed; ++n) {
             const auto k = static_cast<std::uint64_t>(n) * 64;
             const Point c{scene.width * static_cast<float>(0.12 + 0.76 * unit(k)), scene.height * static_cast<float>(0.12 + 0.7 * unit(k + 1))};
@@ -1644,11 +1644,11 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         if (cine->seal_frame >= 0 && st.lock.frame >= cine->seal_frame) {
             const Point c = world(cine->seal_at);
             const float half = view.size(cine->seal_size) / 2 * static_cast<float>(0.7 + 0.3 * between(st.lock.frame, cine->seal_frame, cine->seal_frame + 4));
-            out.fill_round_rect({c.x - half, c.y - half, 2 * half, 2 * half}, omui::geom::CornerRadii::all(half * 0.12f), render::Paint::solid(cine->seal_color));
+            out.fill_round_rect({c.x - half, c.y - half, 2 * half, 2 * half}, mlibs::geom::CornerRadii::all(half * 0.12f), render::Paint::solid(cine->seal_color));
             const float w = half * 0.14f;  // a seal's carved lines: a frame and a cross
-            for (const omui::geom::Rect r : {omui::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, half * 1.4f, w}, omui::geom::Rect{c.x - half * 0.7f, c.y + half * 0.7f - w, half * 1.4f, w},
-                                             omui::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, w, half * 1.4f}, omui::geom::Rect{c.x + half * 0.7f - w, c.y - half * 0.7f, w, half * 1.4f},
-                                             omui::geom::Rect{c.x - w / 2, c.y - half * 0.7f, w, half * 1.4f}, omui::geom::Rect{c.x - half * 0.7f, c.y - w / 2, half * 1.4f, w}})
+            for (const mlibs::geom::Rect r : {mlibs::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, half * 1.4f, w}, mlibs::geom::Rect{c.x - half * 0.7f, c.y + half * 0.7f - w, half * 1.4f, w},
+                                             mlibs::geom::Rect{c.x - half * 0.7f, c.y - half * 0.7f, w, half * 1.4f}, mlibs::geom::Rect{c.x + half * 0.7f - w, c.y - half * 0.7f, w, half * 1.4f},
+                                             mlibs::geom::Rect{c.x - w / 2, c.y - half * 0.7f, w, half * 1.4f}, mlibs::geom::Rect{c.x - half * 0.7f, c.y - w / 2, half * 1.4f, w}})
                 out.fill_rect(r, Color::hex(0xf4ece0));
         }
     }
@@ -1687,8 +1687,8 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                 // Flying, the ink bleeds a little more each frame (into its halo, if it has one).
                 const double spread = 1.0 + std::min(0.25, pr.frame * 0.004);
                 if (g->spin != 0)  // turning about its middle as it flies
-                    out.push_transform(omui::geom::Affine::translate(c.x, c.y) * render::rotate(g->spin * pr.frame * dm::pi / 180 * pr.facing) *
-                                       omui::geom::Affine::translate(-c.x, -c.y));
+                    out.push_transform(mlibs::geom::Affine::translate(c.x, c.y) * render::rotate(g->spin * pr.frame * dm::pi / 180 * pr.facing) *
+                                       mlibs::geom::Affine::translate(-c.x, -c.y));
                 if (g->halo.a > 0) glyph(strokes->second, 1.0, c, view.size(g->size), g->halo, out, 2.4f);
                 Color bleed = g->color;
                 bleed.a *= 0.18f;
@@ -1715,7 +1715,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const double half = std::max(14.0, stage(box.w) / 2), middle = stage(piece.pos.x + box.x) + stage(box.w) / 2;  // drawn a little wider than it meets
         const Point lo = view.at(middle - half, stage(piece.pos.y + box.y));
         const Point hi = view.at(middle + half, stage(piece.pos.y + box.y + box.h));
-        const omui::geom::Rect r{std::min(lo.x, hi.x), std::min(lo.y, hi.y), std::abs(hi.x - lo.x), std::abs(hi.y - lo.y)};
+        const mlibs::geom::Rect r{std::min(lo.x, hi.x), std::min(lo.y, hi.y), std::abs(hi.x - lo.x), std::abs(hi.y - lo.y)};
         // Fading in over its first frames.
         const double in = std::min(1.0, (st.frame - piece.placed + 1) / 6.0);
         // Drawn art: its region standing on the pane's middle, as tall as the pane (whole, or cracked once worn).
@@ -1723,7 +1723,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
                                      ? &look.pictures[static_cast<std::size_t>(look.pane.picture)]
                                      : nullptr;
             pic && pic->ref.id != 0) {
-            const omui::geom::Rect& src = piece.durability >= 2 ? look.pane.whole : look.pane.cracked;
+            const mlibs::geom::Rect& src = piece.durability >= 2 ? look.pane.whole : look.pane.cracked;
             const float w = src.height > 0 ? r.height * src.width / src.height : r.width;
             out.draw_image(pic->ref, src, {r.x + (r.width - w) / 2, r.y, w, r.height}, render::Sampling::linear, static_cast<float>(in));
             if (piece.reflects > 0) {
@@ -1747,7 +1747,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         const std::int32_t cracks = 4 * std::max(0, 2 - piece.durability);
         auto unit = [&](std::uint32_t i) {
             const std::uint64_t z = (static_cast<std::uint64_t>(q) << 40) ^ (static_cast<std::uint64_t>(piece.placed) << 8) ^ i;
-            return omui::math::unit24(omui::math::mix64(z));
+            return mlibs::math::unit24(mlibs::math::mix64(z));
         };
         const Point from{r.x + r.width * static_cast<float>(0.3 + 0.4 * unit(0)), r.y + r.height * static_cast<float>(0.3 + 0.4 * unit(1))};
         for (std::int32_t c = 0; c < cracks; ++c) {
@@ -1838,7 +1838,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
     // The picture falling apart: pieces of it, turning, falling and fading.
     if (cine && cine->fall.frame >= 0 && st.lock.frame >= cine->fall.frame) {
         const double t = st.lock.frame - cine->fall.frame;
-        auto unit = [](std::uint64_t z) { return omui::math::unit24(omui::math::mix64(z)); };
+        auto unit = [](std::uint64_t z) { return mlibs::math::unit24(mlibs::math::mix64(z)); };
         const double alpha = std::max(0.0, 1 - t / 30);
         for (std::int32_t n = 0; n < cine->fall.count && alpha > 0; ++n) {
             const auto k = 1000 + static_cast<std::uint64_t>(n) * 8;
@@ -1909,7 +1909,7 @@ void Painter::draw(const Match& match, const Look& left, const Look& right, cons
         out.fill_path(path_, render::FillRule::nonzero, render::Paint::solid(fade(look.accent, 0.85 * gone)));
         if (m.level >= 3) {
             // The close-up: the fighter three times as large, framed by the band.
-            out.push_clip(omui::geom::Rect{0, y + slant * 0.5f, reach, h});  // the band's middle
+            out.push_clip(mlibs::geom::Rect{0, y + slant * 0.5f, reach, h});  // the band's middle
             const Scene big{.width = scene.width, .height = scene.height, .ground = scene.ground};
             // Centred on the head, which lands in the band's middle.
             Camera c{stage(f.pos.x) - 40 * f.facing, 0, 3.0};

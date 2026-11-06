@@ -24,9 +24,9 @@ void Tabs::prop_changed(TabsProp p) {
     services().invalidate_paint(node());
 }
 
-void Tabs::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::row;
-    s.align_items = layout::Align::stretch;
+void Tabs::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::row;
+    s.align_items = mlibs::layout::Align::stretch;
     if (props.variant == TabsVariant::bar) s.padding = {bar_pad, bar_pad, bar_pad, bar_pad};
 }
 
@@ -88,10 +88,10 @@ void Tabs::paint(PaintContext& ctx) const {
     if (props.variant != TabsVariant::bar) return;
     const Theme& th = ctx.theme;
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.size.height / 2),
-                             render::Paint::solid(th.color("bar", th.color("surface_variant"))));
+                             xrender::Paint::solid(th.color("bar", th.color("surface_variant"))));
     if (!current()) return;
     const Rect l = lens(ctx.size);
-    ctx.list.fill_round_rect(l, CornerRadii::all(l.height / 2), render::Paint::solid(th.color("tab_lens", th.color("accent_subtle"))));
+    ctx.list.fill_round_rect(l, CornerRadii::all(l.height / 2), xrender::Paint::solid(th.color("tab_lens", th.color("accent_subtle"))));
 }
 
 void Tabs::paint_over(PaintContext& ctx) const {
@@ -101,10 +101,10 @@ void Tabs::paint_over(PaintContext& ctx) const {
     if (!current()) return;
     const Rect u = under();
     ctx.list.fill_round_rect({u.x, ctx.size.height - indicator_h, u.width, indicator_h},
-                             CornerRadii::all(indicator_h / 2), render::Paint::solid(th.color("accent")));
+                             CornerRadii::all(indicator_h / 2), xrender::Paint::solid(th.color("accent")));
 }
 
-std::size_t Tabs::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Tabs::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (props.variant != TabsVariant::bar || out.size() < 2) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(size.height / 2)};
     if (!current()) return 1;
@@ -128,12 +128,12 @@ void Tab::prop_changed(TabProp p) {
     }
 }
 
-void Tab::style(const Theme& theme, layout::Style& s) const {
+void Tab::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(pad_x), 0, theme.scaled(pad_x)};
-    s.min_height = layout::pt(theme.scaled(tab_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(tab_h));
 }
 
-Size Tab::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size Tab::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Size t = label_.measure(m.services, m.services.theme().color("text"));
     return {std::ceil(t.width), std::ceil(t.height)};
 }
@@ -156,7 +156,7 @@ void Tab::paint(PaintContext& ctx) const {
     // On a bar the lens marks the selected one; a hover is lighter still, never a second lens.
     if (const Color hover = th.color("surface_variant"); h > 0)
         ctx.list.fill_round_rect({0, 4, ctx.size.width, ctx.size.height - 8}, CornerRadii::all(th.corner("small", 4)),
-                                 render::Paint::solid(hover.with_alpha(hover.a * h * (selected() ? 0.0f : 1.0f))));
+                                 xrender::Paint::solid(hover.with_alpha(hover.a * h * (selected() ? 0.0f : 1.0f))));
     const Color c = off ? th.color("text_disabled") : selected() ? th.color("accent") : mix(th.color("text_muted"), th.color("text"), h);
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x + (ctx.content.width - t.width) / 2, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

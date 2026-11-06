@@ -2,11 +2,11 @@
 import std;
 import openmui;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::expected<site::FirstFrameOptions, std::string> options(std::initializer_list<std::string_view> args) {
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
             check(report->get("renderer")->as_string() == "cpu" && report->get("tier")->as_string() == "T3" && report->get("raster_bands")->as_int() == 1);
             check(report->get("viewport")->list()->size() == 2 && report->get("viewport")->list()->at(0).as_int() == width && report->get("viewport")->list()->at(1).as_int() == height);
             check(report->get("pixel_hash")->as_string() == std::format("{:016x}", site::frame_hash(expected->pixels())));
-            const auto png = imageio::load_png(mcpplibs::os::fs::from_utf8(request.png));
+            const auto png = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(request.png));
             check(png && png->width == width && png->height == height);
             if (png) for (int y = 0; y < height; ++y) {
                 const auto actual = std::as_bytes(png->row(y));
@@ -100,8 +100,8 @@ int main(int argc, char** argv) {
         const auto complete = site::export_first_frame(whole); check(complete.has_value()); if (!complete) return;
         auto region = whole; region.png = file("visual.png"); region.root = "main/body/view/home/page/landing/scene/visual";
         const auto report = site::export_first_frame(region); check(report.has_value(), report ? "" : report.error()); if (!report) return;
-        const auto source = imageio::load_png(mcpplibs::os::fs::from_utf8(whole.png));
-        const auto cropped = imageio::load_png(mcpplibs::os::fs::from_utf8(region.png));
+        const auto source = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(whole.png));
+        const auto cropped = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(region.png));
         check(source && cropped); if (!source || !cropped) return;
         const auto& bounds = *report->get("crop")->list();
         const int x = static_cast<int>(bounds[0].as_int()), y = static_cast<int>(bounds[1].as_int());

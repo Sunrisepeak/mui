@@ -2,13 +2,13 @@
 module xengine.audio;
 
 import std;
-import openmui.math;
+import mlibs.math;
 
 namespace xengine::audio {
 
 namespace {
 
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 
 double db(double linear) { return linear > 0 ? 20 * dm::log(linear) / dm::log(10.0) : -200; }
 

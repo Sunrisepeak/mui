@@ -4,8 +4,12 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.semantic;
-import openmui.hash;
-import openmui.trace;
+import mlibs.hash;
+import mlibs.trace;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::accessibility {
 
@@ -72,7 +76,7 @@ std::string text_of(const Value& v) {
 }  // namespace
 
 std::uint64_t key_of(std::string_view id) noexcept {
-    const std::uint64_t k = hash::fnv1a(id);
+    const std::uint64_t k = mlibs::hash::fnv1a(id);
     return k == 0 ? 1 : k;
 }
 
@@ -270,7 +274,7 @@ void Mirror::text_of(const std::string& id, Node& node, std::vector<Node>& out, 
 }
 
 Mirror::Changes Mirror::refresh() {
-    trace::Span span("accessibility.refresh", "accessibility");
+    mlibs::trace::Span span("accessibility.refresh", "accessibility");
     spec::SemanticDelta delta = tree_.changes();
     Changes out;
     std::lock_guard hold(mutex_);
@@ -389,7 +393,7 @@ std::vector<Envelope> Mirror::serve() {
 }
 
 Envelope Mirror::perform(const Request& r) {
-    trace::Span span("accessibility.perform", "accessibility");
+    mlibs::trace::Span span("accessibility.perform", "accessibility");
     auto failed = [](std::string_view code, std::string text) {
         Envelope e;
         e.error(code, text).result(spec::exit_code::failure);

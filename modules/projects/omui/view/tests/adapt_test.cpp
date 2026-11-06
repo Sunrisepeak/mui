@@ -5,16 +5,16 @@
 // off unless a host turns it on, set aside when an adaptation is applied.
 import std;
 import openmui.view;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();
@@ -30,9 +30,9 @@ RuntimeOptions options() {
 
 // Whether the frame's list draws a layer with the named effect.
 bool draws(Runtime& rt, std::string_view effect) {
-    const auto ref = render::effects().find(effect);
+    const auto ref = xrender::effects().find(effect);
     for (const auto& c : rt.display_list().commands())
-        if (const auto* l = std::get_if<render::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
+        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
     return false;
 }
 
@@ -50,11 +50,11 @@ int main(int argc, char** argv) {
         rt.mount("main", column({}, {std::move(glow), std::move(grain)}));
         rt.frame({seconds(0), {}});
         check(draws(rt, "neon") && draws(rt, "noise"), "on T3, both");
-        rt.set_device_tier(pipeline::Tier::t1, "an embedded board");
+        rt.set_device_tier(mlibs::pipeline::Tier::t1, "an embedded board");
         rt.frame({seconds(0.016), {}});
         check(!draws(rt, "neon"), "on T1, no neon");
         check(draws(rt, "noise"), "noise still");
-        rt.set_device_tier(pipeline::Tier::t0, "an MCU");
+        rt.set_device_tier(mlibs::pipeline::Tier::t0, "an MCU");
         rt.frame({seconds(0.033), {}});
         check(!draws(rt, "noise"), "on T0, no effect at all");
         check_eq(rt.adaptation().reason, std::string("an MCU"));
@@ -70,14 +70,14 @@ int main(int argc, char** argv) {
         // Nested: neon's layer outside noise's.
         int neon_at = -1, noise_at = -1, i = 0;
         for (const auto& c : rt.display_list().commands()) {
-            if (const auto* l = std::get_if<render::PushLayer>(&c)) {
-                if (l->effect.id == render::effects().find("neon")->id) neon_at = i;
-                if (l->effect.id == render::effects().find("noise")->id) noise_at = i;
+            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) {
+                if (l->effect.id == xrender::effects().find("neon")->id) neon_at = i;
+                if (l->effect.id == xrender::effects().find("noise")->id) noise_at = i;
             }
             ++i;
         }
         check(neon_at >= 0 && neon_at < noise_at, "the list's last outermost");
-        rt.set_device_tier(pipeline::Tier::t1, "an embedded board");
+        rt.set_device_tier(mlibs::pipeline::Tier::t1, "an embedded board");
         rt.frame({seconds(0.016), {}});
         check(draws(rt, "noise") && !draws(rt, "neon"), "on T1: the grain, no light");
     });
@@ -93,13 +93,13 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 30; ++i) rt.frame_shown({seconds(i / 60.0), 40});
         check(rt.adaptation().motion == MotionLevel::off, "then off");
         for (int i = 0; i < 30; ++i) rt.frame_shown({seconds(i / 60.0), 40});
-        check(rt.adaptation().effects == pipeline::Tier::t3, "then effects a tier lower");
+        check(rt.adaptation().effects == mlibs::pipeline::Tier::t3, "then effects a tier lower");
         for (int i = 0; i < 300; ++i) rt.frame_shown({seconds(i / 60.0), 4});
-        check(rt.adaptation().effects == pipeline::Tier::t4, "room: effects back");
+        check(rt.adaptation().effects == mlibs::pipeline::Tier::t4, "room: effects back");
         for (int i = 0; i < 300; ++i) rt.frame_shown({seconds(i / 60.0), 4});
         check(rt.adaptation().motion == MotionLevel::reduced, "then motion, a step at a time");
         // Applied (a replay): as given, the governor set aside.
-        rt.set_adaptation({.tier = pipeline::Tier::t2, .motion = MotionLevel::full, .effects = pipeline::Tier::t2, .reason = "recorded"});
+        rt.set_adaptation({.tier = mlibs::pipeline::Tier::t2, .motion = MotionLevel::full, .effects = mlibs::pipeline::Tier::t2, .reason = "recorded"});
         for (int i = 0; i < 90; ++i) rt.frame_shown({seconds(i / 60.0), 40});
         check(rt.adaptation().motion == MotionLevel::full && rt.adaptation().reason == "recorded", "a replay's adaptation holds");
     });

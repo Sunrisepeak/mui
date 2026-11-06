@@ -9,8 +9,3 @@ A text engine (module `mlibs.text`) over HarfBuzz and SheenBidi — imported as 
 - **Editing**: `TextEditor` — selection on grapheme boundaries, word movement and deletion (UAX #29), IME composition, undo / redo with typing coalescing, length and single-line constraints.
 
 Text lays out the same on GCC, LLVM and the Windows target with the default fonts; its pixels (a mixed Latin / Chinese / Arabic / emoji paragraph, pinned) are xrender.text's tests.
-
-Canonical package/module: `mlibs.text`; C++ API: `mlibs::text`.
-The same package retains `import openmui.text;` and `omui::typeset`
-as aliases of the same implementation after rebuilding. Use the canonical
-namespace for extension blocks; a namespace alias cannot be reopened.

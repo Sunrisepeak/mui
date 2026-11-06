@@ -3,7 +3,11 @@ module openmui.view;
 import std;
 import mcpplibs.os;
 import openmui.core;
-import openmui.i18n;
+import mlibs.i18n;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui {
 
@@ -11,7 +15,7 @@ namespace {
 
 constexpr Log i18n_log{"i18n"};
 
-i18n::Arg to_arg(const Value& v) {
+mlibs::i18n::Arg to_arg(const Value& v) {
     switch (v.type()) {
         case Value::Type::boolean: return v.as_bool();
         case Value::Type::integer: return v.as_int();
@@ -30,15 +34,15 @@ i18n::Arg to_arg(const Value& v) {
 
 struct Languages::Impl {
     mutable std::mutex                         lock;
-    i18n::Library                              library;
-    std::vector<i18n::Locale>                  requested;
-    i18n::Locale                               fallback{"en", "", "", {}, ""};
-    std::unique_ptr<i18n::Translator>          translator;
+    mlibs::i18n::Library                              library;
+    std::vector<mlibs::i18n::Locale>                  requested;
+    mlibs::i18n::Locale                               fallback{"en", "", "", {}, ""};
+    std::unique_ptr<mlibs::i18n::Translator>          translator;
     std::atomic<std::uint64_t>                 generation{0};
     std::set<std::string, std::less<>>         missing;  // keys logged as missing
 
     void remake() {  // under the lock
-        translator = std::make_unique<i18n::Translator>(library, requested, fallback);
+        translator = std::make_unique<mlibs::i18n::Translator>(library, requested, fallback);
         missing.clear();
         generation.fetch_add(1, std::memory_order_relaxed);
     }
@@ -61,7 +65,7 @@ Languages::Languages() : impl_(std::make_unique<Impl>()) {
 }
 Languages::~Languages() = default;
 
-void Languages::edit(const std::function<void(i18n::Library&)>& change) {
+void Languages::edit(const std::function<void(mlibs::i18n::Library&)>& change) {
     {
         std::scoped_lock g(impl_->lock);
         change(impl_->library);
@@ -70,14 +74,14 @@ void Languages::edit(const std::function<void(i18n::Library&)>& change) {
     thread_signal(0).set(generation());
 }
 
-std::expected<void, std::vector<i18n::Diagnostic>> Languages::add_messages(const i18n::Locale& locale, std::string_view toml, std::string_view file) {
-    auto catalog = i18n::read_messages(toml, file);
+std::expected<void, std::vector<mlibs::i18n::Diagnostic>> Languages::add_messages(const mlibs::i18n::Locale& locale, std::string_view toml, std::string_view file) {
+    auto catalog = mlibs::i18n::read_messages(toml, file);
     if (!catalog) return std::unexpected(std::move(catalog.error()));
-    edit([&](i18n::Library& lib) { lib.catalog(locale) = std::move(*catalog); });
+    edit([&](mlibs::i18n::Library& lib) { lib.catalog(locale) = std::move(*catalog); });
     return {};
 }
 
-void Languages::request(std::vector<i18n::Locale> requested) {
+void Languages::request(std::vector<mlibs::i18n::Locale> requested) {
     {
         std::scoped_lock g(impl_->lock);
         impl_->requested = std::move(requested);
@@ -87,7 +91,7 @@ void Languages::request(std::vector<i18n::Locale> requested) {
     i18n_log.info("languages: {}", tag());
 }
 
-void Languages::set_fallback(i18n::Locale source) {
+void Languages::set_fallback(mlibs::i18n::Locale source) {
     {
         std::scoped_lock g(impl_->lock);
         impl_->fallback = std::move(source);
@@ -96,23 +100,23 @@ void Languages::set_fallback(i18n::Locale source) {
     thread_signal(0).set(generation());
 }
 
-std::vector<i18n::Locale> Languages::requested() const {
+std::vector<mlibs::i18n::Locale> Languages::requested() const {
     std::scoped_lock g(impl_->lock);
     return impl_->requested;
 }
 
-std::vector<i18n::Locale> Languages::chain() const {
+std::vector<mlibs::i18n::Locale> Languages::chain() const {
     std::scoped_lock g(impl_->lock);
     return impl_->translator->chain();
 }
 
-i18n::Translator::Result Languages::translate(std::string_view key, const i18n::Args& args) const {
+mlibs::i18n::Translator::Result Languages::translate(std::string_view key, const mlibs::i18n::Args& args) const {
     std::scoped_lock g(impl_->lock);
     auto r = impl_->translator->translate(key, args);
     if (!r.found) {
         // A key no catalog has is its own message (MessageFormat 2), so a
         // source-language key reads well before any translation exists.
-        if (auto m = i18n::Message::parse(key)) r.text = m->format(impl_->translator->formatter(), args, &r.errors);
+        if (auto m = mlibs::i18n::Message::parse(key)) r.text = m->format(impl_->translator->formatter(), args, &r.errors);
         if (impl_->missing.emplace(key).second) i18n_log.debug("no message `{}` in {}: shown as written", key, impl_->translator->chain().back().tag());
     }
     for (const auto& e : r.errors)
@@ -120,12 +124,12 @@ i18n::Translator::Result Languages::translate(std::string_view key, const i18n::
     return r;
 }
 
-std::string Languages::number(double value, const i18n::NumberOptions& options) const {
+std::string Languages::number(double value, const mlibs::i18n::NumberOptions& options) const {
     std::scoped_lock g(impl_->lock);
     return impl_->translator->formatter().number(value, options).text;
 }
 
-std::string Languages::date(const i18n::CivilTime& t, i18n::DateStyle style) const {
+std::string Languages::date(const mlibs::i18n::CivilTime& t, mlibs::i18n::DateStyle style) const {
     std::scoped_lock g(impl_->lock);
     return impl_->translator->formatter().date(t, style);
 }
@@ -147,7 +151,7 @@ Languages& languages() {
 std::string translate(std::string_view key, const Value& args) {
     Languages& l = languages();
     l.track();
-    i18n::Args a;
+    mlibs::i18n::Args a;
     if (const auto* m = args.map())
         for (const auto& [k, v] : *m) a.set(k, to_arg(v));
     return l.translate(key, a).text;
@@ -158,9 +162,9 @@ Source tr(std::string key, std::vector<TrArg> args) {
                   [key = std::move(key), args = std::move(args)] {
                       Languages& l = languages();
                       l.track();
-                      i18n::Args a;
+                      mlibs::i18n::Args a;
                       for (const TrArg& x : args) {
-                          if (const auto* c = std::get_if<i18n::Arg>(&x.value)) a.set(x.name, *c);
+                          if (const auto* c = std::get_if<mlibs::i18n::Arg>(&x.value)) a.set(x.name, *c);
                           else a.set(x.name, to_arg(std::get<Source>(x.value).current()));
                       }
                       return Value(l.translate(key, a).text);
@@ -168,12 +172,12 @@ Source tr(std::string key, std::vector<TrArg> args) {
                   {}};
 }
 
-std::vector<i18n::Locale> system_locales() {
+std::vector<mlibs::i18n::Locale> system_locales() {
     namespace os = mcpplibs::os;
-    std::vector<i18n::Locale> out;
+    std::vector<mlibs::i18n::Locale> out;
     auto add = [&](std::string_view tag) {
         if (tag.empty()) return;
-        if (auto l = i18n::Locale::parse(tag); l && std::ranges::find(out, *l) == out.end()) out.push_back(std::move(*l));
+        if (auto l = mlibs::i18n::Locale::parse(tag); l && std::ranges::find(out, *l) == out.end()) out.push_back(std::move(*l));
     };
     // POSIX: LC_ALL wins, then LC_MESSAGES, then LANG; GNU's LANGUAGE lists more, colon-separated.
     std::string first;

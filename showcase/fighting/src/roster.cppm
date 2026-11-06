@@ -5,8 +5,8 @@ export module openmui.showcase.fighting:roster;
 import std;
 import gongfu.data;
 import gongfu.present2d;
-import openmui.raster;
-import openmui.render.vector;
+import xrender.raster;
+import xrender.vector;
 
 export namespace omui::fighting {
 
@@ -23,7 +23,7 @@ struct Roster {
     // (premultiplied): a stage registers them with its renderer's images.
     struct Art {
         int                              width = 0, height = 0;
-        std::vector<omui::raster::Rgba8> pixels;
+        std::vector<xrender::raster::Rgba8> pixels;
     };
     std::map<std::string, Art, std::less<>> art;
     // Their reliefs (normal maps), by the same file, for pictures a look gives one.
@@ -55,18 +55,18 @@ bool arrive_art(const std::filesystem::path& dir = std::filesystem::path(later_a
 // (the stage, the select screen): registered by the first, removed when the
 // last lets go.
 struct Registered {
-    omui::render::ImageStore*                                      store = nullptr;
-    std::map<std::string, omui::render::ImageRef, std::less<>>     art, normals;
+    xrender::ImageStore*                                      store = nullptr;
+    std::map<std::string, xrender::ImageRef, std::less<>>     art, normals;
     std::uint32_t                                                  generation = 0;  // the pictures' (art_generation) it registered
     Registered() = default;
     Registered(const Registered&) = delete;
     Registered& operator=(const Registered&) = delete;
     ~Registered();
-    [[nodiscard]] omui::render::ImageRef picture(std::string_view file) const;
+    [[nodiscard]] xrender::ImageRef picture(std::string_view file) const;
     // A look's or a stage's pictures given their references (a stage's files are beside it, under `prefix`).
     void bind(std::vector<gongfu::present2d::Picture>& pictures, std::string_view prefix = {}) const;
 };
-[[nodiscard]] std::shared_ptr<const Registered> registered(omui::render::ImageStore& store);
+[[nodiscard]] std::shared_ptr<const Registered> registered(xrender::ImageStore& store);
 
 // A fighter's index by its files' name; the first for an empty or unknown one.
 [[nodiscard]] std::size_t fighter_index(std::string_view name);

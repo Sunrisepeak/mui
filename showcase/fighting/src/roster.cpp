@@ -3,9 +3,9 @@ module openmui.showcase.fighting;
 import std;
 import gongfu.data;
 import gongfu.present2d;
-import openmui.image;
-import openmui.raster;
-import openmui.render.vector;
+import mlibs.image;
+import xrender.raster;
+import xrender.vector;
 
 namespace omui::fighting {
 
@@ -21,23 +21,23 @@ void decode_art(Roster& out, const std::vector<std::pair<std::string, std::strin
         for (const p2::Picture& pic : look.pictures)
             if (pic.relief) reliefs.emplace(pic.file, *pic.relief);
     struct Decoded {
-        std::expected<omui::imageio::Image, std::string> image = std::unexpected(std::string());
-        std::optional<omui::imageio::Image>              normal;
+        std::expected<mlibs::image::Image, std::string> image = std::unexpected(std::string());
+        std::optional<mlibs::image::Image>              normal;
     };
     std::vector<Decoded> decoded(files_of_art.size());
     omui::Tasks::shared().parallel_for(files_of_art.size(), 1, [&](std::size_t from, std::size_t to) {
         for (std::size_t i = from; i < to; ++i) {
             const auto& [file, bytes] = files_of_art[i];
             Decoded& d = decoded[i];
-            d.image = omui::imageio::decode({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
+            d.image = mlibs::image::decode({reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()});
             if (!d.image) continue;
             if (const auto r = reliefs.find(file); r != reliefs.end())
-                d.normal = omui::imageio::normal_map(*d.image, {.bevel = r->second.bevel, .detail = r->second.detail, .smooth = r->second.smooth,
+                d.normal = mlibs::image::normal_map(*d.image, {.bevel = r->second.bevel, .detail = r->second.detail, .smooth = r->second.smooth,
                                                                  .strength = r->second.strength});
-            omui::imageio::premultiply(*d.image);  // the renderer's pixels are premultiplied
+            mlibs::image::premultiply(*d.image);  // the renderer's pixels are premultiplied
         }
     });
-    auto art_of = [](const omui::imageio::Image& img) {
+    auto art_of = [](const mlibs::image::Image& img) {
         Roster::Art a{img.width, img.height, {}};
         a.pixels.resize(static_cast<std::size_t>(img.width) * static_cast<std::size_t>(img.height));
         std::memcpy(a.pixels.data(), img.rgba.data(), img.rgba.size());
@@ -155,9 +155,9 @@ Registered::~Registered() {
     for (const auto& [file, ref] : normals) store->remove(ref);
 }
 
-omui::render::ImageRef Registered::picture(std::string_view file) const {
+xrender::ImageRef Registered::picture(std::string_view file) const {
     const auto it = art.find(file);
-    return it == art.end() ? omui::render::ImageRef{} : it->second;
+    return it == art.end() ? xrender::ImageRef{} : it->second;
 }
 
 void Registered::bind(std::vector<p2::Picture>& pictures, std::string_view prefix) const {
@@ -168,9 +168,9 @@ void Registered::bind(std::vector<p2::Picture>& pictures, std::string_view prefi
     }
 }
 
-std::shared_ptr<const Registered> registered(omui::render::ImageStore& store) {
+std::shared_ptr<const Registered> registered(xrender::ImageStore& store) {
     // By store: one registration while anything holds it (the UI thread's, like the store) — again once more pictures arrived.
-    static std::map<omui::render::ImageStore*, std::weak_ptr<const Registered>> held;
+    static std::map<xrender::ImageStore*, std::weak_ptr<const Registered>> held;
     if (auto alive = held[&store].lock(); alive && alive->generation == art_generation()) return alive;
     auto r = std::make_shared<Registered>();
     r->store = &store;

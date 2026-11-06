@@ -1,9 +1,9 @@
 // The consumer chose `sink-memory`: the constants and the branch follow.
 import std;
 import openmui.features;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace f = omui::features;
 
 static_assert(f::sink_name == "memory" && f::buffered, "the consumer's choice reached the dependency");

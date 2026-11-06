@@ -4,19 +4,27 @@
 // every platform.
 import std;
 import openmui.view;
-import openmui.raster;
-import openmui.image;
-import openmui.testing;
+import xrender.raster;
+import mlibs.image;
+import mlibs.testing;
 import xrender.text;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::LogRecord;
+using mlibs::log::recent_logs;
+using mlibs::log::set_log_history;
+using mlibs::log::set_log_sink;
+using mlibs::log::Level;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();
@@ -49,10 +57,10 @@ void click(Runtime& rt, float x, float y) {
     rt.frame({std::nullopt, {pointer(PointerKind::down, x, y), pointer(PointerKind::up, x, y)}});
 }
 
-raster::Surface draw(Runtime& rt, xrender::text::GlyphCache& glyphs) {
-    raster::Surface s(static_cast<int>(rt.size().width * rt.scale()), static_cast<int>(rt.size().height * rt.scale()));
-    render::CpuRenderer r;
-    render::CpuOptions o;
+xrender::raster::Surface draw(Runtime& rt, xrender::text::GlyphCache& glyphs) {
+    xrender::raster::Surface s(static_cast<int>(rt.size().width * rt.scale()), static_cast<int>(rt.size().height * rt.scale()));
+    xrender::CpuRenderer r;
+    xrender::CpuOptions o;
     o.scale = rt.scale();
     o.background = Color::white();
     (void)r.render(rt.display_list(), s, {&rt.images(), &glyphs}, o);
@@ -298,7 +306,7 @@ int main(int argc, char** argv) {
 
     s.test("languages (D-74): tr follows the language and its arguments, in place — the same node, the same id", [] {
         Languages& l = languages();
-        const auto en = *i18n::Locale::parse("en"), zh = *i18n::Locale::parse("zh-Hans"), hant = *i18n::Locale::parse("zh-Hant");
+        const auto en = *mlibs::i18n::Locale::parse("en"), zh = *mlibs::i18n::Locale::parse("zh-Hans"), hant = *mlibs::i18n::Locale::parse("zh-Hant");
         check(l.add_messages(en, "greeting = \"Hello, {$name}!\"\nsave = \"Save\"\n", "en.messages.omui.toml").has_value());
         check(l.add_messages(zh, "greeting = \"你好，{$name}！\"\nsave = \"保存\"\n", "zh-Hans.messages.omui.toml").has_value());
         l.request({en});
@@ -467,7 +475,7 @@ int main(int argc, char** argv) {
                                     }));
         auto fill = [&]() -> std::optional<Color> {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* r = std::get_if<render::FillRect>(&c)) return r->paint.color;
+                if (const auto* r = std::get_if<xrender::FillRect>(&c)) return r->paint.color;
             return std::nullopt;
         };
         rt.frame({seconds(0), {}});
@@ -537,7 +545,7 @@ int main(int argc, char** argv) {
 
     s.test("the frame is a pipeline of stage plugins: levels, custom stages, live replacement (D-66)", [] {
         // The levels are pipelines.
-        auto names = [](const pipeline::Description& d) {
+        auto names = [](const mlibs::pipeline::Description& d) {
             std::vector<std::string> out;
             for (const auto& st : d.stages) out.push_back(st.name);
             return out;
@@ -546,29 +554,29 @@ int main(int argc, char** argv) {
         check(names(runtime_pipeline(Stages::paint)).size() == 9);  // … paint, motion, debug
 
         // A custom stage between paint and the debug overlay: it updates the display list.
-        struct Badge final : pipeline::Stage {
-            std::vector<pipeline::Port> reads() const override { return {pipeline::port<render::DisplayList>("display")}; }
-            std::vector<pipeline::Port> writes() const override { return {pipeline::port<render::DisplayList>("display")}; }
-            std::expected<void, std::string> run(pipeline::Context& c) override {
-                c.resources.get<render::DisplayList>("display")->fill_rect({0, 0, 4, 4}, Color::hex(0xff00ff));
+        struct Badge final : mlibs::pipeline::Stage {
+            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::expected<void, std::string> run(mlibs::pipeline::Context& c) override {
+                c.resources.get<xrender::DisplayList>("display")->fill_rect({0, 0, 4, 4}, Color::hex(0xff00ff));
                 return {};
             }
         };
         RuntimeOptions o = options();
-        pipeline::Description d = runtime_pipeline(Stages::paint);
+        mlibs::pipeline::Description d = runtime_pipeline(Stages::paint);
         d.name = "app";
         d.stages.insert(d.stages.begin() + 7, {"badge", "app.badge", {"paint"}, {}});
         o.pipeline = d;
-        o.plugins = [](pipeline::Registry& r) {
-            (void)r.add({.name = "app.badge", .kind = "stage", .description = "a corner badge", .cost = pipeline::Cost{.cpu_us = 20}},
-                  [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Badge>(); });
+        o.plugins = [](mlibs::pipeline::Registry& r) {
+            (void)r.add({.name = "app.badge", .kind = "stage", .description = "a corner badge", .cost = mlibs::pipeline::Cost{.cpu_us = 20}},
+                  [](const mlibs::pipeline::Config&) -> std::expected<std::unique_ptr<mlibs::pipeline::Stage>, std::string> { return std::make_unique<Badge>(); });
         };
         Runtime rt(o);
         rt.mount("main", column({.padding = 8}, {text({.id = "t", .text = "hi"})}));
         auto out = rt.frame({seconds(0), {}});
         auto has_badge = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* r = std::get_if<render::FillRect>(&c); r && r->paint.color == Color::hex(0xff00ff)) return true;
+                if (const auto* r = std::get_if<xrender::FillRect>(&c); r && r->paint.color == Color::hex(0xff00ff)) return true;
             return false;
         };
         check(out.repainted && has_badge(), "the custom stage drew into the frame's list");
@@ -588,25 +596,25 @@ int main(int argc, char** argv) {
     });
 
     s.test("a stage that fails: the frame says why, and the next one runs again", [] {
-        struct Flaky final : pipeline::Stage {
+        struct Flaky final : mlibs::pipeline::Stage {
             int* left;
             explicit Flaky(int* l) : left(l) {}
-            std::vector<pipeline::Port> reads() const override { return {pipeline::port<render::DisplayList>("display")}; }
-            std::vector<pipeline::Port> writes() const override { return {pipeline::port<render::DisplayList>("display")}; }
-            std::expected<void, std::string> run(pipeline::Context&) override {
+            std::vector<mlibs::pipeline::Port> reads() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::vector<mlibs::pipeline::Port> writes() const override { return {mlibs::pipeline::port<xrender::DisplayList>("display")}; }
+            std::expected<void, std::string> run(mlibs::pipeline::Context&) override {
                 if (*left > 0 && (*left)--) return std::unexpected(std::string("the device was lost"));
                 return {};
             }
         };
         static int failures = 1;
         RuntimeOptions o = options();
-        pipeline::Description d = runtime_pipeline(Stages::paint);
+        mlibs::pipeline::Description d = runtime_pipeline(Stages::paint);
         d.name = "app";
         d.stages.insert(d.stages.begin() + 7, {"flaky", "app.flaky", {"paint"}, {}});
         o.pipeline = d;
-        o.plugins = [](pipeline::Registry& r) {
-            (void)r.add({.name = "app.flaky", .kind = "stage", .description = "fails once", .cost = pipeline::Cost{.cpu_us = 20}},
-                  [](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> { return std::make_unique<Flaky>(&failures); });
+        o.plugins = [](mlibs::pipeline::Registry& r) {
+            (void)r.add({.name = "app.flaky", .kind = "stage", .description = "fails once", .cost = mlibs::pipeline::Cost{.cpu_us = 20}},
+                  [](const mlibs::pipeline::Config&) -> std::expected<std::unique_ptr<mlibs::pipeline::Stage>, std::string> { return std::make_unique<Flaky>(&failures); });
         };
         set_log_sink([](void*, const LogRecord&) {}, nullptr);
         Runtime rt(o);
@@ -623,7 +631,7 @@ int main(int argc, char** argv) {
         std::vector<std::string> said;
         set_log_sink([](void* user, const LogRecord& r) { static_cast<std::vector<std::string>*>(user)->emplace_back(r.message); }, &said);
         RuntimeOptions o = options();
-        o.pipeline = pipeline::Description{"broken", {{"paint", "openmui.view.paint", {}, {}}}};  // paint without bounds
+        o.pipeline = mlibs::pipeline::Description{"broken", {{"paint", "openmui.view.paint", {}, {}}}};  // paint without bounds
         Runtime rt(o);
         set_log_sink(nullptr, nullptr);
         check(rt.frame_pipeline().description().name == "runtime.h2");
@@ -648,7 +656,7 @@ int main(int argc, char** argv) {
         const NodeId fade = rt.find("main/fade");
         auto opacity = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* l = std::get_if<render::PushLayer>(&c)) return l->opacity;
+                if (const auto* l = std::get_if<xrender::PushLayer>(&c)) return l->opacity;
             return 1.0f;
         };
         on.set(true);
@@ -740,7 +748,7 @@ int main(int argc, char** argv) {
         // Paint shows the halfway opacity: a layer at 0.5.
         bool half = false;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<render::PushLayer>(&c)) half = half || std::abs(l->opacity - 0.5f) < 1e-4f;
+            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) half = half || std::abs(l->opacity - 0.5f) < 1e-4f;
         check(half, "the layer is at half opacity");
         auto settled = rt.frame({seconds(1.0), {}});
         check(!sem().states.has(State::animating));
@@ -883,7 +891,7 @@ int main(int argc, char** argv) {
         rt.frame();
         auto color_of = [&] {
             for (const auto& c : rt.display_list().commands())
-                if (const auto* f = std::get_if<render::FillRect>(&c)) return f->paint.color;
+                if (const auto* f = std::get_if<xrender::FillRect>(&c)) return f->paint.color;
             return Color::transparent();
         };
         check(color_of() == Theme::light().color("surface"));
@@ -897,10 +905,10 @@ int main(int argc, char** argv) {
     s.test("grid tracks parse like CSS", [] {
         auto t = parse_tracks("120 1fr minmax(80, 2fr) repeat(2, auto 10%)");
         check_eq(t.size(), std::size_t{7});
-        check(t[0].kind == layout::Track::Kind::points && t[0].value == 120);
-        check(t[1].kind == layout::Track::Kind::fr);
-        check(t[2].kind == layout::Track::Kind::minmax && t[2].min_value == 80 && t[2].max_kind == layout::Track::Kind::fr);
-        check(t[3].kind == layout::Track::Kind::auto_ && t[4].kind == layout::Track::Kind::percent);
+        check(t[0].kind == mlibs::layout::Track::Kind::points && t[0].value == 120);
+        check(t[1].kind == mlibs::layout::Track::Kind::fr);
+        check(t[2].kind == mlibs::layout::Track::Kind::minmax && t[2].min_value == 80 && t[2].max_kind == mlibs::layout::Track::Kind::fr);
+        check(t[3].kind == mlibs::layout::Track::Kind::auto_ && t[4].kind == mlibs::layout::Track::Kind::percent);
         Runtime rt(options({300, 100}));
         rt.mount("main", column({}, {grid({.id = "g", .gap = 10}, "1fr 2fr",
                                           {box({.id = "a", .height = 10}), box({.id = "b"}), box({.id = "c", .height = 5})})}));
@@ -925,9 +933,9 @@ int main(int argc, char** argv) {
         auto px = draw(rt, glyphs);
         auto p = px.at(15, 15);
         check(p.g == 255 && p.r == 0, "the painter's green");
-        render::CpuRenderer r;
-        raster::Surface s2(200, 100);
-        render::CpuOptions o;
+        xrender::CpuRenderer r;
+        xrender::raster::Surface s2(200, 100);
+        xrender::CpuOptions o;
         o.object_ids = true;
         (void)r.render(rt.display_list(), s2, {&rt.images(), &glyphs}, o);
         check(rt.node_at_index(r.object_at(15, 15, 200)) == rt.find("main/dot"), "a pixel traces back to its node");
@@ -996,7 +1004,7 @@ int main(int argc, char** argv) {
         rt.frame({seconds(0), {}});
         std::string_view file = site.file_name();
         file.remove_prefix(file.find_last_of("/\\") + 1);
-        const std::uint32_t h = omui::hash::fnv1a32(std::format("{}:{}", file, site.line()));
+        const std::uint32_t h = mlibs::hash::fnv1a32(std::format("{}:{}", file, site.line()));
         const auto kids = rt.children(rt.find("main"));
         check(kids.size() == 2);
         if (kids.size() != 2) return;
@@ -1085,7 +1093,7 @@ int main(int argc, char** argv) {
     s.test("pixels are the same on every platform", [] {
         // Its own fonts: font references are numbered in the order they are
         // first used, and the list hash includes them.
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         RuntimeOptions o = options({240, 120});
         o.fonts = &own;
@@ -1108,8 +1116,8 @@ int main(int argc, char** argv) {
             h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         const std::uint64_t list_hash = 0xe0666bd669386d14ULL;
         std::println("view pixels {:016x} list {:016x}", h.value(), rt.display_list().hash());
-        imageio::View v{reinterpret_cast<const std::uint8_t*>(px.pixels().data()), px.width(), px.height(), px.width() * 4};
-        check(imageio::save_png(scratch_dir("view") / "scene@2x.png", v).has_value());
+        mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.pixels().data()), px.width(), px.height(), px.width() * 4};
+        check(mlibs::image::save_png(scratch_dir("view") / "scene@2x.png", v).has_value());
         check(rt.display_list().balanced());
         // Pinned: GCC and LLVM, Linux, macOS and Windows render this scene to the same bytes.
         check(h.value() == 0x2356c65d358f85d3ULL, std::format("pixels {:016x}", h.value()));
@@ -1270,7 +1278,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("glyph motion takes the text's decorations along: an underline under the glyphs moves and fades with them, a background taller than a line and a fill beside them stay", [] {
-        static const render::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
+        static const xrender::Glyph word[] = {{.id = 1, .position = {0, 0}}, {.id = 2, .position = {9, 0}}, {.id = 3, .position = {18, 0}}};
         GlyphMotion m;
         m.domain = GlyphDomain::glyph;
         m.from = {.y = 10, .opacity = 0};
@@ -1279,16 +1287,16 @@ int main(int argc, char** argv) {
         Runtime rt(options({200, 80}));
         rt.mount("main", column({}, {animate_glyphs(painter({.id = "p", .width = 200, .height = 60, .paint = [](PaintContext& c) {
                                                        c.list.fill_rect({0, 0, 200, 60}, Color::hex(0x202020));     // the whole box: no decoration
-                                                       c.list.draw_glyphs({}, 16, {10, 30}, word, render::Paint::solid(Color::hex(0xffffff)));
+                                                       c.list.draw_glyphs({}, 16, {10, 30}, word, xrender::Paint::solid(Color::hex(0xffffff)));
                                                        c.list.fill_rect({10, 32, 27, 1}, Color::hex(0xffffff));      // the underline
                                                        c.list.fill_rect({120, 20, 20, 12}, Color::hex(0xff0000));    // beside the text
                                                    }}),
                                                    m)}));
         rt.frame({seconds(0), {}});
         rt.frame({seconds(0.5), {}});
-        std::vector<render::FillRect> fills;
+        std::vector<xrender::FillRect> fills;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* f = std::get_if<render::FillRect>(&c)) fills.push_back(*f);
+            if (const auto* f = std::get_if<xrender::FillRect>(&c)) fills.push_back(*f);
         check(fills.size() == 3);
         if (fills.size() != 3) return;
         check(fills[0].rect == Rect{0, 0, 200, 60} && fills[0].paint.color.a == 1, "the box stays");
@@ -1298,7 +1306,7 @@ int main(int argc, char** argv) {
         check(fills[2].rect == Rect{120, 20, 20, 12} && fills[2].paint.color.a == 1, "the fill beside the text stays");
         rt.frame({seconds(2), {}});
         for (const auto& c : rt.display_list().commands())
-            if (const auto* f = std::get_if<render::FillRect>(&c); f && f->rect.height == 1) check(f->rect.y == 32 && f->paint.color.a == 1, "at rest, where it was drawn");
+            if (const auto* f = std::get_if<xrender::FillRect>(&c); f && f->rect.height == 1) check(f->rect.y == 32 && f->paint.color.a == 1, "at rest, where it was drawn");
     });
 
     s.test("glyph motion on a container: its descendants' text, each a paragraph; one with its own motion keeps it", [] {
@@ -1400,9 +1408,9 @@ int main(int argc, char** argv) {
     });
 
     s.test("glyph motion: domains, ranges, orders, randomness, round trips", [] {
-        std::vector<render::Glyph> g;
+        std::vector<xrender::Glyph> g;
         for (std::uint32_t i = 0; i < 6; ++i) g.push_back({1, {static_cast<float>(i) * 10, 0}, i, i, i / 3, 0});
-        const std::array<std::span<const render::Glyph>, 1> one{std::span<const render::Glyph>(g)};
+        const std::array<std::span<const xrender::Glyph>, 1> one{std::span<const xrender::Glyph>(g)};
         GlyphMotion m;
         m.domain = GlyphDomain::word;
         m.from = {.y = 10};
@@ -1601,7 +1609,7 @@ int main(int argc, char** argv) {
         xrender::text::GlyphCache glyphs(fonts());
         auto hash = [&] {
             Hash h;
-            const raster::Surface px = draw(rt, glyphs);
+            const xrender::raster::Surface px = draw(rt, glyphs);
             for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
             return h.hex();
         };

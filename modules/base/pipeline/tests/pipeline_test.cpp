@@ -3,12 +3,12 @@
 // trace every stage, and take a replaced, added or removed stage between
 // runs — or keep what they had.
 import std;
-import openmui.pipeline;
-import openmui.trace;
-import openmui.testing;
+import mlibs.pipeline;
+import mlibs.trace;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace pl = omui::pipeline;
+using namespace mlibs::testing;
+namespace pl = mlibs::pipeline;
 
 namespace {
 
@@ -22,11 +22,11 @@ struct Text {
 }  // namespace
 
 template <>
-struct omui::pipeline::resource_type<Numbers> {
+struct mlibs::pipeline::resource_type<Numbers> {
     static constexpr std::string_view name = "test.Numbers";
 };
 template <>
-struct omui::pipeline::resource_type<Text> {
+struct mlibs::pipeline::resource_type<Text> {
     static constexpr std::string_view name = "test.Text";
 };
 
@@ -205,9 +205,9 @@ int main(int argc, char** argv) {
         Text seed;
         pl::Resources res;
         res.put("seed", &seed);
-        omui::trace::start();
+        mlibs::trace::start();
         check(p->run(res).has_value());
-        const auto t = omui::trace::stop();
+        const auto t = mlibs::trace::stop();
         const auto stats = t.summary();
         check(std::ranges::any_of(stats, [](const auto& st) { return st.name == "count" && st.category == "test"; }));
         check(std::ranges::any_of(stats, [](const auto& st) { return st.name == "double" && st.category == "test"; }));

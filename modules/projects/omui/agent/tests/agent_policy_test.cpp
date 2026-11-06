@@ -1,9 +1,9 @@
 import std;
 import openmui.agent;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::vector<Value> talk(agent::Protocol& protocol, std::string_view request) {

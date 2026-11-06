@@ -45,8 +45,3 @@ The tests (`tests/rhi_test.cpp`) run against a device that only remembers what i
 - [webgpu](../../projects/xrender/rhi/webgpu) (`xrender.rhi.webgpu`): `mlibs.rhi` on the page's WebGPU — the Web's main path, WGSL shaders.
 - [webgl](../../projects/xrender/rhi/webgl) (`xrender.rhi.webgl`): `mlibs.rhi` on the page's WebGL2 — the Web's compatibility path, ESSL shaders, no compute.
 - [cts](cts) (`mlibs.rhi.cts`): the backend conformance suite, shaders and cases with exact expected pixels.
-
-Canonical ownership: package/module `mlibs.rhi`, C++ `mlibs::rhi`.
-The original package keeps `import openmui.rhi;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `mlibs.rhi`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

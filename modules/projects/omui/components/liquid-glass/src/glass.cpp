@@ -3,7 +3,7 @@ module openmui.ui.liquid_glass;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 
 namespace omui {
 
@@ -21,7 +21,7 @@ std::vector<float> material(const Props& p, double smoothness, const Theme& them
             static_cast<float>(p.rim)};
 }
 
-std::optional<render::EffectRef> glass_effect() { return render::effects().find("liquid_glass"); }
+std::optional<xrender::EffectRef> glass_effect() { return xrender::effects().find("liquid_glass"); }
 
 CornerRadii fitted(double radius, Size size) {
     return CornerRadii::all(std::max(0.0f, std::min(static_cast<float>(radius), std::min(size.width, size.height) / 2)));
@@ -31,16 +31,16 @@ CornerRadii fitted(double radius, Size size) {
 void panel(PaintContext& ctx, double radius) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = fitted(radius, ctx.size);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(ctx.theme.color("surface", Color::white())));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, render::Paint::solid(ctx.theme.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(ctx.theme.color("surface", Color::white())));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, xrender::Paint::solid(ctx.theme.color("border")));
 }
 
 }  // namespace
 
 // ── liquid_glass ─────────────────────────────────────────────────────────
 
-void LiquidGlass::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void LiquidGlass::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     s.padding = Insets::all(static_cast<float>(props.padding));
 }
 
@@ -70,9 +70,9 @@ void LiquidGlass::paint(PaintContext& ctx) const {
     const auto ref = glass_effect();
     if (!ref) return;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
-    const std::array<render::EffectShape, 1> shape{{{box, fitted(props.radius, ctx.size)}}};
+    const std::array<xrender::EffectShape, 1> shape{{{box, fitted(props.radius, ctx.size)}}};
     const std::vector<float> params = material(props, 0, ctx.theme);
-    ctx.list.push_layer(1, render::BlendMode::normal, *ref, params, box, shape);
+    ctx.list.push_layer(1, xrender::BlendMode::normal, *ref, params, box, shape);
 }
 
 void LiquidGlass::paint_over(PaintContext& ctx) const {
@@ -85,8 +85,8 @@ void LiquidGlass::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 
 // ── glass_group ──────────────────────────────────────────────────────────
 
-void GlassGroup::style(const Theme&, layout::Style& s) const {
-    s.direction = props.direction == GlassGroupDirection::column ? layout::Direction::column : layout::Direction::row;
+void GlassGroup::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = props.direction == GlassGroupDirection::column ? mlibs::layout::Direction::column : mlibs::layout::Direction::row;
     s.row_gap = s.column_gap = static_cast<float>(props.gap);
 }
 
@@ -96,8 +96,8 @@ void GlassGroup::prop_changed(GlassGroupProp p) {
     services().invalidate_paint(node());
 }
 
-std::vector<render::EffectShape> GlassGroup::shapes() const {
-    std::vector<render::EffectShape> out;
+std::vector<xrender::EffectShape> GlassGroup::shapes() const {
+    std::vector<xrender::EffectShape> out;
     if (!attached()) return out;
     const Rect me = services().bounds(node());
     for (const NodeId c : services().children(node())) {
@@ -118,7 +118,7 @@ void GlassGroup::paint(PaintContext& ctx) const {
     if (!ref || members.empty()) return;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const std::vector<float> params = material(props, props.smoothness, ctx.theme);
-    ctx.list.push_layer(1, render::BlendMode::normal, *ref, params, box, members);
+    ctx.list.push_layer(1, xrender::BlendMode::normal, *ref, params, box, members);
 }
 
 void GlassGroup::paint_over(PaintContext& ctx) const {

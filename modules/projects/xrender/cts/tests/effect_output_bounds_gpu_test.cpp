@@ -2,18 +2,18 @@
 // change its source. Check the latter against actual CPU/GPU pixels.
 import std;
 import mcpplibs.os;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
-namespace rhi = omui::rhi;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
 
 namespace {
 constexpr int W = 192, H = 144;

@@ -4,59 +4,63 @@
 // kept) and recorded, each pass in a trace span — against a device that only
 // remembers what it made. Desktop device pixels are checked in render/cts.
 import std;
-import openmui.render;
-import openmui.rhi;
-import openmui.memory;
-import openmui.trace;
-import openmui.testing;
+import xrender.graph;
+import mlibs.rhi;
+import mlibs.memory;
+import mlibs.trace;
+import mlibs.testing;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::SlotMap;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
 // Remembers the textures it made; runs nothing.
-class Textures final : public rhi::Device {
+class Textures final : public mlibs::rhi::Device {
 public:
-    rhi::Caps caps_{.backend = rhi::Backend::vulkan, .device = "textures", .formats = rhi::formats({rhi::ShaderFormat::spirv})};
+    mlibs::rhi::Caps caps_{.backend = mlibs::rhi::Backend::vulkan, .device = "textures", .formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv})};
     std::size_t destroyed = 0;
 
-    const rhi::Caps& caps() const noexcept override { return caps_; }
-    void destroy(rhi::Buffer) noexcept override {}
-    void destroy(rhi::Texture t) noexcept override {
+    const mlibs::rhi::Caps& caps() const noexcept override { return caps_; }
+    void destroy(mlibs::rhi::Buffer) noexcept override {}
+    void destroy(mlibs::rhi::Texture t) noexcept override {
         if (textures_.get(t)) ++destroyed;
         textures_.erase(t);
     }
-    void destroy(rhi::Sampler) noexcept override {}
-    void destroy(rhi::GraphicsPipeline) noexcept override {}
-    void destroy(rhi::ComputePipeline) noexcept override {}
-    std::optional<rhi::BufferDesc> describe(rhi::Buffer) const noexcept override { return std::nullopt; }
-    std::optional<rhi::TextureDesc> describe(rhi::Texture t) const noexcept override {
+    void destroy(mlibs::rhi::Sampler) noexcept override {}
+    void destroy(mlibs::rhi::GraphicsPipeline) noexcept override {}
+    void destroy(mlibs::rhi::ComputePipeline) noexcept override {}
+    std::optional<mlibs::rhi::BufferDesc> describe(mlibs::rhi::Buffer) const noexcept override { return std::nullopt; }
+    std::optional<mlibs::rhi::TextureDesc> describe(mlibs::rhi::Texture t) const noexcept override {
         auto* d = textures_.get(t);
         return d ? std::optional(*d) : std::nullopt;
     }
-    bool exists(rhi::Sampler) const noexcept override { return false; }
-    std::optional<rhi::GraphicsPipelineInfo> describe(rhi::GraphicsPipeline) const noexcept override { return std::nullopt; }
-    std::optional<rhi::ComputePipelineInfo> describe(rhi::ComputePipeline) const noexcept override { return std::nullopt; }
-    rhi::Result<void> wait(rhi::Submission) override { return {}; }
-    rhi::Result<void> wait_idle() override { return {}; }
+    bool exists(mlibs::rhi::Sampler) const noexcept override { return false; }
+    std::optional<mlibs::rhi::GraphicsPipelineInfo> describe(mlibs::rhi::GraphicsPipeline) const noexcept override { return std::nullopt; }
+    std::optional<mlibs::rhi::ComputePipelineInfo> describe(mlibs::rhi::ComputePipeline) const noexcept override { return std::nullopt; }
+    mlibs::rhi::Result<void> wait(mlibs::rhi::Submission) override { return {}; }
+    mlibs::rhi::Result<void> wait_idle() override { return {}; }
     [[nodiscard]] std::size_t live() const noexcept { return textures_.size(); }
 
 protected:
-    rhi::Result<rhi::Buffer> make(const rhi::BufferDesc&) override { return rhi::fail(rhi::Errc::unsupported, "textures only"); }
-    rhi::Result<rhi::Texture> make(const rhi::TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}}); }
-    rhi::Result<rhi::Sampler> make(const rhi::SamplerDesc&) override { return rhi::fail(rhi::Errc::unsupported, "textures only"); }
-    rhi::Result<rhi::GraphicsPipeline> make(const rhi::GraphicsPipelineDesc&) override { return rhi::fail(rhi::Errc::unsupported, "textures only"); }
-    rhi::Result<rhi::ComputePipeline> make(const rhi::ComputePipelineDesc&) override { return rhi::fail(rhi::Errc::unsupported, "textures only"); }
-    rhi::Result<rhi::Submission> run(const rhi::CommandList&) override { return rhi::Submission{1}; }
-    rhi::Result<void> fetch(rhi::Texture, rhi::Region, std::span<std::byte>) override { return {}; }
-    rhi::Result<void> fetch(rhi::Buffer, std::uint32_t, std::span<std::byte>) override { return {}; }
+    mlibs::rhi::Result<mlibs::rhi::Buffer> make(const mlibs::rhi::BufferDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
+    mlibs::rhi::Result<mlibs::rhi::Texture> make(const mlibs::rhi::TextureDesc& d) override { return textures_.insert({d.format, d.width, d.height, d.usage, {}}); }
+    mlibs::rhi::Result<mlibs::rhi::Sampler> make(const mlibs::rhi::SamplerDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
+    mlibs::rhi::Result<mlibs::rhi::GraphicsPipeline> make(const mlibs::rhi::GraphicsPipelineDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
+    mlibs::rhi::Result<mlibs::rhi::ComputePipeline> make(const mlibs::rhi::ComputePipelineDesc&) override { return mlibs::rhi::fail(mlibs::rhi::Errc::unsupported, "textures only"); }
+    mlibs::rhi::Result<mlibs::rhi::Submission> run(const mlibs::rhi::CommandList&) override { return mlibs::rhi::Submission{1}; }
+    mlibs::rhi::Result<void> fetch(mlibs::rhi::Texture, mlibs::rhi::Region, std::span<std::byte>) override { return {}; }
+    mlibs::rhi::Result<void> fetch(mlibs::rhi::Buffer, std::uint32_t, std::span<std::byte>) override { return {}; }
 
 private:
-    SlotMap<rhi::TextureDesc, rhi::TextureTag> textures_;
+    SlotMap<mlibs::rhi::TextureDesc, mlibs::rhi::TextureTag> textures_;
 };
 
-constexpr auto target_usage = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled;
+constexpr auto target_usage = mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled;
 
 
 }  // namespace
@@ -67,7 +71,7 @@ int main(int argc, char** argv) {
     s.test("the pool hands a texture out again in later frames, and lets go of one nobody asks for", [] {
         Textures device;
         xrender::TexturePool pool(device, 2);
-        const xrender::TextureNeed layer{64, 32, rhi::Format::rgba8_unorm, target_usage};
+        const xrender::TextureNeed layer{64, 32, mlibs::rhi::Format::rgba8_unorm, target_usage};
         pool.begin_frame();
         auto a = pool.acquire(layer, "a");
         auto b = pool.acquire(layer, "b");
@@ -80,7 +84,7 @@ int main(int argc, char** argv) {
         pool.restart_frame();
         auto restarted = pool.acquire(layer, "a");
         check(restarted && pool.made() == 2, "a frame started over makes nothing new");
-        auto other = pool.acquire({64, 32, rhi::Format::r8_unorm, rhi::TextureUsage::sampled}, "mask");
+        auto other = pool.acquire({64, 32, mlibs::rhi::Format::r8_unorm, mlibs::rhi::TextureUsage::sampled}, "mask");
         check(other && pool.made() == 3, "another format is another texture");
         // Frames without asking: after `keep` of them they go.
         for (int i = 0; i < 4; ++i) pool.begin_frame();
@@ -93,8 +97,8 @@ int main(int argc, char** argv) {
         Textures device;
         xrender::TexturePool pool(device);
         xrender::Graph g(pool);
-        auto target = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 16, 16, target_usage, "target"});
-        auto layer = g.transient({16, 16, rhi::Format::rgba8_unorm, target_usage}, "the layer");
+        auto target = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, 16, 16, target_usage, "target"});
+        auto layer = g.transient({16, 16, mlibs::rhi::Format::rgba8_unorm, target_usage}, "the layer");
         check(target && layer && g.transient(*layer) && !g.transient(*target));
         g.pass({.name = "ui.composite", .label = "node 7", .reads = {*layer}, .writes = {*target}}, {});
         g.pass({.name = "ui.layer", .writes = {*layer}}, {});
@@ -115,14 +119,14 @@ int main(int argc, char** argv) {
         Textures device;
         xrender::TexturePool pool(device);
         xrender::Graph g(pool);
-        auto target = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 32, 32, target_usage, "target"});
-        auto atlas = device.create(rhi::TextureDesc{rhi::Format::r8_unorm, 32, 32, target_usage, "atlas"});
-        const xrender::TextureNeed need{32, 32, rhi::Format::rgba8_unorm, target_usage};
+        auto target = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, 32, 32, target_usage, "target"});
+        auto atlas = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::r8_unorm, 32, 32, target_usage, "atlas"});
+        const xrender::TextureNeed need{32, 32, mlibs::rhi::Format::rgba8_unorm, target_usage};
         auto used = g.transient(need, "used layer");
         auto unused = g.transient(need, "a layer nobody composites");
         auto only = g.transient(need, "read only by the unused");
         std::vector<std::string> ran;
-        auto log = [&](std::string name) { return [&ran, name](rhi::CommandList&) { ran.push_back(name); }; };
+        auto log = [&](std::string name) { return [&ran, name](mlibs::rhi::CommandList&) { ran.push_back(name); }; };
         g.pass({.name = "clear", .writes = {*target}}, log("clear"));
         g.pass({.name = "only", .writes = {*only}}, log("only"));
         g.pass({.name = "unused", .reads = {*only}, .writes = {*unused}}, log("unused"));
@@ -135,7 +139,7 @@ int main(int argc, char** argv) {
             check(plan->run == std::vector<std::size_t>{0, 3, 4, 5}, std::format("ran {}", plan->run));
             check(plan->culled == std::vector<std::size_t>{1, 2}, std::format("culled {}", plan->culled));
         }
-        rhi::CommandList list;
+        mlibs::rhi::CommandList list;
         auto report = g.record(list, std::span(&*target, 1));
         check(report && report->recorded == 4 && report->culled == 2 && report->transients == 3);
         check(ran == std::vector<std::string>{"clear", "used", "atlas", "composite"}, std::format("{}", ran));
@@ -147,18 +151,18 @@ int main(int argc, char** argv) {
         Textures device;
         xrender::TexturePool pool(device);
         xrender::Graph g(pool);
-        auto target = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 8, 8, target_usage, "target"});
-        auto layer = g.transient({8, 8, rhi::Format::rgba8_unorm, target_usage}, "layer");
-        g.pass({.name = "test.layer", .writes = {*layer}}, [](rhi::CommandList&) {});
-        g.pass({.name = "test.composite", .reads = {*layer}, .writes = {*target}}, [](rhi::CommandList&) {});
-        g.pass({.name = "test.culled", .writes = {*g.transient({8, 8, rhi::Format::rgba8_unorm, target_usage}, "x")}}, {});
-        trace::start();
-        rhi::CommandList list;
+        auto target = device.create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, 8, 8, target_usage, "target"});
+        auto layer = g.transient({8, 8, mlibs::rhi::Format::rgba8_unorm, target_usage}, "layer");
+        g.pass({.name = "test.layer", .writes = {*layer}}, [](mlibs::rhi::CommandList&) {});
+        g.pass({.name = "test.composite", .reads = {*layer}, .writes = {*target}}, [](mlibs::rhi::CommandList&) {});
+        g.pass({.name = "test.culled", .writes = {*g.transient({8, 8, mlibs::rhi::Format::rgba8_unorm, target_usage}, "x")}}, {});
+        mlibs::trace::start();
+        mlibs::rhi::CommandList list;
         check(g.record(list, std::span(&*target, 1)).has_value());
-        const auto t = trace::stop();
+        const auto t = mlibs::trace::stop();
         std::vector<std::string> spans;
         for (const auto& e : t.events)
-            if (e.kind == trace::Kind::begin && std::string_view(e.category) == "render") spans.emplace_back(e.name);
+            if (e.kind == mlibs::trace::Kind::begin && std::string_view(e.category) == "render") spans.emplace_back(e.name);
         check(spans == std::vector<std::string>{"test.layer", "test.composite"}, std::format("{}", spans));
     });
 

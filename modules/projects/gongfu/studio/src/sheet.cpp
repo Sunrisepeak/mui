@@ -3,18 +3,18 @@ module gongfu.studio;
 import std;
 import gongfu;
 import gongfu.present2d;
-import openmui.geom;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.image;
+import mlibs.geom;
+import xrender.vector;
+import xrender.raster;
+import mlibs.image;
 
 namespace gongfu::studio {
 
 namespace {
 
 namespace p2 = gongfu::present2d;
-namespace render = omui::render;
-using omui::geom::Color;
+namespace render = xrender;
+using mlibs::geom::Color;
 
 }  // namespace
 
@@ -57,7 +57,7 @@ std::expected<Sheet, std::string> sheet(const Fighter& fighter, const p2::Look& 
         out.cells.push_back(c.frame ? std::format("{}@{}", c.clip, *c.frame) : c.clip);
         const float ox = cell * static_cast<float>(k % columns), oy = cell * static_cast<float>(k / columns);
         dl.push_clip({ox, oy, cell, cell});
-        dl.push_transform(omui::geom::Affine::translate(ox, oy));
+        dl.push_transform(mlibs::geom::Affine::translate(ox, oy));
         dl.fill_rect({4, cell - ground, cell - 8, 1}, Color::hex(0xb7aa90));
         const std::int32_t move = f.find(c.clip);
         const MoveDef& m = f.def.moves[static_cast<std::size_t>(move)];
@@ -98,11 +98,11 @@ std::expected<Sheet, std::string> sheet(const Fighter& fighter, const p2::Look& 
         dl.pop_clip();
         ++k;
     }
-    omui::raster::Surface px(out.width, out.height);
-    omui::render::CpuRenderer{}.render(dl, px, {o.images, nullptr}, {.scale = 1});
-    const omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4,
-                                omui::imageio::Alpha::premultiplied};
-    auto png = omui::imageio::encode_png(v);
+    xrender::raster::Surface px(out.width, out.height);
+    xrender::CpuRenderer{}.render(dl, px, {o.images, nullptr}, {.scale = 1});
+    const mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4,
+                                mlibs::image::Alpha::premultiplied};
+    auto png = mlibs::image::encode_png(v);
     if (!png) return std::unexpected(std::string("the sheet did not encode as PNG"));
     out.png = std::move(*png);
     return out;

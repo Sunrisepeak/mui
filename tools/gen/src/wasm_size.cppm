@@ -2,7 +2,7 @@
 // Web's delivery: what a page downloads before its first frame, and what
 // splitting the heavy pages would save, Q-38). Its sections; its code by
 // function, each function's body attributed to an owner — the C++ module
-// it is attached to (openmui.view), a namespace (std, omui::render), a C
+// it is attached to (openmui.view), a namespace (std, xrender), a C
 // library by its prefix (hb_ HarfBuzz, FT_ FreeType, md_ md4c) — from the
 // name section an analysis build keeps (emscripten's --profiling-funcs: the
 // same code, its functions' names kept). Without one, the sections only.
@@ -32,7 +32,7 @@ struct WasmSizeReport {
 [[nodiscard]] std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
 
 // A symbol's owner: the module it is attached to ("openmui.view"), else
-// its outer namespaces (up to `depth`: "omui::render", "std"), else a C
+// its outer namespaces (up to `depth`: "xrender", "std"), else a C
 // library by its prefix ("harfbuzz", "freetype", "md4c", "libc"…).
 [[nodiscard]] std::string owner_of(std::string_view symbol, int depth = 2);
 

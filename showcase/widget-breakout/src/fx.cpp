@@ -1,7 +1,7 @@
 module openmui.showcase.widget_breakout;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import openmui;
 import openmui.showcase.widget_breakout.sim;
 
@@ -10,7 +10,7 @@ namespace omui::breakout {
 namespace {
 
 std::uint64_t mix(std::uint64_t z) noexcept {  // splitmix64's finaliser: a seed's stream
-    return omui::math::mix64(z);
+    return mlibs::math::mix64(z);
 }
 float unit(std::uint64_t& s) noexcept {  // [0, 1)
     s = mix(s);

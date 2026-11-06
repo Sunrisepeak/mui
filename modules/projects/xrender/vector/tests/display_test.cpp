@@ -1,13 +1,13 @@
 import std;
-import openmui.render.vector;
-import openmui.geom;
-import openmui.memory;
+import xrender.vector;
+import mlibs.geom;
+import mlibs.memory;
 import hanim.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace geom = mlibs::geom;
 
 int main(int argc, char** argv) {
     Suite s{"render.display"};

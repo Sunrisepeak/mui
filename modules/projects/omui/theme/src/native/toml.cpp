@@ -6,7 +6,7 @@ import std;
 import tomlplusplus;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import hanim.core;
 
 namespace omui::theme {
@@ -370,19 +370,19 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                         r.error(&rule, std::format("the effect for `{}` names no `effect`", selector), "{ effect = \"neon\", … }");
                         continue;
                     }
-                    const auto ref = render::effects().find(*name);
+                    const auto ref = xrender::effects().find(*name);
                     if (!ref) {
                         std::vector<std::string_view> names;
-                        for (std::string_view n : render::effects().names()) names.push_back(n);
+                        for (std::string_view n : xrender::effects().names()) names.push_back(n);
                         std::string_view best;
                         std::size_t d = std::max<std::size_t>(1, name->size() / 3) + 1;
                         for (std::string_view n : names)
                             if (const std::size_t x = distance(*name, n); x < d) d = x, best = n;
                         r.error(rt->get("effect"), std::format("no effect is named `{}`", *name),
-                                best.empty() ? std::string("render::effects().names() lists them") : std::format("did you mean `{}`?", best));
+                                best.empty() ? std::string("xrender::effects().names() lists them") : std::format("did you mean `{}`?", best));
                         continue;
                     }
-                    const render::EffectInfo* info = render::effects().info(*ref);
+                    const xrender::EffectInfo* info = xrender::effects().info(*ref);
                     Value effect = Value{}.set("name", Value(*name));
                     for (auto&& [pk, pv] : *rt) {
                         const std::string_view param = pk.str();
@@ -401,7 +401,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                             else for (auto&& [key, endpoints] : *channels) {
                                 const auto name = key.str();
                                 const auto* pair = endpoints.as_array();
-                                const auto entry = std::ranges::find(info->params, name, &render::EffectParam::name);
+                                const auto entry = std::ranges::find(info->params, name, &xrender::EffectParam::name);
                                 if (!pair || pair->size() != 2 || entry == info->params.end()) {
                                     r.error(&endpoints, "animation needs a known effect parameter and two numeric endpoints"); continue;
                                 }
@@ -424,7 +424,7 @@ std::expected<std::vector<Style>, Diagnostics> read_styles(std::string_view sour
                         const bool control = std::ranges::find(effect_control_keys, param) != effect_control_keys.end();
                         // A colour by the theme's name (`color = "accent"`): its channels, `color_r` `color_g` `color_b`, follow the pack's colours.
                         const auto has = [&](std::string_view n) {
-                            return std::ranges::any_of(info->params, [&](const render::EffectParam& ep) { return ep.name == n; });
+                            return std::ranges::any_of(info->params, [&](const xrender::EffectParam& ep) { return ep.name == n; });
                         };
                         if (has(std::format("{}_r", param)) && has(std::format("{}_g", param)) && has(std::format("{}_b", param))) {
                             if (auto c = pv.value<std::string>()) effect.set(param, Value(*c));

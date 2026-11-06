@@ -41,12 +41,3 @@ The runtime's frame is a pipeline of `openmui.view.*` stages
 changes a running application's.
 
 An independent component (D-55): the standard library and mlibs.trace.
-
-The canonical module and C++ namespace are `mlibs.pipeline` and `mlibs::pipeline`.
-The same package retains `import openmui.pipeline;` and the namespace alias
-`omui::pipeline` for source compatibility after rebuilding; there is one
-implementation. Select the package as `mcpp test -p mlibs.pipeline`.
-Custom resources can still specialize `omui::pipeline::resource_type<T>`
-using a qualified definition. A namespace alias cannot be reopened: write
-`namespace mlibs::pipeline { ... }` when defining specializations in a block.
-Existing plugin IDs, resource type names and data-file suffixes are unchanged.

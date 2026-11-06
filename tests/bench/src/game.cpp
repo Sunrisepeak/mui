@@ -1,7 +1,7 @@
 module openmui.bench;
 
 import std;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
@@ -160,7 +160,7 @@ void add_game_benchmarks() {
         p2::Effects effects;
         const p2::Scene scene;
         const auto& looks = fighting::roster().looks;
-        render::DisplayList dl;
+        xrender::DisplayList dl;
         dl.reserve(512);  // as a game's frame list does: its frames vary in size
         p2::Painter painter;
         // Warm: the painter's paths and the list's arena reach the size of a busy frame.

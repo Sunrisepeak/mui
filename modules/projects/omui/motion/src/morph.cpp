@@ -4,16 +4,16 @@ module openmui.motion;
 import std;
 import hanim.core;
 import hanim.object;
-import openmui.math;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.math;
+import mlibs.geom;
+import xrender.vector;
 
 namespace omui::motion {
 
 namespace {
 
-using namespace render;
-namespace det = ::omui::math::det;
+using namespace xrender;
+namespace det = ::mlibs::math::det;
 
 double clamp01(double u) noexcept { return u < 0 ? 0 : (u > 1 ? 1 : u); }
 float mixf(float a, float b, double u) noexcept { return static_cast<float>(a + (b - a) * u); }
@@ -494,18 +494,18 @@ std::optional<Rect> effect_ink_bounds(const DisplayList& list, std::size_t first
                                      const GlyphBounds& glyph_bounds, float scale, unsigned depth) {
     if (depth >= 8) return std::nullopt;
     const auto& layer = std::get<PushLayer>(list.commands()[first]);
-    const auto* info = render::effects().info(layer.effect);
+    const auto* info = xrender::effects().info(layer.effect);
     if (!info) return std::nullopt;
     std::array<float, 64> params;
     const std::size_t count = std::max(layer.params.size(), info->params.size());
     if (count > params.size()) return std::nullopt;
     for (std::size_t i = 0; i < count; ++i) params[i] = i < layer.params.size() ? layer.params[i] : info->params[i].value;
-    const auto reach = render::effects().output_reach(layer.effect, std::span(params.data(), count));
+    const auto reach = xrender::effects().output_reach(layer.effect, std::span(params.data(), count));
     if (!reach || !std::isfinite(*reach) || *reach < 0) return std::nullopt;
     auto source = nested_ink_bounds(list, {first + 1, last, transform}, glyph_bounds, scale, depth + 1);
     if (!source) return std::nullopt;
     Rect generated = transform.map(layer.bounds);
-    if(layer.bounds_mode==render::LayerBoundsMode::content)generated=generated.united(*source);
+    if(layer.bounds_mode==xrender::LayerBoundsMode::content)generated=generated.united(*source);
     for (const auto& shape : layer.shapes) generated = generated.united(transform.map(shape.rect));
     const float margin = std::ceil(*reach * scale) + 1; // renderer's device reach and AA convention
     generated = {std::floor(generated.x - margin), std::floor(generated.y - margin),
@@ -540,7 +540,7 @@ std::optional<Rect> nested_ink_bounds(const DisplayList& list, const NestedRange
             if (!glyph_bounds) return std::nullopt;
             bounds = glyph_bounds(*run, transforms[depth]);
             if (!bounds) return std::nullopt;
-        } else bounds = render::device_bounds(command, transforms[depth]);
+        } else bounds = xrender::device_bounds(command, transforms[depth]);
         if (bounds && !bounds->empty()) { result = any ? result.united(*bounds) : *bounds; any = true; }
         else if (!bounds && class_of(command)) return std::nullopt;
     }
@@ -633,7 +633,7 @@ std::optional<Color> uniform_underpaint(const DisplayList& list, std::size_t gly
             if (!glyph_bounds) { if (i > glyph) return std::nullopt; background.reset(); continue; }
             bounds = glyph_bounds(*run, transforms[depth]);
             if (!bounds) { if (i > glyph) return std::nullopt; background.reset(); continue; }
-        } else bounds = render::device_bounds(command, transforms[depth]);
+        } else bounds = xrender::device_bounds(command, transforms[depth]);
         if (!bounds || bounds->empty() || !bounds->intersects(text)) continue;
         if (const auto* stroke = std::get_if<StrokeRoundRect>(&command); stroke && stroke_misses(*stroke, transforms[depth], text)) continue;
         if (i > glyph) return std::nullopt; // this draw actually paints over the selected text
@@ -709,10 +709,10 @@ bool unchanged_text(const DrawGlyphs& a, const DrawGlyphs& b) {
         std::ranges::equal(a.glyphs, b.glyphs, [](const Glyph& x, const Glyph& y) { return x.id == y.id && x.line == y.line; });
 }
 double luminance(const Color& color) {
-    return ::omui::math::color::relative_luminance(color.r, color.g, color.b);
+    return ::mlibs::math::color::relative_luminance(color.r, color.g, color.b);
 }
 double contrast(const Color& ink, const Color& background) {
-    return ::omui::math::color::contrast_ratio(luminance(ink), luminance(background));
+    return ::mlibs::math::color::contrast_ratio(luminance(ink), luminance(background));
 }
 // Endpoint qualification does not assume the missing backdrop is white.
 // A translucent solid over any opaque RGB backdrop occupies this monotone
@@ -723,7 +723,7 @@ double worst_carrier_contrast(const Color& ink, const Color& carrier) {
     const double high = luminance({carrier.r * a + 1 - a, carrier.g * a + 1 - a, carrier.b * a + 1 - a, 1});
     const double value = luminance(ink);
     if (value >= low && value <= high) return 1;
-    return std::min(::omui::math::color::contrast_ratio(value, low), ::omui::math::color::contrast_ratio(value, high));
+    return std::min(::mlibs::math::color::contrast_ratio(value, low), ::mlibs::math::color::contrast_ratio(value, high));
 }
 // Resolve ink polarity when foreground and carrier swap light/dark. Merely
 // easing both endpoint colours together makes them equal halfway through.
@@ -784,7 +784,7 @@ double fade_in(double u, double from) noexcept { return clamp01(from >= 1 ? (u >
 
 }  // namespace
 
-std::optional<Rect> glyph_ink_bounds(const render::DrawGlyphs& run, const Affine& transform, render::GlyphSource& source) {
+std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source) {
     if (run.glyphs.empty() || run.paint.color.a <= 0) return Rect{};
     if (!std::isfinite(run.size) || run.size <= 0 || (!run.styles.empty() && run.styles.size() != run.glyphs.size()) ||
         !std::isfinite(transform.a) || !std::isfinite(transform.b) || !std::isfinite(transform.c) || !std::isfinite(transform.d) ||
@@ -806,7 +806,7 @@ std::optional<Rect> glyph_ink_bounds(const render::DrawGlyphs& run, const Affine
             if (!std::isfinite(placed.x) || !std::isfinite(placed.y)) return std::nullopt;
             const float x = std::floor(placed.x), y = std::floor(placed.y);
             const auto mask = source.mask(run.font, glyph.id, run.size * transform.a, {placed.x - x, placed.y - y});
-            geom::PixelRect box;
+            mlibs::geom::PixelRect box;
             if (mask.color) box = mask.color_bounds;
             else if (mask.coverage) box = mask.coverage->bounds;
             else return std::nullopt;
@@ -1187,9 +1187,9 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
         if (carrier) {
             frame.delay = carrier->delay;
             if (frame.a >= 0 && carrier->a >= 0 && B[static_cast<std::size_t>(carrier->b)].cls == PieceClass::fill) {
-                auto rect = [](const render::Command& command) -> std::optional<Rect> {
-                    if (const auto* fill = std::get_if<render::FillRect>(&command)) return fill->rect;
-                    if (const auto* fill = std::get_if<render::FillRoundRect>(&command)) return fill->rect;
+                auto rect = [](const xrender::Command& command) -> std::optional<Rect> {
+                    if (const auto* fill = std::get_if<xrender::FillRect>(&command)) return fill->rect;
+                    if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) return fill->rect;
                     return std::nullopt;
                 };
                 const auto a = rect(from_.list().commands()[A[static_cast<std::size_t>(carrier->a)].command]);
@@ -1265,7 +1265,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, const Pus
         p = mixf(p, tr.peak, on);
     }
     // What the effect draws beyond the shapes (a waver, a drop's bridge): its own reach at these numbers.
-    const float reach = render::effects().reach(tr.effect, params) + 2;
+    const float reach = xrender::effects().reach(tr.effect, params) + 2;
     out.push_layer(1, BlendMode::normal, tr.effect, params, {all.x - reach, all.y - reach, all.width + 2 * reach, all.height + 2 * reach},
                    std::span(shapes.data(), count));
     for (const Command& c : aside.commands()) out.append_command(c);

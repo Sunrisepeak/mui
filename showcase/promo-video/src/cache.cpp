@@ -1,7 +1,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import xengine.timeline;
 
 namespace omui::promo {
@@ -28,14 +28,14 @@ std::string clip_text(const tl::Timeline& of, const tl::Clip& clip) {
 
 Digests::Digests(const Film& film, const Cut& cut, const PlayerOptions& o, std::uint64_t program) : film_(&film), cut_(&cut) {
     constexpr std::array<std::string_view, 2> per_frame{".timeline.omui.toml", ".subtitles.omui.toml"};
-    hash::Fnv1a g;
+    mlibs::hash::Fnv1a g;
     g.u64(program).u64(film.files.digest(per_frame));
     g.f32(o.size.width).f32(o.size.height).f32(o.scale).u64(o.subtitles).u64(o.timebar).u64(o.chapters);
     const tl::Timeline& t = cut.timeline;
     g.u64(static_cast<std::uint64_t>(t.rate.num)).u64(static_cast<std::uint64_t>(t.rate.den)).u64(static_cast<std::uint64_t>(t.width)).u64(static_cast<std::uint64_t>(t.height));
     global_ = g.value();
     // The overlay's strip and chapter label read the whole cut's layout.
-    hash::Fnv1a ov;
+    mlibs::hash::Fnv1a ov;
     if (o.timebar || o.chapters) {
         ov.u64(static_cast<std::uint64_t>(cut.frames()));
         for (const Chapter& c : chapters(cut)) ov.str(c.name).u64(static_cast<std::uint64_t>(c.frame));
@@ -48,7 +48,7 @@ Digests::Digests(const Film& film, const Cut& cut, const PlayerOptions& o, std::
 
 std::uint64_t Digests::frame(std::int64_t i) {
     if (auto it = known_.find(i); it != known_.end()) return it->second;
-    hash::Fnv1a d;
+    mlibs::hash::Fnv1a d;
     d.u64(global_).u64(overlay_).u64(static_cast<std::uint64_t>(i));
     if (const auto s = shown(*cut_, i)) {
         d.u64(s->index).str(clip_text(cut_->timeline, *s->clip)).u64(static_cast<std::uint64_t>(s->source)).f32(s->level).u64(s->film);
@@ -65,14 +65,14 @@ std::uint64_t Digests::frame(std::int64_t i) {
 }
 
 std::uint64_t Digests::frames(std::int64_t first, std::int64_t count) {
-    hash::Fnv1a d;
+    mlibs::hash::Fnv1a d;
     for (std::int64_t i = first; i < first + count; ++i) d.u64(frame(i));
     return d.value();
 }
 
 std::uint64_t file_digest(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
-    hash::Fnv1a d;
+    mlibs::hash::Fnv1a d;
     std::array<char, 1 << 16> buffer{};
     while (in.read(buffer.data(), buffer.size()) || in.gcount() > 0) {
         d.text(std::string_view(buffer.data(), static_cast<std::size_t>(in.gcount())));

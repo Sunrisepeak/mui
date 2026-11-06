@@ -6,14 +6,14 @@
 module xengine.audio;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import :dsp;
 
 namespace xengine::audio {
 
 namespace {
 
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 using dsp::Biquad;
 using dsp::BiquadState;
 

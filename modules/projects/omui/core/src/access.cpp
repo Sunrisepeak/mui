@@ -5,6 +5,10 @@ import openas;
 import mlibs.control;
 import mlibs.trace;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
+
 namespace omui {
 namespace {
 constexpr Log policy_log{"agent"};

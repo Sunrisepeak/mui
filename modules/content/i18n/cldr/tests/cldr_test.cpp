@@ -1,11 +1,11 @@
 // The embedded packs read whole and agree with the files they were made from.
 import std;
-import openmui.i18n;
-import openmui.i18n.cldr;
-import openmui.testing;
+import mlibs.i18n;
+import mlibs.i18n.cldr;
+import mlibs.testing;
 
-using namespace omui::testing;
-using namespace omui::i18n;
+using namespace mlibs::testing;
+using namespace mlibs::i18n;
 
 int main(int argc, char** argv) {
     Suite s{"i18n.cldr"};

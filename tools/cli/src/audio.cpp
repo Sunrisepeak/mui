@@ -8,8 +8,8 @@ import openmui.core;
 import xengine.timeline;
 import xengine.timeline.audio;
 import xengine.audio;
-import openmui.render.vector;
-import openmui.image;
+import xrender.vector;
+import mlibs.image;
 import openmui.host.headless;
 import openmui.ui.base;
 
@@ -72,7 +72,7 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
     const auto wav=au::wav(pcm,mixer.rate(),true);
     const auto clock=mixer.clock(),begun=mixer.begun();
     constexpr int width=384,height=256,inside=352;
-    std::vector<raster::Surface> frames;frames.reserve(static_cast<std::size_t>(duration*fps+1));
+    std::vector<xrender::raster::Surface> frames;frames.reserve(static_cast<std::size_t>(duration*fps+1));
     Value::List observations;
     std::array<float,inside> curve{};
     float plot_max=1;
@@ -89,15 +89,15 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
         const float level=(*gain)->at(time);
         auto drawing=painter({.id="curve",.width=inside,.height=128,.paint=[&curve,plot_max,seconds,end,level](PaintContext& ctx) {
             auto& list=ctx.list;
-            list.fill_rect({0,0,inside,96},geom::Color::hex(0x1d2a40));
+            list.fill_rect({0,0,inside,96},mlibs::geom::Color::hex(0x1d2a40));
             for(int x=0;x<inside;++x) {
                 const float y=92-88*curve[static_cast<std::size_t>(x)]/plot_max;
-                list.fill_rect({static_cast<float>(x),y,1,2},geom::Color::hex(0x67d5b5));
+                list.fill_rect({static_cast<float>(x),y,1,2},mlibs::geom::Color::hex(0x67d5b5));
             }
             const float cursor=(inside-2)*std::clamp(seconds/end,0.0f,1.0f);
-            list.fill_rect({cursor,0,2,96},geom::Color::hex(0xf1b56a));
-            list.fill_rect({0,112,inside,12},geom::Color::hex(0x1d2a40));
-            list.fill_rect({0,112,inside*std::clamp(level/plot_max,0.0f,1.0f),12},geom::Color::hex(0x67d5b5));
+            list.fill_rect({cursor,0,2,96},mlibs::geom::Color::hex(0xf1b56a));
+            list.fill_rect({0,112,inside,12},mlibs::geom::Color::hex(0x1d2a40));
+            list.fill_rect({0,112,inside*std::clamp(level/plot_max,0.0f,1.0f),12},mlibs::geom::Color::hex(0x67d5b5));
         }});
         host.mount("main",column({.id="audition",.width=width,.height=height,.padding=Edges(16),.gap=8,.background="#101827"}, {
             text({.id="title",.text="Gain automation",.style="heading",.size=20.0f}),std::move(drawing),
@@ -110,13 +110,13 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
         frames.push_back(pixels);
     }
     if(mixer.clock()!=clock || mixer.begun()!=begun)return fail("visual inspection changed live audio");
-    const auto view=[](const raster::Surface& surface) {return imageio::View{reinterpret_cast<const std::uint8_t*>(surface.pixels().data()),surface.width(),surface.height(),surface.width()*4,imageio::Alpha::premultiplied};};
-    raster::Surface sheet(4*width,2*height);
+    const auto view=[](const xrender::raster::Surface& surface) {return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(surface.pixels().data()),surface.width(),surface.height(),surface.width()*4,mlibs::image::Alpha::premultiplied};};
+    xrender::raster::Surface sheet(4*width,2*height);
     for(std::size_t k=0;k<8;++k) {
         const auto& frame=frames[(frames.size()-1)*k/7];
         for(int y=0;y<height;++y)std::copy_n(frame.row(y),width,sheet.row(static_cast<int>(k/4)*height+y)+static_cast<int>(k%4)*width);
     }
-    const auto png=imageio::encode_png(view(sheet));if(!png)return fail("PNG encoding failed");
+    const auto png=mlibs::image::encode_png(view(sheet));if(!png)return fail("PNG encoding failed");
     const auto save=[&](std::string_view suffix,std::span<const std::byte> bytes) {
         return mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(std::string(*prefix)+std::string(suffix)),
             std::string_view(reinterpret_cast<const char*>(bytes.data()),bytes.size()));
@@ -124,8 +124,8 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
     Value::List outputs;
     const auto saved_wav=save(".wav",wav);if(!saved_wav)return fail(saved_wav.error().message());outputs.emplace_back(std::string(*prefix)+".wav");report.set("outputs",Value(outputs));
     const auto saved_png=save(".png",std::as_bytes(std::span(*png)));if(!saved_png)return fail(saved_png.error().message());outputs.emplace_back(std::string(*prefix)+".png");report.set("outputs",Value(outputs));
-    std::vector<imageio::View> views;views.reserve(frames.size());for(const auto& frame:frames)views.push_back(view(frame));
-    const auto saved_webp=imageio::save_animated_webp(mcpplibs::os::fs::from_utf8(std::string(*prefix)+".webp"),views,
+    std::vector<mlibs::image::View> views;views.reserve(frames.size());for(const auto& frame:frames)views.push_back(view(frame));
+    const auto saved_webp=mlibs::image::save_animated_webp(mcpplibs::os::fs::from_utf8(std::string(*prefix)+".webp"),views,
         {.delay_num=1,.delay_den=static_cast<std::uint16_t>(fps),.loops=1,.lossless=true});
     if(!saved_webp)return fail("WebP export failed");outputs.emplace_back(std::string(*prefix)+".webp");
     report.set("ok",true).set("outputs",Value(std::move(outputs))).set("rate",mixer.rate()).set("samples",clock)

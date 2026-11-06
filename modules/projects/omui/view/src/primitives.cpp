@@ -2,12 +2,16 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.text;
-import openmui.image;
-import openmui.raster;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.text;
+import mlibs.image;
+import xrender.raster;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -15,9 +19,9 @@ namespace omui {
 
 Value ValueOf<Dim>::to(const Dim& d) {
     switch (d.length.unit) {
-        case layout::Length::Unit::points: return Value(static_cast<double>(d.length.value));
-        case layout::Length::Unit::percent: return Value(std::format("{}%", d.length.value));
-        case layout::Length::Unit::auto_: return Value("auto");
+        case mlibs::layout::Length::Unit::points: return Value(static_cast<double>(d.length.value));
+        case mlibs::layout::Length::Unit::percent: return Value(std::format("{}%", d.length.value));
+        case mlibs::layout::Length::Unit::auto_: return Value("auto");
     }
     return Value("auto");
 }
@@ -28,10 +32,10 @@ Dim ValueOf<Dim>::from(const Value& v) {
     float x = 0;
     if (s.ends_with('%')) {
         std::from_chars(s.data(), s.data() + s.size() - 1, x);
-        return Dim(layout::pct(x));
+        return Dim(mlibs::layout::pct(x));
     }
     if (std::from_chars(s.data(), s.data() + s.size(), x).ec == std::errc{}) return Dim(x);
-    return Dim(layout::Length::automatic());
+    return Dim(mlibs::layout::Length::automatic());
 }
 
 Value ValueOf<Edges>::to(const Edges& e) {
@@ -77,8 +81,8 @@ std::vector<std::string_view> split_tracks(std::string_view s, bool commas) {
     return out;
 }
 
-std::optional<layout::Track> parse_track(std::string_view t) {
-    using layout::Track;
+std::optional<mlibs::layout::Track> parse_track(std::string_view t) {
+    using mlibs::layout::Track;
     t = trim(t);
     if (t == "auto") return Track::automatic();
     if (t == "min-content" || t == "min_content") return Track::min_content();
@@ -102,8 +106,8 @@ std::optional<layout::Track> parse_track(std::string_view t) {
 
 }  // namespace
 
-std::vector<layout::Track> parse_tracks(std::string_view text) {
-    std::vector<layout::Track> out;
+std::vector<mlibs::layout::Track> parse_tracks(std::string_view text) {
+    std::vector<mlibs::layout::Track> out;
     for (std::string_view tok : split_tracks(text, false)) {
         if (tok.starts_with("repeat(") && tok.ends_with(')')) {
             std::string_view inner = tok.substr(7, tok.size() - 8);
@@ -115,7 +119,7 @@ std::vector<layout::Track> parse_tracks(std::string_view text) {
                 warn("bad track list '{}': repeat(count, tracks)", text);
                 continue;
             }
-            std::vector<layout::Track> body = parse_tracks(inner.substr(comma + 1));
+            std::vector<mlibs::layout::Track> body = parse_tracks(inner.substr(comma + 1));
             for (int i = 0; i < count; ++i) out.insert(out.end(), body.begin(), body.end());
             continue;
         }
@@ -132,10 +136,10 @@ namespace {
 struct RootNode {
     static constexpr std::string_view name = "root";
     static constexpr Role role = Role::application;
-    void style(const Theme&, layout::Style& s) const {
-        s.display = layout::Display::stack;
-        s.width = layout::pct(100);
-        s.height = layout::pct(100);
+    void style(const Theme&, mlibs::layout::Style& s) const {
+        s.display = mlibs::layout::Display::stack;
+        s.width = mlibs::layout::pct(100);
+        s.height = mlibs::layout::pct(100);
     }
 };
 
@@ -144,36 +148,36 @@ struct BoxNode {
 };
 struct ColumnNode {
     static constexpr std::string_view name = "column";
-    void style(const Theme&, layout::Style& s) const { s.direction = layout::Direction::column; }
+    void style(const Theme&, mlibs::layout::Style& s) const { s.direction = mlibs::layout::Direction::column; }
 };
 struct RowNode {
     static constexpr std::string_view name = "row";
-    void style(const Theme&, layout::Style& s) const {
-        s.direction = layout::Direction::row;
-        s.align_items = layout::Align::center;
+    void style(const Theme&, mlibs::layout::Style& s) const {
+        s.direction = mlibs::layout::Direction::row;
+        s.align_items = mlibs::layout::Align::center;
     }
 };
 struct StackNode {
     static constexpr std::string_view name = "stack";
-    void style(const Theme&, layout::Style& s) const { s.display = layout::Display::stack; }
+    void style(const Theme&, mlibs::layout::Style& s) const { s.display = mlibs::layout::Display::stack; }
 };
 struct GridNode {
     static constexpr std::string_view name = "grid";
-    void style(const Theme&, layout::Style& s) const { s.display = layout::Display::grid; }
+    void style(const Theme&, mlibs::layout::Style& s) const { s.display = mlibs::layout::Display::grid; }
 };
 struct SpacerNode {
     static constexpr std::string_view name = "spacer";
     static constexpr Role role = Role::none;
-    void style(const Theme&, layout::Style& s) const { s.grow = 1; }
+    void style(const Theme&, mlibs::layout::Style& s) const { s.grow = 1; }
 };
 
-typeset::TextAlign parse_align(std::string_view s) {
-    if (s == "center") return typeset::TextAlign::center;
-    if (s == "end") return typeset::TextAlign::end;
-    if (s == "left") return typeset::TextAlign::left;
-    if (s == "right") return typeset::TextAlign::right;
-    if (s == "justify") return typeset::TextAlign::justify;
-    return typeset::TextAlign::start;
+mlibs::text::TextAlign parse_align(std::string_view s) {
+    if (s == "center") return mlibs::text::TextAlign::center;
+    if (s == "end") return mlibs::text::TextAlign::end;
+    if (s == "left") return mlibs::text::TextAlign::left;
+    if (s == "right") return mlibs::text::TextAlign::right;
+    if (s == "justify") return mlibs::text::TextAlign::justify;
+    return mlibs::text::TextAlign::start;
 }
 
 // A paragraph laid out at the width it is drawn: a hair over the box, so the
@@ -196,7 +200,7 @@ struct TextNode {
     std::optional<float> size, weight;
 
     Services* services = nullptr;
-    mutable std::optional<typeset::Paragraph> paragraph;
+    mutable std::optional<mlibs::text::Paragraph> paragraph;
     mutable float laid = -1;
 
     void mount(Services& s, NodeId) { services = &s; }
@@ -226,11 +230,11 @@ struct TextNode {
         return {};
     }
 
-    typeset::Paragraph& shaped(Services& s) const {
+    mlibs::text::Paragraph& shaped(Services& s) const {
         if (!paragraph || paragraph->stale()) {
             const Theme& theme = s.theme();
             const TextToken& tok = theme.text_style(style_token);
-            typeset::ParagraphStyle ps;
+            mlibs::text::ParagraphStyle ps;
             ps.style.families = tok.families;
             ps.style.size = size.value_or(tok.size);
             ps.style.weight = weight.value_or(tok.weight);
@@ -245,31 +249,31 @@ struct TextNode {
         }
         return *paragraph;
     }
-    void lay(typeset::Paragraph& p, float width) const {
+    void lay(mlibs::text::Paragraph& p, float width) const {
         if (width != laid) {
             p.layout(width);
             laid = width;
         }
     }
 
-    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float>, layout::Available aw, layout::Available) {
-        typeset::Paragraph& p = shaped(m.services);
+    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
+        mlibs::text::Paragraph& p = shaped(m.services);
         float width = std::numeric_limits<float>::infinity();
         if (w) width = *w + width_slack;
-        else if (!wrap || aw.kind == layout::Available::Kind::max_content) width = std::numeric_limits<float>::infinity();
-        else if (aw.kind == layout::Available::Kind::min_content) width = p.min_intrinsic_width() + width_slack;
+        else if (!wrap || aw.kind == mlibs::layout::Available::Kind::max_content) width = std::numeric_limits<float>::infinity();
+        else if (aw.kind == mlibs::layout::Available::Kind::min_content) width = p.min_intrinsic_width() + width_slack;
         else width = aw.value + width_slack;
         lay(p, width);
         Size s = p.size();
         return {w ? *w : s.width, s.height};
     }
     float baseline(MeasureContext& m, Size content) {
-        typeset::Paragraph& p = shaped(m.services);
+        mlibs::text::Paragraph& p = shaped(m.services);
         lay(p, content.width + width_slack);
         return p.first_baseline();
     }
     void paint(PaintContext& ctx) const {
-        typeset::Paragraph& p = shaped(ctx.services);
+        mlibs::text::Paragraph& p = shaped(ctx.services);
         lay(p, (wrap ? ctx.content.width : std::numeric_limits<float>::infinity()) + width_slack);
         xrender::text::paint(p, ctx.list, ctx.content.origin());
     }
@@ -292,7 +296,7 @@ struct ImageNode {
     std::string fit = "contain";
     Services*   services = nullptr;
     NodeId      node;
-    render::ImageRef ref;
+    xrender::ImageRef ref;
     bool        owned = false;
     int         width = 0, height = 0;
 
@@ -321,7 +325,7 @@ struct ImageNode {
             std::uint32_t id = 0;
             std::from_chars(source.data() + 6, source.data() + source.size(), id);
             ref = {id};
-            if (const raster::Surface* s = services->images().get(ref)) {
+            if (const xrender::raster::Surface* s = services->images().get(ref)) {
                 width = s->width();
                 height = s->height();
                 services->emit(node, "loaded", Value{}.set("width", width).set("height", height));
@@ -330,13 +334,13 @@ struct ImageNode {
             }
             return;
         }
-        auto img = imageio::load_png(source);
+        auto img = mlibs::image::load_png(source);
         if (!img) {
             services->emit(node, "failed", Value{}.set("reason", img.error()));
             return;
         }
-        if (img->alpha == imageio::Alpha::straight) imageio::premultiply(*img);
-        std::vector<raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
+        if (img->alpha == mlibs::image::Alpha::straight) mlibs::image::premultiply(*img);
+        std::vector<xrender::raster::Rgba8> px(static_cast<std::size_t>(img->width) * static_cast<std::size_t>(img->height));
         std::memcpy(px.data(), img->rgba.data(), px.size() * 4);
         width = img->width;
         height = img->height;
@@ -355,7 +359,7 @@ struct ImageNode {
         return true;
     }
 
-    Size measure(MeasureContext&, std::optional<float> w, std::optional<float> h, layout::Available aw, layout::Available) {
+    Size measure(MeasureContext&, std::optional<float> w, std::optional<float> h, mlibs::layout::Available aw, mlibs::layout::Available) {
         if (width <= 0 || height <= 0) return {w.value_or(0), h.value_or(0)};
         const float ratio = static_cast<float>(width) / static_cast<float>(height);
         if (w && h) return {*w, *h};
@@ -377,7 +381,7 @@ struct ImageNode {
             if (fit == "scale_down") s = std::min(1.0f, std::min(sx, sy));
             dest = {box.x + (box.width - iw * s) / 2, box.y + (box.height - ih * s) / 2, iw * s, ih * s};
         }
-        ctx.list.draw_image(ref, {0, 0, iw, ih}, dest, render::Sampling::linear, 1.0f);
+        ctx.list.draw_image(ref, {0, 0, iw, ih}, dest, xrender::Sampling::linear, 1.0f);
     }
 
     void semantics(SemanticsContext&, spec::SemanticNode& n) const {
@@ -412,10 +416,10 @@ struct ScrollNode {
     }
     ~ScrollNode() = default;
 
-    void style(const Theme&, layout::Style& s) const {
-        s.overflow_x = horizontal ? layout::Overflow::scroll : layout::Overflow::clip;
-        s.overflow_y = vertical ? layout::Overflow::scroll : layout::Overflow::clip;
-        s.direction = horizontal && !vertical ? layout::Direction::row : layout::Direction::column;
+    void style(const Theme&, mlibs::layout::Style& s) const {
+        s.overflow_x = horizontal ? mlibs::layout::Overflow::scroll : mlibs::layout::Overflow::clip;
+        s.overflow_y = vertical ? mlibs::layout::Overflow::scroll : mlibs::layout::Overflow::clip;
+        s.direction = horizontal && !vertical ? mlibs::layout::Direction::row : mlibs::layout::Direction::column;
     }
 
     [[nodiscard]] Size viewport() const {
@@ -601,13 +605,13 @@ struct ScrollNode {
             const float h = std::max(24.0f, view.height * view.height / c.height);
             const float y = (view.height - h) * (off.y / std::max(1.0f, c.height - view.height));
             ctx.list.fill_round_rect({ctx.size.width - bar - inset, y + ctx.content.y, bar, h}, CornerRadii::all(bar / 2),
-                                     render::Paint::solid(thumb));
+                                     xrender::Paint::solid(thumb));
         }
         if (horizontal && c.width > view.width && view.width > 0) {
             const float w = std::max(24.0f, view.width * view.width / c.width);
             const float x = (view.width - w) * (off.x / std::max(1.0f, c.width - view.width));
             ctx.list.fill_round_rect({x + ctx.content.x, ctx.size.height - bar - inset, w, bar}, CornerRadii::all(bar / 2),
-                                     render::Paint::solid(thumb));
+                                     xrender::Paint::solid(thumb));
         }
     }
 

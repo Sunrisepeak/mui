@@ -2,14 +2,14 @@
 // act remains a separate operation; explicit point input keeps its coordinates.
 import std;
 import openmui.agent;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 struct Moving {
-    typeset::FontCollection fonts;
+    mlibs::text::FontCollection fonts;
     Runtime runtime;
     Signal<double> offset = signal(10.0);
     int presses = 0;
@@ -26,7 +26,7 @@ struct Moving {
             check(runtime.hold_motion(node())); runtime.pause_motion(node()); frame(1.25);
         }
     }
-    static RuntimeOptions options(typeset::FontCollection& fonts, Stages stages) {
+    static RuntimeOptions options(mlibs::text::FontCollection& fonts, Stages stages) {
         RuntimeOptions result; result.fonts = &fonts; result.size = {260, 160}; result.stages = stages;
         result.theme.motion["motion.normal"] = Transition::tween(seconds(1), hanim::ease::linear);
         return result;

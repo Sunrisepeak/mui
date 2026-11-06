@@ -24,7 +24,7 @@ constexpr std::array<std::uint32_t, 8> phase_tone{0x3a3f52, 0x4ef27a, 0xf24e5a, 
 // The buttons' colours: punches cool, kicks warm, light to heavy.
 constexpr std::array<std::uint32_t, 6> button_tone{0x9ad1ff, 0x4ea1f2, 0x2f6fd1, 0xffb08a, 0xf27a4e, 0xd14e2f};
 
-void digit(render::DisplayList& out, float x, float y, float h, int d, Color c) {
+void digit(xrender::DisplayList& out, float x, float y, float h, int d, Color c) {
     constexpr std::array<std::uint8_t, 10> segments{0b1111110, 0b0110000, 0b1101101, 0b1111001, 0b0110011,
                                                     0b1011011, 0b1011111, 0b1110000, 0b1111111, 0b1111011};
     const float w = h * 0.55f, t = std::max(1.5f, h * 0.1f);
@@ -36,26 +36,26 @@ void digit(render::DisplayList& out, float x, float y, float h, int d, Color c) 
 }
 
 // An arrow from the centre toward a numpad direction; 5 is a dot.
-void arrow(render::DisplayList& out, Point c, float size, int numpad, Color colour) {
+void arrow(xrender::DisplayList& out, Point c, float size, int numpad, Color colour) {
     if (numpad == 5) {
-        out.fill_round_rect({c.x - 2, c.y - 2, 4, 4}, CornerRadii::all(2), render::Paint::solid(colour.with_alpha(0.5f)));
+        out.fill_round_rect({c.x - 2, c.y - 2, 4, 4}, CornerRadii::all(2), xrender::Paint::solid(colour.with_alpha(0.5f)));
         return;
     }
     const int dx = (numpad - 1) % 3 - 1, dy = 1 - (numpad - 1) / 3;  // screen: y down
     const float len = std::sqrt(static_cast<float>(dx * dx + dy * dy));
     const float ux = static_cast<float>(dx) / len, uy = static_cast<float>(-dy) / len;  // y down
     const float r = size / 2;
-    render::Path p;
+    xrender::Path p;
     const Point tip{c.x + ux * r, c.y + uy * r}, tail{c.x - ux * r, c.y - uy * r};
     p.move_to(tail).line_to(tip);
     p.move_to({tip.x - ux * r * 0.7f - uy * r * 0.5f, tip.y - uy * r * 0.7f + ux * r * 0.5f}).line_to(tip);
     p.line_to({tip.x - ux * r * 0.7f + uy * r * 0.5f, tip.y - uy * r * 0.7f - ux * r * 0.5f});
-    out.stroke_path(p, {.width = 2, .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(colour));
+    out.stroke_path(p, {.width = 2, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(colour));
 }
 
 }  // namespace
 
-float number(render::DisplayList& out, float right, float top, float size, std::int32_t value, bool sign, Color color) {
+float number(xrender::DisplayList& out, float right, float top, float size, std::int32_t value, bool sign, Color color) {
     const float w = size * 0.55f, gap = size * 0.25f;
     std::int32_t v = value < 0 ? -value : value;
     float x = right;
@@ -75,14 +75,14 @@ float number(render::DisplayList& out, float right, float top, float size, std::
     return x + gap;
 }
 
-void boxes(render::DisplayList& out, const gongfu::Match& match, const p2::Scene& scene, const p2::Camera& cam) {
+void boxes(xrender::DisplayList& out, const gongfu::Match& match, const p2::Scene& scene, const p2::Camera& cam) {
     const gongfu::State& st = match.state();
     auto outline = [&](const gongfu::Rect& b, Color c) {
         const Point a = p2::on_picture(scene, cam, b.left.to_double(), b.top.to_double());
         const Point z = p2::on_picture(scene, cam, b.right.to_double(), b.bottom.to_double());
         const Rect r{a.x, a.y, z.x - a.x, z.y - a.y};
         out.fill_rect(r, c.with_alpha(0.18f));
-        out.stroke_round_rect(r, {}, 1.5f, render::Paint::solid(c));
+        out.stroke_round_rect(r, {}, 1.5f, xrender::Paint::solid(c));
     };
     for (std::int32_t i = 0; i < 2; ++i) {
         const auto& f = st.f[static_cast<std::size_t>(i)];
@@ -106,7 +106,7 @@ void boxes(render::DisplayList& out, const gongfu::Match& match, const p2::Scene
     }
 }
 
-void meter(render::DisplayList& out, const tr::Readout& readout) {
+void meter(xrender::DisplayList& out, const tr::Readout& readout) {
     const float cell = 6, left = width / 2 - cell * tr::Readout::meter_frames / 2;
     for (std::int32_t i = 0; i < 2; ++i) {
         const auto m = readout.meter(i);
@@ -119,7 +119,7 @@ void meter(render::DisplayList& out, const tr::Readout& readout) {
     }
 }
 
-void inputs(render::DisplayList& out, const tr::Readout& readout, std::int32_t player) {
+void inputs(xrender::DisplayList& out, const tr::Readout& readout, std::int32_t player) {
     const auto lines = readout.inputs(player);
     const bool left = player == 0;
     const float line = 20, top = 236;
@@ -134,33 +134,33 @@ void inputs(render::DisplayList& out, const tr::Readout& readout, std::int32_t p
         for (std::size_t b = 0; b < 6; ++b)
             if (it->pad.buttons & (1u << b))
                 out.fill_round_rect({x0 + 64 + 13 * static_cast<float>(b), y + 4, 10, 10}, CornerRadii::all(5),
-                                    render::Paint::solid(tone(button_tone[b], alpha)));
+                                    xrender::Paint::solid(tone(button_tone[b], alpha)));
     }
 }
 
-const typeset::Paragraph& Words::get(typeset::FontCollection& fonts, std::string_view text, float size, Color color) {
+const mlibs::text::Paragraph& Words::get(mlibs::text::FontCollection& fonts, std::string_view text, float size, Color color) {
     const std::string key = std::format("{}|{}|{},{},{},{}", text, size, color.r, color.g, color.b, color.a);
     auto it = kept_.find(key);
     if (it == kept_.end()) {
-        typeset::ParagraphStyle ps;
+        mlibs::text::ParagraphStyle ps;
         ps.style.size = size;
         ps.style.weight = 600;
         ps.style.letter_spacing = 1;
         ps.style.color = color;
         ps.wrap = false;
-        typeset::Paragraph p(fonts, std::string(text), std::move(ps));
+        mlibs::text::Paragraph p(fonts, std::string(text), std::move(ps));
         p.layout(std::numeric_limits<float>::infinity());
         it = kept_.emplace(key, std::move(p)).first;
     }
     return it->second;
 }
 
-void readings(render::DisplayList& out, const tr::Readout& readout, Words& words, typeset::FontCollection& fonts, std::array<Dummy, 2> dummies,
+void readings(xrender::DisplayList& out, const tr::Readout& readout, Words& words, mlibs::text::FontCollection& fonts, std::array<Dummy, 2> dummies,
               std::int32_t frame) {
     // Under the timer: player 1's startup, the advantage, the combo.
     const float top = 104, label = 10, size = 18;
     const Color muted = ink.with_alpha(0.6f);
-    out.fill_round_rect({width / 2 - 170, top - 4, 340, 46}, CornerRadii::all(6), render::Paint::solid(tone(0x0b0d12, 0.55f)));
+    out.fill_round_rect({width / 2 - 170, top - 4, 340, 46}, CornerRadii::all(6), xrender::Paint::solid(tone(0x0b0d12, 0.55f)));
     auto caption = [&](std::string_view text, float centre) {
         const auto& p = words.get(fonts, text, label, muted);
         xrender::text::paint(p, out, {centre - p.size().width / 2, top});
@@ -196,8 +196,8 @@ void readings(render::DisplayList& out, const tr::Readout& readout, Words& words
         if (dummies[i] == Dummy::none) continue;
         const float x = i == 0 ? 40 : width - 40 - 70;
         const bool rec = dummies[i] == Dummy::recording;
-        out.fill_round_rect({x, 128, 70, 18}, CornerRadii::all(9), render::Paint::solid(tone(0x0b0d12, 0.7f)));
-        out.fill_round_rect({x + 6, 132, 10, 10}, CornerRadii::all(rec ? 5.0f : 1.0f), render::Paint::solid(tone(rec ? 0xf24e5a : 0x4ef27a)));
+        out.fill_round_rect({x, 128, 70, 18}, CornerRadii::all(9), xrender::Paint::solid(tone(0x0b0d12, 0.7f)));
+        out.fill_round_rect({x + 6, 132, 10, 10}, CornerRadii::all(rec ? 5.0f : 1.0f), xrender::Paint::solid(tone(rec ? 0xf24e5a : 0x4ef27a)));
         const auto& p = words.get(fonts, rec ? "REC" : "PLAY", label, ink);
         xrender::text::paint(p, out, {x + 22, 131});
     }
@@ -262,10 +262,10 @@ Quad part_of(const Quad& q, float from, float to) {
     return {lerp(q[0], q[1], from), lerp(q[0], q[1], to), lerp(q[3], q[2], to), lerp(q[3], q[2], from)};
 }
 
-render::Path path_of(const Quad& q, float scale, Point at, float grow = 0) {
+xrender::Path path_of(const Quad& q, float scale, Point at, float grow = 0) {
     // Grown a little outward (under the frame's edge), by the centre.
     const Point c{(q[0].x + q[1].x + q[2].x + q[3].x) / 4, (q[0].y + q[1].y + q[2].y + q[3].y) / 4};
-    render::Path p;
+    xrender::Path p;
     for (std::size_t i = 0; i < 4; ++i) {
         const float dx = q[i].x - c.x, dy = q[i].y - c.y, d = std::max(1e-3f, std::sqrt(dx * dx + dy * dy));
         const Point v{at.x + (q[i].x + dx / d * grow) * scale, at.y + (q[i].y + dy / d * grow) * scale};
@@ -277,11 +277,11 @@ render::Path path_of(const Quad& q, float scale, Point at, float grow = 0) {
 }
 
 // A region of a picture as a quad: drawn as it is, or as its shape in one colour.
-void picture(render::DisplayList& out, render::ImageRef image, const Rect& src, const Rect& dest, float opacity = 1) {
+void picture(xrender::DisplayList& out, xrender::ImageRef image, const Rect& src, const Rect& dest, float opacity = 1) {
     if (image.id == 0 || opacity <= 0) return;
-    out.draw_image(image, src, dest, render::Sampling::linear, opacity);
+    out.draw_image(image, src, dest, xrender::Sampling::linear, opacity);
 }
-void shape(render::DisplayList& out, render::ImageRef image, const Rect& src, const Rect& dest, Color colour) {
+void shape(xrender::DisplayList& out, xrender::ImageRef image, const Rect& src, const Rect& dest, Color colour) {
     if (image.id == 0 || colour.a <= 0) return;
     const std::array<Point, 4> at{Point{dest.x, dest.y}, {dest.x + dest.width, dest.y}, {dest.x + dest.width, dest.y + dest.height},
                                   {dest.x, dest.y + dest.height}};
@@ -298,7 +298,7 @@ float digits_width(std::int32_t value, float h) {
     for (const char c : std::to_string(std::max(0, value))) w += placed(region::digit[static_cast<std::size_t>(c - '0')], h) * 0.86f;
     return w;
 }
-void digits(render::DisplayList& out, render::ImageRef type, std::int32_t value, Point centre, float h, std::optional<Color> colour = {},
+void digits(xrender::DisplayList& out, xrender::ImageRef type, std::int32_t value, Point centre, float h, std::optional<Color> colour = {},
             float opacity = 1) {
     float x = centre.x - digits_width(value, h) / 2;
     for (const char c : std::to_string(std::max(0, value))) {
@@ -342,7 +342,7 @@ String latest_string(const p2::Effects& effects, std::int32_t attacker) {
 
 }  // namespace
 
-void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effects& effects, const Art& art,
+void versus(xrender::DisplayList& out, const gongfu::Match& match, const p2::Effects& effects, const Art& art,
             const std::array<const p2::Look*, 2>& looks, const std::array<std::string_view, 2>& names, std::array<std::int32_t, 2> wins,
             std::int32_t to_win) {
     const gongfu::State& st = match.state();
@@ -357,14 +357,14 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
 
         // The portrait: the look's head, in its window over a lacquer backing lit from the side it faces.
         {
-            const render::Path window = path_of(portrait_window, k, at, 2);
+            const xrender::Path window = path_of(portrait_window, k, at, 2);
             out.push_clip(window);
             const Color backing = i == 0 ? tone(0x3a1418) : tone(0x112634);
-            std::array<render::GradientStop, 2> stops{{{0, backing}, {1, tone(0x07080b)}}};
-            render::Paint g;
-            g.kind = render::Paint::Kind::gradient;
-            g.gradient = {.kind = render::GradientKind::linear, .start = {at.x + 150 * k, at.y}, .end = {at.x + 40 * k, at.y + 120 * k}, .stops = stops};
-            out.fill_path(window, render::FillRule::nonzero, g);
+            std::array<xrender::GradientStop, 2> stops{{{0, backing}, {1, tone(0x07080b)}}};
+            xrender::Paint g;
+            g.kind = xrender::Paint::Kind::gradient;
+            g.gradient = {.kind = xrender::GradientKind::linear, .start = {at.x + 150 * k, at.y}, .end = {at.x + 40 * k, at.y + 120 * k}, .stops = stops};
+            out.fill_path(window, xrender::FillRule::nonzero, g);
             if (const p2::Look* look = looks[static_cast<std::size_t>(i)]) {
                 const auto head = std::ranges::find(look->parts, std::string_view("head"), &p2::Part::name);
                 if (head != look->parts.end() && head->picture >= 0 && head->shape == p2::Shape::image) {
@@ -390,42 +390,42 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
             const float drain = std::clamp(1 - after, 0.0f, 1.0f);
             trail = std::min(1.0f, share + static_cast<float>(taken.damage / max) * drain);
         }
-        out.fill_path(path_of(bar_window, k, at, 2), render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.92f)));
-        if (trail > share) out.fill_path(path_of(part_of(bar_window, share, trail), k, at, 2), render::FillRule::nonzero, render::Paint::solid(tone(0xd9372b)));
+        out.fill_path(path_of(bar_window, k, at, 2), xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.92f)));
+        if (trail > share) out.fill_path(path_of(part_of(bar_window, share, trail), k, at, 2), xrender::FillRule::nonzero, xrender::Paint::solid(tone(0xd9372b)));
         if (share > 0) {
-            const render::Path fill = path_of(part_of(bar_window, 0, share), k, at, 2);
+            const xrender::Path fill = path_of(part_of(bar_window, 0, share), k, at, 2);
             // Low: the colour pulses toward red.
             const float low = share < 0.25f ? 0.5f + 0.5f * static_cast<float>(hanim::dm::sin(frame * 0.25)) : 0.0f;
             const Color top = i == 0 ? tone(0xfff0b8) : tone(0xd6f6ff), bottom = i == 0 ? tone(0xe8a02e) : tone(0x2ea6d9);
             const Color red = tone(0xff5a3c);
             auto mix = [](Color a, Color b, float t) { return Color{a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, 1}; };
-            std::array<render::GradientStop, 2> stops{{{0, mix(top, red, low * 0.6f)}, {1, mix(bottom, red, low)}}};
-            render::Paint g;
-            g.kind = render::Paint::Kind::gradient;
-            g.gradient = {.kind = render::GradientKind::linear, .start = {0, at.y + 51 * k}, .end = {0, at.y + 94 * k}, .stops = stops};
-            out.fill_path(fill, render::FillRule::nonzero, g);
+            std::array<xrender::GradientStop, 2> stops{{{0, mix(top, red, low * 0.6f)}, {1, mix(bottom, red, low)}}};
+            xrender::Paint g;
+            g.kind = xrender::Paint::Kind::gradient;
+            g.gradient = {.kind = xrender::GradientKind::linear, .start = {0, at.y + 51 * k}, .end = {0, at.y + 94 * k}, .stops = stops};
+            out.fill_path(fill, xrender::FillRule::nonzero, g);
             // The dry brush's streaks, multiplied in, drifting slowly along.
-            out.push_layer(0.55f, render::BlendMode::multiply);
-            render::Paint tex;
-            tex.kind = render::Paint::Kind::image;
+            out.push_layer(0.55f, xrender::BlendMode::multiply);
+            xrender::Paint tex;
+            tex.kind = xrender::Paint::Kind::image;
             tex.image = art.fill;
             tex.color = Color{1, 1, 1, 1};
             const float sx = (777 - 151) * k / region::ink_fill.width, sy = (94 - 51) * k / region::ink_fill.height;
             const float drift = std::fmod(static_cast<float>(frame) * 0.4f, region::ink_fill.width * 0.5f);
             tex.image_transform = Affine::translate(at.x + 151 * k - (region::ink_fill.x + drift) * sx, at.y + 51 * k - region::ink_fill.y * sy) * Affine::scale(sx, sy);
-            out.fill_path(fill, render::FillRule::nonzero, tex);
+            out.fill_path(fill, xrender::FillRule::nonzero, tex);
             out.pop_layer();
             // The lacquer's light along the top.
             out.fill_path(path_of(part_of({{bar_window[0], bar_window[1], lerp(bar_window[1], bar_window[2], 0.18f), lerp(bar_window[0], bar_window[3], 0.18f)}}, 0, share), k, at),
-                          render::FillRule::nonzero, render::Paint::solid(tone(0xffffff, 0.28f)));
+                          xrender::FillRule::nonzero, xrender::Paint::solid(tone(0xffffff, 0.28f)));
         }
         // Posture: taken from the middle outward, cream, red past 70 %, white when broken.
         {
             const float taken_share = static_cast<float>(std::clamp(f.posture / static_cast<double>(def.posture_max), 0.0, 1.0));
-            out.fill_path(path_of(posture_window, k, at, 1.5f), render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
+            out.fill_path(path_of(posture_window, k, at, 1.5f), xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.9f)));
             if (taken_share > 0) {
                 const std::uint32_t c = f.mode == gongfu::Mode::broken ? 0xffffff : taken_share > 0.7f ? 0xf24e5a : 0xe8dcc4;
-                out.fill_path(path_of(part_of(posture_window, 1 - taken_share, 1), k, at, 1.5f), render::FillRule::nonzero, render::Paint::solid(tone(c)));
+                out.fill_path(path_of(part_of(posture_window, 1 - taken_share, 1), k, at, 1.5f), xrender::FillRule::nonzero, xrender::Paint::solid(tone(c)));
             }
         }
         picture(out, art.frames, region::health, {at.x, at.y, region::health.width * k, region::health.height * k});
@@ -437,20 +437,20 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
             const std::int32_t level = std::clamp(f.meter / 1000, 0, 3);
             for (std::size_t c = 0; c < 3; ++c) {
                 const float full = static_cast<float>(std::clamp((f.meter - static_cast<std::int32_t>(c) * 1000) / 1000.0, 0.0, 1.0));
-                out.fill_path(path_of(chamber[c], km, m, 1.5f), render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
+                out.fill_path(path_of(chamber[c], km, m, 1.5f), xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.9f)));
                 if (full <= 0) continue;
-                const render::Path fill = path_of(part_of(chamber[c], 0, full), km, m, 1.5f);
-                out.fill_path(fill, render::FillRule::nonzero, render::Paint::solid(full >= 1 ? tone(0x63e6ff) : tone(0x1f6f8c)));
+                const xrender::Path fill = path_of(part_of(chamber[c], 0, full), km, m, 1.5f);
+                out.fill_path(fill, xrender::FillRule::nonzero, xrender::Paint::solid(full >= 1 ? tone(0x63e6ff) : tone(0x1f6f8c)));
                 if (full >= 1) {
-                    out.push_layer(0.8f, render::BlendMode::screen);
-                    render::Paint tex;
-                    tex.kind = render::Paint::Kind::image;
+                    out.push_layer(0.8f, xrender::BlendMode::screen);
+                    xrender::Paint tex;
+                    tex.kind = xrender::Paint::Kind::image;
                     tex.image = art.fill;
                     tex.color = Color{1, 1, 1, 1};
                     const float s = (chamber[c][1].x - chamber[c][3].x) * km / (region::flow_fill.width * 0.3f);
                     const float drift = std::fmod(static_cast<float>(frame) * 3.0f + static_cast<float>(c) * 140, region::flow_fill.width * 0.6f);
                     tex.image_transform = Affine::translate(m.x + chamber[c][3].x * km - (region::flow_fill.x + drift) * s, m.y + 20 * km - region::flow_fill.y * s) * Affine::scale(s, s);
-                    out.fill_path(fill, render::FillRule::nonzero, tex);
+                    out.fill_path(fill, xrender::FillRule::nonzero, tex);
                     out.pop_layer();
                 }
             }
@@ -481,21 +481,21 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
             const Rect dest{x, health_y + 132 * health_scale, w, h};
             // On a slanted lacquer plate with a gold edge: cream calligraphy on black reads on any stage.
             const float px = i == 0 ? x - 10 : x - 14, pw = w + 24, py = dest.y + 2, ph = h - 2, lean = 8;
-            render::Path plate;
+            xrender::Path plate;
             plate.move_to({px + lean, py}).line_to({px + pw + lean, py}).line_to({px + pw - lean, py + ph}).line_to({px - lean, py + ph}).close();
-            out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.88f)));
-            out.stroke_path(plate, {.width = 1.2f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
+            out.fill_path(plate, xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.88f)));
+            out.stroke_path(plate, {.width = 1.2f}, xrender::Paint::solid(tone(0xc9a24a, 0.9f)));
             shape(out, art.names, nm->second, dest, tone(0xf6ecd6));
             // The rounds won, once there are any: a red seal for each, an empty one for each to go, beside the name toward the middle.
             if (wins[0] > 0 || wins[1] > 0)
                 for (std::int32_t n = 0; n < to_win; ++n) {
                     const float r = 7, gap = 20, c = i == 0 ? px + pw + 16 + static_cast<float>(n) * gap : px - 16 - static_cast<float>(n) * gap;
                     const Point m{c, py + ph / 2};
-                    render::Path seal;  // a diamond: a seal stood on its corner
+                    xrender::Path seal;  // a diamond: a seal stood on its corner
                     seal.move_to({m.x, m.y - r}).line_to({m.x + r, m.y}).line_to({m.x, m.y + r}).line_to({m.x - r, m.y}).close();
                     const bool won = n < wins[static_cast<std::size_t>(i)];
-                    out.fill_path(seal, render::FillRule::nonzero, render::Paint::solid(won ? tone(0xc8282a) : tone(0x07080b, 0.85f)));
-                    out.stroke_path(seal, {.width = 1.4f}, render::Paint::solid(tone(0xd9b25a, won ? 1.0f : 0.7f)));
+                    out.fill_path(seal, xrender::FillRule::nonzero, xrender::Paint::solid(won ? tone(0xc8282a) : tone(0x07080b, 0.85f)));
+                    out.stroke_path(seal, {.width = 1.4f}, xrender::Paint::solid(tone(0xd9b25a, won ? 1.0f : 0.7f)));
                 }
         }
     }
@@ -506,7 +506,7 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
         picture(out, art.frames, region::timer, {x, y, d, d * region::timer.height / region::timer.width});
         const float cy = y + d * region::timer.height / region::timer.width / 2 + 1;
         if (match.system().timeless) {  // no time limit: ∞, two loops in the type's gold
-            render::Path loops;
+            xrender::Path loops;
             constexpr int steps = 48;
             for (int k = 0; k <= steps; ++k) {
                 const double t = 2 * std::numbers::pi * k / steps;
@@ -515,7 +515,7 @@ void versus(render::DisplayList& out, const gongfu::Match& match, const p2::Effe
                 if (k == 0) loops.move_to(p);
                 else loops.line_to(p);
             }
-            out.stroke_path(loops, {.width = 4.5f, .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(tone(0xf2d28a)));
+            out.stroke_path(loops, {.width = 4.5f, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(tone(0xf2d28a)));
         } else {
             const std::int32_t seconds = std::clamp((st.timer + 59) / 60, 0, 99);
             const bool last = seconds <= 10 && seconds > 0;
@@ -593,7 +593,7 @@ Rect card_item(std::size_t i, std::size_t n) {
     return {width / 2 - w / 2, top + static_cast<float>(i) * (h + gap), w, h};
 }
 
-void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageRef names, Words& words, typeset::FontCollection& fonts, const Card& c) {
+void card(xrender::DisplayList& out, xrender::ImageRef menu_frames, xrender::ImageRef names, Words& words, mlibs::text::FontCollection& fonts, const Card& c) {
     out.fill_rect({0, 0, width, height}, tone(0x07060a, 0.66f));
     // The heading: the winner's name in calligraphy and 胜 beside it, or the words (higher over many items).
     const bool many = c.items.size() > 4;
@@ -620,7 +620,7 @@ void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageR
         const float h = at.width * src.height / src.width;
         const Rect bar{at.x + (lit ? 0.0f : 10.0f), at.y + at.height / 2 - h / 2, at.width, h};
         if (menu_frames.id != 0) picture(out, menu_frames, src, bar, lit ? 1.0f : 0.75f);
-        else out.fill_round_rect(bar, CornerRadii::all(4), render::Paint::solid(tone(lit ? 0x8f1d1f : 0x15131a, 0.92f)));
+        else out.fill_round_rect(bar, CornerRadii::all(4), xrender::Paint::solid(tone(lit ? 0x8f1d1f : 0x15131a, 0.92f)));
         const auto& p = words.get(fonts, c.items[i], many ? 15.0f : 19.0f, lit ? tone(0xf6ecd6) : tone(0xb9ad94));
         xrender::text::paint(p, out, {bar.x + (many ? 54.0f : 64.0f), bar.y + bar.height / 2 - p.size().height / 2});
     }

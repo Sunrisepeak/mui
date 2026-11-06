@@ -2,7 +2,7 @@ module openmui.site;
 
 import std;
 import openmui;
-import openmui.hash;
+import mlibs.hash;
 
 namespace omui::site {
 
@@ -27,8 +27,8 @@ std::span<const ReferenceStep> reference_script() { return script; }
 
 std::int32_t reference_frames() { return static_cast<std::int32_t>(std::lround((script.back().at + tail) * reference_fps)) + 1; }
 
-std::uint64_t frame_hash(const raster::Surface& px) noexcept {
-    hash::Fnv1a h;
+std::uint64_t frame_hash(const xrender::raster::Surface& px) noexcept {
+    mlibs::hash::Fnv1a h;
     for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
     return h.value();
 }
@@ -50,7 +50,7 @@ std::span<const std::uint64_t> reference_pinned() {
 }
 
 struct ReferenceReplay::State {
-    typeset::FontCollection   fonts;
+    mlibs::text::FontCollection   fonts;
     std::unique_ptr<Headless> h;
     std::int32_t              frame = 0;  // the frame played to
     std::size_t               next = 0;   // the next step
@@ -60,8 +60,8 @@ ReferenceReplay::ReferenceReplay() : s_(std::make_unique<State>()) {
     // Exactly the fonts the page carries, in the order its runtime takes them
     // (dist_toy's Inter, Noto Sans SC, JetBrains Mono): a glyph none of them
     // has falls back the same way here, in CI and in a browser.
-    const auto dir = typeset::FontCollection::default_directory();
-    std::vector<typeset::FaceId> chain;
+    const auto dir = mlibs::text::FontCollection::default_directory();
+    std::vector<mlibs::text::FaceId> chain;
     for (const char* name : {"Inter.ttf", "NotoSansSC.ttf", "JetBrainsMono.ttf"})
         if (auto id = s_->fonts.add_file(dir / name)) chain.push_back(*id);
     s_->fonts.set_fallback(std::move(chain));
@@ -98,7 +98,7 @@ std::uint64_t ReferenceReplay::hash(std::int32_t frame) {
     return frame_hash(h.pixels());
 }
 
-const raster::Surface& ReferenceReplay::pixels() { return s_->h->pixels(); }
+const xrender::raster::Surface& ReferenceReplay::pixels() { return s_->h->pixels(); }
 
 std::expected<std::vector<std::uint8_t>, std::string> ReferenceReplay::png() { return s_->h->png(); }
 

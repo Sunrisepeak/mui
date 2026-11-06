@@ -7,17 +7,17 @@
 import std;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.hash;
-import openmui.testing;
+import mlibs.hash;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -329,7 +329,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the gallery: the ten, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({440, 360});
         o.fonts = &own;

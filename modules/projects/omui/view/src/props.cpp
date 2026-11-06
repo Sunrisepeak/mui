@@ -4,9 +4,13 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
+import mlibs.layout;
 import hanim.effect;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -47,19 +51,19 @@ constexpr bool in(const std::array<std::string_view, N>& set, std::string_view n
     return std::ranges::find(set, name) != set.end();
 }
 
-layout::Length to_length(const Value& v, const Theme& theme) {
-    if (v.is_number()) return layout::pt(static_cast<float>(v.as_double()));
+mlibs::layout::Length to_length(const Value& v, const Theme& theme) {
+    if (v.is_number()) return mlibs::layout::pt(static_cast<float>(v.as_double()));
     std::string_view s = v.as_string();
-    if (s.empty() || s == "auto") return layout::Length::automatic();
+    if (s.empty() || s == "auto") return mlibs::layout::Length::automatic();
     if (s.ends_with('%')) {
         float x = 0;
         std::from_chars(s.data(), s.data() + s.size() - 1, x);
-        return layout::pct(x);
+        return mlibs::layout::pct(x);
     }
     float x = 0;
     if (auto r = std::from_chars(s.data(), s.data() + s.size(), x); r.ec == std::errc{} && r.ptr == s.data() + s.size())
-        return layout::pt(x);
-    return layout::pt(theme.space(s, 0));
+        return mlibs::layout::pt(x);
+    return mlibs::layout::pt(theme.space(s, 0));
 }
 
 float to_space(const Value& v, const Theme& theme) {
@@ -100,14 +104,14 @@ std::optional<E> choose(std::string_view s, const std::array<std::pair<std::stri
     return std::nullopt;
 }
 
-constexpr std::array<std::pair<std::string_view, layout::Align>, 7> aligns{{
-    {"auto", layout::Align::auto_}, {"start", layout::Align::start}, {"end", layout::Align::end},
-    {"center", layout::Align::center}, {"stretch", layout::Align::stretch}, {"baseline", layout::Align::baseline},
-    {"flex_start", layout::Align::start},
+constexpr std::array<std::pair<std::string_view, mlibs::layout::Align>, 7> aligns{{
+    {"auto", mlibs::layout::Align::auto_}, {"start", mlibs::layout::Align::start}, {"end", mlibs::layout::Align::end},
+    {"center", mlibs::layout::Align::center}, {"stretch", mlibs::layout::Align::stretch}, {"baseline", mlibs::layout::Align::baseline},
+    {"flex_start", mlibs::layout::Align::start},
 }};
 
-layout::GridLine to_grid_line(const Value& v, layout::GridLine current) {
-    if (v.is_number()) return layout::GridLine::at(static_cast<std::int16_t>(v.as_int()), current.span);
+mlibs::layout::GridLine to_grid_line(const Value& v, mlibs::layout::GridLine current) {
+    if (v.is_number()) return mlibs::layout::GridLine::at(static_cast<std::int16_t>(v.as_int()), current.span);
     if (v.map()) {
         const Value* l = v.get("line");
         const Value* s = v.get("span");
@@ -115,7 +119,7 @@ layout::GridLine to_grid_line(const Value& v, layout::GridLine current) {
     }
     // "2", "span 3", "2 / span 3"
     std::string_view s = v.as_string();
-    layout::GridLine g = current;
+    mlibs::layout::GridLine g = current;
     auto number = [](std::string_view t) {
         while (!t.empty() && t.front() == ' ') t.remove_prefix(1);
         int x = 0;
@@ -125,7 +129,7 @@ layout::GridLine to_grid_line(const Value& v, layout::GridLine current) {
     auto slash = s.find('/');
     std::string_view first = s.substr(0, slash);
     while (!first.empty() && first.back() == ' ') first.remove_suffix(1);
-    if (first.starts_with("span")) g = layout::GridLine::spanning(std::max<std::int16_t>(1, number(first.substr(4))));
+    if (first.starts_with("span")) g = mlibs::layout::GridLine::spanning(std::max<std::int16_t>(1, number(first.substr(4))));
     else g.line = number(first);
     if (slash != std::string_view::npos) {
         std::string_view second = s.substr(slash + 1);
@@ -135,24 +139,24 @@ layout::GridLine to_grid_line(const Value& v, layout::GridLine current) {
     return g;
 }
 
-std::vector<layout::Track> to_tracks(const Value& v) {
+std::vector<mlibs::layout::Track> to_tracks(const Value& v) {
     if (const Value::List* l = v.list()) {
-        std::vector<layout::Track> out;
+        std::vector<mlibs::layout::Track> out;
         for (const Value& t : *l) {
-            if (t.is_number()) out.push_back(layout::Track::points(static_cast<float>(t.as_double())));
-            else for (const layout::Track& x : parse_tracks(t.as_string())) out.push_back(x);
+            if (t.is_number()) out.push_back(mlibs::layout::Track::points(static_cast<float>(t.as_double())));
+            else for (const mlibs::layout::Track& x : parse_tracks(t.as_string())) out.push_back(x);
         }
         return out;
     }
     if (v.is_number()) {
         // A count of equal columns.
-        return std::vector<layout::Track>(static_cast<std::size_t>(std::max<std::int64_t>(0, v.as_int())), layout::Track::fr(1));
+        return std::vector<mlibs::layout::Track>(static_cast<std::size_t>(std::max<std::int64_t>(0, v.as_int())), mlibs::layout::Track::fr(1));
     }
     return parse_tracks(v.as_string());
 }
 
-void apply_layout(layout::Style& s, std::string_view k, const Value& v, const Theme& theme) {
-    using namespace layout;
+void apply_layout(mlibs::layout::Style& s, std::string_view k, const Value& v, const Theme& theme) {
+    using namespace mlibs::layout;
     if (k == "width") s.width = to_length(v, theme);
     else if (k == "height") s.height = to_length(v, theme);
     else if (k == "min_width") s.min_width = to_length(v, theme);
@@ -570,13 +574,13 @@ void Runtime::Impl::apply_now(NodeId id, std::string_view name, const Value& val
 std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& value, std::string_view where, const Theme* theme) {
     const Value* fx = value.get("name");
     if (!fx || !value.map()) return std::nullopt;
-    const auto ref = render::effects().find(fx->as_string());
+    const auto ref = xrender::effects().find(fx->as_string());
     if (!ref) {
-        warn("{}: no effect is named '{}' (render::effects().names())", where, fx->as_string());
+        warn("{}: no effect is named '{}' (xrender::effects().names())", where, fx->as_string());
         return std::nullopt;
     }
     std::vector<std::pair<std::string_view, float>> given;
-    const render::EffectInfo* about = render::effects().info(*ref);
+    const xrender::EffectInfo* about = xrender::effects().info(*ref);
     const auto param = [&](std::string_view n) -> std::string_view {  // its name as the effect keeps it (lives as long as the effect)
         if (about)
             for (const auto& ep : about->params)
@@ -597,7 +601,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     }
     Node::PixelEffectState st;
     st.effect = *ref;
-    st.params = render::effects().params(*ref, given);
+    st.params = xrender::effects().params(*ref, given);
     st.start = now();
     const auto bad = [&](std::string_view reason) -> std::optional<Node::PixelEffectState> {
         warn("{}: {}", where, reason); return std::nullopt;
@@ -629,7 +633,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     hanim::EffectSpec recipe{std::string(fx->as_string()), {}};
     std::vector<std::size_t> indices;
     const auto animate = [&](std::string_view name, double from, double to) {
-        const auto it = std::ranges::find(about->params, name, &render::EffectParam::name);
+        const auto it = std::ranges::find(about->params, name, &xrender::EffectParam::name);
         if (it == about->params.end() || !std::isfinite(from) || !std::isfinite(to) ||
             from < it->min || from > it->max || to < it->min || to > it->max) return false;
         indices.push_back(static_cast<std::size_t>(it - about->params.begin()));
@@ -711,7 +715,7 @@ void Runtime::Impl::apply_rules(NodeId id) {
 void Runtime::Impl::sync_style(NodeId id) {
     Node& n = at(id);
     if (n.state.removing) return;
-    layout::Style s;
+    mlibs::layout::Style s;
     const Theme& theme = theme_of(id);
     if (n.type->style) n.type->style(n.instance, theme, s);
     for (const auto& [k, v] : n.props)
@@ -729,14 +733,14 @@ void Runtime::Impl::sync_style(NodeId id) {
     }
     if (n.type->overlay) {
         // Laid out at the root's corner, then placed against its anchor.
-        s.position = layout::Position::absolute;
-        s.left = s.top = layout::pt(0);
-        s.right = s.bottom = layout::Length::automatic();
+        s.position = mlibs::layout::Position::absolute;
+        s.left = s.top = mlibs::layout::pt(0);
+        s.right = s.bottom = mlibs::layout::Length::automatic();
         // Along a whole edge: from the window's top to its bottom.
         if (n.type->placement)
-            if (const auto side = n.type->placement(n.instance).side; side == Placement::Side::left || side == Placement::Side::right) s.bottom = layout::pt(0);
+            if (const auto side = n.type->placement(n.instance).side; side == Placement::Side::left || side == Placement::Side::right) s.bottom = mlibs::layout::pt(0);
         if (n.type->placement && n.type->placement(n.instance).match_width && alive(n.parent))
-            s.min_width = layout::pt(std::max(s.min_width.resolve(0).value_or(0), at(n.parent).bounds.width));
+            s.min_width = mlibs::layout::pt(std::max(s.min_width.resolve(0).value_or(0), at(n.parent).bounds.width));
     }
     if (!(layout.style(n.layout) == s)) {
         layout.set_style(n.layout, std::move(s));

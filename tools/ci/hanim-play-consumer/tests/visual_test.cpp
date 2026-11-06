@@ -2,13 +2,13 @@
 import std;
 import hanim.engine;
 import hanim.render.vector;
-import openmui.raster;
-import openmui.image;
-import openmui.testing;
+import xrender.raster;
+import mlibs.image;
+import mlibs.testing;
 using namespace hanim;
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
 template<class T,class E> T take(std::expected<T,E> value) {
     check(value.has_value()); if (!value) std::abort(); return std::move(*value);
@@ -51,12 +51,12 @@ int main(int argc,char** argv) {
                 std::copy_n(pixels.row(y),128,strip.row(y)+index*128);
             }
             hashes[index]=hash.hex();
-            const omui::imageio::View full{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),128,128,128*4,omui::imageio::Alpha::premultiplied};
-            check(omui::imageio::save_png(output/std::format("frame-{}.png",index),full).has_value());
+            const mlibs::image::View full{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),128,128,128*4,mlibs::image::Alpha::premultiplied};
+            check(mlibs::image::save_png(output/std::format("frame-{}.png",index),full).has_value());
             if(index==1) {
-                const omui::imageio::View crop{reinterpret_cast<const std::uint8_t*>(pixels.row(32)+32),64,64,128*4,omui::imageio::Alpha::premultiplied};
-                check(omui::imageio::save_png(output/"region.png",crop).has_value());
-                auto decoded=omui::imageio::decode_png(take(omui::imageio::encode_png(crop)));
+                const mlibs::image::View crop{reinterpret_cast<const std::uint8_t*>(pixels.row(32)+32),64,64,128*4,mlibs::image::Alpha::premultiplied};
+                check(mlibs::image::save_png(output/"region.png",crop).has_value());
+                auto decoded=mlibs::image::decode_png(take(mlibs::image::encode_png(crop)));
                 check(decoded.has_value() && decoded->width==64 && decoded->height==64);
                 // Decode is straight-alpha; compare an opaque interior witness.
                 const auto center=pixels.at(64,64);
@@ -66,8 +66,8 @@ int main(int argc,char** argv) {
             ++index;
         }
         check(hashes[0]!=hashes[1] && hashes[1]!=hashes[2] && hashes[0]!=hashes[2]);
-        const omui::imageio::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),384,128,384*4,omui::imageio::Alpha::premultiplied};
-        check(omui::imageio::save_png(output/"sequence.png",sheet).has_value());
+        const mlibs::image::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),384,128,384*4,mlibs::image::Alpha::premultiplied};
+        check(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
         std::println("headless visual: {} source owner={} slot={} target slot={} viewport=128x128 region=32,32,64,64 backend=CPU times=0,.5,1 hashes={},{},{}",
             output.generic_string(),source.owner,source.slot,target.slot,hashes[0],hashes[1],hashes[2]);
     });
@@ -122,8 +122,8 @@ int main(int argc,char** argv) {
         for(int i=0;i<5;++i)for(int j=i+1;j<5;++j)check(hashes[i]!=hashes[j]);
         for(int i:{3,0,4,1,2})check(draw(i*.5)==hashes[i],"unordered seek must reproduce actual composite pixels");
         const auto output=scratch_dir("hanim-program-visual");
-        const omui::imageio::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),1200,128,1200*4,omui::imageio::Alpha::premultiplied};
-        check(omui::imageio::save_png(output/"sequence.png",sheet).has_value());
+        const mlibs::image::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),1200,128,1200*4,mlibs::image::Alpha::premultiplied};
+        check(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
         std::println("headless program: {} tracks=2 segments=3 times=0,.5,1,1.5,2 hashes={},{},{},{},{}",
             output.generic_string(),hashes[0],hashes[1],hashes[2],hashes[3],hashes[4]);
     });

@@ -8,14 +8,14 @@
 // land on their frames' first samples.
 import std;
 import hanim.core;
-import openmui.image;
+import mlibs.image;
 import xengine.audio;
 import xengine.video;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace video = xengine::video;
-namespace imageio = omui::imageio;
+namespace imageio = mlibs::image;
 
 namespace {
 

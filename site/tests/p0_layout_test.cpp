@@ -5,10 +5,10 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 constexpr std::string_view home_root = "main/body/view/home/page/landing";
@@ -28,10 +28,10 @@ bool hit_reaches(Runtime& runtime, NodeId target, Point point) {
 void readable_label(Runtime& runtime, NodeId id, std::string_view text, float horizontal_padding = 16) {
     const auto bounds = runtime.screen_bounds(id);
     const auto& token = runtime.theme_of(id).text_style("label");
-    typeset::ParagraphStyle style;
+    mlibs::text::ParagraphStyle style;
     style.style.families = token.families; style.style.size = token.size; style.style.weight = token.weight;
     style.style.line_height = token.line_height; style.style.letter_spacing = token.letter_spacing;
-    typeset::Paragraph label(runtime.fonts(), std::string(text), style);
+    mlibs::text::Paragraph label(runtime.fonts(), std::string(text), style);
     label.layout(std::numeric_limits<float>::infinity());
     check(label.lines().size() == 1 && label.size().width + horizontal_padding <= bounds.width + 0.5f &&
           label.size().height <= bounds.height + 0.5f, std::format("the complete label fits {}", runtime.path(id)));
@@ -44,7 +44,7 @@ struct Styles {
     Runtime* runtime;
     site::FeatureExamplesContext context;
     Styles(float width, std::string_view lang)
-        : h(HeadlessOptions{.size = {width + 40, 844}, .tier = pipeline::Tier::t4}), runtime(&h.runtime()) {
+        : h(HeadlessOptions{.size = {width + 40, 844}, .tier = mlibs::pipeline::Tier::t4}), runtime(&h.runtime()) {
         language.set(std::string(lang)); context.runtime = &runtime; context.lang = &language;
         context.root = "main/viewport/styles_feature";
         context.style = [this](std::string name) { check(theme::apply_style(*runtime, name, context.scope, false).has_value()); };
@@ -76,9 +76,9 @@ struct Styles {
         h.click(target.center()); refresh();
     }
     bool glass() {
-        const auto glass = render::effects().find("liquid_glass");
+        const auto glass = xrender::effects().find("liquid_glass");
         for (const auto& command : runtime->display_list().commands())
-            if (const auto* layer = std::get_if<render::PushLayer>(&command); layer && glass && layer->effect.id == glass->id) return true;
+            if (const auto* layer = std::get_if<xrender::PushLayer>(&command); layer && glass && layer->effect.id == glass->id) return true;
         return false;
     }
     void controls_fit(std::string_view specimen) {

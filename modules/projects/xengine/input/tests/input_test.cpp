@@ -4,9 +4,9 @@
 // recordings as text, read back as themselves.
 import std;
 import xengine.input;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 enum Code : std::uint32_t { left = 1, right = 2, space = 3 };

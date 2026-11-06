@@ -1,10 +1,10 @@
 import std;
 import hanim.object;
-import openmui.trace;
-import openmui.testing;
+import mlibs.trace;
+import mlibs.testing;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::atomic<std::size_t> allocations{0};
@@ -60,7 +60,7 @@ void operator delete[](void* pointer, std::align_val_t, const std::nothrow_t&) n
 int main(int argc, char** argv) {
     Suite s{"hanim.object.query_allocations"};
     s.test("warm capture named/ref/resource queries allocate no scalar or array storage even while tracing", [] {
-        omui::trace::start();
+        mlibs::trace::start();
         const std::array edges{ShapeSegment::line({1, 0})};
         auto contour = Contour::copy({{}, edges, false}); check(contour.has_value());
         auto registry = ObjectRegistry::make(); check(registry.has_value());
@@ -102,16 +102,16 @@ int main(int argc, char** argv) {
             consumed += shape->segments.front().end.x;
         }
         const auto after = allocations.load(std::memory_order_relaxed);
-        const auto trace = omui::trace::stop();
+        const auto trace = mlibs::trace::stop();
         check(valid && consumed == 2000);
         check(after == before, std::format("{} scalar/array allocations across 2000 complete capture/query iterations", after - before));
         check(trace.dropped == 0);
         bool captured = false, created = false, owner_counter = false;
         for (const auto& event : trace.events) {
             if (std::string_view(event.category) != "hanim.object") continue;
-            captured |= event.kind == omui::trace::Kind::begin && std::string_view(event.name) == "capture";
-            created |= event.kind == omui::trace::Kind::begin && std::string_view(event.name) == "create";
-            owner_counter |= event.kind == omui::trace::Kind::counter && std::string_view(event.name) == "owner.low" && event.value == static_cast<double>(object->owner);
+            captured |= event.kind == mlibs::trace::Kind::begin && std::string_view(event.name) == "capture";
+            created |= event.kind == mlibs::trace::Kind::begin && std::string_view(event.name) == "create";
+            owner_counter |= event.kind == mlibs::trace::Kind::counter && std::string_view(event.name) == "owner.low" && event.value == static_cast<double>(object->owner);
         }
         check(captured && created && owner_counter, "existing trace infrastructure records object operations and exact owner halves");
     });

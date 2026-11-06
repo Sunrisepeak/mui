@@ -51,7 +51,7 @@ void Slider::prop_changed(SliderProp p) {
     }
 }
 
-Size Slider::measure(MeasureContext&, std::optional<float> width, std::optional<float> h, layout::Available aw, layout::Available) {
+Size Slider::measure(MeasureContext&, std::optional<float> width, std::optional<float> h, mlibs::layout::Available aw, mlibs::layout::Available) {
     float w = width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w);
     return {w, h.value_or(height)};
 }
@@ -72,7 +72,7 @@ bool Slider::change(double v, bool commit, bool exact) {
 }
 
 // Its surfaces for an effect: the track and the thumb where it is now.
-std::size_t Slider::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Slider::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (out.size() < 2) return 0;
     const Rect t = track(size);
     const float f = static_cast<float>(std::clamp(thumb_, 0.0, 1.0));
@@ -90,23 +90,23 @@ void Slider::paint(PaintContext& ctx) const {
     halo_ = !off && (dragging_ || (ctx.state.focused && ctx.state.focus_visible)) ? 1.0 : 0.0;
     const Rect t = track(ctx.size);
     const float f = static_cast<float>(std::clamp(thumb_, 0.0, 1.0));
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
     const CornerRadii round = CornerRadii::all(track_h / 2);
-    ctx.list.fill_round_rect(t, round, render::Paint::solid(th.color("track")));
-    ctx.list.fill_round_rect({t.x, t.y, t.width * f, t.height}, round, render::Paint::solid(th.color("accent")));
+    ctx.list.fill_round_rect(t, round, xrender::Paint::solid(th.color("track")));
+    ctx.list.fill_round_rect({t.x, t.y, t.width * f, t.height}, round, xrender::Paint::solid(th.color("accent")));
     const Point c{t.x + t.width * f, ctx.size.height / 2};
     const float halo = static_cast<float>(halo_) * 0.5f + static_cast<float>(hover_) * 0.25f;
     if (halo > 0) {
         const float r = thumb_d / 2 + 6;
         ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r),
-                                 render::Paint::solid(th.color("accent").with_alpha(0.18f * std::min(1.0f, halo))));
+                                 xrender::Paint::solid(th.color("accent").with_alpha(0.18f * std::min(1.0f, halo))));
     }
     const Rect thumb{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d};
     ctx.list.box_shadow(thumb, CornerRadii::all(thumb_d / 2), {0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f));
-    ctx.list.fill_round_rect(thumb, CornerRadii::all(thumb_d / 2), render::Paint::solid(th.color("thumb")));
+    ctx.list.fill_round_rect(thumb, CornerRadii::all(thumb_d / 2), xrender::Paint::solid(th.color("thumb")));
     ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, thumb_d - 2, thumb_d - 2}, CornerRadii::all(thumb_d / 2 - 1), 2,
-                               render::Paint::solid(th.color("accent")));
+                               xrender::Paint::solid(th.color("accent")));
     if (off) ctx.list.pop_layer();
 }
 

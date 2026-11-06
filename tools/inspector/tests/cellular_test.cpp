@@ -1,11 +1,11 @@
 import std;
 import openmui;
 import openmui.inspector;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace lab=omui::inspector::cellular;
 namespace {
 struct Fixture {
@@ -25,7 +25,7 @@ struct Fixture {
         const auto node=host.runtime().find("main/cellular/field");
         check(host.runtime().valid(node));
         const auto image=host.png(host.runtime().screen_bounds(node));check(image.has_value());
-        return image?std::format("{:016x}",omui::hash::fnv1a(std::as_bytes(std::span(*image)))):"";
+        return image?std::format("{:016x}",mlibs::hash::fnv1a(std::as_bytes(std::span(*image)))):"";
     }
 };
 std::vector<Value> talk(agent::Protocol& p,std::string_view op,Value args={}) {

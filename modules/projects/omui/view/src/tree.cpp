@@ -4,15 +4,20 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
+import mlibs.layout;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::error;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
 namespace {
 
-Size measure_trampoline(void* context, layout::NodeId lnode, std::optional<float> width, std::optional<float> height,
-                        layout::Available aw, layout::Available ah) {
+Size measure_trampoline(void* context, mlibs::layout::NodeId lnode, std::optional<float> width, std::optional<float> height,
+                        mlibs::layout::Available aw, mlibs::layout::Available ah) {
     auto* impl = static_cast<Runtime::Impl*>(context);
     NodeId id = impl->by_layout[lnode];
     Node& n = impl->at(id);
@@ -21,7 +26,7 @@ Size measure_trampoline(void* context, layout::NodeId lnode, std::optional<float
     return n.type->measure(n.instance, m, width, height, aw, ah);
 }
 
-float baseline_trampoline(void* context, layout::NodeId lnode, Size content) {
+float baseline_trampoline(void* context, mlibs::layout::NodeId lnode, Size content) {
     auto* impl = static_cast<Runtime::Impl*>(context);
     NodeId id = impl->by_layout[lnode];
     Node& n = impl->at(id);
@@ -65,7 +70,7 @@ NodeId Runtime::Impl::create(Element& e, NodeId parent) {
     if (e.configure) e.configure(n.instance);
 
     const std::uint32_t index = n.index;
-    const layout::NodeId lnode = n.layout;
+    const mlibs::layout::NodeId lnode = n.layout;
     NodeId id = nodes.insert(std::move(n));
     by_index[index] = id;
     if (by_layout.size() <= lnode) by_layout.resize(lnode + 1);
@@ -317,7 +322,7 @@ void Runtime::Impl::flatten(NodeId id) {
         n.children = std::move(out);
         layout.clear_children(n.layout);
         // Overlays are laid out from the root, wherever they are in the tree.
-        const layout::NodeId top = at(root).layout;
+        const mlibs::layout::NodeId top = at(root).layout;
         for (NodeId c : n.children) layout.append(at(c).type->overlay ? top : n.layout, at(c).layout);
         if (id == root)
             for (NodeId o : overlays)
@@ -387,13 +392,13 @@ void Runtime::Impl::start_removal(NodeId id) {
     // removing (S-4) and actions on it are refused.
     n.state.removing = true;
     n.bindings.clear();
-    layout::Style s = layout.style(n.layout);
-    s.position = layout::Position::absolute;
-    s.left = layout::pt(n.frame.x);
-    s.top = layout::pt(n.frame.y);
-    s.width = layout::pt(n.frame.width);
-    s.height = layout::pt(n.frame.height);
-    s.right = s.bottom = layout::Length::automatic();
+    mlibs::layout::Style s = layout.style(n.layout);
+    s.position = mlibs::layout::Position::absolute;
+    s.left = mlibs::layout::pt(n.frame.x);
+    s.top = mlibs::layout::pt(n.frame.y);
+    s.width = mlibs::layout::pt(n.frame.width);
+    s.height = mlibs::layout::pt(n.frame.height);
+    s.right = s.bottom = mlibs::layout::Length::automatic();
     s.margin = {};
     layout.set_style(n.layout, s);
     removing.push_back(id);

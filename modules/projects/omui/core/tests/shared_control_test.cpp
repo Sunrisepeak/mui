@@ -1,10 +1,10 @@
 import std;
 import openmui.core;
 import mlibs.control;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite suite{"core.shared_control"};

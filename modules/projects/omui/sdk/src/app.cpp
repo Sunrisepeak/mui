@@ -7,14 +7,20 @@ import openmui.agent;
 import openmui.ui.base;
 import openmui.ui.window;
 import openmui.host.headless;
-import openmui.trace;
-import openmui.i18n;
-import openmui.i18n.cldr;
+import mlibs.trace;
+import mlibs.i18n;
+import mlibs.i18n.cldr;
 import mcpplibs.os;
 import :app;
 import :build_profile;
 import :agent_guide;
 import :shown;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::set_log_filter;
+using mlibs::log::error;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -122,7 +128,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
                 const auto comma = list.find(',');
                 const std::string_view item = list.substr(0, comma);
                 list = comma == std::string_view::npos ? std::string_view{} : list.substr(comma + 1);
-                if (!i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
+                if (!mlibs::i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
                 o.languages.emplace_back(item);
             }
         } else if (a == "--agent-guide") {
@@ -150,10 +156,10 @@ namespace {
 // --lang, else what the host or the system says.
 void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::string> host) {
     Languages& l = languages();
-    l.edit([](i18n::Library& lib) { i18n::cldr::add_to(lib); });
-    if (auto source = i18n::Locale::parse(app.source_language)) l.set_fallback(*source);
+    l.edit([](mlibs::i18n::Library& lib) { mlibs::i18n::cldr::add_to(lib); });
+    if (auto source = mlibs::i18n::Locale::parse(app.source_language)) l.set_fallback(*source);
     auto add = [&](std::string_view tag, std::string_view text, std::string_view file) {
-        auto locale = i18n::Locale::parse(tag);
+        auto locale = mlibs::i18n::Locale::parse(tag);
         if (!locale) {
             warn("{}: `{}` is not a language tag", file, tag);
             return;
@@ -176,9 +182,9 @@ void languages_of(const AppSpec& app, const RunOptions& o, std::vector<std::stri
             add(std::string_view(name).substr(0, name.size() - suffix.size()), *text, utf8(e.path()));
         }
     }
-    std::vector<i18n::Locale> requested;
+    std::vector<mlibs::i18n::Locale> requested;
     for (const auto& t : o.languages.empty() ? host : o.languages)
-        if (auto loc = i18n::Locale::parse(t)) requested.push_back(*loc);
+        if (auto loc = mlibs::i18n::Locale::parse(t)) requested.push_back(*loc);
     if (o.languages.empty() && requested.empty()) requested = system_locales();
     l.request(std::move(requested));
 }
@@ -322,12 +328,12 @@ int run(AppSpec app, const RunOptions& o) {
     for (const std::string& filter : {mcpplibs::os::env::get("OMUI_LOG").value_or(std::string{}), o.log})
         if (!filter.empty())
             if (auto r = set_log_filter(filter); !r) warn("log filter `{}`: {}", filter, r.error());
-    if (!o.profile.empty()) trace::start();
+    if (!o.profile.empty()) mlibs::trace::start();
     struct Profile {
         const std::filesystem::path& file;
         ~Profile() {
             if (file.empty()) return;
-            const trace::Trace t = trace::stop();
+            const mlibs::trace::Trace t = mlibs::trace::stop();
             if (auto w = mcpplibs::os::fs::write_atomic(file, t.chrome_json()); !w) error("{}: {}", utf8(file), w.error().message());
             else std::print(std::cerr, "{}", t.table());
         }

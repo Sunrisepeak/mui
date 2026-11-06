@@ -1,11 +1,11 @@
 // Conformance against the UCD's own test files (a committed subset; see
 // tests/data), plus UTF-8 decoding and caret navigation.
 import std;
-import openmui.unicode;
-import openmui.testing;
+import mlibs.unicode;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace uc = omui::unicode;
+using namespace mlibs::testing;
+namespace uc = mlibs::unicode;
 
 namespace {
 

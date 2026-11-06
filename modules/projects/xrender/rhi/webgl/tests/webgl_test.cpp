@@ -7,16 +7,16 @@
 // WebGL2 lacks refused up front, then the rhi conformance suite
 // (openmui.rhi.cts) — every case with the suite's own shaders, in ESSL.
 import std;
-import openmui.rhi;
-import openmui.rhi.webgl;
-import openmui.rhi.cts;
+import mlibs.rhi;
+import xrender.rhi.webgl;
+import mlibs.rhi.cts;
 import mcpplibs.os;
-import openmui.testing;
+import mlibs.testing;
 
 namespace webgl = xrender::rhi::webgl;
 
-using namespace omui::testing;
-using namespace omui::rhi;
+using namespace mlibs::testing;
+using namespace mlibs::rhi;
 
 namespace {
 

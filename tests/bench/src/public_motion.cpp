@@ -4,9 +4,9 @@ import hanim.core;
 import hanim.object;
 import hanim.engine;
 import hanim.render.vector;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
 
 namespace omui::bench {
 namespace {
@@ -33,44 +33,44 @@ struct ShapeFixture {
     }
 };
 struct PaintFixture {
-    std::array<std::array<render::GradientStop, 2>, 8> stops;
-    std::array<render::WeightedPaint, 8> from, to;
+    std::array<std::array<xrender::GradientStop, 2>, 8> stops;
+    std::array<xrender::WeightedPaint, 8> from, to;
     PaintFixture() {
         for (std::size_t i = 0; i < from.size(); ++i) {
             const float f = static_cast<float>(i) / static_cast<float>(from.size());
-            from[i] = {render::Paint::solid({f, 0.25f, 1 - f, 0.8f}), 0.125f};
+            from[i] = {xrender::Paint::solid({f, 0.25f, 1 - f, 0.8f}), 0.125f};
             stops[i] = {{{0, {0.2f, f, 1, 0.5f}}, {1, {1, 0.5f, f, 1}}}};
-            render::Paint gradient; gradient.kind = render::Paint::Kind::gradient;
+            xrender::Paint gradient; gradient.kind = xrender::Paint::Kind::gradient;
             gradient.gradient.start = {0, 0}; gradient.gradient.end = {256, 256}; gradient.gradient.stops = stops[i];
             to[i] = {gradient, 0.125f};
         }
     }
     auto prepare() const {
-        render::Paint a, b; a.kind = b.kind = render::Paint::Kind::mix; a.mix = from; b.mix = to;
-        return render::PreparedPaintMix::prepare(a, b);
+        xrender::Paint a, b; a.kind = b.kind = xrender::Paint::Kind::mix; a.mix = from; b.mix = to;
+        return xrender::PreparedPaintMix::prepare(a, b);
     }
 };
 void cpu_note(State& state, std::string work) {
     state.note("timing", "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured");
     state.note("work", std::move(work));
 }
-std::expected<render::RecordedPath, render::PathRecordError> record_shape(
-    render::DisplayList& list, const hanim::PreparedShapeMorph& plan, double progress) {
+std::expected<xrender::RecordedPath, xrender::PathRecordError> record_shape(
+    xrender::DisplayList& list, const hanim::PreparedShapeMorph& plan, double progress) {
     bool okay = true;
-    auto result = list.record_path(plan.segment_count() + 2, plan.segment_count() * 3 + 1, [&](render::MutablePathView path) {
-        path.verbs[0] = render::PathVerb::move; path.verbs.back() = render::PathVerb::close;
-        auto point = [](hanim::Vec2 p) { return geom::Point{static_cast<float>(128 + 96 * p.x), static_cast<float>(128 + 96 * p.y)}; };
+    auto result = list.record_path(plan.segment_count() + 2, plan.segment_count() * 3 + 1, [&](xrender::MutablePathView path) {
+        path.verbs[0] = xrender::PathVerb::move; path.verbs.back() = xrender::PathVerb::close;
+        auto point = [](hanim::Vec2 p) { return mlibs::geom::Point{static_cast<float>(128 + 96 * p.x), static_cast<float>(128 + 96 * p.y)}; };
         for (std::size_t i = 0; i < plan.segment_count(); ++i) {
             const auto cubic = plan.sample_segment(progress, i);
             if (!cubic) { okay = false; return; }
             if (i == 0) path.points[0] = point(cubic->start);
-            path.verbs[i + 1] = render::PathVerb::cubic;
+            path.verbs[i + 1] = xrender::PathVerb::cubic;
             path.points[i * 3 + 1] = point(cubic->control1);
             path.points[i * 3 + 2] = point(cubic->control2);
             path.points[i * 3 + 3] = point(cubic->end);
         }
     });
-    if (!okay) return std::unexpected(render::PathRecordError::invalid_path);
+    if (!okay) return std::unexpected(xrender::PathRecordError::invalid_path);
     return result;
 }
 }
@@ -254,8 +254,8 @@ void add_public_motion_benchmarks() {
     add("public-motion/paint-sample-record-500", "500 16-leaf plans sampled into caller storage and independently recorded in a reusable display-list arena", [](State& s) {
         const PaintFixture input; const auto plan = input.prepare();
         if (!plan) { s.fail("material preparation failed during setup"); return; }
-        render::DisplayList list;
-        std::array<render::WeightedPaint, render::max_paint_mix_terms> buffer;
+        xrender::DisplayList list;
+        std::array<xrender::WeightedPaint, xrender::max_paint_mix_terms> buffer;
         cpu_note(s, "Preparation excluded. Per iteration: 500 sample() calls plus 500 record() calls (record samples independently), 16000 term writes total, deep-owning stops into a reusable arena. No draw commands, shader execution or rasterization. ns/item is per object doing both APIs.");
         s.items(instances);
         while (s.next()) {
@@ -277,25 +277,25 @@ void add_public_motion_benchmarks() {
     add("public-motion/draw-cpu-256", "one 256x256 CPU frame: prepared triangle/circle geometry with gradient and normal-lit image mixed before one coverage mask", [](State& s) {
         const ShapeFixture input; const auto shape = input.prepare(false);
         if (!shape) { s.fail("shape preparation failed during setup"); return; }
-        render::ImageStore images;
-        const auto albedo = images.add(4, 4, std::vector<raster::Rgba8>(16, raster::Rgba8{180, 130, 70, 255}));
-        const auto normal = images.add(4, 4, std::vector<raster::Rgba8>(16, raster::Rgba8{128, 128, 255, 255}));
-        render::Material lighting; lighting.normal = normal; lighting.key = {0.5f, 0.7f, 1, 1};
-        render::Paint image; image.kind = render::Paint::Kind::image; image.image = albedo; image.material = &lighting;
-        image.color = geom::Color::white(); image.image_transform = geom::Affine::scale(64, 64);
-        const std::array<render::GradientStop, 2> stops{{{0, {1, 0.2f, 0.1f, 0.7f}}, {1, {0.2f, 1, 0.5f, 1}}}};
-        render::Paint gradient; gradient.kind = render::Paint::Kind::gradient;
+        xrender::ImageStore images;
+        const auto albedo = images.add(4, 4, std::vector<xrender::raster::Rgba8>(16, xrender::raster::Rgba8{180, 130, 70, 255}));
+        const auto normal = images.add(4, 4, std::vector<xrender::raster::Rgba8>(16, xrender::raster::Rgba8{128, 128, 255, 255}));
+        xrender::Material lighting; lighting.normal = normal; lighting.key = {0.5f, 0.7f, 1, 1};
+        xrender::Paint image; image.kind = xrender::Paint::Kind::image; image.image = albedo; image.material = &lighting;
+        image.color = mlibs::geom::Color::white(); image.image_transform = mlibs::geom::Affine::scale(64, 64);
+        const std::array<xrender::GradientStop, 2> stops{{{0, {1, 0.2f, 0.1f, 0.7f}}, {1, {0.2f, 1, 0.5f, 1}}}};
+        xrender::Paint gradient; gradient.kind = xrender::Paint::Kind::gradient;
         gradient.gradient.start = {32, 32}; gradient.gradient.end = {224, 224}; gradient.gradient.stops = stops;
-        const auto paint = render::PreparedPaintMix::prepare(gradient, image);
+        const auto paint = xrender::PreparedPaintMix::prepare(gradient, image);
         if (!paint) { s.fail("material preparation failed during setup"); return; }
-        render::DisplayList list; list.reserve(4);
-        raster::Surface pixels(256, 256); render::CpuRenderer renderer;
+        xrender::DisplayList list; list.reserve(4);
+        xrender::raster::Surface pixels(256, 256); xrender::CpuRenderer renderer;
         cpu_note(s, "One CPU frame per iteration: public shape sampling/arena path recording, two-leaf material recording, one FillPath, clear and full 256x256 CPU raster. Image creation and plan preparation excluded. ns/item is per canvas pixel, not per covered pixel. No GPU timing claim; renderer allocation counts are reported, not assumed zero.");
         s.items(256 * 256);
         while (s.next()) {
             const double t = static_cast<double>(s.iteration() % 120) / 119;
             list.clear(); const auto path = record_shape(list, *shape, t); const auto material = paint->record(t, list);
-            if (!path || !material || !list.fill_path(*path, render::FillRule::nonzero, *material) || list.size() != 1) {
+            if (!path || !material || !list.fill_path(*path, xrender::FillRule::nonzero, *material) || list.size() != 1) {
                 s.fail("expected one recorded current geometry and one material-mix FillPath"); return;
             }
             const auto report = renderer.render(list, pixels, {&images, nullptr});

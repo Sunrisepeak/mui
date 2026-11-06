@@ -14,6 +14,10 @@ import openmui.theme;
 import openmui.theme.default_theme;
 import openmui.theme.compact;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
+
 namespace omui {
 
 namespace {

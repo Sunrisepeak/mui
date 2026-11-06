@@ -4,18 +4,22 @@
 module openmui.entry.python;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import nlohmann.json;
 import openmui;
 import openmui.abi;
 import openmui.lang;
 import openmui.lang.python;
 import openmui.ui.markdown;
-import openmui.image;
+import mlibs.image;
 import openmui.native.fuzzy;
 import openmui.theme.default_theme;
 import openmui.theme.compact;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::entry::python {
 
@@ -24,14 +28,14 @@ namespace {
 // Everything the module lives on, made once, when Python imports it, on the
 // thread that imports it: that thread is the runtime's.
 struct World {
-    std::unique_ptr<typeset::FontCollection> fonts;
+    std::unique_ptr<mlibs::text::FontCollection> fonts;
     std::unique_ptr<Runtime>                 runtime;
     abi::OmuiRuntime                         handle = nullptr;
     std::unique_ptr<lang::Host>              host;
     std::unique_ptr<lang::Session>           session;
     std::unique_ptr<xrender::text::GlyphCache>     glyphs;
-    render::CpuRenderer                      renderer;
-    raster::Surface                          surface;
+    xrender::CpuRenderer                      renderer;
+    xrender::raster::Surface                          surface;
     double                                   time = 0;
     std::atomic<Desktop*>                    desktop{nullptr};
 
@@ -41,7 +45,7 @@ struct World {
         if (auto r = natives::fuzzy::define(); !r) warn("the native module fuzzy: {}", r.error());
         for (auto add : {themes::add_default, themes::add_compact})
             if (auto r = add(); !r) warn("a theme package: {}", r.error()[0].text());
-        fonts = std::make_unique<typeset::FontCollection>();
+        fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         RuntimeOptions o;
         o.fonts = fonts.get();
@@ -82,18 +86,18 @@ struct World {
         const float scale = runtime->scale();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
         const int h = static_cast<int>(std::lround(runtime->size().height * scale));
-        if (surface.width() != w || surface.height() != h) surface = raster::Surface(w, h);
-        render::CpuOptions o;
+        if (surface.width() != w || surface.height() != h) surface = xrender::raster::Surface(w, h);
+        xrender::CpuOptions o;
         o.scale = scale;
         o.background = Color::white();
-        const render::Resources resources{&runtime->images(), glyphs.get()};
+        const xrender::Resources resources{&runtime->images(), glyphs.get()};
         (void)renderer.render(runtime->display_list(), surface, resources, o);
     }
 
     std::string png(const std::string& file) {
         render();
-        imageio::View v{surface.bytes().data(), surface.width(), surface.height(), surface.width() * 4, imageio::Alpha::premultiplied};
-        auto bytes = imageio::encode_png(v);
+        mlibs::image::View v{surface.bytes().data(), surface.width(), surface.height(), surface.width() * 4, mlibs::image::Alpha::premultiplied};
+        auto bytes = mlibs::image::encode_png(v);
         if (!bytes) return bytes.error();
         std::ofstream out(std::filesystem::path(std::u8string(file.begin(), file.end())), std::ios::binary);
         out.write(reinterpret_cast<const char*>(bytes->data()), static_cast<std::streamsize>(bytes->size()));
@@ -103,7 +107,7 @@ struct World {
     // FNV-1a over the frame's RGBA rows: the hash the examples' tests pin.
     std::string pixels() {
         render();
-        return omui::hash::Fnv1a().bytes(surface.bytes()).hex();
+        return mlibs::hash::Fnv1a().bytes(surface.bytes()).hex();
     }
 
     int run(const lang::Json& o) {

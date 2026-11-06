@@ -1,9 +1,9 @@
 import std;
 import openmui.host.web;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"host.web.agent_policy"};

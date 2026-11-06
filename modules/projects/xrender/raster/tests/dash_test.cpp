@@ -1,11 +1,11 @@
 // Public coverage, not a second implementation of the dash walker.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace raster = omui::raster;
+using namespace mlibs::testing;
+namespace raster = xrender::raster;
 
 namespace {
 raster::Coverage line(std::span<const float> pattern = {}, float offset = 0) {

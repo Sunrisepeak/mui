@@ -62,11 +62,11 @@ public:
         const bool portrait = c_.portrait();
         word_size_ = portrait ? 150.0f : 210.0f;
         auto s = s_;
-        auto refs = std::make_shared<std::pair<render::ImageRef, render::ImageRef>>();
+        auto refs = std::make_shared<std::pair<xrender::ImageRef, xrender::ImageRef>>();
         refs_ = refs;
         Element lens = painter({.id = "lens",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::figure,
                                 .label = "A pixel of the settings panel, magnified, and the panel's semantic tree",
                                 .paint = [s, refs](PaintContext& p) { paint(p, *s, *refs); }});
@@ -99,10 +99,10 @@ public:
         Element tagline = animate_glyphs(text({.id = "tagline", .text = "an open UI specification · its reference implementation in C++ modules", .style = "code",
                                                .color = Fill(hex(ink::muted)), .wrap = false, .size = portrait ? 19.0f : 25.0f}),
                                          lift);
-        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        Element type = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                              {column({.id = "label", .gap = 6, .opacity = 0.0f}, {animate_glyphs(std::move(label), typed), animate_glyphs(std::move(coords), later)}),
                               std::move(word), box({.id = "under", .opacity = 0.0f}, {std::move(tagline)})});
-        return stack({.id = "origin", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(lens), std::move(type)});
+        return stack({.id = "origin", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"}, {std::move(lens), std::move(type)});
     }
 
     void mounted(Runtime& rt) override {
@@ -177,13 +177,13 @@ public:
     std::vector<Cue> cues(double) override { return {}; }
 
 private:
-    static void paint(PaintContext& p, State& s, const std::pair<render::ImageRef, render::ImageRef>& refs);
+    static void paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef, xrender::ImageRef>& refs);
     void layout_tree();
     void layout_wordmark(Runtime& rt);
 
     ShotContext                                                  c_;
     std::shared_ptr<State>                                       s_;
-    std::shared_ptr<std::pair<render::ImageRef, render::ImageRef>> refs_;
+    std::shared_ptr<std::pair<xrender::ImageRef, xrender::ImageRef>> refs_;
     NodeId lens_{}, label_{}, word_{}, under_{}, sweep_from_{}, sweep_to_{};
     float  word_size_ = 210;
 };
@@ -259,14 +259,14 @@ void Origin::layout_wordmark(Runtime& rt) {
     State& s = *s_;
     const Size screen = c_.size;
     Headless h(HeadlessOptions{.size = {screen.width, word_size_ * 1.4f}, .background = Color::transparent(), .fonts = &rt.fonts(), .app = "openmui-promo-mark"});
-    h.mount("main", row({.width = Dim(layout::pct(100)), .justify = "center"},
+    h.mount("main", row({.width = Dim(mlibs::layout::pct(100)), .justify = "center"},
                         {text({.id = "mark", .text = std::string(wordmark_text), .style = "display", .color = Fill(Color::white()), .wrap = false, .size = word_size_,
                                .weight = 800.0f})}));
     h.settle();
     const Rect b = h.runtime().bounds(h.runtime().find("main/mark"));
     const float top = (c_.portrait() ? screen.height * 0.42f : screen.height * 0.44f) - b.height / 2;
     s.wordmark = {b.x, top, b.width, b.height};
-    const raster::Surface& px = h.pixels();
+    const xrender::raster::Surface& px = h.pixels();
     std::vector<Mark> edge;
     for (int y = 1; y + 1 < px.height(); y += 2)
         for (int x = 1; x + 1 < px.width(); ++x) {
@@ -327,7 +327,7 @@ void Origin::layout_wordmark(Runtime& rt) {
     s.sources = std::move(sources);
 }
 
-void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, render::ImageRef>& refs) {
+void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef, xrender::ImageRef>& refs) {
     const PanelPicture& panel = panel_picture();
     const Size screen = p.size;
     auto& list = p.list;
@@ -362,10 +362,10 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
         list.fill_rect({pix.x + pix.width, pix.y, std::max(0.0f, screen.width - pix.x - pix.width), pix.height}, dark);
         // The pixel itself, lighting up: dark, then its colour, a halo round it.
         const float glow = std::min(1.0f, s.pixel_glow * 0.5f);
-        const std::array<render::GradientStop, 3> halo{{{0, hex(ink::cyan, 0.32f * glow * a)}, {0.45f, hex(ink::cyan, 0.1f * glow * a)}, {1, hex(ink::cyan, 0)}}};
-        render::Paint g;
-        g.kind = render::Paint::Kind::gradient;
-        g.gradient.kind = render::GradientKind::radial;
+        const std::array<xrender::GradientStop, 3> halo{{{0, hex(ink::cyan, 0.32f * glow * a)}, {0.45f, hex(ink::cyan, 0.1f * glow * a)}, {1, hex(ink::cyan, 0)}}};
+        xrender::Paint g;
+        g.kind = xrender::Paint::Kind::gradient;
+        g.gradient.kind = xrender::GradientKind::radial;
         g.gradient.start = g.gradient.end = {pix.x + pix.width / 2, pix.y + pix.height / 2};
         g.gradient.radius = std::max(pix.width, pix.height) * (0.8f + 0.5f * s.pixel_glow);
         g.gradient.stops = halo;
@@ -405,8 +405,8 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
         for (const TreeBox& b : s.boxes) {
             const float on = shown(b.level) * solid;
             if (on <= 0) continue;
-            list.fill_round_rect(b.rect, CornerRadii::all(4), render::Paint::solid(hex(b.lit ? 0x0d3b55 : ink::panel, 0.92f * on)));
-            list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, render::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
+            list.fill_round_rect(b.rect, CornerRadii::all(4), xrender::Paint::solid(hex(b.lit ? 0x0d3b55 : ink::panel, 0.92f * on)));
+            list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, xrender::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
             const auto& l = s.labels.get(fonts, b.label, 18, hex(b.lit ? ink::ice : ink::muted, on), 500, "JetBrains Mono");
             list.push_clip({b.rect.x + 6, b.rect.y, b.rect.width - 12, b.rect.height});
             xrender::text::paint(l, list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
@@ -427,7 +427,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
     if (s.gather > 0 && !s.marks.empty()) {
         const float fade = static_cast<float>(1 - smooth(s.gather, 0.9, 1.0));
         if (fade > 0) {
-            render::Path dashes;
+            xrender::Path dashes;
             for (std::size_t i = 0; i < s.marks.size(); ++i) {
                 const double g = hanim::ease::in_out_cubic(std::clamp((s.gather - s.delays[i]) / 0.55, 0.0, 1.0));
                 const Mark& a = s.sources[i];
@@ -442,10 +442,10 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
                 dashes.move_to({static_cast<float>(x - cx), static_cast<float>(y - cy)});
                 dashes.line_to({static_cast<float>(x + cx), static_cast<float>(y + cy)});
             }
-            render::StrokeStyle st;
+            xrender::StrokeStyle st;
             st.width = 2.2f;
-            st.cap = render::LineCap::round;
-            list.stroke_path(dashes, st, render::Paint::solid(hex(ink::cyan, fade)));
+            st.cap = xrender::LineCap::round;
+            list.stroke_path(dashes, st, xrender::Paint::solid(hex(ink::cyan, fade)));
         }
         // The drawing's construction lines round the wordmark: its axis, its edges and their dimension, a circle drawn round it.
         const float lines = static_cast<float>(smooth(s.t, 5.9, 6.8));
@@ -465,7 +465,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
             xrender::text::paint(dim, list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
             const float radius = w.width * 0.6f;
             const double sweep = hanim::dm::two_pi * smooth(s.t, 6.0, 7.4);
-            render::Path arc;
+            xrender::Path arc;
             const int steps = 180;
             for (int k = 0; k <= steps; ++k) {
                 const double a = -hanim::dm::half_pi + sweep * k / steps;
@@ -473,9 +473,9 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
                 if (k == 0) arc.move_to(q);
                 else arc.line_to(q);
             }
-            render::StrokeStyle st;
+            xrender::StrokeStyle st;
             st.width = 1;
-            if (sweep > 0) list.stroke_path(arc, st, render::Paint::solid(faint));
+            if (sweep > 0) list.stroke_path(arc, st, xrender::Paint::solid(faint));
         }
         // A rule under the wordmark, drawn out once it stands.
         const float rule = static_cast<float>(smooth(s.gather, 0.9, 1.0) * smooth(s.t, 6.0, 6.6));

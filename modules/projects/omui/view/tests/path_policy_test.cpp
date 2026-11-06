@@ -2,11 +2,11 @@
 // Paint only describes endpoints. It contains no clock or interpolation code.
 import std;
 import openmui.view;
-import openmui.raster;
-import openmui.testing;
+import xrender.raster;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 Value bend(double value) { return Value{}.set("bend", value); }
@@ -26,10 +26,10 @@ struct Probe {
             const bool circle = end.get();
             auto shape = painter({.id = "shape", .width = 320, .height = 240, .focusable = true,
                 .paint = [circle](PaintContext& ctx) {
-                    render::Path p;
+                    xrender::Path p;
                     if (circle) p.add_circle({220, 120}, 40);
                     else p.move_to({100, 80}).line_to({60, 160}).line_to({140, 160}).close();
-                    ctx.list.fill_path(p, render::FillRule::nonzero, render::Paint::solid(Color::white()));
+                    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(Color::white()));
                 }});
             shape.prop("motion", Source(recipe));
             return std::vector<Element>{std::move(shape)};
@@ -43,7 +43,7 @@ struct Probe {
         check(runtime.hold_motion(node())); runtime.pause_motion(node()); runtime.seek_motion(node(), t); frame(now + .001);
     }
     std::uint64_t pixels() {
-        raster::Surface surface(320, 240); render::CpuRenderer renderer;
+        xrender::raster::Surface surface(320, 240); xrender::CpuRenderer renderer;
         const auto result = renderer.render(runtime.display_list(), surface, {}, {});
         check_eq(result.invalid_paints, std::size_t{0});
         return surface.hash();

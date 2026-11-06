@@ -1,8 +1,8 @@
 module openmui.showcase.widget_breakout.sim;
 
 import std;
-import openmui.math;
-import openmui.hash;
+import mlibs.math;
+import mlibs.hash;
 import xengine.world;
 import xengine.input;
 import xengine.physics;
@@ -38,8 +38,8 @@ constexpr std::int32_t cooldown = 60;            // a capacitor that fired takes
 constexpr double finisher_half = 36;             // the finisher's beam: half its width
 
 std::uint64_t next(std::uint64_t& s) noexcept {  // splitmix64
-    s += omui::math::golden;
-    return omui::math::finalize(s);
+    s += mlibs::math::golden;
+    return mlibs::math::finalize(s);
 }
 
 void happened(State& s, Happened what, std::uint32_t id, V2 at, std::int32_t n = 0, V2 to = {}) {
@@ -726,7 +726,7 @@ std::size_t trace(const State& s, V2 at, V2 velocity, double radius, std::span<V
 }
 
 std::uint64_t checksum(const State& s) noexcept {
-    omui::hash::Fnv1a h(s.world.checksum());
+    mlibs::hash::Fnv1a h(s.world.checksum());
     auto bytes = [&h](const auto& v) { h.bytes(std::as_bytes(std::span(&v, 1))); };
     for (const Paddle& p : s.paddles) bytes(p.x), bytes(p.y), bytes(p.half), bytes(p.moved), bytes(p.wide), bytes(p.active), bytes(p.magnet);
     bytes(s.rng), bytes(s.frame), bytes(s.score), bytes(s.combo), bytes(s.lives), bytes(s.slow), bytes(s.bricks), bytes(s.speed), bytes(s.over), bytes(s.gate_from), bytes(s.gate_to), bytes(s.height), bytes(s.zoom);

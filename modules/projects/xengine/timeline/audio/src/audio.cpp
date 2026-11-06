@@ -1,7 +1,7 @@
 module xengine.timeline.audio;
 
 import std;
-import openmui.trace;
+import mlibs.trace;
 
 namespace xengine::timeline {
 std::string_view gain_error_name(GainError error) noexcept {

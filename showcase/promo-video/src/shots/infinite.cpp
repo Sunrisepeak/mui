@@ -64,7 +64,7 @@ public:
     }
 
     View view() override {
-        return stack({.id = "infinite", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        return stack({.id = "infinite", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                      {canvas({.id = "wall",
                               .behaviors = std::vector<std::string>{std::format("minimap:top-right {} {}", c_.size.width * 0.05f, c_.size.height * 0.05f + 44)},
                               .cache_mb = 96,
@@ -75,9 +75,9 @@ public:
                               .x = model_.x,
                               .y = model_.y,
                               .zoom = model_.zoom,
-                              .width = Dim(layout::pct(100)),
-                              .height = Dim(layout::pct(100))}),
-                      column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.size.height * 0.05f + 44 + 136 + 16, c_.size.width * 0.05f, 0, 0}),
+                              .width = Dim(mlibs::layout::pct(100)),
+                              .height = Dim(mlibs::layout::pct(100))}),
+                      column({.id = "type", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{c_.size.height * 0.05f + 44 + 136 + 16, c_.size.width * 0.05f, 0, 0}),
                               .align = "end"},
                              {column({.id = "hud", .padding = Edges(14.0f, 18.0f), .gap = 6, .align = "end", .background = Fill(hex(ink::paper, 0.82f)),
                                       .border_color = Fill(hex(ink::cyan, 0.3f)), .border_width = 1, .radius = 6},

@@ -303,7 +303,7 @@ void fill_scene(const RoomDef& r) {
         // Far: a box of its colour. Near (60 px and up on screen): a live card, its word in it; a switch, a live toggle.
         scene.kind("note", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::promote}},
                                        .promote = [](const world::Scene& s, world::NodeRef n) {
-                                           return column({.id = std::string(s.key(n)), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)),
+                                           return column({.id = std::string(s.key(n)), .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)),
                                                           .justify = "center", .align = "center", .background = s.fill(n), .radius = 8.0f},
                                                          {text({.text = std::string(s.text(n, "title")), .style = "label", .color = Color::hex(0xffffff)})});
                                        },
@@ -312,8 +312,8 @@ void fill_scene(const RoomDef& r) {
                                          .promote = [](const world::Scene& s, world::NodeRef n) {
                                              // As in the other rooms: shown, read, but the ball's to operate (an agent asking is told so).
                                              Element t = toggle({.id = std::string(s.key(n)), .checked = s.number(n, "on") != 0,
-                                                                 .label = std::string(s.text(n, "title")), .width = Dim(layout::pct(100)),
-                                                                 .height = Dim(layout::pct(100))});
+                                                                 .label = std::string(s.text(n, "title")), .width = Dim(mlibs::layout::pct(100)),
+                                                                 .height = Dim(mlibs::layout::pct(100))});
                                              t.prop("readonly", Source(Value("the ball operates the bricks: aim it there (the field's actions, or the paddle)")));
                                              return t;
                                          },
@@ -338,7 +338,7 @@ std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_
         out.push_back(std::move(canvas({.id = "cloud",
                                         .background = Fill(Color::transparent()),  // clear: the panel's ghost shows behind the cloud
                                         .inertia = false, .label = "The cloud", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(cloud_scene),
-                                        .x = field_w / 2, .y = r.height - field_h / 2, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))})
+                                        .x = field_w / 2, .y = r.height - field_h / 2, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))})
                                      .prop("pointer_events", Source(Value("none")))
                                      .prop("motion", Source(live_surface_motion()))));  // its camera is the field's
         return out;
@@ -351,7 +351,7 @@ std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_
         bricks.back().prop("readonly", Source(Value("the ball operates the bricks: aim it there (the field's actions, or the paddle)")));
         if (changed) bricks.back().on("changed", [changed, i](const Value&) { changed(i); });
     }
-    out.push_back(column({.id = std::format("room.{}", r.number), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, std::move(bricks)));
+    out.push_back(column({.id = std::format("room.{}", r.number), .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}, std::move(bricks)));
     return out;
 }
 

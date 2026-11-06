@@ -3,11 +3,11 @@
 // cannot detect a lens still travelling through the previous allocation.
 import std;
 import openmui.ui.base;
-import openmui.testing;
+import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 bool color_is(Color a, Color b) {
@@ -35,40 +35,40 @@ Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
     std::vector<std::optional<Rect>> clips;
     std::vector<NodeId> owners;
     for(const auto& command:runtime.display_list().commands()) {
-        if(const auto* c=std::get_if<render::BeginNode>(&command)) {
+        if(const auto* c=std::get_if<xrender::BeginNode>(&command)) {
             const auto owner=runtime.node_at_index(c->node);
             owners.push_back(runtime.valid(owner)?owner:owners.empty()?NodeId{}:owners.back());
-        } else if(std::holds_alternative<render::EndNode>(command)) {
+        } else if(std::holds_alternative<xrender::EndNode>(command)) {
             check(!owners.empty());if(!owners.empty())owners.pop_back();
-        } else if(const auto* c=std::get_if<render::PushTransform>(&command)) {
+        } else if(const auto* c=std::get_if<xrender::PushTransform>(&command)) {
             transforms.push_back(transform);transform=transform*c->transform;
-        } else if(std::holds_alternative<render::PopTransform>(command)) {
+        } else if(std::holds_alternative<xrender::PopTransform>(command)) {
             check(!transforms.empty());if(transforms.empty())continue;
             transform=transforms.back();transforms.pop_back();
-        } else if(const auto* c=std::get_if<render::PushLayer>(&command)) {
+        } else if(const auto* c=std::get_if<xrender::PushLayer>(&command)) {
             layers.push_back(opacity);opacity*=c->opacity;
-        } else if(std::holds_alternative<render::PopLayer>(command)) {
+        } else if(std::holds_alternative<xrender::PopLayer>(command)) {
             check(!layers.empty());if(layers.empty())continue;
             opacity=layers.back();layers.pop_back();
-        } else if(const auto* c=std::get_if<render::PushClipRect>(&command)) {
+        } else if(const auto* c=std::get_if<xrender::PushClipRect>(&command)) {
             clips.push_back(clip);const auto rect=transform.map(c->rect);clip=clip?clip->intersection(rect):rect;
-        } else if(std::holds_alternative<render::PushClipPath>(command)) {
+        } else if(std::holds_alternative<xrender::PushClipPath>(command)) {
             // The production segmented has no path clip. Refuse to silently
             // replace a future arbitrary shape by an approximate rectangle.
             check(false,"selection sample requires an explicit path-clip oracle if production adds one");clips.push_back(clip);
-        } else if(std::holds_alternative<render::PopClip>(command)) {
+        } else if(std::holds_alternative<xrender::PopClip>(command)) {
             check(!clips.empty());if(clips.empty())continue;
             clip=clips.back();clips.pop_back();
         } else if(!owners.empty() && owners.back()==node && opacity>0.05f) {
-            if(const auto* c=std::get_if<render::FillRoundRect>(&command);
-               c && c->paint.kind==render::Paint::Kind::solid && c->paint.color.a*opacity>0.05f && color_is(c->paint.color,theme.color("surface"))) {
+            if(const auto* c=std::get_if<xrender::FillRoundRect>(&command);
+               c && c->paint.kind==xrender::Paint::Kind::solid && c->paint.color.a*opacity>0.05f && color_is(c->paint.color,theme.color("surface"))) {
                 const auto raw=transform.map(c->rect);
                 if(clip) check(inside(*clip,raw),"the actual selection lens itself is not hidden by allocation clipping");
                 result.lenses.push_back(raw);
-            } else if(const auto* c=std::get_if<render::DrawGlyphs>(&command);
-                      c && c->paint.kind==render::Paint::Kind::solid && color_is(c->paint.color,theme.color("text"))) {
+            } else if(const auto* c=std::get_if<xrender::DrawGlyphs>(&command);
+                      c && c->paint.kind==xrender::Paint::Kind::solid && color_is(c->paint.color,theme.color("text"))) {
                 for(std::size_t i=0;i<c->glyphs.size();++i) {
-                    const auto style=c->styles.empty()?render::GlyphStyle{}:c->styles[i];
+                    const auto style=c->styles.empty()?xrender::GlyphStyle{}:c->styles[i];
                     if(opacity*style.opacity*c->paint.color.a<=0.05f)continue;
                     const auto& glyph=c->glyphs[i];const auto mask=cache.mask(c->font,glyph.id,c->size,{});
                     check(mask.coverage!=nullptr,"the selected text is measured using an actual font glyph, never a guessed advance box");
@@ -89,7 +89,7 @@ Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
     return result;
 }
 struct Fixture {
-    typeset::FontCollection fonts;
+    mlibs::text::FontCollection fonts;
     Runtime runtime;
     xrender::text::GlyphCache glyphs;
     Signal<float> width=signal(320.0f);
@@ -104,10 +104,10 @@ struct Fixture {
         check(runtime.motion_level()==MotionLevel::full && !runtime.reduce_motion(),"normal framework default motion remains enabled");
         check(runtime.motions().empty(),"the initial selected value is actually settled");
     }
-    static typeset::FontCollection make_fonts() {
-        typeset::FontCollection f;check(f.add_defaults().has_value(),"actual default TTF is available");return f;
+    static mlibs::text::FontCollection make_fonts() {
+        mlibs::text::FontCollection f;check(f.add_defaults().has_value(),"actual default TTF is available");return f;
     }
-    static RuntimeOptions make_options(typeset::FontCollection& fonts) {
+    static RuntimeOptions make_options(mlibs::text::FontCollection& fonts) {
         RuntimeOptions o;o.fonts=&fonts;o.theme=Theme::light();o.size={360,120};return o;
     }
     NodeId node() const {return runtime.find("main/modes");}

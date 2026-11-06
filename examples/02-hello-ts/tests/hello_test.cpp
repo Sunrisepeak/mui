@@ -6,9 +6,9 @@ import openmui;
 import openmui.player;
 import openmui.entry.player;
 import openmui.lang.js;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

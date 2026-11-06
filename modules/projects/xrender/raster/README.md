@@ -29,8 +29,3 @@ actual coverage with an explicitly doubled list and checks invalid inputs
 that previously trapped a frame. This does not claim dashed morph phase
 continuity under contour start/winding alignment, complete zero-length cap
 semantics, or a bounded tessellation budget for arbitrarily tiny dash lengths.
-
-Canonical ownership: package/module `xrender.raster`, C++ `xrender::raster`.
-The original package keeps `import openmui.raster;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `xrender.raster`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

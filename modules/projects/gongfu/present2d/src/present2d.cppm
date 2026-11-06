@@ -22,13 +22,13 @@ import std;
 export import gongfu;
 export import gongfu.data;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 
 export namespace gongfu::present2d {
 
-using Color = omui::geom::Color;
-using Point = omui::geom::Point;
+using Color = mlibs::geom::Color;
+using Point = mlibs::geom::Point;
 
 struct Bone {
     std::string  name;
@@ -82,7 +82,7 @@ struct Part {
     // knee, a hem), each vertex's weight going over to a bend bone across
     // `blend` pixels about that bone's joint.
     std::int32_t              picture = -1;
-    omui::geom::Rect          source;
+    mlibs::geom::Rect          source;
     Point                     anchor, tip;
     std::array<std::int32_t, 2> mesh{1, 1};
     std::vector<std::int32_t> bend;
@@ -93,7 +93,7 @@ struct Part {
     // choose (0: its own).
     struct Drawing {
         std::int32_t     picture = -1;
-        omui::geom::Rect source;
+        mlibs::geom::Rect source;
         Point            anchor, tip;
     };
     std::vector<Drawing> drawings;
@@ -119,7 +119,7 @@ enum class Flash : std::uint8_t { none, white, invert };
 // from the effect's origin, forward and up (mirrored with the facing).
 struct FxSprite {  // a picture's region at a point (or travelling to another along an arc), growing, turning, fading
     std::int32_t         picture = -1;
-    omui::geom::Rect     source;
+    mlibs::geom::Rect     source;
     Point                at;
     std::optional<Point> to;             // where it travels to over its frames (a ball passed, a blade thrown)
     float                lift = 0;       // the arc's height at the middle of the way (stage units; negative: a dip)
@@ -132,7 +132,7 @@ struct FxSprite {  // a picture's region at a point (or travelling to another al
 };
 struct FxStroke {  // a picture's long region (a brush stroke) laid along a curve: drawn out, held, faded
     std::int32_t       picture = -1;
-    omui::geom::Rect   source;
+    mlibs::geom::Rect   source;
     std::vector<Point> points;  // the curve (Catmull-Rom) through them
     float              width = 30;
     std::int32_t       from = 0, draw = 4, hold = 6, fade = 10;
@@ -140,7 +140,7 @@ struct FxStroke {  // a picture's long region (a brush stroke) laid along a curv
 };
 struct FxSpray {  // droplets thrown from a point, falling (each one's own from a seed)
     std::int32_t                  picture = -1;
-    std::vector<omui::geom::Rect> sources;
+    std::vector<mlibs::geom::Rect> sources;
     Point                         at;
     std::int32_t                  from = 0, frames = 24, count = 8;
     std::array<float, 2>          speed{2, 8};   // stage units a frame
@@ -242,7 +242,7 @@ struct Clip {
 struct Cel {
     std::string  name;
     std::int32_t     picture = -1;
-    omui::geom::Rect source;
+    mlibs::geom::Rect source;
     Point            pivot;
     float            scale = 0;
     struct Socket {
@@ -403,7 +403,7 @@ struct CinematicLook {
     // closing; its art drifting slowly (`pan`: source pixels a frame).
     struct Panel {
         std::int32_t     picture = -1;
-        omui::geom::Rect source;
+        mlibs::geom::Rect source;
         std::int32_t     from = 0, to = 0, in = 6, out = 6;
         float            y = 0.5f, height = 0.42f;  // the band's middle and height, of the screen's
         float            slant = 0.08f;             // its ends leaning, of the screen's width
@@ -460,7 +460,7 @@ struct Picture {
     std::string                name;
     std::string                file;
     std::int32_t               width = 0, height = 0;
-    omui::render::ImageRef     ref;
+    xrender::ImageRef     ref;
     struct Relief {
         float        bevel = 12, detail = 0;
         std::int32_t smooth = 2;
@@ -468,7 +468,7 @@ struct Picture {
         friend constexpr bool operator==(const Relief&, const Relief&) noexcept = default;
     };
     std::optional<Relief>      relief;
-    omui::render::ImageRef     normal;
+    xrender::ImageRef     normal;
 };
 
 struct Look {
@@ -528,7 +528,7 @@ struct Look {
         Color            shine = Color::hex(0xffffff, 0.5f);
         Color            reflect = Color::hex(0xffd36b, 0.9f);
         std::int32_t     picture = -1;
-        omui::geom::Rect whole, cracked;
+        mlibs::geom::Rect whole, cracked;
     } pane;
     // Time (刻): its clone drawn in a tint; a rewind leaving `ghosts` along
     // the way back, fading over `frames`; where its mark stands (G-20), the
@@ -556,7 +556,7 @@ struct Look {
     // bands, their edges' softness, the shadow's and the rim's strengths (the
     // light's place and colours are the stage's, else these). Stylised per
     // fighter: ink's two soft washes, neon's hard bands and a bright rim.
-    std::map<std::string, omui::render::Material, std::less<>> materials;
+    std::map<std::string, xrender::Material, std::less<>> materials;
     // A super's flash, by its move's name: a cut-in over the freeze (frames of
     // it), instead of the band of the accent colour.
     std::map<std::string, CinematicLook::Panel, std::less<>> cutins;
@@ -662,7 +662,7 @@ struct StageShape {
 // mirrored when `flip`; its opacity can flicker (a lantern).
 struct StageImage {
     std::int32_t     picture = -1;  // the stage's pictures
-    omui::geom::Rect source;
+    mlibs::geom::Rect source;
     Point            at;
     float            width = 100;
     float            height = 0;    // 0: by the region's proportions (else stretched: a floor drawn long)
@@ -767,48 +767,48 @@ class Painter {
 public:
     // The frame: the stage, both fighters, the sparks of recent events and the
     // shake of a heavy hit, into `out` (picture coordinates, y down).
-    void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
+    void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, xrender::DisplayList& out);
     // One fighter's body as `draw` draws it, through `camera` (a studio's
     // contact sheet, a character select); `clip`/`t` to play a clip by name instead.
     void body(const Look& look, const Fighter& fighter, const FighterState& state, std::int32_t frame, const Scene& scene, const Camera& camera,
-              omui::render::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0, std::optional<Color> tint = std::nullopt);
+              xrender::DisplayList& out, std::string_view clip = {}, std::int32_t t = 0, std::optional<Color> tint = std::nullopt);
     // A glyph written to `progress` (0–1 of its strokes' total length) at `centre`, `size` pixels square;
     // its strokes `thicken` times as wide (a halo behind it).
-    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, omui::render::DisplayList& out,
+    void glyph(const std::vector<Stroke>& strokes, double progress, Point centre, float size, Color color, xrender::DisplayList& out,
                float thicken = 1);
     // A glyph whose stroke k is written over the frames up to ends[k], from `from`, at `frame`.
     // An effect of `look` at `age` frames, from `origin` (stage units), mirrored by `facing`.
     // `paint`: every piece drawn as its shape in that colour (a counter's tier).
     void fx(const Look& look, const Fx& fx, double age, Point origin, double facing, float scale, const Scene& scene, const Camera& camera,
-            omui::render::DisplayList& out, float alpha = 1, std::optional<Color> paint = std::nullopt);
+            xrender::DisplayList& out, float alpha = 1, std::optional<Color> paint = std::nullopt);
     // A cut-in panel of `look` at the cinematic's frame `t`; `facing` the attacker's (it enters from behind them).
-    void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, omui::render::DisplayList& out);
+    void panel(const Look& look, const CinematicLook::Panel& p, std::int32_t t, double facing, const Scene& scene, xrender::DisplayList& out);
     void glyph_by_frames(const std::vector<Stroke>& strokes, std::span<const std::int32_t> ends, std::int32_t from, std::int32_t frame, Point centre,
-                         float size, Color color, omui::render::DisplayList& out);
+                         float size, Color color, xrender::DisplayList& out);
 
     // A stage's layers (behind the fighters, or in front of them) through
     // `camera`, at the match's frame, `alpha` of their opacity; `middle` the
     // stage's (a layer moves `parallax` of the camera's way from it). A
     // stage editor's view, and a frame's.
     void stage_layers(const Stage& stage, bool front, const Scene& scene, const Camera& camera, double middle, std::int32_t frame, float alpha,
-                      omui::render::DisplayList& out);
+                      xrender::DisplayList& out);
 
 private:
     // A whole-body drawing at the fighter's place (its pivot over the root on the ground; mirrored facing left).
     void draw_cel(const Look& look, const Cel& cel, const FighterState& s, const Scene& scene, const Camera& camera, std::optional<Color> tint,
-                  omui::render::DisplayList& out);
+                  xrender::DisplayList& out);
     void picture_part(const Look& look, const Part& part, std::size_t drawing, const FighterState& s, const Scene& scene, const Camera& camera,
-                      std::optional<Color> tint, omui::render::DisplayList& out);
+                      std::optional<Color> tint, xrender::DisplayList& out);
     Pose                     pose_, past_, rest_, held_;
     std::vector<Point>       mesh_at_, mesh_uv_;
     std::vector<std::uint16_t> mesh_index_;
     std::vector<double>      follow_;  // each bone's secondary motion this frame, degrees
     std::vector<std::size_t> order_;
-    omui::render::Path       path_;
-    omui::render::Path       ring_;  // the contact shadows' rings
+    xrender::Path       path_;
+    xrender::Path       ring_;  // the contact shadows' rings
 };
 
 // One frame with a painter of its own (the same picture; allocates).
-void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, omui::render::DisplayList& out);
+void draw(const Match& match, const Look& left, const Look& right, const Effects& effects, const Scene& scene, xrender::DisplayList& out);
 
 }  // namespace gongfu::present2d

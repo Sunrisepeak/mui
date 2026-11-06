@@ -6,17 +6,17 @@ import openmui.core;
 import openmui.view;
 import openmui.semantic;
 import openmui.accessibility;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 namespace a11y = omui::accessibility;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();

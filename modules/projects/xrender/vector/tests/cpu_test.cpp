@@ -1,16 +1,16 @@
 // The CPU backend renders a display list exactly as the raster canvas would,
 // at any scale, and records which node drew each pixel.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.image;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.image;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 
@@ -31,9 +31,9 @@ struct LitScene {
 LitScene lit_scene(render::ImageStore& images) {
     LitScene s;
     s.base = {210, 160, 130, 255};
-    omui::imageio::Image disc;
+    mlibs::image::Image disc;
     disc.width = disc.height = 48;
-    disc.alpha = omui::imageio::Alpha::premultiplied;
+    disc.alpha = mlibs::image::Alpha::premultiplied;
     disc.rgba.assign(48 * 48 * 4, 0);
     std::vector<raster::Rgba8> px(48 * 48);
     for (int y = 0; y < 48; ++y)
@@ -45,7 +45,7 @@ LitScene lit_scene(render::ImageStore& images) {
             p[0] = s.base.r, p[1] = s.base.g, p[2] = s.base.b, p[3] = 255;
         }
     s.picture = images.add(48, 48, px);
-    const omui::imageio::Image n = omui::imageio::normal_map(disc, {.bevel = 12, .smooth = 2});
+    const mlibs::image::Image n = mlibs::image::normal_map(disc, {.bevel = 12, .smooth = 2});
     std::vector<raster::Rgba8> npx(48 * 48);
     std::memcpy(npx.data(), n.rgba.data(), n.rgba.size());
     s.normal = images.add(48, 48, std::move(npx));
@@ -124,10 +124,10 @@ int main(int argc, char** argv) {
         // The same pixel at 2x is the same colour where the colour is flat.
         check(one.at(30, 110) == two.at(60, 220));
         auto dir = scratch_dir("render-cpu");
-        omui::imageio::View v1{reinterpret_cast<const std::uint8_t*>(one.pixels().data()), 200, 140, 800};
-        omui::imageio::View v2{reinterpret_cast<const std::uint8_t*>(two.pixels().data()), 400, 280, 1600};
-        check(omui::imageio::save_png(dir / "card@1x.png", v1).has_value());
-        check(omui::imageio::save_png(dir / "card@2x.png", v2).has_value());
+        mlibs::image::View v1{reinterpret_cast<const std::uint8_t*>(one.pixels().data()), 200, 140, 800};
+        mlibs::image::View v2{reinterpret_cast<const std::uint8_t*>(two.pixels().data()), 400, 280, 1600};
+        check(mlibs::image::save_png(dir / "card@1x.png", v1).has_value());
+        check(mlibs::image::save_png(dir / "card@2x.png", v2).has_value());
         std::println("    {:016x} {:016x}  ({})", one.hash(), two.hash(), (dir / "card@2x.png").generic_string());
         check_eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("76f0acb68946e096/09f8ffc1b651f38d"));
     });
@@ -295,8 +295,8 @@ int main(int argc, char** argv) {
         render::CpuRenderer{}.render(scene.list, again, {&images, nullptr});
         check(again.bytes().size() == out.bytes().size() && std::ranges::equal(again.bytes(), out.bytes()));
         std::println("    lit {:016x}", out.hash());
-        const omui::imageio::View view{reinterpret_cast<const std::uint8_t*>(out.pixels().data()), 160, 120, 160 * 4};
-        check(omui::imageio::save_png(scratch_dir("render-cpu") / "lit.png", view).has_value());  // to look at
+        const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(out.pixels().data()), 160, 120, 160 * 4};
+        check(mlibs::image::save_png(scratch_dir("render-cpu") / "lit.png", view).has_value());  // to look at
         check_eq(out.hash(), 0x27807ca9fb71b7c2ull);
         // A list with a material hashes apart from the same without one; copied lists keep it.
         render::DisplayList plain, copy;

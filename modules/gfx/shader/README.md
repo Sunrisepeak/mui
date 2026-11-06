@@ -44,8 +44,3 @@ The tests (`tests/shader_test.cpp`) compile real shaders with the provisioned sl
 ## Inside
 
 - [rules](rules) (`mlibs.shader.rules`): the build rule that compiles a package's `shaders/*.slang` at build time.
-
-Canonical ownership: package/module `mlibs.shader`, C++ `mlibs::shader`.
-The original package keeps `import openmui.shader;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `mlibs.shader`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

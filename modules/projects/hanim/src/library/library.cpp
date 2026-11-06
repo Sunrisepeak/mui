@@ -2,8 +2,8 @@ module hanim.library;
 
 import std;
 import hanim.core;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 
 namespace hanim::detail {
 struct MorphEndpoints { Transform2D from, to; std::optional<Rgba> from_fill, to_fill; };
@@ -28,7 +28,7 @@ struct ObjectMorphData {
 }
 namespace hanim {
 namespace {
-constexpr omui::Log diagnostic{"hanim.library"};
+constexpr mlibs::log::Log diagnostic{"hanim.library"};
 constexpr auto none = std::numeric_limits<std::size_t>::max();
 MorphFailure failure(MorphError code, std::size_t part = none, std::size_t contour = none,
                      std::optional<ShapeMorphError> shape = {}) { return {code,part,contour,shape}; }
@@ -320,12 +320,12 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
         for (std::size_t i=0;i<result->shapes.size();++i) {
             const auto& range=result->contours[i];
             const auto sample=result->shapes[i].sample(0,std::span(result->static_cubics).subspan(range.first_cubic,range.cubic_count));
-            omui::invariant(sample.has_value(),"property geometry preparation invariant");
+            mlibs::log::invariant(sample.has_value(),"property geometry preparation invariant");
         }
         result->shapes.clear();
     }
-    omui::trace::count("morph.parts",static_cast<double>(count),"hanim.library");
-    omui::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
+    mlibs::trace::count("morph.parts",static_cast<double>(count),"hanim.library");
+    mlibs::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
     return result;
 }
 std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compile_timeline(
@@ -448,7 +448,7 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
         ++data->channel_runs.back().count;infos.push_back(info);values.push_back(data->channel_values[i]);
     }
     data->channels=std::move(infos);data->channel_values=std::move(values);
-    omui::trace::count("property.channels",static_cast<double>(data->channels.size()),"hanim.library");
+    mlibs::trace::count("property.channels",static_cast<double>(data->channels.size()),"hanim.library");
     diagnostic.info("prepared {} property channel segments",data->channels.size());
     return std::shared_ptr<const detail::ObjectMorphData>(std::move(data));
 }
@@ -489,7 +489,7 @@ std::string_view property_channel_name(PropertyChannel channel) noexcept {
     }return "unknown";
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::prepare(Snapshot from, Snapshot to, MorphOptions options) {
-    omui::trace::Span span("morph.prepare","hanim.library");
+    mlibs::trace::Span span("morph.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto a=snapshot_input(from,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
@@ -499,7 +499,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::prepare(Sna
     result.from_=std::move(from); result.to_=std::move(to); result.data_=std::move(*compiled); return result;
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::retarget(FrameView current, Snapshot to, MorphOptions options) {
-    omui::trace::Span span("morph.retarget","hanim.library");
+    mlibs::trace::Span span("morph.retarget","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto a=frame_input(current,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
@@ -518,7 +518,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
     Snapshot from, std::span<const PropertyTargets> values, MorphOptions options) {
-    omui::trace::Span span("properties.prepare","hanim.library");
+    mlibs::trace::Span span("properties.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=snapshot_input(from,options);if(!input)return std::unexpected(input.error());
     auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
@@ -527,7 +527,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
     FrameView current, std::span<const PropertyTargets> values, MorphOptions options) {
-    omui::trace::Span span("properties.retarget","hanim.library");
+    mlibs::trace::Span span("properties.retarget","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=frame_input(current,options);if(!input)return std::unexpected(input.error());
     auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
@@ -540,7 +540,7 @@ FrameRequirements PreparedObjectMorph::requirements() const noexcept {
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
     Snapshot from,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
-    omui::trace::Span span("property-timeline.prepare","hanim.library");
+    mlibs::trace::Span span("property-timeline.prepare","hanim.library");
     auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
     auto input=snapshot_input(from,*options);if(!input)return std::unexpected(input.error());
     auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
@@ -549,7 +549,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_ti
 }
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
     FrameView current,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
-    omui::trace::Span span("property-timeline.retarget","hanim.library");
+    mlibs::trace::Span span("property-timeline.retarget","hanim.library");
     auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
     auto input=frame_input(current,*options);if(!input)return std::unexpected(input.error());
     auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
@@ -569,7 +569,7 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_source(FrameBu
     return sample_at(0,output,true);
 }
 std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double progress, FrameBuffer output,bool exact_source) const noexcept {
-    omui::trace::Span span("morph.sample","hanim.library");
+    mlibs::trace::Span span("morph.sample","hanim.library");
     if (!data_) return std::unexpected(failure(MorphError::unprepared));
     if (!std::isfinite(progress)) return std::unexpected(failure(MorphError::invalid_progress));
     const auto needed=requirements();
@@ -616,7 +616,7 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double prog
         // With a private prepared shape, finite clamped u and its exact
         // prechecked span this cannot fail; a violation is an internal bug,
         // never a partially returned successful/failed frame.
-        omui::invariant(sampled.has_value(),"prepared object morph shape invariant");
+        mlibs::log::invariant(sampled.has_value(),"prepared object morph shape invariant");
     }
     return FrameView{output.parts.first(needed.parts),data_->contours,output.cubics.first(needed.cubics),u,source_,revision_,identity()};
 }

@@ -6,18 +6,18 @@
 // time, seekable.
 import std;
 import openmui.view;
-import openmui.raster;
-import openmui.testing;
+import xrender.raster;
+import mlibs.testing;
 import xrender.text;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         if (auto r = c.add_defaults(); !r) std::println("fonts: {}", r.error());
         return c;
     }();
@@ -31,17 +31,17 @@ RuntimeOptions options(Size size = {200, 100}) {
     return o;
 }
 
-raster::Surface draw(Runtime& rt) {
+xrender::raster::Surface draw(Runtime& rt) {
     static xrender::text::GlyphCache glyphs(fonts());
-    raster::Surface s(static_cast<int>(rt.size().width), static_cast<int>(rt.size().height));
-    render::CpuRenderer r;
-    render::CpuOptions o;
+    xrender::raster::Surface s(static_cast<int>(rt.size().width), static_cast<int>(rt.size().height));
+    xrender::CpuRenderer r;
+    xrender::CpuOptions o;
     o.background = Color::white();
     (void)r.render(rt.display_list(), s, {&rt.images(), &glyphs}, o);
     return s;
 }
 
-bool same(const raster::Surface& a, const raster::Surface& b) {
+bool same(const xrender::raster::Surface& a, const xrender::raster::Surface& b) {
     if (a.width() != b.width() || a.height() != b.height()) return false;
     for (int y = 0; y < a.height(); ++y)
         for (int x = 0; x < a.width(); ++x)
@@ -50,7 +50,7 @@ bool same(const raster::Surface& a, const raster::Surface& b) {
 }
 
 // The left edge of the first pixel of `colour` in row `y` (-1: none).
-int left_of(const raster::Surface& s, int y, raster::Rgba8 colour) {
+int left_of(const xrender::raster::Surface& s, int y, xrender::raster::Rgba8 colour) {
     for (int x = 0; x < s.width(); ++x)
         if (s.at(x, y) == colour) return x;
     return -1;
@@ -67,9 +67,9 @@ Element track(Signal<float> x, std::string_view motion = "morph motion.normal") 
 
 // Whether the frame's list draws a layer with the named effect.
 bool draws(Runtime& rt, std::string_view effect) {
-    const auto ref = render::effects().find(effect);
+    const auto ref = xrender::effects().find(effect);
     for (const auto& c : rt.display_list().commands())
-        if (const auto* l = std::get_if<render::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
+        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) return true;
     return false;
 }
 
@@ -77,7 +77,7 @@ bool draws(Runtime& rt, std::string_view effect) {
 
 int main(int argc, char** argv) {
     Suite s{"view.motion"};
-    const raster::Rgba8 rose{0xe1, 0x1d, 0x48, 0xff};
+    const xrender::raster::Rgba8 rose{0xe1, 0x1d, 0x48, 0xff};
 
     s.test("a root whose drawing changed moves to it: the thumb travels, the runtime says so, and at rest it is the drawing as it is", [&] {
         auto x = signal(0.0f);
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
         check(simple.first && simple.second < 0.2, std::format("simple: no effect, short: {}", simple.second));
         // An embedded board: neither drops nor ink run there — the one that fits, whatever was chosen.
         rt.set_motion_choice("ink");
-        rt.set_device_tier(pipeline::Tier::t1, "an embedded board");
+        rt.set_device_tier(mlibs::pipeline::Tier::t1, "an embedded board");
         const auto board = move(9.1, 0, "");
         check(board.first && board.second < 0.2, std::format("on T1, simple: {}", board.second));
         check(!draws(rt, "metaball") && !draws(rt, "wobble"), "at rest, no travel effect anywhere");

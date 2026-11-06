@@ -1,9 +1,9 @@
 import std;
-import openmui.geom;
-import openmui.testing;
+import mlibs.geom;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace geom = mlibs::geom;
 
 static_assert(geom::snap(0.5f, 1) == 1 && geom::snap(-0.51f, 1) == -1);
 static_assert(geom::Rect{0, 0, 10, 10}.intersects(geom::Rect{5, 5, 1, 1}));

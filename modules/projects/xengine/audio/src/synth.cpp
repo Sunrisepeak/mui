@@ -8,7 +8,7 @@
 module xengine.audio;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import :dsp;
 import :synth;
 
@@ -17,7 +17,7 @@ namespace xengine::audio::synth {
 namespace {
 
 using namespace dsp;
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 
 constexpr double middle_c = 261.6255653005986;
 constexpr std::array<double, 2> mode_ratio{1.593, 2.135};  // a circular membrane's (1,1) and (2,1) modes

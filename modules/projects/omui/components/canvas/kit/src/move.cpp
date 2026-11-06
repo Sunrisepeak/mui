@@ -5,9 +5,13 @@ module openmui.ui.canvas.kit;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.canvas;
 import :parts;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::kit {
 
@@ -262,7 +266,7 @@ public:
         return true;
     }
 
-    void paint_over(Host& h, render::DisplayList& list) override {
+    void paint_over(Host& h, xrender::DisplayList& list) override {
         const auto n = target(h);
         if (!n) return;
         const Rect r = screen_of(h, h.scene().rect(*n));
@@ -272,7 +276,7 @@ public:
             const Point p = handle_point(r, i);
             const Rect box{p.x - 4, p.y - 4, 8, 8};
             list.fill_rect(box, fill);
-            list.stroke_round_rect(box, {}, 1.5f, render::Paint::solid(c));
+            list.stroke_round_rect(box, {}, 1.5f, xrender::Paint::solid(c));
         }
     }
 
@@ -428,7 +432,7 @@ void Snap::done(Host& h) {
     h.redraw();
 }
 
-void Snap::paint_over(Host& h, render::DisplayList& list) {
+void Snap::paint_over(Host& h, xrender::DisplayList& list) {
     const Color c = h.services().theme().color("danger", Color::hex(0xdc2626));
     const world::Camera cam = h.camera();
     const Size vp = h.viewport();

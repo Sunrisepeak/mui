@@ -2,7 +2,7 @@
 module openmui.showcase.markdown_wall;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.markdown;
@@ -22,7 +22,7 @@ constexpr float title_bar = 30;  // a window's, world units
 // A workspace's colour: its name's, from a set that reads on light and dark.
 omui::Color tint(std::string_view name) {
     constexpr std::array<std::uint32_t, 8> tints{0x6366f1, 0x0ea5e9, 0x10b981, 0xf59e0b, 0xec4899, 0x8b5cf6, 0x14b8a6, 0xef4444};
-    const std::uint64_t h = omui::hash::fnv1a(name);
+    const std::uint64_t h = mlibs::hash::fnv1a(name);
     return omui::Color::hex(tints[h % tints.size()]);
 }
 
@@ -52,22 +52,22 @@ omui::Element window(const Document& d, double w, double h, omui::Prop<std::stri
 
 // Labels shaped once a node (and theme), drawn at a size fixed on screen.
 struct Labels {
-    std::unordered_map<std::string, omui::typeset::Paragraph> shaped;
+    std::unordered_map<std::string, mlibs::text::Paragraph> shaped;
     bool                                                      dark = false;
-    const omui::typeset::Paragraph& get(DrawContext& d, const std::string& key, std::string text, float size, float weight, omui::Color colour) {
+    const mlibs::text::Paragraph& get(DrawContext& d, const std::string& key, std::string text, float size, float weight, omui::Color colour) {
         if (d.theme.dark != dark) {
             shaped.clear();
             dark = d.theme.dark;
         }
         auto it = shaped.find(key);
         if (it == shaped.end()) {
-            omui::typeset::ParagraphStyle ps;
+            mlibs::text::ParagraphStyle ps;
             ps.style.size = size;
             ps.style.weight = weight;
             ps.style.color = colour;
             ps.style.families = d.theme.text_style("label").families;
             ps.wrap = false;
-            omui::typeset::Paragraph p(*d.fonts, std::move(text), ps);
+            mlibs::text::Paragraph p(*d.fonts, std::move(text), ps);
             p.layout(std::numeric_limits<float>::infinity());
             it = shaped.emplace(key, std::move(p)).first;
         }
@@ -110,11 +110,11 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Rect r = d.screen;
                                          const omui::Color c = d.scene.fill(d.node);
                                          const float radius = static_cast<float>(24 * d.zoom);
-                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), omui::render::Paint::solid(c.with_alpha(0.07f)));
+                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(c.with_alpha(0.07f)));
                                          const float strip = static_cast<float>(g.label * d.zoom);
                                          d.list.fill_round_rect({r.x, r.y, r.width, std::min(strip, r.height)},
-                                                                omui::CornerRadii{radius, radius, 0, 0}, omui::render::Paint::solid(c.with_alpha(0.16f)));
-                                         d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1, omui::render::Paint::solid(c.with_alpha(0.35f)));
+                                                                omui::CornerRadii{radius, radius, 0, 0}, xrender::Paint::solid(c.with_alpha(0.16f)));
+                                         d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1, xrender::Paint::solid(c.with_alpha(0.35f)));
                                          // Its name, readable at any zoom: on the strip when it is tall enough, above the workspace when not.
                                          if (!d.fonts) return;
                                          const std::string key(d.scene.key(d.node));
@@ -140,9 +140,9 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          // on screen, where there is room — each document known at any distance.
                                          const omui::Rect r = d.screen;
                                          const float radius = static_cast<float>(10 * d.zoom);
-                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), omui::render::Paint::solid(d.theme.color("surface")));
+                                         d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.theme.color("surface")));
                                          d.list.fill_round_rect({r.x, r.y, r.width, std::max(1.0f, static_cast<float>(title_bar * d.zoom))},
-                                                                omui::CornerRadii{radius, radius, 0, 0}, omui::render::Paint::solid(d.scene.fill(d.node)));
+                                                                omui::CornerRadii{radius, radius, 0, 0}, xrender::Paint::solid(d.scene.fill(d.node)));
                                          if (!d.fonts || r.width < 36 || r.height < 14) return;
                                          const std::string key(d.scene.key(d.node));
                                          // Near enough (a summary): the title larger, then the document's sections, then its path.

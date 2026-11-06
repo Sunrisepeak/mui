@@ -9,7 +9,7 @@ namespace stream {
 
 namespace {
 
-namespace md = omui::md;
+namespace md = mlibs::markdown;
 
 std::string pieces(std::size_t n) { return std::format("{} {}", n, n == 1 ? "piece" : "pieces"); }
 

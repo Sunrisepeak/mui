@@ -3,17 +3,17 @@
 // provenance, and an agent driving an H3 session.
 import std;
 import openmui.host.headless;
-import openmui.testing;
+import mlibs.testing;
 import xrender.text;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
         const auto file = scratch_dir("headless-recording") / "counter.png";
         check(h.save_recording(file, {.delay_num = 1, .delay_den = 4}).has_value());
         check_eq(h.recorded(), std::size_t{0});
-        auto back = imageio::load_png(file);  // a viewer without APNG: the first frame
+        auto back = mlibs::image::load_png(file);  // a viewer without APNG: the first frame
         check(back.has_value() && back->width == 240 && back->height == 120);
         check(!h.save_recording(file).has_value(), "nothing recorded");
     });
@@ -180,14 +180,14 @@ int main(int argc, char** argv) {
             void keep() {
                 h.record();
                 auto png = h.png();
-                if (png) shown.push_back(imageio::decode_png(*png)->rgba);
+                if (png) shown.push_back(mlibs::image::decode_png(*png)->rgba);
             }
         };
         const auto dir = scratch_dir("headless-recording-webp");
         Film exact;
         check(exact.h.save_recording(dir / "counter.WebP", {.delay_num = 1, .delay_den = 4, .loops = 2, .lossless = true}).has_value());
         check_eq(exact.h.recorded(), std::size_t{0});
-        auto anim = imageio::load_animated_webp(dir / "counter.WebP");
+        auto anim = mlibs::image::load_animated_webp(dir / "counter.WebP");
         check(anim.has_value(), anim ? "" : anim.error());
         if (anim) {
             check(anim->width == 240 && anim->height == 120 && anim->loops == 2);
@@ -204,8 +204,8 @@ int main(int argc, char** argv) {
         const auto webp_size = std::filesystem::file_size(dir / "counter.webp"), apng_size = std::filesystem::file_size(dir / "counter.png");
         std::println("counter recording: animated WebP (lossy) {} bytes, APNG {} bytes", webp_size, apng_size);
         check(webp_size < apng_size, "smaller");
-        check(imageio::load_animated_webp(dir / "counter.webp").has_value());
-        check(imageio::load_png(dir / "counter.png").has_value(), "any other name: an animated PNG");
+        check(mlibs::image::load_animated_webp(dir / "counter.webp").has_value());
+        check(mlibs::image::load_png(dir / "counter.png").has_value(), "any other name: an animated PNG");
     });
 
     s.test("H3: an agent drives the session over the endpoint", [] {
@@ -267,9 +267,9 @@ int main(int argc, char** argv) {
         xrender::text::GlyphCache glyphs(fonts());
         int frames = 0;
         auto same_as_full = [&](std::string_view what) {
-            const raster::Surface& inc = h.pixels();
-            raster::Surface full(inc.width(), inc.height());
-            render::CpuRenderer fresh;
+            const xrender::raster::Surface& inc = h.pixels();
+            xrender::raster::Surface full(inc.width(), inc.height());
+            xrender::CpuRenderer fresh;
             (void)fresh.render(h.runtime().display_list(), full, {&h.runtime().images(), &glyphs},
                                {.scale = o.scale, .background = o.background});
             ++frames;

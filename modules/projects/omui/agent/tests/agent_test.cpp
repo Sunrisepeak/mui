@@ -2,17 +2,26 @@
 // between frames, and the same conversation over a real local endpoint.
 import std;
 import openmui.agent;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+using mlibs::log::LogRecord;
+using mlibs::log::log_enabled;
+using mlibs::log::set_log_level;
+using mlibs::log::set_log_sink;
+using mlibs::log::Level;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 namespace agent = omui::agent;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();

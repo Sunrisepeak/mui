@@ -1,13 +1,13 @@
 import std;
 import openmui.cli;
 import openmui.core;
-import openmui.image;
+import mlibs.image;
 import xengine.audio;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace fs=mcpplibs::os::fs;
 
 namespace {
@@ -60,9 +60,9 @@ int main(int argc,char** argv) {
             check(sound && sound->rate==48000 && sound->samples.size()==96000 && xengine::audio::peak(sound->samples)>.01f);
             if(previous_pcm.empty()) {previous_pcm=pcm;previous_wav=*encoded;}
             else check(pcm==previous_pcm && *encoded==previous_wav,"observation frame rate does not alter actual WAV bytes");
-            const auto image=imageio::load_png(fs::from_utf8(prefix+".png"));check(image.has_value());
+            const auto image=mlibs::image::load_png(fs::from_utf8(prefix+".png"));check(image.has_value());
             if(image)check(image->width==1536 && image->height==512);
-            const auto replay=imageio::load_animated_webp(fs::from_utf8(prefix+".webp"));check(replay.has_value());
+            const auto replay=mlibs::image::load_animated_webp(fs::from_utf8(prefix+".webp"));check(replay.has_value());
             if(replay)check(replay->frames.size()==samples->size());
             std::println("audio-audition fps={} pcm={} frames={} output={}",fps,pcm,samples->size(),prefix);
         }

@@ -6,7 +6,7 @@ module openmui.ui.canvas.kit:parts;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.canvas;
 
 namespace omui::kit {
@@ -28,7 +28,7 @@ inline bool selected(Host& h, std::string_view key) { return std::ranges::find(h
 inline Rect grow(Rect r, float by) { return {r.x - by, r.y - by, r.width + 2 * by, r.height + 2 * by}; }
 
 // A line of `w` pixels between two points on screen.
-void line(render::DisplayList& list, Point a, Point b, float w, Color c);
+void line(xrender::DisplayList& list, Point a, Point b, float w, Color c);
 
 // The keys as a value (the events' `keys`).
 Value keys_value(std::span<const std::string> keys);
@@ -52,7 +52,7 @@ public:
     Snap& operator=(const Snap&) = delete;
 
     std::string_view name() const override { return "snap"; }
-    void paint_over(Host& h, render::DisplayList& list) override;
+    void paint_over(Host& h, xrender::DisplayList& list) override;
 
     // The canvas's snap behaviour, if it holds canvas-kit's.
     [[nodiscard]] static Snap* of(Host& h);

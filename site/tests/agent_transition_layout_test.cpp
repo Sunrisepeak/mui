@@ -6,12 +6,12 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 Value rect_value(Rect rect) {
@@ -57,30 +57,30 @@ Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::strin
     std::vector<NodeId> owners;
     std::vector<std::uint32_t> markers;
     for (const auto& command : runtime.display_list().commands()) {
-        if (const auto* c = std::get_if<render::BeginNode>(&command)) {
+        if (const auto* c = std::get_if<xrender::BeginNode>(&command)) {
             const auto id = runtime.node_at_index(c->node);
             markers.push_back(runtime.valid(id) ? c->node : markers.empty() ? 0 : markers.back());
             owners.push_back(runtime.valid(id) ? id : owners.empty() ? NodeId{} : owners.back());
-        } else if (std::holds_alternative<render::EndNode>(command)) {
+        } else if (std::holds_alternative<xrender::EndNode>(command)) {
             if (!owners.empty()) { owners.pop_back(); markers.pop_back(); }
-        } else if (const auto* c = std::get_if<render::PushTransform>(&command)) {
+        } else if (const auto* c = std::get_if<xrender::PushTransform>(&command)) {
             transforms.push_back(transform); transform = transform * c->transform;
-        } else if (std::holds_alternative<render::PopTransform>(command)) {
+        } else if (std::holds_alternative<xrender::PopTransform>(command)) {
             check(!transforms.empty()); if (transforms.empty()) continue;
             transform = transforms.back(); transforms.pop_back();
-        } else if (const auto* c = std::get_if<render::PushLayer>(&command)) {
+        } else if (const auto* c = std::get_if<xrender::PushLayer>(&command)) {
             layers.push_back(opacity); opacity *= c->opacity;
-        } else if (std::holds_alternative<render::PopLayer>(command)) {
+        } else if (std::holds_alternative<xrender::PopLayer>(command)) {
             check(!layers.empty()); if (layers.empty()) continue;
             opacity = layers.back(); layers.pop_back();
-        } else if (const auto* c = std::get_if<render::PushClipRect>(&command)) {
+        } else if (const auto* c = std::get_if<xrender::PushClipRect>(&command)) {
             clips.push_back(clip); path_clips.push_back(path_clip); const auto rect = transform.map(c->rect);
             clip = clip ? clip->intersection(rect) : rect;
-        } else if (std::holds_alternative<render::PushClipPath>(command)) {
+        } else if (std::holds_alternative<xrender::PushClipPath>(command)) {
             // Reject path clipping around sampled actions rather than
             // silently treating arbitrary path geometry as a rectangle.
             clips.push_back(clip); path_clips.push_back(path_clip); path_clip = true;
-        } else if (std::holds_alternative<render::PopClip>(command)) {
+        } else if (std::holds_alternative<xrender::PopClip>(command)) {
             check(!clips.empty()); if (clips.empty()) continue;
             clip = clips.back(); clips.pop_back();
             path_clip = path_clips.back(); path_clips.pop_back();
@@ -91,17 +91,17 @@ Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::strin
             check(!path_clip, "sampled action geometry is not approximated through an arbitrary path clip");
             auto& drawing = result[std::string(path)]; drawing.node = id;
             const auto visible = [&](Rect rect) { return clip ? rect.intersection(*clip) : rect; };
-            if (const auto* c = std::get_if<render::FillRoundRect>(&command); c && c->paint.color.a * opacity > 0.03f) {
+            if (const auto* c = std::get_if<xrender::FillRoundRect>(&command); c && c->paint.color.a * opacity > 0.03f) {
                 const auto raw = transform.map(c->rect), rect = visible(raw);
                 if (!rect.empty()) drawing.bodies.push_back({rect, id, markers.back(), opacity * c->paint.color.a, raw});
                 unite(drawing.body, rect);
-            } else if (const auto* c = std::get_if<render::FillRect>(&command); c && c->paint.color.a * opacity > 0.03f) {
+            } else if (const auto* c = std::get_if<xrender::FillRect>(&command); c && c->paint.color.a * opacity > 0.03f) {
                 const auto raw = transform.map(c->rect), rect = visible(raw);
                 if (!rect.empty()) drawing.bodies.push_back({rect, id, markers.back(), opacity * c->paint.color.a, raw});
                 unite(drawing.body, rect);
-            } else if (const auto* c = std::get_if<render::DrawGlyphs>(&command)) {
+            } else if (const auto* c = std::get_if<xrender::DrawGlyphs>(&command)) {
                 for (std::size_t i = 0; i < c->glyphs.size(); ++i) {
-                    const auto style = c->styles.empty() ? render::GlyphStyle{} : c->styles[i];
+                    const auto style = c->styles.empty() ? xrender::GlyphStyle{} : c->styles[i];
                     if (opacity * style.opacity * c->paint.color.a <= 0.03f) continue;
                     const auto& glyph = c->glyphs[i];
                     const auto mask = cache.mask(c->font, glyph.id, c->size, {});
@@ -133,13 +133,13 @@ struct Page {
     std::size_t moving_samples = 0;
     Page(int window_width, std::string_view lang)
         : room(signal(std::min(1120.0f, static_cast<float>(window_width - 40)))),
-          h(HeadlessOptions{.size = {static_cast<float>(window_width), 844}, .theme = site::app("agent/develop", lang).theme, .parallel_raster = false, .tier = pipeline::Tier::t4}),
+          h(HeadlessOptions{.size = {static_cast<float>(window_width), 844}, .theme = site::app("agent/develop", lang).theme, .parallel_raster = false, .tier = mlibs::pipeline::Tier::t4}),
           runtime(&h.runtime()), glyphs(runtime->fonts()), width(window_width) {
         state.mode.set("develop"); language.set(std::string(lang));
         context.runtime = &runtime; context.lang = &language; context.root = "main/viewport/agent_feature";
         context.style = [this](std::string name) { check(theme::apply_style(*runtime, name, context.scope, false).has_value()); };
-        h.mount("main", column({.width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(Insets{64, 20, 40, 20})}, {
-            scroll({.id = "viewport", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(24, 0)}, {
+        h.mount("main", column({.width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{64, 20, 40, 20})}, {
+            scroll({.id = "viewport", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(24, 0)}, {
                 dynamic([this] { return std::vector<Element>{site::agent_feature(state, context, room.get())}; })})}));
         h.step(); site::tick_agent_feature(state, context);
         check(h.click(path("preview/actions/pause"))); h.settle(seconds(0.8));

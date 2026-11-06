@@ -5,9 +5,9 @@
 // files make now, and `bake` writes it again.
 import std;
 import gongfu.studio;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 namespace p2 = gongfu::present2d;
 

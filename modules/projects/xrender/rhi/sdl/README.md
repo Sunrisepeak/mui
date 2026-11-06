@@ -18,8 +18,3 @@ if (!device) fall_back_to_cpu(device.error().message);   // Errc::unsupported: n
 - **A window**: `Options::window` (an `SDL_GetWindowID`) is claimed for the GPU when the device is made, its swapchain in sync with the display (`Options::vsync`) or immediate; `present(frame)` blits the frame into the next swapchain texture — SDL converts to the swapchain's format and scales to its size — in a command buffer after the frame's own work.
 
 The tests (`tests/sdl_test.cpp`) run on the machine's device: its backend and formats, upload, clear, copy and readback byte for byte, a buffer at an offset, and an invalid list refused before SDL sees it. Without a device they say so and pass, unless `OMUI_REQUIRE_GPU=1` (CI with lavapipe) makes that a failure.
-
-Canonical ownership: package/module `xrender.rhi.sdl`, C++ `xrender::rhi::sdl`.
-The original package keeps `import openmui.rhi.sdl;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `xrender.rhi.sdl`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

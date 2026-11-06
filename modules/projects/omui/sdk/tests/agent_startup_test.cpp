@@ -1,10 +1,10 @@
 import std;
 import openmui;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 int exit_of(const std::vector<Value>& reply) {

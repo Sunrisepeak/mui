@@ -9,9 +9,9 @@ import std;
 import openmui;
 import openmui.site;
 import openmui.ui.markdown;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

@@ -15,9 +15,9 @@ export module openmui.view:primitives;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.text;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.text;
 import :element;
 import :theme;
 import :model;
@@ -27,12 +27,12 @@ export namespace omui {
 
 // A length: points (a number), a percentage, or automatic.
 struct Dim {
-    layout::Length length;
+    mlibs::layout::Length length;
     Dim() = default;
-    Dim(float points) : length(layout::Length::points(points)) {}            // NOLINT
-    Dim(int points) : length(layout::Length::points(static_cast<float>(points))) {}  // NOLINT
-    Dim(double points) : length(layout::Length::points(static_cast<float>(points))) {}  // NOLINT
-    Dim(layout::Length l) : length(l) {}                                     // NOLINT
+    Dim(float points) : length(mlibs::layout::Length::points(points)) {}            // NOLINT
+    Dim(int points) : length(mlibs::layout::Length::points(static_cast<float>(points))) {}  // NOLINT
+    Dim(double points) : length(mlibs::layout::Length::points(static_cast<float>(points))) {}  // NOLINT
+    Dim(mlibs::layout::Length l) : length(l) {}                                     // NOLINT
 };
 template <>
 struct ValueOf<Dim> {
@@ -175,6 +175,6 @@ void register_type(const ComponentType& type);
 [[nodiscard]] std::span<const std::string_view> runtime_events() noexcept;
 
 // Track lists: "1fr 2fr 120 auto minmax(80, 1fr) repeat(3, 1fr)".
-[[nodiscard]] std::vector<layout::Track> parse_tracks(std::string_view text);
+[[nodiscard]] std::vector<mlibs::layout::Track> parse_tracks(std::string_view text);
 
 }  // namespace omui

@@ -5,7 +5,7 @@ export module openmui.site:timebar;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 import :timebar_contract;
 
@@ -14,7 +14,7 @@ export namespace omui::site {
 class Timebar : public TimebarContract<Timebar> {
 public:
     void prop_changed(TimebarProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;

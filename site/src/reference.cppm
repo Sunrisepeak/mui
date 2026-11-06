@@ -23,7 +23,7 @@ inline constexpr Size   reference_size{1280, 800};   // CI's window
 [[nodiscard]] std::int32_t reference_frames();        // how many
 
 // A frame's hash: FNV-1a over its rows' RGBA bytes, top to bottom.
-[[nodiscard]] std::uint64_t frame_hash(const raster::Surface& pixels) noexcept;
+[[nodiscard]] std::uint64_t frame_hash(const xrender::raster::Surface& pixels) noexcept;
 
 // CI's hashes of the reference frames, in order (empty: none pinned yet).
 [[nodiscard]] std::span<const std::uint64_t> reference_pinned();
@@ -42,7 +42,7 @@ public:
     // The frame's pixels' hash.
     [[nodiscard]] std::uint64_t hash(std::int32_t frame);
     // The pixels of the frame last asked for, and as a PNG.
-    [[nodiscard]] const raster::Surface& pixels();
+    [[nodiscard]] const xrender::raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png();
 
 private:

@@ -1,12 +1,12 @@
 import std;
 import hanim.object;
-import openmui.log;
-import openmui.trace;
-import openmui.testing;
+import mlibs.log;
+import mlibs.trace;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 Contour line() {
@@ -243,8 +243,8 @@ int main(int argc, char** argv) {
     s.test("logger callbacks can read committed state but reentrant mutation is refused without another log", [] {
         auto registry = ObjectRegistry::make(); const auto object = registry->create(graph());
         struct Observer { ObjectRegistry* registry; ObjectRef object; int called = 0; bool read = false, refused = false; } observer{&*registry, *object};
-        check(omui::set_log_filter("hanim.object=info,*=warning").has_value());
-        omui::set_log_sink([](void* context, const omui::LogRecord& record) {
+        check(mlibs::log::set_log_filter("hanim.object=info,*=warning").has_value());
+        mlibs::log::set_log_sink([](void* context, const mlibs::log::LogRecord& record) {
             if (record.category != "hanim.object" || !record.message.starts_with("updated")) return;
             auto& observer = *static_cast<Observer*>(context); ++observer.called;
             const auto snapshot = observer.registry->capture(observer.object);
@@ -253,7 +253,7 @@ int main(int argc, char** argv) {
             observer.refused = !destroyed && destroyed.error() == ObjectError::reentrant_mutation;
         }, &observer);
         const auto updated = registry->update(*object, graph());
-        omui::set_log_sink(nullptr, nullptr); check(omui::set_log_filter("*=info").has_value());
+        mlibs::log::set_log_sink(nullptr, nullptr); check(mlibs::log::set_log_filter("*=info").has_value());
         check(updated == 2 && observer.called == 1 && observer.read && observer.refused && registry->contains(*object));
     });
     return s.run(argc, argv);

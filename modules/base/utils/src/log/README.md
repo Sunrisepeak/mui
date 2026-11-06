@@ -33,8 +33,4 @@ checks. The log and trace packages remain independently usable. Native failure p
 start a bounded subprocess through the test-only `mcpplibs.os` dependency;
 Emscripten runs the nonterminating invariant checks without subprocess support.
 
-The package and public import are `mlibs.log`. The legacy
-`import openmui.log;` and `omui` API remain source-compatible
-within this same package; rebuild C++ consumers. Both entry points share the
-same types, implementation and state. No extra compatibility package is needed.
-See the [namespace migration guide](../../../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移).
+The package and public import are `mlibs.log`.

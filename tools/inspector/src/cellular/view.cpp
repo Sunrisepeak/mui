@@ -61,7 +61,7 @@ void add_verbs(AppSpec& a,const std::shared_ptr<Session>& s) {
 
 Element view(const std::shared_ptr<Session>& s,float width,bool zh) {
     const auto say=[zh](std::string_view en,std::string_view cn){return std::string(zh?cn:en);};
-    auto canvas=painter({.id="field",.width=Dim(layout::pct(100)),
+    auto canvas=painter({.id="field",.width=Dim(mlibs::layout::pct(100)),
         .label=say("Material field. Arrow keys move the cursor; Space paints the selected brush.",
                    "材料画布。方向键移动光标，空格使用选中画笔。"),.focusable=true,
         .paint=[s](PaintContext& ctx) {
@@ -124,11 +124,11 @@ Element view(const std::shared_ptr<Session>& s,float width,bool zh) {
     });
     auto editor=dynamic([s,say,width] {
         if (!s->details.get()) return std::vector<Element>{};
-        return std::vector<Element>{column({.id="details",.width=Dim(layout::pct(100)),.gap=12},{
+        return std::vector<Element>{column({.id="details",.width=Dim(mlibs::layout::pct(100)),.gap=12},{
             text({.id="guide",.text=say("Change the rules, palette or brushes. Apply starts a new history from the field you see.",
                 "修改规则、调色板或画笔。应用后，以当前画布开始新的历史。"),.style="body",.max_width=Dim(width)}),
             code_editor({.id="config",.label=say("Rules and palette","规则与调色板"),.language=CodeEditorLanguage::json,
-                .lines=10,.text=s->draft,.width=Dim(layout::pct(100))}),
+                .lines=10,.text=s->draft,.width=Dim(mlibs::layout::pct(100))}),
             row({.id="actions",.gap=8,.wrap="wrap"},{
                 button({.id="apply",.text=say("Apply","应用"),.variant=ButtonVariant::primary,.on_activated=[s] {
                     const auto& text=s->draft.peek();
@@ -144,7 +144,7 @@ Element view(const std::shared_ptr<Session>& s,float width,bool zh) {
                     }
                 }})})})};
     });
-    return column({.id="cellular",.width=Dim(layout::pct(100)),.max_width=Dim(width),.gap=16},{
+    return column({.id="cellular",.width=Dim(mlibs::layout::pct(100)),.max_width=Dim(width),.gap=16},{
         text({.id="eyebrow",.text=say("REACTION LAB","反应实验室"),.style="label",.color="accent"}),
         text({.id="title",.text=say("Make room for a spark.","给火种，留一条路。"),.style="title",.max_width=Dim(width)}),
         text({.id="intro",.text=say("Draw a path, place a barrier, then watch what changes. Every step can be revisited.",
@@ -166,7 +166,7 @@ AppSpec app(const std::shared_ptr<Session>& s,bool zh) {
     a.description="Inspect and edit cellular rules; all operations and real headless pixels are available to Agents.";
     a.setup=[s](Runtime& rt){s->runtime=&rt;register_base_components();};
     a.view=[s,zh] {
-        return scroll({.id="workspace",.width=Dim(layout::pct(100)),.height=Dim(layout::pct(100)),.padding=Edges(20)},
+        return scroll({.id="workspace",.width=Dim(mlibs::layout::pct(100)),.height=Dim(mlibs::layout::pct(100)),.padding=Edges(20)},
             {view(s,960,zh)});
     };
     add_verbs(a,s);return a;

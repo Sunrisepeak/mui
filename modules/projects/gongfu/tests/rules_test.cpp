@@ -7,9 +7,9 @@
 // knockdown's own length.
 import std;
 import gongfu;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 
 namespace {

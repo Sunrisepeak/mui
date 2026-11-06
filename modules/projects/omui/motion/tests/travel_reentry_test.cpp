@@ -1,13 +1,13 @@
 // Nested effect-bearing Morph draws must never share their mutable scratch.
 import std;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 import openmui.motion;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace mo = omui::motion;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
@@ -30,14 +30,14 @@ mo::Resolver names() {
             }, .nested = [](std::uint32_t marker) { return marker == 2; }};
 }
 
-render::DisplayList frame(float offset, std::size_t level) {
-    render::DisplayList list;
+xrender::DisplayList frame(float offset, std::size_t level) {
+    xrender::DisplayList list;
     list.begin_node(1);
     for (std::size_t i = 0; i < fills_per_level; ++i)
         list.fill_rect({offset + static_cast<float>(i), static_cast<float>(level * 4), 2, 3},
-                       geom::Color::hex(0x527da8));
+                       mlibs::geom::Color::hex(0x527da8));
     list.begin_node(2);
-    list.fill_rect({0, 0, 1, 1}, geom::Color::black());
+    list.fill_rect({0, 0, 1, 1}, mlibs::geom::Color::black());
     list.end_node();
     list.end_node();
     return list;
@@ -53,7 +53,7 @@ struct Chain {
             options.curve.duration = 1;
             options.curve.ease = hanim::ease::linear;
             if (effects) options.travel = mo::Options::Travel{
-                .effect = render::EffectRef{static_cast<std::uint32_t>(900 + level)},
+                .effect = xrender::EffectRef{static_cast<std::uint32_t>(900 + level)},
                 .params = {static_cast<float>(level + 1), static_cast<float>(level + 20)},
                 .param = 0, .peak = static_cast<float>(level + 4)};
             auto a = frame(0, level), b = frame(10, level);
@@ -61,27 +61,27 @@ struct Chain {
                                                         mo::Matter::extract(b, names()), options, 0));
         }
     }
-    void draw_level(std::size_t level, double time, render::DisplayList& out) const {
+    void draw_level(std::size_t level, double time, xrender::DisplayList& out) const {
         struct Call { const Chain* chain; std::size_t level; double time; } call{this, level, time};
         // One-pointer callback stays in std::function's small buffer. Thus the
         // warm allocation probe includes traversal instead of hiding callback
         // heap allocations outside the measured region.
-        motions[reuse_same ? 0 : level]->draw(time, out, [&call](std::uint32_t marker, render::DisplayList& into) {
+        motions[reuse_same ? 0 : level]->draw(time, out, [&call](std::uint32_t marker, xrender::DisplayList& into) {
             if (marker == 2 && call.level + 1 < call.chain->motions.size())
                 call.chain->draw_level(call.level + 1, call.time, into);
         });
     }
-    render::DisplayList draw(double time) const {
-        render::DisplayList list;
+    xrender::DisplayList draw(double time) const {
+        xrender::DisplayList list;
         draw_level(0, time, list);
         return list;
     }
 };
 
-std::vector<render::FillRect> fills(const render::DisplayList& list) {
-    std::vector<render::FillRect> found;
+std::vector<xrender::FillRect> fills(const xrender::DisplayList& list) {
+    std::vector<xrender::FillRect> found;
     for (const auto& command : list.commands())
-        if (const auto* fill = std::get_if<render::FillRect>(&command)) found.push_back(*fill);
+        if (const auto* fill = std::get_if<xrender::FillRect>(&command)) found.push_back(*fill);
     return found;
 }
 
@@ -99,7 +99,7 @@ void verify(const Chain& effected, const Chain& plain, double time, bool moving)
     }
     std::size_t layers = 0;
     for (const auto& command : actual.commands()) {
-        const auto* layer = std::get_if<render::PushLayer>(&command);
+        const auto* layer = std::get_if<xrender::PushLayer>(&command);
         if (!layer || layer->effect.id < 900) continue;
         const std::size_t level = layer->effect.id - 900;
         check(level < effected.motions.size(), "travel identity belongs to this chain");
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
     });
     suite.test("warmed recursive travel reuses every depth list and parameter buffer", [] {
         Chain actual(4, true);
-        render::DisplayList out;
+        xrender::DisplayList out;
         for (double time : {0.2, 0.5, 0.8}) { out.clear(); actual.draw_level(0, time, out); }
         const auto before = allocations.load(std::memory_order_relaxed);
         for (int i = 0; i < 40; ++i) {

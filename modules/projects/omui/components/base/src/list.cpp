@@ -39,9 +39,9 @@ void List::prop_changed(ListProp p) {
     services().invalidate_semantics(node());
 }
 
-void List::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
-    s.overflow_y = layout::Overflow::scroll;
+void List::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
+    s.overflow_y = mlibs::layout::Overflow::scroll;
 }
 
 float List::height_of(std::size_t i) const {
@@ -170,7 +170,7 @@ void List::paint_over(PaintContext& ctx) const {
     const float h = std::max(24.0f, view * view / all);
     const float y = (view - h) * (offset_ / std::max(1.0f, all - view));
     ctx.list.fill_round_rect({ctx.size.width - bar - inset, y, bar, h}, CornerRadii::all(bar / 2),
-                             render::Paint::solid(ctx.theme.color("border_strong").with_alpha(0.7f)));
+                             xrender::Paint::solid(ctx.theme.color("border_strong").with_alpha(0.7f)));
 }
 
 void List::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -285,10 +285,10 @@ Value ListItem::get_prop(std::string_view k) const {
     return {};
 }
 
-void ListItem::style(const Theme&, layout::Style& s) const {
+void ListItem::style(const Theme&, mlibs::layout::Style& s) const {
     s.padding = {6, 12, 6, 12};
-    s.min_height = layout::pt(32);
-    s.align_items = layout::Align::center;  // centred across the row; the content starts at the left
+    s.min_height = mlibs::layout::pt(32);
+    s.align_items = mlibs::layout::Align::center;  // centred across the row; the content starts at the left
 }
 
 void ListItem::paint(PaintContext& ctx) const {
@@ -297,10 +297,10 @@ void ListItem::paint(PaintContext& ctx) const {
     if (selected_) fill = th.color("accent_subtle");
     else if (ctx.state.pressed) fill = th.color("surface_pressed");
     else if (ctx.state.hovered) fill = th.color("surface_variant");
-    if (fill.a > 0) ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)), render::Paint::solid(fill));
+    if (fill.a > 0) ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)), xrender::Paint::solid(fill));
     if (ctx.state.focused && ctx.state.focus_visible)
         ctx.list.stroke_round_rect({1, 1, ctx.size.width - 2, ctx.size.height - 2}, CornerRadii::all(th.corner("small", 4)), 2,
-                                   render::Paint::solid(th.color("focus")));
+                                   xrender::Paint::solid(th.color("focus")));
 }
 
 void ListItem::semantics(SemanticsContext&, spec::SemanticNode& node) const {

@@ -1,17 +1,17 @@
 // Required-device runs exercise the real GPU pipelines and read back pixels.
 import std;
 import mcpplibs.os;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.testing;
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
-namespace rhi = omui::rhi;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import mlibs.testing;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
 namespace {
 constexpr std::uint32_t W = 128, H = 96;
 std::unique_ptr<rhi::Device> open_device() {

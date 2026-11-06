@@ -12,7 +12,7 @@ export module openmui.ui.liquid_glass:glass;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import :liquid_glass_contract;
 import :glass_group_contract;
 
@@ -20,7 +20,7 @@ export namespace omui {
 
 class LiquidGlass : public LiquidGlassContract<LiquidGlass> {
 public:
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -32,7 +32,7 @@ public:
 
 class GlassGroup : public GlassGroupContract<GlassGroup> {
 public:
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -40,7 +40,7 @@ public:
 
     // The members' shapes, in the group's coordinates (at most 8: the
     // effect's): each liquid_glass child's laid-out box and radius.
-    [[nodiscard]] std::vector<render::EffectShape> shapes() const;
+    [[nodiscard]] std::vector<xrender::EffectShape> shapes() const;
 };
 
 // Registers liquid_glass and glass_group by name, for view documents and

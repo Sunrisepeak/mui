@@ -2,11 +2,11 @@
 // becomes [0, 1); the elementary functions against <cmath> where the two must
 // agree, and their bits pinned (the same on every platform: D-87's det).
 import std;
-import openmui.math;
-import openmui.testing;
+import mlibs.math;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace math = omui::math;
+using namespace mlibs::testing;
+namespace math = mlibs::math;
 
 int main(int argc, char** argv) {
     Suite s{"math"};

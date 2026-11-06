@@ -1,25 +1,25 @@
 // Only the native death probes use OS services, through mcpplibs.os.
 // The production logger itself depends on the standard library alone.
 import std;
-import openmui.log;
-import openmui.testing;
+import mlibs.log;
+import mlibs.testing;
 import mcpplibs.os;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace os = mcpplibs::os;
 
 int main(int argc, char** argv) {
     if (argc > 1 && std::string_view(argv[1]) == "--invariant-failure") {
-        omui::invariant(false, "independent invariant failure probe");
+        mlibs::log::invariant(false, "independent invariant failure probe");
         return 0;  // must never be reached
     }
     if (argc > 1 && std::string_view(argv[1]) == "--fatal-failure")
-        omui::fatal("independent fatal failure probe");
+        mlibs::log::fatal("independent fatal failure probe");
     Suite suite{"log.invariant"};
     suite.test("a true invariant returns without a diagnostic", [] {
-        omui::set_log_history(0);
-        omui::invariant(true, "satisfied");
-        check(omui::recent_logs().empty());
+        mlibs::log::set_log_history(0);
+        mlibs::log::invariant(true, "satisfied");
+        check(mlibs::log::recent_logs().empty());
     });
     if constexpr (!os::is_emscripten) {
         auto probe = [](std::string mode, std::string expected) {

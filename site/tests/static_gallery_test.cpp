@@ -2,10 +2,10 @@
 // before JavaScript, during loading, and at the live-gallery handoff.
 import std;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::size_t occurrences(std::string_view text, std::string_view needle) {

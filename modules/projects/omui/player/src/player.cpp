@@ -5,7 +5,11 @@ import openmui.core;
 import openmui.view;
 import openmui.abi;
 import openmui.theme;
-import openmui.trace;
+import mlibs.trace;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::player {
 
@@ -184,7 +188,7 @@ Player::Player(Runtime& runtime, Manifest manifest, std::vector<Language> langua
 Player::~Player() = default;
 
 Status Player::start() {
-    trace::Span span("player.start", "player");
+    mlibs::trace::Span span("player.start", "player");
     Impl& d = *impl_;
     d.problems.clear();
     // Themes first: what the views and scripts show is themed from the start.
@@ -241,7 +245,7 @@ std::vector<std::string> Player::poll() {
         const auto now = stamp_of(d.full(f.path));
         if (now == f.stamp) continue;
         f.stamp = now;
-        trace::Span span("player.reload", "player");
+        mlibs::trace::Span span("player.reload", "player");
         bool ok = false;
         switch (f.kind) {
             case Impl::File::Kind::component: ok = d.define(f); break;

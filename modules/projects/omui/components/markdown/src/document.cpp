@@ -3,7 +3,7 @@ module openmui.ui.markdown;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.markdown;
+import mlibs.markdown;
 import :markdown_contract;
 import :parts;
 import :document;
@@ -12,9 +12,9 @@ namespace omui {
 
 namespace {
 
-md::Extension extensions_of(const std::vector<std::string>& names) {
-    md::Extension e = md::extensions(names);
-    return names.empty() ? md::gfm : e;
+mlibs::markdown::Extension extensions_of(const std::vector<std::string>& names) {
+    mlibs::markdown::Extension e = mlibs::markdown::extensions(names);
+    return names.empty() ? mlibs::markdown::gfm : e;
 }
 
 std::string lower(std::string_view s) {
@@ -24,14 +24,14 @@ std::string lower(std::string_view s) {
 }
 
 // The task items of the document in order, with their marks' byte offsets.
-void tasks(const md::Block& b, std::vector<const md::Block*>& out) {
-    if (b.kind == md::Kind::item && b.task != md::Task::none) out.push_back(&b);
-    for (const md::Block& c : b.children) tasks(c, out);
+void tasks(const mlibs::markdown::Block& b, std::vector<const mlibs::markdown::Block*>& out) {
+    if (b.kind == mlibs::markdown::Kind::item && b.task != mlibs::markdown::Task::none) out.push_back(&b);
+    for (const mlibs::markdown::Block& c : b.children) tasks(c, out);
 }
 
 }  // namespace
 
-Markdown::Markdown() : hub_(std::make_shared<mdview::Hub>()), stream_(md::gfm) {}
+Markdown::Markdown() : hub_(std::make_shared<mdview::Hub>()), stream_(mlibs::markdown::gfm) {}
 
 Markdown::~Markdown() {
     // Parts outlive nothing of ours but the hub; they must not call back.
@@ -44,7 +44,7 @@ void Markdown::mounted() {
     hub_->document = node();
     hub_->origin = props.origin;
     hub_->base_url = props.base_url;
-    hub_->activate_link = [this](const md::Link& l) {
+    hub_->activate_link = [this](const mlibs::markdown::Link& l) {
         // A link to a heading of this document scrolls to it as well.
         if (l.href.starts_with('#'))
             if (auto it = hub_->headings.find(std::string_view(l.href).substr(1)); it != hub_->headings.end())
@@ -57,7 +57,7 @@ void Markdown::mounted() {
 
 void Markdown::reset_stream() {
     ext_ = extensions_of(props.extensions);
-    stream_ = md::Stream(ext_);
+    stream_ = mlibs::markdown::Stream(ext_);
     stream_.assign(props.source);
 }
 
@@ -97,8 +97,8 @@ void Markdown::changed() {
     services().invalidate_semantics(node());
 }
 
-void Markdown::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void Markdown::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     s.row_gap = 12;
 }
 
@@ -109,12 +109,12 @@ void Markdown::restyle() {
 }
 
 std::vector<Element> Markdown::compose() {
-    const md::Document& doc = stream_.document();
+    const mlibs::markdown::Document& doc = stream_.document();
     std::vector<Element> out;
     std::map<std::string, Element, std::less<>> built;
     std::int32_t task = 0;
     for (std::size_t i = 0; i < doc.root.children.size(); ++i) {
-        const md::Block& b = doc.root.children[i];
+        const mlibs::markdown::Block& b = doc.root.children[i];
         const std::string id = std::format("b{}", i);
         // A block that did not change is the element it was (no copy of the
         // block, no new node): what streaming leaves alone stays as it is.
@@ -165,9 +165,9 @@ void Markdown::laid_out() {
 void Markdown::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (!props.label.empty()) node.name = props.label;
     else
-        for (const md::Block& b : stream_.document().root.children)
-            if (b.kind == md::Kind::heading) {
-                node.name = md::plain_text(b);
+        for (const mlibs::markdown::Block& b : stream_.document().root.children)
+            if (b.kind == mlibs::markdown::Kind::heading) {
+                node.name = mlibs::markdown::plain_text(b);
                 break;
             }
     node.origin = props.origin == MarkdownOrigin::remote ? spec::Origin::remote
@@ -194,7 +194,7 @@ ActResult Markdown::open_link(ActContext&, const Value& href) {
     // Only what the document links to: an agent cannot use the document to
     // reach an address of its own choosing.
     const std::string_view h = href.as_string();
-    for (const md::Link& l : stream_.document().links)
+    for (const mlibs::markdown::Link& l : stream_.document().links)
         if (l.href == h) {
             hub_->activate_link(l);
             return ActResult::done(Value(l.href));
@@ -205,13 +205,13 @@ ActResult Markdown::open_link(ActContext&, const Value& href) {
 ActResult Markdown::toggle_task(ActContext&, const Value& index) {
     const auto i = static_cast<std::int32_t>(index.as_int(-1));
     if (!toggle(i)) return ActResult::fail(std::format("the document has no task {}", i));
-    std::vector<const md::Block*> all;
+    std::vector<const mlibs::markdown::Block*> all;
     tasks(stream_.document().root, all);
-    return ActResult::done(Value(all[static_cast<std::size_t>(i)]->task == md::Task::done));
+    return ActResult::done(Value(all[static_cast<std::size_t>(i)]->task == mlibs::markdown::Task::done));
 }
 
 bool Markdown::toggle(std::int32_t index) {
-    std::vector<const md::Block*> all;
+    std::vector<const mlibs::markdown::Block*> all;
     tasks(stream_.document().root, all);
     if (index < 0 || static_cast<std::size_t>(index) >= all.size()) return false;
     const std::size_t at = all[static_cast<std::size_t>(index)]->task_offset;
@@ -226,7 +226,7 @@ bool Markdown::toggle(std::int32_t index) {
 }
 
 ActResult Markdown::copy(ActContext&) {
-    const std::string text = md::plain_text(stream_.document().root);
+    const std::string text = mlibs::markdown::plain_text(stream_.document().root);
     services().set_clipboard_text(text);
     return ActResult::done(Value(static_cast<std::int64_t>(text.size())));
 }
@@ -238,7 +238,7 @@ ActResult Markdown::find(ActContext&, const Value& query) {
     const auto kids = services().children(node());
     const auto& blocks = stream_.document().root.children;
     for (std::size_t i = 0; i < blocks.size() && i < kids.size(); ++i)
-        if (lower(md::plain_text(blocks[i])).contains(q)) hits.emplace_back(services().path(kids[i]));
+        if (lower(mlibs::markdown::plain_text(blocks[i])).contains(q)) hits.emplace_back(services().path(kids[i]));
     return ActResult::done(Value(std::move(hits)));
 }
 

@@ -3,14 +3,14 @@
 import std;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] { typeset::FontCollection v; (void)v.add_defaults(); return v; }();
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] { mlibs::text::FontCollection v; (void)v.add_defaults(); return v; }();
     return f;
 }
 HeadlessOptions options(Size size = {760, 460}) {

@@ -1,10 +1,10 @@
 import std;
 import openmui;
-import openmui.testing;
+import mlibs.testing;
 import mcpplibs.os;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"sdk.agent_guide_policy"};

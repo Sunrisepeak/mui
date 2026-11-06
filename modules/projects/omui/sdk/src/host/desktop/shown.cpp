@@ -8,6 +8,10 @@ import openmui.host.sdl3;
 import :app;
 import :shown;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::error;
+}
+
 namespace omui::detail {
 
 int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {

@@ -4,11 +4,11 @@
 // length, day periods, relative times, lists, plural and ordinal categories —
 // and MessageFormat 2 messages select and format as the specification says.
 import std;
-import openmui.i18n;
-import openmui.testing;
+import mlibs.i18n;
+import mlibs.testing;
 
-using namespace omui::testing;
-using namespace omui::i18n;
+using namespace mlibs::testing;
+using namespace mlibs::i18n;
 
 namespace {
 

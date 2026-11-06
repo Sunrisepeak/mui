@@ -12,9 +12,9 @@ import openmui.entry.player;
 import openmui.lang.js;
 import openmui.native;
 import colors;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 using nlohmann::json;
 

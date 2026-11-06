@@ -1,9 +1,13 @@
 module openmui.view;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui.core;
-import openmui.layout;
+import mlibs.layout;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+}
 
 namespace omui {
 
@@ -38,7 +42,7 @@ struct ImRootNode {
         if (state && state->timer && state->services) state->services->cancel(state->timer);
     }
 
-    void style(const Theme&, layout::Style& s) const { s.direction = layout::Direction::column; }
+    void style(const Theme&, mlibs::layout::Style& s) const { s.direction = mlibs::layout::Direction::column; }
     void mount(Services& s, NodeId n) {
         if (!state) return;
         state->services = &s;
@@ -46,7 +50,7 @@ struct ImRootNode {
     }
 };
 
-std::uint32_t fnv1a(std::string_view s) noexcept { return hash::fnv1a32(s); }
+std::uint32_t fnv1a(std::string_view s) noexcept { return mlibs::hash::fnv1a32(s); }
 
 }  // namespace
 

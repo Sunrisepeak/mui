@@ -15,14 +15,18 @@ export module openmui.view:runtime;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.pipeline;
-import openmui.text;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.pipeline;
+import mlibs.text;
 import :element;
 import :theme;
 import :model;
 import :component;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+}
 
 export namespace omui {
 
@@ -35,9 +39,9 @@ enum class MotionLevel : std::uint8_t { full, reduced, off };
 // raises them again when there is room. Recorded with a session (an input):
 // a replay draws as the recording did.
 struct Adaptation {
-    pipeline::Tier tier = pipeline::Tier::t3;     // the device's
+    mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t3;     // the device's
     MotionLevel    motion = MotionLevel::full;    // at most this (the person's own setting may be less)
-    pipeline::Tier effects = pipeline::Tier::t4;  // effects drawn as on this tier, at most the device's
+    mlibs::pipeline::Tier effects = mlibs::pipeline::Tier::t4;  // effects drawn as on this tier, at most the device's
     std::string    reason;                        // why it is so now, said plainly
     friend bool operator==(const Adaptation&, const Adaptation&) = default;
 };
@@ -66,7 +70,7 @@ enum class Stages : std::uint8_t { semantics, layout, paint };
 
 struct RuntimeOptions {
     Theme                 theme = Theme::light();
-    typeset::FontCollection* fonts = nullptr;  // nullptr: the runtime loads the default fonts
+    mlibs::text::FontCollection* fonts = nullptr;  // nullptr: the runtime loads the default fonts
     hanim::Clock           clock = hanim::Clock::virtual_time();
     Size                  size{800, 600};   // logical pixels
     float                 scale = 1.0f;     // physical pixels per logical pixel
@@ -78,8 +82,8 @@ struct RuntimeOptions {
     // The frame's pipeline (D-66): nullopt is runtime_pipeline(stages). A
     // custom one may replace, add or leave out stages; `plugins` adds the
     // stage plugins it names to the runtime's registry.
-    std::optional<pipeline::Description>            pipeline;
-    std::function<void(pipeline::Registry&)>        plugins;
+    std::optional<mlibs::pipeline::Description>            pipeline;
+    std::function<void(mlibs::pipeline::Registry&)>        plugins;
     // Null preserves the legacy global fallback. Applications and embedded
     // providers bind an instance so caps, grants and sessions are isolated.
     std::shared_ptr<AgentAccess> access;
@@ -102,7 +106,7 @@ inline constexpr std::string_view input = "frame";     // FrameInput, from the c
 inline constexpr std::string_view tree = "tree";       // FrameTree, from the caller
 inline constexpr std::string_view layout = "layout";   // FrameLayout
 inline constexpr std::string_view bounds = "bounds";   // FrameBounds
-inline constexpr std::string_view display = "display"; // render::DisplayList
+inline constexpr std::string_view display = "display"; // xrender::DisplayList
 }  // namespace frame_resource
 
 // A style's effect on what a selector names (D-69): "window" (the whole
@@ -159,7 +163,7 @@ struct resource_type<omui::FrameBounds> {
     static constexpr std::string_view name = "omui.FrameBounds";
 };
 template <>
-struct resource_type<omui::render::DisplayList> {
+struct resource_type<xrender::DisplayList> {
     static constexpr std::string_view name = "render.DisplayList";
 };
 }  // namespace mlibs::pipeline
@@ -185,7 +189,7 @@ struct FrameStats {
 
 
 struct FrameOutput {
-    const render::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
+    const xrender::DisplayList* list = nullptr;  // the runtime's list, valid until the next frame
     bool                       repainted = false;
     bool                       animating = false;  // another frame is wanted
     std::uint64_t              revision = 0;       // semantic revision after the frame
@@ -213,13 +217,13 @@ inline constexpr std::size_t history_limit = 200;
 
 // The process's task pool (Tasks::shared) as the CPU renderer's Parallel:
 // hosts draw bands of rows at the same time, with the bytes of a serial render.
-[[nodiscard]] render::Parallel& raster_parallel() noexcept;
+[[nodiscard]] xrender::Parallel& raster_parallel() noexcept;
 
 // The runtime's frame pipeline for a level: H0 (semantics) is timers, input,
 // regions and animations; H1 (layout) adds layout and bounds; H2 (paint)
 // adds paint and the debug overlay. Its stage plugins are
 // `openmui.view.<stage>`.
-[[nodiscard]] pipeline::Description runtime_pipeline(Stages stages);
+[[nodiscard]] mlibs::pipeline::Description runtime_pipeline(Stages stages);
 
 // An explicitly selected local presentation layer, independent of business
 // layout and style values. All drawable kinds and descendants use the same
@@ -231,7 +235,7 @@ enum class PresentationChannel : std::uint8_t { none=0, translation=1, rotation=
 struct PresentationTarget {
     NodeId node;
     PresentationChannel channels=PresentationChannel::transform;
-    geom::Point anchor{.5f,.5f};
+    mlibs::geom::Point anchor{.5f,.5f};
 };
 enum class PresentationError : std::uint8_t { invalid_node,invalid_configuration,occupied,busy,stale,invalid_pose,capacity,unsupported_frame,invalid_effect,stale_effect };
 [[nodiscard]] constexpr std::string_view presentation_error_name(PresentationError error) noexcept {
@@ -252,14 +256,14 @@ struct PresentationFailure { PresentationError code; std::size_t target=0; };
 struct PresentationState {
     NodeId node;
     hanim::Transform2D pose;
-    geom::Point anchor;
+    mlibs::geom::Point anchor;
     PresentationChannel channels=PresentationChannel::none;
     bool has_frame=false, applied=false;
     std::optional<PresentationError> error;
     std::size_t image_effects=0,image_parameters=0;
 };
 struct PresentationImageLayer {
-    render::EffectRef effect;
+    xrender::EffectRef effect;
     std::uint64_t generation=0;
     std::span<const float> parameters;
 };
@@ -347,7 +351,7 @@ public:
 
     // ── frames ──
     FrameOutput frame(const FrameInput& input = {});
-    [[nodiscard]] const render::DisplayList& display_list() const noexcept;
+    [[nodiscard]] const xrender::DisplayList& display_list() const noexcept;
     [[nodiscard]] std::expected<PresentationLease,PresentationFailure> acquire_presentation(std::span<const PresentationTarget>);
     [[nodiscard]] std::optional<PresentationState> presentation(NodeId) const noexcept;
     void resize(Size size, float scale);
@@ -404,8 +408,8 @@ public:
     [[nodiscard]] std::string_view renderer() const noexcept override;
     // The frame's pipeline and the stage plugins it is built from: tools
     // read them, and replace, add or remove stages between frames.
-    [[nodiscard]] pipeline::Pipeline& frame_pipeline() noexcept;
-    [[nodiscard]] pipeline::Registry& stage_plugins() noexcept;
+    [[nodiscard]] mlibs::pipeline::Pipeline& frame_pipeline() noexcept;
+    [[nodiscard]] mlibs::pipeline::Registry& stage_plugins() noexcept;
     void set_debug(DebugOptions debug);
     [[nodiscard]] const DebugOptions& debug() const noexcept;
     // Everything the runtime knows of a node, for tools (`omui agent inspect`):
@@ -553,7 +557,7 @@ public:
     // Its length (seconds until it rests) and its own time now; nullopt with no morph under way.
     [[nodiscard]] std::optional<std::pair<double, double>> motion_time(NodeId node) const;
     // The device's tier, as its host finds it (the GPU it has, the Web, an MCU).
-    void set_device_tier(pipeline::Tier tier, std::string reason);
+    void set_device_tier(mlibs::pipeline::Tier tier, std::string reason);
     [[nodiscard]] const Adaptation& adaptation() const noexcept;
     // As a session recorded it, or a tool sets it: the governor's say set aside until it is turned on again.
     void set_adaptation(const Adaptation& a);
@@ -587,8 +591,8 @@ public:
     [[nodiscard]] const FrameDemand& frame_demand() const noexcept;
     // The display's refresh rate, as the host last said (0: unknown).
     [[nodiscard]] double display_hz() const noexcept;
-    [[nodiscard]] typeset::FontCollection& fonts() override;
-    [[nodiscard]] render::ImageStore& images() override;
+    [[nodiscard]] mlibs::text::FontCollection& fonts() override;
+    [[nodiscard]] xrender::ImageStore& images() override;
     [[nodiscard]] hanim::seconds now() const override;
     [[nodiscard]] bool time_paused() const override;
     [[nodiscard]] Rect bounds(NodeId node) const override;

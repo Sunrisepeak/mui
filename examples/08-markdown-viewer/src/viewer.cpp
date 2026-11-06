@@ -9,7 +9,7 @@ namespace viewer {
 
 namespace {
 
-namespace md = omui::md;
+namespace md = mlibs::markdown;
 
 // A name's text in UTF-8 and back, never through the code page (lint `paths`).
 std::filesystem::path from_utf8(std::string_view s) { return std::filesystem::path(std::u8string(s.begin(), s.end())); }

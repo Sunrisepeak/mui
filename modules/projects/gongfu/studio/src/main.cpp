@@ -25,9 +25,9 @@ import gongfu.ai;
 import gongfu.data;
 import gongfu.studio;
 import nlohmann.json;
-import openmui.image;
-import openmui.raster;
-import openmui.render.vector;
+import mlibs.image;
+import xrender.raster;
+import xrender.vector;
 
 namespace {
 
@@ -53,7 +53,7 @@ int usage() {
 
 int cut(const std::filesystem::path& file, int argc, char** argv) {
     std::filesystem::path out = ".";
-    omui::imageio::Key key;
+    mlibs::image::Key key;
     std::int32_t gap = 8;
     std::int64_t min_area = 400;
     std::uint8_t solid = 96;  // a piece's pixels: alpha above this (a sheet's noise stays below)
@@ -74,46 +74,46 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
         }
     }
     nlohmann::json report = {{"command", "cut"}, {"sheet", utf8(file)}};
-    auto img = omui::imageio::load(file);
+    auto img = mlibs::image::load(file);
     if (!img) {
         report["error"] = img.error();
         std::println("{}", report.dump(2));
         return 1;
     }
-    omui::imageio::key_out(*img, key);
+    mlibs::image::key_out(*img, key);
     std::array<std::int64_t, 4> alphas{};  // clear, faint, half, solid: how well the background keyed
     for (std::size_t i = 3; i < img->rgba.size(); i += 4) ++alphas[img->rgba[i] == 0 ? 0 : img->rgba[i] <= solid ? 1 : img->rgba[i] < 255 ? 2 : 3];
     report["alpha"] = {{"clear", alphas[0]}, {"faint", alphas[1]}, {"partial", alphas[2]}, {"solid", alphas[3]}};
     std::vector<std::int32_t> labels;
-    const auto found = omui::imageio::pieces(*img, solid, gap, min_area, &labels);
+    const auto found = mlibs::image::pieces(*img, solid, gap, min_area, &labels);
     std::error_code ec;
     std::filesystem::create_directories(out, ec);
     report["pieces"] = nlohmann::json::array();
     // Each piece alone (its own pixels: a neighbour reaching into its bounds is left out), at the size asked, then packed.
-    std::vector<omui::imageio::Image> parts;
+    std::vector<mlibs::image::Image> parts;
     for (std::size_t k = 0; k < found.size(); ++k) {
         const auto& p = found[k];
-        auto part = omui::imageio::crop(*img, p.x, p.y, p.width, p.height);
+        auto part = mlibs::image::crop(*img, p.x, p.y, p.width, p.height);
         for (std::int32_t y = 0; y < p.height; ++y)
             for (std::int32_t x = 0; x < p.width; ++x)
                 if (labels[static_cast<std::size_t>(p.y + y) * img->width + (p.x + x)] != static_cast<std::int32_t>(k))
                     part.rgba[(static_cast<std::size_t>(y) * p.width + x) * 4 + 3] = 0;
         const auto name = std::format("piece-{:02}.png", k);
-        if (auto saved = omui::imageio::save_png(out / name, omui::imageio::view(part)); !saved) report["error"] = saved.error();
+        if (auto saved = mlibs::image::save_png(out / name, mlibs::image::view(part)); !saved) report["error"] = saved.error();
         if (scale < 1)
-            part = omui::imageio::scaled_down(part, std::max(1, static_cast<std::int32_t>(std::lround(p.width * scale))),
+            part = mlibs::image::scaled_down(part, std::max(1, static_cast<std::int32_t>(std::lround(p.width * scale))),
                                               std::max(1, static_cast<std::int32_t>(std::lround(p.height * scale))));
-        const auto ax = omui::imageio::principal_axis(part, solid);
+        const auto ax = mlibs::image::principal_axis(part, solid);
         parts.push_back(std::move(part));
         // Its long axis (the piece's own pixels, as packed): a limb's joint lies near one end, its tip near the other.
         report["pieces"].push_back({{"file", name}, {"region", {p.x, p.y, p.width, p.height}}, {"pixels", p.area},
                                     {"axis_local", {std::lround(ax.from_x), std::lround(ax.from_y), std::lround(ax.to_x), std::lround(ax.to_y)}},
                                     {"half_width", std::lround(ax.half_width)}});
     }
-    const auto packed = omui::imageio::pack(parts, static_cast<std::int32_t>(std::lround(2048 * scale)), 4);
+    const auto packed = mlibs::image::pack(parts, static_cast<std::int32_t>(std::lround(2048 * scale)), 4);
     const std::string atlas = webp > 0 ? "atlas.webp" : "atlas.png";
-    const auto saved = webp > 0 ? omui::imageio::save_webp(out / atlas, omui::imageio::view(packed.atlas), {.quality = webp})
-                                : omui::imageio::save_png(out / atlas, omui::imageio::view(packed.atlas));
+    const auto saved = webp > 0 ? mlibs::image::save_webp(out / atlas, mlibs::image::view(packed.atlas), {.quality = webp})
+                                : mlibs::image::save_png(out / atlas, mlibs::image::view(packed.atlas));
     if (!saved) report["error"] = saved.error();
     report["atlas"] = {{"file", atlas}, {"size", {packed.atlas.width, packed.atlas.height}}};
     for (std::size_t k = 0; k < found.size(); ++k)
@@ -131,7 +131,7 @@ int cut(const std::filesystem::path& file, int argc, char** argv) {
 // what it shows, scaled down to a width, written as PNG or WebP by its name.
 int picture(const std::filesystem::path& file, int argc, char** argv) {
     std::filesystem::path out;
-    std::optional<omui::imageio::Key> key;
+    std::optional<mlibs::image::Key> key;
     bool trim = false;
     std::int32_t width = 0;
     float quality = 85;
@@ -145,12 +145,12 @@ int picture(const std::filesystem::path& file, int argc, char** argv) {
         else if (a == "--key") {
             std::array<int, 3> c{};
             if (std::sscanf(argv[++i], "%d,%d,%d", &c[0], &c[1], &c[2]) == 3)
-                key = omui::imageio::Key{}, key->r = static_cast<std::uint8_t>(c[0]), key->g = static_cast<std::uint8_t>(c[1]), key->b = static_cast<std::uint8_t>(c[2]);
+                key = mlibs::image::Key{}, key->r = static_cast<std::uint8_t>(c[0]), key->g = static_cast<std::uint8_t>(c[1]), key->b = static_cast<std::uint8_t>(c[2]);
         }
     }
     if (out.empty()) return usage();
     nlohmann::json report = {{"command", "picture"}, {"from", utf8(file)}};
-    auto img = omui::imageio::load(file);
+    auto img = mlibs::image::load(file);
     if (!img) {
         report["ok"] = false;
         report["error"] = img.error();
@@ -158,19 +158,19 @@ int picture(const std::filesystem::path& file, int argc, char** argv) {
         return 1;
     }
     report["source_size"] = {img->width, img->height};
-    if (key) omui::imageio::key_out(*img, *key);
+    if (key) mlibs::image::key_out(*img, *key);
     if (trim) {
         std::int32_t x0 = img->width, y0 = img->height, x1 = -1, y1 = -1;
         for (std::int32_t y = 0; y < img->height; ++y)
             for (std::int32_t x = 0; x < img->width; ++x)
                 if (img->rgba[(static_cast<std::size_t>(y) * img->width + x) * 4 + 3] > 8)
                     x0 = std::min(x0, x), y0 = std::min(y0, y), x1 = std::max(x1, x), y1 = std::max(y1, y);
-        if (x1 >= x0) *img = omui::imageio::crop(*img, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+        if (x1 >= x0) *img = mlibs::image::crop(*img, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
     }
     if (width > 0 && width < img->width)
-        *img = omui::imageio::scaled_down(*img, width, std::max(1, static_cast<std::int32_t>(std::lround(static_cast<double>(img->height) * width / img->width))));
+        *img = mlibs::image::scaled_down(*img, width, std::max(1, static_cast<std::int32_t>(std::lround(static_cast<double>(img->height) * width / img->width))));
     const bool webp = out.extension() == ".webp";
-    const auto saved = webp ? omui::imageio::save_webp(out, omui::imageio::view(*img), {.quality = quality}) : omui::imageio::save_png(out, omui::imageio::view(*img));
+    const auto saved = webp ? mlibs::image::save_webp(out, mlibs::image::view(*img), {.quality = quality}) : mlibs::image::save_png(out, mlibs::image::view(*img));
     report["ok"] = saved.has_value();
     if (!saved) report["error"] = saved.error();
     report["file"] = utf8(out);
@@ -185,20 +185,20 @@ int picture(const std::filesystem::path& file, int argc, char** argv) {
 // `images` (premultiplied), each with its relief when it has one, as the
 // game makes it.
 std::expected<void, std::string> load_pictures(std::vector<gongfu::present2d::Picture>& pictures, const std::filesystem::path& dir,
-                                               omui::render::ImageStore& images) {
-    auto pixels = [](const omui::imageio::Image& i) {
-        std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
+                                               xrender::ImageStore& images) {
+    auto pixels = [](const mlibs::image::Image& i) {
+        std::vector<xrender::raster::Rgba8> px(static_cast<std::size_t>(i.width) * static_cast<std::size_t>(i.height));
         std::memcpy(px.data(), i.rgba.data(), i.rgba.size());
         return px;
     };
     for (gongfu::present2d::Picture& pic : pictures) {
-        auto img = omui::imageio::load(dir / path_of(pic.file));
+        auto img = mlibs::image::load(dir / path_of(pic.file));
         if (!img) return std::unexpected(std::format("picture `{}` ({}): {}", pic.name, pic.file, img.error()));
         if (const auto& r = pic.relief) {
-            const auto n = omui::imageio::normal_map(*img, {.bevel = r->bevel, .detail = r->detail, .smooth = r->smooth, .strength = r->strength});
+            const auto n = mlibs::image::normal_map(*img, {.bevel = r->bevel, .detail = r->detail, .smooth = r->smooth, .strength = r->strength});
             pic.normal = images.add(n.width, n.height, pixels(n));
         }
-        omui::imageio::premultiply(*img);
+        mlibs::image::premultiply(*img);
         pic.ref = images.add(img->width, img->height, pixels(*img));
     }
     return {};
@@ -245,7 +245,7 @@ int sheet(const std::filesystem::path& dir, int argc, char** argv) {
     }
     gongfu::present2d::use_palette(*look, palette);
     // The look's drawn art: its pictures, from beside the look file.
-    omui::render::ImageStore images;
+    xrender::ImageStore images;
     if (auto loaded = load_pictures(look->pictures, dir, images); !loaded) {
         report["ok"] = false;
         report["problems"] = {loaded.error()};
@@ -326,7 +326,7 @@ int stage(const std::filesystem::path& dir, int argc, char** argv) {
         for (const auto& d : st.error()) problems.push_back(d.text());
         return fail(problems);
     }
-    omui::render::ImageStore images;
+    xrender::ImageStore images;
     if (auto loaded = load_pictures(st->pictures, dir, images); !loaded) return fail({loaded.error()});
     // Two fighters for scale (each its first palette), else the first fighter twice, standing.
     std::vector<gongfu::Fighter> fighters;
@@ -342,7 +342,7 @@ int stage(const std::filesystem::path& dir, int argc, char** argv) {
         fighters.push_back(std::move(*fighter));
         looks.push_back(std::move(*look));
     }
-    omui::render::DisplayList dl;
+    xrender::DisplayList dl;
     gongfu::present2d::Scene scene{.stage = &*st};
     gongfu::present2d::Painter painter;
     if (!fighters.empty()) {
@@ -362,10 +362,10 @@ int stage(const std::filesystem::path& dir, int argc, char** argv) {
         painter.stage_layers(*st, false, scene, cam, 960, frame, 1, dl);
         painter.stage_layers(*st, true, scene, cam, 960, frame, 1, dl);
     }
-    omui::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
-    omui::render::CpuRenderer{}.render(dl, px, {&images, nullptr}, {.scale = 1});
-    const omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4, omui::imageio::Alpha::premultiplied};
-    auto png = omui::imageio::encode_png(v);
+    xrender::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
+    xrender::CpuRenderer{}.render(dl, px, {&images, nullptr}, {.scale = 1});
+    const mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(px.row(0)), px.width(), px.height(), px.width() * 4, mlibs::image::Alpha::premultiplied};
+    auto png = mlibs::image::encode_png(v);
     if (!png) return fail({"the frame did not encode as PNG"});
     std::ofstream f(out, std::ios::binary);
     f.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));

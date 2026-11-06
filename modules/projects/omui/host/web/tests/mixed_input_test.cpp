@@ -1,9 +1,9 @@
 import std;
 import openmui.host.web;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::vector<InputEvent> click(Point at) {

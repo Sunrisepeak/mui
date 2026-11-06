@@ -13,8 +13,3 @@ e.append(root, title);
 e.compute(root, {1280, 720});
 Rect f = e.frame(title);
 ```
-
-Canonical package/module: `mlibs.layout`; C++ API: `mlibs::layout`.
-The same package retains `import openmui.layout;` and `omui::layout`
-as aliases of the same implementation after rebuilding. Use the canonical
-namespace for extension blocks; a namespace alias cannot be reopened.

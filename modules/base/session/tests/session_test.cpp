@@ -1,11 +1,11 @@
 // Sessions: ordering, seeking, merging and slicing; NDJSON that reads back
 // byte-identical; files; and errors that say where and what.
 import std;
-import openmui.session;
-import openmui.testing;
+import mlibs.session;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace session = omui::session;
+using namespace mlibs::testing;
+namespace session = mlibs::session;
 
 int main(int argc, char** argv) {
     Suite s{"session"};

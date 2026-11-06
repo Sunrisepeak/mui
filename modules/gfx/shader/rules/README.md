@@ -15,7 +15,3 @@ int main() { return mlibs::shader::rules::shaders({.module = "acme.render"}) ? 0
 ```
 
 One action per shader runs `omui-shader`, built for the build machine. The action re-runs when the shader, a file it imports (from slangc's depfile) or the tool changes. The formats are the target's (`--target-os`, `--host-os`) unless `options::formats` names them. `includes` and `defines` pass to slangc.
-
-Canonical ownership: package/module `mlibs.shader.rules`, C++ `mlibs::shader::rules`.
-The original package keeps `import openmui.shader.rules;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `mlibs.shader.rules`.

@@ -4,7 +4,7 @@ module openmui.host.sdl3:platform;
 
 import std;
 import openmui.core;
-import openmui.raster;
+import xrender.raster;
 import openmui.view;
 
 namespace omui::platform {
@@ -70,7 +70,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
 [[nodiscard]] float pixel_scale(Window& w);
 // The refresh rate of the display the window is on (Hz; 0 when it says none).
 [[nodiscard]] double refresh_hz(Window& w);
-void present(Window& w, const raster::Surface& frame);
+void present(Window& w, const xrender::raster::Surface& frame);
 void text_input(Window& w, std::optional<Rect> caret);
 void cursor(Window& w, std::string_view shape);
 [[nodiscard]] std::string clipboard();
@@ -83,6 +83,6 @@ void wake();
 // tags (SDL's preferred locales: the settings on Windows and macOS).
 [[nodiscard]] std::vector<std::string> preferred_locales();
 void synthesize(Window& w, std::span<const InputEvent> events);
-std::expected<raster::Surface, std::string> read_back(Window& w);
+std::expected<xrender::raster::Surface, std::string> read_back(Window& w);
 
 }  // namespace omui::platform

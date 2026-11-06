@@ -34,8 +34,3 @@ The tests (`tests/i18n_test.cpp`) check the engine against CLDR's own answers fo
 ## Inside
 
 - [cldr](cldr) (`mlibs.i18n.cldr`): CLDR 49 locale packs — en, zh (Simplified), zh-Hant — and likely subtags.
-
-Canonical package/module: `mlibs.i18n`; C++ API: `mlibs::i18n`.
-The same package retains `import openmui.i18n;` and `omui::i18n`
-as aliases of the same implementation after rebuilding. Use the canonical
-namespace for extension blocks; a namespace alias cannot be reopened.

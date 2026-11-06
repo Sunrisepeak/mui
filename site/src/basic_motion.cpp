@@ -149,13 +149,13 @@ Element basic_motion_scene(std::string_view id, const MotionSceneContext& contex
                 const float radius = std::min(44.0f, ctx.size.width * .13f);
                 const float center = ctx.size.width / 2, cy = 120;
                 const float x = center + (end ? .5f : -.5f) * travel;
-                render::Path guide;
+                xrender::Path guide;
                 guide.move_to({center - travel / 2, cy}).line_to({center + travel / 2, cy});
-                ctx.list.stroke_path(guide, {.width = 1}, render::Paint::solid(ctx.theme.color("border")));
-                render::Path shape;
+                ctx.list.stroke_path(guide, {.width = 1}, xrender::Paint::solid(ctx.theme.color("border")));
+                xrender::Path shape;
                 if (end) shape.add_circle({x, cy}, radius);
                 else shape.move_to({x, cy - radius}).line_to({x - radius, cy + radius}).line_to({x + radius, cy + radius}).close();
-                ctx.list.fill_path(shape, render::FillRule::nonzero, render::Paint::solid(ctx.theme.color("accent")));
+                ctx.list.fill_path(shape, xrender::FillRule::nonzero, xrender::Paint::solid(ctx.theme.color("accent")));
             }});
         drawing.prop("motion", Source(Value("none"))); // the scene's public motion policy owns the transition
         return column({.id = "composition", .width = Dim(s.w), .height = Dim(s.h), .gap = 12, .justify = "center", .align = "center"}, {

@@ -160,8 +160,8 @@ public:
         auto st = s_;
         const Rect r = s_->field;
         Element back = painter({.id = "backdrop",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::none,
                                 .paint = [st](PaintContext& p) {
                                     paint_paper(p.list, p.size, {0, static_cast<float>(st->t * 8)}, 1);
@@ -176,19 +176,19 @@ public:
                             .clip = true},
                            {spec_.view()});
         Element front = painter({.id = "front",
-                                 .width = Dim(layout::pct(100)),
-                                 .height = Dim(layout::pct(100)),
+                                 .width = Dim(mlibs::layout::pct(100)),
+                                 .height = Dim(mlibs::layout::pct(100)),
                                  .role = Role::none,
                                  .paint = [st](PaintContext& p) { paint_ticks(p.list, {st->field.x - 10, st->field.y - 10, st->field.width + 20, st->field.height + 20}, hex(ink::cyan, 0.6f), 18, 1.5f, 0); }});
         const float side = c_.portrait() ? 54 : 96;
-        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
-                             {column({.id = "hud", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y - 30, side, 0, side}), .align = "end"},
+        Element type = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
+                             {column({.id = "hud", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{r.y - 30, side, 0, side}), .align = "end"},
                                      {text({.id = "sim", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 22.0f})}),
-                              column({.id = "stamp", .width = Dim(layout::pct(100)), .padding = Edges(Insets{r.y + r.height * 0.36f, side, 0, side}),
+                              column({.id = "stamp", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{r.y + r.height * 0.36f, side, 0, side}),
                                       .gap = 6, .align = "center", .opacity = 0.0f},
                                      {text({.id = "match", .text = "", .style = "display", .color = Fill(hex(ink::mint)), .wrap = false, .size = 64.0f, .weight = 800.0f}),
                                       text({.id = "against", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 18.0f})})});
-        return stack({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        return stack({.id = "time", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(game), std::move(front), std::move(type)});
     }
 

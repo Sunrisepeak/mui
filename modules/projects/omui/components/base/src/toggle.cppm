@@ -17,12 +17,12 @@ class Toggle : public ToggleContract<Toggle> {
 public:
     void mounted();
     void prop_changed(ToggleProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
-                 layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
     ActResult toggle(ActContext& ctx);
@@ -41,8 +41,8 @@ class Checkbox : public CheckboxContract<Checkbox> {
 public:
     void mounted();
     void prop_changed(CheckboxProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
-                 layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;

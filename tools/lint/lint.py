@@ -24,6 +24,8 @@ Rules:
                 packages that say so too (dev-dependencies included) (D-84)
   media         a picture in the repository (.png .apng .gif .jpg .webp) is under 1 MB, and every showcase's
                 README shows its signature shot from its media/ (tools/ci/readme-media.sh makes them)
+  legacy-import no import of a removed forwarder (openmui.geom, openmui.render…) and no omui::
+                alias of another owner's namespace (omui::geom::…): code names the owner (D-106)
   testing       `import mlibs.testing` only in test programs (tests/): mlibs.utils carries it, and
                 no artifact does
   closure       the dependency closures CLOSURES names stay small (the render graph; simulation
@@ -147,6 +149,11 @@ LAYERS: dict[str, set[str]] = {
 # Members whose results are part of A-level conformance (identical bits).
 DETERMINISTIC = ["modules/base/math", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
+
+# The forwarders M1 removed (D-106): the old module names and the omui::
+# namespace aliases that pointed at their owners. Code names the owner.
+LEGACY_MODULES = {'openmui.raster', 'openmui.simulation.cellular.rhi.cts', 'openmui.rhi.cts', 'openmui.memory', 'openmui.geom', 'openmui.unicode', 'openmui.rhi.webgl', 'openmui.image', 'openmui.testing', 'openmui.render.vector', 'openmui.pipeline', 'openmui.rhi', 'openmui.simulation.cellular', 'openmui.trace', 'openmui.shader', 'openmui.render', 'openmui.shader.rules', 'openmui.rhi.sdl', 'openmui.rhi.webgpu', 'openmui.log', 'openmui.markdown', 'openmui.i18n.cldr', 'openmui.layout', 'openmui.session', 'openmui.text', 'openmui.math', 'openmui.hash', 'openmui.render.effect', 'openmui.i18n', 'openmui.simulation.cellular.rhi', 'openmui.simulation'}
+LEGACY_ALIASES = re.compile(r"(?<![\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::")
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
 # none of ours includes them, native units included.
@@ -285,6 +292,11 @@ def check_sources(root: Path) -> list[Problem]:
             if re.match(r"(export\s+)?import\s+mcpplibs\.mwrap\.", stripped) and not in_native and "tests" not in rel.parts:
                 problems.append(Problem("thirdparty", f"{rel_s}:{no}",
                                         "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
+            mi = re.match(r"(export\s+)?import\s+([\w.]+)\s*;", stripped)
+            if mi and mi.group(2) in LEGACY_MODULES:
+                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}` was a forwarder (D-106): import its owner"))
+            if LEGACY_ALIASES.search(line):
+                problems.append(Problem("legacy-import", f"{rel_s}:{no}", "an omui:: alias of another owner's namespace (D-106): name the owner"))
             if (re.match(r"(export\s+)?import\s+(mlibs|openmui)\.testing\b", stripped) and "tests" not in rel.parts
                     and not rel_s.startswith("modules/base/utils/src/testing/")):
                 problems.append(Problem("testing", f"{rel_s}:{no}", "mlibs.testing is for test programs (tests/): no artifact carries it"))
@@ -809,6 +821,7 @@ def self_test() -> int:
         "licenses": None,
         "platforms": None,
         "testing": ("modules/ui/core/src/t.cpp", "module x;\nimport mlibs.testing;\n"),
+        "legacy-import": ("modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"),
         "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "motion": ("components/base/src/t.cpp", "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }\n"),

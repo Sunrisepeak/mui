@@ -5,11 +5,11 @@
 //
 // The component's interface is contract/markdown.contract.omui.toml (its
 // base class, builder, stubs and schema are generated when the package
-// builds); the document model is openmui.markdown's (`omui::md`).
+// builds); the document model is openmui.markdown's (`mlibs::markdown`).
 export module openmui.ui.markdown;
 
 export import openmui.core;
 export import openmui.view;
-export import openmui.markdown;
+export import mlibs.markdown;
 export import :markdown_contract;
 export import :document;

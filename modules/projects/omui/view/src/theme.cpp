@@ -3,6 +3,10 @@ module openmui.view;
 import std;
 import openmui.core;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
+
 namespace omui {
 
 // Keep synthesis in the defining module: GCC 16 crashes when importing and

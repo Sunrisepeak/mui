@@ -4,21 +4,30 @@
 // reloads that keep state, components defined by documents, the schema and
 // the canonical format, and random documents that never crash the reader.
 import std;
-import openmui.math;
+import mlibs.math;
 import openmui.viewdoc;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::LoggedRecord;
+using mlibs::log::recent_logs;
+using mlibs::log::set_log_history;
+using mlibs::log::set_log_level;
+using mlibs::log::Level;
+using mlibs::log::log_level;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 namespace vd = omui::viewdoc;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -206,8 +215,8 @@ int main(int argc, char** argv) {
 
     s.test("bindings: expressions follow signals and models; bind is two-way; tr reads the catalogue", [] {
         Headless h(options());
-        (void)languages().add_messages(*i18n::Locale::parse("de"), "search = \"Suchen\"\nfound = \"{$n :number} gefunden\"\n", "de.messages.omui.toml");
-        languages().request({*i18n::Locale::parse("de")});
+        (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), "search = \"Suchen\"\nfound = \"{$n :number} gefunden\"\n", "de.messages.omui.toml");
+        languages().request({*mlibs::i18n::Locale::parse("de")});
         auto view = vd::View::load(h.runtime(), view_of(R"j({"type": "column", "children": [
             {"type": "text_box", "id": "q", "props": {"text": {"bind": "query"}, "label": {"tr": "search"}}},
             {"type": "text", "id": "found", "props": {"label": {"tr": "found", "args": {"n": "size(notes)"}}}},
@@ -532,8 +541,8 @@ int main(int argc, char** argv) {
         // splitmix64: the same documents on every platform.
         std::uint64_t seed = 0x766965776463;
         auto next = [&] {
-            seed += omui::math::golden;
-            return omui::math::finalize(seed);
+            seed += mlibs::math::golden;
+            return mlibs::math::finalize(seed);
         };
         auto below = [&](std::size_t n) { return static_cast<std::size_t>(next() % n); };
         static constexpr std::array<std::string_view, 14> atoms{

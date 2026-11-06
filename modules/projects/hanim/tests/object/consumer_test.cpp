@@ -2,10 +2,10 @@
 // No UI Runtime, renderer, application model callback or Engine is implied.
 import std;
 import hanim.object;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 constexpr double k = 0.5522847498307936;

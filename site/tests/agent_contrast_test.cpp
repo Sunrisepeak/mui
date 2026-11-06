@@ -2,13 +2,13 @@
 // the production display list and a glyph coverage pass (not AA edge colors).
 import std;
 import openmui;
-import openmui.math;
+import mlibs.math;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 constexpr std::string_view root = "main/body/view/agent/page/agent_feature";
@@ -16,31 +16,31 @@ std::string path(std::string_view leaf) { return std::string(root) + "/" + std::
 
 struct Contrast { double minimum = 21; std::size_t samples = 0; };
 Contrast contrast(Runtime& rt, NodeId target) {
-    render::DisplayList without, coverage;
+    xrender::DisplayList without, coverage;
     std::vector<NodeId> nodes;
     const auto& source = rt.display_list();
     for (const auto& command : source.commands()) {
-        if (const auto* b = std::get_if<render::BeginNode>(&command)) nodes.push_back(rt.node_at_index(b->node));
+        if (const auto* b = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(rt.node_at_index(b->node));
         const bool selected = !nodes.empty() && nodes.back() == target;
-        const auto* glyphs = std::get_if<render::DrawGlyphs>(&command);
+        const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command);
         if (!glyphs || !selected) without.append_command(command);
-        if (const auto* layer = std::get_if<render::PushLayer>(&command)) {
+        if (const auto* layer = std::get_if<xrender::PushLayer>(&command)) {
             // Coverage is geometric. Keep compositing opacity, but remove
             // material RGB treatment from this diagnostic mask only.
-            coverage.push_layer(layer->opacity, render::BlendMode::normal, {}, {}, layer->bounds, layer->shapes);
+            coverage.push_layer(layer->opacity, xrender::BlendMode::normal, {}, {}, layer->bounds, layer->shapes);
         } else {
             const auto index = coverage.size(); coverage.append_command(command);
             coverage.recolor(index, index + 1, [selected, glyphs](Color color) {
                 return glyphs && selected ? Color::white().with_alpha(color.a) : Color::black().with_alpha(color.a);
             });
         }
-        if (std::holds_alternative<render::EndNode>(command) && !nodes.empty()) nodes.pop_back();
+        if (std::holds_alternative<xrender::EndNode>(command) && !nodes.empty()) nodes.pop_back();
     }
     check(without.balanced() && coverage.balanced());
     const int width = static_cast<int>(rt.size().width), height = static_cast<int>(rt.size().height);
-    raster::Surface full(width, height), paper(width, height), mask(width, height);
-    xrender::text::GlyphCache glyphs(rt.fonts()); render::CpuRenderer renderer;
-    const render::Resources resources{&rt.images(), &glyphs};
+    xrender::raster::Surface full(width, height), paper(width, height), mask(width, height);
+    xrender::text::GlyphCache glyphs(rt.fonts()); xrender::CpuRenderer renderer;
+    const xrender::Resources resources{&rt.images(), &glyphs};
     const auto a = renderer.render(source, full, resources, {.background = Color::white()});
     const auto b = renderer.render(without, paper, resources, {.background = Color::white()});
     const auto c = renderer.render(coverage, mask, resources, {.background = Color::black()});
@@ -54,16 +54,16 @@ Contrast contrast(Runtime& rt, NodeId target) {
         const auto ink = [alpha](std::uint8_t p, std::uint8_t b) {
             return std::clamp((static_cast<double>(p) / 255 - (1 - alpha) * static_cast<double>(b) / 255) / alpha, 0.0, 1.0);
         };
-        const double a = math::color::relative_luminance(ink(pixel.r, under.r), ink(pixel.g, under.g), ink(pixel.b, under.b));
-        const double b = math::color::relative_luminance(static_cast<double>(under.r) / 255, static_cast<double>(under.g) / 255, static_cast<double>(under.b) / 255);
-        result.minimum = std::min(result.minimum, math::color::contrast_ratio(a, b)); ++result.samples;
+        const double a = mlibs::math::color::relative_luminance(ink(pixel.r, under.r), ink(pixel.g, under.g), ink(pixel.b, under.b));
+        const double b = mlibs::math::color::relative_luminance(static_cast<double>(under.r) / 255, static_cast<double>(under.g) / 255, static_cast<double>(under.b) / 255);
+        result.minimum = std::min(result.minimum, mlibs::math::color::contrast_ratio(a, b)); ++result.samples;
     }
     return result;
 }
 struct Page {
     Headless h;
     explicit Page(std::string_view lang, float width)
-        : h(HeadlessOptions{.size = {width, 844}, .tier = pipeline::Tier::t4}) {
+        : h(HeadlessOptions{.size = {width, 844}, .tier = mlibs::pipeline::Tier::t4}) {
         auto app = site::app("agent/develop", lang); h.runtime().set_theme(app.theme); app.setup(h.runtime());
         h.mount("main", app.view()); (void)h.step();
         h.move(h.runtime().screen_bounds(h.runtime().find(path("specimen/title"))).center());

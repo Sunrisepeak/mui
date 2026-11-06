@@ -82,7 +82,7 @@ void prepare();
 // than 1:1); the pixel (inside its Save button) and what drew it, read from
 // the host's object ids and semantic tree.
 struct PanelPicture {
-    std::shared_ptr<const raster::Surface> x1, x2;
+    std::shared_ptr<const xrender::raster::Surface> x1, x2;
     Size                                   size;       // logical (1×) pixels
     Point                                  pixel;      // its top left, 1× pixels
     Rect                                   button;     // the Save button's bounds
@@ -95,7 +95,7 @@ struct PanelPicture {
 // The panel magnified `zoom` times (screen pixels a 1× pixel), the point
 // `look` of it (1× pixels) at `at` on the screen: its real pixels, square,
 // when they are larger than the screen's, and a hairline between them.
-void paint_panel(render::DisplayList& list, render::ImageStore& images, std::pair<render::ImageRef, render::ImageRef> refs, const PanelPicture& panel,
+void paint_panel(xrender::DisplayList& list, xrender::ImageStore& images, std::pair<xrender::ImageRef, xrender::ImageRef> refs, const PanelPicture& panel,
                  Size screen, Point at, Point look, double zoom, float opacity = 1);
 // Where a point of the panel (1× pixels) is on the screen.
 [[nodiscard]] Point panel_to_screen(Point p, Point at, Point look, double zoom) noexcept;

@@ -1,7 +1,7 @@
 module hanim.render.vector;
 
 import std;
-import openmui.log;
+import mlibs.log;
 import mlibs.trace;
 
 namespace hanim::detail {
@@ -28,10 +28,10 @@ struct VectorProgramData {
 
 namespace hanim::vector_render {
 namespace {
-namespace render = omui::render;
+namespace render = xrender;
 namespace geom = mlibs::geom;
 constexpr auto no_source = std::numeric_limits<std::size_t>::max();
-constexpr omui::Log log{"hanim.render.vector"};
+constexpr mlibs::log::Log log{"hanim.render.vector"};
 bool scalar(double value) noexcept {
     return std::isfinite(value) && value >= -std::numeric_limits<float>::max() && value <= std::numeric_limits<float>::max();
 }

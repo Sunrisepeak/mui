@@ -17,7 +17,7 @@ export module openmui.ui.canvas:behavior;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import :scene;
 import :camera;
 
@@ -78,8 +78,8 @@ public:
     // Keys while the canvas has focus; true: handled.
     virtual bool key(Host&, const KeyEvent&) { return false; }
     // Drawing in the canvas's coordinates: under the nodes, and over them.
-    virtual void paint_under(Host&, render::DisplayList&) {}
-    virtual void paint_over(Host&, render::DisplayList&) {}
+    virtual void paint_under(Host&, xrender::DisplayList&) {}
+    virtual void paint_over(Host&, xrender::DisplayList&) {}
     // What a node is and can do because of this behaviour (states: selected;
     // actions: move, resize, connect, delete …) and doing it.
     virtual void describe(Host&, NodeRef, spec::SemanticNode&) {}

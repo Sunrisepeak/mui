@@ -86,12 +86,12 @@ public:
         return {};
     }
 
-    std::expected<imageio::View, std::string> frame(std::int64_t index) override {
+    std::expected<mlibs::image::View, std::string> frame(std::int64_t index) override {
         if (index != next_) return std::unexpected(std::format("a view's frames come in order (frame {} after {})", index, next_ - 1));
         headless_.step();
         ++next_;
-        const raster::Surface& s = headless_.pixels();
-        return imageio::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, imageio::Alpha::premultiplied};
+        const xrender::raster::Surface& s = headless_.pixels();
+        return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied};
     }
 
 private:
@@ -103,7 +103,7 @@ private:
 // No pictures (a WAV alone): nothing drawn.
 class NoFrames final : public vid::FrameSource {
 public:
-    std::expected<imageio::View, std::string> frame(std::int64_t) override { return imageio::View{pixel_.data(), 1, 1, 4, imageio::Alpha::straight}; }
+    std::expected<mlibs::image::View, std::string> frame(std::int64_t) override { return mlibs::image::View{pixel_.data(), 1, 1, 4, mlibs::image::Alpha::straight}; }
 
 private:
     std::array<std::uint8_t, 4> pixel_{0, 0, 0, 255};
@@ -316,11 +316,11 @@ int still(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
     if (index >= l->d.frames) return failed(out, report, std::format("frame {}: the video has {}", index, l->d.frames));
     auto frames = frames_of(*l);
     if (!frames) return failed(out, report, frames.error());
-    std::expected<imageio::View, std::string> pixels;
+    std::expected<mlibs::image::View, std::string> pixels;
     // A view is stepped there (its clock runs from 0); the card and files are asked directly.
     for (std::int64_t i = l->d.from == vid::FramesFrom::view ? 0 : index; i <= index; ++i) pixels = (*frames)->frame(i);
     if (!pixels) return failed(out, report, pixels.error());
-    auto png = imageio::encode_png(*pixels);
+    auto png = mlibs::image::encode_png(*pixels);
     if (!png) return failed(out, report, png.error());
     if (auto w = mcpplibs::os::fs::write_atomic(path_of(*target), std::string_view(reinterpret_cast<const char*>(png->data()), png->size())); !w)
         return failed(out, report, std::format("cannot write {}: {}", *target, w.error().message()));

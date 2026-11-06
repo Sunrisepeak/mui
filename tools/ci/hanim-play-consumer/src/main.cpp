@@ -4,7 +4,7 @@ import hanim;
 import hanim.render.vector;
 import xrender.raster;
 import mlibs.image;
-import openmui.hash;
+import mlibs.hash;
 import mlibs.control;
 import hanim.control;
 import openas.conformance;
@@ -12,9 +12,9 @@ import mcpplibs.os;
 import nlohmann.json;
 
 using namespace hanim;
-namespace render = omui::render;
+namespace render = xrender;
 namespace raster = xrender::raster;
-namespace geom = omui::geom;
+namespace geom = mlibs::geom;
 using Json = nlohmann::json;
 
 namespace {
@@ -168,7 +168,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
             {"target_revision",info->target_revision},{"pixel_fnv1a",std::format("{:016x}",pixels.hash())},
             {"png",options.output+suffix}});
         if(options.parts || options.channels) {
-            omui::hash::Fnv1a hash;
+            mlibs::hash::Fnv1a hash;
             const int cx=static_cast<int>(options.width*.85),cy=static_cast<int>(options.height*.14);
             for(int y=std::max(0,cy-12);y<std::min(options.height,cy+12);++y)
                 for(int x=std::max(0,cx-12);x<std::min(options.width,cx+12);++x)
@@ -387,7 +387,7 @@ int main(int argc,char** argv) {
     const auto encoded=mlibs::image::encode_png(crop);if(!encoded)return fail(encoded.error());
     const auto decoded=mlibs::image::decode_png(*encoded);
     if(!decoded || decoded->width!=width || decoded->height!=height)return fail("PNG encode/decode crop dimensions");
-    omui::hash::Fnv1a pixel_hash;
+    mlibs::hash::Fnv1a pixel_hash;
     std::size_t visible=0;int crop_delta=0;
     for(int row=0;row<height;++row)for(int column=0;column<width;++column) {
         const auto original=pixels.at(x+column,y+row);const auto i=(std::size_t(row)*width+column)*4;

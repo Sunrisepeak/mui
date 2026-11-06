@@ -3,10 +3,10 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 struct Fixture {
@@ -18,7 +18,7 @@ struct Fixture {
     Runtime* rt;
     site::FeatureExamplesContext context;
     Fixture(bool interface, float room = 900, std::string lang = "en")
-        : interfaces(interface), width(room), h(HeadlessOptions{.size = {room + 32, 1800}, .tier = pipeline::Tier::t4}), rt(&h.runtime()) {
+        : interfaces(interface), width(room), h(HeadlessOptions{.size = {room + 32, 1800}, .tier = mlibs::pipeline::Tier::t4}), rt(&h.runtime()) {
         language.set(std::move(lang)); context.runtime = &rt; context.lang = &language;
         context.root = interfaces ? "main/interface_feature" : "main/styles_feature";
         context.style = [this](std::string name) { check(theme::apply_style(*rt, name, "style-feature", false).has_value(), name); };
@@ -35,9 +35,9 @@ struct Fixture {
         check(h.tree().act(context.root + "/" + std::string(suffix), action, call).exit_code() == std::optional<std::int64_t>(0)); refresh();
     }
     bool effect(std::string_view name) {
-        const auto ref = render::effects().find(name);
+        const auto ref = xrender::effects().find(name);
         for (const auto& command : rt->display_list().commands())
-            if (const auto* layer = std::get_if<render::PushLayer>(&command); layer && ref && layer->effect.id == ref->id) return true;
+            if (const auto* layer = std::get_if<xrender::PushLayer>(&command); layer && ref && layer->effect.id == ref->id) return true;
         return false;
     }
     void inside() {
@@ -52,7 +52,7 @@ struct Fixture {
 struct AgentFixture {
     site::AgentFeature state;
     Signal<std::string> language = signal(std::string("en"));
-    Headless h{HeadlessOptions{.size = {292, 1800}, .tier = pipeline::Tier::t4}};
+    Headless h{HeadlessOptions{.size = {292, 1800}, .tier = mlibs::pipeline::Tier::t4}};
     Runtime* rt = &h.runtime();
     site::AgentFeatureContext context;
     AgentFixture() {

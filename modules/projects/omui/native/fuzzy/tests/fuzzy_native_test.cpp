@@ -5,9 +5,9 @@ import std;
 import nlohmann.json;
 import openmui.native;
 import openmui.native.fuzzy;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace native = omui::native;
 using native::Json;
 

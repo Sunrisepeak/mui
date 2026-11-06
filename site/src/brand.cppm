@@ -7,14 +7,14 @@ import openmui;
 export namespace omui::site {
 
 struct BrandShape {
-    render::Path path;
+    xrender::Path path;
     float width = 0;  // zero: fill; otherwise the stroke width in a 100-unit square
     std::string_view part;
 };
 
 // The original geometry, shared by the runtime, SVG and the construction study.
 [[nodiscard]] std::span<const BrandShape> brand_geometry();
-void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float size);
+void paint_mark(xrender::DisplayList& out, const Theme& theme, Point at, float size);
 [[nodiscard]] Element brand_mark(std::string id, float size);
 // The same geometry in named runtime motion groups. The owner supplies the
 // state; hover, focus and a short first-visit assembly need no custom paint loop.

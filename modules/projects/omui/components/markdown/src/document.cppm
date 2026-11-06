@@ -16,7 +16,7 @@ export module openmui.ui.markdown:document;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.markdown;
+import mlibs.markdown;
 import :markdown_contract;
 import :parts;
 
@@ -29,7 +29,7 @@ public:
 
     void mounted();
     void prop_changed(MarkdownProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void restyle();
     std::vector<Element> compose();
     void laid_out();
@@ -43,7 +43,7 @@ public:
     ActResult find(ActContext& ctx, const Value& query);
 
     // The document as parsed, and its source.
-    [[nodiscard]] const md::Document& document() const noexcept { return stream_.document(); }
+    [[nodiscard]] const mlibs::markdown::Document& document() const noexcept { return stream_.document(); }
     [[nodiscard]] std::string_view source() const noexcept { return stream_.source(); }
     // Bytes the last change parsed (streaming re-parses only the tail).
     [[nodiscard]] std::size_t last_parsed() const noexcept { return stream_.last_parsed(); }
@@ -55,8 +55,8 @@ private:
     bool toggle(std::int32_t index);
 
     std::shared_ptr<mdview::Hub> hub_;
-    md::Stream                   stream_;
-    md::Extension                ext_ = md::gfm;
+    mlibs::markdown::Stream                   stream_;
+    mlibs::markdown::Extension                ext_ = mlibs::markdown::gfm;
     std::uint64_t                generation_ = 0;  // bumped when every block must be built again (theme, base, origin)
     std::map<std::string, Element, std::less<>> built_;  // the last blocks' elements, by key
     std::string                  heading_seen_;

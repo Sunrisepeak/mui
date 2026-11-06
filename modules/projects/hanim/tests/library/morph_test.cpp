@@ -1,10 +1,10 @@
 import std;
 import hanim.library;
-import openmui.testing;
-import openmui.trace;
+import mlibs.testing;
+import mlibs.trace;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace {
 std::atomic<std::size_t> allocations{0};
 struct Allocation { void* pointer; std::size_t size; };
@@ -302,14 +302,14 @@ int main(int argc,char** argv) {
     });
     suite.test("warm metadata and caller-buffer sampling add no heap allocation even with active trace",[] {
         Fixture f;auto plan=f.plan();Buffer output(plan);(void)output.sample(plan,.25);
-        omui::trace::start();(void)output.sample(plan,.25);
+        mlibs::trace::start();(void)output.sample(plan,.25);
         const auto before=allocations.load();bool valid=true;double sum=0;
         for(unsigned i=0;i<1000;++i) {
             const auto frame=plan.sample(static_cast<double>(i%101)/100,output.output());
             valid &= frame.has_value() && plan.parts().size()==2 && plan.contours().size()==1 && plan.identity()==frame->preparation;
             sum+=frame->cubics[0].control1.x+frame->parts[1].local.tx;
         }
-        const auto after=allocations.load();auto trace=omui::trace::stop();
+        const auto after=allocations.load();auto trace=mlibs::trace::stop();
         check(valid && sum!=0 && !trace.events.empty());check_eq(after,before);
     });
     if constexpr(threads) suite.test("concurrent arbitrary seeks use independent caller buffers",[] {

@@ -12,8 +12,8 @@ class Rating : public RatingContract<Rating> {
 public:
     void mounted();
     void prop_changed(RatingProp p);
-    omui::Size measure(omui::MeasureContext& m, std::optional<float> width, std::optional<float> height, omui::layout::Available aw,
-                       omui::layout::Available ah);
+    omui::Size measure(omui::MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                       mlibs::layout::Available ah);
     void paint(omui::PaintContext& ctx) const;
     bool on_event(omui::EventContext& ctx, const omui::InputEvent& e);
     void semantics(omui::SemanticsContext& ctx, omui::spec::SemanticNode& node) const;

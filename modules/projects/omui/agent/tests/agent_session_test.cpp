@@ -1,9 +1,14 @@
 import std;
 import openmui.agent;
-import openmui.testing;
+import mlibs.testing;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::recent_logs;
+using mlibs::log::set_log_filter;
+}
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 int exit_of(const std::vector<Value>& reply) {

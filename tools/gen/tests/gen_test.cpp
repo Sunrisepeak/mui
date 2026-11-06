@@ -4,9 +4,9 @@ import std;
 import openmui.gen.model;
 import openmui.gen.read;
 import openmui.gen.emit;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace gen = omui::gen;
 
 namespace {

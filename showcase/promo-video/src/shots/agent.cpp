@@ -120,8 +120,8 @@ public:
     View view() override {
         auto st = s_;
         Element back = painter({.id = "backdrop",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::none,
                                 .paint = [st](PaintContext& p) { paint_back(p, *st); }});
         // The panel at its own size, scaled about its middle into place.
@@ -134,8 +134,8 @@ public:
                            .scale = s_->app_scale},
                           {notes_view(notes_)});
         Element front = painter({.id = "front",
-                                 .width = Dim(layout::pct(100)),
-                                 .height = Dim(layout::pct(100)),
+                                 .width = Dim(mlibs::layout::pct(100)),
+                                 .height = Dim(mlibs::layout::pct(100)),
                                  .role = Role::figure,
                                  .label = "The semantic tree as the agent reads it, and the protocol's records",
                                  .paint = [st](PaintContext& p) { paint_front(p, *st); }});
@@ -151,9 +151,9 @@ public:
                                     button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger})})});
         // What the last step was, as large as the point it makes.
         Element status = text({.id = "status", .text = "", .style = "title", .color = Fill(hex(ink::ice)), .wrap = false, .size = 32.0f, .weight = 700.0f});
-        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        Element type = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                              {std::move(card), box({.id = "head", .translate_x = s_->app_at.x + 20, .translate_y = s_->app_at.y - 74}, {std::move(status)})});
-        return stack({.id = "agent", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        return stack({.id = "agent", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(app), std::move(front), std::move(type)});
     }
 
@@ -346,12 +346,12 @@ void Agent::paint_front(PaintContext& p, State& s) {
     // Behind the person's answer, the panel dims.
     if (s.asked >= 0) {
         const double up = smooth(s.t, s.asked, s.asked + 0.25) * (s.answered >= 0 ? 1 - smooth(s.t, s.answered + 0.1, s.answered + 0.35) : 1.0);
-        if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), render::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
+        if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), xrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
     }
     // The tree, as an inspector shows it: the rows about the node the agent is at.
     const Rect ta = s.tree_area;
-    list.fill_round_rect(ta, CornerRadii::all(10), render::Paint::solid(hex(ink::panel, 0.9f)));
-    list.stroke_round_rect(ta, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
+    list.fill_round_rect(ta, CornerRadii::all(10), xrender::Paint::solid(hex(ink::panel, 0.9f)));
+    list.stroke_round_rect(ta, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
     xrender::text::paint(s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {ta.x + 20, ta.y + 16});
     {
         const std::size_t room = static_cast<std::size_t>((ta.height - 66) / pitch);
@@ -364,7 +364,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
             const Row& r = s.rows[i];
             const float x = ta.x + 20 + static_cast<float>(r.depth) * 24;
             if (r.depth > 0) list.fill_rect({x - 16, y + 13, 9, 1.5f}, hex(ink::line));
-            if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), render::Paint::solid(hex(ink::cyan, 0.16f)));
+            if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), xrender::Paint::solid(hex(ink::cyan, 0.16f)));
             const auto& l = s.labels.get(fonts, r.label, type, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
             list.push_clip({x, y - 4, ta.x + ta.width - 16 - x, pitch});
             xrender::text::paint(l, list, {x, y});
@@ -374,8 +374,8 @@ void Agent::paint_front(PaintContext& p, State& s) {
     }
     // The protocol's records, each written out as it comes, wrapped to the panel; the latest kept in view.
     const Rect la = s.log_area;
-    list.fill_round_rect(la, CornerRadii::all(10), render::Paint::solid(hex(0x040d1f, 0.92f)));
-    list.stroke_round_rect(la, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
+    list.fill_round_rect(la, CornerRadii::all(10), xrender::Paint::solid(hex(0x040d1f, 0.92f)));
+    list.stroke_round_rect(la, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
     xrender::text::paint(s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {la.x + 20, la.y + 16});
     {
         const std::size_t columns = static_cast<std::size_t>((la.width - 40) / advance);
@@ -423,11 +423,11 @@ void Agent::paint_front(PaintContext& p, State& s) {
         }
         const float appear = static_cast<float>(smooth(s.t, s.path.front().first - 0.6, s.path.front().first - 0.2));
         const Color c = hex(ink::cyan, appear);
-        render::Path ring;
+        xrender::Path ring;
         ring.add_ellipse({at.x - 15, at.y - 15, 30, 30});
-        render::StrokeStyle st;
+        xrender::StrokeStyle st;
         st.width = 2;
-        list.stroke_path(ring, st, render::Paint::solid(c));
+        list.stroke_path(ring, st, xrender::Paint::solid(c));
         for (const auto& [dx, dy] : std::array<std::pair<float, float>, 4>{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}})
             list.fill_rect({at.x + dx * 21 - (dx != 0 ? 4 : 1), at.y + dy * 21 - (dy != 0 ? 4 : 1), dx != 0 ? 8.0f : 2.0f, dy != 0 ? 8.0f : 2.0f}, c);
         const auto& tag = s.labels.get(fonts, "agent:promo", 18, c, 600, "JetBrains Mono");

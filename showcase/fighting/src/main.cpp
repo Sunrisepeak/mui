@@ -49,8 +49,8 @@ int main(int argc, char** argv) {
                                           .mode = "training",
                                           .player1 = start.player1,
                                           .player2 = start.player2,
-                                          .width = omui::Dim(omui::layout::pct(100)),
-                                          .height = omui::Dim(omui::layout::pct(100))});
+                                          .width = omui::Dim(mlibs::layout::pct(100)),
+                                          .height = omui::Dim(mlibs::layout::pct(100))});
         };
     return omui::run(std::move(a), static_cast<int>(rest.size()), rest.data());
 }

@@ -2,7 +2,7 @@
 module openmui.showcase.markdown_wall;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;
@@ -18,7 +18,7 @@ constexpr std::array<std::string_view, 24> tokens{"the",  "wall", "streams", "te
 
 // A stream's n-th token: words, sentences, now and then a new paragraph.
 std::string token(std::string_view key, std::uint64_t n) {
-    const std::uint64_t h = omui::hash::fnv1a(key);
+    const std::uint64_t h = mlibs::hash::fnv1a(key);
     std::string t(tokens[(h + n * 7) % tokens.size()]);
     if (n % 60 == 0) return "\n\n" + std::string(1, static_cast<char>(std::toupper(static_cast<unsigned char>(t[0])))) + t.substr(1);
     if (n % 12 == 11) return " " + t + ".";
@@ -568,7 +568,7 @@ void register_all() {
                               std::pair{views_behavior, std::string_view("views.behavior.omui.toml")}}) {
         // Checked when the program is built (the tests load them); a broken one is a bug, said once.
         if (auto loaded = omui::world::load_behaviors(text, file); !loaded)
-            for (const auto& p : loaded.error()) omui::warn("wall: {}", p.text());
+            for (const auto& p : loaded.error()) mlibs::log::warn("wall: {}", p.text());
     }
 }
 
@@ -717,8 +717,8 @@ omui::AppSpec app(Model& model) {
                                .on_activated = [&model](std::string key) { if (model.document(key)) model.open(key); },
                                .on_camera_changed = [&model](double, double, double) { model.keep(); },
                                .on_moved = [&model](double, double, std::vector<std::string>) { model.keep(); },
-                               .width = Dim(layout::pct(100)),
-                               .height = Dim(layout::pct(100)),
+                               .width = Dim(mlibs::layout::pct(100)),
+                               .height = Dim(mlibs::layout::pct(100)),
                                .on = {{"hud.toggle", [&model](const Value&) { model.hud.set(!model.hud.peek()); }},
                                       {"key_down", [&model](const Value& e) {
                                            const std::string_view key = e.get("key") ? e.get("key")->as_string() : "";
@@ -777,14 +777,14 @@ omui::AppSpec app(Model& model) {
             if (e.get("key") && e.get("key")->as_string() == "Escape") model.close_search();
         });
         finder.prop("display", derive([&model] { return std::string(model.searching.get() ? "flex" : "none"); }));
-        return stack({.id = "app", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        return stack({.id = "app", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                      {std::move(wall),
                       // The HUD reads; it takes no pointer: a click on what it covers reaches the wall.
                       immediate([&model](Ui& ui) { hud(ui, model); }, {.id = "hud-layer", .margin = Edges(12)}).prop("pointer_events", Source{Value("none"), {}, {}}),
                       // Layers over the wall that take no pointer themselves, only their controls do.
-                      column({.id = "top", .width = Dim(layout::pct(100)), .padding = Edges(12.0f), .gap = 8, .align = "end"}, {std::move(bar)})
+                      column({.id = "top", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(12.0f), .gap = 8, .align = "end"}, {std::move(bar)})
                           .prop("pointer_events", Source{Value("children"), {}, {}}),
-                      column({.id = "middle", .width = Dim(layout::pct(100)), .padding = Edges(Insets{80, 0, 0, 0}), .align = "center"}, {std::move(finder)})
+                      column({.id = "middle", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{80, 0, 0, 0}), .align = "center"}, {std::move(finder)})
                           .prop("pointer_events", Source{Value("children"), {}, {}})});
     };
     return a;

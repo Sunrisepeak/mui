@@ -5,9 +5,9 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.text;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.text;
 import :impl;
 import xrender.text;
 
@@ -27,29 +27,29 @@ Value insets_value(const Insets& i) {
                              Value(static_cast<double>(i.left))});
 }
 
-Value length_value(const layout::Length& l) {
+Value length_value(const mlibs::layout::Length& l) {
     switch (l.unit) {
-        case layout::Length::Unit::points: return Value(static_cast<double>(l.value));
-        case layout::Length::Unit::percent: return Value(std::format("{}%", l.value));
-        case layout::Length::Unit::auto_: return Value("auto");
+        case mlibs::layout::Length::Unit::points: return Value(static_cast<double>(l.value));
+        case mlibs::layout::Length::Unit::percent: return Value(std::format("{}%", l.value));
+        case mlibs::layout::Length::Unit::auto_: return Value("auto");
     }
     return Value("auto");
 }
 
 // A label drawn with the code style on a dark plate, its top-left at `at`.
-Rect plate(render::DisplayList& list, typeset::FontCollection& fonts, const Theme& theme, std::string text, Point at, Size window) {
-    typeset::ParagraphStyle ps;
+Rect plate(xrender::DisplayList& list, mlibs::text::FontCollection& fonts, const Theme& theme, std::string text, Point at, Size window) {
+    mlibs::text::ParagraphStyle ps;
     const TextToken& code = theme.text_style("code");
     ps.style.families = code.families;
     ps.style.size = 12;
     ps.style.color = Color::white();
-    typeset::Paragraph p(fonts, std::move(text), std::move(ps));
+    mlibs::text::Paragraph p(fonts, std::move(text), std::move(ps));
     p.layout(std::numeric_limits<float>::infinity());
     const Size s = p.size();
     Rect box{at.x, at.y, s.width + 12, s.height + 8};
     box.x = std::clamp(box.x, 0.0f, std::max(0.0f, window.width - box.width));
     box.y = std::clamp(box.y, 0.0f, std::max(0.0f, window.height - box.height));
-    list.fill_round_rect(box, CornerRadii::all(4), render::Paint::solid(Color::hex(0x0f172a, 0.88f)));
+    list.fill_round_rect(box, CornerRadii::all(4), xrender::Paint::solid(Color::hex(0x0f172a, 0.88f)));
     xrender::text::paint(p, list, {box.x + 6, box.y + 4});
     return box;
 }
@@ -64,8 +64,8 @@ void Runtime::Impl::paint_debug() {
         if (const NodeId id = self.find(pointed_out); alive(id) && displayed(id) && !at(id).bounds.empty()) {
             const Rect b = at(id).bounds;
             const Color accent = theme.color("accent");
-            list.fill_round_rect(b, CornerRadii::all(4), render::Paint::solid(accent.with_alpha(0.1f)));
-            list.stroke_round_rect({b.x - 1, b.y - 1, b.width + 2, b.height + 2}, CornerRadii::all(5), 2, render::Paint::solid(accent));
+            list.fill_round_rect(b, CornerRadii::all(4), xrender::Paint::solid(accent.with_alpha(0.1f)));
+            list.stroke_round_rect({b.x - 1, b.y - 1, b.width + 2, b.height + 2}, CornerRadii::all(5), 2, xrender::Paint::solid(accent));
         }
     }
     if (o.bounds) {
@@ -75,7 +75,7 @@ void Runtime::Impl::paint_debug() {
             if (!displayed(id)) return;
             const Node& n = at(id);
             if (id != root && !n.bounds.empty())
-                list.stroke_round_rect(n.bounds, {}, 1, render::Paint::solid(Color::hex(hues[depth % hues.size()], 0.7f)));
+                list.stroke_round_rect(n.bounds, {}, 1, xrender::Paint::solid(Color::hex(hues[depth % hues.size()], 0.7f)));
             for (NodeId c : n.children) self(self, c, depth + 1);
         };
         walk(walk, root, 0);
@@ -93,7 +93,7 @@ void Runtime::Impl::paint_debug() {
     if (o.inspector && !hover_chain.empty() && alive(hover_chain.front())) {
         const NodeId id = hover_chain.front();
         const Node& n = at(id);
-        const layout::Style& st = layout.style(n.layout);
+        const mlibs::layout::Style& st = layout.style(n.layout);
         const Rect b = n.bounds;
         const Insets m = st.margin;
         list.fill_rect({b.x - m.left, b.y - m.top, b.width + m.horizontal(), b.height + m.vertical()}, Color::hex(0xf59e0b, 0.18f));
@@ -101,7 +101,7 @@ void Runtime::Impl::paint_debug() {
         const Insets in{st.padding.top + st.border.top, st.padding.right + st.border.right, st.padding.bottom + st.border.bottom,
                         st.padding.left + st.border.left};
         list.fill_rect(b.inset(in), Color::hex(0x22c55e, 0.22f));
-        list.stroke_round_rect(b, {}, 1, render::Paint::solid(Color::hex(0x3b82f6)));
+        list.stroke_round_rect(b, {}, 1, xrender::Paint::solid(Color::hex(0x3b82f6)));
         // The file's own name: the text after the last separator (no path conversion).
         const std::string_view full = n.where.file_name();
         const std::string_view base = full.substr(full.find_last_of("/\\") == std::string_view::npos ? 0 : full.find_last_of("/\\") + 1);
@@ -151,13 +151,13 @@ Value Runtime::inspect(NodeId node) const {
     state.set("disabled", n.state.disabled).set("removing", n.state.removing).set("animating", n.state.animating);
     state.set("displayed", d.displayed(node));
     v.set("state", std::move(state));
-    const layout::Style& s = d.layout.style(n.layout);
+    const mlibs::layout::Style& s = d.layout.style(n.layout);
     Value style;
     constexpr std::array<std::string_view, 4> displays{"flex", "grid", "stack", "none"};
     constexpr std::array<std::string_view, 4> directions{"row", "column", "row_reverse", "column_reverse"};
     style.set("display", displays[static_cast<std::size_t>(s.display)]);
     style.set("direction", directions[static_cast<std::size_t>(s.direction)]);
-    style.set("position", s.position == layout::Position::absolute ? "absolute" : "relative");
+    style.set("position", s.position == mlibs::layout::Position::absolute ? "absolute" : "relative");
     style.set("width", length_value(s.width)).set("height", length_value(s.height));
     style.set("min_width", length_value(s.min_width)).set("max_width", length_value(s.max_width));
     style.set("padding", insets_value(s.padding)).set("margin", insets_value(s.margin)).set("border", insets_value(s.border));
@@ -182,7 +182,7 @@ Value Runtime::inspect(NodeId node) const {
             Value::List layers;
             for(const auto& layer:p.images->layers) {
                 Value::List params;for(float value:std::span(p.images->parameters).subspan(layer.offset,layer.count))params.emplace_back(value);
-                const auto* info=render::effects().info(layer.effect);
+                const auto* info=xrender::effects().info(layer.effect);
                 layers.push_back(Value{}.set("id",info?info->name:std::string_view{}).set("generation",std::to_string(layer.generation))
                     .set("parameters",Value(std::move(params))));
             }

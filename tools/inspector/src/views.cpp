@@ -5,7 +5,7 @@ module openmui.inspector;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 import openmui;
 
@@ -100,7 +100,7 @@ View Inspector::view() {
                               .on_changed = [self](std::vector<std::string> keys) {
                                   if (!keys.empty()) self->select(self->node_of_key(keys.front()));
                               },
-                              .width = Dim(layout::Length::percent(38)), .grow = 0},
+                              .width = Dim(mlibs::layout::Length::percent(38)), .grow = 0},
                              [](const Row& r, std::size_t) {
                                  return text({.text = Model::label_of(r), .style = "code"});
                              });

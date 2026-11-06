@@ -3,16 +3,16 @@
 // the same object ids — as drawing the new list from scratch. And the rows
 // it reports are few when little changed.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.memory;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.memory;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 
@@ -96,7 +96,7 @@ void scene(render::DisplayList& dl, const Knobs& k) {
 
 // A pool for tests: one thread per task, so bands really run at the same time.
 struct Threads final : render::Parallel {
-    void run(std::size_t count, omui::FunctionRef<void(std::size_t)> body) override {
+    void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) override {
         std::vector<std::jthread> threads;
         for (std::size_t i = 0; i < count; ++i) threads.emplace_back([&body, i] { body(i); });
     }

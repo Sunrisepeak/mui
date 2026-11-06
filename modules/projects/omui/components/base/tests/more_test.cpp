@@ -5,16 +5,16 @@
 import std;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the pickers open, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({660, 400});
         o.fonts = &own;
@@ -347,7 +347,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a split view and a drawer, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({560, 320});
         o.fonts = &own;
@@ -446,7 +446,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a tree view and a data grid, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({720, 260});
         o.fonts = &own;
@@ -530,7 +530,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a combobox open and a tag input, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({600, 300});
         o.fonts = &own;
@@ -578,7 +578,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a code editor, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({480, 250});
         o.fonts = &own;
@@ -597,7 +597,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({480, 380});
         o.fonts = &own;

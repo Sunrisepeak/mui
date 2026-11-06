@@ -11,7 +11,7 @@ struct Target {
     std::string part;
     NodeId node;
     PresentationChannel channels=PresentationChannel::transform;
-    geom::Point anchor{.5f,.5f};
+    mlibs::geom::Point anchor{.5f,.5f};
 };
 enum class BindingError : std::uint8_t { ui,object,invalid_selection,foreign_frame,unsupported_frame,invalid_pose,unprepared,rendering,capacity };
 struct BindingFailure {

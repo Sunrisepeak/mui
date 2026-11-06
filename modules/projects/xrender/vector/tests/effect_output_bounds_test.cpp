@@ -1,15 +1,15 @@
 // Capture is the region an effect reads; output bounds are where it may
 // change its source. CPU checks stay here; desktop GPU counterparts are in render/cts.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 constexpr int W = 192, H = 144;

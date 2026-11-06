@@ -3,7 +3,7 @@ module xengine.video;
 
 import std;
 import hanim.core;
-import openmui.image;
+import mlibs.image;
 
 namespace xengine::video {
 

@@ -10,7 +10,7 @@
 module openmui.showcase.widget_breakout;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 import openmui.showcase.widget_breakout.sim;
 import xrender.text;
@@ -21,7 +21,7 @@ namespace {
 
 Color hex(std::uint32_t c, float a = 1) { return Color::hex(c, a); }
 constexpr std::uint32_t rim = 0x10131c;  // round the ball and the paddles: readable on a light style too
-render::Paint solid(Color c) { return render::Paint::solid(c); }
+xrender::Paint solid(Color c) { return xrender::Paint::solid(c); }
 Rect rect(const xengine::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
 Point mid(const xengine::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
 Point point(xengine::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
@@ -32,7 +32,7 @@ float pulse(std::int64_t frame, std::int64_t period) {
     return static_cast<float>(p < period / 2 ? p : period - p) / static_cast<float>(period / 2);
 }
 std::uint64_t hash_text(std::string_view text, float size, Color c, float width) {
-    omui::hash::Fnv1a h;
+    mlibs::hash::Fnv1a h;
     h.text(text);
     for (const float f : {size, c.r, c.g, c.b, c.a, width}) h.word(std::bit_cast<std::uint32_t>(f));
     return h.value();
@@ -63,7 +63,7 @@ Color gift_color(Gift g) {
 // (things side by side, a shield of four shutters, are one group), square
 // cornered: up (or down) from the switch's edge to just short of the group,
 // across, and into the middle of the group's near side.
-void draw_wires(render::DisplayList& out, render::Path& path, const State& s, Color colour, float width) {
+void draw_wires(xrender::DisplayList& out, xrender::Path& path, const State& s, Color colour, float width) {
     s.world.each<Body, Brick>([&](xengine::Entity, const Body& sb, const Brick& sw) {
         if (sw.kind != Kind::toggle || sw.wire == 0) return;
         std::array<Rect, 8> groups{};
@@ -108,7 +108,7 @@ void draw_wires(render::DisplayList& out, render::Path& path, const State& s, Co
             const float bus = up ? end.y + 14 : end.y - 14;
             if (end.x != fx) path.line_to({fx, bus}).line_to({end.x, bus});
             path.line_to(end);
-            out.stroke_path(path, {.width = width, .cap = render::LineCap::round, .join = render::LineJoin::round}, solid(colour));
+            out.stroke_path(path, {.width = width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(colour));
             out.fill_round_rect({end.x - 4, end.y - 4, 8, 8}, CornerRadii::all(4), solid(colour));
             out.fill_round_rect({start.x - 4, start.y - 4, 8, 8}, CornerRadii::all(4), solid(sw.on ? hex(ink::live) : colour));
         }
@@ -136,12 +136,12 @@ const char* role_of(Kind k) {
 // The ghost that haunts the panel — the same face behind every room, whatever its style: two eyes that follow
 // the ball, blink now and then, widen as it nears the core, squeeze shut when the core is struck and close for
 // good when the last core shuts down; a mouth that grins when a ball is lost. Faint: the room's bricks over it.
-void Field::haunt(render::DisplayList& out, const State& s, const Theme& theme) const {
+void Field::haunt(xrender::DisplayList& out, const State& s, const Theme& theme) const {
     const Color ground = theme.color("background", hex(0x0d111c));
     const bool light = 0.2126f * ground.r + 0.7152f * ground.g + 0.0722f * ground.b > 0.5f;
     const Color ghost = light ? hex(0x3a3f6b) : hex(0xd8e6ff);
     const float a = light ? 0.10f : 0.13f;
-    auto oval = [](render::Path& p, Point at, float rx, float ry) { p.add_ellipse({at.x - rx, at.y - ry, 2 * rx, 2 * ry}); };
+    auto oval = [](xrender::Path& p, Point at, float rx, float ry) { p.add_ellipse({at.x - rx, at.y - ry, 2 * rx, 2 * ry}); };
     const Point c{static_cast<float>(field_w) / 2, static_cast<float>(s.height) - static_cast<float>(field_h) * 0.62f};
     // What it watches: the first ball in flight, else the paddle's.
     Point look{c.x, static_cast<float>(s.height)};
@@ -157,33 +157,33 @@ void Field::haunt(render::DisplayList& out, const State& s, const Theme& theme) 
     const float shut = std::clamp(std::max(blink, fx_.wince * 0.9f), 0.0f, 1.0f);
     const float wide = 1 + 0.35f * fx_.startle;
     // Its head: one faint veil, no outline.
-    render::Path halo;
+    xrender::Path halo;
     oval(halo, {c.x, c.y + 50}, 330, 230);
-    out.fill_path(halo, render::FillRule::nonzero, solid(ghost.with_alpha(a * 0.22f)));
+    out.fill_path(halo, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 0.22f)));
     for (int side = -1; side <= 1; side += 2) {
         const Point eye{c.x + static_cast<float>(side) * 130, c.y};
         const float dx = look.x - eye.x, dy = look.y - eye.y, d = std::max(1.0f, std::sqrt(dx * dx + dy * dy));
         const float open = 34 * wide * (1 - shut) + 3;
-        render::Path lid;
+        xrender::Path lid;
         oval(lid, eye, 70 * wide, open);
-        out.fill_path(lid, render::FillRule::nonzero, solid(ghost.with_alpha(a * 1.6f)));
+        out.fill_path(lid, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.6f)));
         if (shut < 0.85f) {
-            render::Path pupil;
+            xrender::Path pupil;
             const float r = 16 * (1 - shut);
             oval(pupil, {eye.x + dx / d * 28, eye.y + dy / d * std::min(open * 0.5f, 14.0f)}, r, r);
-            out.fill_path(pupil, render::FillRule::nonzero, solid(ground.with_alpha(0.55f)));
+            out.fill_path(pupil, xrender::FillRule::nonzero, solid(ground.with_alpha(0.55f)));
         }
     }
     // The mouth: a thin line, a grin when a ball is lost, a small 'o' when its core is struck.
-    render::Path mouth;
+    xrender::Path mouth;
     const float grin = fx_.glee, o = fx_.wince;
     const float my = c.y + 120;
     mouth.move_to({c.x - 90 - 40 * grin, my}).cubic_to({c.x - 40, my + 10 + 70 * grin - 20 * o}, {c.x + 40, my + 10 + 70 * grin - 20 * o}, {c.x + 90 + 40 * grin, my});
-    out.stroke_path(mouth, {.width = 10.0f + 6 * grin, .cap = render::LineCap::round}, solid(ghost.with_alpha(a * (1.2f + grin))));
+    out.stroke_path(mouth, {.width = 10.0f + 6 * grin, .cap = xrender::LineCap::round}, solid(ghost.with_alpha(a * (1.2f + grin))));
     if (o > 0.05f) {
-        render::Path ring;
+        xrender::Path ring;
         oval(ring, {c.x, my + 6}, 18 * o, 24 * o);
-        out.fill_path(ring, render::FillRule::nonzero, solid(ghost.with_alpha(a * 1.5f * o)));
+        out.fill_path(ring, xrender::FillRule::nonzero, solid(ghost.with_alpha(a * 1.5f * o)));
     }
 }
 
@@ -261,16 +261,16 @@ void Field::paint_over(PaintContext& ctx) const {
     };
     if (words_.shaped.size() > 512) words_.shaped.clear();  // changing text (a clock) is shaped again, not kept for ever
     // Text shaped once (`width`: wrapped to it).
-    auto label = [&](std::string_view text, float size, Color color, float width = 0, float weight = 600) -> const typeset::Paragraph& {
+    auto label = [&](std::string_view text, float size, Color color, float width = 0, float weight = 600) -> const mlibs::text::Paragraph& {
         const std::uint64_t key = hash_text(text, size, color, width) ^ static_cast<std::uint64_t>(weight);
         auto it = words_.shaped.find(key);
         if (it == words_.shaped.end()) {
-            typeset::ParagraphStyle ps;
+            mlibs::text::ParagraphStyle ps;
             ps.style.size = size;
             ps.style.weight = weight;
             ps.style.color = color;
             ps.wrap = width > 0;
-            typeset::Paragraph p(fonts, std::string(text), std::move(ps));
+            mlibs::text::Paragraph p(fonts, std::string(text), std::move(ps));
             p.layout(width > 0 ? width : std::numeric_limits<float>::infinity());
             it = words_.shaped.emplace(key, std::move(p)).first;
         }
@@ -316,7 +316,7 @@ void Field::paint_over(PaintContext& ctx) const {
                 path_.clear();
                 path_.move_to(base).line_to(tip).move_to({tip.x - static_cast<float>(d.x) * 10 + side.x, tip.y - static_cast<float>(d.y) * 10 + side.y}).line_to(tip)
                     .line_to({tip.x - static_cast<float>(d.x) * 10 - side.x, tip.y - static_cast<float>(d.y) * 10 - side.y});
-                out.stroke_path(path_, {.width = 4, .cap = render::LineCap::round, .join = render::LineJoin::round}, solid(hex(ink::kicker, 0.75f + 0.25f * lit)));
+                out.stroke_path(path_, {.width = 4, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(hex(ink::kicker, 0.75f + 0.25f * lit)));
                 if (lit > 0) out.stroke_round_rect(grow(r, 3 + 6 * (1 - lit)), CornerRadii::all(8), 2, solid(hex(ink::kicker, lit)));
                 break;
             }
@@ -338,7 +338,7 @@ void Field::paint_over(PaintContext& ctx) const {
                     const float x = r.x + r.width * (0.2f + 0.6f * static_cast<float>((k * 37) % 10) / 10);
                     path_.move_to({x, r.y}).line_to({x + 6, r.y + r.height * 0.45f}).line_to({x - 4, r.y + r.height * 0.7f}).line_to({x + 3, r.y + r.height});
                 }
-                if (!path_.empty()) out.stroke_path(path_, {.width = 2, .cap = render::LineCap::round}, solid(hex(0x1a0505, 0.7f)));
+                if (!path_.empty()) out.stroke_path(path_, {.width = 2, .cap = xrender::LineCap::round}, solid(hex(0x1a0505, 0.7f)));
                 if (lit > 0) out.fill_round_rect(r, CornerRadii::all(8), solid(hex(0xffffff, 0.55f * lit)));
                 break;
             }
@@ -373,12 +373,12 @@ void Field::paint_over(PaintContext& ctx) const {
         const Rect all{-20, -20, static_cast<float>(field_w) + 40, static_cast<float>(s.height) + 40};
         out.push_layer(1);
         out.fill_rect(all, hex(0x04060b, 0.95f));
-        out.push_layer(1, render::BlendMode::erase);
+        out.push_layer(1, xrender::BlendMode::erase);
         auto light = [&](Point at, float radius) {
-            const std::array<render::GradientStop, 3> stops{{{0, hex(0xffffff, 1)}, {0.55f, hex(0xffffff, 0.92f)}, {1, hex(0xffffff, 0)}}};
-            render::Paint p;
-            p.kind = render::Paint::Kind::gradient;
-            p.gradient = {render::GradientKind::radial, at, at, radius, render::Spread::pad, stops};
+            const std::array<xrender::GradientStop, 3> stops{{{0, hex(0xffffff, 1)}, {0.55f, hex(0xffffff, 0.92f)}, {1, hex(0xffffff, 0)}}};
+            xrender::Paint p;
+            p.kind = xrender::Paint::Kind::gradient;
+            p.gradient = {xrender::GradientKind::radial, at, at, radius, xrender::Spread::pad, stops};
             out.fill_rect({at.x - radius, at.y - radius, 2 * radius, 2 * radius}, p);
         };
         s.world.each<Ball>([&](xengine::Entity, const Ball& b) { light(point(b.at), 220); });
@@ -520,8 +520,8 @@ void Field::paint_over(PaintContext& ctx) const {
         if (b.pierce > 0) {
             path_.clear();
             path_.move_to({radius * 1.5f, 0}).line_to({0, radius}).line_to({-radius * 1.1f, 0}).line_to({0, -radius}).close();
-            out.stroke_path(path_, {.width = 3 * px, .join = render::LineJoin::round}, solid(hex(rim, 0.7f)));
-            out.fill_path(path_, render::FillRule::nonzero, solid(colour));
+            out.stroke_path(path_, {.width = 3 * px, .join = xrender::LineJoin::round}, solid(hex(rim, 0.7f)));
+            out.fill_path(path_, xrender::FillRule::nonzero, solid(colour));
         } else {
             out.fill_round_rect({-radius - 1.5f * px, -radius - 1.5f * px, 2 * radius + 3 * px, 2 * radius + 3 * px}, CornerRadii::all(radius + 1.5f * px), solid(hex(rim, 0.7f)));
             out.fill_round_rect({-radius, -radius, 2 * radius, 2 * radius}, CornerRadii::all(radius), solid(colour));
@@ -588,10 +588,10 @@ void Field::paint_over(PaintContext& ctx) const {
         const float fill = std::clamp(static_cast<float>(s.sparks - k * rewind_cost) / rewind_cost, 0.0f, 1.0f);
         path_.clear();
         path_.move_to({cx, cy - 10}).line_to({cx + 9, cy}).line_to({cx, cy + 10}).line_to({cx - 9, cy}).close();
-        out.fill_path(path_, render::FillRule::nonzero, solid(cue(ink::spark, 0.18f)));
+        out.fill_path(path_, xrender::FillRule::nonzero, solid(cue(ink::spark, 0.18f)));
         if (fill > 0) {
             out.push_clip(Rect{cx - 10, cy + 10 - 20 * fill, 20, 20 * fill});
-            out.fill_path(path_, render::FillRule::nonzero, solid(cue(ink::spark, fill >= 1 ? 1.0f : 0.7f)));
+            out.fill_path(path_, xrender::FillRule::nonzero, solid(cue(ink::spark, fill >= 1 ? 1.0f : 0.7f)));
             out.pop_clip();
         }
     }

@@ -4,13 +4,17 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.text;
-import openmui.trace;
-import openmui.pipeline;
+import mlibs.layout;
+import xrender.vector;
+import xrender.raster;
+import mlibs.text;
+import mlibs.trace;
+import mlibs.pipeline;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui {
 
@@ -18,7 +22,7 @@ namespace {
 
 constexpr float degrees_to_radians = static_cast<float>(std::numbers::pi / 180.0);
 
-Insets content_insets_of(const layout::Style& s) {
+Insets content_insets_of(const mlibs::layout::Style& s) {
     return {s.padding.top + s.border.top, s.padding.right + s.border.right, s.padding.bottom + s.border.bottom,
             s.padding.left + s.border.left};
 }
@@ -38,7 +42,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     }
     FrameTimings& t = d.stats.timings;
     const auto started = std::chrono::steady_clock::now();
-    trace::Span whole("frame", "frame");
+    mlibs::trace::Span whole("frame", "frame");
     if (input.time) d.clock.set(*input.time);
     else if (d.clock.kind() == hanim::ClockKind::interactive) d.clock.begin_frame(input.present_at.value_or(started));
     d.shown.now = d.clock.now();
@@ -68,7 +72,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
         d.last_failure.clear();
     }
     if (!d.dirty_taken) d.dirty = dirty_none;  // no bounds stage (H0): nothing waits for the changes
-    for (const pipeline::StageTime& st : d.frames->timings()) {
+    for (const mlibs::pipeline::StageTime& st : d.frames->timings()) {
         double* into = st.name == "timers" ? &t.timers
                      : st.name == "input" ? &t.input
                      : st.name == "regions" ? &t.regions
@@ -93,7 +97,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
 
     d.stats.nodes = d.nodes.size();
     for (NodeId id : d.animating) d.stats.animating += static_cast<std::size_t>(std::popcount(d.at(id).moving));
-    trace::count("nodes", static_cast<double>(d.stats.nodes), "frame");
+    mlibs::trace::count("nodes", static_cast<double>(d.stats.nodes), "frame");
     t.total = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - started).count();
     if (d.options.debug.slow_frame_ms > 0 && t.total > d.options.debug.slow_frame_ms && d.now() - d.last_slow_log > seconds(1)) {
         d.last_slow_log = d.now();
@@ -130,7 +134,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
             }
         }
         d.demand = std::move(want);
-        trace::count("frame.demand_hz", d.demand.idle() ? 0.0 : std::min(d.demand.wanted(), 1000.0), "frame.pacing");
+        mlibs::trace::count("frame.demand_hz", d.demand.idle() ? 0.0 : std::min(d.demand.wanted(), 1000.0), "frame.pacing");
     }
     // Bindings that ran since the last frame count toward this one.
     FrameStats stats = std::exchange(d.stats, {});
@@ -138,7 +142,7 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     return FrameOutput{&d.list, repainted, more, d.semantic_revision, stats, next_timer(), d.demand, std::move(failure)};
 }
 
-pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }
+mlibs::pipeline::Pipeline& Runtime::frame_pipeline() noexcept { return *impl_->frames; }
 
 void Runtime::Impl::take_time_control() {
     if (time_control.controlled) return;
@@ -266,7 +270,7 @@ Runtime::TimeState Runtime::time_state() const noexcept {
     const Impl& d = *impl_;
     return {d.clock.now(), d.now(), d.time_control.controlled, d.time_control.paused, d.time_control.rate};
 }
-pipeline::Registry& Runtime::stage_plugins() noexcept { return impl_->registry; }
+mlibs::pipeline::Registry& Runtime::stage_plugins() noexcept { return impl_->registry; }
 
 std::vector<FrameStats> Runtime::frame_history() const {
     std::vector<FrameStats> out;
@@ -375,7 +379,7 @@ void Runtime::Impl::run_layout() {
 
 bool Runtime::Impl::displayed(NodeId id) const {
     const Node& n = at(id);
-    return n.visual.visible && layout.style(n.layout).display != layout::Display::none;
+    return n.visual.visible && layout.style(n.layout).display != mlibs::layout::Display::none;
 }
 
 bool Runtime::Impl::contains(NodeId ancestor, NodeId id) const {
@@ -550,7 +554,7 @@ void Runtime::Impl::compute_bounds(NodeId id, Point origin, const Affine& parent
         if (s != 1 || rotation != 0) {
             const float cx = size.width / 2, cy = size.height / 2;
             Affine m = Affine::translate(cx, cy);
-            if (rotation != 0) m = m * render::rotate(rotation * degrees_to_radians);
+            if (rotation != 0) m = m * xrender::rotate(rotation * degrees_to_radians);
             if (s != 1) m = m * Affine::scale(s, s);
             local = local * m * Affine::translate(-cx, -cy);
         }
@@ -607,7 +611,7 @@ void Runtime::Impl::paint() {
         else {
             history_range.first = list.size();
             if (fade_clip) list.push_clip(*fade_clip);  // a scope's: only its area
-            list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), render::BlendMode::normal);
+            list.push_layer(static_cast<float>(1 - hanim::ease::standard(u)), xrender::BlendMode::normal);
             list.append(*fading);
             list.pop_layer();
             if (fade_clip) list.pop_clip();
@@ -659,7 +663,7 @@ void Runtime::Impl::paint_node(NodeId id) {
     const Affine local = n.local;
     const float s = v[Field::scale];
     if (!v.visible || v[Field::opacity] <= 0 || s == 0) return;
-    if (layout.style(n.layout).display == layout::Display::none) return;
+    if (layout.style(n.layout).display == mlibs::layout::Display::none) return;
     ++stats.painted;
 
     list.begin_node(n.index);
@@ -675,15 +679,15 @@ void Runtime::Impl::paint_node(NodeId id) {
     // panel — its background as it looks over the theme's, made solid.
     bool solid = false;
     if (fxs && reduce_transparency)
-        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
+        if (const xrender::EffectInfo* info = xrender::effects().info(fxs->effect); info && info->backdrop) fxs = nullptr, solid = true;
     // Below the tiers it runs on (performance tiers, D-94: the device's, or as low as the frame budget allows): what
     // stands in for it, its defaults; none — a backdrop's effect, its panel then drawn solid.
     if (fxs)
-        if (const render::EffectInfo* info = render::effects().info(fxs->effect); info && !(info->tiers & pipeline::tier_bit(effects_now()))) {
-            const auto instead = info->degrade.empty() ? std::nullopt : render::effects().find(info->degrade);
+        if (const xrender::EffectInfo* info = xrender::effects().info(fxs->effect); info && !(info->tiers & mlibs::pipeline::tier_bit(effects_now()))) {
+            const auto instead = info->degrade.empty() ? std::nullopt : xrender::effects().find(info->degrade);
             solid = solid || info->backdrop;
             if (instead) {
-                n.stood_in = {.effect = *instead, .params = render::effects().params(*instead, {})};
+                n.stood_in = {.effect = *instead, .params = xrender::effects().params(*instead, {})};
                 fxs = &n.stood_in;
             } else {
                 fxs = nullptr;
@@ -728,13 +732,13 @@ void Runtime::Impl::paint_node(NodeId id) {
         // UI effect wrappers carry no opacity/blend of their own. An identity
         // needs no extra isolated group (which would reapply ancestor clips).
         // The node's actual opacity layer below remains independent.
-        if (const auto* info = render::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
+        if (const auto* info = xrender::effects().info(fxs->effect); info && info->identity && info->identity(fxs->params)) fxs = nullptr;
     }
     const bool effected = fxs != nullptr;
     // More of its own over it (a list), each where it runs (performance tiers: below its tiers, left out).
     std::size_t more = 0;
     for (auto& fx : n.more_effects)
-        if (const render::EffectInfo* info = render::effects().info(fx.effect); info && (info->tiers & pipeline::tier_bit(effects_now())) &&
+        if (const xrender::EffectInfo* info = xrender::effects().info(fx.effect); info && (info->tiers & mlibs::pipeline::tier_bit(effects_now())) &&
                                                                                !(info->backdrop && reduce_transparency)) {
             sample(fx);
             if (!info->identity || !info->identity(fx.params)) ++more;
@@ -743,7 +747,7 @@ void Runtime::Impl::paint_node(NodeId id) {
         // The layer's shapes: what the node paints as surfaces — its own
         // rounded box, and each child's that has a background or a border
         // (a group's members: what neon lights and metaball merges).
-        std::array<render::EffectShape, 8> shapes{};
+        std::array<xrender::EffectShape, 8> shapes{};
         std::size_t count = 0;
         if (n.type->effect_shapes) {
             const Insets pad = content_insets_of(layout.style(n.layout));
@@ -762,16 +766,16 @@ void Runtime::Impl::paint_node(NodeId id) {
         }
         // The last of the list outermost: pushed first.
         for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
-            const render::EffectInfo* info = render::effects().info(it->effect);
-            if (!info || !(info->tiers & pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
+            const xrender::EffectInfo* info = xrender::effects().info(it->effect);
+            if (!info || !(info->tiers & mlibs::pipeline::tier_bit(effects_now())) || (info->backdrop && reduce_transparency)) continue;
             if (info->identity && info->identity(it->params)) continue;
-            list.push_layer(1, render::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
+            list.push_layer(1, xrender::BlendMode::normal, it->effect, it->params, box, std::span(shapes.data(), count));
         }
         if (effected) {
-            list.push_layer(1, render::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
+            list.push_layer(1, xrender::BlendMode::normal, fxs->effect, fxs->params, box, std::span(shapes.data(), count));
         }
     }
-    if (layer) list.push_layer(v[Field::opacity], render::BlendMode::normal, {}, {}, box);
+    if (layer) list.push_layer(v[Field::opacity], xrender::BlendMode::normal, {}, {}, box);
 
     const CornerRadii radii = v.corners(size);
     Size constraint = this->size;
@@ -790,14 +794,14 @@ void Runtime::Impl::paint_node(NodeId id) {
             bg = {under.r + (bg.r - under.r) * bg.a, under.g + (bg.g - under.g) * bg.a, under.b + (bg.b - under.b) * bg.a, 1};
         }
         if (radii.zero()) list.fill_rect(box, bg);
-        else list.fill_round_rect(box, radii, render::Paint::solid(bg));
+        else list.fill_round_rect(box, radii, xrender::Paint::solid(bg));
     }
     if (const float bw = v[Field::border_width]; bw > 0)
         if (const Color bc = v.border(); bc.a > 0) {
             const float h = bw / 2;
             CornerRadii inner = radii;
             for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - h);
-            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, render::Paint::solid(bc));
+            list.stroke_round_rect({h, h, size.width - bw, size.height - bw}, inner, bw, xrender::Paint::solid(bc));
         }
 
     const Insets in = content_insets_of(layout.style(n.layout));
@@ -840,7 +844,7 @@ void Runtime::Impl::paint_node(NodeId id) {
             CornerRadii r = radii;
             for (float* x : {&r.top_left, &r.top_right, &r.bottom_right, &r.bottom_left}) *x += gap + width / 2;
             list.stroke_round_rect({-gap - width / 2, -gap - width / 2, size.width + 2 * gap + width, size.height + 2 * gap + width},
-                                   r, width, render::Paint::solid(theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+                                   r, width, xrender::Paint::solid(theme.color("focus", Color::hex(0x6366f1, 0.55f))));
         }
     }
 
@@ -868,27 +872,27 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
     };
     std::vector<Fill> fills;
     std::vector<std::size_t> at_index;
-    std::vector<std::span<const render::Glyph>> runs;
+    std::vector<std::span<const xrender::Glyph>> runs;
     std::vector<std::uint32_t> paragraphs;
     std::vector<std::uint32_t> open;  // the paragraphs of the descendants begun and not ended
     std::uint32_t next = 0;
     std::size_t kept = 0;  // the depth at which a descendant with its own motion began (0: none)
     const auto& commands = list.commands();
     for (std::size_t i = first; i < commands.size(); ++i) {
-        if (const auto* b = std::get_if<render::BeginNode>(&commands[i])) {
+        if (const auto* b = std::get_if<xrender::BeginNode>(&commands[i])) {
             open.push_back(++next);
             if (!kept && std::ranges::contains(glyph_movers, b->node)) kept = open.size();
-        } else if (std::holds_alternative<render::EndNode>(commands[i])) {
+        } else if (std::holds_alternative<xrender::EndNode>(commands[i])) {
             if (kept == open.size()) kept = 0;
             if (!open.empty()) open.pop_back();
-        } else if (const auto* g = std::get_if<render::DrawGlyphs>(&commands[i]); g && !kept) {
+        } else if (const auto* g = std::get_if<xrender::DrawGlyphs>(&commands[i]); g && !kept) {
             at_index.push_back(i);
             runs.push_back(g->glyphs);
             paragraphs.push_back(open.empty() ? 0 : open.back());
         } else if (!kept) {
             const std::uint32_t paragraph = open.empty() ? 0 : open.back();
-            if (const auto* r = std::get_if<render::FillRect>(&commands[i])) fills.push_back({i, r->rect, paragraph});
-            else if (const auto* rr = std::get_if<render::FillRoundRect>(&commands[i])) fills.push_back({i, rr->rect, paragraph});
+            if (const auto* r = std::get_if<xrender::FillRect>(&commands[i])) fills.push_back({i, r->rect, paragraph});
+            else if (const auto* rr = std::get_if<xrender::FillRoundRect>(&commands[i])) fills.push_back({i, rr->rect, paragraph});
         }
     }
     if (runs.empty()) return;
@@ -902,14 +906,14 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
         std::size_t count = 0;
         for (std::size_t k = 0; k < at_index.size(); ++k) {
             if (paragraphs[k] != fill.paragraph || f.styles[k].empty()) continue;
-            const auto& g = std::get<render::DrawGlyphs>(list.commands()[at_index[k]]);
+            const auto& g = std::get<xrender::DrawGlyphs>(list.commands()[at_index[k]]);
             if (fill.rect.height > 1.6f * g.size) continue;
             for (std::size_t j = 0; j < g.glyphs.size(); ++j) {
                 const Point pen{g.origin.x + g.glyphs[j].position.x, g.origin.y + g.glyphs[j].position.y};
                 const float middle = pen.y - 0.3f * g.size;
                 if (pen.x < fill.rect.x || pen.x >= fill.rect.x + fill.rect.width) continue;
                 if (std::abs(fill.rect.y + fill.rect.height / 2 - middle) > 0.6f * g.size) continue;
-                const render::GlyphStyle& st = f.styles[k][j];
+                const xrender::GlyphStyle& st = f.styles[k][j];
                 dx += st.transform.e;
                 dy += st.transform.f;
                 opacity += st.opacity;
@@ -923,7 +927,7 @@ void Runtime::Impl::restyle_glyphs(NodeId id, std::size_t first) {
 }
 
 void Runtime::Impl::collect_presentation() {
-    trace::Span span("presentation geometry", "frame");
+    mlibs::trace::Span span("presentation geometry", "frame");
     const auto previous_epoch = presentation_epoch++;
     presentation_transforms.assign(1, Affine{});
     presentation_clip_stack.assign(1, -1);
@@ -943,11 +947,11 @@ void Runtime::Impl::collect_presentation() {
     for (std::size_t i = 0; i < commands.size(); ++i) {
         if (history_range.second > history_range.first && i == history_range.first) { i = history_range.second - 1; continue; }
         const auto& command = commands[i];
-        if (const auto* t = std::get_if<render::PushTransform>(&command)) presentation_transforms.push_back(presentation_transforms.back() * t->transform);
-        else if (std::holds_alternative<render::PopTransform>(command)) { if (presentation_transforms.size() > 1) presentation_transforms.pop_back(); }
-        else if (const auto* c = std::get_if<render::PushClipRect>(&command)) {
+        if (const auto* t = std::get_if<xrender::PushTransform>(&command)) presentation_transforms.push_back(presentation_transforms.back() * t->transform);
+        else if (std::holds_alternative<xrender::PopTransform>(command)) { if (presentation_transforms.size() > 1) presentation_transforms.pop_back(); }
+        else if (const auto* c = std::get_if<xrender::PushClipRect>(&command)) {
             PresentationClip clip; clip.rect = *c; clip.bounds = presentation_transforms.back().map(c->rect); add_clip(std::move(clip));
-        } else if (const auto* c = std::get_if<render::PushClipPath>(&command)) {
+        } else if (const auto* c = std::get_if<xrender::PushClipPath>(&command)) {
             PresentationClip clip; clip.path = *c;
             if (!c->path.points.empty()) {
                 Point first = presentation_transforms.back().apply(c->path.points.front());
@@ -959,10 +963,10 @@ void Runtime::Impl::collect_presentation() {
                 clip.bounds = {left, top, right - left, bottom - top};
             }
             add_clip(std::move(clip));
-        } else if (std::holds_alternative<render::PopClip>(command)) { if (presentation_clip_stack.size() > 1) presentation_clip_stack.pop_back(); }
-        else if (const auto* layer = std::get_if<render::PushLayer>(&command)) presentation_opacity.push_back(presentation_opacity.back() * layer->opacity);
-        else if (std::holds_alternative<render::PopLayer>(command)) { if (presentation_opacity.size() > 1) presentation_opacity.pop_back(); }
-        else if (const auto* frame = std::get_if<render::NodeFrame>(&command); frame && frame->node < by_index.size() && alive(by_index[frame->node])) {
+        } else if (std::holds_alternative<xrender::PopClip>(command)) { if (presentation_clip_stack.size() > 1) presentation_clip_stack.pop_back(); }
+        else if (const auto* layer = std::get_if<xrender::PushLayer>(&command)) presentation_opacity.push_back(presentation_opacity.back() * layer->opacity);
+        else if (std::holds_alternative<xrender::PopLayer>(command)) { if (presentation_opacity.size() > 1) presentation_opacity.pop_back(); }
+        else if (const auto* frame = std::get_if<xrender::NodeFrame>(&command); frame && frame->node < by_index.size() && alive(by_index[frame->node])) {
             Node& node = at(by_index[frame->node]);
             if (!(frame->opacity * presentation_opacity.back() > 0)) continue;
             const Rect border = presentation_transforms.back().map(frame->rect);
@@ -1009,12 +1013,12 @@ bool Runtime::Impl::presentation_contains(const Node& node, Point window) const 
             // not a separately approximated path or any GPU/pixel readback.
             const auto& path = clip.path->path;
             presentation_path_verbs.resize(path.verbs.size());
-            for (std::size_t i = 0; i < path.verbs.size(); ++i) presentation_path_verbs[i] = static_cast<raster::Verb>(path.verbs[i]);
-            const raster::PathData data{presentation_path_verbs, path.points};
+            for (std::size_t i = 0; i < path.verbs.size(); ++i) presentation_path_verbs[i] = static_cast<xrender::raster::Verb>(path.verbs[i]);
+            const xrender::raster::PathData data{presentation_path_verbs, path.points};
             const auto matrix = Affine::scale(scale, scale) * clip.world;
-            raster::flatten(data, matrix, presentation_path_polygons);
+            xrender::raster::flatten(data, matrix, presentation_path_polygons);
             const int x = static_cast<int>(window.x * scale), y = static_cast<int>(window.y * scale); // window is inside the nonnegative viewport
-            presentation_path_rasterizer.rasterize(presentation_path_polygons, static_cast<raster::FillRule>(clip.path->rule), {x, y, 1, 1}, presentation_path_coverage);
+            presentation_path_rasterizer.rasterize(presentation_path_polygons, static_cast<xrender::raster::FillRule>(clip.path->rule), {x, y, 1, 1}, presentation_path_coverage);
             if (presentation_path_coverage.empty() || (x < presentation_path_coverage.bounds.x || y < presentation_path_coverage.bounds.y || x >= presentation_path_coverage.bounds.x + presentation_path_coverage.bounds.width || y >= presentation_path_coverage.bounds.y + presentation_path_coverage.bounds.height) || presentation_path_coverage.at(x, y) < 128) return false;
         }
     }
@@ -1025,7 +1029,7 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     const Node& n = at(id);
     if (!n.visual.visible || n.visual[Field::opacity] <= 0 || n.state.removing) return {};
     if (!n.visual.hit) return {};  // pointer_events: none — it and all inside it take no pointer (a HUD, a picture over a field)
-    if (layout.style(n.layout).display == layout::Display::none) return {};
+    if (layout.style(n.layout).display == mlibs::layout::Display::none) return {};
     const bool presented = presentation_epoch != 0;
     if (presented && n.presented_epoch != presentation_epoch) return {};
     if (presented && !presentation_contains(n, window)) return {};
@@ -1033,7 +1037,7 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     // An effect that moves what is drawn (a bulging screen): the point seen
     // is where it was drawn from, for this node and what is inside it.
     if (const Node::PixelEffectState* fx = n.pixel_effect ? &*n.pixel_effect : (n.styled_effect ? &*n.styled_effect : nullptr))
-        if (const render::EffectInfo* info = render::effects().info(fx->effect); info && info->source_of) {
+        if (const xrender::EffectInfo* info = xrender::effects().info(fx->effect); info && info->source_of) {
             p = info->source_of(p, {0, 0, n.frame.width, n.frame.height}, fx->params);
             window = (presented ? n.presented_world : n.world).apply(p);
         }

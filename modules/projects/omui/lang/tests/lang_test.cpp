@@ -7,9 +7,9 @@ import nlohmann.json;
 import openmui.abi;
 import openmui.lang;
 import openmui.ui.base;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui::abi;
 namespace lang = omui::lang;
 using lang::Json;

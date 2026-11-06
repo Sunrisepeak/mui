@@ -55,7 +55,7 @@ portable runtime package. Both this package and its serial tests run on Web.
 
 Depends on: `mlibs.rhi`, `mlibs.trace`.
 
-## Independent boundary and compatibility
+## Independent boundary
 
 This package is the shared device-pass and texture-pool contract. It can record
 custom texture operations without a display list, font system, vector rasterizer
@@ -64,7 +64,5 @@ this contract, and further rendering features must record into the same graph
 rather than create another resource scheduler. Keeping this small library
 independent excludes vector/hanim/raster/shader generation from graph-only users.
 
-`import xrender;` uses `xrender`. The same package retains
-`import openmui.render;` and the `omui::render` namespace alias. Rebuild callers;
-namespace aliases cannot be reopened. There is one graph/pool implementation,
-not two runtime owners. CLI selectors and dependency keys use the new package.
+`import xrender.graph;` gives namespace `xrender`: one graph and pool
+implementation, not two runtime owners.

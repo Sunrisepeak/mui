@@ -2,7 +2,7 @@ module openmui.site;
 
 import std;
 import openmui;
-import openmui.hash;
+import mlibs.hash;
 import mcpplibs.os;
 
 namespace omui::site {
@@ -42,8 +42,8 @@ Value rectangle(Rect bounds) {
     return Value(Value::List{Value(bounds.x), Value(bounds.y), Value(bounds.width), Value(bounds.height)});
 }
 
-std::string region_hash(const raster::Surface& pixels, PixelRect region) {
-    hash::Fnv1a hash;
+std::string region_hash(const xrender::raster::Surface& pixels, PixelRect region) {
+    mlibs::hash::Fnv1a hash;
     for (int y = region.y; y < region.y + region.height; ++y)
         hash.bytes(std::as_bytes(std::span(pixels.row(y) + region.x, static_cast<std::size_t>(region.width))));
     return std::format("{:016x}", hash.value());
@@ -94,7 +94,7 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
     const std::string route = canonical_route(parsed->place, parsed->language, parsed->component, parsed->example);
     auto application = app(route, parsed->language, route);
     Headless host(HeadlessOptions{.size = {static_cast<float>(options.width), static_cast<float>(options.height)},
-                                 .scale = 1, .fps = {60, 1}, .reduce_motion = options.reduce_motion, .parallel_raster = false, .tier = pipeline::Tier::t3});
+                                 .scale = 1, .fps = {60, 1}, .reduce_motion = options.reduce_motion, .parallel_raster = false, .tier = mlibs::pipeline::Tier::t3});
     auto& runtime = host.runtime();
     runtime.set_theme(application.theme);
     application.setup(runtime);
@@ -134,7 +134,7 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
         }
         if (crop.empty()) return std::unexpected("--root has no visible area inside the viewport");
     }
-    const auto region = geom::snap(crop, 1);
+    const auto region = mlibs::geom::snap(crop, 1);
     crop = {static_cast<float>(region.x), static_cast<float>(region.y), static_cast<float>(region.width), static_cast<float>(region.height)};
     if (region.width <= 0 || region.height <= 0) return std::unexpected("the requested pixel region is empty");
 
@@ -154,7 +154,7 @@ std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& op
     auto sidecar = png; sidecar.replace_extension(".frame.omui.json");
     Value report = Value{}.set("schema", "openmui.site.frame@1").set("command", "first-frame").set("ok", true)
         .set("route", route).set("lang", parsed->language).set("viewport", Value(Value::List{Value(options.width), Value(options.height)}))
-        .set("renderer", "cpu").set("tier", std::string(pipeline::name(host.options().tier))).set("scale", 1).set("raster_bands", 1)
+        .set("renderer", "cpu").set("tier", std::string(mlibs::pipeline::name(host.options().tier))).set("scale", 1).set("raster_bands", 1)
         .set("reduce_motion", options.reduce_motion)
         .set("time", runtime.now().count()).set("fps", 60).set("sampled_frames", sampled_frames).set("root", options.root).set("crop", rectangle(crop)).set("root_bounds", std::move(root_bounds))
         .set("image", Value{}.set("width", region.width).set("height", region.height))

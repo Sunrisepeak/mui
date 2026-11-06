@@ -8,9 +8,9 @@ import std;
 import hanim.core;
 import xengine.video;
 import xengine.video.webm;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace video = xengine::video;
 
 namespace {
@@ -47,13 +47,13 @@ double worst_psnr(const video::Format& f, const video::DecodedWebm& d) {
 class Part final : public video::FrameSource {
 public:
     Part(const video::Format& f, std::int64_t first, bool inverted) : card_(f), first_(first), inverted_(inverted) {}
-    std::expected<omui::imageio::View, std::string> frame(std::int64_t index) override {
+    std::expected<mlibs::image::View, std::string> frame(std::int64_t index) override {
         auto v = card_.frame(first_ + index);
         if (!v || !inverted_) return v;
         pixels_.assign(v->rgba, v->rgba + static_cast<std::size_t>(v->stride) * static_cast<std::size_t>(v->height));
         for (std::size_t i = 0; i < pixels_.size(); i += 4)
             for (std::size_t c = 0; c < 3; ++c) pixels_[i + c] = static_cast<std::uint8_t>(255 - pixels_[i + c]);
-        omui::imageio::View out = *v;
+        mlibs::image::View out = *v;
         out.rgba = pixels_.data();
         return out;
     }

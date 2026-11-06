@@ -9,7 +9,7 @@ module openmui.site;
 
 import std;
 import openmui;
-import openmui.hash;
+import mlibs.hash;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
 import xengine.timeline;
@@ -18,8 +18,12 @@ import openmui.theme.styles;
 import hello;
 import mcpplibs.os;
 import openmui.semantic;
-import openmui.trace;
+import mlibs.trace;
 import openmui.inspector;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::site {
 
@@ -193,7 +197,7 @@ struct Site {
     Signal<std::string> ref_mine = signal(std::string()), ref_ci = signal(std::string());
     Signal<int>         ref_verdict = signal(0), ref_shown = signal(0);  // 2 loading, 1 same, −1 not, 0 unpinned
     std::unique_ptr<ReferenceReplay> replay;
-    render::ImageRef    ref_image{};
+    xrender::ImageRef    ref_image{};
     // A frame asked for (a handler's request, played by the frame stage
     // after paint: driving another runtime inside a handler would run in the
     // page's batch, its own effects held back until the batch ends).
@@ -207,8 +211,8 @@ struct Site {
     }
     void check_frame(std::int32_t f) {
         if (!runtime) return;
-        trace::Span span("reference frame", "site");
-        if (mcpplibs::os::fs::read(typeset::FontCollection::default_directory() / ".partial")) {
+        mlibs::trace::Span span("reference frame", "site");
+        if (mcpplibs::os::fs::read(mlibs::text::FontCollection::default_directory() / ".partial")) {
             ref_verdict.set(2);
             if (!ref_waiting) {
                 ref_waiting = true;
@@ -222,7 +226,7 @@ struct Site {
         if (!replay) replay = std::make_unique<ReferenceReplay>();
         const std::uint64_t mine = replay->hash(f);
         if (ref_image.id != 0) runtime->images().remove(ref_image);
-        ref_image = runtime->images().add(std::make_shared<const raster::Surface>(replay->pixels()));
+        ref_image = runtime->images().add(std::make_shared<const xrender::raster::Surface>(replay->pixels()));
         const auto pinned = reference_pinned();
         ref_mine.set(std::format("{:016x}", mine));
         ref_ci.set(static_cast<std::size_t>(f) < pinned.size() ? std::format("{:016x}", pinned[static_cast<std::size_t>(f)]) : std::string());
@@ -313,10 +317,10 @@ struct Site {
         effects.set(v);
         if (!runtime) return;
         Adaptation a = runtime->adaptation();
-        const std::optional<pipeline::Tier> chosen = v == "t1" ? std::optional(pipeline::Tier::t1)
-                                                     : v == "t2" ? std::optional(pipeline::Tier::t2)
-                                                     : v == "t3" ? std::optional(pipeline::Tier::t3)
-                                                     : v == "t4" ? std::optional(pipeline::Tier::t4)
+        const std::optional<mlibs::pipeline::Tier> chosen = v == "t1" ? std::optional(mlibs::pipeline::Tier::t1)
+                                                     : v == "t2" ? std::optional(mlibs::pipeline::Tier::t2)
+                                                     : v == "t3" ? std::optional(mlibs::pipeline::Tier::t3)
+                                                     : v == "t4" ? std::optional(mlibs::pipeline::Tier::t4)
                                                                  : std::nullopt;
         a.effects = chosen.value_or(a.tier);
         a.reason = v == "auto" ? std::string("the device's") : std::string("the person's setting");
@@ -562,7 +566,7 @@ struct Site {
     void look() {
         if (!runtime || runtime->semantic_revision() == seen) return;
         seen = runtime->semantic_revision();
-        trace::Span span("look", "site");
+        mlibs::trace::Span span("look", "site");
         semantic::Tree tree(*runtime);
         const std::string at = root();
         const Value snapshot = runtime->find(at) ? tree.snapshot({.root = at}).to_value() : Value{};
@@ -646,14 +650,14 @@ void follow(Site& s, std::string_view href) {
 // The public pipeline lets input cancel scheduled preview work before the
 // runtime's timer stage. Otherwise an already-due step could change a task
 // immediately before the person's pointer, text or window-blur event.
-class PreviewInputGuard final : public pipeline::Stage {
+class PreviewInputGuard final : public mlibs::pipeline::Stage {
 public:
     explicit PreviewInputGuard(Site& site) : site_(site) {}
-    [[nodiscard]] std::vector<pipeline::Port> reads() const override {
-        return {pipeline::port<FrameInput>(std::string(frame_resource::input))};
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> reads() const override {
+        return {mlibs::pipeline::port<FrameInput>(std::string(frame_resource::input))};
     }
-    [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
-    std::expected<void, std::string> run(pipeline::Context& context) override {
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> writes() const override { return {}; }
+    std::expected<void, std::string> run(mlibs::pipeline::Context& context) override {
         const auto* input = context.resources.get<FrameInput>(frame_resource::input);
         if (!input || input->events.empty() || !site_.runtime) return {};
         auto& rt = *site_.runtime;
@@ -694,12 +698,12 @@ private:
 // (compact or not, the place's room), the route the person moved, the page's
 // time; and when the tree changed (a resize, the fonts arriving, an agent's
 // edit), the place read again once the frame is done.
-class TreeWatch final : public pipeline::Stage {
+class TreeWatch final : public mlibs::pipeline::Stage {
 public:
     explicit TreeWatch(Site& site) : site_(site) {}
-    [[nodiscard]] std::vector<pipeline::Port> reads() const override { return {}; }
-    [[nodiscard]] std::vector<pipeline::Port> writes() const override { return {}; }
-    std::expected<void, std::string> run(pipeline::Context&) override {
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> reads() const override { return {}; }
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> writes() const override { return {}; }
+    std::expected<void, std::string> run(mlibs::pipeline::Context&) override {
         Runtime& rt = *site_.runtime;
         // A phone, or a window made narrow: compact (and back).
         const float w = rt.size().width;
@@ -754,17 +758,17 @@ private:
     int           motion_band_ = -1;
 };
 
-class ProgramMotionStage final : public pipeline::Stage {
+class ProgramMotionStage final : public mlibs::pipeline::Stage {
 public:
     explicit ProgramMotionStage(Site& site):site_(site){}
-    [[nodiscard]] std::vector<pipeline::Port> reads() const override {
-        return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),
-                pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> reads() const override {
+        return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree)),
+                mlibs::pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
     }
-    [[nodiscard]] std::vector<pipeline::Port> writes() const override {
-        return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+    [[nodiscard]] std::vector<mlibs::pipeline::Port> writes() const override {
+        return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};
     }
-    std::expected<void,std::string> run(pipeline::Context&) override {
+    std::expected<void,std::string> run(mlibs::pipeline::Context&) override {
         if(site_.place.peek()=="motion")motion_gallery_update(site_.basic,site_.basic_site);
         if(site_.place.peek()=="explore")motion_gallery_update(site_.creative,site_.creative_site);
         return {};
@@ -849,7 +853,7 @@ std::string test_text(const Value& snapshot, std::string_view root) {
 }
 
 std::uint64_t tree_hash(const Value& snapshot) {
-    hash::Fnv1a h;
+    mlibs::hash::Fnv1a h;
     const Value::List* nodes = snapshot.get("nodes") ? snapshot.get("nodes")->list() : nullptr;
     if (!nodes) return h.value();
     for (const Value& n : *nodes) {
@@ -921,7 +925,7 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                            .set("asked", "问了你")
                            .set("refused", "被拒绝");
     Element panel = scroll(
-        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); }), .gap = 10, .padding = Edges(20.0f, 16.0f), .background = "surface"},
+        {.id = "guide", .width = computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(380.0f); }), .gap = 10, .padding = Edges(20.0f, 16.0f), .background = "surface"},
         {text({.id = "guide_title", .text = say("Your agent, on this page", "你的 agent，操作这一页"), .style = "heading"}),
          // An agent's question for the person first: theirs to answer (S-10), above all else.
          only_when(column({.id = "asking", .padding = Edges(10.0f), .gap = 6, .background = "accent_subtle"},
@@ -956,7 +960,7 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
                    [s] { return !s->prompt.get().empty(); }),
          actor_log({.id = "log",
                     .phrases = computed([s, zh_phrases] { return s->lang.get() == "zh" ? zh_phrases : Value{}; }),
-                    .width = Dim(layout::pct(100)),
+                    .width = Dim(mlibs::layout::pct(100)),
                     .label = "What agents did here"}),
          // The self-check agent.md gives an agent: press it, and the count says so.
          row({.id = "check", .gap = 8, .align = "center"},
@@ -991,7 +995,7 @@ Element guide_panel(const std::shared_ptr<Site>& s) {
          scroll({.id = "said", .height = Dim(220.0f), .padding = Edges(10.0f), .background = "background"},
                 {text({.id = "transcript", .text = computed([s] { return s->guide ? s->guide->transcript.get() : std::string(); }), .style = "code"})})});
     // Beside the place it keeps its width (a phone: the whole of it).
-    panel.prop("min_width", Prop<Dim>(computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(380.0f); })));
+    panel.prop("min_width", Prop<Dim>(computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(380.0f); })));
     panel.prop("shrink", Source{Value(0.0), {}, {}});
     return panel;
 }
@@ -1000,7 +1004,7 @@ Element check_panel(const std::shared_ptr<Site>& s) {
     auto say = [s](std::string_view en, std::string_view han) {
         return computed([s, en = std::string(en), han = std::string(han)] { return s->lang.get() == "zh" ? han : en; });
     };
-    return column({.id = "check", .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(360.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
+    return column({.id = "check", .width = computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(360.0f); }), .min_width = computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(360.0f); }), .padding = Edges(16.0f, 16.0f), .gap = 10, .shrink = 0, .background = "surface"},
                   {text({.id = "title", .text = say("The reference run", "参考回放"), .style = "heading"}),
                    text({.id = "about",
                          .text = say("A few seconds of this site, played here offscreen at CI's size (1280 × 800): its home, the features, the language switched, a lens. "
@@ -1070,8 +1074,8 @@ Element settings_panel(const std::shared_ptr<Site>& s) {
                       {text({.id = "name", .text = say(en, han), .style = "label", .color = "text_muted"}), select(std::move(o))});
     };
     return column({.id = "settings",
-                   .width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }),
-                   .min_width = computed([s] { return s->compact.get() ? Dim(layout::pct(100)) : Dim(340.0f); }),
+                   .width = computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(340.0f); }),
+                   .min_width = computed([s] { return s->compact.get() ? Dim(mlibs::layout::pct(100)) : Dim(340.0f); }),
                    .padding = Edges(20.0f, 20.0f),
                    .gap = 14,
                    .shrink = 0,
@@ -1148,12 +1152,12 @@ Element hello_page(const std::shared_ptr<Site>& s, float room) {
         button({.id = "copy_commands", .text = say("Copy commands", "复制命令"), .on_activated = [s] {
             if (s->runtime) s->runtime->set_clipboard_text(quickstart_commands);
         }, .align_self = "start"})});
-    Element intro = column({.id = "intro", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .gap = 16},
+    Element intro = column({.id = "intro", .width = narrow ? Dim(mlibs::layout::pct(100)) : Dim(440.0f), .gap = 16},
                            {text({.id = "about",
                                   .text = say("Example 01, running here: type a name, press the button. Its interface is declared each frame in plain C++; an agent finds the field by its role, and renaming the button keeps its id.",
                                               "示例 01，就在这里运行：输入名字，按按钮。界面每一帧用普通的 C++ 声明；agent 按角色找到输入框，按钮改名后 id 不变。"),
                                   .style = "body"}),
-                            box({.id = "run", .width = narrow ? Dim(layout::pct(100)) : Dim(440.0f), .height = Dim(280.0f), .background = "surface",
+                            box({.id = "run", .width = narrow ? Dim(mlibs::layout::pct(100)) : Dim(440.0f), .height = Dim(280.0f), .background = "surface",
                                  .border_color = "border", .border_width = 1, .radius = 14, .clip = true},
                                 {hello::app(s->hello).view()})});
     // The source as written: lines kept whole (indentation is meaning), scrolled sideways when long.
@@ -1189,28 +1193,28 @@ Element timeline_page(const std::shared_ptr<Site>& s, float room) {
                                     // Two figures squared up on a floor line, and the light of a blow between them.
                                     const float w = ctx.size.width, h = ctx.size.height;
                                     auto figure = [&](float x, float dir, Color c) {
-                                        ctx.list.fill_round_rect({x - w * 0.05f, h * 0.18f, w * 0.1f, w * 0.1f}, CornerRadii::all(w * 0.05f), render::Paint::solid(c));
-                                        render::Path body;
+                                        ctx.list.fill_round_rect({x - w * 0.05f, h * 0.18f, w * 0.1f, w * 0.1f}, CornerRadii::all(w * 0.05f), xrender::Paint::solid(c));
+                                        xrender::Path body;
                                         body.move_to({x, h * 0.32f}).line_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x - dir * w * 0.09f, h * 0.92f});
                                         body.move_to({x - dir * w * 0.02f, h * 0.62f}).line_to({x + dir * w * 0.07f, h * 0.92f});
                                         body.move_to({x, h * 0.4f}).line_to({x + dir * w * 0.16f, h * 0.36f});
-                                        ctx.list.stroke_path(body, render::StrokeStyle{.width = w * 0.035f, .cap = render::LineCap::round, .join = render::LineJoin::round},
-                                                             render::Paint::solid(c));
+                                        ctx.list.stroke_path(body, xrender::StrokeStyle{.width = w * 0.035f, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round},
+                                                             xrender::Paint::solid(c));
                                     };
                                     figure(w * 0.32f, 1, Color::hex(0x60a5fa));
                                     figure(w * 0.68f, -1, Color::hex(0xf59e0b));
-                                    ctx.list.fill_round_rect({w * 0.47f, h * 0.31f, w * 0.06f, w * 0.06f}, CornerRadii::all(w * 0.03f), render::Paint::solid(Color::hex(0xffffff, 0.85f)));
+                                    ctx.list.fill_round_rect({w * 0.47f, h * 0.31f, w * 0.06f, w * 0.06f}, CornerRadii::all(w * 0.03f), xrender::Paint::solid(Color::hex(0xffffff, 0.85f)));
                                     ctx.list.fill_rect({0, h * 0.94f, w, 2}, Color::hex(0xffffff, 0.25f));
                                 }});
     Element monitor = stack({.id = "monitor", .width = Dim(mw), .height = Dim(mw * 9 / 16), .background = Fill(Color::hex(0x05070b)), .radius = 14, .clip = true,
                              .label = std::string("Program monitor")},
-                            {column({.id = "title_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 8, .justify = "center", .align = "center",
+                            {column({.id = "title_card", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .gap = 8, .justify = "center", .align = "center",
                                      .opacity = level("title")},
                                     {brand_mark("mark", mw * 0.14f), text({.id = "name", .text = std::string("a short"), .style = "title", .color = Fill(Color::hex(0xe6edf7))})}),
-                             column({.id = "fight_card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .justify = "center", .align = "center",
+                             column({.id = "fight_card", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .justify = "center", .align = "center",
                                      .opacity = level("the fight")},
                                     {std::move(fighters)}),
-                             column({.id = "time", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(10.0f, 14.0f), .justify = "end"},
+                             column({.id = "time", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(10.0f, 14.0f), .justify = "end"},
                                     {row({.gap = 10, .align = "center"},
                                          {text({.id = "timecode",
                                                 .text = computed([s] {
@@ -1253,11 +1257,11 @@ Element document_page(const std::shared_ptr<Site>& s, const std::string& id, flo
     auto rail = [s, id](std::string_view lang) {
         std::vector<Element> entries;
         entries.push_back(text({.id = "label", .text = std::string(lang == "zh" ? "本页内容" : "On this page"), .style = "caption", .color = "text_muted"}));
-        const md::Document d = md::parse(document(id, lang));
+        const mlibs::markdown::Document d = mlibs::markdown::parse(document(id, lang));
         std::size_t i = 0;
-        md::walk(d.root, [&](const md::Block& b) {
-            if (b.kind != md::Kind::heading || b.level > 2) return;
-            ButtonOptions o{.id = std::format("s{}", i++), .text = md::plain_text(b), .variant = ButtonVariant::ghost};
+        mlibs::markdown::walk(d.root, [&](const mlibs::markdown::Block& b) {
+            if (b.kind != mlibs::markdown::Kind::heading || b.level > 2) return;
+            ButtonOptions o{.id = std::format("s{}", i++), .text = mlibs::markdown::plain_text(b), .variant = ButtonVariant::ghost};
             o.max_width = Dim(200.0f);
             o.align_self = "start";
             o.on_activated = [s, id, anchor = b.anchor] {
@@ -1350,7 +1354,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     body.prop("max_width", Source(Value(static_cast<double>(content_width))));
     body.prop("align_self", Source(Value("center")));
     // Filling the view (a stack: the place under the lens's renderings).
-    Element page = scroll({.id = id, .y = static_cast<float>(s->scroll_positions[scroll_key]), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
+    Element page = scroll({.id = id, .y = static_cast<float>(s->scroll_positions[scroll_key]), .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(narrow ? 24.0f : 56.0f, margin), .background = "background"},
                           {std::move(body)});
     // The home page's scroll is its motion screen's time.
     page.on("scrolled", [s, id, scroll_key](const Value& at) {
@@ -1496,8 +1500,8 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
             if (it != all.end()) s->mark(std::string(zh ? it->zh : it->en));
         }
         (void)rt.stage_plugins().add({.name = "openmui.site.preview_input_guard", .kind = "stage", .description = "person input cancels pending task previews before timers",
-                                      .cost = pipeline::Cost{.cpu_us = 50}},
-                               [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
+                                      .cost = mlibs::pipeline::Cost{.cpu_us = 50}},
+                               [site = s.get()](const mlibs::pipeline::Config&) -> std::expected<std::unique_ptr<mlibs::pipeline::Stage>, std::string> {
                                    return std::make_unique<PreviewInputGuard>(*site);
                                });
         auto guarded = rt.frame_pipeline().description();
@@ -1505,8 +1509,8 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         for (auto& stage : guarded.stages) if (stage.name == "timers") stage.after.push_back("preview_input_guard");
         (void)rt.stage_plugins().add({.name="omui.site.program_motion",.kind="stage",
             .description="public Hanim programs publish selected UI poses before bounds and paint",
-            .trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=50}},
-            [site=s.get()](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{
+            .trace_category="omui.hanim.playback",.cost=mlibs::pipeline::Cost{.cpu_us=50}},
+            [site=s.get()](const mlibs::pipeline::Config&)->std::expected<std::unique_ptr<mlibs::pipeline::Stage>,std::string>{
                 return std::make_unique<ProgramMotionStage>(*site);
             });
         const auto bounds=std::ranges::find_if(guarded.stages,[](const auto& stage){return stage.name=="bounds";});
@@ -1514,18 +1518,18 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
             bounds->after.push_back("program_motion");
             guarded.stages.insert(bounds,{"program_motion","omui.site.program_motion",{"layout"},{}});
         }
-        const std::array<pipeline::Port, 2> frame_inputs{
-            pipeline::port<FrameInput>(std::string(frame_resource::input)), pipeline::port<FrameTree>(std::string(frame_resource::tree))};
-        if (auto ready = pipeline::Pipeline::build(guarded, rt.stage_plugins(), frame_inputs); ready)
+        const std::array<mlibs::pipeline::Port, 2> frame_inputs{
+            mlibs::pipeline::port<FrameInput>(std::string(frame_resource::input)), mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+        if (auto ready = mlibs::pipeline::Pipeline::build(guarded, rt.stage_plugins(), frame_inputs); ready)
             rt.frame_pipeline() = std::move(*ready);
-        else site_log.warn("the preview input guard is not in the frame: {}", pipeline::to_text(ready.error()));
+        else site_log.warn("the preview input guard is not in the frame: {}", mlibs::pipeline::to_text(ready.error()));
         (void)rt.stage_plugins().add({.name = "openmui.site.tree_watch", .kind = "stage", .description = "the site's place read again when its tree changed",
-                                      .cost = pipeline::Cost{.cpu_us = 200}},
-                               [site = s.get()](const pipeline::Config&) -> std::expected<std::unique_ptr<pipeline::Stage>, std::string> {
+                                      .cost = mlibs::pipeline::Cost{.cpu_us = 200}},
+                               [site = s.get()](const mlibs::pipeline::Config&) -> std::expected<std::unique_ptr<mlibs::pipeline::Stage>, std::string> {
                                    return std::make_unique<TreeWatch>(*site);
                                });
         if (auto in = rt.frame_pipeline().insert({"tree_watch", "openmui.site.tree_watch", {"paint"}, {}}, rt.stage_plugins()); !in)
-            site_log.warn("the tree watch is not in the frame: {}", pipeline::to_text(in.error()));
+            site_log.warn("the tree watch is not in the frame: {}", mlibs::pipeline::to_text(in.error()));
         if (!s->initial_route.empty()) rt.set_route(s->initial_route);
         else s->show_route();
         s->soon();
@@ -1630,11 +1634,11 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
             return std::vector<Element>{place_page(s, s->place.get())};
         }));
         // Over the place, as the lens says.
-        shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}),
+        shown.push_back(fades_in(lens({.id = "wireframe", .nodes = s->nodes, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
                                  [s] { return s->lens.get() == "tree"; }));
         for (const std::string_view which : {"agent", "test"}) {
             const std::string key(which);
-            shown.push_back(fades_in(scroll({.id = "lens_" + key, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = Edges(32.0f, 48.0f), .background = "background"},
+            shown.push_back(fades_in(scroll({.id = "lens_" + key, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(32.0f, 48.0f), .background = "background"},
                                              {text({.id = key + "_text", .text = key == "agent" ? s->agent : s->test, .style = "code"})}),
                                       [s, key] { return s->lens.get() == key; }));
         }
@@ -1789,7 +1793,7 @@ std::string static_html(std::string_view lang) {
             else if (p.id == "explore") out += motion_gallery_html(chinese, true);
             if (const std::string_view doc = document(p.id, language); !doc.empty()) {
                 if (p.id == "hello") out += std::format("<h1>{}</h1>", chinese ? "开始使用" : "Get started");
-                std::string html = md::to_html(md::parse(doc));
+                std::string html = mlibs::markdown::to_html(mlibs::markdown::parse(doc));
                 for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}})
                     for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"{}", href(place, chinese));;) {
                         const auto at = html.find(from);

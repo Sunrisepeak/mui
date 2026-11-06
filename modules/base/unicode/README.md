@@ -14,9 +14,3 @@ Regenerate for a new Unicode version:
 # UnicodeData.txt and SpecialCasing.txt
 omui-gen unicode <ucd-dir> --version 17.0.0 --out modules/base/unicode/src/generated --tests modules/base/unicode/tests/data
 ```
-
-The canonical package/import is `mlibs.unicode` and the API is `mlibs::unicode`.
-The legacy `openmui.unicode` import remains in this same package, sharing
-the same implementation and types; C++ consumers must rebuild. The old API is
-`omui::unicode`. No separate compatibility package is added.
-See the [namespace migration guide](../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索).

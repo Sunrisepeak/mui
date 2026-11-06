@@ -3,10 +3,15 @@ module openmui.ui.canvas;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
-import openmui.raster;
+import xrender.vector;
+import xrender.raster;
 import hanim.core;
-import openmui.trace;
+import mlibs.trace;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::fatal;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -469,19 +474,19 @@ void Canvas::restyle() {
     services().invalidate_paint(node());
 }
 
-void Canvas::style(const Theme&, layout::Style& s) const {
+void Canvas::style(const Theme&, mlibs::layout::Style& s) const {
     // The promoted nodes overlap at the origin; their transforms place them.
-    s.display = layout::Display::stack;
+    s.display = mlibs::layout::Display::stack;
     // Its size is the layout's to give, never its live nodes' (laid out at
     // their world size, they may be far larger than the view).
-    s.min_width = s.min_height = layout::pt(0);
-    s.overflow_x = s.overflow_y = layout::Overflow::clip;
+    s.min_width = s.min_height = mlibs::layout::pt(0);
+    s.overflow_x = s.overflow_y = mlibs::layout::Overflow::clip;
 }
 
 // ── drawing ──────────────────────────────────────────────────────────────
 
 void Canvas::paint(PaintContext& ctx) const {
-    trace::Span span("canvas.paint", "canvas");
+    mlibs::trace::Span span("canvas.paint", "canvas");
     const auto from = std::chrono::steady_clock::now();
     const Size vp = ctx.size;
     ctx.list.fill_rect({0, 0, vp.width, vp.height}, ctx.theme.color(props.background, ctx.theme.color("background")));
@@ -522,7 +527,7 @@ void Canvas::paint(PaintContext& ctx) const {
                 const Color fill = s->fill(n);
                 if (fill.a > 0) {
                     const float r = static_cast<float>(s->radius(n) * camera_.zoom);
-                    if (r > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(r), render::Paint::solid(fill));
+                    if (r > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(r), xrender::Paint::solid(fill));
                     else ctx.list.fill_rect(screen, fill);
                 }
                 ++stats_.boxes;
@@ -546,15 +551,15 @@ void Canvas::paint(PaintContext& ctx) const {
                     const float centrality = 1.0f / (1.0f + (cx * cx + cy * cy) / (vp.width * vp.width + vp.height * vp.height));
                     textures_.want(key, rev, level, n, screen.width * screen.height * centrality);
                 }
-                const raster::Surface* img = pick ? services().images().get(pick->image) : nullptr;
+                const xrender::raster::Surface* img = pick ? services().images().get(pick->image) : nullptr;
                 if (img) {
                     ctx.list.draw_image(pick->image, {0, 0, static_cast<float>(img->width()), static_cast<float>(img->height())}, screen,
-                                        render::Sampling::linear);
+                                        xrender::Sampling::linear);
                     ++stats_.textured;
                     if (!pick->exact) ++stats_.stretched;
                 } else {
                     const Color fill = s->fill(n);
-                    if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), render::Paint::solid(fill));
+                    if (fill.a > 0) ctx.list.fill_round_rect(screen, CornerRadii::all(static_cast<float>(s->radius(n) * camera_.zoom)), xrender::Paint::solid(fill));
                     ++stats_.boxes;
                 }
                 break;
@@ -570,7 +575,7 @@ void Canvas::paint(PaintContext& ctx) const {
     const auto done = std::chrono::steady_clock::now();
     stats_.query_ms = std::chrono::duration<double, std::milli>(queried - from).count();
     stats_.paint_ms = std::chrono::duration<double, std::milli>(done - queried).count();
-    trace::count("canvas.visible", static_cast<double>(stats_.visible), "canvas");
+    mlibs::trace::count("canvas.visible", static_cast<double>(stats_.visible), "canvas");
 }
 
 void Canvas::paint_over(PaintContext& ctx) const {
@@ -580,7 +585,7 @@ void Canvas::paint_over(PaintContext& ctx) const {
 
 // Edges between their nodes' facing sides: a curve, or a straight line when
 // far out; none when both ends are dots.
-void Canvas::paint_edges(const world::Scene& s, render::DisplayList& list, Size vp) const {
+void Canvas::paint_edges(const world::Scene& s, xrender::DisplayList& list, Size vp) const {
     const auto edges = s.edges();
     if (edges.empty()) return;
     const world::WorldRect view = camera_.visible(vp);
@@ -607,12 +612,12 @@ void Canvas::paint_edges(const world::Scene& s, render::DisplayList& list, Size 
             p1 = {cb.x, dir > 0 ? sb.y : sb.bottom()};
             n0 = {0, dir}, n1 = {0, -dir};
         }
-        render::Path path;
+        xrender::Path path;
         path.move_to(p0);
         const float bend = std::hypot(p1.x - p0.x, p1.y - p0.y) * 0.4f;
         if (camera_.zoom < 0.15 || bend < 6) path.line_to(p1);
         else path.cubic_to({p0.x + n0.x * bend, p0.y + n0.y * bend}, {p1.x + n1.x * bend, p1.y + n1.y * bend}, p1);
-        list.stroke_path(path, {.width = std::max(1.0f, e.width * z), .cap = render::LineCap::round}, render::Paint::solid(e.color));
+        list.stroke_path(path, {.width = std::max(1.0f, e.width * z), .cap = xrender::LineCap::round}, xrender::Paint::solid(e.color));
     }
 }
 

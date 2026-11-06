@@ -26,7 +26,7 @@ Element card(std::string id, std::vector<Element> children, float width) {
                   std::move(children));
 }
 
-std::string_view tier_name(pipeline::Tier t, bool zh) {
+std::string_view tier_name(mlibs::pipeline::Tier t, bool zh) {
     switch (static_cast<int>(t)) {
         case 0: return zh ? "T0 · 微控制器" : "T0 · a microcontroller";
         case 1: return zh ? "T1 · 嵌入式" : "T1 · embedded";
@@ -69,7 +69,7 @@ Element agent_screen(const ScreensSite& site, float room) {
                        {text({.id = "title", .text = say(site, "What agents did on this page", "agent 在这一页做过的事"), .style = "label"}),
                         actor_log({.id = "log",
                                    .phrases = computed([lang = site.lang, zh] { return lang && lang->get() == "zh" ? zh : Value{}; }),
-                                   .width = Dim(layout::pct(100)),
+                                   .width = Dim(mlibs::layout::pct(100)),
                                    .label = "What agents did on this page"})},
                        wide ? 520.0f : room);
     return screen(site, "agent", {"Agent native", "agent 原生"}, {"Your agent works here, as you do.", "你的 agent 在这里工作，和你一样。"},
@@ -156,7 +156,7 @@ Element fast_screen(const ScreensSite& site, float room) {
                               const bool zh = lang && lang->get() == "zh";
                               if (!rt || !*rt) return std::string();
                               const Adaptation& a = (*rt)->adaptation();
-                              const pipeline::Tier drawn = std::min(a.tier, a.effects);  // never above what the device is
+                              const mlibs::pipeline::Tier drawn = std::min(a.tier, a.effects);  // never above what the device is
                               const std::string by((*rt)->renderer());
                               return zh ? std::format("这台设备：{} · 由 {} 绘制 · 效果按 {}", tier_name(a.tier, true), by == "cpu" ? "CPU" : by, tier_name(drawn, true))
                                         : std::format("This device: {} · drawn by {} · effects as {}", tier_name(a.tier, false), by == "cpu" ? "the CPU" : by,

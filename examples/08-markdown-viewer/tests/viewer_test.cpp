@@ -5,9 +5,9 @@
 import std;
 import openmui;
 import viewer;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

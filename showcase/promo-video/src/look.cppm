@@ -58,11 +58,11 @@ struct Span {
 
 // The paper: its colour, a vignette, and its grid (minor every 24 units,
 // major every 120) moved by `offset` and scaled by `scale` (a parallax).
-void paint_paper(render::DisplayList& list, Size size, Point offset = {}, float scale = 1, float grid = 1);
+void paint_paper(xrender::DisplayList& list, Size size, Point offset = {}, float scale = 1, float grid = 1);
 // A drawing's frame round a rectangle: corner ticks and a hairline.
-void paint_ticks(render::DisplayList& list, Rect r, Color c, float tick = 14, float width = 1.5f, float hairline = 0.25f);
+void paint_ticks(xrender::DisplayList& list, Rect r, Color c, float tick = 14, float width = 1.5f, float hairline = 0.25f);
 // A straight line.
-void paint_line(render::DisplayList& list, Point a, Point b, Color c, float width = 1.5f);
+void paint_line(xrender::DisplayList& list, Point a, Point b, Color c, float width = 1.5f);
 
 // The least size of the film's type, in logical pixels of its 1920 × 1080
 // (9 px when it plays 960 across): what a painter's labels and the type
@@ -74,12 +74,12 @@ class Labels {
 public:
     // The smallest size any painter has asked for since the process began (∞ before).
     [[nodiscard]] static float smallest() noexcept;
-    const typeset::Paragraph& get(typeset::FontCollection& fonts, std::string_view text, float size, Color color, float weight = 500,
+    const mlibs::text::Paragraph& get(mlibs::text::FontCollection& fonts, std::string_view text, float size, Color color, float weight = 500,
                                   std::string_view family = "Inter", float width = 0);
     void clear() { cache_.clear(); }
 
 private:
-    std::unordered_map<std::uint64_t, typeset::Paragraph> cache_;
+    std::unordered_map<std::uint64_t, mlibs::text::Paragraph> cache_;
 };
 
 // ── time ────────────────────────────────────────────────────────────────

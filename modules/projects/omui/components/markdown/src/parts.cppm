@@ -13,12 +13,12 @@ module openmui.ui.markdown:parts;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.markdown;
+import mlibs.markdown;
 import :markdown_contract;
 
 namespace omui::mdview {
 
-namespace md = omui::md;
+namespace md = mlibs::markdown;
 
 // What the document shares with its parts.
 struct Hub {
@@ -55,7 +55,7 @@ struct Data {
 [[nodiscard]] std::int32_t count_tasks(const md::Block& b);
 
 // The text style of a block, from the theme.
-[[nodiscard]] typeset::TextStyle text_style(const Theme& theme, const md::Block& b);
+[[nodiscard]] mlibs::text::TextStyle text_style(const Theme& theme, const md::Block& b);
 
 // ── a block of text: paragraph, heading, table cell, code, raw HTML ──
 
@@ -68,9 +68,9 @@ public:
 
     void mount(Services& s, NodeId n);
     ~Text();
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void restyle() { paragraph_.reset(); }
-    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float> h, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float> h, mlibs::layout::Available aw, mlibs::layout::Available ah);
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
@@ -89,12 +89,12 @@ public:
     [[nodiscard]] std::string selected() const;
 
 private:
-    typeset::Paragraph& shaped(Services& s) const;
+    mlibs::text::Paragraph& shaped(Services& s) const;
     void lay(float width) const;
 
     Services* services_ = nullptr;
     NodeId    node_;
-    mutable std::optional<typeset::Paragraph> paragraph_;
+    mutable std::optional<mlibs::text::Paragraph> paragraph_;
     mutable float laid_ = -1;
     mutable Point origin_{};                  // where the text starts (the content box)
     std::vector<std::pair<std::uint32_t, std::uint32_t>> link_ranges_;  // of the children, in order
@@ -136,7 +136,7 @@ public:
     std::shared_ptr<const Data> data;
 
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
     std::vector<Element> compose();
@@ -144,7 +144,7 @@ public:
 private:
     Services* services_ = nullptr;
     NodeId    node_;
-    mutable std::optional<typeset::Paragraph> marker_;  // an ordered item's number
+    mutable std::optional<mlibs::text::Paragraph> marker_;  // an ordered item's number
 };
 
 // ── a task item's checkbox ──
@@ -159,7 +159,7 @@ public:
     std::shared_ptr<const Data> data;  // the item
 
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
-    Size measure(MeasureContext&, std::optional<float>, std::optional<float>, layout::Available, layout::Available) { return {16, 16}; }
+    Size measure(MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) { return {16, 16}; }
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     ActResult act(ActContext& ctx, std::string_view action);  // toggle
@@ -181,19 +181,19 @@ public:
     std::shared_ptr<const Data> data;
 
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void restyle() { paragraph_.reset(); }
-    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float> h, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> w, std::optional<float> h, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
     std::vector<Element> compose();
 
 private:
-    typeset::Paragraph& shaped(Services& s) const;
+    mlibs::text::Paragraph& shaped(Services& s) const;
 
     Services* services_ = nullptr;
     NodeId    node_;
-    mutable std::optional<typeset::Paragraph> paragraph_;
+    mutable std::optional<mlibs::text::Paragraph> paragraph_;
     mutable float laid_ = -1;
 };
 
@@ -208,16 +208,16 @@ public:
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
     ~Copy();
     bool set_prop(std::string_view k, const Value& v);  // copied: the label says so for a moment
-    Size measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available);
+    Size measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
 
 private:
-    typeset::Paragraph& label(Services& s) const;
+    mlibs::text::Paragraph& label(Services& s) const;
     Services* services_ = nullptr;
     NodeId    node_;
-    mutable std::optional<typeset::Paragraph> label_;
+    mutable std::optional<mlibs::text::Paragraph> label_;
     bool          copied_ = false;
     std::uint64_t timer_ = 0;
 };
@@ -231,10 +231,10 @@ public:
 
     std::shared_ptr<const Data> data;
 
-    Size measure(MeasureContext&, std::optional<float> w, std::optional<float>, layout::Available aw, layout::Available) {
+    Size measure(MeasureContext&, std::optional<float> w, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
         return {w.value_or(aw.is_definite() ? aw.value : 0), 1};
     }
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& n) const;
 };

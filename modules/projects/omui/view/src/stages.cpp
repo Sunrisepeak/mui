@@ -5,16 +5,20 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.pipeline;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.pipeline;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui {
 
 namespace {
 
-namespace pl = pipeline;
+namespace pl = mlibs::pipeline;
 namespace res = frame_resource;
 
 using Body = void (*)(Runtime::Impl& d, pl::Context& c);
@@ -40,7 +44,7 @@ private:
 pl::Port tree() { return pl::port<FrameTree>(std::string(res::tree)); }
 pl::Port layout_port() { return pl::port<FrameLayout>(std::string(res::layout)); }
 pl::Port bounds_port() { return pl::port<FrameBounds>(std::string(res::bounds)); }
-pl::Port display() { return pl::port<render::DisplayList>(std::string(res::display)); }
+pl::Port display() { return pl::port<xrender::DisplayList>(std::string(res::display)); }
 pl::Port input_port() { return pl::port<FrameInput>(std::string(res::input)); }
 
 bool debugging(const Runtime::Impl& d) noexcept {
@@ -125,7 +129,7 @@ std::vector<Plugin> plugins() {
 
 }  // namespace
 
-pipeline::Description runtime_pipeline(Stages stages) {
+mlibs::pipeline::Description runtime_pipeline(Stages stages) {
     pl::Description d;
     auto add = [&](std::string_view name) { d.stages.push_back({std::string(name), std::format("openmui.view.{}", name), {}, {}}); };
     for (std::string_view s : {"timers", "input", "regions", "animations"}) add(s);

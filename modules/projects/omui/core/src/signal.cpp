@@ -2,6 +2,10 @@ module openmui.core;
 
 import std;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::error;
+}
+
 namespace omui {
 
 namespace detail {

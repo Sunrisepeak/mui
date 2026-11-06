@@ -19,13 +19,13 @@ constexpr float arrow = 7;
 // A chevron pointing right, or down (turned a quarter), centred at c.
 void draw_chevron(PaintContext& ctx, Point c, float size, bool down, Color color) {
     auto at = [&](float x, float y) { return down ? Point{c.x - y, c.y + x} : Point{c.x + x, c.y + y}; };
-    render::Path p;
+    xrender::Path p;
     p.move_to(at(-size / 4, -size / 2)).line_to(at(size / 4, 0)).line_to(at(-size / 4, size / 2));
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 }  // namespace
@@ -63,8 +63,8 @@ float Card::header(const Theme& theme) const {
     return h;
 }
 
-void Card::style(const Theme& theme, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void Card::style(const Theme& theme, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     s.row_gap = s.column_gap = 8;
     const float h = header(theme);
     s.padding = {card_pad + (h > 0 ? h + card_gap : 0), card_pad, card_pad, card_pad};
@@ -79,19 +79,19 @@ void Card::paint(PaintContext& ctx) const {
     switch (props.variant) {
         case CardVariant::elevated:
             shadow(ctx, lifted ? "lg" : "md", box, r);
-            ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
             break;
         case CardVariant::outlined:
-            ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
             ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1,
-                                       render::Paint::solid(lifted ? th.color("border_strong") : th.color("border")));
+                                       xrender::Paint::solid(lifted ? th.color("border_strong") : th.color("border")));
             break;
         case CardVariant::filled:
-            ctx.list.fill_round_rect(box, r, render::Paint::solid(lifted ? th.color("surface_pressed") : th.color("surface_variant")));
+            ctx.list.fill_round_rect(box, r, xrender::Paint::solid(lifted ? th.color("surface_pressed") : th.color("surface_variant")));
             break;
     }
-    if (live && ctx.state.pressed) ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("text").with_alpha(0.04f)));
-    if (props.selected) ctx.list.stroke_round_rect({1, 1, box.width - 2, box.height - 2}, r, 2, render::Paint::solid(th.color("accent")));
+    if (live && ctx.state.pressed) ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("text").with_alpha(0.04f)));
+    if (props.selected) ctx.list.stroke_round_rect({1, 1, box.width - 2, box.height - 2}, r, 2, xrender::Paint::solid(th.color("accent")));
     float y = card_pad;
     if (!title_.text().empty()) {
         title_.paint(ctx, {card_pad, y}, th.color("text"));
@@ -115,7 +115,7 @@ void Card::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     else node.role = Role::button;
 }
 
-std::size_t Card::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Card::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(12).fitted(size)};
     return 1;
@@ -156,8 +156,8 @@ float Accordion::header_height(const Theme& theme) const {
     return std::max(theme.scaled(44), std::ceil(t.size * t.line_height) + 24);
 }
 
-void Accordion::style(const Theme& theme, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void Accordion::style(const Theme& theme, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     s.row_gap = s.column_gap = 8;
     s.padding = {header_height(theme), accordion_pad, props.expanded ? accordion_pad : 0, accordion_pad};
 }
@@ -167,10 +167,10 @@ void Accordion::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const float hh = header_height(th);
     const Rect head{0, 0, ctx.size.width, hh};
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     if (!off && (ctx.state.hovered || ctx.state.pressed))
         ctx.list.fill_round_rect(head, CornerRadii::all(th.corner("medium", 8)).fitted(head.size()),
-                                 render::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
+                                 xrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
     const Size t = title_.measure(ctx.services, th.color("text"));
     title_.paint(ctx, {accordion_pad, (hh - t.height) / 2}, th.color("text"));
     draw_chevron(ctx, {ctx.size.width - accordion_pad - chevron / 2, hh / 2}, chevron, props.expanded, th.color("text_muted"));
@@ -263,12 +263,12 @@ void Toast::close() {
     prop_changed(ToastProp::open);
 }
 
-void Toast::style(const Theme&, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
+void Toast::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
     s.padding = {12, 14, 12, 14};
 }
 
-Size Toast::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size Toast::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Theme& th = m.services.theme();
     const Size msg = message_.measure(m.services, th.color("text"), 320);
     const Size act = props.action.empty() ? Size{} : action_.measure(m.services, th.color("accent"));
@@ -284,14 +284,14 @@ void Toast::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
     const Color tone = props.tone == ToastTone::success ? th.color("success")
                        : props.tone == ToastTone::warning ? th.color("warning")
                        : props.tone == ToastTone::danger  ? th.color("danger")
                                                           : th.color("accent");
     const Rect c = ctx.content;
-    ctx.list.fill_round_rect({c.x, c.y + 2, toast_bar, std::max(0.0f, c.height - 4)}, CornerRadii::all(toast_bar / 2), render::Paint::solid(tone));
+    ctx.list.fill_round_rect({c.x, c.y + 2, toast_bar, std::max(0.0f, c.height - 4)}, CornerRadii::all(toast_bar / 2), xrender::Paint::solid(tone));
     const Size msg = message_.measure(ctx.services, th.color("text"), 320);
     message_.paint(ctx, {c.x + toast_bar + toast_gap, c.y + (c.height - msg.height) / 2}, th.color("text"));
     if (!props.action.empty()) {
@@ -360,13 +360,13 @@ void Popover::prop_changed(PopoverProp p) {
     services().invalidate_semantics(node());
 }
 
-void Popover::style(const Theme&, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
-    s.direction = layout::Direction::column;
+void Popover::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
+    s.direction = mlibs::layout::Direction::column;
     s.row_gap = s.column_gap = 8;
     s.padding = {12, 14, 12, 14};
-    s.min_width = layout::pt(160);
-    s.max_width = layout::pt(360);
+    s.min_width = mlibs::layout::pt(160);
+    s.max_width = mlibs::layout::pt(360);
 }
 
 void Popover::paint(PaintContext& ctx) const {
@@ -374,8 +374,8 @@ void Popover::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
     if (!props.arrow) return;
     // The point toward what opened it: on the edge facing it, across from its middle.
     const Rect me = ctx.services.bounds(ctx.node);
@@ -387,7 +387,7 @@ void Popover::paint(PaintContext& ctx) const {
     }
     const bool vertical = props.side == PopoverSide::below || props.side == PopoverSide::above;
     const bool before = (vertical && anchor.center().y < me.y) || (!vertical && anchor.center().x < me.x);
-    render::Path p;
+    xrender::Path p;
     if (vertical) {
         const float x = std::clamp(anchor.center().x - me.x, 16.0f, box.width - 16);
         const float y = before ? 0.5f : box.height - 0.5f, tip = before ? -arrow : arrow;
@@ -397,11 +397,11 @@ void Popover::paint(PaintContext& ctx) const {
         const float x = before ? 0.5f : box.width - 0.5f, tip = before ? -arrow : arrow;
         p.move_to({x, y - arrow}).line_to({x + tip, y}).line_to({x, y + arrow}).close();
     }
-    ctx.list.fill_path(p, render::FillRule::nonzero, render::Paint::solid(th.color("surface")));
-    render::StrokeStyle st;
+    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(th.color("surface")));
+    xrender::StrokeStyle st;
     st.width = 1;
-    st.join = render::LineJoin::round;
-    render::Path edge;  // its two outer sides only: where it meets the surface, no line
+    st.join = xrender::LineJoin::round;
+    xrender::Path edge;  // its two outer sides only: where it meets the surface, no line
     if (vertical) {
         const float x = std::clamp(anchor.center().x - me.x, 16.0f, box.width - 16);
         const float y = before ? 0.5f : box.height - 0.5f, tip = before ? -arrow : arrow;
@@ -411,7 +411,7 @@ void Popover::paint(PaintContext& ctx) const {
         const float x = before ? 0.5f : box.width - 0.5f, tip = before ? -arrow : arrow;
         edge.move_to({x, y - arrow}).line_to({x + tip, y}).line_to({x, y + arrow});
     }
-    ctx.list.stroke_path(edge, st, render::Paint::solid(th.color("border")));
+    ctx.list.stroke_path(edge, st, xrender::Paint::solid(th.color("border")));
 }
 
 void Popover::semantics(SemanticsContext&, spec::SemanticNode& node) const {

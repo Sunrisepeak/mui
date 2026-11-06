@@ -44,7 +44,7 @@ std::optional<std::size_t> Segmented::index_of(std::string_view value) const {
     return std::nullopt;
 }
 
-Size Segmented::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Segmented::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     float w = 2 * seg_inset;
     for (parts::Label& l : labels_) w += std::ceil(l.measure(m.services, m.services.theme().color("text")).width) + 2 * seg_pad;
     return {width.value_or(w), height.value_or(seg_h)};
@@ -55,8 +55,8 @@ void Segmented::paint(PaintContext& ctx) const {
     const bool off = props.disabled || ctx.state.disabled;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const float radius = th.corner("medium", 8);
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, CornerRadii::all(radius).fitted(ctx.size), render::Paint::solid(th.color("surface_variant")));
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
+    ctx.list.fill_round_rect(box, CornerRadii::all(radius).fitted(ctx.size), xrender::Paint::solid(th.color("surface_variant")));
     // The segments share the width as their labels ask (any room left, evenly).
     float natural = 0;
     std::vector<float> widths;
@@ -77,13 +77,13 @@ void Segmented::paint(PaintContext& ctx) const {
         const Rect& r = at_[i];
         const CornerRadii rr = CornerRadii::all(radius - seg_inset).fitted(r.size());
         if (chosen == i) {
-            ctx.part({.role="selection",.reference=props.options[i],.allocation=r,.kind=render::PartKind::box},[&] {
+            ctx.part({.role="selection",.reference=props.options[i],.allocation=r,.kind=xrender::PartKind::box},[&] {
                 parts::shadow(ctx, "sm", r, rr);
-                ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface")));
+                ctx.list.fill_round_rect(r, rr, xrender::Paint::solid(th.color("surface")));
             });
         } else if (hover_ == static_cast<int>(i)) {
-            ctx.part({.role="hover",.reference=props.options[i],.allocation=r,.kind=render::PartKind::box},[&] {
-                ctx.list.fill_round_rect(r, rr, render::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
+            ctx.part({.role="hover",.reference=props.options[i],.allocation=r,.kind=xrender::PartKind::box},[&] {
+                ctx.list.fill_round_rect(r, rr, xrender::Paint::solid(th.color("surface_pressed").with_alpha(0.5f)));
             });
         }
         const Color c = chosen == i ? th.color("text") : th.color("text_muted");
@@ -199,7 +199,7 @@ void Chip::prop_changed(ChipProp p) {
     services().invalidate_semantics(node());
 }
 
-Size Chip::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Chip::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const Size t = label_.measure(m.services, m.services.theme().color("text"));
     float w = std::ceil(t.width) + 2 * chip_pad;
     if (props.selectable && props.selected) w += chip_icon + chip_gap;
@@ -216,11 +216,11 @@ void Chip::paint(PaintContext& ctx) const {
     const bool on = props.selectable && props.selected;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(ctx.size.height / 2);
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, box);
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
     Color fill = on ? th.color("accent_subtle") : th.color("surface");
     if (ctx.state.hovered && !off) fill = mix(fill, th.color("surface_pressed"), on ? 0.25f : 0.5f);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(fill));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(on ? th.color("accent") : th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(fill));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(on ? th.color("accent") : th.color("border")));
     const Color text = on ? th.color("accent") : th.color("text");
     float x = chip_pad;
     if (on) {
@@ -232,7 +232,7 @@ void Chip::paint(PaintContext& ctx) const {
     label_.paint(ctx, {x, (ctx.size.height - t.height) / 2}, text);
     if (props.removable) {
         const Rect rb = remove_box(ctx.size);
-        if (hover_remove_) ctx.list.fill_round_rect(rb, CornerRadii::all(chip_icon / 2), render::Paint::solid(th.color("surface_pressed")));
+        if (hover_remove_) ctx.list.fill_round_rect(rb, CornerRadii::all(chip_icon / 2), xrender::Paint::solid(th.color("surface_pressed")));
         parts::cross(ctx, rb.center(), 7, th.color("text_muted"));
     }
     if (off) ctx.list.pop_layer();
@@ -328,7 +328,7 @@ float RangeSlider::x_of(double v, Size size) const noexcept {
     return t.x + t.width * static_cast<float>(span == 0 ? 0 : std::clamp((v - props.min) / span, 0.0, 1.0));
 }
 
-Size RangeSlider::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size RangeSlider::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     return {width.value_or(aw.is_definite() ? std::min(aw.value, range_w) : range_w), height.value_or(range_h)};
 }
 
@@ -336,23 +336,23 @@ void RangeSlider::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     size_ = ctx.size;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     const Rect t = track(ctx.size);
     const CornerRadii round = CornerRadii::all(range_track / 2);
-    ctx.list.fill_round_rect(t, round, render::Paint::solid(th.color("track")));
+    ctx.list.fill_round_rect(t, round, xrender::Paint::solid(th.color("track")));
     const float lo = x_of(props.low, ctx.size), hi = x_of(props.high, ctx.size);
-    ctx.list.fill_round_rect({lo, t.y, hi - lo, t.height}, round, render::Paint::solid(th.color("accent")));
+    ctx.list.fill_round_rect({lo, t.y, hi - lo, t.height}, round, xrender::Paint::solid(th.color("accent")));
     for (int i = 0; i < 2; ++i) {
         const Point c{i == 0 ? lo : hi, ctx.size.height / 2};
         if (!off && ((ctx.state.focused && ctx.state.focus_visible && focus_ == i) || dragging_ == i)) {
             const float r = range_thumb / 2 + 6;
-            ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), render::Paint::solid(th.color("accent").with_alpha(0.18f)));
+            ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent").with_alpha(0.18f)));
         }
         const Rect thumb{c.x - range_thumb / 2, c.y - range_thumb / 2, range_thumb, range_thumb};
         ctx.list.box_shadow(thumb, CornerRadii::all(range_thumb / 2), {0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f));
-        ctx.list.fill_round_rect(thumb, CornerRadii::all(range_thumb / 2), render::Paint::solid(th.color("thumb")));
+        ctx.list.fill_round_rect(thumb, CornerRadii::all(range_thumb / 2), xrender::Paint::solid(th.color("thumb")));
         ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, range_thumb - 2, range_thumb - 2}, CornerRadii::all(range_thumb / 2 - 1), 2,
-                                   render::Paint::solid(th.color("accent")));
+                                   xrender::Paint::solid(th.color("accent")));
     }
     if (off) ctx.list.pop_layer();
 }

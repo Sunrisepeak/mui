@@ -127,14 +127,14 @@ ActResult Select::set_value(ActContext&, const Value& value) {
     return ActResult::done(Value(v));
 }
 
-void Select::style(const Theme& theme, layout::Style& s) const {
+void Select::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(pad_x) + chevron_room, 0, theme.scaled(pad_x)};
-    s.min_height = layout::pt(theme.scaled(field_h));
-    s.min_width = layout::pt(160);
+    s.min_height = mlibs::layout::pt(theme.scaled(field_h));
+    s.min_width = mlibs::layout::pt(160);
     s.border = Insets::all(1);
 }
 
-Size Select::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available, layout::Available) {
+Size Select::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     float w = 0;
     for (std::size_t i = 0; i < props.options.size(); ++i) {
         parts::Label probe;
@@ -152,11 +152,11 @@ void Select::paint(PaintContext& ctx) const {
     hover_ = !off && ctx.state.hovered ? 1.0 : 0.0;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, box);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const bool open = expanded();
     const Color border = open ? th.color("accent") : th.color("border");
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(border));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(border));
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
     const Size t = label_.measure(ctx.services, c, ctx.content.width);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
@@ -189,9 +189,9 @@ bool SelectPopup::set_prop(std::string_view k, const Value& v) {
 
 Value SelectPopup::get_prop(std::string_view k) const { return k == "open" ? Value(open_) : Value{}; }
 
-void SelectPopup::style(const Theme&, layout::Style& s) const {
-    s.display = open_ ? layout::Display::flex : layout::Display::none;
-    s.direction = layout::Direction::column;
+void SelectPopup::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = open_ ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
+    s.direction = mlibs::layout::Direction::column;
     s.padding = Insets::all(4);
     s.border = Insets::all(1);
 }
@@ -202,8 +202,8 @@ void SelectPopup::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }
 
 bool SelectPopup::on_event(EventContext&, const InputEvent& e) {
@@ -241,12 +241,12 @@ Value SelectOption::get_prop(std::string_view k) const {
     return {};
 }
 
-void SelectOption::style(const Theme& theme, layout::Style& s) const {
+void SelectOption::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, 10, 0, 10};
-    s.min_height = layout::pt(theme.scaled(option_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(option_h));
 }
 
-Size SelectOption::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size SelectOption::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Size t = label_.measure(m.services, m.services.theme().color("text"));
     return {std::ceil(t.width), std::ceil(t.height)};
 }
@@ -262,7 +262,7 @@ void SelectOption::paint(PaintContext& ctx) const {
     const bool chosen = selected();
     if (lit || chosen)
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)),
-                                 render::Paint::solid(chosen ? th.color("accent_subtle") : th.color("surface_variant")));
+                                 xrender::Paint::solid(chosen ? th.color("accent_subtle") : th.color("surface_variant")));
     const Color c = chosen ? th.color("accent") : th.color("text");
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

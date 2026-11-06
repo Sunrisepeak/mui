@@ -9,8 +9,8 @@ export namespace acme::ui {
 
 class Badge : public BadgeContract<Badge> {
 public:
-    omui::Size measure(omui::MeasureContext&, std::optional<float>, std::optional<float>, omui::layout::Available,
-                       omui::layout::Available) {
+    omui::Size measure(omui::MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available,
+                       mlibs::layout::Available) {
         return {props.count > 9 ? 28.0f : 20.0f, 20.0f};
     }
     void paint(omui::PaintContext& ctx) const;

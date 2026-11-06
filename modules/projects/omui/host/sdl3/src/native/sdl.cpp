@@ -6,7 +6,7 @@ module openmui.host.sdl3;
 import std;
 import mcpplibs.mwrap.sdl3;
 import openmui.core;
-import openmui.raster;
+import xrender.raster;
 import openmui.view;
 import mcpplibs.os;
 import :platform;
@@ -566,7 +566,7 @@ Polled poll(Window& w, bool wait, std::optional<std::chrono::milliseconds> timeo
     return out;
 }
 
-void present(Window& w, const raster::Surface& frame) {
+void present(Window& w, const xrender::raster::Surface& frame) {
     if (frame.width() <= 0 || frame.height() <= 0 || !w.renderer) return;
     if (!w.texture || w.tw != frame.width() || w.th != frame.height()) {
         if (w.texture) SDL_DestroyTexture(w.texture);
@@ -697,7 +697,7 @@ void synthesize(Window& w, std::span<const InputEvent> events) {
     }
 }
 
-std::expected<raster::Surface, std::string> read_back(Window& w) {
+std::expected<xrender::raster::Surface, std::string> read_back(Window& w) {
     if (!w.renderer || !w.texture) return std::unexpected("nothing shown yet");
     // Draw the last frame again and read it before presenting (a presented
     // back buffer may be gone).
@@ -708,7 +708,7 @@ std::expected<raster::Surface, std::string> read_back(Window& w) {
     SDL_Surface* rgba = SDL_ConvertSurface(s, SDL_PIXELFORMAT_RGBA32);
     SDL_DestroySurface(s);
     if (!rgba) return std::unexpected(std::format("SDL_ConvertSurface: {}", SDL_GetError()));
-    raster::Surface out(rgba->w, rgba->h);
+    xrender::raster::Surface out(rgba->w, rgba->h);
     for (int y = 0; y < rgba->h; ++y)
         std::memcpy(out.row(y), static_cast<const std::uint8_t*>(rgba->pixels) + static_cast<std::ptrdiff_t>(y) * rgba->pitch,
                     static_cast<std::size_t>(rgba->w) * 4);

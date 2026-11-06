@@ -4,11 +4,11 @@ import std;
 import openmui.core;
 import openmui.view;
 import hanim.core;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.text;
-import openmui.trace;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.text;
+import mlibs.trace;
 import xrender.text;
 
 namespace omui::world {
@@ -20,7 +20,7 @@ struct Textures::Done {
     std::uint64_t                    revision;
     int                              level;
     std::uint64_t                    epoch;
-    std::shared_ptr<raster::Surface> surface;
+    std::shared_ptr<xrender::raster::Surface> surface;
 };
 
 // Where jobs put what they made; shared with them, so a job that outlives
@@ -67,7 +67,7 @@ struct Textures::Offscreen {
     std::mutex                            lock;
     std::vector<std::unique_ptr<Runtime>> idle;
     std::optional<Theme>                  theme;
-    typeset::FontCollection*              fonts = nullptr;
+    mlibs::text::FontCollection*              fonts = nullptr;
     std::uint64_t                         generation = 0;
 
     struct Lease {
@@ -98,7 +98,7 @@ namespace {
 
 // A view laid out at `size` (its world units) and painted, settled: what an
 // offscreen runtime draws of it once its animations have ended.
-void paint_view(Runtime& rt, const Element& view, render::DisplayList& out) {
+void paint_view(Runtime& rt, const Element& view, xrender::DisplayList& out) {
     rt.mount("content", view);
     FrameOutput f = rt.frame();
     for (int i = 0; i < 8 && f.animating; ++i) {
@@ -110,14 +110,14 @@ void paint_view(Runtime& rt, const Element& view, render::DisplayList& out) {
 }
 
 // The images a display list draws, by reference.
-void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out) {
-    for (const render::Command& c : dl.commands())
+void images_of(const xrender::DisplayList& dl, std::vector<xrender::ImageRef>& out) {
+    for (const xrender::Command& c : dl.commands())
         std::visit(
             [&](const auto& cmd) {
                 using T = std::decay_t<decltype(cmd)>;
-                if constexpr (std::same_as<T, render::DrawImage>) out.push_back(cmd.image);
+                if constexpr (std::same_as<T, xrender::DrawImage>) out.push_back(cmd.image);
                 if constexpr (requires { cmd.paint; }) {
-                    if (cmd.paint.kind == render::Paint::Kind::image || cmd.paint.kind == render::Paint::Kind::image_mask) out.push_back(cmd.paint.image);
+                    if (cmd.paint.kind == xrender::Paint::Kind::image || cmd.paint.kind == xrender::Paint::Kind::image_mask) out.push_back(cmd.paint.image);
                     if (cmd.paint.material && cmd.paint.material->normal.id != 0) out.push_back(cmd.paint.material->normal);  // its normal map
                 }
             },
@@ -129,13 +129,13 @@ void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out
 // collection's id, never its address: a collection made where a freed one
 // was must not find the freed one's glyphs (its fonts' ids mean other fonts);
 // the caches of collections gone are dropped.
-render::GlyphSource* glyphs_for(typeset::FontCollection* fonts) {
+xrender::GlyphSource* glyphs_for(mlibs::text::FontCollection* fonts) {
     if (!fonts) return nullptr;
     thread_local std::map<std::uint64_t, std::unique_ptr<xrender::text::GlyphCache>> caches;
     const std::uint64_t id = fonts->id();
     auto it = caches.find(id);
     if (it == caches.end()) {
-        std::erase_if(caches, [](const auto& kv) { return !typeset::FontCollection::alive(kv.first); });
+        std::erase_if(caches, [](const auto& kv) { return !mlibs::text::FontCollection::alive(kv.first); });
         it = caches.emplace(id, std::make_unique<xrender::text::GlyphCache>(*fonts)).first;
     }
     return it->second.get();
@@ -188,7 +188,7 @@ void Textures::want(std::string_view key, std::uint64_t revision, int level, Nod
     candidates_.push_back({std::string(key), revision, level, node, priority});
 }
 
-void Textures::issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme) {
+void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme) {
     const std::size_t limit = options_.jobs ? options_.jobs : 2 * std::max(1u, Tasks::shared().threads());
     {
         std::scoped_lock g(offscreen_->lock);
@@ -213,14 +213,14 @@ void Textures::issue(const Scene& scene, const render::ImageStore& images, types
         if (largest > options_.max_side) s *= options_.max_side / largest;
         const int pw = std::max(1, static_cast<int>(std::ceil(r.width * s))), ph = std::max(1, static_cast<int>(std::ceil(r.height * s)));
         // Built here, on the scene's thread: a display list, or a view to lay out on the pool.
-        auto dl = std::make_shared<render::DisplayList>();
+        auto dl = std::make_shared<xrender::DisplayList>();
         std::shared_ptr<const Element> view;
-        auto snapshot = std::make_shared<render::ImageStore>();
+        auto snapshot = std::make_shared<xrender::ImageStore>();
         if (k.content) {
             k.content(scene, c.node, *dl);
-            std::vector<render::ImageRef> used;
+            std::vector<xrender::ImageRef> used;
             images_of(*dl, used);
-            for (render::ImageRef i : used) snapshot->put(i, images.shared(i));
+            for (xrender::ImageRef i : used) snapshot->put(i, images.shared(i));
         } else {
             view = std::make_shared<const Element>(k.view(scene, c.node));
         }
@@ -239,18 +239,18 @@ void Textures::issue(const Scene& scene, const render::ImageStore& images, types
                 Inbox& in;
                 ~Leave() { in.leave(); }
             } leave{*inbox};
-            trace::Span span("canvas.texture", "canvas");
-            auto surface = std::make_shared<raster::Surface>(pw, ph);
-            render::CpuRenderer r;
-            render::CpuOptions o;
-            o.transform = geom::Affine::scale(sx, sy);
+            mlibs::trace::Span span("canvas.texture", "canvas");
+            auto surface = std::make_shared<xrender::raster::Surface>(pw, ph);
+            xrender::CpuRenderer r;
+            xrender::CpuOptions o;
+            o.transform = mlibs::geom::Affine::scale(sx, sy);
             o.background = Color::transparent();
             if (view) {
                 // Laid out and painted here; its images are its runtime's.
                 auto lease = offscreen->take(world);
-                render::DisplayList painted;
+                xrender::DisplayList painted;
                 {
-                    trace::Span layout("canvas.texture.view", "canvas");
+                    mlibs::trace::Span layout("canvas.texture.view", "canvas");
                     paint_view(*lease.runtime, *view, painted);
                 }
                 (void)r.render(painted, *surface, {&lease.runtime->images(), glyphs_for(fonts)}, o);
@@ -264,7 +264,7 @@ void Textures::issue(const Scene& scene, const render::ImageStore& images, types
     candidates_.clear();
 }
 
-bool Textures::collect(render::ImageStore& images, std::uint64_t frame, bool wait) {
+bool Textures::collect(xrender::ImageStore& images, std::uint64_t frame, bool wait) {
     std::vector<Done> done;
     {
         std::unique_lock g(inbox_->lock);
@@ -301,7 +301,7 @@ bool Textures::collect(render::ImageStore& images, std::uint64_t frame, bool wai
             images.remove(old->second.image);
             bytes_ -= old->second.bytes;
         }
-        e.levels[d.level] = {images.add(std::shared_ptr<const raster::Surface>(std::move(d.surface))), bytes, frame};
+        e.levels[d.level] = {images.add(std::shared_ptr<const xrender::raster::Surface>(std::move(d.surface))), bytes, frame};
         bytes_ += bytes;
         entered += bytes;
         ++last_.entered;
@@ -334,7 +334,7 @@ bool Textures::collect(render::ImageStore& images, std::uint64_t frame, bool wai
     return changed;
 }
 
-void Textures::complete(const Scene& scene, render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme, std::uint64_t frame) {
+void Textures::complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame) {
     if (candidates_.empty()) return;
     const Options kept = options_;
     options_.jobs = std::max<std::size_t>(1, candidates_.size() + in_flight_.size());
@@ -344,7 +344,7 @@ void Textures::complete(const Scene& scene, render::ImageStore& images, typeset:
     options_ = kept;
 }
 
-void Textures::clear(render::ImageStore& images) {
+void Textures::clear(xrender::ImageStore& images) {
     ++inbox_->epoch;
     {
         // The views are laid out again, in the theme the next frame gives.

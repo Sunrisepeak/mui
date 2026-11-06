@@ -1,12 +1,12 @@
 // Arbitrary registered effect parameters use hanim, with real offscreen pixels.
 import std;
 import openmui.view;
-import openmui.raster;
-import openmui.image;
-import openmui.testing;
+import xrender.raster;
+import mlibs.image;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 Value ends(double from, double to) { return Value(Value::List{from, to}); }
@@ -29,15 +29,15 @@ struct Probe {
     void seek(double t) { runtime.seek_time(seconds(t)); frame(10); }
     void effect(Value fx) { runtime.set(node(), "pixel_effect", std::move(fx)); frame(0); }
     std::vector<float> params(std::string_view name = "pixelate") const {
-        const auto ref = *render::effects().find(name);
+        const auto ref = *xrender::effects().find(name);
         for (const auto& command : runtime.display_list().commands())
-            if (const auto* layer = std::get_if<render::PushLayer>(&command); layer && layer->effect.id == ref.id)
+            if (const auto* layer = std::get_if<xrender::PushLayer>(&command); layer && layer->effect.id == ref.id)
                 return {layer->params.begin(), layer->params.end()};
         return {};
     }
-    raster::Surface pixels(float scale = 1) {
-        raster::Surface out(static_cast<int>(120 * scale), static_cast<int>(80 * scale));
-        render::CpuRenderer renderer;
+    xrender::raster::Surface pixels(float scale = 1) {
+        xrender::raster::Surface out(static_cast<int>(120 * scale), static_cast<int>(80 * scale));
+        xrender::CpuRenderer renderer;
         const auto report = renderer.render(runtime.display_list(), out, {}, {.scale = scale, .background = Color::hex(0xf8fafc)});
         check(report.effects_skipped == 0 && report.invalid_paints == 0);
         return out;
@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
         Probe probe; const auto id = probe.node();
         probe.runtime.focus(id); probe.frame(0); const auto plain = probe.pixels(2);
         probe.effect(animation());
-        std::vector<raster::Surface> frames; frames.reserve(61);
+        std::vector<xrender::raster::Surface> frames; frames.reserve(61);
         Value::List observations;
         for (int step = 0; step <= 60; ++step) {
             const double time = static_cast<double>(step) / 60.;
@@ -103,24 +103,24 @@ int main(int argc, char** argv) {
             probe.seek(static_cast<double>(step) / 60.);
             check(probe.pixels(2).hash() == frames[static_cast<std::size_t>(step)].hash(), "reverse seeking reproduces the full sampled process");
         }
-        const auto view = [](const raster::Surface& f) {
-            return imageio::View{reinterpret_cast<const std::uint8_t*>(f.pixels().data()), f.width(), f.height(), f.width() * 4};
+        const auto view = [](const xrender::raster::Surface& f) {
+            return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(f.pixels().data()), f.width(), f.height(), f.width() * 4};
         };
         const auto out = scratch_dir("effect-animation");
-        std::vector<imageio::View> views; views.reserve(frames.size());
+        std::vector<mlibs::image::View> views; views.reserve(frames.size());
         for (std::size_t i = 0; i < frames.size(); ++i) {
             views.push_back(view(frames[i]));
-            check(imageio::save_png(out / std::format("frame-{:02}.png", i), views.back()).has_value());
+            check(mlibs::image::save_png(out / std::format("frame-{:02}.png", i), views.back()).has_value());
         }
-        check(imageio::save_animated_webp(out / "process.webp", views, {.delay_num = 1, .delay_den = 60, .loops = 1, .lossless = true}).has_value());
+        check(mlibs::image::save_animated_webp(out / "process.webp", views, {.delay_num = 1, .delay_den = 60, .loops = 1, .lossless = true}).has_value());
         const std::array indices{0, 3, 9, 18, 30, 42, 54, 60};
-        raster::Surface sheet(4 * plain.width(), 2 * plain.height());
+        xrender::raster::Surface sheet(4 * plain.width(), 2 * plain.height());
         for (std::size_t k = 0; k < indices.size(); ++k) {
             const auto& f = frames[static_cast<std::size_t>(indices[k])];
             const int x0 = static_cast<int>(k % 4) * f.width(), y0 = static_cast<int>(k / 4) * f.height();
             for (int y = 0; y < f.height(); ++y) std::copy_n(f.row(y), f.width(), sheet.row(y0 + y) + x0);
         }
-        check(imageio::save_png(out / "process-sheet.png", view(sheet)).has_value());
+        check(mlibs::image::save_png(out / "process-sheet.png", view(sheet)).has_value());
         std::println("motion-sampling {}", Value{}.set("renderer", "cpu").set("dpi", 2).set("fps", 60).set("background", "#f8fafc")
             .set("duration_seconds", 1).set("samples", Value(std::move(observations))).json());
     });

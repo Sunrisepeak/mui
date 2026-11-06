@@ -3,7 +3,7 @@ module openmui.ui.canvas.kit;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.canvas;
 import :parts;
 
@@ -11,17 +11,17 @@ namespace omui {
 
 namespace kit {
 
-void line(render::DisplayList& list, Point a, Point b, float w, Color c) {
+void line(xrender::DisplayList& list, Point a, Point b, float w, Color c) {
     if (a.x == b.x || a.y == b.y) {
         // Along an axis: a rectangle (no path to flatten).
         const float h = w / 2;
         list.fill_rect(Rect::ltrb(std::min(a.x, b.x) - h, std::min(a.y, b.y) - h, std::max(a.x, b.x) + h, std::max(a.y, b.y) + h), c);
         return;
     }
-    render::Path p;
+    xrender::Path p;
     p.move_to(a);
     p.line_to(b);
-    list.stroke_path(p, {.width = w, .cap = render::LineCap::round}, render::Paint::solid(c));
+    list.stroke_path(p, {.width = w, .cap = xrender::LineCap::round}, xrender::Paint::solid(c));
 }
 
 Value keys_value(std::span<const std::string> keys) {

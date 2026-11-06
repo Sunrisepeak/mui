@@ -4,17 +4,17 @@
 // renderers drawing in bands at once), an effect reaching outside its layer,
 // and an effect a program registers itself.
 import std;
-import openmui.geom;
-import openmui.memory;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.image;
-import openmui.testing;
+import mlibs.geom;
+import mlibs.memory;
+import xrender.raster;
+import xrender.vector;
+import mlibs.image;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 
@@ -61,16 +61,16 @@ raster::Surface draw(const render::DisplayList& dl, const render::CpuOptions& o 
 }
 
 struct Threads final : render::Parallel {
-    void run(std::size_t count, omui::FunctionRef<void(std::size_t)> body) override {
+    void run(std::size_t count, mlibs::memory::FunctionRef<void(std::size_t)> body) override {
         std::vector<std::jthread> threads;
         for (std::size_t i = 0; i < count; ++i) threads.emplace_back([&body, i] { body(i); });
     }
 };
 
 void save(const raster::Surface& s, std::string_view name) {
-    omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(s.pixels().data()), s.width(), s.height(), s.width() * 4};
+    mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(s.pixels().data()), s.width(), s.height(), s.width() * 4};
     static const auto dir = scratch_dir("render-effects");  // once: the call empties the directory
-    (void)omui::imageio::save_png(dir / std::format("{}.png", name), v);
+    (void)mlibs::image::save_png(dir / std::format("{}.png", name), v);
 }
 
 }  // namespace

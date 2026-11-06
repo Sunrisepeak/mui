@@ -31,11 +31,11 @@ PointerEvent pointer(PointerKind kind,Point at) {
 }
 std::string pixel_hash(const raster::Surface& pixels) {return mlibs::hash::Fnv1a{}.bytes(std::as_bytes(pixels.pixels())).hex();}
 
-void bridge_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+void bridge_checks(mlibs::text::FontCollection& fonts,const std::filesystem::path& output) {
     auto authority=std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev"));
     auto ui=std::make_shared<AgentAccess>(authority);
     RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;options.access=ui;
-    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);xrender::CpuRenderer renderer;raster::Surface pixels(400,220);
     bool clicked=false;
     runtime.mount("main",column({.padding=20,.gap=16},{
         column({.id="card",.width=220,.height=80,.padding=12,.background="surface",.radius=12},{text({.id="title",.text="Shared authority"})}),
@@ -112,9 +112,9 @@ void bridge_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
     check(bool(engine->release(*playback)),"bridge_playback_released");
 }
 
-void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+void image_checks(mlibs::text::FontCollection& fonts,const std::filesystem::path& output) {
     RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
-    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);xrender::CpuRenderer renderer;raster::Surface pixels(400,220);
     int activated=0;
     runtime.mount("main",column({.padding=20},{column({.id="card",.width=210,.padding=12,.gap=12,.background="surface",.radius=12},{
         text({.id="title",.text="Real text, shared effects"}),button({.id="action",.text="Use",.on_activated=[&]{++activated;}})})}));
@@ -160,8 +160,8 @@ void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& ou
     check(!binding->present(invalid) && runtime.presentation(card)->pose==pose && paint()==accepted,"late_invalid_scope_preserves_the_complete_accepted_ui_batch");
     const auto limited=binding->prepare(*plan,{.max_prepared_effect_layers=1});
     check(!limited && sample(.5) && paint()==accepted,"failed_capacity_preparation_keeps_the_previous_binding_usable");
-    const auto tone=*render::effects().find("tone");const auto original=*render::effects().info(tone);
-    check(render::effects().replace(tone,original),"effect_provider_can_reload_without_replacing_the_ui");
+    const auto tone=*xrender::effects().find("tone");const auto original=*xrender::effects().info(tone);
+    check(xrender::effects().replace(tone,original),"effect_provider_can_reload_without_replacing_the_ui");
     const auto stale=binding->present(*frame);
     check(!stale && stale.error().code==animation::BindingError::rendering && runtime.presentation(card)->pose==pose,"stale_generation_is_rejected_before_pose_publication");
     check(binding->prepare(*plan) && sample(.5) && paint()==accepted,"explicit_rebind_restores_identical_pixels_after_provider_reload");
@@ -197,12 +197,12 @@ void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& ou
     check(rendered,"image_process_pixels_render_without_missing_resources_or_skipped_effects");
 }
 
-class DriveStage final : public pipeline::Stage {
+class DriveStage final : public mlibs::pipeline::Stage {
 public:
     DriveStage(std::weak_ptr<animation::Playback> playback,animation::PlaybackGate& gate):playback_(std::move(playback)),gate_(gate){}
-    std::vector<pipeline::Port> reads() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),pipeline::port<FrameLayout>(std::string(frame_resource::layout))};}
-    std::vector<pipeline::Port> writes() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
-    std::expected<void,std::string> run(pipeline::Context&) override {
+    std::vector<mlibs::pipeline::Port> reads() const override {return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree)),mlibs::pipeline::port<FrameLayout>(std::string(frame_resource::layout))};}
+    std::vector<mlibs::pipeline::Port> writes() const override {return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
+    std::expected<void,std::string> run(mlibs::pipeline::Context&) override {
         if(auto playback=playback_.lock())if(auto result=playback->update(gate_);!result)return std::unexpected("public playback update failed");
         return {};
     }
@@ -211,13 +211,13 @@ private:
     animation::PlaybackGate& gate_;
 };
 
-void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+void driver_checks(mlibs::text::FontCollection& fonts,const std::filesystem::path& output) {
     std::shared_ptr<animation::Playback> retained;
     {
         animation::PlaybackGate gate;
         RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
         Runtime runtime(options);
-        xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+        xrender::text::GlyphCache glyphs(fonts);xrender::CpuRenderer renderer;raster::Surface pixels(400,220);
         runtime.mount("main",column({.padding=20},{column({.id="card",.width=150,.height=100,.background="surface"},{
             text({.id="title",.text="Same frame"}),button({.id="action",.text="Use"})})}));
         (void)runtime.frame({0s,{}});(void)runtime.frame({2s,{}});
@@ -227,15 +227,15 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         retained=std::make_shared<animation::Playback>(std::move(*attached));
         check(!retained->rebind(),"rebind_requires_an_existing_program");
         const auto registered=runtime.stage_plugins().add({.name="validation.playback",.kind="stage",
-            .description="public playback before current UI bounds",.trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=50}},
-            [weak=std::weak_ptr(retained),&gate](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<DriveStage>(weak,gate);});
+            .description="public playback before current UI bounds",.trace_category="omui.hanim.playback",.cost=mlibs::pipeline::Cost{.cpu_us=50}},
+            [weak=std::weak_ptr(retained),&gate](const mlibs::pipeline::Config&)->std::expected<std::unique_ptr<mlibs::pipeline::Stage>,std::string>{return std::make_unique<DriveStage>(weak,gate);});
         if(!check(bool(registered),"host_stage_declares_cost_and_registers"))return;
         auto graph=runtime.frame_pipeline().description();
         const auto before=std::ranges::find_if(graph.stages,[](const auto& stage){return stage.name=="bounds";});
         before->after.push_back("public_playback");graph.stages.insert(before,{"public_playback","validation.playback",{"layout"},{}});
-        const std::array inputs{pipeline::port<FrameInput>(std::string(frame_resource::input)),pipeline::port<FrameTree>(std::string(frame_resource::tree))};
-        auto built=pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
-        if(!built)std::println(std::cerr,"{}",pipeline::to_text(built.error()));
+        const std::array inputs{mlibs::pipeline::port<FrameInput>(std::string(frame_resource::input)),mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+        auto built=mlibs::pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
+        if(!built)std::println(std::cerr,"{}",mlibs::pipeline::to_text(built.error()));
         if(!check(bool(built),"host_update_stage_is_before_bounds_and_paint"))return;
         runtime.frame_pipeline()=std::move(*built);
         const auto recipe=hanim::anim::move_to(retained->object(),{100,0}).duration(1s);
@@ -292,8 +292,8 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         if(!check(bool(retained->play(image_recipe)) && bool(retained->seek_progress(.4)),"host_image_program_is_ready_for_provider_reload"))return;
         frame(41);const auto accepted=pixel_hash(pixels);const auto identity=retained->plan()->identity();
         const auto pose_before=runtime.presentation(card)->pose;
-        const auto tone=*render::effects().find("tone");const auto original=*render::effects().info(tone);
-        check(render::effects().replace(tone,original),"host_provider_reload_advances_generation");
+        const auto tone=*xrender::effects().find("tone");const auto original=*xrender::effects().info(tone);
+        check(xrender::effects().replace(tone,original),"host_provider_reload_advances_generation");
         check(!retained->seek_progress(.6) && retained->status().native->position==hanim::seconds(.4) &&
             runtime.presentation(card)->pose==pose_before,"stale_host_sampling_preserves_player_position_and_accepted_pose");
         check(bool(retained->rebind()),"owning_host_rebinds_without_restarting_the_program");frame(42);
@@ -301,14 +301,14 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
             !retained->status().requested && !retained->status().demanding_frames &&
             retained->status().native->position==hanim::seconds(.4),"rebind_preserves_pixels_plan_position_and_pause_intent");
         auto incompatible=original;incompatible.preserves_hit_geometry=false;
-        check(render::effects().replace(tone,incompatible),"provider_can_publish_an_incompatible_capability");
+        check(xrender::effects().replace(tone,incompatible),"provider_can_publish_an_incompatible_capability");
         check(!retained->rebind() && runtime.presentation(card)->pose==pose_before &&
             retained->status().native->position==hanim::seconds(.4),"incompatible_rebind_retains_accepted_state");
-        check(render::effects().replace(tone,original) && bool(retained->rebind()),"compatible_provider_recovers_after_a_failed_rebind");
+        check(xrender::effects().replace(tone,original) && bool(retained->rebind()),"compatible_provider_recovers_after_a_failed_rebind");
         frame(43);check(pixel_hash(pixels)==accepted,"recovered_provider_restores_the_actual_image");
         (void)retained->resume();frame(43.1);
         check(std::abs(retained->status().native->position.count()-.5)<1e-7,"explicit_resume_continues_from_the_preserved_position");
-        check(render::effects().replace(tone,original) && bool(retained->rebind()) && retained->status().requested,
+        check(xrender::effects().replace(tone,original) && bool(retained->rebind()) && retained->status().requested,
               "rebind_also_preserves_running_intent");
         frame(43.2);check(std::abs(retained->status().native->position.count()-.6)<1e-7 && frames_ok,
               "running_rebind_keeps_the_existing_host_clock_mapping");
@@ -322,12 +322,12 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
 int main(int argc,char** argv) {
     if(!check(argc==2,"output_directory_argument"))return finish();
     const auto output=mcpplibs::os::fs::from_utf8(argv[1]);
-    typeset::FontCollection fonts;const auto loaded=fonts.add_defaults();
+    mlibs::text::FontCollection fonts;const auto loaded=fonts.add_defaults();
     if(!check(loaded && fonts.face_count()>0,"font_resources_loaded")) {
         if(!loaded)std::println(std::cerr,"{}",loaded.error());return finish();
     }
     RuntimeOptions options;options.fonts=&fonts;options.size={480,260};options.stages=Stages::paint;
-    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);xrender::CpuRenderer renderer;
     int activated=0;auto open=signal(false);
     auto save=button({.id="save",.text="Save changes",.variant=ButtonVariant::primary,.on_activated=[&]{++activated;open.set(true);},.width=116});
     auto card=column({.id="card",.width=204,.height=150,.padding=Edges(16),.gap=14,.background="#f1f5f9",.radius=16,.clip=true},
@@ -364,7 +364,7 @@ int main(int argc,char** argv) {
         good=result.failure.empty() && state && state->applied && !state->error &&
             std::abs(bounds.x-(base.x+100*i/60.))<.03 && std::abs(bounds.y-(base.y+20*i/60.))<.03;
         has_glyphs=has_glyphs || std::ranges::any_of(runtime.display_list().commands(),[](const auto& command){
-            const auto* run=std::get_if<render::DrawGlyphs>(&command);return run && !run->glyphs.empty();});
+            const auto* run=std::get_if<xrender::DrawGlyphs>(&command);return run && !run->glyphs.empty();});
         raster::Surface pixels(480,260);const auto rendered=renderer.render(runtime.display_list(),pixels,{&runtime.images(),&glyphs});
         const auto title_box=runtime.drawn_bounds(title);std::size_t ink=0;
         for(int y=std::max(0,static_cast<int>(std::floor(title_box.y)));y<std::min(260,static_cast<int>(std::ceil(title_box.bottom())));++y)

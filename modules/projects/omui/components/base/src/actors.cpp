@@ -110,7 +110,7 @@ std::string ActorLog::said(const ActionEntry& e) const {
     return std::format("{} {} {}{}{}{}", who(e.actor), e.action, short_path(e.path), args.empty() ? "" : " ", args, tag);
 }
 
-Size ActorLog::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size ActorLog::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const std::size_t n = records().size();
     const float h = (status().empty() ? 0.0f : row_h) + static_cast<float>(std::max<std::size_t>(n, 1)) * row_h;
     return {width.value_or(320), height.value_or(h)};
@@ -127,7 +127,7 @@ void ActorLog::paint(PaintContext& ctx) const {
                         : state == "waiting"                      ? th.color("accent")
                         : state == "lost" || state == "expired"   ? th.color("warning")
                                                                   : th.color("text_disabled");
-        ctx.list.fill_round_rect({pad_x, y + (row_h - dot) / 2, dot, dot}, CornerRadii::all(dot / 2), render::Paint::solid(c));
+        ctx.list.fill_round_rect({pad_x, y + (row_h - dot) / 2, dot, dot}, CornerRadii::all(dot / 2), xrender::Paint::solid(c));
         status_.set_text(st);
         const Size t = status_.measure(ctx.services, th.color("text"), w - (2 * pad_x + dot + 8));
         status_.paint(ctx, {pad_x + dot + 8, y + (row_h - t.height) / 2}, th.color("text"));
@@ -158,7 +158,7 @@ void ActorLog::paint(PaintContext& ctx) const {
         const Rect r{0, y, w, row_h};
         rows_.push_back(r);
         shown_.push_back(e.id);
-        if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(4), render::Paint::solid(th.color("surface_variant")));
+        if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(4), xrender::Paint::solid(th.color("surface_variant")));
         // When (m:ss since the first), what, and its Undo while it is the last its history holds.
         parts::Label& when = times_[i];
         when.set_style("caption");

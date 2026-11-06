@@ -29,8 +29,3 @@ answer.document();                           // always equal to md::parse(answer
 - `markdown_test`: the document model.
 
 Benchmarks (`tests/bench`, with budgets): `markdown/parse` takes about 10 ns per byte, `markdown/stream-token` under 1 µs per token, and `markdown/to-html` about 3 ns per byte.
-
-Canonical package/module: `mlibs.markdown`; C++ API: `mlibs::markdown`.
-The same package retains `import openmui.markdown;` and `omui::md`
-as aliases of the same implementation after rebuilding. Use the canonical
-namespace for extension blocks; a namespace alias cannot be reopened.

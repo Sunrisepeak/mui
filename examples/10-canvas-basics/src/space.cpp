@@ -1,7 +1,7 @@
 module space;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 import openmui.ui.canvas;
 import xrender.text;
@@ -160,10 +160,10 @@ void place(const Entry& e, Box b, Scene& scene, const Entry* parent) {
 // Labels are shaped once a node (and theme), and drawn when they fit: a map
 // labels what it can, it does not shrink type into blocks.
 struct Labels {
-    std::unordered_map<std::string, omui::typeset::Paragraph> shaped;
+    std::unordered_map<std::string, mlibs::text::Paragraph> shaped;
     bool                                                      dark = false;
 
-    const omui::typeset::Paragraph& get(omui::typeset::FontCollection& fonts, const omui::Theme& theme, const std::string& key, std::string text,
+    const mlibs::text::Paragraph& get(mlibs::text::FontCollection& fonts, const omui::Theme& theme, const std::string& key, std::string text,
                                         float size, float weight, omui::Color colour) {
         if (theme.dark != dark) {
             shaped.clear();
@@ -171,13 +171,13 @@ struct Labels {
         }
         auto it = shaped.find(key);
         if (it == shaped.end()) {
-            omui::typeset::ParagraphStyle ps;
+            mlibs::text::ParagraphStyle ps;
             ps.style.size = size;
             ps.style.weight = weight;
             ps.style.color = colour;
             ps.style.families = theme.text_style("label").families;
             ps.wrap = false;
-            omui::typeset::Paragraph p(fonts, std::move(text), ps);
+            mlibs::text::Paragraph p(fonts, std::move(text), ps);
             p.layout(std::numeric_limits<float>::infinity());
             it = shaped.emplace(key, std::move(p)).first;
         }
@@ -257,7 +257,7 @@ std::string human(std::uint64_t bytes) {
 }
 
 std::string key_of(std::string_view path) {
-    return std::format("n{:016x}", omui::hash::fnv1a(path));
+    return std::format("n{:016x}", mlibs::hash::fnv1a(path));
 }
 
 void layout(const Entry& root, Scene& scene, double width, double height) {
@@ -268,9 +268,9 @@ void layout(const Entry& root, Scene& scene, double width, double height) {
                                                [labels](omui::world::DrawContext& d) {
                                                    const omui::Rect r = d.screen;
                                                    const float radius = static_cast<float>(d.scene.radius(d.node) * d.zoom);
-                                                   d.list.fill_round_rect(r, omui::CornerRadii::all(radius), omui::render::Paint::solid(d.scene.fill(d.node)));
+                                                   d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.scene.fill(d.node)));
                                                    d.list.stroke_round_rect(r, omui::CornerRadii::all(radius), 1,
-                                                                            omui::render::Paint::solid(d.theme.color("border")));
+                                                                            xrender::Paint::solid(d.theme.color("border")));
                                                    // The header strip, when it is tall enough to read.
                                                    const auto w = d.scene.rect(d.node);
                                                    const float hdr = static_cast<float>(header_of({w.x, w.y, w.width, w.height}) * d.zoom);
@@ -287,7 +287,7 @@ void layout(const Entry& root, Scene& scene, double width, double height) {
                                              [labels](omui::world::DrawContext& d) {
                                                  const omui::Rect r = d.screen;
                                                  const float radius = static_cast<float>(d.scene.radius(d.node) * d.zoom);
-                                                 d.list.fill_round_rect(r, omui::CornerRadii::all(radius), omui::render::Paint::solid(d.scene.fill(d.node)));
+                                                 d.list.fill_round_rect(r, omui::CornerRadii::all(radius), xrender::Paint::solid(d.scene.fill(d.node)));
                                                  const std::string key(d.scene.key(d.node));
                                                  const omui::Color ink = omui::Color::hex(0xffffff, 0.95f);
                                                  // The size only beside the name: a block is never just a number.
@@ -350,7 +350,7 @@ omui::AppSpec app(Model& model) {
                                   .on_activated = [&model, key] { model.go(key); }}));
         }
         const Entry& root = model.tree.root;
-        return column({.id = "app", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .background = "background"},
+        return column({.id = "app", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .background = "background"},
                       {column({.id = "header", .padding = Edges(8.0f, 14.0f), .gap = 6, .background = Fill("surface"), .border_color = Fill("border"),
                                .border_width = 1},
                               {row({.gap = 12, .align = "center"},

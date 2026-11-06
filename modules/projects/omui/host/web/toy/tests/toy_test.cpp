@@ -3,9 +3,9 @@
 // refuses a flush; what was not written stays to be written.
 import std;
 import openmui.host.web.toy;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 int main(int argc, char** argv) {

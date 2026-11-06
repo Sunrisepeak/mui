@@ -158,9 +158,9 @@ std::expected<void,PresentationFailure> Runtime::publish_presentation(const Pres
                     if(layer.parameters.size()>current.images->parameter_limit-parameters)
                         return std::unexpected(PresentationFailure{PresentationError::capacity,i});
                     parameters+=layer.parameters.size();
-                    if(render::effects().generation(layer.effect)!=layer.generation)
+                    if(xrender::effects().generation(layer.effect)!=layer.generation)
                         return std::unexpected(PresentationFailure{PresentationError::stale_effect,i});
-                    const auto* info=render::effects().info(layer.effect);
+                    const auto* info=xrender::effects().info(layer.effect);
                     if(!info || !info->cpu || info->backdrop || !info->preserves_hit_geometry || info->source_of || layer.parameters.size()!=info->params.size())
                         return std::unexpected(PresentationFailure{PresentationError::invalid_effect,i});
                     for(std::size_t p=0;p<layer.parameters.size();++p)if(!std::isfinite(layer.parameters[p]) ||
@@ -259,7 +259,7 @@ void Runtime::Impl::project_presentation() {
     for(std::size_t i=0;i<commands.size();++i) {
         if(history_range.second>history_range.first && i==history_range.first){i=history_range.second-1;continue;}
         const auto& command=commands[i];
-        if(const auto* begin=std::get_if<render::BeginNode>(&command)) {
+        if(const auto* begin=std::get_if<xrender::BeginNode>(&command)) {
             std::size_t range=no_projection;const auto marker=begin->node;
             if(marker<by_index.size() && alive(by_index[marker]) &&
                (at(by_index[marker]).presentation.attached() || at(by_index[marker]).live_anchor_placement) &&
@@ -268,14 +268,14 @@ void Runtime::Impl::project_presentation() {
                 projection_ranges.push_back({marker,i,0,projection_transforms.size()});
             }
             projection_nodes.push_back({marker,range});
-        }else if(std::holds_alternative<render::EndNode>(command)) {
+        }else if(std::holds_alternative<xrender::EndNode>(command)) {
             if(!projection_nodes.empty()) {
                 const auto [marker,range]=projection_nodes.back();projection_nodes.pop_back();
                 if(range!=no_projection){projection_ranges[range].end=i+1;projection_for_node[marker]=no_projection;}
             }
-        }else if(const auto* transform=std::get_if<render::PushTransform>(&command))projection_transforms.push_back(transform->transform);
-        else if(std::holds_alternative<render::PopTransform>(command)) {if(projection_transforms.size()>1)projection_transforms.pop_back();}
-        else if(const auto* frame=std::get_if<render::NodeFrame>(&command);frame && frame->node<by_index.size()) {
+        }else if(const auto* transform=std::get_if<xrender::PushTransform>(&command))projection_transforms.push_back(transform->transform);
+        else if(std::holds_alternative<xrender::PopTransform>(command)) {if(projection_transforms.size()>1)projection_transforms.pop_back();}
+        else if(const auto* frame=std::get_if<xrender::NodeFrame>(&command);frame && frame->node<by_index.size()) {
             const auto index=projection_for_node[frame->node];if(index==no_projection)continue;
             auto& range=projection_ranges[index];if(range.frame)continue;
             auto& p=at(by_index[frame->node]).presentation;p.has_frame=true;
@@ -300,8 +300,8 @@ void Runtime::Impl::project_presentation() {
     for(auto& range:projection_ranges) {
         auto& p=at(by_index[range.marker]).presentation;
         if(p.images)for(const auto& layer:p.images->layers) {
-            if(render::effects().generation(layer.effect)!=layer.generation){p.error=PresentationError::stale_effect;break;}
-            const auto* info=render::effects().info(layer.effect);
+            if(xrender::effects().generation(layer.effect)!=layer.generation){p.error=PresentationError::stale_effect;break;}
+            const auto* info=xrender::effects().info(layer.effect);
             if(!info || !info->cpu || info->backdrop || !info->preserves_hit_geometry || info->source_of){p.error=PresentationError::invalid_effect;break;}
             const auto params=std::span(p.images->parameters).subspan(layer.offset,layer.count);
             if(!info->identity || !info->identity(params))++range.image_count;
@@ -321,10 +321,10 @@ void Runtime::Impl::project_presentation() {
             if(range.frame && (!identity(range.delta) || range.image_count)) {
                 const auto& p=at(by_index[range.marker]).presentation;
                 if(p.images)for(auto layer=p.images->layers.rbegin();layer!=p.images->layers.rend();++layer) {
-                    const auto* info=render::effects().info(layer->effect);
+                    const auto* info=xrender::effects().info(layer->effect);
                     const auto params=std::span(p.images->parameters).subspan(layer->offset,layer->count);
                     if(info->identity && info->identity(params))continue;
-                    list.push_layer(1,render::BlendMode::normal,layer->effect,params,{}, {},render::LayerBoundsMode::content);
+                    list.push_layer(1,xrender::BlendMode::normal,layer->effect,params,{}, {},xrender::LayerBoundsMode::content);
                 }
                 if(!identity(range.delta))list.push_transform(range.delta);
                 projection_nodes.push_back({0,next});

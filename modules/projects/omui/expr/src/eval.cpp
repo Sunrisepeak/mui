@@ -2,9 +2,9 @@ module openmui.expr;
 
 import std;
 import openmui.spec;
-import openmui.unicode;
+import mlibs.unicode;
 import hanim.core;
-import openmui.i18n;
+import mlibs.i18n;
 import :ast;
 import :parse;
 import :eval;
@@ -14,7 +14,7 @@ namespace omui::expr {
 namespace {
 
 // A message's argument as openmui.i18n takes it.
-i18n::Arg message_arg(const Value& v) {
+mlibs::i18n::Arg message_arg(const Value& v) {
     switch (v.type()) {
         case Value::Type::boolean: return v.as_bool();
         case Value::Type::integer: return v.as_int();
@@ -31,12 +31,12 @@ i18n::Arg message_arg(const Value& v) {
 
 // No catalog: the key is the message, written with no locale's data.
 std::string untranslated(std::string_view key, const Value& args) {
-    auto m = i18n::Message::parse(key);
+    auto m = mlibs::i18n::Message::parse(key);
     if (!m) return std::string(key);
-    i18n::Args a;
+    mlibs::i18n::Args a;
     if (const auto* map = args.map())
         for (const auto& [k, v] : *map) a.set(k, message_arg(v));
-    static const i18n::Formatter plain(std::make_shared<const i18n::LocaleData>());
+    static const mlibs::i18n::Formatter plain(std::make_shared<const mlibs::i18n::LocaleData>());
     return m->format(plain, a);
 }
 
@@ -459,7 +459,7 @@ struct Eval {
         }
         if (f == "size" || f == "len") {
             if (!need(1, 1)) return std::nullopt;
-            if (a[0].type() == T::text) return Value(static_cast<std::int64_t>(unicode::grapheme_count(a[0].as_string())));
+            if (a[0].type() == T::text) return Value(static_cast<std::int64_t>(mlibs::unicode::grapheme_count(a[0].as_string())));
             if (const auto* l = a[0].list()) return Value(static_cast<std::int64_t>(l->size()));
             if (const auto* m = a[0].map()) return Value(static_cast<std::int64_t>(m->size()));
             return fail(n, std::format("{}() of a {}", f, type_name(a[0])));
@@ -484,17 +484,17 @@ struct Eval {
             if (!need(1, 1)) return std::nullopt;
             auto s = text(0);
             if (!s) return std::nullopt;
-            if (f == "lower") return Value(unicode::lower(*s));
-            if (f == "upper") return Value(unicode::upper(*s));
+            if (f == "lower") return Value(mlibs::unicode::lower(*s));
+            if (f == "upper") return Value(mlibs::unicode::upper(*s));
             std::size_t b = 0, e = s->size();
             while (b < e) {
-                const auto d = unicode::decode(*s, b);
+                const auto d = mlibs::unicode::decode(*s, b);
                 if (!white(d.cp)) break;
                 b += d.length;
             }
             while (e > b) {
-                const std::size_t p = unicode::previous(*s, e);
-                if (!white(unicode::decode(*s, p).cp)) break;
+                const std::size_t p = mlibs::unicode::previous(*s, e);
+                if (!white(mlibs::unicode::decode(*s, p).cp)) break;
                 e = p;
             }
             return Value(s->substr(b, e - b));

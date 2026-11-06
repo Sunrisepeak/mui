@@ -9,7 +9,7 @@ std::span<const BrandShape> brand_geometry() {
     static const auto shapes = [] {
         std::array<BrandShape, 5> g;
         // A slightly tall O, with enough counter space to hold the inner word.
-        g[0] = {render::Path{}.add_ellipse({8, 5, 84, 90}), 6, "outline"};
+        g[0] = {xrender::Path{}.add_ellipse({8, 5, 84, 90}), 6, "outline"};
         g[1].part = "letter_m";
         g[1].width = 4;
         g[1].path.move_to({24, 64}).line_to({24, 44})
@@ -18,8 +18,8 @@ std::span<const BrandShape> brand_geometry() {
         g[2].part = "letter_u";
         g[2].width = 4;
         g[2].path.move_to({55, 44}).line_to({55, 56}).cubic_to({55, 66}, {69, 66}, {69, 56}).line_to({69, 44});
-        g[3] = {render::Path{}.move_to({78, 44}).line_to({78, 64}), 4, "letter_i"};
-        g[4] = {render::Path{}.add_circle({78, 35}, 2.5f), 0, "letter_i"};
+        g[3] = {xrender::Path{}.move_to({78, 44}).line_to({78, 64}), 4, "letter_i"};
+        g[4] = {xrender::Path{}.add_circle({78, 35}, 2.5f), 0, "letter_i"};
         return g;
     }();
     return shapes;
@@ -27,32 +27,32 @@ std::span<const BrandShape> brand_geometry() {
 
 namespace {
 
-void paint_shapes(render::DisplayList& out, Color ink, Point at, float size, std::string_view part = {}) {
+void paint_shapes(xrender::DisplayList& out, Color ink, Point at, float size, std::string_view part = {}) {
     if (!(size > 0) || !std::isfinite(size)) return;
     out.push_transform(Affine::translate(at.x, at.y) * Affine::scale(size / 100, size / 100));
-    const render::Paint colour = render::Paint::solid(ink);
+    const xrender::Paint colour = xrender::Paint::solid(ink);
     for (const BrandShape& shape : brand_geometry()) {
         if (!part.empty() && shape.part != part) continue;
-        if (shape.width == 0) out.fill_path(shape.path, render::FillRule::nonzero, colour);
-        else out.stroke_path(shape.path, {.width = shape.width, .cap = render::LineCap::round, .join = render::LineJoin::round}, colour);
+        if (shape.width == 0) out.fill_path(shape.path, xrender::FillRule::nonzero, colour);
+        else out.stroke_path(shape.path, {.width = shape.width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, colour);
     }
     out.pop_transform();
 }
 
-std::string path_data(const render::Path& path) {
+std::string path_data(const xrender::Path& path) {
     std::string out;
     std::size_t at = 0;
     auto point = [&] {
         const Point p = path.points()[at++];
         out += std::format(" {:g} {:g}", p.x, p.y);
     };
-    for (const render::PathVerb verb : path.verbs()) {
+    for (const xrender::PathVerb verb : path.verbs()) {
         switch (verb) {
-            case render::PathVerb::move: out += "M"; point(); break;
-            case render::PathVerb::line: out += "L"; point(); break;
-            case render::PathVerb::quad: out += "Q"; point(); point(); break;
-            case render::PathVerb::cubic: out += "C"; point(); point(); point(); break;
-            case render::PathVerb::close: out += "Z"; break;
+            case xrender::PathVerb::move: out += "M"; point(); break;
+            case xrender::PathVerb::line: out += "L"; point(); break;
+            case xrender::PathVerb::quad: out += "Q"; point(); point(); break;
+            case xrender::PathVerb::cubic: out += "C"; point(); point(); point(); break;
+            case xrender::PathVerb::close: out += "Z"; break;
         }
     }
     return out;
@@ -79,13 +79,13 @@ Element study_stage(BrandStudy& study, float room, bool zh) {
         part.prop("motion", Source(Value("morph")));
         parts.push_back(std::move(part));
     }
-    return stack({.id = "drawing", .width = Dim(layout::pct(100)), .height = Dim(narrow ? 260 : 300), .justify = "center", .align = "center",
+    return stack({.id = "drawing", .width = Dim(mlibs::layout::pct(100)), .height = Dim(narrow ? 260 : 300), .justify = "center", .align = "center",
                    .background = "surface_variant", .radius = 20}, std::move(parts));
 }
 
 }  // namespace
 
-void paint_mark(render::DisplayList& out, const Theme& theme, Point at, float size) {
+void paint_mark(xrender::DisplayList& out, const Theme& theme, Point at, float size) {
     paint_shapes(out, theme.color("accent"), at, size);
 }
 

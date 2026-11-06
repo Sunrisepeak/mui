@@ -1,10 +1,10 @@
 import std;
 import hanim.engine;
-import openmui.log;
-import openmui.testing;
+import mlibs.log;
+import mlibs.testing;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace {
 ObjectDescription shape(bool circle, double tx, Rgba color = {1, 0, 0, 1}) {
     constexpr double k = 0.5522847498307936;
@@ -214,8 +214,8 @@ int main(int argc, char** argv) {
     suite.test("log observers see committed controls and cannot reenter mutation", [] {
         Fixture f; const auto ref = *f.engine.play(f.a,anim::morph_to(f.b));
         struct Observer { Engine* engine; PlaybackRef ref; int calls=0; bool paused=false,refused=false; } observer{&f.engine,ref};
-        check(omui::set_log_filter("hanim.engine=debug,*=warning").has_value());
-        omui::set_log_sink([](void* context,const omui::LogRecord& record) {
+        check(mlibs::log::set_log_filter("hanim.engine=debug,*=warning").has_value());
+        mlibs::log::set_log_sink([](void* context,const mlibs::log::LogRecord& record) {
             if (record.category != "hanim.engine" || !record.message.starts_with("pause")) return;
             auto& state = *static_cast<Observer*>(context); ++state.calls;
             state.paused = state.engine->inspect(state.ref)->state == PlaybackState::paused;
@@ -223,7 +223,7 @@ int main(int argc, char** argv) {
             state.refused = !nested && nested.error().code == EngineError::reentrant_mutation;
         },&observer);
         const auto result = f.engine.pause(ref);
-        omui::set_log_sink(nullptr,nullptr); check(omui::set_log_filter("*=info").has_value());
+        mlibs::log::set_log_sink(nullptr,nullptr); check(mlibs::log::set_log_filter("*=info").has_value());
         check(result.has_value() && observer.calls == 1 && observer.paused && observer.refused);
         check(f.engine.inspect(ref)->state == PlaybackState::paused);
     });
@@ -231,8 +231,8 @@ int main(int argc, char** argv) {
         Fixture f;
         struct Observer { Engine* engine; ObjectRef object; int calls=0; bool refused=false, prepare_refused=false; }
             observer{&f.engine,f.b};
-        check(omui::set_log_filter("hanim.program=debug,*=warning").has_value());
-        omui::set_log_sink([](void* context,const omui::LogRecord& record) {
+        check(mlibs::log::set_log_filter("hanim.program=debug,*=warning").has_value());
+        mlibs::log::set_log_sink([](void* context,const mlibs::log::LogRecord& record) {
             if(record.category!="hanim.program")return;
             auto& state=*static_cast<Observer*>(context);++state.calls;
             auto removed=state.engine->destroy_object(state.object);
@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
             state.prepare_refused=!nested && nested.error().code==EngineError::reentrant_mutation;
         },&observer);
         const auto plan=f.engine.prepare(anim::morph(f.a,f.b));
-        omui::set_log_sink(nullptr,nullptr);check(omui::set_log_filter("*=info").has_value());
+        mlibs::log::set_log_sink(nullptr,nullptr);check(mlibs::log::set_log_filter("*=info").has_value());
         check(plan && observer.calls>0 && observer.refused && observer.prepare_refused);
         check(f.engine.size()==0 && f.engine.capture_object(f.b).has_value());
         check(plan->tracks()[0].source_revision==f.engine.capture_object(f.a)->revision());

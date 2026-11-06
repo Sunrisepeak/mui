@@ -22,7 +22,7 @@ public:
 
     void mounted();
     void prop_changed(DialogProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 
@@ -51,9 +51,9 @@ public:
 
     void mounted();
     void prop_changed(TooltipProp p);
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
-                 layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 

@@ -49,7 +49,7 @@ struct PlayerOptions {
     bool  timebar = true;
     bool  chapters = true;
     // Shared by every host this player makes (one thread's); none: its own.
-    typeset::FontCollection* fonts = nullptr;
+    mlibs::text::FontCollection* fonts = nullptr;
     // Where the frames `film` clips play back are kept (none: its own).
     std::shared_ptr<FrameStore> store;
     // Each frame's rows rasterised in bands at once (the same bytes); off
@@ -65,9 +65,9 @@ public:
     Player& operator=(const Player&) = delete;
 
     // Frame i (borrowed until the next call).
-    [[nodiscard]] std::expected<const raster::Surface*, std::string> frame(std::int64_t i);
+    [[nodiscard]] std::expected<const xrender::raster::Surface*, std::string> frame(std::int64_t i);
     // Frame i drawn with nothing kept: every scene mounted afresh.
-    [[nodiscard]] std::expected<raster::Surface, std::string> direct(std::int64_t i);
+    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> direct(std::int64_t i);
 
     [[nodiscard]] std::int64_t frames() const noexcept;
     [[nodiscard]] Size size() const noexcept { return size_; }
@@ -90,19 +90,19 @@ public:
 
 private:
     std::expected<void, std::string> draw_scene(const Shown& s);
-    std::expected<std::shared_ptr<const raster::Surface>, std::string> played_back(std::int64_t frame);
+    std::expected<std::shared_ptr<const xrender::raster::Surface>, std::string> played_back(std::int64_t frame);
 
     const Film*                              film_;
     const Cut*                               cut_;
     PlayerOptions                            options_;
     Size                                     size_;
-    std::unique_ptr<typeset::FontCollection> own_fonts_;
-    typeset::FontCollection*                 fonts_ = nullptr;
+    std::unique_ptr<mlibs::text::FontCollection> own_fonts_;
+    mlibs::text::FontCollection*                 fonts_ = nullptr;
     std::unique_ptr<Scene>                   scene_;
     std::unique_ptr<Overlay>                 overlay_;
     std::unique_ptr<Headless>                overlay_host_;
-    std::optional<render::ImageRef>          shown_image_;
-    raster::Surface                          out_;
+    std::optional<xrender::ImageRef>          shown_image_;
+    xrender::raster::Surface                          out_;
     std::optional<Shown>                     last_;
     std::set<std::int64_t>                   wanted_;  // the frames `film` clips play back
     std::shared_ptr<FrameStore>              store_;   // … as PNG, once drawn
@@ -112,13 +112,13 @@ private:
 class Frames final : public xengine::video::FrameSource {
 public:
     explicit Frames(Player& player) : player_(&player) {}
-    [[nodiscard]] std::expected<imageio::View, std::string> frame(std::int64_t index) override;
+    [[nodiscard]] std::expected<mlibs::image::View, std::string> frame(std::int64_t index) override;
 
 private:
     Player* player_;
 };
 
 // A frame's pixels, hashed (FNV-1a over its rows): what tests pin.
-[[nodiscard]] std::uint64_t pixel_hash(const raster::Surface& s) noexcept;
+[[nodiscard]] std::uint64_t pixel_hash(const xrender::raster::Surface& s) noexcept;
 
 }  // namespace omui::promo

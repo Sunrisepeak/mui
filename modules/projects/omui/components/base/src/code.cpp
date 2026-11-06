@@ -44,8 +44,8 @@ void CodeEditor::prop_changed(CodeEditorProp p) {
     services().invalidate_paint(node());
 }
 
-void CodeEditor::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void CodeEditor::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     s.padding = {code_head, 1, 1, 1};
 }
 
@@ -74,15 +74,15 @@ void CodeEditor::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     // Its head: the language it is in.
-    ctx.list.fill_round_rect({0, 0, box.width, code_head}, {r.top_left, r.top_right, 0, 0}, render::Paint::solid(th.color("surface_variant")));
+    ctx.list.fill_round_rect({0, 0, box.width, code_head}, {r.top_left, r.top_right, 0, 0}, xrender::Paint::solid(th.color("surface_variant")));
     ctx.list.fill_rect({0, code_head - 1, box.width, 1}, th.color("border"));
     const Size t = tag_.measure(ctx.services, th.color("text_muted"));
     tag_.paint(ctx, {12, (code_head - t.height) / 2}, th.color("text_muted"));
     const NodeId f = field();
     const bool focus = f && ctx.services.state(f).focused;  // its field's focus is its own
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, render::Paint::solid(focus ? th.color("accent") : th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, focus ? 1.5f : 1, xrender::Paint::solid(focus ? th.color("accent") : th.color("border")));
 }
 
 void CodeEditor::semantics(SemanticsContext&, spec::SemanticNode& node) const {

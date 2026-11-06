@@ -63,8 +63,8 @@ void SplitView::prop_changed(SplitViewProp p) {
     services().invalidate_semantics(node());
 }
 
-void SplitView::style(const Theme&, layout::Style& s) const {
-    s.direction = props.vertical ? layout::Direction::column : layout::Direction::row;
+void SplitView::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = props.vertical ? mlibs::layout::Direction::column : mlibs::layout::Direction::row;
     s.row_gap = s.column_gap = split_handle;
 }
 
@@ -89,11 +89,11 @@ void SplitView::paint_over(PaintContext& ctx) const {
     if (props.vertical) {
         ctx.list.fill_rect({h.x, h.center().y - (lit ? 1.0f : 0.5f), h.width, lit ? 2.0f : 1.0f}, line);
         const Rect grip{h.center().x - split_grip / 2, h.center().y - 3, split_grip, 6};
-        ctx.list.fill_round_rect(grip, CornerRadii::all(3), render::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
+        ctx.list.fill_round_rect(grip, CornerRadii::all(3), xrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
     } else {
         ctx.list.fill_rect({h.center().x - (lit ? 1.0f : 0.5f), h.y, lit ? 2.0f : 1.0f, h.height}, line);
         const Rect grip{h.center().x - 3, h.center().y - split_grip / 2, 6, split_grip};
-        ctx.list.fill_round_rect(grip, CornerRadii::all(3), render::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
+        ctx.list.fill_round_rect(grip, CornerRadii::all(3), xrender::Paint::solid(lit ? th.color("accent") : th.color("border_strong")));
     }
     if (ctx.state.focused && ctx.state.focus_visible) parts::focus_ring(ctx, h, CornerRadii::all(3));
 }
@@ -230,10 +230,10 @@ void Drawer::prop_changed(DrawerProp p) {
     services().invalidate_semantics(node());
 }
 
-void Drawer::style(const Theme&, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
-    s.direction = layout::Direction::column;
-    s.width = layout::pt(static_cast<float>(props.size));
+void Drawer::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
+    s.direction = mlibs::layout::Direction::column;
+    s.width = mlibs::layout::pt(static_cast<float>(props.size));
     s.padding = {drawer_head, drawer_pad, drawer_pad, drawer_pad};
     s.row_gap = s.column_gap = 12;
 }

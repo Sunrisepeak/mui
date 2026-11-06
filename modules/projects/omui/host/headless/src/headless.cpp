@@ -5,12 +5,16 @@ import openmui.core;
 import openmui.view;
 import openmui.semantic;
 import openmui.agent;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.text;
-import openmui.image;
-import openmui.trace;
+import xrender.raster;
+import xrender.vector;
+import mlibs.text;
+import mlibs.image;
+import mlibs.trace;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -30,35 +34,35 @@ Stages stages_of(HeadlessLevel level) {
 
 struct Headless::Impl {
     HeadlessOptions                             options;
-    std::vector<imageio::Image>                 recording;  // record()'s frames, premultiplied
+    std::vector<mlibs::image::Image>                 recording;  // record()'s frames, premultiplied
     std::optional<Rect>                         recording_region;
-    std::unique_ptr<typeset::FontCollection>    own_fonts;
+    std::unique_ptr<mlibs::text::FontCollection>    own_fonts;
     std::unique_ptr<Runtime>                    runtime;
     std::unique_ptr<semantic::Tree>             tree;
     std::unique_ptr<xrender::text::GlyphCache>        glyphs;
-    render::CpuRenderer                         renderer;
-    raster::Surface                             surface;
+    xrender::CpuRenderer                         renderer;
+    xrender::raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
     std::uint64_t                               shown_list = 0; // the list hash of the last frame shown (frame_shown)
     bool                                        have_pixels = false;
-    render::DamageTracker                       damage;         // what the next list changes
+    xrender::DamageTracker                       damage;         // what the next list changes
     std::unique_ptr<agent::Endpoint>            endpoint;
     std::int64_t                                frame = -1;
 
     void render_now() {
-        const render::DisplayList& list = runtime->display_list();
+        const xrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         if (have_pixels && h == rendered) return;
         const int w = static_cast<int>(std::lround(options.size.width * options.scale));
         const int hgt = static_cast<int>(std::lround(options.size.height * options.scale));
-        if (surface.width() != w || surface.height() != hgt) surface = raster::Surface(w, hgt);
+        if (surface.width() != w || surface.height() != hgt) surface = xrender::raster::Surface(w, hgt);
         if (!have_pixels) damage.invalidate();
-        trace::Span span("render", "host");
-        const render::Resources resources{&runtime->images(), glyphs.get()};
+        mlibs::trace::Span span("render", "host");
+        const xrender::Resources resources{&runtime->images(), glyphs.get()};
         // Only the rows the new list can change: the same bytes as a full render.
         const auto rows = damage.update(list, w, hgt, options.scale, resources);
         if (!rows.empty()) {
-            render::CpuOptions o;
+            xrender::CpuOptions o;
             o.scale = options.scale;
             o.background = options.background;
             o.object_ids = true;
@@ -74,9 +78,9 @@ struct Headless::Impl {
 Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     Impl& d = *impl_;
     d.options = std::move(options);
-    typeset::FontCollection* fonts = d.options.fonts;
+    mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
-        d.own_fonts = std::make_unique<typeset::FontCollection>();
+        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         fonts = d.own_fonts.get();
     }
@@ -91,7 +95,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     ro.complete_frames = d.options.complete_frames;
     d.runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime->set_renderer("cpu");
-    d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", pipeline::name(d.options.tier)));
+    d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", mlibs::pipeline::name(d.options.tier)));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
     if (d.options.level == HeadlessLevel::session) {
@@ -237,7 +241,7 @@ void Headless::scroll(Point at, Point delta, bool precise) {
 
 void Headless::focus_next(bool backward) { key(Key::tab, backward ? Modifiers(Modifier::shift) : Modifiers{}); }
 
-const raster::Surface& Headless::pixels() {
+const xrender::raster::Surface& Headless::pixels() {
     impl_->render_now();
     return impl_->surface;
 }
@@ -245,18 +249,18 @@ const raster::Surface& Headless::pixels() {
 namespace {
 
 // The pixels of a region (logical coordinates), as an image view of the surface.
-std::expected<imageio::View, std::string> view_of(const raster::Surface& s, float scale, std::optional<Rect> region) {
+std::expected<mlibs::image::View, std::string> view_of(const xrender::raster::Surface& s, float scale, std::optional<Rect> region) {
     int x0 = 0, y0 = 0, x1 = s.width(), y1 = s.height();
     if (region) {
-        const PixelRect r = geom::snap(*region, scale);
+        const PixelRect r = mlibs::geom::snap(*region, scale);
         x0 = std::clamp(r.x, 0, s.width());
         y0 = std::clamp(r.y, 0, s.height());
         x1 = std::clamp(r.x + r.width, x0, s.width());
         y1 = std::clamp(r.y + r.height, y0, s.height());
     }
     if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is empty");
-    return imageio::View{reinterpret_cast<const std::uint8_t*>(s.row(y0) + x0), x1 - x0, y1 - y0, s.width() * 4,
-                         imageio::Alpha::premultiplied};
+    return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(s.row(y0) + x0), x1 - x0, y1 - y0, s.width() * 4,
+                         mlibs::image::Alpha::premultiplied};
 }
 
 }  // namespace
@@ -267,7 +271,7 @@ std::expected<std::vector<std::uint8_t>, std::string> Headless::png(std::optiona
     d.render_now();
     auto v = view_of(d.surface, d.options.scale, region);
     if (!v) return std::unexpected(v.error());
-    return imageio::encode_png(*v);
+    return mlibs::image::encode_png(*v);
 }
 
 std::expected<void, std::string> Headless::save_png(const std::filesystem::path& file, std::optional<Rect> region) {
@@ -276,7 +280,7 @@ std::expected<void, std::string> Headless::save_png(const std::filesystem::path&
     d.render_now();
     auto v = view_of(d.surface, d.options.scale, region);
     if (!v) return std::unexpected(v.error());
-    return imageio::save_png(file, *v);
+    return mlibs::image::save_png(file, *v);
 }
 
 void Headless::record(std::optional<Rect> region) {
@@ -286,10 +290,10 @@ void Headless::record(std::optional<Rect> region) {
     if (d.recording.empty()) d.recording_region = region;
     auto v = view_of(d.surface, d.options.scale, d.recording_region);
     if (!v) return;
-    imageio::Image img;
+    mlibs::image::Image img;
     img.width = v->width;
     img.height = v->height;
-    img.alpha = imageio::Alpha::premultiplied;
+    img.alpha = mlibs::image::Alpha::premultiplied;
     img.rgba.resize(static_cast<std::size_t>(v->width) * v->height * 4);
     for (int y = 0; y < v->height; ++y)
         std::memcpy(img.rgba.data() + static_cast<std::size_t>(y) * v->width * 4, v->rgba + static_cast<std::size_t>(y) * v->stride, static_cast<std::size_t>(v->width) * 4);
@@ -301,14 +305,14 @@ std::size_t Headless::recorded() const noexcept { return impl_->recording.size()
 std::expected<void, std::string> Headless::save_recording(const std::filesystem::path& file, RecordingOptions options) {
     Impl& d = *impl_;
     if (d.recording.empty()) return std::unexpected("nothing recorded");
-    std::vector<imageio::View> views;
-    for (const auto& img : d.recording) views.push_back(imageio::view(img));
+    std::vector<mlibs::image::View> views;
+    for (const auto& img : d.recording) views.push_back(mlibs::image::view(img));
     // The format by the file's extension, in any case.
     const std::u8string ext = file.extension().u8string();
     const auto lower = [](char8_t a) { return a >= u8'A' && a <= u8'Z' ? static_cast<char8_t>(a - u8'A' + u8'a') : a; };
     const bool webp = std::ranges::equal(ext, std::u8string_view(u8".webp"), {}, lower);
-    auto r = webp ? imageio::save_animated_webp(file, views, options)
-                  : imageio::save_apng(file, views, {.delay_num = options.delay_num, .delay_den = options.delay_den, .loops = options.loops});
+    auto r = webp ? mlibs::image::save_animated_webp(file, views, options)
+                  : mlibs::image::save_apng(file, views, {.delay_num = options.delay_num, .delay_den = options.delay_den, .loops = options.loops});
     d.recording.clear();
     return r;
 }

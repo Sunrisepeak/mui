@@ -5,36 +5,42 @@ import openmui.core;
 import openmui.view;
 import omui.hanim;
 import openmui.semantic;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.text;
-import openmui.trace;
+import xrender.vector;
+import xrender.raster;
+import mlibs.text;
+import mlibs.trace;
 import openmui.ui.base;
 import openmui.host.headless;
 import hanim.core;
-import openmui.markdown;
+import mlibs.markdown;
 import openmui.ui.canvas;
 import openmui.ui.canvas.kit;
 import openmui.showcase.markdown_wall;
 import openmui.showcase.style_gallery;
 import openmui.theme.styles;
-import openmui.rhi;
-import openmui.rhi.sdl;
+import mlibs.rhi;
+import xrender.rhi.sdl;
 import mcpplibs.os;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+using mlibs::log::set_log_filter;
+using mlibs::log::warn;
+}
 
 namespace omui::bench {
 
 namespace {
 
-class PlaybackStage final : public pipeline::Stage {
+class PlaybackStage final : public mlibs::pipeline::Stage {
 public:
     explicit PlaybackStage(animation::Playback& playback):playback_(playback){}
-    std::vector<pipeline::Port> reads() const override {
-        return {pipeline::port<FrameTree>(std::string(frame_resource::tree)),pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
+    std::vector<mlibs::pipeline::Port> reads() const override {
+        return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree)),mlibs::pipeline::port<FrameLayout>(std::string(frame_resource::layout))};
     }
-    std::vector<pipeline::Port> writes() const override {return {pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
-    std::expected<void,std::string> run(pipeline::Context&) override {
+    std::vector<mlibs::pipeline::Port> writes() const override {return {mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};}
+    std::expected<void,std::string> run(mlibs::pipeline::Context&) override {
         if(auto result=playback_.update();!result)return std::unexpected("Hanim host update failed");
         return {};
     }
@@ -102,7 +108,7 @@ class Gpu {
 public:
     explicit Gpu(Size size) {
         xrender::rhi::sdl::Options o;
-        o.formats = render::gpu_shader_formats();
+        o.formats = xrender::gpu_shader_formats();
         if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
         if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
         auto device = xrender::rhi::sdl::create(o);
@@ -111,15 +117,15 @@ public:
             return;
         }
         device_ = std::move(*device);
-        auto renderer = render::GpuRenderer::create(*device_);
+        auto renderer = xrender::GpuRenderer::create(*device_);
         if (!renderer) {
             why_ = std::format("the GPU renderer: {}", renderer.error().message);
             return;
         }
         renderer_.emplace(std::move(*renderer));
-        auto target = device_->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, static_cast<std::uint32_t>(size.width),
+        auto target = device_->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, static_cast<std::uint32_t>(size.width),
                                                        static_cast<std::uint32_t>(size.height),
-                                                       rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "bench.frame"});
+                                                       mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled, "bench.frame"});
         if (!target) {
             why_ = std::format("the frame's target: {}", target.error().message);
             return;
@@ -138,15 +144,15 @@ public:
             s.skip(why_);
             return false;
         }
-        const rhi::Caps& caps = device_->caps();
-        s.note("device", std::format("{} ({}{})", caps.device, rhi::name(caps.backend), caps.software ? ", software" : ""));
+        const mlibs::rhi::Caps& caps = device_->caps();
+        s.note("device", std::format("{} ({}{})", caps.device, mlibs::rhi::name(caps.backend), caps.software ? ", software" : ""));
         return true;
     }
 
     // The list drawn whole into the frame and waited for: counted as gpu_ms,
     // of which encode_ms is the CPU's (the list encoded and submitted), and
     // what it uploaded (uploaded_kb: new images, new masks, the instances).
-    void draw(State& s, const render::DisplayList& list, const render::Resources& resources, Color background) {
+    void draw(State& s, const xrender::DisplayList& list, const xrender::Resources& resources, Color background) {
         const auto t0 = std::chrono::steady_clock::now();
         auto r = renderer_->render(list, target_, resources, {.scale = 1, .clear = true, .background = background});
         s.counter("encode_ms", std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
@@ -162,9 +168,9 @@ public:
     }
 
 private:
-    std::unique_ptr<rhi::Device>       device_;
-    std::optional<render::GpuRenderer> renderer_;
-    rhi::Texture                       target_{};
+    std::unique_ptr<mlibs::rhi::Device>       device_;
+    std::optional<xrender::GpuRenderer> renderer_;
+    mlibs::rhi::Texture                       target_{};
     std::string                        why_;
 };
 
@@ -235,7 +241,7 @@ void canvas_wall(std::string_view name, std::size_t count) {
     sc.kind("window", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {80, world::Tier::Draw::custom}},
                                   .draw = [](world::DrawContext& d) {
                                       const Rect r = d.screen;
-                                      d.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(d.scene.fill(d.node)));
+                                      d.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(d.scene.fill(d.node)));
                                       d.list.fill_rect({r.x, r.y, r.width, std::min(r.height, 22.0f)}, Color::hex(0x334155));
                                       for (float y = r.y + 30; y + 6 < r.bottom() - 6; y += 12)
                                           d.list.fill_rect({r.x + 8, y, (r.width - 16) * 0.8f, 5}, Color::hex(0xcbd5e1));
@@ -271,7 +277,7 @@ void add_framework_benchmarks() {
     auto presentation = [](State& s, bool draw, bool drive=false, bool images=false) {
         constexpr std::size_t count=100;
         RuntimeOptions options;options.stages=Stages::paint;options.size={1280,720};
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         if(auto loaded=fonts.add_defaults();!loaded){s.fail(loaded.error());return;}
         options.fonts=&fonts;
         Runtime runtime(options);std::vector<Element> cards;cards.reserve(count);
@@ -298,15 +304,15 @@ void add_framework_benchmarks() {
                 .with_effect(hanim::fx::tone({.amount=0},{.amount=.2f}));
             if(!playback->play(program,{.alternate=true})){s.fail("Hanim public program failed");return;}
             auto added=runtime.stage_plugins().add({.name="omui.bench.playback",.kind="stage",.description="public Hanim host before paint",
-                .trace_category="omui.hanim.playback",.cost=pipeline::Cost{.cpu_us=500}},
-                [&](const pipeline::Config&)->std::expected<std::unique_ptr<pipeline::Stage>,std::string>{return std::make_unique<PlaybackStage>(*playback);});
+                .trace_category="omui.hanim.playback",.cost=mlibs::pipeline::Cost{.cpu_us=500}},
+                [&](const mlibs::pipeline::Config&)->std::expected<std::unique_ptr<mlibs::pipeline::Stage>,std::string>{return std::make_unique<PlaybackStage>(*playback);});
             if(!added){s.fail("Hanim stage registration failed");return;}
             auto graph=runtime.frame_pipeline().description();
             auto bounds=std::ranges::find_if(graph.stages,[](const auto& stage){return stage.name=="bounds";});
             bounds->after.push_back("hanim");graph.stages.insert(bounds,{"hanim","omui.bench.playback",{"layout"},{}});
-            const std::array inputs{pipeline::port<FrameInput>(std::string(frame_resource::input)),pipeline::port<FrameTree>(std::string(frame_resource::tree))};
-            auto built=pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
-            if(!built){s.fail(pipeline::to_text(built.error()));return;}
+            const std::array inputs{mlibs::pipeline::port<FrameInput>(std::string(frame_resource::input)),mlibs::pipeline::port<FrameTree>(std::string(frame_resource::tree))};
+            auto built=mlibs::pipeline::Pipeline::build(graph,runtime.stage_plugins(),inputs);
+            if(!built){s.fail(mlibs::pipeline::to_text(built.error()));return;}
             runtime.frame_pipeline()=std::move(*built);
         } else {
             auto acquired=runtime.acquire_presentation(targets);
@@ -314,12 +320,12 @@ void add_framework_benchmarks() {
             lease.emplace(std::move(*acquired));
         }
         std::array<hanim::Transform2D,count> poses;
-        render::LayerBoundsMap content_bounds;xrender::text::GlyphCache glyphs(fonts);
+        xrender::LayerBoundsMap content_bounds;xrender::text::GlyphCache glyphs(fonts);
         if(images) {
             // This workload animates translation at DPI 1 with fixed glyphs
             // and sizes. Prepare every supported subpixel mask before timing
             // the steady frame; first-use font rasterization is a cold cost.
-            for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<render::DrawGlyphs>(&command))
+            for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<xrender::DrawGlyphs>(&command))
                 for(const auto& glyph:run->glyphs)for(int y=0;y<xrender::text::GlyphCache::phases;++y)for(int x=0;x<xrender::text::GlyphCache::phases;++x)
                     (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/xrender::text::GlyphCache::phases,static_cast<float>(y)/xrender::text::GlyphCache::phases});
             s.note("glyph_resources","Fixed glyphs/sizes at DPI 1: all public GlyphCache subpixel phases prepared before timing. Cold mask generation, changing text and new sizes are outside this steady-state budget.");
@@ -381,10 +387,10 @@ void add_framework_benchmarks() {
             auto& sc = world::scene("bench-sharpen");
             sc.clear();
             sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
-                                       .content = [](const world::Scene& sc2, world::NodeRef n, render::DisplayList& dl) {
+                                       .content = [](const world::Scene& sc2, world::NodeRef n, xrender::DisplayList& dl) {
                                            const auto r = sc2.rect(n);
                                            const float w = static_cast<float>(r.width), h = static_cast<float>(r.height);
-                                           dl.fill_round_rect({0, 0, w, h}, CornerRadii::all(8), render::Paint::solid(Color::hex(0xf8fafc)));
+                                           dl.fill_round_rect({0, 0, w, h}, CornerRadii::all(8), xrender::Paint::solid(Color::hex(0xf8fafc)));
                                            dl.fill_rect({0, 0, w, 28}, Color::hex(0x334155));
                                            for (float y = 40; y + 10 < h; y += 18) dl.fill_rect({12, y, (w - 24) * (0.6f + 0.4f * std::fmod(y * 0.37f, 1.0f)), 9}, Color::hex(0x94a3b8));
                                        }});
@@ -601,40 +607,40 @@ void add_framework_benchmarks() {
     // the frame drawn whole — by the CPU reference, and on the GPU when the
     // machine has one (lavapipe in CI: a CPU's Vulkan; a real GPU's number is
     // the report's, M4's 120 Hz target).
-    auto glass_frame = [](render::DisplayList& dl) {
+    auto glass_frame = [](xrender::DisplayList& dl) {
         dl.clear();
         dl.fill_rect({0, 0, 1920, 1080}, Color::hex(0x0f172a));
         for (int i = 0; i < 24; ++i)
             dl.fill_rect({static_cast<float>(i) * 80.0f + 6, 0, 36, 1080}, Color{0.2f + 0.03f * static_cast<float>(i), 0.35f, 0.85f - 0.025f * static_cast<float>(i), 1});
         for (int i = 0; i < 6; ++i) {
-            render::Path ring;
+            xrender::Path ring;
             ring.add_circle({300.0f + static_cast<float>(i) * 260, 540}, 140).add_circle({300.0f + static_cast<float>(i) * 260, 540}, 110);
-            dl.fill_path(ring, render::FillRule::even_odd, render::Paint::solid(Color::hex(0xf59e0b, 0.8f)));
+            dl.fill_path(ring, xrender::FillRule::even_odd, xrender::Paint::solid(Color::hex(0xf59e0b, 0.8f)));
         }
-        const auto ref = render::effects().find("liquid_glass");
+        const auto ref = xrender::effects().find("liquid_glass");
         const std::array<std::pair<std::string_view, float>, 3> values{{{"blur", 8}, {"tint_a", 0.12f}, {"dispersion", 0.4f}}};
-        const auto params = render::effects().params(*ref, values);
+        const auto params = xrender::effects().params(*ref, values);
         for (int i = 0; i < 10; ++i) {
             const Rect r{80.0f + static_cast<float>(i % 5) * 360, 140.0f + static_cast<float>(i / 5) * 440, 300, 360};
-            const std::array<render::EffectShape, 1> shape{{{r, CornerRadii::all(28)}}};
-            dl.push_layer(1, render::BlendMode::normal, *ref, params, r, shape);
+            const std::array<xrender::EffectShape, 1> shape{{{r, CornerRadii::all(28)}}};
+            dl.push_layer(1, xrender::BlendMode::normal, *ref, params, r, shape);
             dl.fill_rect({r.x + 24, r.y + 24, 120, 18}, Color::hex(0xffffff, 0.85f));
             dl.pop_layer();
         }
     };
     add("glass/10-1080p-cpu", "ten liquid glass panels at 1920×1080, the frame drawn whole by the CPU reference (on the task pool, in bands)", [glass_frame](State& s) {
-        render::DisplayList dl;
+        xrender::DisplayList dl;
         glass_frame(dl);
-        raster::Surface target(1920, 1080);
-        render::CpuRenderer r;
+        xrender::raster::Surface target(1920, 1080);
+        xrender::CpuRenderer r;
         while (s.next()) (void)r.render(dl, target, {}, {.parallel = &raster_parallel()});
     });
     add("glass/10-1080p-gpu", "the same frame on the GPU (omui.rhi), submitted and waited for", [glass_frame](State& s) {
         Gpu gpu(full_hd);
         if (!gpu.ready(s)) return;
-        render::DisplayList dl;
+        xrender::DisplayList dl;
         glass_frame(dl);
-        render::ImageStore images;
+        xrender::ImageStore images;
         while (s.next()) gpu.draw(s, dl, {&images, nullptr}, Color::hex(0x0f172a));
     });
 
@@ -792,18 +798,18 @@ void add_framework_benchmarks() {
         h.mount("main", d.view());
         h.settle();
         xrender::text::GlyphCache glyphs(h.runtime().fonts());
-        render::CpuRenderer renderer;
-        raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
-        render::CpuOptions o;
+        xrender::CpuRenderer renderer;
+        xrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        xrender::CpuOptions o;
         o.background = Color::white();
-        const render::DisplayList& list = h.runtime().display_list();
+        const xrender::DisplayList& list = h.runtime().display_list();
         s.counter("commands", static_cast<double>(list.size()));
         while (s.next()) (void)renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
         // Where the time goes, per kind of command (one measured pass after the timed ones).
         o.measure = true;
-        const render::RenderReport r = renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
+        const xrender::RenderReport r = renderer.render(list, target, {&h.runtime().images(), &glyphs}, o);
         for (std::size_t k = 0; k < r.kinds.size(); ++k)
-            if (r.kinds[k].count) s.counter(std::format("{}_ms", render::command_kind_name(k)), r.kinds[k].ms);
+            if (r.kinds[k].count) s.counter(std::format("{}_ms", xrender::command_kind_name(k)), r.kinds[k].ms);
     });
     add("ui/raster/full-1080p-parallel", "the same, in bands of 64 rows on the task pool (the same bytes)", [](State& s) {
         Dashboard d;
@@ -811,9 +817,9 @@ void add_framework_benchmarks() {
         h.mount("main", d.view());
         h.settle();
         xrender::text::GlyphCache glyphs(h.runtime().fonts());
-        render::CpuRenderer renderer;
-        raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
-        render::CpuOptions o;
+        xrender::CpuRenderer renderer;
+        xrender::raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
+        xrender::CpuOptions o;
         o.background = Color::white();
         o.parallel = &raster_parallel();
         s.counter("threads", static_cast<double>(Tasks::shared().threads()));
@@ -848,13 +854,13 @@ void add_framework_benchmarks() {
 
     // ── pieces alone ──
     add("text/paragraph", "shaping and breaking 2 KB of text into lines 600 px wide", [](State& s) {
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         const std::string source = paragraph_text();
         s.items(source.size());
         while (s.next()) {
-            typeset::ParagraphStyle style;
-            typeset::Paragraph p(fonts, source, style);
+            mlibs::text::ParagraphStyle style;
+            mlibs::text::Paragraph p(fonts, source, style);
             p.layout(600);
             s.counter("height", static_cast<double>(p.size().height));
         }
@@ -863,7 +869,7 @@ void add_framework_benchmarks() {
         const std::string source = markdown_answer(160);
         s.items(source.size());
         while (s.next()) {
-            const auto doc = md::parse(source);
+            const auto doc = mlibs::markdown::parse(source);
             s.counter("blocks", static_cast<double>(doc.root.children.size()));
         }
     });
@@ -872,29 +878,29 @@ void add_framework_benchmarks() {
         constexpr std::size_t token = 4;
         s.items(source.size() / token);
         while (s.next()) {
-            md::Stream stream;
+            mlibs::markdown::Stream stream;
             for (std::size_t pos = 0; pos < source.size(); pos += token) stream.append(std::string_view(source).substr(pos, token));
             s.counter("frozen_blocks", static_cast<double>(stream.stable_blocks()));
         }
     });
     add("markdown/to-html", "the document of a 40 KB answer back to HTML", [](State& s) {
         const std::string source = markdown_answer(160);
-        const auto doc = md::parse(source);
+        const auto doc = mlibs::markdown::parse(source);
         s.items(source.size());
-        while (s.next()) s.counter("bytes", static_cast<double>(md::to_html(doc).size()));
+        while (s.next()) s.counter("bytes", static_cast<double>(mlibs::markdown::to_html(doc).size()));
     });
     add("text/glyph-motion", "one frame of glyph motion over 2 KB of laid-out text: every glyph's style (D-68)", [](State& s) {
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
-        typeset::Paragraph p(fonts, paragraph_text(), {});
+        mlibs::text::Paragraph p(fonts, paragraph_text(), {});
         p.layout(600);
         // The glyphs as the runtime animates them: the painted runs.
-        render::DisplayList painted;
+        xrender::DisplayList painted;
         xrender::text::paint(p, painted, {0, 0});
-        std::vector<std::span<const render::Glyph>> runs;
+        std::vector<std::span<const xrender::Glyph>> runs;
         std::size_t n = 0;
         for (const auto& c : painted.commands())
-            if (const auto* g = std::get_if<render::DrawGlyphs>(&c)) {
+            if (const auto* g = std::get_if<xrender::DrawGlyphs>(&c)) {
                 runs.emplace_back(g->glyphs);
                 n += g->glyphs.size();
             }
@@ -907,18 +913,18 @@ void add_framework_benchmarks() {
         }
     });
     add("render/effect-particles", "a 480 × 320 layer bursting into particles: offscreen, effect, composite (D-68)", [](State& s) {
-        render::DisplayList dl;
+        xrender::DisplayList dl;
         const Rect area{20, 20, 480, 320};
-        const auto ref = *render::effects().find("particles");
+        const auto ref = *xrender::effects().find("particles");
         const std::array<std::pair<std::string_view, float>, 2> given{{{"progress", 0.4f}, {"seed", 2}}};
-        const auto params = render::effects().params(ref, given);
-        dl.push_layer(1, render::BlendMode::normal, ref, params, area);
+        const auto params = xrender::effects().params(ref, given);
+        dl.push_layer(1, xrender::BlendMode::normal, ref, params, area);
         for (int i = 0; i < 12; ++i)
             dl.fill_round_rect({area.x + 10.0f + 38.0f * static_cast<float>(i), area.y + 20, 30, 280}, CornerRadii::all(8),
-                               render::Paint::solid(Color::hex(0x4f46e5 + 0x0a0a00 * static_cast<std::uint32_t>(i))));
+                               xrender::Paint::solid(Color::hex(0x4f46e5 + 0x0a0a00 * static_cast<std::uint32_t>(i))));
         dl.pop_layer();
-        raster::Surface surf(560, 400);
-        render::CpuRenderer cpu;
+        xrender::raster::Surface surf(560, 400);
+        xrender::CpuRenderer cpu;
         s.items(static_cast<std::size_t>(area.width * area.height));
         while (s.next()) {
             const auto r = cpu.render(dl, surf, {}, {.background = Color::white()});
@@ -929,37 +935,37 @@ void add_framework_benchmarks() {
     for (std::string_view name : {"wobble", "metaball", "neon", "paper"})
         add(std::format("render/effect-{}", name), std::format("a 480 × 320 layer of bars through {}: offscreen, effect, composite (per pixel)", name),
             [name](State& s) {
-                render::DisplayList dl;
+                xrender::DisplayList dl;
                 const Rect area{20, 20, 480, 320};
-                const auto ref = *render::effects().find(name);
-                const auto params = render::effects().params(ref, {});
-                std::array<render::EffectShape, 8> shapes{};
+                const auto ref = *xrender::effects().find(name);
+                const auto params = xrender::effects().params(ref, {});
+                std::array<xrender::EffectShape, 8> shapes{};
                 for (int i = 0; i < 8; ++i) shapes[i] = {{area.x + 10.0f + 58.0f * static_cast<float>(i), area.y + 20, 44, 280}, CornerRadii::all(8)};
-                dl.push_layer(1, render::BlendMode::normal, ref, params, area, shapes);
-                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, render::Paint::solid(Color::hex(0x4f46e5)));
+                dl.push_layer(1, xrender::BlendMode::normal, ref, params, area, shapes);
+                for (const auto& sh : shapes) dl.fill_round_rect(sh.rect, sh.radii, xrender::Paint::solid(Color::hex(0x4f46e5)));
                 dl.pop_layer();
-                raster::Surface surf(560, 400);
-                render::CpuRenderer cpu;
+                xrender::raster::Surface surf(560, 400);
+                xrender::CpuRenderer cpu;
                 s.items(static_cast<std::size_t>(area.width * area.height));
                 while (s.next()) (void)cpu.render(dl, surf, {}, {.background = Color::white()});
             });
     add("trace/span-off", "10 000 spans while nothing records: the cost tracing adds to a normal run", [](State& s) {
-        (void)trace::stop();
+        (void)mlibs::trace::stop();
         constexpr std::size_t n = 10'000;
         s.items(n);
         while (s.next())
-            for (std::size_t i = 0; i < n; ++i) trace::Span span("bench", "bench");
+            for (std::size_t i = 0; i < n; ++i) mlibs::trace::Span span("bench", "bench");
     });
     add("trace/span-on", "10 000 spans while a profile records", [](State& s) {
         constexpr std::size_t n = 10'000;
         s.items(n);
         while (s.next()) {
             s.pause();
-            trace::start({.events_per_thread = 2 * n});
+            mlibs::trace::start({.events_per_thread = 2 * n});
             s.resume();
-            for (std::size_t i = 0; i < n; ++i) trace::Span span("bench", "bench");
+            for (std::size_t i = 0; i < n; ++i) mlibs::trace::Span span("bench", "bench");
         }
-        (void)trace::stop();
+        (void)mlibs::trace::stop();
     });
     add("log/filtered-out", "10 000 debug records in a category the filter leaves out", [](State& s) {
         constexpr Log bench_log{"bench"};

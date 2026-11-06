@@ -1,8 +1,8 @@
 module hanim.effect;
 
 import std;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 
 namespace hanim::detail {
 struct EffectsData { std::vector<EffectEntry> effects; std::vector<EffectParameter> parameters; };
@@ -10,7 +10,7 @@ struct EffectsData { std::vector<EffectEntry> effects; std::vector<EffectParamet
 
 namespace hanim {
 namespace {
-constexpr omui::Log log{"hanim.effect"};
+constexpr mlibs::log::Log log{"hanim.effect"};
 bool valid_key(std::string_view key) noexcept {
     return !key.empty() && key.size() <= 128 &&
         std::ranges::none_of(key, [](unsigned char c) { return c < 32 || c == 127; });
@@ -29,10 +29,10 @@ std::string_view effect_error_name(EffectError error) noexcept {
     return "unknown";
 }
 std::expected<PreparedEffects, EffectError> PreparedEffects::prepare(std::span<const EffectSpec> input, EffectLimits limits) {
-    omui::trace::Span span("prepare", "hanim.effect");
+    mlibs::trace::Span span("prepare", "hanim.effect");
     auto refuse = [](EffectError error) -> std::expected<PreparedEffects, EffectError> {
         log.warn("prepare refused: {}", effect_error_name(error));
-        omui::trace::mark("refused", "hanim.effect");
+        mlibs::trace::mark("refused", "hanim.effect");
         return std::unexpected(error);
     };
     if (!limits.max_effects || limits.max_effects > 4096 || !limits.max_parameters || limits.max_parameters > 65536)
@@ -60,8 +60,8 @@ std::expected<PreparedEffects, EffectError> PreparedEffects::prepare(std::span<c
         }
         result.data_ = std::move(data);
     }
-    omui::trace::count("effects", static_cast<double>(input.size()), "hanim.effect");
-    omui::trace::count("parameters", static_cast<double>(count), "hanim.effect");
+    mlibs::trace::count("effects", static_cast<double>(input.size()), "hanim.effect");
+    mlibs::trace::count("parameters", static_cast<double>(count), "hanim.effect");
     log.info("prepared {} ordered effects and {} parameters", input.size(), count);
     return result;
 }
@@ -73,7 +73,7 @@ std::span<const EffectParameter> PreparedEffects::parameters() const & noexcept 
     return data_ ? std::span<const EffectParameter>(data_->parameters) : std::span<const EffectParameter>{};
 }
 std::expected<void, EffectError> PreparedEffects::sample(double progress, std::span<float> output) const noexcept {
-    omui::trace::Span span("sample", "hanim.effect");
+    mlibs::trace::Span span("sample", "hanim.effect");
     if (!std::isfinite(progress)) return std::unexpected(EffectError::nonfinite_progress);
     if (output.size() < parameter_count()) return std::unexpected(EffectError::buffer_too_small);
     const auto t = dm::clamp(progress, 0.0, 1.0);

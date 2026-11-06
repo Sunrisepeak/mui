@@ -1,9 +1,15 @@
 import std;
 import openmui.core;
-import openmui.testing;
+import mlibs.testing;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::LogRecord;
+using mlibs::log::set_log_filter;
+using mlibs::log::set_log_sink;
+}
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"core.agent_policy_log"};

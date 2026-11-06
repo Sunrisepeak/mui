@@ -5,10 +5,10 @@ import std;
 import openmui;
 import xengine.audio;
 import openmui.showcase.fighting;
-import openmui.testing;
+import mlibs.testing;
 import gongfu;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 namespace audio = xengine::audio;
 

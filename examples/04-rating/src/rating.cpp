@@ -15,8 +15,8 @@ namespace {
 constexpr float star = 22, gap = 4;
 
 // A five-pointed star in a square.
-omui::render::Path star_path(omui::Rect r) {
-    omui::render::Path p;
+xrender::Path star_path(omui::Rect r) {
+    xrender::Path p;
     const omui::Point c{r.x + r.width / 2, r.y + r.height / 2 + r.height * 0.04f};
     const float outer = r.width / 2, inner = outer * 0.48f;
     for (int i = 0; i < 10; ++i) {
@@ -57,8 +57,8 @@ void Rating::prop_changed(RatingProp p) {
     if (p == RatingProp::max) services().invalidate_layout(node());
 }
 
-omui::Size Rating::measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, omui::layout::Available,
-                           omui::layout::Available) {
+omui::Size Rating::measure(omui::MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available,
+                           mlibs::layout::Available) {
     const int n = std::max(props.max, 1);
     return {width.value_or(n * star + (n - 1) * gap), height.value_or(star)};
 }
@@ -74,15 +74,15 @@ void Rating::paint(omui::PaintContext& ctx) const {
     for (int i = 0; i < std::max(props.max, 1); ++i) {
         const omui::Rect r{i * (star + gap), (ctx.size.height - star) / 2, star, star};
         const auto path = star_path(r);
-        ctx.list.fill_path(path, omui::render::FillRule::nonzero, omui::render::Paint::solid(empty));
+        ctx.list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(empty));
         if (preview_ > i && hover_ > 0) {
             ctx.list.push_clip({r.x, r.y, r.width * static_cast<float>(std::min(1.0, preview_ - i)), r.height});
-            ctx.list.fill_path(path, omui::render::FillRule::nonzero, omui::render::Paint::solid(preview));
+            ctx.list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(preview));
             ctx.list.pop_clip();
         }
         if (shown > i) {
             ctx.list.push_clip({r.x, r.y, r.width * static_cast<float>(std::min(1.0, shown - i)), r.height});
-            ctx.list.fill_path(path, omui::render::FillRule::nonzero, omui::render::Paint::solid(on));
+            ctx.list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(on));
             ctx.list.pop_clip();
         }
     }

@@ -1,9 +1,9 @@
 import std;
 import openmui.view;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 struct Fixture {

@@ -8,9 +8,9 @@ import std;
 import openmui;
 import openmui.site;
 import openmui.ui.markdown;  // openmui.markdown with it
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -105,7 +105,7 @@ struct Site {
     bool shown(std::string_view place) { return h.tree().node(std::format("main/body/view/{}/page", place)).has_value(); }
 };
 
-std::uint64_t fnv(std::string_view s) { return hash::fnv1a(s); }
+std::uint64_t fnv(std::string_view s) { return mlibs::hash::fnv1a(s); }
 
 constexpr std::string_view page = R"(<!doctype html>
 <html lang="en">
@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
                 const std::string_view doc = site::document(p.id, lang);
                 // Home's title is the opening's claim (hero.cpp); its document begins a level down.
                 check(doc.starts_with(p.id == "hello" ? "## " : "# "), std::format("{} in {}: a document with its title", p.id, lang));
-                check(!md::parse(doc).root.children.empty(), std::format("{} in {}: reads as Markdown", p.id, lang));
+                check(!mlibs::markdown::parse(doc).root.children.empty(), std::format("{} in {}: reads as Markdown", p.id, lang));
             }
         }
         check(site::document("hello", "zh").contains("mcpp"), "the Chinese quickstart");
@@ -836,7 +836,7 @@ int main(int argc, char** argv) {
         // The fast screen: the tier the settings choose.
         check(a.h.tree().act(home + "fast/shown/tier/t1", "activate").exit_code() == std::optional<int>(0));
         a.h.settle();
-        check(a.h.runtime().adaptation().effects == pipeline::Tier::t1, "effects as T1");
+        check(a.h.runtime().adaptation().effects == mlibs::pipeline::Tier::t1, "effects as T1");
         check(a.h.tree().node(home + "fast/shown/device")->name.find("T1") != std::string::npos, a.h.tree().node(home + "fast/shown/device")->name);
     });
 
@@ -1221,7 +1221,7 @@ int main(int argc, char** argv) {
             const auto skip = html.find("<a class=\"skip\" href=\"#/"), nav = html.find("<nav aria-label=");
             check(skip != std::string::npos && skip < nav, std::format("{}: a skip link before the places", lang));
             for (const site::Place& p : site::places()) check(html.find(std::format("<section id=\"/{}\"", p.id == "home" ? (lang == "zh" ? "zh/home" : "home") : site::canonical_route(p.id, lang))) != std::string::npos, std::format("{} {}", lang, p.id));
-            check(html.find(md::to_html(md::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
+            check(html.find(mlibs::markdown::to_html(mlibs::markdown::parse(site::document("features", lang)))) != std::string::npos, "the features as md4c-html writes them");
         }
         const std::string en = site::static_html("en");
         check(en.find("aria-label=\"One interface. Every perspective.\"") != std::string::npos && en.find("One interface.<br>Every perspective.") != std::string::npos, "the thesis and deliberate line break, readable without JavaScript");

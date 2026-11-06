@@ -1,12 +1,12 @@
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.testing;
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.testing;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 namespace {
 constexpr int W = 96, H = 80;
 render::Path shape() {

@@ -10,13 +10,13 @@ export namespace {{project.name}} {
 
 class Counter : public CounterContract<Counter> {
 public:
-    omui::Size measure(omui::MeasureContext&, std::optional<float>, std::optional<float>, omui::layout::Available,
-                       omui::layout::Available) {
+    omui::Size measure(omui::MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available,
+                       mlibs::layout::Available) {
         return {64, 32};
     }
     void paint(omui::PaintContext& ctx) const {
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, omui::CornerRadii::all(8),
-                                 omui::render::Paint::solid(ctx.theme.color("surface_variant")));
+                                 xrender::Paint::solid(ctx.theme.color("surface_variant")));
     }
     void semantics(omui::SemanticsContext&, omui::spec::SemanticNode& node) const {
         if (node.name.empty()) node.name = props.label;

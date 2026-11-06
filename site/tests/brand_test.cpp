@@ -2,10 +2,10 @@
 import std;
 import openmui;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
                 row({.id = "sizes", .gap = 44, .align = "center"}, std::move(samples))}));
             h.settle();
             check(h.save_png(dir / (dark ? "mark-dark.png" : "mark-light.png")).has_value());
-            render::DisplayList list;
+            xrender::DisplayList list;
             site::paint_mark(list, theme, {20, 30}, 256);
             check(list.balanced() && list.size() > 5, "the mark records balanced vector commands");
             const auto svg = site::brand_svg(theme.color("accent"));

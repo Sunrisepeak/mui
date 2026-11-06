@@ -6,19 +6,19 @@
 import std;
 import gongfu.present2d;
 import hanim.core;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.image;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.image;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 namespace p2 = gongfu::present2d;
 
 namespace {
 
-using omui::geom::Color;
+using mlibs::geom::Color;
 constexpr std::uint16_t LP = bit(Button::lp);
 
 FighterDef body() {
@@ -111,7 +111,7 @@ SystemDef rules() {
     return s;
 }
 
-std::uint64_t picture(const omui::raster::Surface& s) {
+std::uint64_t picture(const xrender::raster::Surface& s) {
     Hash h;
     for (int y = 0; y < s.height(); ++y) h.bytes(std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
     return h.value();
@@ -149,10 +149,10 @@ const std::filesystem::path& frames_dir() {
     return d;
 }
 
-void save(const omui::raster::Surface& s, std::string_view name) {
-    const omui::imageio::View v{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4,
-                                omui::imageio::Alpha::premultiplied};
-    if (auto png = omui::imageio::encode_png(v)) {
+void save(const xrender::raster::Surface& s, std::string_view name) {
+    const mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4,
+                                mlibs::image::Alpha::premultiplied};
+    if (auto png = mlibs::image::encode_png(v)) {
         std::ofstream out(frames_dir() / std::format("{}.png", name), std::ios::binary);
         out.write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
     }
@@ -199,15 +199,15 @@ int main(int argc, char** argv) {
         m.restore(st);
         p2::Effects fx;
         const p2::Scene scene;
-        omui::render::CpuRenderer cpu;
+        xrender::CpuRenderer cpu;
         std::vector<std::uint64_t> lists, pixels;
         for (int f = 0; f < 8; ++f) {
             m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
             fx.record(m);
             if (f == 0 || f == 3 || f == 5) {
-                omui::render::DisplayList dl;
+                xrender::DisplayList dl;
                 p2::draw(m, ink, paper, fx, scene, dl);
-                omui::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
+                xrender::raster::Surface px(static_cast<int>(scene.width), static_cast<int>(scene.height));
                 cpu.render(dl, px, {}, {.scale = 1});
                 lists.push_back(dl.hash());
                 pixels.push_back(picture(px));
@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
             m.tick(a, b);
             fx.record(m);
         }
-        omui::render::DisplayList before;
+        xrender::DisplayList before;
         p2::draw(m, ink, paper, fx, scene, before);
         // Back to frame 25 and forward again with the same inputs.
         m.restore(saved[25]);
@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
             m.tick(inputs[f].first, inputs[f].second);
             fx.record(m);
         }
-        omui::render::DisplayList after;
+        xrender::DisplayList after;
         p2::draw(m, ink, paper, fx, scene, after);
         check(before.hash() == after.hash(), "the same display list");
     });
@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
         check(p2::write_look(*again) == text, "what is written reads back as itself");
         Match m = close_match();
         p2::Effects fx;
-        omui::render::DisplayList a, b;
+        xrender::DisplayList a, b;
         for (int f = 0; f < 6; ++f) {
             m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
             fx.record(m);
@@ -410,7 +410,7 @@ reactions = ["hitstun.body", "launched", "slammed"]
             for (auto& f : st.f) f.mode = Mode::cinematic;
             st.lock = {0, move, frame, 1, 915_fx, 0_fx};
             m.restore(st);
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(m, by, defender, p2::Effects{}, {}, dl);
             return dl.hash();
         };
@@ -524,17 +524,17 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         st.facing = 1;
         p2::Painter painter;
         auto draw_at = [&](const p2::Look& l, std::int32_t t) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.body(l, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 280}, p2::Camera{0, 0, 1}, dl, "swing", t);
-            omui::raster::Surface px(400, 300);
-            omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+            xrender::raster::Surface px(400, 300);
+            xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
             return px;
         };
         // At rest (frame 0): the body's upper-left edge has the rim (lighter), its lower-right the shadow (darker), its middle its own grey.
         const auto rest = draw_at(*look, 0);
         save(rest, "drawn-rest");
-        auto grey = [&](const omui::raster::Surface& px, int x, int y) { return static_cast<int>(px.at(x, y).r); };
+        auto grey = [&](const xrender::raster::Surface& px, int x, int y) { return static_cast<int>(px.at(x, y).r); };
         // The arm lies along +x from (0, 100) on the stage: on the picture, from the middle, 100 px above the ground line.
         const int cx = 230, cy = 180;  // the body's middle
         check(grey(rest, cx, cy) > 110 && grey(rest, cx, cy) < 150, std::format("the middle: {}", grey(rest, cx, cy)));
@@ -547,7 +547,7 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         check(last > 0 && grey(rest, cx + 30, last) + 20 < grey(rest, cx, cy), std::format("the shadow below: {} under {}", last > 0 ? grey(rest, cx + 30, last) : -1, grey(rest, cx, cy)));
         // The swap: frames 8–11 draw the variant (bigger), 0–7 and 12– the points.
         Hash h0, h7, h9, h12;
-        auto hash = [&](const omui::raster::Surface& px, Hash& h) {
+        auto hash = [&](const xrender::raster::Surface& px, Hash& h) {
             for (int y = 0; y < px.height(); ++y) h.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         };
         p2::Look still = *look;  // no follow: only the swap changes the picture between 8 and 12
@@ -636,10 +636,10 @@ cels = [[0, "load"], [5, "hit"], [12, "rig"]]
                   p2::exposed(&punch, 12) == -1,
               "held to the next exposure; the rig again");
         // The picture: the load pose red, the hit pose blue.
-        omui::render::ImageStore images;
-        std::vector<omui::raster::Rgba8> px(200 * 100);
+        xrender::ImageStore images;
+        std::vector<xrender::raster::Rgba8> px(200 * 100);
         for (int y = 0; y < 100; ++y)
-            for (int x = 0; x < 200; ++x) px[static_cast<std::size_t>(y * 200 + x)] = x < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+            for (int x = 0; x < 200; ++x) px[static_cast<std::size_t>(y * 200 + x)] = x < 100 ? xrender::raster::Rgba8{220, 40, 40, 255} : xrender::raster::Rgba8{40, 40, 220, 255};
         look->pictures[0].ref = images.add(200, 100, std::move(px));
         const Fighter f = *compile(body());
         FighterState st;
@@ -648,14 +648,14 @@ cels = [[0, "load"], [5, "hit"], [12, "rig"]]
         p2::Painter painter;
         auto draw_at = [&](std::int32_t t, std::int32_t facing) {
             st.facing = facing;
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.body(*look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{200, 0, 1}, dl, "punch", t);
-            omui::raster::Surface out(400, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(400, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
-        auto count = [](const omui::raster::Surface& s, bool blue, int x0, int x1) {
+        auto count = [](const xrender::raster::Surface& s, bool blue, int x0, int x1) {
             int n = 0;
             for (int y = 0; y < 300; ++y)
                 for (int x = x0; x < x1; ++x) n += blue ? (s.at(x, y).b > 150 && s.at(x, y).r < 100) : (s.at(x, y).r > 150 && s.at(x, y).b < 100 && s.at(x, y).g < 100);
@@ -731,28 +731,28 @@ angle.fore = [[0, 0], [10, 90]]
         auto again = p2::read_look(written, "written.look.gongfu.toml");
         check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
         // The picture: a red upper half, a blue lower half (where the forearm's art is).
-        omui::render::ImageStore images;
-        std::vector<omui::raster::Rgba8> px(40 * 200);
+        xrender::ImageStore images;
+        std::vector<xrender::raster::Rgba8> px(40 * 200);
         for (int y = 0; y < 200; ++y)
-            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? xrender::raster::Rgba8{220, 40, 40, 255} : xrender::raster::Rgba8{40, 40, 220, 255};
         look->pictures[0].ref = images.add(40, 200, std::move(px));
         const Fighter f = *compile(body());
         FighterState st;
         st.facing = 1;
         p2::Painter painter;
         auto draw_at = [&](std::int32_t t) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.body(*look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "bend", t);
-            omui::raster::Surface out(400, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(400, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
         const auto straight = draw_at(0), bent = draw_at(10);
         save(straight, "art-straight");
         save(bent, "art-bent");
         // Straight down, the blue lower half lies below the joint; bent 90° at the elbow, it goes out sideways.
-        auto blue = [](const omui::raster::Surface& s, int x, int y) { return s.at(x, y).b > 150 && s.at(x, y).r < 100; };
+        auto blue = [](const xrender::raster::Surface& s, int x, int y) { return s.at(x, y).b > 150 && s.at(x, y).r < 100; };
         int below = 0, beside = 0;
         for (int y = 0; y < 300; ++y)
             for (int x = 0; x < 400; ++x) {
@@ -775,16 +775,16 @@ angle.fore = [[0, 0], [10, 90]]
             if (!bent_rest) return;
             bent_rest->pictures[0].ref = look->pictures[0].ref;
             auto draw = [&](std::int32_t t) {
-                omui::render::DisplayList dl;
+                xrender::DisplayList dl;
                 dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
                 painter.body(*bent_rest, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "bend", t);
-                omui::raster::Surface out(400, 300);
-                omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+                xrender::raster::Surface out(400, 300);
+                xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
                 return out;
             };
             const auto at_rest = draw(0), turned = draw(10);
             save(turned, "art-bent-rest");
-            auto red = [](const omui::raster::Surface& s, int x, int y) { return s.at(x, y).r > 150 && s.at(x, y).b < 100; };
+            auto red = [](const xrender::raster::Surface& s, int x, int y) { return s.at(x, y).r > 150 && s.at(x, y).b < 100; };
             // The shoulder: the topmost red row and its middle.
             int top = -1, sx = 0, n = 0;
             for (int y = 0; y < 300 && top < 0; ++y)
@@ -867,10 +867,10 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
         check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         // The picture: red and blue halves.
-        omui::render::ImageStore images;
-        std::vector<omui::raster::Rgba8> px(40 * 200);
+        xrender::ImageStore images;
+        std::vector<xrender::raster::Rgba8> px(40 * 200);
         for (int y = 0; y < 200; ++y)
-            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? omui::raster::Rgba8{220, 40, 40, 255} : omui::raster::Rgba8{40, 40, 220, 255};
+            for (int x = 4; x < 36; ++x) px[static_cast<std::size_t>(y * 40 + x)] = y < 100 ? xrender::raster::Rgba8{220, 40, 40, 255} : xrender::raster::Rgba8{40, 40, 220, 255};
         look->pictures[0].ref = images.add(40, 200, std::move(px));
         static const Fighter stopper = [] {
             FighterDef f = body();
@@ -893,14 +893,14 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
             for (auto& f : st.f) f.mode = Mode::cinematic;
             st.lock = {0, move, frame, 1, 915_fx, 0_fx};
             m.restore(st);
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(m, *look, *look, p2::Effects{}, {}, dl);
-            omui::raster::Surface out(960, 540);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(960, 540);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
         // How many pixels are coloured (not grey), and how many are the picture's red.
-        auto count = [](const omui::raster::Surface& s) {
+        auto count = [](const xrender::raster::Surface& s) {
             std::array<int, 2> n{};
             for (int y = 0; y < s.height(); ++y)
                 for (int x = 0; x < s.width(); ++x) {
@@ -928,7 +928,7 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
                 m.tick(Pad{}, Pad{});
                 fx.record(m);
             }
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(m, *look, *look, fx, {}, dl);
             return dl.hash();
         };
@@ -990,8 +990,8 @@ defender = "still"
         const std::string written = p2::write_look(*behind);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
         check(again && again->cinematics.at("236236K").behind.size() == 1 && p2::write_look(*again) == written, written);
-        omui::render::ImageStore images;
-        std::vector<omui::raster::Rgba8> px(40 * 200, omui::raster::Rgba8{220, 40, 40, 255});
+        xrender::ImageStore images;
+        std::vector<xrender::raster::Rgba8> px(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255});
         const auto ref = images.add(40, 200, std::move(px));
         behind->pictures[0].ref = over->pictures[0].ref = ref;
         static const Fighter super = [] {
@@ -1014,10 +1014,10 @@ defender = "still"
             for (auto& f : st.f) f.mode = Mode::cinematic;
             st.lock = {0, super.find("236236K"), 5, 1, 915_fx, 0_fx};
             m.restore(st);
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(m, look, look, p2::Effects{}, {}, dl);
-            omui::raster::Surface out(960, 540);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(960, 540);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             std::array<int, 2> n{};
             for (int y = 0; y < out.height(); ++y)
                 for (int x = 0; x < out.width(); ++x) {
@@ -1075,19 +1075,19 @@ mesh = [1, 6]
         auto a = p2::read_look(one, "one.look.gongfu.toml"), b = p2::read_look(two, "two.look.gongfu.toml");
         check(a && b, "read");
         if (!a || !b) return;
-        omui::render::ImageStore images;
-        const auto ref = images.add(40, 200, std::vector<omui::raster::Rgba8>(40 * 200, omui::raster::Rgba8{220, 40, 40, 255}));
+        xrender::ImageStore images;
+        const auto ref = images.add(40, 200, std::vector<xrender::raster::Rgba8>(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255}));
         a->pictures[0].ref = b->pictures[0].ref = ref;
         const Fighter f = *compile(body());
         FighterState st;
         st.facing = 1;
         p2::Painter painter;
         auto drawn = [&](const p2::Look& look) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.body(look, f, st, 0, p2::Scene{.width = 400, .height = 300, .ground = 200}, p2::Camera{0, 60, 1}, dl, "still", 0, Color::hex(0xd4af37, 0.45f));
-            omui::raster::Surface out(400, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(400, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
         const auto single = drawn(*a), doubled = drawn(*b);
@@ -1155,15 +1155,15 @@ alpha = [1, 0.5]
         check(again && again->rewind.mark == "dial" && p2::write_look(*again) == written, written);
         auto bad = p2::read_look(text.substr(0, text.find("mark = \"dial\"")) + "mark = \"dail\" }\n" + text.substr(text.find("}\n") + 2), "bad.look.gongfu.toml");
         check(!bad, "an effect the look has not");
-        omui::render::ImageStore images;
-        look->pictures[0].ref = images.add(40, 200, std::vector<omui::raster::Rgba8>(40 * 200, omui::raster::Rgba8{220, 40, 40, 255}));
+        xrender::ImageStore images;
+        look->pictures[0].ref = images.add(40, 200, std::vector<xrender::raster::Rgba8>(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255}));
         auto drawn = [&](bool marked) {
             Match m(rules(), fighter(), fighter());
             State st = m.state();
             st.history[0].marked = marked ? 1 : 0;
             st.history[0].mark = {{900_fx, 0_fx}, 1};
             m.restore(st);
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(m, *look, *look, p2::Effects{}, {}, dl);
             return dl.hash();
         };
@@ -1174,7 +1174,7 @@ alpha = [1, 0.5]
         State st = m.state();
         st.history[0].marked = 1;
         m.restore(st);
-        omui::render::DisplayList a, b;
+        xrender::DisplayList a, b;
         p2::draw(m, plain, plain, p2::Effects{}, {}, a);
         st.history[0].marked = 0;
         m.restore(st);
@@ -1226,32 +1226,32 @@ mesh = [1, 1]
         auto again = p2::read_look(written, "written.look.gongfu.toml");
         check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
         // A grey slab; its relief (a bevel) made as a stage's carrier makes it, once.
-        omui::imageio::Image slab{.width = 80, .height = 160, .alpha = omui::imageio::Alpha::straight, .rgba = std::vector<std::uint8_t>(80 * 160 * 4, 0)};
+        mlibs::image::Image slab{.width = 80, .height = 160, .alpha = mlibs::image::Alpha::straight, .rgba = std::vector<std::uint8_t>(80 * 160 * 4, 0)};
         for (int y = 6; y < 154; ++y)
             for (int x = 6; x < 74; ++x)
                 for (int c = 0; c < 4; ++c) slab.rgba[static_cast<std::size_t>((y * 80 + x) * 4 + c)] = c == 3 ? 255 : 180;
-        const omui::imageio::Image normal = omui::imageio::normal_map(slab, {.bevel = 24});
-        auto pixels = [](const omui::imageio::Image& img) {
-            std::vector<omui::raster::Rgba8> px(static_cast<std::size_t>(img.width * img.height));
+        const mlibs::image::Image normal = mlibs::image::normal_map(slab, {.bevel = 24});
+        auto pixels = [](const mlibs::image::Image& img) {
+            std::vector<xrender::raster::Rgba8> px(static_cast<std::size_t>(img.width * img.height));
             std::memcpy(px.data(), img.rgba.data(), img.rgba.size());
             return px;
         };
-        omui::render::ImageStore images;
+        xrender::ImageStore images;
         look->pictures[0].ref = images.add(80, 160, pixels(slab));
         const Fighter f = *compile(body());
         FighterState st;
         st.facing = 1;
         p2::Painter painter;
         auto draw = [&](const p2::Stage* world, std::optional<Color> tint = std::nullopt) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 300, 300}, Color::hex(0x000000));
             painter.body(*look, f, st, 0, p2::Scene{.width = 300, .height = 300, .ground = 260, .stage = world}, p2::Camera{0, 100, 1}, dl, "", 0, tint);
-            omui::raster::Surface out(300, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(300, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
         // Brightness of the slab's left and right thirds.
-        auto sides = [](const omui::raster::Surface& s) {
+        auto sides = [](const xrender::raster::Surface& s) {
             std::array<long, 2> sum{};
             for (int y = 0; y < 300; ++y)
                 for (int x = 0; x < 300; ++x)
@@ -1543,17 +1543,17 @@ ease = "linear"
         check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
         check(look->fx.at("splash").length() == 20 && look->fx.at("slash").length() == 12, "lengths");
         check(look->impacts.size() == 1 && look->impacts[0].fx == "splash" && look->cutins.contains("L3"), "named");
-        omui::render::ImageStore images;
-        look->pictures[0].ref = images.add(64, 32, std::vector<omui::raster::Rgba8>(64 * 32, omui::raster::Rgba8{20, 20, 20, 255}));
+        xrender::ImageStore images;
+        look->pictures[0].ref = images.add(64, 32, std::vector<xrender::raster::Rgba8>(64 * 32, xrender::raster::Rgba8{20, 20, 20, 255}));
         p2::Painter painter;
         const p2::Scene scene{.width = 400, .height = 300, .ground = 250};
         const p2::Camera cam{0, 0, 1};
         auto inked = [&](std::string_view name, double age) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.fx(*look, look->fx.at(std::string(name)), age, {0, 100}, 1, 1, scene, cam, dl);
-            omui::raster::Surface out(400, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(400, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             int n = 0;
             for (int y = 0; y < 300; ++y)
                 for (int x = 0; x < 400; ++x) n += out.at(x, y).r < 128;
@@ -1567,11 +1567,11 @@ ease = "linear"
         check(inked("slash", 3).second == k3.second, "the same picture every time");
         // A sprite travelling: from its place to its destination along an arc `lift` high at the middle.
         auto centre = [&](double age) {
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
             painter.fx(*look, look->fx.at("pass"), age, {0, 100}, 1, 1, scene, cam, dl);
-            omui::raster::Surface out(400, 300);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(400, 300);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             double sx = 0, sy = 0, n = 0;
             for (int y = 0; y < 300; ++y)
                 for (int x = 0; x < 400; ++x)
@@ -1585,11 +1585,11 @@ ease = "linear"
         check(std::abs(x0 - 100) < 2 && std::abs(x10 - 300) < 2 && std::abs(x5 - 200) < 2, std::format("along: {:.1f} {:.1f} {:.1f}", x0, x5, x10));
         check(std::abs(y0 - y10) < 1 && std::abs((y0 - y5) - 60) < 2, std::format("over the arc: {:.1f} {:.1f} {:.1f}", y0, y5, y10));
         // The cut-in: sliding in, then across the band (the middle 40%).
-        omui::render::DisplayList dl;
+        xrender::DisplayList dl;
         dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
         painter.panel(*look, look->cutins.at("L3"), 10, 1, scene, dl);
-        omui::raster::Surface out(400, 300);
-        omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+        xrender::raster::Surface out(400, 300);
+        xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
         check(out.at(200, 150).r < 60 && out.at(200, 20).r > 200 && out.at(200, 280).r > 200, "a band across the middle");
         std::string bad = text;
         bad.replace(bad.find("fx = \"splash\""), 14, "fx = \"splosh\"");
@@ -1632,28 +1632,28 @@ width = 400
         check(shaded && std::abs(shaded->contact.a - 128 / 255.0f) < 1e-6f && p2::write_stage(*shaded).contains("contact = "), "contact read and written");
         check(shaded && shaded->light_color && p2::write_stage(*shaded).contains("color = "), "the light's colour read and written");
         // A picture: its left half red, its right half blue.
-        omui::render::ImageStore images;
-        std::vector<omui::raster::Rgba8> px(64 * 32);
+        xrender::ImageStore images;
+        std::vector<xrender::raster::Rgba8> px(64 * 32);
         for (int y = 0; y < 32; ++y)
-            for (int x = 0; x < 64; ++x) px[static_cast<std::size_t>(y * 64 + x)] = x < 32 ? omui::raster::Rgba8{230, 30, 30, 255} : omui::raster::Rgba8{30, 30, 230, 255};
+            for (int x = 0; x < 64; ++x) px[static_cast<std::size_t>(y * 64 + x)] = x < 32 ? xrender::raster::Rgba8{230, 30, 30, 255} : xrender::raster::Rgba8{30, 30, 230, 255};
         st->pictures[0].ref = images.add(64, 32, std::move(px));
         auto draw = [&](const p2::Stage& stage, double camera_x) {
             Match m(rules(), fighter(), fighter());
             const p2::Scene scene{.stage = &stage};
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::Painter painter;
             painter.stage_layers(stage, false, scene, p2::Camera{camera_x, 0, 1}, 960, 0, 1, dl);
-            omui::raster::Surface out(960, 540);
-            omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+            xrender::raster::Surface out(960, 540);
+            xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
             return out;
         };
         // Where its red half's left edge is on the picture's row through it.
-        auto red_from = [](const omui::raster::Surface& s) {
+        auto red_from = [](const xrender::raster::Surface& s) {
             for (int x = 0; x < 960; ++x)
                 if (s.at(x, 300).r > 150 && s.at(x, 300).b < 100) return x;
             return -1;
         };
-        auto blue_from = [](const omui::raster::Surface& s) {
+        auto blue_from = [](const xrender::raster::Surface& s) {
             for (int x = 0; x < 960; ++x)
                 if (s.at(x, 300).b > 150 && s.at(x, 300).r < 100) return x;
             return -1;
@@ -1739,12 +1739,12 @@ flicker = 0.4
         auto hash_at = [&](std::int32_t frames) {
             Match mm = m;
             for (int f = 0; f < frames; ++f) mm.tick(pad(5), pad(5));
-            omui::render::DisplayList dl;
+            xrender::DisplayList dl;
             p2::draw(mm, ink, paper, fx, scene, dl);
             return dl.hash();
         };
         check(hash_at(1) != hash_at(60), "swaying");
-        omui::render::DisplayList plain, art;
+        xrender::DisplayList plain, art;
         p2::draw(m, ink, paper, fx, {}, plain);
         p2::draw(m, ink, paper, fx, scene, art);
         check(plain.hash() != art.hash(), "the art is drawn");
@@ -1876,10 +1876,10 @@ spark = { style = "rays", colour = "#ffd166" }
         p2::Look glassy = ink;
         glassy.pane.glass = Color::hex(0x9fd8ff, 0.3f);
         p2::Effects fx;
-        omui::render::DisplayList dl;
+        xrender::DisplayList dl;
         p2::draw(m, glassy, paper, fx, {}, dl);
-        omui::raster::Surface px(960, 540);
-        omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+        xrender::raster::Surface px(960, 540);
+        xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
         save(px, "panes");
         Hash h;
         h.u64(dl.hash());
@@ -1904,10 +1904,10 @@ spark = { style = "rays", colour = "#ffd166" }
         auto again = p2::read_look(written, "w.look.gongfu.toml");
         check(again && again->pane.picture == 0 && again->pane.cracked.x == 10 && p2::write_look(*again) == written, "the pane's picture, written back");
         // The picture: its left half blue (whole), its right half red (cracked).
-        std::vector<omui::raster::Rgba8> px(20 * 30);
+        std::vector<xrender::raster::Rgba8> px(20 * 30);
         for (int y = 0; y < 30; ++y)
-            for (int x = 0; x < 20; ++x) px[static_cast<std::size_t>(y * 20 + x)] = x < 10 ? omui::raster::Rgba8{0, 0, 255, 255} : omui::raster::Rgba8{255, 0, 0, 255};
-        omui::render::ImageStore images;
+            for (int x = 0; x < 20; ++x) px[static_cast<std::size_t>(y * 20 + x)] = x < 10 ? xrender::raster::Rgba8{0, 0, 255, 255} : xrender::raster::Rgba8{255, 0, 0, 255};
+        xrender::ImageStore images;
         look->pictures[0].ref = images.add(20, 30, std::move(px));
         Match m = close_match();
         State st = m.state();
@@ -1917,10 +1917,10 @@ spark = { style = "rays", colour = "#ffd166" }
         st.frame = 40;
         m.restore(st);
         p2::Effects fx;
-        omui::render::DisplayList dl;
+        xrender::DisplayList dl;
         p2::draw(m, *look, paper, fx, {}, dl);
-        omui::raster::Surface out(960, 540);
-        omui::render::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
+        xrender::raster::Surface out(960, 540);
+        xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
         save(out, "panes-drawn");
         const p2::Camera cam = p2::frame_camera(m, {});
         const auto at = [&](Fixed x) {
@@ -1946,7 +1946,7 @@ spark = { style = "rays", colour = "#ffd166" }
             for (int f = 0; f < 12; ++f) {
                 m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
                 fx.record(m);
-                omui::render::DisplayList dl;
+                xrender::DisplayList dl;
                 p2::draw(m, l, paper, fx, {}, dl);
                 lists.push_back(dl.hash());
                 const p2::Camera seen = p2::view_camera(m, l, l, fx, {}), framed = p2::frame_camera(m, {});
@@ -1981,12 +1981,12 @@ spark = { style = "rays", colour = "#ffd166" }
                     m.tick(f == 0 ? pad(5, LP) : pad(5), pad(5));
                     fx.record(m);
                 }
-                omui::render::DisplayList dl;
+                xrender::DisplayList dl;
                 p2::draw(m, l, paper, fx, {}, dl);
                 lists.push_back(dl.hash());
                 all.u64(dl.hash());
-                omui::raster::Surface px(960, 540);
-                omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+                xrender::raster::Surface px(960, 540);
+                xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
                 save(px, std::format("spark-{}-{}", static_cast<int>(style), static_cast<int>(flash)));
             }
         }
@@ -2009,7 +2009,7 @@ spark = { style = "rays", colour = "#ffd166" }
         const Fighter f = *compile(def);
         const std::size_t columns = 6, rows = (look->clips.size() + columns - 1) / columns;
         const float cell = 200;
-        omui::render::DisplayList dl;
+        xrender::DisplayList dl;
         dl.fill_rect({0, 0, cell * columns, cell * static_cast<float>(rows)}, Color::hex(0xf4f1ea));
         p2::Pose pose;
         std::size_t k = 0;
@@ -2025,18 +2025,18 @@ spark = { style = "rays", colour = "#ffd166" }
                 p2::pose(*look, f, s, 0, pose);
                 const float alpha = at == 0.5 ? 1.0f : 0.3f;
                 for (std::size_t b = 0; b < pose.size(); ++b) {
-                    omui::render::Path line;
+                    xrender::Path line;
                     line.move_to({ox + cell / 2 + pose[b].joint.x * 0.8f, oy + cell - 20 - pose[b].joint.y * 0.8f});
                     line.line_to({ox + cell / 2 + pose[b].tip.x * 0.8f, oy + cell - 20 - pose[b].tip.y * 0.8f});
                     const bool front = look->bones[b].name.ends_with("front");
-                    dl.stroke_path(line, {.width = 4, .cap = omui::render::LineCap::round},
-                                   omui::render::Paint::solid(Color::hex(front ? 0xc0392b : 0x1f2430, alpha)));
+                    dl.stroke_path(line, {.width = 4, .cap = xrender::LineCap::round},
+                                   xrender::Paint::solid(Color::hex(front ? 0xc0392b : 0x1f2430, alpha)));
                 }
             }
             ++k;
         }
-        omui::raster::Surface px(static_cast<int>(cell * columns), static_cast<int>(cell * static_cast<float>(rows)));
-        omui::render::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
+        xrender::raster::Surface px(static_cast<int>(cell * columns), static_cast<int>(cell * static_cast<float>(rows)));
+        xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
         save(px, "kata-clips");
         std::println("    kata clips {:016x}", picture(px));
         check_eq(picture(px), std::uint64_t{0x9bf4573b547b73eaULL});

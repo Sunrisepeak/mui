@@ -7,7 +7,7 @@
 module openmui.showcase.promo_video;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import hanim.core;
 import openmui;
 import openmui.theme;
@@ -51,8 +51,8 @@ public:
         auto st = s_;
         const Rect r = s_->studio;
         Element back = painter({.id = "backdrop",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::none,
                                 .paint = [st](PaintContext& p) {
                                     // The whole frame in the pack's own paper, its grid faint over it.
@@ -92,12 +92,12 @@ public:
                                        .wrap = false, .size = 26.0f, .weight = 600.0f})}));
         }
         const float side = c_.portrait() ? 54 : 96;
-        Element type = column({.id = "type", .width = Dim(layout::pct(100)), .padding = Edges(Insets{c_.portrait() ? 160.0f : 90.0f, side, 0, side}), .gap = 8},
+        Element type = column({.id = "type", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{c_.portrait() ? 160.0f : 90.0f, side, 0, side}), .gap = 8},
                               {row({.id = "head", .align = "end"},
                                    {stack({.id = "names", .align = "start", .grow = 1}, std::move(names)),
                                     text({.id = "tree", .text = "", .style = "code", .color = Fill("success"), .wrap = false,
                                          .size = c_.portrait() ? 18.0f : 22.0f})})});
-        return stack({.id = "styles", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        return stack({.id = "styles", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                      {std::move(back), std::move(studio), std::move(type)});
     }
 
@@ -129,7 +129,7 @@ public:
             if (segments()[k].first <= t + 1e-9) now = k;
         for (std::size_t k = 0; k < names_.size(); ++k) rt.set(names_[k], "visible", Value(k == now));
         // The preview's semantic tree, hashed: what an agent sees of the interface, under whatever pack.
-        hash::Fnv1a tree_hash;
+        mlibs::hash::Fnv1a tree_hash;
         auto mixin = [&](std::string_view s) { tree_hash.text(s).byte(0x1f); };
         std::size_t nodes = 0;
         std::function<void(NodeId)> walk = [&](NodeId n) {

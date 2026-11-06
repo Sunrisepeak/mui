@@ -71,12 +71,12 @@ Value ChoicePopup::get_prop(std::string_view k) const {
     return {};
 }
 
-void ChoicePopup::style(const Theme&, layout::Style& s) const {
+void ChoicePopup::style(const Theme&, mlibs::layout::Style& s) const {
     const std::size_t n = choices_.list() ? choices_.list()->size() : 0;
-    s.display = open_ && n > 0 ? layout::Display::flex : layout::Display::none;
+    s.display = open_ && n > 0 ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
 }
 
-Size ChoicePopup::measure(MeasureContext&, std::optional<float> width, std::optional<float>, layout::Available, layout::Available) {
+Size ChoicePopup::measure(MeasureContext&, std::optional<float> width, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const std::size_t n = choices_.list() ? std::min(choices_.list()->size(), choice_rows) : 0;
     return {width.value_or(200), 2 * choice_pad + static_cast<float>(n) * choice_row};
 }
@@ -86,15 +86,15 @@ void ChoicePopup::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
     const Value::List* l = choices_.list();
     if (!l) return;
     const std::size_t n = std::min(l->size(), choice_rows);
     if (labels_.size() < n) labels_.resize(n);
     for (std::size_t i = 0; i < n; ++i) {
         const Rect row{choice_pad, choice_pad + static_cast<float>(i) * choice_row, ctx.size.width - 2 * choice_pad, choice_row};
-        if (static_cast<int>(i) == highlight_) ctx.list.fill_round_rect(row, CornerRadii::all(th.corner("small", 4)), render::Paint::solid(th.color("surface_variant")));
+        if (static_cast<int>(i) == highlight_) ctx.list.fill_round_rect(row, CornerRadii::all(th.corner("small", 4)), xrender::Paint::solid(th.color("surface_variant")));
         parts::Label& lab = labels_[i];
         lab.set_style("body");
         lab.set_max_lines(1);
@@ -158,9 +158,9 @@ void Combobox::prop_changed(ComboboxProp p) {
     services().invalidate_semantics(node());
 }
 
-void Combobox::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
-    s.min_width = layout::pt(200);
+void Combobox::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
+    s.min_width = mlibs::layout::pt(200);
 }
 
 std::vector<Element> Combobox::compose() {
@@ -171,7 +171,7 @@ std::vector<Element> Combobox::compose() {
                               .text = query_,
                               .on_changed = [this](std::string t) { typed(std::move(t)); },
                               .on_submitted = [this](std::string) { commit(); },
-                              .width = Dim(layout::pct(100))});
+                              .width = Dim(mlibs::layout::pct(100))});
     Element pop;
     pop.type = &component_type<ChoicePopup>();
     pop.id = "popup";
@@ -334,13 +334,13 @@ void TagInput::prop_changed(TagInputProp p) {
     services().invalidate_semantics(node());
 }
 
-void TagInput::style(const Theme& theme, layout::Style& s) const {
-    s.direction = layout::Direction::row;
-    s.wrap = layout::Wrap::wrap;
-    s.align_items = layout::Align::center;
+void TagInput::style(const Theme& theme, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::row;
+    s.wrap = mlibs::layout::Wrap::wrap;
+    s.align_items = mlibs::layout::Align::center;
     s.row_gap = s.column_gap = 6;
     s.padding = Insets::all(4);
-    s.min_height = layout::pt(theme.scaled(36));
+    s.min_height = mlibs::layout::pt(theme.scaled(36));
     s.border = Insets::all(1);
 }
 
@@ -348,8 +348,8 @@ void TagInput::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }
 
 std::vector<Element> TagInput::compose() {

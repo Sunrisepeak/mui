@@ -1,8 +1,8 @@
 module hanim.engine;
 import std;
 import mlibs.memory;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 
 namespace hanim::detail {
 struct PlaybackTag;
@@ -42,7 +42,7 @@ struct EngineData {
 
 namespace hanim {
 namespace {
-constexpr omui::Log engine_log{"hanim.engine"};
+constexpr mlibs::log::Log engine_log{"hanim.engine"};
 using Status = std::expected<void, EngineFailure>;
 EngineFailure fail(EngineError code) noexcept { return {.code = code}; }
 EngineFailure object_failure(ObjectError error) noexcept { return {.code = EngineError::object, .object = error}; }
@@ -210,7 +210,7 @@ std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* da
 template <class F>
 Status mutate(detail::EngineData* data, bool& writing, PlaybackRef ref, const char* operation, F&& action) {
     if (writing) return std::unexpected(fail(EngineError::reentrant_mutation));
-    WriteScope write(writing); omui::trace::Span span(operation, "hanim.engine");
+    WriteScope write(writing); mlibs::trace::Span span(operation, "hanim.engine");
     auto playback = resolve(data, ref);
     if (!playback) return std::unexpected(playback.error());
     const auto result = action(**playback);
@@ -313,7 +313,7 @@ std::expected<Snapshot, ObjectError> Engine::capture_object(ObjectRef ref) const
 std::expected<PreparedProgram, EngineFailure> Engine::prepare(const Program& description, ProgramLimits limits) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
-    WriteScope write(writing_); omui::trace::Span span("prepare", "hanim.engine");
+    WriteScope write(writing_); mlibs::trace::Span span("prepare", "hanim.engine");
     auto program = PreparedProgram::prepare(description, data_->objects, limits);
     if (!program) return std::unexpected(program_failure(program.error()));
     return std::move(*program);
@@ -321,7 +321,7 @@ std::expected<PreparedProgram, EngineFailure> Engine::prepare(const Program& des
 std::expected<PlaybackRef, EngineFailure> Engine::play(const Program& description, ProgramLimits limits) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
-    WriteScope write(writing_); omui::trace::Span span("play-animation", "hanim.engine");
+    WriteScope write(writing_); mlibs::trace::Span span("play-animation", "hanim.engine");
     auto program = PreparedProgram::prepare(description, data_->objects, limits);
     if (!program) return std::unexpected(program_failure(program.error()));
     return insert_playback(data_.get(), std::move(*program));
@@ -338,7 +338,7 @@ std::expected<PlaybackRef, EngineFailure> Engine::play(ObjectRef object, anim::M
 }
 std::expected<PlaybackRef, EngineFailure> Engine::play(Snapshot from, Snapshot to, std::span<const EffectSpec> effects, PlayOptions options, MorphOptions morph) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    WriteScope write(writing_); omui::trace::Span span("play", "hanim.engine");
+    WriteScope write(writing_); mlibs::trace::Span span("play", "hanim.engine");
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
     auto animation = PreparedObjectMorph::prepare(std::move(from), std::move(to), morph);
     if (!animation) return std::unexpected(animation_failure(animation.error()));
@@ -351,7 +351,7 @@ std::expected<PlaybackRef, EngineFailure> Engine::play(Snapshot from, Snapshot t
 }
 std::expected<PlaybackRef, EngineFailure> Engine::play(PreparedProgram program) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    WriteScope write(writing_); omui::trace::Span span("play-program", "hanim.engine");
+    WriteScope write(writing_); mlibs::trace::Span span("play-program", "hanim.engine");
     return insert_playback(data_.get(), std::move(program));
 }
 Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions options) {
@@ -434,7 +434,7 @@ Status Engine::release(PlaybackRef ref) {
 }
 Status Engine::advance(seconds elapsed) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    WriteScope write(writing_); omui::trace::Span span("advance", "hanim.engine");
+    WriteScope write(writing_); mlibs::trace::Span span("advance", "hanim.engine");
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
     if (elapsed.count() == 0) return {};

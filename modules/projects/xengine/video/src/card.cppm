@@ -17,7 +17,7 @@
 export module xengine.video:card;
 
 import std;
-import openmui.image;
+import mlibs.image;
 import :timing;
 import :encode;
 

@@ -3,7 +3,7 @@ module openmui.semantic;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.session;
+import mlibs.session;
 
 namespace omui::semantic {
 
@@ -29,15 +29,15 @@ namespace {
 std::string adaptation_json(const Adaptation& a, std::string_view choice) {
     static constexpr std::array<std::string_view, 3> levels{"full", "reduced", "off"};
     Value v;
-    v.set("tier", pipeline::name(a.tier)).set("motion", levels[static_cast<std::size_t>(a.motion)]).set("effects", pipeline::name(a.effects)).set("reason", a.reason);
+    v.set("tier", mlibs::pipeline::name(a.tier)).set("motion", levels[static_cast<std::size_t>(a.motion)]).set("effects", mlibs::pipeline::name(a.effects)).set("reason", a.reason);
     if (!choice.empty()) v.set("choice", choice);
     return v.json();
 }
 
 std::optional<Adaptation> adaptation_from(const Value& v) {
-    auto tier = [](std::string_view t) -> std::optional<pipeline::Tier> {
+    auto tier = [](std::string_view t) -> std::optional<mlibs::pipeline::Tier> {
         for (int i = 0; i <= 4; ++i)
-            if (pipeline::name(static_cast<pipeline::Tier>(i)) == t) return static_cast<pipeline::Tier>(i);
+            if (mlibs::pipeline::name(static_cast<mlibs::pipeline::Tier>(i)) == t) return static_cast<mlibs::pipeline::Tier>(i);
         return std::nullopt;
     };
     const auto t = tier(v.get("tier") ? v.get("tier")->as_string() : "");
@@ -50,9 +50,9 @@ std::optional<Adaptation> adaptation_from(const Value& v) {
 
 }  // namespace
 
-Recorder::Recorder(Tree& tree, session::Session& session) : tree_(tree), session_(session) {
+Recorder::Recorder(Tree& tree, mlibs::session::Session& session) : tree_(tree), session_(session) {
     Runtime& rt = tree.runtime();
-    session::Header& h = session_.header;
+    mlibs::session::Header& h = session_.header;
     h.spec = std::string(spec::version);
     h.width = rt.size().width;
     h.height = rt.size().height;
@@ -107,7 +107,7 @@ void Recorder::note(std::string_view text) {
     (void)session_.add(tree_.runtime().now().count(), "note", Value{}.set("text", text).json());
 }
 
-Player::Player(Tree& tree, const session::Session& session) : tree_(tree), session_(session) {}
+Player::Player(Tree& tree, const mlibs::session::Session& session) : tree_(tree), session_(session) {}
 
 bool Player::done() const noexcept { return next_ >= session_.size(); }
 
@@ -119,7 +119,7 @@ const ReplayReport& Player::advance_to(double time) {
     return report_;
 }
 
-void Player::run(const session::Entry& entry) {
+void Player::run(const mlibs::session::Entry& entry) {
     ReplayReport& r = report_;
     Runtime& rt = tree_.runtime();
     Tree& tree = tree_;
@@ -172,7 +172,7 @@ void Player::run(const session::Entry& entry) {
     // Other kinds (notes, a host's own) are not this runtime's to replay.
 }
 
-ReplayReport replay(Tree& tree, const session::Session& session, double until) {
+ReplayReport replay(Tree& tree, const mlibs::session::Session& session, double until) {
     Player p(tree, session);
     return p.advance_to(until);
 }

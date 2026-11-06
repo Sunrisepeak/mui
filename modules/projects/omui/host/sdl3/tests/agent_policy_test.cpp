@@ -1,9 +1,9 @@
 import std;
 import openmui.host.sdl3;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"host.sdl3.agent_policy"};

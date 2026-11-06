@@ -2,13 +2,13 @@
 // width in measurement and placement. These are real Engine trees: no view
 // or site dimensions, fonts, snapshots or golden hashes are involved.
 import std;
-import openmui.geom;
-import openmui.layout;
-import openmui.testing;
+import mlibs.geom;
+import mlibs.layout;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace layout = omui::layout;
-using omui::geom::Rect;
+using namespace mlibs::testing;
+namespace layout = mlibs::layout;
+using mlibs::geom::Rect;
 using layout::pt;
 using layout::pct;
 
@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
 
     suite.test("the percentage base is the used content box including padding border and external gaps", [] {
         auto s = header(); s.max_width = pt(250);
-        s.padding = omui::geom::Insets::all(10); s.border = omui::geom::Insets::all(2);
+        s.padding = mlibs::geom::Insets::all(10); s.border = mlibs::geom::Insets::all(2);
         s.margin.left = 4;
         Fixture f(s, pct(100), layout::Wrap::wrap, 7); f.compute(400);
         frame(f.engine, f.bar, {4, 0, 250, 74});
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
             auto parent = root;
             for (std::size_t i = 0; i < depth; ++i) {
                 auto s = root_style;
-                s.padding = omui::geom::Insets::all(2);
+                s.padding = mlibs::geom::Insets::all(2);
                 s.row_gap = 3;
                 if (i == 0) s.max_width = pt(230 + 4 * static_cast<float>(depth));
                 auto layer = e.create(s);
@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
                 items[i] = e.create(item_style);
                 e.set_measure(items[i], [](void* value, layout::NodeId, std::optional<float> width,
                                           std::optional<float> height, layout::Available, layout::Available) {
-                    return omui::geom::Size{width.value_or(100), height.value_or(*static_cast<float*>(value))};
+                    return mlibs::geom::Size{width.value_or(100), height.value_or(*static_cast<float*>(value))};
                 }, &heights[i]);
                 e.append(nav, items[i]);
             }

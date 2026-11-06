@@ -1,9 +1,9 @@
 import std;
-import openmui.math;
-import openmui.testing;
+import mlibs.math;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace det = omui::math::det;
+using namespace mlibs::testing;
+namespace det = mlibs::math::det;
 
 int main(int argc, char** argv) {
     Suite suite{"math.remainder"};

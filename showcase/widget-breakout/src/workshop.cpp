@@ -9,6 +9,10 @@ import openmui.lang.lua;
 import openmui.lang.python.embedded;
 import openmui.showcase.widget_breakout.sim;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
+
 namespace omui::breakout {
 
 namespace {

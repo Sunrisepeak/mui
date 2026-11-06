@@ -27,7 +27,7 @@ void Progress::prop_changed(ProgressProp p) {
     services().invalidate_semantics(node());
 }
 
-Size Progress::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size Progress::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     return {width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w), height.value_or(bar_h)};
 }
 
@@ -35,21 +35,21 @@ void Progress::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const Rect track{0, (ctx.size.height - bar_h) / 2, ctx.size.width, bar_h};
     const CornerRadii round = CornerRadii::all(bar_h / 2);
-    ctx.list.fill_round_rect(track, round, render::Paint::solid(th.color("track")));
+    ctx.list.fill_round_rect(track, round, xrender::Paint::solid(th.color("track")));
     if (props.value < 0) {
         // Indeterminate: a segment sweeps across, on the runtime's clock.
         const double phase = std::fmod(ctx.services.now().count() / sweep, 1.0);
         const float w = track.width * 0.3f;
         const float x = static_cast<float>(phase) * (track.width + w) - w;
         ctx.list.push_clip(track, round);
-        ctx.list.fill_round_rect({x, track.y, w, bar_h}, round, render::Paint::solid(th.color("accent")));
+        ctx.list.fill_round_rect({x, track.y, w, bar_h}, round, xrender::Paint::solid(th.color("accent")));
         ctx.list.pop_clip();
         ctx.services.invalidate_paint(ctx.node);
         ctx.services.request_frame();
         return;
     }
     const float f = static_cast<float>(std::clamp(fill_, 0.0, 1.0));
-    if (f > 0) ctx.list.fill_round_rect({0, track.y, track.width * f, bar_h}, round, render::Paint::solid(th.color("accent")));
+    if (f > 0) ctx.list.fill_round_rect({0, track.y, track.width * f, bar_h}, round, xrender::Paint::solid(th.color("accent")));
 }
 
 void Progress::semantics(SemanticsContext&, spec::SemanticNode& node) const {
@@ -78,7 +78,7 @@ void Radio::prop_changed(RadioProp p) {
     }
 }
 
-Size Radio::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size Radio::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     if (label_.text().empty()) return {circle, circle};
     const Size t = label_.measure(m.services, m.services.theme().color("text"));
     return {circle + gap + std::ceil(t.width), std::max(circle, std::ceil(t.height))};
@@ -99,17 +99,17 @@ void Radio::paint(PaintContext& ctx) const {
     const float k = static_cast<float>(std::clamp(dot_, 0.0, 1.0));
     const Rect content = ctx.content;
     const Rect c{content.x, content.y + (content.height - circle) / 2, circle, circle};
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     ctx.list.fill_round_rect(c, CornerRadii::all(circle / 2),
-                             render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
+                             xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_))));
     const Color ring = mix(th.color("border_strong"), th.color("accent"), k);
     const float rw = 1.5f + 0.5f * k;
     ctx.list.stroke_round_rect({c.x + rw / 2, c.y + rw / 2, circle - rw, circle - rw}, CornerRadii::all(circle / 2 - rw / 2), rw,
-                               render::Paint::solid(ring));
+                               xrender::Paint::solid(ring));
     if (k > 0) {
         const float r = 4.5f * k;
         const Point m = c.center();
-        ctx.list.fill_round_rect({m.x - r, m.y - r, 2 * r, 2 * r}, CornerRadii::all(r), render::Paint::solid(th.color("accent")));
+        ctx.list.fill_round_rect({m.x - r, m.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent")));
     }
     if (!label_.text().empty()) {
         const Color lc = th.color("text");

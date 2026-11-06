@@ -5,7 +5,7 @@
 module xengine.audio;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import :dsp;
 
 namespace xengine::audio {

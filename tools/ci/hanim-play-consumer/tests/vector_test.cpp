@@ -1,14 +1,14 @@
 import std;
 import hanim.render.vector;
-import openmui.raster;
-import openmui.testing;
+import xrender.raster;
+import mlibs.testing;
 
 using namespace hanim;
 using namespace hanim::vector_render;
-using namespace omui::testing;
-namespace render = omui::render;
+using namespace mlibs::testing;
+namespace render = xrender;
 namespace geom = mlibs::geom;
-namespace raster = omui::raster;
+namespace raster = xrender::raster;
 
 namespace {
 struct GeometryBuffers {

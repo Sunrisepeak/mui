@@ -3,18 +3,18 @@
 import std;
 import hanim.core;
 import openmui.view;
-import openmui.math;
-import openmui.raster;
-import openmui.testing;
+import mlibs.math;
+import xrender.raster;
+import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection collection = [] {
-        typeset::FontCollection result;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection collection = [] {
+        mlibs::text::FontCollection result;
         if (auto loaded = result.add_defaults(); !loaded) std::println("fonts: {}", loaded.error());
         return result;
     }();
@@ -36,10 +36,10 @@ Element label_element(Signal<std::string> label) {
 std::optional<Point> first_pen(const Runtime& runtime) {
     std::vector<Affine> transforms{Affine{}};
     for (const auto& command : runtime.display_list().commands()) {
-        if (const auto* push = std::get_if<render::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
-        else if (std::holds_alternative<render::PopTransform>(command)) transforms.pop_back();
-        else if (const auto* run = std::get_if<render::DrawGlyphs>(&command); run && !run->glyphs.empty()) {
-            const auto style = run->styles.empty() ? render::GlyphStyle{} : run->styles.front();
+        if (const auto* push = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
+        else if (std::holds_alternative<xrender::PopTransform>(command)) transforms.pop_back();
+        else if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command); run && !run->glyphs.empty()) {
+            const auto style = run->styles.empty() ? xrender::GlyphStyle{} : run->styles.front();
             return transforms.back().apply({run->origin.x + run->glyphs.front().position.x + style.transform.e,
                                              run->origin.y + run->glyphs.front().position.y + style.transform.f});
         }
@@ -47,7 +47,7 @@ std::optional<Point> first_pen(const Runtime& runtime) {
     return std::nullopt;
 }
 std::uint64_t pixels(Runtime& runtime) {
-    raster::Surface surface(400, 240); xrender::text::GlyphCache glyphs(runtime.fonts()); render::CpuRenderer renderer;
+    xrender::raster::Surface surface(400, 240); xrender::text::GlyphCache glyphs(runtime.fonts()); xrender::CpuRenderer renderer;
     const auto report = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, {.background = Color::white()});
     check(report.missing_glyphs == 0);
     return surface.hash();
@@ -67,13 +67,13 @@ Paints caption_paints(Runtime& runtime) {
     const NodeId stage = runtime.find("main/stage"), caption = runtime.find("main/stage/caption");
     Paints result; std::vector<NodeId> nodes;
     for (const auto& command : runtime.display_list().commands()) {
-        if (const auto* node = std::get_if<render::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
-        else if (std::holds_alternative<render::EndNode>(command)) nodes.pop_back();
+        if (const auto* node = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
+        else if (std::holds_alternative<xrender::EndNode>(command)) nodes.pop_back();
         else if (!nodes.empty() && nodes.back() == stage) {
-            if (const auto* fill = std::get_if<render::FillRect>(&command)) { result.paper = fill->paint.color; result.has_paper = true; }
-            if (const auto* fill = std::get_if<render::FillRoundRect>(&command)) { result.paper = fill->paint.color; result.has_paper = true; }
+            if (const auto* fill = std::get_if<xrender::FillRect>(&command)) { result.paper = fill->paint.color; result.has_paper = true; }
+            if (const auto* fill = std::get_if<xrender::FillRoundRect>(&command)) { result.paper = fill->paint.color; result.has_paper = true; }
         } else if (!nodes.empty() && nodes.back() == caption)
-            if (const auto* run = std::get_if<render::DrawGlyphs>(&command)) { result.ink = run->paint.color; result.has_ink = true; }
+            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command)) { result.ink = run->paint.color; result.has_ink = true; }
     }
     return result;
 }
@@ -88,15 +88,15 @@ CaptionShape caption_shape(Runtime& runtime, xrender::text::GlyphCache& source) 
     std::vector<NodeId> nodes;
     std::vector<Affine> transforms{Affine{}};
     for (const auto& command : runtime.display_list().commands()) {
-        if (const auto* node = std::get_if<render::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
-        else if (std::holds_alternative<render::EndNode>(command)) nodes.pop_back();
-        else if (const auto* push = std::get_if<render::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
-        else if (std::holds_alternative<render::PopTransform>(command)) transforms.pop_back();
+        if (const auto* node = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
+        else if (std::holds_alternative<xrender::EndNode>(command)) nodes.pop_back();
+        else if (const auto* push = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * push->transform);
+        else if (std::holds_alternative<xrender::PopTransform>(command)) transforms.pop_back();
         else if (!nodes.empty() && nodes.back() == caption)
-            if (const auto* run = std::get_if<render::DrawGlyphs>(&command)) {
+            if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command)) {
                 check_eq(run->paint.color.a, 1.0f);
                 for (std::size_t i = 0; i < run->glyphs.size(); ++i) {
-                    const auto style = run->styles.empty() ? render::GlyphStyle{} : run->styles[i];
+                    const auto style = run->styles.empty() ? xrender::GlyphStyle{} : run->styles[i];
                     check_eq(style.opacity, 1.0f); check_eq(style.tint.a, 0.0f);
                     shape.has_nonidentity_style = shape.has_nonidentity_style || !style.transform.identity();
                     const auto& glyph = run->glyphs[i];
@@ -113,9 +113,9 @@ CaptionShape caption_shape(Runtime& runtime, xrender::text::GlyphCache& source) 
 void readable(const Paints& paints) {
     check(paints.has_paper && paints.has_ink);
     if (!paints.has_paper || !paints.has_ink) return;
-    const auto ink = math::color::relative_luminance(paints.ink.r, paints.ink.g, paints.ink.b);
-    const auto paper = math::color::relative_luminance(paints.paper.r, paints.paper.g, paints.paper.b);
-    check(math::color::contrast_ratio(ink, paper) >= 4.5 - 0.00001);
+    const auto ink = mlibs::math::color::relative_luminance(paints.ink.r, paints.ink.g, paints.ink.b);
+    const auto paper = mlibs::math::color::relative_luminance(paints.paper.r, paints.paper.g, paints.paper.b);
+    check(mlibs::math::color::contrast_ratio(ink, paper) >= 4.5 - 0.00001);
 }
 }
 
@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
                 else check(std::abs(pen->y - original->y) > 1, "full-motion recipe still has real whole-line travel");
                 bool faded = false;
                 for (const auto& command : page.runtime.display_list().commands())
-                    if (const auto* glyphs = std::get_if<render::DrawGlyphs>(&command)) faded = faded || (glyphs->paint.color.a > 0 && glyphs->paint.color.a < 1);
+                    if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command)) faded = faded || (glyphs->paint.color.a > 0 && glyphs->paint.color.a < 1);
                 check(faded, "reduced keeps a real finite transition instead of silently switching animation off");
             }
         }
@@ -371,10 +371,10 @@ int main(int argc, char** argv) {
             std::vector<NodeId> nodes; std::set<std::uint32_t> faces; std::size_t count = 0;
             const auto paper = caption_paints(runtime).paper;
             for (const auto& command : runtime.display_list().commands()) {
-                if (const auto* node = std::get_if<render::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
-                else if (std::holds_alternative<render::EndNode>(command)) nodes.pop_back();
+                if (const auto* node = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(runtime.node_at_index(node->node));
+                else if (std::holds_alternative<xrender::EndNode>(command)) nodes.pop_back();
                 else if (!nodes.empty() && nodes.back() == caption)
-                    if (const auto* run = std::get_if<render::DrawGlyphs>(&command); run && !run->glyphs.empty()) {
+                    if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command); run && !run->glyphs.empty()) {
                         faces.insert(run->font.id); ++count;
                         std::println("Chinese receipt {} run{}: font={} size={} glyphs={} first=({}, {}) last=({}, {})", phase, count,
                                      run->font.id, run->size, run->glyphs.size(), run->glyphs.front().position.x, run->glyphs.front().position.y,

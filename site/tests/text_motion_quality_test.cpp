@@ -3,24 +3,24 @@
 import std;
 import openmui;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 struct Run {
-    render::FontRef font;
-    std::vector<render::Glyph> glyphs;
-    std::vector<render::GlyphStyle> styles;
+    xrender::FontRef font;
+    std::vector<xrender::Glyph> glyphs;
+    std::vector<xrender::GlyphStyle> styles;
 };
 std::vector<Run> runs(Runtime& rt, NodeId node) {
     std::vector<Run> result;
     std::vector<NodeId> nodes;
     for (const auto& command : rt.display_list().commands()) {
-        if (const auto* begin = std::get_if<render::BeginNode>(&command)) nodes.push_back(rt.node_at_index(begin->node));
-        else if (std::holds_alternative<render::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
-        else if (const auto* glyphs = std::get_if<render::DrawGlyphs>(&command); glyphs && !nodes.empty() && nodes.back() == node && glyphs->paint.color.a > 0.001f) {
+        if (const auto* begin = std::get_if<xrender::BeginNode>(&command)) nodes.push_back(rt.node_at_index(begin->node));
+        else if (std::holds_alternative<xrender::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
+        else if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command); glyphs && !nodes.empty() && nodes.back() == node && glyphs->paint.color.a > 0.001f) {
             result.push_back({glyphs->font, {glyphs->glyphs.begin(), glyphs->glyphs.end()}, {glyphs->styles.begin(), glyphs->styles.end()}});
         }
     }

@@ -34,9 +34,9 @@ public:
     bool set_prop(std::string_view k, const Value& v);
     [[nodiscard]] Value get_prop(std::string_view k) const;
 
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
-                 layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
@@ -53,7 +53,7 @@ public:
     // A dry run (S-13): the text it would hold, worked out on a copy of the editor.
     ActResult preview(ActContext& ctx, std::string_view action) const;
 
-    [[nodiscard]] const typeset::TextEditor& editor() const noexcept { return editor_; }
+    [[nodiscard]] const mlibs::text::TextEditor& editor() const noexcept { return editor_; }
 
 private:
     [[nodiscard]] ActResult taken_back_by(ActResult r, const std::string& text, std::size_t anchor, std::size_t focus) const;
@@ -67,11 +67,11 @@ private:
     [[nodiscard]] std::string shown() const;
     [[nodiscard]] std::size_t to_shown(std::size_t text_offset) const;
     [[nodiscard]] std::size_t from_shown(std::size_t shown_offset) const;
-    [[nodiscard]] typeset::Paragraph& paragraph(Services& s, float width) const;
+    [[nodiscard]] mlibs::text::Paragraph& paragraph(Services& s, float width) const;
     [[nodiscard]] Point text_origin(const Rect& content) const;
 
-    typeset::TextEditor editor_;
-    mutable std::optional<typeset::Paragraph> paragraph_;
+    mlibs::text::TextEditor editor_;
+    mutable std::optional<mlibs::text::Paragraph> paragraph_;
     mutable std::string   paragraph_text_;
     mutable float         paragraph_width_ = -1;
     mutable bool          paragraph_dirty_ = true;

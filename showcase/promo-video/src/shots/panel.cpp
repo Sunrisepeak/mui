@@ -7,12 +7,17 @@ import hanim.core;
 import openmui;
 import openmui.showcase.style_gallery;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::fatal;
+using mlibs::log::warn;
+}
+
 namespace omui::promo {
 
 const PanelPicture& panel_picture() {
     static const PanelPicture picture = [] {
         add_styles();
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         if (auto r = fonts.add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
         PanelPicture out;
         out.size = {1440, 900};
@@ -24,7 +29,7 @@ const PanelPicture& panel_picture() {
             spec.setup(h.runtime());
             h.mount("main", spec.view());
             h.settle();
-            auto surface = std::make_shared<raster::Surface>(h.pixels());
+            auto surface = std::make_shared<xrender::raster::Surface>(h.pixels());
             if (scale == 1) {
                 Runtime& rt = h.runtime();
                 NodeId save{};
@@ -35,7 +40,7 @@ const PanelPicture& panel_picture() {
                 out.button = rt.bounds(save);
                 // A pixel of the button's own fill by its rounded corner: the accent itself, with the
                 // corner's softened pixels and the panel just beyond it.
-                const raster::Rgba8 accent = raster::premultiply(rt.theme().color("accent"));
+                const xrender::raster::Rgba8 accent = xrender::raster::premultiply(rt.theme().color("accent"));
                 int x = static_cast<int>(out.button.x) + 2, y = static_cast<int>(out.button.y) + 2;
                 for (int k = 0; k < 24; ++k)
                     if (surface->at(static_cast<int>(out.button.x) + k, static_cast<int>(out.button.y) + k) == accent) {
@@ -69,7 +74,7 @@ Point panel_to_screen(Point p, Point at, Point look, double zoom) noexcept {
     return {static_cast<float>(at.x + (p.x - look.x) * zoom), static_cast<float>(at.y + (p.y - look.y) * zoom)};
 }
 
-void paint_panel(render::DisplayList& list, render::ImageStore& images, std::pair<render::ImageRef, render::ImageRef> refs, const PanelPicture& panel,
+void paint_panel(xrender::DisplayList& list, xrender::ImageStore& images, std::pair<xrender::ImageRef, xrender::ImageRef> refs, const PanelPicture& panel,
                  Size screen, Point at, Point look, double zoom, float opacity) {
     if (opacity <= 0.001f || !(zoom > 0)) return;
     if (opacity < 1) list.push_layer(opacity);
@@ -86,10 +91,10 @@ void paint_panel(render::DisplayList& list, render::ImageStore& images, std::pai
         const double big = smooth(hanim::dm::log(zoom) / hanim::dm::ln2, 0.15, 0.7);
         if (big < 1 && images.get(refs.second))
             list.draw_image(refs.second, {static_cast<float>(ix0 * 2), static_cast<float>(iy0 * 2), static_cast<float>((ix1 - ix0) * 2), static_cast<float>((iy1 - iy0) * 2)},
-                            dest, render::Sampling::linear);
+                            dest, xrender::Sampling::linear);
         if (big > 0 && images.get(refs.first))
             list.draw_image(refs.first, {static_cast<float>(ix0), static_cast<float>(iy0), static_cast<float>(ix1 - ix0), static_cast<float>(iy1 - iy0)}, dest,
-                            zoom >= 2 ? render::Sampling::nearest : render::Sampling::linear, static_cast<float>(big));
+                            zoom >= 2 ? xrender::Sampling::nearest : xrender::Sampling::linear, static_cast<float>(big));
         // Between the pixels, once each is large: the hairlines of a sheet of graph paper.
         const double lines = smooth(hanim::dm::log(zoom) / hanim::dm::ln2, 3.2, 5.5);
         if (lines > 0) {

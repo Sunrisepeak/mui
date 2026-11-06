@@ -19,10 +19,3 @@ s.header.app = "org.example.notes";
 s.add(0.5, "act", R"({"node":"main/save","action":"activate"})");
 s.save("bug.session.omui.jsonl");
 ```
-
-The canonical module and C++ namespace are `mlibs.session` and `mlibs::session`.
-The same package retains `import openmui.session;` and the namespace alias
-`omui::session` for source compatibility after rebuilding; there is one
-implementation. Select the package as `mcpp test -p mlibs.session`.
-The serialized format remains `openmui.session@0.1` and the file suffix
-remains `.session.omui.jsonl`; package naming does not version recording data.

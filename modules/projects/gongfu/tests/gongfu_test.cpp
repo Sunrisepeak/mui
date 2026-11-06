@@ -9,9 +9,9 @@
 // without them, its hash pinned for every platform.
 import std;
 import gongfu;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 
 namespace {

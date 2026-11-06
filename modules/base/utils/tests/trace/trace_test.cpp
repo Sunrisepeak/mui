@@ -2,11 +2,11 @@
 // full buffer drops and says so, nothing is recorded while off, the Chrome
 // JSON is what Perfetto reads, and the summary's percentiles are nearest-rank.
 import std;
-import openmui.trace;
-import openmui.testing;
+import mlibs.trace;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace trace = omui::trace;
+using namespace mlibs::testing;
+namespace trace = mlibs::trace;
 
 int main(int argc, char** argv) {
     Suite s{"trace"};
@@ -86,16 +86,16 @@ int main(int argc, char** argv) {
 
     s.test("interned names outlive the strings they came from", [] {
         std::string name = "stage-made-at-run-time";
-        const char* a = omui::trace::intern(name);
+        const char* a = mlibs::trace::intern(name);
         name.assign(name.size(), 'x');  // the original text is gone
         check(std::string_view(a) == "stage-made-at-run-time");
-        check(omui::trace::intern("stage-made-at-run-time") == a, "the same text, the same pointer");
-        omui::trace::start();
+        check(mlibs::trace::intern("stage-made-at-run-time") == a, "the same text, the same pointer");
+        mlibs::trace::start();
         {
             std::string temporary = "temporary";
-            omui::trace::Span span(omui::trace::intern(temporary), omui::trace::intern("cat"));
+            mlibs::trace::Span span(mlibs::trace::intern(temporary), mlibs::trace::intern("cat"));
         }
-        const auto t = omui::trace::stop();
+        const auto t = mlibs::trace::stop();
         check(t.chrome_json().contains("\"name\":\"temporary\""));
     });
 

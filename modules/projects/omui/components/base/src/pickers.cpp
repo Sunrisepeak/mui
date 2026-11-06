@@ -29,8 +29,8 @@ void field(PaintContext& ctx, bool open, bool off) {
     const Theme& th = ctx.theme;
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), !off && ctx.state.hovered ? 1.0f : 0.0f)));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(open ? th.color("accent") : th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(mix(th.color("surface"), th.color("surface_variant"), !off && ctx.state.hovered ? 1.0f : 0.0f)));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(open ? th.color("accent") : th.color("border")));
 }
 
 void popup_surface(PaintContext& ctx) {
@@ -38,20 +38,20 @@ void popup_surface(PaintContext& ctx) {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     parts::shadow(ctx, "lg", box, r);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }
 
 // An arrow pointing left or right, centred at c (a calendar's months).
 void arrow(PaintContext& ctx, Point c, bool right, Color color) {
     const float s = 5, d = right ? 1.0f : -1.0f;
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - d * s / 2, c.y - s}).line_to({c.x + d * s / 2, c.y}).line_to({c.x - d * s / 2, c.y + s});
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 chr::year_month_day shifted(chr::year_month_day d, int days) { return chr::year_month_day{chr::sys_days{d} + chr::days{days}}; }
@@ -224,13 +224,13 @@ ActResult DatePicker::collapse(ActContext&) {
     return ActResult::done();
 }
 
-void DatePicker::style(const Theme& theme, layout::Style& s) const {
+void DatePicker::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(field_pad) + 24, 0, theme.scaled(field_pad)};
-    s.min_height = layout::pt(theme.scaled(field_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(field_h));
     s.border = Insets::all(1);
 }
 
-Size DatePicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size DatePicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     parts::Label probe;
     probe.set_style("body");
     probe.set_text("30 September 2026");
@@ -242,14 +242,14 @@ Size DatePicker::measure(MeasureContext& m, std::optional<float> width, std::opt
 void DatePicker::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     field(ctx, expanded(), off);
     const Color c = props.value.empty() ? th.color("text_muted") : th.color("text");
     const Size t = label_.measure(ctx.services, c, ctx.content.width);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);
     // A small calendar: its page, its two rings.
     const Rect cal{ctx.size.width - th.scaled(field_pad) - 14, ctx.size.height / 2 - 6, 14, 13};
-    ctx.list.stroke_round_rect(cal, CornerRadii::all(2.5f), 1.25f, render::Paint::solid(th.color("text_muted")));
+    ctx.list.stroke_round_rect(cal, CornerRadii::all(2.5f), 1.25f, xrender::Paint::solid(th.color("text_muted")));
     ctx.list.fill_rect({cal.x, cal.y + 3.5f, cal.width, 1.25f}, th.color("text_muted"));
     ctx.list.fill_rect({cal.x + 3.5f, cal.y - 2, 1.25f, 3}, th.color("text_muted"));
     ctx.list.fill_rect({cal.right() - 4.75f, cal.y - 2, 1.25f, 3}, th.color("text_muted"));
@@ -388,9 +388,9 @@ Value DateCalendar::get_prop(std::string_view k) const {
     return {};
 }
 
-void DateCalendar::style(const Theme&, layout::Style& s) const { s.display = open_ ? layout::Display::flex : layout::Display::none; }
+void DateCalendar::style(const Theme&, mlibs::layout::Style& s) const { s.display = open_ ? mlibs::layout::Display::flex : mlibs::layout::Display::none; }
 
-Size DateCalendar::measure(MeasureContext&, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size DateCalendar::measure(MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     return {2 * cal_pad + 7 * cal_cell_w, 2 * cal_pad + cal_head + cal_week + 6 * cal_cell_h};
 }
 
@@ -414,7 +414,7 @@ void DateCalendar::paint(PaintContext& ctx) const {
     prev_at_ = {next_at_.x - 30, cal_pad + 4, 28, 28};
     for (int i = 0; i < 2; ++i) {
         const Rect& r = i ? next_at_ : prev_at_;
-        if (hover_ == 100 + i) ctx.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(th.color("surface_variant")));
+        if (hover_ == 100 + i) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
         arrow(ctx, r.center(), i == 1, th.color("text_muted"));
     }
     // The days of the week, from the picker's first.
@@ -442,8 +442,8 @@ void DateCalendar::paint(PaintContext& ctx) const {
         const bool is_chosen = picking::iso(d) == chosen;
         const float disc = 30;
         const Rect dot{r.center().x - disc / 2, r.center().y - disc / 2, disc, disc};
-        if (is_chosen) ctx.list.fill_round_rect(dot, CornerRadii::all(disc / 2), render::Paint::solid(th.color("accent")));
-        else if (hover_ == static_cast<int>(i) && ok) ctx.list.fill_round_rect(dot, CornerRadii::all(disc / 2), render::Paint::solid(th.color("surface_variant")));
+        if (is_chosen) ctx.list.fill_round_rect(dot, CornerRadii::all(disc / 2), xrender::Paint::solid(th.color("accent")));
+        else if (hover_ == static_cast<int>(i) && ok) ctx.list.fill_round_rect(dot, CornerRadii::all(disc / 2), xrender::Paint::solid(th.color("surface_variant")));
         const Color c = is_chosen ? th.color("on_accent") : !ok ? th.color("text_disabled") : here ? th.color("text") : th.color("text_muted");
         parts::Label& l = days_[i];
         l.set_style("label");
@@ -559,13 +559,13 @@ std::string TimePicker::shown(int part) const {
     return h < 12 ? "AM" : "PM";
 }
 
-void TimePicker::style(const Theme& theme, layout::Style& s) const {
+void TimePicker::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(field_pad), 0, theme.scaled(field_pad)};
-    s.min_height = layout::pt(theme.scaled(field_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(field_h));
     s.border = Insets::all(1);
 }
 
-Size TimePicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size TimePicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     parts::Label probe;
     probe.set_style("body");
     probe.set_text(props.hour12 ? "00 : 00  PM" : "00 : 00");
@@ -576,7 +576,7 @@ Size TimePicker::measure(MeasureContext& m, std::optional<float> width, std::opt
 void TimePicker::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     field(ctx, ctx.state.focused, off);
     float x = ctx.content.x;
     const Color c = th.color("text");
@@ -594,7 +594,7 @@ void TimePicker::paint(PaintContext& ctx) const {
         const Rect r{x - 3, ctx.content.y + (ctx.content.height - s.height) / 2 - 2, s.width + 6, s.height + 4};
         at_[static_cast<std::size_t>(part)] = r;
         // The part the keys move, lit while it has the focus.
-        if (ctx.state.focused && focus_ == part) ctx.list.fill_round_rect(r, CornerRadii::all(4), render::Paint::solid(th.color("accent_subtle")));
+        if (ctx.state.focused && focus_ == part) ctx.list.fill_round_rect(r, CornerRadii::all(4), xrender::Paint::solid(th.color("accent_subtle")));
         l.paint(ctx, {x, ctx.content.y + (ctx.content.height - s.height) / 2}, ctx.state.focused && focus_ == part ? th.color("accent") : c);
         x += s.width;
     }
@@ -858,13 +858,13 @@ ActResult ColorPicker::collapse(ActContext&) {
     return ActResult::done();
 }
 
-void ColorPicker::style(const Theme& theme, layout::Style& s) const {
+void ColorPicker::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(field_pad) + 20, 0, theme.scaled(field_pad) + 28};
-    s.min_height = layout::pt(theme.scaled(field_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(field_h));
     s.border = Insets::all(1);
 }
 
-Size ColorPicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size ColorPicker::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     parts::Label probe;
     probe.set_style("body");
     probe.set_text("#888888");
@@ -875,11 +875,11 @@ Size ColorPicker::measure(MeasureContext& m, std::optional<float> width, std::op
 void ColorPicker::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const bool off = props.disabled || ctx.state.disabled;
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     field(ctx, expanded(), off);
     const Rect sw{th.scaled(field_pad), (ctx.size.height - 20) / 2, 20, 20};
-    ctx.list.fill_round_rect(sw, CornerRadii::all(5), render::Paint::solid(picking::parse_hex(props.value).value_or(Color{})));
-    ctx.list.stroke_round_rect({sw.x + 0.5f, sw.y + 0.5f, sw.width - 1, sw.height - 1}, CornerRadii::all(5), 1, render::Paint::solid(th.color("border_strong")));
+    ctx.list.fill_round_rect(sw, CornerRadii::all(5), xrender::Paint::solid(picking::parse_hex(props.value).value_or(Color{})));
+    ctx.list.stroke_round_rect({sw.x + 0.5f, sw.y + 0.5f, sw.width - 1, sw.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border_strong")));
     const Size t = label_.measure(ctx.services, th.color("text"));
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, th.color("text"));
     parts::chevron(ctx, {ctx.size.width - th.scaled(field_pad) - 6, ctx.size.height / 2}, 10, th.color("text_muted"));
@@ -1024,9 +1024,9 @@ Value ColorPanel::get_prop(std::string_view k) const {
     return {};
 }
 
-void ColorPanel::style(const Theme&, layout::Style& s) const { s.display = open_ ? layout::Display::flex : layout::Display::none; }
+void ColorPanel::style(const Theme&, mlibs::layout::Style& s) const { s.display = open_ ? mlibs::layout::Display::flex : mlibs::layout::Display::none; }
 
-Size ColorPanel::measure(MeasureContext&, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size ColorPanel::measure(MeasureContext&, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Value swatches = picker("swatches");
     const std::size_t n = swatches.list() ? swatches.list()->size() : 0;
     const float rows = static_cast<float>((n + swatches_per_row - 1) / swatches_per_row);
@@ -1042,11 +1042,11 @@ void ColorPanel::paint(PaintContext& ctx) const {
     const double h = picker("hue_now").as_double(hsv.h);
     const Rect f = field_rect();
     const CornerRadii fr = CornerRadii::all(6);
-    ctx.list.fill_round_rect(f, fr, render::Paint::solid(picking::from_hsv({h, 1, 1})));
+    ctx.list.fill_round_rect(f, fr, xrender::Paint::solid(picking::from_hsv({h, 1, 1})));
     auto gradient = [&](Point from, Point to, Color a, Color b) {
-        const std::array<render::GradientStop, 2> stops{{{0, a}, {1, b}}};
-        render::Paint p;
-        p.kind = render::Paint::Kind::gradient;
+        const std::array<xrender::GradientStop, 2> stops{{{0, a}, {1, b}}};
+        xrender::Paint p;
+        p.kind = xrender::Paint::Kind::gradient;
         p.gradient.start = from;
         p.gradient.end = to;
         p.gradient.stops = stops;
@@ -1056,14 +1056,14 @@ void ColorPanel::paint(PaintContext& ctx) const {
     gradient({f.x, f.y}, {f.x, f.bottom()}, Color{0, 0, 0, 0}, Color{0, 0, 0, 1});
     // Where the colour is in it: a ring.
     const Point at{f.x + f.width * static_cast<float>(hsv.s), f.y + f.height * static_cast<float>(1 - hsv.v)};
-    ctx.list.stroke_round_rect({at.x - 7, at.y - 7, 14, 14}, CornerRadii::all(7), 2.5f, render::Paint::solid(Color{1, 1, 1, 1}));
-    ctx.list.stroke_round_rect({at.x - 8.5f, at.y - 8.5f, 17, 17}, CornerRadii::all(8.5f), 1, render::Paint::solid(Color{0, 0, 0, 0.35f}));
+    ctx.list.stroke_round_rect({at.x - 7, at.y - 7, 14, 14}, CornerRadii::all(7), 2.5f, xrender::Paint::solid(Color{1, 1, 1, 1}));
+    ctx.list.stroke_round_rect({at.x - 8.5f, at.y - 8.5f, 17, 17}, CornerRadii::all(8.5f), 1, xrender::Paint::solid(Color{0, 0, 0, 0.35f}));
     // The hue strip, round the wheel, and where the hue is on it.
     const Rect hr = hue_rect();
-    std::array<render::GradientStop, 7> stops{};
+    std::array<xrender::GradientStop, 7> stops{};
     for (std::size_t i = 0; i < stops.size(); ++i) stops[i] = {static_cast<float>(i) / 6, picking::from_hsv({static_cast<double>(i) * 60, 1, 1})};
-    render::Paint hp;
-    hp.kind = render::Paint::Kind::gradient;
+    xrender::Paint hp;
+    hp.kind = xrender::Paint::Kind::gradient;
     hp.gradient.start = {hr.x, hr.y};
     hp.gradient.end = {hr.right(), hr.y};
     hp.gradient.stops = stops;
@@ -1071,8 +1071,8 @@ void ColorPanel::paint(PaintContext& ctx) const {
     const float hx = hr.x + hr.width * static_cast<float>(h / 360);
     const Rect knob{hx - 8, hr.center().y - 8, 16, 16};
     parts::shadow(ctx, "sm", knob, CornerRadii::all(8));
-    ctx.list.fill_round_rect(knob, CornerRadii::all(8), render::Paint::solid(Color{1, 1, 1, 1}));
-    ctx.list.stroke_round_rect({knob.x + 2.5f, knob.y + 2.5f, 11, 11}, CornerRadii::all(5.5f), 1, render::Paint::solid(picking::from_hsv({h, 1, 1})));
+    ctx.list.fill_round_rect(knob, CornerRadii::all(8), xrender::Paint::solid(Color{1, 1, 1, 1}));
+    ctx.list.stroke_round_rect({knob.x + 2.5f, knob.y + 2.5f, 11, 11}, CornerRadii::all(5.5f), 1, xrender::Paint::solid(picking::from_hsv({h, 1, 1})));
     // The application's swatches; the chosen one ringed.
     const Value swatches = picker("swatches"), value = picker("value");  // held: their lists and text are read below
     if (const Value::List* sw = swatches.list()) {
@@ -1081,10 +1081,10 @@ void ColorPanel::paint(PaintContext& ctx) const {
             const auto c = picking::parse_hex((*sw)[i].as_string());
             if (!c) continue;
             const Rect r = swatch_rect(i);
-            ctx.list.fill_round_rect(r, CornerRadii::all(5), render::Paint::solid(*c));
-            ctx.list.stroke_round_rect({r.x + 0.5f, r.y + 0.5f, r.width - 1, r.height - 1}, CornerRadii::all(5), 1, render::Paint::solid(th.color("border")));
+            ctx.list.fill_round_rect(r, CornerRadii::all(5), xrender::Paint::solid(*c));
+            ctx.list.stroke_round_rect({r.x + 0.5f, r.y + 0.5f, r.width - 1, r.height - 1}, CornerRadii::all(5), 1, xrender::Paint::solid(th.color("border")));
             if (picking::hex(*c) == chosen)
-                ctx.list.stroke_round_rect({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, CornerRadii::all(7), 2, render::Paint::solid(th.color("accent")));
+                ctx.list.stroke_round_rect({r.x - 3, r.y - 3, r.width + 6, r.height + 6}, CornerRadii::all(7), 2, xrender::Paint::solid(th.color("accent")));
         }
     }
 }

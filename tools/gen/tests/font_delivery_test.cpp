@@ -3,13 +3,13 @@
 import std;
 import openmui.gen.dist_toy;
 import openmui.gen.font_subset;
-import openmui.text;
-import openmui.hash;
-import openmui.testing;
+import mlibs.text;
+import mlibs.hash;
+import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace fs = std::filesystem;
 
 namespace {
@@ -133,7 +133,7 @@ void preserved_tables(const Bytes& before, const Bytes& after) {
     valid_directory(after);
 }
 void text_is_identical(const Bytes& original, const Bytes& delivered, std::string sample) {
-    typeset::FontCollection before, after;
+    mlibs::text::FontCollection before, after;
     const auto a = before.add_data(original), b = after.add_data(delivered);
     check(a && b); if (!a || !b) return;
     const auto& ai = before.face(*a); const auto& bi = after.face(*b);
@@ -142,12 +142,12 @@ void text_is_identical(const Bytes& original, const Bytes& delivered, std::strin
     xrender::text::GlyphCache ac(before), bc(after);
     bool actual_glyph = false;
     for (float weight : {400.0f, 600.0f}) {
-        const auto am = before.metrics(before.font(*a, weight, typeset::Slant::normal), 28);
-        const auto bm = after.metrics(after.font(*b, weight, typeset::Slant::normal), 28);
+        const auto am = before.metrics(before.font(*a, weight, mlibs::text::Slant::normal), 28);
+        const auto bm = after.metrics(after.font(*b, weight, mlibs::text::Slant::normal), 28);
         check(am.ascent == bm.ascent && am.descent == bm.descent && am.line_gap == bm.line_gap && am.x_height == bm.x_height && am.cap_height == bm.cap_height &&
             am.underline_offset == bm.underline_offset && am.underline_thickness == bm.underline_thickness, "all actual metrics, including post underline values, match");
-        typeset::ParagraphStyle style; style.style.families = {ai.family}; style.style.weight = weight; style.style.size = 28; style.style.underline = true;
-        typeset::Paragraph ap(before, sample, style), bp(after, sample, style); ap.layout(200); bp.layout(200);
+        mlibs::text::ParagraphStyle style; style.style.families = {ai.family}; style.style.weight = weight; style.style.size = 28; style.style.underline = true;
+        mlibs::text::Paragraph ap(before, sample, style), bp(after, sample, style); ap.layout(200); bp.layout(200);
         check(ap.lines().size() == bp.lines().size()); if (ap.lines().size() != bp.lines().size()) continue;
         for (std::size_t line = 0; line < ap.lines().size(); ++line) {
             const auto& al = ap.lines()[line]; const auto& bl = bp.lines()[line];
@@ -192,7 +192,7 @@ struct Package {
 
 int main(int argc, char** argv) {
     Suite s{"gen.font_delivery"};
-    const auto directory = typeset::FontCollection::default_directory();
+    const auto directory = mlibs::text::FontCollection::default_directory();
     const auto inter = read(directory / "Inter.ttf"), mono = read(directory / "JetBrainsMono.ttf");
     s.test("real Inter full and initial plus Mono preserve metadata shaping and pixels through the actual packer", [&] {
         check(!inter.empty() && !mono.empty(), "real default TTF fixtures are available"); if (inter.empty() || mono.empty()) return;
@@ -207,9 +207,9 @@ int main(int argc, char** argv) {
         int inter_full = 0, inter_initial = 0, monospaced = 0;
         for (const auto& file : result->files) if (file.path.ends_with(".ttf")) {
             const auto bytes = read(options.out / file.path);
-            check(file.path == std::format("assets/{:012x}.ttf", hash::fnv1a(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())) & 0xffffffffffffull),
+            check(file.path == std::format("assets/{:012x}.ttf", mlibs::hash::fnv1a(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())) & 0xffffffffffffull),
                 "the content hash names the actual derived payload, not the source font");
-            typeset::FontCollection faces; const auto face = faces.add_data(bytes); check(face.has_value()); if (!face) continue;
+            mlibs::text::FontCollection faces; const auto face = faces.add_data(bytes); check(face.has_value()); if (!face) continue;
             const auto& family = faces.face(*face).family;
             const bool is_mono = family == "JetBrains Mono", is_full = faces.covers(*face, U'Z');
             const auto& source = is_mono ? mono : is_full ? inter : *initial;

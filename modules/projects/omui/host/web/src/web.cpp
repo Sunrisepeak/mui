@@ -4,21 +4,26 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.semantic;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.rhi;
-import openmui.rhi.webgpu;
-import openmui.rhi.webgl;
-import openmui.text;
-import openmui.trace;
+import xrender.raster;
+import xrender.vector;
+import mlibs.rhi;
+import xrender.rhi.webgpu;
+import xrender.rhi.webgl;
+import mlibs.text;
+import mlibs.trace;
 import openmui.agent;
-import openmui.image;
+import mlibs.image;
 import openmui.native;
 import openmui.native.store;
 import mcpplibs.os;
 import :platform;
 import :mirror;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -63,21 +68,21 @@ bool same(const std::optional<Rect>& a, const std::optional<Rect>& b) {
 
 struct Web::Impl {
     WebOptions                               options;
-    std::unique_ptr<typeset::FontCollection> own_fonts;
+    std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;
     std::unique_ptr<semantic::Tree>          tree;
     std::unique_ptr<xrender::text::GlyphCache>     glyphs;
-    render::CpuRenderer                      renderer;
+    xrender::CpuRenderer                      renderer;
     // The GPU, when one draws (WebOptions::renderer): its device (before the
     // renderer, which holds it), the renderer, the texture each frame is drawn in.
-    std::unique_ptr<rhi::Device>             device;
-    std::optional<render::GpuRenderer>       gpu;
-    rhi::Texture                             target{};
+    std::unique_ptr<mlibs::rhi::Device>             device;
+    std::optional<xrender::GpuRenderer>       gpu;
+    mlibs::rhi::Texture                             target{};
     int                                      target_w = 0, target_h = 0;
     std::string_view                         drawn_by = "cpu";
-    render::DamageTracker                    damage;
-    raster::Surface                          frame;
+    xrender::DamageTracker                    damage;
+    xrender::raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on the canvas
     std::size_t                              frames_shown = 0;
     std::vector<InputEvent>                  pending;     // synthesized, for the next step
@@ -130,7 +135,7 @@ struct Web::Impl {
     void attach() {
         runtime->set_renderer(std::string(drawn_by));
         // The Web (performance tiers §1: T2), and the governor on where a page shows the frames to a person.
-        runtime->set_device_tier(pipeline::Tier::t2, "the Web");
+        runtime->set_device_tier(mlibs::pipeline::Tier::t2, "the Web");
         if (opened) runtime->set_governor(true);
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
@@ -158,15 +163,15 @@ struct Web::Impl {
             o.remote = true;  // window.omui is the bus: openas decides, never the person (S-10, S-11)
             o.capture = [this](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
                 // The frame on the canvas, cut to the region (logical pixels).
-                const raster::Surface& f = frame;
+                const xrender::raster::Surface& f = frame;
                 const int x0 = std::clamp(static_cast<int>(std::floor(region.x * scale)), 0, f.width());
                 const int y0 = std::clamp(static_cast<int>(std::floor(region.y * scale)), 0, f.height());
                 const int x1 = std::clamp(static_cast<int>(std::ceil(region.right() * scale)), x0, f.width());
                 const int y1 = std::clamp(static_cast<int>(std::ceil(region.bottom() * scale)), y0, f.height());
                 if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the canvas (or nothing is shown yet)");
-                imageio::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4,
-                                imageio::Alpha::premultiplied};
-                return imageio::encode_png(v);
+                mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4,
+                                mlibs::image::Alpha::premultiplied};
+                return mlibs::image::encode_png(v);
             };
             protocol = std::make_unique<agent::Protocol>(*runtime, std::move(o));
         }
@@ -175,7 +180,7 @@ struct Web::Impl {
 
     // A request of the page's, or one synthesized: served before the frame.
     void serve(page::Request::Kind kind, const std::string& text, const std::function<void(std::string_view)>& reply) {
-        trace::Span span("request", "host");
+        mlibs::trace::Span span("request", "host");
         if (kind == page::Request::Kind::link) {  // the agent link's state, as the page says it
             auto v = parse_json(text);
             if (!v) return;
@@ -211,7 +216,7 @@ struct Web::Impl {
     void sync_page() {
         if (!opened) return;
         if (mirror) {
-            trace::Span span("mirror", "host");
+            mlibs::trace::Span span("mirror", "host");
             if (auto batch = mirror->sync()) page::mirror(batch->json());
         }
         const std::optional<Rect> at = runtime->text_input_rect();
@@ -244,7 +249,7 @@ struct Web::Impl {
                 if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);
                 return false;
             }
-            auto renderer = render::GpuRenderer::create(**made);
+            auto renderer = xrender::GpuRenderer::create(**made);
             if (!renderer) {
                 warn("host.web: {} cannot draw ({}): the CPU does", name, renderer.error().message);
                 return false;
@@ -260,23 +265,23 @@ struct Web::Impl {
 
     // The frame on the GPU: drawn whole into a texture the canvas's size,
     // presented. False when the GPU failed it (said once).
-    bool show_gpu(const render::DisplayList& list, int w, int hgt) {
+    bool show_gpu(const xrender::DisplayList& list, int w, int hgt) {
         if (target_w != w || target_h != hgt) {
             if (target.valid()) device->destroy(target);
-            auto t = device->create(rhi::TextureDesc{.format = rhi::Format::rgba8_unorm, .width = static_cast<std::uint32_t>(w),
+            auto t = device->create(mlibs::rhi::TextureDesc{.format = mlibs::rhi::Format::rgba8_unorm, .width = static_cast<std::uint32_t>(w),
                                                      .height = static_cast<std::uint32_t>(hgt),
-                                                     .usage = rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, .label = "host.web frame"});
+                                                     .usage = mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled, .label = "host.web frame"});
             if (!t) return gpu_failed(t.error().message);
             target = *t;
             target_w = w, target_h = hgt;
         }
         {
-            trace::Span span("render", "host");
-            const render::Resources resources{&runtime->images(), glyphs.get()};
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
             if (auto r = gpu->render(list, target, resources, {.scale = scale, .clear = true, .background = options.background}); !r) return gpu_failed(r.error().message);
         }
         if (!options.present) return true;
-        trace::Span span("present", "host");
+        mlibs::trace::Span span("present", "host");
         page::backing(options.canvas, w, hgt);  // shown pixel for pixel, as the CPU's frame is
         if (auto r = device->present(target); !r) return gpu_failed(r.error().message);
         return true;
@@ -289,7 +294,7 @@ struct Web::Impl {
     bool gpu_said = false;
 
     void show() {
-        const render::DisplayList& list = runtime->display_list();
+        const xrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
         const int hgt = static_cast<int>(std::lround(runtime->size().height * scale));
@@ -303,18 +308,18 @@ struct Web::Impl {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
-        if (frame.width() != w || frame.height() != hgt) frame = raster::Surface(w, hgt);
+        if (frame.width() != w || frame.height() != hgt) frame = xrender::raster::Surface(w, hgt);
         {
-            trace::Span span("render", "host");
-            const render::Resources resources{&runtime->images(), glyphs.get()};
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            render::CpuOptions o;
+            xrender::CpuOptions o;
             o.scale = scale;
             o.background = options.background;
             o.rows = rows;
             if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
         }
-        trace::Span span("present", "host");
+        mlibs::trace::Span span("present", "host");
         if (opened) page::present(options.canvas, frame);
         shown = h;
         ++frames_shown;
@@ -352,7 +357,7 @@ struct Web::Impl {
                     // order the deferred files arrive in. Loading adds a new
                     // FaceId; old shaped runs and morphs retain their face.
                     const auto family = fonts.find_family(fonts.face(*added).family);
-                    std::vector<typeset::FaceId> chain(fonts.fallback().begin(), fonts.fallback().end());
+                    std::vector<mlibs::text::FaceId> chain(fonts.fallback().begin(), fonts.fallback().end());
                     // A previously absent family keeps add_fallback's old
                     // priority after the primary, now after that entire
                     // family block rather than between its tiny/full faces.
@@ -483,9 +488,9 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
         d.attach();
         return;
     }
-    typeset::FontCollection* fonts = d.options.fonts;
+    mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
-        d.own_fonts = std::make_unique<typeset::FontCollection>();
+        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         fonts = d.own_fonts.get();
     }
@@ -511,17 +516,17 @@ Web::~Web() {
 Runtime& Web::runtime() noexcept { return *impl_->runtime; }
 semantic::Tree& Web::tree() noexcept { return *impl_->tree; }
 NodeId Web::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
-const raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
+const xrender::raster::Surface& Web::pixels() const noexcept { return impl_->frame; }
 std::string_view Web::renderer() const noexcept { return impl_->drawn_by; }
 
-std::expected<raster::Surface, std::string> Web::read_frame() {
+std::expected<xrender::raster::Surface, std::string> Web::read_frame() {
     Impl& d = *impl_;
     if (!d.gpu) return d.frame;
     if (!d.target.valid()) return std::unexpected(std::string("no frame shown yet"));
     const auto w = static_cast<std::uint32_t>(d.target_w), h = static_cast<std::uint32_t>(d.target_h);
-    auto bytes = d.device->read(d.target, rhi::Region{0, 0, w, h});
+    auto bytes = d.device->read(d.target, mlibs::rhi::Region{0, 0, w, h});
     if (!bytes) return std::unexpected(bytes.error().message);
-    raster::Surface s(d.target_w, d.target_h);
+    xrender::raster::Surface s(d.target_w, d.target_h);
     for (int y = 0; y < d.target_h; ++y)
         std::memcpy(s.row(y), bytes->data() + static_cast<std::size_t>(y) * w * 4, static_cast<std::size_t>(w) * 4);
     return s;

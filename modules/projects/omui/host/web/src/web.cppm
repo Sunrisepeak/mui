@@ -31,7 +31,7 @@ import std;
 export import openmui.core;
 export import openmui.view;
 export import openmui.semantic;
-export import openmui.raster;
+export import xrender.raster;
 export import openmui.native.store;
 export import :mirror;
 
@@ -52,7 +52,7 @@ struct WebOptions {
     std::string             canvas = "#canvas";  // the canvas's selector
     Size                    size{960, 640};      // until the canvas says its own (off the Web: always)
     Theme                   theme = Theme::light();
-    typeset::FontCollection* fonts = nullptr;     // nullptr: the default fonts (the page's /fonts)
+    mlibs::text::FontCollection* fonts = nullptr;     // nullptr: the default fonts (the page's /fonts)
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;
     Color                   background = Color::white();
@@ -134,13 +134,13 @@ public:
     void on_visibility(std::function<void(bool hidden)> fn);
 
     // What the canvas shows, when the CPU draws it.
-    [[nodiscard]] const raster::Surface& pixels() const noexcept;
+    [[nodiscard]] const xrender::raster::Surface& pixels() const noexcept;
     // Who draws: "webgpu", "webgl" or "cpu".
     [[nodiscard]] std::string_view renderer() const noexcept;
     // The last frame shown, read back from whoever drew it — a GPU's texture
     // (a program linked to wait for it: rhi::webgpu::can_wait), the CPU's
     // frame: what a test compares with the reference, a screenshot keeps.
-    [[nodiscard]] std::expected<raster::Surface, std::string> read_frame();
+    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> read_frame();
     [[nodiscard]] std::size_t frames_shown() const noexcept;
     [[nodiscard]] bool hidden() const noexcept;
 

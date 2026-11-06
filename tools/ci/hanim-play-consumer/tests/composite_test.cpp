@@ -2,16 +2,16 @@
 import std;
 import hanim.engine;
 import hanim.render.vector;
-import openmui.raster;
-import openmui.image;
-import openmui.trace;
-import openmui.testing;
+import xrender.raster;
+import mlibs.image;
+import mlibs.trace;
+import mlibs.testing;
 using namespace hanim;
 using namespace hanim::vector_render;
-using namespace omui::testing;
-namespace render=omui::render;
+using namespace mlibs::testing;
+namespace render=xrender;
 namespace geom=mlibs::geom;
-namespace raster=omui::raster;
+namespace raster=xrender::raster;
 namespace {
 std::atomic<std::size_t> allocations{0};
 void* allocate(std::size_t size) noexcept {allocations.fetch_add(1);return std::malloc(size?size:1);}
@@ -112,8 +112,8 @@ int main(int argc,char** argv) {
         check(pixels.at(74,16).g==255 && pixels.at(73,16).a==0 && pixels.at(75,17).a==255,"outside object keeps its sharp edges");
         check(pixels.at(14,24).a>0,"group bounds include the filter reach");
         const auto dir=scratch_dir("hanim-composite");
-        const omui::imageio::View view{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),112,64,112*4,omui::imageio::Alpha::premultiplied};
-        take(omui::imageio::save_png(dir/"group-blur.png",view));
+        const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),112,64,112*4,mlibs::image::Alpha::premultiplied};
+        take(mlibs::image::save_png(dir/"group-blur.png",view));
         std::println("composite CPU pixels: {} hash={} layers=1",(dir/"group-blur.png").generic_string(),pixels.hash());
     });
     suite.test("nested scopes preserve leaf-before-inner-before-outer order and expanded bounds",[] {
@@ -194,7 +194,7 @@ int main(int argc,char** argv) {
     suite.test("prepared scoped playback query and warmed recording allocate nothing",[] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(0,4))));
         const auto ref=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());render::DisplayList output;
-        omui::trace::start();
+        mlibs::trace::start();
         for(int i=0;i<16;++i) {take(f.engine.seek_progress(ref,.5));output.clear();take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));}
         const auto before=allocations.load();bool good=true;
         for(int i=0;i<512;++i) {
@@ -202,7 +202,7 @@ int main(int argc,char** argv) {
             const auto frame=f.engine.program_frame(ref);output.clear();
             good &= frame.has_value() && renderer.record(frame->scene,output,storage.get()).has_value();
         }
-        const auto after=allocations.load();(void)omui::trace::stop();check(good && before==after);
+        const auto after=allocations.load();(void)mlibs::trace::stop();check(good && before==after);
     });
     suite.test("independent channels render one object under one shared image scope",[] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
@@ -231,7 +231,7 @@ int main(int argc,char** argv) {
             anim::move_by(f.a,{20,0}).duration(seconds(2)),anim::rotate_to(f.a,.4).duration(seconds(1))))
             .with_effect(fx::blur(0,4))));
         const auto playback=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));
-        Storage storage(renderer.requirements());render::DisplayList output;omui::trace::start();
+        Storage storage(renderer.requirements());render::DisplayList output;mlibs::trace::start();
         for(int i=0;i<16;++i) {
             take(f.engine.seek_progress(playback,i/15.));output.clear();
             take(renderer.record(take(f.engine.program_frame(playback)).scene,output,storage.get()));
@@ -242,7 +242,7 @@ int main(int argc,char** argv) {
             const auto frame=f.engine.program_frame(playback);output.clear();
             good &= frame.has_value() && renderer.record(frame->scene,output,storage.get()).has_value();
         }
-        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after);
     });
     return suite.run(argc,argv);
 }

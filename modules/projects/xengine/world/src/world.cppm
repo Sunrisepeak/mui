@@ -18,7 +18,7 @@
 export module xengine.world;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 
 export namespace xengine {
 
@@ -146,7 +146,7 @@ public:
 
     // FNV-1a over the world's bytes: the same world, the same number, everywhere.
     [[nodiscard]] std::uint64_t checksum() const noexcept {
-        omui::hash::Fnv1a h;
+        mlibs::hash::Fnv1a h;
         auto bytes = [&h](const auto& v) { h.bytes(std::as_bytes(std::span(&v, 1))); };
         // Part by part: each part has no padding of its own (a column's values and its bits may have some between them).
         bytes(alive_);

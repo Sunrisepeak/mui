@@ -5,7 +5,7 @@ module openmui.host.web;
 
 import std;
 import openmui.core;
-import openmui.raster;
+import xrender.raster;
 import :platform;
 
 namespace omui::page {
@@ -27,7 +27,7 @@ std::optional<std::string> storage_get(std::string_view) { return std::nullopt; 
 bool storage_set(std::string_view, std::string_view) { return false; }
 bool storage_remove(std::string_view) { return false; }
 std::vector<std::string> storage_keys(std::string_view) { return {}; }
-void present(std::string_view, const raster::Surface&) {}
+void present(std::string_view, const xrender::raster::Surface&) {}
 void backing(std::string_view, int, int) {}
 bool hidden() { return false; }
 bool loop(void (*)(void*), void*) { return false; }

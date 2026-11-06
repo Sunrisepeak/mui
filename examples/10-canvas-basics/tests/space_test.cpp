@@ -7,9 +7,9 @@ import std;
 import openmui;
 import openmui.ui.canvas;
 import space;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

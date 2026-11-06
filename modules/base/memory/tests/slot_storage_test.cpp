@@ -1,10 +1,18 @@
 // Public lifecycle contracts, shared by legacy handles and independent owners.
 import std;
-import openmui.memory;
-import openmui.testing;
+import mlibs.memory;
+import mlibs.testing;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::Handle;
+using mlibs::memory::SlotKey;
+using mlibs::memory::SlotMap;
+using mlibs::memory::SlotStorage;
+using mlibs::memory::SlotStorageError;
+}
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
     allocations.fetch_add(1, std::memory_order_relaxed);

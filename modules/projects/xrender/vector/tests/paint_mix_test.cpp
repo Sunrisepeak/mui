@@ -1,10 +1,10 @@
 import std;
-import openmui.geom;
-import openmui.render.vector;
-import openmui.testing;
-using namespace omui::testing;
-namespace render = omui::render;
-namespace geom = omui::geom;
+import mlibs.geom;
+import xrender.vector;
+import mlibs.testing;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace geom = mlibs::geom;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
     allocations.fetch_add(1, std::memory_order_relaxed);

@@ -2,9 +2,24 @@
 // the JSON-lines form.
 import std;
 import openmui.core;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+using mlibs::log::LogRecord;
+using mlibs::log::log_enabled;
+using mlibs::log::recent_logs;
+using mlibs::log::set_log_filter;
+using mlibs::log::set_log_history;
+using mlibs::log::set_log_level;
+using mlibs::log::set_log_sink;
+using mlibs::log::Level;
+using mlibs::log::info;
+using mlibs::log::log_level;
+using mlibs::log::warn;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

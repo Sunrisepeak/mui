@@ -16,9 +16,9 @@ import xengine.input;
 import xengine.physics;
 import xengine.simulation;
 import openmui.showcase.widget_breakout.sim;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace bo = omui::breakout;
 using xengine::Box;
 using xengine::V2;
@@ -636,7 +636,7 @@ int main(int argc, char** argv) {
 
     s.test("a machine played by a script: switches, shutters, kickers, a capacitor, a core — its checksum is the same everywhere", [] {
         bo::State st = bo::start(machine(5));
-        std::uint64_t all = omui::hash::Fnv1a::offset;
+        std::uint64_t all = mlibs::hash::Fnv1a::offset;
         std::int64_t frames = 0;
         std::int32_t flips = 0, beams = 0, kicks = 0;
         for (std::int64_t f = 0; f < 12000 && !st.over; ++f, ++frames) {
@@ -646,7 +646,7 @@ int main(int argc, char** argv) {
                 beams += st.event[i].what == bo::Happened::beam;
                 kicks += st.event[i].what == bo::Happened::kicked;
             }
-            all = omui::hash::Fnv1a(all).word(bo::checksum(st)).value();
+            all = mlibs::hash::Fnv1a(all).word(bo::checksum(st)).value();
         }
         std::println("    machine {:016x} ({} frames, score {}, over {}, {} flips, {} beams, {} kicks, {} sparks)", all, frames, st.score, st.over, flips, beams, kicks, st.sparks);
         check(flips > 0 && kicks > 0, "the machine moved");
@@ -655,11 +655,11 @@ int main(int argc, char** argv) {
 
     s.test("a whole game played by a script: its checksum is the same everywhere", [] {
         bo::State st = bo::start(wall_of_bricks(9));
-        std::uint64_t all = omui::hash::Fnv1a::offset;
+        std::uint64_t all = mlibs::hash::Fnv1a::offset;
         std::int64_t frames = 0;
         for (std::int64_t f = 0; f < 12000 && !st.over; ++f, ++frames) {
             bo::step(st, follow(st, f));
-            all = omui::hash::Fnv1a(all).word(bo::checksum(st)).value();
+            all = mlibs::hash::Fnv1a(all).word(bo::checksum(st)).value();
         }
         std::println("    game {:016x} ({} frames, score {}, over {})", all, frames, st.score, st.over);
         check_eq(all, std::uint64_t{0x44161a195811b4c0});  // GCC, LLVM and wasm

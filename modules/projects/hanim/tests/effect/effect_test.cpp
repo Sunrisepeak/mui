@@ -1,11 +1,11 @@
 import std;
 import hanim.effect;
-import openmui.log;
-import openmui.trace;
-import openmui.testing;
+import mlibs.log;
+import mlibs.trace;
+import mlibs.testing;
 
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
     Suite s{"hanim.effect"};
@@ -113,23 +113,23 @@ int main(int argc, char** argv) {
     });
     s.test("existing independent logging and trace expose preparation and sampling", [] {
         struct Observer { int prepared = 0, refused = 0; } observer;
-        omui::set_log_sink([](void* context, const omui::LogRecord& record) {
+        mlibs::log::set_log_sink([](void* context, const mlibs::log::LogRecord& record) {
             if (record.category != "hanim.effect") return;
             auto& observer = *static_cast<Observer*>(context);
             if (record.message.starts_with("prepared")) ++observer.prepared;
             if (record.message.starts_with("prepare refused")) ++observer.refused;
         }, &observer);
-        omui::trace::start();
+        mlibs::trace::start();
         const auto input = fx::chain({fx::blur(0, 2)}); const auto plan = PreparedEffects::prepare(input);
         const auto failed = PreparedEffects::prepare(input, {.max_parameters = 0});
         std::array<float, 1> output{};
         bool sampled = true;
         for (int i = 0; i < 2000; ++i) sampled &= plan->sample(static_cast<double>(i % 101) / 100, output).has_value();
-        const auto trace = omui::trace::stop();
-        omui::set_log_sink(nullptr, nullptr);
+        const auto trace = mlibs::trace::stop();
+        mlibs::log::set_log_sink(nullptr, nullptr);
         check(sampled && failed.error() == EffectError::invalid_limits && observer.prepared == 1 && observer.refused == 1);
         bool prepared = false, sampled_trace = false;
-        for (const auto& event : trace.events) if (std::string_view(event.category) == "hanim.effect" && event.kind == omui::trace::Kind::begin) {
+        for (const auto& event : trace.events) if (std::string_view(event.category) == "hanim.effect" && event.kind == mlibs::trace::Kind::begin) {
             prepared |= std::string_view(event.name) == "prepare";
             sampled_trace |= std::string_view(event.name) == "sample";
         }

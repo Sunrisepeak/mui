@@ -29,7 +29,7 @@ public:
 
     void mounted();
     void prop_changed(StageProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -148,7 +148,7 @@ private:
     std::optional<Saved>                  saved_;
     // What painting reuses from frame to frame (paint is const; these are its scratch).
     mutable gongfu::present2d::Painter    painter_;
-    mutable render::DisplayList           frame_;
+    mutable xrender::DisplayList           frame_;
     mutable hud::Words                    words_;
     FrameDemandLease                      pace_;
     double                                start_ = 0;   // the clock's time of frame 0 of the playing (seconds)

@@ -2,9 +2,9 @@
 import std;
 import hanim.core;
 import xengine.timeline;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace tl = xengine::timeline;
 
 namespace {

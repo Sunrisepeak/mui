@@ -24,7 +24,7 @@ public:
 
     void mounted();
     void prop_changed(SplitViewProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -60,7 +60,7 @@ public:
 
     void mounted();
     void prop_changed(DrawerProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;

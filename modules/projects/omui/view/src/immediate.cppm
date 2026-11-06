@@ -25,6 +25,10 @@ import :model;
 import :component;
 import :primitives;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+}
+
 export namespace omui {
 
 // The options of immediate-mode controls (the base components' properties).

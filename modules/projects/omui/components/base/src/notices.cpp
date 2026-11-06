@@ -54,8 +54,8 @@ void Alert::prop_changed(AlertProp p) {
     services().invalidate_semantics(node());
 }
 
-void Alert::style(const Theme&, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
+void Alert::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
     s.padding = {12, alert_pad, 12, alert_pad};
 }
 
@@ -65,7 +65,7 @@ float Alert::text_width(float width) const {
     return std::max(40.0f, w);
 }
 
-Size Alert::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size Alert::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     const Theme& th = m.services.theme();
     // As wide as it may be, up to a line's comfortable measure.
     const float w = width.value_or(aw.is_definite() ? aw.value : 560.0f);
@@ -82,25 +82,25 @@ void Alert::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 10)).fitted(ctx.size);
     const Color tone = tone_colour(th, props.tone);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(parts::mix(th.color("surface"), tone, 0.08f)));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(tone.with_alpha(0.45f)));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(parts::mix(th.color("surface"), tone, 0.08f)));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(tone.with_alpha(0.45f)));
     const Rect c = ctx.content;
     // Its mark: a disc in its tone, and in it what kind it is (i, ✓, !, ×).
     const Point mid{c.x + alert_icon / 2, c.y + alert_icon / 2 + 1};
-    ctx.list.fill_round_rect({mid.x - alert_icon / 2, mid.y - alert_icon / 2, alert_icon, alert_icon}, CornerRadii::all(alert_icon / 2), render::Paint::solid(tone));
+    ctx.list.fill_round_rect({mid.x - alert_icon / 2, mid.y - alert_icon / 2, alert_icon, alert_icon}, CornerRadii::all(alert_icon / 2), xrender::Paint::solid(tone));
     const Color on = th.color("on_accent");
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = render::LineCap::round;
+    st.cap = xrender::LineCap::round;
     if (props.tone == AlertTone::success) parts::check_mark(ctx, mid, 9, on, 1.75f);
     else if (props.tone == AlertTone::danger) parts::cross(ctx, mid, 7, on);
     else {
         const bool info = props.tone == AlertTone::info;
-        render::Path p;
+        xrender::Path p;
         p.move_to({mid.x, mid.y + (info ? -0.5f : -4.5f)}).line_to({mid.x, mid.y + (info ? 4.5f : 0.5f)});
-        ctx.list.stroke_path(p, st, render::Paint::solid(on));
+        ctx.list.stroke_path(p, st, xrender::Paint::solid(on));
         const float dot_y = info ? mid.y - 4 : mid.y + 4;
-        ctx.list.fill_round_rect({mid.x - 1.1f, dot_y - 1.1f, 2.2f, 2.2f}, CornerRadii::all(1.1f), render::Paint::solid(on));
+        ctx.list.fill_round_rect({mid.x - 1.1f, dot_y - 1.1f, 2.2f, 2.2f}, CornerRadii::all(1.1f), xrender::Paint::solid(on));
     }
     const float x = c.x + alert_icon + alert_gap, tw = text_width(ctx.size.width);
     float y = c.y;
@@ -197,7 +197,7 @@ bool Stepper::reachable(std::size_t i) const noexcept {
     return i < props.steps.size() && i != cur && (props.free || i < cur);
 }
 
-Size Stepper::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Stepper::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const Theme& th = m.services.theme();
     float w = 0, h = 0;
     for (std::size_t i = 0; i < labels_.size(); ++i) {
@@ -232,14 +232,14 @@ void Stepper::paint(PaintContext& ctx) const {
         const Rect r{x, y, own[i], step_row};
         at_.push_back(r);
         if (hover_ == static_cast<int>(i) && reachable(i))
-            ctx.list.fill_round_rect({r.x - 4, r.y, r.width + 8, r.height}, CornerRadii::all(6), render::Paint::solid(th.color("surface_variant")));
+            ctx.list.fill_round_rect({r.x - 4, r.y, r.width + 8, r.height}, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
         const Point m{r.x + step_marker / 2, r.y + step_row / 2};
         const Rect disc{m.x - step_marker / 2, m.y - step_marker / 2, step_marker, step_marker};
-        if (done || now) ctx.list.fill_round_rect(disc, CornerRadii::all(step_marker / 2), render::Paint::solid(th.color("accent")));
+        if (done || now) ctx.list.fill_round_rect(disc, CornerRadii::all(step_marker / 2), xrender::Paint::solid(th.color("accent")));
         else {
-            ctx.list.fill_round_rect(disc, CornerRadii::all(step_marker / 2), render::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect(disc, CornerRadii::all(step_marker / 2), xrender::Paint::solid(th.color("surface")));
             ctx.list.stroke_round_rect({disc.x + 0.75f, disc.y + 0.75f, disc.width - 1.5f, disc.height - 1.5f}, CornerRadii::all(step_marker / 2), 1.5f,
-                                       render::Paint::solid(th.color("border_strong")));
+                                       xrender::Paint::solid(th.color("border_strong")));
         }
         if (done) parts::check_mark(ctx, m, 11, th.color("on_accent"), 2);
         else {

@@ -6,9 +6,9 @@
 // renders; and a scene rendered offline, its bits pinned on every platform.
 import std;
 import xengine.audio;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace audio = xengine::audio;
 
 // Heap allocations counted here, in the test program only.

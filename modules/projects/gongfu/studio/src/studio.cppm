@@ -13,7 +13,7 @@ export module gongfu.studio;
 import std;
 export import gongfu.data;
 export import gongfu.present2d;
-import openmui.render.vector;
+import xrender.vector;
 
 export namespace gongfu::studio {
 
@@ -68,7 +68,7 @@ struct SheetOptions {
     std::vector<std::string>    clips;          // empty: every clip
     std::vector<std::int32_t>   frames;         // empty: one cell a clip
     bool                        boxes = true;
-    const omui::render::ImageStore* images = nullptr;
+    const xrender::ImageStore* images = nullptr;
 };
 struct Sheet {
     std::vector<std::uint8_t> png;

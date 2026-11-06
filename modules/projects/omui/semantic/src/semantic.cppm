@@ -5,7 +5,7 @@ export module openmui.semantic;
 
 export import openmui.core;
 export import openmui.view;
-export import openmui.session;
+export import mlibs.session;
 export import :query;
 export import :tree;
 export import :session;

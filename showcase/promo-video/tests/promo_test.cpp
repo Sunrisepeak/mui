@@ -12,10 +12,14 @@ import std;
 import openmui;
 import xengine.timeline;
 import xengine.audio;
-import openmui.testing;
+import mlibs.testing;
 import openmui.showcase.promo_video;
 
-using namespace omui::testing;
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::fatal;
+}
+
+using namespace mlibs::testing;
 using namespace omui;
 namespace tl = xengine::timeline;
 
@@ -41,9 +45,9 @@ promo::Cut cut(std::string_view name) {
 
 std::string hex(std::uint64_t h) { return std::format("{:016x}", h); }
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -122,8 +126,8 @@ int main(int argc, char** argv) {
             const auto h = promo::pixel_hash(**px);
             all.u64(h);
             std::println("    frame {:>4}: {}", f, hex(h));
-            check(imageio::save_png(dir / std::format("{:04}.png", f), {reinterpret_cast<const std::uint8_t*>((*px)->row(0)), (*px)->width(), (*px)->height(),
-                                                                          (*px)->width() * 4, imageio::Alpha::premultiplied})
+            check(mlibs::image::save_png(dir / std::format("{:04}.png", f), {reinterpret_cast<const std::uint8_t*>((*px)->row(0)), (*px)->width(), (*px)->height(),
+                                                                          (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
         check_eq(all.hex(), std::string("6bc56e6e1d69df00"));
@@ -216,24 +220,24 @@ int main(int argc, char** argv) {
         promo::Player p(film(), c, {.scale = 0.25f, .fonts = &fonts(), .parallel_raster = false});
         // A beat of each chapter at 7.5 frames a second.
         constexpr std::array<std::pair<std::int64_t, std::int64_t>, 8> beats{{{40, 160}, {330, 450}, {900, 960}, {1260, 1500}, {1740, 2040}, {2400, 2580}, {2880, 3060}, {3360, 3600}}};
-        std::vector<imageio::Image> kept;
+        std::vector<mlibs::image::Image> kept;
         for (const auto& [a, b] : beats)
             for (std::int64_t f = a; f < b; f += 8) {
                 auto px = p.frame(f);
                 check(px.has_value());
                 if (!px) return;
-                imageio::Image img;
+                mlibs::image::Image img;
                 img.width = (*px)->width();
                 img.height = (*px)->height();
-                img.alpha = imageio::Alpha::premultiplied;
+                img.alpha = mlibs::image::Alpha::premultiplied;
                 img.rgba.assign(reinterpret_cast<const std::uint8_t*>((*px)->row(0)),
                                 reinterpret_cast<const std::uint8_t*>((*px)->row(0)) + static_cast<std::size_t>(img.width) * img.height * 4);
                 kept.push_back(std::move(img));
             }
-        std::vector<imageio::View> views;
-        for (const auto& k : kept) views.push_back(imageio::view(k));
+        std::vector<mlibs::image::View> views;
+        for (const auto& k : kept) views.push_back(mlibs::image::view(k));
         const auto file = scratch_dir("readme-promo-video") / "film.webp";
-        check(imageio::save_animated_webp(file, views, {.delay_num = 2, .delay_den = 15, .quality = 72}).has_value());
+        check(mlibs::image::save_animated_webp(file, views, {.delay_num = 2, .delay_den = 15, .quality = 72}).has_value());
         const auto size = std::filesystem::file_size(file);
         std::println("    the loop: {} frames, {} KB", views.size(), size / 1024);
         check(size < 1024 * 1024, std::format("{} bytes", size));

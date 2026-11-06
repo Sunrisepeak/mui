@@ -52,7 +52,7 @@ inline constexpr double chinese_per_second = 9, english_per_second = 17;
 [[nodiscard]] Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track, Size size);
 
 // One frame as drawn: its typography and its pixels.
-[[nodiscard]] std::vector<Finding> check_frame(Player& player, std::int64_t frame, const raster::Surface& pixels);
+[[nodiscard]] std::vector<Finding> check_frame(Player& player, std::int64_t frame, const xrender::raster::Surface& pixels);
 
 // The frames to look at: every `step`th, and the first and last of each clip.
 [[nodiscard]] std::vector<std::int64_t> sampled_frames(const Cut& cut, std::int64_t step);

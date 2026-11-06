@@ -1,10 +1,10 @@
 // The document as renderers, the semantic tree and agents read it.
 import std;
-import openmui.markdown;
-import openmui.testing;
+import mlibs.markdown;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace md = omui::md;
+using namespace mlibs::testing;
+namespace md = mlibs::markdown;
 
 int main(int argc, char** argv) {
     Suite s{"markdown"};

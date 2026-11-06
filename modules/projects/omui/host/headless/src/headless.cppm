@@ -19,8 +19,8 @@ export import openmui.core;
 export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
-export import openmui.raster;
-export import openmui.image;  // recordings: imageio::AnimatedWebpOptions
+export import xrender.raster;
+export import mlibs.image;  // recordings: imageio::AnimatedWebpOptions
 
 export namespace omui {
 
@@ -36,7 +36,7 @@ enum class HeadlessLevel : std::uint8_t {
 // 0 forever) and, written to a `.webp` file, its coding: an animated WebP,
 // lossy at quality 80 unless asked otherwise (a README loop a fraction of its
 // APNG's size). Any other name is an animated PNG, which takes the timing alone.
-using RecordingOptions = imageio::AnimatedWebpOptions;
+using RecordingOptions = mlibs::image::AnimatedWebpOptions;
 
 struct HeadlessOptions {
     HeadlessLevel           level = HeadlessLevel::pixels;
@@ -45,7 +45,7 @@ struct HeadlessOptions {
     hanim::FrameRate         fps{60, 1};
     Color                   background = Color::white();
     Theme                   theme = Theme::light();
-    typeset::FontCollection* fonts = nullptr;  // nullptr: the default fonts
+    mlibs::text::FontCollection* fonts = nullptr;  // nullptr: the default fonts
     bool                    reduce_motion = false;
     std::string             app = "openmui-app";  // the application id (endpoint name, descriptor)
     std::filesystem::path   endpoint_directory;   // H3; default: agent::default_directory()
@@ -60,7 +60,7 @@ struct HeadlessOptions {
     bool                    complete_frames = false;
     // The tier it draws as (performance tiers §1: a test of how an ESP32 or a
     // phone draws says T0 or T2). Its governor stays off: frames are the test's.
-    pipeline::Tier          tier = pipeline::Tier::t3;
+    mlibs::pipeline::Tier          tier = mlibs::pipeline::Tier::t3;
 };
 
 class Headless {
@@ -99,7 +99,7 @@ public:
 
     // ── pixels (H2 and up) ──
     // The current frame's pixels (rendered when the display list changed).
-    [[nodiscard]] const raster::Surface& pixels();
+    [[nodiscard]] const xrender::raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
     std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
     // A recording for an animation (a README's loop, a bug report): each

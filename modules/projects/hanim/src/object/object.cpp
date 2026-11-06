@@ -1,8 +1,8 @@
 module hanim.object;
 
 import std;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 import mlibs.memory;
 
 namespace hanim::detail {
@@ -35,7 +35,7 @@ struct RegistryData {
 
 namespace hanim {
 namespace {
-constexpr omui::Log object_log{"hanim.object"};
+constexpr mlibs::log::Log object_log{"hanim.object"};
 constexpr auto exhausted = std::numeric_limits<std::uint64_t>::max();
 std::atomic<std::uint64_t> next_owner{1};
 
@@ -59,15 +59,15 @@ bool valid_limits(ObjectLimits limits) noexcept {
 void trace_ref(ObjectRef ref) noexcept {
     // Split identity counters: every uint32 is exactly representable by the
     // trace's double value, unlike a whole uint64 owner/generation.
-    omui::trace::count("owner.high", static_cast<double>(ref.owner >> 32), "hanim.object");
-    omui::trace::count("owner.low", static_cast<double>(static_cast<std::uint32_t>(ref.owner)), "hanim.object");
-    omui::trace::count("object.slot", static_cast<double>(ref.slot), "hanim.object");
-    omui::trace::count("generation.high", static_cast<double>(ref.generation >> 32), "hanim.object");
-    omui::trace::count("generation.low", static_cast<double>(static_cast<std::uint32_t>(ref.generation)), "hanim.object");
+    mlibs::trace::count("owner.high", static_cast<double>(ref.owner >> 32), "hanim.object");
+    mlibs::trace::count("owner.low", static_cast<double>(static_cast<std::uint32_t>(ref.owner)), "hanim.object");
+    mlibs::trace::count("object.slot", static_cast<double>(ref.slot), "hanim.object");
+    mlibs::trace::count("generation.high", static_cast<double>(ref.generation >> 32), "hanim.object");
+    mlibs::trace::count("generation.low", static_cast<double>(static_cast<std::uint32_t>(ref.generation)), "hanim.object");
 }
 void failed(std::string_view operation, ObjectError error, ObjectRef ref = {}) {
     object_log.warn("{} refused: {} (owner={}, slot={}, generation={})", operation, object_error_name(error), ref.owner, ref.slot, ref.generation);
-    omui::trace::mark("refused", "hanim.object");
+    mlibs::trace::mark("refused", "hanim.object");
 }
 struct WriteScope {
     bool& writing;
@@ -229,7 +229,7 @@ std::string_view object_error_name(ObjectError error) noexcept {
     return "unknown";
 }
 std::expected<Contour, ObjectError> Contour::copy(ShapeContour input, std::size_t max_segments) {
-    omui::trace::Span span("contour.copy", "hanim.object");
+    mlibs::trace::Span span("contour.copy", "hanim.object");
     auto refuse = [](ObjectError error) -> std::expected<Contour, ObjectError> { failed("contour.copy", error); return std::unexpected(error); };
     if (!max_segments || max_segments > 65536) return refuse(ObjectError::invalid_limits);
     if (input.segments.size() > max_segments) return refuse(ObjectError::capacity);
@@ -241,7 +241,7 @@ std::expected<Contour, ObjectError> Contour::copy(ShapeContour input, std::size_
     }
     Contour result;
     result.data_ = std::make_shared<const detail::ContourData>(detail::ContourData{input.start, {input.segments.begin(), input.segments.end()}, input.closed});
-    omui::trace::count("contour.segments", static_cast<double>(input.segments.size()), "hanim.object");
+    mlibs::trace::count("contour.segments", static_cast<double>(input.segments.size()), "hanim.object");
     return result;
 }
 std::size_t Contour::segment_count() const noexcept { return data_ ? data_->segments.size() : 0; }
@@ -298,7 +298,7 @@ bool ObjectRegistry::contains(PartRef ref) const noexcept {
 }
 std::expected<ObjectRef, ObjectError> ObjectRegistry::create(const ObjectDescription& description) {
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
-    WriteScope write(writing_); omui::trace::Span span("create", "hanim.object");
+    WriteScope write(writing_); mlibs::trace::Span span("create", "hanim.object");
     auto refuse = [&](ObjectError error) -> std::expected<ObjectRef, ObjectError> { failed("create", error); return std::unexpected(error); };
     if (!data_) return refuse(ObjectError::uninitialized);
     const auto inserted = data_->objects.try_insert([&](detail::ObjectKey key) -> std::expected<detail::ObjectSlot, ObjectError> {
@@ -309,13 +309,13 @@ std::expected<ObjectRef, ObjectError> ObjectRegistry::create(const ObjectDescrip
     }, ObjectError::capacity);
     if (!inserted) return refuse(inserted.error());
     const ObjectRef ref{data_->owner, inserted->index, inserted->generation};
-    trace_ref(ref); omui::trace::count("objects.live", static_cast<double>(data_->objects.size()), "hanim.object");
+    trace_ref(ref); mlibs::trace::count("objects.live", static_cast<double>(data_->objects.size()), "hanim.object");
     object_log.info("created owner={} slot={} generation={} revision=1", ref.owner, ref.slot, ref.generation);
     return ref;
 }
 std::expected<std::uint64_t, ObjectError> ObjectRegistry::update(ObjectRef ref, const ObjectDescription& description) {
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
-    WriteScope write(writing_); omui::trace::Span span("update", "hanim.object");
+    WriteScope write(writing_); mlibs::trace::Span span("update", "hanim.object");
     auto refuse = [&](ObjectError error) -> std::expected<std::uint64_t, ObjectError> { failed("update", error, ref); return std::unexpected(error); };
     const auto resolved = resolve(data_.get(), ref); if (!resolved) return refuse(resolved.error());
     auto& slot = **resolved;
@@ -329,7 +329,7 @@ std::expected<std::uint64_t, ObjectError> ObjectRegistry::update(ObjectRef ref, 
 }
 std::expected<void, ObjectError> ObjectRegistry::destroy(ObjectRef ref) {
     if (writing_) return std::unexpected(ObjectError::reentrant_mutation);
-    WriteScope write(writing_); omui::trace::Span span("destroy", "hanim.object");
+    WriteScope write(writing_); mlibs::trace::Span span("destroy", "hanim.object");
     const auto resolved = resolve(data_.get(), ref);
     if (!resolved) { failed("destroy", resolved.error(), ref); return std::unexpected(resolved.error()); }
     data_->objects.erase({ref.slot, ref.generation});
@@ -338,7 +338,7 @@ std::expected<void, ObjectError> ObjectRegistry::destroy(ObjectRef ref) {
     return {};
 }
 std::expected<Snapshot, ObjectError> ObjectRegistry::capture(ObjectRef ref) const noexcept {
-    omui::trace::Span span("capture", "hanim.object");
+    mlibs::trace::Span span("capture", "hanim.object");
     const auto slot = resolve(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
     trace_ref(ref);
     return Snapshot((*slot)->current);

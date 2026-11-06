@@ -8,14 +8,14 @@ import std;
 import openmui;
 import openmui.ui.canvas;
 import openmui.showcase.markdown_wall;
-import openmui.testing;
+import mlibs.testing;
 import openmui.abi;
 import openmui.lang;
 import openmui.lang.lua;
 import openmui.lang.js;
 import mcpplibs.os;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -161,8 +161,8 @@ Tour as_agent() {
     mcpplibs::os::process::spawn_options run;
     run.program = *py;
     run.args = {mcpplibs::os::fs::utf8(scripts() / "tour.py"), "wall-tour", mcpplibs::os::fs::utf8(dir)};
-    const auto client = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "lang" /
-                        "python" / "python";
+    const auto client = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "modules" / "projects" /
+                        "omui" / "lang" / "python" / "python";
     run.env = {{"PYTHONPATH", mcpplibs::os::fs::utf8(client)}, {"PYTHONIOENCODING", "utf-8"}};
     run.out = mcpplibs::os::process::stdio::inherit;
     run.err = mcpplibs::os::process::stdio::inherit;

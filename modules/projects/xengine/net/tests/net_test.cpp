@@ -7,9 +7,9 @@
 import std;
 import xengine.net;
 import gongfu;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 

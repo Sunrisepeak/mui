@@ -67,7 +67,7 @@ bool Document::reload_if_changed() {
     if (!r) {
         status_.clear();
         for (const auto& d : r.error()) status_ += d.text(omui::utf8(file_)) + "\n";
-        omui::warn("{}", status_);
+        mlibs::log::warn("{}", status_);
         return false;
     }
     status_.clear();

@@ -1,7 +1,7 @@
 module hanim.program;
 import std;
-import openmui.log;
-import openmui.trace;
+import mlibs.log;
+import mlibs.trace;
 
 namespace hanim::detail {
 struct ProgramNode {
@@ -28,7 +28,7 @@ struct ProgramData {
 }
 namespace hanim {
 namespace {
-constexpr omui::Log diagnostic{"hanim.program"};
+constexpr mlibs::log::Log diagnostic{"hanim.program"};
 ProgramFailure failure(ProgramError code, std::size_t node = invalid_program_index,
     std::size_t track = invalid_program_index, std::size_t segment = invalid_program_index) noexcept {
     return {.code=code,.node=node,.track=track,.segment=segment};
@@ -477,10 +477,10 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare(const Pro
     return prepare_with(program,nullptr,limits);
 }
 std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(const Program& program,const ObjectRegistry* registry,ProgramLimits limits) {
-    omui::trace::Span span("prepare","hanim.program");
+    mlibs::trace::Span span("prepare","hanim.program");
     auto refuse=[](ProgramFailure error)->std::expected<PreparedProgram,ProgramFailure>{
         diagnostic.warn("prepare refused: {} node={} track={}",program_error_name(error.code),error.node,error.track);
-        omui::trace::mark("refused","hanim.program");return std::unexpected(error);
+        mlibs::trace::mark("refused","hanim.program");return std::unexpected(error);
     };
     if(!valid_limits(limits))return refuse(failure(ProgramError::invalid_limits));
     const auto empty_effects=PreparedEffects::prepare({},limits.effects);
@@ -563,15 +563,15 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         if(!added)return refuse(added.error());previous_leaf=&leaf;
         data->nodes[leaf.node].track=leaf.track;data->nodes[leaf.node].segment=index;
     }
-    omui::trace::count("tracks",static_cast<double>(data->tracks.size()),"hanim.program");
-    omui::trace::count("segments",static_cast<double>(data->segments.size()),"hanim.program");
-    omui::trace::count("scopes",static_cast<double>(data->scopes.size()),"hanim.program");
+    mlibs::trace::count("tracks",static_cast<double>(data->tracks.size()),"hanim.program");
+    mlibs::trace::count("segments",static_cast<double>(data->segments.size()),"hanim.program");
+    mlibs::trace::count("scopes",static_cast<double>(data->scopes.size()),"hanim.program");
     diagnostic.info("prepared {} tracks and {} segments",data->tracks.size(),data->segments.size());
     PreparedProgram result;result.data_=std::move(data);return result;
 }
 std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedObjectMorph animation,PreparedEffects effects,
     SegmentOptions options,bool anchor_source,ProgramLimits limits) {
-    omui::trace::Span span("single","hanim.program");
+    mlibs::trace::Span span("single","hanim.program");
     if(!valid_limits(limits))return std::unexpected(failure(ProgramError::invalid_limits));
     if(!animation)return std::unexpected(failure(ProgramError::unprepared));
     if(const auto invalid=invalid_options(options))return std::unexpected(failure(*invalid,0,0,0));
@@ -599,7 +599,7 @@ std::expected<void,ProgramFailure> PreparedProgram::sample_scopes(seconds time,s
     if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time));
     if(output.size()<data_->scope_parameters)return std::unexpected(failure(ProgramError::output_too_small));
     if(data_->scopes.empty())return {};
-    omui::trace::Span span("sample-scopes","hanim.program");
+    mlibs::trace::Span span("sample-scopes","hanim.program");
     auto progress=[&](std::size_t i) {
         const auto& scope=data_->scopes[i];auto error=failure(ProgramError::invalid_ease,scope.node);error.scope=i;
         return progress_at(scope.start,{scope.duration,scope.effect_easing},false,time,exact_source,error);
@@ -618,7 +618,7 @@ std::expected<void,ProgramFailure> PreparedProgram::sample_scopes(seconds time,s
 }
 std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t track_index,seconds time,FrameBuffer output,
     std::span<float> values,bool exact_source) const noexcept {
-    omui::trace::Span span("sample","hanim.program");
+    mlibs::trace::Span span("sample","hanim.program");
     if(!data_)return std::unexpected(failure(ProgramError::unprepared));
     if(track_index>=data_->tracks.size())return std::unexpected(failure(ProgramError::invalid_track,invalid_program_index,track_index));
     if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time,invalid_program_index,track_index));

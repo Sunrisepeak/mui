@@ -4,9 +4,9 @@
 // threads as on one.
 import std;
 import openmui.native.fuzzy;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace fuzzy = omui::fuzzy;
 
 namespace {

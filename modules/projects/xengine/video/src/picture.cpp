@@ -2,9 +2,9 @@
 module xengine.video;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import hanim.core;
-import openmui.image;
+import mlibs.image;
 
 namespace xengine::video {
 

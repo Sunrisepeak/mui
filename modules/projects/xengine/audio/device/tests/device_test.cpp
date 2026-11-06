@@ -4,9 +4,9 @@
 import std;
 import xengine.audio;
 import xengine.audio.device;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace audio = xengine::audio;
 
 int main(int argc, char** argv) {

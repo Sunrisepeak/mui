@@ -7,12 +7,12 @@
 module xengine.audio:dsp;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import :mix;
 
 namespace xengine::audio::dsp {
 
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 
 inline constexpr std::int32_t table_size = 4096;
 inline constexpr std::int32_t control = 16;  // samples between a filter's coefficients

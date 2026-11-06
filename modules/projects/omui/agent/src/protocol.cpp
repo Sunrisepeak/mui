@@ -4,8 +4,16 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.semantic;
-import openmui.trace;
-import openmui.pipeline;
+import mlibs.trace;
+import mlibs.pipeline;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+using mlibs::log::LoggedRecord;
+using mlibs::log::recent_logs;
+using mlibs::log::set_log_filter;
+using mlibs::log::Level;
+}
 
 namespace omui::agent {
 
@@ -32,8 +40,8 @@ Effect operation_effect(std::string_view op, const Value& req) {
 }
 
 // A stage's configuration from a request's JSON object.
-pipeline::Config config_of(const Value* v) {
-    pipeline::Config c;
+mlibs::pipeline::Config config_of(const Value* v) {
+    mlibs::pipeline::Config c;
     if (!v || !v->map()) return c;
     for (const auto& [k, x] : *v->map()) {
         switch (x.type()) {
@@ -47,22 +55,22 @@ pipeline::Config config_of(const Value* v) {
     return c;
 }
 
-Value value_of(const pipeline::ConfigValue& v) {
+Value value_of(const mlibs::pipeline::ConfigValue& v) {
     return std::visit([](const auto& x) { return Value(x); }, v);
 }
 
 // What `pipeline` answers: the stages in order with their plugins, the last
 // frame's time per stage, the plugins there are, and the description as TOML.
 Value pipeline_value(Runtime& rt) {
-    pipeline::Pipeline& p = rt.frame_pipeline();
-    const pipeline::Description& d = p.description();
+    mlibs::pipeline::Pipeline& p = rt.frame_pipeline();
+    const mlibs::pipeline::Description& d = p.description();
     Value v;
     v.set("name", d.name);
     Value::List stages;
-    for (const pipeline::StageTime& t : p.timings()) {
+    for (const mlibs::pipeline::StageTime& t : p.timings()) {
         Value s;
         s.set("name", t.name).set("ms", t.ms);
-        if (auto it = std::ranges::find(d.stages, t.name, &pipeline::StageDesc::name); it != d.stages.end()) {
+        if (auto it = std::ranges::find(d.stages, t.name, &mlibs::pipeline::StageDesc::name); it != d.stages.end()) {
             s.set("plugin", it->plugin);
             Value cfg = Value(Value::Map{});
             for (const auto& [k, x] : it->config.entries()) cfg.set(k, value_of(x));
@@ -72,13 +80,13 @@ Value pipeline_value(Runtime& rt) {
     }
     v.set("stages", Value(std::move(stages)));
     Value::List plugins;
-    for (const pipeline::PluginInfo& info : rt.stage_plugins().plugins()) {
+    for (const mlibs::pipeline::PluginInfo& info : rt.stage_plugins().plugins()) {
         Value x;
         x.set("name", info.name).set("kind", info.kind).set("description", info.description);
         plugins.push_back(std::move(x));
     }
     v.set("plugins", Value(std::move(plugins)));
-    v.set("graph", p.describe()).set("toml", pipeline::to_toml(d));
+    v.set("graph", p.describe()).set("toml", mlibs::pipeline::to_toml(d));
     return v;
 }
 
@@ -354,7 +362,7 @@ void Protocol::send(const Reply& reply, const Envelope& envelope, const Value& r
 }
 
 void Protocol::request(std::string_view line, const Reply& reply) {
-    trace::Span span("request", "agent");
+    mlibs::trace::Span span("request", "agent");
     auto req = parse_json(line);
     if (!req) {
         send(reply, invalid(std::format("the request is not JSON: {}", req.error().text()),
@@ -673,13 +681,13 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
     if (op == "profile") {
         const std::string_view what = text_of(req, "action");
         if (what == "start") {
-            trace::start();
+            mlibs::trace::start();
             return e.data(Value{}.set("recording", true)).result(spec::exit_code::success);
         }
         if (what == "stop") {
-            const trace::Trace t = trace::stop();
+            const mlibs::trace::Trace t = mlibs::trace::stop();
             Value::List stats;
-            for (const trace::Stat& st : t.summary()) {
+            for (const mlibs::trace::Stat& st : t.summary()) {
                 Value x;
                 x.set("name", st.name).set("category", st.category).set("count", static_cast<std::int64_t>(st.count));
                 x.set("total_ms", st.total_ms).set("mean_ms", st.mean_ms).set("p50_ms", st.p50_ms).set("p95_ms", st.p95_ms);
@@ -757,7 +765,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
     if (op == "pipeline") {
         // The frame's pipeline (D-66): read it, or change one stage between frames.
         const std::string_view action = text_of(req, "action");
-        std::expected<void, std::vector<pipeline::Problem>> changed;
+        std::expected<void, std::vector<mlibs::pipeline::Problem>> changed;
         if (action.empty() || action == "show") {
         } else if (action == "replace") {
             changed = runtime_.frame_pipeline().replace(text_of(req, "stage"), text_of(req, "plugin"), config_of(req.get("config")),
@@ -765,7 +773,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         } else if (action == "remove") {
             changed = runtime_.frame_pipeline().remove(text_of(req, "stage"), runtime_.stage_plugins());
         } else if (action == "insert") {
-            pipeline::StageDesc s;
+            mlibs::pipeline::StageDesc s;
             s.name = std::string(text_of(req, "stage"));
             s.plugin = std::string(text_of(req, "plugin"));
             if (const Value* after = req.get("after"); after && after->list())
@@ -777,7 +785,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                            R"({"op":"pipeline","action":"replace","stage":"paint","plugin":"openmui.view.paint"} — actions: show, replace, insert, remove)");
         }
         if (!changed) {
-            e.error(spec::error_code::invalid_argument, pipeline::to_text(changed.error())).result(spec::exit_code::failure);
+            e.error(spec::error_code::invalid_argument, mlibs::pipeline::to_text(changed.error())).result(spec::exit_code::failure);
             return e;
         }
         runtime_.request_frame();

@@ -8,10 +8,10 @@ import std;
 
 import openmui.ui.window;
 import openmui.host.headless;
-import openmui.i18n.cldr;
-import openmui.testing;
+import mlibs.i18n.cldr;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -29,9 +29,9 @@ struct FakeHost final : WindowHost {
     bool pass_through(bool) override { return false; }
 };
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -167,16 +167,16 @@ int main(int argc, char** argv) {
         Headless h(options({480, 300}));
         Attached a(h.runtime());
         // CLDR's packs, as an application has them: zh-TW is Traditional Chinese by its likely script.
-        languages().edit([](i18n::Library& lib) { i18n::cldr::add_to(lib); });
+        languages().edit([](mlibs::i18n::Library& lib) { mlibs::i18n::cldr::add_to(lib); });
         h.mount("main", notes());
-        languages().request({*i18n::Locale::parse("zh-CN")});
+        languages().request({*mlibs::i18n::Locale::parse("zh-CN")});
         h.settle();
         const auto name = [&](const char* id) { return h.tree().node(std::format("main/controls/{}", id))->name; };
         check(name("close") == "关闭" && name("minimize") == "最小化" && name("maximize") == "最大化", name("close"));
-        languages().request({*i18n::Locale::parse("zh-TW")});
+        languages().request({*mlibs::i18n::Locale::parse("zh-TW")});
         h.settle();
         check_eq(name("close"), std::string("關閉"));
-        languages().request({*i18n::Locale::parse("en")});
+        languages().request({*mlibs::i18n::Locale::parse("en")});
         h.settle();
         check_eq(name("close"), std::string("Close"));
     });

@@ -212,7 +212,7 @@ void collect(Runtime& rt, std::string_view under, std::vector<Typeset>& out) {
 
 }  // namespace
 
-std::vector<Finding> check_frame(Player& player, std::int64_t frame, const raster::Surface& pixels) {
+std::vector<Finding> check_frame(Player& player, std::int64_t frame, const xrender::raster::Surface& pixels) {
     std::vector<Finding> out;
     std::vector<Typeset> type;
     collect(player.overlay_runtime(), "main/type", type);
@@ -238,7 +238,7 @@ std::vector<Finding> check_frame(Player& player, std::int64_t frame, const raste
     // Not blank: the picture's brightness spans more than a few levels.
     int lo = 255, hi = 0;
     for (int y = 0; y < pixels.height(); y += 7) {
-        const raster::Rgba8* row = pixels.row(y);
+        const xrender::raster::Rgba8* row = pixels.row(y);
         for (int x = 0; x < pixels.width(); x += 7) {
             const int l = (54 * row[x].r + 183 * row[x].g + 19 * row[x].b) >> 8;
             lo = std::min(lo, l), hi = std::max(hi, l);

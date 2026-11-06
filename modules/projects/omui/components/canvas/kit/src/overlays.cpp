@@ -4,11 +4,15 @@ module openmui.ui.canvas.kit;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import hanim.core;
-import openmui.raster;
+import xrender.raster;
 import openmui.ui.canvas;
 import :parts;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::kit {
 
@@ -41,7 +45,7 @@ public:
     std::string_view name() const override { return "grid"; }
     double base() const noexcept { return base_; }
 
-    void paint_under(Host& h, render::DisplayList& list) override {
+    void paint_under(Host& h, xrender::DisplayList& list) override {
         const world::Camera cam = h.camera();
         const Size vp = h.viewport();
         const double step = grid_step(base_, cam.zoom);
@@ -125,22 +129,22 @@ public:
         }
     }
 
-    void paint_over(Host& h, render::DisplayList& list) override {
+    void paint_over(Host& h, xrender::DisplayList& list) override {
         Scene& s = h.scene();
         if (s.size() == 0) return;
         const Theme& theme = h.services().theme();
         const Rect p = panel(h);
         list.box_shadow(p, CornerRadii::all(8), {0, 2}, 8, 0, Color::hex(0x0f172a, 0.18f));
-        list.fill_round_rect(p, CornerRadii::all(8), render::Paint::solid(theme.color("surface", Color::hex(0xffffff)).with_alpha(0.94f)));
-        list.stroke_round_rect(p, CornerRadii::all(8), 1, render::Paint::solid(theme.color("border", Color::hex(0xcbd5e1))));
+        list.fill_round_rect(p, CornerRadii::all(8), xrender::Paint::solid(theme.color("surface", Color::hex(0xffffff)).with_alpha(0.94f)));
+        list.stroke_round_rect(p, CornerRadii::all(8), 1, xrender::Paint::solid(theme.color("border", Color::hex(0xcbd5e1))));
         refresh(h);
         const Map m = active_ ? held_ : map(h);
         list.push_clip(p, CornerRadii::all(8));
-        if (image_.id != 0) list.draw_image(image_, {0, 0, static_cast<float>(image_w_), static_cast<float>(image_h_)}, m.to_panel(image_world_), render::Sampling::linear);
+        if (image_.id != 0) list.draw_image(image_, {0, 0, static_cast<float>(image_w_), static_cast<float>(image_h_)}, m.to_panel(image_world_), xrender::Sampling::linear);
         const Rect view = m.to_panel(h.camera().visible(h.viewport()));
         const Color c = accent(h);
         list.fill_rect(view, c.with_alpha(0.08f));
-        list.stroke_round_rect(view, {}, 1.5f, render::Paint::solid(c));
+        list.stroke_round_rect(view, {}, 1.5f, xrender::Paint::solid(c));
         list.pop_clip();
     }
 
@@ -277,7 +281,7 @@ private:
         float most = 0;
         for (int y = 0; y < ht; ++y)
             for (int x = 0; x < w; ++x) most = std::max(most, at(x, y)[0]);
-        std::vector<raster::Rgba8> pixels(static_cast<std::size_t>(w) * static_cast<std::size_t>(ht));
+        std::vector<xrender::raster::Rgba8> pixels(static_cast<std::size_t>(w) * static_cast<std::size_t>(ht));
         const float depth = std::log1p(std::max(1.0f, most));
         for (int y = 0; y < ht; ++y)
             for (int x = 0; x < w; ++x) {
@@ -286,7 +290,7 @@ private:
                 if (count < 0.5f) continue;
                 const float alpha = most <= 1.5f ? 0.9f : 0.35f + 0.6f * std::log1p(count) / depth;
                 pixels[static_cast<std::size_t>(y) * static_cast<std::size_t>(w) + static_cast<std::size_t>(x)] =
-                    raster::premultiply(Color{c[1] / c[0], c[2] / c[0], c[3] / c[0], alpha});
+                    xrender::raster::premultiply(Color{c[1] / c[0], c[2] / c[0], c[3] / c[0], alpha});
             }
         if (image_.id != 0) h.services().images().remove(image_);
         image_ = h.services().images().add(w, ht, std::move(pixels));
@@ -300,7 +304,7 @@ private:
     float            margin_x_ = 12, margin_y_ = 12;
     bool             active_ = false;
     Map              held_;
-    render::ImageRef image_;
+    xrender::ImageRef image_;
     int              image_w_ = 0, image_h_ = 0;
     WorldRect        image_world_;
     std::uint64_t    revision_ = 0;

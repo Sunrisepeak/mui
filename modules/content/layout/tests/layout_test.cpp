@@ -1,15 +1,15 @@
 // Layout against what CSS (border-box) computes for the same boxes, plus
 // incrementality and a pinned determinism hash.
 import std;
-import openmui.geom;
-import openmui.layout;
-import openmui.testing;
+import mlibs.geom;
+import mlibs.layout;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace layout = omui::layout;
+using namespace mlibs::testing;
+namespace layout = mlibs::layout;
 using layout::pt;
 using layout::pct;
-using omui::geom::Rect;
+using mlibs::geom::Rect;
 
 namespace {
 
@@ -35,7 +35,7 @@ struct Words {
     int count;
 };
 
-omui::geom::Size measure_words(void* ctx, layout::NodeId, std::optional<float> width, std::optional<float>,
+mlibs::geom::Size measure_words(void* ctx, layout::NodeId, std::optional<float> width, std::optional<float>,
                                layout::Available aw, layout::Available) {
     int n = static_cast<Words*>(ctx)->count;
     float max_w = 0;
@@ -57,8 +57,8 @@ int main(int argc, char** argv) {
     s.test("row: padding, border, gap, fixed children", [] {
         layout::Engine e;
         layout::Style rs;
-        rs.padding = omui::geom::Insets::all(10);
-        rs.border = omui::geom::Insets::all(1);
+        rs.padding = mlibs::geom::Insets::all(10);
+        rs.border = mlibs::geom::Insets::all(1);
         rs.column_gap = 5;
         auto root = e.create(rs);
         auto a = e.create(box(50, 20));
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
         auto root = e.create();
         layout::Style ps;
         ps.direction = layout::Direction::column;
-        ps.padding = omui::geom::Insets::all(4);
+        ps.padding = mlibs::geom::Insets::all(4);
         auto panel = e.create(ps);
         auto row = e.create();
         auto leaf = e.create(box(30, 10));
@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
         ps.direction = layout::Direction::column;
         ps.position = layout::Position::absolute;
         ps.min_width = layout::pt(160);
-        ps.padding = omui::geom::Insets::all(4);
+        ps.padding = mlibs::geom::Insets::all(4);
         auto pop = e.create(ps);
         auto a = e.create(box(60, 10));
         layout::Style bs;
@@ -237,7 +237,7 @@ int main(int argc, char** argv) {
     s.test("percentages, min/max, aspect ratio", [] {
         layout::Engine e;
         layout::Style rs;
-        rs.padding = omui::geom::Insets::all(10);
+        rs.padding = mlibs::geom::Insets::all(10);
         rs.align_items = layout::Align::start;
         auto root = e.create(rs);
         layout::Style a;
@@ -258,8 +258,8 @@ int main(int argc, char** argv) {
     s.test("absolute positioning in the padding box", [] {
         layout::Engine e;
         layout::Style rs;
-        rs.padding = omui::geom::Insets::all(10);
-        rs.border = omui::geom::Insets::all(2);
+        rs.padding = mlibs::geom::Insets::all(10);
+        rs.border = mlibs::geom::Insets::all(2);
         auto root = e.create(rs);
         layout::Style a = box(30, 30);
         a.position = layout::Position::absolute;
@@ -368,11 +368,11 @@ int main(int argc, char** argv) {
         auto root = e.create(ss);
         auto line = e.create(layout::Style{});  // stretched (align-items' default)
         e.set_measure(line, [](void*, layout::NodeId, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
-            return omui::geom::Size{300, 20};  // a line of code, kept whole
+            return mlibs::geom::Size{300, 20};  // a line of code, kept whole
         }, nullptr);
         auto narrow = e.create(layout::Style{});
         e.set_measure(narrow, [](void*, layout::NodeId, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
-            return omui::geom::Size{40, 20};
+            return mlibs::geom::Size{40, 20};
         }, nullptr);
         e.append(root, line);
         e.append(root, narrow);
@@ -434,7 +434,7 @@ int main(int argc, char** argv) {
         rs.wrap = layout::Wrap::wrap;
         rs.column_gap = 3.5f;
         rs.row_gap = 2.25f;
-        rs.padding = omui::geom::Insets::all(7.3f);
+        rs.padding = mlibs::geom::Insets::all(7.3f);
         auto root = e.create(rs);
         std::vector<layout::NodeId> all{root};
         for (int i = 0; i < 300; ++i) {
@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
             c.height = pt(next());
             c.grow = next() / 50;
             c.shrink = next() / 50;
-            c.margin = omui::geom::Insets::all(next() / 30);
+            c.margin = mlibs::geom::Insets::all(next() / 30);
             if (i % 7 == 0) {
                 c.direction = layout::Direction::column;
                 c.width = layout::Length::automatic();

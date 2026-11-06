@@ -4,7 +4,7 @@ import std;
 import gongfu;
 import gongfu.data;
 import gongfu.present2d;
-import openmui.hash;
+import mlibs.hash;
 
 namespace gongfu::studio {
 
@@ -70,7 +70,7 @@ data::Baked bake(const Fighter& fighter, const p2::Look& look, std::string from,
 
 std::string fingerprint(std::string_view fighter_text, std::string_view look_text) {
     // Each file's bytes, then 0xff: the boundary between the two.
-    return std::format("fnv1a:{}", omui::hash::Fnv1a().text(fighter_text).byte(0xff).text(look_text).byte(0xff).hex());
+    return std::format("fnv1a:{}", mlibs::hash::Fnv1a().text(fighter_text).byte(0xff).text(look_text).byte(0xff).hex());
 }
 
 std::vector<Files> fighters_in(const std::filesystem::path& dir) {

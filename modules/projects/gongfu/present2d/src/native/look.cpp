@@ -46,12 +46,12 @@
 module gongfu.present2d;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import gongfu;
 import gongfu.data;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 import tomlplusplus;
 
 namespace gongfu::present2d {
@@ -206,7 +206,7 @@ struct Reader {
         for (const toml::node& e : *a) f(*e.as_table());
     }
     // [x, y, width, height] of numbers.
-    std::optional<omui::geom::Rect> rect(const toml::node* n, std::string_view what) {
+    std::optional<mlibs::geom::Rect> rect(const toml::node* n, std::string_view what) {
         if (!n) return std::nullopt;
         const toml::array* a = n->as_array();
         if (!a || a->size() != 4) {
@@ -223,7 +223,7 @@ struct Reader {
             error(n, std::format("{} has a width and a height", what));
             return std::nullopt;
         }
-        return omui::geom::Rect{static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]), static_cast<float>(v[3])};
+        return mlibs::geom::Rect{static_cast<float>(v[0]), static_cast<float>(v[1]), static_cast<float>(v[2]), static_cast<float>(v[3])};
     }
     // [[frame, value(, ease)], …] with the clip's ease by default.
     std::optional<hanim::Track<double>> keys(const toml::node* n, std::string_view what, hanim::Ease ease, std::int32_t frames) {
@@ -497,7 +497,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
         r.error(n, std::format("no picture is called `{}`", *pn), names.empty() ? "[[picture]] name = … first" : data::nearest_hint(*pn, names));
         return -1;
     };
-    auto inside = [&](const toml::node* n, std::int32_t picture, const omui::geom::Rect& src) {
+    auto inside = [&](const toml::node* n, std::int32_t picture, const mlibs::geom::Rect& src) {
         if (picture < 0) return;
         const Picture& pic = look.pictures[static_cast<std::size_t>(picture)];
         if (pic.width > 0 && (src.x < 0 || src.y < 0 || src.x + src.width > static_cast<float>(pic.width) || src.y + src.height > static_cast<float>(pic.height)))
@@ -711,7 +711,7 @@ std::expected<Look, std::vector<Diagnostic>> read_look(std::string_view source, 
                     continue;
                 }
                 r.only(*t, material_keys, what);
-                omui::render::Material m;
+                xrender::Material m;
                 if (auto v = r.integer(t->get("bands"), std::format("{}'s `bands`", what), 0, 16)) m.bands = *v;
                 if (auto v = r.number(t->get("softness"), std::format("{}'s `softness`", what), 0, 1)) m.softness = static_cast<float>(*v);
                 if (auto c = r.colour(t->get("shadow"), std::format("{}'s `shadow`", what))) m.shadow = *c;
@@ -1645,7 +1645,7 @@ std::string fx_rows_text(const std::vector<FxAt>& rows, std::string_view key = "
     return s + "]\n";
 }
 
-std::string rect_text(const omui::geom::Rect& r) { return std::format("[{}, {}, {}, {}]", r.x, r.y, r.width, r.height); }
+std::string rect_text(const mlibs::geom::Rect& r) { return std::format("[{}, {}, {}, {}]", r.x, r.y, r.width, r.height); }
 
 std::string panel_text(const Look& look, const CinematicLook::Panel& p, std::string_view sep) {
     return std::format("picture = \"{}\"{}source = {}{}from = {}{}to = {}{}in = {}{}out = {}{}y = {}{}height = {}{}slant = {}{}pan = [{}, {}]{}band = {}",
@@ -2046,8 +2046,8 @@ constexpr std::array<std::string_view, 6> planks_keys{"span", "depth", "rows", "
 struct Draws {
     std::uint64_t s;
     double next() {
-        s += omui::math::golden;
-        return omui::math::unit53(omui::math::finalize(s));  // [0, 1)
+        s += mlibs::math::golden;
+        return mlibs::math::unit53(mlibs::math::finalize(s));  // [0, 1)
     }
     double between(double lo, double hi) { return lo + (hi - lo) * next(); }
 };

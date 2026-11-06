@@ -2,9 +2,9 @@
 // file's text byte for byte, and the tag's table lists them by name.
 import std;
 import acme.data;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 

@@ -22,15 +22,15 @@ void Dialog::mounted() {
     title_.set_text(props.title);
 }
 
-void Dialog::style(const Theme& theme, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
-    s.direction = layout::Direction::column;
+void Dialog::style(const Theme& theme, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
+    s.direction = mlibs::layout::Direction::column;
     s.row_gap = s.column_gap = 16;
     const TextToken& t = theme.text_style("heading");
     const float title = props.title.empty() ? 0.0f : t.size * t.line_height + title_gap;
     s.padding = {pad + title, pad, pad, pad};
-    s.min_width = layout::pt(320);
-    s.max_width = layout::pt(560);
+    s.min_width = mlibs::layout::pt(320);
+    s.max_width = mlibs::layout::pt(560);
 }
 
 void Dialog::prop_changed(DialogProp p) {
@@ -80,7 +80,7 @@ void Dialog::paint(PaintContext& ctx) const {
     ctx.list.push_transform(Affine::translate(c.x, c.y) * Affine::scale(s, s) * Affine::translate(-c.x, -c.y));
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     ctx.list.pop_transform();
     if (!title_.text().empty()) title_.paint(ctx, {pad, pad}, th.color("text"));
 }
@@ -151,12 +151,12 @@ void Tooltip::show(bool on) {
     services().invalidate_semantics(node());
 }
 
-void Tooltip::style(const Theme&, layout::Style& s) const {
-    s.display = shown_ ? layout::Display::flex : layout::Display::none;
+void Tooltip::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = shown_ ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
     s.padding = {4, 8, 4, 8};
 }
 
-Size Tooltip::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size Tooltip::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Size t = label_.measure(m.services, m.services.theme().color("on_tooltip"), 280);
     return {std::ceil(t.width), std::ceil(t.height)};
 }
@@ -164,9 +164,9 @@ Size Tooltip::measure(MeasureContext& m, std::optional<float>, std::optional<flo
 void Tooltip::paint(PaintContext& ctx) const {
     const Theme& th = ctx.theme;
     const float k = static_cast<float>(std::clamp(fade_, 0.0, 1.0));
-    ctx.list.push_layer(k, render::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
+    ctx.list.push_layer(k, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
     ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(th.corner("small", 4)),
-                             render::Paint::solid(th.color("tooltip")));
+                             xrender::Paint::solid(th.color("tooltip")));
     label_.paint(ctx, {ctx.content.x, ctx.content.y}, th.color("on_tooltip"));
     ctx.list.pop_layer();
 }

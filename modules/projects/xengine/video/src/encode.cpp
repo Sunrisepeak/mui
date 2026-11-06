@@ -2,10 +2,10 @@
 module xengine.video;
 
 import std;
-import openmui.hash;
-import openmui.image;
+import mlibs.hash;
+import mlibs.image;
 import xengine.audio;
-import openmui.trace;
+import mlibs.trace;
 
 namespace xengine::video {
 

@@ -12,9 +12,9 @@ import openmui.lang.js;
 import openmui.lang.lua;
 import openmui.ui.markdown;
 import openmui.native.fuzzy;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

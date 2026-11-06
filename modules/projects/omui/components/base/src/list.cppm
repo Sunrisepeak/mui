@@ -27,7 +27,7 @@ public:
 
     void mounted();
     void prop_changed(ListProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     [[nodiscard]] Point scroll_offset() const { return {0, offset_}; }
     [[nodiscard]] std::vector<Element> compose();
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -78,7 +78,7 @@ public:
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
     bool set_prop(std::string_view k, const Value& v);
     [[nodiscard]] Value get_prop(std::string_view k) const;
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 

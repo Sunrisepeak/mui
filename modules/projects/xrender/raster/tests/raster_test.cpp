@@ -1,14 +1,14 @@
 // The rasterizer's coverage is exact where geometry is exact, compositing is
 // exact 8-bit arithmetic, and a scene's bytes are pinned for every platform.
 import std;
-import openmui.geom;
-import openmui.raster;
+import mlibs.geom;
+import xrender.raster;
 import mlibs.math;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 
@@ -312,7 +312,7 @@ int main(int argc, char** argv) {
         star.close();
         canvas.push_layer(0.8f, raster::Blend::multiply);
         canvas.fill_path(star.data(), raster::FillRule::even_odd, raster::Paint::solid(mlibs::geom::Color::hex(0xeab308)),
-                         omui::geom::Affine::translate(-4, 2));
+                         mlibs::geom::Affine::translate(-4, 2));
         canvas.pop_layer();
         std::println("    scene {:016x}", surf.hash());
         check_eq(std::format("{:016x}", surf.hash()), std::string("b42ebce16bf6eccf"));

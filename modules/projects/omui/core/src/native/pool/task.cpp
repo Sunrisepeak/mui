@@ -13,6 +13,10 @@ module openmui.core;
 import std;
 import mcpplibs.os;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+}
+
 namespace omui {
 
 struct Tasks::Impl {

@@ -2,14 +2,14 @@
 module openmui.motion;
 
 import std;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 
 namespace omui::motion {
 
 namespace {
 
-using namespace render;
+using namespace xrender;
 
 // Where `push` (a PushLayer or a BeginNode) is closed: the index of its pop.
 std::size_t closing(std::span<const Command> c, std::size_t push) {
@@ -74,7 +74,7 @@ Rect local_bounds(const Command& c) noexcept {
 
 }  // namespace
 
-std::optional<PieceClass> class_of(const render::Command& c) noexcept {
+std::optional<PieceClass> class_of(const xrender::Command& c) noexcept {
     return std::visit(
         [](const auto& cmd) -> std::optional<PieceClass> {
             using T = std::decay_t<decltype(cmd)>;
@@ -91,13 +91,13 @@ std::optional<PieceClass> class_of(const render::Command& c) noexcept {
         c);
 }
 
-std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const render::Command> commands, std::uint32_t marker, std::size_t from) {
+std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const xrender::Command> commands, std::uint32_t marker, std::size_t from) {
     for (std::size_t i = from; i < commands.size(); ++i)
         if (const auto* b = std::get_if<BeginNode>(&commands[i]); b && b->node == marker) return std::pair{i, closing(commands, i) + 1};
     return std::nullopt;
 }
 
-Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver) {
+Matter Matter::extract(const xrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver) {
     Matter m;
     const auto all = source.commands();
     end = std::min(end, all.size());
@@ -105,7 +105,7 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
     m.list_.reserve(end - begin);
     for (std::size_t i = begin; i < end; ++i) m.list_.append_command(all[i]);
     const auto c = m.list_.commands();
-    render::LayerBoundsMap content_bounds;
+    xrender::LayerBoundsMap content_bounds;
     bool measured_content=false,valid_content=false;
 
     // The node index of a marker (its keys asked for once).
@@ -217,7 +217,7 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
                     continue;
                 }
                 add(PieceClass::group, i, j + 1, l->bounds, 0);
-                if(l->bounds_mode==render::LayerBoundsMode::content) {
+                if(l->bounds_mode==xrender::LayerBoundsMode::content) {
                     // Matching needs an allocation envelope even when the
                     // caller deliberately supplied no rectangle. Reuse the
                     // renderer's conservative glyph fallback here; actual
@@ -243,11 +243,11 @@ Matter Matter::extract(const render::DisplayList& source, std::size_t begin, std
             Part part{.node=node,.role=std::string(frame.role),.id=std::string(frame.id),.allocation=frame.allocation,.anchor=frame.anchor,.kind=frame.kind};
             for (const auto& ref : frame.lineage) {
                 if (ref.weight == 0) continue;
-                auto found = std::ranges::find(part.lineage,ref.key,&render::ReferenceWeight::key);
+                auto found = std::ranges::find(part.lineage,ref.key,&xrender::ReferenceWeight::key);
                 if (found == part.lineage.end()) part.lineage.push_back({reference_name(ref.key),ref.weight});
                 else found->weight += ref.weight;
             }
-            std::erase_if(part.lineage,[](const render::ReferenceWeight& ref){return ref.weight == 0;});
+            std::erase_if(part.lineage,[](const xrender::ReferenceWeight& ref){return ref.weight == 0;});
             m.parts_.push_back(std::move(part)); parts.push_back(static_cast<int>(m.parts_.size()-1));
         } else if (std::holds_alternative<EndPart>(cmd)) {
             if (!parts.empty()) parts.pop_back();
@@ -269,8 +269,8 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
     const auto original_frames = frames_;
     std::vector<int> match(original_frames.size(), -1);
     std::vector<Affine> delta(original_frames.size());
-    std::vector<render::Command> source(list_.commands().begin(), list_.commands().end());
-    std::vector<render::Command> destination(target.list_.commands().begin(), target.list_.commands().end());
+    std::vector<xrender::Command> source(list_.commands().begin(), list_.commands().end());
+    std::vector<xrender::Command> destination(target.list_.commands().begin(), target.list_.commands().end());
     auto in_scope = [&](std::string_view key) {
         return scopes.empty() || std::ranges::any_of(scopes, [&](const std::string& scope) {
             return key == scope || (key.starts_with(scope) && key.size() > scope.size() && key[scope.size()] == '/');
@@ -315,18 +315,18 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
             entry.parent = parent;
             const auto command = source.size();
             source.push_back(destination[entry.command]);
-            source.emplace_back(render::PopClip{});
+            source.emplace_back(xrender::PopClip{});
             entry.command = command;
             clips_.push_back(entry);
             parent = static_cast<int>(clips_.size() - 1);
         }
         return parent;
     };
-    auto border_clip = [](std::vector<render::Command>& commands, std::vector<ClipEntry>& clips,
+    auto border_clip = [](std::vector<xrender::Command>& commands, std::vector<ClipEntry>& clips,
                           int parent, const Frame& frame, Rect rect) {
         const auto command = commands.size();
-        commands.emplace_back(render::PushClipRect{rect, {}});
-        commands.emplace_back(render::PopClip{}); // keep the backing display list balanced
+        commands.emplace_back(xrender::PushClipRect{rect, {}});
+        commands.emplace_back(xrender::PopClip{}); // keep the backing display list balanced
         clips.push_back({parent, frame.transform, command, true});
         return static_cast<int>(clips.size() - 1);
     };
@@ -406,50 +406,50 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
         }
         // Only a full owner border changes size. A toggle thumb, icon, glyph,
         // focus decoration or path retains its local state geometry.
-        render::Command& command = source[piece.command];
+        xrender::Command& command = source[piece.command];
         std::visit([&](auto& draw) {
             using T = std::decay_t<decltype(draw)>;
             if (part && allocation) {
-                if constexpr (std::same_as<T,render::FillRect> || std::same_as<T,render::FillRoundRect> ||
-                              std::same_as<T,render::StrokeRoundRect> || std::same_as<T,render::BoxShadow>) {
+                if constexpr (std::same_as<T,xrender::FillRect> || std::same_as<T,xrender::FillRoundRect> ||
+                              std::same_as<T,xrender::StrokeRoundRect> || std::same_as<T,xrender::BoxShadow>) {
                     draw.rect = draw.rect.offset(part_shift);
-                    if (part->kind == render::PartKind::box) {
+                    if (part->kind == xrender::PartKind::box) {
                         const float dw = allocation->width-part->allocation.width, dh = allocation->height-part->allocation.height;
                         draw.rect = {draw.rect.x-dw*part->anchor.x,draw.rect.y-dh*part->anchor.y,
                             std::max(0.0f,draw.rect.width+dw),std::max(0.0f,draw.rect.height+dh)};
                     }
-                } else if constexpr (std::same_as<T,render::DrawGlyphs>) draw.origin = draw.origin + part_shift;
-                else if constexpr (std::same_as<T,render::DrawImage> || std::same_as<T,render::ExternalTexture>) draw.dest = draw.dest.offset(part_shift);
-                else if constexpr (std::same_as<T,render::FillPath> || std::same_as<T,render::StrokePath>) {
+                } else if constexpr (std::same_as<T,xrender::DrawGlyphs>) draw.origin = draw.origin + part_shift;
+                else if constexpr (std::same_as<T,xrender::DrawImage> || std::same_as<T,xrender::ExternalTexture>) draw.dest = draw.dest.offset(part_shift);
+                else if constexpr (std::same_as<T,xrender::FillPath> || std::same_as<T,xrender::StrokePath>) {
                     shifted_paths.emplace_back(draw.path.points.begin(),draw.path.points.end());
                     for (auto& point : shifted_paths.back()) point = point + part_shift;
                     draw.path.points = shifted_paths.back();
                 }
                 if constexpr (requires { draw.paint; }) {
-                    if (draw.paint.kind == render::Paint::Kind::gradient) {
+                    if (draw.paint.kind == xrender::Paint::Kind::gradient) {
                         draw.paint.gradient.start = draw.paint.gradient.start + part_shift;
                         draw.paint.gradient.end = draw.paint.gradient.end + part_shift;
                     }
-                    if (draw.paint.kind == render::Paint::Kind::image || draw.paint.kind == render::Paint::Kind::image_mask)
+                    if (draw.paint.kind == xrender::Paint::Kind::image || draw.paint.kind == xrender::Paint::Kind::image_mask)
                         draw.paint.image_transform = Affine::translate(part_shift.x,part_shift.y) * draw.paint.image_transform;
                 }
                 return; // fonts and local state styles are not stretched to new allocation
             }
-            if constexpr (std::same_as<T, render::FillRect> || std::same_as<T, render::FillRoundRect> ||
-                          std::same_as<T, render::StrokeRoundRect> || std::same_as<T, render::BoxShadow>) {
+            if constexpr (std::same_as<T, xrender::FillRect> || std::same_as<T, xrender::FillRoundRect> ||
+                          std::same_as<T, xrender::StrokeRoundRect> || std::same_as<T, xrender::BoxShadow>) {
                 if (same_carrier(draw.rect, before.rect)) draw.rect = after.rect;
-                else if constexpr (std::same_as<T, render::StrokeRoundRect>) {
+                else if constexpr (std::same_as<T, xrender::StrokeRoundRect>) {
                     const float half = draw.width / 2;
-                    if (same_carrier(draw.rect, before.rect.inset(geom::Insets{half, half, half, half}))) {
+                    if (same_carrier(draw.rect, before.rect.inset(mlibs::geom::Insets{half, half, half, half}))) {
                         // Real component borders are normally inset half a
                         // stroke. They are carriers, not an old narrow outline
                         // to interpolate inside the new allocated surface.
-                        draw.rect = after.rect.inset(geom::Insets{half, half, half, half});
+                        draw.rect = after.rect.inset(mlibs::geom::Insets{half, half, half, half});
                     }
                 }
-            } else if constexpr (std::same_as<T, render::DrawGlyphs>) {
+            } else if constexpr (std::same_as<T, xrender::DrawGlyphs>) {
                 if (before.rect != after.rect && corresponding)
-                    if (const auto* next = std::get_if<render::DrawGlyphs>(&destination[corresponding->command])) {
+                    if (const auto* next = std::get_if<xrender::DrawGlyphs>(&destination[corresponding->command])) {
                         // Center/right alignment belongs to the new allocation.
                         // Retain source font, glyph positions and GlyphStyle:
                         // only the whole run's aligned origin is rebased. A
@@ -486,10 +486,10 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
             if (same_owner(reference.node,current.node) && reference.key == current.key) { reference.allocation = current.allocation; break; }
     // The style wrapper is a carrier too, rather than a differently sized
     // offscreen sheet surrounding correctly rebased children.
-    std::vector<render::EffectShape> wrapper_shapes; // borrowed by `source` until it is copied below
+    std::vector<xrender::EffectShape> wrapper_shapes; // borrowed by `source` until it is copied below
     if (scopes.empty() && wrapper_.present && target.wrapper_.present) {
-        auto& before = std::get<render::PushLayer>(source[wrapper_.command]);
-        const auto& after = std::get<render::PushLayer>(destination[target.wrapper_.command]);
+        auto& before = std::get<xrender::PushLayer>(source[wrapper_.command]);
+        const auto& after = std::get<xrender::PushLayer>(destination[target.wrapper_.command]);
         before.bounds = after.bounds;
         // Shape geometry is copied through arena ownership below; material
         // params/opacity remain old and keep their ordinary interpolation.
@@ -509,7 +509,7 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
         }
         wrapper_.transform = target.wrapper_.transform;
     }
-    render::DisplayList rebased, clipped;
+    xrender::DisplayList rebased, clipped;
     rebased.reserve(source.size()); clipped.reserve(destination.size());
     for (const auto& command : source) rebased.append_command(command);
     for (const auto& command : destination) clipped.append_command(command);
@@ -517,7 +517,7 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
     target.list_ = std::move(clipped);
 }
 
-std::optional<std::size_t> wrapper_of(std::span<const render::Command> c, std::size_t begin, std::size_t end) {
+std::optional<std::size_t> wrapper_of(std::span<const xrender::Command> c, std::size_t begin, std::size_t end) {
     end = std::min(end, c.size());
     for (std::size_t i = begin; i < end; ++i) {
         if (drawable(c[i])) return std::nullopt;

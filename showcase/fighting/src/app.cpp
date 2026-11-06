@@ -57,8 +57,8 @@ AppSpec app(Start start) {
                                .player1 = l->player1,
                                .player2 = l->player2,
                                .turn_frames = l->turn_frames,
-                               .width = Dim(layout::pct(100)),
-                               .height = Dim(layout::pct(100)),
+                               .width = Dim(mlibs::layout::pct(100)),
+                               .height = Dim(mlibs::layout::pct(100)),
                                .visible = l->fighting});
         // The players chose the select screen (the results' card, or the pause card's): the same fighters under the cursors.
         fight.on("leave", [l](const Value&) {
@@ -68,8 +68,8 @@ AppSpec app(Start start) {
         Element menu = select({.id = "select",
                                .active = computed([l] { return !l->fighting.get(); }),
                                .phase = l->phase,
-                               .width = Dim(layout::pct(100)),
-                               .height = Dim(layout::pct(100)),
+                               .width = Dim(mlibs::layout::pct(100)),
+                               .height = Dim(mlibs::layout::pct(100)),
                                .visible = computed([l] { return !l->fighting.get(); })});
         menu.on("chosen", [l](const Value& args) {
             auto text = [&](std::string_view key) { return args.get(key) ? std::string(args.get(key)->as_string()) : std::string(); };
@@ -80,7 +80,7 @@ AppSpec app(Start start) {
             l->cpu.set(static_cast<std::int32_t>(args.get("cpu") ? args.get("cpu")->as_int(-1) : -1));
             l->fighting.set(true);
         });
-        return stack({.id = "game", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(fight), std::move(menu)});
+        return stack({.id = "game", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}, {std::move(fight), std::move(menu)});
     };
     return a;
 }

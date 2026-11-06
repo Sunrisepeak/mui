@@ -51,12 +51,12 @@ public:
     void paint(PaintContext& ctx, Point origin, Color color);
 
 private:
-    typeset::Paragraph& shaped(Services& services, Color color, float width);
+    mlibs::text::Paragraph& shaped(Services& services, Color color, float width);
 
     std::string                       text_;
     std::string                       style_ = "label";
     int                               max_lines_ = 0;
-    std::optional<typeset::Paragraph> paragraph_;
+    std::optional<mlibs::text::Paragraph> paragraph_;
     Color                             color_{};
     float                             width_ = -1;
     bool                              dirty_ = true;

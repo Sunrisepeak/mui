@@ -20,8 +20,8 @@ export module openmui.ui.canvas:textures;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
-import openmui.text;
+import xrender.vector;
+import mlibs.text;
 import :scene;
 
 export namespace omui::world {
@@ -44,7 +44,7 @@ public:
     // The texture to draw for a node this frame: the wanted level if ready,
     // else the nearest ready one (sharper first). `frame` marks it used.
     struct Pick {
-        render::ImageRef image;
+        xrender::ImageRef image;
         int              level = 0;
         bool             exact = false;
     };
@@ -55,18 +55,18 @@ public:
     // The frame's candidates, by priority, as jobs (their content built here,
     // on the calling thread — a view as an element, laid out on the pool;
     // rasterised on the pool) in the theme given.
-    void issue(const Scene& scene, const render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme);
+    void issue(const Scene& scene, const xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme);
 
     // What came back, into the store within the frame's upload budget, and
     // the budget of bytes kept; true when something new can be drawn. `wait`
     // (a deterministic run): every job issued is waited for first.
-    bool collect(render::ImageStore& images, std::uint64_t frame, bool wait = false);
+    bool collect(xrender::ImageStore& images, std::uint64_t frame, bool wait = false);
     // Every candidate made now, however many (frames drawn complete,
     // Services::complete_frames): issued at once, waited for, and entered
     // whatever the frame's upload budget.
-    void complete(const Scene& scene, render::ImageStore& images, typeset::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
+    void complete(const Scene& scene, xrender::ImageStore& images, mlibs::text::FontCollection* fonts, const Theme& theme, std::uint64_t frame);
     // Every texture out of the store (the canvas goes, its scene or its theme changes).
-    void clear(render::ImageStore& images);
+    void clear(xrender::ImageStore& images);
 
     [[nodiscard]] bool busy() const;  // jobs in flight or results waiting
 
@@ -80,7 +80,7 @@ public:
 
 private:
     struct Level {
-        render::ImageRef image;
+        xrender::ImageRef image;
         std::size_t      bytes = 0;
         std::uint64_t    used = 0;
     };

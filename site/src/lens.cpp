@@ -3,7 +3,7 @@ module openmui.site;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 
 namespace omui::site {
@@ -33,7 +33,7 @@ void Lens::prop_changed(LensProp) {
     if (attached()) services().invalidate_paint(node());
 }
 
-Size Lens::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Lens::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     return {width.value_or(0), height.value_or(0)};
 }
 
@@ -54,7 +54,7 @@ void Lens::paint(PaintContext& ctx) const {
         const std::string role = n.get("role") ? std::string(n.get("role")->as_string()) : "generic";
         const bool acts = operable(n);
         const Color c = role_colour(ctx.theme, role, acts);
-        out.stroke_round_rect(r, CornerRadii::all(3), acts ? 1.6f : 1.0f, render::Paint::solid(c.with_alpha(acts ? 0.95f : 0.55f)));
+        out.stroke_round_rect(r, CornerRadii::all(3), acts ? 1.6f : 1.0f, xrender::Paint::solid(c.with_alpha(acts ? 0.95f : 0.55f)));
         // Its role, small, on a chip at its top left (where there is room, and no caption is yet).
         if (role == "generic" || r.width < 48 || r.height < 14) continue;
         if (label >= roles_.size()) roles_.emplace_back(), roles_.back().set_style("caption");
@@ -65,7 +65,7 @@ void Lens::paint(PaintContext& ctx) const {
         if (std::ranges::any_of(taken, [&](const Rect& t) { return chip.x < t.x + t.width && t.x < chip.x + chip.width && chip.y < t.y + t.height && t.y < chip.y + chip.height; }))
             continue;
         taken.push_back(chip);
-        out.fill_round_rect(chip, CornerRadii::all(3), render::Paint::solid(Color{0.04f, 0.06f, 0.09f, 0.92f}));
+        out.fill_round_rect(chip, CornerRadii::all(3), xrender::Paint::solid(Color{0.04f, 0.06f, 0.09f, 0.92f}));
         l.paint(ctx, {chip.x + 4, chip.y + 1}, c);
         ++label;
     }

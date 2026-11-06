@@ -23,8 +23,3 @@ The tests run three ways:
 - `tests/webgl_test.cpp`, natively and under node in the Web row: no WebGL2 there, so `create()` answers `Errc::unsupported`, and the cases that need a device say so (`OMUI_REQUIRE_WEBGL=1` makes that a failure).
 - `tests/js/webgl.test.mjs`, the page's half under node with a fake WebGL2 context (`fake_gl.mjs`) that remembers what it is asked: rhi's enumerations and the wire's ops as the C++ declares them, the context and the canvas, buffers by their kind, textures and renderbuffers, a program's units and block points, a submission's order (uniforms, framebuffers, clears, pipeline state, attribute pointers with the vertex offset and first instance moved in, units, ranges, draws), copies and resolves reading one framebuffer and drawing another, bgra8's swaps, readback of every format, errors and a lost context, presenting flipped.
 - `tools/ci/browser.sh`: the same `webgl_test.cpp` in headless Chromium — the page's real WebGL2 (ANGLE on SwiftShader on a machine with no GPU) runs every case of the [conformance suite](../../../../gfx/rhi/cts), `compute` as the refusal it must be — and every ESSL entry point the Web build wrote compiled and linked by the browser.
-
-Canonical ownership: package/module `xrender.rhi.webgl`, C++ `xrender::rhi::webgl`.
-The original package keeps `import openmui.rhi.webgl;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `xrender.rhi.webgl`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

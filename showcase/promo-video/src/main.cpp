@@ -14,7 +14,7 @@
 // stretch of one, from its start: any frame renders on its own), handed to
 // the encoder in order. --dir reads edited copies of the film's files.
 import std;
-import openmui.hash;
+import mlibs.hash;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import openmui;
@@ -128,7 +128,7 @@ public:
         for (auto& t : threads_) t.join();
     }
 
-    std::expected<omui::imageio::View, std::string> frame(std::int64_t index) override {
+    std::expected<mlibs::image::View, std::string> frame(std::int64_t index) override {
         const std::int64_t f = from_ + index;
         std::unique_lock g(lock_);
         Slot& s = slots_[static_cast<std::size_t>(f % static_cast<std::int64_t>(slots_.size()))];
@@ -138,18 +138,18 @@ public:
         s.frame = -1;
         consumed_ = f + 1;
         changed_.notify_all();
-        return omui::imageio::View{reinterpret_cast<const std::uint8_t*>(shown_.row(0)), shown_.width(), shown_.height(), shown_.width() * 4,
-                                   omui::imageio::Alpha::premultiplied};
+        return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(shown_.row(0)), shown_.width(), shown_.height(), shown_.width() * 4,
+                                   mlibs::image::Alpha::premultiplied};
     }
 
 private:
     static constexpr int ahead = 3;  // frames each player may be ahead of the encoder
     struct Slot {
         std::int64_t          frame = -1;
-        omui::raster::Surface pixels;
+        xrender::raster::Surface pixels;
     };
     void work(int w) {
-        omui::typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         (void)fonts.add_defaults();
         promo::PlayerOptions o = l_->options;
         o.fonts = &fonts;
@@ -190,7 +190,7 @@ private:
     std::int64_t                       consumed_ = 0;
     bool                               stop_ = false;
     std::string                        error_;
-    omui::raster::Surface              shown_;
+    xrender::raster::Surface              shown_;
 };
 
 // A text file of each frame's pixel hash (FNV-1a over its rows): the film's
@@ -208,8 +208,8 @@ public:
         (void)format;
         return {};
     }
-    std::expected<void, std::string> frame(std::int64_t index, const omui::imageio::View& px, std::span<const float>) override {
-        omui::hash::Fnv1a h;
+    std::expected<void, std::string> frame(std::int64_t index, const mlibs::image::View& px, std::span<const float>) override {
+        mlibs::hash::Fnv1a h;
         for (int y = 0; y < px.height; ++y) h.bytes(std::span(px.rgba + static_cast<std::size_t>(y) * static_cast<std::size_t>(px.stride), static_cast<std::size_t>(px.width) * 4));
         const std::string line = std::format("{} {}\n", index + first_, h.hex());
         if (!file_->write(std::as_bytes(std::span(line.data(), line.size())))) return std::unexpected("cannot write the hashes");
@@ -345,8 +345,8 @@ int still(const cmd::ParsedArgs& p) {
     promo::Player player(l->film, l->cut, l->options);
     auto px = player.frame(frame);
     if (!px) return failed(report, px.error());
-    const omui::raster::Surface& s = **px;
-    auto png = omui::imageio::encode_png({reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, omui::imageio::Alpha::premultiplied});
+    const xrender::raster::Surface& s = **px;
+    auto png = mlibs::image::encode_png({reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied});
     if (!png) return failed(report, png.error());
     if (auto w = mcpplibs::os::fs::write_atomic(mcpplibs::os::fs::from_utf8(*target), std::string_view(reinterpret_cast<const char*>(png->data()), png->size())); !w)
         return failed(report, w.error().message());

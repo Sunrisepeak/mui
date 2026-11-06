@@ -15,21 +15,21 @@ constexpr float grid_head = 36, grid_row = 34, grid_pad = 12;
 void tree_chevron(PaintContext& ctx, Point c, bool down, Color color) {
     const float s = 8;
     auto at = [&](float x, float y) { return down ? Point{c.x - y, c.y + x} : Point{c.x + x, c.y + y}; };
-    render::Path p;
+    xrender::Path p;
     p.move_to(at(-s / 4, -s / 2)).line_to(at(s / 4, 0)).line_to(at(-s / 4, s / 2));
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.6f;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 // A small triangle, up or down, centred at c (a column's sort).
 void triangle(PaintContext& ctx, Point c, bool up, Color color) {
     const float w = 7, h = 4.5f, d = up ? -1.0f : 1.0f;
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - w / 2, c.y - d * h / 2}).line_to({c.x + w / 2, c.y - d * h / 2}).line_to({c.x, c.y + d * h / 2}).close();
-    ctx.list.fill_path(p, render::FillRule::nonzero, render::Paint::solid(color));
+    ctx.list.fill_path(p, xrender::FillRule::nonzero, xrender::Paint::solid(color));
 }
 
 std::string lower(std::string_view s) {
@@ -141,7 +141,7 @@ std::optional<std::size_t> TreeView::line_of(std::string_view key) const {
     return std::nullopt;
 }
 
-Size TreeView::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size TreeView::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     const float rows = static_cast<float>(lines().size());
     return {width.value_or(aw.is_definite() ? aw.value : 280.0f), height.value_or(std::min(rows, 12.0f) * tree_row + 2 * tree_pad)};
 }
@@ -169,8 +169,8 @@ void TreeView::paint(PaintContext& ctx) const {
         const Line& l = ls[i];
         const Rect r{tree_pad, tree_pad + static_cast<float>(i) * tree_row - offset_, ctx.size.width - 2 * tree_pad, tree_row};
         const bool chosen = l.key == props.value;
-        if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(th.color("accent_subtle")));
-        else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(th.color("surface_variant")));
+        if (chosen) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("accent_subtle")));
+        else if (hover_ == static_cast<int>(i)) ctx.list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(th.color("surface_variant")));
         const float x = r.x + 6 + static_cast<float>(l.depth) * tree_indent;
         if (l.parent) tree_chevron(ctx, {x + 6, r.center().y}, is_open(l.key), th.color("text_muted"));
         parts::Label& label = labels_[i - from];
@@ -424,7 +424,7 @@ std::vector<float> DataGrid::column_widths(float width) const {
     return w;
 }
 
-Size DataGrid::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size DataGrid::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     const float rows = static_cast<float>(order().size());
     return {width.value_or(aw.is_definite() ? aw.value : 480.0f), height.value_or(grid_head + std::min(rows, 10.0f) * grid_row)};
 }
@@ -486,7 +486,7 @@ void DataGrid::paint(PaintContext& ctx) const {
         x += widths[c];
     }
     ctx.list.pop_clip();
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }
 
 void DataGrid::paint_over(PaintContext& ctx) const {

@@ -3,8 +3,12 @@ module openmui.ui.window;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui {
 
@@ -60,7 +64,7 @@ Color traffic_color(CaptionButtonKind k, bool active, const Theme& theme) {
     return theme.color("#28c840");
 }
 
-render::Paint solid(Color c) { return render::Paint::solid(c); }
+xrender::Paint solid(Color c) { return xrender::Paint::solid(c); }
 
 }  // namespace
 
@@ -127,8 +131,8 @@ Rect WindowFrame::title_bar() const {
     return {i, i, std::max(0.0f, b.width - 2 * i), static_cast<float>(props.title_bar)};
 }
 
-void WindowFrame::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;
+void WindowFrame::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;
     const float i = inset();
     const float bar = drawn() && window().state() != WindowState::fullscreen ? static_cast<float>(props.title_bar) : 0;
     s.padding = {i + bar, i, i, i};
@@ -267,12 +271,12 @@ std::string_view CaptionButton::verb() const noexcept {
     return "window.close";
 }
 
-void CaptionButton::style(const Theme& theme, layout::Style& s) const {
+void CaptionButton::style(const Theme& theme, mlibs::layout::Style& s) const {
     if (props.look == CaptionButtonLook::traffic) {
-        s.width = s.height = layout::pt(theme.scaled(traffic_size));
+        s.width = s.height = mlibs::layout::pt(theme.scaled(traffic_size));
     } else {
-        s.width = layout::pt(theme.scaled(standard_width));
-        s.height = layout::Length::percent(100);
+        s.width = mlibs::layout::pt(theme.scaled(standard_width));
+        s.height = mlibs::layout::Length::percent(100);
     }
 }
 
@@ -287,13 +291,13 @@ void CaptionButton::paint(PaintContext& ctx) const {
         const float r = std::min(box.width, box.height) / 2;
         Color fill = traffic_color(props.kind, props.active || h > 0, t);
         if (ctx.state.pressed) fill = mix(fill, Color::black(), 0.2f);
-        ctx.list.fill_path(render::Path{}.add_circle(c, r), render::FillRule::nonzero, solid(fill));
-        ctx.list.stroke_path(render::Path{}.add_circle(c, r - 0.25f), {.width = 0.5f}, solid(mix(fill, Color::black(), 0.18f)));
+        ctx.list.fill_path(xrender::Path{}.add_circle(c, r), xrender::FillRule::nonzero, solid(fill));
+        ctx.list.stroke_path(xrender::Path{}.add_circle(c, r - 0.25f), {.width = 0.5f}, solid(mix(fill, Color::black(), 0.18f)));
         if (h > 0) {
             // The glyph shows while the pointer is over it.
             const Color g = Color{0, 0, 0, 0.55f * h};
             const float k = r * 0.45f;
-            render::Path p;
+            xrender::Path p;
             switch (props.kind) {
                 case CaptionButtonKind::close:
                     p.move_to({c.x - k, c.y - k}).line_to({c.x + k, c.y + k}).move_to({c.x + k, c.y - k}).line_to({c.x - k, c.y + k});
@@ -304,7 +308,7 @@ void CaptionButton::paint(PaintContext& ctx) const {
                     p.move_to({c.x - k, c.y}).line_to({c.x + k, c.y}).move_to({c.x, c.y - k}).line_to({c.x, c.y + k});
                     break;
             }
-            ctx.list.stroke_path(p, {.width = 1.2f, .cap = render::LineCap::round}, solid(g));
+            ctx.list.stroke_path(p, {.width = 1.2f, .cap = xrender::LineCap::round}, solid(g));
         }
     } else {
         const Color over = close ? t.color("danger") : t.color("surface_pressed");
@@ -313,7 +317,7 @@ void CaptionButton::paint(PaintContext& ctx) const {
         const Color g = close ? mix(base, t.color("on_danger"), h) : base;
         const float k = t.scaled(5);
         const float x0 = std::round(c.x) + 0.5f, y0 = std::round(c.y) + 0.5f;
-        render::Path p;
+        xrender::Path p;
         switch (props.kind) {
             case CaptionButtonKind::minimize: p.move_to({x0 - k, y0}).line_to({x0 + k, y0}); break;
             case CaptionButtonKind::maximize: p.add_rect({x0 - k, y0 - k, 2 * k, 2 * k}); break;
@@ -374,7 +378,7 @@ void register_window_components() {
     static const bool texts = [] {
         Languages& l = languages();
         for (auto [tag, toml] : {std::pair{"en", messages_en}, {"zh-Hans", messages_zh_hans}, {"zh-Hant", messages_zh_hant}})
-            if (auto loc = i18n::Locale::parse(tag))
+            if (auto loc = mlibs::i18n::Locale::parse(tag))
                 if (auto r = l.add_messages(*loc, toml, std::format("openmui.ui.window.{}.messages.omui.toml", tag)); !r)
                     for (const auto& d : r.error()) warn("{}", d.text());
         return true;

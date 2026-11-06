@@ -4,10 +4,10 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 
@@ -22,7 +22,7 @@ struct Scene {
     Scene(const site::MotionCaseInfo& entry, float room, std::string_view lang = "en", float scene_height = 360, bool has_clipboard = true)
         : info(entry), width(room), height(scene_height), clipboard(has_clipboard), h(HeadlessOptions{.size = {room + 32, scene_height + 32}}) {
         language.set(std::string(lang));
-        h.runtime().set_device_tier(pipeline::Tier::t4, "CPU reference for the full style effects");
+        h.runtime().set_device_tier(mlibs::pipeline::Tier::t4, "CPU reference for the full style effects");
         check(theme::apply_style(h.runtime(), info.style, "creative", false).has_value(), std::string(info.id));
         h.mount("main", column({.width = Dim(room + 32), .height = Dim(scene_height + 32), .padding = Edges(16), .background = "background"}, {
             dynamic([this] {
@@ -59,9 +59,9 @@ struct Scene {
         }
     }
     bool effect(std::string_view name) {
-        const auto ref = render::effects().find(name);
+        const auto ref = xrender::effects().find(name);
         for (const auto& command : h.runtime().display_list().commands())
-            if (const auto* layer = std::get_if<render::PushLayer>(&command); layer && ref && layer->effect.id == ref->id) return true;
+            if (const auto* layer = std::get_if<xrender::PushLayer>(&command); layer && ref && layer->effect.id == ref->id) return true;
         return false;
     }
 };

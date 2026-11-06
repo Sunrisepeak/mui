@@ -7,10 +7,10 @@ import std;
 
 import openmui.ui.canvas.kit;
 import openmui.host.headless;
-import openmui.render.vector;
-import openmui.testing;
+import xrender.vector;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -461,7 +461,7 @@ int main(int argc, char** argv) {
             h.settle();
             // The lines along a row (one between the horizontal lines): a cell
             // apart, or two while the finer ones are still too faint to see.
-            const raster::Surface& px = h.pixels();
+            const xrender::raster::Surface& px = h.pixels();
             std::vector<int> lines;
             for (int row = 10; row < 60; ++row) {
                 std::vector<int> found;

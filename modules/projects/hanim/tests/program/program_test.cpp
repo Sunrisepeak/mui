@@ -1,9 +1,9 @@
 import std;
 import hanim.program;
-import openmui.testing;
-import openmui.trace;
+import mlibs.testing;
+import mlibs.trace;
 using namespace hanim;
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace {
 std::atomic<std::size_t> allocations{0};
 void* allocate(std::size_t size) noexcept {allocations.fetch_add(1);return std::malloc(size?size:1);}
@@ -124,9 +124,9 @@ int main(int argc,char** argv) {
         Fixture f;const auto plan=take(PreparedProgram::prepare(composite(composite(anim::morph(f.a,f.b))
             .with_effect(fx::blur(2,8))).with_effect(fx::tone({}, {.r=.2f,.amount=1}))));
         std::vector<float> values(plan.scope_parameter_count()+1,123);
-        omui::trace::start();take(plan.sample_scopes(seconds(.5),values));const auto before=allocations.load();bool good=true;
+        mlibs::trace::start();take(plan.sample_scopes(seconds(.5),values));const auto before=allocations.load();bool good=true;
         for(int i=0;i<1000;++i)good &= plan.sample_scopes(seconds(static_cast<double>(i%97)/96),values).has_value();
-        const auto after=allocations.load();omui::trace::stop();check(good && before==after && values.back()==123);
+        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after && values.back()==123);
     });
     suite.test("typed path targets compose with image effects and retain a single preparation path",[] {
         Fixture f;
@@ -307,15 +307,15 @@ int main(int argc,char** argv) {
     suite.test("prepared arbitrary-time sampling adds no allocations with tracing enabled",[] {
         Fixture f;const auto plan=take(PreparedProgram::prepare(sequence({bind(f.a,f.b,{fx::blur(0,8)}),bind(f.a,f.c,{fx::blur(8,2)})})));
         Buffer output(plan.tracks()[0]);
-        omui::trace::start();for(int i=0;i<32;++i)output.sample(plan,0,.5);
+        mlibs::trace::start();for(int i=0;i<32;++i)output.sample(plan,0,.5);
         const auto before=allocations.load();bool good=true;
         for(int i=0;i<1000;++i) {
             const auto value=plan.sample(0,seconds(static_cast<double>(i%197)/98),{output.parts,output.cubics},output.effects);
             good=good && value.has_value() && value->geometry.source_object==f.ar;
         }
-        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after);
     });
-    if constexpr(omui::testing::threads)suite.test("immutable plan sampling is concurrent with separate caller storage",[] {
+    if constexpr(mlibs::testing::threads)suite.test("immutable plan sampling is concurrent with separate caller storage",[] {
         Fixture f;const auto plan=take(PreparedProgram::prepare(sequence({bind(f.a,f.b),bind(f.a,f.c)})));
         Buffer a(plan.tracks()[0]),b(plan.tracks()[0]);std::atomic<bool> good{true};
         auto work=[&](Buffer& buffer,double time,double expected) {for(int i=0;i<1000;++i) {
@@ -552,13 +552,13 @@ int main(int argc,char** argv) {
         Fixture f;
         const auto plan=take(PreparedProgram::prepare(anim::move_to(f.a,{12,8})
             .with_effect(fx::translation_path(PointPath::bend(.2))).with_effect(fx::blur(0,4))));
-        Buffer output(plan.tracks()[0]);omui::trace::start();output.sample(plan,0,0);
+        Buffer output(plan.tracks()[0]);mlibs::trace::start();output.sample(plan,0,0);
         const auto before=allocations.load();bool good=true;
         for(int i=0;i<=60;++i) {
             const auto sample=plan.sample(0,seconds(i/60.),{output.parts,output.cubics},output.effects);
             good=good && sample.has_value() && output.effects[0]>=0 && output.effects[0]<=4;
         }
-        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after);
         check(output.parts[0].local.tx==12 && output.parts[0].local.ty==8);
     });
     suite.test("one animation targets multiple parts and preserves the unselected sibling",[] {
@@ -691,10 +691,10 @@ int main(int argc,char** argv) {
     suite.test("channel sampling allocates nothing and preflights every writer before touching output",[] {
         Fixture f;const auto plan=take(PreparedProgram::prepare(parallel(
             anim::move_to(f.a,{20,8}).with_effect(fx::translation_path(PointPath::bend(.2))),anim::rotate_to(f.a,2))));
-        Buffer out(plan.tracks()[0]);omui::trace::start();out.sample(plan,0,0);
+        Buffer out(plan.tracks()[0]);mlibs::trace::start();out.sample(plan,0,0);
         const auto before=allocations.load();bool good=true;
         for(int i=0;i<1000;++i)good=good && bool(plan.sample(0,seconds((i%197)/196.),{out.parts,out.cubics},out.effects));
-        const auto after=allocations.load();omui::trace::stop();check(good && before==after);
+        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after);
         const auto huge=take(PreparedProgram::prepare(parallel(
             anim::move_to(f.a,{1e308,1e308}).with_effect(fx::translation_path(PointPath::bend(2))),anim::rotate_to(f.a,2))));
         Buffer failed(huge.tracks()[0]);failed.parts[0].local.tx=99;failed.cubics[0].end.x=77;

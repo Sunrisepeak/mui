@@ -3,7 +3,7 @@ module openmui.semantic;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.hash;
+import mlibs.hash;
 
 namespace omui::semantic {
 
@@ -371,7 +371,7 @@ std::vector<spec::Violation> Tree::violations() {
 
 std::uint64_t Tree::digest() {
     refresh();
-    hash::Fnv1a h;
+    mlibs::hash::Fnv1a h;
     for (const spec::SemanticNode& n : nodes_) h.text(spec::to_value(n).json());
     return h.value();
 }

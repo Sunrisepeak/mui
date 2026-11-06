@@ -131,7 +131,7 @@ function bits(file, name) {
   return out;
 }
 
-const types = '../../../src/types.cppm';
+const types = '../../../../../../gfx/rhi/src/types.cppm';
 
 test('the page and the C++ agree: rhi\'s enumerations, the wire\'s ops, the kinds of resource', async () => {
   const { G } = await load();
@@ -150,10 +150,10 @@ test('the page and the C++ agree: rhi\'s enumerations, the wire\'s ops, the kind
   same(G.ADDRESS, enumerators(types, 'AddressMode').map((a) => ({ clamp: 'clamp-to-edge', repeat: 'repeat', mirror: 'mirror-repeat' })[a]));
   same(G.FILTERS, enumerators(types, 'Filter'));
   same(Object.keys(G.STAGE), enumerators(types, 'Stage'));
-  same(Object.keys(G.LOAD), enumerators('../../../src/commands.cppm', 'LoadOp'));
+  same(Object.keys(G.LOAD), enumerators('../../../../../../gfx/rhi/src/commands.cppm', 'LoadOp'));
   same((G.TEX), bits(types, 'TextureUsage'));
   same((G.BUF), bits(types, 'BufferUsage'));
-  same(Object.entries(G.OP).sort((a, b) => a[1] - b[1]).map((e) => e[0]), enumerators('../../../src/wire.cppm', 'Op'));
+  same(Object.entries(G.OP).sort((a, b) => a[1] - b[1]).map((e) => e[0]), enumerators('../../../../../../gfx/rhi/src/wire.cppm', 'Op'));
   same(Object.keys(G.KIND), enumerators('../../src/page.cppm', 'Kind'));
   assert.equal(G.BYTES.length, G.FORMATS.length);
 });

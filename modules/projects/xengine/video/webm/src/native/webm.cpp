@@ -3,7 +3,7 @@
 module xengine.video.webm;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import xengine.video;
 import mcpplibs.mwrap.libvpx;
 import mcpplibs.mwrap.opus;

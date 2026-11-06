@@ -2,7 +2,7 @@
 module openmui.showcase.markdown_wall;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 
 namespace omui::wall {
@@ -137,7 +137,7 @@ std::string title_of(std::string_view md, std::string_view fallback) {
 }  // namespace
 
 std::string key_of(std::string_view path) {
-    return std::format("w{:016x}", omui::hash::fnv1a(path));
+    return std::format("w{:016x}", mlibs::hash::fnv1a(path));
 }
 
 double window_height(const Document& d) noexcept {

@@ -7,10 +7,10 @@ import std;
 
 import openmui.ui.liquid_glass;
 import openmui.host.headless;
-import openmui.render.vector;
-import openmui.testing;
+import xrender.vector;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -39,11 +39,11 @@ std::vector<std::pair<std::string, Role>> roles(Headless& h) {
     return out;
 }
 
-std::size_t glass_layers(const render::DisplayList& list, std::size_t* shapes = nullptr) {
-    const auto ref = render::effects().find("liquid_glass");
+std::size_t glass_layers(const xrender::DisplayList& list, std::size_t* shapes = nullptr) {
+    const auto ref = xrender::effects().find("liquid_glass");
     std::size_t n = 0;
     for (const auto& c : list.commands())
-        if (const auto* l = std::get_if<render::PushLayer>(&c); l && ref && l->effect.id == ref->id) {
+        if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && ref && l->effect.id == ref->id) {
             ++n;
             if (shapes) *shapes = l->shapes.size();
         }

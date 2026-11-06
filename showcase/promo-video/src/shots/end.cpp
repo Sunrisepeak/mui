@@ -25,7 +25,7 @@ struct State {
     float  advance = 20;  // a character of the command's font
     Point  line;       // the command's top left
     float  line_height = 40;
-    std::pair<render::ImageRef, render::ImageRef> refs;
+    std::pair<xrender::ImageRef, xrender::ImageRef> refs;
 };
 
 class End final : public Shot {
@@ -41,8 +41,8 @@ public:
         auto st = s_;
         const float size = portrait ? 34.0f : 46.0f;
         Element back = painter({.id = "backdrop",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::figure,
                                 .label = "The pixel the film began with",
                                 .paint = [st](PaintContext& p) { paint(p, *st); }});
@@ -70,7 +70,7 @@ public:
         (void)frame0;
         // First the command and the film as data; then they give way to a clean card.
         Element first = column(
-            {.id = "first", .width = Dim(layout::pct(100)), .padding = Edges(Insets{portrait ? 420.0f : 260.0f, 0, 0, 0}), .gap = 30, .align = "center"},
+            {.id = "first", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{portrait ? 420.0f : 260.0f, 0, 0, 0}), .gap = 30, .align = "center"},
             {animate_glyphs(text({.id = "command", .text = std::string(command), .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = size,
                                   .weight = 500.0f}),
                             type),
@@ -79,7 +79,7 @@ public:
                            .color = Fill(hex(ink::muted)), .wrap = false, .size = 21.0f}),
                      std::move(editor)})});
         Element card = column(
-            {.id = "card", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .gap = 14, .justify = "center", .align = "center"},
+            {.id = "card", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .gap = 14, .justify = "center", .align = "center"},
             {animate_glyphs(text({.id = "wordmark", .text = "OPENMUI", .style = "display", .color = Fill(hex(ink::cyan)), .wrap = false,
                                   .size = portrait ? 110.0f : 150.0f, .weight = 800.0f}),
                             gather),
@@ -90,9 +90,9 @@ public:
              animate_glyphs(text({.id = "made", .text = "这部片子由 agent 用 openmui 制作 · Made by an agent with openmui", .style = "body",
                                   .color = Fill(hex(ink::muted)), .wrap = portrait, .size = portrait ? 22.0f : 26.0f, .max_width = Dim(screen.width * 0.86f)}),
                             rise2)});
-        Element type_layer = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"},
+        Element type_layer = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"},
                                    {std::move(first), std::move(card)});
-        return stack({.id = "end", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(back), std::move(type_layer)});
+        return stack({.id = "end", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"}, {std::move(back), std::move(type_layer)});
     }
 
     void mounted(Runtime& rt) override {

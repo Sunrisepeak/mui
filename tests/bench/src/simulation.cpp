@@ -1,11 +1,11 @@
 module openmui.bench;
 import std;
-import openmui.simulation;
-import openmui.simulation.cellular;
+import xengine.simulation;
+import xengine.simulation.cellular;
 
 namespace omui::bench {
 namespace {
-namespace ca=omui::simulation::cellular;
+namespace ca=xengine::simulation::cellular;
 struct Model {
     struct State {ca::Program program;ca::Shape shape;std::vector<std::uint32_t> current,next;};
     struct Input {bool unused=false;};
@@ -39,7 +39,7 @@ void add_simulation_benchmarks() {
     });
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}
-        omui::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);
+        xengine::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);
         while(s.next()) {
             s.pause();if(!history.seek(0)){s.fail("history reset failed");return;}s.resume();
             history.step({});

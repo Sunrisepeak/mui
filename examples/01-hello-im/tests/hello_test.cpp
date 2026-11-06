@@ -1,13 +1,13 @@
 // Example 01 runs headless: the agent's view of it, typing and clicking, and a picture.
 import std;
 import openmui;
-import openmui.testing;
+import mlibs.testing;
 import hello;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 int main(int argc, char** argv) {
-    omui::testing::Suite s{"example.hello-im"};
+    mlibs::testing::Suite s{"example.hello-im"};
 
     s.test("an agent finds, types and clicks; the view follows", [] {
         omui::register_base_components();
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
         std::ifstream in(run.profile);
         const std::string json{std::istreambuf_iterator<char>(in), {}};
         check(json.starts_with("{\"displayTimeUnit\"") && json.contains("\"name\":\"layout\"") && json.contains("\"name\":\"render\""), json.substr(0, 200));
-        omui::set_log_level(omui::Level::info);
+        mlibs::log::set_log_level(mlibs::log::Level::info);
     });
 
     return s.run(argc, argv);

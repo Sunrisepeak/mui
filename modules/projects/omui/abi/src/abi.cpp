@@ -10,16 +10,20 @@ import openmui.view;
 import openmui.viewdoc;
 import openmui.semantic;
 import openmui.agent;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.text;
-import openmui.trace;
+import xrender.vector;
+import xrender.raster;
+import mlibs.text;
+import mlibs.trace;
 import openmui.native;
 import openmui.theme;
 import nlohmann.json;
 import :c;
 import :api;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::abi {
 
@@ -89,16 +93,16 @@ std::string error_code_of(const Envelope& e) {
 struct OmuiRuntime_T {
     std::string                                       app_id;
     bool                                              headless = true;
-    std::unique_ptr<typeset::FontCollection>          fonts;
+    std::unique_ptr<mlibs::text::FontCollection>          fonts;
     std::unique_ptr<Runtime>                          owned;    // nothing when attached to a host's runtime
     Runtime*                                          rt = nullptr;
     std::shared_ptr<bool>                             alive = std::make_shared<bool>(true);
     std::function<void()>                             wake;  // the host's loop, when it sleeps
     std::unique_ptr<xrender::text::GlyphCache>              glyphs;
     std::unique_ptr<agent::Protocol>                  protocol;
-    render::CpuRenderer                               renderer;
-    raster::Surface                                   surface;
-    render::DamageTracker                             damage;
+    xrender::CpuRenderer                               renderer;
+    xrender::raster::Surface                                   surface;
+    xrender::DamageTracker                             damage;
     bool                                              have_pixels = false;
     std::map<std::string, viewdoc::View, std::less<>> views;
 
@@ -219,7 +223,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     auto r = std::make_unique<OmuiRuntime_T>();
     r->app_id = text(info->app_id).empty() ? std::string("openmui-app") : std::string(text(info->app_id));
     r->headless = info->headless != 0;
-    r->fonts = std::make_unique<typeset::FontCollection>();
+    r->fonts = std::make_unique<mlibs::text::FontCollection>();
     if (auto f = r->fonts->add_defaults(); !f) log.warn("the default fonts did not load: {}", f.error());
     RuntimeOptions o;
     o.fonts = r->fonts.get();
@@ -476,7 +480,7 @@ OmuiResult omuiInvoke(OmuiRuntime rt, OmuiString verb, OmuiString args_json, PFN
 OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* out) noexcept {
     if (!rt || !in || in->type != OMUI_STRUCTURE_TYPE_FRAME_INPUT) return OMUI_ERROR_INVALID_ARGUMENT;
     if (out && out->type != OMUI_STRUCTURE_TYPE_FRAME_OUTPUT) return OMUI_ERROR_INVALID_ARGUMENT;
-    trace::Span span("abi.frame", "abi");
+    mlibs::trace::Span span("abi.frame", "abi");
     Runtime& r = *rt->rt;
     const float scale = in->scale > 0 ? static_cast<float>(in->scale) : r.scale();
     if (in->width && in->height) {
@@ -504,14 +508,14 @@ OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* 
         const int w = static_cast<int>(in->width), h = static_cast<int>(in->height);
         if (w <= 0 || h <= 0 || out->stride < static_cast<std::uint32_t>(w) * 4) return OMUI_ERROR_INVALID_ARGUMENT;
         if (rt->surface.width() != w || rt->surface.height() != h) {
-            rt->surface = raster::Surface(w, h);
+            rt->surface = xrender::raster::Surface(w, h);
             rt->have_pixels = false;
         }
-        const render::Resources resources{&r.images(), rt->glyphs.get()};
+        const xrender::Resources resources{&r.images(), rt->glyphs.get()};
         if (!rt->have_pixels) rt->damage.invalidate();
         const auto rows = rt->damage.update(r.display_list(), w, h, scale, resources);
         if (!rows.empty()) {
-            render::CpuOptions o;
+            xrender::CpuOptions o;
             o.scale = scale;
             o.rows = rows;
             (void)rt->renderer.render(r.display_list(), rt->surface, resources, o);
@@ -519,7 +523,7 @@ OmuiResult omuiFrame(OmuiRuntime rt, const OmuiFrameInput* in, OmuiFrameOutput* 
         rt->have_pixels = true;
         auto* dst = static_cast<std::uint8_t*>(out->pixels);
         for (int y = 0; y < h; ++y) {
-            const raster::Rgba8* src = rt->surface.row(y);
+            const xrender::raster::Rgba8* src = rt->surface.row(y);
             std::uint8_t* row = dst + static_cast<std::size_t>(y) * out->stride;
             for (int x = 0; x < w; ++x) {
                 row[x * 4 + 0] = src[x].b;
@@ -708,7 +712,7 @@ OmuiResult omuiNativeCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noex
 OmuiResult omuiNativeCall(OmuiRuntime rt, OmuiString module_name, OmuiString function_name, OmuiString args_json, PFN_omuiSink sink,
                           void* user) noexcept {
     if (!rt) return OMUI_ERROR_INVALID_ARGUMENT;
-    trace::Span span("abi.native", "abi");
+    mlibs::trace::Span span("abi.native", "abi");
     Envelope e;
     const auto args = nlohmann::json::parse(text(args_json).empty() ? std::string_view("null") : text(args_json), nullptr, false);
     if (args.is_discarded()) {

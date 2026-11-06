@@ -2,7 +2,7 @@
 //
 //     auto count = omui::signal(0);
 //     auto label = omui::computed([=] { return std::format("clicked {} times", count()); });
-//     omui::Watch log([=] { omui::info("{}", label()); });
+//     omui::Watch log([=] { mlibs::log::info("{}", label()); });
 //     count.set(1);          // label recomputes, the effect runs once
 //
 // Writes push a "stale" mark through the graph; reads pull: a computed value

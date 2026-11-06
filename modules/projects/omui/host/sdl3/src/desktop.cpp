@@ -6,23 +6,30 @@ import openmui.view;
 import openmui.semantic;
 import openmui.agent;
 import openmui.accessibility;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.text;
-import openmui.image;
-import openmui.trace;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.render.effect;
+import xrender.raster;
+import xrender.vector;
+import mlibs.text;
+import mlibs.image;
+import mlibs.trace;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import xrender.effect;
 import mcpplibs.os;
 import :platform;
 import xrender.text;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::debug;
+using mlibs::log::error;
+using mlibs::log::info;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
 struct Desktop::Impl final : WindowHost {
     DesktopOptions                           options;
-    std::unique_ptr<typeset::FontCollection> own_fonts;
+    std::unique_ptr<mlibs::text::FontCollection> own_fonts;
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
     std::unique_ptr<semantic::Tree>          tree;
@@ -32,9 +39,9 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<accessibility::Mirror>   mirror;
     std::unique_ptr<accessibility::Adapter>  access;
     platform::WindowPtr                      window;
-    render::CpuRenderer                      renderer;
-    render::DamageTracker                    damage;     // what the next list changes
-    raster::Surface                          frame;
+    xrender::CpuRenderer                      renderer;
+    xrender::DamageTracker                    damage;     // what the next list changes
+    xrender::raster::Surface                          frame;
     std::uint64_t                            shown = 0;   // the list hash on screen
     std::size_t                              frames_shown = 0;
     std::size_t                              failed_frames = 0;  // in a row: a stage failed, the last good frame kept on screen
@@ -46,11 +53,11 @@ struct Desktop::Impl final : WindowHost {
 
     // The GPU path: a device that claimed the window, the renderer, and the
     // frame texture the swapchain shows.
-    std::unique_ptr<rhi::Device>             device;
-    std::optional<render::GpuRenderer>       gpu;
-    rhi::Texture                             gpu_frame;
+    std::unique_ptr<mlibs::rhi::Device>             device;
+    std::optional<xrender::GpuRenderer>       gpu;
+    mlibs::rhi::Texture                             gpu_frame;
     std::uint32_t                            gpu_w = 0, gpu_h = 0;
-    std::optional<effect::Library>           effects;
+    std::optional<xrender::effect::Library>           effects;
 
     // The window as a window (D-75): who draws its frame, and its close.
     bool                                     framework = false;
@@ -122,7 +129,7 @@ struct Desktop::Impl final : WindowHost {
         using R = DesktopOptions::Renderer;
         if (options.renderer == R::cpu) return {};
         xrender::rhi::sdl::Options o;
-        o.formats = render::gpu_shader_formats();
+        o.formats = xrender::gpu_shader_formats();
         o.window = platform::window_id(*window);
         o.vsync = options.vsync;
         o.vulkan_library = options.vulkan_library;
@@ -132,7 +139,7 @@ struct Desktop::Impl final : WindowHost {
             return {};
         }
         if ((*made)->caps().software && options.renderer == R::automatic) return {};  // the CPU renderer is faster
-        auto r = render::GpuRenderer::create(**made);
+        auto r = xrender::GpuRenderer::create(**made);
         if (!r) {
             if (options.renderer == R::gpu) return std::unexpected(std::format("the GPU renderer: {}", r.error().message));
             return {};
@@ -143,21 +150,21 @@ struct Desktop::Impl final : WindowHost {
     }
 
     // The frame as shown, read back (the GPU's texture, or the CPU's surface).
-    std::expected<raster::Surface, std::string> pixels() {
+    std::expected<xrender::raster::Surface, std::string> pixels() {
         if (!gpu) {
             if (frame.width() <= 0) return std::unexpected("nothing shown yet");
             return frame;
         }
         if (!gpu_frame) return std::unexpected("nothing shown yet");
-        auto bytes = device->read(gpu_frame, rhi::Region{0, 0, gpu_w, gpu_h});
+        auto bytes = device->read(gpu_frame, mlibs::rhi::Region{0, 0, gpu_w, gpu_h});
         if (!bytes) return std::unexpected(bytes.error().message);
-        raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
+        xrender::raster::Surface out(static_cast<int>(gpu_w), static_cast<int>(gpu_h));
         std::memcpy(out.pixels().data(), bytes->data(), bytes->size());
         return out;
     }
 
     void show() {
-        const render::DisplayList& list = runtime->display_list();
+        const xrender::DisplayList& list = runtime->display_list();
         const std::uint64_t h = list.hash();
         const float scale = runtime->scale();
         const int w = static_cast<int>(std::lround(runtime->size().width * scale));
@@ -167,32 +174,32 @@ struct Desktop::Impl final : WindowHost {
             return;
         }
         if (h == shown && frame.width() == w && frame.height() == hgt) return;
-        if (frame.width() != w || frame.height() != hgt) frame = raster::Surface(w, hgt);
+        if (frame.width() != w || frame.height() != hgt) frame = xrender::raster::Surface(w, hgt);
         {
-            trace::Span span("render", "host");
-            const render::Resources resources{&runtime->images(), glyphs.get()};
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
             // Only the rows the new list can change: the same bytes as a full render.
             const auto rows = damage.update(list, w, hgt, scale, resources);
-            render::CpuOptions o;
+            xrender::CpuOptions o;
             o.scale = scale;
             o.background = options.background;
             o.rows = rows;
             if (options.parallel_raster) o.parallel = &raster_parallel();
             if (!rows.empty()) (void)renderer.render(list, frame, resources, o);
         }
-        trace::Span span("present", "host");
+        mlibs::trace::Span span("present", "host");
         platform::present(*window, frame);
         shown = h;
         ++frames_shown;
     }
 
-    void show_gpu(const render::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
+    void show_gpu(const xrender::DisplayList& list, std::uint64_t h, float scale, int w, int hgt) {
         if (w <= 0 || hgt <= 0) return;
         const auto uw = static_cast<std::uint32_t>(w), uh = static_cast<std::uint32_t>(hgt);
         if (h == shown && uw == gpu_w && uh == gpu_h) return;
         if (uw != gpu_w || uh != gpu_h) {
             if (gpu_frame) device->destroy(gpu_frame);
-            auto t = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, uw, uh, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled,
+            auto t = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, uw, uh, mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled,
                                                      "host.frame"});
             if (!t) {
                 warn("the frame texture: {}", t.error().message);
@@ -203,15 +210,15 @@ struct Desktop::Impl final : WindowHost {
             gpu_h = uh;
         }
         {
-            trace::Span span("render", "host");
-            const render::Resources resources{&runtime->images(), glyphs.get()};
+            mlibs::trace::Span span("render", "host");
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
             auto r = gpu->render(list, gpu_frame, resources, {.scale = scale, .clear = true, .background = options.background});
             if (!r) {
                 warn("the GPU renderer: {}", r.error().message);
                 return;
             }
         }
-        trace::Span span("present", "host");
+        mlibs::trace::Span span("present", "host");
         auto p = device->present(gpu_frame);
         if (!p) warn("present: {}", p.error().message);
         shown = h;
@@ -221,12 +228,12 @@ struct Desktop::Impl final : WindowHost {
     // Effects whose files changed, loaded again; the next frame redrawn.
     void reload_effects() {
         if (!effects) return;
-        for (const effect::Reload& r : effects->poll()) {
+        for (const xrender::effect::Reload& r : effects->poll()) {
             if (r.ok()) {
                 info("effect {} reloaded in {} ms", r.name, static_cast<double>(r.took.count()) / 1000.0);
                 shown = 0;
             } else {
-                for (const effect::Diagnostic& d : r.problems) warn("effect {}: {}", r.name, d.text());
+                for (const xrender::effect::Diagnostic& d : r.problems) warn("effect {}: {}", r.name, d.text());
             }
         }
     }
@@ -247,9 +254,9 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
         return;
     }
-    typeset::FontCollection* fonts = d.options.fonts;
+    mlibs::text::FontCollection* fonts = d.options.fonts;
     if (!fonts) {
-        d.own_fonts = std::make_unique<typeset::FontCollection>();
+        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         fonts = d.own_fonts.get();
     }
@@ -304,23 +311,23 @@ std::expected<void, std::string> Desktop::open() {
         }
     }
     if (!d.options.effects.empty()) {
-        d.effects.emplace(effect::Options{.formats = d.device ? d.device->caps().formats : render::gpu_shader_formats()});
+        d.effects.emplace(xrender::effect::Options{.formats = d.device ? d.device->caps().formats : xrender::gpu_shader_formats()});
         if (auto loaded = d.effects->load_directory(d.options.effects); !loaded)
-            for (const effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
+            for (const xrender::effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
         if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));
     }
     d.runtime->resize(platform::logical_size(*d.window), platform::pixel_scale(*d.window));
-    d.runtime->set_renderer(d.gpu ? std::string(rhi::name(d.device->caps().backend)) : std::string("cpu"));
+    d.runtime->set_renderer(d.gpu ? std::string(mlibs::rhi::name(d.device->caps().backend)) : std::string("cpu"));
     // The machine's tier (performance tiers §1): a discrete GPU T4; integrated graphics T3; the CPU drawing, T2.
     // And the governor on: these frames are a person's.
     {
-        pipeline::Tier tier = pipeline::Tier::t2;
+        mlibs::pipeline::Tier tier = mlibs::pipeline::Tier::t2;
         std::string why = "the CPU draws";
         if (d.gpu) {
             const std::string name = d.device->caps().device;
             const bool integrated = std::ranges::any_of(std::array<std::string_view, 6>{"Intel", "UHD", "Iris", "Mali", "Adreno", "Vega"},
                                                         [&](std::string_view s) { return name.find(s) != std::string::npos; });
-            tier = integrated ? pipeline::Tier::t3 : pipeline::Tier::t4;
+            tier = integrated ? mlibs::pipeline::Tier::t3 : mlibs::pipeline::Tier::t4;
             why = std::format("{}: {}", integrated ? "integrated graphics" : "a GPU", name);
         }
         d.runtime->set_device_tier(tier, std::move(why));
@@ -342,13 +349,13 @@ std::expected<void, std::string> Desktop::open() {
             // The frame on screen, cut to the region (logical pixels).
             auto shown_frame = d.pixels();
             if (!shown_frame) return std::unexpected(shown_frame.error());
-            const raster::Surface& f = *shown_frame;
-            const PixelRect r = geom::snap(region, d.runtime->scale());
+            const xrender::raster::Surface& f = *shown_frame;
+            const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
             const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
             const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
             if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
-            imageio::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, imageio::Alpha::premultiplied};
-            return imageio::encode_png(v);
+            mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
+            return mlibs::image::encode_png(v);
         };
         eo.wake = [] { platform::wake(); };
         d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
@@ -381,7 +388,7 @@ accessibility::Mirror* Desktop::accessibility_mirror() noexcept { return impl_->
 accessibility::Adapter* Desktop::accessibility_adapter() noexcept { return impl_->access.get(); }
 std::size_t Desktop::frames_shown() const noexcept { return impl_->frames_shown; }
 bool Desktop::gpu() const noexcept { return impl_->gpu.has_value(); }
-effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
+xrender::effect::Library* Desktop::effects() noexcept { return impl_->effects ? &*impl_->effects : nullptr; }
 float Desktop::scale() const noexcept { return impl_->runtime->scale(); }
 NodeId Desktop::mount(std::string_view slot, View view) { return impl_->runtime->mount(slot, std::move(view)); }
 
@@ -514,7 +521,7 @@ void Desktop::synthesize(std::span<const InputEvent> events) {
     if (impl_->window) platform::synthesize(*impl_->window, events);
 }
 
-std::expected<raster::Surface, std::string> Desktop::window_pixels() {
+std::expected<xrender::raster::Surface, std::string> Desktop::window_pixels() {
     if (!impl_->window) return std::unexpected("the window is not open");
     if (impl_->gpu) return impl_->pixels();  // the frame the swapchain was given, exactly
     return platform::read_back(*impl_->window);

@@ -5,6 +5,10 @@ import openmui.core;
 import openmui.view;
 import mcpplibs.os;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
+
 namespace omui::agent {
 
 namespace ipc = mcpplibs::os::ipc;

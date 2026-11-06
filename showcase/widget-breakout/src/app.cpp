@@ -14,6 +14,10 @@ import openmui.theme.styles;
 import openmui.ui.canvas;
 import openmui.showcase.widget_breakout.sim;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
+
 namespace omui::breakout {
 
 namespace {
@@ -219,7 +223,7 @@ Element casing_view(const std::shared_ptr<Bench>& b) {
 
 // Between rooms: over the field, the room's end and the two contraptions offered.
 Element between_view(const std::shared_ptr<Bench>& b) {
-    return column({.id = "between", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = 28, .gap = 16.0f, .justify = "center",
+    return column({.id = "between", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = 28, .gap = 16.0f, .justify = "center",
                    .align = "center", .background = Color::hex(0x05070d, 0.72f), .visible = b->open},
                   // Light on the dimmed field, whatever the room's theme (ink's dark text vanished there).
                   {text({.id = "between.heading", .text = b->heading, .style = "title", .color = Color::hex(0xeef2ff)}),
@@ -248,7 +252,7 @@ AppSpec app() {
         if (auto r = themes::add_styles(); !r) warn("breakout: the style packs did not load");
     };
     a.view = [b] {
-        Element game = field({.id = "field", .room = 1, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))});
+        Element game = field({.id = "field", .room = 1, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))});
         // The field is a live surface: the simulation and its camera place what it
         // draws every step, so its drawing never morphs as a whole (a room's style
         // pack still moves the controls inside it and the cards between rooms).
@@ -279,7 +283,7 @@ AppSpec app() {
             if (open) b->choosing(args.get("after") ? static_cast<std::int32_t>(args.get("after")->as_int()) : 1);
             else b->open.set(false), b->casing.set(-1);
         });
-        return std::move(stack({.id = "game", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(game), between_view(b)})
+        return std::move(stack({.id = "game", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}, {std::move(game), between_view(b)})
                              .prop("motion", Source(live_surface_motion())));
     };
     return a;

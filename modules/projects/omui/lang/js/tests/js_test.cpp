@@ -8,7 +8,7 @@ import openmui.abi;
 import openmui.lang;
 import openmui.lang.js;
 import openmui.ui.base;
-import openmui.testing;
+import mlibs.testing;
 import openmui.view;
 import openmui.cts;
 import openmui.native;
@@ -17,7 +17,7 @@ import openmui.theme;
 import openmui.theme.default_theme;
 import openmui.theme.compact;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui::abi;
 namespace lang = omui::lang;
 using lang::Json;
@@ -193,8 +193,8 @@ if (a.value !== 1) throw new Error("the mirror has it");
     });
 
     s.test("tr: a message in the person's language, its arguments by name; a key no catalog has is its own message", [] {
-        (void)omui::languages().add_messages(*omui::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
-        omui::languages().request({*omui::i18n::Locale::parse("en")});
+        (void)omui::languages().add_messages(*mlibs::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
+        omui::languages().request({*mlibs::i18n::Locale::parse("en")});
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(

@@ -3,18 +3,18 @@
 // registered pixel effects consume that path through the existing renderer.
 import std;
 import hanim.core;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.image;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.image;
+import mlibs.testing;
 import mcpplibs.os;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
-namespace image = omui::imageio;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace image = mlibs::image;
 namespace os = mcpplibs::os;
 
 namespace {

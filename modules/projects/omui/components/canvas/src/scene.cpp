@@ -3,7 +3,11 @@ module openmui.ui.canvas;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::fatal;
+}
 
 namespace omui::world {
 

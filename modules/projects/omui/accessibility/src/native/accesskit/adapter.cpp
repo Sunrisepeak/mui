@@ -4,9 +4,13 @@ module openmui.accessibility;
 
 import std;
 import openmui.core;
-import openmui.trace;
+import mlibs.trace;
 import mcpplibs.mwrap.accesskit;
 import :native;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::accessibility {
 
@@ -299,7 +303,7 @@ struct Adapter::Impl {
 };
 
 std::expected<std::unique_ptr<Adapter>, std::string> Adapter::attach(Mirror& mirror, void* window, AdapterOptions options) {
-    trace::Span span("accessibility.attach", "accessibility");
+    mlibs::trace::Span span("accessibility.attach", "accessibility");
     auto impl = std::make_unique<Impl>(mirror, std::move(options));
     (void)mirror.refresh();  // the activation that may come at once reads it
     native::Handlers h{&Impl::on_activate, &Impl::on_action, &Impl::on_deactivate, impl.get()};
@@ -317,7 +321,7 @@ Adapter::~Adapter() {
 }
 
 void Adapter::update() {
-    trace::Span span("accessibility.update", "accessibility");
+    mlibs::trace::Span span("accessibility.update", "accessibility");
     impl_->pending = impl_->mirror.refresh();
     if (impl_->pending.empty() && !impl_->rescaled) return;
     native::update(impl_->service, &Impl::on_update, impl_.get());

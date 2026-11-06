@@ -5,9 +5,9 @@
 import std;
 import openmui;
 import openmui.showcase.fighting;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -17,7 +17,7 @@ struct Game {
     Game() {
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
-        h.mount("main", fighting::stage({.id = "stage", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
+        h.mount("main", fighting::stage({.id = "stage", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}));
         h.step();
     }
     const gongfu::State& state() { return h.runtime().component<fighting::Stage>(h.runtime().find("main"))->match().state(); }

@@ -2,16 +2,16 @@
 // material must keep this same probe green without stranding an old shape.
 import std;
 import hanim.core;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
 import openmui.motion;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace mo = omui::motion;
-namespace render = omui::render;
-namespace geom = omui::geom;
+namespace render = xrender;
+namespace geom = mlibs::geom;
 namespace {
 mo::Resolver resolver() {
     return {.keys = [](std::uint32_t, std::string& key, std::string&) { key = "shape"; }};
@@ -30,7 +30,7 @@ render::DisplayList scene(const render::Path& path, const render::Paint& paint) 
     render::DisplayList list; list.begin_node(7); list.fill_path(path, render::FillRule::nonzero, paint); list.end_node(); return list;
 }
 std::uint64_t pixel_hash(const render::DisplayList& list) {
-    omui::raster::Surface surface(160, 160); render::CpuRenderer cpu;
+    xrender::raster::Surface surface(160, 160); render::CpuRenderer cpu;
     (void)cpu.render(list, surface, {}); return surface.hash();
 }
 }

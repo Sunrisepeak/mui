@@ -10,7 +10,11 @@
 export module openmui.core:task;
 
 import std;
-import openmui.memory;
+import mlibs.memory;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+}
 
 export namespace omui {
 

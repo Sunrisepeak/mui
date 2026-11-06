@@ -2,13 +2,13 @@
 // carets and selections, editing; glyphs as geometry. Their pixels are
 // xrender.text's (modules/projects/xrender/text/tests).
 import std;
-import openmui.geom;
-import openmui.text;
-import openmui.testing;
+import mlibs.geom;
+import mlibs.text;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace text = omui::typeset;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace text = mlibs::text;
+namespace geom = mlibs::geom;
 
 namespace {
 
@@ -49,19 +49,19 @@ int main(int argc, char** argv) {
     s.test("a collection's identity is never reused, as its address may be: caches keyed by it cannot meet a successor", [] {
         std::uint64_t first = 0;
         {
-            omui::typeset::FontCollection a;
+            mlibs::text::FontCollection a;
             first = a.id();
-            check(first != 0 && omui::typeset::FontCollection::alive(first));
+            check(first != 0 && mlibs::text::FontCollection::alive(first));
         }
-        check(!omui::typeset::FontCollection::alive(first), "gone with it");
+        check(!mlibs::text::FontCollection::alive(first), "gone with it");
         std::set<std::uint64_t> ids{first};
         for (int i = 0; i < 64; ++i) {
-            omui::typeset::FontCollection b;  // often where the last one was
+            mlibs::text::FontCollection b;  // often where the last one was
             check(ids.insert(b.id()).second, "a new id each time");
         }
-        omui::typeset::FontCollection c;
-        omui::typeset::FontCollection moved = std::move(c);
-        check(omui::typeset::FontCollection::alive(moved.id()), "a move keeps the identity");
+        mlibs::text::FontCollection c;
+        mlibs::text::FontCollection moved = std::move(c);
+        check(mlibs::text::FontCollection::alive(moved.id()), "a move keeps the identity");
     });
 
     s.test("shaping: advances, ligatures and kerning come from the font", [] {

@@ -5,9 +5,9 @@
 // a world built by the same calls has the same checksum everywhere.
 import std;
 import xengine.world;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 

@@ -10,7 +10,7 @@ export module openmui.view:element;
 
 import std;
 import openmui.core;
-import openmui.layout;
+import mlibs.layout;
 
 export namespace omui {
 

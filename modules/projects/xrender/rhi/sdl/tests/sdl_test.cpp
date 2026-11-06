@@ -4,17 +4,17 @@
 // readback, byte for byte; then the rhi conformance suite (openmui.rhi.cts),
 // every case with the suite's own shaders.
 import std;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.rhi.cts;
-import openmui.simulation.cellular.rhi.cts;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import mlibs.rhi.cts;
+import xengine.simulation.cellular.rhi.cts;
 import mcpplibs.os;
-import openmui.testing;
+import mlibs.testing;
 
 namespace sdl = xrender::rhi::sdl;
 
-using namespace omui::testing;
-using namespace omui::rhi;
+using namespace mlibs::testing;
+using namespace mlibs::rhi;
 
 namespace {
 
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     s.test("cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay", [] {
         auto d = open_device();
         if (!d) return;
-        auto report = omui::simulation::cellular::gpu::cts::run(*d);
+        auto report = xengine::simulation::cellular::gpu::cts::run(*d);
         check(report.has_value(), report ? "" : report.error().message);
         if (report) {
             check_eq(report->scenarios, 16u);

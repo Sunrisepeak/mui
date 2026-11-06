@@ -6,11 +6,15 @@ module openmui.ui.canvas.kit;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.expr;
 import openmui.ui.canvas;
 import :parts;
 import :chart;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::world {
 

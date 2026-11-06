@@ -1,9 +1,9 @@
 import std;
-import openmui.math;
-import openmui.testing;
+import mlibs.math;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace color = omui::math::color;
+using namespace mlibs::testing;
+namespace color = mlibs::math::color;
 
 int main(int argc, char** argv) {
     Suite suite("math.color");

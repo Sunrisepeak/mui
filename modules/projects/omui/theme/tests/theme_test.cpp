@@ -5,10 +5,10 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.theme;
-import openmui.render.vector;
-import openmui.testing;
+import xrender.vector;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -254,7 +254,7 @@ text         = { effect = "paper", grain = 0.2 }
         // Layers with effects: the window's crt at least, and the cross-fade's layer.
         std::size_t effect_layers = 0, plain_layers = 0;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<render::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
+            if (const auto* l = std::get_if<xrender::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
         check(effect_layers >= 2, std::format("the window's effect and the text's: {} effect layers", effect_layers));
         check(plain_layers >= 1, "the cross-fade from the frame before");
         check(rt.display_list().commands().size() > before, "the old frame drawn over, fading");
@@ -270,7 +270,7 @@ text         = { effect = "paper", grain = 0.2 }
         rt.frame();
         std::size_t plain_after = 0;
         for (const auto& c : rt.display_list().commands())
-            if (const auto* l = std::get_if<render::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
+            if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
         check_eq(plain_after, std::size_t{0});
         // A style's mistakes, where they are, with the names meant.
         const char* wrong = R"toml(

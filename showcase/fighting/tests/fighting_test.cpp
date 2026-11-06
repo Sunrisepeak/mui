@@ -6,11 +6,11 @@
 import std;
 import openmui;
 import openmui.showcase.fighting;
-import openmui.testing;
+import mlibs.testing;
 import gongfu.ai;
 import xengine.audio;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 namespace audio = xengine::audio;
 
@@ -27,7 +27,7 @@ struct Game {
             h.mount("main", spec.view());
         } else {
             h.mount("main", fighting::stage({.id = "stage", .arena = std::string(arena), .mode = std::string(mode), .overlays = overlays, .player1 = std::string(player1),
-                                             .player2 = std::string(player2), .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}));
+                                             .player2 = std::string(player2), .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}));
         }
         h.step();
     }
@@ -114,8 +114,8 @@ int main(int argc, char** argv) {
         Headless h{HeadlessOptions{.size = {960, 540}}};
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
-        h.mount("main", fighting::stage({.id = "stage", .player1 = "kata", .player2 = "kata", .turn_frames = 6, .width = Dim(layout::pct(100)),
-                                         .height = Dim(layout::pct(100))}));
+        h.mount("main", fighting::stage({.id = "stage", .player1 = "kata", .player2 = "kata", .turn_frames = 6, .width = Dim(mlibs::layout::pct(100)),
+                                         .height = Dim(mlibs::layout::pct(100))}));
         h.step();
         auto turn = [&](int player, std::string_view p) {
             Invocation c;
@@ -165,8 +165,8 @@ int main(int argc, char** argv) {
             Headless h{HeadlessOptions{.size = {960, 540}}};
             AppSpec spec = fighting::app();
             spec.setup(h.runtime());
-            h.mount("main", fighting::stage({.id = "stage", .cpu = 1, .player1 = "kata", .player2 = "mo", .width = Dim(layout::pct(100)),
-                                             .height = Dim(layout::pct(100))}));
+            h.mount("main", fighting::stage({.id = "stage", .cpu = 1, .player1 = "kata", .player2 = "mo", .width = Dim(mlibs::layout::pct(100)),
+                                             .height = Dim(mlibs::layout::pct(100))}));
             h.step();
             std::set<std::string> did;
             const auto* stage = h.runtime().component<fighting::Stage>(h.runtime().find("main"));

@@ -30,7 +30,7 @@ struct Model {
     std::vector<std::string> playing;  // the demo's tokens (play)
     double                   rate = 30;
     void play_from(std::size_t i);
-    omui::md::Stream mirror;           // the document as the component has it (for the newest block)
+    mlibs::markdown::Stream mirror;           // the document as the component has it (for the newest block)
 };
 
 // A built-in answer, cut into tokens as a model sends them.

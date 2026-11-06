@@ -28,7 +28,7 @@ public:
     [[nodiscard]] View view();
     // Before the frame: the cut's frame, and what the picture shows there.
     // `played_back`: the film's own frame shown under it (a `film` clip), as an image of `rt`'s store.
-    void at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& shown, std::optional<render::ImageRef> played_back);
+    void at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& shown, std::optional<xrender::ImageRef> played_back);
 
     // The title-safe area (5% in from each edge), where every line lies.
     [[nodiscard]] Rect safe() const noexcept;

@@ -1,10 +1,10 @@
 import std;
 import openmui;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 constexpr std::string_view panel = "main/body/guide/";

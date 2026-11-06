@@ -3,10 +3,14 @@
 module openmui.showcase.promo_video;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import hanim.core;
 import openmui;
 import xengine.video;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::promo {
 
@@ -90,7 +94,7 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
                 : Size{static_cast<float>(cut.timeline.width), static_cast<float>(cut.timeline.height)};
     fonts_ = options_.fonts;
     if (!fonts_) {
-        own_fonts_ = std::make_unique<typeset::FontCollection>();
+        own_fonts_ = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = own_fonts_->add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
         fonts_ = own_fonts_.get();
     }
@@ -108,7 +112,7 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
     // never inferred from the frame drawn before (universal motion's morphs are for interfaces in use).
     overlay_host_->runtime().set_motion_level(MotionLevel::off);
     overlay_host_->mount("main", overlay_->view());
-    out_ = raster::Surface(width(), height());
+    out_ = xrender::raster::Surface(width(), height());
     store_ = options_.store ? options_.store : std::make_shared<FrameStore>();
     // The frames the `film` clips play back, kept as they are drawn.
     const tl::Flicks frame = tl::frame_length(cut.timeline.rate);
@@ -169,12 +173,12 @@ std::expected<void, std::string> Player::draw_scene(const Shown& s) {
     return {};
 }
 
-std::expected<std::shared_ptr<const raster::Surface>, std::string> Player::played_back(std::int64_t frame) {
+std::expected<std::shared_ptr<const xrender::raster::Surface>, std::string> Player::played_back(std::int64_t frame) {
     if (const auto kept = store_->get(frame)) {
-        auto img = imageio::decode_png(*kept);
+        auto img = mlibs::image::decode_png(*kept);
         if (!img) return std::unexpected(img.error());
-        imageio::premultiply(*img);
-        auto s = std::make_shared<raster::Surface>(img->width, img->height);
+        mlibs::image::premultiply(*img);
+        auto s = std::make_shared<xrender::raster::Surface>(img->width, img->height);
         std::memcpy(s->pixels().data(), img->rgba.data(), img->rgba.size());
         return s;
     }
@@ -182,7 +186,7 @@ std::expected<std::shared_ptr<const raster::Surface>, std::string> Player::playe
     Player again(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = again.frame(frame);
     if (!f) return std::unexpected(f.error());
-    return std::make_shared<raster::Surface>(**f);
+    return std::make_shared<xrender::raster::Surface>(**f);
 }
 
 namespace {
@@ -195,32 +199,32 @@ constexpr std::uint32_t mul255(std::uint32_t a, std::uint32_t b) noexcept {
 
 }  // namespace
 
-std::expected<const raster::Surface*, std::string> Player::frame(std::int64_t i) {
+std::expected<const xrender::raster::Surface*, std::string> Player::frame(std::int64_t i) {
     if (i < 0 || i >= frames()) return std::unexpected(std::format("frame {}: the cut has {}", i, frames()));
     const auto s = shown(*cut_, i);
     last_ = s;
     const int w = width(), h = height();
-    std::optional<render::ImageRef> picture;
+    std::optional<xrender::ImageRef> picture;
     Runtime& ort = overlay_host_->runtime();
     if (shown_image_) {
         ort.images().remove(*shown_image_);
         shown_image_.reset();
     }
     if (!s) {
-        out_.clear(raster::Rgba8{0, 0, 0, 255});
+        out_.clear(xrender::raster::Rgba8{0, 0, 0, 255});
     } else if (s->film) {
         auto pic = played_back(tl::frame_at(cut_->timeline.rate, s->source));
         if (!pic) return std::unexpected(pic.error());
         shown_image_ = ort.images().add(*pic);
         picture = shown_image_;
-        out_.clear(raster::Rgba8{0, 0, 0, 255});
+        out_.clear(xrender::raster::Rgba8{0, 0, 0, 255});
     } else {
         if (auto r = draw_scene(*s); !r) return std::unexpected(r.error());
-        const raster::Surface& px = scene_->host->pixels();
+        const xrender::raster::Surface& px = scene_->host->pixels();
         const auto level = static_cast<std::uint32_t>(std::lround(std::clamp(s->level, 0.0f, 1.0f) * 255));
         for (int y = 0; y < h; ++y) {
-            const raster::Rgba8* from = px.row(y);
-            raster::Rgba8* to = out_.row(y);
+            const xrender::raster::Rgba8* from = px.row(y);
+            xrender::raster::Rgba8* to = out_.row(y);
             if (level == 255) {
                 std::memcpy(to, from, static_cast<std::size_t>(w) * 4);
                 continue;
@@ -233,13 +237,13 @@ std::expected<const raster::Surface*, std::string> Player::frame(std::int64_t i)
     }
     overlay_->at(ort, i, s, picture);
     ort.frame({hanim::seconds(cut_->seconds_of(i)), {}});
-    const raster::Surface& o = overlay_host_->pixels();
+    const xrender::raster::Surface& o = overlay_host_->pixels();
     // The overlay over the picture (both premultiplied; the picture opaque).
     for (int y = 0; y < h; ++y) {
-        const raster::Rgba8* over = o.row(y);
-        raster::Rgba8* to = out_.row(y);
+        const xrender::raster::Rgba8* over = o.row(y);
+        xrender::raster::Rgba8* to = out_.row(y);
         for (int x = 0; x < w; ++x) {
-            const raster::Rgba8 v = over[x];
+            const xrender::raster::Rgba8 v = over[x];
             if (v.a == 0) continue;
             if (v.a == 255) {
                 to[x] = v;
@@ -251,28 +255,28 @@ std::expected<const raster::Surface*, std::string> Player::frame(std::int64_t i)
         }
     }
     if (wanted_.contains(i)) {
-        auto png = imageio::encode_png(imageio::View{reinterpret_cast<const std::uint8_t*>(out_.row(0)), w, h, w * 4, imageio::Alpha::premultiplied});
+        auto png = mlibs::image::encode_png(mlibs::image::View{reinterpret_cast<const std::uint8_t*>(out_.row(0)), w, h, w * 4, mlibs::image::Alpha::premultiplied});
         if (png) store_->put(i, std::move(*png));
     }
     return &out_;
 }
 
-std::expected<raster::Surface, std::string> Player::direct(std::int64_t i) {
+std::expected<xrender::raster::Surface, std::string> Player::direct(std::int64_t i) {
     Player fresh(*film_, *cut_, PlayerOptions{options_.size, options_.scale, options_.subtitles, options_.timebar, options_.chapters, fonts_, {}, options_.parallel_raster});
     auto f = fresh.frame(i);
     if (!f) return std::unexpected(f.error());
     return **f;
 }
 
-std::expected<imageio::View, std::string> Frames::frame(std::int64_t index) {
+std::expected<mlibs::image::View, std::string> Frames::frame(std::int64_t index) {
     auto f = player_->frame(index);
     if (!f) return std::unexpected(f.error());
-    const raster::Surface& s = **f;
-    return imageio::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, imageio::Alpha::premultiplied};
+    const xrender::raster::Surface& s = **f;
+    return mlibs::image::View{reinterpret_cast<const std::uint8_t*>(s.row(0)), s.width(), s.height(), s.width() * 4, mlibs::image::Alpha::premultiplied};
 }
 
-std::uint64_t pixel_hash(const raster::Surface& s) noexcept {
-    hash::Fnv1a h;
+std::uint64_t pixel_hash(const xrender::raster::Surface& s) noexcept {
+    mlibs::hash::Fnv1a h;
     for (int y = 0; y < s.height(); ++y) h.bytes(std::as_bytes(std::span(s.row(y), static_cast<std::size_t>(s.width()))));
     return h.value();
 }

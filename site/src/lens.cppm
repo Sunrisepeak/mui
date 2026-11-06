@@ -4,7 +4,7 @@ export module openmui.site:lens;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 import :lens_contract;
 
@@ -13,7 +13,7 @@ export namespace omui::site {
 class Lens : public LensContract<Lens> {
 public:
     void prop_changed(LensProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 

@@ -8,10 +8,10 @@
 // bits pinned on every platform.
 import std;
 import xengine.audio;
-import openmui.testing;
-import openmui.trace;
+import mlibs.testing;
+import mlibs.trace;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace audio = xengine::audio;
 
 // Heap allocations counted here, in the test program only.
@@ -643,9 +643,9 @@ loop = ["s"]
         audio::Mixer mixer;
         auto seq = audio::Sequencer::attach(m, mixer);
         (*seq)->start(0);
-        omui::trace::start();
+        mlibs::trace::start();
         (void)audio::render(mixer, 48000 * 4);
-        const auto t = omui::trace::stop();
+        const auto t = mlibs::trace::stop();
         const auto spans = std::ranges::count_if(t.events, [](const auto& e) { return std::string_view(e.name) == "audio.music" && std::string_view(e.category) == "audio"; });
         const auto bars = std::ranges::count_if(t.events, [](const auto& e) { return std::string_view(e.name) == "audio.music.bar"; });
         check(spans > 100 && bars >= 2, std::format("{} span events, {} bars", spans, bars));

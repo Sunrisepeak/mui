@@ -3,17 +3,17 @@
 // it to the same tree.
 import std;
 import openmui.semantic;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 namespace sem = omui::semantic;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -201,7 +201,7 @@ int main(int argc, char** argv) {
                 if (app.count.peek() >= 2) app.toast.set(true);
             });
         };
-        session::Session session;
+        mlibs::session::Session session;
         std::uint64_t end = 0;
         {
             Runtime rt(options());
@@ -219,7 +219,7 @@ int main(int argc, char** argv) {
             rec.act("main/row:0/delete", "activate", agent);  // no such verb: an error, recorded as such
             rec.frame({seconds(0.2), {}});
             rec.checkpoint("toast entering");
-            rt.set_device_tier(pipeline::Tier::t1, "a slower board");  // as a host would find it: an input, recorded
+            rt.set_device_tier(mlibs::pipeline::Tier::t1, "a slower board");  // as a host would find it: an input, recorded
             rt.set_motion_choice("ink");                                // the person's motion, chosen in a setting: one too
             rec.frame({seconds(0.5), {}});
             rec.checkpoint();
@@ -231,7 +231,7 @@ int main(int argc, char** argv) {
         check(session.of("adapt").size() == 2 && session.of("adapt")[1]->body.contains("\"tier\":\"T1\"") &&
                   session.of("adapt")[1]->body.contains("\"choice\":\"ink\""), "the adaptations recorded, the person's motion with them");
         check(session.header.width == 320 && session.header.clock == "virtual");
-        auto back = session::Session::parse(session.ndjson());
+        auto back = mlibs::session::Session::parse(session.ndjson());
         check(back.has_value());
         {
             Runtime rt(options());
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
             check(r.ok(), std::format("{}", r.mismatches));
             check(r.frames == 4 && r.actions == 2 && r.checkpoints == 3);
             check(r.digest == end);
-            check(rt.adaptation().tier == pipeline::Tier::t1 && rt.motion_choice() == "ink", "replayed, drawn as the recording was");
+            check(rt.adaptation().tier == mlibs::pipeline::Tier::t1 && rt.motion_choice() == "ink", "replayed, drawn as the recording was");
         }
         {
             // Up to a time: seeking a bug to the moment before it.

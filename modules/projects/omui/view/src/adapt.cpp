@@ -9,8 +9,12 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.pipeline;
+import mlibs.pipeline;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui {
 
@@ -38,16 +42,16 @@ void Runtime::Impl::govern(double ms) {
         if (next.motion != MotionLevel::off) {
             next.motion = static_cast<MotionLevel>(static_cast<int>(next.motion) + 1);
             next.reason = std::format("frames over their {:.1f} ms: motion {}", budget, next.motion == MotionLevel::off ? "off" : "reduced");
-        } else if (next.effects > pipeline::Tier::t0) {
-            next.effects = static_cast<pipeline::Tier>(static_cast<int>(next.effects) - 1);
-            next.reason = std::format("frames over their {:.1f} ms: effects as on {}", budget, pipeline::name(next.effects));
+        } else if (next.effects > mlibs::pipeline::Tier::t0) {
+            next.effects = static_cast<mlibs::pipeline::Tier>(static_cast<int>(next.effects) - 1);
+            next.reason = std::format("frames over their {:.1f} ms: effects as on {}", budget, mlibs::pipeline::name(next.effects));
         }
     }
     // Every frame of a long while under half the budget: one step back up.
     else if (cost_frames >= patience && have >= patience && last(patience, [&](float c) { return c < budget / 2; }) == patience) {
-        if (next.effects < pipeline::Tier::t4) {
-            next.effects = static_cast<pipeline::Tier>(static_cast<int>(next.effects) + 1);
-            next.reason = std::format("room in the frame: effects as on {}", pipeline::name(next.effects));
+        if (next.effects < mlibs::pipeline::Tier::t4) {
+            next.effects = static_cast<mlibs::pipeline::Tier>(static_cast<int>(next.effects) + 1);
+            next.reason = std::format("room in the frame: effects as on {}", mlibs::pipeline::name(next.effects));
         } else if (next.motion != MotionLevel::full) {
             next.motion = static_cast<MotionLevel>(static_cast<int>(next.motion) - 1);
             next.reason = std::format("room in the frame: motion {}", next.motion == MotionLevel::full ? "full" : "reduced");
@@ -62,7 +66,7 @@ void Runtime::Impl::govern(double ms) {
     touch(dirty_paint);
 }
 
-void Runtime::set_device_tier(pipeline::Tier tier, std::string reason) {
+void Runtime::set_device_tier(mlibs::pipeline::Tier tier, std::string reason) {
     Impl& d = *impl_;
     if (d.adaptation.tier == tier) return;
     d.adaptation.tier = tier;

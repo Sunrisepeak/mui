@@ -31,8 +31,4 @@ finite dividend. The raster dash walker uses this common operation to wrap
 large finite offsets. Its CTS includes exact integer witnesses at the largest
 finite double and subnormal phases; no caller implements another reducer.
 
-The package and public import are `mlibs.math`. The legacy
-`import openmui.math;` and `omui::math` API remain source-compatible
-within this same package; rebuild C++ consumers. Both entry points share the
-same types, implementation and state. No extra compatibility package is needed.
-See the [namespace migration guide](../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#5-n1首组五个基础库的实际迁移).
+The package and public import are `mlibs.math`.

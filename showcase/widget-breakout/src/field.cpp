@@ -153,8 +153,8 @@ void Field::show_style() {
     emit_style(std::move(want));
 }
 
-void Field::style(const Theme&, layout::Style& s) const {
-    s.direction = layout::Direction::column;  // its bricks stand where they are placed (absolutely)
+void Field::style(const Theme&, mlibs::layout::Style& s) const {
+    s.direction = mlibs::layout::Direction::column;  // its bricks stand where they are placed (absolutely)
 }
 
 std::vector<NodeId> Field::bricks() const {

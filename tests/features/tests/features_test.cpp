@@ -2,9 +2,9 @@
 // took the matching branch at compile time.
 import std;
 import openmui.features;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace f = omui::features;
 
 static_assert(f::sink_name == "stdout" || f::sink_name == "memory");

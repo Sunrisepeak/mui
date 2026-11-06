@@ -9,11 +9,11 @@ import std;
 
 import openmui.ui.canvas;
 import openmui.host.headless;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.testing;
+import xrender.vector;
+import xrender.raster;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -51,9 +51,9 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return e.exit_code().value_or(-1);
 }
 
-std::size_t count_rects(const render::DisplayList& l) {
+std::size_t count_rects(const xrender::DisplayList& l) {
     std::size_t n = 0;
-    for (const auto& c : l.commands()) n += std::holds_alternative<render::FillRect>(c) || std::holds_alternative<render::FillRoundRect>(c);
+    for (const auto& c : l.commands()) n += std::holds_alternative<xrender::FillRect>(c) || std::holds_alternative<xrender::FillRoundRect>(c);
     return n;
 }
 
@@ -140,7 +140,7 @@ int main(int argc, char** argv) {
         sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::custom}, {400, world::Tier::Draw::promote}},
                                     .draw = [&](world::DrawContext& d) {
                                         ++custom_draws;
-                                        d.list.fill_round_rect(d.screen, CornerRadii::all(6), render::Paint::solid(Color::hex(0x2563eb)));
+                                        d.list.fill_round_rect(d.screen, CornerRadii::all(6), xrender::Paint::solid(Color::hex(0x2563eb)));
                                     },
                                     .promote = [](const world::Scene& s, world::NodeRef n) -> Element {
                                         return column({.padding = 8}, {text({.id = "title", .text = std::string(s.text(n, "title"))})});
@@ -286,7 +286,7 @@ int main(int argc, char** argv) {
         sc.clear();
         std::atomic<int> built = 0;
         sc.kind("doc", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}},
-                                   .content = [&](const world::Scene& s, world::NodeRef n, render::DisplayList& dl) {
+                                   .content = [&](const world::Scene& s, world::NodeRef n, xrender::DisplayList& dl) {
                                        ++built;
                                        const auto r = s.rect(n);
                                        dl.fill_rect({0, 0, static_cast<float>(r.width), static_cast<float>(r.height)},
@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto d5 = *sc.find("d5");
-        const raster::Rgba8 grey = raster::premultiply(Color::hex(0x94a3b8)), red = raster::premultiply(Color::hex(0xdc2626));
+        const xrender::raster::Rgba8 grey = xrender::raster::premultiply(Color::hex(0x94a3b8)), red = xrender::raster::premultiply(Color::hex(0xdc2626));
         check(at(d5) == grey, "a box until its texture is in");
         h.settle();
         check(built.load() >= 12, std::format("every visible node's content was built ({})", built.load()));
@@ -318,16 +318,16 @@ int main(int argc, char** argv) {
         h.step();
         check(at(d5) == red, "the old texture meanwhile, not a box");
         h.settle();
-        check(at(d5) == raster::premultiply(Color::hex(0x16a34a)), "the new content");
+        check(at(d5) == xrender::raster::premultiply(Color::hex(0x16a34a)), "the new content");
         // Closer: a sharper level is asked for; the one in is stretched meanwhile, never a box.
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(2.5));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(sc.rect(d5).x + 120));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(sc.rect(d5).y + 100));
         h.step();
         const auto centre = h.pixels().at(400, 300);
-        check(centre == raster::premultiply(Color::hex(0x16a34a)), "the coarser texture, stretched, at once");
+        check(centre == xrender::raster::premultiply(Color::hex(0x16a34a)), "the coarser texture, stretched, at once");
         h.settle();
-        check(h.pixels().at(400, 300) == raster::premultiply(Color::hex(0x16a34a)), "and the sharper one when it is in");
+        check(h.pixels().at(400, 300) == xrender::raster::premultiply(Color::hex(0x16a34a)), "and the sharper one when it is in");
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(0.6));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(570.0));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(350.0));
@@ -373,9 +373,9 @@ int main(int argc, char** argv) {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto band = [&] { return at(sc.rect(c4).x + 140, sc.rect(c4).y + 20); };
-        check(band() == raster::premultiply(Color::hex(0x94a3b8)), "a box before its texture is in");
+        check(band() == xrender::raster::premultiply(Color::hex(0x94a3b8)), "a box before its texture is in");
         h.settle();
-        check(band() == raster::premultiply(Color::hex(0x0ea5e9)), "the view's band, from the texture");
+        check(band() == xrender::raster::premultiply(Color::hex(0x0ea5e9)), "the view's band, from the texture");
         // The texture is the view's own pixels: the same region drawn live (promoted, at 1:1) is the same bytes.
         const Rect region = [&] {
             const Rect r = cam.to_screen(sc.rect(c4), {800, 600});
@@ -394,7 +394,7 @@ int main(int argc, char** argv) {
         h.runtime().set_theme(Theme::dark_theme());
         h.settle();
         const auto dark = at(sc.rect(c4).x + 140, sc.rect(c4).y + 150);
-        check(light == raster::premultiply(Theme::light().color("surface")) && dark == raster::premultiply(Theme::dark_theme().color("surface")),
+        check(light == xrender::raster::premultiply(Theme::light().color("surface")) && dark == xrender::raster::premultiply(Theme::dark_theme().color("surface")),
               "the card's surface follows the theme");
     });
 

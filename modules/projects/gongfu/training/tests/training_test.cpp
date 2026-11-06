@@ -5,9 +5,9 @@
 // was held and for how long, and the dummy plays a recording back exactly.
 import std;
 import gongfu.training;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace gongfu;
 namespace tr = gongfu::training;
 

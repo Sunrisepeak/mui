@@ -2,15 +2,15 @@
 // separate processes by substring to distinguish device setup from shader JIT.
 // No vector renderer, materials, UI or site code is involved.
 import std;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.rhi.cts;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import mlibs.rhi.cts;
 import mcpplibs.os;
-import openmui.testing;
+import mlibs.testing;
 
 namespace sdl = xrender::rhi::sdl;
-using namespace omui::testing;
-using namespace omui::rhi;
+using namespace mlibs::testing;
+using namespace mlibs::rhi;
 namespace {
 std::unique_ptr<Device> device() {
     sdl::Options options; options.formats = cts::shader_formats();

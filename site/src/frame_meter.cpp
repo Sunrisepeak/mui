@@ -3,7 +3,7 @@ module openmui.site;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 
 namespace omui::site {
@@ -74,7 +74,7 @@ void FrameMeter::prop_changed(FrameMeterProp) {
     services().invalidate_semantics(node());
 }
 
-Size FrameMeter::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size FrameMeter::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     return {width.value_or(meter_width), height.value_or(meter_height)};
 }
 
@@ -94,15 +94,15 @@ void FrameMeter::paint(PaintContext& ctx) const {
         });
     }
     const float w = ctx.size.width, h = ctx.size.height;
-    out.fill_round_rect({0, 0, w, h}, CornerRadii::all(h / 2), render::Paint::solid(th.color("background").with_alpha(0.6f)));
-    out.stroke_round_rect({0.5f, 0.5f, w - 1, h - 1}, CornerRadii::all(h / 2 - 0.5f), 1, render::Paint::solid(th.color("border").with_alpha(0.7f)));
+    out.fill_round_rect({0, 0, w, h}, CornerRadii::all(h / 2), xrender::Paint::solid(th.color("background").with_alpha(0.6f)));
+    out.stroke_round_rect({0.5f, 0.5f, w - 1, h - 1}, CornerRadii::all(h / 2 - 0.5f), 1, xrender::Paint::solid(th.color("border").with_alpha(0.7f)));
 
     // Who draws: the GPU's name in the accent, the CPU's quieter; a dot that is lit while frames are drawn.
     const bool gpu = r.renderer != "cpu";
     const Color who = gpu ? th.color("accent") : th.color("text_muted");
     const float cy = h / 2;
     out.fill_round_rect({pad + 2, cy - 3, 6, 6}, CornerRadii::all(3),
-                        render::Paint::solid(r.idle ? th.color("text_muted").with_alpha(0.45f) : th.color("success", Color::hex(0x34d399))));
+                        xrender::Paint::solid(r.idle ? th.color("text_muted").with_alpha(0.45f) : th.color("success", Color::hex(0x34d399))));
     float x = pad + 14;
     device_.set_style("caption");
     device_.set_text(device_name(r.renderer));

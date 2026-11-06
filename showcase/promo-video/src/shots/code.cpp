@@ -18,6 +18,10 @@ import openmui.lang.js;
 import openmui.lang.python.embedded;
 import xrender.text;
 
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
+
 namespace omui::promo {
 
 namespace {
@@ -31,7 +35,7 @@ constexpr std::array<std::string_view, 6> tally_ids{"count", "progress", "status
 // The counter as one language's version drew it: its pixels, the hashes
 // of its tree and pixels, where its nodes are.
 struct Tally {
-    std::shared_ptr<const raster::Surface> pixels;
+    std::shared_ptr<const xrender::raster::Surface> pixels;
     std::uint64_t                          tree = 0, picture = 0;
     std::map<std::string, Rect>            bounds;  // by id (tally_ids), logical
     std::string                            error;
@@ -53,7 +57,7 @@ std::string_view source_of(std::string_view language) {
 // Each version run once a process, at a scale: its host, its script.
 Tally run_tally(std::string_view language, float scale) {
     Tally out;
-    typeset::FontCollection fonts;
+    mlibs::text::FontCollection fonts;
     if (auto r = fonts.add_defaults(); !r) warn("promo: the default fonts did not load: {}", r.error());
     Headless h(HeadlessOptions{.size = tally_size, .scale = scale, .background = hex(ink::paper), .theme = blueprint(), .fonts = &fonts, .app = "openmui-promo-tally",
                                .complete_frames = true});
@@ -105,7 +109,7 @@ Tally run_tally(std::string_view language, float scale) {
         }
         abi::detach(handle);
     }
-    out.pixels = std::make_shared<raster::Surface>(h.pixels());
+    out.pixels = std::make_shared<xrender::raster::Surface>(h.pixels());
     out.picture = pixel_hash(*out.pixels);
     semantic::Tree tree(h.runtime());
     out.tree = tree.digest();
@@ -174,7 +178,7 @@ struct State {
     std::map<std::string, double> revealed;  // when each node's line is typed
     Rect   device, panel;      // screen
     float  shown_scale = 1.8f;
-    std::array<render::ImageRef, 4> images{};
+    std::array<xrender::ImageRef, 4> images{};
     std::array<const Tally*, 4> tallies{};
     Labels labels;
 };
@@ -221,8 +225,8 @@ public:
         auto st = s_;
         const bool portrait = c_.portrait();
         Element back = painter({.id = "backdrop",
-                                .width = Dim(layout::pct(100)),
-                                .height = Dim(layout::pct(100)),
+                                .width = Dim(mlibs::layout::pct(100)),
+                                .height = Dim(mlibs::layout::pct(100)),
                                 .role = Role::figure,
                                 .label = "The counter each version of the code draws",
                                 .paint = [st](PaintContext& p) { paint(p, *st); }});
@@ -256,8 +260,8 @@ public:
                                  text({.id = "tree", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 20.0f}),
                                  text({.id = "pixels", .text = "", .style = "code", .color = Fill(hex(ink::ice)), .wrap = false, .size = 20.0f}),
                                  row({.id = "chips", .gap = 14}, std::move(chips))});
-        Element type = stack({.id = "type", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(panel), std::move(badges)});
-        return stack({.id = "code", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "start"}, {std::move(back), std::move(type)});
+        Element type = stack({.id = "type", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"}, {std::move(panel), std::move(badges)});
+        return stack({.id = "code", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "start"}, {std::move(back), std::move(type)});
     }
 
     void mounted(Runtime& rt) override {
@@ -371,8 +375,8 @@ void Code::paint(PaintContext& p, State& s) {
     const Size screen = p.size;
     paint_paper(list, screen, {static_cast<float>(-s.t * 6), 0}, 1);
     // The code's sheet.
-    list.fill_round_rect(s.panel, CornerRadii::all(10), render::Paint::solid(hex(ink::panel, 0.92f)));
-    list.stroke_round_rect(s.panel, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
+    list.fill_round_rect(s.panel, CornerRadii::all(10), xrender::Paint::solid(hex(ink::panel, 0.92f)));
+    list.stroke_round_rect(s.panel, CornerRadii::all(10), 1, xrender::Paint::solid(hex(ink::line, 0.8f)));
     list.fill_rect({s.panel.x + 1, s.panel.y + 57, s.panel.width - 2, 1}, hex(ink::line, 0.6f));
     paint_ticks(list, {s.panel.x - 8, s.panel.y - 8, s.panel.width + 16, s.panel.height + 16}, hex(ink::cyan, 0.5f), 14, 1.5f, 0);
     const Rect d = s.device;
@@ -383,7 +387,7 @@ void Code::paint(PaintContext& p, State& s) {
         const std::size_t i = static_cast<std::size_t>(lang);
         const Tally* v = s.tallies[i];
         list.box_shadow(d, CornerRadii::all(8), {0, 14}, 40, 0, hex(0x000000, 0.5f));
-        list.fill_round_rect(d, CornerRadii::all(8), render::Paint::solid(hex(ink::paper)));
+        list.fill_round_rect(d, CornerRadii::all(8), xrender::Paint::solid(hex(ink::paper)));
         if (v && v->pixels) {
             if (lang == 0) {
                 for (const auto& [id, when] : s.revealed) {
@@ -394,7 +398,7 @@ void Code::paint(PaintContext& p, State& s) {
                     const float kx = static_cast<float>(v->pixels->width()) / tally_size.width, ky = static_cast<float>(v->pixels->height()) / tally_size.height;
                     const Rect src{b.x * kx, b.y * ky, b.width * kx, b.height * ky};
                     const Rect dst{d.x + b.x * s.shown_scale, d.y + b.y * s.shown_scale, b.width * s.shown_scale, b.height * s.shown_scale};
-                    list.draw_image(s.images[i], src, dst, render::Sampling::linear, static_cast<float>(on));
+                    list.draw_image(s.images[i], src, dst, xrender::Sampling::linear, static_cast<float>(on));
                     // Its frame and id, while it is new.
                     const double fresh = on * (1 - smooth(s.t, when + 0.6, when + 1.1));
                     if (fresh > 0) {
@@ -405,7 +409,7 @@ void Code::paint(PaintContext& p, State& s) {
                     }
                 }
             } else {
-                list.draw_image(s.images[i], img_rect(i), d, render::Sampling::linear);
+                list.draw_image(s.images[i], img_rect(i), d, xrender::Sampling::linear);
             }
         }
         paint_ticks(list, {d.x - 10, d.y - 10, d.width + 20, d.height + 20}, hex(ink::cyan, 0.6f), 16, 1.5f, 0);
@@ -420,8 +424,8 @@ void Code::paint(PaintContext& p, State& s) {
             const Rect to{d.x + (i % 2) * (d.width - w), d.y + (i / 2) * (h + 38), w, h};
             const Rect r{static_cast<float>(mix(d.x, to.x, u)), static_cast<float>(mix(d.y, to.y, u)), static_cast<float>(mix(d.width, to.width, u)),
                          static_cast<float>(mix(d.height, to.height, u))};
-            list.fill_round_rect(r, CornerRadii::all(6), render::Paint::solid(hex(ink::paper)));
-            if (s.tallies[i] && s.tallies[i]->pixels) list.draw_image(s.images[i], img_rect(i), r, render::Sampling::linear);
+            list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(hex(ink::paper)));
+            if (s.tallies[i] && s.tallies[i]->pixels) list.draw_image(s.images[i], img_rect(i), r, xrender::Sampling::linear);
             paint_ticks(list, {r.x - 5, r.y - 5, r.width + 10, r.height + 10}, hex(ink::cyan, 0.6f), 10, 1.5f, 0);
             const auto& cap = s.labels.get(p.services.fonts(), std::string(language_names[i]), 18, hex(ink::cyan, static_cast<float>(u)), 600, "JetBrains Mono");
             xrender::text::paint(cap, list, {r.x + 6, r.y - 28});

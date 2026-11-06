@@ -78,7 +78,7 @@ Element session_backdrop(FeatureExamples* s, const FeatureExamplesContext& c, fl
     const bool quiet = s->quiet.get(); const auto cues = s->marks.get();
     // Build the geometry when data changes. Painting only submits the stored
     // path and fixed grid; it owns no clock and allocates no path per frame.
-    render::Path trace;
+    xrender::Path trace;
     trace.move_to({0, 184}).line_to({width * 0.19f, 126}).line_to({width * 0.38f, 188 - level * 55})
         .line_to({width * 0.57f, 115 + level * 45}).line_to({width * 0.78f, 200 - level * 70}).line_to({width, 138});
     PaintOptions chart; chart.id = "chart"; chart.width = Dim(width); chart.height = Dim(height);
@@ -89,7 +89,7 @@ Element session_backdrop(FeatureExamples* s, const FeatureExamplesContext& c, fl
         for (int i = 0; i < 9; ++i) ctx.list.fill_rect({static_cast<float>(i) * width / 8, 88, 1, height - 88}, grid);
         for (int i = 0; i < 7; ++i) ctx.list.fill_rect({0, 96 + static_cast<float>(i) * 26, width, 1}, grid);
         const auto signal = glass ? Color::hex(quiet ? 0x67e8f9 : 0xfbbf24) : ctx.theme.color("accent");
-        ctx.list.stroke_path(trace, {.width = 5, .cap = render::LineCap::round, .join = render::LineJoin::round}, render::Paint::solid(signal.with_alpha(0.85f)));
+        ctx.list.stroke_path(trace, {.width = 5, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(signal.with_alpha(0.85f)));
         const int marks = static_cast<int>(std::clamp<std::int64_t>(cues, 0, 6));
         for (int i = 0; i < marks; ++i) ctx.list.fill_rect({width * (static_cast<float>(i) + 1) / 7, 92, 3, height - 100}, Color::hex(0xfbbf24, 0.7f));
         ctx.list.fill_rect({0, height - 10, width * level, 5}, signal);

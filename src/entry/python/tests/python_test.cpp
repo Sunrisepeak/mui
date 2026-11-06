@@ -4,9 +4,9 @@
 // the system's CPython 3.10+ against it, headless.
 import std;
 import mcpplibs.os;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace os = mcpplibs::os;
 
 namespace {

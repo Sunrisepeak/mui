@@ -6,9 +6,9 @@
 // everywhere.
 import std;
 import xengine.physics;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using xengine::Box;
 using xengine::V2;
 
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
             for (int col = 0; col < 10; ++col) boxes.push_back({100.0 + col * 110, 80.0 + row * 40, 96, 28});
         V2 at{640, 600}, v{7.3, -5.9};
         const double r = 8;
-        std::uint64_t h = omui::hash::Fnv1a::offset;
+        std::uint64_t h = mlibs::hash::Fnv1a::offset;
         int bounces = 0;
         for (int step = 0; step < 10000; ++step) {
             double left = 1;
@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
                 ++bounces;
             }
             for (const Box& w : walls) check(!xengine::overlaps(at, r - 1e-6, w), "never inside a wall");
-            for (const double c : {at.x, at.y}) h = omui::hash::Fnv1a(h).f64(c).value();
+            for (const double c : {at.x, at.y}) h = mlibs::hash::Fnv1a(h).f64(c).value();
         }
         std::println("    room {:016x} ({} bounces)", h, bounces);
         check(bounces > 100, std::format("{} bounces", bounces));

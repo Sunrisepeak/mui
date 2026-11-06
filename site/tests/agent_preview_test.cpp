@@ -5,10 +5,10 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 struct Fixture {
@@ -20,7 +20,7 @@ struct Fixture {
     Runtime* rt;
     site::AgentFeatureContext context;
     Fixture(std::string mode = "use", float room = 600, std::string lang = "en")
-        : width(room), h(HeadlessOptions{.size = {room + 32, 2400}, .tier = pipeline::Tier::t4}), rt(&h.runtime()) {
+        : width(room), h(HeadlessOptions{.size = {room + 32, 2400}, .tier = mlibs::pipeline::Tier::t4}), rt(&h.runtime()) {
         state.mode.set(std::move(mode)); language.set(std::move(lang));
         context.runtime = &rt; context.lang = &language; context.root = "main/agent_feature";
         context.preview_blocked = [this] { return blocked; };

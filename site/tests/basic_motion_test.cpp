@@ -3,10 +3,10 @@
 import std;
 import openmui;
 import openmui.site;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 
@@ -147,7 +147,7 @@ int main(int argc, char** argv) {
             }
             const auto file = media() / (std::string(id) + ".webp");
             check(p.h.save_recording(file, {.delay_num = 1, .delay_den = 15, .quality = 82}).has_value());
-            const auto animation = imageio::load_animated_webp(file);
+            const auto animation = mlibs::image::load_animated_webp(file);
             check(animation && animation->frames.size() > 2, std::string(id) + " contains actual changing animation frames");
             check(std::filesystem::file_size(file) < 1024 * 1024);
         }

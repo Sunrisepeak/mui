@@ -19,8 +19,8 @@ export module openmui.ui.canvas:scene;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
-import openmui.text;
+import xrender.vector;
+import mlibs.text;
 
 export namespace omui::world {
 
@@ -50,12 +50,12 @@ class Scene;
 struct DrawContext {
     const Scene&         scene;
     NodeRef              node;
-    render::DisplayList& list;
+    xrender::DisplayList& list;
     Rect                 screen;  // the node's rectangle in the canvas's pixels (logical)
     double               zoom;
     std::size_t          tier;
     const Theme&         theme;
-    typeset::FontCollection* fonts = nullptr;  // for labels a kind shapes (and keeps: shaping is not per frame)
+    mlibs::text::FontCollection* fonts = nullptr;  // for labels a kind shapes (and keeps: shaping is not per frame)
 };
 
 // How a node looks from a size on screen up (its larger side, logical px).
@@ -79,7 +79,7 @@ struct Kind {
     // Tier::Draw::texture: the node drawn in its own world units (0, 0, w,
     // h), on the UI thread; the canvas rasterises it elsewhere. Its textures
     // are drawn again when the node's content revision moves (Scene::touch).
-    std::function<void(const Scene&, NodeRef, render::DisplayList&)> content;
+    std::function<void(const Scene&, NodeRef, xrender::DisplayList&)> content;
     // Tier::Draw::texture from a view, when `content` is empty: the node as
     // an element — what promote() shows, so a texture and the live node have
     // one layout and one theme — laid out at the node's world size and

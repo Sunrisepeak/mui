@@ -8,17 +8,17 @@
 // page sees it, then the rhi conformance suite (openmui.rhi.cts) — every
 // case with the suite's own shaders, in WGSL.
 import std;
-import openmui.rhi;
-import openmui.rhi.webgpu;
-import openmui.rhi.cts;
-import openmui.simulation.cellular.rhi.cts;
+import mlibs.rhi;
+import xrender.rhi.webgpu;
+import mlibs.rhi.cts;
+import xengine.simulation.cellular.rhi.cts;
 import mcpplibs.os;
-import openmui.testing;
+import mlibs.testing;
 
 namespace webgpu = xrender::rhi::webgpu;
 
-using namespace omui::testing;
-using namespace omui::rhi;
+using namespace mlibs::testing;
+using namespace mlibs::rhi;
 
 namespace {
 
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
             std::println("cellular CTS not run: this link cannot wait for WebGPU");
             return;
         }
-        auto report = omui::simulation::cellular::gpu::cts::run(*d);
+        auto report = xengine::simulation::cellular::gpu::cts::run(*d);
         check(report.has_value(), report ? "" : report.error().message);
         if (report) {
             check_eq(report->scenarios, 16u);

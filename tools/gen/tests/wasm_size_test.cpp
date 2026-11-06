@@ -3,9 +3,9 @@
 // functions — on a binary made here, byte by byte; and symbols' owners.
 import std;
 import openmui.gen.wasm_size;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

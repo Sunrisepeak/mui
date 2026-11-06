@@ -1,15 +1,15 @@
 // A missing outline does not imply a missing glyph: spaces have a valid,
 // empty coverage mask. Keep unsupported bitmap-only fallback explicit.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 
 namespace {
 enum class Kind { blank, missing, bitmap, color };

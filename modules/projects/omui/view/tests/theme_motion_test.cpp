@@ -2,12 +2,12 @@
 // These probes deliberately combine a live node morph and a scoped crossfade.
 import std;
 import openmui.view;
-import openmui.raster;
-import openmui.testing;
+import xrender.raster;
+import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 Theme themed(bool dark) {
@@ -15,7 +15,7 @@ Theme themed(bool dark) {
     theme.motion["motion.normal"] = Transition::tween(seconds(1), hanim::ease::linear);
     return theme;
 }
-RuntimeOptions options(typeset::FontCollection& fonts, bool reduce = false) {
+RuntimeOptions options(mlibs::text::FontCollection& fonts, bool reduce = false) {
     RuntimeOptions out; out.fonts = &fonts; out.size = {260, 100}; out.theme = themed(false); out.reduce_motion = reduce; return out;
 }
 // A tiny native overlay exercises the current ranges painted after history.
@@ -26,7 +26,7 @@ struct QualityOverlay {
     void paint(PaintContext& context) const { context.list.fill_rect({0, 0, context.size.width, context.size.height}, context.theme.color("accent")); }
 };
 struct Probe {
-    typeset::FontCollection fonts;
+    mlibs::text::FontCollection fonts;
     Runtime runtime{options(fonts)};
     xrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(0.0f);
@@ -54,15 +54,15 @@ struct Probe {
     }
     void frame(double time) { check(runtime.frame({seconds(time), {}}).failure.empty()); }
     void begin() { x.set(60); frame(1); frame(1.25); }
-    std::span<const render::Command> current_commands() const {
+    std::span<const xrender::Command> current_commands() const {
         const auto commands = runtime.display_list().commands();
         std::size_t depth = 0; bool root = false;
         for (std::size_t i = 0; i < commands.size(); ++i) {
-            if (const auto* n = std::get_if<render::BeginNode>(&commands[i])) {
+            if (const auto* n = std::get_if<xrender::BeginNode>(&commands[i])) {
                 const auto id = runtime.node_at_index(n->node);
                 if (!root && runtime.valid(id) && runtime.path(id) == "main") root = true;
                 if (root) ++depth;
-            } else if (root && std::holds_alternative<render::EndNode>(commands[i])) {
+            } else if (root && std::holds_alternative<xrender::EndNode>(commands[i])) {
                 if (depth && --depth == 0) return commands.first(i + 1);
             }
         }
@@ -70,7 +70,7 @@ struct Probe {
     }
     std::map<std::string, std::size_t> markers() const {
         std::map<std::string, std::size_t> out;
-        for (const auto& command : current_commands()) if (const auto* n = std::get_if<render::BeginNode>(&command)) {
+        for (const auto& command : current_commands()) if (const auto* n = std::get_if<xrender::BeginNode>(&command)) {
             const auto id = runtime.node_at_index(n->node);
             if (runtime.valid(id)) ++out[runtime.path(id)];
         }
@@ -82,29 +82,29 @@ struct Probe {
         std::vector<Affine> transforms(1); std::vector<bool> nodes;
         std::vector<float> out;
         for (const auto& command : current_commands()) {
-            if (const auto* t = std::get_if<render::PushTransform>(&command)) transforms.push_back(transforms.back() * t->transform);
-            else if (std::holds_alternative<render::PopTransform>(command)) { if (transforms.size() > 1) transforms.pop_back(); }
-            else if (const auto* n = std::get_if<render::BeginNode>(&command)) {
+            if (const auto* t = std::get_if<xrender::PushTransform>(&command)) transforms.push_back(transforms.back() * t->transform);
+            else if (std::holds_alternative<xrender::PopTransform>(command)) { if (transforms.size() > 1) transforms.pop_back(); }
+            else if (const auto* n = std::get_if<xrender::BeginNode>(&command)) {
                 const auto id = runtime.node_at_index(n->node);
                 nodes.push_back(runtime.valid(id) && runtime.path(id) == "main/pane/track/thumb");
-            } else if (std::holds_alternative<render::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
+            } else if (std::holds_alternative<xrender::EndNode>(command)) { if (!nodes.empty()) nodes.pop_back(); }
             else if (!nodes.empty() && nodes.back()) {
-                if (const auto* f = std::get_if<render::FillRect>(&command); f && f->paint.color.r > 0.85f && f->paint.color.g < 0.2f)
+                if (const auto* f = std::get_if<xrender::FillRect>(&command); f && f->paint.color.r > 0.85f && f->paint.color.g < 0.2f)
                     out.push_back(transforms.back().apply({f->rect.x, f->rect.y}).x);
             }
         }
         return out;
     }
-    raster::Surface pixels() {
-        raster::Surface surface(260, 100);
-        render::CpuRenderer renderer; render::CpuOptions opts; opts.background = Color::white(); opts.object_ids = true;
+    xrender::raster::Surface pixels() {
+        xrender::raster::Surface surface(260, 100);
+        xrender::CpuRenderer renderer; xrender::CpuOptions opts; opts.background = Color::white(); opts.object_ids = true;
         const auto result = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, opts);
         check(result.commands > 0 && result.missing_images == 0 && result.missing_glyphs == 0, "the complete current/history display list renders natively");
         const auto owners = renderer.object_ids(); pixel_owners.assign(owners.begin(), owners.end());
         return surface;
     }
 };
-bool region_equal(const raster::Surface& a, const raster::Surface& b, int left = 0, int top = 0, int width = 260, int height = 100) {
+bool region_equal(const xrender::raster::Surface& a, const xrender::raster::Surface& b, int left = 0, int top = 0, int width = 260, int height = 100) {
     for (int y = top; y < top + height; ++y) for (int x = left; x < left + width; ++x) if (a.at(x, y) != b.at(x, y)) return false;
     return true;
 }

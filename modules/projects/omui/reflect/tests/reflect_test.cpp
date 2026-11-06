@@ -7,9 +7,9 @@ import openmui.view;
 import openmui.ui.base;
 import openmui.host.headless;
 import openmui.reflect;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

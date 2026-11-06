@@ -5,17 +5,17 @@
 import std;
 import openmui.ui.base;
 import openmui.host.headless;
-import openmui.image;
-import openmui.testing;
+import mlibs.image;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -650,7 +650,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("overlays in a picture: an open select and an open menu", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({360, 240});
         o.fonts = &own;
@@ -765,7 +765,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the gallery is the same pixels on every platform", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({320, 260});
         o.fonts = &own;
@@ -797,7 +797,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("universal motion's use cases 1, 2, 4, 7 on the real components: a switch, a label, a list's order, one switch's three motions — frames pinned", [] {
-        typeset::FontCollection own;
+        mlibs::text::FontCollection own;
         check(own.add_defaults().has_value());
         HeadlessOptions o = options({320, 260});
         o.fonts = &own;

@@ -18,20 +18,20 @@
 // transforms scene allows two levels more.
 import std;
 import mcpplibs.os;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.image;
-import openmui.testing;
-import openmui.trace;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import mlibs.image;
+import mlibs.testing;
+import mlibs.trace;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
-namespace rhi = omui::rhi;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
 
 namespace {
 
@@ -124,10 +124,10 @@ struct Rig {
         if (worst <= t.max_diff && off <= t.max_off_pixels) return {};
         // Both images, to look at.
         const auto dir = scratch_dir("render-gpu");
-        omui::imageio::View cv{reinterpret_cast<const std::uint8_t*>(ref.pixels().data()), W, H, W * 4};
-        omui::imageio::View gv{reinterpret_cast<const std::uint8_t*>(bytes->data()), W, H, W * 4};
-        static_cast<void>(omui::imageio::save_png(dir / std::format("{}.cpu.png", name), cv));
-        static_cast<void>(omui::imageio::save_png(dir / std::format("{}.gpu.png", name), gv));
+        mlibs::image::View cv{reinterpret_cast<const std::uint8_t*>(ref.pixels().data()), W, H, W * 4};
+        mlibs::image::View gv{reinterpret_cast<const std::uint8_t*>(bytes->data()), W, H, W * 4};
+        static_cast<void>(mlibs::image::save_png(dir / std::format("{}.cpu.png", name), cv));
+        static_cast<void>(mlibs::image::save_png(dir / std::format("{}.gpu.png", name), gv));
         const raster::Rgba8 c = ref.at(static_cast<int>(wx), static_cast<int>(wy));
         const auto* g = reinterpret_cast<const std::uint8_t*>(bytes->data()) + (wy * W + wx) * 4;
         return std::format("{}: max diff {} at ({}, {}): cpu ({}, {}, {}, {}) gpu ({}, {}, {}, {}); {} pixels off (images in {})", name, worst,
@@ -206,7 +206,7 @@ void effect_scene(render::DisplayList& dl, std::string_view name, std::vector<st
 // copies (upright, turned 90°, mirrored; turned 30°, a mask of ink, smooth).
 void lit_meshes(render::DisplayList& dl, Rig& r, geom::Color key = {1, 1, 1, 1}) {
     const raster::Rgba8 base{210, 160, 130, 255};
-    omui::imageio::Image disc;
+    mlibs::image::Image disc;
     disc.width = disc.height = 48;
     disc.rgba.assign(48 * 48 * 4, 0);
     std::vector<raster::Rgba8> px(48 * 48);
@@ -219,7 +219,7 @@ void lit_meshes(render::DisplayList& dl, Rig& r, geom::Color key = {1, 1, 1, 1})
             p[0] = base.r, p[1] = base.g, p[2] = base.b, p[3] = 255;
         }
     const render::ImageRef picture = r.images.add(48, 48, px);
-    const omui::imageio::Image n = omui::imageio::normal_map(disc, {.bevel = 12, .smooth = 2});
+    const mlibs::image::Image n = mlibs::image::normal_map(disc, {.bevel = 12, .smooth = 2});
     std::vector<raster::Rgba8> npx(48 * 48);
     std::memcpy(npx.data(), n.rgba.data(), n.rgba.size());
     // A list keeps its own copy of a material.
@@ -633,9 +633,9 @@ int main(int argc, char** argv) {
         dl.fill_rect({20, 16, 40, 30}, geom::Color::hex(0x2563eb));
         dl.pop_layer();
         dl.pop_layer();
-        omui::trace::start();
+        mlibs::trace::start();
         auto first = gpu->render(dl, *target, {});
-        const auto t = omui::trace::stop();
+        const auto t = mlibs::trace::stop();
         check(first.has_value());
         if (!first) return;
         // The target's pass, each layer's, the multiply's composite, and the target and outer layer again after them.
@@ -643,7 +643,7 @@ int main(int argc, char** argv) {
         std::size_t spans = 0;
         bool blend = false;
         for (const auto& e : t.events)
-            if (e.kind == omui::trace::Kind::begin && std::string_view(e.category) == "render") {
+            if (e.kind == mlibs::trace::Kind::begin && std::string_view(e.category) == "render") {
                 ++spans;
                 blend = blend || std::string_view(e.name) == "render.vector.blend";
             }

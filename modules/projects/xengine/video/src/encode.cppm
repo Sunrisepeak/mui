@@ -18,7 +18,7 @@
 export module xengine.video:encode;
 
 import std;
-export import openmui.image;  // the pictures it takes and gives: imageio::View, imageio::Image
+export import mlibs.image;  // the pictures it takes and gives: imageio::View, imageio::Image
 import :timing;
 
 export namespace xengine::video {

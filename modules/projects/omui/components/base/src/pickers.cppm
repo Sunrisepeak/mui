@@ -37,8 +37,8 @@ public:
 
     void mounted();
     void prop_changed(DatePickerProp p);
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -78,8 +78,8 @@ public:
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
     bool set_prop(std::string_view k, const Value& v);
     [[nodiscard]] Value get_prop(std::string_view k) const;
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -114,8 +114,8 @@ public:
 
     void mounted();
     void prop_changed(TimePickerProp p);
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -152,8 +152,8 @@ public:
 
     void mounted();
     void prop_changed(ColorPickerProp p);
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -200,8 +200,8 @@ public:
     void mount(Services& s, NodeId n) { services_ = &s, node_ = n; }
     bool set_prop(std::string_view k, const Value& v);
     [[nodiscard]] Value get_prop(std::string_view k) const;
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;

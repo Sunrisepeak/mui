@@ -1,14 +1,14 @@
 module xengine.audio;
 
 import std;
-import openmui.hash;
-import openmui.math;
-import openmui.trace;
+import mlibs.hash;
+import mlibs.math;
+import mlibs.trace;
 import :dsp;
 
 namespace xengine::audio {
 
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 
 using namespace dsp;
 
@@ -303,7 +303,7 @@ struct Mixer::Impl {
                     const float gain = std::isfinite(value) ? std::clamp(value, 0.0f, 8.0f) : 0.0f;
                     gain_values[i] = b.gain * gain;
                 }
-                omui::trace::count("audio.automation.invalid", static_cast<double>(invalid), "audio");
+                mlibs::trace::count("audio.automation.invalid", static_cast<double>(invalid), "audio");
             }
             if (b.to >= 0) {
                 Bus& into = buses[static_cast<std::size_t>(b.to)];
@@ -331,7 +331,7 @@ struct Mixer::Impl {
             out[2 * i + 1] = static_cast<float>(master_right[i] * limit);
         }
         clock = to;
-        omui::trace::count("audio.voices", static_cast<double>(std::ranges::count_if(voices, [](const Voice& v) { return v.active; })), "audio");
+        mlibs::trace::count("audio.voices", static_cast<double>(std::ranges::count_if(voices, [](const Voice& v) { return v.active; })), "audio");
     }
 };
 
@@ -462,7 +462,7 @@ bool Mixer::play(std::int32_t sound, std::int64_t at, float gain, float pan, flo
 }
 
 void Mixer::render(std::span<float> out) noexcept {
-    omui::trace::Span span("audio.render", "audio");
+    mlibs::trace::Span span("audio.render", "audio");
     std::int64_t frames = static_cast<std::int64_t>(out.size() / 2);
     std::size_t at = 0;
     while (frames > 0) {

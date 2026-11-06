@@ -4,13 +4,12 @@
 // should be; the C++ a build compiles, and rhi descriptions that a device's
 // checks accept.
 import std;
-import openmui.rhi;
-import openmui.shader;
-import openmui.testing;
+import mlibs.rhi;
+import mlibs.shader;
+import mlibs.testing;
 import mcpplibs.os;
 
-using namespace omui::testing;
-using namespace omui;
+using namespace mlibs::testing;
 
 namespace {
 
@@ -26,8 +25,8 @@ std::uint32_t word(const std::vector<std::byte>& b) {
 
 std::string text(const std::vector<std::byte>& b) { return {reinterpret_cast<const char*>(b.data()), b.size()}; }
 
-std::string refusal(std::string_view file, rhi::ShaderFormats formats = rhi::formats({rhi::ShaderFormat::spirv})) {
-    auto p = shader::compile(data(file), {.formats = formats});
+std::string refusal(std::string_view file, mlibs::rhi::ShaderFormats formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv})) {
+    auto p = mlibs::shader::compile(data(file), {.formats = formats});
     return p ? std::string("<compiled>") : p.error();
 }
 
@@ -37,48 +36,48 @@ int main(int argc, char** argv) {
     Suite s{"shader"};
 
     s.test("slangc is found: the provisioned one, unless OMUI_SLANGC names another", [] {
-        auto c = shader::find_slangc();
+        auto c = mlibs::shader::find_slangc();
         check(c.has_value(), c ? "" : c.error());
-        check(!shader::provisioned_slangc.empty(), "mcpp provisioned xim:slang for this build");
+        check(!mlibs::shader::provisioned_slangc.empty(), "mcpp provisioned xim:slang for this build");
     });
 
     s.test("a vertex and a fragment shader: each in SPIR-V and MSL, resources counted", [] {
-        auto p = shader::compile(data("quad.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl})});
+        auto p = mlibs::shader::compile(data("quad.slang"), {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl})});
         check(p.has_value(), p ? "" : p.error());
         if (!p) return;
         check_eq(p->entries.size(), std::size_t{2});
-        const shader::Entry* vs = p->entry("quad_vs");
-        const shader::Entry* fs = p->entry("quad_fs");
+        const mlibs::shader::Entry* vs = p->entry("quad_vs");
+        const mlibs::shader::Entry* fs = p->entry("quad_fs");
         check(vs && fs);
         if (!vs || !fs) return;
-        check(vs->stage == rhi::Stage::vertex && fs->stage == rhi::Stage::fragment);
-        check(vs->counts == rhi::Counts{.uniform_buffers = 1}, "the vertex stage: one constant buffer");
-        check(fs->counts == rhi::Counts{.samplers = 1, .uniform_buffers = 1}, "the fragment stage: a sampled texture and a constant buffer");
-        const auto* spv = fs->code_for(rhi::ShaderFormat::spirv);
+        check(vs->stage == mlibs::rhi::Stage::vertex && fs->stage == mlibs::rhi::Stage::fragment);
+        check(vs->counts == mlibs::rhi::Counts{.uniform_buffers = 1}, "the vertex stage: one constant buffer");
+        check(fs->counts == mlibs::rhi::Counts{.samplers = 1, .uniform_buffers = 1}, "the fragment stage: a sampled texture and a constant buffer");
+        const auto* spv = fs->code_for(mlibs::rhi::ShaderFormat::spirv);
         check(spv && spv->bytes.size() > 20 && word(spv->bytes) == 0x07230203u, "SPIR-V, by its magic number");
-        const auto* msl = fs->code_for(rhi::ShaderFormat::msl);
+        const auto* msl = fs->code_for(mlibs::rhi::ShaderFormat::msl);
         check(msl && text(msl->bytes).contains("quad_fs") && text(msl->bytes).contains("[[texture(0)]]") &&
                   text(msl->bytes).starts_with("#pragma METAL fp math_mode(safe)\n#pragma METAL fp contract(off)\n"),
               "MSL, its entry point kept by name and its texture at slot 0");
         check(std::ranges::any_of(p->dependencies, [](const auto& d) { return d.filename() == "quad.slang"; }), "the depfile names the source");
         // The description a device checks.
-        std::vector<rhi::ShaderCode> codes;
-        const rhi::ShaderDesc d = shader::desc(*fs, codes, "quad.slang:quad_fs");
-        check(rhi::check(d, rhi::formats({rhi::ShaderFormat::spirv})).empty() && d.samplers == 1 && d.entry == "quad_fs");
+        std::vector<mlibs::rhi::ShaderCode> codes;
+        const mlibs::rhi::ShaderDesc d = mlibs::shader::desc(*fs, codes, "quad.slang:quad_fs");
+        check(mlibs::rhi::check(d, mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv})).empty() && d.samplers == 1 && d.entry == "quad_fs");
     });
 
     s.test("entries the caller names: the same program as discovery's, in one slangc start", [] {
-        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl});
-        auto found = shader::compile(data("quad.slang"), {.formats = formats});
+        const auto formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl});
+        auto found = mlibs::shader::compile(data("quad.slang"), {.formats = formats});
         const auto from = std::chrono::steady_clock::now();
-        auto named = shader::compile(data("quad.slang"), {.formats = formats,
-                                                         .entries = {{"quad_vs", rhi::Stage::vertex}, {"quad_fs", rhi::Stage::fragment}}});
+        auto named = mlibs::shader::compile(data("quad.slang"), {.formats = formats,
+                                                         .entries = {{"quad_vs", mlibs::rhi::Stage::vertex}, {"quad_fs", mlibs::rhi::Stage::fragment}}});
         const auto took = std::chrono::steady_clock::now() - from;
         check(found.has_value() && named.has_value(), named ? "" : named.error());
         if (!found || !named) return;
         check_eq(named->entries.size(), std::size_t{2});
-        for (const shader::Entry& e : found->entries) {
-            const shader::Entry* n = named->entry(e.name);
+        for (const mlibs::shader::Entry& e : found->entries) {
+            const mlibs::shader::Entry* n = named->entry(e.name);
             check(n && n->stage == e.stage && n->counts == e.counts && n->code.size() == e.code.size(), e.name);
             if (!n) continue;
             for (std::size_t i = 0; i < e.code.size() && i < n->code.size(); ++i)
@@ -86,22 +85,22 @@ int main(int argc, char** argv) {
         }
         std::println("  named entries, SPIR-V and MSL: {} ms", std::chrono::duration_cast<std::chrono::milliseconds>(took).count());
         // A name the file does not have is slangc's error, with the name.
-        auto missing = shader::compile(data("quad.slang"), {.entries = {{"nope_fs", rhi::Stage::fragment}}});
+        auto missing = mlibs::shader::compile(data("quad.slang"), {.entries = {{"nope_fs", mlibs::rhi::Stage::fragment}}});
         check(!missing && missing.error().contains("nope_fs"), missing ? "" : missing.error());
     });
 
     s.test("in this process (Slang's library, a warm session) and by slangc: the same program, the same diagnostics", [] {
-        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl});
-        auto warm = shader::compile(data("quad.slang"), {.formats = formats});  // the session made, the core module loaded
+        const auto formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl});
+        auto warm = mlibs::shader::compile(data("quad.slang"), {.formats = formats});  // the session made, the core module loaded
         const auto from = std::chrono::steady_clock::now();
-        auto inside = shader::compile(data("quad.slang"), {.formats = formats});
+        auto inside = mlibs::shader::compile(data("quad.slang"), {.formats = formats});
         const auto took = std::chrono::steady_clock::now() - from;
-        auto outside = shader::compile(data("quad.slang"), {.formats = formats, .in_process = false});
+        auto outside = mlibs::shader::compile(data("quad.slang"), {.formats = formats, .in_process = false});
         check(warm.has_value() && inside.has_value() && outside.has_value(), inside ? (outside ? "" : outside.error()) : inside.error());
         if (!inside || !outside) return;
         check_eq(inside->entries.size(), outside->entries.size());
-        for (const shader::Entry& e : outside->entries) {
-            const shader::Entry* i = inside->entry(e.name);
+        for (const mlibs::shader::Entry& e : outside->entries) {
+            const mlibs::shader::Entry* i = inside->entry(e.name);
             check(i && i->stage == e.stage && i->counts == e.counts && i->code.size() == e.code.size(), e.name);
             if (!i) continue;
             for (std::size_t k = 0; k < e.code.size() && k < i->code.size(); ++k) {
@@ -110,11 +109,11 @@ int main(int argc, char** argv) {
                 std::size_t at = 0;
                 while (at < a.size() && at < b.size() && a[at] == b[at]) ++at;
                 check(i->code[k].format == e.code[k].format && a == b,
-                      std::format("{} ({}): the same bytes — {} and {} long, first difference at {}", e.name, rhi::name(e.code[k].format), a.size(),
+                      std::format("{} ({}): the same bytes — {} and {} long, first difference at {}", e.name, mlibs::rhi::name(e.code[k].format), a.size(),
                                   b.size(), at));
             }
         }
-        auto names = [](const shader::Program& p) {
+        auto names = [](const mlibs::shader::Program& p) {
             std::set<std::string> out;
             for (const auto& d : p.dependencies) out.insert(d.filename().string());
             return out;
@@ -128,8 +127,8 @@ int main(int argc, char** argv) {
             std::ofstream f(broken, std::ios::binary);
             f << "[shader(\"fragment\")]\nfloat4 paint() : SV_Target {\n    return undefined_thing;\n}\n";
         }
-        auto a = shader::compile(broken, {.entries = {{"paint", rhi::Stage::fragment}}});
-        auto b = shader::compile(broken, {.entries = {{"paint", rhi::Stage::fragment}}, .in_process = false});
+        auto a = mlibs::shader::compile(broken, {.entries = {{"paint", mlibs::rhi::Stage::fragment}}});
+        auto b = mlibs::shader::compile(broken, {.entries = {{"paint", mlibs::rhi::Stage::fragment}}, .in_process = false});
         check(!a && !b);
         if (!a && !b) {
             check(a.error().contains("undefined_thing") && a.error().contains("broken.slang:3:12"), a.error());
@@ -138,22 +137,22 @@ int main(int argc, char** argv) {
     });
 
     s.test("a compute shader: its work group, what it reads and writes", [] {
-        auto p = shader::compile(data("blur.slang"));
+        auto p = mlibs::shader::compile(data("blur.slang"));
         check(p.has_value(), p ? "" : p.error());
         if (!p) return;
-        const shader::Entry& e = p->entries.at(0);
-        check(e.stage == rhi::Stage::compute && e.name == "blur");
+        const mlibs::shader::Entry& e = p->entries.at(0);
+        check(e.stage == mlibs::rhi::Stage::compute && e.name == "blur");
         check(e.threads == std::array<std::uint32_t, 3>{8, 8, 1});
-        check(e.counts == rhi::Counts{.samplers = 1, .uniform_buffers = 1, .rw_storage_textures = 1});
+        check(e.counts == mlibs::rhi::Counts{.samplers = 1, .uniform_buffers = 1, .rw_storage_textures = 1});
     });
 
     s.test("MSL: bound as SDL_GPU binds Metal, not by register numbers (uniforms, then read-only, then read-write)", [] {
-        auto p = shader::compile(data("buffers.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl})});
+        auto p = mlibs::shader::compile(data("buffers.slang"), {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl})});
         check(p.has_value(), p ? "" : p.error());
         if (!p) return;
-        const shader::Entry& e = p->entries.at(0);
-        check(e.counts == rhi::Counts{.storage_buffers = 2, .uniform_buffers = 1, .rw_storage_textures = 1, .rw_storage_buffers = 1});
-        const auto* msl = e.code_for(rhi::ShaderFormat::msl);
+        const mlibs::shader::Entry& e = p->entries.at(0);
+        check(e.counts == mlibs::rhi::Counts{.storage_buffers = 2, .uniform_buffers = 1, .rw_storage_textures = 1, .rw_storage_buffers = 1});
+        const auto* msl = e.code_for(mlibs::rhi::ShaderFormat::msl);
         check(msl != nullptr);
         if (!msl) return;
         const std::string t = text(msl->bytes);
@@ -170,30 +169,30 @@ int main(int argc, char** argv) {
                              "as the stage's read-only resources it should be [[vk::binding(0, 2)]] … register(t0, space2) : register(s0, space2) "
                              "(rhi's binding convention: each kind right after the kind before it, from 0)"));
         check(refusal("separate.slang").contains("`smp` is a separate sampler: rhi binds a texture with its sampler"), refusal("separate.slang"));
-        const std::string m = refusal("mismatch.slang", rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl}));
+        const std::string m = refusal("mismatch.slang", mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::msl}));
         check(m.contains("`b` is at set 2, binding 1 for Vulkan but at register(t5, space2) for D3D and Metal"), m);
         check(m.contains("write both: [[vk::binding(1, 2)]]"), m);
         check(refusal("missing.slang").contains("missing.slang"), "a file that is not there: slangc says so");
     });
 
     s.test("the C++ a build compiles: constants per entry, the same text for the same program", [] {
-        auto p = shader::compile(data("quad.slang"));
+        auto p = mlibs::shader::compile(data("quad.slang"));
         check(p.has_value(), p ? "" : p.error());
         if (!p) return;
-        const shader::EmitOptions o{.module = "acme.render", .partition = "quad_shaders", .ns = "acme::render::shaders::quad"};
-        const std::string cpp = shader::emit_cpp(*p, o);
+        const mlibs::shader::EmitOptions o{.module = "acme.render", .partition = "quad_shaders", .ns = "acme::render::shaders::quad"};
+        const std::string cpp = mlibs::shader::emit_cpp(*p, o);
         check(cpp.starts_with("// Generated by omui-shader from quad.slang"));
         check(cpp.contains("export module acme.render:quad_shaders;"));
         check(cpp.contains("inline constexpr mlibs::rhi::ShaderDesc quad_fs{"));
         check(cpp.contains("    .samplers = 1,\n"));
         check(cpp.contains("{mlibs::rhi::ShaderFormat::spirv, code::quad_vs_spirv}"));
         check(cpp.contains("inline constexpr std::array<const mlibs::rhi::ShaderDesc*, 2> entries{&quad_vs, &quad_fs};"));
-        auto again = shader::compile(data("quad.slang"));
-        check(again && shader::emit_cpp(*again, o) == cpp, "deterministic");
+        auto again = mlibs::shader::compile(data("quad.slang"));
+        check(again && mlibs::shader::emit_cpp(*again, o) == cpp, "deterministic");
     });
 
     s.test("a depfile's prerequisites: escapes, Windows paths, continued lines", [] {
-        using omui::shader::depfile_prerequisites;
+        using mlibs::shader::depfile_prerequisites;
         using V = std::vector<std::string>;
         check(depfile_prerequisites("out.spv: a.slang b\\ c.slang\n") == V{"a.slang", "b c.slang"});
         // slangc on Windows: the drive's colon escaped, backslash separators kept.
@@ -205,15 +204,15 @@ int main(int argc, char** argv) {
     });
 
     s.test("WGSL: each sampled texture and its sampler a pair of bindings, storage after them, write-only where only written", [] {
-        auto p = shader::compile(data("layers.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl})});
+        auto p = mlibs::shader::compile(data("layers.slang"), {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::wgsl})});
         check(p.has_value(), p ? "" : p.error());
         if (!p) return;
-        const shader::Entry* fs = p->entry("layers_fs");
-        const shader::Entry* cs = p->entry("layers_cs");
-        check(fs && cs && fs->code_for(rhi::ShaderFormat::wgsl) && cs->code_for(rhi::ShaderFormat::wgsl));
+        const mlibs::shader::Entry* fs = p->entry("layers_fs");
+        const mlibs::shader::Entry* cs = p->entry("layers_cs");
+        check(fs && cs && fs->code_for(mlibs::rhi::ShaderFormat::wgsl) && cs->code_for(mlibs::rhi::ShaderFormat::wgsl));
         if (!fs || !cs) return;
-        check(fs->counts == rhi::Counts{.samplers = 2, .storage_buffers = 1, .uniform_buffers = 1});
-        const std::string f = text(fs->code_for(rhi::ShaderFormat::wgsl)->bytes);
+        check(fs->counts == mlibs::rhi::Counts{.samplers = 2, .storage_buffers = 1, .uniform_buffers = 1});
+        const std::string f = text(fs->code_for(mlibs::rhi::ShaderFormat::wgsl)->bytes);
         // Slang wrote base's sampler and over's texture both at binding 1.
         check(f.contains("@binding(0) @group(2) var base_texture_0 : texture_2d<f32>;"), f);
         check(f.contains("@binding(1) @group(2) var base_sampler_0 : sampler;"), f);
@@ -221,40 +220,40 @@ int main(int argc, char** argv) {
         check(f.contains("@binding(3) @group(2) var over_sampler_0 : sampler;"), f);
         check(f.contains("@binding(4) @group(2) var<storage, read> weights_0"), f);
         check(f.contains("@binding(0) @group(3) var<uniform> mix_0"), f);
-        const std::string c = text(cs->code_for(rhi::ShaderFormat::wgsl)->bytes);
+        const std::string c = text(cs->code_for(mlibs::rhi::ShaderFormat::wgsl)->bytes);
         check(c.contains("@binding(0) @group(1) var written_0 : texture_storage_2d<rgba8unorm, write>;"), c);
         check(c.contains("@binding(1) @group(1) var summed_0 : texture_storage_2d<r32float, read_write>;"), c);
-        check(fs->code_for(rhi::ShaderFormat::spirv) != nullptr, "SPIR-V beside it, unchanged");
+        check(fs->code_for(mlibs::rhi::ShaderFormat::spirv) != nullptr, "SPIR-V beside it, unchanged");
         // What Slang writes that is not WGSL: `precise var`, and @interpolate
         // on a struct the fragment stage copies (no @location there).
-        auto flat = shader::compile(data("flat.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl})});
+        auto flat = mlibs::shader::compile(data("flat.slang"), {.formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::wgsl})});
         check(flat.has_value(), flat ? "" : flat.error());
         if (flat)
-            for (const shader::Entry& e : flat->entries) {
-                const std::string w = text(e.code_for(rhi::ShaderFormat::wgsl)->bytes);
+            for (const mlibs::shader::Entry& e : flat->entries) {
+                const std::string w = text(e.code_for(mlibs::rhi::ShaderFormat::wgsl)->bytes);
                 check(!w.contains("precise"), w);
                 for (auto line : std::views::split(w, '\n')) {
                     const std::string_view l(line.begin(), line.end());
                     check(!l.contains("@interpolate(") || l.contains("@location("), std::string(l));
                 }
-                if (e.stage == rhi::Stage::fragment) check(w.contains("@location(0) @interpolate(flat)") || w.contains("@interpolate(flat) @location(0)"), w);
+                if (e.stage == mlibs::rhi::Stage::fragment) check(w.contains("@location(0) @interpolate(flat)") || w.contains("@interpolate(flat) @location(0)"), w);
             }
         // A storage texture with no format: WGSL needs one.
-        const std::string m = refusal("unformatted.slang", rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::wgsl}));
+        const std::string m = refusal("unformatted.slang", mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::wgsl}));
         check(m.contains("`target` is a read-write storage texture with no format") && m.contains("[format(\"rgba8\")]"), m);
         check_eq(refusal("unformatted.slang"), std::string("<compiled>"));
     });
 
     s.test("ESSL: GLSL ES 3.00 with rhi's slots and locations by name, GL's clip space, nothing ES lacks", [] {
-        const auto formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::essl});
+        const auto formats = mlibs::rhi::formats({mlibs::rhi::ShaderFormat::spirv, mlibs::rhi::ShaderFormat::essl});
         std::vector<std::pair<std::string, std::string>> written;  // name, text: what glslang is given below
-        auto essl = [&](const shader::Entry* e) {
-            const auto* c = e ? e->code_for(rhi::ShaderFormat::essl) : nullptr;
+        auto essl = [&](const mlibs::shader::Entry* e) {
+            const auto* c = e ? e->code_for(mlibs::rhi::ShaderFormat::essl) : nullptr;
             if (!c) return std::string();
             written.emplace_back(e->name, text(c->bytes));
             return written.back().second;
         };
-        auto quad = shader::compile(data("quad.slang"), {.formats = formats});
+        auto quad = mlibs::shader::compile(data("quad.slang"), {.formats = formats});
         check(quad.has_value(), quad ? "" : quad.error());
         if (!quad) return;
         const std::string vs = essl(quad->entry("quad_vs")), fs = essl(quad->entry("quad_fs"));
@@ -268,7 +267,7 @@ int main(int argc, char** argv) {
         check(fs.contains("layout(std140) uniform omui_fs_uniform0"), fs);
         for (const std::string& t : {vs, fs}) check(!t.contains("layout(binding") && !t.contains("#line") && !t.contains("#extension"), t);
         // Flat varyings, `precise` gone.
-        auto flat = shader::compile(data("flat.slang"), {.formats = formats});
+        auto flat = mlibs::shader::compile(data("flat.slang"), {.formats = formats});
         check(flat.has_value(), flat ? "" : flat.error());
         if (flat) {
             const std::string fv = essl(flat->entry("flat_vs")), ff = essl(flat->entry("flat_fs"));
@@ -276,7 +275,7 @@ int main(int argc, char** argv) {
             check(!ff.contains("precise"), ff);
         }
         // Draw parameters through omui_base; a name GLSL reserves renamed.
-        auto drawn = shader::compile(data("drawn.slang"), {.formats = formats});
+        auto drawn = mlibs::shader::compile(data("drawn.slang"), {.formats = formats});
         check(drawn.has_value(), drawn ? "" : drawn.error());
         if (drawn) {
             const std::string dv = essl(drawn->entry("drawn_vs"));
@@ -287,12 +286,12 @@ int main(int argc, char** argv) {
             check(essl(drawn->entry("drawn_fs")).contains("flat in uint omui_v0;"));
         }
         // No compute and no storage in ES 3.00: such entries have none.
-        auto layers = shader::compile(data("layers.slang"), {.formats = formats});
+        auto layers = mlibs::shader::compile(data("layers.slang"), {.formats = formats});
         check(layers.has_value(), layers ? "" : layers.error());
         if (layers) {
-            check(!layers->entry("layers_fs")->code_for(rhi::ShaderFormat::essl), "a storage buffer: no ESSL");
-            check(!layers->entry("layers_cs")->code_for(rhi::ShaderFormat::essl), "compute: no ESSL");
-            check(layers->entry("layers_fs")->code_for(rhi::ShaderFormat::spirv) != nullptr);
+            check(!layers->entry("layers_fs")->code_for(mlibs::rhi::ShaderFormat::essl), "a storage buffer: no ESSL");
+            check(!layers->entry("layers_cs")->code_for(mlibs::rhi::ShaderFormat::essl), "compute: no ESSL");
+            check(layers->entry("layers_fs")->code_for(mlibs::rhi::ShaderFormat::spirv) != nullptr);
         }
         // What glslang (OMUI_GLSLANG, or glslangValidator on PATH) says of it all.
         std::optional<std::filesystem::path> glslang;
@@ -318,12 +317,12 @@ int main(int argc, char** argv) {
     });
 
     s.test("the formats a build compiles to, by target and host", [] {
-        using enum rhi::ShaderFormat;
-        check(shader::formats_for("linux", "linux") == rhi::formats({spirv}));
-        check(shader::formats_for("macos", "macos") == rhi::formats({msl}));
-        check(shader::formats_for("windows", "windows") == rhi::formats({spirv, dxbc}));
-        check(shader::formats_for("windows", "linux") == rhi::formats({spirv}), "DXBC needs the Windows host's compiler");
-        check(shader::formats_for("emscripten", "linux") == rhi::formats({wgsl, essl}), "the Web: WebGPU's and WebGL2's");
+        using enum mlibs::rhi::ShaderFormat;
+        check(mlibs::shader::formats_for("linux", "linux") == mlibs::rhi::formats({spirv}));
+        check(mlibs::shader::formats_for("macos", "macos") == mlibs::rhi::formats({msl}));
+        check(mlibs::shader::formats_for("windows", "windows") == mlibs::rhi::formats({spirv, dxbc}));
+        check(mlibs::shader::formats_for("windows", "linux") == mlibs::rhi::formats({spirv}), "DXBC needs the Windows host's compiler");
+        check(mlibs::shader::formats_for("emscripten", "linux") == mlibs::rhi::formats({wgsl, essl}), "the Web: WebGPU's and WebGL2's");
     });
 
     return s.run(argc, argv);

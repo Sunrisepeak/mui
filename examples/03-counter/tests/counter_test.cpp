@@ -5,14 +5,14 @@
 import std;
 import openmui;
 import tally;
-import openmui.testing;
+import mlibs.testing;
 import openmui.abi;
 import openmui.lang;
 import openmui.lang.lua;
 import openmui.lang.js;
 import openmui.lang.python.embedded;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

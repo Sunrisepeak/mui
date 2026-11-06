@@ -11,7 +11,7 @@ export module xengine.video:picture;
 
 import std;
 import hanim.core;
-import openmui.image;
+import mlibs.image;
 
 export namespace xengine::video {
 

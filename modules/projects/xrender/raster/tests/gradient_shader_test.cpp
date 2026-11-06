@@ -1,12 +1,12 @@
 // Shader setup is a real warm-path allocation contract, measured directly;
 // no time threshold and no renderer allocations can hide a temporary stop copy.
 import std;
-import openmui.geom;
-import openmui.raster;
-import openmui.testing;
-using namespace omui::testing;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
+import mlibs.geom;
+import xrender.raster;
+import mlibs.testing;
+using namespace mlibs::testing;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
     allocations.fetch_add(1, std::memory_order_relaxed);

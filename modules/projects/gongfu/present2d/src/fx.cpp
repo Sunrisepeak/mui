@@ -5,23 +5,23 @@
 module gongfu.present2d;
 
 import std;
-import openmui.math;
+import mlibs.math;
 import gongfu;
 import hanim.core;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 
 namespace gongfu::present2d {
 
 namespace {
 
 namespace dm = hanim::dm;
-namespace render = omui::render;
-using omui::geom::Rect;
+namespace render = xrender;
+using mlibs::geom::Rect;
 
 // A number in [0, 1) from a seed and an index (splitmix64).
 double unit(std::uint64_t seed, std::uint64_t i) {
-    return omui::math::unit24(omui::math::mix64(seed * omui::math::golden + i));
+    return mlibs::math::unit24(mlibs::math::mix64(seed * mlibs::math::golden + i));
 }
 
 double mix(std::array<float, 2> r, double u) { return r[0] + (r[1] - r[0]) * u; }

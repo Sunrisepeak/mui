@@ -4,8 +4,12 @@ import std;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.math;
+import mlibs.math;
 import mcpplibs.os;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::warn;
+}
 
 namespace omui::styles {
 
@@ -134,10 +138,10 @@ std::expected<void, std::string> Studio::set_param(std::string_view selector, st
         for (EffectRule& r : s.effects)
             if (r.selector == selector) {
                 const std::string effect(r.effect.get("name") ? r.effect.get("name")->as_string() : "");
-                const auto ref = render::effects().find(effect);
-                const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;
+                const auto ref = xrender::effects().find(effect);
+                const xrender::EffectInfo* info = ref ? xrender::effects().info(*ref) : nullptr;
                 if (!info) return std::unexpected(std::format("no effect `{}` is registered", effect));
-                const auto ep = std::ranges::find(info->params, param, &render::EffectParam::name);
+                const auto ep = std::ranges::find(info->params, param, &xrender::EffectParam::name);
                 if (ep == info->params.end()) {
                     std::string names;
                     for (const auto& p : info->params) names += (names.empty() ? "" : ", ") + std::string(p.name);
@@ -238,8 +242,8 @@ namespace {
 // glass bends and frosts, what neon glows over.
 Element wallpaper() {
     return painter({.id = "wallpaper",
-                    .width = Dim(layout::pct(100)),
-                    .height = Dim(layout::pct(100)),
+                    .width = Dim(mlibs::layout::pct(100)),
+                    .height = Dim(mlibs::layout::pct(100)),
                     .role = Role::none,
                     .paint = [](PaintContext& p) {
                         const float w = p.size.width, h = p.size.height;
@@ -255,9 +259,9 @@ Element wallpaper() {
                                                              {0.3f, 0.85f, 0.16f, "warning", 0.35f},
                                                              {0.92f, 0.62f, 0.14f, "accent_subtle", 0.6f}}};
                         for (const Disc& d : discs) {
-                            render::Path path;
+                            xrender::Path path;
                             path.add_circle({d.x * w, d.y * h}, d.r * std::min(w, h) * 0.9f);
-                            p.list.fill_path(path, render::FillRule::nonzero, render::Paint::solid(p.theme.color(d.token).with_alpha(d.a)));
+                            p.list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(p.theme.color(d.token).with_alpha(d.a)));
                         }
                     }});
 }
@@ -288,7 +292,7 @@ Element panel(Studio& s, std::string id, std::string title, std::vector<Element>
 
 Element stat(Studio& s, std::string id, std::string label, std::string value, double share) {
     return panel(s, std::move(id), std::move(label),
-                 {text({.text = std::move(value), .style = "title"}), progress({.label = "Of the goal", .value = share, .width = Dim(layout::pct(100))}),
+                 {text({.text = std::move(value), .style = "title"}), progress({.label = "Of the goal", .value = share, .width = Dim(mlibs::layout::pct(100))}),
                   text({.text = std::format("{:.0f}% of the month's goal", share * 100), .style = "caption", .color = "text_muted"})},
                  1);
 }
@@ -325,11 +329,11 @@ Element preview(Studio& s, bool narrow = false) {
                                    button({.id = "save", .disabled = computed([&s] { return !s.settings_changed(); }), .text = "Save",
                                            .variant = ButtonVariant::primary, .on_activated = [&s] { s.save_settings(); }})})});
     // Narrow (a phone): the dashboard under the settings, as wide as the panels; else beside them, at least 380.
-    Element dashboard = column({.id = "dashboard", .min_width = narrow ? Dim(0.0f) : Dim(380.0f), .max_width = Dim(layout::pct(100)), .gap = 16, .grow = 1},
+    Element dashboard = column({.id = "dashboard", .min_width = narrow ? Dim(0.0f) : Dim(380.0f), .max_width = Dim(mlibs::layout::pct(100)), .gap = 16, .grow = 1},
                                {row({.gap = 16, .wrap = narrow ? "wrap" : ""}, {stat(s, "users", "Active users", "12,408", 0.72), stat(s, "revenue", "Revenue", "$84.2k", 0.54)}),
                                 panel(s, "activity", "This week",
                                       {painter({.id = "chart",
-                                                .width = Dim(layout::pct(100)),
+                                                .width = Dim(mlibs::layout::pct(100)),
                                                 .height = 120,
                                                 .role = Role::figure,
                                                 .label = "Sign-ups by day: Mon 210, Tue 325, Wed 255, Thu 415, Fri 370, Sat 460, Sun 300",
@@ -341,7 +345,7 @@ Element preview(Studio& s, bool narrow = false) {
                                                     const float bar = (w - gap * 6) / 7;
                                                     const Color panel = p.theme.color("surface"), accent = p.theme.color("accent");
                                                     auto lum = [](Color c) {
-                                                        auto lin = [](float v) { return v <= 0.04045f ? v / 12.92f : static_cast<float>(math::det::pow((v + 0.055) / 1.055, 2.4)); };
+                                                        auto lin = [](float v) { return v <= 0.04045f ? v / 12.92f : static_cast<float>(mlibs::math::det::pow((v + 0.055) / 1.055, 2.4)); };
                                                         return 0.2126f * lin(c.r) + 0.7152f * lin(c.g) + 0.0722f * lin(c.b);
                                                     };
                                                     auto contrast = [&](Color a, Color b) {
@@ -361,7 +365,7 @@ Element preview(Studio& s, bool narrow = false) {
                                                     for (std::size_t i = 0; i < days.size(); ++i) {
                                                         const float bh = days[i] * (h - 4);
                                                         p.list.fill_round_rect({static_cast<float>(i) * (bar + gap), h - bh, bar, bh}, CornerRadii::all(4),
-                                                                               render::Paint::solid(i == 5 ? best : rest));
+                                                                               xrender::Paint::solid(i == 5 ? best : rest));
                                                     }
                                                 }}),
                                        row({.id = "days", .justify = "space_between"},
@@ -402,13 +406,13 @@ Element preview(Studio& s, bool narrow = false) {
                                 }
                             }},
                        {tab({.id = "overview", .text = "Overview"}), tab({.id = "activity", .text = "Activity"}), tab({.id = "settings", .text = "Settings"})});
-    Element nav = column({.id = "nav", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .padding = 22, .justify = "end", .align = "center"},
+    Element nav = column({.id = "nav", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = 22, .justify = "end", .align = "center"},
                          {std::move(bar)});
     nav.prop("pointer_events", Source(Value("children")));  // the layer takes no pointer; its tabs do
     return stack({.id = "preview", .min_width = 0, .align = "start", .grow = 1, .clip = true},
-                 {wallpaper(), scroll({.id = "content", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))},
-                                      {row({.id = "panels", .width = Dim(layout::pct(100)), .padding = Edges(Insets{32, 32, 110, 32}), .gap = 24, .wrap = "wrap"},
-                                           {column({.width = 380, .max_width = Dim(layout::pct(100))}, {std::move(settings)}), std::move(dashboard)})}),
+                 {wallpaper(), scroll({.id = "content", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))},
+                                      {row({.id = "panels", .width = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{32, 32, 110, 32}), .gap = 24, .wrap = "wrap"},
+                                           {column({.width = 380, .max_width = Dim(mlibs::layout::pct(100))}, {std::move(settings)}), std::move(dashboard)})}),
                   std::move(nav)});
 }
 
@@ -447,7 +451,7 @@ std::string human(std::string_view name) {
     return out;
 }
 
-std::string with_unit(double v, const render::EffectParam* ep) {
+std::string with_unit(double v, const xrender::EffectParam* ep) {
     const std::string_view doc = ep ? ep->doc : std::string_view{};
     if (doc.contains("logical pixels")) return std::format("{:.1f} px", v);
     if (doc.contains("degrees")) return std::format("{:.0f}°", v);
@@ -520,19 +524,19 @@ Element editor(Studio& s, bool wide = false) {
                 std::string on = what == "region" ? std::string("the panels") : what == "tabs" ? std::string("the tab bar") : std::format("every {}", human(what));
                 if (!state.empty()) on += std::format(", {}", state);
                 ui.text(std::format("{} — on {}", human(effect), on), {.style = "label"});
-                const auto ref = render::effects().find(effect);
-                const render::EffectInfo* info = ref ? render::effects().info(*ref) : nullptr;
+                const auto ref = xrender::effects().find(effect);
+                const xrender::EffectInfo* info = ref ? xrender::effects().info(*ref) : nullptr;
                 // The pack as shipped fixes each range: dragging never moves its ends.
                 const Value* shipped = nullptr;
                 for (const EffectRule& o : s.original().effects)
                     if (o.selector == r.selector) shipped = &o.effect;
                 // Every parameter of the effect, in its order: the pack's value, else the effect's own.
                 if (info)
-                    for (const render::EffectParam& p : info->params) {
+                    for (const xrender::EffectParam& p : info->params) {
                         const std::string_view param = p.name;
                         const Value* given = r.effect.get(param);
                         const Value value = given && given->is_number() ? *given : Value(static_cast<double>(p.value));
-                        const render::EffectParam* ep = &p;
+                        const xrender::EffectParam* ep = &p;
                         const double was = shipped && shipped->get(param) ? shipped->get(param)->as_double() : value.as_double();
                         double lo = ep ? ep->min : 0, hi = ep ? ep->max : 1;
                         if (ep && hi - lo > 4) hi = std::min<double>(ep->max, std::max({lo + 1.0, 4.0 * ep->value, 2.0 * was, value.as_double()}));
@@ -565,9 +569,9 @@ Element editor(Studio& s, bool wide = false) {
         {.id = "head", .padding = Edges(Insets{16, 16, 8, 16}), .gap = 8, .border_color = "border"});
     // The fields' view takes the height left under the head, however tall what it scrolls (min-height 0: no
     // automatic minimum from its content, or it would grow to it and have nothing to scroll).
-    Element fields_view = scroll({.id = "scroll", .width = Dim(layout::pct(100)), .grow = 1}, {std::move(fields)});
+    Element fields_view = scroll({.id = "scroll", .width = Dim(mlibs::layout::pct(100)), .grow = 1}, {std::move(fields)});
     fields_view.prop("min_height", Source(Value(0.0)));
-    return column({.id = "editor", .width = wide ? Dim(layout::pct(100)) : Dim(300.0f), .min_height = 0, .shrink = 0, .background = "surface",
+    return column({.id = "editor", .width = wide ? Dim(mlibs::layout::pct(100)) : Dim(300.0f), .min_height = 0, .shrink = 0, .background = "surface",
                    .border_color = "border", .border_width = 1},
                   {std::move(head), std::move(fields_view)});
 }
@@ -603,10 +607,10 @@ Element pack_row(Studio& s) {
 }
 
 Element view(Studio& s, bool narrow) {
-    Element e = narrow ? scroll({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .background = Fill("background")},
-                                {pack_row(s), box({.id = "show", .width = Dim(layout::pct(100)), .height = Dim(760.0f)}, {preview(s, true)}),
-                                 box({.id = "edit", .width = Dim(layout::pct(100)), .height = Dim(620.0f)}, {editor(s, true)})})
-                       : row({.id = "studio", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100)), .align = "stretch", .background = "background"},
+    Element e = narrow ? scroll({.id = "studio", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .background = Fill("background")},
+                                {pack_row(s), box({.id = "show", .width = Dim(mlibs::layout::pct(100)), .height = Dim(760.0f)}, {preview(s, true)}),
+                                 box({.id = "edit", .width = Dim(mlibs::layout::pct(100)), .height = Dim(620.0f)}, {editor(s, true)})})
+                       : row({.id = "studio", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .align = "stretch", .background = "background"},
                              {sidebar(s), preview(s), editor(s)});
     if (!s.scope.empty()) e.prop("theme_scope", Source(Value(s.scope)));
     return e;

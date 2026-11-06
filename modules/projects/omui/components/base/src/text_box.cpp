@@ -3,7 +3,7 @@ module openmui.ui.base;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.unicode;
+import mlibs.unicode;
 import xrender.text;
 
 namespace omui {
@@ -64,11 +64,11 @@ const Lexicon& lexicon(std::string_view language) {
     return plain;
 }
 
-std::vector<typeset::StyledRange> code_ranges(std::string_view text, std::string_view language, const Theme& th, const typeset::TextStyle& base) {
-    std::vector<typeset::StyledRange> out;
+std::vector<mlibs::text::StyledRange> code_ranges(std::string_view text, std::string_view language, const Theme& th, const mlibs::text::TextStyle& base) {
+    std::vector<mlibs::text::StyledRange> out;
     const Lexicon& lx = lexicon(language);
     auto mark = [&](std::size_t from, std::size_t to, std::string_view colour) {
-        typeset::TextStyle st = base;
+        mlibs::text::TextStyle st = base;
         st.color = th.color(colour);
         out.push_back({from, to, std::move(st)});
     };
@@ -114,7 +114,7 @@ TextBox::~TextBox() {
 }
 
 void TextBox::mounted() {
-    editor_ = typeset::TextEditor(props.text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
+    editor_ = mlibs::text::TextEditor(props.text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
     editor_.move_to(editor_.text().size());
 }
 
@@ -133,7 +133,7 @@ void TextBox::prop_changed(TextBoxProp p) {
         case TextBoxProp::multiline:
         case TextBoxProp::max_length: {
             const std::string text = editor_.text();
-            editor_ = typeset::TextEditor(text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
+            editor_ = mlibs::text::TextEditor(text, {props.multiline, static_cast<std::size_t>(std::max(0, props.max_length))});
             editor_.move_to(text.size());
             paragraph_dirty_ = true;
             services().invalidate_layout(node());
@@ -166,43 +166,43 @@ Value TextBox::get_prop(std::string_view k) const {
     return TextBoxContract<TextBox>::get_prop(k);
 }
 
-void TextBox::style(const Theme& theme, layout::Style& s) const {
+void TextBox::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = bare_ ? Insets{4, 4, 4, 4} : Insets{pad_y, pad_x, pad_y, pad_x};
     if (!language_.empty()) s.padding.left += gutter_w;  // its line numbers
     s.border = bare_ ? Insets{} : Insets::all(1);
-    s.min_height = layout::pt(bare_ ? 28 : 36);
+    s.min_height = mlibs::layout::pt(bare_ ? 28 : 36);
 }
 
 std::string TextBox::shown() const {
     std::string composed = editor_.display_text();
     if (!props.password) return composed;
     std::string masked;
-    for (std::size_t i = 0, n = unicode::grapheme_count(composed); i < n; ++i) masked += bullet;
+    for (std::size_t i = 0, n = mlibs::unicode::grapheme_count(composed); i < n; ++i) masked += bullet;
     return masked;
 }
 
 std::size_t TextBox::to_shown(std::size_t o) const {
     // The composition replaces the selection where it is shown.
     if (editor_.composing()) {
-        const typeset::Selection s = editor_.selection();
+        const mlibs::text::Selection s = editor_.selection();
         if (o >= s.end()) o = o - (s.end() - s.begin()) + editor_.composition().size();
         else if (o > s.begin()) o = s.begin();
     }
     if (!props.password) return o;
     const std::string composed = editor_.display_text();
-    return unicode::grapheme_count(std::string_view(composed).substr(0, std::min(o, composed.size()))) * bullet.size();
+    return mlibs::unicode::grapheme_count(std::string_view(composed).substr(0, std::min(o, composed.size()))) * bullet.size();
 }
 
 std::size_t TextBox::from_shown(std::size_t o) const {
     std::size_t composed_offset = o;
     if (props.password) {
         const std::string composed = editor_.display_text();
-        const std::vector<std::size_t> b = unicode::grapheme_boundaries(composed);
+        const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(composed);
         const std::size_t i = std::min(o / bullet.size(), b.empty() ? std::size_t{0} : b.size() - 1);
         composed_offset = b.empty() ? 0 : b[i];
     }
     if (editor_.composing()) {
-        const typeset::Selection s = editor_.selection();
+        const mlibs::text::Selection s = editor_.selection();
         const std::size_t comp = editor_.composition().size();
         if (composed_offset >= s.begin() + comp) return composed_offset - comp + (s.end() - s.begin());
         if (composed_offset > s.begin()) return s.begin();
@@ -210,12 +210,12 @@ std::size_t TextBox::from_shown(std::size_t o) const {
     return composed_offset;
 }
 
-typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
+mlibs::text::Paragraph& TextBox::paragraph(Services& s, float width) const {
     const std::string text = shown();
     if (paragraph_dirty_ || !paragraph_ || text != paragraph_text_ || paragraph_->stale()) {
         const Theme& theme = s.theme();
         const TextToken& tok = theme.text_style(language_.empty() ? "body" : "code");
-        typeset::ParagraphStyle ps;
+        mlibs::text::ParagraphStyle ps;
         ps.style.families = tok.families;
         ps.style.size = tok.size;
         ps.style.weight = tok.weight;
@@ -224,7 +224,7 @@ typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
         ps.wrap = props.multiline;
         line_height_ = tok.size * tok.line_height;
         // Code: coloured by what each stretch is.
-        std::vector<typeset::StyledRange> ranges;
+        std::vector<mlibs::text::StyledRange> ranges;
         if (!language_.empty() && !props.password) ranges = code_ranges(text, language_, theme, ps.style);
         paragraph_.emplace(s.fonts(), text, std::move(ps), std::move(ranges));
         paragraph_text_ = text;
@@ -239,15 +239,15 @@ typeset::Paragraph& TextBox::paragraph(Services& s, float width) const {
     return *paragraph_;
 }
 
-Size TextBox::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
+Size TextBox::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
     const float w = width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w);
-    typeset::Paragraph& p = paragraph(m.services, w);
+    mlibs::text::Paragraph& p = paragraph(m.services, w);
     if (!props.multiline) return {w, line_height_};
     return {w, std::max(p.size().height, 3 * line_height_)};
 }
 
 float TextBox::baseline(MeasureContext& m, Size content) {
-    typeset::Paragraph& p = paragraph(m.services, content.width);
+    mlibs::text::Paragraph& p = paragraph(m.services, content.width);
     return p.lines().empty() ? line_height_ * 0.8f : p.first_baseline();
 }
 
@@ -265,19 +265,19 @@ void TextBox::paint(PaintContext& ctx) const {
 
     const bool focus = ctx.state.focused && !off;
     if (!bare_) {  // a bare field's surface and border are the component's it is part of
-        ctx.list.fill_round_rect(box, radii, render::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
+        ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(off ? th.color("surface_variant") : th.color("surface")));
         const float bw = focus ? 2.0f : 1.0f;
         const Color border = focus ? th.color("accent") : (ctx.state.hovered && !off ? th.color("border_strong") : th.color("border"));
         CornerRadii inner = radii;
         for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - bw / 2);
-        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, render::Paint::solid(border));
+        ctx.list.stroke_round_rect({bw / 2, bw / 2, box.width - bw, box.height - bw}, inner, bw, xrender::Paint::solid(border));
     }
 
-    typeset::Paragraph& p = paragraph(ctx.services, ctx.content.width);
+    mlibs::text::Paragraph& p = paragraph(ctx.services, ctx.content.width);
     // Keep the caret in view on a single line.
     // While composing, the caret follows the preedit (which stands where the selection was).
     const std::size_t caret_shown = editor_.composing() ? to_shown(editor_.selection().end()) : to_shown(editor_.selection().focus);
-    const typeset::Caret caret = p.caret(caret_shown);
+    const mlibs::text::Caret caret = p.caret(caret_shown);
     if (!props.multiline) {
         const float limit = std::max(0.0f, p.size().width - ctx.content.width + 2);
         if (caret.x - scroll_x_ > ctx.content.width - 2) scroll_x_ = caret.x - ctx.content.width + 2;
@@ -293,7 +293,7 @@ void TextBox::paint(PaintContext& ctx) const {
         const std::string& t = paragraph_text_;
         std::size_t number = 1, label = 0;
         std::size_t seen = 0;
-        for (const typeset::Line& line : p.lines()) {
+        for (const mlibs::text::Line& line : p.lines()) {
             for (; seen < line.begin && seen < t.size(); ++seen)
                 if (t[seen] == '\n') ++number;
             if (line.begin != 0 && (line.begin > t.size() || t[line.begin - 1] != '\n')) continue;
@@ -306,7 +306,7 @@ void TextBox::paint(PaintContext& ctx) const {
     }
 
     ctx.list.push_clip(ctx.content.outset({2, 2, 2, 2}));
-    const typeset::Selection sel = editor_.selection();
+    const mlibs::text::Selection sel = editor_.selection();
     if (!sel.empty() && !editor_.composing()) {
         const Color sc = th.color("selection");
         for (const Rect& r : p.selection(to_shown(sel.begin()), to_shown(sel.end())))
@@ -314,17 +314,17 @@ void TextBox::paint(PaintContext& ctx) const {
     }
     if (editor_.text().empty() && !editor_.composing() && !props.placeholder.empty()) {
         const TextToken& tok = th.text_style("body");
-        typeset::ParagraphStyle ps;
+        mlibs::text::ParagraphStyle ps;
         ps.style.families = tok.families;
         ps.style.size = tok.size;
         ps.style.line_height = tok.line_height;
         ps.style.color = th.color("text_muted");
         ps.wrap = props.multiline;
-        typeset::Paragraph ph(ctx.services.fonts(), props.placeholder, std::move(ps));
+        mlibs::text::Paragraph ph(ctx.services.fonts(), props.placeholder, std::move(ps));
         ph.layout(props.multiline ? ctx.content.width : std::numeric_limits<float>::infinity());
         xrender::text::paint(ph, ctx.list, {ctx.content.x, origin.y});
     } else {
-        if (off) ctx.list.push_layer(0.55f, render::BlendMode::normal, {}, {}, box);
+        if (off) ctx.list.push_layer(0.55f, xrender::BlendMode::normal, {}, {}, box);
         xrender::text::paint(p, ctx.list, origin);
         if (off) ctx.list.pop_layer();
     }
@@ -385,30 +385,30 @@ bool TextBox::key(const KeyEvent& e) {
     const Modifiers primary = Modifiers(primary_modifier());
     const Modifiers word = Modifiers(word_modifier());
     const bool editable = !props.readonly && !props.disabled;
-    const typeset::Unit unit = only(e.mods, word) ? typeset::Unit::word : typeset::Unit::grapheme;
+    const mlibs::text::Unit unit = only(e.mods, word) ? mlibs::text::Unit::word : mlibs::text::Unit::grapheme;
     switch (e.key) {
         case Key::left:
-            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_left(typeset::Unit::line, shift);
+            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_left(mlibs::text::Unit::line, shift);
             else editor_.move_left(unit, shift);
             caret_moved();
             return true;
         case Key::right:
-            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_right(typeset::Unit::line, shift);
+            if (only(e.mods, primary) && primary_modifier() == Modifier::meta) editor_.move_right(mlibs::text::Unit::line, shift);
             else editor_.move_right(unit, shift);
             caret_moved();
             return true;
         case Key::home:
-            editor_.move_left(only(e.mods, primary) ? typeset::Unit::document : typeset::Unit::line, shift);
+            editor_.move_left(only(e.mods, primary) ? mlibs::text::Unit::document : mlibs::text::Unit::line, shift);
             caret_moved();
             return true;
         case Key::end:
-            editor_.move_right(only(e.mods, primary) ? typeset::Unit::document : typeset::Unit::line, shift);
+            editor_.move_right(only(e.mods, primary) ? mlibs::text::Unit::document : mlibs::text::Unit::line, shift);
             caret_moved();
             return true;
         case Key::up:
         case Key::down: {
             if (!props.multiline) return false;
-            typeset::Paragraph& p = paragraph(services(), content_.width);
+            mlibs::text::Paragraph& p = paragraph(services(), content_.width);
             const std::size_t at = to_shown(editor_.selection().focus);
             const float x = p.caret(at).x;
             const std::size_t to = e.key == Key::up ? p.offset_above(at, x) : p.offset_below(at, x);
@@ -466,7 +466,7 @@ bool TextBox::key(const KeyEvent& e) {
                 return true;
             case Key::c:
             case Key::x: {
-                const typeset::Selection s = editor_.selection();
+                const mlibs::text::Selection s = editor_.selection();
                 if (s.empty() || props.password) return true;  // a password does not leave the field
                 services().set_clipboard_text(std::string_view(editor_.text()).substr(s.begin(), s.end() - s.begin()));
                 if (e.key == Key::x && editable) {
@@ -529,7 +529,7 @@ bool TextBox::on_event(EventContext& ctx, const InputEvent& e) {
         return true;
     }
     if (const auto* p = std::get_if<PointerEvent>(&e)) {
-        typeset::Paragraph& para = paragraph(services(), content_.width);
+        mlibs::text::Paragraph& para = paragraph(services(), content_.width);
         const Point o = text_origin(content_);
         const std::size_t at = from_shown(para.offset_at({ctx.local.x - o.x, ctx.local.y - o.y}));
         switch (p->kind) {
@@ -573,13 +573,13 @@ void TextBox::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 std::optional<TextLayout> TextBox::text_layout() const {
     // As last painted: the lines a person sees.
     if (!paragraph_ || paragraph_dirty_ || !attached()) return std::nullopt;
-    const typeset::Paragraph& p = *paragraph_;
+    const mlibs::text::Paragraph& p = *paragraph_;
     TextLayout out;
     out.text = paragraph_text_;
     const Rect at = services().bounds(node());
     const Point origin = text_origin(content_);
-    const std::vector<std::size_t> words = unicode::word_boundaries(out.text);
-    for (const typeset::Line& l : p.lines()) {
+    const std::vector<std::size_t> words = mlibs::unicode::word_boundaries(out.text);
+    for (const mlibs::text::Line& l : p.lines()) {
         TextLine line;
         line.begin = l.begin;
         line.end = l.end;
@@ -596,7 +596,7 @@ std::optional<TextLayout> TextBox::text_layout() const {
             line.positions.push_back(x);
             line.widths.push_back(w);
         };
-        for (const typeset::GraphemeBox& g : l.graphemes) {
+        for (const mlibs::text::GraphemeBox& g : l.graphemes) {
             add(g.end - g.begin, std::min(g.x0, g.x1), std::abs(g.x1 - g.x0));
             covered = g.end;
             right = std::max(right, std::max(g.x0, g.x1));
@@ -644,8 +644,8 @@ std::optional<TextLayout> TextBox::text_layout() const {
             from = to;
         }
     }
-    const typeset::Selection sel = editor_.selection();
-    const std::vector<std::size_t> b = unicode::grapheme_boundaries(editor_.text());
+    const mlibs::text::Selection sel = editor_.selection();
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(editor_.text());
     auto grapheme = [&](std::size_t byte) { return static_cast<std::size_t>(std::ranges::lower_bound(b, byte) - b.begin()); };
     out.anchor = grapheme(sel.anchor);
     out.focus = grapheme(sel.focus);
@@ -661,7 +661,7 @@ namespace {
 
 // The grapheme offset of a byte offset (the unit of set_selection).
 std::int64_t grapheme_at(std::string_view text, std::size_t byte) {
-    const std::vector<std::size_t> b = unicode::grapheme_boundaries(text);
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(text);
     return static_cast<std::int64_t>(std::ranges::lower_bound(b, byte) - b.begin());
 }
 
@@ -688,7 +688,7 @@ ActResult TextBox::set_value(ActContext&, const Value& value) {
 ActResult TextBox::set_selection(ActContext&, const SetSelectionArgs& args) {
     const Value &anchor = args.anchor, &focus = args.focus;
     // Offsets in graphemes (the action's unit), clamped to the text.
-    const std::vector<std::size_t> b = unicode::grapheme_boundaries(editor_.text());
+    const std::vector<std::size_t> b = mlibs::unicode::grapheme_boundaries(editor_.text());
     auto byte_of = [&](const Value& v) -> std::size_t {
         const auto i = static_cast<std::size_t>(std::max<std::int64_t>(0, v.as_int()));
         if (b.empty()) return 0;
@@ -711,7 +711,7 @@ ActResult TextBox::replace_selection(ActContext&, const Value& text) {
 ActResult TextBox::preview(ActContext& ctx, std::string_view action) const {
     if (action != "set_value" && action != "replace_selection") return ActResult::done();
     if (props.readonly) return ActResult::fail("the field is read-only");
-    typeset::TextEditor copy = editor_;
+    mlibs::text::TextEditor copy = editor_;
     if (action == "set_value") {
         const Value* v = ctx.args.get("value");
         const Value value = v ? *v : Value{};

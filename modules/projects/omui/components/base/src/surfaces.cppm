@@ -21,11 +21,11 @@ class Card : public CardContract<Card> {
 public:
     void mounted();
     void prop_changed(CardProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
 
     ActResult activate(ActContext& ctx);
 
@@ -39,7 +39,7 @@ class Accordion : public AccordionContract<Accordion> {
 public:
     void mounted();
     void prop_changed(AccordionProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -70,8 +70,8 @@ public:
 
     void mounted();
     void prop_changed(ToastProp p);
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -98,7 +98,7 @@ public:
 
     void mounted();
     void prop_changed(PopoverProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
 

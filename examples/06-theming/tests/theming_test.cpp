@@ -12,9 +12,9 @@ import openmui.lang.lua;
 import openmui.theme;
 import openmui.theme.default_theme;
 import openmui.theme.compact;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

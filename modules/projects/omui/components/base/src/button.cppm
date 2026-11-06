@@ -18,15 +18,15 @@ public:
     void prop_changed(ButtonProp p);
     void restyle();
 
-    void style(const Theme& theme, layout::Style& s) const;
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw,
-                 layout::Available ah);
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
     float baseline(MeasureContext& m, Size content);
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     // Its surface for an effect: the rounded box it paints (a neon tube follows its corners).
-    std::size_t effect_shapes(Size size, Rect content, std::span<render::EffectShape> out) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
 
     ActResult activate(ActContext& ctx);
 

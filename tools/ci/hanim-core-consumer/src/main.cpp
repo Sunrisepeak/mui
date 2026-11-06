@@ -1,14 +1,14 @@
 // A real external consumer: no UI, specification, renderer or test library.
 import std;
 import hanim.core;
-import openmui.log;
+import mlibs.log;
 
 namespace {
-constexpr omui::Log diagnostic{"hanim.consumer"};
+constexpr mlibs::log::Log diagnostic{"hanim.consumer"};
 struct Logs { std::size_t count = 0; bool history_visible = true; };
-void sink(void* pointer, const omui::LogRecord& record) {
+void sink(void* pointer, const mlibs::log::LogRecord& record) {
     auto& state = *static_cast<Logs*>(pointer);
-    const auto latest = omui::recent_logs(1);
+    const auto latest = mlibs::log::recent_logs(1);
     state.history_visible &= latest.size() == 1 && latest.back().message == record.message && latest.back().category == record.category;
     if (!latest.empty()) std::println("{}", omui::to_json(latest.back()));
     ++state.count;
@@ -41,7 +41,7 @@ int fail(std::string_view message) { diagnostic.error("consumer failed: {}", mes
 
 int main() {
     Logs logs;
-    omui::set_log_history(0); omui::set_log_history(32); omui::set_log_level(omui::Level::info); omui::set_log_sink(sink,&logs);
+    mlibs::log::set_log_history(0); mlibs::log::set_log_history(32); mlibs::log::set_log_level(mlibs::log::Level::info); mlibs::log::set_log_sink(sink,&logs);
     const std::array triangle{hanim::ShapeSegment::line({-1,1}),hanim::ShapeSegment::line({1,1})};
     constexpr double k=0.5522847498307936;
     const std::array circle{
@@ -90,9 +90,9 @@ int main() {
         diagnostic.info("sample t={} position=({}, {}) contour=1",t,position.x,position.y);
     }
     diagnostic.info("completed six unordered seeks");
-    const auto history=omui::recent_logs(32);
+    const auto history=mlibs::log::recent_logs(32);
     const bool valid=logs.history_visible && logs.count==8 && history.size()==8 && seen_quarter;
-    omui::set_log_sink(nullptr,nullptr);
+    mlibs::log::set_log_sink(nullptr,nullptr);
     if (!valid) return 1;
     std::println(R"({{"kind":"hanim.core-consumer","ok":true,"source_lines":3,"target_cubics":4,"contours":1,"prepared_cubics":{},"seek_count":6,"timeline_channels":2,"repeated_seek_equal":true,"endpoints_differ":true,"log_records":{}}})",count,history.size());
 }

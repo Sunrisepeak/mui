@@ -1,12 +1,12 @@
 import std;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 import xrender.raster;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace render = omui::render;
-namespace geom = omui::geom;
+using namespace mlibs::testing;
+namespace render = xrender;
+namespace geom = mlibs::geom;
 static_assert(std::same_as<render::PathView,xrender::raster::PathData>);
 static_assert(std::same_as<render::PathVerb,geom::PathVerb>);
 static_assert(std::same_as<render::FillRule,xrender::raster::FillRule>);

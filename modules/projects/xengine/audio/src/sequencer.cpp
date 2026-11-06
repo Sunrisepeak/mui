@@ -9,9 +9,8 @@
 module xengine.audio;
 
 import std;
-import openmui.math;
-import openmui.math;
-import openmui.trace;
+import mlibs.math;
+import mlibs.trace;
 import :dsp;
 import :detail;
 import :synth;
@@ -20,7 +19,7 @@ namespace xengine::audio {
 
 namespace {
 
-namespace dm = omui::math::det;
+namespace dm = mlibs::math::det;
 
 struct Event {
     std::int64_t tick = 0;       // in its section
@@ -175,7 +174,7 @@ struct Sequencer::Impl {
                 in_bar = true;
                 next = s.first[static_cast<std::size_t>(bar)];
                 begun_bars.fetch_add(1, std::memory_order_relaxed);
-                omui::trace::mark("audio.music.bar", "audio");
+                mlibs::trace::mark("audio.music.bar", "audio");
             }
             for (const std::size_t last = s.first[static_cast<std::size_t>(bar) + 1]; next < last; ++next) {
                 const Event& e = s.events[next];
@@ -243,7 +242,7 @@ struct Sequencer::Impl {
             }
         }
         voices_now.store(count, std::memory_order_relaxed);
-        omui::trace::count("audio.music.voices", count, "audio");
+        mlibs::trace::count("audio.music.voices", count, "audio");
     }
 };
 
@@ -448,7 +447,7 @@ std::int64_t Sequencer::bar_sample(std::int64_t bar) const noexcept {
 }
 
 void Sequencer::render(std::int64_t clock, std::int32_t frames, std::span<const BusBlock> buses) noexcept {
-    omui::trace::Span span("audio.music", "audio");
+    mlibs::trace::Span span("audio.music", "audio");
     impl_->render(clock, frames, buses);
 }
 

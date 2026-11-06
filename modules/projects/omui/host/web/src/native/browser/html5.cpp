@@ -11,7 +11,7 @@ module openmui.host.web;
 
 import std;
 import openmui.core;
-import openmui.raster;
+import xrender.raster;
 import :platform;
 
 extern "C" {
@@ -363,7 +363,7 @@ std::vector<std::string> storage_keys(std::string_view prefix) {
 
 void backing(std::string_view sel, int width, int height) { omui_web_backing(std::string(sel).c_str(), width, height); }
 
-void present(std::string_view sel, const raster::Surface& frame) {
+void present(std::string_view sel, const xrender::raster::Surface& frame) {
     omui_web_present(std::string(sel).c_str(), reinterpret_cast<const std::uint8_t*>(frame.row(0)), frame.width(), frame.height());
 }
 

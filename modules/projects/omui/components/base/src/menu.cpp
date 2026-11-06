@@ -21,11 +21,11 @@ void Menu::mounted() {
     was_open_ = props.open;
 }
 
-void Menu::style(const Theme&, layout::Style& s) const {
-    s.display = props.open ? layout::Display::flex : layout::Display::none;
-    s.direction = layout::Direction::column;
+void Menu::style(const Theme&, mlibs::layout::Style& s) const {
+    s.display = props.open ? mlibs::layout::Display::flex : mlibs::layout::Display::none;
+    s.direction = mlibs::layout::Direction::column;
     s.padding = Insets::all(4);
-    s.min_width = layout::pt(180);
+    s.min_width = mlibs::layout::pt(180);
     s.border = Insets::all(1);
 }
 
@@ -87,8 +87,8 @@ void Menu::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
         ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color.with_alpha(it->second.color.a * k));
-    ctx.list.fill_round_rect(box, r, render::Paint::solid(th.color("surface")));
-    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, render::Paint::solid(th.color("border")));
+    ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
+    ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }
 
 void Menu::semantics(SemanticsContext&, spec::SemanticNode& node) const { node.states.set(State::expanded, props.open); }
@@ -108,12 +108,12 @@ void MenuItem::prop_changed(MenuItemProp p) {
     if (attached() && (p == MenuItemProp::text || p == MenuItemProp::shortcut)) services().invalidate_layout(node());
 }
 
-void MenuItem::style(const Theme& theme, layout::Style& s) const {
+void MenuItem::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {0, theme.scaled(item_pad), 0, theme.scaled(item_pad)};
-    s.min_height = layout::pt(theme.scaled(item_h));
+    s.min_height = mlibs::layout::pt(theme.scaled(item_h));
 }
 
-Size MenuItem::measure(MeasureContext& m, std::optional<float>, std::optional<float>, layout::Available, layout::Available) {
+Size MenuItem::measure(MeasureContext& m, std::optional<float>, std::optional<float>, mlibs::layout::Available, mlibs::layout::Available) {
     const Size t = label_.measure(m.services, m.services.theme().color("text"));
     float w = std::ceil(t.width);
     if (!props.shortcut.empty()) w += shortcut_gap + std::ceil(shortcut_.measure(m.services, m.services.theme().color("text_muted")).width);
@@ -126,7 +126,7 @@ void MenuItem::paint(PaintContext& ctx) const {
     const bool lit = !off && (ctx.state.hovered || ctx.state.focused || ctx.state.pressed);
     if (lit)
         ctx.list.fill_round_rect({0, 0, ctx.size.width, ctx.size.height}, CornerRadii::all(ctx.theme.corner("small", 4)),
-                                 render::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
+                                 xrender::Paint::solid(ctx.state.pressed ? th.color("surface_pressed") : th.color("surface_variant")));
     const Color c = off ? th.color("text_disabled") : th.color("text");
     const Size t = label_.measure(ctx.services, c);
     label_.paint(ctx, {ctx.content.x, ctx.content.y + (ctx.content.height - t.height) / 2}, c);

@@ -4,11 +4,11 @@
 // beside it of every file's size; what is not a Toy package is refused.
 import std;
 import openmui.gen.dist_toy;
-import openmui.testing;
-import openmui.text;
+import mlibs.testing;
+import mlibs.text;
 import nlohmann.json;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace gen = omui::gen;
 namespace fs = std::filesystem;
 
@@ -115,7 +115,7 @@ int main(int argc, char** argv) {
 
     s.test("resolved canonical and legacy text packages deliver real default fonts", [] {
         Tree t;
-        fs::copy_file(omui::typeset::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf",
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf",
                       fs::copy_options::overwrite_existing);
         for (const std::string owner : {"mlibs", "openmui"}) {
             const auto package = [&](std::string_view ns, const fs::path& dir) {
@@ -134,7 +134,7 @@ int main(int argc, char** argv) {
             for (const auto& asset : result->files) {
                 if (!asset.path.ends_with(".ttf")) continue;
                 ++fonts;
-                omui::typeset::FontCollection faces;
+                mlibs::text::FontCollection faces;
                 const auto face = faces.add_file(p.out / asset.path);
                 check(face.has_value(), "the packaged asset is a loadable font");
                 if (face) check(faces.covers(*face, U'A'), "actual Latin glyph retained");
@@ -186,7 +186,7 @@ int main(int argc, char** argv) {
 
     s.test("initial font coverage is a separate hashed asset, selected only while the full font is deferred", [] {
         Tree t;
-        fs::copy_file(omui::typeset::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
         auto p = t.package();
         p.fonts = {"Inter", "NotoSansSC"};
         p.font_languages = {{"NotoSansSC", {"zh"}}};
@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
         for (const auto& f : r->files) if (f.path.ends_with(".ttf") && f.size > 100 && f.size < 1000000) tiny = p.out / f.path;
         check(tiny.has_value(), "a small, separately addressable initial font");
         if (tiny) {
-            omui::typeset::FontCollection fonts;
+            mlibs::text::FontCollection fonts;
             auto face = fonts.add_file(*tiny);
             check(face && fonts.covers(*face, U'中') && !fonts.covers(*face, U'龙'));
         }
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
         check(subset.has_value(), subset ? "" : subset.error());
         int full_faces = 0;
         if (subset) for (const auto& f : subset->files) if (f.path.ends_with(".ttf")) {
-            omui::typeset::FontCollection fonts;
+            mlibs::text::FontCollection fonts;
             const auto face = fonts.add_file(p.out / f.path);
             if (face && fonts.covers(*face, U'A')) {
                 ++full_faces;
@@ -236,7 +236,7 @@ int main(int argc, char** argv) {
 
     s.test("decoded asset sizes and an executable loading fixture accompany the actual package", [] {
         Tree t;
-        fs::copy_file(omui::typeset::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
         put(t.root / "words.txt", "A readable page 中文 龙");
         put(t.root / "art" / "later.webp", "deferred picture bytes");
         auto p = t.package(); p.sdk = false; p.out = scratch_dir("dist-toy-loading");
@@ -260,12 +260,12 @@ int main(int argc, char** argv) {
 
         // Keep the existing mixed-language fixture intact and add a real
         // Inter package for the all-language first-paint typography branch.
-        fs::copy_file(omui::typeset::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf", fs::copy_options::overwrite_existing);
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf", t.root / "fonts" / "Inter.ttf", fs::copy_options::overwrite_existing);
         auto initial = t.package(); initial.sdk = false; initial.out = p.out / "all-language-initial"; initial.font_initial = {{"Inter", "omui"}};
         const auto packed = gen::package_for_toy(initial); check(packed.has_value(), packed ? "" : packed.error());
         bool tiny_face = false, full_face = false;
         if (packed) for (const auto& file : packed->files) if (file.path.ends_with(".ttf")) {
-            omui::typeset::FontCollection faces; const auto face = faces.add_file(initial.out / file.path); check(face.has_value());
+            mlibs::text::FontCollection faces; const auto face = faces.add_file(initial.out / file.path); check(face.has_value());
             if (face) {
                 const bool full = faces.covers(*face, U'Z');
                 tiny_face = tiny_face || (faces.covers(*face, U'o') && !full); full_face = full_face || full;

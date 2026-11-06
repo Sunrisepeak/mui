@@ -11,17 +11,17 @@
 export module openmui.motion:matter;
 
 import std;
-import openmui.geom;
-import openmui.render.vector;
+import mlibs.geom;
+import xrender.vector;
 
 export namespace omui::motion {
 
-using geom::Affine;
-using geom::Color;
-using geom::CornerRadii;
-using geom::Point;
-using geom::Rect;
-using geom::Size;
+using mlibs::geom::Affine;
+using mlibs::geom::Color;
+using mlibs::geom::CornerRadii;
+using mlibs::geom::Point;
+using mlibs::geom::Rect;
+using mlibs::geom::Size;
 
 // What a piece is, for matching: two pieces of one node pair only when they are of one class.
 enum class PieceClass : std::uint8_t { fill, stroke, shadow, path_fill, path_stroke, image, glyphs, texture, group, count_ };
@@ -72,9 +72,9 @@ struct Part {
     std::string role, id;
     Rect allocation;
     Point anchor{0.5f,0.5f};
-    render::PartKind kind = render::PartKind::content;
-    std::vector<render::ReferenceWeight> lineage;
-    [[nodiscard]] render::PartFrame view(std::uint32_t owner) const {
+    xrender::PartKind kind = xrender::PartKind::content;
+    std::vector<xrender::ReferenceWeight> lineage;
+    [[nodiscard]] xrender::PartFrame view(std::uint32_t owner) const {
         return {owner,role,id,allocation,anchor,kind,lineage};
     }
 };
@@ -122,13 +122,13 @@ public:
     Matter& operator=(const Matter&) = delete;
 
     // The commands [begin, end) of `source`, copied and taken apart.
-    [[nodiscard]] static Matter extract(const render::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
+    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, std::size_t begin, std::size_t end, const Resolver& resolver);
     // A whole list (a morph's drawing, taken again when it is interrupted).
-    [[nodiscard]] static Matter extract(const render::DisplayList& source, const Resolver& resolver) {
+    [[nodiscard]] static Matter extract(const xrender::DisplayList& source, const Resolver& resolver) {
         return extract(source, 0, source.size(), resolver);
     }
 
-    [[nodiscard]] const render::DisplayList& list() const noexcept { return list_; }
+    [[nodiscard]] const xrender::DisplayList& list() const noexcept { return list_; }
     [[nodiscard]] std::span<const Piece> pieces() const noexcept { return pieces_; }
     [[nodiscard]] std::span<const Frame> frames() const noexcept { return frames_; }
     [[nodiscard]] std::span<const Reference> references() const noexcept { return references_; }
@@ -147,7 +147,7 @@ public:
     void follow_layout(Matter& target, std::span<const std::string> scopes = {});
 
 private:
-    render::DisplayList    list_;
+    xrender::DisplayList    list_;
     std::vector<Piece>     pieces_;
     std::vector<Frame>     frames_;
     std::vector<Reference> references_;
@@ -160,14 +160,14 @@ private:
 
 // The range's wrapper (its own effect layer around all it draws): the index
 // of its PushLayer in [begin, end), when it has one.
-[[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const render::Command> commands, std::size_t begin, std::size_t end);
+[[nodiscard]] std::optional<std::size_t> wrapper_of(std::span<const xrender::Command> commands, std::size_t begin, std::size_t end);
 
 // A command's class (drawable ones; nullopt for pushes, pops and markers).
-[[nodiscard]] std::optional<PieceClass> class_of(const render::Command& c) noexcept;
+[[nodiscard]] std::optional<PieceClass> class_of(const xrender::Command& c) noexcept;
 
 // Where [begin, end) holds the range of the node marker `marker`: its
 // BeginNode to the EndNode that closes it. Nullopt when it is not there.
-[[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const render::Command> commands, std::uint32_t marker,
+[[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const xrender::Command> commands, std::uint32_t marker,
                                                                              std::size_t from = 0);
 
 }  // namespace omui::motion

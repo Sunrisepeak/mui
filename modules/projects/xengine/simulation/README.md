@@ -35,13 +35,3 @@ this package.
 `omui::simulation::Clock`, `Model` and `Timeline` use declarations of the exact
 canonical entities. This real compatibility namespace allows the independent
 cellular package to expose its own alias without importing the clock package.
-
-`mgame.sim` now also lives in this package (`src/legacy_mgame.cppm`), retaining
-`xengine::Clock`, the trivial-state `xengine::Game` constraint and
-`xengine::Timeline`. Its three original tests moved to
-`tests/mgame_compatibility_test.cpp`. There is no `mgame/sim/mcpp.toml`, game
-runtime dependency or second implementation. Update manifests to
-`xengine.simulation = { path = ".../modules/projects/xengine/simulation" }`; existing
-`import mgame.sim;` code can remain. mcpp rejects the old dependency key
-`mgame.sim` because its leaf name differs from `simulation`; source import
-compatibility does not imply package-key or old-path compatibility.

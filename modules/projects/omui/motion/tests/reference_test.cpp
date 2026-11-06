@@ -3,14 +3,14 @@
 import std;
 import hanim.core;
 import openmui.motion;
-import openmui.render.vector;
-import openmui.raster;
-import openmui.testing;
+import xrender.vector;
+import xrender.raster;
+import mlibs.testing;
 
 using namespace omui::motion;
-using namespace omui::testing;
-namespace rv=omui::render;
-namespace ra=omui::raster;
+using namespace mlibs::testing;
+namespace rv=xrender;
+namespace ra=xrender::raster;
 
 namespace {
 Rect slot(float width,bool right) {const float cell=(width-6)/2;return {right?3+cell:3,3,cell,26};}

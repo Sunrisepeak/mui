@@ -5,9 +5,9 @@ import openmui.core;
 import openmui.view;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 int main(int argc, char** argv) {

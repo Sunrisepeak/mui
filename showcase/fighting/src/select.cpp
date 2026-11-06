@@ -10,7 +10,7 @@ import xrender.text;
 namespace omui::fighting {
 
 struct Select::CpuWords {
-    std::optional<typeset::Paragraph> tag, hint;
+    std::optional<mlibs::text::Paragraph> tag, hint;
 };
 
 
@@ -52,11 +52,11 @@ constexpr std::array<std::pair<std::string_view, Rect>, 6> name{{{"mo", {40, 18,
 
 float wide(const Rect& src, float h) { return src.width * h / src.height; }
 
-void picture(render::DisplayList& out, render::ImageRef image, const Rect& src, const Rect& dest, float opacity = 1) {
+void picture(xrender::DisplayList& out, xrender::ImageRef image, const Rect& src, const Rect& dest, float opacity = 1) {
     if (image.id == 0 || opacity <= 0) return;
-    out.draw_image(image, src, dest, render::Sampling::linear, opacity);
+    out.draw_image(image, src, dest, xrender::Sampling::linear, opacity);
 }
-void shape(render::DisplayList& out, render::ImageRef image, const Rect& src, const Rect& dest, Color colour) {
+void shape(xrender::DisplayList& out, xrender::ImageRef image, const Rect& src, const Rect& dest, Color colour) {
     if (image.id == 0 || colour.a <= 0) return;
     const std::array<Point, 4> at{Point{dest.x, dest.y}, {dest.x + dest.width, dest.y}, {dest.x + dest.width, dest.y + dest.height}, {dest.x, dest.y + dest.height}};
     const std::array<Point, 4> uv{Point{src.x, src.y}, {src.x + src.width, src.y}, {src.x + src.width, src.y + src.height}, {src.x, src.y + src.height}};
@@ -182,7 +182,7 @@ void Select::changed() {
     services().invalidate_semantics(node());
 }
 
-Size Select::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Select::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     return {width.value_or(picture_w), height.value_or(picture_h)};
 }
 
@@ -389,12 +389,12 @@ void Select::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 }
 
 void Select::paint(PaintContext& ctx) const {
-    render::DisplayList& out = list_;
+    xrender::DisplayList& out = list_;
     out.clear();
     const Roster& r = roster();
     const auto& c = choices();
-    const auto image = [&](std::string_view file) { return art_ ? art_->picture(file) : render::ImageRef{}; };
-    const render::ImageRef title_art = image("hud/menu-title.webp"), type = image("hud/menu-type.webp"), cn = image("hud/menu-cn.webp"),
+    const auto image = [&](std::string_view file) { return art_ ? art_->picture(file) : xrender::ImageRef{}; };
+    const xrender::ImageRef title_art = image("hud/menu-title.webp"), type = image("hud/menu-type.webp"), cn = image("hud/menu-cn.webp"),
                            frames = image("hud/menu-frames.webp"), names = image("hud/names.webp"), fill = image("hud/fill.webp");
     const double t = frame_ / 60.0;
 
@@ -409,15 +409,15 @@ void Select::paint(PaintContext& ctx) const {
         painter_.stage_layers(st->second, false, scene, cam, 960, frame_, 1, out);
     }
     {  // the room darkened toward the lacquer, more at the edges
-        std::array<render::GradientStop, 3> stops{{{0, tone(0x07060a, 0.62f)}, {0.5f, tone(0x07060a, 0.42f)}, {1, tone(0x07060a, 0.8f)}}};
-        render::Paint g;
-        g.kind = render::Paint::Kind::gradient;
-        g.gradient = {.kind = render::GradientKind::linear, .start = {0, 0}, .end = {0, picture_h}, .stops = stops};
+        std::array<xrender::GradientStop, 3> stops{{{0, tone(0x07060a, 0.62f)}, {0.5f, tone(0x07060a, 0.42f)}, {1, tone(0x07060a, 0.8f)}}};
+        xrender::Paint g;
+        g.kind = xrender::Paint::Kind::gradient;
+        g.gradient = {.kind = xrender::GradientKind::linear, .start = {0, 0}, .end = {0, picture_h}, .stops = stops};
         out.fill_rect({0, 0, picture_w, picture_h}, g);
     }
     // An ink wash drifting across the bottom.
     if (fill.id != 0) {
-        out.push_layer(0.18f, render::BlendMode::screen);
+        out.push_layer(0.18f, xrender::BlendMode::screen);
         const float drift = static_cast<float>(std::fmod(t * 14, 400.0));
         picture(out, fill, {region::ink_fill.x + drift, region::ink_fill.y, region::ink_fill.width - 400, region::ink_fill.height}, {0, 430, picture_w, 110});
         out.pop_layer();
@@ -470,7 +470,7 @@ void Select::paint(PaintContext& ctx) const {
                 const float o = mine[0] && mine[1] ? (p == 0 ? 6.0f : 2.0f) : 3.0f;
                 const Rect ring{inner.x - o, inner.y - o, inner.width + 2 * o, inner.height + 2 * o};
                 out.box_shadow(ring, CornerRadii::all(3), {0, 0}, 12, 1, tone(p == 0 ? 0xe8403c : 0x3aa0ff, ready_[static_cast<std::size_t>(p)] ? 0.85f : 0.55f));
-                out.stroke_round_rect(ring, CornerRadii::all(3), 2.5f, render::Paint::solid(pc));
+                out.stroke_round_rect(ring, CornerRadii::all(3), 2.5f, xrender::Paint::solid(pc));
             }
             picture(out, frames, mine[0] || mine[1] ? region::tile_lit : region::tile, {x, y, tw, th});
             // The players' badges set on the tile's top corners: player 1 left, player 2 right.
@@ -488,14 +488,14 @@ void Select::paint(PaintContext& ctx) const {
             const bool left = p == 0;
             const float bh = 430, bw = bh * region::banner.width / region::banner.height;
             const float bx = left ? 26 : picture_w - 26 - bw, by = 70;
-            render::Path window;  // the banner's slanted inside
+            xrender::Path window;  // the banner's slanted inside
             const float lean = bw * 0.16f, inset = bw * 0.1f;
             window.move_to({bx + inset + lean, by + bh * 0.06f})
                 .line_to({bx + bw - inset, by + bh * 0.06f})
                 .line_to({bx + bw - inset - lean, by + bh * 0.94f})
                 .line_to({bx + inset, by + bh * 0.94f})
                 .close();
-            out.fill_path(window, render::FillRule::nonzero, render::Paint::solid(tone(left ? 0x2a1014 : 0x0f2230, 0.82f)));
+            out.fill_path(window, xrender::FillRule::nonzero, xrender::Paint::solid(tone(left ? 0x2a1014 : 0x0f2230, 0.82f)));
             out.push_clip(window);
             const std::size_t fighter = fighter_index(c[i]);
             const p2::Look& look = looks_[2 * i + static_cast<std::size_t>(p)];
@@ -513,16 +513,16 @@ void Select::paint(PaintContext& ctx) const {
                 const float h = 58, w = wide(n->second, h);
                 const float nx = left ? bx + bw - w * 0.35f : bx - w * 0.65f, ny = by + bh - h - 6;
                 const float pw = w + 30, lean = 10;
-                render::Path plate;
+                xrender::Path plate;
                 plate.move_to({nx - 15 + lean, ny}).line_to({nx - 15 + pw + lean, ny}).line_to({nx - 15 + pw - lean, ny + h}).line_to({nx - 15 - lean, ny + h}).close();
-                out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
-                out.stroke_path(plate, {.width = 1.5f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
+                out.fill_path(plate, xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.9f)));
+                out.stroke_path(plate, {.width = 1.5f}, xrender::Paint::solid(tone(0xc9a24a, 0.9f)));
                 shape(out, names, n->second, {nx, ny, w, h}, tone(0xf6ecd6));
             }
             if (p == 1 && cpu_) {  // the computer's seat, and how to take it: on a plate at the banner's head
                 if (!cpu_words_) {
                     cpu_words_ = std::make_shared<CpuWords>();
-                    typeset::ParagraphStyle big, small;
+                    mlibs::text::ParagraphStyle big, small;
                     big.style.families = {"Inter"};
                     big.style.size = 30;
                     big.style.weight = 800;
@@ -538,15 +538,15 @@ void Select::paint(PaintContext& ctx) const {
                     cpu_words_->tag->layout(std::numeric_limits<float>::infinity());
                     cpu_words_->hint->layout(std::numeric_limits<float>::infinity());
                 }
-                const typeset::Paragraph &tag = *cpu_words_->tag, &hint = *cpu_words_->hint;
+                const mlibs::text::Paragraph &tag = *cpu_words_->tag, &hint = *cpu_words_->hint;
                 const Size t = tag.size(), h = hint.size();
                 const float pw = std::max(t.width, h.width) + 36, ph = t.height + h.height + 18;
                 // On a slanted lacquer plate, as the name's, over the banner's head (inside the picture).
                 const float px = std::min(bx + bw / 2 - pw / 2, picture_w - pw - 16), py = by + 26, lean = 8;
-                render::Path plate;
+                xrender::Path plate;
                 plate.move_to({px + lean, py}).line_to({px + pw + lean, py}).line_to({px + pw - lean, py + ph}).line_to({px - lean, py + ph}).close();
-                out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
-                out.stroke_path(plate, {.width = 1.5f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
+                out.fill_path(plate, xrender::FillRule::nonzero, xrender::Paint::solid(tone(0x07080b, 0.9f)));
+                out.stroke_path(plate, {.width = 1.5f}, xrender::Paint::solid(tone(0xc9a24a, 0.9f)));
                 xrender::text::paint(tag, out, {px + pw / 2 - t.width / 2, py + 8});
                 xrender::text::paint(hint, out, {px + pw / 2 - h.width / 2, py + 10 + t.height});
             }

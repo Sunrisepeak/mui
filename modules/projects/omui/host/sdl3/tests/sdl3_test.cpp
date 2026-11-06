@@ -9,16 +9,16 @@ import std;
 import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import openmui.host.sdl3;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
 
-typeset::FontCollection& fonts() {
-    static typeset::FontCollection f = [] {
-        typeset::FontCollection c;
+mlibs::text::FontCollection& fonts() {
+    static mlibs::text::FontCollection f = [] {
+        mlibs::text::FontCollection c;
         (void)c.add_defaults();
         return c;
     }();
@@ -113,7 +113,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Fill(Color::hex(0xff0000))})}));
         check(d.step());
         check_eq(d.frames_shown(), std::size_t{1});
-        const auto pixel = [&](int x, int y) -> std::optional<raster::Rgba8> {
+        const auto pixel = [&](int x, int y) -> std::optional<xrender::raster::Rgba8> {
             auto px = d.window_pixels();
             check(px.has_value(), px ? "" : px.error());
             if (!px) return std::nullopt;
@@ -133,7 +133,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         // edits (green, blue, green): the latency is the fastest of them — a
         // CI machine busy compiling other members adds its own time to some.
         std::vector<std::chrono::milliseconds> took;
-        for (const auto& [code, want] : std::array<std::pair<std::string_view, raster::Rgba8>, 3>{{
+        for (const auto& [code, want] : std::array<std::pair<std::string_view, xrender::raster::Rgba8>, 3>{{
                  {"uint4(0, s.a, 0, s.a)", {0, 255, 0, 255}}, {"uint4(0, 0, s.a, s.a)", {0, 0, 255, 255}}, {"uint4(0, s.a, 0, s.a)", {0, 255, 0, 255}}}}) {
             std::string edited = invert;
             edited.replace(edited.find("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)"), std::string_view("uint4(s.a - s.r, s.a - s.g, s.a - s.b, s.a)").size(), code);

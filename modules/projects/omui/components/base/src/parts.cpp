@@ -14,13 +14,13 @@ std::string segment(const Services& services, NodeId node) {
 }
 
 void chevron(PaintContext& ctx, Point c, float size, Color color) {
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - size / 2, c.y - size / 4}).line_to({c.x, c.y + size / 4}).line_to({c.x + size / 2, c.y - size / 4});
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.5f;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
@@ -29,27 +29,27 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
     CornerRadii ring = radii;
     for (float* x : {&ring.top_left, &ring.top_right, &ring.bottom_right, &ring.bottom_left}) *x += out;
     ctx.list.stroke_round_rect({r.x - out, r.y - out, r.width + 2 * out, r.height + 2 * out}, ring, width,
-                               render::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+                               xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
 }
 
 void cross(PaintContext& ctx, Point c, float size, Color color) {
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - size / 2, c.y - size / 2}).line_to({c.x + size / 2, c.y + size / 2});
     p.move_to({c.x + size / 2, c.y - size / 2}).line_to({c.x - size / 2, c.y + size / 2});
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.5f;
-    st.cap = render::LineCap::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 void check_mark(PaintContext& ctx, Point c, float size, Color color, float width) {
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - size / 2, c.y}).line_to({c.x - size / 8, c.y + size * 0.35f}).line_to({c.x + size / 2, c.y - size * 0.35f});
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = width;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r) {
@@ -75,11 +75,11 @@ void Label::set_max_lines(int lines) {
     dirty_ = true;
 }
 
-typeset::Paragraph& Label::shaped(Services& services, Color color, float width) {
+mlibs::text::Paragraph& Label::shaped(Services& services, Color color, float width) {
     if (dirty_ || !paragraph_ || !(color == color_) || paragraph_->stale()) {
         const Theme& theme = services.theme();
         const TextToken& tok = theme.text_style(style_);
-        typeset::ParagraphStyle ps;
+        mlibs::text::ParagraphStyle ps;
         ps.style.families = tok.families;
         ps.style.size = tok.size;
         ps.style.weight = tok.weight;

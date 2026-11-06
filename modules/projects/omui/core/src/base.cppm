@@ -9,8 +9,8 @@ export module openmui.core:base;
 import std;
 export import openmui.spec;
 export import hanim.core;
-export import openmui.geom;
-export import openmui.memory;
+export import mlibs.geom;
+export import mlibs.memory;
 
 export namespace omui {
 
@@ -24,14 +24,14 @@ using spec::State;
 using spec::StateSet;
 using spec::Value;
 
-using geom::Affine;
-using geom::Color;
-using geom::CornerRadii;
-using geom::Insets;
-using geom::PixelRect;
-using geom::Point;
-using geom::Rect;
-using geom::Size;
+using mlibs::geom::Affine;
+using mlibs::geom::Color;
+using mlibs::geom::CornerRadii;
+using mlibs::geom::Insets;
+using mlibs::geom::PixelRect;
+using mlibs::geom::Point;
+using mlibs::geom::Rect;
+using mlibs::geom::Size;
 
 using hanim::seconds;
 

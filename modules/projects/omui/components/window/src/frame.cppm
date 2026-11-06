@@ -11,7 +11,7 @@ export module openmui.ui.window:frame;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 import :window_frame_contract;
 import :caption_button_contract;
@@ -24,7 +24,7 @@ public:
     void prop_changed(WindowFrameProp p);
     void restyle();
 
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     std::vector<Element> compose();
@@ -60,7 +60,7 @@ private:
 class CaptionButton : public CaptionButtonContract<CaptionButton> {
 public:
     void mounted();
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void paint_over(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;

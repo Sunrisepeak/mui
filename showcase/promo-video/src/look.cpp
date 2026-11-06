@@ -3,10 +3,15 @@
 module openmui.showcase.promo_video;
 
 import std;
-import openmui.hash;
+import mlibs.hash;
 import openmui;
 import openmui.theme;
 import openmui.theme.styles;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::fatal;
+using mlibs::log::warn;
+}
 
 namespace omui::promo {
 
@@ -215,7 +220,7 @@ Element code_block(std::string id, std::string_view code, std::string_view langu
 
 // ── drawing ─────────────────────────────────────────────────────────────
 
-void paint_paper(render::DisplayList& list, Size size, Point offset, float scale, float grid) {
+void paint_paper(xrender::DisplayList& list, Size size, Point offset, float scale, float grid) {
     list.fill_rect({0, 0, size.width, size.height}, hex(ink::paper));
     if (grid > 0 && scale > 0.05f) {
         auto lines = [&](float step, float alpha) {
@@ -230,17 +235,17 @@ void paint_paper(render::DisplayList& list, Size size, Point offset, float scale
         lines(120, 0.09f);
     }
     // Darker towards the corners: the light is on the middle of the sheet.
-    const std::array<render::GradientStop, 3> stops{{{0, hex(ink::paper_deep, 0)}, {0.62f, hex(ink::paper_deep, 0.18f)}, {1, hex(ink::paper_deep, 0.72f)}}};
-    render::Paint p;
-    p.kind = render::Paint::Kind::gradient;
-    p.gradient.kind = render::GradientKind::radial;
+    const std::array<xrender::GradientStop, 3> stops{{{0, hex(ink::paper_deep, 0)}, {0.62f, hex(ink::paper_deep, 0.18f)}, {1, hex(ink::paper_deep, 0.72f)}}};
+    xrender::Paint p;
+    p.kind = xrender::Paint::Kind::gradient;
+    p.gradient.kind = xrender::GradientKind::radial;
     p.gradient.start = p.gradient.end = {size.width / 2, size.height / 2};
     p.gradient.radius = static_cast<float>(hanim::dm::sqrt(static_cast<double>(size.width) * size.width + static_cast<double>(size.height) * size.height)) / 2;
     p.gradient.stops = stops;
     list.fill_rect({0, 0, size.width, size.height}, p);
 }
 
-void paint_ticks(render::DisplayList& list, Rect r, Color c, float tick, float width, float hairline) {
+void paint_ticks(xrender::DisplayList& list, Rect r, Color c, float tick, float width, float hairline) {
     const float x0 = r.x, y0 = r.y, x1 = r.x + r.width, y1 = r.y + r.height;
     const std::array<std::array<float, 4>, 8> bars{{{x0 - width, y0 - width, tick, width},
                                                     {x0 - width, y0 - width, width, tick},
@@ -251,17 +256,17 @@ void paint_ticks(render::DisplayList& list, Rect r, Color c, float tick, float w
                                                     {x1 - tick + width, y1, tick, width},
                                                     {x1, y1 - tick + width, width, tick}}};
     for (const auto& b : bars) list.fill_rect({b[0], b[1], b[2], b[3]}, c);
-    if (hairline > 0) list.stroke_round_rect(r, CornerRadii::all(0), 1, render::Paint::solid(c.with_alpha(c.a * hairline)));
+    if (hairline > 0) list.stroke_round_rect(r, CornerRadii::all(0), 1, xrender::Paint::solid(c.with_alpha(c.a * hairline)));
 }
 
-void paint_line(render::DisplayList& list, Point a, Point b, Color c, float width) {
-    render::Path path;
+void paint_line(xrender::DisplayList& list, Point a, Point b, Color c, float width) {
+    xrender::Path path;
     path.move_to(a);
     path.line_to(b);
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = width;
-    st.cap = render::LineCap::round;
-    list.stroke_path(path, st, render::Paint::solid(c));
+    st.cap = xrender::LineCap::round;
+    list.stroke_path(path, st, xrender::Paint::solid(c));
 }
 
 namespace {
@@ -270,24 +275,24 @@ std::atomic<float> smallest_label{std::numeric_limits<float>::infinity()};
 
 float Labels::smallest() noexcept { return smallest_label.load(std::memory_order_relaxed); }
 
-const typeset::Paragraph& Labels::get(typeset::FontCollection& fonts, std::string_view text, float size, Color color, float weight,
+const mlibs::text::Paragraph& Labels::get(mlibs::text::FontCollection& fonts, std::string_view text, float size, Color color, float weight,
                                       std::string_view family, float width) {
     for (float was = smallest_label.load(std::memory_order_relaxed); size < was && !smallest_label.compare_exchange_weak(was, size, std::memory_order_relaxed);) {
     }
-    hash::Fnv1a key;
+    mlibs::hash::Fnv1a key;
     key.text(text).byte(0xff).text(family).byte(0xff);
     for (float f : {size, color.r, color.g, color.b, color.a, weight, width}) key.object(f).byte(0xff);
     const std::uint64_t h = key.value();
     auto it = cache_.find(h);
     if (it == cache_.end()) {
         if (cache_.size() > 2048) cache_.clear();
-        typeset::ParagraphStyle ps;
+        mlibs::text::ParagraphStyle ps;
         ps.style.families = {std::string(family)};
         ps.style.size = size;
         ps.style.weight = weight;
         ps.style.color = color;
         ps.wrap = width > 0;
-        typeset::Paragraph p(fonts, std::string(text), std::move(ps));
+        mlibs::text::Paragraph p(fonts, std::string(text), std::move(ps));
         p.layout(width > 0 ? width : std::numeric_limits<float>::infinity());
         it = cache_.emplace(h, std::move(p)).first;
     }

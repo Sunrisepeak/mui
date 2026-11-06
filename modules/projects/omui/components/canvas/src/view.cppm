@@ -20,7 +20,7 @@ export module openmui.ui.canvas:view;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import hanim.core;
 import :canvas_contract;
 import :scene;
@@ -42,7 +42,7 @@ public:
 
     void mounted();
     void prop_changed(CanvasProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void restyle();
     void laid_out();
     // The page's time moved (D-60): the camera as it was at `t`, from its past.
@@ -114,7 +114,7 @@ private:
     void build_behaviors();
     [[nodiscard]] world::PointerInput pointer_input(const PointerEvent& p, Point at) const;
     spec::SemanticNode item(const world::Scene& s, world::NodeRef n, std::string_view path, Size vp, Rect bounds) const;
-    void paint_edges(const world::Scene& s, render::DisplayList& list, Size vp) const;
+    void paint_edges(const world::Scene& s, xrender::DisplayList& list, Size vp) const;
 
     // What behaviours see of the canvas.
     struct HostAdapter final : world::Host {

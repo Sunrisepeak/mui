@@ -8,9 +8,9 @@ import openmui;
 import openmui.theme;
 import openmui.theme.styles;
 import openmui.showcase.style_gallery;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -96,10 +96,10 @@ int main(int argc, char** argv) {
         App a("glass");
         // The glass layers in the frame (their params and shapes), from the display list.
         const auto glass_layers = [&] {
-            std::vector<render::PushLayer> out;
-            const auto glass = render::effects().find("liquid_glass");
+            std::vector<xrender::PushLayer> out;
+            const auto glass = xrender::effects().find("liquid_glass");
             for (const auto& c : a.h.runtime().display_list().commands())
-                if (const auto* l = std::get_if<render::PushLayer>(&c); l && glass && l->effect.id == glass->id && !l->params.empty()) out.push_back(*l);
+                if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && glass && l->effect.id == glass->id && !l->params.empty()) out.push_back(*l);
             return out;
         };
         // The buttons' glass: one shape each; their thicknesses.
@@ -152,7 +152,7 @@ int main(int argc, char** argv) {
         check_eq(a.studio.current(), std::string("neon"));
         std::size_t fading = 0;
         for (const auto& c : a.h.runtime().display_list().commands())
-            if (const auto* l = std::get_if<render::PushLayer>(&c); l && l->effect.id == 0 && l->opacity < 1) ++fading;
+            if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && l->effect.id == 0 && l->opacity < 1) ++fading;
         check(fading >= 1, "the frame before, fading over");
         a.h.settle();
         const auto e = a.h.runtime().verbs().invoke("styles.show", as_agent(Value{}.set("name", Value("retro"))));

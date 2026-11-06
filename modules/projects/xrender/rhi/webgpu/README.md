@@ -23,8 +23,3 @@ The tests run three ways:
 - `tests/webgpu_test.cpp`, natively and under node in the Web row: no WebGPU there, so `create()` answers `Errc::unsupported`, and the cases that need a device say so (`OMUI_REQUIRE_WEBGPU=1` makes that a failure).
 - `tests/js/webgpu.test.mjs`, the page's half under node with a fake WebGPU (`fake_gpu.mjs`) that remembers what it is asked: rhi's enumerations and the wire's ops as the C++ declares them, the device asked for as the program loads, the descriptors of resources and pipelines, a submission's copies, passes and bind groups in order, waiting and reading back with and without suspension, errors and a lost device, presenting.
 - `tools/ci/browser.sh`: the same `webgpu_test.cpp` built with the `wasm-browser` profile (linked to suspend) in headless Chromium — the page's real WebGPU (SwiftShader on a machine with no GPU) runs every case of the [conformance suite](../../../../gfx/rhi/cts) — and every WGSL entry point the Web build wrote compiled by the browser.
-
-Canonical ownership: package/module `xrender.rhi.webgpu`, C++ `xrender::rhi::webgpu`.
-The original package keeps `import openmui.rhi.webgpu;` as a same-implementation
-source entry after rebuilding. Select builds/tests using `xrender.rhi.webgpu`.
-Namespace aliases cannot be reopened; define extensions in the canonical namespace.

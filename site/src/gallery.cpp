@@ -649,15 +649,15 @@ Element detail(Gallery& g, const GallerySite& site, const Entry& entry, float wi
                 const bool expanded = state->variants.get();
                 Element fixture = specimen(entry, *state, site, inner, !expanded, motion.get(), !detailed);
                 bind_disabled(fixture, disabled);
-                Element field = painter({.id = "field", .width = Dim(layout::pct(100)), .height = Dim(220), .role = Role::none,
+                Element field = painter({.id = "field", .width = Dim(mlibs::layout::pct(100)), .height = Dim(220), .role = Role::none,
                     .paint = [](PaintContext& ctx) {
                         const Color ink = ctx.theme.color("accent").with_alpha(0.1f);
                         for (float y = 10; y < ctx.size.height; y += 28)
                             for (float x = 10; x < ctx.size.width; x += 28)
-                                ctx.list.fill_round_rect({x, y, 1.5f, 1.5f}, CornerRadii::all(0.75f), render::Paint::solid(ink));
+                                ctx.list.fill_round_rect({x, y, 1.5f, 1.5f}, CornerRadii::all(0.75f), xrender::Paint::solid(ink));
                     }});
                 field.prop("pointer_events", Source(Value("none")));
-                Element sample = stack({.id = "specimen", .width = Dim(layout::pct(100)), .min_height = Dim(300), .padding = Edges(24), .align = "center",
+                Element sample = stack({.id = "specimen", .width = Dim(mlibs::layout::pct(100)), .min_height = Dim(300), .padding = Edges(24), .align = "center",
                     .background = "surface", .border_color = "border", .border_width = 1, .radius = 18, .clip = !detailed}, {std::move(field), std::move(fixture)});
                 if (!detailed) sample.prop("overlay_boundary", Source(Value(true)));
                 sample.prop("disabled", derive([disabled] { return disabled.get(); }));

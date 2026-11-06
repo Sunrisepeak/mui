@@ -1,9 +1,9 @@
 import std;
-import openmui.math;
+import mlibs.math;
 import openmui.expr;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui::expr;
 
 namespace {
@@ -127,8 +127,8 @@ void round_trip(std::string_view text, std::string_view canonical = {}, std::sou
 struct Rng {
     std::uint64_t s;
     std::uint64_t next() noexcept {
-        s += omui::math::golden;
-        return omui::math::finalize(s);
+        s += mlibs::math::golden;
+        return mlibs::math::finalize(s);
     }
     std::size_t below(std::size_t n) noexcept { return static_cast<std::size_t>(next() % n); }
 };

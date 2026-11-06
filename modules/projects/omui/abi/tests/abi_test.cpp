@@ -8,9 +8,9 @@ import openmui.abi;
 import openmui.core;
 import openmui.ui.base;
 import openmui.native.fuzzy;
-import openmui.testing;
+import mlibs.testing;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui::abi;
 
 namespace {

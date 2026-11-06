@@ -3,7 +3,7 @@ module openmui.ui.base;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.hash;
+import mlibs.hash;
 
 namespace omui {
 
@@ -56,7 +56,7 @@ std::pair<Color, Color> Badge::colors(const Theme& t, BadgeTone tone) {
     }
 }
 
-Size Badge::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Badge::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     if (props.dot) return {width.value_or(dot_d), height.value_or(dot_d)};
     const Size t = label_.measure(m.services, colors(m.services.theme(), props.tone).second);
     const float h = std::max(badge_h, std::ceil(t.height) + 2);
@@ -74,7 +74,7 @@ void Badge::paint(PaintContext& ctx) const {
     // A dot has no text to carry it: a neutral one in the accent, not the surface's tint.
     const auto [fill, text] = colors(ctx.theme, props.dot && props.tone == BadgeTone::neutral ? BadgeTone::accent : props.tone);
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
-    ctx.list.fill_round_rect(box, CornerRadii::all(std::min(box.width, box.height) / 2), render::Paint::solid(fill));
+    ctx.list.fill_round_rect(box, CornerRadii::all(std::min(box.width, box.height) / 2), xrender::Paint::solid(fill));
     if (props.dot || label_.text().empty()) return;
     const Size t = label_.measure(ctx.services, text);
     label_.paint(ctx, {(box.width - t.width) / 2, (box.height - t.height) / 2}, text);
@@ -85,7 +85,7 @@ void Badge::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (props.count >= 0) node.value = Value(props.count);
 }
 
-std::size_t Badge::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Badge::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(std::min(size.width, size.height) / 2)};
     return 1;
@@ -123,11 +123,11 @@ Color Avatar::hue_of(std::string_view name, bool dark) {
                                                          0x0891b2, 0x2563eb, 0x4f46e5, 0x7c3aed, 0xc026d3, 0xdb2777};
     static constexpr std::array<std::uint32_t, 12> deep{0xb91c1c, 0xc2410c, 0xb45309, 0x4d7c0f, 0x15803d, 0x0f766e,
                                                         0x0e7490, 0x1d4ed8, 0x4338ca, 0x6d28d9, 0xa21caf, 0xbe185d};
-    const std::size_t i = static_cast<std::size_t>(hash::fnv1a(name) % light.size());
+    const std::size_t i = static_cast<std::size_t>(mlibs::hash::fnv1a(name) % light.size());
     return Color::hex(dark ? deep[i] : light[i]);
 }
 
-Size Avatar::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Avatar::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const float d = static_cast<float>(std::max(8.0, props.size));
     return {width.value_or(d), height.value_or(d)};
 }
@@ -138,11 +138,11 @@ void Avatar::paint(PaintContext& ctx) const {
     const Rect disc{(ctx.size.width - d) / 2, (ctx.size.height - d) / 2, d, d};
     const CornerRadii r = props.shape == AvatarShape::circle ? CornerRadii::all(d / 2) : CornerRadii::all(std::round(d * 0.22f));
     // A picture the program stored ("image:<n>"), cut to the disc; else the initials on the name's colour.
-    std::optional<render::ImageRef> picture;
+    std::optional<xrender::ImageRef> picture;
     if (props.image.starts_with("image:")) {
         std::uint32_t id = 0;
         const std::string_view n = std::string_view(props.image).substr(6);
-        if (std::from_chars(n.data(), n.data() + n.size(), id).ec == std::errc{} && ctx.services.images().get(render::ImageRef{id})) picture = render::ImageRef{id};
+        if (std::from_chars(n.data(), n.data() + n.size(), id).ec == std::errc{} && ctx.services.images().get(xrender::ImageRef{id})) picture = xrender::ImageRef{id};
     }
     if (picture) {
         const auto* s = ctx.services.images().get(*picture);
@@ -150,10 +150,10 @@ void Avatar::paint(PaintContext& ctx) const {
         const float sw = static_cast<float>(s->width()), sh = static_cast<float>(s->height());
         const float side = std::min(sw, sh);
         ctx.list.push_clip(disc, r);
-        ctx.list.draw_image(*picture, Rect{(sw - side) / 2, (sh - side) / 2, side, side}, disc, render::Sampling::linear, 1);
+        ctx.list.draw_image(*picture, Rect{(sw - side) / 2, (sh - side) / 2, side, side}, disc, xrender::Sampling::linear, 1);
         ctx.list.pop_clip();
     } else {
-        ctx.list.fill_round_rect(disc, r, render::Paint::solid(hue_of(props.name, th.dark)));
+        ctx.list.fill_round_rect(disc, r, xrender::Paint::solid(hue_of(props.name, th.dark)));
         if (!initials_.text().empty()) {
             const Color white = Color::hex(0xffffff);
             const Size t = initials_.measure(ctx.services, white);
@@ -172,8 +172,8 @@ void Avatar::paint(PaintContext& ctx) const {
                         : props.status == AvatarStatus::away  ? th.color("warning")
                         : props.status == AvatarStatus::busy  ? th.color("danger")
                                                               : th.color("text_disabled");
-        ctx.list.fill_round_rect({dot.x - ring, dot.y - ring, s + 2 * ring, s + 2 * ring}, CornerRadii::all(s / 2 + ring), render::Paint::solid(th.color("surface")));
-        ctx.list.fill_round_rect(dot, CornerRadii::all(s / 2), render::Paint::solid(c));
+        ctx.list.fill_round_rect({dot.x - ring, dot.y - ring, s + 2 * ring, s + 2 * ring}, CornerRadii::all(s / 2 + ring), xrender::Paint::solid(th.color("surface")));
+        ctx.list.fill_round_rect(dot, CornerRadii::all(s / 2), xrender::Paint::solid(c));
     }
 }
 
@@ -183,7 +183,7 @@ void Avatar::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (props.status != AvatarStatus::none && node.description.empty()) node.description = std::string(says[static_cast<std::size_t>(props.status)]);
 }
 
-std::size_t Avatar::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Avatar::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (out.empty()) return 0;
     const float d = std::min(size.width, size.height);
     out[0] = {{(size.width - d) / 2, (size.height - d) / 2, d, d},
@@ -193,11 +193,11 @@ std::size_t Avatar::effect_shapes(Size size, Rect, std::span<render::EffectShape
 
 // ── skeleton ──
 
-void Skeleton::style(const Theme&, layout::Style& s) const {
-    if (props.shape == SkeletonShape::circle) s.align_self = layout::Align::start;  // a picture's place: round, not stretched across
+void Skeleton::style(const Theme&, mlibs::layout::Style& s) const {
+    if (props.shape == SkeletonShape::circle) s.align_self = mlibs::layout::Align::start;  // a picture's place: round, not stretched across
 }
 
-Size Skeleton::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size Skeleton::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     const float w = width.value_or(aw.is_definite() ? std::min(aw.value, default_w) : default_w);
     switch (props.shape) {
         case SkeletonShape::circle: {
@@ -233,7 +233,7 @@ void Skeleton::paint(PaintContext& ctx) const {
     const Color c = mix(ctx.theme.color("surface_variant"), ctx.theme.color("border"), 0.45f);
     for (std::size_t i = 0; i < n; ++i) {
         const float r = props.shape == SkeletonShape::circle ? std::min(b[i].width, b[i].height) / 2 : props.shape == SkeletonShape::text ? bone_h / 2 : 8;
-        ctx.list.fill_round_rect(b[i], CornerRadii::all(r), render::Paint::solid(c));
+        ctx.list.fill_round_rect(b[i], CornerRadii::all(r), xrender::Paint::solid(c));
     }
 }
 
@@ -242,7 +242,7 @@ void Skeleton::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.states.set(State::busy);
 }
 
-std::size_t Skeleton::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Skeleton::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     std::array<Rect, 8> b{};
     const std::size_t n = std::min(bones(size, b), out.size());
     for (std::size_t i = 0; i < n; ++i) out[i] = {b[i], CornerRadii::all(props.shape == SkeletonShape::text ? bone_h / 2 : std::min(b[i].width, b[i].height) / 2)};

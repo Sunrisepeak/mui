@@ -9,12 +9,12 @@
 //                suites' own normalisation (test/normalize.py, ported below):
 //                ≥ 95 % of the CommonMark spec, extensions counted apart.
 import std;
-import openmui.markdown;
-import openmui.testing;
+import mlibs.markdown;
+import mlibs.testing;
 import mcpplibs.mwrap.md4c;
 
-using namespace omui::testing;
-namespace md = omui::md;
+using namespace mlibs::testing;
+namespace md = mlibs::markdown;
 namespace mm = mcpplibs::mwrap::md4c::macros;
 
 namespace {

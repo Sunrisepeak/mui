@@ -1,10 +1,10 @@
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.testing;
+import mlibs.testing;
 
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 std::shared_ptr<AgentAccess> access_with(AgentMode mode, openas::Effect cap = openas::Effect::external) {

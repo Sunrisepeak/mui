@@ -28,7 +28,7 @@ public:
 
     void mounted();
     void prop_changed(SelectProp p);
-    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available ah);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
@@ -75,7 +75,7 @@ private:
     std::shared_ptr<void>             heard_;                 // the program's device on sounds_ (let go first)
     std::int32_t                      heard_from_ = 0;        // the frame the theme was last started on (the cues' frame 0)
     mutable gongfu::present2d::Painter painter_;
-    mutable render::DisplayList       list_;
+    mutable xrender::DisplayList       list_;
     FrameDemandLease                  pace_;
     bool                              mounting_ = false, focus_pending_ = false;
     std::uint64_t                     timer_ = 0;

@@ -6,9 +6,13 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.expr;
-import openmui.trace;
+import mlibs.trace;
 import :document;
 import :instance;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::log::Log;
+}
 
 namespace omui::viewdoc {
 
@@ -424,7 +428,7 @@ struct View::State : Shared {
 };
 
 std::expected<View, std::vector<Diagnostic>> View::load(Services& services, std::string_view json, LoadOptions options) {
-    trace::Span span("viewdoc.load", "viewdoc");
+    mlibs::trace::Span span("viewdoc.load", "viewdoc");
     ReadResult r = read(json, {.file = options.file, .verbs = &services.verbs()});
     if (!r.ok()) return std::unexpected(std::move(r.diagnostics));
     if (r.document->component) {
@@ -484,7 +488,7 @@ NodeId View::mount(Runtime& runtime, std::string_view slot) {
 }
 
 std::expected<void, std::vector<Diagnostic>> View::reload(std::string_view json) {
-    trace::Span span("viewdoc.reload", "viewdoc");
+    mlibs::trace::Span span("viewdoc.reload", "viewdoc");
     State& st = *state_;
     ReadResult r = read(json, {.file = st.options.file, .verbs = &st.services->verbs()});
     if (!r.ok()) return std::unexpected(std::move(r.diagnostics));
@@ -688,7 +692,7 @@ void fill_type(Definition& d) {
 }  // namespace
 
 std::expected<const ComponentType*, std::vector<Diagnostic>> define_component(std::string_view json, LoadOptions options) {
-    trace::Span span("viewdoc.define", "viewdoc");
+    mlibs::trace::Span span("viewdoc.define", "viewdoc");
     ReadResult r = read(json, {.file = options.file});
     if (!r.ok()) return std::unexpected(std::move(r.diagnostics));
     if (!r.document->component) {

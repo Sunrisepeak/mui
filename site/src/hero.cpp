@@ -325,13 +325,13 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
                                      if (!rt.valid(target)) continue;
                                      const auto bounds = rt.bounds(target);
                                      const float y1 = bounds.y + bounds.height / 2 - self.y;
-                                     render::Path p;
+                                     xrender::Path p;
                                      p.move_to({0, y0}).cubic_to({32, y0}, {32, y1}, {ctx.size.width, y1});
                                      const Color c = Color::hex(hues[static_cast<std::size_t>(i)]);
-                                     ctx.list.stroke_path(p, render::StrokeStyle{.width = 1.5f, .cap = render::LineCap::round}, render::Paint::solid(c.with_alpha(0.8f)));
-                                     ctx.list.fill_round_rect({ctx.size.width - 4, y1 - 3, 6, 6}, CornerRadii::all(3), render::Paint::solid(c));
+                                     ctx.list.stroke_path(p, xrender::StrokeStyle{.width = 1.5f, .cap = xrender::LineCap::round}, xrender::Paint::solid(c.with_alpha(0.8f)));
+                                     ctx.list.fill_round_rect({ctx.size.width - 4, y1 - 3, 6, 6}, CornerRadii::all(3), xrender::Paint::solid(c));
                                  }
-                                 ctx.list.fill_round_rect({-3, y0 - 3, 6, 6}, CornerRadii::all(3), render::Paint::solid(ctx.theme.color("text")));
+                                 ctx.list.fill_round_rect({-3, y0 - 3, 6, 6}, CornerRadii::all(3), xrender::Paint::solid(ctx.theme.color("text")));
                              }});
 
     ButtonOptions run{.id = "let_agent", .text = computed([hp, sp] { const bool zh = sp->lang && sp->lang->get() == "zh"; return std::string(hp->agent_running.get() ? (zh ? "停止模拟 agent" : "Stop the simulation") : (zh ? "播放模拟 agent" : "Play a simulated agent")); }), .variant = ButtonVariant::secondary};

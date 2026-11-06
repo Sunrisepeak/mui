@@ -5,11 +5,11 @@ import openmui.cli;
 import mcpplibs.cmdline;
 import openmui.host.headless;
 import openmui.ui.base;
-import openmui.testing;
+import mlibs.testing;
 import openmui.core;
 import mcpplibs.os;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

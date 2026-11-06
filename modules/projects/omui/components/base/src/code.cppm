@@ -15,7 +15,7 @@ class CodeEditor : public CodeEditorContract<CodeEditor> {
 public:
     void mounted();
     void prop_changed(CodeEditorProp p);
-    void style(const Theme& theme, layout::Style& s) const;
+    void style(const Theme& theme, mlibs::layout::Style& s) const;
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
     [[nodiscard]] std::vector<Element> compose();

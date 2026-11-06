@@ -11,7 +11,7 @@ export module openmui.semantic:session;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.session;
+import mlibs.session;
 import :tree;
 
 export namespace omui::semantic {
@@ -19,7 +19,7 @@ export namespace omui::semantic {
 class Recorder {
 public:
     // Fills the session's header from the runtime (size, scale, clock).
-    Recorder(Tree& tree, session::Session& session);
+    Recorder(Tree& tree, mlibs::session::Session& session);
 
     // Runs a frame and records it (its time, and its events if any).
     FrameOutput frame(const FrameInput& input = {});
@@ -31,7 +31,7 @@ public:
 
 private:
     Tree&            tree_;
-    session::Session& session_;
+    mlibs::session::Session& session_;
     Adaptation       adapted_;  // as last recorded
     std::string      chosen_;   // the person's motion, as last recorded
 };
@@ -51,7 +51,7 @@ struct ReplayReport {
 // can be stepped through (a debugger's time travel replays from the start).
 class Player {
 public:
-    Player(Tree& tree, const session::Session& session);
+    Player(Tree& tree, const mlibs::session::Session& session);
 
     // Runs the entries with time <= `time`; answers what happened so far.
     const ReplayReport& advance_to(double time);
@@ -61,17 +61,17 @@ public:
     [[nodiscard]] const ReplayReport& report() const noexcept { return report_; }
 
 private:
-    void run(const session::Entry& entry);
+    void run(const mlibs::session::Entry& entry);
 
     Tree&                  tree_;
-    const session::Session& session_;
+    const mlibs::session::Session& session_;
     std::size_t            next_ = 0;
     double                 position_ = 0;
     ReplayReport           report_;
 };
 
 // Replays a whole session (or up to `until` seconds of it).
-[[nodiscard]] ReplayReport replay(Tree& tree, const session::Session& session,
+[[nodiscard]] ReplayReport replay(Tree& tree, const mlibs::session::Session& session,
                                   double until = std::numeric_limits<double>::infinity());
 
 }  // namespace omui::semantic

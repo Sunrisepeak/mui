@@ -51,13 +51,13 @@ void Button::prop_changed(ButtonProp p) {
 
 void Button::restyle() { label_.set_style("label"); }
 
-void Button::style(const Theme& theme, layout::Style& s) const {
+void Button::style(const Theme& theme, mlibs::layout::Style& s) const {
     s.padding = {theme.scaled(padding_y), theme.scaled(padding_x), theme.scaled(padding_y), theme.scaled(padding_x)};
-    s.min_height = layout::pt(theme.scaled(height));
-    s.min_width = layout::pt(theme.scaled(height));
+    s.min_height = mlibs::layout::pt(theme.scaled(height));
+    s.min_width = mlibs::layout::pt(theme.scaled(height));
 }
 
-Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, layout::Available aw, layout::Available) {
+Size Button::measure(MeasureContext& m, std::optional<float> width, std::optional<float>, mlibs::layout::Available aw, mlibs::layout::Available) {
     const Colors c = colors(m.services.theme(), props.variant);
     // Narrower than its label (a max_width, a narrow column): the label wraps.
     // Wrapped between words only: a word wider than the room stays whole.
@@ -91,15 +91,15 @@ void Button::paint(PaintContext& ctx) const {
         const Point center = box.center();
         ctx.list.push_transform(Affine::translate(center.x, center.y) * Affine::scale(s, s) * Affine::translate(-center.x, -center.y));
     }
-    if (off) ctx.list.push_layer(0.5f, render::BlendMode::normal, {}, {}, box);
+    if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, box);
 
     Color fill = mix(c.base, c.hover, h);
     fill = mix(fill, c.pressed, std::clamp(p, 0.0f, 1.0f));
-    if (fill.a > 0) ctx.list.fill_round_rect(box, radii, render::Paint::solid(fill));
+    if (fill.a > 0) ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(fill));
     if (c.border) {
         CornerRadii inner = radii;
         for (float* r : {&inner.top_left, &inner.top_right, &inner.bottom_right, &inner.bottom_left}) *r = std::max(0.0f, *r - 0.5f);
-        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, render::Paint::solid(*c.border));
+        ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, inner, 1, xrender::Paint::solid(*c.border));
     }
     const Color text = off ? ctx.theme.color("text_disabled", c.text) : c.text;
     const Size t = label_.measure(ctx.services, text, std::max(ctx.content.width + 0.5f, std::ceil(label_.min_content(ctx.services, text)) + 0.5f));
@@ -119,7 +119,7 @@ void Button::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (props.disabled) node.states.set(State::disabled);
 }
 
-std::size_t Button::effect_shapes(Size size, Rect, std::span<render::EffectShape> out) const {
+std::size_t Button::effect_shapes(Size size, Rect, std::span<xrender::EffectShape> out) const {
     if (out.empty()) return 0;
     out[0] = {{0, 0, size.width, size.height}, CornerRadii::all(corner_).fitted(size)};
     return 1;

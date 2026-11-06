@@ -4,11 +4,11 @@
 // glyph more.
 import std;
 import openmui.gen.font_subset;
-import openmui.testing;
-import openmui.text;
+import mlibs.testing;
+import mlibs.text;
 import xrender.text;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -84,8 +84,8 @@ Bytes gsub_table(const std::vector<std::pair<std::uint16_t, Bytes>>& lookups) {
     }
     return out;
 }
-std::uint16_t glyph_id(typeset::FontCollection& fonts, std::string text) {
-    typeset::Paragraph p(fonts, std::move(text), {}); p.layout(512);
+std::uint16_t glyph_id(mlibs::text::FontCollection& fonts, std::string text) {
+    mlibs::text::Paragraph p(fonts, std::move(text), {}); p.layout(512);
     return static_cast<std::uint16_t>(p.lines()[0].runs[0].glyphs[0].id);
 }
 
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
         auto cut = gen::subset_font(font, {U'中', U'文'});
         check(cut.has_value(), cut ? "" : cut.error());
         if (!cut) return;
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         const auto initial = fonts.add_data(*cut), full = fonts.add_data(font);
         check(initial.has_value() && full.has_value());
         if (!initial || !full) return;
@@ -142,8 +142,8 @@ int main(int argc, char** argv) {
         const std::array<std::string, 1> family{"Noto Sans SC"};
         check(fonts.select(family, U"中文") == *initial);
         check(fonts.select(family, U"龙") == *full, "including an explicitly requested family, full coverage remains reachable");
-        const auto a = fonts.metrics(fonts.font(*initial, 500, typeset::Slant::normal), 14);
-        const auto b = fonts.metrics(fonts.font(*full, 500, typeset::Slant::normal), 14);
+        const auto a = fonts.metrics(fonts.font(*initial, 500, mlibs::text::Slant::normal), 14);
+        const auto b = fonts.metrics(fonts.font(*full, 500, mlibs::text::Slant::normal), 14);
         check(a.ascent == b.ascent && a.descent == b.descent, "the same face keeps its metrics");
         auto twice = gen::subset_font(*cut, {U'中', U'文'});
         check(twice && *twice == *cut, "coverage and bytes are stable on a second cut");
@@ -153,10 +153,10 @@ int main(int argc, char** argv) {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
         auto sparse = gen::subset_font(inter, {U'A', U' '});
         check(sparse.has_value(), sparse ? "" : sparse.error()); if (!sparse) return;
-        typeset::FontCollection fonts;
+        mlibs::text::FontCollection fonts;
         const auto small = fonts.add_data(*sparse);
         check(small.has_value()); if (!small) return;
-        const auto reference = fonts.font(*small, 500, typeset::Slant::normal);
+        const auto reference = fonts.font(*small, 500, mlibs::text::Slant::normal);
         const auto original_metrics = fonts.metrics(reference, 14);
         const auto other = fonts.add_data(font), full = fonts.add_data(inter);
         check(other.has_value() && full.has_value()); if (!other || !full) return;
@@ -174,7 +174,7 @@ int main(int argc, char** argv) {
         check(fonts.select(inter_first, U"B") == *full && fonts.select(noto_first, U"B") == *other, "explicit family order remains authoritative");
         check(fonts.select(inter_first, U"中") == *other, "cross-family fallback still supplies an uncovered script");
         check(fonts.find_family("INTER") == small, "find_family retains the original face identity");
-        check(fonts.face_of(reference) == *small && fonts.font(*small, 500, typeset::Slant::normal) == reference, "previously shaped references are not replaced");
+        check(fonts.face_of(reference) == *small && fonts.font(*small, 500, mlibs::text::Slant::normal) == reference, "previously shaped references are not replaced");
         const auto now = fonts.metrics(reference, 14);
         check(now.ascent == original_metrics.ascent && now.descent == original_metrics.descent);
         // The host groups a primary family's tiny and full faces before
@@ -193,13 +193,13 @@ int main(int argc, char** argv) {
         for (const auto& sample : samples) gen::characters_of(sample, keep);
         auto cut = gen::subset_font(inter, keep);
         check(cut.has_value(), cut ? "" : cut.error()); if (!cut) return;
-        typeset::FontCollection full, small;
+        mlibs::text::FontCollection full, small;
         check(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
         xrender::text::GlyphCache full_cache(full), small_cache(small);
         bool saw_substitution = false;
         for (const float weight : {400.0f, 600.0f}) for (const auto& sample : samples) {
-            typeset::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
-            typeset::Paragraph a(full, sample, style), b(small, sample, style);
+            mlibs::text::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
+            mlibs::text::Paragraph a(full, sample, style), b(small, sample, style);
             a.layout(512); b.layout(512);
             check(a.lines().size() == b.lines().size());
             if (a.lines().size() != b.lines().size()) continue;
@@ -225,8 +225,8 @@ int main(int argc, char** argv) {
                 }
             }
             if (sample == ":-)") {
-                style.style.features = {typeset::Feature::on("calt", 0)};
-                typeset::Paragraph plain(full, sample, style); plain.layout(512);
+                style.style.features = {mlibs::text::Feature::on("calt", 0)};
+                mlibs::text::Paragraph plain(full, sample, style); plain.layout(512);
                 if (!a.lines().empty() && !plain.lines().empty()) {
                     const auto& shaped = a.lines()[0].runs[0].glyphs;
                     const auto& unshaped = plain.lines()[0].runs[0].glyphs;
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
 
     s.test("all GSUB output forms close transitively with composite glyphs without retaining unrelated outlines", [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
-        typeset::FontCollection fonts; check(fonts.add_data(inter).has_value());
+        mlibs::text::FontCollection fonts; check(fonts.add_data(inter).has_value());
         const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B"), c = glyph_id(fonts, "C"), d = glyph_id(fonts, "D"),
                    e = glyph_id(fonts, "E"), f = glyph_id(fonts, "F"), g = glyph_id(fonts, "G"), h = glyph_id(fonts, "H"),
                    i = glyph_id(fonts, "I"), k = glyph_id(fonts, "K"), y = glyph_id(fonts, "Y"), z = glyph_id(fonts, "Z"), accented = glyph_id(fonts, "é");
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
 
     s.test("malformed and unsupported GSUB structures are rejected explicitly", [&] {
         const auto inter = read(root / "modules/content/text/fonts/Inter.ttf");
-        typeset::FontCollection fonts; check(fonts.add_data(inter).has_value());
+        mlibs::text::FontCollection fonts; check(fonts.add_data(inter).has_value());
         const auto a = glyph_id(fonts, "A"), b = glyph_id(fonts, "B");
         const auto valid = gsub_table({{1, words({2, 8, 1, b, 1, 1, a})}});
         for (std::size_t size = 0; size < valid.size(); ++size) {

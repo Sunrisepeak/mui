@@ -24,8 +24,8 @@ export import openmui.view;
 export import openmui.semantic;
 export import openmui.agent;
 export import openmui.accessibility;
-export import openmui.raster;
-export import openmui.render.effect;
+export import xrender.raster;
+export import xrender.effect;
 
 export namespace omui {
 
@@ -43,7 +43,7 @@ struct DesktopOptions {
     bool                    accessibility = true;
     std::filesystem::path   agent_directory;      // default: agent::default_directory()
     Theme                   theme = Theme::light();
-    typeset::FontCollection* fonts = nullptr;
+    mlibs::text::FontCollection* fonts = nullptr;
     bool                    reduce_motion = false;
     bool                    reduce_transparency = false;  // glass drawn as opaque panels
     Color                   background = Color::white();
@@ -110,7 +110,7 @@ public:
     // (automation, tests).
     void synthesize(std::span<const InputEvent> events);
     // What the window shows, read back (software rendering reads exactly).
-    [[nodiscard]] std::expected<raster::Surface, std::string> window_pixels();
+    [[nodiscard]] std::expected<xrender::raster::Surface, std::string> window_pixels();
     [[nodiscard]] float scale() const noexcept;
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;
     // The tree as assistive technology was last told it; the adapter
@@ -121,7 +121,7 @@ public:
     // Whether the GPU renderer draws the frames (after open()).
     [[nodiscard]] bool gpu() const noexcept;
     // The effect library of `effects` (null: none asked for).
-    [[nodiscard]] effect::Library* effects() noexcept;
+    [[nodiscard]] xrender::effect::Library* effects() noexcept;
 
     struct Impl;
 

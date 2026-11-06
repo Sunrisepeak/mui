@@ -4,16 +4,21 @@ module openmui.view;
 
 import std;
 import openmui.core;
-import openmui.layout;
-import openmui.render.vector;
-import openmui.text;
+import mlibs.layout;
+import xrender.vector;
+import mlibs.text;
 import :impl;
+
+namespace omui {  // names this file uses unqualified, from their owner
+using mlibs::memory::FunctionRef;
+using mlibs::log::warn;
+}
 
 namespace omui {
 
 namespace {
 
-struct TasksParallel final : render::Parallel {
+struct TasksParallel final : xrender::Parallel {
     void run(std::size_t count, FunctionRef<void(std::size_t)> body) override {
         Tasks::shared().parallel_for(count, 1, [&](std::size_t begin, std::size_t end) {
             for (std::size_t i = begin; i < end; ++i) body(i);
@@ -23,7 +28,7 @@ struct TasksParallel final : render::Parallel {
 
 }  // namespace
 
-render::Parallel& raster_parallel() noexcept {
+xrender::Parallel& raster_parallel() noexcept {
     static TasksParallel p;
     return p;
 }
@@ -79,7 +84,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     if (options.fonts) {
         d.fonts = options.fonts;
     } else {
-        d.own_fonts = std::make_unique<typeset::FontCollection>();
+        d.own_fonts = std::make_unique<mlibs::text::FontCollection>();
         if (auto r = d.own_fonts->add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         d.fonts = d.own_fonts.get();
     }
@@ -135,7 +140,7 @@ NodeId Runtime::mount(std::string_view slot, View view) {
     Impl& d = *impl_;
     // The slot is the view's top-level id: paths begin with it.
     if (!view.id.empty() && view.id != slot)
-        omui::debug("the view mounted at '{}' had the id '{}'; the slot names it", slot, view.id);
+        mlibs::log::debug("the view mounted at '{}' had the id '{}'; the slot names it", slot, view.id);
     view.id = std::string(slot);
     if (view.key.empty()) view.key = view.id;
     d.mounted_views.insert_or_assign(std::string(slot), view);
@@ -305,7 +310,7 @@ NodeId Runtime::node_at_index(std::uint32_t index) const {
     return index < d.by_index.size() ? d.by_index[index] : NodeId{};
 }
 
-const render::DisplayList& Runtime::display_list() const noexcept { return impl_->list; }
+const xrender::DisplayList& Runtime::display_list() const noexcept { return impl_->list; }
 
 void Runtime::resize(Size size, float scale) {
     Impl& d = *impl_;
@@ -410,7 +415,7 @@ const std::vector<EffectRule>& Runtime::effect_rules() const noexcept { return i
 void Runtime::crossfade(seconds length) {
     Impl& d = *impl_;
     if (!(length.count() > 0) || d.list.commands().empty()) return;
-    render::DisplayList before;
+    xrender::DisplayList before;
     // Keep the visible snapshot's original markers for renderer ownership.
     // paint records it as one historical range; motion never indexes that
     // range as current nodes, even if this snapshot interrupts another fade.
@@ -616,8 +621,8 @@ bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 
 const Theme& Runtime::theme() const { return impl_->current_theme ? *impl_->current_theme : impl_->theme; }
-typeset::FontCollection& Runtime::fonts() { return *impl_->fonts; }
-render::ImageStore& Runtime::images() { return impl_->images; }
+mlibs::text::FontCollection& Runtime::fonts() { return *impl_->fonts; }
+xrender::ImageStore& Runtime::images() { return impl_->images; }
 hanim::seconds Runtime::now() const { return impl_->now(); }
 Rect Runtime::bounds(NodeId node) const { return valid(node) ? impl_->at(node).bounds : Rect{}; }
 Rect Runtime::screen_bounds(NodeId node) const { return valid(node) ? impl_->at(node).screen : Rect{}; }

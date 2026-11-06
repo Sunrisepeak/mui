@@ -3,10 +3,10 @@
 // recorded session replayed to the same tree.
 import std;
 import openmui;
-import openmui.testing;
+import mlibs.testing;
 import notes;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a recorded session replays exactly", [] {
-        session::Session session;
+        mlibs::session::Session session;
         std::uint64_t end = 0;
         {
             App a(HeadlessLevel::pixels);

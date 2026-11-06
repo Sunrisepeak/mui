@@ -6,10 +6,10 @@
 import std;
 import openmui;
 import openmui.showcase.fighting;
-import openmui.testing;
+import mlibs.testing;
 import gongfu;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 using namespace omui;
 
 namespace {

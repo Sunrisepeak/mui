@@ -3,10 +3,10 @@ import xengine.timeline.audio;
 import xengine.timeline;
 import xengine.audio;
 import hanim.core;
-import openmui.testing;
-import openmui.trace;
+import mlibs.testing;
+import mlibs.trace;
 
-using namespace omui::testing;
+using namespace mlibs::testing;
 namespace tl = xengine::timeline;
 namespace audio = xengine::audio;
 

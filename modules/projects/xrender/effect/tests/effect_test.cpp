@@ -3,20 +3,20 @@
 // when its shader changes (M4 acceptance ③), without a line of C++.
 import std;
 import mcpplibs.os;
-import openmui.geom;
-import openmui.raster;
-import openmui.render.vector;
-import openmui.rhi;
-import openmui.rhi.sdl;
-import openmui.render.effect;
-import openmui.testing;
+import mlibs.geom;
+import xrender.raster;
+import xrender.vector;
+import mlibs.rhi;
+import xrender.rhi.sdl;
+import xrender.effect;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace fx = omui::effect;
-namespace render = omui::render;
-namespace raster = omui::raster;
-namespace geom = omui::geom;
-namespace rhi = omui::rhi;
+using namespace mlibs::testing;
+namespace fx = xrender::effect;
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
 
 namespace {
 

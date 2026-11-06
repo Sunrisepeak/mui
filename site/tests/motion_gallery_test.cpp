@@ -3,9 +3,9 @@ import openmui;
 import openmui.site;
 import openmui.theme;
 import openmui.theme.styles;
-import openmui.testing;
+import mlibs.testing;
 using namespace omui;
-using namespace omui::testing;
+using namespace mlibs::testing;
 
 namespace {
 const std::filesystem::path& media() { static const auto dir = scratch_dir("motion-gallery"); return dir; }
@@ -326,7 +326,7 @@ int main(int argc, char** argv) {
         Probe p("palette-studio", true);
         check(!p.styles.empty() && p.styles.back() == "liquid");
         check(p.rt->get(p.rt->find(p.path("stage/scene")), "theme_scope").as_string() == "creative-preview");
-        p.rt->set_device_tier(pipeline::Tier::t1, "low-tier player reference"); p.step(seconds(0.1)); p.play();
+        p.rt->set_device_tier(mlibs::pipeline::Tier::t1, "low-tier player reference"); p.step(seconds(0.1)); p.play();
         const auto* info = site::find_motion_case("palette-studio", true);
         check(info != nullptr);
         if (info) {
@@ -372,7 +372,7 @@ int main(int argc, char** argv) {
             for (int i = 0; i < 22; ++i) { p.step(seconds(1.0 / 20)); p.h.record(); }
             const auto file = media() / std::format("{}-player-{}.webp", creative ? "creative" : "basic", static_cast<int>(width));
             check(p.h.save_recording(file, {.delay_num = 1, .delay_den = 20, .quality = 82}).has_value());
-            const auto decoded = imageio::load_animated_webp(file);
+            const auto decoded = mlibs::image::load_animated_webp(file);
             check(decoded && decoded->frames.size() > 2, "the recording contains actual player frames");
             check(std::filesystem::file_size(file) < 2 * 1024 * 1024);
             check(p.h.save_png(media() / std::format("{}-gallery-{}.png", creative ? "creative" : "basic", static_cast<int>(width))).has_value());

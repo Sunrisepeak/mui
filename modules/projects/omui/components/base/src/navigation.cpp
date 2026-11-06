@@ -14,13 +14,13 @@ constexpr float slot = 32, slot_gap = 4;
 // A chevron pointing left (back) or right (on), centred at c.
 void arrowhead(PaintContext& ctx, Point c, bool right, Color color) {
     const float s = 5, d = right ? 1.0f : -1.0f;
-    render::Path p;
+    xrender::Path p;
     p.move_to({c.x - d * s / 2, c.y - s}).line_to({c.x + d * s / 2, c.y}).line_to({c.x - d * s / 2, c.y + s});
-    render::StrokeStyle st;
+    xrender::StrokeStyle st;
     st.width = 1.75f;
-    st.cap = render::LineCap::round;
-    st.join = render::LineJoin::round;
-    ctx.list.stroke_path(p, st, render::Paint::solid(color));
+    st.cap = xrender::LineCap::round;
+    st.join = xrender::LineJoin::round;
+    ctx.list.stroke_path(p, st, xrender::Paint::solid(color));
 }
 
 // A part's box as the semantic tree states bounds: in the window (the node's own box, then the part in it).
@@ -59,7 +59,7 @@ void Breadcrumb::prop_changed(BreadcrumbProp p) {
     services().invalidate_semantics(node());
 }
 
-Size Breadcrumb::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Breadcrumb::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const Theme& th = m.services.theme();
     float w = 0, h = 0;
     const Size sep = separator_.measure(m.services, th.color("text_disabled"));
@@ -203,7 +203,7 @@ std::vector<std::int64_t> Pagination::slots() const {
     return out;
 }
 
-Size Pagination::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, layout::Available, layout::Available) {
+Size Pagination::measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available, mlibs::layout::Available) {
     const float s = m.services.theme().scaled(slot);
     const auto n = static_cast<float>(slots().size());
     return {width.value_or(n * s + (n - 1) * slot_gap), height.value_or(s)};
@@ -227,9 +227,9 @@ void Pagination::paint(PaintContext& ctx) const {
         const CornerRadii round = CornerRadii::all(th.corner("medium", 8)).fitted(r.size());
         const bool off = (v == 0 && cur <= 1) || (v == -1 && cur >= n);
         if (v == cur) {
-            ctx.list.fill_round_rect(r, round, render::Paint::solid(th.color("accent")));
+            ctx.list.fill_round_rect(r, round, xrender::Paint::solid(th.color("accent")));
         } else if (v != -2 && !off && hover_ == v) {
-            ctx.list.fill_round_rect(r, round, render::Paint::solid(th.color("surface_variant")));
+            ctx.list.fill_round_rect(r, round, xrender::Paint::solid(th.color("surface_variant")));
         }
         if (v == 0 || v == -1) {
             arrowhead(ctx, r.center(), v == -1, off ? th.color("text_disabled") : th.color("text_muted"));

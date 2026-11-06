@@ -1,7 +1,7 @@
 module openmui.inspector;
 import std;
 import openmui;
-import openmui.hash;
+import mlibs.hash;
 import xengine.simulation;
 import xengine.simulation.cellular;
 
@@ -225,7 +225,7 @@ void Session::refresh_controls() {
 }
 std::string Session::state_hash() {
     ensure();const auto& s=impl_->history->state();
-    omui::hash::Fnv1a h;h.text("cellular-v1").u64(s.project->shape.width).u64(s.project->shape.height)
+    mlibs::hash::Fnv1a h;h.text("cellular-v1").u64(s.project->shape.width).u64(s.project->shape.height)
         .u64(s.project->program.channels()).i64(s.tick);
     for (auto v:s.cells) h.u64(v);
     return h.hex();

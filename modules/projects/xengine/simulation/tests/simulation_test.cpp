@@ -1,9 +1,9 @@
 import std;
-import openmui.simulation;
-import openmui.testing;
+import xengine.simulation;
+import mlibs.testing;
 
-using namespace omui::testing;
-namespace sim=omui::simulation;
+using namespace mlibs::testing;
+namespace sim=xengine::simulation;
 namespace {
 struct Owned {
     struct State { std::vector<std::int64_t> values; };

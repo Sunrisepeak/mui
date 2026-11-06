@@ -50,9 +50,3 @@ slot; any construction/moves performed by the factory itself belong to the
 factory. Relocation of other values during vector growth is separate. The
 legacy `SlotMap::insert(T)` signature is preserved; its prvalue parameter is
 constructed directly and then moved once to the final slot.
-
-The canonical package/import is `mlibs.memory` and the API is `mlibs::memory`.
-The legacy `openmui.memory` import remains in this same package, sharing
-the same implementation and types; C++ consumers must rebuild. The old API is
-`omui`'s memory declarations. No separate compatibility package is added.
-See the [namespace migration guide](../../../.agents/docs/2026-11-05-product-namespace-migration-design.md#6-n1第二组几何内存unicode与搜索).

@@ -3,12 +3,12 @@
 // and every kind of mistake in a list caught by validation with the command
 // that made it — against a device that only remembers what it created.
 import std;
-import openmui.rhi;
-import openmui.memory;
-import openmui.testing;
+import mlibs.rhi;
+import mlibs.memory;
+import mlibs.testing;
 
-using namespace omui::testing;
-using namespace omui::rhi;
+using namespace mlibs::testing;
+using namespace mlibs::rhi;
 
 namespace {
 
@@ -68,11 +68,11 @@ protected:
     }
 
 private:
-    omui::SlotMap<BufferDesc, BufferTag>                         buffers_;
-    omui::SlotMap<TextureDesc, TextureTag>                       textures_;
-    omui::SlotMap<SamplerDesc, SamplerTag>                       samplers_;
-    omui::SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag>     graphics_;
-    omui::SlotMap<ComputePipelineInfo, ComputePipelineTag>       compute_;
+    mlibs::memory::SlotMap<BufferDesc, BufferTag>                         buffers_;
+    mlibs::memory::SlotMap<TextureDesc, TextureTag>                       textures_;
+    mlibs::memory::SlotMap<SamplerDesc, SamplerTag>                       samplers_;
+    mlibs::memory::SlotMap<GraphicsPipelineInfo, GraphicsPipelineTag>     graphics_;
+    mlibs::memory::SlotMap<ComputePipelineInfo, ComputePipelineTag>       compute_;
 };
 
 constexpr std::array<std::byte, 4> code{std::byte{3}, std::byte{2}, std::byte{0x23}, std::byte{7}};

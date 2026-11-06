@@ -3,7 +3,7 @@ module openmui.site;
 import std;
 import openmui.core;
 import openmui.view;
-import openmui.render.vector;
+import xrender.vector;
 import openmui.ui.base;
 
 namespace omui::site {
@@ -30,7 +30,7 @@ void Timebar::prop_changed(TimebarProp) {
     services().invalidate_semantics(node());
 }
 
-Size Timebar::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, layout::Available aw, layout::Available) {
+Size Timebar::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available) {
     // A small basis: it grows into the row's room, and gives it back on a phone.
     (void)aw;
     return {width.value_or(96.0f), height.value_or(bar_height)};
@@ -52,11 +52,11 @@ void Timebar::paint(PaintContext& ctx) const {
     auto& out = ctx.list;
     const float w = ctx.size.width, h = ctx.size.height;
     const Rect strip{inset, 8, std::max(0.0f, w - 2 * inset), h - 16};
-    out.fill_round_rect(strip, CornerRadii::all(4), render::Paint::solid(th.color("track")));
+    out.fill_round_rect(strip, CornerRadii::all(4), xrender::Paint::solid(th.color("track")));
     // What has been played up to the playhead, and every second along it (every fifth taller).
     const double a = first(), b = last();
     const float head = x_of(props.live ? b : props.time, w);
-    out.fill_round_rect({strip.x, strip.y, head - strip.x, strip.height}, CornerRadii::all(4), render::Paint::solid(th.color("accent").with_alpha(0.22f)));
+    out.fill_round_rect({strip.x, strip.y, head - strip.x, strip.height}, CornerRadii::all(4), xrender::Paint::solid(th.color("accent").with_alpha(0.22f)));
     const double span = b - a;
     if (span > 0 && span < 600)
         for (double s = std::ceil(a); s <= b; s += 1) {
@@ -84,7 +84,7 @@ void Timebar::paint(PaintContext& ctx) const {
         }
     // The playhead.
     out.fill_rect({head - 1, 2, 2, h - 4}, th.color("text"));
-    out.fill_round_rect({head - 5, 1, 10, 10}, CornerRadii::all(5), render::Paint::solid(th.color("text")));
+    out.fill_round_rect({head - 5, 1, 10, 10}, CornerRadii::all(5), xrender::Paint::solid(th.color("text")));
 }
 
 bool Timebar::on_event(EventContext& ctx, const InputEvent& e) {

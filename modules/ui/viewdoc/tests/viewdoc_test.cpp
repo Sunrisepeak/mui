@@ -375,6 +375,11 @@ int main(int argc, char** argv) {
         check(h.tree().node("main/save").has_value());
         view.slot("toolbar", row({.id = "tools"}, {button({.id = "open", .text = "Open"})}));
         h.step();
+        check(h.tree().node("main/tools/open").has_value());
+        // The replaced content may leave by its exit motion; until it is gone
+        // the tree states it as removing (S-4), never as live content.
+        if (auto old = h.tree().node("main/save")) check(old->states.has(spec::State::removing), "the old content is leaving");
+        h.settle();
         check(!h.tree().node("main/save") && h.tree().node("main/tools/open"));
         check(h.tree().node("main/body").has_value());
     });

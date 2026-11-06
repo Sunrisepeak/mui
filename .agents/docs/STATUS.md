@@ -21,7 +21,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 1 | `WeightedPaint` incomplete type in `std::span` arithmetic | Windows build, omui pack | ≤ `c9b0d1c` | R | open |
 | 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | R | open |
 | 3 | Metal: cellular `rules.slang` buffer index 0 reserved twice | macOS `rhi.sdl` | ≤ `ab4d823` | R | open |
-| 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | open |
+| 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | fixed: the test predates default exit motions; replaced content is `removing` (S-4) until it settles |
 | 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | ≤ `074e3bd` | R | open |
 | 6 | promo-video pinned frames (`promo_test.cpp:129/133`) | all | ≤ `c9b0d1c` | R | open |
 | 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | ≤ `c9b0d1c` | R | open |

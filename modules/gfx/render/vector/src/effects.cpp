@@ -848,6 +848,15 @@ void register_builtins(EffectRegistry& r) {
     tinted.identity=[](std::span<const float> p){return p[3]==0;};
     tinted.preserves_hit_geometry=true;
     r.add(std::move(tinted));
+    // Append to preserve existing built-in refs. Scale the composed pixels
+    // once; changing each paint's alpha would change overlapping children.
+    auto faded=local({"opacity", "Uniform opacity of the composed layer; layout and interaction remain unchanged.",
+        {{"amount", 1, 0, 1, "0: transparent; 1: exact identity"}},no_reach,
+        [](const EffectInput& in){each_pixel(in,[&](int,int,Rgba8 p){return scaled(p,in.params[0]);});},
+        pixel(fx::opacity::opacity_fs)});
+    faded.identity=[](std::span<const float> p){return p[0]==1;};
+    faded.preserves_hit_geometry=true;
+    r.add(std::move(faded));
 
     // Where each runs (performance tiers §1: bit t is T<t>) and what stands in for it below: the cheap row-local ones
     // from embedded Linux up; what lights, bursts or reads the backdrop (glass: below, its panel drawn solid) from the Web up;

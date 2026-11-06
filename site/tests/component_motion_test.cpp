@@ -165,7 +165,7 @@ int main(int argc,char** argv) {
         r.step(1); // Let the real text-edit feedback finish before replaying a different animation.
         r.seek(1);const auto ordinary_end=r.pixels();r.seek(0);const auto ordinary=r.pixels();
         Value::List samples;
-        for(const auto effect:{"blur","tone","pixel","layered"}) {
+        for(const auto effect:{"blur","tone","pixel","opacity","layered"}) {
             r.act("details/effect","set_value",Value{}.set("value",effect));
             std::vector<std::uint64_t> frames;
             for(int i=0;i<=60;++i) {

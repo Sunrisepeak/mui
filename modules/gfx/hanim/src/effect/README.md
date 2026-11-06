@@ -112,3 +112,10 @@ parameter path without UI or a renderer; `hanim.render.vector` tests exercise
 the optional real-pixel path. No GUI is required in either workflow.
 
 Tests: `mcpp test effect/ -p hanim --locked` after workspace registration.
+
+`fx::opacity(from, to)` describes one `opacity.amount` image parameter. The
+renderer binds its supported range 0..1. It scales a composed group's
+premultiplied RGBA once, so overlapping parts, text and child controls fade
+together; changing each part's fill alpha has different overlap semantics.
+Use it on a leaf or explicit composite scope alongside ordinary motion and
+other image effects. The parameter planner remains renderer-independent.

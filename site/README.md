@@ -257,3 +257,10 @@ The public-program note's **Follow a path** selection uses
 local style remain independent. Its copied recipe is the same public C++ API;
 the scene contains no waypoint sampler. Existing `motion.*` verbs can inspect
 and sample the complete route. Returning to the start does not reset note data.
+
+The note's **Fade** image-effect choice applies public `hanim::fx::opacity`
+from 1 to 0.35 to its captured group, including text and controls. It combines
+with the selected public motion and retains editable note data. This preview
+uses a partially transparent endpoint; it does not use transparency as a visibility or
+permission switch. The browser check captures the same pose with and without
+the effect to verify an actual pixel change, with unchanged UI geometry.

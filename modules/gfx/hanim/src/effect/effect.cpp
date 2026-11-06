@@ -83,6 +83,7 @@ std::expected<void, EffectError> PreparedEffects::sample(double progress, std::s
 }
 namespace fx {
 EffectSpec blur(float from, float to) { return {"blur", {{"radius", from, to}}}; }
+EffectSpec opacity(float from, float to) { return {"opacity", {{"amount", from, to}}}; }
 EffectSpec tone(Tone from, Tone to) {
     return {"tone", {{"color_r", from.r, to.r}, {"color_g", from.g, to.g},
         {"color_b", from.b, to.b}, {"amount", from.amount, to.amount}}};

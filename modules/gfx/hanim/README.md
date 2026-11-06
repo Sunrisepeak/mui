@@ -333,3 +333,31 @@ with the selected renderer. Check unchanged parts, scoped effects and actions
 at the moved position. The site's “Follow a path” selection consumes this exact
 factory and supports its existing semantic seek controls. One path facility
 and its parameter variations do not establish the complete 40/20 catalog.
+
+## Group opacity as a composable image effect
+
+```cpp
+auto animation = hanim::composite(route)
+    .with_effect(hanim::fx::opacity(1, .35f));
+auto playback = hengine.play(animation);
+```
+
+The same effect works with an ordinary leaf's `with_effect`. It scales the
+composed image once; it does not independently fade each fill or alter
+transforms. The shared vector renderer supplies CPU and GPU implementations,
+including exact identity at amount 1 and transparent output at 0. Renderer
+binding validates the 0..1 range; generic PreparedEffects still owns finite
+parameter interpolation without acquiring a renderer dependency.
+
+Opacity changes presentation, not application visibility, layout, hit geometry,
+focus, permissions or business state. A host that wants an invisible item to
+stop interacting must apply its ordinary visibility/input policy. A UI image
+scope covers the selected binding root's captured subtree; naming a part in
+an unrelated property animation does not turn that image scope into a per-part
+mask. Compose or select separate roots when that is the intended boundary.
+
+Headless review: prepare the actual scope, sample endpoints and intermediate
+times, capture through the authorized renderer and compare reverse replay.
+Check overlapping content, translucent input, other layer opacity/blending,
+clipping and DPI. A backend without image effects must report its limitation;
+this does not introduce an automatic TUI equivalent or a new visibility policy.

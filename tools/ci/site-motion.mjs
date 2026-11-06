@@ -336,7 +336,36 @@ try {
       Math.abs((await node(card)).bounds[1] - pathStart[1]) < .5, 'the public path returns to the original presentation');
     await pointer(root + '/details/copy'); const pathSource = await page.value('navigator.clipboard.readText()');
     check(pathSource.includes('hanim::anim::move_through') && pathSource.includes('PointPath::bend'), 'copied route uses only the public path and animation API');
-    await invokeMotion('seek', { progress: .5 }); await shot('component-motion-path');
+    await visibleBounds(card); await invokeMotion('seek', { progress: .5 }); await shot('component-motion-path');
+    await pointer(root + '/details/effect'); await key('Home', 'Home', 36);
+    for (let i = 0; i < 4; ++i) await key('ArrowDown', 'ArrowDown', 40);
+    await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/effect') === 'opacity', 'keyboard selects shared group opacity');
+    await invokeMotion('seek', { progress: .5 });
+    check(await scalar(card + '/editor') === 'A browser-made note', 'group opacity preserves the actual note content');
+    await pointer(root + '/details/copy'); const fadedSource = await page.value('navigator.clipboard.readText()');
+    check(fadedSource.includes('hanim::fx::opacity(1, 0.35f)'), 'copied composition uses the public opacity effect');
+    await visibleBounds(card); await invokeMotion('seek', { progress: .5 });
+    const opacityBounds = (await node(card)).bounds;
+    const captureCard = async () => {
+      const [x, y, width, height] = opacityBounds;
+      return (await page.call('Page.captureScreenshot', { format: 'png', clip: { x, y, width, height, scale: 1 } })).result?.data;
+    };
+    const fadedPixels = await captureCard();
+    await shot('component-motion-opacity');
+    const cleared = await page.value(`window.omui.act(${q(root + '/details/effect')},'set_value',{args:{value:'none'}})`);
+    check(cleared.exitCode === 0, 'Agent clears the opacity effect through the real selector', cleared);
+    await page.value('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
+    await invokeMotion('seek', { progress: .5 });
+    await requireCheck(async () => (await node(card)).bounds.every((v, i) => Math.abs(v - opacityBounds[i]) < .5),
+      'clearing opacity retains the same sampled UI geometry');
+    const fullPixels = await captureCard();
+    check(fadedPixels && fullPixels && fadedPixels !== fullPixels, 'shared opacity changes actual browser pixels at the same animation pose');
+    for (const [name, data] of [['opacity-midpoint-crop', fadedPixels], ['opacity-off-crop', fullPixels]]) {
+      if (data) { const file = `${output}/${name}.png`; await writeFile(file, Buffer.from(data, 'base64')); report.screenshots.push(file); }
+    }
+
+
 
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');

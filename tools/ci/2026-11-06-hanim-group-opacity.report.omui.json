@@ -1,0 +1,505 @@
+{
+  "format": "hanim.group-opacity-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T02:21:31.078305+00:00",
+  "base_commit": "a31cdc8e27883dd88743a1bf23e4883c9c6c56bc",
+  "scope": [
+    "Public fx::opacity describes an image parameter; existing renderer CPU/GPU helpers apply uniform premultiplied group opacity.",
+    "Same image scope applies to real UI text and controls, with existing motion/style composition; no new package or UI-specific sampler.",
+    "Opacity changes presentation, not layout, visibility policy, input mapping or permissions."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "c7660ed2cb2bbce039c89e3313761e76e556af7722ac3e4e530b71b96b1c812d",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "0d86bd6f55034e4047ed1887af98e13b82befa1f73f605b2a702cc3345768cb9",
+    ".agents/docs/2026-11-06-hanim-ui-image-scope-design.md": "c9a5286b384f3d4f0ffd98a492dbbfe8f21e477503d19afdb37ad93a907ebab9",
+    ".agents/docs/README.md": "bbf3e849c2bab3db9adb8e8c39b3e82ded860a9ebcb368ed36f07a62e71a9027",
+    "modules/gfx/hanim/README.md": "f73b327bb9cb6ff878859623c668afa4807b49d149f0a89d68ec7d405574e7e0",
+    "modules/gfx/hanim/src/effect/README.md": "f63cb2d2e40aae449b20e6fc7f3456203216699e8305ee71cceed4d013f89ca2",
+    "modules/gfx/hanim/src/effect/effect.cpp": "41ca37925ff2398e27ba16cbc8dc36d50dbaa1d535290898677ac551ea05bdd1",
+    "modules/gfx/hanim/src/effect/effect.cppm": "281ab14ce6cfc1fe62441186a86fc5deb90549856a070cc2cf7376f1b7ab5146",
+    "modules/gfx/hanim/tests/effect/effect_test.cpp": "8c55faa427054c073b983495394c11806ec3a6ce980bb2df36c93b2f40fbe43e",
+    "modules/gfx/render/cts/tests/vector_gpu_test.cpp": "02a531c94fc8cf7b3d694f4bab6f874a257d24f66842e1633a5f2ce49ffd4410",
+    "modules/gfx/render/vector/README.md": "c25c2d3b6672ff9043ecfd807d4ebf43dd189816a0d1c1d4291d2f4a275499fc",
+    "modules/gfx/render/vector/src/effects.cpp": "05762f64feade1378610c27f9be44afa9d8a6d246edeeabc082c622aa20304fd",
+    "modules/gfx/render/vector/src/effects.cppm": "cde2e1017ce6cdb08c409412bebb86d6b066367243121b20651302a8d85c31d2",
+    "site/README.md": "eef9ff353aecafd4f526af81241b613a082ba052c364386c5608210ac5fcfb0e",
+    "site/src/component_motion.cpp": "c687b2c9bb6f8b420026772ee0bf2473bf1e923ce0b04f6b12c42c4e19a393d2",
+    "site/src/motion_gallery.cpp": "532fbadb8c1c0d752fa7d6482a243b90da73fb68bac1fb2c2d8ad3407e5482cf",
+    "site/tests/component_motion_test.cpp": "a31bce60eeeaa7d9a4dc774094ae216ff9ce8c9048fc75345fabe4eaac80bbf4",
+    "tools/ci/hanim-play-consumer/tests/vector_test.cpp": "d850d2062a9349240d435cd0bca82ed2011f4e733133e777bfa6435e42c95659",
+    "tools/ci/site-motion.mjs": "12fa4ecd3c867502c97303124f1e7fd47f82d410c2178d07cf258db60134f060",
+    "modules/gfx/render/vector/effects/opacity.slang": "9b264db4d8f2d20c5b5af253bc217b1ff8bb38a4a5f677e38c755ea29878bd31",
+    "modules/gfx/render/vector/tests/opacity_test.cpp": "bf4aae42827fce93626757e084361e274f5aae8f1999e668de5f59d238178253"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "tests": {
+      "renderer-dev": {
+        "path": "target/hanim-opacity/renderer-dev.log",
+        "sha256": "0ac4d76d67b3fe23c6dd19f015d7f904817f08557471809fe5625fa8738b18a6",
+        "programs": 13,
+        "cases": 64
+      },
+      "hanim-dev": {
+        "path": "target/hanim-opacity/hanim-dev.log",
+        "sha256": "a1c7d2c122e5746e9720b78e7b82f3178ab0742839578ceb5180798ef44c986d",
+        "programs": 9,
+        "cases": 108
+      },
+      "renderer-web": {
+        "path": "target/hanim-opacity/renderer-web.log",
+        "sha256": "015dc52b37182f49166f84b6dd75ea44a33f7676d06fac0c1fde329cbefc80b9",
+        "programs": 1,
+        "cases": 3
+      },
+      "gpu": {
+        "path": "target/hanim-opacity/gpu.log",
+        "sha256": "e83844e46dda225221de64d3fa4220187fef94c02978d293ee059c907ab76ea3",
+        "programs": 1,
+        "cases": 8
+      },
+      "site": {
+        "path": "target/hanim-opacity/site.log",
+        "sha256": "2f7766159d15510d52968dfc71593d282f8ec161f6031919a06b9cb9ef33f32a",
+        "programs": 1,
+        "cases": 9
+      }
+    },
+    "source_consumer": {
+      "path": "target/hanim-opacity/consumer.report.omui.json",
+      "sha256": "020f11f74d1ce9626c2d77da08a025d474989779af64a70e265798a57a1e9b2c",
+      "profiles": [
+        {
+          "profile": "dev",
+          "native_outputs": 9,
+          "agent_reviews": 5
+        },
+        {
+          "profile": "release",
+          "native_outputs": 9,
+          "agent_reviews": 5
+        }
+      ],
+      "integration": [
+        {
+          "path": "target/hanim-opacity/consumer.report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "5f0c796efb0432baabf57d051539b671fe732f01a0b4e5e994e03906d378b731",
+          "profile": "dev",
+          "cases": 22,
+          "programs": 3
+        },
+        {
+          "path": "target/hanim-opacity/consumer.report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "0c290fc3bece5011d7b265eec4fdaa4c915957806f992a693c96c10f4ac57861",
+          "profile": "release",
+          "cases": 22,
+          "programs": 3
+        }
+      ],
+      "source_and_fixture_fingerprints_match": true
+    },
+    "gpu": {
+      "backend": "SDL/Vulkan lavapipe",
+      "device_required": true,
+      "environment": {
+        "path": "/tmp/omui-n2sim-gpu.env",
+        "sha256": "29d5ea144cd8fb0fcd06332f20ee21804de30652ddc4184ccdfa955579579704"
+      },
+      "samples": [
+        {
+          "dpi": 1.0,
+          "amount": 0.0,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.0,
+          "amount": 0.25,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.0,
+          "amount": 0.5,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.0,
+          "amount": 0.75,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.0,
+          "amount": 1.0,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.25,
+          "amount": 0.0,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 1.25,
+          "amount": 0.25,
+          "max_channel_difference": 1
+        },
+        {
+          "dpi": 1.25,
+          "amount": 0.5,
+          "max_channel_difference": 1
+        },
+        {
+          "dpi": 1.25,
+          "amount": 0.75,
+          "max_channel_difference": 1
+        },
+        {
+          "dpi": 1.25,
+          "amount": 1.0,
+          "max_channel_difference": 1
+        },
+        {
+          "dpi": 2.0,
+          "amount": 0.0,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 2.0,
+          "amount": 0.25,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 2.0,
+          "amount": 0.5,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 2.0,
+          "amount": 0.75,
+          "max_channel_difference": 0
+        },
+        {
+          "dpi": 2.0,
+          "amount": 1.0,
+          "max_channel_difference": 0
+        }
+      ],
+      "skipped_effects": 0
+    },
+    "site_pixels": {
+      "path": "target/hanim-opacity/pixels.report.omui.json",
+      "sha256": "57f9cc87cb41110847900931fb3151fffaefc4ecd255ee44db21ac99b725c114",
+      "new_opacity_frames": 61,
+      "retained_pngs": 615,
+      "prior_images_byte_identical": 554,
+      "reverse_pixels_identical": true
+    },
+    "browser": {
+      "path": "target/hanim-opacity/browser.report.omui.json",
+      "sha256": "a20b583e31280047f16db6261117ec4ea86675f9016993f4e8b8d2cf4be868ce",
+      "checks": 176,
+      "exceptions": [],
+      "screenshots": [
+        {
+          "path": "target/hanim-opacity/browser-artifacts/shape-morph-opening.png",
+          "sha256": "91d97c71d401eefb19ef19ea122c96da0428b6f8340f8b844e7633549ff60cf2"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/basic-motion-interactive.png",
+          "sha256": "b57a0babbb056bdfbc55618fefa813728890e4be12a1df10341c691e25c6692f"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/component-motion-nested-effects.png",
+          "sha256": "83400df79210f71f5e3354f636a56ff16bf8626b26e4b520b8f22006b8956d69"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/component-motion-live-note.png",
+          "sha256": "16b7cbfd9d0c36caa0e7154627f73e5a026f4322233ed9294c306b9cdf28a19e"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/component-motion-feedback.png",
+          "sha256": "9b060f5eef069d05385f3f049c997cc32acf44903992234e13436b383b410978"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/component-motion-path.png",
+          "sha256": "d19db9c2032affa10e3529ec733b59cb9c2de4de0e94018d4f6925abdd63bdad"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/component-motion-opacity.png",
+          "sha256": "4c0e787ca19c60e78d69850f38d1756400309b0a8f0c4199f3115ca7a05c5ca8"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/opacity-midpoint-crop.png",
+          "sha256": "8ca52a110ebffd87ef8e273ceef39789a8592e8e29cddc53f77ab2b3f229ef83"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/opacity-off-crop.png",
+          "sha256": "87e1dd4332fa7476744bb9ff357d6019d2c6eb0daa6a1d385a96452b059b51ef"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/creative-packing.png",
+          "sha256": "49d86b490521c9b7cd0f43ae5dcc583817a1e054ca40d65a27b1c5ba3a59d5f7"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/creative-palette.png",
+          "sha256": "504c378f4eaa2e3b3bc8e95904ff63d3ccf959d6c5937d36e0325516fbeb066e"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/agent-design.png",
+          "sha256": "7e9b3b7004ac9ed02c5bbfb0da897bc96f86dc71221aad9aae47ef3a2486d159"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/interface-language-details.png",
+          "sha256": "720071be21b504865dc4693f39e73581ecb70a75db2a7aaf5f5420909130c399"
+        },
+        {
+          "path": "target/hanim-opacity/browser-artifacts/scoped-styles-details.png",
+          "sha256": "c59c35cd3b8135481650671186ea4bcb8cdaab279936e48feb481ac52a53937e"
+        }
+      ],
+      "same_pose_geometry_verified": true,
+      "actual_opacity_on_off_pixels_differ": true
+    },
+    "web_pack": {
+      "path": "target/hanim-opacity/site.tar.gz",
+      "sha256": "6540b7651bc7a790174c385560f97258bd808c26b668049a03fa1740131bb04d"
+    },
+    "delivery": {
+      "path": "target/hanim-opacity/delivery.report.omui.json",
+      "sha256": "8e3e7b9f5b0ad473d580fb4ae404f4cae57215f21c6bab893c6c0695ff312951",
+      "network": "20/40",
+      "cache": "enabled",
+      "transfer": {
+        "total": 4880258,
+        "before_first_frame": 2978029,
+        "by_kind": {
+          "document": 61031,
+          "fetch": 4760198,
+          "image": 11922,
+          "script": 47107
+        }
+      },
+      "first_frame_ms": 1646.6000000238419,
+      "ready_ms": 1608.6000000238419,
+      "frames": {
+        "acted": [
+          {
+            "node": "main/bar/nav/to_docs",
+            "exitCode": 0
+          },
+          {
+            "node": "main/body/view/docs/page/directory/to_features",
+            "exitCode": 0
+          },
+          {
+            "node": "main/bar/mark",
+            "exitCode": 0
+          }
+        ],
+        "frames": 320,
+        "p50": 16.699999999999818,
+        "p95": 16.800000000000182,
+        "p99": 16.800000000000182,
+        "max": 50.100000000000364,
+        "long": 1
+      },
+      "budgets": [
+        {
+          "metric": "transfer.total",
+          "value": 4880258,
+          "max": 5000000,
+          "pass": true
+        },
+        {
+          "metric": "transfer.before_first_frame",
+          "value": 2978029,
+          "max": 3800000,
+          "pass": true
+        },
+        {
+          "metric": "first_frame_ms",
+          "value": 1646.6000000238419,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "ready_ms",
+          "value": 1608.6000000238419,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "frames.p95",
+          "value": 16.800000000000182,
+          "max": 34,
+          "pass": true
+        },
+        {
+          "metric": "frames.long",
+          "value": 1,
+          "max": 15,
+          "pass": true
+        },
+        {
+          "metric": "errors.length",
+          "value": 0,
+          "max": 0,
+          "pass": true
+        }
+      ]
+    },
+    "lint": {
+      "path": "target/hanim-opacity/lint-final.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "documentation_paths_resolve": true,
+    "commands_initial": [
+      {
+        "label": "renderer-dev",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "xengine.render.vector",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 9.607182881096378,
+        "log": "target/hanim-opacity/renderer-dev.log"
+      },
+      {
+        "label": "hanim-dev",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "hanim",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 7.359943052986637,
+        "log": "target/hanim-opacity/hanim-dev.log"
+      },
+      {
+        "label": "renderer-web",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "opacity_test",
+          "-p",
+          "xengine.render.vector",
+          "--locked",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten"
+        ],
+        "exit": 0,
+        "seconds": 7.15843550208956,
+        "log": "target/hanim-opacity/renderer-web.log"
+      },
+      {
+        "label": "gpu",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "vector_gpu_test",
+          "-p",
+          "xengine.render.cts",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "seconds": 14.901205467991531,
+        "log": "target/hanim-opacity/gpu.log"
+      },
+      {
+        "label": "consumer",
+        "args": [
+          "python3",
+          "tools/ci/hanim-play-consumer/run.py",
+          "--mcpp",
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "--project",
+          "/tmp/hanim-public-play-consumer-tekt49lv",
+          "--keep-project",
+          "--output",
+          "/home/speak/workspace/mui/target/hanim-opacity/consumer.report.omui.json"
+        ],
+        "exit": 1,
+        "seconds": 84.6937782469904,
+        "log": "target/hanim-opacity/consumer-initial.log"
+      }
+    ],
+    "commands_remaining": [
+      {
+        "label": "consumer",
+        "args": [
+          "python3",
+          "tools/ci/hanim-play-consumer/run.py",
+          "--mcpp",
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "--project",
+          "/tmp/hanim-public-play-consumer-tekt49lv",
+          "--keep-project",
+          "--output",
+          "/home/speak/workspace/mui/target/hanim-opacity/consumer.report.omui.json"
+        ],
+        "exit": 0,
+        "seconds": 95.15435232594609,
+        "log": "target/hanim-opacity/consumer.log"
+      },
+      {
+        "label": "site",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "component_motion_test",
+          "-p",
+          "openmui.site",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 222.35789546801243,
+        "log": "target/hanim-opacity/site.log"
+      },
+      {
+        "label": "site-pack",
+        "args": [
+          "bash",
+          "tools/ci/site.sh"
+        ],
+        "exit": 0,
+        "seconds": 99.36137636797503,
+        "log": "target/hanim-opacity/site-pack.log"
+      }
+    ]
+  },
+  "resolved_validation_failures": [
+    {
+      "evidence": {
+        "path": "target/hanim-opacity/integration-initial.stdout.log",
+        "sha256": "da42aa420fbb17fe0b7e91b8a9fc2e6fe5ea9c1eb650a2514dad558ef63bfc73"
+      },
+      "reason": "Test reused an append-only display-list destination without clearing previous frames; corrected the caller, retained numerical assertions."
+    },
+    {
+      "evidence": {
+        "path": "target/hanim-opacity/browser-initial.report.omui.json",
+        "sha256": "6b70be0595cb7fb8204f7ffd847e3a221df22ef5750203c4dc1f498faa960210"
+      },
+      "reason": "Browser test passed selector value at options top-level; corrected to the established args envelope and reran all browser checks."
+    }
+  ],
+  "limits": [
+    "CPU process samples and software Vulkan conformance do not establish physical GPU performance or all device/backend correctness.",
+    "No automatic layer/pass fusion, zero-cost image filtering, implicit visibility/input policy or arbitrary per-part image masks.",
+    "No new animation design count, full 40/20 library acceptance, default component migration completion or global architecture completion claim.",
+    "The independent control CLI uses upstream openas.conformance from source; mcpp warns it is not declared public for the upstream packed form. Runtime control imports public openas; upstream packaging remains follow-up.",
+    "No claim of full real-time aesthetic/accessibility acceptance. Fresh-profile delivery is a local sample; first-frame proxy is not FCP/LCP and rAF is not GPU cost."
+  ]
+}

@@ -18,6 +18,15 @@ int main(int argc, char** argv) {
         check(plan->sample(0, value).has_value() && value[1] == 0);
         check(plan->sample(1, value).has_value() && value[1] == 1);
     });
+    s.test("opacity is a typed scalar image effect with exact authored endpoints", [] {
+        const auto input=fx::chain({fx::opacity(1,0)});const auto plan=PreparedEffects::prepare(input);
+        check(plan.has_value());if(!plan)return;
+        check(plan->effects()[0].id=="opacity" && plan->parameters()[0].name=="amount");
+        std::array<float,1> value{};
+        check(plan->sample(0,value).has_value() && value[0]==1);
+        check(plan->sample(.5,value).has_value() && value[0]==.5f);
+        check(plan->sample(1,value).has_value() && value[0]==0);
+    });
     s.test("ordered recipes own endpoint metadata and sample after producer release", [] {
         PreparedEffects plan;
         {

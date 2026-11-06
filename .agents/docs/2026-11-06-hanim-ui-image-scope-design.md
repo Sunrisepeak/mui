@@ -61,3 +61,9 @@ Hanim adapter 冷准备各叶子／scope 的参数映射及最大 buffer，热�
 完整 3D、hold-world、通道混合、任意多对象／逐部件 image-scope IR、动态布局约束、GPU-only／backdrop／空间逆映射、40／20 公共库及其他子系统目标继续开放。CPU 滤镜执行本身的分配和资源策略未在本轮宣称为零成本。
 
 稳定性能与冷资源分开记录：固定字形／字号、DPI 1 的所有公开子像素 mask 预先准备后，100 个平移部件、两层效果、UI paint 与内容边界测量为零 C++ new；未预热时首次新字形相位曾有最多 72 次分配。公开参数绑定另有独立零分配预算。新字形／字号、滤镜像素执行和 GPU 成本仍需各自评估，不能由该基准推出全场景每帧零分配。
+
+## 组透明度的呈现边界
+
+公共 `fx::opacity(from,to)` 使用同一图像 scope，捕获根对象内容后统一缩放预乘 RGBA，包含真实文字与子控件，不逐个改 fill alpha。CPU／GPU 都归共享 renderer，既有 UI adapter 不新增透明度专用采样器。amount=1 是 filter identity，保留原层 opacity／blend；amount=0 是透明输出，不能当作 identity。
+
+透明度是呈现参数，不自动改变 hidden／display、布局、焦点、命中或授权。业务需要不可交互时由其已有策略表达；也不能用某个属性动画的 part 名暗示整组图像 effect 已变成部件 mask。当前 UI image scope 仍遵循绑定根的内容边界，局部根可独立选择。没有将 group opacity 与每个 paint 的 alpha 混为同一行为，也没有把 UI 全部渐隐行为锁死成一套默认策略。

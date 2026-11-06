@@ -535,6 +535,21 @@ int main(int argc, char** argv) {
         device->destroy(*target);
     });
 
+    s.test("composed opacity matches CPU on the real pixel backend including identity and transparency", [] {
+        auto device=open_device();if(!device)return;
+        auto gpu=render::GpuRenderer::create(*device);check(gpu.has_value());if(!gpu)return;
+        auto target=device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm,W,H,
+            rhi::TextureUsage::color_target|rhi::TextureUsage::sampled,"test.opacity"});
+        check(target.has_value());if(!target)return;
+        Rig rig{*device,std::move(*gpu),{},*target,{},{},{}};
+        for(float dpi:{1.f,1.25f,2.f})for(float amount:{0.f,.25f,.5f,.75f,1.f}) {
+            render::DisplayList dl;dl.push_clip({3.5f,4.25f,110,80});
+            effect_scene(dl,"opacity",{{"amount",amount}},render::BlendMode::multiply,.8f);dl.pop_clip();
+            const auto problem=rig.compare(dl,std::format("opacity DPI {} amount {}",dpi,amount),{1,0},dpi);
+            check(problem.empty(),problem);check(rig.last.effects_skipped==0);
+        }
+        device->destroy(*target);
+    });
     s.test("each scene as the CPU reference draws it, within the scene's tolerance", [] {
         auto device = open_device();
         if (!device) return;

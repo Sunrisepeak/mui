@@ -51,6 +51,9 @@ struct TranslationPath { PointPath path; };
 [[nodiscard]] constexpr TranslationPath translation_path(PointPath path) noexcept { return {path}; }
 // Logical pixel radius; backend binding checks its supported range.
 [[nodiscard]] EffectSpec blur(float from, float to);
+// Uniform group opacity after composition, not per-part fill alpha. The
+// backend checks amount in [0,1]; it does not change layout/input semantics.
+[[nodiscard]] EffectSpec opacity(float from, float to);
 struct Tone { float r = 0.79f, g = 0.76f, b = 0.71f, amount = 1; };
 // Tint, not a brightness/contrast operation; alpha is retained by the backend.
 [[nodiscard]] EffectSpec tone(Tone from, Tone to);

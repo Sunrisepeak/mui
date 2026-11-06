@@ -125,3 +125,18 @@ Use `import xengine.render.vector;` and `xengine::render`. Old
 same type and effect-registry identities. The `openmui_effect.slang` template
 name, effect IDs and `*.effect.omui.toml` format stay unchanged. The embedded
 template and shader partitions now belong to `xengine.render.vector.api`.
+
+The built-in `opacity` image filter exposes `amount` in 0..1 (default 1).
+CPU and GPU use the existing premultiplied-byte scaling helpers; no independent
+colour algorithm or UI-specific rendering path is introduced. It is row-local,
+has zero input/output reach and preserves source hit geometry. Amount 1 is an
+exact filter identity, retaining the enclosing layer's own opacity, blend and
+clip; amount 0 is transparent output, not an identity. Existing built-in refs
+retain their order because this effect is appended.
+
+This is group compositing: overlapping opaque children at half group opacity
+remain half opaque in their overlap. Fading each paint separately produces a
+different image. Input visibility and semantic lifetime belong to the host.
+The effect uses the ordinary image pass/texture path; no new pass fusion or
+zero-cost layer claim is made. CPU process samples and the real-device CTS
+cover endpoints, intermediate amounts and fractional/high DPI.

@@ -214,6 +214,26 @@ int main(int argc, char** argv) {
         check(pixels.at(14, 25).a > 0, "outer tone retains blur output outside original x=16 boundary");
         check(pixels.at(25, 25).b > pixels.at(25, 25).r && pixels.at(25, 25).b > pixels.at(25, 25).g);
     });
+    s.test("public opacity binds to the shared renderer and fades composed geometry", [] {
+        auto source=fixture(true);const auto effects=PreparedEffects::prepare(fx::chain({fx::opacity(1,0)}));
+        check(effects.has_value());if(!effects)return;
+        const auto bound=PreparedVector::bind(source.plan,*effects);check(bound.has_value());if(!bound)return;
+        GeometryBuffers geometry(source.plan);RecordBuffers buffers(*bound);render::DisplayList output;
+        std::array<float,1> params{};std::array<std::uint64_t,61> hashes{};
+        for(int i=0;i<=60;++i) {
+            check(effects->sample(i/60.,params).has_value());
+            output.clear(); // record appends to the destination; each iteration is a fresh frame.
+            check(bound->record(geometry.sample(source.plan,.5),params,output,buffers.get()).has_value());
+            const auto pixels=draw(output);hashes[std::size_t(i)]=pixels.hash();
+            int maximum=0;for(const auto p:pixels.pixels()){maximum=std::max(maximum,int(p.a));check(p.r<=p.a && p.g<=p.a && p.b<=p.a);}
+            check(std::abs(maximum-255*(1-i/60.))<=1);
+        }
+        check(hashes.front()!=hashes[30] && hashes[30]!=hashes.back());
+        for(int i=60;i>=0;--i) {
+            check(effects->sample(i/60.,params).has_value());output.clear();check(bound->record(geometry.sample(source.plan,.5),params,output,buffers.get()).has_value());
+            check(draw(output).hash()==hashes[std::size_t(i)]);
+        }
+    });
     s.test("strict bind rejects unknown unsupported effects parameters and material resources", [] {
         auto source = fixture(true);
         auto effect_error = [&](EffectSpec description, VectorError error) {
@@ -224,6 +244,8 @@ int main(int argc, char** argv) {
         effect_error({"not-a-real-effect", {}}, VectorError::unknown_effect);
         effect_error({"blur", {{"typo", 0, 1}}}, VectorError::unknown_parameter);
         effect_error(fx::blur(0, 201), VectorError::invalid_parameter);
+        effect_error(fx::opacity(-.1f, 1), VectorError::invalid_parameter);
+        effect_error(fx::opacity(0, 1.1f), VectorError::invalid_parameter);
         effect_error({"liquid_glass", {}}, VectorError::unsupported_effect);
         const auto solid = render::Paint::solid(geom::Color::white());
         std::array materials{MaterialBinding{"missing", solid, solid}};

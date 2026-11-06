@@ -14,14 +14,15 @@ std::optional<Recipe> recipe(std::string_view selection) {
     if(selection=="path")return Recipe{0,0,0,.04,1.06};
     return std::nullopt;
 }
-enum class ImageKind {none,blur,tone,pixel,layered};
-struct ImageRecipe {ImageKind kind;float blur=3,tone=.18f,pixel_size=3,pixel_amount=.6f;};
+enum class ImageKind {none,blur,tone,pixel,layered,opacity};
+struct ImageRecipe {ImageKind kind;float blur=3,tone=.18f,pixel_size=3,pixel_amount=.6f,opacity=.35f;};
 std::optional<ImageRecipe> image_recipe(std::string_view id) {
     if(id=="none")return ImageRecipe{ImageKind::none};
     if(id=="blur")return ImageRecipe{ImageKind::blur};
     if(id=="tone")return ImageRecipe{ImageKind::tone};
     if(id=="pixel")return ImageRecipe{ImageKind::pixel};
     if(id=="layered")return ImageRecipe{ImageKind::layered};
+    if(id=="opacity")return ImageRecipe{ImageKind::opacity};
     return std::nullopt;
 }
 }
@@ -50,6 +51,8 @@ std::expected<hanim::Program,std::string> component_motion_program(hanim::Object
     if(image->kind==ImageKind::pixel)
         animation=hanim::composite(animation).with_effect(hanim::fx::pixelate({image->pixel_size,0},{image->pixel_size,image->pixel_amount},
             {hanim::fx::PixelUnit::device}));
+    if(image->kind==ImageKind::opacity)
+        animation=hanim::composite(animation).with_effect(hanim::fx::opacity(1,image->opacity));
     return animation;
 }
 std::string component_motion_source(std::string_view selection,bool loop,double speed,std::string_view effect) {
@@ -87,6 +90,8 @@ auto animation = hanim::parallel(
         source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::tone({{.amount=0}}, {{.amount={:.2f}f}}));\n",image->tone);
     if(image->kind==ImageKind::pixel)
         source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::pixelate({{{:.2f}f, 0}}, {{{:.2f}f, {:.2f}f}}, {{hanim::fx::PixelUnit::device}}));\n",image->pixel_size,image->pixel_size,image->pixel_amount);
+    if(image->kind==ImageKind::opacity)
+        source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::opacity(1, {:.2f}f));\n",image->opacity);
     source+=std::format("auto started = playback.play(animation, {{.alternate={}, .rate={}}});\n// Check started; call playback.update() before bounds/paint.\n",loop,speed);
     return source;
 }

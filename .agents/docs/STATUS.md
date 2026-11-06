@@ -19,7 +19,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | # | Failure | Where | Since | Kind | State |
 |---|---|---|---|---|---|
 | 1 | `WeightedPaint` incomplete type in `std::span` arithmetic | Windows build, omui pack | ≤ `c9b0d1c` | R | fixed, to confirm on Windows CI: MSVC STL checks C++23 const-iterator concepts when `std::span<const T>` is instantiated, so a span of the then-incomplete `WeightedPaint` cannot be a `Paint` member; `mlibs::memory::View<T>` replaces it in raster and render |
-| 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | R | open |
+| 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | E (mcpp) | worked around: the site declares its direct `hanim` features; local Web row 44 members, 106 passed. Upstream mcpp bug, see below |
 | 3 | Metal: cellular `rules.slang` buffer index 0 reserved twice | macOS `rhi.sdl` | ≤ `ab4d823` | R | open |
 | 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | fixed: the test predates default exit motions; replaced content is `removing` (S-4) until it settles |
 | 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | ≤ `074e3bd` | R | open |
@@ -28,6 +28,10 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | open |
 | 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | open |
 | 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | fixed by lock policy, to confirm |
+
+### Upstream issues to report (awaiting the maintainer's go-ahead)
+
+- **mcpp 2026.11.2.2: `[feature-deps]` not applied when the package is also a selected root.** Workspace `a` (features `f1`, `f2` with sources), `v` (`a` with `f1`; feature `x` whose `[feature-deps.x]` asks `a` for `f2`), `s` (`v` with `x`). `mcpp build -p s` builds; `mcpp build -p s -p v` compiles `v`'s `x` sources but not `a`'s `f2` ("a.f2: failed to read compiled module").
 
 ## Capability matrix (short)
 

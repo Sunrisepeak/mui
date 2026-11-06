@@ -147,6 +147,23 @@ int main(int argc, char** argv) {
         check(e.counts == rhi::Counts{.samplers = 1, .uniform_buffers = 1, .rw_storage_textures = 1});
     });
 
+    s.test("MSL: bound as SDL_GPU binds Metal, not by register numbers (uniforms, then read-only, then read-write)", [] {
+        auto p = shader::compile(data("buffers.slang"), {.formats = rhi::formats({rhi::ShaderFormat::spirv, rhi::ShaderFormat::msl})});
+        check(p.has_value(), p ? "" : p.error());
+        if (!p) return;
+        const shader::Entry& e = p->entries.at(0);
+        check(e.counts == rhi::Counts{.storage_buffers = 2, .uniform_buffers = 1, .rw_storage_textures = 1, .rw_storage_buffers = 1});
+        const auto* msl = e.code_for(rhi::ShaderFormat::msl);
+        check(msl != nullptr);
+        if (!msl) return;
+        const std::string t = text(msl->bytes);
+        // Slang alone writes t0, u1 and b0 as buffer(0), buffer(1), buffer(0).
+        check(t.contains("params_1 [[buffer(0)]]"), "the uniform buffer first");
+        check(t.contains("before_1 [[buffer(1)]]") && t.contains("rules_1 [[buffer(2)]]"), "then the read-only storage buffers");
+        check(t.contains("after_1 [[buffer(3)]]"), "then the read-write storage buffer");
+        check(t.contains("marks_1 [[texture(0)]]"), "the read-write storage texture after no read-only ones");
+    });
+
     s.test("what breaks the convention is refused, with where it should be", [] {
         check_eq(refusal("wrong_set.slang"),
                  std::string("wrong_set.slang (fragment, the fragment entry point `paint`): `image` is a sampled texture at set 0, binding 0; "

@@ -361,6 +361,65 @@ std::expected<std::string, std::string> wgsl_for_rhi(std::string_view text, rhi:
     return joined(lines);
 }
 
+// ── MSL ──────────────────────────────────────────────────────────────────
+
+// Slang's MSL, bound as SDL_GPU binds Metal. Slang numbers an entry point's
+// [[buffer]], [[texture]] and [[sampler]] by the HLSL register alone (the
+// space is dropped), so a compute shader's t0, u0 and b0 all land on
+// buffer(0). SDL_GPU binds, per stage: [[buffer]] the uniform buffers, then
+// the read-only storage buffers, then (compute) the read-write ones;
+// [[texture]] the sampled textures, then the read-only storage textures, then
+// (compute) the read-write ones; [[sampler]] beside its sampled texture. Each
+// resource's rhi slot is its order within its kind (check_entry), so its
+// Metal index follows from the kinds before it. Slang names a resource `x`
+// as `x_<n>` and a Sampler2D's halves `x_texture_<n>` and `x_sampler_<n>`.
+std::expected<std::string, std::string> msl_for_rhi(std::string_view text, std::string_view entry, const std::vector<Parameter>& used) {
+    std::map<Kind, std::vector<const Parameter*>> by;
+    for (const Parameter& p : used) by[p.kind].push_back(&p);
+    for (auto& [k, list] : by) std::ranges::sort(list, {}, [](const Parameter* p) { return p->binding.index; });
+    auto count = [&](Kind k) { return static_cast<std::uint32_t>(by[k].size()); };
+    struct Place { std::uint32_t buffer = 0, texture = 0; };
+    std::map<std::string, Place, std::less<>> place;
+    for (Kind k : {Kind::uniform, Kind::storage_buffer, Kind::rw_buffer, Kind::sampler, Kind::storage_texture, Kind::rw_texture}) {
+        const std::uint32_t buffer_base = k == Kind::storage_buffer ? count(Kind::uniform)
+                                        : k == Kind::rw_buffer      ? count(Kind::uniform) + count(Kind::storage_buffer)
+                                                                    : 0;
+        const std::uint32_t texture_base = k == Kind::storage_texture ? count(Kind::sampler)
+                                         : k == Kind::rw_texture      ? count(Kind::sampler) + count(Kind::storage_texture)
+                                                                      : 0;
+        for (std::uint32_t i = 0; i < count(k); ++i) place[by[k][i]->name] = {buffer_base + i, texture_base + i};
+    }
+    auto lines = lines_of(text);
+    static const std::regex stage_attr(R"(\[\[(kernel|vertex|fragment)\]\])");
+    static const std::regex bound(R"((\w+) \[\[(buffer|texture|sampler)\((\d+)\)\]\])");
+    static const std::regex suffix(R"(^(\w+?)(_texture|_sampler)?_\d+$)");
+    bool found = false;
+    for (auto& line : lines) {
+        if (!std::regex_search(line, stage_attr) || line.find(std::format(" {}(", entry)) == std::string::npos) continue;
+        found = true;
+        std::string out;
+        auto rest = line.cbegin();
+        for (std::sregex_iterator m(line.cbegin(), line.cend(), bound), end; m != end; ++m) {
+            out.append(rest, (*m)[0].first);
+            rest = (*m)[0].second;
+            std::smatch n;
+            const std::string param = (*m)[1].str(), attr = (*m)[2].str();
+            const auto it = std::regex_match(param, n, suffix) ? place.find(n[1].str()) : place.end();
+            if (it == place.end()) {  // not a resource rhi binds (vertex buffers are stage_in): as Slang wrote it
+                out.append((*m)[0].first, (*m)[0].second);
+                continue;
+            }
+            const std::uint32_t index = attr == "buffer" ? it->second.buffer : it->second.texture;  // a sampler beside its texture
+            out += std::format("{} [[{}({})]]", param, attr, index);
+        }
+        out.append(rest, line.cend());
+        line = std::move(out);
+    }
+    if (!found && !used.empty())
+        return std::unexpected(std::format("Slang's MSL has no entry point `{}` to bind as SDL_GPU binds Metal", entry));
+    return joined(lines);
+}
+
 // ── ESSL ─────────────────────────────────────────────────────────────────
 
 // `text` with every identifier that `names` holds replaced, token by token
@@ -757,6 +816,12 @@ std::expected<Program, std::string> compile(const std::filesystem::path& source,
                 // Text with LF line ends, as slangc writes it elsewhere (on
                 // Windows it writes CRLF): the same bytes on every platform.
                 std::erase_if(*bytes, [](std::byte b) { return b == std::byte{'\r'}; });
+                // Bound as SDL_GPU binds Metal, not by HLSL register numbers.
+                const std::string_view source_text(reinterpret_cast<const char*>(bytes->data()), bytes->size());
+                auto bound = msl_for_rhi(source_text, entry.name, used);
+                if (!bound) return std::unexpected(std::format("{} ({} for {}): {}", file_name, entry.name, name(format), bound.error()));
+                const auto b = std::as_bytes(std::span(*bound));
+                bytes->assign(b.begin(), b.end());
                 // Metal compiles source with fast math unless the source says
                 // otherwise (SDL_GPU passes no compile options): IEEE results
                 // and no contraction, as SPIR-V and the CPU reference have.

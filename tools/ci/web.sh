@@ -5,8 +5,8 @@
 # hashes as every other row, so a green Web row is the determinism gate for
 # the browser too. The members' list is the manifests'; `tools/lint`'s
 # `platforms` rule holds that each depends only on members that say it too.
-# openmui.host.web is built and tested here too (its dependencies do not
-# say they run on the Web yet, so it cannot), as is openmui.site — the
+# omui.host.web is built and tested here too (its dependencies do not
+# say they run on the Web yet, so it cannot), as is omui.site — the
 # program browsers run, its pins and reference run checked where it runs.
 # Then host.web's page half
 # (src/js/omui_web.js: the hidden textarea, the semantic DOM mirror,
@@ -35,10 +35,10 @@ PY
 echo "web: ${#packages[@]} members: ${packages[*]}"
 select=()
 for p in "${packages[@]}"; do select+=(-p "$p"); done
-select+=(-p openmui.host.web)
+select+=(-p omui.host.web)
 # The site is what browsers run: its pinned pictures and its reference run
 # (the table a browser checks itself against) must hold here too.
-select+=(-p openmui.site)
+select+=(-p omui.site)
 log="${TMPDIR:-/tmp}/openmui-web.log"
 mcpp test --target wasm32-emscripten --profile "$profile" "${select[@]}" 2>&1 | tee "$log"
 grep -q "workspace result ok\|test result ok" "$log" || { echo "::error::the Web row's tests failed"; exit 1; }

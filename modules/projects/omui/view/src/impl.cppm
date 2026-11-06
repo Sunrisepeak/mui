@@ -1,9 +1,9 @@
 // openmui.view:impl — the runtime's internals, shared by its implementation
 // units (runtime, tree, props, frame, input, act); exported to no one.
-module openmui.view:impl;
+module omui.view:impl;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import hanim.core;
 import hanim.effect;
@@ -11,7 +11,7 @@ import mlibs.pipeline;
 import xrender.vector;
 import xrender.raster;
 import mlibs.text;
-import openmui.motion;
+import omui.motion;
 import :element;
 import :glyphs;
 import :theme;

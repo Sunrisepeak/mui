@@ -3,7 +3,7 @@
 export module app;
 
 import std;
-import openmui;
+import omui;
 
 export namespace app {
 

@@ -1,7 +1,7 @@
 // Logs: levels per category, the fast check, the history tools read, and
 // the JSON-lines form.
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.testing;
 
 namespace omui {  // names this file uses unqualified, from their owner

@@ -1,10 +1,10 @@
 // The runtime's frame as stage plugins (D-66): each phase of §3.1 of the plan
 // is a stage that reads and writes the frame's resources, so a pipeline can
 // leave stages out (H0, H1), add its own between them, or replace one.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.pipeline;

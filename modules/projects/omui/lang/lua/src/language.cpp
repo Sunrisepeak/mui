@@ -1,11 +1,11 @@
 // Lua as a language of the player: one script, one Lua state on a thread of
 // its own.
-module openmui.lang.lua;
+module omui.lang.lua;
 
 import std;
-import openmui.abi;
-import openmui.lang;
-import openmui.player;
+import omui.abi;
+import omui.lang;
+import omui.player;
 
 namespace omui::lang::lua {
 

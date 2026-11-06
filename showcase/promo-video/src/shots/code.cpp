@@ -6,16 +6,16 @@
 // the film), and the hashes of its semantic tree and its pixels are shown
 // under it. They are the same four times (the CTS's S level); the last beat
 // shows the four side by side.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.lua;
-import openmui.lang.js;
-import openmui.lang.python.embedded;
+import omui;
+import omui.abi;
+import omui.lang;
+import omui.lang.lua;
+import omui.lang.js;
+import omui.lang.python.embedded;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner

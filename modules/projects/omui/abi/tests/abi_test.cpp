@@ -4,10 +4,10 @@
 // the bus interface (snapshot, act, wait), pixels, and every way to misuse a
 // call answered by its result rather than a crash.
 import std;
-import openmui.abi;
-import openmui.core;
-import openmui.ui.base;
-import openmui.native.fuzzy;
+import omui.abi;
+import omui.core;
+import omui.ui.base;
+import omui.native.fuzzy;
 import mlibs.testing;
 
 using namespace mlibs::testing;

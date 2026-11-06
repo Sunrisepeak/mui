@@ -1,17 +1,17 @@
 // openmui.entry.player — the player's main (component-binding §10.2), for the
 // `entry-player` feature: a script-first application's src/main.cpp is
 //
-//     import openmui.entry.player;
+//     import omui.entry.player;
 //     int main(int argc, char** argv) { return omui::player_main(argc, argv); }
 //
 // It reads [package.metadata.openmui] of the application's mcpp.toml
 // (`--manifest FILE`, default ./mcpp.toml), registers the official components
 // and the script languages, and runs the player with openmui's options
 // (--headless, --png, --serve, --dark …); saved files reload in place.
-export module openmui.entry.player;
+export module omui.entry.player;
 
 import std;
-import openmui.player;
+import omui.player;
 
 export namespace omui {
 

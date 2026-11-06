@@ -1,8 +1,8 @@
 module xengine.ui;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xengine.input;
 import xengine.simulation;
 

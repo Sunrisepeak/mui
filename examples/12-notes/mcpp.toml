@@ -11,7 +11,7 @@
 #   mcpp run                       a window
 #   mcpp run -- --headless --png notes.png
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "notes"
 version     = "0.1.0"
 description = "openmui example 12: a Markdown notes application in TypeScript, Lua, a view document and C++"
@@ -36,12 +36,12 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
-openmui.entry.player = { path = "../../src/entry/player" }
+omui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
 mlibs.utils      = { path = "../../modules/base/utils" }
-openmui.player       = { path = "../../modules/projects/omui/player" }
-openmui.lang.js      = { path = "../../modules/projects/omui/lang/js" }
-openmui.lang.lua     = { path = "../../modules/projects/omui/lang/lua" }
-openmui.ui.markdown  = { path = "../../modules/projects/omui/components/markdown" }
-openmui.native.fuzzy = { path = "../../modules/projects/omui/native/fuzzy" }
+omui.player       = { path = "../../modules/projects/omui/player" }
+omui.lang.js      = { path = "../../modules/projects/omui/lang/js" }
+omui.lang.lua     = { path = "../../modules/projects/omui/lang/lua" }
+omui.ui.markdown  = { path = "../../modules/projects/omui/components/markdown" }
+omui.native.fuzzy = { path = "../../modules/projects/omui/native/fuzzy" }

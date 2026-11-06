@@ -1,10 +1,10 @@
 // openmui.theme.default_theme — the default theme file, carried in the program.
-export module openmui.theme.default_theme;
+export module omui.theme.default_theme;
 
 export import :default_theme;
 
 import std;
-import openmui.theme;
+import omui.theme;
 
 export namespace omui::themes {
 

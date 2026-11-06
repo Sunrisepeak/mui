@@ -2,12 +2,12 @@
 // callables; structured values travel as JSON text (the Python half parses
 // them). Each function converts its arguments while it holds the GIL, then
 // does the Session's work on the script thread with the GIL released.
-module openmui.lang.python;
+module omui.lang.python;
 
 import std;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
+import omui.abi;
+import omui.lang;
 import :capi;
 
 namespace omui::lang::python {

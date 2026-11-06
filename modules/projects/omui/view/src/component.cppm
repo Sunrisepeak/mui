@@ -7,10 +7,10 @@
 // coarse boundary (one indirect call per node per phase, never per pixel or
 // glyph); contract-generated bases (omui-gen) produce the same tables, which
 // is why official and third-party components are alike.
-export module openmui.view:component;
+export module omui.view:component;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;

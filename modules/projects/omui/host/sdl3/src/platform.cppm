@@ -1,11 +1,11 @@
 // openmui.host.sdl3:platform — the window, as the rest of the host sees it:
 // no SDL type crosses this line (SDL lives in native/sdl.cpp).
-module openmui.host.sdl3:platform;
+module omui.host.sdl3:platform;
 
 import std;
-import openmui.core;
+import omui.core;
 import xrender.raster;
-import openmui.view;
+import omui.view;
 
 namespace omui::platform {
 

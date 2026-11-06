@@ -1,11 +1,11 @@
 // The panel the film's pixel belongs to: the style workshop in the
 // blueprint style on a headless host of its own, its pixel, and what drew it.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.showcase.style_gallery;
+import omui;
+import omui.showcase.style_gallery;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::fatal;

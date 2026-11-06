@@ -2,7 +2,7 @@
 // a selection's internal progress when current allocations change.
 import std;
 import hanim.core;
-import openmui.motion;
+import omui.motion;
 import xrender.vector;
 import xrender.raster;
 import mlibs.testing;

@@ -6,7 +6,7 @@
 # The window's state and operations are openmui.view's (`window()`, the
 # window.* verbs); a host makes them real.
 [package]
-namespace   = "openmui.ui"
+namespace   = "omui.ui"
 name        = "window"
 version     = "0.1.0"
 description = "The framework's own window frame: shadow, edge, title bar and caption buttons that follow the window's state"
@@ -24,16 +24,16 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.core    = { path = "../../core" }
-openmui.view    = { path = "../../view" }
+omui.core    = { path = "../../core" }
+omui.view    = { path = "../../view" }
 xrender.vector  = { path = "../../../xrender/vector" }
-openmui.ui.base = { path = "../base" }
+omui.ui.base = { path = "../base" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../../../base/utils" }
-openmui.host.headless = { path = "../../host/headless" }
-openmui.semantic      = { path = "../../semantic" }
+omui.host.headless = { path = "../../host/headless" }
+omui.semantic      = { path = "../../semantic" }
 mlibs.i18n.cldr     = { path = "../../../../content/i18n/cldr" }

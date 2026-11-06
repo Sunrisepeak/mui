@@ -1,6 +1,6 @@
-# openmui.lang.python.embedded
+# omui.lang.python.embedded
 
-openmui for Python embedded in a C++ program (component-binding §7): [PocketPy](https://github.com/pocketpy/pocketpy) 2.2 through [`mcpplibs.mwrap.pocketpy`](https://github.com/mcpplibs/pocketpy-m) over `compat.pocketpy`, so no C header appears here. The script runs on [openmui.lang](../..)'s script thread, as Lua ([lang/lua](../../lua)) and JavaScript ([lang/js](../../js)) do. Host mode ([lang/python](..), CPython loading openmui as an extension) is the other way round; the `openmui` module is the same in both, so a script reads the same: example 03's `python/tally.py` runs unchanged in either, with the tree of the C++ version (`examples/03-counter/tests`).
+openmui for Python embedded in a C++ program (component-binding §7): [PocketPy](https://github.com/pocketpy/pocketpy) 2.2 through [`mcpplibs.mwrap.pocketpy`](https://github.com/mcpplibs/pocketpy-m) over `compat.pocketpy`, so no C header appears here. The script runs on [omui.lang](../..)'s script thread, as Lua ([lang/lua](../../lua)) and JavaScript ([lang/js](../../js)) do. Host mode ([lang/python](..), CPython loading openmui as an extension) is the other way round; the `openmui` module is the same in both, so a script reads the same: example 03's `python/tally.py` runs unchanged in either, with the tree of the C++ version (`examples/03-counter/tests`).
 
 ```python
 import openmui as omui
@@ -45,7 +45,7 @@ The player runs `*.py` (`lang = "py"`; `language()`), and reloads a saved file i
 ## How it is made
 
 - **One interpreter, many scripts.** PocketPy has one current VM for the process and no threads. Each `Script` takes a VM of its own (sixteen at most) and enters the interpreter under one lock. A call that waits on the runtime (a mount, an invoke, a snapshot) gives the lock up meanwhile, so another script's thread can run, and a verb of one script called from another on the same thread finds its own VM. A Script's VM is emptied (`py_resetvm`) for the next when it goes.
-- **The module** `openmui` is Python (`src/prelude.cppm`, host mode's `python/openmui` in PocketPy's subset) over a native module `_openmui` (`src/native/runtime.cpp`), which turns Python values into JSON and back and calls [openmui.lang](../..). The Python functions the runtime may call later are kept in a dict of `_openmui`, where PocketPy's collector sees them. A view's handlers are released when the view is replaced.
+- **The module** `openmui` is Python (`src/prelude.cppm`, host mode's `python/openmui` in PocketPy's subset) over a native module `_openmui` (`src/native/runtime.cpp`), which turns Python values into JSON and back and calls [omui.lang](../..). The Python functions the runtime may call later are kept in a dict of `_openmui`, where PocketPy's collector sees them. A view's handlers are released when the view is replaced.
 - **The conformance scenarios** (`spec/conformance/S`, CTS level S) run in embedded Python through `tests/cts.py`: it builds each view with the builders and operators and does the steps through `omui.act`, `omui.invoke` and the rest, and must record the trace pinned beside each scenario, as the Lua, JavaScript and host-mode Python runners do.
 
 ## Python, PocketPy's subset

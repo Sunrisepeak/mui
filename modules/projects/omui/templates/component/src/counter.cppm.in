@@ -3,7 +3,7 @@
 export module {{project.name}}:counter;
 
 import std;
-import openmui;
+import omui;
 import :counter_contract;
 
 export namespace {{project.name}} {

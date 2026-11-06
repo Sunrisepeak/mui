@@ -12,10 +12,10 @@
 //               apart, and no smaller than least_type as drawn; no blank frame
 //   determinism the same bytes drawn twice
 //   seek        frames drawn directly the same as played to
-export module openmui.showcase.promo_video:checks;
+export module omui.showcase.promo_video:checks;
 
 import std;
-import openmui;
+import omui;
 import :film;
 import :player;
 import :sound;

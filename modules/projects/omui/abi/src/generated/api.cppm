@@ -5,7 +5,7 @@
 // The functions of openmui.h, as C++ declares them: C linkage (the header's
 // symbols), never throwing. modules/projects/omui/abi defines them; C++ callers (tests, the
 // bindings' own C++) call them here.
-export module openmui.abi:api;
+export module omui.abi:api;
 
 import std;
 import :c;

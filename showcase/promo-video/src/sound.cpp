@@ -1,6 +1,6 @@
 // A cut's sound track: its music clips, its cues on their frames, the
 // tape running backwards under a `film` clip.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;

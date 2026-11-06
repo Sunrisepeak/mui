@@ -1,9 +1,9 @@
 // The wall's documents: a folder's Markdown, or the benchmark's synthetic set.
-module openmui.showcase.markdown_wall;
+module omui.showcase.markdown_wall;
 
 import std;
 import mlibs.hash;
-import openmui;
+import omui;
 
 namespace omui::wall {
 

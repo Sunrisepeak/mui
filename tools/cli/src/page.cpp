@@ -16,13 +16,13 @@
 // The agent's side needs the token the bridge wrote to the per-user
 // directory (bridge.json): a page in a browser cannot read it, so no page can
 // act as the agent.
-module openmui.cli;
+module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui.core;
-import openmui.agent;
+import omui.core;
+import omui.agent;
 
 namespace omui::cli {
 

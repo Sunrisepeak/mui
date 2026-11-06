@@ -1,7 +1,7 @@
 // openmui.features — what the chosen sink is, and code that does not care
 // which: the partition is chosen by the manifest's features, its facts are
 // constants, and the branches are `if constexpr`.
-export module openmui.features;
+export module omui.features;
 
 import std;
 export import :sink;

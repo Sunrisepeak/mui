@@ -1,5 +1,5 @@
 // The `sink-memory` feature's partition: lines are kept.
-export module openmui.features:sink;
+export module omui.features:sink;
 
 import std;
 

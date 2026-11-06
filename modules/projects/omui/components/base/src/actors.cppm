@@ -3,11 +3,11 @@
 // actors, newest last. Each record is a node of the semantic tree (an item,
 // `<id>/<entry>`); the last its history holds is taken back from here; the
 // one hovered or focused points out the node it acted on.
-export module openmui.ui.base:actors;
+export module omui.ui.base:actors;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :actor_log_contract;
 

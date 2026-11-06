@@ -7,11 +7,11 @@
 // state; its handlers are the document's own events, forwarded to the script.
 // So a view written in Lua, TypeScript or Python is the same tree as the C++
 // builder's (CTS S level), and an agent sees no difference.
-export module openmui.lang:view;
+export module omui.lang:view;
 
 import std;
 import nlohmann.json;
-import openmui.abi;
+import omui.abi;
 import :host;
 
 export namespace omui::lang {

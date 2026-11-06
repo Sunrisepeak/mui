@@ -19,11 +19,11 @@
 //
 // Every mistake in a file is reported with its line and column, a message
 // and, where there is one, the fix — all of them in one reading.
-export module openmui.theme;
+export module omui.theme;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui::theme {
 

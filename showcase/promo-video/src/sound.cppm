@@ -7,7 +7,7 @@
 // and its limiter. Under a `film` clip, the cut's own sound at the clip's
 // source times (backwards, five times over: the tape rewinding), and the
 // cues inside the clip over it.
-export module openmui.showcase.promo_video:sound;
+export module omui.showcase.promo_video:sound;
 
 import std;
 import xengine.audio;

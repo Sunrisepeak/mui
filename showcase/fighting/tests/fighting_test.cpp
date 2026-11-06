@@ -4,8 +4,8 @@
 // at a time, and the stage reads as a semantic node an agent can follow.
 // Versus and training frames are pinned: the same pixels everywhere.
 import std;
-import openmui;
-import openmui.showcase.fighting;
+import omui;
+import omui.showcase.fighting;
 import mlibs.testing;
 import gongfu.ai;
 import xengine.audio;

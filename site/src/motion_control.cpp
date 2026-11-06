@@ -1,6 +1,6 @@
-module openmui.site;
+module omui.site;
 import std;
-import openmui;
+import omui;
 import mlibs.trace;
 import :motion_gallery;
 

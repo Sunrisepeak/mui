@@ -36,7 +36,7 @@ Stages are called once per run, never per node or per pixel (D-65).
 edges — by the generator at build time, and as JSON by tools over the agent
 protocol — so this package parses nothing and throws nothing.
 
-The runtime's frame is a pipeline of `openmui.view.*` stages
+The runtime's frame is a pipeline of `omui.view.*` stages
 (`runtime_pipeline(Stages)`: H0, H1, H2), and `omui agent pipeline` shows and
 changes a running application's.
 

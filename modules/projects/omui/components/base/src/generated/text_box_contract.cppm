@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // text_box: A single- or multi-line text field with selection, clipboard and input methods.
-export module openmui.ui.base:text_box_contract;
+export module omui.ui.base:text_box_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

@@ -10,7 +10,7 @@
 // uppercase letter matches case exactly (smart case). Words of the query,
 // separated by spaces, must all match. Everything is integer arithmetic over
 // code points: the same input gives the same output on every platform.
-export module openmui.native.fuzzy:matching;
+export module omui.native.fuzzy:matching;
 
 import std;
 

@@ -2,11 +2,11 @@
 // alert (a message in the page that needs attention, its tone, one action)
 // and a stepper (the steps of a sequence: those done, the current one, those
 // ahead; each step an item of the semantic tree, a done one gone back to).
-export module openmui.ui.base:notices;
+export module omui.ui.base:notices;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :alert_contract;
 import :stepper_contract;

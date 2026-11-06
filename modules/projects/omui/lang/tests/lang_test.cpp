@@ -4,9 +4,9 @@
 // a verb the script implements while the runtime waits.
 import std;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
-import openmui.ui.base;
+import omui.abi;
+import omui.lang;
+import omui.ui.base;
 import mlibs.testing;
 
 using namespace mlibs::testing;

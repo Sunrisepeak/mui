@@ -8,7 +8,7 @@
 //     using namespace omui::expr;
 //     Expr e = fmt("{} of {} done", ref("done"), size(ref("tasks")));
 //     Expr f = select(ref("count") > 0, "some", "none");
-export module openmui.expr:ast;
+export module omui.expr:ast;
 
 import std;
 import openmui.spec;

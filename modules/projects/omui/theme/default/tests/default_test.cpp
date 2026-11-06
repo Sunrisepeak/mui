@@ -2,10 +2,10 @@
 // and reduced_motion in the program's library, light and dark are the
 // runtime's built-in tokens, and adding again changes nothing.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.theme;
-import openmui.theme.default_theme;
+import omui.core;
+import omui.view;
+import omui.theme;
+import omui.theme.default_theme;
 import mlibs.testing;
 
 using namespace mlibs::testing;

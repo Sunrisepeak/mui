@@ -3,7 +3,7 @@
 // `--rate N` its pieces per second; `--no-fade`; the rest is openmui's
 // (--dark, --headless --png out.png, --serve …).
 import std;
-import openmui;
+import omui;
 import stream;
 
 int main(int argc, char** argv) {

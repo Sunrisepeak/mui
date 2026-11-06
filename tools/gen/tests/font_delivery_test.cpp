@@ -1,8 +1,8 @@
 // The public packer is the oracle: delivery optimization must occur before
 // hashing, without changing a source font, glyph ids or actual text pixels.
 import std;
-import openmui.gen.dist_toy;
-import openmui.gen.font_subset;
+import omui.gen.dist_toy;
+import omui.gen.font_subset;
 import mlibs.text;
 import mlibs.hash;
 import mlibs.testing;

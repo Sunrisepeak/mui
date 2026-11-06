@@ -1,9 +1,9 @@
 // Input: hit testing, bubbling, pointer capture, hover, press-to-activate,
 // focus and Tab order, and the key bindings of contracts.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import :impl;
 
 namespace omui {

@@ -1,5 +1,5 @@
 // Matter taken from a display list's range.
-module openmui.motion;
+module omui.motion;
 
 import std;
 import mlibs.geom;

@@ -12,10 +12,10 @@
 // drain is unavoidable, nothing orbits for ever, and understanding the
 // machine pays.
 import std;
-import openmui;
-import openmui.showcase.widget_breakout;
+import omui;
+import omui.showcase.widget_breakout;
 import mlibs.testing;
-import openmui.ui.canvas;
+import omui.ui.canvas;
 import xengine.audio;
 
 using namespace mlibs::testing;

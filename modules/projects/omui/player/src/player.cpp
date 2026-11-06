@@ -1,10 +1,10 @@
-module openmui.player;
+module omui.player;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.abi;
-import openmui.theme;
+import omui.core;
+import omui.view;
+import omui.abi;
+import omui.theme;
 import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner

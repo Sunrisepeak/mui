@@ -1,10 +1,10 @@
 // The style packs: each reads clean, composes over its theme, and under each
 // the same interface keeps its semantic tree while its pixels change.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.theme;
-import openmui.theme.styles;
+import omui.core;
+import omui.view;
+import omui.theme;
+import omui.theme.styles;
 import mlibs.testing;
 
 using namespace mlibs::testing;

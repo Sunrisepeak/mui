@@ -1,4 +1,4 @@
-# openmui.lang.python — Python on the Script Binding Profile (component-binding
+# omui.lang.python — Python on the Script Binding Profile (component-binding
 # §7, D-46): the `_openmui` extension module, written against CPython's stable
 # ABI (abi3, the limited API of 3.10) without its headers. The functions are
 # found in the interpreter that loads the module (mcpplibs.os.library), so one
@@ -6,7 +6,7 @@
 # The Python side (python/openmui) is a package of builders over it; the
 # extension's host — the window, the shared library — is src/entry/python.
 [package]
-namespace   = "openmui.lang"
+namespace   = "omui.lang"
 name        = "python"
 version     = "0.1.0"
 description = "openmui for Python: the _openmui extension over CPython's stable ABI, and the openmui package"
@@ -23,8 +23,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.lang = { path = ".." }
-openmui.abi  = { path = "../../abi" }
+omui.lang = { path = ".." }
+omui.abi  = { path = "../../abi" }
 nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.2.2"
 

@@ -1,8 +1,8 @@
-module openmui.build.toy;
+module omui.build.toy;
 
 import std;
 import mcpp;
-import openmui.build.plan;
+import omui.build.plan;
 
 namespace openmui::build {
 
@@ -14,7 +14,7 @@ bool dist_toy(toy_options opt) {
     if (!is_packed()) return true;
     const std::string gen = generator();
     if (opt.target.empty() || gen.empty()) {
-        std::println(std::cerr, "openmui.build.toy: dist_toy() names the program target, and needs omui-gen built for the build");
+        std::println(std::cerr, "omui.build.toy: dist_toy() names the program target, and needs omui-gen built for the build");
         return false;
     }
     const std::string out = opt.out_dir + "/toy/" + opt.target;

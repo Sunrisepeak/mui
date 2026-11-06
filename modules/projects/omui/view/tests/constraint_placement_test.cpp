@@ -1,8 +1,8 @@
 // External allocation transactions preserve content motion without sweeping
 // controls through their siblings. Ordinary model layout remains seekable.
 import std;
-import openmui.view;
-import openmui.motion;
+import omui.view;
+import omui.motion;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;

@@ -14,7 +14,7 @@
 // The graph belongs to the thread that uses it (the UI thread). Signals are
 // handles: copies refer to the same state, which is what lets a builder's
 // lambda capture a signal by value.
-export module openmui.core:signal;
+export module omui.core:signal;
 
 import std;
 import :diag;

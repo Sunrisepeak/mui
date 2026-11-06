@@ -1,9 +1,9 @@
-module openmui.host.web;
+module omui.host.web;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 
 namespace omui {
 

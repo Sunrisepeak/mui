@@ -7,7 +7,7 @@
 #      conformance suite among them — on the page's WebGPU and WebGL2, built
 #      with the wasm-browser profile (linked to suspend, so the suite can
 #      read WebGPU back);
-#   2. openmui.host.web drawing its frames on each: what it chooses, and its
+#   2. omui.host.web drawing its frames on each: what it chooses, and its
 #      frame of a page within the GPU renderer's tolerances of the CPU's;
 #   3. every WGSL and ESSL entry point the Web build wrote
 #      (tools/ci/shaders.mjs: the shader partitions of the last
@@ -54,7 +54,7 @@ done
 
 # 2. host.web drawing on the page's WebGPU, then its WebGL2 (a canvas keeps
 # the first kind of context it gives: one program run for each).
-"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p openmui.host.web --no-run \
+"$mcpp" test --target wasm32-emscripten --profile wasm-browser -p omui.host.web --no-run \
   || { echo "::error::host.web's tests did not build for the browser"; exit 1; }
 drawing=$(ls -t target/wasm32-emscripten/*/bin/web/drawing_test.js 2>/dev/null | head -1)
 [ -n "$drawing" ] || { echo "::error::host.web's drawing_test.js was not built"; exit 1; }

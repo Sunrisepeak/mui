@@ -2,10 +2,10 @@
 // contracts (component-binding §2.3). Names follow each language's habit and
 // nothing else (view-data-files R1): TS camelCase, Python and Lua snake_case,
 // Lua constructors in PascalCase as tables are written `omui.Button { … }`.
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 

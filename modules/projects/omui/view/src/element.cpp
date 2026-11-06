@@ -1,4 +1,4 @@
-module openmui.view;
+module omui.view;
 
 import std;
 

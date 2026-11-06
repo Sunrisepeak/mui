@@ -1,4 +1,4 @@
-# openmui.player
+# omui.player
 
 The player (component-binding §9, §10.2): what a script-first application runs in. The `entry-player` entry reads the application's manifest (`[package.metadata.openmui]`: `components`, `views`, `scripts`, `themes`, and `effects` — a directory of the application's own `*.effect.omui.toml` effects, which the desktop host loads with the window and loads again when one changes) and gives it to a `Player` over the runtime of a desktop or headless host.
 

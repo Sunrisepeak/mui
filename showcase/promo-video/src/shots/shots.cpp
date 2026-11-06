@@ -1,10 +1,10 @@
 // The shots by name, and what a shot reads of its clip.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
-import openmui;
+import omui;
 import xengine.timeline;
-import openmui.showcase.markdown_wall;
+import omui.showcase.markdown_wall;
 
 namespace omui::promo {
 

@@ -11,16 +11,16 @@
 //
 //     omui::inspector::Inspector inspector(runtime, {.app = "org.openmui.examples.notes"});
 //     runtime.mount("main", inspector.view());
-export module openmui.inspector;
+export module omui.inspector;
 
 export import :connection;
 export import :cellular;
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.agent;
-import openmui.ui.base;
-import openmui;
+import omui.core;
+import omui.view;
+import omui.agent;
+import omui.ui.base;
+import omui;
 
 export namespace omui::inspector {
 

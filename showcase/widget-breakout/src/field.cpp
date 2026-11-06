@@ -1,11 +1,11 @@
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
-import openmui;
+import omui;
 import xengine.input;
 import xengine.ui;
-import openmui.showcase.widget_breakout.sim;
-import openmui.ui.canvas;
+import omui.showcase.widget_breakout.sim;
+import omui.ui.canvas;
 
 namespace omui::breakout {
 

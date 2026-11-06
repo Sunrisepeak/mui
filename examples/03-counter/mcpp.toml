@@ -8,7 +8,7 @@
 #   mcpp run                                  the C++ view
 #   mcpp run -- --doc ui/tally.view.omui.json  the document; edits show as you save
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "counter"
 version     = "0.1.0"
 description = "openmui example 03: a tally counter in C++ and as a view document, one semantic tree"
@@ -25,10 +25,10 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk = { path = "../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [dev-dependencies]
 mlibs.utils  = { path = "../../modules/base/utils" }
-openmui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
-openmui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
-openmui.lang.python.embedded = { path = "../../modules/projects/omui/lang/python/embedded" }
+omui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
+omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
+omui.lang.python.embedded = { path = "../../modules/projects/omui/lang/python/embedded" }

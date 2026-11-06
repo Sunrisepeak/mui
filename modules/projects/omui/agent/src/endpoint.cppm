@@ -6,11 +6,11 @@
 // can list what runs. Connections are read on background threads; requests
 // are served on the UI thread by `pump`, between frames, where the runtime
 // may be touched.
-export module openmui.agent:endpoint;
+export module omui.agent:endpoint;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :protocol;
 
 export namespace omui::agent {

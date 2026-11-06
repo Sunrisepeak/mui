@@ -2,7 +2,7 @@
 // checked against the contract.
 import std;
 import nlohmann.json;
-import openmui.native;
+import omui.native;
 import {{project.name}};
 
 int main() {

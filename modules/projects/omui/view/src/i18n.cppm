@@ -11,10 +11,10 @@
 // to a thread (core §signal), so each thread tracks the language with a
 // signal of its own: a change made on the UI thread redoes that thread's
 // texts at once; a view built later on any thread reads the language then.
-export module openmui.view:i18n;
+export module omui.view:i18n;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.i18n;
 import :element;
 

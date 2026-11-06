@@ -2,10 +2,10 @@
 // the window, best of three; the match over, its results — a rematch, or
 // back to the select screen (the same fighters under the cursors). The stage and the select screen are
 // registered by name for view documents, scripts and agents.
-module openmui.showcase.fighting;
+module omui.showcase.fighting;
 
 import std;
-import openmui;
+import omui;
 
 namespace omui::fighting {
 

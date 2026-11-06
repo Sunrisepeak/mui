@@ -3,7 +3,7 @@
 // block's new bytes, and only those, fade in; the status line counts; the
 // pixels at the end are pinned.
 import std;
-import openmui;
+import omui;
 import stream;
 import mlibs.testing;
 

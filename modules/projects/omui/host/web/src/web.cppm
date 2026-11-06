@@ -25,14 +25,14 @@
 //
 // Off the Web the host has no page: no input arrives and nothing is shown,
 // but step(), synthesize() and request() run the same loop (its tests).
-export module openmui.host.web;
+export module omui.host.web;
 
 import std;
-export import openmui.core;
-export import openmui.view;
-export import openmui.semantic;
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
 export import xrender.raster;
-export import openmui.native.store;
+export import omui.native.store;
 export import :mirror;
 
 export namespace omui {

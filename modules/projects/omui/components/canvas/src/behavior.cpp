@@ -1,4 +1,4 @@
-module openmui.ui.canvas;
+module omui.ui.canvas;
 
 import std;
 

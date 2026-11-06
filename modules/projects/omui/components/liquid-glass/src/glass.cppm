@@ -7,11 +7,11 @@
 // draw none of their own. With reduced transparency every piece of glass is
 // an opaque panel in the theme's surface colour, edged in its border colour.
 // None of this touches the semantic tree: both are ordinary groups.
-export module openmui.ui.liquid_glass:glass;
+export module omui.ui.liquid_glass:glass;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import :liquid_glass_contract;
 import :glass_group_contract;

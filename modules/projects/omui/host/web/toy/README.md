@@ -1,4 +1,4 @@
-# openmui.host.web.toy
+# omui.host.web.toy
 
 Bilibili Toy's SDK (`window.toy`, [bilibili/toy](https://github.com/bilibili/toy))
 for an openmui program in a Toy page (D-84 §6.5) — a thin, optional layer.
@@ -22,7 +22,7 @@ The page loads the SDK itself (`dist-toy` writes the script tag); the page's
 half of this layer is `src/js/omui_toy.js`, which `build.mcpp` gives the link.
 
 ```cpp
-import openmui.host.web.toy;
+import omui.host.web.toy;
 
 omui::toy::Store save;
 omui::toy::attach(web, save);   // flushed when the page hides

@@ -7,10 +7,10 @@
 // it. Its moves are pure functions of time (D-60): a spring between two
 // views (logarithmic in zoom, so 1% → 400% is as smooth as 100% → 200%), and
 // inertia after a fling — seekable, the same on every run.
-export module openmui.ui.canvas:camera;
+export module omui.ui.canvas:camera;
 
 import std;
-import openmui.core;
+import omui.core;
 import hanim.core;
 import :scene;
 

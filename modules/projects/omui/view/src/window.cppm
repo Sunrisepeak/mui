@@ -8,10 +8,10 @@
 // what lies under a point (window_area_at): the edges resize, a node marked
 // `window_area: "drag"` moves the window, anything that can be operated is
 // the interface's.
-export module openmui.view:window;
+export module omui.view:window;
 
 import std;
-import openmui.core;
+import omui.core;
 import :runtime;
 
 export namespace omui {

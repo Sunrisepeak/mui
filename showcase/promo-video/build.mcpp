@@ -4,10 +4,10 @@
 // each tag with a table of them all. `omui-promo --dir` reads edited copies instead.
 import std;
 import mcpp;
-import openmui.build.embed;
+import omui.build.embed;
 
 int main() {
-    constexpr std::string_view module = "openmui.showcase.promo_video";
+    constexpr std::string_view module = "omui.showcase.promo_video";
     struct Set {
         std::string_view dir, suffix, tag;
     };

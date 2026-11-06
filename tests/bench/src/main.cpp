@@ -16,7 +16,7 @@
 // (Over-aligned allocations keep the library's own operator new: none of the
 // measured paths make them.)
 import std;
-import openmui.bench;
+import omui.bench;
 import mcpplibs.os;
 
 void* operator new(std::size_t size) {

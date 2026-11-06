@@ -6,7 +6,7 @@
 # limit, 307044, is "not ready": backed off and tried again). Off a Toy page
 # — off the Web, or a page without the SDK — every call is refused.
 [package]
-namespace   = "openmui.host.web"
+namespace   = "omui.host.web"
 name        = "toy"
 version     = "0.1.0"
 description = "Bilibili Toy's SDK for openmui on the Web: capabilities, cloud storage at checkpoints, leaderboards, openas errors"
@@ -29,8 +29,8 @@ sources = ["src/native/browser/*.cpp"]
 sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
-openmui.core     = { path = "../../../core" }
-openmui.host.web = { path = ".." }
+omui.core     = { path = "../../../core" }
+omui.host.web = { path = ".." }
 openlifa.openas  = "0.2.0"
 
 [dev-dependencies]

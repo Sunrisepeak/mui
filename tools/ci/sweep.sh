@@ -9,22 +9,22 @@ cd "$(dirname "$0")/../.."
 
 # package : binary : its directory (where it runs: a player reads its mcpp.toml there)
 programs=(
-    openmui.example.counter:tally:examples/03-counter
-    openmui.example.rating:reading-list:examples/04-rating
-    openmui.example.contrast:contrast:examples/05-contrast
-    openmui.example.theming:theme-preview:examples/06-theming
-    openmui.example.headless-and-agent:notes-agent:examples/07-headless-and-agent
-    openmui.example.markdown-viewer:md-view:examples/08-markdown-viewer
-    openmui.example.markdown-stream:md-stream:examples/09-markdown-stream
-    openmui.example.space:space:examples/10-canvas-basics
-    openmui.example.notes:notes:examples/12-notes
-    openmui.showcase.style_gallery:omui-styles:showcase/style-gallery
-    openmui.showcase.widget_breakout:omui-breakout:showcase/widget-breakout
-    openmui.showcase.markdown_wall:omui-wall:showcase/markdown-wall
-    openmui.showcase.fighting:omui-fight:showcase/fighting
-    openmui.site:omui-site:site
+    omui.example.counter:tally:examples/03-counter
+    omui.example.rating:reading-list:examples/04-rating
+    omui.example.contrast:contrast:examples/05-contrast
+    omui.example.theming:theme-preview:examples/06-theming
+    omui.example.headless-and-agent:notes-agent:examples/07-headless-and-agent
+    omui.example.markdown-viewer:md-view:examples/08-markdown-viewer
+    omui.example.markdown-stream:md-stream:examples/09-markdown-stream
+    omui.example.space:space:examples/10-canvas-basics
+    omui.example.notes:notes:examples/12-notes
+    omui.showcase.style_gallery:omui-styles:showcase/style-gallery
+    omui.showcase.widget_breakout:omui-breakout:showcase/widget-breakout
+    omui.showcase.markdown_wall:omui-wall:showcase/markdown-wall
+    omui.showcase.fighting:omui-fight:showcase/fighting
+    omui.site:omui-site:site
 )
-packages=(-p openmui.cli)
+packages=(-p omui.cli)
 for p in "${programs[@]}"; do packages+=(-p "${p%%:*}"); done
 mcpp build "${packages[@]}" ${PROFILE:+--profile "$PROFILE"} > /dev/null
 

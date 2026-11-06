@@ -2,7 +2,7 @@ export module omui.hanim:binding;
 import std;
 export import hanim;
 export import hanim.render.vector;
-export import openmui.view;
+export import omui.view;
 
 namespace omui::animation::detail {struct BindingImages;}
 

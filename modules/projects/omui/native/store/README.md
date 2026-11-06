@@ -1,4 +1,4 @@
-# openmui.native.store
+# omui.native.store
 
 A program's own small storage (D-84 §6.2): settings, progress, a draft. Values are text, keyed by 1 to 256 bytes.
 
@@ -16,4 +16,4 @@ import { store } from "openmui:native/store";
 store.set("theme", "dark");
 ```
 
-Depends on `openmui.native`.
+Depends on `omui.native`.

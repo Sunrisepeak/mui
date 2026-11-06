@@ -2,11 +2,11 @@
 // `button`): four variants, hover and press feedback (a fast colour change,
 // a snappy spring), keyboard focus ring, the verb it invokes classifying its
 // effect (S-1).
-export module openmui.ui.base:button;
+export module omui.ui.base:button;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :button_contract;
 

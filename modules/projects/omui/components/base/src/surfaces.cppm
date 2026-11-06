@@ -4,11 +4,11 @@
 // short message over a corner of the window, gone after a while) and a
 // popover (content beside what opened it, not modal). They draw what they
 // are; how they open, close and change is their slots' (universal motion).
-export module openmui.ui.base:surfaces;
+export module omui.ui.base:surfaces;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :card_contract;
 import :accordion_contract;

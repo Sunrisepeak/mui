@@ -1,6 +1,6 @@
 // Example 07: a notes app agents can drive (`mcpp run -- --serve`).
 import std;
-import openmui;
+import omui;
 import notes;
 
 int main(int argc, char** argv) {

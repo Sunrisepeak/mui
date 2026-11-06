@@ -1,11 +1,11 @@
 // connect: edges between nodes, drawn by ⌥-dragging from one to another.
-module openmui.ui.canvas.kit;
+module omui.ui.canvas.kit;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.canvas;
+import omui.ui.canvas;
 import :parts;
 
 namespace omui {  // names this file uses unqualified, from their owner

@@ -3,12 +3,12 @@
 // up into a cloud, and a chamber above it (a canvas two screens tall). 4
 // 深色模式: dark but round the ball, hidden caches, a gate that comes round.
 // 5 同步: the copilot at the top, everything at once.
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
-import openmui;
-import openmui.showcase.widget_breakout.sim;
-import openmui.ui.canvas;
+import omui;
+import omui.showcase.widget_breakout.sim;
+import omui.ui.canvas;
 
 namespace omui::breakout {
 

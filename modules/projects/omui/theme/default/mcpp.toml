@@ -4,7 +4,7 @@
 # (openmui.theme). The partition holding the text is generated
 # (`omui-gen embed`; tools/gen's test keeps it current).
 [package]
-namespace   = "openmui.theme"
+namespace   = "omui.theme"
 name        = "default"
 version     = "0.1.0"
 description = "openmui's default theme as data"
@@ -22,7 +22,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 
 [dependencies]
-openmui.theme = { path = ".." }
+omui.theme = { path = ".." }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../../base/utils" }

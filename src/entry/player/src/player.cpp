@@ -1,18 +1,18 @@
-module openmui.entry.player;
+module omui.entry.player;
 
 import std;
 import tomlplusplus;
-import openmui;
-import openmui.player;
-import openmui.ui.markdown;
-import openmui.lang.lua;
-import openmui.lang.js;
-import openmui.lang.python.embedded;
-import openmui.native;
-import openmui.native.fuzzy;
-import openmui.theme;
-import openmui.theme.default_theme;
-import openmui.theme.compact;
+import omui;
+import omui.player;
+import omui.ui.markdown;
+import omui.lang.lua;
+import omui.lang.js;
+import omui.lang.python.embedded;
+import omui.native;
+import omui.native.fuzzy;
+import omui.theme;
+import omui.theme.default_theme;
+import omui.theme.compact;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;

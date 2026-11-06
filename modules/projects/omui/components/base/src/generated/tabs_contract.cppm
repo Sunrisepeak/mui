@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // tabs: A set of tabs selecting one panel.
-export module openmui.ui.base:tabs_contract;
+export module omui.ui.base:tabs_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

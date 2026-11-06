@@ -1,10 +1,10 @@
 // openmui.theme.compact — the compact theme file, carried in the program.
-export module openmui.theme.compact;
+export module omui.theme.compact;
 
 export import :compact_theme;
 
 import std;
-import openmui.theme;
+import omui.theme;
 
 export namespace omui::themes {
 

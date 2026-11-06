@@ -5,11 +5,11 @@
 // protocol here), the tools, the application's own verbs and the places
 // its navigation offers, its self-check, and the rules. Every openmui
 // application writes them with `--agent-guide DIR` (beside its Web page).
-export module openmui:agent_guide;
+export module omui:agent_guide;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :app;
 
 export namespace omui {

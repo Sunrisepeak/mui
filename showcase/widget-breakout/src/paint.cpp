@@ -7,12 +7,12 @@
 // and intent; the dark room's darkness lit round the balls; then the HUD on
 // the screen: score, balls, sparks, the chain, a hint, the room's end, and
 // the inspector. Gameplay's colours are the same under every style.
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
 import mlibs.hash;
-import openmui;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.showcase.widget_breakout.sim;
 import xrender.text;
 
 namespace omui::breakout {

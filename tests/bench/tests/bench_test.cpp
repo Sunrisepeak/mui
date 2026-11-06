@@ -2,8 +2,8 @@
 // read and check as documented, the report is the JSON it promises, and the
 // reference scene is the 1000-node dashboard of M1 ⑤.
 import std;
-import openmui.core;
-import openmui.bench;
+import omui.core;
+import omui.bench;
 import mlibs.testing;
 
 using namespace mlibs::testing;

@@ -1,8 +1,8 @@
-module openmui;
+module omui;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mcpplibs.os;
 import :app;
 import :agent_guide;

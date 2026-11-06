@@ -16,10 +16,10 @@
 // read — never every frame for nothing. An id is the explicit `.id`, else the
 // id stack plus the call site (spec S-8); never a label (S-9: labels are
 // translated text).
-export module openmui.view:immediate;
+export module omui.view:immediate;
 
 import std;
-import openmui.core;
+import omui.core;
 import :element;
 import :model;
 import :component;

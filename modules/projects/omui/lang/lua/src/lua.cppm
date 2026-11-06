@@ -17,11 +17,11 @@
 // - omui.mount / unmount, omui.verb / invoke, omui.model(name), omui.find / act / snapshot,
 //   omui.tr, omui.null, omui.log.
 // Errors are values: a call that fails answers nil and a message.
-export module openmui.lang.lua;
+export module omui.lang.lua;
 
 import std;
-import openmui.lang;
-import openmui.player;
+import omui.lang;
+import omui.player;
 
 export namespace omui::lang::lua {
 

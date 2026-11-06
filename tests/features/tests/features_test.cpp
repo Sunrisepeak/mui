@@ -1,7 +1,7 @@
 // Whichever feature chose the sink, the constants agree with it and the code
 // took the matching branch at compile time.
 import std;
-import openmui.features;
+import omui.features;
 import mlibs.testing;
 
 using namespace mlibs::testing;

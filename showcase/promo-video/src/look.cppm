@@ -4,10 +4,10 @@
 // Mono. Its scenes are shown in the blueprint style pack
 // (blueprint.style.omui.toml); what the film draws by hand reads the same
 // palette here.
-export module openmui.showcase.promo_video:look;
+export module omui.showcase.promo_video:look;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::promo {
 

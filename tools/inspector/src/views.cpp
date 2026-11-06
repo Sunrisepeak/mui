@@ -1,13 +1,13 @@
 // The Inspector's interface: a header with the application, the clock bar,
 // the tree beside the panels (properties, frames, pipeline).
-module openmui.inspector;
+module omui.inspector;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
-import openmui;
+import omui.ui.base;
+import omui;
 
 namespace omui::inspector {
 

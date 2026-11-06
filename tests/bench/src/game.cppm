@@ -3,7 +3,7 @@
 // rollback (a state restored and re-simulated), and building one frame's
 // picture with gongfu.present2d. The fighters are the game's own files, the
 // inputs a busy match's (directions held, buttons, motions), the same every run.
-export module openmui.bench:game;
+export module omui.bench:game;
 
 import std;
 

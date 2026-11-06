@@ -12,10 +12,10 @@ A tool a designer would actually use to make a style pack, and, in using it, the
 
 | Layer | Package | What it is |
 |---|---|---|
-| Theme engine | `openmui.theme` | themes, overlays and style packs as data (`*.style.omui.toml`), composed; `apply_style` with a cross-fade |
-| The five packs | `openmui.theme.styles` | glass, neon, retro, ink, liquid: data embedded in the program |
+| Theme engine | `omui.theme` | themes, overlays and style packs as data (`*.style.omui.toml`), composed; `apply_style` with a cross-fade |
+| The five packs | `omui.theme.styles` | glass, neon, retro, ink, liquid: data embedded in the program |
 | Effects | `openmui.render.effect`, Slang shaders | `liquid_glass`, `neon`, `wobble`, `metaball`, and the window's `crt` and `paper` |
-| Components | `openmui.ui.base` | each says which surfaces it paints (`effect_shapes`: a switch's track and thumb), so a pack's effect reaches the right shapes |
+| Components | `omui.ui.base` | each says which surfaces it paints (`effect_shapes`: a switch's track and thumb), so a pack's effect reaches the right shapes |
 | The application | `showcase/style-gallery` | the preview, the sidebar, the editor, the export, the verbs `styles.show` and `styles.export` |
 
 A pack never names an application's widget. It targets component types (`button`), roles (`role:region`) and the window, so the same pack works for any program.
@@ -34,7 +34,7 @@ Effects run on the GPU path (`omui.rhi`) and in the CPU reference renderer, whic
 ## 5. Self-review
 
 - **A cross-fade changes every pixel of every frame.** It is too heavy for a README loop: 3.8 MB as an animated PNG, so the loop shows the packs held still instead. Delta-coded animated PNG is right for UI loops (a ball over a still field: 144 KB) and wrong for full-frame transitions. If the showcases need such loops, a royalty-free video format belongs in the media tools (openmui-video, S5), not a bigger PNG.
-- **The package was named `styles` in a directory named `style-gallery`** (and the Markdown wall `wall` in `markdown-wall`), against D-80, which says the path is the package's name. The lint rule `layout` did not cover showcases. Fixed: the packages are now `openmui.showcase.style_gallery` and `openmui.showcase.markdown_wall` (the binaries keep their short names), and `layout` covers `showcase/`.
+- **The package was named `styles` in a directory named `style-gallery`** (and the Markdown wall `wall` in `markdown-wall`), against D-80, which says the path is the package's name. The lint rule `layout` did not cover showcases. Fixed: the packages are now `omui.showcase.style_gallery` and `omui.showcase.markdown_wall` (the binaries keep their short names), and `layout` covers `showcase/`.
 - **Editing a pack's effects is numbers in fields.** For a designer, the effect parameters want direct manipulation on the preview: drag the glass's thickness on the panel itself. That is a general editing capability (canvas-kit's handles over a live component) rather than something this tool should hand-build.
 
 ## 6. Practices that generalise

@@ -1,11 +1,11 @@
 // A cut's frames: its shots' scenes on their headless hosts, the film's own
 // frames played back, the overlay over them.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;
 import hanim.core;
-import openmui;
+import omui;
 import xengine.video;
 
 namespace omui {  // names this file uses unqualified, from their owner

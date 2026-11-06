@@ -1,6 +1,6 @@
-# openmui.view
+# omui.view
 
-The implementation namespace is `omui`; `openmui.view` remains the compatible
+The implementation namespace is `omui`; `omui.view` remains the compatible
 package and main import. Its optional `hanim` feature adds the public
 `import omui.hanim;` adapter in this same package.
 
@@ -103,7 +103,7 @@ The retained and immediate view runtime (plan §3–§5):
   hovered node's margin / border / content boxes with its path and source,
   and a frame-time HUD (mean, p95, node counts).
 
-Depends on `openmui.core`, `-layout`, `-render`, `-text`, `-image`, `-anim`,
+Depends on `omui.core`, `-layout`, `-render`, `-text`, `-image`, `-anim`,
 `-geom`, `-memory`, `-trace`, `-pipeline` and `hanim.effect`. Paint is deterministic: the reference scene renders to
 the same bytes with GCC and LLVM, on Linux, macOS and Windows.
 
@@ -141,7 +141,7 @@ sampling does not measure live frame pacing or replace human motion review.
 
 ## Optional Hanim presentation binding (0.1)
 
-Enable `features = ["hanim"]` on the existing `openmui.view` dependency and
+Enable `features = ["hanim"]` on the existing `omui.view` dependency and
 `import omui.hanim;`. This adds the public Hanim player and a native adapter;
 ordinary view consumers retain the smaller existing dependency selection.
 There is no separate adapter package, window or second animation clock.

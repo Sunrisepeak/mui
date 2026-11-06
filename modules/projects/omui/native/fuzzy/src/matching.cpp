@@ -1,4 +1,4 @@
-module openmui.native.fuzzy;
+module omui.native.fuzzy;
 
 import std;
 import mlibs.unicode;

@@ -1,5 +1,5 @@
 // The `sink-stdout` feature's partition: lines go straight out.
-export module openmui.features:sink;
+export module omui.features:sink;
 
 import std;
 

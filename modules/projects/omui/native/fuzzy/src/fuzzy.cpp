@@ -1,5 +1,5 @@
 // The functions the contract declares, over :matching.
-module openmui.native.fuzzy;
+module omui.native.fuzzy;
 
 import std;
 

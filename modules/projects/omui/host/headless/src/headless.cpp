@@ -1,10 +1,10 @@
-module openmui.host.headless;
+module omui.host.headless;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
-import openmui.agent;
+import omui.core;
+import omui.view;
+import omui.semantic;
+import omui.agent;
 import xrender.raster;
 import xrender.vector;
 import mlibs.text;

@@ -12,7 +12,7 @@
 #   mcpp run -p openmui.showcase.markdown_wall -- .agents/docs
 #   mcpp run -p openmui.showcase.markdown_wall -- --synthetic 1000 --stream 20
 [package]
-namespace   = "openmui.showcase"
+namespace   = "omui.showcase"
 name        = "markdown_wall"
 version     = "0.1.0"
 description = "S1, the Markdown wall: a folder's documents on the infinite canvas, with tiers of detail, live windows, workspaces, streaming and a HUD"
@@ -36,16 +36,16 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk           = { path = "../../modules/projects/omui/sdk" }
-"openmui.ui.canvas"     = { path = "../../modules/projects/omui/components/canvas" }
-"openmui.ui.canvas.kit" = { path = "../../modules/projects/omui/components/canvas/kit" }
-openmui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" }
+omui.sdk           = { path = "../../modules/projects/omui/sdk" }
+"omui.ui.canvas"     = { path = "../../modules/projects/omui/components/canvas" }
+"omui.ui.canvas.kit" = { path = "../../modules/projects/omui/components/canvas/kit" }
+omui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" }
 
 [build-dependencies]
-openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-openmui.abi      = { path = "../../modules/projects/omui/abi" }
-openmui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
-openmui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
+omui.abi      = { path = "../../modules/projects/omui/abi" }
+omui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
+omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
 mcpplibs.os      = "0.2.2"

@@ -1,9 +1,9 @@
 // Native modules (component-binding §8): the C++ a package implements against,
 // and the script stubs of what it gives scripts.
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 
@@ -95,7 +95,7 @@ std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::str
         "// omui-gen native (openmui.build.contracts does it in a build).\n//\n",
         source);
     out += comment(std::format("{}: {}", m.name, m.doc), "");
-    out += std::format("export module {}:{}_native;\n\nimport std;\nimport nlohmann.json;\nimport openmui.native;\n\n", o.module, m.name);
+    out += std::format("export module {}:{}_native;\n\nimport std;\nimport nlohmann.json;\nimport omui.native;\n\n", o.module, m.name);
     out += std::format("export namespace {}::{} {{\n\n", o.ns, m.name);
 
     // Records: each declared first (a list may hold one that comes later),

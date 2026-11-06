@@ -7,7 +7,7 @@
 // technology does in the hidden DOM, the store. The page's own half
 // (src/js/omui_web.js) is tested under node with a fake DOM: tests/js.
 import std;
-import openmui.host.web;
+import omui.host.web;
 import mlibs.testing;
 
 using namespace mlibs::testing;

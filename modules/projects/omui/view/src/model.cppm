@@ -3,10 +3,10 @@
 // scripts and agents push to it; a change bumps its revision, a signal, so
 // whatever reads it follows. Keys are ids (spec S-8): a list's items are
 // addressed `list/key`, materialised or not (S-7).
-export module openmui.view:model;
+export module omui.view:model;
 
 import std;
-import openmui.core;
+import omui.core;
 
 export namespace omui {
 

@@ -1,5 +1,5 @@
 // The film as data: the files, the cuts, what shows at a frame.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;

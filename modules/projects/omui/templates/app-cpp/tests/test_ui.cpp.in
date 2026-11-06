@@ -1,6 +1,6 @@
 // The interface without a window: find the button as an agent would, press it.
 import std;
-import openmui;
+import omui;
 import app;
 
 int main() {

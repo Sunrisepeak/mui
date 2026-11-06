@@ -8,7 +8,7 @@
 // Diagnostics go to standard error; standard output is the protocol's.
 import std;
 import mcpplibs.os;
-import openmui.mcp;
+import omui.mcp;
 
 int main(int argc, char** argv) {
     omui::mcp::ServerOptions options;

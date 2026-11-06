@@ -10,10 +10,10 @@
 //     auto view = omui::viewdoc::View::load_file(rt, "ui/counter.view.omui.json");
 //     if (!view) for (auto& d : view.error()) std::println("{}", d.text());
 //     view->mount(rt, "main");
-export module openmui.viewdoc;
+export module omui.viewdoc;
 
-export import openmui.view;
-export import openmui.expr;
+export import omui.view;
+export import omui.expr;
 export import :document;
 export import :instance;
 export import :schema;

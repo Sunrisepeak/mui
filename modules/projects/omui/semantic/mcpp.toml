@@ -5,7 +5,7 @@
 # checks over the whole tree; plus recording sessions as semantic actions and
 # the clock, and replaying them exactly (with openmui.session).
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "semantic"
 version     = "0.1.0"
 description = "openmui semantic tree: snapshots, deltas, queries, actions, wait conditions, checks, recording and replay"
@@ -22,8 +22,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core    = { path = "../core" }
-openmui.view    = { path = "../view" }
+omui.core    = { path = "../core" }
+omui.view    = { path = "../view" }
 mlibs.session = { path = "../../../base/session" }
 mlibs.utils    = { path = "../../../base/utils" }
 

@@ -4,7 +4,7 @@
 // spec's, so nothing converts between the runtime and the bus, the C ABI or a
 // conformance test. Geometry is openmui.geom's, shared with layout, raster
 // and render; the semantic tree's bounds convert at that one boundary.
-export module openmui.core:base;
+export module omui.core:base;
 
 import std;
 export import openmui.spec;

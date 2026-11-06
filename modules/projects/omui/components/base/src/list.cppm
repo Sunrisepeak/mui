@@ -8,11 +8,11 @@
 //     omui::list_view({.id = "notes", .model = "notes", .selectable = omui::ListSelectable::single,
 //                      .height = 300},
 //                     [](const omui::Row& r, std::size_t) { return omui::text({.text = omui::Model::label_of(r)}); });
-export module openmui.ui.base:list;
+export module omui.ui.base:list;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :list_contract;
 

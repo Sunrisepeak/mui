@@ -1,9 +1,9 @@
-# openmui.ui.markdown
+# omui.ui.markdown
 
-The Markdown component (module `openmui.ui.markdown`, canvas-markdown §2): CommonMark and GitHub's extensions rendered as semantic nodes over openmui.markdown's document model. It is an official component package, not in the umbrella's defaults, and contract-first. `contract/markdown.contract.omui.toml` is its interface; the base class, the builder, the stubs and the schema are generated from it when the package builds (`openmui.build.contracts`).
+The Markdown component (module `omui.ui.markdown`, canvas-markdown §2): CommonMark and GitHub's extensions rendered as semantic nodes over openmui.markdown's document model. It is an official component package, not in the umbrella's defaults, and contract-first. `contract/markdown.contract.omui.toml` is its interface; the base class, the builder, the stubs and the schema are generated from it when the package builds (`omui.build.contracts`).
 
 ```cpp
-import openmui.ui.markdown;
+import omui.ui.markdown;
 
 omui::markdown({.id = "answer", .origin = omui::MarkdownOrigin::remote, .source = reply,
                 .on_link_activated = [](std::string href) { open_in_browser(href); }});

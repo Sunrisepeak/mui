@@ -2,8 +2,8 @@
 // pointer within the game's area, across and down from 0 to 1; a click as
 // the mouse's button; focus lost lets everything go.
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xengine.input;
 import xengine.ui;
 import mlibs.testing;

@@ -9,12 +9,12 @@
 - Images resolve relative to the document. The look is the theme's (`--dark`).
 
 ```sh
-mcpp run -p openmui.example.markdown-viewer -- docs/            # a folder
-mcpp run -p openmui.example.markdown-viewer -- README.md --dark
-mcpp run -p openmui.example.markdown-viewer -- README.md --serve   # then: omui agent snapshot …
+mcpp run -p omui.example.markdown-viewer -- docs/            # a folder
+mcpp run -p omui.example.markdown-viewer -- README.md --dark
+mcpp run -p omui.example.markdown-viewer -- README.md --serve   # then: omui agent snapshot …
 ```
 
-As a showcase (D-63) it is the Markdown component at work: `openmui.ui.markdown` over `openmui.markdown`, with CommonMark and GitHub's extensions, a semantic tree an agent reads, and pixels pinned on every platform.
+As a showcase (D-63) it is the Markdown component at work: `omui.ui.markdown` over `openmui.markdown`, with CommonMark and GitHub's extensions, a semantic tree an agent reads, and pixels pinned on every platform.
 
 The tests (`tests/viewer_test.cpp`) run on the documents in `tests/data/docs`:
 - the contents, and scrolling to a heading from them;

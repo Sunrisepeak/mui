@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // menu_item: A command of a menu.
-export module openmui.ui.base:menu_item_contract;
+export module omui.ui.base:menu_item_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

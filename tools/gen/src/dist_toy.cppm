@@ -45,7 +45,7 @@
 // font no longer required after a preRun locale replan is reported as retired:
 // its transferState/error history remains, but it is excluded from the current
 // plan totals, current error, completion barrier, and automatic retry selection.
-export module openmui.gen.dist_toy;
+export module omui.gen.dist_toy;
 
 import std;
 

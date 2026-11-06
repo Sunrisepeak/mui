@@ -8,10 +8,10 @@
 // rule for both — before a moment's frame, the frame before it is drawn —
 // so a shot's frame drawn directly (mounted afresh, its moments replayed)
 // is the frame playing up to it gives. The tests hold every shot to it.
-export module openmui.showcase.promo_video:shot;
+export module omui.showcase.promo_video:shot;
 
 import std;
-import openmui;
+import omui;
 import :film;
 
 export namespace omui::promo {

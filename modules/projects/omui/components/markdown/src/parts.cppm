@@ -8,11 +8,11 @@
 // document changes as text streams in; a part's block never does: a changed
 // block is a new part, its key being the block's content hash), so an
 // unchanged block keeps its node, its shaped text and its layout.
-module openmui.ui.markdown:parts;
+module omui.ui.markdown:parts;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.markdown;
 import :markdown_contract;
 

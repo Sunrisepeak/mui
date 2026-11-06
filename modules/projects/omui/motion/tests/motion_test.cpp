@@ -6,7 +6,7 @@ import hanim.core;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import openmui.motion;
+import omui.motion;
 import mlibs.testing;
 
 using namespace omui;

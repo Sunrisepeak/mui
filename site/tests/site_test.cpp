@@ -5,9 +5,9 @@
 // browser); the live timeline editor edited and undone; the static HTML a
 // reader without JavaScript gets, written into dist-toy's page.
 import std;
-import openmui;
-import openmui.site;
-import openmui.ui.markdown;  // openmui.markdown with it
+import omui;
+import omui.site;
+import omui.ui.markdown;  // openmui.markdown with it
 import mlibs.testing;
 
 using namespace mlibs::testing;

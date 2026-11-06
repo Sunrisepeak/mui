@@ -64,7 +64,7 @@ cleanup() {
 }
 trap cleanup EXIT
 if [ ${#runs[@]} -gt 0 ] && [ -z "${EVAL_BIN:-}" ]; then
-    build=(build --profile release -p openmui.cli)
+    build=(build --profile release -p omui.cli)
     for p in "${packages[@]}"; do build+=(-p "$p"); done
     EVAL_BIN=$("${MCPP:-mcpp}" "${build[@]}" --message-format json 2> /dev/null | tail -1 |
                python3 -c 'import json, sys; print(json.load(sys.stdin)["data"]["configuration"]["outputDir"] + "/bin")') ||
@@ -76,7 +76,7 @@ bin_of() {  # the program of that name under EVAL_BIN
 omui=$(bin_of omui)
 use=""
 if [ ${#runs[@]} -gt 0 ]; then
-    [ -n "$omui" ] || { echo "eval: no omui (mcpp build --profile release -p openmui.cli)" >&2; exit 2; }
+    [ -n "$omui" ] || { echo "eval: no omui (mcpp build --profile release -p omui.cli)" >&2; exit 2; }
     for line in "${runs[@]}"; do
         read -r -a words <<< "$line"
         program=$(bin_of "${words[0]}")

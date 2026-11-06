@@ -10,11 +10,11 @@
 // In a window of its own (app()) a pack styles the whole runtime; inside
 // another program (the site) it is a theme scope (Runtime::set_scope): the
 // workshop in the pack shown, the program around it in its own theme.
-export module openmui.showcase.style_gallery;
+export module omui.showcase.style_gallery;
 
 import std;
-import openmui;
-import openmui.theme;
+import omui;
+import omui.theme;
 
 export namespace omui::styles {
 

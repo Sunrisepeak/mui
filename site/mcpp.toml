@@ -12,7 +12,7 @@
 #   mcpp run -p openmui.site                       the site in a window
 #   mcpp run -p openmui.site -- --prerender out/index.html   its places into a packed page
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "site"
 version     = "0.1.0"
 description = "omui's website: the implementation of the openmui specification, one tree and many renderings"
@@ -41,27 +41,27 @@ sources = ["src/targets/native.cppm"]
 sources = ["src/targets/web.cppm"]
 
 [dependencies]
-openmui.sdk         = { path = "../modules/projects/omui/sdk" }
-openmui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
+omui.sdk         = { path = "../modules/projects/omui/sdk" }
+omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
 # The site also authors Hanim programs directly. Declared here as well because
 # mcpp does not yet apply openmui.view's [feature-deps.hanim] when the view is
 # selected together with this package (the Web row: -p openmui.view -p openmui.site).
 hanim               = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
-openmui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
-openmui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
+omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
+omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
 xengine.timeline    = { path = "../modules/projects/xengine/timeline" }  # the monitor: what plays at the playhead
-"openmui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
-"openmui.theme"      = { path = "../modules/projects/omui/theme" }
-openmui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
-openmui.semantic    = { path = "../modules/projects/omui/semantic" }
+"omui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
+"omui.theme"      = { path = "../modules/projects/omui/theme" }
+omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
+omui.semantic    = { path = "../modules/projects/omui/semantic" }
 mlibs.utils       = { path = "../modules/base/utils" }
-openmui.inspector   = { path = "../tools/inspector" }
+omui.inspector   = { path = "../tools/inspector" }
 mcpplibs.os         = "0.2.2"
 
 [build-dependencies]
-openmui.build.contracts = { path = "../mcpp/contracts", host-module = true }
-openmui.build.embed     = { path = "../mcpp/embed", host-module = true }
-openmui.build.toy       = { path = "../mcpp/toy", host-module = true }
+omui.build.contracts = { path = "../mcpp/contracts", host-module = true }
+omui.build.embed     = { path = "../mcpp/embed", host-module = true }
+omui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
 xrender.text = { path = "../modules/projects/xrender/text" }

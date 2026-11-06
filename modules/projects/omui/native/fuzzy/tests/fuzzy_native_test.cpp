@@ -3,8 +3,8 @@
 // contract and answers the records the stubs describe.
 import std;
 import nlohmann.json;
-import openmui.native;
-import openmui.native.fuzzy;
+import omui.native;
+import omui.native.fuzzy;
 import mlibs.testing;
 
 using namespace mlibs::testing;

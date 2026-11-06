@@ -1,11 +1,11 @@
 // openmui.site:frame_meter — who draws the page and how fast, in the bar.
-export module openmui.site:frame_meter;
+export module omui.site:frame_meter;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import :frame_meter_contract;
 
 export namespace omui::site {

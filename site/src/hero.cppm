@@ -2,10 +2,10 @@
 // Stable task ids, editable titles, scoped undo and Markdown copying;
 // optional views read the selected object from the actual semantic tree.
 // The explicitly simulated agent uses those same checked actions.
-export module openmui.site:hero;
+export module omui.site:hero;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

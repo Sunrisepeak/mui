@@ -11,11 +11,11 @@
 //
 //     markdown({.id = "answer", .source = text, .origin = MarkdownOrigin::remote,
 //               .on_link_activated = [](std::string href) { open(href); }});
-export module openmui.ui.markdown:document;
+export module omui.ui.markdown:document;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.markdown;
 import :markdown_contract;
 import :parts;

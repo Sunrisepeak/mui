@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // toggle: An on/off switch.
-export module openmui.ui.base:toggle_contract;
+export module omui.ui.base:toggle_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

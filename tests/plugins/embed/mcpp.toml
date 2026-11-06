@@ -15,7 +15,7 @@ kind = "lib"
 sources = ["src/*.cppm"]
 
 [build-dependencies]
-openmui.build.embed = { path = "../../../mcpp/embed", host-module = true }
+omui.build.embed = { path = "../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../modules/base/utils" }

@@ -10,7 +10,7 @@
 // in it, a played-back frame's own digest, the lines up at it, and what the
 // overlay draws from the whole cut (its chapters, its clips' places on the
 // strip, its markers).
-export module openmui.showcase.promo_video:cache;
+export module omui.showcase.promo_video:cache;
 
 import std;
 import :film;

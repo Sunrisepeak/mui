@@ -3,11 +3,11 @@
 // (`omui-gen embed`), so a shipped program reads no file to have them. Theme
 // packages and canvas programs use it for their own files: themes() and
 // behaviors() are embed() with their directory, suffix and tag.
-export module openmui.build.embed;
+export module omui.build.embed;
 
 import std;
 import mcpp;
-export import openmui.build.plan;
+export import omui.build.plan;
 
 export namespace openmui::build {
 

@@ -1,14 +1,14 @@
 // Declarative behaviours: compiling *.behavior.omui.toml into a statechart
 // (every state, event, operation and name checked, with its line), and
 // running it as a canvas behaviour.
-module openmui.ui.canvas.kit;
+module omui.ui.canvas.kit;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.expr;
-import openmui.ui.canvas;
+import omui.expr;
+import omui.ui.canvas;
 import :parts;
 import :chart;
 

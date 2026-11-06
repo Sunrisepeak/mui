@@ -16,7 +16,7 @@ kind = "lib"
 sources = []
 
 [dependencies]
-openmui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
+omui.features = { path = "{{repo}}/tests/features", default-features = false, features = ["sink-memory"] }
 
 [dev-dependencies]
 mlibs.utils = { path = "{{repo}}/modules/base/utils" }

@@ -6,11 +6,11 @@
 // semantic tree. Replaying on a fresh runtime with the same view, in
 // headless mode and on the virtual clock, gives the same tree at every
 // checkpoint, on every platform — a bug report a test can run.
-export module openmui.semantic:session;
+export module omui.semantic:session;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.session;
 import :tree;
 

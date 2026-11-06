@@ -1,7 +1,7 @@
-module openmui.semantic;
+module omui.semantic;
 
 import std;
-import openmui.core;
+import omui.core;
 
 namespace omui::semantic {
 

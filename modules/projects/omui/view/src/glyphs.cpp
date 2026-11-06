@@ -1,9 +1,9 @@
-module openmui.view;
+module omui.view;
 
 import std;
 import mlibs.math;
 import mlibs.hash;
-import openmui.core;
+import omui.core;
 import hanim.core;
 import xrender.vector;
 import :element;

@@ -1,6 +1,6 @@
 // Frame demand (D-70): merging what asks for frames, the interval it makes,
 // and a component's lease on it.
-module openmui.view;
+module omui.view;
 
 import std;
 

@@ -2,9 +2,9 @@
 // exactly; overlays change what they name and nothing else; every mistake in
 // a file is reported where it is, and every impossible composition says why.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.theme;
+import omui.core;
+import omui.view;
+import omui.theme;
 import xrender.vector;
 import mlibs.testing;
 

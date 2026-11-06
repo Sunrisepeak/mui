@@ -8,7 +8,7 @@
 #
 #   mcpp run -- ~/Downloads           mcpp run -- . --headless --png space.png
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "space"
 version     = "0.1.0"
 description = "openmui example 10: where a folder's space went, as a zoomable treemap on the infinite canvas"
@@ -27,7 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk       = { path = "../../modules/projects/omui/sdk" }
-openmui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
+omui.sdk       = { path = "../../modules/projects/omui/sdk" }
+omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
 
 [dev-dependencies]

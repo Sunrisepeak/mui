@@ -7,11 +7,11 @@
 // is undone: the node's value and states as they were. A read is performed
 // and must succeed. Arguments are made up from their types (and the node's
 // value). Every action's verdict a JSON line; a failure, the exit code 1.
-module openmui.cli;
+module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
-import openmui.core;
+import omui.core;
 
 namespace omui::cli {
 

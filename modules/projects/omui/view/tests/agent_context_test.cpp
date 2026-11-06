@@ -1,6 +1,6 @@
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.testing;
 
 using namespace omui;

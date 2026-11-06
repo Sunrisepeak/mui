@@ -7,8 +7,8 @@
 - **Live.** Saving `logic/main.ts` while it runs reloads it in place, and the text you typed stays.
 
 ```sh
-mcpp run -p openmui.example.hello-ts                       # a window
-mcpp run -p openmui.example.hello-ts -- --headless --png stats.png
+mcpp run -p omui.example.hello-ts                       # a window
+mcpp run -p omui.example.hello-ts -- --headless --png stats.png
 ```
 
 The test (`tests/hello_test.cpp`) checks:

@@ -5,14 +5,14 @@
 // their titles, the two views and the HUD on keys, streaming at a model's
 // pace into textures and live windows; and its pixels, pinned.
 import std;
-import openmui;
-import openmui.ui.canvas;
-import openmui.showcase.markdown_wall;
+import omui;
+import omui.ui.canvas;
+import omui.showcase.markdown_wall;
 import mlibs.testing;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.lua;
-import openmui.lang.js;
+import omui.abi;
+import omui.lang;
+import omui.lang.lua;
+import omui.lang.js;
 import mcpplibs.os;
 
 using namespace mlibs::testing;

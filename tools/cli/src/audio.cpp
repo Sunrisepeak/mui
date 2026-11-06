@@ -1,17 +1,17 @@
 // Headless automation audition: one frozen timeline signal drives an actual
 // audio bus and a read-only visualization. No window or audio device is opened.
-module openmui.cli;
+module omui.cli;
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui.core;
+import omui.core;
 import xengine.timeline;
 import xengine.timeline.audio;
 import xengine.audio;
 import xrender.vector;
 import mlibs.image;
-import openmui.host.headless;
-import openmui.ui.base;
+import omui.host.headless;
+import omui.ui.base;
 
 namespace omui::cli {
 namespace cmd=mcpplibs::cmdline;

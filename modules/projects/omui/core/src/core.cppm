@@ -9,7 +9,7 @@
 //   :keys      keys, modifiers, chords
 //   :event     input events and their JSON form
 //   :task      the work-stealing pool and the queue to the UI thread
-export module openmui.core;
+export module omui.core;
 
 export import :base;
 export import :diag;

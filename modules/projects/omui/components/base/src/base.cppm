@@ -8,16 +8,16 @@
 // pickers; split view, drawer; tree view, data grid; combobox, tag input;
 // code editor.
 //
-//     import openmui.ui.base;
+//     import omui.ui.base;
 //     omui::register_base_components();   // view documents and immediate mode find them by name
 //     rt.mount("main", omui::column({.gap = 8}, {
 //         omui::button({.id = "save", .text = "Save", .variant = omui::ButtonVariant::primary}),
 //         omui::slider({.id = "volume", .value = volume, .label = "Volume"}),
 //     }));
-export module openmui.ui.base;
+export module omui.ui.base;
 
-export import openmui.core;
-export import openmui.view;
+export import omui.core;
+export import omui.view;
 export import :parts;
 export import :button_contract;
 export import :toggle_contract;

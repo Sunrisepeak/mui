@@ -1,12 +1,12 @@
-module openmui;
+module omui;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.agent;
-import openmui.ui.base;
-import openmui.ui.window;
-import openmui.host.headless;
+import omui.core;
+import omui.view;
+import omui.agent;
+import omui.ui.base;
+import omui.ui.window;
+import omui.host.headless;
 import mlibs.trace;
 import mlibs.i18n;
 import mlibs.i18n.cldr;

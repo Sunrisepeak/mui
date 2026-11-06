@@ -1,8 +1,8 @@
-module openmui.ui.base;
+module omui.ui.base;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.hash;
 
 namespace omui {

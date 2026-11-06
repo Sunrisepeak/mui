@@ -13,8 +13,8 @@ sources = ["src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.view = { path = {{view_path}}, features = ["hanim"] }
-openmui.ui.base = { path = {{components_path}} }
+omui.view = { path = {{view_path}}, features = ["hanim"] }
+omui.ui.base = { path = {{components_path}} }
 hanim = { path = {{hanim_path}}, features = ["control"] }
 xrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }

@@ -1,4 +1,4 @@
-# openmui.ui.base
+# omui.ui.base
 
 The Core components (spec §11), contract-first (component-binding §2):
 
@@ -19,7 +19,7 @@ The Core components (spec §11), contract-first (component-binding §2):
 | `tooltip` | `tooltip` | describes the element before it; shown after `delay` on hover or focus, on the runtime's timers |
 
 Beside them, the package's own components (their contracts in `contract/`,
-made into code when the package builds — `build.mcpp`, openmui.build.contracts):
+made into code when the package builds — `build.mcpp`, omui.build.contracts):
 
 | Component | Role | Behaviour |
 |---|---|---|
@@ -63,7 +63,7 @@ height, a slider's thumb) are the component's, scaled by the theme's
 `density` (a compact theme's 0.8 makes a button 29 px high).
 
 ```cpp
-import openmui.ui.base;
+import omui.ui.base;
 
 omui::register_base_components();   // view documents and immediate mode find them by name
 rt.mount("main", omui::column({.padding = 16, .gap = 8}, {

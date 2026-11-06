@@ -1,7 +1,7 @@
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;

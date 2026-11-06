@@ -1,9 +1,9 @@
 // The adapter over AccessKit: nodes as AccessKit's, the platform's requests
 // as the mirror's, and the platform service of this build (native.cppm).
-module openmui.accessibility;
+module omui.accessibility;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.trace;
 import mcpplibs.mwrap.accesskit;
 import :native;

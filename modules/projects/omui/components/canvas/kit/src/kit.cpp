@@ -1,10 +1,10 @@
-module openmui.ui.canvas.kit;
+module omui.ui.canvas.kit;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.canvas;
+import omui.ui.canvas;
 import :parts;
 
 namespace omui {

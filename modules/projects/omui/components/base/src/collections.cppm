@@ -3,11 +3,11 @@
 // many there are, and state every row to the semantic tree as an item of its
 // own (`<id>/<key>`) that a screen reader reads and an agent operates; a
 // change of the model draws and states them again.
-export module openmui.ui.base:collections;
+export module omui.ui.base:collections;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :tree_view_contract;
 import :data_grid_contract;

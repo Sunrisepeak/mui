@@ -1,5 +1,5 @@
 import std;
-import openmui.host.headless;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace omui;

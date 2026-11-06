@@ -4,10 +4,10 @@
 // back as the one edited (and asks its answer of an agent); the interface
 // still works, whatever it looks like.
 import std;
-import openmui;
-import openmui.theme;
-import openmui.theme.styles;
-import openmui.showcase.style_gallery;
+import omui;
+import omui.theme;
+import omui.theme.styles;
+import omui.showcase.style_gallery;
 import mlibs.testing;
 
 using namespace mlibs::testing;

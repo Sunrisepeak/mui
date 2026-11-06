@@ -5,11 +5,11 @@
 // says whom (the `chosen` event). The stage's keys and gamepads move it, as
 // do an agent's actions. The main theme plays under it, rising as the
 // players choose, with a cue for each move, choice and step back.
-export module openmui.showcase.fighting:select;
+export module omui.showcase.fighting:select;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import gongfu.present2d;
 import :select_contract;
 import :roster;

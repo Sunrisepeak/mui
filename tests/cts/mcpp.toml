@@ -6,7 +6,7 @@
 #
 # A dev-dependency only: it is part of no artifact.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "cts"
 version     = "0.1.0"
 description = "The CTS level S harness: language-neutral scenarios and their pinned traces"

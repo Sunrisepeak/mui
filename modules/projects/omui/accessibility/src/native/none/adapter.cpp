@@ -1,5 +1,5 @@
 // No platform service here: an adapter says so, the mirror works as anywhere.
-module openmui.accessibility;
+module omui.accessibility;
 
 import std;
 

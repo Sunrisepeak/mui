@@ -1,4 +1,4 @@
-module openmui.native;
+module omui.native;
 
 import std;
 import nlohmann.json;

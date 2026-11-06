@@ -1,5 +1,5 @@
 // Reading a WebAssembly binary's sections, code bodies and name section.
-module openmui.gen.wasm_size;
+module omui.gen.wasm_size;
 
 import std;
 

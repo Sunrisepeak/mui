@@ -1,6 +1,6 @@
 // The component as an agent and a person meet it: by its role, its name, its actions.
 import std;
-import openmui;
+import omui;
 import {{project.name}};
 
 int main() {

@@ -1,9 +1,9 @@
-module openmui.agent;
+module omui.agent;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 import mlibs.trace;
 import mlibs.pipeline;
 

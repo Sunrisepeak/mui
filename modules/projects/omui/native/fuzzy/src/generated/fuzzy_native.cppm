@@ -2,11 +2,11 @@
 // omui-gen native (openmui.build.contracts does it in a build).
 //
 // fuzzy: Fuzzy matching as a finder does it: the candidates a query matches, best first, with what to highlight.
-export module openmui.native.fuzzy:fuzzy_native;
+export module omui.native.fuzzy:fuzzy_native;
 
 import std;
 import nlohmann.json;
-import openmui.native;
+import omui.native;
 
 export namespace omui::natives::fuzzy {
 

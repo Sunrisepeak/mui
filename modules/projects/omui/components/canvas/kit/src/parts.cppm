@@ -1,13 +1,13 @@
 // openmui.ui.canvas.kit:parts — what the behaviours share (not exported):
 // geometry between the scene and the screen, and snapping, which dragging
 // and resizing ask.
-module openmui.ui.canvas.kit:parts;
+module omui.ui.canvas.kit:parts;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.canvas;
+import omui.ui.canvas;
 
 namespace omui::kit {
 

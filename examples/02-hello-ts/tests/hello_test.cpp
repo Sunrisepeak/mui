@@ -2,10 +2,10 @@
 // player from its manifest, typing updates the counts (the script's and the
 // runtime's), Clear empties the text, and the pixels are pinned.
 import std;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang.js;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.js;
 import mlibs.testing;
 
 using namespace mlibs::testing;

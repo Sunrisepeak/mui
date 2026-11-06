@@ -5,7 +5,7 @@
 // openmui.h's types for the C++ that implements the ABI: the same names, the
 // same layouts (src/native/layout.cpp checks every size and offset against the
 // header), in namespace omui::abi so they never meet the header's.
-export module openmui.abi:c;
+export module omui.abi:c;
 
 import std;
 

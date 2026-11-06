@@ -1,9 +1,9 @@
-# openmui.ui.canvas
+# omui.ui.canvas
 
-An infinite canvas (module `openmui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas/kit`). Contract-first: `contract/canvas.contract.omui.toml` is its interface.
+An infinite canvas (module `omui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas/kit`). Contract-first: `contract/canvas.contract.omui.toml` is its interface.
 
 ```cpp
-import openmui.ui.canvas;
+import omui.ui.canvas;
 
 auto& wall = omui::world::scene("wall");                      // scenes by name, as models are
 wall.kind("note", {.tiers = {{0, omui::world::Tier::Draw::box},     // far: a box
@@ -24,4 +24,4 @@ omui::canvas({.id = "board", .scene = "wall", .zoom = zoom});   // x, y, zoom bi
 
 ## Inside
 
-- [kit](kit) (`openmui.ui.canvas.kit`): the canvas's behaviours — selection, dragging, resizing, snapping, connectors, grid, minimap, delete — and declarative statecharts.
+- [kit](kit) (`omui.ui.canvas.kit`): the canvas's behaviours — selection, dragging, resizing, snapping, connectors, grid, minimap, delete — and declarative statecharts.

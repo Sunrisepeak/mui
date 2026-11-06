@@ -1,5 +1,5 @@
 // A TrueType font cut down to the glyphs its kept characters reach.
-module openmui.gen.font_subset;
+module omui.gen.font_subset;
 
 import std;
 

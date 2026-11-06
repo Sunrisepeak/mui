@@ -2,7 +2,7 @@
 # and keys, JSON, diagnostics, task scheduling; it re-exports the shared
 # geometry, memory utilities and the clock (mlibs.geom, -memory, -anim).
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "core"
 version     = "0.1.0"
 description = "openmui runtime foundation: signals, verbs, input events, JSON, diagnostics, tasks"

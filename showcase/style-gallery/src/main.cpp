@@ -1,8 +1,8 @@
 // S2: `omui-styles [--style NAME] [--export-dir DIR]` — the rest of the line
 // is openmui's (--dark, --headless --png …).
 import std;
-import openmui;
-import openmui.showcase.style_gallery;
+import omui;
+import omui.showcase.style_gallery;
 
 int main(int argc, char** argv) {
     std::vector<char*> rest{argv[0]};

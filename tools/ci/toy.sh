@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The Toy row (D-84 §6.5, §8.9): the games built for wasm32-emscripten and
-# packaged for Bilibili Toy (`mcpp pack --format dist-toy` — `--pkg-format` in newer mcpp, openmui.build.toy's
+# packaged for Bilibili Toy (`mcpp pack --format dist-toy` — `--pkg-format` in newer mcpp, omui.build.toy's
 # dist_toy()), each checked by Toy's own toy_doctor.py — pinned to
 # github.com/bilibili/toy at ae156ec (MIT), downloaded into the build
 # directory and held to its sha256. Every package's sizes are printed; Toy's
@@ -30,7 +30,7 @@ if [ ! -f "$doctor" ] || [ "$(sha256 "$doctor")" != "$doctor_sha256" ]; then
 fi
 
 packages=("$@")
-[ ${#packages[@]} -gt 0 ] || packages=(openmui.showcase.fighting openmui.showcase.widget_breakout)
+[ ${#packages[@]} -gt 0 ] || packages=(omui.showcase.fighting omui.showcase.widget_breakout)
 failed=0
 for p in "${packages[@]}"; do
     echo "toy: $p"

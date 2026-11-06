@@ -1,9 +1,9 @@
 // Useful little workspaces, each composed from real components, one motion
 // model and the framework's scoped material effects. No scene owns a clock.
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui;
+import omui;
 import :motion_catalog;
 
 namespace omui::site {

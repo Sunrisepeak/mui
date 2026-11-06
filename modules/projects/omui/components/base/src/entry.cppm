@@ -4,11 +4,11 @@
 // removed by its ×). Both type into a text box of their own and offer their
 // matches in a popup; what is chosen is their own action, performed as the
 // person, journaled and taken back as an agent's is.
-export module openmui.ui.base:entry;
+export module omui.ui.base:entry;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :combobox_contract;
 import :tag_input_contract;

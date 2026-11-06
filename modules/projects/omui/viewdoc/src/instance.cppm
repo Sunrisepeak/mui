@@ -17,12 +17,12 @@
 // A document with an interface defines a component (`define_component`): its
 // properties and events are a contract generated from the interface, so code
 // in every language and other documents use it like any component.
-export module openmui.viewdoc:instance;
+export module omui.viewdoc:instance;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.expr;
+import omui.core;
+import omui.view;
+import omui.expr;
 import :document;
 
 export namespace omui::viewdoc {

@@ -3,7 +3,7 @@
 // word of the query; the ranking deterministic, and the same on many
 // threads as on one.
 import std;
-import openmui.native.fuzzy;
+import omui.native.fuzzy;
 import mlibs.testing;
 
 using namespace mlibs::testing;

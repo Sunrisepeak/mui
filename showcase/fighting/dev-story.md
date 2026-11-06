@@ -179,7 +179,7 @@ Throwaway scripts were used once — to turn world-angle key poses into tracks b
 | `gongfu-studio bake` / `check` | Hurtboxes from the animation; checks that bakes are current | same |
 | `gongfu-studio versus` | Every pair played by bots: win rates and where damage comes from | same |
 | `gongfu-studio stage` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
-| `openmui.build.embed` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `tools/gen` |
+| `omui.build.embed` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `tools/gen` |
 | `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/projects/xengine/audio` |
 | `tools/ci/readme-media.sh` | Copies what the tests drew into each showcase's `media/`; in CI, checks they match | `tools/ci` |
 | `openmui.image` | PNG, WebP (still and animated), key out, pieces, pack, crop, scale, principal axis | `modules/base/image` |
@@ -322,4 +322,4 @@ Collected in [best practices](../../docs/en/best-practices.md):
 
 - **Keyboard**: player 1 WASD, U I O (punches) J K L (kicks); player 2 the arrows, Insert Home PageUp, Delete End PageDown.
 - **Gamepad**: the first two connected are players 1 and 2, beside the keyboard. The d-pad and the left stick are directions (opposites held together go to gongfu's SOCD rule, as keys do); the buttons are the six-button layout — west LP, north MP, R1 HP, south LK, east MK, R2 HK — written as data in `controls/pad.controls.omui.json`, so it can be remapped. The host reads any pad through SDL's mapping database (the browser's standard mapping on the Web) and applies the dead zones; `tests/gamepad_test.cpp` injects pads headless and checks that a press arrives as the move.
-- **Web and Bilibili Toy**: `tools/ci/toy.sh openmui.showcase.fighting` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-fight/` and open it. `#/training` opens training mode (a hash route is the program's flag). Publishing is the maintainer's (`toy create`).
+- **Web and Bilibili Toy**: `tools/ci/toy.sh omui.showcase.fighting` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-fight/` and open it. `#/training` opens training mode (a hash route is the program's flag). Publishing is the maintainer's (`toy create`).

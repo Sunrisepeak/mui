@@ -3,7 +3,7 @@
 // One intermediate representation feeds every emitter (C header, spec
 // partitions, component partitions, script stubs, schemas, documentation), so
 // what two outputs say about a role or a property cannot disagree.
-export module openmui.gen.model;
+export module omui.gen.model;
 
 import std;
 

@@ -103,7 +103,7 @@ drawing.prop("motion", Source(motion));
 
 ## 11. 窗口：默认用系统的，框架自绘有完整的深度能力
 
-**是什么**：窗口默认用系统的外框；应用可以要框架自己的（`AppSpec::window = "framework"`，或 `--window framework`；`switchable` 让用户通过动词 `window.frame` 自己切换）。框架的外框（`openmui.ui.window`）和其他组件一样：阴影、圆角边、标题栏、两种风格的按钮，跟随窗口状态变化；标题栏拖动窗口、边缘调整大小都交给系统做，所以贴边分屏照常可用。所有窗口操作都是动词（`window.minimize`、`window.toggle_maximize`、`window.fullscreen`、`window.close`），点击、快捷键和 agent 做的是同一件事。关闭是立即的：窗口不再接收输入，输入穿透到下面，溶解只是呈现。
+**是什么**：窗口默认用系统的外框；应用可以要框架自己的（`AppSpec::window = "framework"`，或 `--window framework`；`switchable` 让用户通过动词 `window.frame` 自己切换）。框架的外框（`omui.ui.window`）和其他组件一样：阴影、圆角边、标题栏、两种风格的按钮，跟随窗口状态变化；标题栏拖动窗口、边缘调整大小都交给系统做，所以贴边分屏照常可用。所有窗口操作都是动词（`window.minimize`、`window.toggle_maximize`、`window.fullscreen`、`window.close`），点击、快捷键和 agent 做的是同一件事。关闭是立即的：窗口不再接收输入，输入穿透到下面，溶解只是呈现。
 
 **别的框架**：自定义标题栏要按平台分别做（Electron 的 `-webkit-app-region`、Flutter 的 window_manager 插件、WinUI 的标题栏定制），跨平台很难一致，也没有把窗口操作放进 agent 能读的模型里。
 

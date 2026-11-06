@@ -4,7 +4,7 @@
 # CPython's stable ABI (abi3) and linked against no libpython. Its window
 # shows the runtime Python built its views on; Python runs on its own thread.
 [package]
-namespace   = "openmui.entry"
+namespace   = "omui.entry"
 name        = "python"
 version     = "0.1.0"
 description = "The _openmui extension module of the openmui Python package (abi3, host mode)"
@@ -28,14 +28,14 @@ shared = "self-contained"
 [dependencies]
 xrender.text = { path = "../../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../../modules/base/utils" }
-openmui.sdk           = { path = "../../../modules/projects/omui/sdk" }
-openmui.abi           = { path = "../../../modules/projects/omui/abi" }
-openmui.lang.python   = { path = "../../../modules/projects/omui/lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
-openmui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
+omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
+omui.abi           = { path = "../../../modules/projects/omui/abi" }
+omui.lang.python   = { path = "../../../modules/projects/omui/lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
+omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
 mlibs.image         = { path = "../../../modules/base/image" }
-openmui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
-openmui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
-openmui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
+omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
+omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
+omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
 nlohmann.json       = "3.12.0"
 mcpplibs.os         = "0.2.2"
 

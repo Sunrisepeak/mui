@@ -6,7 +6,7 @@
 // cmap contains only requested characters, allowing other fonts to provide
 // the rest. TrueType outlines (`glyf`, `loca`; variable fonts' `gvar`);
 // a composite glyph keeps its components.
-export module openmui.gen.font_subset;
+export module omui.gen.font_subset;
 
 import std;
 

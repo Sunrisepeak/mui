@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // slider: Chooses a number in a range by dragging a thumb or stepping.
-export module openmui.ui.base:slider_contract;
+export module omui.ui.base:slider_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

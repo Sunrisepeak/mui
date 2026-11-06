@@ -6,11 +6,11 @@
 // checked against WCAG's published values.
 import std;
 import nlohmann.json;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang.js;
-import openmui.native;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.js;
+import omui.native;
 import colors;
 import mlibs.testing;
 

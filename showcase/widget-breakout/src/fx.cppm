@@ -6,11 +6,11 @@
 // and states, one step at a time (so the same play draws the same frames),
 // in fixed pools (nothing allocated a frame), and none of it in the
 // simulation: a rewind clears it. And the ghost of a rewound shot.
-export module openmui.showcase.widget_breakout:fx;
+export module omui.showcase.widget_breakout:fx;
 
 import std;
-import openmui;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.showcase.widget_breakout.sim;
 import :rooms;
 
 export namespace omui::breakout {

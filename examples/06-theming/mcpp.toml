@@ -9,7 +9,7 @@
 #   mcpp run                       a window; edit themes/brand.theme.omui.toml
 #   mcpp run -- --headless --png preview.png
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "theming"
 version     = "0.1.0"
 description = "openmui example 06: a theme preview in Lua — compositions, density, motion, an application's own theme file"
@@ -34,11 +34,11 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
-openmui.entry.player = { path = "../../src/entry/player" }
+omui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../modules/base/utils" }
-openmui.player        = { path = "../../modules/projects/omui/player" }
-openmui.lang.lua      = { path = "../../modules/projects/omui/lang/lua" }
-openmui.theme.default = { path = "../../modules/projects/omui/theme/default" }
-openmui.theme.compact = { path = "../../modules/projects/omui/theme/compact" }
+omui.player        = { path = "../../modules/projects/omui/player" }
+omui.lang.lua      = { path = "../../modules/projects/omui/lang/lua" }
+omui.theme.default = { path = "../../modules/projects/omui/theme/default" }
+omui.theme.compact = { path = "../../modules/projects/omui/theme/compact" }

@@ -1,6 +1,6 @@
 // The fighters this program carries: their files (fighters/*.fighter.gongfu.toml)
 // read once, and how each looks.
-export module openmui.showcase.fighting:roster;
+export module omui.showcase.fighting:roster;
 
 import std;
 import gongfu.data;

@@ -1,8 +1,8 @@
 // Product exhibits, learning and references have distinct entrances.
-export module openmui.site:wayfinding;
+export module omui.site:wayfinding;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

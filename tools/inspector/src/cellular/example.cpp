@@ -1,6 +1,6 @@
-module openmui.inspector;
+module omui.inspector;
 import std;
-import openmui;
+import omui;
 
 namespace omui::inspector::cellular {
 Value example_project() {

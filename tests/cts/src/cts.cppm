@@ -6,7 +6,7 @@
 //         Json trace = cts::run(s, invoke, settle);   // the runner's verbs
 //         for (const auto& d : cts::check(s, trace)) fail(d);
 //     }
-export module openmui.cts;
+export module omui.cts;
 
 import std;
 import nlohmann.json;

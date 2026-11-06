@@ -7,10 +7,10 @@
 // mounted afresh and its moments replayed. Either way the same bytes: the
 // frames are functions of time, and `direct` draws one with nothing kept.
 // The frames a `film` clip plays back are kept (as PNG) when they are drawn.
-export module openmui.showcase.promo_video:player;
+export module omui.showcase.promo_video:player;
 
 import std;
-import openmui;
+import omui;
 import xengine.video;
 import :film;
 import :shot;

@@ -14,7 +14,7 @@ render() {  # render <template> <destination> <project name>
     python3 - "$root/modules/projects/omui/templates/$1" "$2" "$3" "$root" <<'PY'
 import sys, pathlib, re
 src, dst, name, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4]
-vars = {"project.name": name, "self.name": "openmui.sdk", "self.version": "0.1.0",
+vars = {"project.name": name, "self.name": "omui.sdk", "self.version": "0.1.0",
         "template.package.namespace": "openmui", "template.package.name": "sdk"}
 for f in src.rglob("*"):
     if f.is_dir() or f.name == "template.toml": continue
@@ -27,9 +27,9 @@ for f in src.rglob("*"):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text)
 # This checkout instead of the published packages.
-paths = {"openmui.sdk": "modules/projects/omui/sdk", "openmui.entry.player": "src/entry/player", "openmui.player": "modules/projects/omui/player",
-         "openmui.lang.js": "modules/projects/omui/lang/js", "openmui.lang.lua": "modules/projects/omui/lang/lua", "openmui.native": "modules/projects/omui/native",
-         "openmui.theme.default": "modules/projects/omui/theme/default"}
+paths = {"omui.sdk": "modules/projects/omui/sdk", "omui.entry.player": "src/entry/player", "omui.player": "modules/projects/omui/player",
+         "omui.lang.js": "modules/projects/omui/lang/js", "omui.lang.lua": "modules/projects/omui/lang/lua", "omui.native": "modules/projects/omui/native",
+         "omui.theme.default": "modules/projects/omui/theme/default"}
 m = dst / "mcpp.toml"
 if m.exists():
     t = m.read_text()

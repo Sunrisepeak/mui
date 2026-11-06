@@ -5,9 +5,9 @@
 // that does not read says why; the same pixels on every platform.
 import std;
 
-import openmui.ui.timeline;
+import omui.ui.timeline;
 import xengine.timeline;
-import openmui.host.headless;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace mlibs::testing;

@@ -5,8 +5,8 @@
 export module viewer;
 
 import std;
-import openmui;
-import openmui.ui.markdown;
+import omui;
+import omui.ui.markdown;
 import mcpplibs.os;
 
 export namespace viewer {

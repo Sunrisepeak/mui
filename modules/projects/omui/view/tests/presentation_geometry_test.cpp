@@ -1,8 +1,8 @@
 // The actual sampled border box is shared by pixels, hit testing and semantics.
 // NodeFrame is metadata only; it cannot become another visible staggered piece.
 import std;
-import openmui.view;
-import openmui.motion;
+import omui.view;
+import omui.motion;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;

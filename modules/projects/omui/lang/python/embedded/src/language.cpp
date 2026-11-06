@@ -1,11 +1,11 @@
 // Python as a language of the player: one script, one PocketPy VM on a thread
 // of its own.
-module openmui.lang.python.embedded;
+module omui.lang.python.embedded;
 
 import std;
-import openmui.abi;
-import openmui.lang;
-import openmui.player;
+import omui.abi;
+import omui.lang;
+import omui.player;
 
 namespace omui::lang::python::embedded {
 

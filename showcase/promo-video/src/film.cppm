@@ -7,7 +7,7 @@
 // own frames played back at the clip's speed (whole frames: the speed a
 // whole number) — the rewind. Its subtitle track's clips are
 // `line:<id>`, its sound tracks music files and `sound:<name>` cues.
-export module openmui.showcase.promo_video:film;
+export module omui.showcase.promo_video:film;
 
 import std;
 import xengine.timeline;

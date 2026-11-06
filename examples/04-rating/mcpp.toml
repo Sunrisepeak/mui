@@ -11,7 +11,7 @@
 #   mcpp run                       a window
 #   mcpp run -- --headless --png shelf.png
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "rating"
 version     = "0.1.0"
 description = "openmui example 04: a reading list rated with the application's own component, from contract to every language"
@@ -35,16 +35,16 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.entry.player = { path = "../../src/entry/player" }
-openmui.ui.base      = { path = "../../modules/projects/omui/components/base" }
+omui.entry.player = { path = "../../src/entry/player" }
+omui.ui.base      = { path = "../../modules/projects/omui/components/base" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils  = { path = "../../modules/base/utils" }
-openmui.player   = { path = "../../modules/projects/omui/player" }
-openmui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
-openmui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
-openmui.abi      = { path = "../../modules/projects/omui/abi" }
-openmui.viewdoc  = { path = "../../modules/projects/omui/viewdoc" }
+omui.player   = { path = "../../modules/projects/omui/player" }
+omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
+omui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
+omui.abi      = { path = "../../modules/projects/omui/abi" }
+omui.viewdoc  = { path = "../../modules/projects/omui/viewdoc" }

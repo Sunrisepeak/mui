@@ -1,7 +1,7 @@
-export module openmui.site:component_motion;
+export module omui.site:component_motion;
 import std;
 export import omui.hanim;
-import openmui;
+import omui;
 import :motion_catalog;
 
 export namespace omui::site {

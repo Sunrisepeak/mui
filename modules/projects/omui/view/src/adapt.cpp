@@ -5,10 +5,10 @@
 // long enough it raises them again, never above the device's tier nor the
 // person's own setting. What it decides is an input: Runtime::adaptation()
 // is what a session records, and set_adaptation what a replay applies.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.pipeline;
 import :impl;
 

@@ -6,12 +6,12 @@
 // person does. On the right, the tree as the agent reads it, and every
 // request and answer as the protocol's records; at the end, the journal of
 // who did what (openas).
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.theme;
+import omui;
+import omui.theme;
 import xrender.text;
 
 namespace omui::promo {

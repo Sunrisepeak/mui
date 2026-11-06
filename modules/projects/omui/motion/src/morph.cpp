@@ -1,5 +1,5 @@
 // A morph: two drawings matched, and drawn between them.
-module openmui.motion;
+module omui.motion;
 
 import std;
 import hanim.core;

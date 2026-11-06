@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // dialog: A window over the application; modal by default.
-export module openmui.ui.base:dialog_contract;
+export module omui.ui.base:dialog_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

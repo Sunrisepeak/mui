@@ -11,12 +11,12 @@
 // place: a view keeps its nodes and state, a component its instances, a
 // script its signals. A file with an error changes nothing; the error is kept
 // in problems() and logged.
-export module openmui.player;
+export module omui.player;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.abi;
+import omui.core;
+import omui.view;
+import omui.abi;
 
 export namespace omui::player {
 

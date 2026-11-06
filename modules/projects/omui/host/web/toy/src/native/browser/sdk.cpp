@@ -1,6 +1,6 @@
 // window.toy through src/js/omui_toy.js: a call carries an id; the page
 // answers through settled(), the callback it is given, on its own thread.
-module openmui.host.web.toy;
+module omui.host.web.toy;
 
 import std;
 import :sdk;

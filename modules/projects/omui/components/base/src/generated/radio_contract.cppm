@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // radio: One of a set of mutually exclusive options; the group is the radio_group role.
-export module openmui.ui.base:radio_contract;
+export module omui.ui.base:radio_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

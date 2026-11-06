@@ -3,11 +3,11 @@
 // that 64-bit targets have; wasm32 NaN-boxes it. Until the wrap supports it
 // — or the page's own JavaScript engine runs the scripts — a Script answers
 // every run with OMUI_ERROR_EXTENSION_NOT_PRESENT, and the program goes on.
-module openmui.lang.js;
+module omui.lang.js;
 
 import std;
-import openmui.abi;
-import openmui.lang;
+import omui.abi;
+import omui.lang;
 
 namespace omui::lang::js {
 

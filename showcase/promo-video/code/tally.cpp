@@ -1,9 +1,9 @@
 // The film's tally counter in C++ (after example 03), as the code shot shows
 // it and draws it: the same tree as tally.ts, tally.py and tally.lua beside it.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
-import openmui;
+import omui;
 
 namespace omui::promo {
 

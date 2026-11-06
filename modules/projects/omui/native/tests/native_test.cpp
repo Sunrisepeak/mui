@@ -4,7 +4,7 @@
 // bindings read.
 import std;
 import nlohmann.json;
-import openmui.native;
+import omui.native;
 import mlibs.testing;
 
 using namespace mlibs::testing;

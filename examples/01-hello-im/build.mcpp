@@ -2,7 +2,7 @@
 // (`hello::hello_source`), so whoever shows it running can show it written.
 import std;
 import mcpp;
-import openmui.build.embed;
+import omui.build.embed;
 
 int main() {
     return openmui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"}) ? 0 : 1;

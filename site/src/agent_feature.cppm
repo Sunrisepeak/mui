@@ -1,8 +1,8 @@
 // Agent-native work: one real task, three ways to use its semantic surface.
-export module openmui.site:agent_feature;
+export module omui.site:agent_feature;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

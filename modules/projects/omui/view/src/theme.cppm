@@ -5,10 +5,10 @@
 // runtime holds. A colour property may name a token ("accent", "surface")
 // or be literal ("#2563eb"); a theme package replaces the token values and
 // every component follows, with the semantic tree unchanged (S2's promise).
-export module openmui.view:theme;
+export module omui.view:theme;
 
 import std;
-import openmui.core;
+import omui.core;
 import :element;
 
 export namespace omui {

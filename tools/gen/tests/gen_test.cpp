@@ -1,9 +1,9 @@
 // The generator: the committed outputs under spec/ are what the registry
 // produces now, and a broken contract is reported line by line.
 import std;
-import openmui.gen.model;
-import openmui.gen.read;
-import openmui.gen.emit;
+import omui.gen.model;
+import omui.gen.read;
+import omui.gen.emit;
 import mlibs.testing;
 
 using namespace mlibs::testing;
@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
         const auto dir = spec_dir().parent_path() / "modules" / "projects" / "omui" / "components" / "base" / "src" / "generated";
-        const gen::CppOptions o{"openmui.ui.base", "omui", true};
+        const gen::CppOptions o{"omui.ui.base", "omui", true};
         int seen = 0;
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
             const std::string file = entry.path().filename().string();
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
             std::vector<gen::Contract> contracts{*it};
             const std::string hint = std::format(
                 "out of date: run omui-gen cpp spec/registry/components/*.contract.omui.toml for {} --registry spec/registry "
-                "--module openmui.ui.base --namespace omui --out modules/projects/omui/components/base/src/generated --catalog",
+                "--module omui.ui.base --namespace omui --out modules/projects/omui/components/base/src/generated --catalog",
                 name);
             check(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o), hint);
             check(read(dir / (name + "_builder.cpp")) == gen::emit_cpp_builder(contracts[0], reg, o), hint);
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
             for (const auto& f : std::filesystem::directory_iterator(pkg.path() / "native", ec)) {
                 const std::string file = gen::generic_utf8(f.path().filename());
                 if (!file.ends_with(".native.omui.toml")) continue;
-                const std::string module = "openmui.native." + gen::generic_utf8(pkg.path().filename());
+                const std::string module = "omui.native." + gen::generic_utf8(pkg.path().filename());
                 auto modules = gen::read_natives(f.path(), reg, diags);
                 check(!diags.has_errors(), diags.text());
                 auto read = [](const std::filesystem::path& p) {
@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
             std::ifstream in(file, std::ios::binary);
             const std::string text{std::istreambuf_iterator<char>(in), {}};
             // A module name is identifiers: `default` (a keyword) is `default_theme`.
-            const std::string module = name == "default" ? "openmui.theme.default_theme" : "openmui.theme." + name;
+            const std::string module = name == "default" ? "omui.theme.default_theme" : "omui.theme." + name;
             const std::string want = gen::emit_embed(text, name + ".theme.omui.toml", module, "omui::themes", name + "_theme");
             check(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want,
                   std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "

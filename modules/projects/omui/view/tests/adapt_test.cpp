@@ -4,7 +4,7 @@
 // effects, when frames keep missing the budget, and raising them with room —
 // off unless a host turns it on, set aside when an adaptation is applied.
 import std;
-import openmui.view;
+import omui.view;
 import mlibs.testing;
 
 using namespace mlibs::testing;

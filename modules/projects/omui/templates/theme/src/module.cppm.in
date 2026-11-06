@@ -4,7 +4,7 @@ export module {{project.name}};
 export import :brand_theme;
 
 import std;
-import openmui.theme;
+import omui.theme;
 
 export namespace {{project.name}} {
 

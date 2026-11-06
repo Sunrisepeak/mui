@@ -4,11 +4,11 @@
 // in place, the candidate window at the caret), a blinking caret on the
 // runtime's timers, horizontal scrolling of a long line, masked passwords,
 // and actions in grapheme offsets for agents.
-export module openmui.ui.base:text_box;
+export module omui.ui.base:text_box;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :text_box_contract;
 

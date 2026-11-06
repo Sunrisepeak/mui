@@ -5,7 +5,7 @@ Making gongfu fighters (D-85 §8.5, D-61). It is a library with a command line n
 ```sh
 gongfu-studio bake  showcase/fighting/fighters   # writes kata.boxes.gongfu.toml …
 gongfu-studio check showcase/fighting/fighters   # JSON; exit 1 when a bake is stale
-gongfu-studio embed showcase/fighting/fighters --module openmui.showcase.fighting --namespace omui::fighting::files --out gongfu_fighters.cppm
+gongfu-studio embed showcase/fighting/fighters --module omui.showcase.fighting --namespace omui::fighting::files --out gongfu_fighters.cppm
 gongfu-studio sheet showcase/fighting/fighters mo --out mo.png   # every clip with its boxes, a contact sheet
 gongfu-studio versus showcase/fighting/fighters --rounds 200     # bots play every pair: the balance report
 ```

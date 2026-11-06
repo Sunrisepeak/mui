@@ -15,11 +15,11 @@
 // items (id `<canvas>/<key>`, the kind's role, a name from its column, the
 // node's bounds) and keeps the rest a query away (`find`); the viewport's
 // actions move the camera.
-export module openmui.ui.canvas:view;
+export module omui.ui.canvas:view;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import hanim.core;
 import :canvas_contract;

@@ -2,7 +2,7 @@
 // many voices sounding — punches and bells from a sound file, through an
 // echo on the effects' bus and the master's limiter — as an audio thread
 // renders it, nothing allocated.
-export module openmui.bench:audio;
+export module omui.bench:audio;
 
 import std;
 

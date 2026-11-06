@@ -1,4 +1,4 @@
-module openmui.lang.python;
+module omui.lang.python;
 
 import std;
 import mcpplibs.os;

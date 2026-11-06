@@ -12,10 +12,10 @@ A real reading tool: openmui's own design documents are read with it (`omui-wall
 
 | Layer | Package | What it is |
 |---|---|---|
-| Canvas | `openmui.ui.canvas` | a scene of nodes in world space, a camera, tiers (box, texture, live component), textures rasterised on the task pool, the semantic items of what is on screen and `find` across the rest |
-| Canvas behaviours | `openmui.ui.canvas.kit` | select, drag, snap, resize, and declarative statecharts (`*.behavior.omui.toml`) |
-| Markdown | `openmui.markdown`, `openmui.ui.markdown` | parsing (incremental: a stream parses only its tail), the document component |
-| Scripts | `openmui.lang.{js,lua}`, the Python binding | the tour, one scene script in three languages |
+| Canvas | `omui.ui.canvas` | a scene of nodes in world space, a camera, tiers (box, texture, live component), textures rasterised on the task pool, the semantic items of what is on screen and `find` across the rest |
+| Canvas behaviours | `omui.ui.canvas.kit` | select, drag, snap, resize, and declarative statecharts (`*.behavior.omui.toml`) |
+| Markdown | `openmui.markdown`, `omui.ui.markdown` | parsing (incremental: a stream parses only its tail), the document component |
+| Scripts | `omui.lang.{js,lua}`, the Python binding | the tour, one scene script in three languages |
 | The application | `showcase/markdown-wall` | documents into workspaces, the window element, the HUD, the verbs |
 
 ## 3. How each part was built
@@ -31,7 +31,7 @@ The canvas's benchmarks hold a frame of panning or zooming 1,000 windows, or 100
 
 ## 5. Self-review
 
-- **The package name and the directory differed** (`wall` in `markdown-wall`), against D-80. Fixed with the style workshop's: the package is `openmui.showcase.markdown_wall`, and lint's `layout` now covers showcases.
+- **The package name and the directory differed** (`wall` in `markdown-wall`), against D-80. Fixed with the style workshop's: the package is `omui.showcase.markdown_wall`, and lint's `layout` now covers showcases.
 - **The README picture is a still.** The wall's point is the zoom from the whole wall to a live window, which is a full-frame change on every frame. That is a video, not an animated PNG: the same finding as the style workshop's.
 - **Three languages, one tour** worked because every language binding builds the same view documents and calls the same verbs. Writing the tour three times found binding gaps that a single language would have hidden, so new script-facing features should be tried in at least two languages.
 

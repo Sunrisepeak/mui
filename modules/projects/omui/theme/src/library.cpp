@@ -1,9 +1,9 @@
 // The library of themes and overlays, and their composition.
-module openmui.theme;
+module omui.theme;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 namespace omui::theme {
 

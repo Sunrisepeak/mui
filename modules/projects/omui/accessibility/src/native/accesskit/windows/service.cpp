@@ -1,7 +1,7 @@
 // UI Automation, through AccessKit's Windows subclassing adapter: it answers
 // WM_GETOBJECT for the window itself (activation on the window's thread; an
 // action perhaps on another).
-module openmui.accessibility;
+module omui.accessibility;
 
 import std;
 import mcpplibs.mwrap.accesskit;

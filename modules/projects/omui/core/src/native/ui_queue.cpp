@@ -1,7 +1,7 @@
 // The UI queue over moodycamel's ConcurrentQueue (imported as a module,
 // mcpplibs.mwrap.concurrentqueue), in an implementation unit: nothing of it
 // is exported (D-40).
-module openmui.core;
+module omui.core;
 
 import std;
 import mcpplibs.mwrap.concurrentqueue;

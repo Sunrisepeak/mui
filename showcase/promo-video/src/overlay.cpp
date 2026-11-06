@@ -1,9 +1,9 @@
 // What lies over every shot: the lines, the chapter, the timeline along the
 // bottom, and the tape's look over the film's own frames played back.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
-import openmui;
+import omui;
 
 namespace omui::promo {
 

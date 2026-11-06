@@ -2,11 +2,11 @@
 // split view (two panes sharing their room, the share moved by a handle that
 // is an item of its own) and a drawer (a sheet along the window's edge, over
 // the page).
-export module openmui.ui.base:containers;
+export module omui.ui.base:containers;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :split_view_contract;
 import :drawer_contract;

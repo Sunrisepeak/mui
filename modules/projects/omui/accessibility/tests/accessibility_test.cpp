@@ -2,10 +2,10 @@
 // say, and the requests a screen reader makes performed as the person's input;
 // where AccessKit has a library, the update it would be told.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
-import openmui.accessibility;
+import omui.core;
+import omui.view;
+import omui.semantic;
+import omui.accessibility;
 import mlibs.testing;
 
 using namespace mlibs::testing;

@@ -5,7 +5,7 @@
 # what it makes possible (a node's `move_to` exists because drag is on); and
 # declarative ones, statecharts in *.behavior.omui.toml run by C++.
 [package]
-namespace   = "openmui.ui.canvas"
+namespace   = "omui.ui.canvas"
 name        = "kit"
 version     = "0.1.0"
 description = "Canvas behaviours: selection with marquee, dragging, resize handles, snapping with guides, connectors, grid, minimap, delete; declarative statecharts"
@@ -23,15 +23,15 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.core      = { path = "../../../core" }
-openmui.view      = { path = "../../../view" }
+omui.core      = { path = "../../../core" }
+omui.view      = { path = "../../../view" }
 xrender.vector    = { path = "../../../../xrender/vector" }
-openmui.ui.canvas = { path = ".." }
-openmui.expr      = { path = "../../../expr" }
+omui.ui.canvas = { path = ".." }
+omui.expr      = { path = "../../../expr" }
 hanim.core             = { path = "../../../../hanim/core" }
 xrender.raster    = { path = "../../../../xrender/raster" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../../../../base/utils" }
-openmui.host.headless = { path = "../../../host/headless" }
+omui.host.headless = { path = "../../../host/headless" }

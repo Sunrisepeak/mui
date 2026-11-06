@@ -5,11 +5,11 @@
 // path to the button lit. Then the tree's lines leave it and settle on the
 // wordmark's outline, the wordmark fills in, and a band of light crosses it
 // (a wipe within a wipe: openmui.render's Slang effects).
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
+import omui;
 import xrender.text;
 
 namespace omui::promo {

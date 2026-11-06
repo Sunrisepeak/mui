@@ -4,11 +4,11 @@
 // answers the system's first question (activation) from the mirror and is
 // told, after each frame, what changed; what assistive technology asks waits
 // in the mirror until the host serves it between frames.
-export module openmui.accessibility:adapter;
+export module omui.accessibility:adapter;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :map;
 import :platform;
 

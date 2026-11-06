@@ -3,7 +3,7 @@
 // only file types Toy keeps, the licences as text it keeps, and a note
 // beside it of every file's size; what is not a Toy package is refused.
 import std;
-import openmui.gen.dist_toy;
+import omui.gen.dist_toy;
 import mlibs.testing;
 import mlibs.text;
 import nlohmann.json;

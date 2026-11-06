@@ -7,7 +7,7 @@
 # exactly and its checksum is the same on every platform. The UI (the bricks
 # as openmui components) reads its events; it knows nothing of openmui.
 [package]
-namespace   = "openmui.showcase.widget_breakout"
+namespace   = "omui.showcase.widget_breakout"
 name        = "sim"
 version     = "0.1.0"
 description = "The breakout's deterministic simulation: swept balls with spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts; rewindable"

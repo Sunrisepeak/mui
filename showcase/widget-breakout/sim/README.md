@@ -1,9 +1,9 @@
-# openmui.showcase.widget_breakout.sim
+# omui.showcase.widget_breakout.sim
 
 The breakout's simulation (S4; [design](../../../.agents/docs/2026-10-29-mgame-s4-breakout-design.md) §5, §8). It is a pure function of the state and the frame's actions, at 120 steps a second.
 
 ```cpp
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 
 omui::breakout::State s = omui::breakout::start(room);    // bricks from the room's layout
 omui::breakout::step(s, {player, agent});                   // one frame

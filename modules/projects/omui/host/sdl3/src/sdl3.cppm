@@ -16,14 +16,14 @@
 // two together). A directory of effect files (openmui.render.effect) is loaded with
 // the window and loaded again, between frames, when a file in it changes:
 // an effect's shader edited while the program runs shows on the next frame.
-export module openmui.host.sdl3;
+export module omui.host.sdl3;
 
 import std;
-export import openmui.core;
-export import openmui.view;
-export import openmui.semantic;
-export import openmui.agent;
-export import openmui.accessibility;
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import omui.agent;
+export import omui.accessibility;
 export import xrender.raster;
 export import xrender.effect;
 

@@ -2,12 +2,12 @@
 // manifest; files that change on disk reloaded in place, state kept; errors
 // kept with their places while the old view stays.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.abi;
-import openmui.player;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.core;
+import omui.view;
+import omui.abi;
+import omui.player;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace mlibs::testing;

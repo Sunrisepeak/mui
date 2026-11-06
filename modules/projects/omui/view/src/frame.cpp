@@ -1,9 +1,9 @@
 // A frame (§3.1 of the plan): input → handlers and actions → signals →
 // regions rebuilt → animations → layout (incremental) → paint.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import xrender.raster;

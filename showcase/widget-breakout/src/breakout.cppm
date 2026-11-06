@@ -2,10 +2,10 @@
 // Settings panel is haunted, and every control works.
 //
 //     omui::run(omui::breakout::app(), argc, argv);
-export module openmui.showcase.widget_breakout;
+export module omui.showcase.widget_breakout;
 
-export import openmui;
-export import openmui.showcase.widget_breakout.sim;
+export import omui;
+export import omui.showcase.widget_breakout.sim;
 export import :field_contract;
 export import :rooms;
 export import :fx;

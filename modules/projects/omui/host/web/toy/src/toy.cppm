@@ -15,11 +15,11 @@
 // at most 1024 bytes, 128 pairs a Toy), submitScore ({board 1–3, score}),
 // getRankList ({board, period, limit ≤ 100}), getMyRank. Toy has no
 // lifecycle of its own: the page's visibility is it (Web::on_visibility).
-export module openmui.host.web.toy;
+export module omui.host.web.toy;
 
 import std;
-export import openmui.core;
-export import openmui.host.web;
+export import omui.core;
+export import omui.host.web;
 
 export namespace omui::toy {
 

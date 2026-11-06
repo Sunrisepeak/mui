@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // checkbox: A checkable option; can be indeterminate.
-export module openmui.ui.base:checkbox_contract;
+export module omui.ui.base:checkbox_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

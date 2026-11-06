@@ -1,11 +1,11 @@
 // openmui.site:lens — the semantic tree's wireframe over the page.
-export module openmui.site:lens;
+export module omui.site:lens;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import :lens_contract;
 
 export namespace omui::site {

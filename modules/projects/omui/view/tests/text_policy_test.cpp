@@ -2,7 +2,7 @@
 // font-cache lifetime. Real label matching belongs to the site quality probe.
 import std;
 import hanim.core;
-import openmui.view;
+import omui.view;
 import mlibs.math;
 import xrender.raster;
 import mlibs.testing;

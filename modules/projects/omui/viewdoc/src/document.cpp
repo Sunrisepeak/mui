@@ -1,10 +1,10 @@
 // Reading and checking a view document.
-module openmui.viewdoc;
+module omui.viewdoc;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.expr;
+import omui.core;
+import omui.view;
+import omui.expr;
 import :document;
 
 namespace omui::viewdoc {
@@ -196,7 +196,7 @@ private:
                 for (std::size_t i = 0; i < imports->list()->size(); ++i) {
                     const Value& p = (*imports->list())[i];
                     if (p.type() != Value::Type::text || p.as_string().empty())
-                        error(at("/imports", i), "imports", "an import is a package name", R"("openmui.ui.base")");
+                        error(at("/imports", i), "imports", "an import is a package name", R"("omui.ui.base")");
                     else doc_.imports.emplace_back(p.as_string());
                 }
         }

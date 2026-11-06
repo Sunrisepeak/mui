@@ -1,9 +1,9 @@
 // Core features as small, running tools. Language examples describe public
 // builders; the semantic state always comes from the mounted object.
-export module openmui.site:feature_examples;
+export module omui.site:feature_examples;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

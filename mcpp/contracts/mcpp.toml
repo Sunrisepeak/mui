@@ -14,7 +14,7 @@
 #   int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
 [package]
 name        = "contracts"
-namespace   = "openmui.build"
+namespace   = "omui.build"
 version     = "0.1.0"
 description = "Build plugin: contracts to C++ partitions, builders, script stubs and schemas, at build time"
 license     = "Apache-2.0"
@@ -30,5 +30,5 @@ sources = ["src/*.cppm", "src/*.cpp"]
 # that uses this plugin (a generating plugin compiles no device language, so
 # it is a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
-openmui.build.plan = { path = "../plan", reexport = true }
-openmui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }
+omui.build.plan = { path = "../plan", reexport = true }
+omui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

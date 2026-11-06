@@ -1,8 +1,8 @@
 // openmui.site:app — the site: its places, its lens, its pages pre-rendered.
-export module openmui.site:app;
+export module omui.site:app;
 
 import std;
-import openmui;
+import omui;
 export import :routes;
 
 export namespace omui::site {

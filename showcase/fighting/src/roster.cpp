@@ -1,4 +1,4 @@
-module openmui.showcase.fighting;
+module omui.showcase.fighting;
 
 import std;
 import gongfu.data;

@@ -2,7 +2,7 @@
 // (a module, a namespace, a C library) from its name section, its largest
 // functions — on a binary made here, byte by byte; and symbols' owners.
 import std;
-import openmui.gen.wasm_size;
+import omui.gen.wasm_size;
 import mlibs.testing;
 
 using namespace mlibs::testing;

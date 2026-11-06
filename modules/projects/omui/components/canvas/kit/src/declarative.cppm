@@ -29,7 +29,7 @@
 // when the file loads — a misspelt state, event, operation or name is a
 // problem with its line, not a surprise later. Nothing here runs a script:
 // the expressions are evaluated by C++, so the per-frame path stays native.
-export module openmui.ui.canvas.kit:declarative;
+export module omui.ui.canvas.kit:declarative;
 
 import std;
 

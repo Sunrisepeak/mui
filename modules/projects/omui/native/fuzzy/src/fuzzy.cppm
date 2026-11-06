@@ -8,7 +8,7 @@
 //
 // The interface is the contract's (native/fuzzy.native.omui.toml), generated
 // into :fuzzy_native; this package only implements it.
-export module openmui.native.fuzzy;
+export module omui.native.fuzzy;
 
 export import :matching;
 export import :fuzzy_native;

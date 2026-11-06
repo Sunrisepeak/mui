@@ -3,8 +3,8 @@
 // functions by position and by name.
 import std;
 import nlohmann.json;
-import openmui.native;
-import openmui.native.store;
+import omui.native;
+import omui.native.store;
 import mlibs.testing;
 
 using namespace mlibs::testing;

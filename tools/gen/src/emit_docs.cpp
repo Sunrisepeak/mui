@@ -1,9 +1,9 @@
 // spec/docs/registry.md: the registry as reference tables, so the prose of
 // SPEC.md can point at one place that cannot drift from the data.
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 

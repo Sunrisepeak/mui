@@ -3,7 +3,7 @@
 export module notes;
 
 import std;
-import openmui;
+import omui;
 
 export namespace notes {
 

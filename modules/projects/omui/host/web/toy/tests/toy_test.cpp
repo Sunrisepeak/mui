@@ -2,7 +2,7 @@
 // words; the store's limits checked when a value is set, not when Toy
 // refuses a flush; what was not written stays to be written.
 import std;
-import openmui.host.web.toy;
+import omui.host.web.toy;
 import mlibs.testing;
 
 using namespace mlibs::testing;

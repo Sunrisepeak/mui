@@ -1,7 +1,7 @@
 // The theme composes: over light, with its own accent.
 import std;
-import openmui.core;
-import openmui.theme;
+import omui.core;
+import omui.theme;
 import {{project.name}};
 
 int main() {

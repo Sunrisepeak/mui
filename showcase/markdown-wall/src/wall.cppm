@@ -17,13 +17,13 @@
 // views (1: one to one; 2: the overview). A HUD in immediate mode reads the
 // canvas's statistics; `stream` writes into windows at a language model's
 // pace, live windows every tick and textures at most four times a second.
-export module openmui.showcase.markdown_wall;
+export module omui.showcase.markdown_wall;
 
 import std;
-import openmui;
-import openmui.ui.canvas;
-import openmui.ui.canvas.kit;
-import openmui.ui.markdown;
+import omui;
+import omui.ui.canvas;
+import omui.ui.canvas.kit;
+import omui.ui.markdown;
 // behaviors/*.behavior.omui.toml, embedded by build.mcpp (openmui.build.embed).
 export import :group_drag_behavior;
 export import :views_behavior;

@@ -1,8 +1,8 @@
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
 import xengine.audio;
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 
 namespace omui::breakout {
 

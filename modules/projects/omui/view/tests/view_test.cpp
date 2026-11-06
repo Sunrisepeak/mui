@@ -3,7 +3,7 @@
 // rules of spec §3.3, transitions, scrolling, themes; and pixels pinned for
 // every platform.
 import std;
-import openmui.view;
+import omui.view;
 import xrender.raster;
 import mlibs.image;
 import mlibs.testing;

@@ -4,12 +4,12 @@
 // openmui program is typed. Under it, the film itself as data: this cut's
 // timeline in openmui.ui.timeline's editor, its playhead on this frame.
 // Then the closing line.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.ui.timeline;
+import omui;
+import omui.ui.timeline;
 
 namespace omui::promo {
 

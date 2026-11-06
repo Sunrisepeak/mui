@@ -1,9 +1,9 @@
-module openmui.showcase.style_gallery;
+module omui.showcase.style_gallery;
 
 import std;
-import openmui;
-import openmui.theme;
-import openmui.theme.styles;
+import omui;
+import omui.theme;
+import omui.theme.styles;
 import mlibs.math;
 import mcpplibs.os;
 

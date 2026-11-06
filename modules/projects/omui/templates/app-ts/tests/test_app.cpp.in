@@ -1,10 +1,10 @@
 // The application without a window: the player runs the script; find the
 // button as an agent would, press it, read what it says.
 import std;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang.js;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.js;
 
 int main() {
     using namespace omui;

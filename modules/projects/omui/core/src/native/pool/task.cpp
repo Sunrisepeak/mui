@@ -8,7 +8,7 @@
 module;
 #include <taskflow/taskflow.hpp>
 #include <taskflow/algorithm/for_each.hpp>
-module openmui.core;
+module omui.core;
 
 import std;
 import mcpplibs.os;

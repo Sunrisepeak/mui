@@ -11,11 +11,11 @@
 // Calls into the runtime are coarse and few (a view is one mount); signals are
 // mirrored, so reading one never waits; writing one is sent and not waited for
 // (the runtime has it by the next frame). Nothing of a script runs in a frame.
-export module openmui.lang:host;
+export module omui.lang:host;
 
 import std;
 import nlohmann.json;
-import openmui.abi;
+import omui.abi;
 
 export namespace omui::lang {
 

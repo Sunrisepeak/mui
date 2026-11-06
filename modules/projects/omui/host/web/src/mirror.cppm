@@ -23,12 +23,12 @@
 // `skip` is the page's skip link: where the page's main landmark (role
 // main) has something to focus, its first such node and the landmark's
 // name; null once it has none.
-export module openmui.host.web:mirror;
+export module omui.host.web:mirror;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 
 export namespace omui {
 

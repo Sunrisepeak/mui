@@ -11,7 +11,7 @@
 #   mcpp run                       a window
 #   mcpp run -- --headless --png contrast.png
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "contrast"
 version     = "0.1.0"
 description = "openmui example 05: a WCAG contrast checker, TypeScript over the application's own native module"
@@ -35,14 +35,14 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.entry.player = { path = "../../src/entry/player" }
-openmui.native       = { path = "../../modules/projects/omui/native" }
+omui.entry.player = { path = "../../src/entry/player" }
+omui.native       = { path = "../../modules/projects/omui/native" }
 nlohmann.json        = "3.12.0"
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.player  = { path = "../../modules/projects/omui/player" }
-openmui.lang.js = { path = "../../modules/projects/omui/lang/js" }
+omui.player  = { path = "../../modules/projects/omui/player" }
+omui.lang.js = { path = "../../modules/projects/omui/lang/js" }

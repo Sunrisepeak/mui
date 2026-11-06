@@ -6,7 +6,7 @@
 // localStorage. Anywhere else (a native target, node without the fake
 // page) there is no page, and nothing to do.
 import std;
-import openmui.host.web;
+import omui.host.web;
 
 using namespace omui;
 

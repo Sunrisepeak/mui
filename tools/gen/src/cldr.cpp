@@ -1,8 +1,8 @@
-module openmui.gen.cldr;
+module omui.gen.cldr;
 
 import std;
 import nlohmann.json;
-import openmui.gen.model;  // generic_utf8
+import omui.gen.model;  // generic_utf8
 
 namespace omui::gen {
 

@@ -17,9 +17,9 @@ standalone simulation libraries keep their own smaller dependency boundaries.
 ## Use without a window
 
 ```sh
-mcpp run omui-inspector -p openmui.inspector -- --cellular-batch tools/inspector/examples/spark.batch.omui.json --out /tmp/spark
-mcpp run omui-inspector -p openmui.inspector -- --cellular --headless --serve
-mcpp run omui-inspector -p openmui.inspector -- --cellular
+mcpp run omui-inspector -p omui.inspector -- --cellular-batch tools/inspector/examples/spark.batch.omui.json --out /tmp/spark
+mcpp run omui-inspector -p omui.inspector -- --cellular --headless --serve
+mcpp run omui-inspector -p omui.inspector -- --cellular
 ```
 
 The first command creates numbered PNGs, a timed lossless WebP, a current
@@ -118,7 +118,7 @@ The palette is data, not a style-name switch in a component.
 
 ## Validation
 
-`mcpp test --locked -p openmui.inspector` exercises malformed input and stale
+`mcpp test --locked -p omui.inspector` exercises malformed input and stale
 revisions, every intermediate state and reverse seek, project reload/evolution,
 real pointer versus Agent painting, actor undo/redo, revoked-session playback,
 restricted reads/writes, narrow Chinese and high-DPI offscreen pixels, and the

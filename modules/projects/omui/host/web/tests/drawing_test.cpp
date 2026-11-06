@@ -6,7 +6,7 @@
 // (rounded corners: the GPU covers the true arc, the CPU flattens it within
 // 1/32 pixel, so edge pixels may differ by a few levels).
 import std;
-import openmui.host.web;
+import omui.host.web;
 import mlibs.testing;
 import xrender.text;
 

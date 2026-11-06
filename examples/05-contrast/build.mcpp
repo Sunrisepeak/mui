@@ -2,6 +2,6 @@
 // (openmui.build.contracts; component-binding §8).
 import std;
 import mcpp;
-import openmui.build.contracts;
+import omui.build.contracts;
 
 int main() { return openmui::build::natives({.module = "colors"}) ? 0 : 1; }

@@ -4,10 +4,10 @@
 // visitor's browser. The footer compares the browser's hash of a frame with
 // the one CI pinned (reference/ci.frames.omui.json, embedded): the same
 // pixels, bit for bit, or not.
-export module openmui.site:reference;
+export module omui.site:reference;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

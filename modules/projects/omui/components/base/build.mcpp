@@ -4,6 +4,6 @@
 // committed in src/generated, made from spec/registry.
 import std;
 import mcpp;
-import openmui.build.contracts;
+import omui.build.contracts;
 
-int main() { return openmui::build::components({.module = "openmui.ui.base", .ns = "omui"}) ? 0 : 1; }
+int main() { return openmui::build::components({.module = "omui.ui.base", .ns = "omui"}) ? 0 : 1; }

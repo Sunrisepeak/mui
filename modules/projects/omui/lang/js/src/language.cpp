@@ -1,12 +1,12 @@
 // JavaScript and TypeScript as languages of the player: one script, one
 // QuickJS context on a thread of its own.
-module openmui.lang.js;
+module omui.lang.js;
 
 import std;
 import mcpplibs.os;
-import openmui.abi;
-import openmui.lang;
-import openmui.player;
+import omui.abi;
+import omui.lang;
+import omui.player;
 
 namespace omui::lang::js {
 

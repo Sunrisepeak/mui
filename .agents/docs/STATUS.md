@@ -13,7 +13,7 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | CI red list below | in progress |
 | CI: a run in progress is not cancelled by a newer push (the x64 rows need ~1 h 50 min; 75655b7's were cancelled minutes before finishing) | done |
 
-## M1 — structure and naming (started beside M0's last red items)
+## M1 — structure and naming: done locally (exit: lint 0, every member builds and passes), CI to confirm
 
 | Step | State |
 |---|---|
@@ -23,7 +23,7 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | ③ xengine and gongfu | this checkpoint (D-104): `modules/projects/xengine` (simulation, audio, video, timeline, world, input, physics, net, ui) and `modules/projects/gongfu`; `openmui.{audio,video,timeline}*`, `mgame.*` → `xengine.*`; `mgame.sim` forwarder removed; `mgame/`, `modules/media`, `modules/gfx/simulation` gone |
 | ④ omui with components, lang, sdk, templates | this checkpoint (D-105): `modules/ui`, `components/`, `lang/`, `templates/` → `modules/projects/omui/`; the root package → `modules/projects/omui/sdk`; the root manifest is the workspace alone |
 | ⑤a every forwarder removed, lint `legacy-import` | this checkpoint (D-106): the 31 `openmui.*`/`mgame` forwarder modules and their `omui::` aliases gone; 400+ files name the owners (`mlibs::`, `xrender::`, `xengine::`); a file that uses an owner's names unqualified says so in a local `using` block |
-| ⑤b `openmui.*` → `omui.*` (packages, modules) | next |
+| ⑤b `openmui.*` → `omui.*` (packages, modules) | this checkpoint (D-107); kept: the specification (`openlifa.openmui`, `openmui.spec`), protocol and format ids, the C ABI, the script API (`import openmui`, `openmui:native/*`: the specification's stubs define it; rule: specification-level names openmui, implementation names omui) |
 
 ## CI red list
 
@@ -53,11 +53,11 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 - A film runs at motion level off so that no morph is inferred from the frame drawn before; since 77979b5 that also drops the cross-fades its timeline asks for (the promo's style switches are cuts now). The film's transitions belong on its own timeline (hanim), not on the framework's inferred motion.
 
-### Upstream issues to report (awaiting the maintainer's go-ahead)
+### Upstream issues (filed; reproduced on the latest mcpp, 2026.11.5.1)
 
-- **mcpp 2026.11.2.2: two packages with the same short name drop one from links.** A package named `xrender` (no namespace) and `compat.xrender` (SDL3's X11 dependency) in one plan: binaries that reach both link without `xrender`'s objects (undefined references), while `-p` of either side alone links. Worked around by naming the package `xrender.graph`.
+- [mcpp#896](https://github.com/mcpp-community/mcpp/issues/896): **two packages with the same short name drop one from links.** A package named `xrender` (no namespace) and `compat.xrender` (SDL3's X11 dependency) in one plan: binaries that reach both link without `xrender`'s objects (undefined references), while `-p` of either side alone links. Worked around by naming the package `xrender.graph`.
 
-- **mcpp 2026.11.2.2: `[feature-deps]` not applied when the package is also a selected root.** Workspace `a` (features `f1`, `f2` with sources), `v` (`a` with `f1`; feature `x` whose `[feature-deps.x]` asks `a` for `f2`), `s` (`v` with `x`). `mcpp build -p s` builds; `mcpp build -p s -p v` compiles `v`'s `x` sources but not `a`'s `f2` ("a.f2: failed to read compiled module").
+- [mcpp#897](https://github.com/mcpp-community/mcpp/issues/897): **`[feature-deps]` not applied when the package is also a selected root.** Workspace `a` (features `f1`, `f2` with sources), `v` (`a` with `f1`; feature `x` whose `[feature-deps.x]` asks `a` for `f2`), `s` (`v` with `x`). `mcpp build -p s` builds; `mcpp build -p s -p v` compiles `v`'s `x` sources but not `a`'s `f2` ("a.f2: failed to read compiled module").
 
 ## Capability matrix (short)
 
@@ -71,4 +71,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 ⑤: `openmui.*` → `omui.*` (packages, modules, namespaces), every forwarder removed, lint `legacy-import`; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.
+M0's exit (the whole matrix green once, the GCC rows in the nightly lane) as CI reports on this checkpoint. Then M2 (plan §11): the global contracts of §5.2 (handle, error, time, budget, prepare/execute), lint `owner`, `mlibs.cts` and the four CTS migrated (§5.5), and hanim's L2–L5 with the `visual` representation (§6.2). The mcpp pin moves to the latest release (2026.11.5.1) once the workspace builds and passes with it locally.

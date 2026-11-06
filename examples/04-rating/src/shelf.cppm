@@ -2,8 +2,8 @@
 // generated from contract/rating.contract.omui.toml when the package builds.
 export module shelf;
 
-export import openmui.core;
-export import openmui.view;
+export import omui.core;
+export import omui.view;
 export import :rating_contract;
 export import :rating;
 

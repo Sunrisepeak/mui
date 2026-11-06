@@ -1,8 +1,8 @@
-module openmui.showcase.fighting;
+module omui.showcase.fighting;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import gongfu.present2d;
 import gongfu.training;
 import hanim.core;

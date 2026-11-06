@@ -5,13 +5,13 @@
 // `film` clip of its own frames, backwards), and this shot plays again
 // from its start: the same frames, and in the corner the simulation's
 // checksum, the same number at the same moment both times.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.showcase.widget_breakout;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.showcase.widget_breakout;
+import omui.showcase.widget_breakout.sim;
 import xengine.timeline;
 
 namespace omui::promo {

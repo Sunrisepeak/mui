@@ -9,11 +9,11 @@
 // (`omui-promo render promo --out promo.webm`); the tests draw what CI can
 // afford: pinned frames, short stretches, sampled frames at a quarter scale.
 import std;
-import openmui;
+import omui;
 import xengine.timeline;
 import xengine.audio;
 import mlibs.testing;
-import openmui.showcase.promo_video;
+import omui.showcase.promo_video;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::fatal;

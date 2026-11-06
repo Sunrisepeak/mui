@@ -1,7 +1,7 @@
 // Theme history is visual content, not another set of current node identities.
 // These probes deliberately combine a live node morph and a scoped crossfade.
 import std;
-import openmui.view;
+import omui.view;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;

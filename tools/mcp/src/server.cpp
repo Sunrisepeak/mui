@@ -1,9 +1,9 @@
-module openmui.mcp;
+module omui.mcp;
 
 import std;
 import mcpplibs.os;
-import openmui.core;
-import openmui.agent;
+import omui.core;
+import omui.agent;
 
 namespace omui::mcp {
 

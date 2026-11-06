@@ -3,25 +3,25 @@
 // static page (the shape a Pages subpath serves as it is).
 import std;
 import mcpp;
-import openmui.build.contracts;
-import openmui.build.embed;
-import openmui.build.toy;
+import omui.build.contracts;
+import omui.build.embed;
+import omui.build.toy;
 
 int main() {
-    const bool lens = openmui::build::components({.module = "openmui.site", .ns = "omui::site"});
-    const bool content = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
-    const bool en = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
-    const bool zh = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
+    const bool lens = openmui::build::components({.module = "omui.site", .ns = "omui::site"});
+    const bool content = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
+    const bool en = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
+    const bool zh = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
     // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
-    const bool frames = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
+    const bool frames = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
     // Its own theme: the design language's tokens, light and dark.
-    const bool theme = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
-    const bool bootstrap = openmui::build::embed({.module = "openmui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
+    const bool theme = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
+    const bool bootstrap = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
     // The Chinese font cut down to the characters the site draws (2.7 of the 7.7 MB before its first frame):
     // its text, the docs it shows, the program it runs — and the common characters people type.
     const std::string here = mcpp::manifest_dir();
     std::vector<std::string> text{here + "/content", here + "/src", here + "/contract", here + "/../docs"};
-    for (const char* dep : {"openmui.example.hello-im", "openmui.ui.timeline", "openmui.ui.base", "openmui.ui.markdown"})
+    for (const char* dep : {"omui.example.hello-im", "omui.ui.timeline", "omui.ui.base", "omui.ui.markdown"})
         if (const char* d = mcpp::dep_dir(dep); d && *d) text.push_back(std::string(d) + "/src");
     // The opening uses the same Inter outlines before the full face arrives.
     // ASCII covers the initial UI; keep the shared symbols and standard Latin

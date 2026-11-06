@@ -1,7 +1,7 @@
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui;
+import omui;
 
 namespace omui::site {
 namespace {

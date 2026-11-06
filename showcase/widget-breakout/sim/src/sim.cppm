@@ -20,7 +20,7 @@
 // rewinds (`Input::pay`). Capsules fall and are caught; a ball out of the
 // field is lost, the last one a life. All in one block of plain data: a
 // timeline rewinds it, a checksum compares it.
-export module openmui.showcase.widget_breakout.sim;
+export module omui.showcase.widget_breakout.sim;
 
 import std;
 export import xengine.world;    // its state's types are these packages' (worlds, actions, vectors)

@@ -5,13 +5,13 @@
 // saved edit of the brand file shows at once, a broken one says where and
 // changes nothing; the pixels of three compositions are pinned.
 import std;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang.lua;
-import openmui.theme;
-import openmui.theme.default_theme;
-import openmui.theme.compact;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.lua;
+import omui.theme;
+import omui.theme.default_theme;
+import omui.theme.compact;
 import mlibs.testing;
 
 using namespace mlibs::testing;

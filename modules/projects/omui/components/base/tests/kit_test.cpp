@@ -5,8 +5,8 @@
 // a component as a node of its own), their semantics, their history, and a
 // gallery whose pixels are pinned for every platform.
 import std;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.hash;
 import mlibs.testing;
 

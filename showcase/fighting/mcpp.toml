@@ -3,7 +3,7 @@
 # gongfu.present2d, with a training mode's tools. Fighters are data files
 # (fighters/*.fighter.gongfu.toml), carried in the program.
 [package]
-namespace   = "openmui.showcase"
+namespace   = "omui.showcase"
 name        = "fighting"
 version     = "0.1.0"
 description = "The fighting game: gongfu's deterministic rollback match on openmui's stage, played from the keyboard or by an agent, with a training mode"
@@ -39,7 +39,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
-openmui.sdk      = { path = "../../modules/projects/omui/sdk" }
+omui.sdk      = { path = "../../modules/projects/omui/sdk" }
 gongfu.data      = { path = "../../modules/projects/gongfu/data" }
 gongfu.present2d = { path = "../../modules/projects/gongfu/present2d" }
 gongfu.training  = { path = "../../modules/projects/gongfu/training" }
@@ -50,9 +50,9 @@ mlibs.image    = { path = "../../modules/base/image" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
-openmui.build.embed     = { path = "../../mcpp/embed", host-module = true }
-openmui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
 gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-module = true }
 
 [dev-dependencies]

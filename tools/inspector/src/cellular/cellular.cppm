@@ -1,7 +1,7 @@
 // An Inspector workspace, not another simulation engine or package.
-export module openmui.inspector:cellular;
+export module omui.inspector:cellular;
 import std;
-import openmui;
+import omui;
 
 export namespace omui::inspector::cellular {
 

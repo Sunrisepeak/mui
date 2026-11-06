@@ -16,13 +16,13 @@
 // a verb or a watch the runtime calls takes the GIL on the script thread. The
 // `openmui` package (python/openmui) is the Python half: builders (also as
 // context managers), expressions, `run`.
-export module openmui.lang.python;
+export module omui.lang.python;
 
 export import :capi;
 
 import std;
 import nlohmann.json;
-import openmui.lang;
+import omui.lang;
 
 export namespace omui::lang::python {
 

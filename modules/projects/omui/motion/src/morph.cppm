@@ -12,7 +12,7 @@
 // fades in. Before its start it draws the first drawing; once settled, the
 // second exactly. Nothing in it is a component's: a toggle's thumb, a list's
 // order, a label's text and a button's colour move by the same rules.
-export module openmui.motion:morph;
+export module omui.motion:morph;
 
 import std;
 import hanim.core;

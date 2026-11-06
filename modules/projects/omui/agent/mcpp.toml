@@ -4,7 +4,7 @@
 # semantic tree, find nodes, perform actions under the effect rules, and
 # wait for conditions. Requests are served on the UI thread, between frames.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "agent"
 version     = "0.1.0"
 description = "openmui agent endpoint: openmui.tree@0.1 over local IPC, JSON lines, envelopes"
@@ -21,9 +21,9 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core     = { path = "../core" }
-openmui.view     = { path = "../view" }
-openmui.semantic = { path = "../semantic" }
+omui.core     = { path = "../core" }
+omui.view     = { path = "../view" }
+omui.semantic = { path = "../semantic" }
 mlibs.utils    = { path = "../../../base/utils" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
 mcpplibs.os      = "0.2.2"

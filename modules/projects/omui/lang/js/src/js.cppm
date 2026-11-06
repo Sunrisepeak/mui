@@ -15,11 +15,11 @@
 // are camel case (maxWidth is max_width), handlers `on<Event>`. A call that
 // fails throws an OmuiError. TypeScript is compiled to JavaScript before it
 // runs (esbuild at build time; the generated .d.ts types the builders).
-export module openmui.lang.js;
+export module omui.lang.js;
 
 import std;
-import openmui.lang;
-import openmui.player;
+import omui.lang;
+import omui.player;
 
 export namespace omui::lang::js {
 

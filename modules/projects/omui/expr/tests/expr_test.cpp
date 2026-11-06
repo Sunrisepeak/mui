@@ -1,6 +1,6 @@
 import std;
 import mlibs.math;
-import openmui.expr;
+import omui.expr;
 import mlibs.testing;
 
 using namespace mlibs::testing;

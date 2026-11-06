@@ -1,9 +1,9 @@
 // Measure real caption strokes over their actual same-frame carrier, using
 // the production display list and a glyph coverage pass (not AA edge colors).
 import std;
-import openmui;
+import omui;
 import mlibs.math;
-import openmui.site;
+import omui.site;
 import mlibs.testing;
 import xrender.text;
 

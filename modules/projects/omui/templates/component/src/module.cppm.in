@@ -2,6 +2,6 @@
 // generated from contract/counter.contract.omui.toml.
 export module {{project.name}};
 
-export import openmui;
+export import omui;
 export import :counter_contract;
 export import :counter;

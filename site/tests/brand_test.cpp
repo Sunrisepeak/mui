@@ -1,7 +1,7 @@
 // The implementation's mark, its shared vector original, and its real study.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

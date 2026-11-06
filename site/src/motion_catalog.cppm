@@ -1,9 +1,9 @@
 // The motion gallery's examples share a real scene model and one player.
 // Scene builders describe endpoints; the runtime owns their movement.
-export module openmui.site:motion_catalog;
+export module omui.site:motion_catalog;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

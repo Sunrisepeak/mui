@@ -9,7 +9,7 @@
 //
 //     Expr same = select(ref("count") > 0, fmt("{} left", ref("count")), "done");
 //     same.text();   // the CEL text again
-export module openmui.expr;
+export module omui.expr;
 
 export import openmui.spec;
 export import :ast;

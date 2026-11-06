@@ -4,14 +4,14 @@
 // window, on types and on roles; a cross-fade from the frame before). The
 // corner hashes the preview's semantic tree each frame: the same under
 // every pack, as S2 promises.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;
 import hanim.core;
-import openmui;
-import openmui.theme;
-import openmui.showcase.style_gallery;
+import omui;
+import omui.theme;
+import omui.showcase.style_gallery;
 
 namespace omui::promo {
 

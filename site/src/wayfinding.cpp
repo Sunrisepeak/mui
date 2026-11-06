@@ -1,8 +1,8 @@
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui;
-import openmui.ui.markdown;
+import omui;
+import omui.ui.markdown;
 
 namespace omui::site {
 

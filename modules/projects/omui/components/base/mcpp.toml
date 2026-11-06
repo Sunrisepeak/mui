@@ -8,7 +8,7 @@
 # have their contracts in contract/, made into code when it builds
 # (build.mcpp, openmui.build.contracts).
 [package]
-namespace   = "openmui.ui"
+namespace   = "omui.ui"
 name        = "base"
 version     = "0.1.0"
 description = "openmui Core components: button, toggle, checkbox, slider, text box …, contract-first"
@@ -27,14 +27,14 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 xrender.text = { path = "../../../xrender/text" }
-openmui.core    = { path = "../../core" }
-openmui.view    = { path = "../../view" }
+omui.core    = { path = "../../core" }
+omui.view    = { path = "../../view" }
 mlibs.unicode = { path = "../../../../base/unicode" }
 mlibs.utils    = { path = "../../../../base/utils" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 xrender.text = { path = "../../../xrender/text" }
-openmui.host.headless = { path = "../../host/headless" }
+omui.host.headless = { path = "../../host/headless" }

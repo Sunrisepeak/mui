@@ -1,7 +1,7 @@
 """The CTS level S runner of embedded Python (spec/conformance/S/README.md): a
 scenario's view built with the Python builders, operators and closures, its
 steps done through the Python API. The test (embedded_test.cpp, through
-openmui.cts) calls the two verbs it registers: cts.load with the scenario,
+omui.cts) calls the two verbs it registers: cts.load with the scenario,
 then cts.step with each step's index, the runtime settling between them; a
 step's answer is its record, or nothing. It is modules/projects/omui/lang/lua's tests/cts.lua in
 Python, in PocketPy's subset (no generator expressions, no `{**a}`, no `dict(a)`)."""

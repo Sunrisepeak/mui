@@ -5,8 +5,8 @@
 // NAME is an application id as `omui agent ls` lists them; without it, the
 // first application that listens (other than the Inspector).
 import std;
-import openmui;
-import openmui.inspector;
+import omui;
+import omui.inspector;
 import mcpplibs.os;
 
 int main(int argc, char** argv) {

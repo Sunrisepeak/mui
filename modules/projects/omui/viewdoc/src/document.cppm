@@ -12,12 +12,12 @@
 // wrong type, an invalid or repeated id. Each diagnostic has a JSON pointer,
 // a line and a column, and a fix where one is known. Unknown fields are
 // warnings, not errors (R7: readers skip what they do not know).
-export module openmui.viewdoc:document;
+export module omui.viewdoc:document;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.expr;
+import omui.core;
+import omui.view;
+import omui.expr;
 
 export namespace omui::viewdoc {
 

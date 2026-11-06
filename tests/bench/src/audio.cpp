@@ -1,4 +1,4 @@
-module openmui.bench;
+module omui.bench;
 
 import std;
 import xengine.audio;

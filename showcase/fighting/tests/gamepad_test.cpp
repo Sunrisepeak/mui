@@ -3,8 +3,8 @@
 // directions; the buttons are controls/pad.controls.omui.json's six-button
 // layout — a press arrives as the move in the match.
 import std;
-import openmui;
-import openmui.showcase.fighting;
+import omui;
+import omui.showcase.fighting;
 import mlibs.testing;
 
 using namespace mlibs::testing;

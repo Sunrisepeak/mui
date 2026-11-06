@@ -2,7 +2,7 @@
 // script, with the irreversible action stopped until answered, and a
 // recorded session replayed to the same tree.
 import std;
-import openmui;
+import omui;
 import mlibs.testing;
 import notes;
 

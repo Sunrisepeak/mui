@@ -1,11 +1,11 @@
 // A view document running: elements from the document, its state, reloads,
 // and the components documents define.
-module openmui.viewdoc;
+module omui.viewdoc;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.expr;
+import omui.core;
+import omui.view;
+import omui.expr;
 import mlibs.trace;
 import :document;
 import :instance;

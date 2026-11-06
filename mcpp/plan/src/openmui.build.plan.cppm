@@ -3,7 +3,7 @@
 // Each plugin is a package of its own, for one job, and a package's build
 // program imports only the ones it uses (mcpp/README.md); each re-exports
 // this module.
-export module openmui.build.plan;
+export module omui.build.plan;
 
 import std;
 import mcpp;

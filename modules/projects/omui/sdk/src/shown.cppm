@@ -1,11 +1,11 @@
 // openmui:shown — how `omui::run` shows an application where the program
 // runs: a desktop window (src/host/desktop), or the page's canvas
 // (src/host/web). The manifest chooses the unit by the target (D-84).
-module openmui:shown;
+module omui:shown;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :app;
 
 namespace omui::detail {

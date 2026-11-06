@@ -1,12 +1,12 @@
 // openmui.site:timebar — the page's recent time along the bottom of the
 // site: what happened when, and a playhead dragged through it.
-export module openmui.site:timebar;
+export module omui.site:timebar;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import :timebar_contract;
 
 export namespace omui::site {

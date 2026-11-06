@@ -1,13 +1,13 @@
 // openmui:app — an application, and the ways to run it (component-binding
 // §10.2): a window by default; `--headless` for CI (frames on a virtual
 // clock, a PNG); `--serve` to keep a headless session open for agents.
-export module openmui:app;
+export module omui:app;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.agent;
-import openmui.ui.window;
+import omui.core;
+import omui.view;
+import omui.agent;
+import omui.ui.window;
 
 export namespace omui {
 

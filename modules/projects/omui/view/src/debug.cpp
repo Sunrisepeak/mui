@@ -1,10 +1,10 @@
 // Development aids: the debug overlay (bounds, repaint flashes, the hovered
 // node's boxes and source, a frame-time HUD) and node inspection for tools;
 // and over them all, the node pointed out (an action's record hovered).
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;

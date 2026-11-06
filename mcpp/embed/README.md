@@ -1,13 +1,13 @@
-# openmui.build.embed
+# omui.build.embed
 
 The build plugin for data files a program carries (D-73's embed plugin). Each file becomes a partition holding its text (`omui-gen embed`), so a shipped program has its files without reading any.
 
 ```cpp
 // build.mcpp
 import mcpp;
-import openmui.build.embed;
+import omui.build.embed;
 int main() {
-    return openmui::build::embed({.module = "openmui.theme.styles", .ns = "omui::themes", .dir = "styles",
+    return openmui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "styles",
                                   .suffix = ".style.omui.toml", .tag = "style"}) ? 0 : 1;
 }
 ```

@@ -5,7 +5,7 @@
 # TS / Python / Lua stubs are generated: `omui-gen native`; tools/gen's test
 # keeps them current).
 [package]
-namespace   = "openmui.native"
+namespace   = "omui.native"
 name        = "store"
 version     = "0.1.0"
 description = "A program's small key-value storage: the Store plugin a host gives (localStorage on the Web, memory elsewhere), for C++ and scripts"
@@ -23,7 +23,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 
 [dependencies]
-openmui.native = { path = ".." }
+omui.native = { path = ".." }
 nlohmann.json  = "3.12.0"
 
 [dev-dependencies]

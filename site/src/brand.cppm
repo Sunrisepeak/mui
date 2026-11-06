@@ -1,8 +1,8 @@
 // omui's identity: one O enclosing its inner letters, drawn by the framework.
-export module openmui.site:brand;
+export module omui.site:brand;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

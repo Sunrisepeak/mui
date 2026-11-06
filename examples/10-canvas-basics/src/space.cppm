@@ -8,8 +8,8 @@
 export module space;
 
 import std;
-import openmui;
-import openmui.ui.canvas;
+import omui;
+import omui.ui.canvas;
 
 export namespace space {
 

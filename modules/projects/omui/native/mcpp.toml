@@ -4,7 +4,7 @@
 # contract's types check every call's arguments here, in one place; the code
 # `omui-gen native` generates only converts them.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "native"
 version     = "0.1.0"
 description = "openmui's native-module registry: contract-typed C++ functions scripts call"

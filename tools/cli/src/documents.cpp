@@ -1,14 +1,14 @@
 // omui check, fmt and schema: view documents from the command line, the same
 // rules the runtime applies when it loads them (view-data-files §7).
-module openmui.cli;
+module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui.core;
-import openmui.viewdoc;
-import openmui.ui.base;
-import openmui.ui.markdown;
+import omui.core;
+import omui.viewdoc;
+import omui.ui.base;
+import omui.ui.markdown;
 
 namespace omui::cli {
 

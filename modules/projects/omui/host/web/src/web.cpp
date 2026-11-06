@@ -1,9 +1,9 @@
-module openmui.host.web;
+module omui.host.web;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 import xrender.raster;
 import xrender.vector;
 import mlibs.rhi;
@@ -11,10 +11,10 @@ import xrender.rhi.webgpu;
 import xrender.rhi.webgl;
 import mlibs.text;
 import mlibs.trace;
-import openmui.agent;
+import omui.agent;
 import mlibs.image;
-import openmui.native;
-import openmui.native.store;
+import omui.native;
+import omui.native.store;
 import mcpplibs.os;
 import :platform;
 import :mirror;

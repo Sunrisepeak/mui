@@ -1,4 +1,4 @@
-module openmui.showcase.widget_breakout.sim;
+module omui.showcase.widget_breakout.sim;
 
 import std;
 import mlibs.math;

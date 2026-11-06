@@ -3,10 +3,10 @@
 // Each emitter is a pure function from the model to text; the same model gives
 // the same bytes, which is what lets CI check that committed outputs are
 // current (`omui-gen … --check`).
-export module openmui.gen.emit;
+export module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 export namespace omui::gen {
 

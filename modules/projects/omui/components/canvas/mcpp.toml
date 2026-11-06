@@ -7,7 +7,7 @@
 # handles, snapping, connectors and the minimap are canvas-kit's.
 # Contract-first (openmui.build.contracts).
 [package]
-namespace   = "openmui.ui"
+namespace   = "omui.ui"
 name        = "canvas"
 version     = "0.1.0"
 description = "An infinite canvas: a columnar scene with a grid index, a double-precision camera, tiers of detail, live promotion, semantic queries"
@@ -26,8 +26,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 xrender.text = { path = "../../../xrender/text" }
-openmui.core   = { path = "../../core" }
-openmui.view   = { path = "../../view" }
+omui.core   = { path = "../../core" }
+omui.view   = { path = "../../view" }
 xrender.vector = { path = "../../../xrender/vector" }
 xrender.raster = { path = "../../../xrender/raster" }
 mlibs.geom   = { path = "../../../../base/geom" }
@@ -36,7 +36,7 @@ hanim.core          = { path = "../../../hanim/core" }
 mlibs.utils  = { path = "../../../../base/utils" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-openmui.host.headless = { path = "../../host/headless" }
+omui.host.headless = { path = "../../host/headless" }

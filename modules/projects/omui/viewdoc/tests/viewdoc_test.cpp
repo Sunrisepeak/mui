@@ -5,9 +5,9 @@
 // the canonical format, and random documents that never crash the reader.
 import std;
 import mlibs.math;
-import openmui.viewdoc;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.viewdoc;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.testing;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -106,7 +106,7 @@ std::string view_of(std::string_view root, std::string_view extra = {}) {
 
 constexpr std::string_view counter = R"j({
   "omui": "0.1",
-  "imports": ["openmui.ui.base"],
+  "imports": ["omui.ui.base"],
   "view": {
     "name": "Counter",
     "signals": {"count": {"type": "int", "value": 0}},

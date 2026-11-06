@@ -22,7 +22,7 @@ node_bin=$(command -v node || ls -d "$HOME"/.xlings/data/xpkgs/xim-x-node/*/bin/
 flags=()
 [ "$("$node_bin" -p 'process.versions.node.split(".")[0]')" -ge 22 ] || flags+=(--experimental-websocket)
 [ -f target/site/index.html ] || { echo "::error::no target/site (tools/ci/site.sh first)"; exit 1; }
-"$mcpp" build -p openmui.cli > /dev/null
+"$mcpp" build -p omui.cli > /dev/null
 omui=$(find "$PWD/target" -path "*/bin/*" -name omui -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2)
 status=0
 CHROME=$chrome OMUI=$omui "$node_bin" "${flags[@]}" tools/ci/visitor-path.mjs --serve target/site > target/visitor-path.json || status=$?

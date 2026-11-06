@@ -2,7 +2,7 @@
 // id, wait conditions, the spec's checks; recording a session and replaying
 // it to the same tree.
 import std;
-import openmui.semantic;
+import omui.semantic;
 import mlibs.testing;
 
 using namespace mlibs::testing;

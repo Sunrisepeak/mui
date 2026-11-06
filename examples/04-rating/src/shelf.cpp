@@ -1,8 +1,8 @@
 module shelf;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 namespace shelf {
 

@@ -1,9 +1,9 @@
-module openmui.accessibility;
+module omui.accessibility;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 import mlibs.hash;
 import mlibs.trace;
 

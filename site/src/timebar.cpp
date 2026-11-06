@@ -1,10 +1,10 @@
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 
 namespace omui::site {
 

@@ -1,9 +1,9 @@
 // openmui.showcase.fighting — the fighting game (D-85 §8.7).
 //
 //     omui::run(omui::fighting::app(), argc, argv);
-export module openmui.showcase.fighting;
+export module omui.showcase.fighting;
 
-export import openmui;
+export import omui;
 export import gongfu.present2d;
 export import gongfu.training;
 export import :stage_contract;

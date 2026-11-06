@@ -1,4 +1,4 @@
-# openmui.motion
+# omui.motion
 
 Universal motion ([D-93](../../../../.agents/docs/2026-11-01-openmui-universal-motion-design.md)): what a node drew, as matter a motion moves; and morphs between two drawings of it.
 

@@ -3,10 +3,10 @@
 // Every problem is a diagnostic with a file, line and column, a message and,
 // where one exists, the fix (view-data-files §2, R6). Reading never stops at
 // the first problem: one run reports everything wrong with a contract.
-export module openmui.gen.read;
+export module omui.gen.read;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 export namespace omui::gen {
 

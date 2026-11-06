@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 # PROFILE=release uses the release build (CI's release row); the newest binaries are this build's.
-mcpp build -p openmui.example.headless-and-agent -p openmui.cli ${PROFILE:+--profile "$PROFILE"} > /dev/null
+mcpp build -p omui.example.headless-and-agent -p omui.cli ${PROFILE:+--profile "$PROFILE"} > /dev/null
 # By the binary's name: where mcpp puts it under bin/ is its business.
 newest() { find target -path "*/bin/*" -name "$1" -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2; }
 app=$(newest notes-agent)

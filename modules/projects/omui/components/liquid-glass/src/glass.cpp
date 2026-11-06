@@ -1,8 +1,8 @@
-module openmui.ui.liquid_glass;
+module omui.ui.liquid_glass;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 
 namespace omui {

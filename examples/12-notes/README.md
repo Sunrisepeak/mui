@@ -18,8 +18,8 @@ Each part is written in the language that suits it. They share only what the des
 Ticking a task in the preview rewrites its mark in the Markdown source. The preview's `changed` event then saves the note.
 
 ```sh
-mcpp run -p openmui.example.notes
-mcpp run -p openmui.example.notes -- --headless --png notes.png
+mcpp run -p omui.example.notes
+mcpp run -p omui.example.notes -- --headless --png notes.png
 ```
 
 The test (`tests/notes_test.cpp`) uses the tool as a person and an agent would:

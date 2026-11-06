@@ -2,9 +2,9 @@
 // hear it: the menus' main theme and cues, the announcer's calls, the
 // fighters' voices. Each rendered, saved as a WAV and its bits pinned.
 import std;
-import openmui;
+import omui;
 import xengine.audio;
-import openmui.showcase.fighting;
+import omui.showcase.fighting;
 import mlibs.testing;
 import gongfu;
 

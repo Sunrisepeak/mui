@@ -14,7 +14,7 @@
 //
 // Types: bool, i32, u32, i64, f64, string, any (JSON), a record the module
 // declares (PascalCase), `T[]` (a list) and `T?` (optional: absent or null).
-export module openmui.native;
+export module omui.native;
 
 import std;
 import nlohmann.json;

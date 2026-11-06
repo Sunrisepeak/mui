@@ -1,8 +1,8 @@
-module openmui.gen.read;
+module omui.gen.read;
 
 import std;
 import tomlplusplus;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 

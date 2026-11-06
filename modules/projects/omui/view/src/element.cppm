@@ -6,10 +6,10 @@
 // them into nodes. Elements are built once: a property bound to a signal or
 // an expression updates its node by itself (fine-grained), and only
 // `when` / `each` regions rebuild their children.
-export module openmui.view:element;
+export module omui.view:element;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 
 export namespace omui {

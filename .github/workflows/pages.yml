@@ -78,7 +78,7 @@ jobs:
         run: tools/ci/site.sh
       - name: The generated loader handles real streams, failures and retries
         run: |
-          mcpp test dist_toy -p openmui.gen
+          mcpp test dist_toy -p omui.gen
           fixture="$(python3 -c 'import os,tempfile; print(os.path.join(tempfile.gettempdir(), "openmui-tests", "dist-toy-loading", "index.html"))')"
           node tools/ci/dist-toy-loading.mjs "$fixture" > target/dist-toy-loading.report.omui.json
       - name: The site in a real browser — its delivery within budget, what assistive technology reads

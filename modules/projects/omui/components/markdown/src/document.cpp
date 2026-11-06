@@ -1,8 +1,8 @@
-module openmui.ui.markdown;
+module omui.ui.markdown;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.markdown;
 import :markdown_contract;
 import :parts;

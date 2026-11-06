@@ -3,8 +3,8 @@
 `space` shows a folder as a map you zoom into: every folder a region holding its children, every file a block of its size, coloured by what it is (code, docs, data, media, archives, binaries, the rest). It is the canvas's basics — the core and its default behaviour only — put to a real use: finding what fills a disk.
 
 ```sh
-mcpp run -p openmui.example.space -- ~/Downloads
-mcpp run -p openmui.example.space -- . --headless --png space.png
+mcpp run -p omui.example.space -- ~/Downloads
+mcpp run -p omui.example.space -- . --headless --png space.png
 ```
 
 - **The layout** is a squarified treemap (Bruls, Huizing and van Wijk): rows along each region's shorter side, a row grown while it gets squarer, the largest first. A folder keeps a header strip with its name and size; inside it, its children, each with exactly its share of the area (an empty file a sliver). The folder is walked in name order, links are not followed, and what cannot be read is counted and left out.

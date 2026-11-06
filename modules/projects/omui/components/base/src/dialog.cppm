@@ -2,11 +2,11 @@
 // default: a scrim, focus kept inside, Escape or a press outside dismisses
 // it) and a tooltip (a short description of the element before it, shown
 // after a delay while it is hovered or focused).
-export module openmui.ui.base:dialog;
+export module omui.ui.base:dialog;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :dialog_contract;
 import :tooltip_contract;

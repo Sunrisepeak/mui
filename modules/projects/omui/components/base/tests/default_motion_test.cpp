@@ -2,8 +2,8 @@
 // public runtime: semantic actions, pixels between states, accessibility
 // preferences, input during focus feedback and the theme's cascade.
 import std;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace omui;

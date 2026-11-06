@@ -5,11 +5,11 @@
 // and its simulation's bricks are these in the same order, placed where the
 // view's layout puts them; their sizes are explicit, so a style never moves
 // one. And the contraptions offered between rooms.
-export module openmui.showcase.widget_breakout:rooms;
+export module omui.showcase.widget_breakout:rooms;
 
 import std;
-import openmui;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.showcase.widget_breakout.sim;
 
 export namespace omui::breakout {
 

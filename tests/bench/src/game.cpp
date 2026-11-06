@@ -1,11 +1,11 @@
-module openmui.bench;
+module omui.bench;
 
 import std;
 import xrender.vector;
-import openmui.showcase.fighting;
+import omui.showcase.fighting;
 import gongfu;
 import gongfu.present2d;
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 
 namespace omui::bench {
 

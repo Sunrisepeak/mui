@@ -5,7 +5,7 @@
 // generator reads the UCD files and writes compact two-stage tables (a block
 // index per 256 code points, shared 256-entry blocks) as a C++ partition of
 // mlibs.unicode, together with the enumerations of the property values.
-export module openmui.gen.unicode;
+export module omui.gen.unicode;
 
 import std;
 

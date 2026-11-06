@@ -161,7 +161,7 @@ int main() {
             data = json.loads(resolution.read_text())
             if data.get('schema_version') != 2: raise RuntimeError('unknown resolution schema')
             packages = {p['package']['canonical'].split('@')[0] for p in data['graph']['packages'] if 'target' in p['instances']}
-            if any(p.startswith(('openmui.ui.', 'openmui.host.')) or p in {'openmui.core','openmui.sdk','mlibs.testing','openlifa.openmui'} for p in packages):
+            if any(p.startswith(('openmui.ui.', 'openmui.host.')) or p in {'omui.core','omui.sdk','mlibs.testing','openlifa.openmui'} for p in packages):
                 raise RuntimeError('UI or test dependency in public product')
             if name != 'render-vector' and any(p.startswith(('openmui.render','xrender','mlibs.rhi','xrender.raster','mlibs.shader')) for p in packages):
                 raise RuntimeError('renderer enabled without opt-in')

@@ -21,8 +21,8 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
-openmui.entry.player = "{{self.version}}"
+omui.entry.player = "{{self.version}}"
 
 [dev-dependencies]
-openmui.player   = "{{self.version}}"
-openmui.lang.lua = "{{self.version}}"
+omui.player   = "{{self.version}}"
+omui.lang.lua = "{{self.version}}"

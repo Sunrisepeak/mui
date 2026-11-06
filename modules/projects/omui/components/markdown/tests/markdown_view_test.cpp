@@ -4,8 +4,8 @@
 // source; streaming keeps the nodes of unchanged blocks; the pixels are pinned.
 import std;
 
-import openmui.ui.markdown;
-import openmui.host.headless;
+import omui.ui.markdown;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace mlibs::testing;
@@ -34,7 +34,7 @@ of one semantic tree. See [the spec](https://example.com/spec "Spec") or jump to
 | math    | later  |
 
 ```cpp
-import openmui;
+import omui;
 ```
 
 ---
@@ -78,7 +78,7 @@ int main(int argc, char** argv) {
                   find_role(h, Role::cell, "later"),
               "tables, rows, headers, cells");
         const auto code = find_role(h, Role::code);
-        check(code && code->name == "import openmui;" && code->description == "cpp", "code with its language");
+        check(code && code->name == "import omui;" && code->description == "cpp", "code with its language");
         check(find_role(h, Role::button, "Copy code").has_value(), "and a copy button");
         check(find_role(h, Role::separator).has_value(), "rules are separators");
         const auto spec_link = find_role(h, Role::link, "the spec");
@@ -241,7 +241,7 @@ int main(int argc, char** argv) {
         if (!copy_button) return;
         check(h.click(copy_button->id));
         h.step();
-        check_eq(clipboard, std::string("import openmui;"));
+        check_eq(clipboard, std::string("import omui;"));
         check(find_role(h, Role::button, "Copied").has_value(), "the button says so");
     });
 
@@ -290,7 +290,8 @@ int main(int argc, char** argv) {
         check(h.save_png(scratch_dir("ui-markdown") / "readme@2x.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("5f07eca688e51220"));
+        // Re-pinned with M1 ⑤b: the sample's code block reads `import omui;` (was `import openmui;`).
+        check_eq(hash.hex(), std::string("83120b1cdb17d441"));
     });
 
     return s.run(argc, argv);

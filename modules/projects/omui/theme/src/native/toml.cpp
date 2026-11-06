@@ -1,11 +1,11 @@
 // Reading *.theme.omui.toml: toml++ reports a malformed file by throwing,
 // which this unit — the library's adapter — turns into a diagnostic.
-module openmui.theme;
+module omui.theme;
 
 import std;
 import tomlplusplus;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import hanim.core;
 

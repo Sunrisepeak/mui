@@ -12,7 +12,7 @@
 //     auto cut = omui::promo::load_cut(film->files, "promo", film->subtitles);
 //     omui::promo::Player player(*film, *cut);
 //     auto frame = player.frame(1800);    // the wall, half a minute in
-export module openmui.showcase.promo_video;
+export module omui.showcase.promo_video;
 
 export import :film;
 export import :look;

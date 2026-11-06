@@ -1,7 +1,7 @@
 // A node-addressed device input targets what is actually presented. Semantic
 // act remains a separate operation; explicit point input keeps its coordinates.
 import std;
-import openmui.agent;
+import omui.agent;
 import mlibs.testing;
 
 using namespace omui;

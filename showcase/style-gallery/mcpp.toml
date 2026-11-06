@@ -8,7 +8,7 @@
 #   mcpp run -p openmui.showcase.style_gallery
 #   mcpp run -p openmui.showcase.style_gallery -- --style neon --headless --png neon.png
 [package]
-namespace   = "openmui.showcase"
+namespace   = "omui.showcase"
 name        = "style_gallery"
 version     = "0.1.0"
 description = "S2, the style workshop: one interface in five style packs, edited live and exported"
@@ -28,9 +28,9 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk          = { path = "../../modules/projects/omui/sdk" }
-"openmui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
-"openmui.theme"      = { path = "../../modules/projects/omui/theme" }
+omui.sdk          = { path = "../../modules/projects/omui/sdk" }
+"omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
+"omui.theme"      = { path = "../../modules/projects/omui/theme" }
 mlibs.math         = { path = "../../modules/base/math" }
 mcpplibs.os          = "0.2.2"
 

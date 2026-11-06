@@ -1,9 +1,9 @@
 // openmui.h: the C ABI in Vulkan's style (handles, Omui* types, omui*
 // functions, OMUI_* constants, `type`/`next` on extensible structs).
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 
@@ -235,7 +235,7 @@ std::string emit_abi_types(const Registry& reg) {
 // openmui.h's types for the C++ that implements the ABI: the same names, the
 // same layouts (src/native/layout.cpp checks every size and offset against the
 // header), in namespace omui::abi so they never meet the header's.
-export module openmui.abi:c;
+export module omui.abi:c;
 
 import std;
 
@@ -292,7 +292,7 @@ std::string emit_abi_functions(const Registry& reg) {
 // The functions of openmui.h, as C++ declares them: C linkage (the header's
 // symbols), never throwing. modules/projects/omui/abi defines them; C++ callers (tests, the
 // bindings' own C++) call them here.
-export module openmui.abi:api;
+export module omui.abi:api;
 
 import std;
 import :c;
@@ -320,7 +320,7 @@ module;
 
 #include "openmui.h"
 
-module openmui.abi:layout;
+module omui.abi:layout;
 
 import :c;
 

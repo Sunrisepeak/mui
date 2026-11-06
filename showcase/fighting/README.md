@@ -9,11 +9,11 @@ How it was made, layer by layer, and what making it taught: [dev story](dev-stor
 ![墨's level-3 super: the eyes cut-in, eight cuts of ink from every side, the strike cut-in, her finishing picture and the slam (drawn headless, the same on every platform)](media/mo-level-3.webp)
 
 ```sh
-mcpp run -p openmui.showcase.fighting
-mcpp run -p openmui.showcase.fighting -- --training
-mcpp run -p openmui.showcase.fighting -- --fight kun ni --cpu 1 --level 3   # straight into a fight, the computer as 霓
-mcpp run -p openmui.showcase.fighting -- --fight kata mo --turns 10 --serve # by turns: agents (tools/eval/duel.sh)
-mcpp run -p openmui.showcase.fighting -- --headless --png fight.png
+mcpp run -p omui.showcase.fighting
+mcpp run -p omui.showcase.fighting -- --training
+mcpp run -p omui.showcase.fighting -- --fight kun ni --cpu 1 --level 3   # straight into a fight, the computer as 霓
+mcpp run -p omui.showcase.fighting -- --fight kata mo --turns 10 --serve # by turns: agents (tools/eval/duel.sh)
+mcpp run -p omui.showcase.fighting -- --headless --png fight.png
 ```
 
 The feature `arenas` (on by default) carries the stages and their painted layers, their music and the announcer, about 4 MB of the program. Without it those tables are empty and training's plain room still works: openmui's site depends on the game with `default-features = false` to show its move list.

@@ -5,10 +5,10 @@
 // states present or absent, value, and place (inside a rectangle, under a
 // point); a condition waits for a match to appear or to go, and for the
 // interface to settle (no animation running, nothing being removed).
-export module openmui.semantic:query;
+export module omui.semantic:query;
 
 import std;
-import openmui.core;
+import omui.core;
 
 export namespace omui::semantic {
 

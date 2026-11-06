@@ -1,7 +1,7 @@
 // The readable fallback has the same selected example and canonical routes
 // before JavaScript, during loading, and at the live-gallery handoff.
 import std;
-import openmui.site;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

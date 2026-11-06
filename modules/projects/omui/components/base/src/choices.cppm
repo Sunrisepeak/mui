@@ -4,11 +4,11 @@
 // the semantic tree an agent finds and operates (`<id>/<value>`,
 // `<id>/remove`, `<id>/low`, `<id>/high`), and each change of value is taken
 // back as one action.
-export module openmui.ui.base:choices;
+export module omui.ui.base:choices;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :segmented_contract;
 import :chip_contract;

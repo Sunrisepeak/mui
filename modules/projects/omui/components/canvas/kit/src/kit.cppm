@@ -1,6 +1,6 @@
 // openmui.ui.canvas.kit — canvas behaviours (canvas-markdown §1.1–1.3).
 //
-//     import openmui.ui.canvas.kit;
+//     import omui.ui.canvas.kit;
 //     omui::register_canvas_kit();
 //     omui::canvas({.id = "board", .scene = "wall",
 //                   .behaviors = {"select", "drag", "resize", "snap", "connect", "grid", "minimap", "delete"}});
@@ -24,9 +24,9 @@
 //             (irreversible: its answer is "yes")
 //
 // Declarative behaviours (:declarative) come from *.behavior.omui.toml.
-export module openmui.ui.canvas.kit;
+export module omui.ui.canvas.kit;
 
-export import openmui.ui.canvas;
+export import omui.ui.canvas;
 export import :declarative;
 
 import std;

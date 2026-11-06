@@ -2,7 +2,7 @@
 // generated from contract/badge.contract.omui.toml when it builds.
 export module acme.ui;
 
-export import openmui.core;
-export import openmui.view;
+export import omui.core;
+export import omui.view;
 export import :badge_contract;
 export import :badge;

@@ -1,11 +1,11 @@
-module openmui.cli;
+module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui.core;
-import openmui.agent;
-import openmui.mcp;
+import omui.core;
+import omui.agent;
+import omui.mcp;
 
 namespace omui::cli {
 

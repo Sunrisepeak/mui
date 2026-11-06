@@ -1,11 +1,11 @@
-module openmui.host.sdl3;
+module omui.host.sdl3;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
-import openmui.agent;
-import openmui.accessibility;
+import omui.core;
+import omui.view;
+import omui.semantic;
+import omui.agent;
+import omui.accessibility;
 import xrender.raster;
 import xrender.vector;
 import mlibs.text;

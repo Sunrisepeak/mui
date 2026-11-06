@@ -20,11 +20,11 @@
 // to_value / from_value convert a struct to openmui's values and back (a
 // model's rows, a verb's arguments, a script's data); fields<T>() describes
 // its members as the rows declare them.
-export module openmui.reflect;
+export module omui.reflect;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui::reflect {
 

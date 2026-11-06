@@ -2,7 +2,7 @@
 // threaded pool's (pool/task.cpp); the work runs on the calling thread, in
 // the same chunks, so what is deterministic per chunk gives the same result.
 // A spawned task runs at once and its future is ready when spawn returns.
-module openmui.core;
+module omui.core;
 
 import std;
 

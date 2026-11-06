@@ -9,10 +9,10 @@
 // what it saw, a word for the player and where it means to send the ball —
 // as the actor `agent:copilot`, through the runtime's actions, journaled
 // like any other.
-export module openmui.showcase.widget_breakout:copilot;
+export module omui.showcase.widget_breakout:copilot;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::breakout {
 

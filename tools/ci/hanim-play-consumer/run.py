@@ -26,7 +26,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_packa
     if data.get("schema_version") != 2:
         raise RuntimeError("unrecognized resolution schema")
     names = []
-    forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
+    forbidden = {"omui.core", "omui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
     required = {"mcpplibs.hanim", "hanim.core", "xrender.vector", "xrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
@@ -44,7 +44,7 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_packa
             origin = item.get("source", "")
             if not origin.startswith("path+") or Path(origin[5:]).resolve() != openas_package:
                 raise RuntimeError("OpenAS did not resolve to the requested unpacked artifact")
-        if name in forbidden or name.startswith(("openmui.ui.", "openmui.host.", "openmui.site")):
+        if name in forbidden or name.startswith(("openmui.ui.", "openmui.host.", "omui.site")):
             raise RuntimeError(f"forbidden UI/spec/testing/host package: {name}")
         source = item.get("source", "")
         if source.startswith("path+"):

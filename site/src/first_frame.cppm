@@ -1,8 +1,8 @@
 // Build-time pixels and geometry from the site's actual production view.
-export module openmui.site:first_frame;
+export module omui.site:first_frame;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

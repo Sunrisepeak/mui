@@ -3,9 +3,9 @@
 `md-stream` renders Markdown while it is still being written: an LLM's answer piped into it, or the built-in demo.
 
 ```sh
-some-llm "explain C++ modules" | mcpp run -p openmui.example.markdown-stream
-mcpp run -p openmui.example.markdown-stream -- --demo --rate 40      # pieces per second
-mcpp run -p openmui.example.markdown-stream -- --demo --no-fade --dark
+some-llm "explain C++ modules" | mcpp run -p omui.example.markdown-stream
+mcpp run -p omui.example.markdown-stream -- --demo --rate 40      # pieces per second
+mcpp run -p omui.example.markdown-stream -- --demo --no-fade --dark
 ```
 
 - **Only the tail is parsed again.** Each piece is appended to the document's stream (`openmui.markdown`'s `Stream`). The blocks before the last stable boundary are frozen; the status line shows how many bytes each piece parsed.

@@ -1,10 +1,10 @@
 // No page (any target but the Web): nothing to listen to, nothing to show,
 // no clipboard, no localStorage. The host's loop still runs, stepped by
 // hand — what its tests drive.
-module openmui.host.web;
+module omui.host.web;
 
 import std;
-import openmui.core;
+import omui.core;
 import xrender.raster;
 import :platform;
 

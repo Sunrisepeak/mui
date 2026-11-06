@@ -3,11 +3,11 @@
 // pads from the keyboard or an agent, and the picture: gongfu.present2d's
 // frame scaled into the node, the health and the timer over it, and in
 // training every box and the frame meter.
-module openmui.showcase.fighting;
+module omui.showcase.fighting;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import gongfu.data;
 import gongfu.present2d;
 

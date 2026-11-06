@@ -7,7 +7,7 @@
 #
 #   mcpp run -p openmui.inspector -- [--app org.example.notes] [--agent-dir DIR]
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "inspector"
 version     = "0.1.0"
 description = "The openmui Inspector: semantic tree, node details, frame times, pipeline and time control of a running openmui application"
@@ -28,7 +28,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp
 
 [dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk = { path = "../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
 mcpplibs.os = "0.2.2"

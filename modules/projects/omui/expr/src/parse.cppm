@@ -6,7 +6,7 @@
 // arithmetic, comparison and logical operators, `in`, and `c ? a : b`.
 // Errors carry where and what, and a suggestion; nesting deeper than
 // max_depth is an error rather than a stack overflow (the parser is fuzzed).
-export module openmui.expr:parse;
+export module omui.expr:parse;
 
 import std;
 import openmui.spec;

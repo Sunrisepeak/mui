@@ -4,7 +4,7 @@
 # Theme, with every mistake reported where it is. Theme packages
 # (modules/projects/omui/theme/default, modules/projects/omui/theme/compact) are such files, embedded.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "theme"
 version     = "0.1.0"
 description = "Themes as data: *.theme.omui.toml read, checked and composed into openmui's design tokens"
@@ -21,8 +21,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-openmui.core   = { path = "../core" }
-openmui.view   = { path = "../view" }
+omui.core   = { path = "../core" }
+omui.view   = { path = "../view" }
 hanim.core          = { path = "../../hanim/core" }
 xrender.vector = { path = "../../xrender/vector" }
 marzer.tomlplusplus = "3.4.0"

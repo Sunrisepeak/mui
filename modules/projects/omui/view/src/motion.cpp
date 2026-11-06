@@ -12,13 +12,13 @@
 // hand), a node moving by itself (its own transitions, glyph motion,
 // effect, a component's motion said), the first drawing of a node (its
 // enter slot's), and anything while motion is off or the time is held.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.hash;
 import xrender.vector;
-import openmui.motion;
+import omui.motion;
 import :impl;
 import xrender.text;
 

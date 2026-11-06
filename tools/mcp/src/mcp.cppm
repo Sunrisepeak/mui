@@ -17,11 +17,11 @@
 // show one — and acts again only with their yes, the actor recorded as
 // `agent:<client>;via=person:user`; a client without elicitation is told to
 // ask the user. The agent never answers for the person.
-export module openmui.mcp;
+export module omui.mcp;
 
 import std;
-import openmui.core;
-import openmui.agent;
+import omui.core;
+import omui.agent;
 
 export namespace omui::mcp {
 

@@ -1,8 +1,8 @@
 // A small opening: one real object and three ways to meet the same UI.
-export module openmui.site:home_landing;
+export module omui.site:home_landing;
 
 import std;
-import openmui;
+import omui;
 export import :brand;
 
 export namespace omui::site {

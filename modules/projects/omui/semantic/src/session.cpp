@@ -1,8 +1,8 @@
-module openmui.semantic;
+module omui.semantic;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import mlibs.session;
 
 namespace omui::semantic {

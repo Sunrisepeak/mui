@@ -2,9 +2,9 @@
 // renderings, shown on the page itself.
 //
 //     omui::run(omui::site::app(), argc, argv);
-export module openmui.site;
+export module omui.site;
 
-export import openmui;
+export import omui;
 export import :catalog;
 export import :motion_catalog;
 export import :motion_gallery;

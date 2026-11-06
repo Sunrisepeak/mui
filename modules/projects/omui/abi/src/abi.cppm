@@ -4,14 +4,14 @@
 // the bindings' own C++) import the module and call the same functions in
 // omui::abi. A desktop host lends its window loop to omuiRun through
 // set_window_runner (the shared library the bindings load installs one).
-export module openmui.abi;
+export module omui.abi;
 
 export import :c;
 export import :api;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui::abi {
 

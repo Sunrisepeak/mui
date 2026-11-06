@@ -1,6 +1,6 @@
 // The consumer chose `sink-memory`: the constants and the branch follow.
 import std;
-import openmui.features;
+import omui.features;
 import mlibs.testing;
 
 using namespace mlibs::testing;

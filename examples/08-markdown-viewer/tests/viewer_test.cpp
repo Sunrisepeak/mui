@@ -3,7 +3,7 @@
 // leaves only when asked (a person's click is the answer), a saved file shows
 // at once; and its pixels are pinned.
 import std;
-import openmui;
+import omui;
 import viewer;
 import mlibs.testing;
 

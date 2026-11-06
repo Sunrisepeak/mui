@@ -8,7 +8,7 @@
 # everywhere; where AccessKit has no library (Linux arm64, x86_64 macOS, the
 # Web) an adapter says it is not available.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "accessibility"
 version     = "0.1.0"
 description = "openmui accessibility: the semantic tree served to UIA, NSAccessibility and AT-SPI through AccessKit"
@@ -45,9 +45,9 @@ sources = ["src/native/accesskit/windows/*.cpp"]
 sources = ["src/platform/none/*.cppm", "src/native/none/*.cpp"]
 
 [dependencies]
-openmui.core     = { path = "../core" }
-openmui.view     = { path = "../view" }
-openmui.semantic = { path = "../semantic" }
+omui.core     = { path = "../core" }
+omui.view     = { path = "../view" }
+omui.semantic = { path = "../semantic" }
 mlibs.utils     = { path = "../../../base/utils" }
 
 [dev-dependencies]

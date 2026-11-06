@@ -11,7 +11,7 @@
 // does the same through the actions. Every edit is xengine.timeline's change
 // with its exact inverse, and after each the `edited` event carries the
 // document as it now is.
-export module openmui.ui.timeline;
+export module omui.ui.timeline;
 
 export import :timeline_editor_contract;
 export import :view;

@@ -8,11 +8,11 @@
 // rules over — a script never runs in a step: the rules reach the
 // simulation as a step's input. What did not load, answer or pass keeps the
 // rules there were, and says why.
-export module openmui.showcase.widget_breakout:workshop;
+export module omui.showcase.widget_breakout:workshop;
 
 import std;
-import openmui;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.showcase.widget_breakout.sim;
 
 export namespace omui::breakout {
 

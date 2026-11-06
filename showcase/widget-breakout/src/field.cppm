@@ -10,14 +10,14 @@
 // an agent does all of it through the actions. It keeps the run: the score,
 // balls and sparks carried from room to room and the contraptions chosen
 // between them. A rewind puts every brick back as the simulation had it.
-export module openmui.showcase.widget_breakout:field;
+export module omui.showcase.widget_breakout:field;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xengine.input;
 import xengine.ui;
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 import :field_contract;
 import :rooms;
 import :sound;

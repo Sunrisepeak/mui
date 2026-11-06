@@ -3,7 +3,7 @@
 // Parsing is nlohmann.json's (D-56), driven through its SAX interface so the
 // result is built as a Value directly and an error carries its line and
 // column. Writing is the spec's canonical form (Value::json).
-export module openmui.core:json;
+export module omui.core:json;
 
 import std;
 import :base;

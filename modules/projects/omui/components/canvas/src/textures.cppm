@@ -15,11 +15,11 @@
 // renderer makes of it); the textures are kept within a memory budget,
 // least recently drawn first out. A content revision that moves
 // (Scene::touch) makes a node's textures stale.
-export module openmui.ui.canvas:textures;
+export module omui.ui.canvas:textures;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import mlibs.text;
 import :scene;

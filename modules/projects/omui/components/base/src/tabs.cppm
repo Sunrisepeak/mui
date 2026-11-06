@@ -1,11 +1,11 @@
 // openmui.ui.base:tabs — a tab strip (role tab_list) whose tabs select one
 // panel. `selected` is the selected tab's id (bindable); the indicator
 // springs under it; arrow keys move along the strip.
-export module openmui.ui.base:tabs;
+export module omui.ui.base:tabs;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :tabs_contract;
 import :tab_contract;

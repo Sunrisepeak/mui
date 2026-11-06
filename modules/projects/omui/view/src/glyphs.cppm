@@ -19,10 +19,10 @@
 //
 //     omui::animate_glyphs(text({.id = "title", .text = "Hello"}), omui::GlyphMotion::rise());
 //     runtime.set(node, "glyph_motion", omui::to_value(omui::GlyphMotion::typewriter(seconds(0.04))));
-export module openmui.view:glyphs;
+export module omui.view:glyphs;
 
 import std;
-import openmui.core;
+import omui.core;
 import hanim.core;
 import xrender.vector;
 import :element;

@@ -5,8 +5,8 @@
 // come close; reduced transparency draws an opaque panel.
 import std;
 
-import openmui.ui.liquid_glass;
-import openmui.host.headless;
+import omui.ui.liquid_glass;
+import omui.host.headless;
 import xrender.vector;
 import mlibs.testing;
 

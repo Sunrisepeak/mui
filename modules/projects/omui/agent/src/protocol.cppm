@@ -13,12 +13,12 @@
 // when the application allows it — input. The protocol is transport-free: the
 // endpoint feeds it lines from local IPC; tests and the MCP bridge feed it
 // directly. It runs on the thread that owns the runtime.
-export module openmui.agent:protocol;
+export module omui.agent:protocol;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 
 export namespace omui::agent {
 

@@ -111,7 +111,7 @@ def main() -> int:
             run(profile+'-metadata',['build','--locked','--profile',profile,*target,'--configure-only'])
             resolution,data,cdb,commands,ninja=metadata(profile)
             packages=sorted(p['package']['canonical'].split('@')[0] for p in data['graph']['packages'] if 'target' in p['instances'])
-            if 'openmui.view' not in packages or 'mcpplibs.hanim' not in packages or 'openmui.sdk' in packages or 'openmui.site' in packages:
+            if 'omui.view' not in packages or 'mcpplibs.hanim' not in packages or 'omui.sdk' in packages or 'omui.site' in packages:
                 raise RuntimeError('unexpected application dependency closure')
             sources=[]
             for command in commands:
@@ -141,7 +141,7 @@ def main() -> int:
         # off the adapter must remove its player sources from the link graph.
         (project/'mcpp.toml').write_text('\n'.join(line for line in manifest.replace(', features = ["hanim"]','').splitlines() if not line.startswith('hanim = '))+'\n')
         (project/'src/main.cpp').write_text('''import std;
-import openmui.view;
+import omui.view;
 int main() {
     omui::Runtime runtime;
     runtime.mount("main",omui::box({.width=20,.height=20}));

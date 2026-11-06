@@ -7,7 +7,7 @@
 // `parallel_for` partitions a range into chunks that depend only on the range
 // and the grain, never on the number of threads or their timing, so work that
 // is deterministic per chunk is deterministic as a whole.
-export module openmui.core:task;
+export module omui.core:task;
 
 import std;
 import mlibs.memory;

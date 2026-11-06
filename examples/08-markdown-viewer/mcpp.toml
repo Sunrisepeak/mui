@@ -6,7 +6,7 @@
 #
 #   mcpp run -- README.md             mcpp run -- docs/        (index.md or README.md)
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "markdown-viewer"
 version     = "0.1.0"
 description = "openmui example 08: a Markdown viewer with a live table of contents, document links and reload"
@@ -23,8 +23,8 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk         = { path = "../../modules/projects/omui/sdk" }
-openmui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
+omui.sdk         = { path = "../../modules/projects/omui/sdk" }
+omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 mcpplibs.os         = "0.2.2"
 
 [dev-dependencies]

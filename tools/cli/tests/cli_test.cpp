@@ -1,12 +1,12 @@
 // `omui agent` against a running application: a headless H3 session on this
 // thread, the command line on another, talking over the real endpoint.
 import std;
-import openmui.cli;
+import omui.cli;
 import mcpplibs.cmdline;
-import openmui.host.headless;
-import openmui.ui.base;
+import omui.host.headless;
+import omui.ui.base;
 import mlibs.testing;
-import openmui.core;
+import omui.core;
 import mcpplibs.os;
 
 using namespace mlibs::testing;

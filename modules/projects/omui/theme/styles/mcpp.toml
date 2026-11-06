@@ -5,7 +5,7 @@
 # library, theme::apply_style(rt, name) shows one (a cross-fade from the
 # last). The semantic tree is the same under all of them.
 [package]
-namespace   = "openmui.theme"
+namespace   = "omui.theme"
 name        = "styles"
 version     = "0.1.0"
 description = "openmui's style packs: glass, neon, retro CRT, ink on paper, liquid"
@@ -23,11 +23,11 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"openmui.theme"         = { path = ".." }
-"openmui.theme.default" = { path = "../default" }
+"omui.theme"         = { path = ".." }
+"omui.theme.default" = { path = "../default" }
 
 [build-dependencies]
-openmui.build.embed = { path = "../../../../../mcpp/embed", host-module = true }
+omui.build.embed = { path = "../../../../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../../base/utils" }

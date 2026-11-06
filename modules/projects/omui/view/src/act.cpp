@@ -1,10 +1,10 @@
 // Actions and semantics: what a node says about itself (contract ①) and
 // performing its actions under the rules of spec §3.3 (S-1 effects and
 // answers, S-4 removal, disabled nodes).
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import :impl;
 
 namespace omui {

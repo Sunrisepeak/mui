@@ -1,9 +1,9 @@
-# openmui.ui.canvas.kit
+# omui.ui.canvas.kit
 
-What a canvas does beyond panning and zooming (module `openmui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.omui.toml` run by C++.
+What a canvas does beyond panning and zooming (module `omui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.omui.toml` run by C++.
 
 ```cpp
-import openmui.ui.canvas.kit;
+import omui.ui.canvas.kit;
 
 omui::register_canvas_kit();
 omui::canvas({.id = "board",
@@ -53,7 +53,7 @@ do   = ["move(node.key, {'x': args.dx, 'y': args.dy})"]
 - **Names** the expressions read: `pointer` and `press` ({x, y, world: {x, y}, button, clicks}), `delta` (since the last event) and `travel` (since the press), `hit` (what the press hit: {node, kind, title, inside} — `inside`, the keys of the nodes lying wholly on it, so a frame drags what is on it) and `over` (what the pointer is over now), `mods` ({shift, ctrl, alt, meta, mod}), `key` (`"Escape"`, `"A"`), and always `selection`, `zoom`, `vars` (what `set` remembered; `vars.args` is what follows the name in `behaviors`) and `state`. An action's expressions read `node` ({key, kind, x, y, width, height}) and `args`.
 - **Operations** (`world::behavior_operations()`): `capture`, `move`, `move_to`, `resize`, `raise`, `select`, `add_to_selection`, `toggle_selection`, `clear_selection`, `connect`, `disconnect`, `remove`, `commit`, `set`, `fit`, `preset`, `zoom_to`. A target is a node's key or a list of them.
 - **Checked when it loads**: every key, state, event, operation, its number of arguments, every function and name in the expressions, the types of an action's arguments, and S-1 (an irreversible action states its answer). A file with a problem registers nothing; each problem has its line and column and, where one is near, the name meant (`did you mean `pointer_down`?`).
-- Nothing runs a script: the expressions are evaluated by C++ (`openmui.expr`), so the per-frame path stays native; `commit` is where scripts hear of it.
+- Nothing runs a script: the expressions are evaluated by C++ (`omui.expr`), so the per-frame path stays native; `commit` is where scripts hear of it.
 
 ## Conformance and cost
 

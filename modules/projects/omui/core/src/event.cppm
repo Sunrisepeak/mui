@@ -4,7 +4,7 @@
 // a headless host, the C ABI (OmuiFrameInput.events_json) and session
 // recordings carry them: a recorded session replays the same events at the
 // same clock times and produces the same tree.
-export module openmui.core:event;
+export module omui.core:event;
 
 import std;
 import :base;

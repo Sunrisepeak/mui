@@ -1,4 +1,4 @@
-# openmui.theme
+# omui.theme
 
 Themes as data (view-data-files §3, component-binding §11). A `*.theme.omui.toml` file declares two kinds of thing:
 

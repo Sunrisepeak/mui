@@ -1,4 +1,4 @@
-module openmui.build.plan;
+module omui.build.plan;
 
 import std;
 import mcpp;
@@ -31,7 +31,7 @@ std::string generic_utf8(const std::filesystem::path& p) {
     return std::string(reinterpret_cast<const char*>(u.data()), u.size());
 }
 
-std::string generator() { return std::string(mcpp::dep_bin("openmui.gen", "omui-gen")); }
+std::string generator() { return std::string(mcpp::dep_bin("omui.gen", "omui-gen")); }
 
 std::string namespace_of(std::string_view module) {
     std::string ns;

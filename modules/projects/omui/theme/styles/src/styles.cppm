@@ -2,7 +2,7 @@
 //
 //     omui::themes::add_styles();               // glass, neon, retro, ink, liquid
 //     omui::theme::apply_style(rt, "neon");    // a cross-fade from what was shown
-export module openmui.theme.styles;
+export module omui.theme.styles;
 
 export import :glass_style;
 export import :neon_style;
@@ -11,7 +11,7 @@ export import :ink_style;
 export import :liquid_style;
 
 import std;
-import openmui.theme;
+import omui.theme;
 
 export namespace omui::themes {
 

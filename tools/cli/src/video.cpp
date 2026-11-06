@@ -16,14 +16,14 @@
 // (and `x.wav` beside it when there is sound), `x.wav`,
 // a pattern `shots/{:05}.png`, or a directory `shots/` (frame-00000.png …
 // and audio.wav).
-module openmui.cli;
+module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui.core;
-import openmui.viewdoc;
-import openmui.host.headless;
+import omui.core;
+import omui.viewdoc;
+import omui.host.headless;
 import xengine.video;
 import xengine.video.webm;
 import xengine.audio;

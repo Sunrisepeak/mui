@@ -2,12 +2,12 @@
 // the TOML as a plain tree with positions (the toml++ adapter's output, so
 // the third-party library stays in one unit), and the statechart compiled
 // from it.
-module openmui.ui.canvas.kit:chart;
+module omui.ui.canvas.kit:chart;
 
 import std;
-import openmui.core;
-import openmui.expr;
-import openmui.ui.canvas;
+import omui.core;
+import omui.expr;
+import omui.ui.canvas;
 import :declarative;
 
 namespace omui::kit {

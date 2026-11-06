@@ -1,8 +1,8 @@
-module openmui.build.embed;
+module omui.build.embed;
 
 import std;
 import mcpp;
-import openmui.build.plan;
+import omui.build.plan;
 
 namespace openmui::build {
 
@@ -10,7 +10,7 @@ std::vector<edge> plan_embed(const embed_options& opt) {
     const std::string root = mcpp::manifest_dir();
     const std::string gen = generator();
     if (root.empty() || opt.module.empty() || opt.suffix.empty() || opt.tag.empty() || gen.empty()) {
-        std::println(std::cerr, "openmui.build.embed: embed() runs from build.mcpp, with a module, a suffix and a tag, and omui-gen built for the build");
+        std::println(std::cerr, "omui.build.embed: embed() runs from build.mcpp, with a module, a suffix and a tag, and omui-gen built for the build");
         return {};
     }
     const std::string ns = opt.ns.empty() ? namespace_of(opt.module) : opt.ns;
@@ -58,7 +58,7 @@ bool embed(embed_options opt) {
     auto edges = plan_embed(opt);
     if (edges.empty()) {
         if (opt.left_out) return true;  // nothing asked for
-        std::println(std::cerr, "openmui.build.embed: no {} file in {}/", opt.suffix, opt.dir);
+        std::println(std::cerr, "omui.build.embed: no {} file in {}/", opt.suffix, opt.dir);
         return false;
     }
     return submit(edges);

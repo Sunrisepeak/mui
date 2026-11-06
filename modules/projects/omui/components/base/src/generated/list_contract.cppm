@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // list: A list of items, virtualised: only the visible items exist as nodes, the rest answer queries (S-7).
-export module openmui.ui.base:list_contract;
+export module omui.ui.base:list_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

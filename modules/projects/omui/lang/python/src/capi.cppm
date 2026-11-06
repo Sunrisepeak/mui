@@ -4,7 +4,7 @@
 // exports, found in the running interpreter when the module loads. One build
 // serves every CPython 3.10+ of a platform, without headers or an import
 // library. (Free-threaded builds have another ABI and are not served.)
-export module openmui.lang.python:capi;
+export module omui.lang.python:capi;
 
 import std;
 

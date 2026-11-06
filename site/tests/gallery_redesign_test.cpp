@@ -1,8 +1,8 @@
 // The component library as a focused workspace: one real specimen, a
 // bounded directory, and details revealed only when they are requested.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

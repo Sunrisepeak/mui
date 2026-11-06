@@ -8,7 +8,7 @@
 import std;
 import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
-import openmui.host.sdl3;
+import omui.host.sdl3;
 import mlibs.testing;
 
 using namespace mlibs::testing;

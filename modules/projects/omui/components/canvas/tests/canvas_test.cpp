@@ -7,8 +7,8 @@
 // anything in the scene, and answers the wheel, a drag and a fling.
 import std;
 
-import openmui.ui.canvas;
-import openmui.host.headless;
+import omui.ui.canvas;
+import omui.host.headless;
 import xrender.vector;
 import xrender.raster;
 import mlibs.testing;

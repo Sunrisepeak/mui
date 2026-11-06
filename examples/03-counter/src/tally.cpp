@@ -1,7 +1,7 @@
 module tally;
 
 import std;
-import openmui;
+import omui;
 
 namespace tally {
 

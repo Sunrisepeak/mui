@@ -13,11 +13,11 @@
 // them, the panel's theme (music/haunt.music.omui.toml): a music box in F#
 // minor, the chain's pentatonic notes its own; its intensity rises with the
 // chain, the last ball and several in the air, from the next bar.
-export module openmui.showcase.widget_breakout:sound;
+export module omui.showcase.widget_breakout:sound;
 
 import std;
 import xengine.audio;
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 import :rooms;
 
 export namespace omui::breakout {

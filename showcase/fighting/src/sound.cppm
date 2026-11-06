@@ -8,7 +8,7 @@
 // its frame's very sample, so a match's sound is as determined as its pixels;
 // heard live it starts a block ahead of the device. The menus use it too:
 // their cues (sounds/menu.sound.omui.toml) and the main theme.
-export module openmui.showcase.fighting:sound;
+export module omui.showcase.fighting:sound;
 
 import std;
 import xengine.audio;

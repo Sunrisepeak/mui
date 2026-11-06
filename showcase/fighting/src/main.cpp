@@ -7,10 +7,10 @@
 // the arrows and Insert Home PageUp (punches) Delete End PageDown (kicks). Gamepads: the
 // first two connected, beside the keyboard (controls/pad.controls.omui.json).
 import std;
-import openmui;
+import omui;
 import xengine.audio;
 import xengine.audio.device;
-import openmui.showcase.fighting;
+import omui.showcase.fighting;
 
 int main(int argc, char** argv) {
     std::vector<char*> rest{argv[0]};

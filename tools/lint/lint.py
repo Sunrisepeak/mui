@@ -293,6 +293,9 @@ def check_sources(root: Path) -> list[Problem]:
                 problems.append(Problem("thirdparty", f"{rel_s}:{no}",
                                         "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
             mi = re.match(r"(export\s+)?import\s+([\w.]+)\s*;", stripped)
+            mo = re.match(r"(export\s+)?(?:module|import)\s+(openmui(?:[.:][\w.:]*)?)\s*;", stripped)
+            if mo and not mo.group(2).startswith("openmui.spec") and not rel_s.startswith("spec/"):
+                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mo.group(2)}`: omui's modules are omui.* (D-107); openmui is the specification's"))
             if mi and mi.group(2) in LEGACY_MODULES:
                 problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}` was a forwarder (D-106): import its owner"))
             if LEGACY_ALIASES.search(line):
@@ -671,9 +674,9 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "mlibs.text": {"not": {"xrender"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
-    "xengine.simulation": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
-    "xengine.simulation.cellular": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
-    "xengine.simulation.cellular.rhi": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender"}},
+    "xengine.simulation": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
+    "xengine.simulation.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
+    "xengine.simulation.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender"}},
 }
 
 

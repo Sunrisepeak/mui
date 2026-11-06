@@ -1,10 +1,10 @@
 // openmui.semantic — the semantic tree for agents, tests and assistive
 // technology (spec §3, §9): snapshots, deltas, queries, actions, conditions,
 // checks; recording and replaying sessions.
-export module openmui.semantic;
+export module omui.semantic;
 
-export import openmui.core;
-export import openmui.view;
+export import omui.core;
+export import omui.view;
 export import mlibs.session;
 export import :query;
 export import :tree;

@@ -5,7 +5,7 @@
 # Contract-first: contract/timeline.contract.omui.toml becomes the base,
 # builders, stubs and schema when it builds (openmui.build.contracts).
 [package]
-namespace   = "openmui.ui"
+namespace   = "omui.ui"
 name        = "timeline"
 version     = "0.1.0"
 description = "A timeline to edit: tracks of clips, a playhead, moves, trims, splits and removals, every edit undone exactly"
@@ -23,17 +23,17 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.core          = { path = "../../core" }
-openmui.view          = { path = "../../view" }
+omui.core          = { path = "../../core" }
+omui.view          = { path = "../../view" }
 xrender.vector = { path = "../../../xrender/vector" }
-openmui.ui.base       = { path = "../base" }
+omui.ui.base       = { path = "../base" }
 xengine.timeline      = { path = "../../../xengine/timeline" }
 
 [build-dependencies]
-openmui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
+omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../../../base/utils" }
-openmui.host.headless = { path = "../../host/headless" }
-openmui.semantic      = { path = "../../semantic" }
+omui.host.headless = { path = "../../host/headless" }
+omui.semantic      = { path = "../../semantic" }
 mlibs.i18n.cldr     = { path = "../../../../content/i18n/cldr" }

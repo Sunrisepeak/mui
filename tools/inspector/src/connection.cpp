@@ -1,9 +1,9 @@
-module openmui.inspector;
+module omui.inspector;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.agent;
+import omui.core;
+import omui.view;
+import omui.agent;
 
 namespace omui::inspector {
 

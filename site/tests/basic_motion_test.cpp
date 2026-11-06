@@ -1,8 +1,8 @@
 // The designs are real drawings, with measurable endpoints and
 // sampled motion in between; the site's shared player is tested separately.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

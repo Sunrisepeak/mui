@@ -1,8 +1,8 @@
 // Exercise the actual product entrances and history after the information
 // architecture changed; a route table alone cannot verify the menu's input.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

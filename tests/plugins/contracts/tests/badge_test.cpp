@@ -2,7 +2,7 @@
 // two-way count, the enum, the event and the action all exist and work.
 import std;
 import acme.ui;
-import openmui.host.headless;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace mlibs::testing;

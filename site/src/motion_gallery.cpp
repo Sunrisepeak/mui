@@ -1,6 +1,6 @@
-module openmui.site;
+module omui.site;
 import std;
-import openmui;
+import omui;
 import :motion_gallery;
 
 namespace omui::site {

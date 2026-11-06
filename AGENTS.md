@@ -21,9 +21,8 @@
 - **`modules/` 分两类目录**，每个分组目录都有 README 说明定位和准入：层级分组（`base`／`gfx`／`content`，放 mlibs）；成熟项目（`projects/`，放成熟、复杂、可独立成项目／仓库级别的品牌，品牌内部再容纳尚未毕业的子系统）。**进入 `projects/` 必须能用一句话说清楚它是什么，并有几项明确的、业界领先或面向未来设计的标志性特性**；一句话定义写在项目 README 第一行，特性附对照证据或真实任务演示。判定：通用的放 mlibs，具体实现归所属品牌。
 - **毕业**：xengine 子系统或 mlibs 库满足“有标志性特性、至少 2 个独立消费者、API v1 冻结、有 ops／skill、CTS、文档、基准”后，可以拥有自己的品牌，成为 `modules/projects/` 下的独立项目；拿不出有证据的标志性特性的，留在 xengine 或 mlibs。
 - **包的身份就是主要模块名**（`omui.core` ↔ `import omui.core;`）；**路径就是包名**（叶子目录 = 包名最后一段，lint `layout`）；按角色命名，不按实现命名；不用裸的 `mui`。
-- **不留兼容层**：内部开发阶段，改名和 API 调整一次改完，不保留转发入口和旧别名。命名迁移在里程碑 M1 一次完成；完成前已有包沿用现名，新增包直接用目标名。
+- **不留兼容层**：内部开发阶段，改名和 API 调整一次改完，不保留转发入口和旧别名（lint `legacy-import`）。M1 已完成命名与目录迁移：omui 的包是 `omui.*`，`openmui` 只指规范（包 `openlifa.openmui`、模块 `openmui.spec`）。**公开名按层面取**：属于规范层面的（协议与格式标识、C ABI、规范 stubs 定义的脚本 API：`import openmui`、`openmui:native/*`）用 `openmui`；具体实现、非规范层面的（包、C++ 模块、命令行、工具）用 `omui`。
 - 保持不变的外部契约：协议字段、schema、`[package.metadata.openmui]`、`spec/include/openmui.h`、C ABI 的 `omui*`／`OMUI_*`、命令行 `omui`、数据文件后缀。
-- 目录迁移（`modules/projects/`、utils）与改名一起在 M1 完成；之前以仓库现状为准。
 - 品牌：官网和应用用 **omui**，介绍标准用 **openmui 规范**；标志是大写 **O** 内含小写 **mui**，用框架自身的矢量代码构造。
 
 ## 2. 核心设计思想
@@ -63,7 +62,7 @@
 
 ## 5. 工程与包
 
-- 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 目标只保留 `[workspace]`，SDK 伞包移到 omui 的 `sdk/`（当前 `import openmui;`，目标 `import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
+- 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]`，SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **优先用 mcpp 生态**（D-56）。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
 - **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。

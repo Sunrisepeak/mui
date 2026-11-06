@@ -8,7 +8,7 @@
 // [--root EXPLICIT-ID] [--time SECONDS] [--reduced-motion] exports production pixels
 // and the actual semantic geometry beside them; it does not open a window.
 import std;
-import openmui.site;
+import omui.site;
 import mcpplibs.os;
 
 int main(int argc, char** argv) {

@@ -16,8 +16,8 @@ The rule for every shot: it is a real openmui scene showing a real capability, n
 |---|---|---|
 | The timeline | `xengine.timeline` | the cuts: clips in exact time (flicks), keyed properties (hanim curves), markers, a readable file |
 | Video and sound | `xengine.video`, `xengine.video.webm`, `xengine.audio` | encoding on exact frame and sample counts; the score's sequencer and synthesis; the mixer, ducking, limiter |
-| The runtime | `openmui.view`, `openmui.host.headless` | frames at any time on a virtual clock; glyph motion; pixel effects; the semantic tree; actions, effects, undo |
-| Scenes reused | `openmui.showcase.{style_gallery, markdown_wall, widget_breakout}`, `openmui.ui.canvas`, `openmui.ui.timeline`, `openmui.lang.*` | the panel, the wall, the styles, the game, the editor on the end card, the script hosts |
+| The runtime | `omui.view`, `omui.host.headless` | frames at any time on a virtual clock; glyph motion; pixel effects; the semantic tree; actions, effects, undo |
+| Scenes reused | `openmui.showcase.{style_gallery, markdown_wall, widget_breakout}`, `omui.ui.canvas`, `omui.ui.timeline`, `omui.lang.*` | the panel, the wall, the styles, the game, the editor on the end card, the script hosts |
 | The film | `showcase/promo-video` | the cuts, lines, score and sounds; a scene per chapter; the player; the overlay; the sound track; the acceptance; `omui-promo` |
 
 ## 3. How each part was built

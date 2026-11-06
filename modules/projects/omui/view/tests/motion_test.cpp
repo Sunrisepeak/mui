@@ -5,7 +5,7 @@
 // short tween; settled, exactly the drawing as it is; the same at the same
 // time, seekable.
 import std;
-import openmui.view;
+import omui.view;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;

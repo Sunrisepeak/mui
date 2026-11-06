@@ -1,8 +1,8 @@
 // The breakout from a gamepad, injected as a host gives it (spec §6.1): the
 // d-pad and the left stick move the paddle, south launches the ball.
 import std;
-import openmui;
-import openmui.showcase.widget_breakout;
+import omui;
+import omui.showcase.widget_breakout;
 import mlibs.testing;
 
 using namespace mlibs::testing;

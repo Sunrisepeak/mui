@@ -8,9 +8,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-# openmui.reflect is C++26 (GCC 16, -freflection) with a build of its graph
+# omui.reflect is C++26 (GCC 16, -freflection) with a build of its graph
 # of its own: the GCC dev row tests it by itself, as CI does.
-select=(--workspace --exclude openmui.reflect)
+select=(--workspace --exclude omui.reflect)
 if [ $# -gt 0 ]; then select=(); for m in "$@"; do select+=(-p "$m"); done; fi
 
 step() { printf '\n== %s\n' "$*"; }
@@ -22,8 +22,8 @@ python3 tools/lint/lint.py --self-test > /dev/null
 step "gcc@16.1.0 dev"
 mcpp test "${select[@]}" --toolchain gcc@16.1.0 2>&1 | grep -E 'result|FAIL' || true
 if [ $# -eq 0 ]; then
-    step "openmui.reflect (C++26, gcc@16.1.0 dev)"
-    mcpp test -p openmui.reflect --toolchain gcc@16.1.0 2>&1 | grep -E 'result|FAIL' || true
+    step "omui.reflect (C++26, gcc@16.1.0 dev)"
+    mcpp test -p omui.reflect --toolchain gcc@16.1.0 2>&1 | grep -E 'result|FAIL' || true
 fi
 step "gcc@16.1.0 release"
 mcpp test "${select[@]}" --toolchain gcc@16.1.0 --profile release 2>&1 | grep -E 'result|FAIL' || true
@@ -31,7 +31,7 @@ step "llvm@23.1.3 dev"
 mcpp test "${select[@]}" --toolchain llvm@23.1.3 2>&1 | grep -E 'result|FAIL' || true
 
 step "benchmarks against their budgets (release)"
-mcpp run -p openmui.bench --profile release -- --check tests/bench/budgets.bench.omui.json 2>&1 | grep -E '^(over budget|budgets)' || true
+mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json 2>&1 | grep -E '^(over budget|budgets)' || true
 
 step "feature selection (M0 ⑤)"
 tools/ci/features.sh 2>&1 | grep -E '^(ok|FAIL)|features' || true

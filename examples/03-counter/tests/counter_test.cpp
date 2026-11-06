@@ -3,14 +3,14 @@
 // S level); the document passes `omui check` clean and is in the canonical
 // format; saving the file shows at once and keeps the count.
 import std;
-import openmui;
+import omui;
 import tally;
 import mlibs.testing;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.lua;
-import openmui.lang.js;
-import openmui.lang.python.embedded;
+import omui.abi;
+import omui.lang;
+import omui.lang.lua;
+import omui.lang.js;
+import omui.lang.python.embedded;
 
 using namespace mlibs::testing;
 using namespace omui;

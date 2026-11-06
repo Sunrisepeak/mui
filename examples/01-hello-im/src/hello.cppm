@@ -2,7 +2,7 @@
 export module hello;
 
 import std;
-import openmui;
+import omui;
 export import :hello_source;  // this file's text (build.mcpp)
 
 export namespace hello {

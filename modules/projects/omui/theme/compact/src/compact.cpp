@@ -1,7 +1,7 @@
-module openmui.theme.compact;
+module omui.theme.compact;
 
 import std;
-import openmui.theme;
+import omui.theme;
 
 namespace omui::themes {
 

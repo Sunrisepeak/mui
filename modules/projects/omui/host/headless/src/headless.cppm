@@ -12,13 +12,13 @@
 //     h.click("main/save");
 //     h.settle();
 //     h.save_png("after-save.png");
-export module openmui.host.headless;
+export module omui.host.headless;
 
 import std;
-export import openmui.core;
-export import openmui.view;
-export import openmui.semantic;
-export import openmui.agent;
+export import omui.core;
+export import omui.view;
+export import omui.semantic;
+export import omui.agent;
 export import xrender.raster;
 export import mlibs.image;  // recordings: imageio::AnimatedWebpOptions
 

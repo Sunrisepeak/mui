@@ -13,7 +13,7 @@
 #   mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-toy
 [package]
 name        = "toy"
-namespace   = "openmui.build"
+namespace   = "omui.build"
 version     = "0.1.0"
 description = "Build plugin: the dist-toy pack format, a program packaged for Bilibili Toy or as a static page"
 license     = "Apache-2.0"
@@ -29,5 +29,5 @@ sources = ["src/*.cppm", "src/*.cpp"]
 # that uses this plugin (a generating plugin compiles no device language, so
 # it is a plain library of build programs: mcpp's 08-build-rules shape).
 [dependencies]
-openmui.build.plan = { path = "../plan", reexport = true }
-openmui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }
+omui.build.plan = { path = "../plan", reexport = true }
+omui.gen        = { path = "../../tools/gen", tools = ["omui-gen"], reexport = true }

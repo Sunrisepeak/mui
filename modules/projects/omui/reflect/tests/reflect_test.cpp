@@ -2,11 +2,11 @@
 // type, ids and labels from names, annotations), bound both ways; a struct
 // as openmui's values and back, with where a value is wrong.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.ui.base;
-import openmui.host.headless;
-import openmui.reflect;
+import omui.core;
+import omui.view;
+import omui.ui.base;
+import omui.host.headless;
+import omui.reflect;
 import mlibs.testing;
 
 using namespace mlibs::testing;

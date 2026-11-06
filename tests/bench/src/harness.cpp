@@ -1,7 +1,7 @@
-module openmui.bench;
+module omui.bench;
 
 import std;
-import openmui.core;
+import omui.core;
 import mcpplibs.os;
 
 namespace omui::bench {

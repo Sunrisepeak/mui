@@ -3,11 +3,11 @@
 // Each crumb and each page is a node of the semantic tree an agent finds and
 // activates (`<id>/<index>`, `<id>/<page>`, `<id>/previous`, `<id>/next`) —
 // items of the component, not children it builds (S-7).
-export module openmui.ui.base:navigation;
+export module omui.ui.base:navigation;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :breadcrumb_contract;
 import :pagination_contract;

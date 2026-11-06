@@ -1,9 +1,9 @@
-# openmui.ui.liquid_glass
+# omui.ui.liquid_glass
 
-Liquid glass as components (module `openmui.ui.liquid_glass`, D-64, features-plugins-pipeline §3.3): `liquid_glass`, a container whose surface is a thick transparent material over what lies under it, and `glass_group`, whose members are one piece of glass that merges like drops. Contract-first: `contract/*.contract.omui.toml` are the interfaces; the bases, builders, stubs and schema are generated when the package builds (`openmui.build.contracts`).
+Liquid glass as components (module `omui.ui.liquid_glass`, D-64, features-plugins-pipeline §3.3): `liquid_glass`, a container whose surface is a thick transparent material over what lies under it, and `glass_group`, whose members are one piece of glass that merges like drops. Contract-first: `contract/*.contract.omui.toml` are the interfaces; the bases, builders, stubs and schema are generated when the package builds (`omui.build.contracts`).
 
 ```cpp
-import openmui.ui.liquid_glass;
+import omui.ui.liquid_glass;
 
 omui::register_liquid_glass_components();   // by name, for view documents and scripts
 omui::liquid_glass({.id = "toolbar", .label = "Toolbar", .radius = 22, .blur = 4}, {buttons…});

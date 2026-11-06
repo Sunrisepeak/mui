@@ -4,7 +4,7 @@
 // skeletons and day periods, localised offsets, relative times and lists;
 // and `likely.locale.omui.json`, the likely subtags of the languages packed.
 // The packs are data the engine reads, committed beside their CLDR version.
-export module openmui.gen.cldr;
+export module omui.gen.cldr;
 
 import std;
 

@@ -5,7 +5,7 @@
 // external verb states the answer that confirms it (S-1), and invoking it
 // without that answer returns `needs-answer` at once (S-2) — nothing waits for
 // a human inside the runtime.
-export module openmui.core:verb;
+export module omui.core:verb;
 
 import std;
 import :base;

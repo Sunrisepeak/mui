@@ -2,11 +2,11 @@
 // omui-gen native (openmui.build.contracts does it in a build).
 //
 // store: The program's own small key-value storage: text values by key, kept by the host (the page's localStorage on the Web; memory where the host keeps none).
-export module openmui.native.store:store_native;
+export module omui.native.store:store_native;
 
 import std;
 import nlohmann.json;
-import openmui.native;
+import omui.native;
 
 export namespace omui::natives::store {
 

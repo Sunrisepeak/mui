@@ -1,6 +1,6 @@
 // Example 01 runs headless: the agent's view of it, typing and clicking, and a picture.
 import std;
-import openmui;
+import omui;
 import mlibs.testing;
 import hello;
 

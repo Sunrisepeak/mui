@@ -17,12 +17,12 @@ import std;
 import mlibs.hash;
 import mcpplibs.cmdline;
 import mcpplibs.os;
-import openmui;
+import omui;
 import xengine.video;
 import xengine.video.webm;
 import xengine.audio;
 import xengine.timeline;
-import openmui.showcase.promo_video;
+import omui.showcase.promo_video;
 
 namespace {
 

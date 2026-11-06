@@ -1,4 +1,4 @@
-# openmui.build.contracts
+# omui.build.contracts
 
 The build plugin for contracts (component-binding §2.3, §8, §10.3). A package writes its interface once, as contracts, and the plugin makes the rest when the package builds.
 
@@ -11,7 +11,7 @@ The build plugin for contracts (component-binding §2.3, §8, §10.3). A package
 ```cpp
 // build.mcpp
 import mcpp;
-import openmui.build.contracts;
+import omui.build.contracts;
 int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
 ```
 

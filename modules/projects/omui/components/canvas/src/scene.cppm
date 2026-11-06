@@ -14,11 +14,11 @@
 // a box (the instanced rounded rectangle), the kind's own drawing, or a
 // live component it is promoted to when it is large enough to use — how it
 // is hit, and what it is to the semantic tree.
-export module openmui.ui.canvas:scene;
+export module omui.ui.canvas:scene;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import mlibs.text;
 

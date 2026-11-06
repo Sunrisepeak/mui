@@ -1,6 +1,6 @@
 # openmui for Python
 
-`openmui.lang.python` is openmui in Python, in host mode (component-binding §7, D-46): `import openmui` loads the runtime, the official components and the desktop host, and the program builds its views on them. A C++ program (and the player, `lang = "py"`) embeds Python instead with [embedded](embedded) (`openmui.lang.python.embedded`, PocketPy): the same `openmui` module in PocketPy's subset of Python, so a script reads the same in both. A view in Python is the C++ builder's tree: example 03 in Python (`examples/03-counter/python/tally.py`) has the same semantic tree and the same pixels as the C++, view-document, Lua and TypeScript versions (CTS S level; `tests/test_example_counter.py`).
+`omui.lang.python` is openmui in Python, in host mode (component-binding §7, D-46): `import openmui` loads the runtime, the official components and the desktop host, and the program builds its views on them. A C++ program (and the player, `lang = "py"`) embeds Python instead with [embedded](embedded) (`omui.lang.python.embedded`, PocketPy): the same `openmui` module in PocketPy's subset of Python, so a script reads the same in both. A view in Python is the C++ builder's tree: example 03 in Python (`examples/03-counter/python/tally.py`) has the same semantic tree and the same pixels as the C++, view-document, Lua and TypeScript versions (CTS S level; `tests/test_example_counter.py`).
 
 ```python
 import openmui as omui
@@ -39,13 +39,13 @@ python examples/03-counter/python/tally.py
 ## How it is made
 
 - **The extension** `_openmui` is `src/entry/python`: a shared library holding the runtime and the host, with its own C++ runtime. It is written against CPython's stable ABI, the limited API of 3.10, without CPython's headers and without linking libpython. Its functions are resolved in the interpreter that loads it (`src/capi.cppm`, through `mcpplibs.os.library`), so one build serves every CPython 3.10+ of a platform.
-- **Threads.** Python runs on [openmui.lang](..)'s script thread. Every call releases the GIL and waits for the script thread. Every call from the runtime (a handler, a verb, a watch) takes the GIL there.
+- **Threads.** Python runs on [omui.lang](..)'s script thread. Every call releases the GIL and waits for the script thread. Every call from the runtime (a handler, a verb, a watch) takes the GIL there.
 - **The Python half** is `python/openmui`: builders, expressions and `run`.
 - **The wheel** comes from `packaging/openmui_build.py`, a PEP 517 backend in the tree. It builds the extension with mcpp and takes it from mcpp's result record. It bundles the shared libraries beside it and the third parties' notices, and generates the stubs. Its archives are reproducible (`SOURCE_DATE_EPOCH`). Configuration:
   - `--config-settings profile=dev|release` (default `release`);
   - `mcpp=PATH`, or `$OMUI_MCPP`, to choose the mcpp binary.
-- **Tests.** `mcpp test -p openmui.entry.python` runs `tests/` in the system's CPython against the built extension. `tests/cts.py` is Python's runner of the conformance scenarios (`spec/conformance/S`): it must record each scenario's pinned trace, as the Lua and JavaScript runners do. CI also installs the wheel and runs example 03 headless.
+- **Tests.** `mcpp test -p omui.entry.python` runs `tests/` in the system's CPython against the built extension. `tests/cts.py` is Python's runner of the conformance scenarios (`spec/conformance/S`): it must record each scenario's pinned trace, as the Lua and JavaScript runners do. CI also installs the wheel and runs example 03 headless.
 
 **Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `from openmui.native import fuzzy`, then `fuzzy.rank(q, files, 20)` or by keyword; a refusal is `OmuiError`. The wheel ships the official modules' `.pyi` stubs.
 
-**Themes** (openmui.theme): a theme, then overlays — `omui.theme("dark", "compact")` (an `OmuiError` when it cannot be composed) and `omui.themes()`.
+**Themes** (omui.theme): a theme, then overlays — `omui.theme("dark", "compact")` (an `OmuiError` when it cannot be composed) and `omui.themes()`.

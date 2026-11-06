@@ -1,8 +1,8 @@
 import std;
-import openmui;
-import openmui.site;
-import openmui.theme;
-import openmui.theme.styles;
+import omui;
+import omui.site;
+import omui.theme;
+import omui.theme.styles;
 import mlibs.testing;
 
 using namespace omui;

@@ -5,10 +5,10 @@
 // asks the person first, and a grant the person gives in the page lets it
 // run. The person's own controls are refused to it whatever it claims to be
 // (S-10).
-export module openmui.site:guide;
+export module omui.site:guide;
 
 import std;
-import openmui;
+import omui;
 
 export namespace omui::site {
 

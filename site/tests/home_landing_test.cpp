@@ -1,8 +1,8 @@
 // The opening is an actual object, shared by pixels, its semantic tree and
 // a visibly simulated agent. The small and large mark share the vector original.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

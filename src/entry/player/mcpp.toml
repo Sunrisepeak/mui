@@ -8,7 +8,7 @@
 # builds each package once, so a feature one member enables would reach every
 # member that depends on the umbrella, without the feature's dependencies.
 [package]
-namespace   = "openmui.entry"
+namespace   = "omui.entry"
 name        = "player"
 version     = "0.1.0"
 description = "The player's main for script-first openmui applications (entry-player)"
@@ -25,13 +25,13 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk           = { path = "../../../modules/projects/omui/sdk" }
-openmui.player        = { path = "../../../modules/projects/omui/player" }
-openmui.lang.lua      = { path = "../../../modules/projects/omui/lang/lua" }
-openmui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
-openmui.lang.python.embedded = { path = "../../../modules/projects/omui/lang/python/embedded" }
-openmui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
-openmui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
-openmui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
-openmui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
+omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
+omui.player        = { path = "../../../modules/projects/omui/player" }
+omui.lang.lua      = { path = "../../../modules/projects/omui/lang/lua" }
+omui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
+omui.lang.python.embedded = { path = "../../../modules/projects/omui/lang/python/embedded" }
+omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
+omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
+omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
+omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
 marzer.tomlplusplus = "3.4.0"

@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // progress: The progress of a task; indeterminate when value is negative.
-export module openmui.ui.base:progress_contract;
+export module omui.ui.base:progress_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

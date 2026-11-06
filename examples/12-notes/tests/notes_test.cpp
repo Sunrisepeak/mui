@@ -5,13 +5,13 @@
 // title Lua reads from the text, a task ticked in the preview kept in the
 // note, a new note; an agent's verbs; pinned pixels.
 import std;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang.js;
-import openmui.lang.lua;
-import openmui.ui.markdown;
-import openmui.native.fuzzy;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang.js;
+import omui.lang.lua;
+import omui.ui.markdown;
+import omui.native.fuzzy;
 import mlibs.testing;
 
 using namespace mlibs::testing;

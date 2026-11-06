@@ -9,7 +9,7 @@
 // node counts as counters. The others measure pieces alone: rasterising the
 // whole 1080p display list, mounting the scene, the semantic snapshot an
 // agent reads, shaping a paragraph, and what tracing and logging cost when off.
-export module openmui.bench:scenes;
+export module omui.bench:scenes;
 
 import std;
 

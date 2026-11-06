@@ -21,7 +21,7 @@ The host chooses bounded, trusted history capacities, records semantic inputs, a
 
 Minimal Agent/human SOP: prepare the model and a bounded initial state; advance and inspect states without a GUI; record frame/input/configuration identity; seek and compare complete states throughout a process; publish to a separately selected renderer for visual review. The library has native C++ operations, not an already-shipped openas provider. Trace spans `simulation.step`/`simulation.seek` and log category `simulation` use the shared observability libraries.
 
-Run `mcpp test --locked -p xengine.simulation`. `openmui.showcase.widget_breakout.sim` checks an existing real game consumer. Snapshot/step allocation budgets are in the common `openmui.bench` suite, not a second benchmark harness.
+Run `mcpp test --locked -p xengine.simulation`. `omui.showcase.widget_breakout.sim` checks an existing real game consumer. Snapshot/step allocation budgets are in the common `omui.bench` suite, not a second benchmark harness.
 
 ## Independent boundary and compatibility
 

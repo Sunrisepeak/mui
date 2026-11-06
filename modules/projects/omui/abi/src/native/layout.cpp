@@ -10,7 +10,7 @@ module;
 
 #include "openmui.h"
 
-module openmui.abi:layout;
+module omui.abi:layout;
 
 import :c;
 

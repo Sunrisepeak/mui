@@ -5,7 +5,7 @@ Import `mlibs.control`; use `mlibs::control`. The only runtime dependencies are
 openas 0.2 and the existing independent logging and tracing libraries. There is
 no UI/spec Value, renderer, network transport, model or global Access instance.
 
-The implementation is extracted from `openmui.core`: policy intersections,
+The implementation is extracted from `omui.core`: policy intersections,
 session issuance/revocation, grant epochs and nested call binding have one owner.
 UI `AgentAccess`/`AgentSession` remain compatibility adapters and serialize UI
 values there. This independent package lets a hanim-only consumer opt into the
@@ -71,7 +71,7 @@ Minimal Agent SOP for a host:
    and `control` trace spans. Logging callbacks run outside the policy mutex.
 
 Tests: `mcpp test -p mlibs.control --locked`. UI compatibility checks live in
-`openmui.core`, `openmui.agent` and Inspector. This library does not yet provide
+`omui.core`, `omui.agent` and Inspector. This library does not yet provide
 a universal provider registry, resource filters, expiry, persistence, async task
 cancellation, transport, IR editing or AI decisions. Domain APIs and existing
 openas adapters remain responsible for those capabilities.

@@ -2,11 +2,11 @@
 // is an overlay below its parent (the button that opens it); `open` is
 // bindable; Escape, a press outside, or choosing an item closes it, and
 // focus goes back to where it came from.
-export module openmui.ui.base:menu;
+export module omui.ui.base:menu;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :menu_contract;
 import :menu_item_contract;

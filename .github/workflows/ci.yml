@@ -192,11 +192,11 @@ jobs:
         run: tools/ci/gpu.sh
 
       - name: Build every member
-        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect
 
       - name: An unchanged build leaves compilation outputs untouched
         timeout-minutes: 10
-        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect
+        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect
 
       - name: Keep the incremental build check
         if: always()
@@ -213,7 +213,7 @@ jobs:
         run: |
           # The site is a validation line with hundreds of rendered frames: it
           # has a job of its own (`site`), so this row stays within its time.
-          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude openmui.entry.python --exclude openmui.reflect --exclude openmui.site 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect --exclude omui.site 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       # The showcases' README pictures are what their tests draw (deterministic:
@@ -242,7 +242,7 @@ jobs:
       # C++26 reflection (D-39): GCC 16 with -freflection only, and a C++26
       # build of its graph of its own, so on one row — gated on a toolchain
       # that builds reflection beside C headers (V-08, tools/ci/reflect.sh).
-      - name: openmui.reflect (C++26 reflection, GCC 16)
+      - name: omui.reflect (C++26 reflection, GCC 16)
         if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
         run: tools/ci/reflect.sh '${{ matrix.profile }}'
 
@@ -348,7 +348,7 @@ jobs:
       - name: Benchmarks against their budgets (M1 acceptance ⑤; tests/bench)
         if: matrix.profile == 'release'
         run: |
-          mcpp run -p openmui.bench --profile release -- \
+          mcpp run -p omui.bench --profile release -- \
             --check tests/bench/budgets.bench.omui.json --all-budgets --json results.bench.omui.json \
             --report bench-report.md --label "${{ matrix.os }} ${{ matrix.toolchain }}"
 
@@ -374,7 +374,7 @@ jobs:
       - name: The Python binding's suite (CPython against the extension)
         if: steps.python.outputs.ok == 'true'
         run: |
-          mcpp test -p openmui.entry.python --profile '${{ matrix.profile }}' 2>&1 | tee python.log
+          mcpp test -p omui.entry.python --profile '${{ matrix.profile }}' 2>&1 | tee python.log
           grep -q "test result ok" python.log || { echo "::error::the Python binding's suite failed"; exit 1; }
 
       - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
@@ -420,7 +420,7 @@ jobs:
         run: tools/ci/gpu.sh
       - name: The site's tests
         run: |
-          mcpp test -p openmui.site --profile release --timeout 1200 2>&1 | tee site-tests.log
+          mcpp test -p omui.site --profile release --timeout 1200 2>&1 | tee site-tests.log
           grep -q "test result ok" site-tests.log || { echo "::error::the site's tests failed"; exit 1; }
       - name: The site's README media are what its tests draw
         run: tools/ci/readme-media.sh --check site

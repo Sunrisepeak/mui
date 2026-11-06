@@ -39,13 +39,13 @@
 // is on disk: CI's proof that committed outputs are current. --json prints
 // diagnostics as JSON for tools and agents.
 import std;
-import openmui.gen.model;
-import openmui.gen.read;
-import openmui.gen.emit;
-import openmui.gen.unicode;
-import openmui.gen.cldr;
-import openmui.gen.dist_toy;
-import openmui.gen.wasm_size;
+import omui.gen.model;
+import omui.gen.read;
+import omui.gen.emit;
+import omui.gen.unicode;
+import omui.gen.cldr;
+import omui.gen.dist_toy;
+import omui.gen.wasm_size;
 
 using namespace omui::gen;
 

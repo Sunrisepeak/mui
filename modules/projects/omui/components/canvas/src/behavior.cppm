@@ -12,11 +12,11 @@
 // them (selection, handles, guides, a minimap), in screen coordinates; and
 // they add to the semantic tree what they make possible — a node's `move`
 // exists because drag is on (§1.2's "行为声明它带来的动作").
-export module openmui.ui.canvas:behavior;
+export module omui.ui.canvas:behavior;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 import :scene;
 import :camera;

@@ -10,7 +10,7 @@
 # edge: tools/ci/features-consumer/mcpp.toml.in, exercised by tools/ci/features.sh.
 # mcpp 2026.11.2.2 has no --no-default-features CLI option.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "features"
 version     = "0.1.0"
 description = "M0 ⑤: a feature selects one of two mutually exclusive module partitions"

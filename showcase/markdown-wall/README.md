@@ -7,9 +7,9 @@
 How it was made, layer by layer, and what making it taught: [dev story](dev-story.md).
 
 ```sh
-mcpp run -p openmui.showcase.markdown_wall -- .agents/docs
-mcpp run -p openmui.showcase.markdown_wall -- --synthetic 1000 --stream 20
-mcpp run -p openmui.showcase.markdown_wall -- docs --headless --png wall.png
+mcpp run -p omui.showcase.markdown_wall -- .agents/docs
+mcpp run -p omui.showcase.markdown_wall -- --synthetic 1000 --stream 20
+mcpp run -p omui.showcase.markdown_wall -- docs --headless --png wall.png
 ```
 
 ## What it shows
@@ -22,7 +22,7 @@ mcpp run -p openmui.showcase.markdown_wall -- docs --headless --png wall.png
 
 The texture and the live window are one element (`scene.cpp`'s `window`), so nothing moves when a window goes live; textures are drawn again in a new theme.
 
-- **Workspaces** are folders: a backdrop and a label strip. A label drags its workspace with every window lying on it — `behaviors/group-drag.behavior.omui.toml`, a declarative statechart embedded in the program at build time (`openmui.build.embed`'s `behaviors()`); Esc mid-drag puts them back. A window drags by its title bar (canvas-kit's `drag`), with snapping to its neighbours; `select` and the `minimap` are canvas-kit's too.
+- **Workspaces** are folders: a backdrop and a label strip. A label drags its workspace with every window lying on it — `behaviors/group-drag.behavior.omui.toml`, a declarative statechart embedded in the program at build time (`omui.build.embed`'s `behaviors()`); Esc mid-drag puts them back. A window drags by its title bar (canvas-kit's `drag`), with snapping to its neighbours; `select` and the `minimap` are canvas-kit's too.
 - **Views**: 1 is one to one, 2 the whole wall, both on a spring; H shows or hides the HUD (`behaviors/views.behavior.omui.toml`).
 - **Reading**: a double-click (or Enter) on a window opens it to read — close up, live; a link in a live window goes to the document it names (relative paths, `..`), an address opens outside. **Back** and **Forward** (the toolbar, Alt+← and Alt+→, the verbs `wall.back` and `wall.forward`) return the camera to where it was. **Search** (the toolbar, Ctrl+F or /, the verb `wall.search`): words in a title, a path or the text, titles first; Enter or a click opens one, Esc puts the box away.
 - **Undo**: a window's or a workspace's drag is one step of the window's history (Ctrl+Z, `ui_undo`) — the canvas's `move_by`, the workspace with its windows.
@@ -33,7 +33,7 @@ The texture and the live window are one element (`scene.cpp`'s `window`), so not
 
 ## The tour, in three languages
 
-`scripts/tour.ts`, `scripts/tour.lua` and `scripts/tour.py` are one scene script (canvas-markdown §3.6) written three times: find a document by name across the wall, count the workspaces, fly to the document (it goes live), move it, choose it, look near where it went, stream into two windows and stop, be refused an action the wall does not offer, and go back to the overview — each step's answer recorded with the verb `tour.record`. TypeScript and Lua run in the program (openmui.lang's sessions); Python drives the wall as an agent does, through its endpoint, with `openmui_agent` (lang/python: the standard library only, `invoke` and `act` and `find` over openmui.tree@0.1). The test checks the three record the same answers and leave the same wall: the same camera, the window where the tour put it, the same choice.
+`scripts/tour.ts`, `scripts/tour.lua` and `scripts/tour.py` are one scene script (canvas-markdown §3.6) written three times: find a document by name across the wall, count the workspaces, fly to the document (it goes live), move it, choose it, look near where it went, stream into two windows and stop, be refused an action the wall does not offer, and go back to the overview — each step's answer recorded with the verb `tour.record`. TypeScript and Lua run in the program (omui.lang's sessions); Python drives the wall as an agent does, through its endpoint, with `openmui_agent` (lang/python: the standard library only, `invoke` and `act` and `find` over openmui.tree@0.1). The test checks the three record the same answers and leave the same wall: the same camera, the window where the tour put it, the same choice.
 
 A live window is still its item: the canvas's actions on it (`move_to`, `select` …) reach the canvas whether the window is drawn as a texture or live, and the semantic tree describes it as the window it is.
 

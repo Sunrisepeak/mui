@@ -1,13 +1,13 @@
 // SDL3 for openmui.host.sdl3:platform. The one unit that uses SDL (imported
 // as a module, mcpplibs.mwrap.sdl3; its macros as constants): everything
 // leaves as openmui's own types.
-module openmui.host.sdl3;
+module omui.host.sdl3;
 
 import std;
 import mcpplibs.mwrap.sdl3;
-import openmui.core;
+import omui.core;
 import xrender.raster;
-import openmui.view;
+import omui.view;
 import mcpplibs.os;
 import :platform;
 using namespace mcpplibs::mwrap::sdl3::macros;

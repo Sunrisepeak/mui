@@ -2,8 +2,8 @@
 // --synthetic N` (the benchmark's documents); `--stream N` writes into N
 // windows. The rest of the line is openmui's (--dark, --headless --png …).
 import std;
-import openmui;
-import openmui.showcase.markdown_wall;
+import omui;
+import omui.showcase.markdown_wall;
 
 int main(int argc, char** argv) {
     constexpr std::array<std::string_view, 11> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--agent-name", "--debug", "--log", "--profile", "--lang", "--window"};

@@ -5,7 +5,7 @@
 #
 #   mcpp run -- --serve           then: omui agent ls / snapshot / find / act / wait
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "headless-and-agent"
 version     = "0.1.0"
 description = "openmui example 07: headless tests, agent scripts, effects stopped until answered"
@@ -22,7 +22,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk = { path = "../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }

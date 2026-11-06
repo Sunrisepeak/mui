@@ -6,9 +6,9 @@
 // raster, so a slow frame says where it went; run it with --profile release
 // for numbers (`mcpp test -p openmui.site --profile release -- --timing`).
 import std;
-import openmui;
-import openmui.site;
-import openmui.ui.markdown;
+import omui;
+import omui.site;
+import omui.ui.markdown;
 import mlibs.testing;
 
 using namespace mlibs::testing;

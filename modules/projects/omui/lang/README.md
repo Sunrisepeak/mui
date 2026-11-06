@@ -1,4 +1,4 @@
-# openmui.lang
+# omui.lang
 
 The Script Binding Profile (component-binding §6) over `openmui.h`, shared by every language binding: Lua ([lang/lua](lua)), TypeScript and Python (host mode, and embedded with PocketPy). Nothing here knows a language; a binding maps its values onto it.
 
@@ -11,7 +11,7 @@ The Script Binding Profile (component-binding §6) over `openmui.h`, shared by e
   - the bus interface (`snapshot`, `act`);
   - verbs: `invoke`, and `verb` for one the script implements, whose effect and answer rules (S-1, S-2) hold as for any verb.
 
-Depends on `openmui.abi` (the C ABI's declarations and implementation) and `nlohmann.json`.
+Depends on `omui.abi` (the C ABI's declarations and implementation) and `nlohmann.json`.
 
 ## The languages
 

@@ -6,7 +6,7 @@
 # (`omui-gen native`; tools/gen's test keeps them current). The matcher was
 # mlibs.fuzzy; this package was its one consumer (convergence plan §9.3).
 [package]
-namespace   = "openmui.native"
+namespace   = "omui.native"
 name        = "fuzzy"
 version     = "0.1.0"
 description = "Fuzzy matching and ranking with highlight positions, for C++ and, behind a native-module contract, for scripts"
@@ -27,7 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 cxxflags = ["-ffp-contract=off"]
 
 [dependencies]
-openmui.native = { path = ".." }
+omui.native = { path = ".." }
 mlibs.unicode  = { path = "../../../../base/unicode" }
 nlohmann.json  = "3.12.0"
 

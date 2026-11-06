@@ -1,4 +1,4 @@
-module openmui.bench;
+module omui.bench;
 import std;
 import xengine.simulation;
 import xengine.simulation.cellular;

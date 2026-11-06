@@ -1,8 +1,8 @@
 // Real shaped Button labels exercise the framework's typed default recipe.
 // Synthetic glyph IDs alone cannot prove a readable text replacement.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 
 using namespace omui;

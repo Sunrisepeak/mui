@@ -2,9 +2,9 @@
 // (contract ②), components and their function tables, design tokens, the
 // runtime that turns elements into nodes and runs frames, and the
 // primitives everything else composes.
-export module openmui.view;
+export module omui.view;
 
-export import openmui.core;
+export import omui.core;
 export import mlibs.layout;
 export import xrender.vector;
 export import mlibs.pipeline;

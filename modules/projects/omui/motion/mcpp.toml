@@ -6,7 +6,7 @@
 # decides when a drawing changed; anything that draws a display list can
 # move between two of its drawings.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "motion"
 version     = "0.1.0"
 description = "openmui universal motion: matter from display lists, matching and morphs between two drawings, deterministic and seekable"

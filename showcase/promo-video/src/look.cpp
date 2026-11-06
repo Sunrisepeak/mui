@@ -1,12 +1,12 @@
 // The film's look: its palette and style packs, code coloured by what it
 // is, the drawing paper, labels shaped once.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;
-import openmui;
-import openmui.theme;
-import openmui.theme.styles;
+import omui;
+import omui.theme;
+import omui.theme.styles;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::fatal;
@@ -178,7 +178,7 @@ std::string shown_code(std::string_view code, std::string_view language) {
             if (l.ends_with("\"\"\"")) in_doc = false;
             continue;
         }
-        if (!l.empty() && !l.starts_with(comment) && !l.starts_with("module ") && !l.starts_with("import std") && !l.starts_with("import openmui;") &&
+        if (!l.empty() && !l.starts_with(comment) && !l.starts_with("module ") && !l.starts_with("import std") && !l.starts_with("import omui;") &&
             !l.starts_with("namespace "))
             break;
     }

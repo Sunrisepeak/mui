@@ -2,20 +2,20 @@
 // interface. Every function checks its arguments, never throws (noexcept:
 // a failure that is a bug stops the program rather than unwinding through C),
 // and reports through its result and, where it has one, its sink.
-module openmui.abi;
+module omui.abi;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.viewdoc;
-import openmui.semantic;
-import openmui.agent;
+import omui.core;
+import omui.view;
+import omui.viewdoc;
+import omui.semantic;
+import omui.agent;
 import xrender.vector;
 import xrender.raster;
 import mlibs.text;
 import mlibs.trace;
-import openmui.native;
-import openmui.theme;
+import omui.native;
+import omui.theme;
 import nlohmann.json;
 import :c;
 import :api;

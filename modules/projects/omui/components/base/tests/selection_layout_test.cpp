@@ -2,7 +2,7 @@
 // Sample production paint and real font coverage; semantic target boxes alone
 // cannot detect a lens still travelling through the previous allocation.
 import std;
-import openmui.ui.base;
+import omui.ui.base;
 import mlibs.testing;
 import xrender.text;
 

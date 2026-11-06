@@ -1,9 +1,9 @@
 // Properties: what the runtime itself interprets (layout, look, semantics),
 // bindings to reactive sources, and transitions of the look.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import hanim.effect;
 import :impl;

@@ -1,6 +1,6 @@
 // omui — the openmui command line.
 import std;
-import openmui.cli;
+import omui.cli;
 
 int main(int argc, char** argv) {
     std::vector<std::string> args(argv, argv + argc);

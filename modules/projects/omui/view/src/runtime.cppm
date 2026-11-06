@@ -11,10 +11,10 @@
 // ask: what is at this path, what does this node say about itself, perform
 // this action. Everything runs on the thread that owns the runtime; other
 // threads post work through the queue.
-export module openmui.view:runtime;
+export module omui.view:runtime;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.pipeline;

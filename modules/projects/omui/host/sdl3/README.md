@@ -1,4 +1,4 @@
-# openmui.host.sdl3
+# omui.host.sdl3
 
 openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 
@@ -18,13 +18,13 @@ openmui on the desktop, through SDL3 (`compat.sdl3` from mcpp-index):
 - a loop that sleeps until an event, the next timer or an agent's request
   (`Desktop::wake` from other threads), and paces animation by vsync;
 - the agent endpoint (`openmui.tree@0.1`), with capture of the shown frame.
-- the platform's assistive technology served the tree (`openmui.accessibility`:
+- the platform's assistive technology served the tree (`omui.accessibility`:
   UI Automation, NSAccessibility, AT-SPI), its adapter attached before the
   window is first shown; what a screen reader asks is performed between
   frames as the person's input (`DesktopOptions::accessibility`).
 
 ```cpp
-import openmui.host.sdl3;
+import omui.host.sdl3;
 
 int main() {
     omui::Desktop d({.title = "Notes", .app = "org.example.notes"});

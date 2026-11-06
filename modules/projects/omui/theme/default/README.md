@@ -1,4 +1,4 @@
-# openmui.theme.default
+# omui.theme.default
 
 openmui's default theme as data: [`default.theme.omui.toml`](default.theme.omui.toml). It holds:
 
@@ -6,7 +6,7 @@ openmui's default theme as data: [`default.theme.omui.toml`](default.theme.omui.
 - **dark**, which extends light;
 - **reduced_motion**, the overlay every program offers to people who asked for less motion. With it, transitions show their targets at once.
 
-The light and dark themes are the runtime's built-in tokens (`omui::Theme::light()` and `dark_theme()`). The package's test, and openmui.theme's, hold the file and the code equal.
+The light and dark themes are the runtime's built-in tokens (`omui::Theme::light()` and `dark_theme()`). The package's test, and omui.theme's, hold the file and the code equal.
 
 ```cpp
 import openmui.theme.default_theme;      // `default` is a C++ keyword

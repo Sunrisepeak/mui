@@ -24,11 +24,11 @@
 // - mount / mount_document / unmount / document, verb (a decorator too) /
 //   invoke, model, find / act / snapshot, tr, theme / themes, log, native.
 // A refused call raises omui.OmuiError with the runtime's message.
-export module openmui.lang.python.embedded;
+export module omui.lang.python.embedded;
 
 import std;
-import openmui.lang;
-import openmui.player;
+import omui.lang;
+import omui.player;
 
 export namespace omui::lang::python::embedded {
 

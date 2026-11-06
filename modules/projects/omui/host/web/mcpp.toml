@@ -11,7 +11,7 @@
 # window's focus. Off the Web it builds with no page: the same loop, stepped
 # by hand, for its tests.
 [package]
-namespace   = "openmui.host"
+namespace   = "omui.host"
 name        = "web"
 version     = "0.1.0"
 description = "openmui in the browser: a canvas, requestAnimationFrame, pointer, touch, keys, gamepads, input methods, the clipboard, a semantic DOM mirror, window.omui, localStorage"
@@ -37,13 +37,13 @@ sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
 xrender.text = { path = "../../../xrender/text" }
-openmui.core     = { path = "../../core" }
-openmui.view     = { path = "../../view" }
-openmui.semantic = { path = "../../semantic" }
-openmui.agent    = { path = "../../agent" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }
 # Quoted: a package and its subpackage in one table (TOML).
-"openmui.native"       = { path = "../../native" }
-"openmui.native.store" = { path = "../../native/store" }
+"omui.native"       = { path = "../../native" }
+"omui.native.store" = { path = "../../native/store" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
 "mlibs.rhi"         = { path = "../../../../gfx/rhi" }

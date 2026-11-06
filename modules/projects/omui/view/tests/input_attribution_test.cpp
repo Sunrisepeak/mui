@@ -1,5 +1,5 @@
 import std;
-import openmui.view;
+import omui.view;
 import mlibs.testing;
 
 using namespace omui;

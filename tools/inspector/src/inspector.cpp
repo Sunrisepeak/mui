@@ -1,11 +1,11 @@
 // The Inspector's state: what it reads from the application, and when.
-module openmui.inspector;
+module omui.inspector;
 
 import std;
 import mlibs.hash;
-import openmui.core;
-import openmui.view;
-import openmui.agent;
+import omui.core;
+import omui.view;
+import omui.agent;
 
 namespace omui::inspector {
 

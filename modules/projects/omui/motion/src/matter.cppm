@@ -8,7 +8,7 @@
 // marker, stable from frame to frame) and its place among that node's
 // pieces of its class. Two matters of the same node are what a morph moves
 // between (:morph).
-export module openmui.motion:matter;
+export module omui.motion:matter;
 
 import std;
 import mlibs.geom;

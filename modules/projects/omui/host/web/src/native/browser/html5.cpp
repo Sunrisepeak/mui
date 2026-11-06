@@ -7,10 +7,10 @@
 module;
 #include <emscripten/emscripten.h>
 #include <emscripten/html5.h>
-module openmui.host.web;
+module omui.host.web;
 
 import std;
-import openmui.core;
+import omui.core;
 import xrender.raster;
 import :platform;
 

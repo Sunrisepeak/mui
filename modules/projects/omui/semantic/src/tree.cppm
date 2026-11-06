@@ -6,11 +6,11 @@
 // that mean nothing (role none, or a nameless generic container without
 // actions) into their parent, so an agent reads `main/save`, not five
 // wrappers deep; ids stay the full paths.
-export module openmui.semantic:tree;
+export module omui.semantic:tree;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :query;
 
 export namespace omui::semantic {

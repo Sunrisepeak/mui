@@ -3,11 +3,11 @@
 // keeps them, within min and max, on the step; Escape drops them), the −
 // and + buttons and the arrow keys step it. Every change is an action of
 // the history (S-12), taken back to the value it replaced exactly.
-export module openmui.ui.base:number_input;
+export module omui.ui.base:number_input;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :number_input_contract;
 

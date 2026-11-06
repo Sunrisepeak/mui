@@ -1,7 +1,7 @@
-module openmui.gen.unicode;
+module omui.gen.unicode;
 
 import std;
-import openmui.gen.model;  // utf8, generic_utf8
+import omui.gen.model;  // utf8, generic_utf8
 
 namespace omui::gen {
 

@@ -1,4 +1,4 @@
-module openmui.expr;
+module omui.expr;
 
 import std;
 import openmui.spec;

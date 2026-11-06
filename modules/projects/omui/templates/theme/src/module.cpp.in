@@ -1,8 +1,8 @@
 module {{project.name}};
 
 import std;
-import openmui.theme;
-import openmui.theme.default_theme;
+import omui.theme;
+import omui.theme.default_theme;
 
 namespace {{project.name}} {
 

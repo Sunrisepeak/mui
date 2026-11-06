@@ -15,7 +15,7 @@ import std;
 import xengine.input;
 import xengine.physics;
 import xengine.simulation;
-import openmui.showcase.widget_breakout.sim;
+import omui.showcase.widget_breakout.sim;
 import mlibs.testing;
 
 using namespace mlibs::testing;

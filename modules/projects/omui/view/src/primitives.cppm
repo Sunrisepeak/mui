@@ -11,10 +11,10 @@
 //     });
 //
 // Every property accepts a value, a signal or a computed value (Prop<T>).
-export module openmui.view:primitives;
+export module omui.view:primitives;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;

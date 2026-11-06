@@ -3,11 +3,11 @@
 // else initials on the name's own colour, a status dot) and a skeleton
 // (content's shape while it comes, busy to every reader). They draw what
 // they are now; how a change of them moves is the slot's (universal motion).
-export module openmui.ui.base:status;
+export module omui.ui.base:status;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :badge_contract;
 import :avatar_contract;

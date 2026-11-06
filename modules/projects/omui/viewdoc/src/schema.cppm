@@ -7,10 +7,10 @@
 // the one canonical text of a document (R3: `omui fmt`): fields in a fixed
 // order, two-space indentation, short values on one line; formatting is
 // idempotent and keeps every value.
-export module openmui.viewdoc:schema;
+export module omui.viewdoc:schema;
 
 import std;
-import openmui.core;
+import omui.core;
 import :document;
 
 export namespace omui::viewdoc {

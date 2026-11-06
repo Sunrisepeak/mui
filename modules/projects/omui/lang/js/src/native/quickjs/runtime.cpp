@@ -4,13 +4,13 @@
 // watches) are kept in a table by id; what reaches the runtime is the id.
 // QuickJS-ng's API is the module mcpplibs.mwrap.quickjs_ng (quickjs-ng-m):
 // no header here.
-module openmui.lang.js;
+module omui.lang.js;
 
 import std;
 import mcpplibs.mwrap.quickjs_ng;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
+import omui.abi;
+import omui.lang;
 import :prelude;
 
 namespace omui::lang::js {

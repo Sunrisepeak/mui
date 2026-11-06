@@ -1,5 +1,5 @@
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.testing;
 
 namespace omui {  // names this file uses unqualified, from their owner

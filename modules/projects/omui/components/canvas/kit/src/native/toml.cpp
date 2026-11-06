@@ -1,7 +1,7 @@
 // Reading *.behavior.omui.toml: toml++ reports a malformed file by throwing,
 // which this unit — the kit's only use of it — turns into a problem, and
 // hands the rest on as a plain tree with positions.
-module openmui.ui.canvas.kit;
+module omui.ui.canvas.kit;
 
 import std;
 import tomlplusplus;

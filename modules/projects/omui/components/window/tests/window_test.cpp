@@ -6,8 +6,8 @@
 // person's language, and draws the same pixels on every platform.
 import std;
 
-import openmui.ui.window;
-import openmui.host.headless;
+import omui.ui.window;
+import omui.host.headless;
 import mlibs.i18n.cldr;
 import mlibs.testing;
 

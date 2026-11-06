@@ -14,12 +14,12 @@
 // on the runtime's thread by `serve`, as the person's own input (an actor of
 // kind person, not remote: an assistive device is the person's hands, so what
 // would ask a pointer for its answer is answered as a click answers it).
-export module openmui.accessibility:map;
+export module omui.accessibility:map;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.semantic;
+import omui.core;
+import omui.view;
+import omui.semantic;
 
 export namespace omui::accessibility {
 

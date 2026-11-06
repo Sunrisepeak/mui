@@ -1,7 +1,7 @@
 // Reading *.subtitles.omui.toml. toml++ reports a malformed file by
 // throwing; this unit — the film's adapter to it — turns that into a
 // problem at its line and column, as it does every other.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import tomlplusplus;

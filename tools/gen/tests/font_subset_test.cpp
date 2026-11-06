@@ -3,7 +3,7 @@
 // (its checksum), the same cut again the same bytes, and a character more a
 // glyph more.
 import std;
-import openmui.gen.font_subset;
+import omui.gen.font_subset;
 import mlibs.testing;
 import mlibs.text;
 import xrender.text;

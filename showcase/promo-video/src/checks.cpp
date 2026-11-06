@@ -1,9 +1,9 @@
 // The film's automatic acceptance (promo-video design §5.1).
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
+import omui;
 import xengine.audio;
 import xengine.video;
 import xengine.timeline;

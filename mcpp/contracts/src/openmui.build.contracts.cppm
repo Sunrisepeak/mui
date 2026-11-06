@@ -11,11 +11,11 @@
 // compile set. One more runs `omui-gen stubs` for the TS / Python / Lua stubs
 // and the view-document schema. Every edge re-runs when a contract, the
 // registry or the generator changes: they are its inputs.
-export module openmui.build.contracts;
+export module omui.build.contracts;
 
 import std;
 import mcpp;
-export import openmui.build.plan;
+export import omui.build.plan;
 
 export namespace openmui::build {
 

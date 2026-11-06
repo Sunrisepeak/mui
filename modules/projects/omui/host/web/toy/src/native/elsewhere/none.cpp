@@ -1,5 +1,5 @@
 // No Toy page (any target but the Web): no SDK; every call is refused, at once.
-module openmui.host.web.toy;
+module omui.host.web.toy;
 
 import std;
 import :sdk;

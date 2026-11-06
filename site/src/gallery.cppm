@@ -1,10 +1,10 @@
 // A catalogue of live previews and individually addressable specimens.
 // Builder expressions are API references; they do not claim to export
 // the fixtures' complete event bindings, child views or models.
-export module openmui.site:gallery;
+export module omui.site:gallery;
 
 import std;
-import openmui;
+import omui;
 export import :catalog;
 
 export namespace omui::site {

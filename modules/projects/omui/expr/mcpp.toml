@@ -4,7 +4,7 @@
 # without side effects, always terminating, an error giving null and a
 # diagnostic, never an exception.
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "expr"
 version     = "0.1.0"
 description = "openmui expressions: a CEL-compatible AST, parser, printer and evaluator for bindings"

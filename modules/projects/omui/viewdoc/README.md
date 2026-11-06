@@ -1,4 +1,4 @@
-# openmui.viewdoc
+# omui.viewdoc
 
 View documents, `*.view.omui.json` (view-data-files §3). A document is a view written as data. It suits designers, agents and generative interfaces, components that every language shares, and C++ applications whose interface changes without a rebuild.
 
@@ -39,4 +39,4 @@ view->reload(new_text);                // in place: signals keep their values
 
 Observability: the log category `viewdoc`, and the trace spans `viewdoc.load`, `viewdoc.reload` and `viewdoc.define`.
 
-Depends on `openmui.core`, `openmui.view`, `openmui.expr` and `openmui.trace`.
+Depends on `omui.core`, `omui.view`, `omui.expr` and `openmui.trace`.

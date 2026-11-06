@@ -1,10 +1,10 @@
-module openmui.ui.timeline;
+module omui.ui.timeline;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import xengine.timeline;
 
 namespace omui {

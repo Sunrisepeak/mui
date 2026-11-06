@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The website (D-84 §6.6, W3): openmui.site built for wasm32-emscripten and
+# The website (D-84 §6.6, W3): omui.site built for wasm32-emscripten and
 # packed as a static page (dist-toy's package without Toy's SDK — a Pages
 # subpath serves it as it is), then its places pre-rendered into that page by
 # the same program built natively (`omui-site --prerender`): the documents as
@@ -17,8 +17,8 @@ out=target/site
 mkdir -p target
 
 envelope=target/site.pack.json
-"$mcpp" pack -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json > "$envelope" \
-  || { echo "::error::openmui.site did not pack for the Web"; exit 1; }
+"$mcpp" pack -p omui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json > "$envelope" \
+  || { echo "::error::omui.site did not pack for the Web"; exit 1; }
 index=$(python3 -c 'import json,sys; print(next(a["path"] for a in json.load(open(sys.argv[1]))["data"]["artifacts"] if a["format"] == "dist-toy"))' "$envelope")
 rm -rf "$out"
 cp -r "$(dirname "$index")" "$out"
@@ -26,14 +26,14 @@ cp -r "$(dirname "$index")" "$out"
 # The actual native program draws each opening. The launch envelope preserves
 # mcpp's selected executable/environment; physical paths are stripped from
 # published geometry, and hidden pages have no image src to prefetch.
-"$mcpp" run omui-site -p openmui.site --print-launch > target/site-native.launch.json
+"$mcpp" run omui-site -p omui.site --print-launch > target/site-native.launch.json
 python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$out"
 
-"$mcpp" run omui-site -p openmui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \
+"$mcpp" run omui-site -p omui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \
   || { echo "::error::the site's places were not pre-rendered"; exit 1; }
 # What an agent needs to operate it (agent connect §5.2), as every openmui
 # application writes it: agent.md, .well-known/openmui-agent.json, the page's link.
-"$mcpp" run omui-site -p openmui.site -- --agent-guide "$out" \
+"$mcpp" run omui-site -p omui.site -- --agent-guide "$out" \
   || { echo "::error::the site's agent guide was not written"; exit 1; }
 
 python3 - "$out" <<'PY'

@@ -9,11 +9,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 mcpp=${MCPP:-mcpp}
-"$mcpp" build -p openmui.site --target wasm32-emscripten --profile wasm-size > /dev/null \
-  || { echo "::error::openmui.site did not build for the Web with its names kept"; exit 1; }
+"$mcpp" build -p omui.site --target wasm32-emscripten --profile wasm-size > /dev/null \
+  || { echo "::error::omui.site did not build for the Web with its names kept"; exit 1; }
 wasm=$(find "$PWD/target/wasm32-emscripten" -path "*/bin/site/omui-site.wasm" -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2)
 [ -n "$wasm" ] || { echo "::error::no omui-site.wasm"; exit 1; }
-"$mcpp" run -p openmui.gen omui-gen -- wasm-size "$wasm" --json "$PWD/target/wasm-size.json" --markdown "$PWD/target/wasm-size.md" --top 40 > /dev/null
+"$mcpp" run -p omui.gen omui-gen -- wasm-size "$wasm" --json "$PWD/target/wasm-size.json" --markdown "$PWD/target/wasm-size.md" --top 40 > /dev/null
 python3 - target/wasm-size.json <<'PY'
 import json, sys
 r = json.load(open(sys.argv[1]))

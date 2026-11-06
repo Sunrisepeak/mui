@@ -1,4 +1,4 @@
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import mlibs.hash;

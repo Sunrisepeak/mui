@@ -1,8 +1,8 @@
-module openmui.view;
+module omui.view;
 
 import std;
 import mcpplibs.os;
-import openmui.core;
+import omui.core;
 import mlibs.i18n;
 
 namespace omui {  // names this file uses unqualified, from their owner

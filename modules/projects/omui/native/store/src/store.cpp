@@ -1,5 +1,5 @@
 // The store in use, and the functions the contract declares over it.
-module openmui.native.store;
+module omui.native.store;
 
 import std;
 

@@ -1,8 +1,8 @@
-module openmui.host.web.toy;
+module omui.host.web.toy;
 
 import std;
-import openmui.core;
-import openmui.host.web;
+import omui.core;
+import omui.host.web;
 import openas;
 import :sdk;
 

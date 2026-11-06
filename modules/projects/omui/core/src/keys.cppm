@@ -3,7 +3,7 @@
 // Contracts write key bindings as text ("Right|Up", "Alt+Down", "Mod+S");
 // `Mod` is the platform's primary modifier (Ctrl, or Cmd on macOS), chosen by
 // the host, so a contract never names a platform.
-export module openmui.core:keys;
+export module omui.core:keys;
 
 import std;
 

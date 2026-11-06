@@ -1,7 +1,7 @@
 // The agent endpoint: the protocol's operations and errors, waits served
 // between frames, and the same conversation over a real local endpoint.
 import std;
-import openmui.agent;
+import omui.agent;
 import mlibs.testing;
 
 namespace omui {  // names this file uses unqualified, from their owner

@@ -7,13 +7,13 @@
 // PocketPy's collector sees them; what reaches the runtime is the id.
 // PocketPy's API is the module mcpplibs.mwrap.pocketpy (pocketpy-m): no
 // header here.
-module openmui.lang.python.embedded;
+module omui.lang.python.embedded;
 
 import std;
 import mcpplibs.mwrap.pocketpy;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
+import omui.abi;
+import omui.lang;
 import :prelude;
 
 namespace omui::lang::python::embedded {

@@ -1,7 +1,7 @@
 // Public motion data reaches the same hanim operator through a real Runtime.
 // Paint only describes endpoints. It contains no clock or interpolation code.
 import std;
-import openmui.view;
+import omui.view;
 import xrender.raster;
 import mlibs.testing;
 

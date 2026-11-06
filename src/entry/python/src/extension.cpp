@@ -1,20 +1,20 @@
 // The `_openmui` extension: PyInit__openmui makes the runtime the Python
 // program builds on (and the window shows, when it runs one), and hands the
 // module modules/projects/omui/lang/python makes over it.
-module openmui.entry.python;
+module omui.entry.python;
 
 import std;
 import mlibs.hash;
 import nlohmann.json;
-import openmui;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.python;
-import openmui.ui.markdown;
+import omui;
+import omui.abi;
+import omui.lang;
+import omui.lang.python;
+import omui.ui.markdown;
 import mlibs.image;
-import openmui.native.fuzzy;
-import openmui.theme.default_theme;
-import openmui.theme.compact;
+import omui.native.fuzzy;
+import omui.theme.default_theme;
+import omui.theme.compact;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner

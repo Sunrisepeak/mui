@@ -1,4 +1,4 @@
-# openmui.expr
+# omui.expr
 
 The expression language of bindings (`view-data-files` §4,
 `spec/registry/expr.toml`): one AST, written two ways — combinators in code,

@@ -1,5 +1,5 @@
 // The catalogue's stable addresses, names and purposes, shared by routes and views.
-export module openmui.site:catalog;
+export module omui.site:catalog;
 import std;
 export namespace omui::site {
 struct ComponentInfo { std::string_view id, en, zh, group, purpose_en, purpose_zh; bool featured = false; };

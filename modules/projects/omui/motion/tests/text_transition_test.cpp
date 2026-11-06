@@ -4,7 +4,7 @@ import std;
 import hanim.core;
 import mlibs.geom;
 import xrender.vector;
-import openmui.motion;
+import omui.motion;
 import mlibs.testing;
 
 using namespace omui;

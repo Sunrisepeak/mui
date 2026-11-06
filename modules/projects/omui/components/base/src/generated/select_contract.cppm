@@ -2,11 +2,11 @@
 // omui-gen cpp (openmui.build.contracts does it in a build).
 //
 // select: Chooses one value from a popup list of options.
-export module openmui.ui.base:select_contract;
+export module omui.ui.base:select_contract;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui {
 

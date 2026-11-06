@@ -6,7 +6,7 @@
 #   mcpp run -- --headless --png hello.png
 #   mcpp run -- --serve           headless, for agents (omui agent ls)
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "hello-im"
 version     = "0.1.0"
 description = "openmui example 01: hello, immediate mode"
@@ -30,10 +30,10 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-openmui.sdk = { path = "../../modules/projects/omui/sdk" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
 
 [build-dependencies]
-openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }

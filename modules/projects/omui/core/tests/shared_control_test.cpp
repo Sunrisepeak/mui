@@ -1,5 +1,5 @@
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.control;
 import mlibs.testing;
 

@@ -1,6 +1,6 @@
 // Arbitrary registered effect parameters use hanim, with real offscreen pixels.
 import std;
-import openmui.view;
+import omui.view;
 import xrender.raster;
 import mlibs.image;
 import mlibs.testing;

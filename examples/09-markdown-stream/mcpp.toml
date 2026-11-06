@@ -7,7 +7,7 @@
 #   some-llm "explain modules" | mcpp run -p openmui.example.markdown-stream
 #   mcpp run -p openmui.example.markdown-stream -- --demo
 [package]
-namespace   = "openmui.example"
+namespace   = "omui.example"
 name        = "markdown-stream"
 version     = "0.1.0"
 description = "openmui example 09: Markdown rendered as it streams in, new words fading in"
@@ -24,8 +24,8 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk         = { path = "../../modules/projects/omui/sdk" }
-openmui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
+omui.sdk         = { path = "../../modules/projects/omui/sdk" }
+omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 mcpplibs.os         = "0.2.2"
 
 [dev-dependencies]

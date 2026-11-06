@@ -13,7 +13,7 @@
 // and where none does, the program keeps them in memory (MemoryStore). The
 // script interface is the contract's (native/store.native.omui.toml),
 // generated into :store_native; its functions reach whichever store is in use.
-export module openmui.native.store;
+export module omui.native.store;
 
 import std;
 export import :store_native;

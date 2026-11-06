@@ -1,9 +1,9 @@
 // Small motion designs. Each describes two meaningful drawings;
 // the gallery's shared motion root owns time, matching and playback.
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui;
+import omui;
 import :motion_catalog;
 import :component_motion;
 

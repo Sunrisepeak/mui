@@ -1,9 +1,9 @@
 // The generated partitions of openmui.spec: the registry tables and the Core
 // contract catalog, as constexpr data with name and parse functions.
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 

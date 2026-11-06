@@ -1,13 +1,13 @@
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
-import openmui;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.js;
-import openmui.lang.lua;
-import openmui.lang.python.embedded;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.abi;
+import omui.lang;
+import omui.lang.js;
+import omui.lang.lua;
+import omui.lang.python.embedded;
+import omui.showcase.widget_breakout.sim;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;

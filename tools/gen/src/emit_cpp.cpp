@@ -14,10 +14,10 @@
 //     implementation (component-binding §2.4).
 // The builder's definition goes in `<name>_builder.cpp`: it needs the
 // hand-written class, which is named in PascalCase after the contract.
-module openmui.gen.emit;
+module omui.gen.emit;
 
 import std;
-import openmui.gen.model;
+import omui.gen.model;
 
 namespace omui::gen {
 
@@ -202,7 +202,7 @@ std::string emit_cpp_contract_text(const Contract& c, const Registry& reg, const
     const std::string N = pascal(c.name);
     const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : c.loc.file.substr(c.loc.file.find_last_of('/') == std::string::npos ? 0 : c.loc.file.find_last_of('/') + 1);  // loc.file is generic UTF-8
     std::string out = std::format(banner, file);
-    out += std::format("//\n// {}: {}\nexport module {}:{}_contract;\n\nimport std;\nimport openmui.core;\nimport openmui.view;\n\n", c.name,
+    out += std::format("//\n// {}: {}\nexport module {}:{}_contract;\n\nimport std;\nimport omui.core;\nimport omui.view;\n\n", c.name,
                        c.doc.empty() ? std::string("a component") : c.doc, o.module, c.name);
 
     // The contract's tables, unless they are the spec's Core ones.
@@ -448,7 +448,7 @@ std::string emit_cpp_builder_text(const Contract& c, const CppOptions& o) {
     const std::string N = pascal(c.name);
     const std::string file = c.loc.file.empty() ? c.name + ".contract.omui.toml" : c.loc.file.substr(c.loc.file.find_last_of('/') == std::string::npos ? 0 : c.loc.file.find_last_of('/') + 1);  // loc.file is generic UTF-8
     std::string out = std::format(banner, file);
-    out += std::format("module {};\n\nimport std;\nimport openmui.core;\nimport openmui.view;\n\nnamespace {} {{\n\n", o.module, o.ns);
+    out += std::format("module {};\n\nimport std;\nimport omui.core;\nimport omui.view;\n\nnamespace {} {{\n\n", o.module, o.ns);
     const bool children = c.children != "none";
     out += std::format("Element {}({}Options o, {}std::source_location where) {{\n    Element e;\n    e.type = &component_type<{}>();\n"
                        "    e.id = std::move(o.id);\n    e.where = where;\n{}",

@@ -11,7 +11,7 @@
 // arithmetic that mixes an int and a double is done in double (CEL refuses
 // it). ints are 64-bit and their overflow is an error; comparisons and
 // equality work across int and double.
-export module openmui.expr:eval;
+export module omui.expr:eval;
 
 import std;
 import openmui.spec;

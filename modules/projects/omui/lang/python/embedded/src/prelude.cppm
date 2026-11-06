@@ -3,7 +3,7 @@
 // script reads the same in both; the native half is `_openmui`
 // (native/runtime.cpp). PocketPy has no module __getattr__: the builders are
 // made here, one per component of the runtime's catalogue, when the module is.
-module openmui.lang.python.embedded:prelude;
+module omui.lang.python.embedded:prelude;
 
 import std;
 
@@ -492,7 +492,7 @@ def run(view=None, title="openmui", size=None, headless=None, png=None, frames=N
 
 
 # Native modules (component-binding §8): omui.native.fuzzy, or `from openmui.native import fuzzy`;
-# `native` is the module openmui.native, made by the host before this runs.
+# `native` is the module omui.native, made by the host before this runs.
 _KEYWORDS = ("match",)  # names PocketPy reserves that CPython does not
 
 

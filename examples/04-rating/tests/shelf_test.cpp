@@ -3,14 +3,14 @@
 // rating from Lua and from a view document is the same semantic node; the
 // TypeScript reading list as a person and an agent use it; pinned pixels.
 import std;
-import openmui;
-import openmui.player;
-import openmui.entry.player;
-import openmui.lang;
-import openmui.lang.js;
-import openmui.lang.lua;
-import openmui.abi;
-import openmui.viewdoc;
+import omui;
+import omui.player;
+import omui.entry.player;
+import omui.lang;
+import omui.lang.js;
+import omui.lang.lua;
+import omui.abi;
+import omui.viewdoc;
 import shelf;
 import mlibs.testing;
 

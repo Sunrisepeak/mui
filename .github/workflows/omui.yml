@@ -93,7 +93,7 @@ jobs:
           exe=""; [ "$RUNNER_OS" = Windows ] && exe=.exe
           mkdir -p dist
           out="dist/omui-${{ matrix.name }}$exe"
-          mcpp pack -p openmui.cli --release --mode self-contained --pkg-format single-file -o "$out" --message-format json > pack.json
+          mcpp pack -p omui.cli --release --mode self-contained --pkg-format single-file -o "$out" --message-format json > pack.json
           python3 -c 'import json,sys; a=json.load(open("pack.json"))["data"]["artifacts"]; print(a)'
           "$out" --version
           # It runs without the toolchain: the bridge's command answers (no bridge yet).

@@ -1,4 +1,4 @@
-# openmui.host.headless
+# omui.host.headless
 
 openmui without a display: a runtime on a clock stepped frame by frame,
 input injected the way a person gives it (by point, or by id), pixels from
@@ -20,7 +20,7 @@ Every level gives the same semantic tree (ids, roles, names, values,
 actions); pixels are the same on every platform.
 
 ```cpp
-import openmui.host.headless;
+import omui.host.headless;
 
 omui::Headless h({.size = {640, 480}});
 h.mount("main", app());

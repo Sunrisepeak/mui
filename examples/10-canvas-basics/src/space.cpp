@@ -2,8 +2,8 @@ module space;
 
 import std;
 import mlibs.hash;
-import openmui;
-import openmui.ui.canvas;
+import omui;
+import omui.ui.canvas;
 import xrender.text;
 
 namespace space {

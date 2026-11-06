@@ -1,10 +1,10 @@
 // The compact density as a program carries it: an overlay over whichever
 // theme it is composed with.
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.theme;
-import openmui.theme.compact;
+import omui.core;
+import omui.view;
+import omui.theme;
+import omui.theme.compact;
 import mlibs.testing;
 
 using namespace mlibs::testing;

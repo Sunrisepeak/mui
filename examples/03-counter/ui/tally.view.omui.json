@@ -1,6 +1,6 @@
 {
   "omui": "0.1",
-  "imports": ["openmui.ui.base"],
+  "imports": ["omui.ui.base"],
   "notes": "A tally counter. src/tally.cpp builds the same view in C++; the tests check that the two make one semantic tree.",
   "view": {
     "name": "Tally",

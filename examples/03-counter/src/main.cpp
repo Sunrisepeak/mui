@@ -3,7 +3,7 @@
 // it); the rest of the line is openmui's (--dark, --headless --png out.png,
 // --serve …).
 import std;
-import openmui;
+import omui;
 import tally;
 
 int main(int argc, char** argv) {

@@ -9,7 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-mcpp build -p openmui.example.counter -p openmui.example.headless-and-agent ${PROFILE:+--profile "$PROFILE"} > /dev/null
+mcpp build -p omui.example.counter -p omui.example.headless-and-agent ${PROFILE:+--profile "$PROFILE"} > /dev/null
 newest() { find target -path "*/bin/*" -name "$1" -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2; }
 app=$(newest tally)
 notes=$(newest notes-agent)

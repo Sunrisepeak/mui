@@ -1,10 +1,10 @@
-module openmui.ui.window;
+module omui.ui.window;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;

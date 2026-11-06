@@ -3,11 +3,11 @@
 // records as JSON lines, or tables) to `out` and answers the exit code,
 // which for agent operations is the envelope's (0 done, 1 failed,
 // 2 needs an answer, 3 not ready) — the openas convention.
-export module openmui.cli;
+export module omui.cli;
 
 import std;
 import mcpplibs.cmdline;
-import openmui.viewdoc;
+import omui.viewdoc;
 
 export namespace omui::cli {
 

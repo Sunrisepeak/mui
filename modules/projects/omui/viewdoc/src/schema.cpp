@@ -1,9 +1,9 @@
 // The JSON Schema of view documents, and their canonical format.
-module openmui.viewdoc;
+module omui.viewdoc;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :document;
 import :schema;
 

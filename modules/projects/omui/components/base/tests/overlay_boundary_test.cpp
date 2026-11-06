@@ -1,8 +1,8 @@
 // Local overlay placement is a runtime capability, exercised here with the
 // production dialog/drawer/popover/toast, actual pixels and pointer hits.
 import std;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace omui;

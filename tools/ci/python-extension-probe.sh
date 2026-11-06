@@ -20,7 +20,7 @@ say() {
     echo "python extension: $1${2:+ ($2)}"
 }
 
-if ! mcpp build -p openmui.entry.python --profile "$profile" > python-probe.log 2>&1; then
+if ! mcpp build -p omui.entry.python --profile "$profile" > python-probe.log 2>&1; then
     tail -5 python-probe.log
     say false "this mcpp does not link the extension"
     exit 0

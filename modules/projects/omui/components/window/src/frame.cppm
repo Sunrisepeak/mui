@@ -6,13 +6,13 @@
 // bar. It follows the window's signals: a maximized or fullscreen window has
 // no shadow and no corners, an inactive one a muted title, a native one no
 // frame at all.
-export module openmui.ui.window:frame;
+export module omui.ui.window:frame;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import :window_frame_contract;
 import :caption_button_contract;
 

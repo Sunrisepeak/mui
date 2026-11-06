@@ -1,10 +1,10 @@
 // openmui.host.web:platform — the page, as the rest of the host sees it: no
 // Emscripten type crosses this line (the page is native/browser/html5.cpp;
 // off the Web, native/elsewhere/none.cpp).
-module openmui.host.web:platform;
+module omui.host.web:platform;
 
 import std;
-import openmui.core;
+import omui.core;
 import xrender.raster;
 
 namespace omui::page {

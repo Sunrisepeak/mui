@@ -4,8 +4,8 @@
 // home; the round over, back to the select screen. The screens' pictures
 // are pinned and saved.
 import std;
-import openmui;
-import openmui.showcase.fighting;
+import omui;
+import omui.showcase.fighting;
 import mlibs.testing;
 import gongfu;
 

@@ -18,8 +18,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core = { path = "../../omui/core" }
-openmui.view = { path = "../../omui/view" }
+omui.core = { path = "../../omui/core" }
+omui.view = { path = "../../omui/view" }
 xengine.input = { path = "../input" }
 xengine.simulation = { path = "../simulation" }
 

@@ -1,11 +1,11 @@
 // openmui.ui.base:progress — progress and choice among options: a progress
 // bar (determinate, or indeterminate while value is negative) and radio
 // buttons (one value per group; the group is a signal they share).
-export module openmui.ui.base:progress;
+export module omui.ui.base:progress;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :progress_contract;
 import :radio_contract;

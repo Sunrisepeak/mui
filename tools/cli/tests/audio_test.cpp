@@ -1,6 +1,6 @@
 import std;
-import openmui.cli;
-import openmui.core;
+import omui.cli;
+import omui.core;
 import mlibs.image;
 import xengine.audio;
 import mlibs.testing;

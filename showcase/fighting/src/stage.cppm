@@ -2,11 +2,11 @@
 // or an agent, drawn by gongfu.present2d into the node's box, with the
 // health and the timer and, in training, every box, the frame meter, the
 // input history, the readings, a saved state and a recording dummy.
-export module openmui.showcase.fighting:stage;
+export module omui.showcase.fighting:stage;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import gongfu.present2d;
 import gongfu.training;
 import gongfu.ai;

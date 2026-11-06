@@ -1,4 +1,4 @@
-module openmui.gen.model;
+module omui.gen.model;
 
 import std;
 

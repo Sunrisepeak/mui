@@ -5,10 +5,10 @@
 // copilot (room 5) or, between rooms, 1 and 2 take a contraption, Tab opens
 // the inspector, Enter goes on from a room over.
 import std;
-import openmui;
+import omui;
 import xengine.audio;
 import xengine.audio.device;
-import openmui.showcase.widget_breakout;
+import omui.showcase.widget_breakout;
 
 int main(int argc, char** argv) {
     std::vector<char*> rest{argv[0]};

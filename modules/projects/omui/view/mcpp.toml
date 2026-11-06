@@ -4,7 +4,7 @@
 # the primitives (box, column, row, stack, grid, spacer, text, image,
 # scroll view, painter).
 [package]
-namespace   = "openmui"
+namespace   = "omui"
 name        = "view"
 version     = "0.1.0"
 description = "openmui retained view runtime: elements, components, theme tokens, frames, input, actions and semantics"
@@ -25,7 +25,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 xrender.text = { path = "../../xrender/text" }
 mlibs.math = { path = "../../../base/math" }
 mlibs.utils = { path = "../../../base/utils" }
-openmui.core     = { path = "../core" }
+omui.core     = { path = "../core" }
 mlibs.geom     = { path = "../../../base/geom" }
 mlibs.memory   = { path = "../../../base/memory" }
 "hanim.core"          = { path = "../../hanim/core" }
@@ -33,7 +33,7 @@ mlibs.memory   = { path = "../../../base/memory" }
 mlibs.layout   = { path = "../../../content/layout" }
 xrender.raster   = { path = "../../xrender/raster" }
 xrender.vector   = { path = "../../xrender/vector" }
-openmui.motion   = { path = "../motion" }
+omui.motion   = { path = "../motion" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }

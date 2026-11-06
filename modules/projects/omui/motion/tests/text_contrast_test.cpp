@@ -6,7 +6,7 @@ import mlibs.geom;
 import xrender.raster;
 import mlibs.math;
 import xrender.vector;
-import openmui.motion;
+import omui.motion;
 import mlibs.testing;
 
 using namespace omui;

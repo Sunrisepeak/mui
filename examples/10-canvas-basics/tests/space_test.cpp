@@ -4,8 +4,8 @@
 // largest file when asked, and turns a file into a live card up close; the
 // map's items an agent finds by name; and its pixels, pinned.
 import std;
-import openmui;
-import openmui.ui.canvas;
+import omui;
+import omui.ui.canvas;
 import space;
 import mlibs.testing;
 

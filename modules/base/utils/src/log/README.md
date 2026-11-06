@@ -28,7 +28,7 @@ logger. Hosts remain responsible for reading environment configuration and
 installing sinks or filters.
 
 Run `mcpp test -p mlibs.log` for independent diagnostics CTS, and
-`mcpp test -p openmui.core diag_test` for the existing runtime facade
+`mcpp test -p omui.core diag_test` for the existing runtime facade
 checks. The log and trace packages remain independently usable. Native failure probes
 start a bounded subprocess through the test-only `mcpplibs.os` dependency;
 Emscripten runs the nonterminating invariant checks without subprocess support.

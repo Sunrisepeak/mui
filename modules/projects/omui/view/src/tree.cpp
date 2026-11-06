@@ -1,9 +1,9 @@
 // The node tree: creating nodes from elements, reconciling regions by key,
 // structural ids (S-8) and paths, removal with exit transitions (S-4).
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import mlibs.layout;
 import :impl;
 

@@ -8,7 +8,7 @@
 //     mirror.serve();          // what a screen reader asked, as the person's input
 //     runtime.frame();
 //     (*adapter)->update();    // what changed, told to the platform
-export module openmui.accessibility;
+export module omui.accessibility;
 
 export import :map;
 export import :platform;

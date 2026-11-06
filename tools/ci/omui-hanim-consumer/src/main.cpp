@@ -1,7 +1,7 @@
 import std;
 import omui.hanim;
 import hanim.control;
-import openmui.ui.base;
+import omui.ui.base;
 import xrender.raster;
 import mlibs.image;
 import mlibs.hash;

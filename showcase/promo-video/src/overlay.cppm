@@ -5,10 +5,10 @@
 // film's own frames played back, the tape's look and its speed. A view of
 // its own on a transparent host: a pure function of the frame, so any
 // frame of it is drawn directly.
-export module openmui.showcase.promo_video:overlay;
+export module omui.showcase.promo_video:overlay;
 
 import std;
-import openmui;
+import omui;
 import :film;
 
 export namespace omui::promo {

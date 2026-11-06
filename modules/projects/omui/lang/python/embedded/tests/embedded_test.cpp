@@ -5,19 +5,19 @@
 // script is stopped, and exit() ends the script, not the program.
 import std;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
-import openmui.lang.python.embedded;
-import openmui.player;
-import openmui.ui.base;
+import omui.abi;
+import omui.lang;
+import omui.lang.python.embedded;
+import omui.player;
+import omui.ui.base;
 import mlibs.testing;
-import openmui.view;
-import openmui.cts;
-import openmui.native;
-import openmui.native.fuzzy;
-import openmui.theme;
-import openmui.theme.default_theme;
-import openmui.theme.compact;
+import omui.view;
+import omui.cts;
+import omui.native;
+import omui.native.fuzzy;
+import omui.theme;
+import omui.theme.default_theme;
+import omui.theme.compact;
 
 using namespace mlibs::testing;
 using namespace omui::abi;

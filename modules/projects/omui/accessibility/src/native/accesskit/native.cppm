@@ -3,7 +3,7 @@
 // subclassing adapter (UI Automation) or its macOS one (NSAccessibility).
 // Each lives in its own unit (unix/, windows/, macos/), chosen by the
 // manifest: AccessKit declares each only on its platform.
-module openmui.accessibility:native;
+module omui.accessibility:native;
 
 import std;
 import mcpplibs.mwrap.accesskit;

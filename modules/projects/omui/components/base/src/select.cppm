@@ -2,11 +2,11 @@
 // composite component: it builds its own popup (an overlay at least as wide
 // as the field) and an option per value; choosing one writes `value` back,
 // emits `changed`, and closes the popup. Agents choose with set_value.
-export module openmui.ui.base:select;
+export module omui.ui.base:select;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :select_contract;
 

@@ -1,5 +1,5 @@
 import std;
-import openmui;
+import omui;
 import mlibs.testing;
 import mcpplibs.os;
 

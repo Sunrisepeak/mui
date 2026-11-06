@@ -1,6 +1,6 @@
-# openmui.lang.js
+# omui.lang.js
 
-openmui for JavaScript and TypeScript, embedded with QuickJS-ng (component-binding §7), imported as a module: [`mcpplibs.mwrap.quickjs_ng`](https://github.com/mcpplibs/quickjs-ng-m) over `compat.quickjs-ng`, so no C header appears here. The script runs on [openmui.lang](..)'s script thread. What it builds is a view document, so a view in TypeScript is the C++ builder's tree (CTS S level: `tests/js_test.cpp`, and example 03).
+openmui for JavaScript and TypeScript, embedded with QuickJS-ng (component-binding §7), imported as a module: [`mcpplibs.mwrap.quickjs_ng`](https://github.com/mcpplibs/quickjs-ng-m) over `compat.quickjs-ng`, so no C header appears here. The script runs on [omui.lang](..)'s script thread. What it builds is a view document, so a view in TypeScript is the C++ builder's tree (CTS S level: `tests/js_test.cpp`, and example 03).
 
 ```ts
 import { signal, fmt, column, text, button, mount } from "openmui";
@@ -34,4 +34,4 @@ The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript 
 
 **Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `import { fuzzy } from "openmui:native/fuzzy"`: an `async` function answers a promise, and has a `…Sync` form for where a promise cannot be awaited (a verb). esbuild leaves `openmui:native/*` external.
 
-**Themes** (openmui.theme): a theme, then overlays — `theme("dark", "compact")` (an `OmuiError` when it cannot be composed) and `themes()`.
+**Themes** (omui.theme): a theme, then overlays — `theme("dark", "compact")` (an `OmuiError` when it cannot be composed) and `themes()`.

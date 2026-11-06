@@ -1,4 +1,4 @@
-module openmui.reflect;
+module omui.reflect;
 
 import std;
 

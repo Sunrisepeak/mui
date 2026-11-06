@@ -2,10 +2,10 @@
 // strength each (positioning §2.1): your agent works here as you do; every
 // moment can be drawn again, the same as CI; one motion for every change
 // (the page's scroll is its time); fast on every device.
-export module openmui.site:screens;
+export module omui.site:screens;
 
 import std;
-import openmui;
+import omui;
 import :hero;
 
 export namespace omui::site {

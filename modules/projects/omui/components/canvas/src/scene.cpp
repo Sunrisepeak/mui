@@ -1,8 +1,8 @@
-module openmui.ui.canvas;
+module omui.ui.canvas;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
 
 namespace omui {  // names this file uses unqualified, from their owner

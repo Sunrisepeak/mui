@@ -2,7 +2,7 @@
 // steps by frames, input by point or by id, pixels and PNG, pixel
 // provenance, and an agent driving an H3 session.
 import std;
-import openmui.host.headless;
+import omui.host.headless;
 import mlibs.testing;
 import xrender.text;
 

@@ -1,9 +1,9 @@
-module openmui.gen.dist_toy;
+module omui.gen.dist_toy;
 
 import std;
 import mlibs.hash;
 import nlohmann.json;
-import openmui.gen.font_subset;
+import omui.gen.font_subset;
 
 namespace omui::gen {
 

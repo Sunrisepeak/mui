@@ -3,7 +3,7 @@
     pip install ./modules/projects/omui/lang/python                  build with mcpp, install
     python -m build --wheel modules/projects/omui/lang/python        a wheel in modules/projects/omui/lang/python/dist
 
-The extension is built by mcpp (``mcpp build -p openmui.entry.python``) and
+The extension is built by mcpp (``mcpp build -p omui.entry.python``) and
 found through mcpp's result record, never by guessing a path. The wheel is the
 ``openmui`` package (modules/projects/omui/lang/python/python/openmui), the extension as
 ``_openmui.abi3.so`` (``.pyd`` on Windows), the shared libraries mcpp placed
@@ -70,7 +70,7 @@ def _build_extension(settings):
     profile = (settings or {}).get("profile", "release")
     if profile not in ("release", "dev"):
         raise RuntimeError(f"profile is release or dev, not {profile!r}")
-    command = [_mcpp(settings), "build", "-p", "openmui.entry.python"] + (["--release"] if profile == "release" else [])
+    command = [_mcpp(settings), "build", "-p", "omui.entry.python"] + (["--release"] if profile == "release" else [])
     print("openmui:", " ".join(command), file=sys.stderr)
     subprocess.run(command, cwd=ROOT, check=True)
     last = json.loads((ROOT / "target" / ".last-result.json").read_text(encoding="utf-8"))["data"]

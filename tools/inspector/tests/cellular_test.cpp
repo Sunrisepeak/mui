@@ -1,6 +1,6 @@
 import std;
-import openmui;
-import openmui.inspector;
+import omui;
+import omui.inspector;
 import mlibs.testing;
 import mcpplibs.os;
 

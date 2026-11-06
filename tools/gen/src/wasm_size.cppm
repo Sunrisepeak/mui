@@ -6,7 +6,7 @@
 // library by its prefix (hb_ HarfBuzz, FT_ FreeType, md_ md4c) — from the
 // name section an analysis build keeps (emscripten's --profiling-funcs: the
 // same code, its functions' names kept). Without one, the sections only.
-export module openmui.gen.wasm_size;
+export module omui.gen.wasm_size;
 
 import std;
 
@@ -31,7 +31,7 @@ struct WasmSizeReport {
 // Reads a WebAssembly binary. `top`: how many of the largest functions to list.
 [[nodiscard]] std::expected<WasmSizeReport, std::string> wasm_size(std::span<const std::uint8_t> wasm, std::size_t top = 40);
 
-// A symbol's owner: the module it is attached to ("openmui.view"), else
+// A symbol's owner: the module it is attached to ("omui.view"), else
 // its outer namespaces (up to `depth`: "xrender", "std"), else a C
 // library by its prefix ("harfbuzz", "freetype", "md4c", "libc"…).
 [[nodiscard]] std::string owner_of(std::string_view symbol, int depth = 2);

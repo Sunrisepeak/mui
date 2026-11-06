@@ -17,7 +17,7 @@
 //     });
 //     auto report = omui::bench::run({.filter = "frame/"});
 //     std::print("{}", report.table());
-export module openmui.bench:harness;
+export module omui.bench:harness;
 
 import std;
 

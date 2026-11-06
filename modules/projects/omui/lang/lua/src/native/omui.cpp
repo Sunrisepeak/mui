@@ -3,13 +3,13 @@
 // each entry point does its work in a scope that ends before it reports an
 // error (`entry` below), and every call back into Lua is protected (pcall).
 // Lua's C API is the module mcpplibs.mwrap.lua (lua-m): no header here.
-module openmui.lang.lua;
+module omui.lang.lua;
 
 import std;
 import mcpplibs.mwrap.lua;
 import nlohmann.json;
-import openmui.abi;
-import openmui.lang;
+import omui.abi;
+import omui.lang;
 
 namespace omui::lang::lua {
 

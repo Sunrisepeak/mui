@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# openmui.reflect (C++26 reflection, D-39), gated on a toolchain that can build
+# omui.reflect (C++26 reflection, D-39), gated on a toolchain that can build
 # it inside openmui's graph (V-08).
 #
 # libstdc++'s `std` module exports <meta> only when `std` is built with
@@ -8,7 +8,7 @@
 # C header in its global module fragment — libpng, FreeType and SDL's units,
 # and every third-party module wrapper, are such units — and a unit built
 # without -freflection cannot read that `std` at all. Neither keeping
-# -freflection to openmui.reflect's own units nor wrapping <meta> in a module
+# -freflection to omui.reflect's own units nor wrapping <meta> in a module
 # of its own avoids it (measured). Clang 23 has no -freflection.
 #
 # So a canary first: the smallest such graph, built in a temporary directory.
@@ -71,14 +71,14 @@ int main() {
 EOF
 
 if (cd "$work" && mcpp run --profile "$profile") > "$root/reflect-canary.log" 2>&1; then
-    echo "the toolchain builds reflection beside C headers: running openmui.reflect's suite"
-    mcpp test -p openmui.reflect --profile "$profile" 2>&1 | tee reflect.log
-    grep -q "test result ok" reflect.log || { echo "::error::openmui.reflect failed"; exit 1; }
+    echo "the toolchain builds reflection beside C headers: running omui.reflect's suite"
+    mcpp test -p omui.reflect --profile "$profile" 2>&1 | tee reflect.log
+    grep -q "test result ok" reflect.log || { echo "::error::omui.reflect failed"; exit 1; }
     exit 0
 fi
 if grep -q "conflicting imported declaration" "$root/reflect-canary.log"; then
     grep -m1 "conflicting imported declaration" "$root/reflect-canary.log"
-    echo "::warning::this GCC cannot build C++26 reflection in a graph with C headers (V-08: libstdc++'s std built with -freflection does not merge __mbstate_t); openmui.reflect's suite waits for a toolchain that can"
+    echo "::warning::this GCC cannot build C++26 reflection in a graph with C headers (V-08: libstdc++'s std built with -freflection does not merge __mbstate_t); omui.reflect's suite waits for a toolchain that can"
     exit 0
 fi
 tail -20 "$root/reflect-canary.log"

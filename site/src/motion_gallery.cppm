@@ -1,7 +1,7 @@
 // One persistent gallery and one handle-based player for the motion catalogue.
-export module openmui.site:motion_gallery;
+export module omui.site:motion_gallery;
 import std;
-import openmui;
+import omui;
 export import :motion_catalog;
 export import :component_motion;
 

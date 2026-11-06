@@ -2,7 +2,7 @@
 // (index.md or README.md in it); the rest of the line is openmui's (--dark,
 // --headless --png out.png, --serve …).
 import std;
-import openmui;
+import omui;
 import viewer;
 
 int main(int argc, char** argv) {

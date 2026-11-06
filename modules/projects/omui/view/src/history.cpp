@@ -5,10 +5,10 @@
 // and what they give back is what redo performs. An irreversible or external
 // action is a barrier. A transaction gathers the actions performed until it
 // ends into one step: committed, or taken back, last first.
-module openmui.view;
+module omui.view;
 
 import std;
-import openmui.core;
+import omui.core;
 import :impl;
 
 namespace omui {

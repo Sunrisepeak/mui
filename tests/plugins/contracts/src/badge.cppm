@@ -1,8 +1,8 @@
 export module acme.ui:badge;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :badge_contract;
 
 export namespace acme::ui {

@@ -4,10 +4,10 @@
 // to the person — refused to a client that cannot ask, asked by elicitation
 // of one that can — and never done on the agent's word alone.
 import std;
-import openmui.core;
-import openmui.mcp;
-import openmui.host.headless;
-import openmui.ui.base;
+import omui.core;
+import omui.mcp;
+import omui.host.headless;
+import omui.ui.base;
 import mlibs.testing;
 
 using namespace mlibs::testing;

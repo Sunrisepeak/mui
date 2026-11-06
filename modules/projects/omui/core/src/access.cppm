@@ -1,6 +1,6 @@
 // The application's Agent policy (S-11): presets are configuration, not
 // effects. Every remote action is still decided by openas::decide.
-export module openmui.core:access;
+export module omui.core:access;
 
 import std;
 export import mlibs.control;

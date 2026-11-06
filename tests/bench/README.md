@@ -1,13 +1,13 @@
-# openmui.bench
+# omui.bench
 
 The framework's benchmarks, and the gate made of them. `omui-bench` runs
 them, prints a table, writes the report as JSON (`openmui.bench@0.1`,
 `<name>.bench.omui.json`) and checks it against `budgets.bench.omui.json`:
 
 ```text
-mcpp run -p openmui.bench --profile release -- --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json
-mcpp run -p openmui.bench --profile release -- --filter ui/frame     # some of them
-mcpp run -p openmui.bench -- --list                                  # what there is
+mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json --json results.bench.omui.json
+mcpp run -p omui.bench --profile release -- --filter ui/frame     # some of them
+mcpp run -p omui.bench -- --list                                  # what there is
 ```
 
 | Benchmark | What it measures |
@@ -74,7 +74,7 @@ All nine measure **CPU wall-clock work**. They neither submit GPU work nor
 measure GPU execution, and say so in each result's notes.
 
 ```text
-mcpp run -p openmui.bench --profile release -- --filter public-motion/ --json public-motion.bench.omui.json
+mcpp run -p omui.bench --profile release -- --filter public-motion/ --json public-motion.bench.omui.json
 ```
 
 | Case (`public-motion/` prefix) | One iteration / reported item |

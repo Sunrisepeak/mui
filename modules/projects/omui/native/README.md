@@ -1,4 +1,4 @@
-# openmui.native
+# omui.native
 
 The native modules of a program (component-binding §8): functions written in C++ behind a `*.native.omui.toml` contract, which scripts call. It is like React Native's TurboModules or Tauri's commands, but nothing is written by hand between the languages.
 
@@ -10,11 +10,11 @@ returns = "Match[]"
 async   = true
 ```
 
-- **The contract is the interface.** `omui-gen native` (or `openmui.build.contracts`' `natives()` in a build) generates a partition with the records, the declarations of the functions the package implements, their conversions, and `define()`.
+- **The contract is the interface.** `omui-gen native` (or `omui.build.contracts`' `natives()` in a build) generates a partition with the records, the declarations of the functions the package implements, their conversions, and `define()`.
 - **`define()` registers the module here, once.** A host calls it before scripts run. A second definition of a name is refused.
 - **Scripts call it through the C ABI.** `omuiNativeCatalog` lists the modules; `omuiNativeCall` calls a function with JSON arguments, positional in the contract's order or by name. The bindings are made from the catalogue:
   - JavaScript/TypeScript: `import { fuzzy } from "openmui:native/fuzzy"`. An `async` function returns a promise and also has a `…Sync` form.
-  - Python: `from openmui.native import fuzzy`.
+  - Python: `from omui.native import fuzzy`.
   - Lua: `omui.native.fuzzy.rank(…)`.
 - **Arguments are checked here, in one place**, against the contract's types:
   - the types are `bool`, `i32`, `u32`, `i64`, `f64`, `string`, `any`, a record of the module, `T[]` and `T?`;
@@ -26,5 +26,5 @@ async   = true
 
 ## Inside
 
-- [fuzzy](fuzzy) (`openmui.native.fuzzy`): fuzzy matching (`omui::fuzzy`), and for scripts behind a native-module contract.
-- [store](store) (`openmui.native.store`): the program's own small storage, the `Store` plugin a host gives (the page's localStorage on the Web, memory elsewhere), for C++ and scripts.
+- [fuzzy](fuzzy) (`omui.native.fuzzy`): fuzzy matching (`omui::fuzzy`), and for scripts behind a native-module contract.
+- [store](store) (`omui.native.store`): the program's own small storage, the `Store` plugin a host gives (the page's localStorage on the Web, memory elsewhere), for C++ and scripts.

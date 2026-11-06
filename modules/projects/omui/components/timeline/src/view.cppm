@@ -1,11 +1,11 @@
 // openmui.ui.timeline:view — the timeline editor's behaviour.
-export module openmui.ui.timeline:view;
+export module omui.ui.timeline:view;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import xrender.vector;
-import openmui.ui.base;
+import omui.ui.base;
 import xengine.timeline;
 import :timeline_editor_contract;
 

@@ -1,4 +1,4 @@
-module openmui.core;
+module omui.core;
 
 import std;
 

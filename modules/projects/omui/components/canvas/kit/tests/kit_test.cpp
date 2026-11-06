@@ -5,8 +5,8 @@
 // with the line of each problem.
 import std;
 
-import openmui.ui.canvas.kit;
-import openmui.host.headless;
+import omui.ui.canvas.kit;
+import omui.host.headless;
 import xrender.vector;
 import mlibs.testing;
 

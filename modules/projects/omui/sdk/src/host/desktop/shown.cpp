@@ -1,10 +1,10 @@
 // `omui::run` on the desktop: a window (openmui.host.sdl3).
-module openmui;
+module omui;
 
 import std;
-import openmui.core;
-import openmui.view;
-import openmui.host.sdl3;
+import omui.core;
+import omui.view;
+import omui.host.sdl3;
 import :app;
 import :shown;
 

@@ -5,14 +5,14 @@
 // and its casing to open: the script inside it (TypeScript, Lua or Python)
 // in a real text box, applied by hot reload; the field registered by name
 // for view documents, scripts and agents.
-module openmui.showcase.widget_breakout;
+module omui.showcase.widget_breakout;
 
 import std;
-import openmui;
-import openmui.theme;
-import openmui.theme.styles;
-import openmui.ui.canvas;
-import openmui.showcase.widget_breakout.sim;
+import omui;
+import omui.theme;
+import omui.theme.styles;
+import omui.ui.canvas;
+import omui.showcase.widget_breakout.sim;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;

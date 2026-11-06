@@ -5,21 +5,21 @@
 // the JSON an agent reads or the assertions a test writes; at the foot, the
 // lenses, the page's time and the tree's hash. The address follows the place
 // (the route), and the browser's back and forward move it.
-module openmui.site;
+module omui.site;
 
 import std;
-import openmui;
+import omui;
 import mlibs.hash;
-import openmui.ui.markdown;
-import openmui.ui.timeline;
+import omui.ui.markdown;
+import omui.ui.timeline;
 import xengine.timeline;
-import openmui.theme;
-import openmui.theme.styles;
+import omui.theme;
+import omui.theme.styles;
 import hello;
 import mcpplibs.os;
-import openmui.semantic;
+import omui.semantic;
 import mlibs.trace;
-import openmui.inspector;
+import omui.inspector;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;

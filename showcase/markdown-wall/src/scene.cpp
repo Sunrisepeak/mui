@@ -1,11 +1,11 @@
 // The wall as a scene: workspaces and windows, and how each looks at each size.
-module openmui.showcase.markdown_wall;
+module omui.showcase.markdown_wall;
 
 import std;
 import mlibs.hash;
-import openmui;
-import openmui.ui.canvas;
-import openmui.ui.markdown;
+import omui;
+import omui.ui.canvas;
+import omui.ui.markdown;
 import xrender.text;
 
 namespace omui::wall {

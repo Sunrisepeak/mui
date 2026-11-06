@@ -1,6 +1,6 @@
-# openmui.core
+# omui.core
 
-The foundation of the openmui runtime (module `openmui.core`):
+The foundation of the openmui runtime (module `omui.core`):
 
 | Partition | Contents |
 |---|---|
@@ -15,7 +15,7 @@ The foundation of the openmui runtime (module `openmui.core`):
 | `:json` | JSON to `Value` through nlohmann.json's SAX parser, with line and column in errors |
 | `:task` | the taskflow pool with deterministic chunking, cancellation, and the lock-free queue to the UI thread |
 
-Tests: `mcpp test -p openmui.core`.
+Tests: `mcpp test -p omui.core`.
 
 Agent policy keeps `AgentMode` separate from an effect cap. Bind an
 `AgentAccess` instance with `Verbs::set_agent_access`; a trusted native host

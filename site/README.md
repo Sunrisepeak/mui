@@ -1,4 +1,4 @@
-# omui's website (`openmui.site`)
+# omui's website (`omui.site`)
 
 The site shows omui's thesis instead of describing it: **the interface is a semantic tree, and everything else is a rendering of it** (D-84 §6.6). omui is the implementation; openmui is the open specification. The package and protocol identifiers retain their existing names. On the Web the site runs as wasm, and in a window it runs as a native program.
 
@@ -47,7 +47,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
 
 | Package | What it is |
 |---|---|
-| `openmui.site` (here) | The site as an application (`omui::site::app()`), its components (the lens, the page's time, the frame meter), its theme, the static page and the pre-renderer (`omui-site`) |
+| `omui.site` (here) | The site as an application (`omui::site::app()`), its components (the lens, the page's time, the frame meter), its theme, the static page and the pre-renderer (`omui-site`) |
 
 ## What is on it
 
@@ -85,7 +85,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
   - **Test**: the assertions a test would write.
 - **Your agent, on this page** (agent connect, D-95). The visitor's own agent — Claude Code, Codex, any that runs commands — operates the page by its semantic tree through a bridge on their machine; the page has no chat box, no model and no key of its own.
   - **Copy the prompt** starts the page's agent link (`Runtime::link_agent`, the Web host's): a pairing code, good for ten minutes, in a prompt the person pastes to their agent. It points the agent at the site's `agent.md`.
-  - The **actor log** (`actor_log`, openmui.ui.base) says the link's state and lists each agent's actions as they come, newest last. The last one its history holds is taken back from there; hovering one outlines the node it acted on.
+  - The **actor log** (`actor_log`, omui.ui.base) says the link's state and lists each agent's actions as they come, newest last. The last one its history holds is taken back from there; hovering one outlines the node it acted on.
   - **Hello, agent** is the self-check `agent.md` gives: the agent presses it, and the count says so.
   - Above everything, a question an agent asks the person: an external action waits for the person's answer, once or for the visit (a grant openas records), or no. The answer buttons are the person's own (S-10): an agent pressing them is refused whatever actor it names.
   - **A simulated agent**, marked so: a scripted one, no model, whose every step is still a real `openmui.tree@0.1` request on the bus that openas decides (S-11) — reading, switching places, editing the timeline and undoing it, opening a link (it asks first). The panel shows each request and its records.
@@ -113,7 +113,7 @@ Current rendered structure: [Home](media/structure-home-en-desktop.png), [Docs](
 ## How it is built
 
 ```
-mcpp run omui-site -p openmui.site               # in a window
+mcpp run omui-site -p omui.site               # in a window
 tools/ci/site.sh                                 # for the Web, into target/site/
 python3 -m http.server -d target/site            # and look at it
 ```

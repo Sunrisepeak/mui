@@ -89,7 +89,7 @@ main() {
     fi
     work=$(mktemp -d /tmp/omui-duel-XXXXXX)
     local bin
-    bin=$("${MCPP:-mcpp}" build --profile release -p openmui.cli -p openmui.showcase.fighting --message-format json 2> /dev/null | tail -1 |
+    bin=$("${MCPP:-mcpp}" build --profile release -p omui.cli -p omui.showcase.fighting --message-format json 2> /dev/null | tail -1 |
           python3 -c 'import json, sys; print(json.load(sys.stdin)["data"]["configuration"]["outputDir"] + "/bin")') ||
         { echo "duel: the release build failed" >&2; exit 1; }
     local omui fight

@@ -1,5 +1,5 @@
 import std;
-import openmui.host.web;
+import omui.host.web;
 import mlibs.testing;
 
 using namespace omui;

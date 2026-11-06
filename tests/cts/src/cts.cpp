@@ -1,4 +1,4 @@
-module openmui.cts;
+module omui.cts;
 
 import std;
 import nlohmann.json;

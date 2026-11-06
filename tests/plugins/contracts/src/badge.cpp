@@ -1,8 +1,8 @@
 module acme.ui;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 namespace acme::ui {
 

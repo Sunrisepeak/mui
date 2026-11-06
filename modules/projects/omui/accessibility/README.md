@@ -1,4 +1,4 @@
-# openmui.accessibility
+# omui.accessibility
 
 The semantic tree served to the platform's assistive technology (D-21): a
 screen reader, a magnifier or voice control reads the same tree agents and
@@ -40,7 +40,7 @@ the module `mcpplibs.mwrap.accesskit`), only in `src/native/accesskit/`.
   A request for an action the node does not have is refused, not guessed.
 - **The adapter** (`Adapter::attach`) — answers the system's first question
   from the mirror and is told, after each frame, what changed.
-  `openmui.host.sdl3` attaches it before the window is first shown
+  `omui.host.sdl3` attaches it before the window is first shown
   (`DesktopOptions::accessibility`, `AppSpec::accessibility`,
   `--no-accessibility`).
 
@@ -52,5 +52,5 @@ slider; and in example 07 reads, writes and selects in the draft field
 through Text and EditableText (the caret, a selection, the word at an
 offset) and adds the note. Trace category and log category `accessibility`.
 
-Depends on `openmui.core`, `openmui.view`, `openmui.semantic`, `openmui.hash`
+Depends on `omui.core`, `omui.view`, `omui.semantic`, `openmui.hash`
 and `openmui.trace`.

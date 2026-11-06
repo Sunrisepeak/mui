@@ -4,11 +4,11 @@
 // motion, D-93), the same for every component.
 //
 // Exported: theme and component packages build on the same parts.
-export module openmui.ui.base:parts;
+export module omui.ui.base:parts;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 
 export namespace omui::parts {
 

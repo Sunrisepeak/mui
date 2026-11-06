@@ -6,14 +6,14 @@
 // the live document. The camera is the clip's keys; every frame is drawn
 // complete (Services::complete_frames), so any one renders on its own. The
 // corner counts what the frame draws, by tier.
-module openmui.showcase.promo_video;
+module omui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui;
-import openmui.theme;
-import openmui.ui.canvas;
-import openmui.showcase.markdown_wall;
+import omui;
+import omui.theme;
+import omui.ui.canvas;
+import omui.showcase.markdown_wall;
 
 namespace omui::promo {
 

@@ -10,7 +10,7 @@
 #   mcpp run --release -p openmui.showcase.promo_video -- still promo --frame 1800 --out wall.png
 #   mcpp run --release -p openmui.showcase.promo_video -- check promo
 [package]
-namespace   = "openmui.showcase"
+namespace   = "omui.showcase"
 name        = "promo_video"
 version     = "0.1.0"
 description = "S5, openmui's film: every shot a live openmui scene, the film a timeline, rendered deterministically and checked against its acceptance"
@@ -34,29 +34,29 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk                         = { path = "../../modules/projects/omui/sdk" }
-"openmui.theme"                     = { path = "../../modules/projects/omui/theme" }
-"openmui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
+omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
+"omui.theme"                     = { path = "../../modules/projects/omui/theme" }
+"omui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
 xengine.timeline                    = { path = "../../modules/projects/xengine/timeline" }
 "xengine.video"                     = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm"                = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio                       = { path = "../../modules/projects/xengine/audio" }
-"openmui.ui.canvas"                 = { path = "../../modules/projects/omui/components/canvas" }
-openmui.ui.timeline                 = { path = "../../modules/projects/omui/components/timeline" }
-openmui.abi                         = { path = "../../modules/projects/omui/abi" }
-"openmui.lang"                      = { path = "../../modules/projects/omui/lang" }
-"openmui.lang.js"                   = { path = "../../modules/projects/omui/lang/js" }
-"openmui.lang.lua"                  = { path = "../../modules/projects/omui/lang/lua" }
-"openmui.lang.python.embedded"      = { path = "../../modules/projects/omui/lang/python/embedded" }
-openmui.showcase.markdown_wall      = { path = "../markdown-wall" }
-openmui.showcase.style_gallery      = { path = "../style-gallery" }
-"openmui.showcase.widget_breakout"  = { path = "../widget-breakout" }
-"openmui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
+"omui.ui.canvas"                 = { path = "../../modules/projects/omui/components/canvas" }
+omui.ui.timeline                 = { path = "../../modules/projects/omui/components/timeline" }
+omui.abi                         = { path = "../../modules/projects/omui/abi" }
+"omui.lang"                      = { path = "../../modules/projects/omui/lang" }
+"omui.lang.js"                   = { path = "../../modules/projects/omui/lang/js" }
+"omui.lang.lua"                  = { path = "../../modules/projects/omui/lang/lua" }
+"omui.lang.python.embedded"      = { path = "../../modules/projects/omui/lang/python/embedded" }
+omui.showcase.markdown_wall      = { path = "../markdown-wall" }
+omui.showcase.style_gallery      = { path = "../style-gallery" }
+"omui.showcase.widget_breakout"  = { path = "../widget-breakout" }
+"omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
 marzer.tomlplusplus                 = "3.4.0"
 mcpplibs.cmdline                    = "0.0.2"
 mcpplibs.os                         = "0.2.2"
 
 [build-dependencies]
-openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
+omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]

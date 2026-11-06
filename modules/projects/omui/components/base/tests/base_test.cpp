@@ -3,8 +3,8 @@
 // the clipboard; immediate mode with the real components; and a gallery
 // whose pixels are pinned for every platform.
 import std;
-import openmui.ui.base;
-import openmui.host.headless;
+import omui.ui.base;
+import omui.host.headless;
 import mlibs.image;
 import mlibs.testing;
 

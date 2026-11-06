@@ -1,12 +1,12 @@
 // The wall's model (live text, streaming), its HUD and the application.
-module openmui.showcase.markdown_wall;
+module omui.showcase.markdown_wall;
 
 import std;
 import mlibs.hash;
-import openmui;
-import openmui.ui.canvas;
-import openmui.ui.canvas.kit;
-import openmui.ui.markdown;
+import omui;
+import omui.ui.canvas;
+import omui.ui.canvas.kit;
+import omui.ui.markdown;
 import mcpplibs.os;
 
 namespace omui::wall {

@@ -1,8 +1,8 @@
-module openmui.lang;
+module omui.lang;
 
 import std;
 import nlohmann.json;
-import openmui.abi;
+import omui.abi;
 import :host;
 
 namespace omui::lang {

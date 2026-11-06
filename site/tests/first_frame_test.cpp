@@ -1,7 +1,7 @@
 // Fixed-time production pixels, not a separately composed loading mockup.
 import std;
-import openmui;
-import openmui.site;
+import omui;
+import omui.site;
 import mlibs.testing;
 import mcpplibs.os;
 

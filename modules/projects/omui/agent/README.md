@@ -1,4 +1,4 @@
-# openmui.agent
+# omui.agent
 
 The agent endpoint of an openmui application (spec §9, plan §11):
 `openmui.tree@0.1` as JSON lines.
@@ -46,4 +46,4 @@ The agent endpoint of an openmui application (spec §9, plan §11):
 ← {"kind":"result","exitCode":1}
 ```
 
-Depends on `openmui.core`, `openmui.view`, `openmui.semantic`, `openmui.trace` and `mcpplibs.os`.
+Depends on `omui.core`, `omui.view`, `omui.semantic`, `openmui.trace` and `mcpplibs.os`.

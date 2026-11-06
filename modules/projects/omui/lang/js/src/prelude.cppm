@@ -1,6 +1,6 @@
 // The `openmui` ES module's JavaScript: what a script imports. The native
 // side (`__omui`, native/js.cpp) appends one builder per registered component.
-module openmui.lang.js:prelude;
+module omui.lang.js:prelude;
 
 import std;
 

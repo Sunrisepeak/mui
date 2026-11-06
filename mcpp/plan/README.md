@@ -1,4 +1,4 @@
-# openmui.build.plan
+# omui.build.plan
 
 What openmui's build plugins share (`mcpp/README.md`); each plugin re-exports it. A plugin plans `edge`s:
 - each edge has a command, its inputs and outputs;

@@ -6,7 +6,7 @@
 # loaded and reloaded while it runs; a loop that sleeps until an event, a
 # timer or an agent's request; the agent endpoint served between frames.
 [package]
-namespace   = "openmui.host"
+namespace   = "omui.host"
 name        = "sdl3"
 version     = "0.1.0"
 description = "openmui desktop host over SDL3: window, input, IME, clipboard, cursors, GPU or CPU frames, effect reloading, agent endpoint"
@@ -24,11 +24,11 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
 xrender.text = { path = "../../../xrender/text" }
-openmui.core     = { path = "../../core" }
-openmui.view     = { path = "../../view" }
-openmui.semantic = { path = "../../semantic" }
-openmui.agent    = { path = "../../agent" }
-openmui.accessibility = { path = "../../accessibility" }
+omui.core     = { path = "../../core" }
+omui.view     = { path = "../../view" }
+omui.semantic = { path = "../../semantic" }
+omui.agent    = { path = "../../agent" }
+omui.accessibility = { path = "../../accessibility" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector   = { path = "../../../xrender/vector" }
 mlibs.text     = { path = "../../../../content/text" }

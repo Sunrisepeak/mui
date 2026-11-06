@@ -1,5 +1,5 @@
 // Logical places and their public addresses. Legacy names remain aliases.
-export module openmui.site:routes;
+export module omui.site:routes;
 
 import std;
 export import :catalog;

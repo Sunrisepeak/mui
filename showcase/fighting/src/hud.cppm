@@ -3,11 +3,11 @@
 // readings (startup, frame advantage, the combo). Numbers are seven-segment
 // bars, so they cost no shaping and look the same everywhere; the few words
 // are shaped once and kept.
-export module openmui.showcase.fighting:hud;
+export module omui.showcase.fighting:hud;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import gongfu.present2d;
 import gongfu.training;
 

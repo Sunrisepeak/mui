@@ -5,11 +5,11 @@
 // picker (its popup a saturation–brightness field, a hue strip and the
 // application's swatches, each an item). Whatever is chosen is set_value's,
 // so a press, a key and an agent's request are taken back the same way.
-export module openmui.ui.base:pickers;
+export module omui.ui.base:pickers;
 
 import std;
-import openmui.core;
-import openmui.view;
+import omui.core;
+import omui.view;
 import :parts;
 import :date_picker_contract;
 import :time_picker_contract;

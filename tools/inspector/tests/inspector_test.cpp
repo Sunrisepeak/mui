@@ -2,9 +2,9 @@
 // tree, a node's details, frame times, the pipeline, and the application's
 // clock paused and stepped from the Inspector's buttons.
 import std;
-import openmui;
-import openmui.inspector;
-import openmui.host.headless;
+import omui;
+import omui.inspector;
+import omui.host.headless;
 import mlibs.testing;
 
 using namespace mlibs::testing;

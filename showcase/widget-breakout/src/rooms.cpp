@@ -263,6 +263,8 @@ std::array<Gift, 2> offers(std::int32_t after, std::span<const Gift> kit) {
 
 std::string brick_id(std::size_t index) { return std::format("brick.{}", index); }
 
+Value live_surface_motion() { return Value{}.set("update", "none"); }
+
 Element brick_view(const BrickDef& b, std::size_t index) {
     const std::string id = brick_id(index);
     const Dim w{b.width}, h{b.height};
@@ -337,7 +339,8 @@ std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_
                                         .background = Fill(Color::transparent()),  // clear: the panel's ghost shows behind the cloud
                                         .inertia = false, .label = "The cloud", .max_zoom = 4, .min_zoom = 0.05, .scene = std::string(cloud_scene),
                                         .x = field_w / 2, .y = r.height - field_h / 2, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))})
-                                     .prop("pointer_events", Source(Value("none")))));
+                                     .prop("pointer_events", Source(Value("none")))
+                                     .prop("motion", Source(live_surface_motion()))));  // its camera is the field's
         return out;
     }
     // In a panel named by its room: a new room's bricks are new nodes, laid out afresh (never the last room's places).

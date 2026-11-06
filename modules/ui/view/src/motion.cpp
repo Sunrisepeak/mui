@@ -102,13 +102,6 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
         if (const auto r = n.props.find("role"); r != n.props.end())
             if (auto parsed = spec::parse_role(r->second.as_string())) role = *parsed;
         const std::string by_role = std::format("role:{}", spec::name(role));
-        // A style's motion that names no target restyles the motions a node
-        // already has (the style's layer over the framework's, §5.2): it
-        // does not give one to a node the framework leaves still, such as a
-        // drawing surface that redraws on its own (a game's field, a canvas).
-        const bool has_default = std::ranges::any_of(theme.motion_rules, [&](const MotionRule& rule) {
-            return rule.layer == MotionRule::Layer::framework && (rule.target == n.type->name || rule.target == by_role);
-        });
         for (std::size_t k = 0; k < motion_slots.size(); ++k) {
             const Value* v = own == n.props.end() ? nullptr : by_slot ? own->second.get(motion_slots[k]) : k == 0 ? &own->second : nullptr;
             if (v) {
@@ -126,7 +119,10 @@ const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool f
             int rank = 0;
             for (const MotionRule& rule : theme.motion_rules) {
                 if (rule.slot != motion_slots[k]) continue;
-                if (rule.layer == MotionRule::Layer::style && rule.target == "*" && !has_default) continue;
+                // A style's untargeted motion never takes the window's root:
+                // that would move the whole window as one drawing (a style's
+                // own change has its cross-fade).
+                if (rule.layer == MotionRule::Layer::style && rule.target == "*" && id == root) continue;
                 const int specificity = rule.target == n.type->name ? 3 : rule.target == by_role ? 2 : rule.target == "*" ? 1 : 0;
                 const int r = specificity ? 4 * static_cast<int>(rule.layer) + specificity : 0;
                 if (r > 0 && r >= rank) best = &rule, rank = r;

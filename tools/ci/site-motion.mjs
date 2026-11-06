@@ -39,6 +39,20 @@ async function scenario(name, run) {
     try { await shot(name + '-failure'); } catch { /* Keep the original failure. */ }
   }
 }
+// The browser clipboard's text. A rejected read (a page without focus after
+// pointer input, in some headless builds) is not text: bring the page to the
+// front and focus it, then read again; otherwise say what the browser said.
+const clipboardText = async () => {
+  let reason = 'no answer';
+  for (let attempt = 0; attempt < 3; ++attempt) {
+    const r = await page.value('navigator.clipboard.readText().then(text => ({ text }), e => ({ error: String((e && e.message) || e) }))');
+    if (r && typeof r.text === 'string') return r.text;
+    reason = (r && r.error) || reason;
+    await page.call('Page.bringToFront');
+    await page.value('(window.focus(), document.hasFocus())');
+  }
+  throw new Error('the browser clipboard could not be read: ' + reason);
+};
 const dispatch = async (method, args) => {
   const result = await page.call(method, args); if (result.error) throw new Error(result.error.message);
 };
@@ -187,7 +201,7 @@ try {
     await pointer(root + '/details/bend'); await key('Home', 'Home', 36);
     await requireCheck(async () => Math.abs(await scalar(root + '/details/bend') + .3) < .001, 'keyboard sets a negative path bend');
     await pointer(root + '/details/copy');
-    const copied = await page.value('navigator.clipboard.readText()');
+    const copied = await clipboardText();
     const decoded = JSON.parse(copied || '{}');
     check(Math.abs(decoded.vertex_path?.bend + .3) < .001, 'copied public motion configuration contains the real path parameter');
     await pointer(root + '/transport/buttons/details');
@@ -295,7 +309,7 @@ try {
     await pointer(root + '/transport/buttons/state-b');
     await shot('component-motion-nested-effects');
     await pointer(root + '/details/copy');
-    const source = await page.value('navigator.clipboard.readText()');
+    const source = await clipboardText();
     check(source.includes('hanim::parallel') && source.includes('.part="title"') && source.includes('playback.play') &&
       source.includes('.rotation_offset=') && source.includes('.scale_factor=') &&
       source.includes('hanim::composite') && source.includes('fx::blur') && source.includes('fx::tone'),
@@ -317,7 +331,7 @@ try {
     await pointer(root + '/transport/buttons/state-a'); const feedbackA = (await node(card)).bounds;
     await pointer(root + '/transport/buttons/state-b');
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - feedbackA[0]) < .5, 'feedback returns the note to its starting position');
-    await pointer(root + '/details/copy'); const feedbackSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const feedbackSource = await clipboardText();
     check(['pulse', 'shake', 'wobble'].every(name => feedbackSource.includes('hanim::anim::' + name)),
       'the browser copies the actual public feedback library calls');
     await pointer(root + '/transport/buttons/play');
@@ -334,7 +348,7 @@ try {
     await invokeMotion('seek', { progress: 1 });
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - pathStart[0]) < .5 &&
       Math.abs((await node(card)).bounds[1] - pathStart[1]) < .5, 'the public path returns to the original presentation');
-    await pointer(root + '/details/copy'); const pathSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const pathSource = await clipboardText();
     check(pathSource.includes('hanim::anim::move_through') && pathSource.includes('PointPath::bend'), 'copied route uses only the public path and animation API');
     await visibleBounds(card); await invokeMotion('seek', { progress: .5 }); await shot('component-motion-path');
     await pointer(root + '/details/effect'); await key('Home', 'Home', 36);
@@ -343,7 +357,7 @@ try {
     await requireCheck(async () => await scalar(root + '/details/effect') === 'opacity', 'keyboard selects shared group opacity');
     await invokeMotion('seek', { progress: .5 });
     check(await scalar(card + '/editor') === 'A browser-made note', 'group opacity preserves the actual note content');
-    await pointer(root + '/details/copy'); const fadedSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const fadedSource = await clipboardText();
     check(fadedSource.includes('hanim::fx::opacity(1, 0.35f)'), 'copied composition uses the public opacity effect');
     await visibleBounds(card); await invokeMotion('seek', { progress: .5 });
     const opacityBounds = (await node(card)).bounds;
@@ -383,7 +397,7 @@ try {
     await shot('component-motion-rhythm');
     await invokeMotion('seek', { progress: 1 });
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - rhythmStart[0]) < .5, 'the rhythm returns after its explicit pause');
-    await pointer(root + '/details/copy'); const rhythmSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const rhythmSource = await clipboardText();
     check(rhythmSource.includes('hanim::wait(400ms)') && rhythmSource.includes('hanim::delay(200ms'),
       'the copied rhythm uses public timeline intervals without a page timer');
     await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('ArrowUp', 'ArrowUp', 38); await key('Enter', 'Enter', 13);
@@ -394,7 +408,7 @@ try {
       await requireCheck(async () => Math.abs((await node(card)).bounds[0] - stepsStart[0] - offset) < .5,
         `finite repeat reaches cumulative step ${offset} at progress ${progress}`);
     }
-    await pointer(root + '/details/copy'); const stepsSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const stepsSource = await clipboardText();
     check(stepsSource.includes('hanim::repeat(3, hanim::parallel(') && stepsSource.includes('hanim::wait(100ms)'),
       'the browser copies one finite child program without manually duplicating its iterations');
     await visibleBounds(card); await invokeMotion('seek', { progress: .5 }); await shot('component-motion-steps');
@@ -406,7 +420,7 @@ try {
       await requireCheck(async () => Math.abs((await node(card)).bounds[0] - routeStart[0] - offset) < .5,
         `closed route visits displacement ${offset} at progress ${progress}`);
     }
-    await pointer(root + '/details/copy'); const routeSource = await page.value('navigator.clipboard.readText()');
+    await pointer(root + '/details/copy'); const routeSource = await clipboardText();
     check(routeSource.includes('hanim::anim::follow_path') && routeSource.includes('hanim::MotionPath'),
       'copied code uses the shared path and public animation instead of a page sampler');
     await visibleBounds(card); await invokeMotion('seek', { progress: .25 }); await shot('component-motion-route');

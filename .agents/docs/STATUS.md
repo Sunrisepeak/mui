@@ -22,12 +22,16 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | E (mcpp) | worked around: the site declares its direct `hanim` features; local Web row 44 members, 106 passed. Upstream mcpp bug, see below |
 | 3 | Metal: cellular `rules.slang` buffer index 0 reserved twice | macOS `rhi.sdl` | ≤ `ab4d823` | R | fixed, to confirm on macOS CI: Slang numbers Metal bindings by HLSL register without the space; `mlibs.shader` now rebinds MSL entry points as SDL_GPU binds Metal (also fixes the latent `greedy.slang` palette at buffer(2) instead of buffer(1)) |
 | 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | fixed: the test predates default exit motions; replaced content is `removing` (S-4) until it settles |
-| 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | `074e3bd` (bisected) | R | room 3 and the casing test fixed: an untargeted style motion had become a `*` rule for every node, so the game's field and its canvas morphed after each camera pull-back; it restyles existing motions only again. The choice frame's 15-pixel (1/255) difference is open |
+| 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | `074e3bd` (bisected) | R | fixed: an untargeted style motion became a `*` rule for every node (074e3bd); it no longer takes the window's root, and the game declares its live surfaces (root, field, canvas: no update morph). The site keeps its pinned look. Tests wait for cards that enter by the room's style; the choice frame re-pinned (15 px, at most 1/255) |
 | 6 | promo-video pinned frames (`promo_test.cpp:129/133`) | all | ≤ `c9b0d1c` | R | open |
 | 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | `77979b5` (bisected) | R | fixed: `Matter::follow_layout` replaced every style-wrapper shape with the target's; only allocation carriers adopt now, state shapes (the lens) keep morphing |
-| 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | open |
-| 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | open |
-| 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | fixed by lock policy, to confirm |
+| 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | fixed in CI: the site has its own lane (`site`, release, 1200 s per test); the matrix rows exclude it. Local release: 22 passed |
+| 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | addressed: rows no longer run the site (its 4 tests timed out at 300 s each), limit 150 min; to confirm |
+| 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | fixed: Pages builds and the delivery budget passes (4,886,971 B). Its browser step then failed on a Chrome profile cleanup (now non-fatal) and on a rejected clipboard read (now refocused and retried, reason reported) |
+
+### Design input for M2 (motion convergence)
+
+- A style pack's untargeted motion (`[style.X.motions] update = …`) is a `*` rule since 074e3bd: it reaches every node, so any container can morph its whole drawing (the breakout's field after a camera pull-back). The site's creative demos are tuned to this reading; the original one (9d7f442) only restyled existing motions. M0 keeps the site's reading, excludes the window root, and lets applications declare live surfaces; the slot model moved into hanim must state which nodes a style may move.
 
 ### Upstream issues to report (awaiting the maintainer's go-ahead)
 

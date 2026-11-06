@@ -679,7 +679,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x245b4bd2155bbb73});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0x31aa6ac41c74af88});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
@@ -737,9 +737,11 @@ int main(int argc, char** argv) {
         check(g.act("next"), "on to the choice");
         g.h.step();
         wait([&] { return g.h.runtime().get(r.find("main/between"), "visible").as_bool(); });
+        g.h.advance(seconds(0.5));  // as above: the cards come in by the room's style before they are there to click
         check(std::string(name_of(g, 0)) == "Splitter", name_of(g, 0));
         check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
         g.h.step();
+        g.h.advance(seconds(0.5));  // the casing comes in by the room's style too
         const std::string py(r.get(box, "text").as_string());
         check(py.find("import openmui") != std::string::npos && bo::Workshop::tuned(py) == 2.0, py);
         Invocation four;

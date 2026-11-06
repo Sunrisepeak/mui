@@ -116,6 +116,8 @@ if (budgetFile) {
 }
 console.log(JSON.stringify(report, null, 2));
 b.close();
-rmSync(profile,{recursive:true,force:true,maxRetries:3,retryDelay:100});
+// Chrome may still be writing its profile as it exits: a leftover temporary
+// directory is not a result, so cleaning up never decides the verdict.
+try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}
 if (server) server.close();
 process.exit(ok ? 0 : 1);

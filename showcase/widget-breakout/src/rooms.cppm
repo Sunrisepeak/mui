@@ -70,6 +70,9 @@ struct Contraption {
 [[nodiscard]] Element brick_view(const BrickDef& b, std::size_t index);
 // The id the n-th brick's node has: "brick.<n>".
 [[nodiscard]] std::string brick_id(std::size_t index);
+// The motion of a live surface (the field, its root, room 3's canvas): the
+// simulation and its camera place what it draws, so it never morphs whole.
+[[nodiscard]] Value live_surface_motion();
 // A room's bricks: the field's child, a panel of them named by the room (a canvas room: its canvas).
 // `changed`: told when a brick's control is changed by anything but the field (an agent acting on it).
 [[nodiscard]] std::vector<Element> room_bricks(const RoomDef& r, std::function<void(std::size_t)> changed = {});

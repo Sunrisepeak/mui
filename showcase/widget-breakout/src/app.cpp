@@ -249,6 +249,10 @@ AppSpec app() {
     };
     a.view = [b] {
         Element game = field({.id = "field", .room = 1, .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))});
+        // The field is a live surface: the simulation and its camera place what it
+        // draws every step, so its drawing never morphs as a whole (a room's style
+        // pack still moves the controls inside it and the cards between rooms).
+        game.prop("motion", Source(live_surface_motion()));
         game.on("style", [b](const Value& args) {
             Runtime* rt = b->runtime;
             if (!rt) return;
@@ -275,7 +279,8 @@ AppSpec app() {
             if (open) b->choosing(args.get("after") ? static_cast<std::int32_t>(args.get("after")->as_int()) : 1);
             else b->open.set(false), b->casing.set(-1);
         });
-        return stack({.id = "game", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(game), between_view(b)});
+        return std::move(stack({.id = "game", .width = Dim(layout::pct(100)), .height = Dim(layout::pct(100))}, {std::move(game), between_view(b)})
+                             .prop("motion", Source(live_surface_motion())));
     };
     return a;
 }

@@ -120,6 +120,25 @@ class Binding(unittest.TestCase):
         self.assertEqual(omui.invoke("shelf.archive", {"id": "n1"}), {"archived": "n1"})
         omui.unmount("l")
 
+    def test_a_handler_calls_the_runtime_as_an_act_returns(self):
+        # Each act returns while its click's handler, on the script thread,
+        # invokes a verb: the handler waits for the runtime's thread, which
+        # must not be left waiting for the GIL (a deadlock seen on macOS CI).
+        calls = []
+
+        @omui.verb("race.count", summary="Count a click")
+        def count(args):
+            calls.append(args["n"])
+            return {}
+
+        omui.mount("race", omui.column(omui.button(id="b", text="b", on_activated=lambda e: omui.invoke("race.count", {"n": 1}))))
+        omui.settle()
+        for _ in range(200):
+            omui.act(node="race/b", action="activate")
+        omui.settle()
+        self.assertEqual(len(calls), 200)
+        omui.unmount("race")
+
     def test_errors_are_exceptions(self):
         with self.assertRaises(omui.OmuiError) as e:
             omui.mount("x", omui.element("buton", id="x"))

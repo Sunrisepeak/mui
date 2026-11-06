@@ -8,6 +8,14 @@
 #                   driver: the offscreen driver makes no Metal views, so
 #                   SDL_GPU cannot choose Metal under it
 #
+# On Windows (75655b7: "SDL_HINT_GPU_DRIVER vulkan unsupported!" for every
+# device) the loader is given a manifest written here, naming the driver by an
+# absolute path with forward slashes: the payload's own says `.\\vulkan_lvp.dll`
+# and depends on the installer rewriting it, and a manifest the loader cannot
+# parse or resolve is skipped without an error, leaving no physical device.
+# The device is also made under SDL's windows video driver, whose surface
+# (VK_KHR_win32_surface) is the one Mesa's Windows build is used with.
+#
 # Writes the environment to $GITHUB_ENV (stdout without it).
 set -euo pipefail
 out=${GITHUB_ENV:-/dev/stdout}
@@ -35,6 +43,12 @@ case "$(uname -s)" in
         ;;
     *)
         loader=$(find "$root" -path '*vulkan-loader*' -iname 'vulkan-1.dll' | sort | tail -1)
+        driver=$(find "$root" -path '*mesa-lavapipe*' -iname 'vulkan_lvp.dll' | sort | tail -1)
+        [ -n "$driver" ] || { echo "::error::lavapipe's vulkan_lvp.dll is not where xlings installs"; exit 1; }
+        api=$(sed -n 's/.*"api_version" *: *"\([^"]*\)".*/\1/p' "$icd")
+        icd="${RUNNER_TEMP:-$(mktemp -d)}/lvp_icd.x86_64.json"
+        printf '{"file_format_version":"1.0.1","ICD":{"library_path":"%s","api_version":"%s"}}\n' \
+            "$(cygpath -m "$driver")" "${api:-1.4.0}" > "$icd"
         icd=$(cygpath -w "$icd")
         loader=$(cygpath -w "$loader")
         ;;
@@ -61,13 +75,19 @@ if [ "$(uname -s)" = Linux ]; then
         ldd "$so" | sed 's/^/gpu:   /'
         if ldd "$so" | grep -q 'not found'; then echo "::error::$so has unresolved libraries"; exit 1; fi
     done
-    say "VK_LOADER_DEBUG=error,warn"
 fi
+# The loader reports its own errors on stderr, so a device that does not come
+# up says why; the manifest is shown as the loader will read it.
+say "VK_LOADER_DEBUG=error,warn"
+echo "gpu: $icd"; sed "s/^/gpu:   /" "$icd" || echo "::warning::the driver manifest could not be read"
 say "VK_DRIVER_FILES=$icd"
 say "VK_ICD_FILENAMES=$icd"
 say "OMUI_VULKAN_LIBRARY=$loader"
 # Windows also has Direct3D 12's software device (WARP), which SDL would pick
 # before Vulkan: the row is lavapipe, as said above. The D3D12/DXBC path is
 # its own open item (STATUS red list 11), not this row's by accident.
-if [ "$(uname -s)" != Linux ]; then say "SDL_GPU_DRIVER=vulkan"; fi
+if [ "$(uname -s)" != Linux ]; then
+    say "SDL_GPU_DRIVER=vulkan"
+    say "OMUI_GPU_VIDEO_DRIVER=windows"
+fi
 say "OMUI_REQUIRE_GPU=1"

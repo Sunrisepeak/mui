@@ -69,11 +69,14 @@ PyObject* raise(std::string_view message, PyObject* type = nullptr) {
 PyObject* arguments(std::string_view usage) { return raise(std::format("_openmui: {}", usage), py().type_error); }
 
 // The Session's work: on the script thread, with the GIL released (a
-// handler the runtime calls meanwhile takes it there).
+// handler the runtime calls meanwhile takes it there). Released on the script
+// thread too: a handler there that calls the runtime waits for the runtime's
+// thread, and that thread may be waiting for the GIL to return from its own
+// call (a deadlock seen on macOS: `act` returning while a click's handler
+// `invoke`s).
 template <class F>
 auto on_script(F fn) -> std::invoke_result_t<F&> {
     Host& host = state().session->host();
-    if (host.on_script_thread()) return fn();
     PyThreadState* saved = py().PyEval_SaveThread();
     if constexpr (std::is_void_v<std::invoke_result_t<F&>>) {
         host.script(fn);

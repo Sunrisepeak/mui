@@ -102,3 +102,20 @@ can reuse a previously generated fixture for local incremental validation.
 effect, person requirement and purpose) without requiring an output image,
 creating Engine resources or opening a GUI. It describes operations, not an
 installed RPC endpoint or instance permission grant.
+
+The consumer declares its direct `openlifa.openas` dependency because it uses
+`openas.conformance` to validate the catalog. To check a candidate binary
+artifact without changing this repository's dependency lock, unpack it and run:
+
+```sh
+python3 tools/ci/hanim-play-consumer/run.py --openas-package /path/to/unpacked/openas \
+  --output target/hanim-openas-package.report.omui.json --keep-project
+```
+
+The override belongs only to the disposable application's root manifest; mcpp
+must resolve the transitive control dependency to that same package. The gate
+rejects implementation source checkouts, audits the actual resolution and
+compiled conformance interface, and treats a private-module warning as a
+failure in this mode. Normal invocation retains the indexed dependency. This
+checks real control/render consumers against an artifact; it neither installs
+nor publishes that artifact or silently upgrades the source workspace.

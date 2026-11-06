@@ -17,7 +17,7 @@ def digest(path: Path) -> str | None:
     return hashlib.sha256(path.read_bytes()).hexdigest() if path.exists() else None
 
 
-def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
+def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_package: Path | None = None) -> dict:
     resolutions = list((project / "target").glob("*/*/resolution.json"))
     if not resolutions:
         raise RuntimeError("mcpp produced no actual resolution metadata")
@@ -40,6 +40,10 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
         item = package["package"]
         name = (item.get("namespace", "") + "." + item["name"]).lstrip(".")
         names.append(name)
+        if name == "openlifa.openas" and openas_package:
+            origin = item.get("source", "")
+            if not origin.startswith("path+") or Path(origin[5:]).resolve() != openas_package:
+                raise RuntimeError("OpenAS did not resolve to the requested unpacked artifact")
         if name in forbidden or name.startswith(("openmui.ui.", "openmui.host.", "openmui.site")):
             raise RuntimeError(f"forbidden UI/spec/testing/host package: {name}")
         source = item.get("source", "")
@@ -64,6 +68,10 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str) -> dict:
     required_sources.add(str(repo / "modules/gfx/hanim/src/render/vector/vector.cpp"))
     if not required_sources.issubset(sources):
         raise RuntimeError("actual CDB omitted a selected product implementation")
+    if openas_package:
+        interfaces = [Path(p) for p in sources if Path(p).is_relative_to(openas_package)]
+        if not any(p.name == "conformance.cppm" for p in interfaces) or any(p.suffix == ".cpp" for p in interfaces):
+            raise RuntimeError("OpenAS artifact did not supply conformance without implementation source")
     shutil.copyfile(resolution, artifacts / f"{profile}.resolution.json")
     shutil.copyfile(cdb, artifacts / f"{profile}.compile_commands.json")
     return {"packages": sorted(names), "compiled_sources": sources,
@@ -79,8 +87,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--keep-project", action="store_true")
     parser.add_argument("--project", type=Path, help="Reuse an existing disposable consumer build")
+    parser.add_argument("--openas-package", type=Path, help="Validate an unpacked OpenAS binary artifact without changing the source lock")
     args = parser.parse_args()
     repo, output = args.source_root.resolve(), args.output.resolve()
+    openas_package = args.openas_package.resolve() if args.openas_package else None
+    if openas_package and (not (openas_package/"mcpp.toml").is_file() or list(openas_package.rglob("*.cpp"))):
+        parser.error("--openas-package must be an unpacked binary artifact, not an implementation source checkout")
     fixture = Path(__file__).resolve().parent
     output.parent.mkdir(parents=True, exist_ok=True)
     artifacts = output.parent / (output.stem + "-artifacts")
@@ -92,6 +104,7 @@ def main() -> int:
     report = {"format": "hanim.independent-play-consumer@0.2", "ok": False, "project": str(project),
               "source_commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
               "fixture_sha256": digest(fixture / "src/main.cpp"), "source_lock_before": lock,
+              "openas_package": {"path":str(openas_package), "manifest_sha256":digest(openas_package/"mcpp.toml")} if openas_package else None,
               "runner_sha256": digest(fixture / "run.py"), "manifest_sha256": digest(fixture / "mcpp.toml.in"),
               "raster_contract": {"source": str(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp") + ":95",
                                   "source_sha256": digest(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp"),
@@ -120,6 +133,8 @@ def main() -> int:
         report["commands"].append({"argv": argv, "exit_code": result.returncode, "stdout": str(stdout), "stderr": str(stderr)})
         if result.returncode != expected:
             raise RuntimeError(f"{label}: exit {result.returncode}, expected {expected}; see {stderr}")
+        if openas_package and "not one of that package's public modules" in result.stderr:
+            raise RuntimeError(label+": private module import remains in the artifact configuration")
         return result.stdout
 
     try:
@@ -128,6 +143,8 @@ def main() -> int:
         for key, relative in {"engine": "gfx/hanim", "raster": "gfx/raster",
                               "image": "base/image", "hash": "base/hash", "control": "base/control"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
+        if openas_package:
+            manifest = manifest.replace('openlifa.openas = "0.2.0"', 'openlifa.openas = { path = '+json.dumps(str(openas_package))+' }')
         (project / "mcpp.toml").write_text(manifest)
         shutil.copyfile(fixture / "src/main.cpp", project / "src/main.cpp")
         shutil.copyfile(project / "mcpp.toml", artifacts / "consumer.mcpp.toml")
@@ -241,7 +258,7 @@ def main() -> int:
             run(profile + "-metadata", [args.mcpp, "build", "--locked", "--profile", profile, "--configure-only"])
             report["profiles"].append({"profile": profile, "runs": results, "agent_reviews": agent_results,
                                       "denied_capture_published_no_files": True, "display_environment_removed": True,
-                                      **audit(project, repo, artifacts, profile)})
+                                      **audit(project, repo, artifacts, profile, openas_package)})
             if digest(project / "mcpp.lock") != temporary_lock:
                 raise RuntimeError("locked runs changed the temporary project's resolution")
         # Test-only dependencies live in a second real consumer, never in the

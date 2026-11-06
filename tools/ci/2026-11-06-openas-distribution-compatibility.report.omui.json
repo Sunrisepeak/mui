@@ -1,0 +1,374 @@
+{
+  "format": "openas.distribution-compatibility-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T03:23:32.129560+00:00",
+  "base_commit": "1635cd952fac6285ad2b530f7f39bfd9c28b622b",
+  "scope": [
+    "Upstream explicit acyclic SDK public entry preserves existing module imports and type ownership.",
+    "Root fixture declares its direct standard dependency and can consume an unpacked binary artifact without changing the source workspace lock."
+  ],
+  "upstream": {
+    "repository": "openlifa/openas",
+    "pr": "https://github.com/openlifa/openas/pull/1",
+    "branch": "openas-design",
+    "commit": "fc6a9b4ac9e061ed1ec6aa426b0d603fc7753206",
+    "pushed_and_pr_head_verified": true,
+    "published": false,
+    "root_dependency_upgraded": false,
+    "source_hashes_verified_against_tested_inputs": {
+      "mcpp.toml": "6de4aeb95b7a29bf302bcec4d63800a181e44e296e3d67211f53124dc7f601e1",
+      "src/actor.cpp": "2b01b18da1817288c896c509dbbba0ae7e52a731bba16b8e7d3434ff37afe275",
+      "src/actor.cppm": "055a53691be2b11c53b8995f7a5882b58d86f1e2fd490a27b0ac059cee3a2195",
+      "src/conformance.cpp": "8c9de48ae960a7ba57ff0f1fb7bfdb479f8788bcb5d97ea54f1cbf185febe9c0",
+      "src/conformance.cppm": "24e7a1667a2e1d774d3616a2026e4bcf7087456d5fc5d756b41e0b5cfb5d078f",
+      "src/envelope.cpp": "0522cfe036ee11bd8dc9de101d46f65d571291e530994c19e9c7d0a455940662",
+      "src/envelope.cppm": "b97930b4660496dcedd2bbc582d31f177b5d157a52180653332d1e86585c53ed",
+      "src/grant.cpp": "ccba452e8cfb44eb6fe08535e72d34e4b538ce95336fda05c20f6f593a21715a",
+      "src/grant.cppm": "1eee12dbbf99c92048ffc7b3469e3bad843def8b65b15e4b69c48a32c49533df",
+      "src/openas.cppm": "8aeaa3557dcbb4c61390badf7578d61ebfbc2efcbd81aa7276e5918c37072d8d",
+      "src/sdk.cppm": "e7fe1910493241874cf3ad17eff9402dee63f826570235479ba0f38dfc123f0a",
+      "src/verb.cpp": "84005c56239853d3ee94eb11d51db9066fc56c235c3afb77144e478e6823d754",
+      "src/verb.cppm": "d195e5512fdb67e20e976dfb436e7d48ce7d3b0b521bb12ba14f19b492b1702c"
+    }
+  },
+  "toolchain": {
+    "mcpp": "2026.11.2.2",
+    "platform": "Linux x86_64",
+    "compiler": "GCC 16.1.0",
+    "standard": "C++23"
+  },
+  "negative_probes": [
+    {
+      "kind": "original-package",
+      "expected_failure": true,
+      "failed_step": "packed-build",
+      "report": {
+        "path": "target/openas-distribution/baseline.report.omui.json",
+        "sha256": "d021330f616cb317b8c1e85d5e5be666d1b47ac9a565df92c6ec1cfed47b5eb2"
+      },
+      "archive": {
+        "archive": "/home/speak/workspace/mui/target/openas-distribution/baseline.report.omui-artifacts/openas-0.2.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "d61b227140a6c693539c35a25c5db8a9dd396dd43714677d08b58621c1d4e1fd",
+        "bytes": 219050,
+        "interfaces": [
+          "interface/actor.cppm",
+          "interface/envelope.cppm",
+          "interface/grant.cppm",
+          "interface/openas.cppm",
+          "interface/verb.cppm"
+        ]
+      }
+    },
+    {
+      "kind": "feature-only-candidate",
+      "expected_failure": true,
+      "failed_step": "packed-build",
+      "report": {
+        "path": "target/openas-distribution/feature-only.report.omui.json",
+        "sha256": "2b7357909005c3fd40e682ffdb1ea5ea0c033f856055aa59368c4a1e815947aa"
+      },
+      "archive": {
+        "archive": "/home/speak/workspace/mui/target/openas-distribution/feature-only-artifacts/openas-0.2.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "d61b227140a6c693539c35a25c5db8a9dd396dd43714677d08b58621c1d4e1fd",
+        "bytes": 219050,
+        "interfaces": [
+          "interface/actor.cppm",
+          "interface/envelope.cppm",
+          "interface/grant.cppm",
+          "interface/openas.cppm",
+          "interface/verb.cppm"
+        ]
+      }
+    }
+  ],
+  "fixed_package": {
+    "report": {
+      "path": "target/openas-distribution/fixed.report.omui.json",
+      "sha256": "55b2b8ef40a8b44301a62f889e26a63fc6f70b88a244f32f6442863b947a1f35"
+    },
+    "archive": {
+      "archive": "/home/speak/workspace/mui/target/openas-distribution/fixed.report.omui-artifacts/openas-0.2.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+      "sha256": "42a3fbf24827b842160d346622de6ec95999c4ab799972d00944af40a2b492bd",
+      "bytes": 219127,
+      "interfaces": [
+        "interface/actor.cppm",
+        "interface/conformance.cppm",
+        "interface/envelope.cppm",
+        "interface/grant.cppm",
+        "interface/openas.cppm",
+        "interface/sdk.cppm",
+        "interface/verb.cppm"
+      ]
+    },
+    "consumers": [
+      {
+        "name": "packed",
+        "conformance": true,
+        "sdk_import": false,
+        "compiled_units": 9,
+        "ok": true
+      },
+      {
+        "name": "source",
+        "conformance": true,
+        "sdk_import": false,
+        "compiled_units": 14,
+        "ok": true
+      },
+      {
+        "name": "core-api",
+        "conformance": false,
+        "sdk_import": false,
+        "compiled_units": 9,
+        "ok": true
+      },
+      {
+        "name": "sdk-api",
+        "conformance": true,
+        "sdk_import": true,
+        "compiled_units": 9,
+        "ok": true
+      }
+    ],
+    "implementation_sources_absent": true,
+    "original_tests": {
+      "cases": 7,
+      "assertions": 80,
+      "log": {
+        "path": "target/openas-distribution/upstream-tests.log",
+        "sha256": "cb441c18a0ad5867526925b02bce2d655f34f3e038a59fc4b7dd70e12c91ac75"
+      }
+    }
+  },
+  "real_hanim_consumer": {
+    "report": {
+      "path": "target/openas-distribution/hanim-final.report.omui.json",
+      "sha256": "eb41659a154e0474db8888954bc8562ba150e6911fad7d5a8c2ffcf428a3d8b7"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "native_runs": 9,
+        "agent_reviews": 5,
+        "integration_programs": 3,
+        "integration_cases": 22
+      },
+      {
+        "profile": "release",
+        "native_runs": 9,
+        "agent_reviews": 5,
+        "integration_programs": 3,
+        "integration_cases": 22
+      }
+    ],
+    "openas_package": {
+      "path": "/tmp/openas-distribution-96vpo7hw/installation/openas-0.2.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23",
+      "manifest_sha256": "fcf8960a1c52a1cce20e2704ca184c88cc0ad8c5969dd1f1a777d2f8e7167dba"
+    },
+    "png_count": 646,
+    "agent_sequence_frames": 610,
+    "all_pngs_equal_previous_candidate_run": true,
+    "display_environment_removed": true,
+    "denied_capture_published_no_files": true,
+    "runner_sha256": "8199149d2f0d46f9a8685ca2e7f78394236df9d22d626103ec830baac2fc234d",
+    "manifest_sha256": "fc8df94e3240c63304435407a59d3064929966cc24bd960ce168602e99bd9d72"
+  },
+  "default_and_negative_cli": {
+    "default_indexed_catalog_entries": 13,
+    "source_checkout_rejected_exit_code": 2,
+    "logs": [
+      {
+        "path": "target/openas-distribution/default-smoke.log",
+        "sha256": "688c85679e7279a735499d4752ea67abbb7f1c0f0fb7b7b66a7921e0abf4c4d9"
+      },
+      {
+        "path": "target/openas-distribution/default-smoke-build.log",
+        "sha256": "71963d0d6f38327af9220a541f80811511e805ec1c048ea0cc00881cc48c57f7"
+      },
+      {
+        "path": "target/openas-distribution/input-negative.log",
+        "sha256": "374f8a2c7b180ddeb916c0393fcad6091950775e0c55a66c1305270ae61765b6"
+      }
+    ]
+  },
+  "source_files_sha256": {
+    "tools/ci/hanim-play-consumer/run.py": "8199149d2f0d46f9a8685ca2e7f78394236df9d22d626103ec830baac2fc234d",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "fc8df94e3240c63304435407a59d3064929966cc24bd960ce168602e99bd9d72",
+    "tools/ci/hanim-play-consumer/README.md": "1464b6a202a9830df3e9c0d373304787f5085424a0b5c048e3fc4fdd79024c03",
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "2e17fb8af187bc713970e6dc6e6ff4e0c4a809d3f27b1066b7da0ee206bd9f9c",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "abf84a74b9a95a9cbe8ec570630d32201a2cbcc1359b4c1675616e7bc1c5d931",
+    ".agents/docs/README.md": "326ac6688202645645fda9efefce7c59e5bb943e9b1b0e5e0870977f503ceb3a"
+  },
+  "source_lock": {
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "unchanged": true,
+    "user_changes_excluded_from_commit": true
+  },
+  "cleanup": {
+    "status": "complete",
+    "before_free_bytes": 2219327488,
+    "after_free_bytes": 3330662400,
+    "removed_allocated_bytes": 1111343104,
+    "lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "paths": [
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/1cd1de0e95e25160/obj",
+        "allocated_bytes": 83099648,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/1cd1de0e95e25160/gcm.cache",
+        "allocated_bytes": 278183936,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/1cd1de0e95e25160/modmap",
+        "allocated_bytes": 2670592,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/676693b5a82b7db5/obj",
+        "allocated_bytes": 158212096,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/676693b5a82b7db5/gcm.cache",
+        "allocated_bytes": 416833536,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/676693b5a82b7db5/modmap",
+        "allocated_bytes": 18190336,
+        "reason": "superseded native build intermediates; binaries retained"
+      },
+      {
+        "path": "/tmp/omui-c-m5zpUM",
+        "allocated_bytes": 21680128,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-OS9lHA",
+        "allocated_bytes": 40960,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-BK6E6Z",
+        "allocated_bytes": 40960,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-shots-ofxnhC",
+        "allocated_bytes": 26017792,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-probe-X5babp",
+        "allocated_bytes": 25886720,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-IxrEwp",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-8YAiNI",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-T9h0mj",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-g2qZuf",
+        "allocated_bytes": 40960,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-shots-QuDgou",
+        "allocated_bytes": 16322560,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-hzakXP",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-shots-LZgizx",
+        "allocated_bytes": 26021888,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-kH9j7S",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-0OmERm",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-u0wD5G",
+        "allocated_bytes": 40960,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-Q3WUce",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-3VEKtE",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-MZO3F2",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-DaFFjF",
+        "allocated_bytes": 24576,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-probe-kgvo7j",
+        "allocated_bytes": 16093184,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-site-perf-RFozdX",
+        "allocated_bytes": 40960,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      },
+      {
+        "path": "/tmp/omui-m-fDMIRn",
+        "allocated_bytes": 21680128,
+        "reason": "completed browser test profile; screenshots and reports stored separately"
+      }
+    ]
+  },
+  "validation": {
+    "python_syntax": "passed",
+    "tested_input_digests": "match final code",
+    "lint": {
+      "path": "target/openas-distribution/root-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+    }
+  },
+  "limitations": [
+    "Upstream PR is not a release or an index update; default source dependency remains the prior indexed 0.2.0.",
+    "Core-only API import is not evidence of conformance source/build pruning.",
+    "Current pinned mcpp feature-only packaging candidate failed; no claim about other tool versions.",
+    "Local Linux package gate passed; other platforms and published artifact adoption remain open.",
+    "Website/browser/performance were not rerun for this fixture-only change.",
+    "Visual evidence covers the existing headless fixture, not full aesthetic or real-time acceptance.",
+    "Global 40/20 public library and multi-engine plan remain incomplete."
+  ]
+}

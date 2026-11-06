@@ -79,4 +79,10 @@ class AgentAccess {
 [[nodiscard]] Envelope above_cap(std::string_view what, const Invocation& call = {});
 [[nodiscard]] openas::Actor to_openas(const Actor& actor);
 
+enum class ControlInvocationError : std::uint8_t { unbound_access, missing_session };
+// Convert an already host-bound UI call, not request JSON. No implicit global
+// policy, new session, permission mapping or admission is introduced.
+[[nodiscard]] std::expected<mlibs::control::Invocation,ControlInvocationError>
+    to_control_invocation(const Invocation&);
+
 } // namespace omui

@@ -227,10 +227,14 @@ owning `Playback` below supplies that host transport without another engine.
 The [independent consumer](../../../tools/ci/omui-hanim-consumer/src/main.cpp)
 uses the real button/popover, shaped text, public Hanim composition, renderer
 and Agent actions. Its [runner](../../../tools/ci/omui-hanim-consumer/run.py)
-exports 61 explicit samples, 61 host-driven frames, 61 nested-effect frames and
-61 public-feedback frames, with exact reverse
+exports 61 explicit samples, 61 host-driven frames, 61 nested-effect frames,
+61 public-feedback frames and 61 UI-to-native control frames, with exact reverse
 replay in native dev/release and optional Wasm/Node, without changing the
-source workspace's lock.
+source workspace's lock. The control case carries the actual UI invocation
+through `omui::to_control_invocation` into the optional Hanim Controller,
+checks both operation filters and live revocation, and exercises real mouse
+input. Pixel capture here is trusted test-host audit, not an added Agent capture
+endpoint. Ordinary view consumers do not acquire Hanim's control feature.
 
 ## Native image scopes on live UI content
 

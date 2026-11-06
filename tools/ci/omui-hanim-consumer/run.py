@@ -88,7 +88,7 @@ def main() -> int:
         (project/'src').mkdir(exist_ok=True)
         manifest=(fixture/'mcpp.toml.in').read_text()
         for key,path in {'view':'modules/ui/view','components':'components/base','raster':'modules/gfx/raster',
-                         'image':'modules/base/image','hash':'modules/base/hash'}.items():
+                         'image':'modules/base/image','hash':'modules/base/hash','hanim':'modules/gfx/hanim'}.items():
             manifest=manifest.replace('{{'+key+'_path}}',json.dumps(str(repo/path)))
         (project/'mcpp.toml').write_text(manifest);shutil.copyfile(fixture/'src/main.cpp',project/'src/main.cpp')
         unlocked=not (project/'mcpp.lock').is_file()
@@ -104,8 +104,8 @@ def main() -> int:
             stdout=run(profile,['run','--locked','--profile',profile,*target,'--',str(images)])
             records=[json.loads(line) for line in stdout.splitlines() if line.startswith('{')]
             result=next(row for row in records if row.get('kind')=='omui.hanim-consumer')
-            if not result['ok'] or any(len(result[key])!=61 for key in ['frames','driver_frames','effect_frames','feedback_frames']):raise RuntimeError('consumer did not complete the real task')
-            for frame in result['frames']+result['driver_frames']+result['effect_frames']+result['feedback_frames']:
+            if not result['ok'] or any(len(result[key])!=61 for key in ['frames','driver_frames','effect_frames','feedback_frames','bridge_frames']):raise RuntimeError('consumer did not complete the real task')
+            for frame in result['frames']+result['driver_frames']+result['effect_frames']+result['feedback_frames']+result['bridge_frames']:
                 path=Path(frame['png']);frame['png_sha256']=digest(path)
                 if not path.is_relative_to(images) or path.stat().st_size<100:raise RuntimeError('invalid pixel artifact')
             run(profile+'-metadata',['build','--locked','--profile',profile,*target,'--configure-only'])
@@ -126,9 +126,9 @@ def main() -> int:
             report['profiles'].append({'profile':profile,'result':result,'packages':packages,
                 'source_files_sha256':{str(p.relative_to(repo)):digest(p) for p in sorted(set(sources)) if p.is_relative_to(repo)}})
             if digest(project/'mcpp.lock')!=consumer_lock:raise RuntimeError('consumer lock changed')
-        reference=sum((report['profiles'][0]['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames']),[])
+        reference=sum((report['profiles'][0]['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames','bridge_frames']),[])
         for profile in report['profiles'][1:]:
-            frames=sum((profile['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames']),[])
+            frames=sum((profile['result'][key] for key in ['frames','driver_frames','effect_frames','feedback_frames','bridge_frames']),[])
             if any(a['pixel_fnv1a']!=b['pixel_fnv1a'] or a['png_sha256']!=b['png_sha256'] for a,b in zip(reference,frames)):
                 raise RuntimeError('profile process pixels differ')
         stdout=run('missing-fonts',['run','--locked','--profile','release','--',str(artifacts/'release')],
@@ -139,7 +139,7 @@ def main() -> int:
         report['missing_fonts_refused']=True
         # A real second application in the same disposable workspace: turning
         # off the adapter must remove its player sources from the link graph.
-        (project/'mcpp.toml').write_text(manifest.replace(', features = ["hanim"]',''))
+        (project/'mcpp.toml').write_text('\n'.join(line for line in manifest.replace(', features = ["hanim"]','').splitlines() if not line.startswith('hanim = '))+'\n')
         (project/'src/main.cpp').write_text('''import std;
 import openmui.view;
 int main() {
@@ -154,7 +154,7 @@ int main() {
         if 'omui.view-without-player: ok' not in stdout:raise RuntimeError('feature-off application did not run')
         run('without-player-metadata',['build','--locked','--profile','dev','--configure-only'])
         resolution,data,cdb,commands,ninja=metadata('dev')
-        if any('/view/src/hanim/' in c['file'] or '/hanim/src/engine/' in c['file'] or '/hanim/src/render/vector/' in c['file'] for c in commands):
+        if any('/view/src/hanim/' in c['file'] or '/hanim/src/engine/' in c['file'] or '/hanim/src/render/vector/' in c['file'] or '/hanim/src/control/' in c['file'] for c in commands):
             raise RuntimeError('optional adapter/player leaked into ordinary view build')
         shutil.copyfile(resolution,artifacts/'without-player.resolution.json')
         shutil.copyfile(cdb,artifacts/'without-player.compile_commands.json')

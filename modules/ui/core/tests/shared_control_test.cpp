@@ -31,6 +31,35 @@ int main(int argc, char** argv) {
         check(access->revoke_session(*session->control_session()));
         check(!ui->effective(session.get()).session_valid && !ui->revoke_session(*session));
     });
+    suite.test("native invocation conversion retains the bound issuer session and preview", [] {
+        auto native=std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev"));
+        auto ui=std::make_shared<AgentAccess>(native);auto session=ui->open_session();
+        Invocation call{.args=Value{}.set("ignored_domain_payload",1),.answer="yes",
+            .actor={"agent","reviewer",{session->owner()}},.remote=true,.dry_run=true,.access=ui,.session=session,.operation="invoke"};
+        const auto converted=to_control_invocation(call);check(converted.has_value());if(!converted)return;
+        check(converted->access==native && converted->session==session->control_session());
+        check(converted->actor==to_openas(call.actor) && converted->remote && converted->dry_run &&
+              converted->answer=="yes" && converted->operation=="invoke");
+        mlibs::control::InvocationContext context;
+        {
+            mlibs::control::OperationScope scoped(context,native,*converted,{"animation.seek",openas::Effect::reversible});
+            check(scoped.decision()==openas::Decision::run && !scoped.execute());
+        }
+        check(ui->revoke_session(*session));
+        auto revoked=to_control_invocation(call);check(revoked.has_value());if(!revoked)return;
+        mlibs::control::OperationScope scoped(context,native,*revoked,{"animation.seek",openas::Effect::reversible});
+        check(scoped.decision()==openas::Decision::refuse && !scoped.execute(),"conversion does not renew a revoked session");
+    });
+    suite.test("unbound remote conversion refuses while local calls retain ordinary host semantics", [] {
+        Invocation remote;remote.remote=true;
+        const auto unbound=to_control_invocation(remote);check(!unbound && unbound.error()==ControlInvocationError::unbound_access);
+        remote.access=std::make_shared<AgentAccess>();
+        const auto missing=to_control_invocation(remote);check(!missing && missing.error()==ControlInvocationError::missing_session);
+        Invocation local;local.actor={"custom-kind","host",{"program:caller"}};
+        const auto converted=to_control_invocation(local);
+        check(converted && !converted->remote && !converted->access && !converted->session &&
+            converted->actor.kind==openas::Kind::program && converted->actor.via==local.actor.via);
+    });
     suite.test("legacy UI value aggregates and actor attribution remain available", [] {
         AgentPolicyState state{.mode = AgentMode::dual_user, .source = "compatibility"};
         check(state.allows("snapshot") && state.to_value().get("source")->as_string() == "compatibility");

@@ -3,6 +3,7 @@ module openmui.core;
 import std;
 import openas;
 import mlibs.control;
+import mlibs.trace;
 
 namespace omui {
 namespace {
@@ -112,5 +113,14 @@ Envelope above_cap(std::string_view what, const Invocation& call) {
 }
 openas::Actor to_openas(const Actor& actor) {
     return {openas::parse_kind(actor.kind).value_or(openas::Kind::program), actor.name, actor.via};
+}
+std::expected<mlibs::control::Invocation,ControlInvocationError> to_control_invocation(const Invocation& call) {
+    mlibs::trace::Span span("control.convert","agent");
+    if(call.remote && !call.access)return std::unexpected(ControlInvocationError::unbound_access);
+    if(call.remote && !call.session)return std::unexpected(ControlInvocationError::missing_session);
+    return mlibs::control::Invocation{.answer=call.answer,.actor=to_openas(call.actor),
+        .remote=call.remote,.dry_run=call.dry_run,
+        .access=call.access?call.access->control_binding():nullptr,
+        .session=call.session?call.session->control_session():nullptr,.operation=call.operation};
 }
 } // namespace omui

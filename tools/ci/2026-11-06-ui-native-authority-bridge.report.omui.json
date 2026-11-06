@@ -1,0 +1,150 @@
+{
+  "format": "omui.native-authority-bridge-checkpoint@0.1",
+  "recorded_at": "2026-11-06T00:59:29.720017+00:00",
+  "ok": true,
+  "base_commit": "ffd2fd5ab7773c777a207fe644d0a478cef32499",
+  "scope": [
+    "UI core converts already host-bound Invocation metadata into the shared native control contract; same actual issuer/session, explicit errors and no implicit grants.",
+    "Real UI verb and mouse input drive public Hanim Controller and Binding with separate UI/native operation checks and live revocation.",
+    "No new package or UI-core Hanim dependency; fixture explicitly selects optional Hanim control."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "500e91ebafb022507c0d8fa7ec5f2c1a37ea84c41a18eb00a6c5e47b55a485b9",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "a768cf092dd67530a9f94851af5bdd38982bb8451fccef709c5115e99c03c6b6",
+    ".agents/docs/README.md": "80266830cefd4f6a28514972a332efa87b8be8647213ec55d4303cf0facd2339",
+    "modules/gfx/hanim/src/control/README.md": "29bbec6cdcb0f77934c349ec1a17e989700e026e4a9c9748c133bed731a06422",
+    "modules/ui/core/README.md": "9abef5b400f229e9dc0e79b25db60f9bb5ac1c8e6f802a8d96fed295f2034678",
+    "modules/ui/core/src/access.cpp": "2f9a3ac0c7cf17f18081710e2558deb7f29c10b888c03d0355140c0d3d50826a",
+    "modules/ui/core/src/access.cppm": "4ac8de13b26f15b9490ff85b0b0d0e0a9ffac98e3d28ffe5e635fa58791c8c32",
+    "modules/ui/core/tests/shared_control_test.cpp": "01a1a95e3a0a272856cd31d16d5a12774c4e46d71814352a9314dc87c43db2db",
+    "modules/ui/view/README.md": "a620ce8ebc51b16c40842f1f311d5b8b128365b83d063fde349f3adb297b658a",
+    "tools/ci/omui-hanim-consumer/mcpp.toml.in": "3cf890e877b7d21140c057f071b5e46c24cef5954948c7a740df97db7867a509",
+    "tools/ci/omui-hanim-consumer/run.py": "93cb7cd86297b3239ec2fa52d2fe000df8a3f3f3f86390e2766fcb9dfa95e9ac",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "a87599141257d981936a0c2fa041e8a6599c8e94623a5340005467298bcd7ba5"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "core": {
+      "dev": {
+        "path": "target/omui-control-bridge/core-dev.log",
+        "sha256": "f2d6d057dd2f261c5cc2606361350a05d0e2d0732ad6918fd0ce5bb358c9fefe",
+        "programs": 11,
+        "cases": 43,
+        "failed": 0
+      },
+      "release": {
+        "path": "target/omui-control-bridge/core-release.log",
+        "sha256": "4b2cca0a388e53447ab90fc5876a6d21837379ec4007f783c372f84e04c257d6",
+        "programs": 11,
+        "cases": 43,
+        "failed": 0
+      },
+      "web": {
+        "path": "target/omui-control-bridge/core-web.log",
+        "sha256": "68840aed45a7807de04475b232cef9ca92a86bcff8810046b953d4863a85c4cb",
+        "programs": 11,
+        "cases": 43,
+        "failed": 0
+      }
+    },
+    "ui_consumer": {
+      "path": "target/omui-control-bridge/consumer.report.omui.json",
+      "sha256": "6cf40752614e0df1ce1dd316a1ab99631ffed546b080333cf325446d871a0dc7",
+      "profiles": [
+        {
+          "profile": "dev",
+          "checks": 107,
+          "ok": true,
+          "pngs": 305
+        },
+        {
+          "profile": "release",
+          "checks": 107,
+          "ok": true,
+          "pngs": 305
+        },
+        {
+          "profile": "wasm-test",
+          "checks": 107,
+          "ok": true,
+          "pngs": 305
+        }
+      ],
+      "total_pngs": 915,
+      "reverse_and_cross_profile_pixels_identical": true,
+      "prior_process_images_unchanged": 732,
+      "previous": {
+        "path": "target/omui-authoring-errors/ui.report.omui.json",
+        "sha256": "d7c7519658d3495a7c90b7408379213038065978ed5e785a3df861bfa52c2a62"
+      },
+      "missing_fonts_refused": true,
+      "feature_off": {
+        "ok": true,
+        "compiled_units": 706,
+        "adapter_and_engine_absent": true,
+        "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+      },
+      "source_and_fixture_fingerprints_match": true
+    },
+    "lint": {
+      "path": "target/omui-control-bridge/lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "documentation_links_resolve": true,
+    "python_syntax_valid": true,
+    "commands": [
+      {
+        "label": "core-release",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "openmui.core",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "seconds": 11.357079245033674,
+        "log": "target/omui-control-bridge/core-release.log"
+      },
+      {
+        "label": "core-web",
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "-p",
+          "openmui.core",
+          "--locked",
+          "--profile",
+          "wasm-test",
+          "--target",
+          "wasm32-emscripten"
+        ],
+        "exit": 0,
+        "seconds": 7.727829743991606,
+        "log": "target/omui-control-bridge/core-web.log"
+      }
+    ],
+    "visual_inspection": {
+      "file": "/home/speak/workspace/mui/target/omui-control-bridge/consumer.report.omui-artifacts/dev/bridge-030.png",
+      "observation": "Actual shaped text and standard button are legible at the sampled translated midpoint; no live-playback judgement."
+    }
+  },
+  "cleanup": {
+    "path": "target/cleanup-2026-11-06.report.omui.json",
+    "sha256": "0d73fbdb28aee9e82728250944bea9ebd0ab3e00ca206c309edbc8241248e450",
+    "filesystem_free_increase_bytes": 834068480
+  },
+  "limits": [
+    "Test-host resource setup, state queries and PNG output are trusted audit operations, not a new Agent capture endpoint.",
+    "No automatic bridge installation, generic provider registry, resource ACL or asynchronous Controller lifecycle.",
+    "No new website/browser or delivery performance run; website control integration remains separate work.",
+    "No claim of complete 40/20 public animation/design delivery or global multi-engine objective."
+  ]
+}

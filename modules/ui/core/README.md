@@ -40,3 +40,42 @@ types, operation envelopes and `AgentPolicyState::to_value()` remain available;
 `InvocationContext`/`InvocationScope` alias the shared context mechanism. C++
 module consumers rebuild; this extraction does not promise binary compatibility.
 An omitted operation now falls back to the verb name when applying filters.
+
+## Carrying UI authority into independent engines
+
+`omui::to_control_invocation(const Invocation&)` converts an already host-bound
+UI call into `mlibs::control::Invocation`. It retains the same Access/session
+objects, actor attribution, answer, origin operation and dry-run state. Domain
+arguments remain separately validated typed parameters; UI `Value` payloads
+are not copied into the shared control contract.
+
+Inside an admitted Runtime verb callback, carry its actual current call:
+
+```cpp
+const auto ui_call = runtime.current_invocation();
+if (!ui_call) return std::unexpected("Missing UI invocation");
+auto native_call = omui::to_control_invocation(*ui_call);
+if (!native_call) return std::unexpected("Unbound UI authority");
+auto reply = controller.seek_progress(*native_call, playback, progress);
+// Inspect admission/domain failure and executed before publishing a result.
+```
+
+A remote call without bound Access returns `unbound_access`; without a Session
+it returns `missing_session`. Trusted local host calls may omit both. Conversion
+does not authenticate request JSON, grant permission, create/renew a Session,
+enter a scope, or use the legacy global fallback. The destination Controller
+enters its own scope and rechecks current policy, including revocation.
+
+For the UI `invoke` entry followed by Hanim `animation.seek-progress`, operation
+restrictions must allow both. The origin remains `invoke`; conversion never
+aliases transport permission into domain permission. Share the actual Access
+between hosts. For worker scheduling, copy the converted call while the bound
+UI callback is active, then re-enter it at execution; do not replace a missing
+later UI context with an empty local call. Contexts are serial and do not
+automatically inherit across these two Invocation representations.
+
+The [independent UI consumer](../../../tools/ci/omui-hanim-consumer/src/main.cpp)
+drives the same public Hanim Controller through UI verbs and a real mouse
+button, checks both permission boundaries and revocation between them, and
+samples 61 actual rendered frames. This adapter adds no Hanim dependency to
+UI core; it is usable by other independent domains importing `mlibs.control`.

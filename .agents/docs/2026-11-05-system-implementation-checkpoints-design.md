@@ -1181,3 +1181,30 @@ FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失�
 最终公共 CLI 消费者在 debug／release 各运行 9 组原生输出和 5 组脚本化 Agent 语义审查；每组审查真实采样 61 帧，共 **610 张过程 PNG**，逐帧逆放、跨 profile 像素／PNG 摘要均一致。两种构建的 `--describe-control` 都返回真实的 13 项能力与 effect 分类；capture 被拒绝时没有写出图像或 provenance。另有独立 renderer／composite／visual 三个程序，debug／release 各 **21 项**通过。这里验证的是实际引擎与授权语义的脚本化消费者，不是外部 LLM 或线上 RPC 互通验收。
 
 最终源码／fixture 摘要、命令、解析图、静态包与图像证据位于 `target/omui-native-control/`，结构化摘要为 `tools/ci/2026-11-06-hanim-native-control.report.omui.json`。全仓库 lint 为零，源锁文件保持用户原有字节；新增控制组合、Web 实际执行和 CLI 发现检查进入既有 feature／consumer CI 入口。本轮没有重跑官网浏览器或交付性能，不引用旧包指标作为本轮结果。本轮新增的是独立引擎的原生控制适配，不是官网新动画数量、完整 provider 注册／资源 ACL、通用协议解析、异步取消或自动 UI 接入的完成声明。40／20 和总体引擎实施目标继续开放。
+
+
+## 36. UI 到独立引擎的显式授权传递
+
+2026-11-06，基线 `ffd2fd5`。继续 S6 与 UI／Hanim 组合：两边已共用 Access 和 Session，但各自的 Invocation 表示不同，UI callback 不能靠创建空的本地请求调用原生 Controller，否则会丢掉 Agent 来源与限制。本轮提供通用转换及真实 UI 消费证据，不增加第二套权限系统。
+
+### 36.1 契约与归属
+
+`omui::to_control_invocation(const Invocation&)` 位于既有 UI core 的 access 单元，返回 `expected<mlibs::control::Invocation, ControlInvocationError>`。输入必须是宿主绑定后的调用，例如在 Runtime verb callback 内取得的 `current_invocation()`；保留相同的实际 Access／Session、actor／via、answer、remote、dry-run 及来源 operation。UI args 不进入共享层，领域参数由 adapter 单独校验并传给类型化接口。未知 actor kind 沿用既有 `to_openas` 的 program 回退语义。
+
+远端无 Access 或 Session 分别返回 unbound_access／missing_session；可信本地宿主允许没有这两者。转换不从 JSON 建立身份、不读全局 fallback、不创建 Session、不授予权限，也不自行进入目标作用域。原生 Controller 使用共享 OperationScope 再做当前领域授权。两宿主应绑定同一个实际 Access；worker 在原调用仍有效的回调内复制元数据，在执行时重新检查权限，不能延迟读取空上下文后改为本地请求。
+
+来源 `invoke` 与目标 `animation.seek-progress` 保持各自职责，操作过滤必须同时允许两者。没有把“UI 入口可调用”扩大为“任意引擎能力可调用”；转换后的记录也不是永久授权。UI 已放行后撤销 Session，Controller 仍拒绝。UI dry-run 在领域回调前停止；独立转换保留 dry-run，目标 OperationScope 仍不执行。
+
+代码只增加 UI→已有 mlibs.control 的转换，不使 UI core 依赖 Hanim。真实测试应用显式选择 Hanim `control` feature；普通 view 关闭可选 Hanim 后，实际编译图同时排除 UI adapter、完整 Engine、Hanim vector adapter 与 control 单元。转换新增 `agent` 类别的 `control.convert` trace；没有逐像素／逐帧权限查询，也未声明新增性能预算结果。
+
+### 36.2 实际消费与验证
+
+仓外消费者创建真实文字／卡片／按钮、共享 Access 的 Runtime 与 Hanim Controller。UI verb 取当前调用、转换、校验 progress，然后执行公共 seek_progress、发布 Binding，并由同源 CPU renderer 输出实际像素；按钮的真实鼠标按下／抬起也调用同一 verb。宿主创建播放资源、读取状态和输出测试图，是可信验证任务，不将这些旁路误称为新的受限 Agent 截图接口。
+
+新增链路按 61 个时刻正向驱动并逐帧反向重放，检查实际字形、变化像素、引擎位置和 host attribution。额外验证 UI／领域权限缺一不可、UI 预览不执行、UI 放行后的会话撤销会被目标重新检查，以及撤销 Agent 会话后人的本地鼠标操作仍可用。
+
+UI core 的 **11 个程序／43 项**在 native debug、release、Wasm 各通过。真实 UI 消费者三种 profile 各 **107 项**，五组过程各 61 张，即 **305 张／profile、共 915 张 PNG**；逆序及跨 profile 像素／PNG 摘要完全一致。新增 bridge 图之外，原四组 **732 张**与 §34 的记录一致。已人工查看中间态实际输出，文字与按钮清楚；这不代替实时播放节奏验收。缺字体负例和 feature-off 独立应用通过，源码与 fixture 摘要均核对当前文件。
+
+原始命令／结果和帧图位于 `target/omui-control-bridge/`；结构化摘要为 `tools/ci/2026-11-06-ui-native-authority-bridge.report.omui.json`。全仓库 lint 为零，源锁文件保持原有字节；新用例沿既有 core 与独立消费者 CI 入口执行。本轮没有修改官网布局／动画配方，也没有重跑浏览器或交付性能；后续官网控制面可以复用此桥接，不能将测试界面称为官网已接入。
+
+配套清理了被新验证替代的临时构建与无引用生成缓存，实际释放 834,068,480 B，保留最新增量、源码、图像证据与用户修改。清理报告在 `target/cleanup-2026-11-06.report.omui.json`。通用 provider 注册、资源级 ACL、异步控制与完整 40／20 公共库／官网交付，以及全局多引擎目标继续开放。

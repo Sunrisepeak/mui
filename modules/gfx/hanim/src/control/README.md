@@ -86,10 +86,15 @@ Use separate Access instances or host resource filters where finer instance /
 object partitions are required; Controller adds no per-object ACL of its own.
 
 Contexts do not inherit across unrelated instances or different Invocation
-representations. A UI compatibility adapter must explicitly carry the shared
-Access/session, actor, origin and preview flags into a native Invocation; an
-empty local call is not a substitute for that bridge. This module does not
-install that UI bridge automatically.
+representations. UI hosts can use `omui::to_control_invocation` from UI core
+on the already bound `Runtime::current_invocation()` inside their callback.
+It carries the same Access/session, actor, origin and preview flags; an empty
+local call is not a substitute for that bridge. Both the UI entry operation
+and this Controller's domain operation must be allowed. The destination checks
+live policy again, so conversion does not preserve revoked permission.
+This module remains UI-independent and does not install the bridge automatically.
+See the [UI contract](../../../../ui/core/README.md#carrying-ui-authority-into-independent-engines)
+and its real consumer for host wiring and worker-call lifetime rules.
 
 Minimal headless SOP:
 

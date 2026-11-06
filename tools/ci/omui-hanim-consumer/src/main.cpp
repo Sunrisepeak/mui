@@ -1,5 +1,6 @@
 import std;
 import omui.hanim;
+import hanim.control;
 import openmui.ui.base;
 import mlibs.raster;
 import mlibs.image;
@@ -14,18 +15,101 @@ Value::List checks;
 Value::List driver_frames;
 Value::List effect_frames;
 Value::List feedback_frames;
+Value::List bridge_frames;
 bool check(bool ok,std::string_view name) {checks.push_back(Value{}.set("name",name).set("ok",ok));return ok;}
 int finish(Value::List frames={}) {
     const bool ok=std::ranges::all_of(checks,[](const Value& v){return v.get("ok")->as_bool();});
     std::println("{}",Value{}.set("kind","omui.hanim-consumer").set("ok",ok).set("checks",Value(std::move(checks)))
         .set("frames",Value(std::move(frames))).set("driver_frames",Value(std::move(driver_frames)))
-        .set("effect_frames",Value(std::move(effect_frames))).set("feedback_frames",Value(std::move(feedback_frames))).json());return ok?0:1;
+        .set("effect_frames",Value(std::move(effect_frames))).set("feedback_frames",Value(std::move(feedback_frames)))
+        .set("bridge_frames",Value(std::move(bridge_frames))).json());return ok?0:1;
 }
 PointerEvent pointer(PointerKind kind,Point at) {
     PointerEvent event;event.kind=kind;event.position=at;event.button=MouseButton::left;
     event.buttons=kind==PointerKind::down?1u:0u;return event;
 }
 std::string pixel_hash(const raster::Surface& pixels) {return mlibs::hash::Fnv1a{}.bytes(std::as_bytes(pixels.pixels())).hex();}
+
+void bridge_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
+    auto authority=std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev"));
+    auto ui=std::make_shared<AgentAccess>(authority);
+    RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;options.access=ui;
+    Runtime runtime(options);typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    bool clicked=false;
+    runtime.mount("main",column({.padding=20,.gap=16},{
+        column({.id="card",.width=220,.height=80,.padding=12,.background="surface",.radius=12},{text({.id="title",.text="Shared authority"})}),
+        button({.id="sample",.text="Sample midpoint",.on_activated=[&]{
+            Invocation local;local.args=Value{}.set("progress",.5);
+            clicked=runtime.verbs().invoke("animation.sample",local).exit_code()==0;
+        }})}));
+    bool rendered=true;
+    auto paint=[&](double t){const auto frame=runtime.frame({hanim::seconds(t),{}});
+        const auto result=renderer.render(runtime.display_list(),pixels,{&runtime.images(),&glyphs});
+        rendered=rendered && frame.failure.empty() && !result.missing_glyphs && !result.effects_skipped;return pixel_hash(pixels);};
+    paint(0);paint(1);
+    auto engine=hanim::Engine::make();if(!check(bool(engine),"bridge_engine_created"))return;
+    const auto card=runtime.find("main/card");
+    auto binding=animation::Binding::attach(runtime,std::array{animation::Target{"card",card}},*engine);
+    if(!check(bool(binding),"bridge_binds_real_ui_content"))return;
+    auto playback=engine->play(hanim::anim::move_to(binding->object(),{60,0}));
+    if(!check(bool(playback),"bridge_program_started_by_the_host"))return;
+    mlibs::control::InvocationContext context;hanim::control::Controller controller(*engine,authority,context);
+    int callbacks=0;bool revoke_inside=false;std::optional<mlibs::control::Invocation> carried;
+    std::optional<hanim::control::Failure> rejected;
+    const auto added=runtime.verbs().add({.name="animation.sample"},[&](const Value& args)->VerbResult {
+        ++callbacks;const auto call=runtime.current_invocation();
+        if(!call)return std::unexpected("Missing UI invocation");
+        auto converted=to_control_invocation(*call);if(!converted)return std::unexpected("Unbound UI authority");
+        const auto* progress=args.get("progress");if(!progress || !progress->is_number())return std::unexpected("Missing progress");
+        carried=*converted;
+        if(revoke_inside && converted->session)(void)authority->revoke_session(*converted->session);
+        const auto sampled=controller.seek_progress(*converted,*playback,progress->as_double());
+        if(!sampled){rejected=sampled.error();return std::unexpected("Native seek refused");}
+        if(!sampled->executed)return Value{}.set("executed",false);
+        const auto frame=engine->frame(*playback);
+        if(!frame || !binding->present(*frame))return std::unexpected("Presentation failed");
+        return Value{}.set("executed",true);
+    });
+    if(!check(bool(added),"bridge_registers_a_real_ui_verb"))return;
+    auto policy=authority->policy();policy.user.operations=std::vector<std::string>{"invoke","animation.seek-progress"};authority->set_policy(policy);
+    const auto session=ui->open_session();
+    Invocation request{.actor={"agent","ui-bridge",{"person:forged"}},.remote=true,.access=ui,.session=session};
+    auto invoke=[&](double progress){auto call=request;call.args=Value{}.set("progress",progress);return runtime.verbs().invoke("animation.sample",call).exit_code()==0;};
+    bool good=true;std::vector<std::string> hashes;
+    for(int i=0;i<=60;++i) {
+        good=invoke(i/60.) && good;hashes.push_back(paint(3+i/60.));
+        good=good && engine->inspect(*playback)->position==hanim::seconds(i/60.);
+        const auto file=output/std::format("bridge-{:03}.png",i);
+        good=bool(mlibs::image::save_png(file,{reinterpret_cast<const std::uint8_t*>(pixels.pixels().data()),400,220,400*4})) && good;
+        bridge_frames.push_back(Value{}.set("index",i).set("time",i/60.).set("pixel_fnv1a",hashes.back()).set("png",mcpplibs::os::fs::utf8(file)));
+    }
+    check(good && rendered && hashes[0]!=hashes[30] && hashes[30]!=hashes[60],"61_ui_invocations_drive_native_control_and_actual_pixels");
+    for(int i=60;i>=0;--i)good=invoke(i/60.) && paint(3+i/60.)==hashes[static_cast<std::size_t>(i)] && good;
+    check(good && rendered,"ui_native_bridge_replays_all_process_pixels_backwards");
+    check(carried && carried->access==authority && carried->session==session->control_session() && carried->remote &&
+        carried->operation=="invoke" && carried->actor.via==std::vector{session->owner()},"bridge_keeps_issuer_session_origin_and_host_attribution");
+    const auto before=engine->inspect(*playback)->position;const auto before_calls=callbacks;
+    auto dry=request;dry.dry_run=true;dry.args=Value{}.set("progress",.9);
+    check(runtime.verbs().invoke("animation.sample",dry).exit_code()==0 && callbacks==before_calls && engine->inspect(*playback)->position==before,
+        "ui_dry_run_does_not_execute_the_native_callback");
+    policy.user.operations=std::vector<std::string>{"invoke"};authority->set_policy(policy);
+    check(!invoke(.9) && rejected && rejected->code==hanim::control::Error::admission && engine->inspect(*playback)->position==before,
+        "transport_permission_does_not_expand_to_native_domain_permission");
+    policy.user.operations=std::vector<std::string>{"animation.seek-progress"};authority->set_policy(policy);
+    const auto before_domain=callbacks;
+    check(!invoke(.9) && callbacks==before_domain,"native_domain_permission_does_not_bypass_the_ui_entry");
+    policy.user.operations=std::vector<std::string>{"invoke","animation.seek-progress"};authority->set_policy(policy);
+    revoke_inside=true;rejected.reset();
+    check(!invoke(.9) && rejected && rejected->code==hanim::control::Error::admission && engine->inspect(*playback)->position==before,
+        "revocation_after_ui_admission_is_rechecked_by_the_native_controller");
+    revoke_inside=false;paint(5);
+    const auto button=runtime.find("main/sample");const auto at=runtime.drawn_bounds(button).center();
+    (void)runtime.frame({6s,{pointer(PointerKind::down,at),pointer(PointerKind::up,at)}});paint(6.1);
+    check(clicked && carried && !carried->remote && engine->inspect(*playback)->position==500ms,
+        "the_same_bridge_accepts_a_real_local_pointer_action");
+    (void)runtime.verbs().remove("animation.sample");
+    check(bool(engine->release(*playback)),"bridge_playback_released");
+}
 
 void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
     RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
@@ -376,5 +460,6 @@ int main(int argc,char** argv) {
     }
     driver_checks(fonts,output);
     image_checks(fonts,output);
+    bridge_checks(fonts,output);
     return finish(std::move(frames));
 }

@@ -41,6 +41,8 @@ A4 图像作用域补充见[实施设计](2026-11-06-hanim-ui-image-scope-design
 
 可组合源错误见[台账 §34](2026-11-05-system-implementation-checkpoints-design.md#34-配方错误的原生表达与数值预检)：高级库可返回带类型化原因的 invalid Program，由同一有预算编译器给出实际节点上下文；反馈配方在拆段／倒数／倍幅运算前预检，不靠生成非法浮点值等待下游识别。正常 prepared／采样路径保持。
 
+原生控制接入见[台账 §35](2026-11-05-system-implementation-checkpoints-design.md#35-可选原生动画控制与共享调用作用域)：mlibs.control 统一冷调用作用域，Hanim 可选 control feature 提供 13 项带发现、授权与类型化回执的公开 Engine 操作；独立 CLI 用同源 renderer 做真实 Agent 过程审查。默认依赖裁剪保持，通用 provider／资源 ACL、异步生命周期及 UI 兼容类型桥接另行验收。
+
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 
 ## 2. 产品边界与共同契约

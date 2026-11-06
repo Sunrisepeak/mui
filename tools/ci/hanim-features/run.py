@@ -64,15 +64,40 @@ VECTOR = '''
     auto renderer = take(vector_render::PreparedVector::bind(morph));
     require(renderer.requirements().world_transforms == morph.requirements().parts);
 '''
-ROLES = {'object', 'effect', 'library', 'program', 'engine', 'render/vector'}
+CONTROL = '''
+    auto access=std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev"));
+    mlibs::control::InvocationContext context;
+    hanim::control::Controller controller(engine,access,context);
+    mlibs::control::Invocation request{.remote=true,.access=access,.session=access->open_session()};
+    const auto reply=controller.list(request);
+    require(reply && reply->executed && reply->value && reply->value->empty());
+    require(hanim::control::operations().size()==13);
+    const auto prepared_control=controller.prepare(request,anim::morph(from,to));
+    require(prepared_control && prepared_control->value);
+    const auto started=controller.play(request,*prepared_control->value);
+    require(started && started->executed && started->value);
+    const auto moved=controller.seek_progress(request,*started->value,.5);
+    const auto observed=controller.inspect(request,*started->value);
+    require(moved && moved->executed && observed && observed->value && observed->value->position==seconds(.5));
+    auto preview=request;preview.dry_run=true;
+    const auto dry=controller.seek_progress(preview,*started->value,.75);
+    require(dry && !dry->executed && take(engine.inspect(*started->value)).position==seconds(.5));
+    require(access->revoke_session(*request.session));
+    const auto denied=controller.inspect(request,*started->value);
+    require(!denied && denied.error().code==hanim::control::Error::admission);
+    const auto refused_plan=controller.play(request,*prepared_control->value);
+    require(!refused_plan && refused_plan.error().code==hanim::control::Error::admission);
+'''
+ROLES = {'object', 'effect', 'library', 'program', 'engine', 'render/vector', 'control'}
 CASES = [
     ('core', [], set(), CORE),
     ('effect', ['effect'], {'effect'}, CORE + EFFECT),
     ('object', ['object'], {'object'}, CORE + OBJECT),
     ('library', ['library'], {'object', 'library'}, CORE + OBJECT + LIBRARY),
     ('program', ['program'], {'object', 'effect', 'library', 'program'}, CORE + OBJECT + LIBRARY + EFFECT + PROGRAM),
-    ('default', None, ROLES - {'render/vector'}, CORE + OBJECT + LIBRARY + EFFECT + PROGRAM + ENGINE),
-    ('render-vector', ['render-vector'], ROLES - {'engine'}, CORE + OBJECT + LIBRARY + PROGRAM + VECTOR),
+    ('default', None, ROLES - {'render/vector', 'control'}, CORE + OBJECT + LIBRARY + EFFECT + PROGRAM + ENGINE),
+    ('render-vector', ['render-vector'], ROLES - {'engine', 'control'}, CORE + OBJECT + LIBRARY + PROGRAM + VECTOR),
+    ('control', ['control'], ROLES - {'render/vector'}, CORE + OBJECT + LIBRARY + EFFECT + PROGRAM + ENGINE + CONTROL),
 ]
 
 
@@ -140,6 +165,8 @@ int main() {
                 raise RuntimeError('UI or test dependency in public product')
             if name != 'render-vector' and any(p.startswith(('openmui.render','xengine.render','mlibs.rhi','mlibs.raster','mlibs.shader')) for p in packages):
                 raise RuntimeError('renderer enabled without opt-in')
+            if (name == 'control') != ('mlibs.control' in packages):
+                raise RuntimeError('control dependency did not follow the selected feature')
             if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))
             if ('object' in roles) != ('mlibs.geom' in packages):
@@ -167,6 +194,22 @@ int main() {
             report['cases'].append({'name':name,'features':features,'packages':sorted(packages),
                                     'product_sources':sorted(str(p.relative_to(repo)) for p in actual),
                                     'public_exports': sorted(expected_exports)})
+        # The optional public control path also executes without a renderer on
+        # Web; this consumer needs no file-system or browser host shim.
+        web=work/'control'
+        with (web/'mcpp.toml').open('a') as f:
+            f.write('''
+[target.'cfg(os = "emscripten")'.abi]
+exceptions=true
+threads=false
+''')
+        run(web,'web-bootstrap',['build','--target','wasm32-emscripten','--profile','release','--configure-only'],True)
+        web_lock=sha(web/'mcpp.lock')
+        if 'hanim feature consumer passed' not in run(web,'web-run',['run','--target','wasm32-emscripten','--profile','release','--locked']):
+            raise RuntimeError('Web control consumer did not execute')
+        if sha(web/'mcpp.lock')!=web_lock:raise RuntimeError('Web control consumer lock changed')
+        report['web_control']={'ok':True,'target':'wasm32-emscripten','source_sha256':sha(web/'src/main.cpp'),
+                               'manifest_sha256':sha(web/'mcpp.toml')}
         packed = run(repo, 'pack', ['pack', '-p', 'hanim', '--profile', 'release', '--locked', '--message-format', 'json'])
         envelopes = []
         for offset, char in enumerate(packed):

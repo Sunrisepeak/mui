@@ -75,3 +75,21 @@ Tests: `mcpp test -p mlibs.control --locked`. UI compatibility checks live in
 a universal provider registry, resource filters, expiry, persistence, async task
 cancellation, transport, IR editing or AI decisions. Domain APIs and existing
 openas adapters remain responsible for those capabilities.
+
+`OperationScope(context, host_access, call, {name, effect, person})` is the
+shared cold admission boundary for native domain adapters. It owns the bound
+Invocation and enters the context before deciding, then retains the scope for
+its lexical lifetime. `decision()` preserves run/ask/refuse; `execute()` is true
+only for admitted non-preview calls. Keep the scope alive through dependent
+rendering/output callbacks. Missing host Access refuses remote calls even if
+the request carries an Access pointer; empty operation names are refused.
+It neither executes domain work nor installs an endpoint or session.
+
+Nested previews propagate for both local and remote calls. The generic binder
+keeps compatibility with authority records that have no `dry_run` field;
+preview propagation applies when that field exists. Nested local callbacks
+still inherit a remote parent's actor/session, while the provider checks the
+operation currently entered. Queries obey the same permission boundary as
+writes. Scope lifetime is synchronous, not a perpetual grant or asynchronous
+cancellation promise. The optional `hanim.control` adapter and its independent
+capture consumer now use this implementation.

@@ -13,6 +13,7 @@ layer, using only the standard library and `mlibs.math`.
 | [hanim.object](src/object) / `object` | Generational object/part identities and owned immutable captures of hierarchical 2D parts, actual contours and solid fills |
 | [hanim.program](src/program) / `program` | Immutable nested bindings compiled into owned object schedules; bounded arbitrary-time sampling without a player |
 | [hanim.render.vector](src/render/vector) / `render-vector` | Optional renderer consumer: current vector frames, shared native material mixing and effects |
+| [hanim.control](src/control) / `control` | Optional native openas-authorized operations, discovery and typed receipts over the same Engine |
 
 This is the only `hanim` package, exporting core, object, library, effect,
 program and engine. `import hanim;` preserves the existing core vocabulary;
@@ -34,13 +35,16 @@ hanim = { path = ".../modules/gfx/hanim" }
 # Alternatives to the line above:
 # hanim = { path = ".../modules/gfx/hanim", default-features = false, features = ["effect"] }
 # hanim = { path = ".../modules/gfx/hanim", features = ["render-vector"] }
+# hanim = { path = ".../modules/gfx/hanim", features = ["control"] }
 ```
 
 `render-vector` implies program/library/object/effect, not the player. A consumer
 can turn defaults off and use it without Engine. Feature requests are additive
 across dependency edges. The generated `hanim:selected` partition exports only
 selected modules; disabled sources and dependencies are not compiled. There is
-no runtime feature dispatch or separate authoring API.
+no runtime feature dispatch or separate authoring API. `control` implies Engine
+and the shared independent openas authorization library; it does not imply a
+renderer, transport or internal AI. Direct Engine use remains available.
 
 This package is independent because unrelated hosts can create, prepare, sample
 and control animations through its owned public contracts without UI or windows.

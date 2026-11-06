@@ -28,6 +28,7 @@ library = { implies = ["object"], sources = ["src/library/*.cppm", "src/library/
 program = { implies = ["library", "effect"], sources = ["src/program/*.cppm", "src/program/*.cpp"] }
 engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.cpp"] }
 render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
+control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/*.cpp"] }
 
 [feature-deps.object]
 mlibs.geom = { path = "../../base/geom" }
@@ -42,6 +43,9 @@ mlibs.trace = { path = "../../base/trace" }
 [feature-deps.render-vector]
 xengine.render.vector = { path = "../render/vector" }
 mlibs.geom = { path = "../../base/geom" }
+
+[feature-deps.control]
+mlibs.control = { path = "../../base/control" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }

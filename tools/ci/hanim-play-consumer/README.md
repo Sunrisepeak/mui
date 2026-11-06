@@ -88,3 +88,17 @@ session to seeking, returns structured failure/exit 3, and writes no images.
 The ordinary requested PNG after a successful review is a local host export;
 all Agent review frames pass through the shared authorization gate. A successful
 offline process review is not a real-time timing or human aesthetic acceptance.
+
+The validation host selects the product's optional `control` feature and uses
+public `hanim::control::Controller` for typed playback/query operations. Capture
+and its PNG output share `mlibs::control::OperationScope` and the same context.
+Discovery, dry-run receipts, domain errors, object ownership conflicts, nested
+operation restrictions and revocation are checked on the actual Engine. This
+is still a validation host with trusted session construction, not a generic RPC
+server. `run.py --project /tmp/hanim-public-play-consumer-... --keep-project`
+can reuse a previously generated fixture for local incremental validation.
+
+`--describe-control` prints the actual native catalog as JSON (name, openas
+effect, person requirement and purpose) without requiring an output image,
+creating Engine resources or opening a GUI. It describes operations, not an
+installed RPC endpoint or instance permission grant.

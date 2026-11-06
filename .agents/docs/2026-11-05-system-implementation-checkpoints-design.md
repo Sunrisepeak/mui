@@ -1152,3 +1152,32 @@ FeedbackOptions 在拆段前检查时长／缓动，正时长不得小到丢失�
 额外的 Linux x86-64 GDB 实验直接设置 MXCSR／x87 trap 位：反馈预检定向用例正常结束；以已有原始属性乘积溢出用例作为正对照，会收到 SIGFPE，确认 trap 实际生效。第一次用 debugger 函数调用开启的尝试经查询并未保留 trap 状态，未当作有效证据。该实验不构成全引擎或跨平台 trap 支持：原始对象相关算术仍使用正常浮点环境中的非有限检查，库不更改调用者的浮点环境。它不是新的 CI 平台承诺，正式可移植回归仍是上述 C++ 用例。
 
 本轮不修改官网布局／配方参数，不增加动画设计计数；全局目标及完整 40／20 交付继续开放。
+
+
+## 35. 可选原生动画控制与共享调用作用域
+
+2026-11-06，基线 `52c484f`。本轮推进 S6 与独立引擎 Agent 原生接入：此前独立像素消费者自己组合 bind／authorize／scope，Hanim 还没有公共的带授权控制入口；现在用共享机制接入同一个真实 Engine，并保留默认小体积路径。
+
+### 35.1 归属、接口与生命周期
+
+- `mlibs.control::OperationScope` 属于既有基础控制包，持有绑定后的 Invocation，在授权和领域回调前进入实例 Context；暴露 run／ask／refuse、dry-run 和是否可执行，不负责领域业务、网络或 Session 创建。远端缺少宿主 Access 时拒绝；请求携带的 Access 不能自授权限。模拟执行标记在嵌套本地／远端调用中保持；无 dry_run 字段的旧泛型记录仍可使用。
+- 既有 Hanim 包增加可选 `control` feature 和 `import hanim.control`，实现收在 `src/control/`，没有新增微型 mcpp 项目。feature 引入 Engine 与共享 mlibs.control／openas，默认 Engine、core-only 和 renderer-only 不因此引入控制层。没有 UI／网络／模型依赖。
+- `hanim::control::Controller` 借用 Engine／InvocationContext，宿主负责寿命与串行执行。13 项稳定操作包括 prepare、play、list、inspect、plan、seek、seek_progress、pause、resume、reverse、rate、cancel、release。同一 `animation.play` 可接受 Program 或 PreparedProgram；后者保留同一计划身份，不重复准备，也不能越过之后的权限撤销。
+- 查询返回拥有生命周期的状态／列表／计划；不把可变 Engine frame span 暴露成远端结果。Reply 区分实际执行回执、无执行／无伪造数据的 dry-run，以及 admission／原生 EngineFailure。dry-run 是授权预览，不宣称已验证 Program 或完成模拟。ask 不被吞成 run，审批／授权仍归宿主已有策略。
+- cancel／release 如实声明 irreversible；旧句柄不能自动恢复。其他控制沿用原生 Engine 的占用、代际与错误契约，不因 Agent 调用绕开同对象占用规则。可逆性分类不等于自动 undo journal。
+- 语义操作名遵循上游 Openas grant scope 语法：使用 `animation.seek-progress`，C++ 方法仍为 `seek_progress()`；CLI 对清单逐项调用上游 conformance 检查，未复制一套命名校验规则。
+- 静态能力清单含名称、openas effect、person 条件和用途；类型化参数／结果由 C++ 接口定义。独立 CLI 的 `--describe-control` 直接导出这份清单，不要求图片输出、创建 Engine 资源或启动 GUI。此处没有发明／发布新的 wire schema 或通用 RPC 服务。
+
+`hanim.control` 增加对应 trace span 和拒绝／领域失败日志类别。UI 与 standalone 继续共用实际 Access／Session 策略 owner。原生同类型 Context 内的嵌套调用自动保留来源；跨实例、worker 或 UI 兼容 Invocation 类型边界必须显式传递／转换授权信息，当前没有自动安装 UI→native bridge。在进程内的受限 Agent 也必须携带委派权限，不能以“本地调用”取代授权。
+
+### 35.2 真实消费者与验证
+
+独立 `hanim-play-consumer` 已改为公共 Controller 操作播放和查询；renderer 捕获与 PNG 写出共用 OperationScope，避免输出回调脱离原权限。实际验证准备／播放、完整播放控制、只读限制、dry-run、占用／过期错误、嵌套操作过滤、外来 Session、撤销后的 worker 与已准备计划拒绝；人／Agent操作最终作用于同一 Engine 和 renderer。
+
+验证中保留并修正了三个问题：最初测试把第二个播放绑定到已占用对象，已验证保留 binding-conflict，再使用独立临时对象；capture 拒绝的既有 CLI 文案契约被无意改变，已恢复，同时让图像写出留在权限 scope 内；新增增量复用参数后，已有 integration 目录的重建不再报 FileExists。trace 接口需要稳定的 C 字符串，使用静态能力表中的完整字面量，未传悬垂或未终止的任意 string_view。
+
+共享控制与 UI core 的 **13 个测试程序／54 项**在 native debug、release、Wasm 均通过。8 种 Hanim feature 组合通过实际源／依赖／导出检查，默认静态打包后的独立消费者通过 **163 项**；新增 control 组合另在 Wasm／Node 实际执行准备计划、播放、seek／query、dry-run 和撤销拒绝，未启用 renderer 或窗口。
+
+最终公共 CLI 消费者在 debug／release 各运行 9 组原生输出和 5 组脚本化 Agent 语义审查；每组审查真实采样 61 帧，共 **610 张过程 PNG**，逐帧逆放、跨 profile 像素／PNG 摘要均一致。两种构建的 `--describe-control` 都返回真实的 13 项能力与 effect 分类；capture 被拒绝时没有写出图像或 provenance。另有独立 renderer／composite／visual 三个程序，debug／release 各 **21 项**通过。这里验证的是实际引擎与授权语义的脚本化消费者，不是外部 LLM 或线上 RPC 互通验收。
+
+最终源码／fixture 摘要、命令、解析图、静态包与图像证据位于 `target/omui-native-control/`，结构化摘要为 `tools/ci/2026-11-06-hanim-native-control.report.omui.json`。全仓库 lint 为零，源锁文件保持用户原有字节；新增控制组合、Web 实际执行和 CLI 发现检查进入既有 feature／consumer CI 入口。本轮没有重跑官网浏览器或交付性能，不引用旧包指标作为本轮结果。本轮新增的是独立引擎的原生控制适配，不是官网新动画数量、完整 provider 注册／资源 ACL、通用协议解析、异步取消或自动 UI 接入的完成声明。40／20 和总体引擎实施目标继续开放。

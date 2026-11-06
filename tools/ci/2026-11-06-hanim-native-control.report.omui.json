@@ -1,0 +1,455 @@
+{
+  "format": "hanim.native-control-checkpoint@0.1",
+  "recorded_at": "2026-11-06T00:31:22.616397+00:00",
+  "ok": true,
+  "base_commit": "52c484f932059f758c63d18df26e37f1924776a9",
+  "scope": [
+    "Shared synchronous OperationScope owns bound authority through admission and dependent output; nested previews propagate without breaking legacy authority records.",
+    "Optional hanim.control exposes 13 typed operations and discovery over the same public Engine, with authored/prepared playback and explicit execution receipts.",
+    "Independent CLI exercises real controlled rendering and publishes a static catalog; no UI/network/model dependency is added to the optional adapter."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "d56280ebe6bdf3b89f82c380284e6b94dad8cf6a9bee5da3890f0e0545f145f8",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "2491dda7a44cf929c5008159657bc040cdeacd025abab8eab2bdf6519d423991",
+    ".agents/docs/README.md": "229f1bb7ac8b0e5ae3aa37fcbc4eaec98d6d5b7f197ebb8b8309d37e914df79b",
+    "modules/base/control/README.md": "22367348923fbcdbde6b29a21761d5fd387e26f9cbd99f57299d755ba44e7fd6",
+    "modules/base/control/src/control.cppm": "2a0c44c873c61a3a8e5f5143967524182757fc042d914672bddb2feab48a1d17",
+    "modules/base/control/src/operation.cpp": "d350a72a0425a23abc0e5fb887ba3da1f30a53d49e6b3f57d9a8124b5991c2bd",
+    "modules/base/control/tests/context_test.cpp": "beb92c86c7380f0eb5775e9ca2468a39c905bbd948ff5a802a9ce41abe95289c",
+    "modules/gfx/hanim/README.md": "3ff18ffdb3205f71e6bf5fb1f54b27fcbf1cc418a804c82bb24c91697896fc3d",
+    "modules/gfx/hanim/build.mcpp": "18f1a7bff841c878dd391e5f433b104e75e16b46085349b1bcc74d29212d995a",
+    "modules/gfx/hanim/mcpp.toml": "a9f71adecae79583b05ee57b320e78a07fed4db3cc7539a7560d6e5074efac53",
+    "modules/gfx/hanim/src/control/README.md": "5c18baa1c73017fad11b81df6a7b464b39430b9face7473199c9011721118446",
+    "modules/gfx/hanim/src/control/control.cpp": "1d2bca8261f298822a88b39940f52d30951e8e81b0a289b3c58b22c1119702be",
+    "modules/gfx/hanim/src/control/control.cppm": "4bc5de29979c9414acc161ae4371d6dd13548508c815806354476c8e6a3f8d2a",
+    "tools/ci/hanim-features/run.py": "afde6ba0c6848e0e3e99d868bb869a114bd0a40c8f42ea75a830db77f94a66f5",
+    "tools/ci/hanim-play-consumer/README.md": "ea3059965dc074cbdae3d4a0b65a9e386dd4ce2926c8866ca77af6605474b8ac",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "81fcf8fd4aaadba56aba77576239acfd5f0869c7799176cad005446b876900e7",
+    "tools/ci/hanim-play-consumer/run.py": "d0a6d713811891b1cca1fd4f373e8acd025dd1bd990270c26b3804956368ed71",
+    "tools/ci/hanim-play-consumer/src/main.cpp": "5c461df7330fd2b92a76d620e31ddace089b3b42c563e1825ec58f73296718a9"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "features_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "control_and_ui_compatibility": {
+      "control-core-dev": {
+        "programs": 13,
+        "cases": 54,
+        "failed": 0,
+        "log": "target/omui-native-control/control-core-dev.log",
+        "sha256": "78a6cfbb26d6a598351aa192718dbe155885069159743d046991d0a82f40812e"
+      },
+      "control-core-release": {
+        "programs": 13,
+        "cases": 54,
+        "failed": 0,
+        "log": "target/omui-native-control/control-core-release.log",
+        "sha256": "e6f48c80917ec0bffac9d8641e91c52f1f95241226518491f8dec778717dbbe2"
+      },
+      "control-core-web": {
+        "programs": 13,
+        "cases": 54,
+        "failed": 0,
+        "log": "target/omui-native-control/control-core-web.log",
+        "sha256": "18a95320913edb66edc442b69a73959425a842953518a5e8c0d2409394d17908"
+      }
+    },
+    "feature_matrix": {
+      "path": "target/omui-native-control/features-conformant.report.omui.json",
+      "sha256": "3a9a9bede5b7161fb78454a73d689c1d2674cd043b2a2168b23bd5114a3ee4f6",
+      "cases": [
+        {
+          "name": "core",
+          "features": [],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.math"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/hanim.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.core;"
+          ]
+        },
+        {
+          "name": "effect",
+          "features": [
+            "effect"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.trace"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/effect/effect.cpp",
+            "modules/gfx/hanim/src/effect/effect.cppm",
+            "modules/gfx/hanim/src/hanim.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.effect;"
+          ]
+        },
+        {
+          "name": "object",
+          "features": [
+            "object"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.geom",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.object;"
+          ]
+        },
+        {
+          "name": "library",
+          "features": [
+            "library"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.geom",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/library/library.cpp",
+            "modules/gfx/hanim/src/library/library.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.library;",
+            "export import hanim.object;"
+          ]
+        },
+        {
+          "name": "program",
+          "features": [
+            "program"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.geom",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/effect/effect.cpp",
+            "modules/gfx/hanim/src/effect/effect.cppm",
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/library/library.cpp",
+            "modules/gfx/hanim/src/library/library.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp",
+            "modules/gfx/hanim/src/program/feedback.cpp",
+            "modules/gfx/hanim/src/program/program.cpp",
+            "modules/gfx/hanim/src/program/program.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.effect;",
+            "export import hanim.library;",
+            "export import hanim.object;",
+            "export import hanim.program;"
+          ]
+        },
+        {
+          "name": "default",
+          "features": null,
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.geom",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/effect/effect.cpp",
+            "modules/gfx/hanim/src/effect/effect.cppm",
+            "modules/gfx/hanim/src/engine/engine.cpp",
+            "modules/gfx/hanim/src/engine/engine.cppm",
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/library/library.cpp",
+            "modules/gfx/hanim/src/library/library.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp",
+            "modules/gfx/hanim/src/program/feedback.cpp",
+            "modules/gfx/hanim/src/program/program.cpp",
+            "modules/gfx/hanim/src/program/program.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.effect;",
+            "export import hanim.engine;",
+            "export import hanim.library;",
+            "export import hanim.object;",
+            "export import hanim.program;"
+          ]
+        },
+        {
+          "name": "render-vector",
+          "features": [
+            "render-vector"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.raster",
+            "mlibs.rhi",
+            "mlibs.trace",
+            "xengine.render",
+            "xengine.render.vector"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/effect/effect.cpp",
+            "modules/gfx/hanim/src/effect/effect.cppm",
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/library/library.cpp",
+            "modules/gfx/hanim/src/library/library.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp",
+            "modules/gfx/hanim/src/program/feedback.cpp",
+            "modules/gfx/hanim/src/program/program.cpp",
+            "modules/gfx/hanim/src/program/program.cppm",
+            "modules/gfx/hanim/src/render/vector/vector.cpp",
+            "modules/gfx/hanim/src/render/vector/vector.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.core;",
+            "export import hanim.effect;",
+            "export import hanim.library;",
+            "export import hanim.object;",
+            "export import hanim.program;",
+            "export import hanim.render.vector;"
+          ]
+        },
+        {
+          "name": "control",
+          "features": [
+            "control"
+          ],
+          "packages": [
+            "hanim.core",
+            "hanim.validation.feature_consumer",
+            "mcpplibs.hanim",
+            "mlibs.control",
+            "mlibs.geom",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.trace",
+            "openlifa.openas"
+          ],
+          "product_sources": [
+            "modules/gfx/hanim/src/control/control.cpp",
+            "modules/gfx/hanim/src/control/control.cppm",
+            "modules/gfx/hanim/src/effect/effect.cpp",
+            "modules/gfx/hanim/src/effect/effect.cppm",
+            "modules/gfx/hanim/src/engine/engine.cpp",
+            "modules/gfx/hanim/src/engine/engine.cppm",
+            "modules/gfx/hanim/src/hanim.cppm",
+            "modules/gfx/hanim/src/library/library.cpp",
+            "modules/gfx/hanim/src/library/library.cppm",
+            "modules/gfx/hanim/src/object/object.cpp",
+            "modules/gfx/hanim/src/object/object.cppm",
+            "modules/gfx/hanim/src/object/path.cpp",
+            "modules/gfx/hanim/src/program/feedback.cpp",
+            "modules/gfx/hanim/src/program/program.cpp",
+            "modules/gfx/hanim/src/program/program.cppm"
+          ],
+          "public_exports": [
+            "export import hanim.control;",
+            "export import hanim.core;",
+            "export import hanim.effect;",
+            "export import hanim.engine;",
+            "export import hanim.library;",
+            "export import hanim.object;",
+            "export import hanim.program;"
+          ]
+        }
+      ],
+      "web_control": {
+        "ok": true,
+        "target": "wasm32-emscripten",
+        "source_sha256": "8d1e72653183908ef38799553e81230c003bbf4f2599d568cd479b4855c3339d",
+        "manifest_sha256": "0bad4b2cc0ccdc23a878ccd3cd6c1e460f9e8c7451a87649d49757398b565ba7"
+      },
+      "packed_checks": 163,
+      "saved_default_archive": "target/omui-native-control/default-hanim.tar.gz",
+      "archive_sha256": "79d999c8bbff1a087b0d1cbc1ca957fa9d73e4451ea57eb912d27f10bbe9b705",
+      "default_archive_bytes": 614101
+    },
+    "independent_consumer": {
+      "path": "target/omui-native-control/consumer-conformant.report.omui.json",
+      "sha256": "459c807bba211673875edc2973fed08b2e6153526067f94366fe38a58cd91743",
+      "profiles": [
+        {
+          "profile": "dev",
+          "native_outputs": 9,
+          "agent_review_scenarios": 5,
+          "process_frames": 305,
+          "packages": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.image",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.raster",
+            "mlibs.rhi",
+            "mlibs.shader",
+            "mlibs.shader.rules",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "xengine.render",
+            "xengine.render.vector"
+          ],
+          "capture_denial_publishes_no_files": true
+        },
+        {
+          "profile": "release",
+          "native_outputs": 9,
+          "agent_review_scenarios": 5,
+          "process_frames": 305,
+          "packages": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.geom",
+            "mlibs.hash",
+            "mlibs.image",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.memory",
+            "mlibs.raster",
+            "mlibs.rhi",
+            "mlibs.shader",
+            "mlibs.shader.rules",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "xengine.render",
+            "xengine.render.vector"
+          ],
+          "capture_denial_publishes_no_files": true
+        }
+      ],
+      "process_png_count": 610,
+      "reverse_and_cross_profile_pixels_identical": true,
+      "standard_grant_scope_conformance_checked": true,
+      "renderer_integration_tests": {
+        "dev": {
+          "programs": 3,
+          "cases": 21,
+          "failed": 0,
+          "log": "target/omui-native-control/consumer-conformant.report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "11bab48424faa1ef69c2b50105daf788e347d0e024ed44ad39a0a9ccb9da3b15"
+        },
+        "release": {
+          "programs": 3,
+          "cases": 21,
+          "failed": 0,
+          "log": "target/omui-native-control/consumer-conformant.report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "a1d3165b87bd84ccc71282f3e9f5d3280b9ce977dcba51749978c5fada04dd8b"
+        }
+      }
+    },
+    "lint": {
+      "log": "/tmp/omui-native-control-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "source_fingerprints_match": true,
+    "documentation_links_resolve": true
+  },
+  "findings": [
+    "Kept actual Engine binding-conflict behavior; transient lifecycle tests use their own object.",
+    "Preserved capture-denial CLI wording while extending the authority scope through PNG output.",
+    "Incremental fixture reuse now updates existing integration directories instead of failing FileExists.",
+    "Trace retains complete static catalog name literals.",
+    "Openas grant-scope conformance requires animation.seek-progress; the C++ method remains seek_progress."
+  ],
+  "limits": [
+    "Native typed adapter, not a new wire schema/RPC server, transport authentication layer or generic provider registry.",
+    "Controller borrows Engine/context and requires serial calls and correct host lifetime; no background execution or async cancellation.",
+    "Contexts do not implicitly cross instance/type boundaries; UI compatibility conversion and operation-policy mapping remain host work.",
+    "Native callers are trusted; transport hosts bind actor/session/remote metadata. In-process limited Agent work must carry delegated authority too.",
+    "Dry-run is admission preview, not domain validation or simulated execution; no automatic undo journal or per-object resource ACL.",
+    "Scripted native Agent-role verification is not an external LLM or online interoperability acceptance.",
+    "No new website layout or browser/delivery performance measurement; complete 40/20 and global architecture requirements remain open."
+  ]
+}

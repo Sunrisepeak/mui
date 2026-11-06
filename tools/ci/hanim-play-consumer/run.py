@@ -78,13 +78,16 @@ def main() -> int:
     parser.add_argument("--mcpp", default=os.environ.get("MCPP", "mcpp"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--keep-project", action="store_true")
+    parser.add_argument("--project", type=Path, help="Reuse an existing disposable consumer build")
     args = parser.parse_args()
     repo, output = args.source_root.resolve(), args.output.resolve()
     fixture = Path(__file__).resolve().parent
     output.parent.mkdir(parents=True, exist_ok=True)
     artifacts = output.parent / (output.stem + "-artifacts")
     artifacts.mkdir(exist_ok=True)
-    project = Path(tempfile.mkdtemp(prefix="hanim-public-play-consumer-"))
+    project = args.project.resolve() if args.project else Path(tempfile.mkdtemp(prefix="hanim-public-play-consumer-"))
+    if args.project and (project.parent != Path('/tmp') or not project.name.startswith('hanim-public-play-consumer-') or not (project/'mcpp.toml').is_file()):
+        parser.error('--project must be an existing /tmp/hanim-public-play-consumer-* fixture')
     lock = digest(repo / "mcpp.lock")
     report = {"format": "hanim.independent-play-consumer@0.2", "ok": False, "project": str(project),
               "source_commit": subprocess.check_output(["git", "-C", str(repo), "rev-parse", "HEAD"], text=True).strip(),
@@ -120,7 +123,7 @@ def main() -> int:
         return result.stdout
 
     try:
-        (project / "src").mkdir()
+        (project / "src").mkdir(exist_ok=True)
         manifest = (fixture / "mcpp.toml.in").read_text()
         for key, relative in {"engine": "gfx/hanim", "raster": "gfx/raster",
                               "image": "base/image", "hash": "base/hash", "control": "base/control"}.items():
@@ -133,6 +136,11 @@ def main() -> int:
         temporary_lock = digest(project / "mcpp.lock")
         report["temporary_lock_sha256"] = temporary_lock
         for profile in ("dev", "release"):
+            discovery_text=run(profile+"-discovery",[args.mcpp,"run","--locked","--profile",profile,"--","--describe-control"])
+            discovery=next(json.loads(line) for line in discovery_text.splitlines() if line.startswith('{') and 'hanim.control-discovery' in line)
+            operations={item['name']:item for item in discovery['operations']}
+            if len(operations)!=13 or operations['animation.release']['effect']!='irreversible' or operations['animation.inspect']['effect']!='read':
+                raise RuntimeError('native operation discovery contract differs')
             results = []
             for label, time, region, retarget, bend in (
                 ("start", 0, "0,0,320,240", False, 0), ("middle", .5, "0,0,320,240", False, 0),
@@ -191,6 +199,8 @@ def main() -> int:
                                            result["sample_progress"] is not None):
                     raise RuntimeError("channel review did not use independent compiled property tracks")
                 review = result["agent_review"]
+                if review.get("discovered_operations") != 13 or review.get("typed_receipts") is not True:
+                    raise RuntimeError("public control discovery/receipts were not exercised")
                 if review["authorization"] != "mlibs.control/openas" or review["reverse_replayed"] != 61:
                     raise RuntimeError("shared authority or process replay missing")
                 for key in ("read_only_preserved_state", "dry_run_preserved_state", "foreign_session_refused",
@@ -237,11 +247,11 @@ def main() -> int:
         # Test-only dependencies live in a second real consumer, never in the
         # production program's resolution or compilation database.
         integration = project / "integration"
-        (integration / "src").mkdir(parents=True)
+        (integration / "src").mkdir(parents=True, exist_ok=True)
         (integration / "mcpp.toml").write_text(manifest + '\n[dev-dependencies]\nmlibs.testing = { path = ' +
                                               json.dumps(str(repo / "modules/base/testing")) + ' }\n')
         shutil.copyfile(fixture / "src/main.cpp", integration / "src/main.cpp")
-        shutil.copytree(fixture / "tests", integration / "tests")
+        shutil.copytree(fixture / "tests", integration / "tests", dirs_exist_ok=True)
         for profile in ("dev", "release"):
             run(profile + "-integration-tests", [args.mcpp, "test", "--profile", profile],
                 bootstrap=profile == "dev", cwd=integration)

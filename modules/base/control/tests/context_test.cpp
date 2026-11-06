@@ -64,6 +64,51 @@ int main(int argc, char** argv) {
         const auto& bound = bind_invocation(given, copy, std::shared_ptr<const Access>{});
         check(&bound == &given && !bound.remote && !bound.session);
     });
+    suite.test("operation scopes share live admission dry-run and nested authority", [] {
+        auto access=std::make_shared<Access>(policy_for_profile("dev"));InvocationContext context;
+        Invocation call{.actor={openas::Kind::agent,"reader",{}},.remote=true,.access=access,
+            .session=access->open_session({.operations=std::vector<std::string>{"animation.capture"}})};
+        {
+            OperationScope outer(context,access,call,{"animation.capture",openas::Effect::read});
+            check(outer.execute() && context.current()==&outer.invocation());
+            OperationScope inner(context,access,{}, {"animation.seek",openas::Effect::reversible});
+            check(inner.decision()==openas::Decision::refuse && !inner.execute());
+            check(inner.invocation().operation=="animation.capture" && inner.invocation().session==call.session);
+        }
+        check(!context.current());
+        call.dry_run=true;
+        {
+            OperationScope outer(context,access,call,{"animation.capture",openas::Effect::read});
+            OperationScope inner(context,access,{}, {"animation.capture",openas::Effect::read});
+            check(outer.decision()==openas::Decision::run && !outer.execute() && inner.dry_run() && !inner.execute());
+        }
+        Invocation preview;preview.dry_run=true;
+        {
+            InvocationScope local_preview(context,preview);
+            OperationScope inner(context,access,{}, {"animation.seek",openas::Effect::reversible});
+            check(inner.dry_run() && !inner.execute(),"local previews also suppress nested execution");
+        }
+        {
+            OperationScope unbound(context,{},call,{"animation.capture",openas::Effect::read});
+            check(unbound.decision()==openas::Decision::refuse,"remote requests cannot supply their own host Access");
+        }
+        check(access->revoke_session(*call.session));
+        OperationScope revoked(context,access,call,{"animation.capture",openas::Effect::read});
+        check(revoked.decision()==openas::Decision::refuse && !revoked.execute());
+    });
+    suite.test("legacy authority records without preview fields remain usable", [] {
+        struct Call {
+            openas::Actor actor;
+            bool remote=false;
+            std::shared_ptr<const Access> access;
+            std::shared_ptr<const Session> session;
+            std::string operation;
+        };
+        auto access=std::make_shared<Access>(policy_for_profile("dev"));
+        Call parent{.actor={openas::Kind::agent,"reader",{}},.remote=true,.access=access,.session=access->open_session()};
+        Call local,copy;const auto& bound=bind_invocation(local,copy,std::shared_ptr<const Access>(access),&parent,"animation.seek");
+        check(bound.remote && bound.session==parent.session && bound.operation=="animation.seek");
+    });
     suite.test("shared logging remains reentrant and control decisions have trace spans", [] {
         struct Observer { Access access; int count = 0; } observer;
         check(mlibs::log::set_log_filter("agent=debug,*=warning").has_value());

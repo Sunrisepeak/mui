@@ -6,7 +6,7 @@ import mcpp;
 int main() {
     mcpp::rerun_if_env_changed("MCPP_FEATURES");
     std::string content = "export module hanim:selected;\nexport import hanim.core;\n";
-    for (const auto* feature : {"object", "effect", "library", "program", "engine"})
+    for (const auto* feature : {"object", "effect", "library", "program", "engine", "control"})
         if (mcpp::has_feature(feature)) content += std::format("export import hanim.{};\n", feature);
     if (mcpp::has_feature("render-vector")) content += "export import hanim.render.vector;\n";
     const auto output = std::filesystem::path(mcpp::out_dir()) / "selected.cppm";

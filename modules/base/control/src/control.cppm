@@ -125,8 +125,14 @@ template<class Call>
     const bool delegate = source.remote && source.session && policy &&
         policy->effective(source.session.get()).development_grant;
     const bool identify = source.remote && source.operation.empty() && !operation.empty();
-    if (!inherit && !bind && !delegate && !identify) return given;
+    constexpr bool has_preview = requires(Call value) { value.dry_run = true; };
+    const bool simulate = [&] {
+        if constexpr(has_preview) return parent && parent->dry_run && !given.dry_run;
+        else return false;
+    }();
+    if (!inherit && !bind && !delegate && !identify && !simulate) return given;
     copy = given;
+    if constexpr(has_preview) if (simulate) copy.dry_run = true;
     if (inherit) {
         copy.actor = parent->actor;
         copy.remote = true;
@@ -161,5 +167,28 @@ private:
 };
 using InvocationContext = Context<Invocation>;
 using InvocationScope = Scope<Invocation>;
+
+struct Operation {
+    std::string_view name;
+    openas::Effect effect = openas::Effect::read;
+    bool person = false;
+};
+// Cold synchronous admission. Bind authority before authorization callbacks;
+// keep this scope alive through domain execution and dependent output.
+class OperationScope {
+public:
+    OperationScope(InvocationContext&, std::shared_ptr<const Access>, const Invocation&, Operation);
+    OperationScope(const OperationScope&) = delete;
+    OperationScope& operator=(const OperationScope&) = delete;
+    [[nodiscard]] openas::Decision decision() const noexcept { return decision_; }
+    [[nodiscard]] bool dry_run() const noexcept { return call_.dry_run; }
+    [[nodiscard]] bool execute() const noexcept { return decision_==openas::Decision::run && !dry_run(); }
+    [[nodiscard]] const Invocation& invocation() const & noexcept { return call_; }
+    const Invocation& invocation() const && = delete;
+private:
+    Invocation call_;
+    InvocationScope scope_;
+    openas::Decision decision_ = openas::Decision::refuse;
+};
 
 } // namespace mlibs::control

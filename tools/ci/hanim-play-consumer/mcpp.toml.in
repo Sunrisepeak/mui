@@ -14,7 +14,7 @@ sources = ["src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim = { path = {{engine_path}}, features = ["render-vector"] }
+hanim = { path = {{engine_path}}, features = ["render-vector", "control"] }
 mlibs.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.hash = { path = {{hash_path}} }

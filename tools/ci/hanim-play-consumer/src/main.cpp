@@ -6,6 +6,8 @@ import mlibs.raster;
 import mlibs.image;
 import openmui.hash;
 import mlibs.control;
+import hanim.control;
+import openas.conformance;
 import mcpplibs.os;
 import nlohmann.json;
 
@@ -31,6 +33,13 @@ int fail(std::string_view message,int code=1) {
 template<class T> bool number(std::string_view text,T& result) {
     const auto [end,error]=std::from_chars(text.data(),text.data()+text.size(),result);
     return error==std::errc{} && end==text.data()+text.size();
+}
+Json control_catalog() {
+    auto result=Json::array();
+    for(const auto& item:hanim::control::operations())result.push_back({
+        {"name",item.operation.name},{"effect",openas::name(item.operation.effect)},
+        {"person",item.operation.person},{"purpose",item.purpose}});
+    return result;
 }
 template<std::size_t N> bool integers(std::string_view text,std::array<int,N>& values) {
     for(std::size_t i=0;i<N;++i) {
@@ -90,27 +99,53 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
     const control::Invocation request{.actor={openas::Kind::agent,"reviewer",{"person:forged"}},
         .remote=true,.access=access,.session=access->open_session()};
     control::InvocationContext context;
+    hanim::control::Controller controller(engine,access,context);
     control::Invocation queued;
     std::size_t executions=0;
     auto invoke=[&](const control::Invocation& given,std::string_view operation,openas::Effect effect,auto&& execute) {
-        control::Invocation copy;
-        const auto& bound=control::bind_invocation(given,copy,access,context.current(),operation);
-        // This provider filters domain operations. The bound call retains
-        // its origin, while authorization checks the operation entered now.
-        if(bound.remote && access->decide(operation,effect,false,bound.actor,bound.session.get(),operation)!=openas::Decision::run)
-            return false;
-        if(bound.dry_run)return true;
-        control::InvocationScope scope(context,bound);
-        queued=*context.current();
+        control::OperationScope scope(context,access,given,{operation,effect});
+        if(scope.decision()!=openas::Decision::run)return false;
+        if(scope.dry_run())return true;
+        queued=scope.invocation();
         ++executions;
         return execute();
     };
     auto seek=[&](const control::Invocation& call,double t) {
-        return invoke(call,"animation.seek",openas::Effect::reversible,[&] {return bool(engine.seek(playback,seconds{t}));});
+        const auto result=controller.seek(call,playback,seconds{t});
+        if(result && result->executed)++executions;
+        return bool(result);
     };
     auto capture=[&](const control::Invocation& call) {
         return invoke(call,"animation.capture",openas::Effect::read,draw);
     };
+    const auto discovered=hanim::control::operations();
+    if(discovered.size()!=13 || std::ranges::any_of(discovered,[](const auto& item){return item.operation.name.empty() || item.purpose.empty();}))
+        return std::unexpected("native control discovery incomplete");
+    const auto inspected=controller.inspect(request,playback);const auto listed=controller.list(request);const auto planned=controller.plan(request,playback);
+    if(!inspected || !inspected->executed || !inspected->value || !listed || !listed->value || listed->value->size()!=engine.size() ||
+       !planned || !planned->value || !*planned->value)return std::unexpected("native read receipts missing");
+    auto preview=request;preview.dry_run=true;const auto previewed=controller.inspect(preview,playback);
+    if(!previewed || previewed->executed || previewed->value)return std::unexpected("dry-run read fabricated a domain result");
+    const auto conflict=controller.play(request,anim::move_by(inspected->value->object,{1,0}));
+    if(conflict || !conflict.error().engine || conflict.error().engine->code!=EngineError::binding_conflict)
+        return std::unexpected("native control did not retain engine ownership conflicts");
+    const auto temporary_object=engine.create_object({{{.id="control-fixture"}}});
+    if(!temporary_object)return std::unexpected("native control fixture object failed");
+    const auto prepared=controller.prepare(request,anim::move_by(*temporary_object,{1,0}));
+    if(!prepared || !prepared->executed || !prepared->value)return std::unexpected("native preparation receipt missing");
+    const auto transient=controller.play(request,*prepared->value);
+    if(!transient || !transient->value)return std::unexpected("native play failed");
+    const auto temporary=*transient->value;
+    const auto same_plan=controller.plan(request,temporary);
+    if(!same_plan || !same_plan->value || same_plan->value->identity()!=prepared->value->identity())
+        return std::unexpected("native prepared playback rebuilt its plan");
+    if(!controller.pause(request,temporary) || !controller.resume(request,temporary) || !controller.reverse(request,temporary) ||
+       !controller.rate(request,temporary,2) || !controller.seek_progress(request,temporary,.5) ||
+       !controller.cancel(request,temporary) || !controller.release(request,temporary))return std::unexpected("native transport operation failed");
+    const auto stale=controller.inspect(request,temporary);
+    if(stale || stale.error().code!=hanim::control::Error::engine || !stale.error().engine)
+        return std::unexpected("native engine failure lost its typed cause");
+    if(!engine.destroy_object(*temporary_object))return std::unexpected("native control fixture cleanup failed");
     if(options.deny_capture) {
         auto policy=access->policy();policy.user.operations=std::vector<std::string>{"animation.seek"};access->set_policy(policy);
     }
@@ -118,11 +153,15 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
     for(int i=0;i<=60;++i) {
         const double time=static_cast<double>(i)/60;
         if(!seek(request,time))return std::unexpected("Agent seek refused");
-        if(!capture(request))return std::unexpected("Agent capture refused");
-        const auto info=engine.inspect(playback);
-        if(!info || info->position!=seconds{time})return std::unexpected("Agent sample position mismatch");
         const auto suffix=std::format(".agent-{:03}.png",i);
-        if(!save(suffix))return std::unexpected("Agent process PNG write failed");
+        bool output_failed=false;
+        if(!invoke(request,"animation.capture",openas::Effect::read,[&]{
+            if(!draw())return false;
+            output_failed=!save(suffix);return !output_failed;
+        }))return std::unexpected(output_failed?"Agent process PNG write failed":"Agent capture refused");
+        const auto observation=controller.inspect(request,playback);
+        if(!observation || !observation->value || observation->value->position!=seconds{time})return std::unexpected("Agent sample position mismatch");
+        const auto& info=observation->value;
         hashes.push_back(pixels.hash());
         samples.push_back({{"index",i},{"time_numerator",i},{"time_denominator",60},
             {"sample_time_seconds",info->position.count()},{"plan_revision",info->plan_revision},
@@ -164,6 +203,9 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
     // Copy a live call at scheduling time; revoke before its worker resumes.
     const auto continuation=queued;
     if(!access->revoke_session(*request.session))return std::unexpected("revocation failed");
+    const auto revoked_plan=controller.play(request,*planned->value);
+    if(revoked_plan || revoked_plan.error().code!=hanim::control::Error::admission)
+        return std::unexpected("a prepared plan bypassed revoked authority");
     const auto before_worker=executions;
     {
         control::InvocationScope worker(context,continuation);
@@ -171,7 +213,8 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
     }
     if(executions!=before_worker || engine.inspect(playback)->position!=saved_position || pixels.hash()!=saved_pixels)
         return std::unexpected("refused continuation changed state or pixels");
-    return Json{{"provider","native consumer adapter"},{"authorization","mlibs.control/openas"},
+    return Json{{"provider","hanim.control Controller + shared capture scope"},{"discovered_operations",discovered.size()},
+        {"operations",control_catalog()},{"typed_receipts",true},{"authorization","mlibs.control/openas"},
         {"policy_source","profile:dev"},{"session_owner",request.session->owner()},
         {"frames",std::move(samples)},{"reverse_replayed",61},{"read_only_preserved_state",true},
         {"dry_run_preserved_state",true},{"foreign_session_refused",true},{"revoked_continuation_refused",true},
@@ -180,6 +223,13 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
 } // namespace
 
 int main(int argc,char** argv) {
+    for(const auto& item:hanim::control::operations()) {
+        const openas::Grant grant{{openas::Kind::agent,"reviewer",{}},item.operation.effect,{std::string(item.operation.name)}};
+        if(!openas::conformance::check(grant).ok())return fail("control operation name is not a conforming grant scope");
+    }
+    if(argc==2 && std::string_view(argv[1])=="--describe-control") {
+        std::println("{}",Json{{"kind","hanim.control-discovery"},{"operations",control_catalog()}}.dump());return 0;
+    }
     const auto parsed=parse(argc,argv);
     if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties | --parts | --channels] [--agent-review] [--agent-deny-capture]",2);
     const auto& options=*parsed;

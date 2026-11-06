@@ -14,13 +14,13 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 
 ## CI red list
 
-Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regression, E = environment, F = flaky/time.
+Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regression, E = environment, F = flaky/time, T = test expectation.
 
 | # | Failure | Where | Since | Kind | State |
 |---|---|---|---|---|---|
 | 1 | `WeightedPaint` incomplete type in `std::span` arithmetic | Windows build, omui pack | ≤ `c9b0d1c` | R | fixed, to confirm on Windows CI: MSVC STL checks C++23 const-iterator concepts when `std::span<const T>` is instantiated, so a span of the then-incomplete `WeightedPaint` cannot be a `Paint` member; `mlibs::memory::View<T>` replaces it in raster and render |
-| 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | E (mcpp) | worked around: the site declares its direct `hanim` features; local Web row 44 members, 106 passed. Upstream mcpp bug, see below |
-| 3 | Metal: cellular `rules.slang` buffer index 0 reserved twice | macOS `rhi.sdl` | ≤ `ab4d823` | R | fixed, to confirm on macOS CI: Slang numbers Metal bindings by HLSL register without the space; `mlibs.shader` now rebinds MSL entry points as SDL_GPU binds Metal (also fixes the latent `greedy.slang` palette at buffer(2) instead of buffer(1)) |
+| 2 | `hanim.render.vector.pcm` has no rule (view's `hanim` feature) | Web build (`host/web`, `site`) | ≤ `810d1fc` | E (mcpp) | worked around (Web row green on 00ca8ba, 68e61c9): the site declares its direct `hanim` features; local Web row 44 members, 106 passed. Upstream mcpp bug, see below |
+| 3 | Metal: cellular `rules.slang` buffer index 0 reserved twice | macOS `rhi.sdl` | ≤ `ab4d823` | R | fixed, confirmed on macOS CI (68e61c9): Slang numbers Metal bindings by HLSL register without the space; `mlibs.shader` now rebinds MSL entry points as SDL_GPU binds Metal (also fixes the latent `greedy.slang` palette at buffer(2) instead of buffer(1)) |
 | 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | fixed: the test predates default exit motions; replaced content is `removing` (S-4) until it settles |
 | 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | `074e3bd` (bisected) | R | fixed: an untargeted style motion became a `*` rule for every node (074e3bd); it no longer takes the window's root, and the game declares its live surfaces (root, field, canvas: no update morph). The site keeps its pinned look. Tests wait for cards that enter by the room's style; the choice frame re-pinned (15 px, at most 1/255) |
 | 6 | promo-video pinned frames (`promo_test.cpp:129/133`) | all | `77979b5` (bisected) | R→baseline | re-pinned with the semantic change stated: 77979b5 makes motion level off skip a style's cross-fade (asserted by `view.theme_motion`); the film runs at off so frame 1860 (the switch to retro, 31.0 s) is now a cut and 1820 no longer carries the previous fade. Restoring the film's fades is M2 input (below) |
@@ -28,6 +28,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | fixed in CI: the site has its own lane (`site`, release, 1200 s per test); the matrix rows exclude it. Local release: 22 passed |
 | 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | addressed: rows no longer run the site (its 4 tests timed out at 300 s each), limit 150 min; to confirm |
 | 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | build and delivery budget fixed (4,886,971 B). Browser checks: CI's Chrome refuses clipboard reads, so the scripts observe the page's own clipboard writes (a refused read can no longer pass as `{}`), and NoScript navigation is awaited. Local Chromium: presentation 159/159, motion 151/151; CI to confirm |
+| 11 | cellular reaction kernel wrong on Direct3D 12 / DXBC (WARP): tick 1, index 515 (channel 2 of the one active cell) GPU 0, CPU 1 | Windows `rhi.sdl` | never validated (Windows did not build since 11-04) | R | open: CI's Windows row now runs lavapipe as intended (`SDL_GPU_DRIVER=vulkan`); the D3D12 path needs its own run. The rhi CTS passed on D3D12 |
+| 12 | agent e2e: `delete-all` by an agent ran without asking | Linux (example 07) | 20e6f54 (development mode is full access) | T | fixed: the acceptance starts the example in dual-user mode, the needs-answer path it checks; the whole e2e passes locally |
 
 ### Design input for M2 (motion convergence)
 

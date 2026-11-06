@@ -66,4 +66,8 @@ fi
 say "VK_DRIVER_FILES=$icd"
 say "VK_ICD_FILENAMES=$icd"
 say "OMUI_VULKAN_LIBRARY=$loader"
+# Windows also has Direct3D 12's software device (WARP), which SDL would pick
+# before Vulkan: the row is lavapipe, as said above. The D3D12/DXBC path is
+# its own open item (STATUS red list 11), not this row's by accident.
+if [ "$(uname -s)" != Linux ]; then say "SDL_GPU_DRIVER=vulkan"; fi
 say "OMUI_REQUIRE_GPU=1"

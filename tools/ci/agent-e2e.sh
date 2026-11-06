@@ -16,7 +16,11 @@ omui=$(newest omui)
 dir=$(mktemp -d)
 trap 'kill "$pid" 2> /dev/null || true; rm -rf "$dir"' EXIT
 
-"$app" --serve --agent-dir "$dir" > "$dir/app.log" 2>&1 &
+# Dual-user, whatever the build profile: a dev build otherwise starts in
+# development mode, where a trusted session's declared operations run without
+# asking (AGENTS: development is full access), and the needs-answer path
+# (S-10, S-11) is what this acceptance checks.
+"$app" --serve --agent-dir "$dir" --agent-mode dual-user > "$dir/app.log" 2>&1 &
 pid=$!
 for _ in $(seq 100); do [ -e "$dir/org.openmui.examples.notes.endpoint.omui.json" ] && break; sleep 0.1; done
 

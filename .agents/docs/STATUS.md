@@ -24,7 +24,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 4 | `viewdoc/slots are filled by code` (`viewdoc_test.cpp:378`) | all | ≤ `074e3bd` | R | fixed: the test predates default exit motions; replaced content is `removing` (S-4) until it settles |
 | 5 | widget-breakout: room 3 hash, run flow, script reload (6 checks) | all | ≤ `074e3bd` | R | open |
 | 6 | promo-video pinned frames (`promo_test.cpp:129/133`) | all | ≤ `c9b0d1c` | R | open |
-| 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | ≤ `c9b0d1c` | R | open |
+| 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | `77979b5` (bisected) | R | fixed: `Matter::follow_layout` replaced every style-wrapper shape with the target's; only allocation carriers adopt now, state shapes (the lens) keep morphing |
 | 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | open |
 | 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | open |
 | 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | fixed by lock policy, to confirm |

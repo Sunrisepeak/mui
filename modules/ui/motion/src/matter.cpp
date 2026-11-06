@@ -486,13 +486,27 @@ void Matter::follow_layout(Matter& target, std::span<const std::string> scopes) 
             if (same_owner(reference.node,current.node) && reference.key == current.key) { reference.allocation = current.allocation; break; }
     // The style wrapper is a carrier too, rather than a differently sized
     // offscreen sheet surrounding correctly rebased children.
+    std::vector<render::EffectShape> wrapper_shapes; // borrowed by `source` until it is copied below
     if (scopes.empty() && wrapper_.present && target.wrapper_.present) {
         auto& before = std::get<render::PushLayer>(source[wrapper_.command]);
         const auto& after = std::get<render::PushLayer>(destination[target.wrapper_.command]);
         before.bounds = after.bounds;
         // Shape geometry is copied through arena ownership below; material
         // params/opacity remain old and keep their ordinary interpolation.
-        before.shapes = after.shapes;
+        // Like drawables, only a shape that carries an owner's allocation
+        // adopts the new one; any other shape is state drawn in that
+        // allocation (a tab bar's lens under the selected tab) and keeps its
+        // old local geometry, so its own change still morphs.
+        if (before.shapes.size() == after.shapes.size()) {
+            wrapper_shapes.assign(before.shapes.begin(), before.shapes.end());
+            for (std::size_t i = 0; i < wrapper_shapes.size(); ++i) {
+                const bool carrier = std::ranges::any_of(original_frames, [&](const Frame& f) { return same_carrier(wrapper_shapes[i].rect, f.rect); });
+                if (carrier) wrapper_shapes[i] = after.shapes[i];
+            }
+            before.shapes = wrapper_shapes;
+        } else {
+            before.shapes = after.shapes;
+        }
         wrapper_.transform = target.wrapper_.transform;
     }
     render::DisplayList rebased, clipped;

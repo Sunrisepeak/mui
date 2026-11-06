@@ -166,6 +166,18 @@ struct FeedbackOptions {
 [[nodiscard]] Program pulse(ObjectInput object, Vec2 factor = {1.08,1.08}, FeedbackOptions = {});
 [[nodiscard]] Program shake(ObjectInput object, Vec2 amplitude = {8,0}, FeedbackOptions = {});
 [[nodiscard]] Program wobble(ObjectInput object, double radians = .12, FeedbackOptions = {});
+// Timed translation waypoints, relative to the actual pose at this recipe's
+// start. Each point's easing/path describes the incoming leg. The first leg
+// starts at offset zero/time zero; times must be finite and strictly increase.
+struct MoveWaypoint {
+    seconds at;
+    Vec2 offset;
+    Ease easing = ease::linear;
+    PointPath path;
+};
+struct MoveThroughOptions { std::string part; };
+[[nodiscard]] Program move_through(ObjectInput, std::span<const MoveWaypoint>, MoveThroughOptions = {});
+[[nodiscard]] Program move_through(ObjectInput, std::initializer_list<MoveWaypoint>, MoveThroughOptions = {});
 class Composite {
 public:
     explicit Composite(Program child) : child_(std::move(child)) {}

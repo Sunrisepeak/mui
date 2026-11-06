@@ -119,3 +119,10 @@ CPU group/leaf blur differs as expected while the explicit shared-layer oracle
 matches. Warm record and scope-seek allocation checks pass. General channels,
 scope-preserving retarget, GPU scheduling and the public UI scope adapter remain
 open; PPet mixed-language hot replacement is a documented target, not delivered runtime.
+
+The probe also plays `anim::move_through` through the public umbrella, samples a
+curved leg, verifies its source-relative offset and image-scope parameters, and
+releases the playback. Use `--project /tmp/hanim-api-probe-... --keep-project`
+to reuse the latest disposable consumer's incremental build. Existing fixture
+locks are used with `--locked`; only a new fixture receives its own bootstrap
+lock. The source workspace lock remains unchanged.

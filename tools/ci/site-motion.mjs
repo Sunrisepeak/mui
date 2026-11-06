@@ -323,6 +323,21 @@ try {
     await pointer(root + '/transport/buttons/play');
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - feedbackA[0]) > 2, 'public feedback moves through an actual intermediate frame');
     await pauseTransport(root); await shot('component-motion-feedback');
+    await pointer(root + '/details/selection'); await key('Home', 'Home', 36);
+    for (let i = 0; i < 3; ++i) await key('ArrowDown', 'ArrowDown', 40);
+    await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/selection') === 'path', 'keyboard selects the public timed path recipe');
+    await invokeMotion('seek', { progress: 0 }); const pathStart = (await node(card)).bounds;
+    await invokeMotion('seek', { progress: .25 });
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - pathStart[0] - 14) < .5 &&
+      Math.abs((await node(card)).bounds[1] - pathStart[1] + 8) < .5, 'semantic seek reaches the authored path waypoint');
+    await invokeMotion('seek', { progress: 1 });
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - pathStart[0]) < .5 &&
+      Math.abs((await node(card)).bounds[1] - pathStart[1]) < .5, 'the public path returns to the original presentation');
+    await pointer(root + '/details/copy'); const pathSource = await page.value('navigator.clipboard.readText()');
+    check(pathSource.includes('hanim::anim::move_through') && pathSource.includes('PointPath::bend'), 'copied route uses only the public path and animation API');
+    await invokeMotion('seek', { progress: .5 }); await shot('component-motion-path');
+
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
   });

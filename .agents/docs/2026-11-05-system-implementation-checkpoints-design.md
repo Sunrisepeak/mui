@@ -1239,3 +1239,46 @@ callback 取实际 UI Invocation，通过 `to_control_invocation` 转为共享�
 命令、过程图、Web 包、截图和性能报告保留于 `target/site-motion-control/`；提交摘要为 `tools/ci/2026-11-06-site-motion-control.report.omui.json`。全仓库 lint 为零，既有 mcpp.lock 字节保持。新增官网测试和浏览器检查使用原有 CI 入口，本轮按本地真实结果推进，不等待跨平台 CI。
 
 本轮没有增加动画设计数，也没有完成旧状态 morph 的统一控制、资源 ACL、通用 provider、40／20 公共交付或总体多引擎目标。官网视觉重构与完整场景验收继续按原计划执行。
+
+
+## 38. 公共时间点路径与官网真实消费
+
+2026-11-06，基线 `7e122bb`。继续 S8／P4 公共库与 S2 组合能力：基础位移与反馈配方已经公开，但用户还需手写多段相对位移才能表达“在这些时刻经过这些位置”。本轮增加一个公共 authoring 设施并由官网真实消费，参数变体不充作多个动画设计。
+
+### 38.1 接口、归属与编译
+
+```cpp
+using namespace std::chrono_literals;
+auto route = hanim::anim::move_through(object, {
+    {300ms, {14, -8}, hanim::ease::in_out_sine, hanim::PointPath::bend(.15)},
+    {700ms, {-12, -6}, hanim::ease::in_out_sine, hanim::PointPath::bend(-.12)},
+    {1200ms, {0, 0}, hanim::ease::in_out_sine, hanim::PointPath::bend(.15)}});
+auto animation = hanim::composite(route).with_effect(hanim::fx::blur(0, 3));
+auto playback = hengine.play(animation);
+```
+
+`MoveWaypoint` 指定 at／offset／easing／path；offset 是相对本配方实际起始姿态、位于选定部件父空间的位置，不是每段增量。time=0／offset=0 隐含为起点。`MoveThroughOptions::part` 可选稳定部件 ID，空值选根。span 与 initializer-list 输入均在构造 Program 时复制，调用者可修改／释放源数组。
+
+实现收在既有 hanim 包的 `src/program/waypoints.cpp`，把每段转成普通相对平移叶子和 sequence。弯曲复用 PointPath，时间／通道／源姿态／冲突／预算／图像作用域／采样仍用已有实现，不新增 AST、播放器、采样分支或包。新配方跟在其他动画之后时，以实际前序端点为锚；可与独立旋转／缩放并行，并用 composite 叠加图像效果。既有 Program／Frame 的状态结构与 prepared 契约版本不变。
+
+时间必须有限、正数且严格递增；重复 offset 配合更晚时间表达停留。空输入、非法缓动／路径、非有限 offset 或差值不可表示时返回原有 invalid Program，不发布部分路线。动画参数错误的 `animation.clip` 保留问题 waypoint 序号；时间／缓动错误使用既有类型化 code。构造成本随 waypoint 数增长，prepare 的节点／段／通道预算继续约束准备结果；零分配保证仅验证指定的稳定采样循环，不包括 authoring／prepare。
+
+该接口是**显式时间插值**，不是自动弧长匀速、自动朝向、寻路或碰撞规避。几何距离采样仍归现有 MotionPath，不复制它的曲线算法。位置在分段边界连续，速度连续性由时间、缓动和曲线共同决定；单个零长度段是停留，闭合运动需实际中间点。数值遵循既有浮点契约，不承诺任意数据的 bitwise 回到原点或全引擎浮点 trap 支持。
+
+### 38.2 公共消费与官网
+
+独立 `import hanim` 消费者真实创建、播放、采样弯曲段、核对起始姿态偏移及图像 scope 参数、返回并释放；无 UI／renderer 依赖。runner 增加 `--project` 复用一次性外部工程的最新增量，已有 fixture lock 始终使用 locked，仅新 fixture 自行 bootstrap；源 workspace 锁保持。
+
+官网便笺的详情新增“沿路径移动”：整张便笺经过三个带时间和弯曲的 offset，标题 wobble、按钮 pulse；图像效果与局部风格仍独立。舞台和复制出的 C++ 使用同一个公共函数，页面没有 waypoint 插值器。新增无窗口场景通过实际远端 UI Invocation／motion.seek 做 61 时刻正向与反向采样，再检查叠加 pixel 效果后的真实按钮与便笺内容。顶层动画目录数量不因该参数选择而增加。
+
+### 38.3 本地证据与后续边界
+
+最终 Hanim **9 个程序**在 debug／release 各 **107 项**、Wasm **105 项**通过；既有线程相关测试仍按后端能力选择。新用例验证源数组修改后不影响 Program、弯曲中间态、真实前序源、命名部件、并行旋转／图像 scope、冲突与预算、非法时间／缓动／曲线／数字、停留，以及 61 个时刻反向重放和采样零新增分配。
+
+独立公共 API 消费者 debug／release 各 **169 项**通过，实际依赖图保持无 UI／renderer。官网组件测试 **9 项**通过；保留新增 **61 张路径过程图＋1 张 pixel 中间态**，连同原有图像共 **554 张**。原有 **492 张**与 §37 逐字节相同，新路径的逆放逐帧像素一致。已查看实际中间态，文字和控件可读；未将其当作完整美术质量或所有实时节奏的验收。
+
+最新 site-web 在 Chromium 通过 **170 项检查**、保留 **11 张截图**、异常为零；实际键盘选择路径，语义 seek 核对关键位置和终点返回，复制内容含公共 move_through／PointPath。20 Mbit/s／40 ms、1280×800、新 profile、访问内缓存开启时，总传输 **4,879,073 B**、首帧前 **2,976,844 B**，首帧代理 **1,679.6 ms**、ready **1,638.1 ms**、rAF p95 **16.8 ms**，原有 **7／7** 预算通过。总传输较 §37 增加 **1,771 B**，距 5 MB 预算尚余 **120,927 B**；单次样本不证明提速，首帧代理／rAF 的解释边界保持。
+
+证据目录 `target/hanim-waypoints/`，提交摘要 `tools/ci/2026-11-06-hanim-timed-waypoints.report.omui.json`；全仓库 lint 为零，用户 mcpp.lock 保持原有字节。新库与官网用例进入已有测试／浏览器 CI 入口，按本地真实验证推进。
+
+完整 40／20 公共库、全部默认组件配方迁移、表示／3D／任意属性与更完整的路径／时间作用域仍开放。后续继续按“公共定义→独立消费者→官网真实作品”的顺序，逐项交付，不能以页面案例数或同一配方的参数数目替代公共库完成度。

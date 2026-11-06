@@ -382,6 +382,15 @@ int main() {
     check(bool(hengine.seek(*feedback,1s)) && equal(feedback_source,copy(*hengine.frame(*feedback))),
         "feedback_returns_to_its_source_without_registry_mutation");
     check(bool(hengine.release(*feedback)),"feedback_resources_released");
+    const auto route=hengine.play(h::composite(anim::move_through(*property_object,{
+        {250ms,{8,0},h::ease::linear,h::PointPath::bend(.5)}, {750ms,{8,12}}, {1s,{0,0}}})).with_effect(h::fx::blur(0,4)));
+    if(!check(bool(route),"timed_waypoints_play_through_the_public_umbrella"))return finish();
+    check(bool(hengine.seek(*route,125ms)),"timed_waypoints_seek_inside_a_curved_leg");
+    const auto routed=hengine.frame(*route)->geometry.parts[0].local;
+    check(std::abs(routed.tx-feedback_source.transforms[0].tx-4)<1e-12 && std::abs(routed.ty-feedback_source.transforms[0].ty-4)<1e-12,"timed_waypoint_offsets_use_the_actual_object_pose");
+    check(hengine.program_frame(*route)->scene.scope_effect_values[0]==.5f,"waypoint_recipe_composes_with_image_scope");
+    check(bool(hengine.seek(*route,1s)) && equal(feedback_source,copy(*hengine.frame(*route))),"waypoint_return_preserves_source_pose");
+    check(bool(hengine.release(*route)),"waypoint_resources_released");
     const auto image_scope=hengine.play(h::composite(anim::to(*property_object,
         {.position=h::Vec2{20,5},.rotation=std::numbers::pi,.scale=h::Vec2{2,2}})
         .with_effect(h::fx::translation_path(h::PointPath::bend(.25)))).with_effect(h::fx::blur(0,4)));

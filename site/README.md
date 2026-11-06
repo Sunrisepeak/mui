@@ -250,3 +250,10 @@ The semantic facade adds no animation algorithm, network transport, mandatory
 Hanim control feature, or per-frame authorization. Rendering/capture stays in
 its existing authorized host path. `motion_control_test` samples the real site
 without a window; `site-motion.mjs` exercises the delivered Web interface.
+
+The public-program note's **Follow a path** selection uses
+`hanim::anim::move_through`: three timed offsets with per-leg easing and
+`PointPath`, combined with title wobble and button pulse. Image effects and
+local style remain independent. Its copied recipe is the same public C++ API;
+the scene contains no waypoint sampler. Existing `motion.*` verbs can inspect
+and sample the complete route. Returning to the start does not reset note data.

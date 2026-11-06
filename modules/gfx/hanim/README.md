@@ -282,3 +282,54 @@ libraries; preparation reports the actual node in the composition and keeps
 the original typed cause. Positive durations too small to retain each leg are
 refused rather than silently turning a phase into an instantaneous step.
 This does not change valid feedback pixels or require another error transport.
+
+## Timed translation paths
+
+`anim::move_through(object, waypoints, options)` returns an ordinary Program.
+Each `MoveWaypoint` supplies `at` (time from the start of this recipe), `offset`
+(from the actual starting pose in the selected part's parent space), and the
+incoming leg's `easing` and `PointPath`. Time zero and offset `{0,0}` are implicit.
+`MoveThroughOptions::part` selects a stable part; empty selects the root.
+
+```cpp
+using namespace std::chrono_literals;
+auto route = hanim::anim::move_through(card, {
+    {300ms, {14, -8}, hanim::ease::in_out_sine, hanim::PointPath::bend(.15)},
+    {700ms, {-12, -6}, hanim::ease::in_out_sine, hanim::PointPath::bend(-.12)},
+    {1200ms, {0, 0}, hanim::ease::in_out_sine, hanim::PointPath::bend(.15)}});
+auto animation = hanim::composite(hanim::parallel(route,
+    hanim::anim::wobble(card, .04, {.duration=1200ms, .part="title"})))
+    .with_effect(hanim::fx::blur(0, 3));
+auto playback = hengine.play(animation); // Inspect the normal typed result.
+```
+
+The span and initializer-list overloads copy the supplied descriptions into
+owned leaves. They lower to relative translation sequences; compilation,
+actual prior source poses, channels/conflicts, budgets, effects, inspection,
+retargeting and sampling keep their existing owners. No target object is
+fabricated or changed. Other parts/channels are preserved, and the route can
+follow a prior move or run alongside rotation/scale. Each waypoint becomes an
+author node, so the existing preparation node/segment/channel budgets apply.
+
+Times must be finite, positive and strictly increasing. Repeated offsets with
+later times express holds. An empty path, invalid ease/path, nonfinite offset
+or unrepresentable difference returns an invalid Program, not a partial route.
+Nested animation failures retain the offending waypoint index in `animation.clip`;
+time/ease failures retain their normal typed code. Object-dependent overflow
+still belongs to normal preparation. As elsewhere, no trap-safe arithmetic or
+bitwise round-trip guarantee is claimed for all numeric inputs.
+
+This is explicitly timed interpolation, not automatic arc-length speed,
+orientation following or collision/path planning. Geometric distance-based
+sampling remains the existing `MotionPath` facility; this factory does not
+copy its geometry implementation. Per-leg curves use the existing `PointPath`.
+Leg boundaries are position-continuous within normal numeric precision;
+velocity continuity depends on the chosen times, curves and easing. A return
+to `{0,0}` can close the route; a single zero-length leg remains a hold.
+
+For headless review, inspect author nodes/channels, sample each waypoint and
+multiple times inside every leg, replay in reverse, then capture actual pixels
+with the selected renderer. Check unchanged parts, scoped effects and actions
+at the moved position. The site's “Follow a path” selection consumes this exact
+factory and supports its existing semantic seek controls. One path facility
+and its parameter variations do not establish the complete 40/20 catalog.

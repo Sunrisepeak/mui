@@ -119,6 +119,30 @@ int main(int argc,char** argv) {
         r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
         check(parse_json(r.h.runtime().clipboard_text()).has_value(),"the pulsing button keeps its real pointer action");
     });
+    suite.test("public timed waypoints drive the site through semantic control and compose image effects",[] {
+        Run r;r.details();r.act("details/selection","set_value",Value{}.set("value","path"));
+        auto access=std::make_shared<AgentAccess>(std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev")));
+        r.h.runtime().set_agent_access(access);const auto session=access->open_session();
+        auto seek=[&](double value){
+            const auto reply=r.h.runtime().verbs().invoke("motion.seek",Invocation{.args=Value{}.set("progress",value),
+                .actor={"agent","path-review",{}},.remote=true,.access=access,.session=session});
+            check(reply.exit_code()==0);r.step();r.step();
+        };
+        seek(0);const auto initial=r.pixels();std::vector<std::uint64_t> images;
+        for(int i=0;i<=60;++i) {
+            seek(i/60.);check(r.bound());images.push_back(r.pixels());
+            check(r.h.save_png(media()/std::format("path-{:03}.png",i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        }
+        check(images.front()==initial && images.back()==initial && images[20]!=initial && images[40]!=initial);
+        for(int i=60;i>=0;--i){seek(i/60.);check(r.pixels()==images[std::size_t(i)]);}
+        r.act("details/copy");const auto source=r.h.runtime().clipboard_text();
+        check(source==site::component_motion_source("path",true,1) && source.find("hanim::anim::move_through")!=std::string::npos);
+        r.act("details/effect","set_value",Value{}.set("value","pixel"));seek(.5);
+        check(r.pixels()!=images[30]);
+        check(r.h.save_png(media()/"path-pixel-midpoint.png",r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        const auto save=r.node("stage/scene/composition/card/actions/save");r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
+        check(parse_json(r.h.runtime().clipboard_text()).has_value(),"the path-animated styled note retains its real control");
+    });
     suite.test("real input takes over without changing data and the same controls remain agent operable",[] {
         Run r;r.details();r.seek(.5);
         const auto card=r.node("stage/scene/composition/card"),save=r.node("stage/scene/composition/card/actions/save");

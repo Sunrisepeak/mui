@@ -22,16 +22,18 @@ def main() -> int:
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--mcpp', default=os.environ.get('MCPP', 'mcpp'))
     parser.add_argument('--keep-project', action='store_true')
+    parser.add_argument('--project', type=Path, help='Reuse an existing disposable consumer workspace')
     args = parser.parse_args()
     repo = args.source_root.resolve()
     fixture = Path(__file__).resolve().parent
     output = args.output.resolve(); output.parent.mkdir(parents=True, exist_ok=True)
     artifacts = output.parent / (output.stem + '-artifacts'); artifacts.mkdir(exist_ok=True)
-    project = Path(tempfile.mkdtemp(prefix='hanim-api-probe-'))
+    project = args.project.resolve() if args.project else Path(tempfile.mkdtemp(prefix='hanim-api-probe-'))
+    project.mkdir(parents=True, exist_ok=True)
     lock = digest(repo/'mcpp.lock')
     report = {'format':'hanim.public-authoring@0.2', 'ok':False, 'source_root':str(repo),
               'source_commit':subprocess.check_output(['git','-C',str(repo),'rev-parse','HEAD'],text=True).strip(),
-              'project':str(project), 'source_lock_before':lock, 'commands':[], 'profiles':[],
+              'project':str(project), 'reused_project':bool(args.project), 'source_lock_before':lock, 'commands':[], 'profiles':[],
               'fixture_sha256':{str(p.relative_to(fixture)):digest(p) for p in sorted([fixture/'run.py',fixture/'mcpp.toml.in',*fixture.glob('src/*')])},
               'scope':['Public import hanim; no consumer facade or second compiler/player.',
                        'Real strict contour/transform/fill morph and parameter effects only.',
@@ -53,12 +55,13 @@ def main() -> int:
         if process.returncode:raise RuntimeError(f'{label}: exit {process.returncode}; see {stderr}')
         return process.stdout
     try:
-        (project/'src').mkdir()
+        (project/'src').mkdir(exist_ok=True)
         text=(fixture/'mcpp.toml.in').read_text().replace('{{hanim_path}}',json.dumps(str(repo/'modules/gfx/hanim')))
         (project/'mcpp.toml').write_text(text)
         for p in fixture.glob('src/*'):shutil.copyfile(p,project/'src'/p.name)
         shutil.copyfile(project/'mcpp.toml',artifacts/'consumer.mcpp.toml')
-        run('bootstrap',[args.mcpp,'build','--profile','dev'],True)
+        existing_lock=(project/'mcpp.lock').is_file()
+        run('bootstrap',[args.mcpp,'build','--profile','dev',*(['--locked'] if existing_lock else [])],not existing_lock)
         temp_lock=digest(project/'mcpp.lock');report['temporary_lock_sha256']=temp_lock
         report['temporary_lock_present']=temp_lock is not None
         for profile in ['dev','release']:

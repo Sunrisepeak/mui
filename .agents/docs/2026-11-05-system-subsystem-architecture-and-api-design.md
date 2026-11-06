@@ -43,6 +43,8 @@ A4 图像作用域补充见[实施设计](2026-11-06-hanim-ui-image-scope-design
 
 原生控制接入见[台账 §35](2026-11-05-system-implementation-checkpoints-design.md#35-可选原生动画控制与共享调用作用域)：mlibs.control 统一冷调用作用域，Hanim 可选 control feature 提供 13 项带发现、授权与类型化回执的公开 Engine 操作；独立 CLI 用同源 renderer 做真实 Agent 过程审查。默认依赖裁剪保持。后续[台账 §36](2026-11-05-system-implementation-checkpoints-design.md#36-ui-到独立引擎的显式授权传递)提供 UI 兼容调用到共享 Invocation 的显式转换，真实 UI verb／鼠标通过同一 Hanim Controller 控制动画，分别检查入口与领域权限；不引入 UI→Hanim 的强制依赖。[台账 §37](2026-11-05-system-implementation-checkpoints-design.md#37-官网公共动画舞台的语义控制)进一步把共享转换／作用域用于官网的六个语义操作，调用拥有时钟与呈现的公共 Playback，保持宿主门控；不暴露内部 Engine 句柄。通用 provider／资源 ACL、异步生命周期及官网完整控制面仍继续实施。
 
+公共路径配方见[台账 §38](2026-11-05-system-implementation-checkpoints-design.md#38-公共时间点路径与官网真实消费)：`anim::move_through` 将带时间／缓动／PointPath 的位置序列降为既有 Program 和属性通道，支持实际阶段源、部件选择与图像 scope，官网直接消费。显式时间路径不冒充弧长匀速或自动朝向；40／20 公共交付继续按单项质量验收。
+
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 
 ## 2. 产品边界与共同契约

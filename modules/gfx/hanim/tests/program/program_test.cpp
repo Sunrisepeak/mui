@@ -410,6 +410,53 @@ int main(int argc,char** argv) {
         check(!PreparedProgram::prepare(anim::shake(source,{1,1},{.duration=seconds(-1)})));
         check(!PreparedProgram::prepare(anim::wobble(source,std::numeric_limits<double>::infinity())));
     });
+    suite.test("timed waypoints reuse translation channels paths and actual preceding poses",[] {
+        Fixture f;const auto source=take(f.registry.capture(take(f.registry.create(shape(4)))));
+        std::vector<anim::MoveWaypoint> points{{seconds(.25),{8,0},ease::linear,PointPath::bend(.5)},
+            {seconds(.75),{8,12}},{seconds(1),{0,0}}};
+        const auto path=anim::move_through(source,points,{.part="shape"});points.front().offset={999,999};points.clear();
+        const auto plan=take(PreparedProgram::prepare(path));check(plan.duration()==seconds(1) && plan.nodes().size()==4 && plan.scopes().empty());
+        Buffer out(plan.tracks()[0]);
+        const auto midpoint=out.sample(plan,0,.125).geometry.parts[0].local;
+        check(midpoint.tx==8 && midpoint.ty==4,"incoming PointPath changes the actual intermediate trajectory");
+        const auto corner=out.sample(plan,0,.25).geometry.parts[0].local;check(corner.tx==12 && corner.ty==0);
+        const auto vertical=out.sample(plan,0,.5).geometry.parts[0].local;check(vertical.tx==12 && vertical.ty==6);
+        std::array<Transform2D,61> saved{};bool good=true;const auto before=allocations.load();
+        for(int i=0;i<=60;++i)saved[std::size_t(i)]=out.sample(plan,0,i/60.).geometry.parts[0].local;
+        for(int i=60;i>=0;--i)good=good && saved[std::size_t(i)]==out.sample(plan,0,i/60.).geometry.parts[0].local;
+        check(good && allocations.load()==before);check(saved.back().tx==4 && saved.back().ty==0);
+        const auto after=take(PreparedProgram::prepare(sequence(anim::move_to(source,{20,30}),path)));
+        Buffer after_out(after.tracks()[0]);const auto shifted=after_out.sample(after,0,1.125).geometry.parts[0].local;
+        check(shifted.tx==24 && shifted.ty==34,"path offsets anchor to the actual preceding endpoint");
+        const auto combined=take(PreparedProgram::prepare(composite(parallel(path,anim::rotate_by(source,1))).with_effect(fx::blur(0,4))));
+        Buffer combined_out(combined.tracks()[0]);const auto pose=combined_out.sample(combined,0,.5).geometry.parts[0].local;
+        check(pose.tx==12 && pose.ty==6 && pose.rotate==.5);
+        std::array<float,1> effects{};take(combined.sample_scopes(seconds(.5),effects));check(effects[0]==2);
+        check(!PreparedProgram::prepare(parallel(path,anim::move_by(source,{1,0}))));
+        const auto budget=PreparedProgram::prepare(path,{.max_nodes=3});check(!budget && budget.error().code==ProgramError::node_budget);
+    });
+    suite.test("waypoints reject malformed authoring without publishing a partial path",[] {
+        Fixture f;const auto empty=anim::move_through(f.a,{});check(empty.failure() && empty.failure()->code==ProgramError::empty_program);
+        for(double at:{0.,-1.,std::numeric_limits<double>::infinity()}) {
+            const auto bad=anim::move_through(f.a,{{seconds(at),{1,0}}});check(bad.failure() && bad.failure()->code==ProgramError::invalid_time);
+        }
+        const auto repeated=anim::move_through(f.a,{{seconds(1),{1,0}},{seconds(1),{2,0}}});check(repeated.failure());
+        const auto overflow=anim::move_through(f.a,{{seconds(1),{std::numeric_limits<double>::max(),0}},
+            {seconds(2),{-std::numeric_limits<double>::max(),0}}});
+        check(overflow.failure() && overflow.failure()->animation && overflow.failure()->animation->clip==1 &&
+            overflow.failure()->animation->code==MorphError::invalid_property);
+        const auto bad_ease=anim::move_through(f.a,{{seconds(1),{1,0},Ease{static_cast<EaseKind>(255)}}});
+        check(bad_ease.failure() && bad_ease.failure()->code==ProgramError::invalid_ease);
+        const auto nonfinite=anim::move_through(f.a,{{seconds(1),{std::numeric_limits<double>::quiet_NaN(),0}}});
+        check(nonfinite.failure() && nonfinite.failure()->animation->code==MorphError::invalid_property);
+        const auto bad_path=anim::move_through(f.a,{{seconds(1),{1,0},ease::linear,{{1e7,0},{}}}});
+        check(bad_path.failure() && bad_path.failure()->animation->code==MorphError::invalid_options);
+        const auto unknown=PreparedProgram::prepare(anim::move_through(f.a,{{seconds(1),{1,0}}},{.part="missing"}));
+        check(!unknown && unknown.error().animation->code==MorphError::unknown_part);
+        const auto hold=take(PreparedProgram::prepare(anim::move_through(f.a,{{seconds(.5),{0,0}},{seconds(1),{5,0}}})));
+        Buffer out(hold.tracks()[0]);check(out.sample(hold,0,.25).geometry.parts[0].local.tx==0);
+        check(out.sample(hold,0,1).geometry.parts[0].local.tx==5);
+    });
     suite.test("deferred authoring errors retain typed causes and acquire the actual composition node",[] {
         Fixture f;
         const auto rejected=invalid_program({.code=ProgramError::animation,.node=99,

@@ -95,3 +95,11 @@ legs. Zero total duration retains the existing instantaneous-sequence semantics.
 Object-dependent target overflow is still validated during ordinary preparation.
 The library does not alter the caller's floating-point environment or claim
 that all engine operations support unmasked hardware exceptions.
+
+`anim::move_through` in `waypoints.cpp` lowers timed, source-relative translation
+waypoints to the same property sequence. Incoming legs reuse `PointPath`;
+there is no new sampler, channel or geometric path representation. Source
+arrays can be released after authoring. Time/order, ease, path and subtraction
+ranges are checked before each leaf is built; invalid inputs return the existing
+immutable error expression. See the [product guide](../../README.md#timed-translation-paths)
+for units, part selection, composition, continuity and headless review.

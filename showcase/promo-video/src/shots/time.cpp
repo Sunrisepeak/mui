@@ -12,7 +12,7 @@ import hanim.core;
 import openmui;
 import openmui.showcase.widget_breakout;
 import openmui.showcase.widget_breakout.sim;
-import openmui.timeline;
+import xengine.timeline;
 
 namespace omui::promo {
 
@@ -32,15 +32,15 @@ struct Landing {
 Landing landing(const bo::State& s) {
     const double line = s.paddles[0].y - 16;
     Landing best;
-    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
         if (b.on != 0) return;
-        std::array<mgame::V2, 16> pts{};
+        std::array<xengine::V2, 16> pts{};
         const std::size_t n = bo::trace(s, b.at, b.velocity, b.radius, pts, 5000);
         double travelled = 0;
-        const double speed = mgame::length(b.velocity);
+        const double speed = xengine::length(b.velocity);
         for (std::size_t k = 1; k < n; ++k) {
-            const mgame::V2 a = pts[k - 1], z = pts[k];
-            const double len = mgame::length(z - a);
+            const xengine::V2 a = pts[k - 1], z = pts[k];
+            const double len = xengine::length(z - a);
             if (a.y <= line && z.y >= line && z.y > a.y) {
                 const double u = (line - a.y) / (z.y - a.y);
                 const double steps = (travelled + len * u) / std::max(speed, 1e-9);
@@ -72,7 +72,7 @@ struct Bot {
         const double x = l.any ? l.x - offset * s.paddles[0].half : s.paddles[0].x;
         m.x = std::clamp(x, 0.0, bo::field_w) / bo::field_w;
         bool waiting = false;
-        s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
+        s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { waiting = waiting || b.on == 1; });
         m.launch = waiting && s.frame % 20 == 0;
         return m;
     }

@@ -10,14 +10,14 @@
 // afford: pinned frames, short stretches, sampled frames at a quarter scale.
 import std;
 import openmui;
-import openmui.timeline;
-import openmui.audio;
+import xengine.timeline;
+import xengine.audio;
 import openmui.testing;
 import openmui.showcase.promo_video;
 
 using namespace omui::testing;
 using namespace omui;
-namespace tl = omui::timeline;
+namespace tl = xengine::timeline;
 
 namespace {
 
@@ -61,9 +61,9 @@ int main(int argc, char** argv) {
         check_eq(short_cut.frames(), std::int64_t{900});
         check(main.picture >= 0 && main.subtitles >= 0 && main.sfx >= 0, "picture, subtitles and sfx tracks");
         check(film().subtitles.lines.size() >= 11, std::format("{} lines", film().subtitles.lines.size()));
-        auto music = audio::read_music(*film().files.read("music/promo.music.omui.toml"), "promo.music.omui.toml");
+        auto music = xengine::audio::read_music(*film().files.read("music/promo.music.omui.toml"), "promo.music.omui.toml");
         check(music.has_value() && music->tempo == 120, "the score reads, at 120 a minute");
-        auto sounds = audio::read_sounds(*film().files.read("sounds/promo.sound.omui.toml"), "promo.sound.omui.toml");
+        auto sounds = xengine::audio::read_sounds(*film().files.read("sounds/promo.sound.omui.toml"), "promo.sound.omui.toml");
         check(sounds.has_value() && sounds->size() >= 12, "the sounds read");
         // What every shot name and clip is: each shot made for its clip.
         promo::Player p(film(), main, {.scale = 0.25f, .fonts = &fonts(), .parallel_raster = false});
@@ -103,8 +103,8 @@ int main(int argc, char** argv) {
             }
             for (const auto& f : a.findings) fail(std::format("{}: {} (frame {})", f.check, f.what, f.frame));
             // The sound pinned: the same samples everywhere.
-            std::println("    {:<6} sound {} ({} cues)", name, hex(audio::hash(track->samples)), track->cues.size());
-            check_eq(hex(audio::hash(track->samples)), std::string(name == "promo" ? "fb3c40f65ec1f389" : "4cd8e041d7edf38a"));
+            std::println("    {:<6} sound {} ({} cues)", name, hex(xengine::audio::hash(track->samples)), track->cues.size());
+            check_eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "fb3c40f65ec1f389" : "4cd8e041d7edf38a"));
         }
     });
 

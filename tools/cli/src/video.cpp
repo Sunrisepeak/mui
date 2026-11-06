@@ -12,7 +12,7 @@
 // FILE is a video description (`*.video.omui.toml`: the sync card, PNG files
 // or a view, with its sound track) or a view document (`*.view.omui.json`,
 // rendered on the headless host's clock, a frame a step). OUT's name says
-// the format: `x.webm` (VP9 and Opus, through openmui.video.webm), `x.y4m`
+// the format: `x.webm` (VP9 and Opus, through xengine.video.webm), `x.y4m`
 // (and `x.wav` beside it when there is sound), `x.wav`,
 // a pattern `shots/{:05}.png`, or a directory `shots/` (frame-00000.png …
 // and audio.wav).
@@ -24,14 +24,14 @@ import mcpplibs.os;
 import openmui.core;
 import openmui.viewdoc;
 import openmui.host.headless;
-import openmui.video;
-import openmui.video.webm;
-import openmui.audio;
+import xengine.video;
+import xengine.video.webm;
+import xengine.audio;
 
 namespace omui::cli {
 
 namespace cmd = mcpplibs::cmdline;
-namespace vid = omui::video;
+namespace vid = xengine::video;
 
 namespace {
 
@@ -368,7 +368,7 @@ int probe(const cmd::ParsedArgs& p, std::ostream& out) {
         return print(out, report, 0);
     }
     if (text->starts_with("RIFF")) {
-        auto w = audio::read_wav(bytes);
+        auto w = xengine::audio::read_wav(bytes);
         if (!w) return failed(out, report, w.error());
         report.set("ok", true).set("format", "wav").set("rate", w->rate).set("samples", static_cast<std::int64_t>(w->samples.size()));
         report.set("seconds", static_cast<double>(w->samples.size()) / w->rate);
@@ -405,7 +405,7 @@ int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
 
 cmd::App video_command() {
     cmd::App a{"video"};
-    (void)a.description("Videos: frames and a sound track on exact frame and sample counts (openmui.video)");
+    (void)a.description("Videos: frames and a sound track on exact frame and sample counts (xengine.video)");
     cmd::App r = with_file("render", "Render to files: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV");
     r.option("out").takes_value().value_name("OUT").help("x.webm, x.y4m, x.wav, shots/{:05}.png or shots/");
     r.option("format").takes_value().value_name("FORMAT").help("webm, y4m, png or wav (default: from --out)");

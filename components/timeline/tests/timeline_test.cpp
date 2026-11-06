@@ -6,13 +6,13 @@
 import std;
 
 import openmui.ui.timeline;
-import openmui.timeline;
+import xengine.timeline;
 import openmui.host.headless;
 import openmui.testing;
 
 using namespace omui::testing;
 using namespace omui;
-namespace tl = omui::timeline;
+namespace tl = xengine::timeline;
 
 namespace {
 

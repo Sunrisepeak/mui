@@ -34,18 +34,18 @@ mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk = { path = "../.." }
 "openmui.showcase.widget_breakout.sim" = { path = "sim" }
-mgame.input = { path = "../../mgame/input" }
-mgame.ui    = { path = "../../mgame/ui" }
+xengine.input = { path = "../../modules/projects/xengine/input" }
+xengine.ui    = { path = "../../modules/projects/xengine/ui" }
 "openmui.theme" = { path = "../../modules/ui/theme" }
 "openmui.theme.styles" = { path = "../../modules/ui/theme/styles" }
 openmui.ui.canvas = { path = "../../components/canvas" }
-"openmui.audio" = { path = "../../modules/media/audio" }
+"xengine.audio" = { path = "../../modules/projects/xengine/audio" }
 openmui.abi = { path = "../../modules/ui/abi" }
 "openmui.lang" = { path = "../../lang" }
 "openmui.lang.js" = { path = "../../lang/js" }
 "openmui.lang.lua" = { path = "../../lang/lua" }
 "openmui.lang.python.embedded" = { path = "../../lang/python/embedded" }
-"openmui.audio.device" = { path = "../../modules/media/audio/device" }
+"xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }

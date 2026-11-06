@@ -1,7 +1,7 @@
 module openmui.showcase.widget_breakout;
 
 import std;
-import openmui.audio;
+import xengine.audio;
 import openmui.showcase.widget_breakout.sim;
 
 namespace omui::breakout {
@@ -39,13 +39,13 @@ std::function<std::shared_ptr<void>(Sounds&)>& hook() {
 void hear_with(std::function<std::shared_ptr<void>(Sounds&)> open) { hook() = std::move(open); }
 const std::function<std::shared_ptr<void>(Sounds&)>& hearing() { return hook(); }
 
-Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
-    auto sounds = audio::read_sounds(files::breakout_sound, "breakout.sound.omui.toml");
+Sounds::Sounds() : mixer_(std::make_unique<xengine::audio::Mixer>()) {
+    auto sounds = xengine::audio::read_sounds(files::breakout_sound, "breakout.sound.omui.toml");
     if (sounds)
         for (const auto& s : *sounds) mixer_->add(s);
-    mixer_->add_effect("sfx", audio::echo(0.08f, 0.18f, 0.15f, mixer_->rate()));  // a small room
-    if (auto music = audio::read_music(files::haunt_music, "haunt.music.omui.toml"))
-        if (auto seq = audio::Sequencer::attach(*music, *mixer_)) theme_ = std::move(*seq);
+    mixer_->add_effect("sfx", xengine::audio::echo(0.08f, 0.18f, 0.15f, mixer_->rate()));  // a small room
+    if (auto music = xengine::audio::read_music(files::haunt_music, "haunt.music.omui.toml"))
+        if (auto seq = xengine::audio::Sequencer::attach(*music, *mixer_)) theme_ = std::move(*seq);
 }
 
 void Sounds::restart() {
@@ -63,20 +63,20 @@ void Sounds::play(std::string_view name, std::int64_t at, float gain, float pan,
     if (const std::int32_t id = mixer_->find(name); id >= 0) mixer_->play(id, at, gain, pan, pitch);
 }
 
-void Sounds::cue(std::string_view name, float pan) { play(name, mixer_->clock() + (live_ ? audio::block_frames : 0), 1, pan); }
+void Sounds::cue(std::string_view name, float pan) { play(name, mixer_->clock() + (live_ ? xengine::audio::block_frames : 0), 1, pan); }
 
 void Sounds::heard(const State& s, const RoomDef& room) {
     ++played_;  // the steps played forward: after a rewind the sound goes on, it does not go back
     // The theme rises with the chain (a part every few bricks), on the last ball, and with several in the air.
     if (theme_) {
         std::int32_t flying = 0;
-        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { flying += b.on == 0 ? 1 : 0; });
+        s.world.each<Ball>([&](xengine::Entity, const Ball& b) { flying += b.on == 0 ? 1 : 0; });
         const float chain = 0.06f * static_cast<float>(std::min(s.combo, 10));
         const float last = s.lives <= 1 ? 0.2f : 0.0f;
         const float many = flying > 1 ? 0.25f : 0.0f;
         theme_->set_intensity(s.over ? 0.2f : std::clamp(0.2f + chain + last + many, 0.0f, 1.0f));
     }
-    const std::int64_t at = live_ ? mixer_->clock() + audio::block_frames : base_ + played_ * step_samples();
+    const std::int64_t at = live_ ? mixer_->clock() + xengine::audio::block_frames : base_ + played_ * step_samples();
     for (std::uint32_t k = 0; k < s.events; ++k) {
         const Event& e = s.event[k];
         const float pan = std::clamp(static_cast<float>(e.at.x / field_w) * 2 - 1, -1.0f, 1.0f) * 0.7f;

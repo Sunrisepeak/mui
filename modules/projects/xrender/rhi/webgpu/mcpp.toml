@@ -33,7 +33,7 @@ mlibs.rhi    = { path = "../../../../gfx/rhi" }
 mlibs.memory = { path = "../../../../base/memory" }
 
 [dev-dependencies]
-xengine.simulation.cellular.rhi.cts = { path = "../../../../gfx/simulation/cellular/rhi/cts" }
+xengine.simulation.cellular.rhi.cts = { path = "../../../xengine/simulation/cellular/rhi/cts" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
 mcpplibs.os     = "0.2.2"

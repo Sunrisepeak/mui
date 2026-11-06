@@ -4,7 +4,7 @@ The lowest layer group: **domain-agnostic foundations** (`mlibs.*`) that know no
 
 Depends on: the standard library and third-party libraries. Used by: every other layer.
 
-What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to [utils](utils) as directories of one package (`mlibs.utils`, module names such as `mlibs.hash` unchanged; every tool is built, see its README), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `xengine.simulation` below is scheduled to move to its project in milestone M1 (`hanim.core` is in [projects/hanim](../projects/hanim) now).
+What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to [utils](utils) as directories of one package (`mlibs.utils`, module names such as `mlibs.hash` unchanged; every tool is built, see its README), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `hanim.core` and `xengine.simulation` are in their projects ([hanim](../projects/hanim), [xengine](../projects/xengine)).
 
 | Package | |
 |---|---|
@@ -13,7 +13,6 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |
 | [unicode](unicode) | Line breaking (UAX #14) and segmentation (UAX #29) without ICU |
 | [session](session) | Recorded sessions (`*.session.omui.jsonl`): timestamped, seekable, mergeable |
-| [xengine.simulation](simulation) | Independent fixed-step clock, owned checkpoint/input replay, and optional integer cellular rules |
 | [pipeline](pipeline) | Pipelines of stage plugins over typed resources: checked, deterministic, traced, replaceable while running |
 | [image](image) | Image buffers, premultiplication, PNG, animated PNG and WebP |
 | [math](math) | Deterministic mathematics: elementary functions with the same bits everywhere (`det`), splitmix64 (`random`) |

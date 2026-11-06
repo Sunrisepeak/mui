@@ -11,7 +11,7 @@ export module openmui.showcase.promo_video:player;
 
 import std;
 import openmui;
-import openmui.video;
+import xengine.video;
 import :film;
 import :shot;
 import :overlay;
@@ -108,8 +108,8 @@ private:
     std::shared_ptr<FrameStore>              store_;   // … as PNG, once drawn
 };
 
-// The cut as an openmui.video frame source (frames asked for in order).
-class Frames final : public video::FrameSource {
+// The cut as an xengine.video frame source (frames asked for in order).
+class Frames final : public xengine::video::FrameSource {
 public:
     explicit Frames(Player& player) : player_(&player) {}
     [[nodiscard]] std::expected<imageio::View, std::string> frame(std::int64_t index) override;

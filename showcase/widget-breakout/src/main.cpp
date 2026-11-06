@@ -6,8 +6,8 @@
 // the inspector, Enter goes on from a room over.
 import std;
 import openmui;
-import openmui.audio;
-import openmui.audio.device;
+import xengine.audio;
+import xengine.audio.device;
 import openmui.showcase.widget_breakout;
 
 int main(int argc, char** argv) {
@@ -21,13 +21,13 @@ int main(int argc, char** argv) {
     // The game heard through the system's output (none headless, or with --quiet).
     if (!quiet)
         omui::breakout::hear_with([](omui::breakout::Sounds& s) -> std::shared_ptr<void> {
-            auto device = omui::audio::Device::open(s.mixer());
+            auto device = xengine::audio::Device::open(s.mixer());
             if (!device) {
                 std::println(std::cerr, "omui-breakout: no sound ({})", device.error());
                 return nullptr;
             }
             s.live(true);
-            return std::make_shared<omui::audio::Device>(std::move(*device));
+            return std::make_shared<xengine::audio::Device>(std::move(*device));
         });
     return omui::run(omui::breakout::app(), static_cast<int>(rest.size()), rest.data());
 }

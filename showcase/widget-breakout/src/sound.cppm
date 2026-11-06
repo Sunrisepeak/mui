@@ -16,7 +16,7 @@
 export module openmui.showcase.widget_breakout:sound;
 
 import std;
-import openmui.audio;
+import xengine.audio;
 import openmui.showcase.widget_breakout.sim;
 import :rooms;
 
@@ -36,15 +36,15 @@ public:
     // Heard live (a device pulls the mixer): sounds start just ahead of its clock instead of on their step's sample.
     void live(bool on) noexcept { live_ = on; }
 
-    [[nodiscard]] audio::Mixer& mixer() noexcept { return *mixer_; }
+    [[nodiscard]] xengine::audio::Mixer& mixer() noexcept { return *mixer_; }
     // Samples a step lasts (rate / 120).
     [[nodiscard]] std::int64_t step_samples() const noexcept { return mixer_->rate() / steps_per_second; }
 
 private:
     void play(std::string_view name, std::int64_t at, float gain, float pan, float pitch = 1);
 
-    std::unique_ptr<audio::Mixer> mixer_;
-    std::shared_ptr<audio::Sequencer> theme_;
+    std::unique_ptr<xengine::audio::Mixer> mixer_;
+    std::shared_ptr<xengine::audio::Sequencer> theme_;
     std::int64_t                  base_ = 0;  // the mixer's sample of step 0
     std::int64_t                  played_ = 0;  // steps heard since step 0
     bool                          live_ = false;

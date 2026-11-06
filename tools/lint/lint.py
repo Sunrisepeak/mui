@@ -107,7 +107,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/ui/host": "host",
     "components": "components",
     "lang": "lang",
-    "mgame/gongfu": "gongfu",
+    "modules/projects/gongfu": "gongfu",
     "mgame": "game",
     "spec": "spec",
     # build code, tools and the consumers
@@ -121,7 +121,7 @@ PATH_LAYERS: dict[str, str] = {
     ".": "app",  # the root package (until M1 moves it to modules/projects/omui/sdk)
 }
 # A directory that is its own layer, not the prefix of one: gongfu's core.
-EXACT_LAYERS: dict[str, str] = {"mgame/gongfu": "gongfu.core", "modules/projects/gongfu": "gongfu.core"}
+EXACT_LAYERS: dict[str, str] = {"modules/projects/gongfu": "gongfu.core", "modules/projects/gongfu": "gongfu.core"}
 INDEPENDENT = {"utils", "base", "gfx", "content", "media"}
 _BELOW_UI = {"utils", "base", "gfx", "content", "media", "spec"}
 LAYERS: dict[str, set[str]] = {
@@ -145,7 +145,7 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -160,7 +160,7 @@ FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665
                            re.IGNORECASE)
 # What may keep its own: gongfu's core takes the standard library alone (D-82),
 # so its world checksum is written there.
-FNV_OWN = ("modules/base/utils/src/hash/", "modules/base/utils/tests/hash/", "mgame/gongfu/src/", "modules/projects/gongfu/src/")
+FNV_OWN = ("modules/base/utils/src/hash/", "modules/base/utils/tests/hash/", "modules/projects/gongfu/src/", "modules/projects/gongfu/src/")
 
 # splitmix64's finaliser and fdlibm's exp/log constants: only mlibs.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
@@ -659,9 +659,9 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "mlibs.text": {"not": {"xrender"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
-    "xengine.simulation": {"not": {"openmui", "mgame", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
-    "xengine.simulation.cellular": {"not": {"openmui", "mgame", "xrender", "mlibs.rhi", "mlibs.shader"}},
-    "xengine.simulation.cellular.rhi": {"not": {"openmui", "mgame", "xrender"}},
+    "xengine.simulation": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
+    "xengine.simulation.cellular": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
+    "xengine.simulation.cellular.rhi": {"not": {"openmui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender"}},
 }
 
 

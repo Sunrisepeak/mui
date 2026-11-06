@@ -8,11 +8,11 @@ import openmui;
 import openmui.showcase.fighting;
 import openmui.testing;
 import gongfu.ai;
-import openmui.audio;
+import xengine.audio;
 
 using namespace omui::testing;
 using namespace omui;
-namespace audio = omui::audio;
+namespace audio = xengine::audio;
 
 namespace {
 

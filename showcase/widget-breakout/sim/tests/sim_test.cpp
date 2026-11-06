@@ -12,16 +12,16 @@
 // paid; the magnet; the duet's finisher; a gate that comes round; the upper
 // chamber; the orbit guard; a forecast that is the path the ball takes.
 import std;
-import mgame.input;
-import mgame.physics;
-import mgame.sim;
+import xengine.input;
+import xengine.physics;
+import xengine.simulation;
 import openmui.showcase.widget_breakout.sim;
 import openmui.testing;
 
 using namespace omui::testing;
 namespace bo = omui::breakout;
-using mgame::Box;
-using mgame::V2;
+using xengine::Box;
+using xengine::V2;
 
 namespace {
 
@@ -36,8 +36,8 @@ bo::Level wall_of_bricks(std::uint64_t seed = 1) {
     return l;
 }
 
-mgame::Actions launch() {
-    mgame::Actions a;
+xengine::Actions launch() {
+    xengine::Actions a;
     a.held = a.pressed = 1u << bo::launch_button;
     return a;
 }
@@ -46,7 +46,7 @@ mgame::Actions launch() {
 bo::Input follow(const bo::State& s, std::int64_t f) {
     bo::Input in;
     double x = bo::field_w / 2, lowest = -1;
-    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
         if (b.on == 0 && b.at.y > lowest) lowest = b.at.y, x = b.at.x;
     });
     const double aim = x + 23.0 * static_cast<double>((f / 37) % 3 - 1);  // off-centre now and then (no libm: the same everywhere)
@@ -57,13 +57,13 @@ bo::Input follow(const bo::State& s, std::int64_t f) {
 
 std::int32_t balls(const bo::State& s) {
     std::int32_t n = 0;
-    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball&) { ++n; });
+    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball&) { ++n; });
     return n;
 }
 
 // The state's ball (the first) flying from `at` with `velocity`.
 void fling(bo::State& s, V2 at, V2 velocity) {
-    s.world.each<bo::Ball>([&](mgame::Entity, bo::Ball& b) {
+    s.world.each<bo::Ball>([&](xengine::Entity, bo::Ball& b) {
         b.on = 0;
         b.at = at;
         b.velocity = velocity;
@@ -71,12 +71,12 @@ void fling(bo::State& s, V2 at, V2 velocity) {
 }
 bo::Ball ball(const bo::State& s) {
     bo::Ball out{};
-    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { out = b; });
+    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { out = b; });
     return out;
 }
 bo::Brick* brick(bo::State& s, std::uint32_t id) {
     bo::Brick* out = nullptr;
-    s.world.each<bo::Brick>([&](mgame::Entity, bo::Brick& b) {
+    s.world.each<bo::Brick>([&](xengine::Entity, bo::Brick& b) {
         if (b.id == id) out = &b;
     });
     return out;
@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});  // out of the way: the field is not cleared
         bo::State st = bo::start(l);
         // A ball falling at the bottom paddle's height, 120 pixels to its right; the paddle swings at it with the pointer.
-        st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {760, 640};
             b.velocity = {0, 9};
@@ -176,16 +176,16 @@ int main(int argc, char** argv) {
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 0, 0});
         bo::State st = bo::start(l);
         const double face = st.paddles[0].y - 6;  // inside the paddle's thickness, below its top
-        st.world.each<bo::Ball>([&](mgame::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([&](xengine::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {st.paddles[0].x + 40, face + 4};
             b.velocity = {-3, 2};
         });
         double y0 = 0;
-        st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { y0 = b.at.y; });
+        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { y0 = b.at.y; });
         for (int f = 0; f < 20; ++f) bo::step(st, {});
         double y = y0;
-        st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { y = b.at.y; });
+        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { y = b.at.y; });
         check(y > y0 + 10 || balls(st) == 0, std::format("it fell on: from {} to {}", y0, y));
     });
 
@@ -195,7 +195,7 @@ int main(int argc, char** argv) {
         l.bricks.push_back({Box{600, 200, 100, 30}, bo::Kind::wall, 1, 2, 0});
         l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 3, 0});  // out of the way: the field is not cleared
         bo::State st = bo::start(l);
-        st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {600, 400};
             b.velocity = {0, -6};
@@ -203,7 +203,7 @@ int main(int argc, char** argv) {
         V2 after{};
         for (int f = 0; f < 60; ++f) {
             bo::step(st, {});
-            st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { after = b.velocity; });
+            st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { after = b.velocity; });
             if (after.y > 0) break;
         }
         check(after.x == 0 && after.y == 6, std::format("({}, {})", after.x, after.y));
@@ -219,7 +219,7 @@ int main(int argc, char** argv) {
             l.bricks.push_back({Box{0, 0, 10, 10}, bo::Kind::button, 1, 2, 0});  // out of the way: the field is not cleared
             bo::State st = bo::start(l);
             check_eq(st.bricks, std::int32_t{1});  // a gate is not a brick to break
-            st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+            st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
                 b.on = 0;
                 b.at = {640, 400};
                 b.velocity = {0, -6};
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
             double highest = 1000;
             for (int f = 0; f < 40; ++f) {
                 bo::step(st, {});
-                st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { highest = std::min(highest, b.at.y); });
+                st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { highest = std::min(highest, b.at.y); });
             }
             return highest;
         };
@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
         bo::State st = bo::start(l);
         check_eq(st.paddles[0].y, 4 * bo::field_h - 30);
         check_eq(st.zoom, 1.0);
-        st.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+        st.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {640, 1000};
             b.velocity = {0, -0.001};  // standing, near enough: high up the field
@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
         bo::step(st, {launch(), {}});
         bo::step(st, {});
         const auto add = [&](bo::Gift g) {
-            const mgame::Entity e = st.world.create();
+            const xengine::Entity e = st.world.create();
             st.world.add(e, bo::Capsule{{st.paddles[0].x, st.paddles[0].y - 12}, g, 0});
             bo::step(st, {});
         };
@@ -275,7 +275,7 @@ int main(int argc, char** argv) {
         check(st.slow > 0, "slow");
         add(bo::Gift::pierce);
         bool piercing = true;
-        st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) { piercing = piercing && b.pierce > 0; });
+        st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { piercing = piercing && b.pierce > 0; });
         check(piercing, "piercing");
         add(bo::Gift::magnet);
         check_eq(st.paddles[0].magnet, st.rules.magnet_catches);
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
         l.bricks[24].gift = bo::Gift::pierce;  // the lowest row's first
         bo::State st = bo::start(l);
         check_eq(st.rules.wide_half, std::int32_t{300});
-        mgame::Timeline<bo::Game> t(st, 30 * bo::steps_per_second, 60);
+        xengine::simulation::Timeline<bo::Game> t(st, 30 * bo::steps_per_second, 60);
         for (int f = 0; f < 200; ++f) t.step({});
         bo::Input in;
         in.rules = st.rules;
@@ -306,13 +306,13 @@ int main(int argc, char** argv) {
         m.rules.multi_balls = 4;
         bo::step(m, {launch(), {}});
         bo::step(m, {});
-        const mgame::Entity e = m.world.create();
+        const xengine::Entity e = m.world.create();
         m.world.add(e, bo::Capsule{{m.paddles[0].x, m.paddles[0].y - 12}, bo::Gift::multi, 0});
         bo::step(m, {});
         check_eq(balls(m), std::int32_t{5});
         bo::State g = bo::start(l);
         bool dropped = false;
-        g.world.each<bo::Ball>([](mgame::Entity, bo::Ball& b) {
+        g.world.each<bo::Ball>([](xengine::Entity, bo::Ball& b) {
             b.on = 0;
             b.at = {180, 300};
             b.velocity = {0, -6};
@@ -342,7 +342,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a timeline rewinds five seconds and replays to the same bytes; a new branch goes elsewhere", [] {
-        mgame::Timeline<bo::Game> t(bo::start(wall_of_bricks(3)), 30 * bo::steps_per_second, 60);
+        xengine::simulation::Timeline<bo::Game> t(bo::start(wall_of_bricks(3)), 30 * bo::steps_per_second, 60);
         std::vector<std::uint64_t> sums{bo::checksum(t.state())};
         for (std::int64_t f = 0; f < 3000; ++f) {
             t.step(follow(t.state(), f));
@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 50; ++f) bo::step(st, {});
         check_eq(st.aim, -0.5);
         bo::step(st, {launch(), {}});
-        check(ball(st).velocity == mgame::normalized(V2{-0.5, -1}) * st.speed, "launched along it");
+        check(ball(st).velocity == xengine::normalized(V2{-0.5, -1}) * st.speed, "launched along it");
         check_eq(st.aim_held, std::int32_t{0});
         // The forecast: where a launch along the aim turns, off the walls, is where the ball turns.
         bo::Level open;
@@ -397,7 +397,7 @@ int main(int argc, char** argv) {
         }
         check(walls.size() == 2, "two walls met");
         for (std::size_t k = 0; k < 2 && k < walls.size(); ++k)
-            check(mgame::length(walls[k] - path[k + 1]) < 1e-6, std::format("turn {}: ({}, {}) forecast ({}, {})", k, walls[k].x, walls[k].y, path[k + 1].x, path[k + 1].y));
+            check(xengine::length(walls[k] - path[k + 1]) < 1e-6, std::format("turn {}: ({}, {}) forecast ({}, {})", k, walls[k].x, walls[k].y, path[k + 1].x, path[k + 1].y));
     });
 
     s.test("a paddle moving as it returns the ball gives it spin: its path curves the way the paddle went, and the spin dies away", [] {
@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 40; ++f) bo::step(moving, {});
         const V2 v1 = ball(moving).velocity;
         check(v0.x * v1.y - v0.y * v1.x > 0, "turned clockwise: toward the right it was going");
-        check(std::abs(mgame::length(v1) - moving.speed) < 1e-9, "at its speed");
+        check(std::abs(xengine::length(v1) - moving.speed) < 1e-9, "at its speed");
         check(ball(moving).spin < 0.6 * 0.005, std::format("dying away: {}", ball(moving).spin));
         // The paddle's motion also sends it further across.
         check(ball(still).velocity.x < v0.x, "further right");
@@ -624,7 +624,7 @@ int main(int argc, char** argv) {
         fling(st, {640, 300}, {6, 0.1});
         check(until(st, bo::Happened::wall, 200), "a wall");
         const V2 v = ball(st).velocity;
-        check(std::abs(v.y) >= 0.28 * mgame::length(v) - 1e-9 && v.x < 0, std::format("({}, {})", v.x, v.y));
+        check(std::abs(v.y) >= 0.28 * xengine::length(v) - 1e-9 && v.x < 0, std::format("({}, {})", v.x, v.y));
         bo::State again = bo::start(l);
         fling(again, {640, 300}, {4, -4});
         again.idle = 6 * bo::steps_per_second + 1;

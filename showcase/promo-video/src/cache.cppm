@@ -1,7 +1,7 @@
 // openmui.showcase.promo_video:cache — what a frame depends on, as a digest
 // (the frame cache's first and third layers, D-54): an edit is known to
 // change exactly the frames that read what it changed, and the encoded
-// chunks of the others are kept (openmui.video.webm's encode_webm_chunked).
+// chunks of the others are kept (xengine.video.webm's encode_webm_chunked).
 //
 // A frame depends on the program (its own bytes: the shots' code, the fonts
 // and art it carries), the player's options, the files the shots read (all

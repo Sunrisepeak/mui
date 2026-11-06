@@ -1,0 +1,23 @@
+[package]
+namespace = "xengine.simulation"
+name = "cellular"
+version = "0.1.0"
+description = "Prepared integer field rules with immutable reads, bounded neighborhoods and tiled writes"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.xengine-simulation-cellular]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils = { path = "../../../../base/utils" }
+
+[dev-dependencies]
+xengine.simulation = { path = ".." }

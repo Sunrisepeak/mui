@@ -47,7 +47,7 @@ PY
 Two AI agents just played a match of openmui's fighting game against each other, by turns of $frames frames: player 1 as $p1, player 2 as
 $p2. You are the analyst. The attached contact sheets show the picture after each turn (turn numbers under each); the log of every turn's
 state as the semantic tree says it is $work/duel.log.omui.jsonl; the players' own notes are $work/p1.md and $work/p2.md (missing if a
-player stopped early). The game's code is showcase/fighting and mgame/gongfu (read AGENTS.md, showcase/fighting/README.md and the
+player stopped early). The game's code is showcase/fighting and modules/projects/gongfu (read AGENTS.md, showcase/fighting/README.md and the
 fighting evaluation subject .agents/docs/evaluation/subjects/fighting.md).
 Write a report in English, under 1500 words:
 1. The match: who won and how — the decisive exchanges, by turn number.

@@ -22,9 +22,9 @@ namespace {
 Color hex(std::uint32_t c, float a = 1) { return Color::hex(c, a); }
 constexpr std::uint32_t rim = 0x10131c;  // round the ball and the paddles: readable on a light style too
 render::Paint solid(Color c) { return render::Paint::solid(c); }
-Rect rect(const mgame::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
-Point mid(const mgame::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
-Point point(mgame::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
+Rect rect(const xengine::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
+Point mid(const xengine::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
+Point point(xengine::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
 Rect grow(Rect r, float by) { return {r.x - by, r.y - by, r.width + 2 * by, r.height + 2 * by}; }
 // 0 … 1 … 0 over `period` frames: a pulse that is the same every run.
 float pulse(std::int64_t frame, std::int64_t period) {
@@ -64,11 +64,11 @@ Color gift_color(Gift g) {
 // cornered: up (or down) from the switch's edge to just short of the group,
 // across, and into the middle of the group's near side.
 void draw_wires(render::DisplayList& out, render::Path& path, const State& s, Color colour, float width) {
-    s.world.each<Body, Brick>([&](mgame::Entity, const Body& sb, const Brick& sw) {
+    s.world.each<Body, Brick>([&](xengine::Entity, const Body& sb, const Brick& sw) {
         if (sw.kind != Kind::toggle || sw.wire == 0) return;
         std::array<Rect, 8> groups{};
         std::size_t n = 0;
-        s.world.each<Body, Brick>([&](mgame::Entity, const Body& tb, const Brick& t) {
+        s.world.each<Body, Brick>([&](xengine::Entity, const Body& tb, const Brick& t) {
             if (t.wire != sw.wire || t.kind == Kind::toggle) return;
             const Rect r = rect(tb.box);
             for (std::size_t k = 0; k < n; ++k) {
@@ -146,7 +146,7 @@ void Field::haunt(render::DisplayList& out, const State& s, const Theme& theme) 
     // What it watches: the first ball in flight, else the paddle's.
     Point look{c.x, static_cast<float>(s.height)};
     bool found = false;
-    s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
+    s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
         if (found) return;
         look = {static_cast<float>(b.at.x), static_cast<float>(b.at.y)};
         found = b.on == 0;
@@ -209,7 +209,7 @@ void Field::paint(PaintContext& ctx) const {
     haunt(out, *s, theme);
     draw_wires(out, path_, *s, hex(ink::wire), 3);
     // Plates: walls, shutters (hatched, closed; a dashed track, open), and under the components that are not buttons.
-    s->world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
+    s->world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& b) {
         const Rect r = rect(body.box);
         switch (b.kind) {
             case Kind::wall:
@@ -303,13 +303,13 @@ void Field::paint_over(PaintContext& ctx) const {
     // A canvas room's circuits (the canvas covers what is drawn under it); any room's while the X-ray shows them.
     if (def.canvas || scan) draw_wires(out, path_, s, hex(scan ? ink::live : ink::wire, scan ? 0.8f : 1), 3);
     // The machine at work, brick by brick.
-    s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
+    s.world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& b) {
         const Rect r = rect(body.box);
         const Point c = mid(body.box);
         const float lit = b.id < fx_.flash.size() ? fx_.flash[b.id] : 0;
         switch (b.kind) {
             case Kind::kicker: {  // its arrow: where it sends the ball
-                const mgame::V2 d = kick_direction(b);
+                const xengine::V2 d = kick_direction(b);
                 const Point tip{c.x + static_cast<float>(d.x) * 26, c.y + static_cast<float>(d.y) * 26 - 8};
                 const Point base{c.x - static_cast<float>(d.x) * 6, c.y - static_cast<float>(d.y) * 6 - 8};
                 const Point side{static_cast<float>(-d.y) * 8, static_cast<float>(d.x) * 8};
@@ -344,8 +344,8 @@ void Field::paint_over(PaintContext& ctx) const {
             }
             case Kind::hidden: {  // a cache: found (or the X-ray on), outlined; a ball near, it glints first
                 double near = 1e9;
-                s.world.each<Ball>([&](mgame::Entity, const Ball& ball) {
-                    near = std::min(near, mgame::length(ball.at - mgame::V2{body.box.x + body.box.w / 2, body.box.y + body.box.h / 2}));
+                s.world.each<Ball>([&](xengine::Entity, const Ball& ball) {
+                    near = std::min(near, xengine::length(ball.at - xengine::V2{body.box.x + body.box.w / 2, body.box.y + body.box.h / 2}));
                 });
                 const bool found = b.id < discovered_.size() && discovered_[b.id];
                 const float glint = near < 130 ? static_cast<float>(1 - near / 130) * pulse(s.frame, 16) : 0;
@@ -381,21 +381,21 @@ void Field::paint_over(PaintContext& ctx) const {
             p.gradient = {render::GradientKind::radial, at, at, radius, render::Spread::pad, stops};
             out.fill_rect({at.x - radius, at.y - radius, 2 * radius, 2 * radius}, p);
         };
-        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { light(point(b.at), 220); });
+        s.world.each<Ball>([&](xengine::Entity, const Ball& b) { light(point(b.at), 220); });
         light({static_cast<float>(s.paddles[0].x), static_cast<float>(s.paddles[0].y)}, 160);
         for (const Fx::Beam& b : fx_.beams)
             if (b.life > 0) light({(b.from.x + b.to.x) / 2, (b.from.y + b.to.y) / 2}, 420 * b.life);
         out.pop_layer();
         out.pop_layer();
         // Its switch glows a little in the dark: the lights can be earned.
-        s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
+        s.world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& b) {
             if (b.kind != Kind::toggle) return;
             const Rect r = rect(body.box);
             out.stroke_round_rect(grow(r, 2), CornerRadii::all(12), 1.5f, solid(hex(ink::live, 0.25f + 0.2f * pulse(s.frame, 120))));
             out.fill_round_rect({r.x + 10, r.y + r.height / 2 - 4, 8, 8}, CornerRadii::all(4), solid(hex(ink::live, 0.5f + 0.4f * pulse(s.frame, 120))));
         });
         if (scan)  // the X-ray sees through it
-            s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
+            s.world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& b) {
                 if (b.kind == Kind::hidden || b.kind == Kind::core || b.kind == Kind::gate)
                     out.stroke_round_rect(rect(body.box), CornerRadii::all(6), 2, solid(hex(b.kind == Kind::hidden ? ink::cache : ink::live, 0.9f)));
             });
@@ -408,12 +408,12 @@ void Field::paint_over(PaintContext& ctx) const {
             const float dx = c.x - at.x, dy = c.y - at.y;
             lit = lit || dx * dx + dy * dy < radius * radius;
         };
-        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { near(point(b.at), 150); });
+        s.world.each<Ball>([&](xengine::Entity, const Ball& b) { near(point(b.at), 150); });
         near({static_cast<float>(s.paddles[0].x), static_cast<float>(s.paddles[0].y)}, 110);
         return lit;
     };
     // What to act on, even in the dark: a gate's timer, the core's outline.
-    s.world.each<Body, Brick>([&](mgame::Entity, const Body& body, const Brick& b) {
+    s.world.each<Body, Brick>([&](xengine::Entity, const Body& body, const Brick& b) {
         const Rect r = rect(body.box);
         if (b.kind == Kind::core && dark() && !s.over) out.stroke_round_rect(grow(r, 4), CornerRadii::all(12), 1.5f, solid(hex(ink::core, 0.45f)));
         // In the dark, every brick that is not hidden is still a faint outline: where the ball can go is never a guess.
@@ -472,16 +472,16 @@ void Field::paint_over(PaintContext& ctx) const {
         out.fill_round_rect({p.x - p.size / 2, p.y - p.size / 2, p.size, p.size}, CornerRadii::all(p.size / 2), solid(p.color.with_alpha(std::min(1.0f, p.life * 1.4f))));
     }
     // Capsules: a pill and its letter.
-    s.world.each<Capsule>([&](mgame::Entity, const Capsule& k) {
+    s.world.each<Capsule>([&](xengine::Entity, const Capsule& k) {
         const Rect r{static_cast<float>(k.at.x) - 18, static_cast<float>(k.at.y) - 9, 36, 18};
         out.fill_round_rect(grow(r, 3), CornerRadii::all(12), solid(gift_color(k.gift).with_alpha(0.3f + 0.2f * pulse(s.frame, 30))));
         out.fill_round_rect(r, CornerRadii::all(9), solid(gift_color(k.gift)));
         centred(gift_letter(k.gift), 12, hex(0x10131c), {r.x + r.width / 2, r.y + r.height / 2});
     });
     // The aim's forecast: where a launch now goes, to its second turn.
-    s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
+    s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
         if (b.on != 1 || s.over) return;
-        std::array<mgame::V2, 4> turns{};
+        std::array<xengine::V2, 4> turns{};
         const std::size_t n = trace(s, b.at, aim_direction(s), b.radius, turns, 900);
         float travelled = 0;
         for (std::size_t k = 1; k < n; ++k) {
@@ -501,7 +501,7 @@ void Field::paint_over(PaintContext& ctx) const {
         for (std::size_t k = 0; k < fx_.ghost_count; ++k)
             out.fill_round_rect({fx_.ghost[k].x - 2.5f, fx_.ghost[k].y - 2.5f, 5, 5}, CornerRadii::all(2.5f), solid(hex(0x9fa8ff, 0.45f * fx_.ghost_life)));
     // Trails and balls: squashed along the bounce for a few frames; piercing, a diamond of its own colour. Never smaller than 6 px on screen.
-    s.world.each<Ball>([&](mgame::Entity e, const Ball& b) {
+    s.world.each<Ball>([&](xengine::Entity e, const Ball& b) {
         const Fx::Trail* t = nullptr;
         for (const Fx::Trail& c : fx_.trails)
             if (c.ball == e.index && c.generation == e.generation) t = &c;
@@ -542,7 +542,7 @@ void Field::paint_over(PaintContext& ctx) const {
     }
     // The copilot: where it means to send the ball, and its word.
     bool coming = false;  // a ball rising near the top paddle: it is about to act
-    s.world.each<Ball>([&](mgame::Entity, const Ball& b) { coming = coming || (b.on == 0 && b.velocity.y < 0 && b.at.y < 260); });
+    s.world.each<Ball>([&](xengine::Entity, const Ball& b) { coming = coming || (b.on == 0 && b.velocity.y < 0 && b.at.y < 260); });
     if (s.paddles[1].active && !says_.empty() && (s.frame < says_until_ || coming) && !s.over) {
         const Paddle& top = s.paddles[1];
         const float fade = coming ? 1.0f : std::min(1.0f, static_cast<float>(says_until_ - s.frame) / 30);

@@ -1,7 +1,7 @@
 module openmui.showcase.fighting;
 
 import std;
-import openmui.audio;
+import xengine.audio;
 import gongfu;
 import gongfu.present2d;
 
@@ -39,14 +39,14 @@ bool audible(gongfu::Event::Kind k) {
 
 }  // namespace
 
-Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
+Sounds::Sounds() : mixer_(std::make_unique<xengine::audio::Mixer>()) {
     for (const auto& [file, data] : files::voice_files)  // the announcer's recordings, by their files' names, before the sounds that play them
-        if (auto r = audio::read_wav(std::as_bytes(std::span(data.data(), data.size()))))
+        if (auto r = xengine::audio::read_wav(std::as_bytes(std::span(data.data(), data.size()))))
             mixer_->add_recording(file.substr(0, file.find('.')), r->samples, r->rate);
     for (const auto& [text, file] : {std::pair{files::fight_sound, "fight.sound.omui.toml"}, std::pair{files::menu_sound, "menu.sound.omui.toml"},
                                      std::pair{files::voice_sound, "voice.sound.omui.toml"}, std::pair{files::fighters_sound, "fighters.sound.omui.toml"}})
         if (std::string_view(file) == "voice.sound.omui.toml" && files::voice_files.empty()) continue;  // no announcer without the arenas
-        else if (auto sounds = audio::read_sounds(text, file))
+        else if (auto sounds = xengine::audio::read_sounds(text, file))
             for (const auto& s : *sounds) {
                 const std::int32_t id = mixer_->add(s);
                 // A fighter's voice by its name: <fighter>_hurt_<n>, <fighter>_ko, <fighter>_effort_<n>.
@@ -59,12 +59,12 @@ Sounds::Sounds() : mixer_(std::make_unique<audio::Mixer>()) {
                 else if (kind.starts_with("hurt_")) v.hurt.push_back(id);
                 else if (kind.starts_with("effort_")) v.effort.push_back(id);
             }
-    mixer_->add_effect("sfx", audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
+    mixer_->add_effect("sfx", xengine::audio::echo(0.11f, 0.22f, 0.18f, mixer_->rate()));  // the hall the stage stands in
     for (const auto& [file, text] : files::music_files) {  // each stage's theme, by the stage's name
         const std::string_view name = file.substr(0, file.find('.'));
-        auto music = audio::read_music(text, file);
+        auto music = xengine::audio::read_music(text, file);
         if (!music) continue;
-        if (auto seq = audio::Sequencer::attach(*music, *mixer_)) themes_.emplace(std::string(name), std::move(*seq));
+        if (auto seq = xengine::audio::Sequencer::attach(*music, *mixer_)) themes_.emplace(std::string(name), std::move(*seq));
     }
 }
 
@@ -105,7 +105,7 @@ void Sounds::theme(float intensity, float gain) {
 }
 
 void Sounds::cue(std::string_view name, std::int32_t frame, std::int32_t later, float gain, float pan) {
-    const std::int64_t now = live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples();
+    const std::int64_t now = live_ ? mixer_->clock() + xengine::audio::block_frames : base_ + static_cast<std::int64_t>(frame) * frame_samples();
     play(name, now + static_cast<std::int64_t>(later) * frame_samples(), gain, pan);
 }
 
@@ -128,7 +128,7 @@ void Sounds::heard(const gongfu::Match& match, const p2::Look& left, const p2::L
             low = std::min(low, static_cast<float>(st.f[static_cast<std::size_t>(i)].health) / static_cast<float>(std::max(1, match.fighter(i).def.health)));
         it->second->set_intensity(st.freeze > 0 || st.lock.owner >= 0 ? 1.0f : std::clamp(0.25f + 0.75f * (1 - low), 0.0f, 1.0f));
     }
-    const std::int64_t at = live_ ? mixer_->clock() + audio::block_frames : base_ + static_cast<std::int64_t>(st.frame) * frame_samples();
+    const std::int64_t at = live_ ? mixer_->clock() + xengine::audio::block_frames : base_ + static_cast<std::int64_t>(st.frame) * frame_samples();
     const double half = match.system().stage_width.to_double() / 2;
     for (const gongfu::Event& e : match.events()) {
         if (!audible(e.kind)) continue;

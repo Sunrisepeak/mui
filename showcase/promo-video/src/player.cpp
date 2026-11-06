@@ -6,7 +6,7 @@ import std;
 import openmui.hash;
 import hanim.core;
 import openmui;
-import openmui.video;
+import xengine.video;
 
 namespace omui::promo {
 

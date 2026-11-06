@@ -11,7 +11,7 @@
 export module openmui.showcase.fighting:sound;
 
 import std;
-import openmui.audio;
+import xengine.audio;
 import gongfu;
 import gongfu.present2d;
 
@@ -37,7 +37,7 @@ public:
     // Heard live (a device pulls the mixer): sounds start just ahead of its clock instead of on their frame's sample.
     void live(bool on) noexcept { live_ = on; }
 
-    [[nodiscard]] audio::Mixer& mixer() noexcept { return *mixer_; }
+    [[nodiscard]] xengine::audio::Mixer& mixer() noexcept { return *mixer_; }
     // The fighters' voices played so far (a cry, a strain, a fall): what a test or an agent counts.
     [[nodiscard]] std::int64_t spoken() const noexcept { return spoken_; }
     // Samples a frame of the match lasts (rate / 60).
@@ -53,12 +53,12 @@ private:
     };
     void voice(const Voice* v, std::span<const std::int32_t> takes, std::int32_t pick, std::int64_t at, float pan);
 
-    std::unique_ptr<audio::Mixer> mixer_;
+    std::unique_ptr<xengine::audio::Mixer> mixer_;
     std::map<std::string, Voice, std::less<>> voices_;
     std::array<std::int32_t, 2>   hurt_at_{-1000, -1000}, effort_at_{-1000, -1000};
     std::int64_t                  spoken_ = 0;  // the frame each side last cried out, last strained
     // The stages' music, attached before anything plays; the one playing.
-    std::map<std::string, std::shared_ptr<audio::Sequencer>, std::less<>> themes_;
+    std::map<std::string, std::shared_ptr<xengine::audio::Sequencer>, std::less<>> themes_;
     std::string                   theme_;
     std::int64_t                  base_ = 0;   // the mixer's sample of frame 0
     std::int32_t                  freeze_ = 0; // the last frame's

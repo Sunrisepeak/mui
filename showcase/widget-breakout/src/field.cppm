@@ -15,8 +15,8 @@ export module openmui.showcase.widget_breakout:field;
 import std;
 import openmui.core;
 import openmui.view;
-import mgame.input;
-import mgame.ui;
+import xengine.input;
+import xengine.ui;
 import openmui.showcase.widget_breakout.sim;
 import :field_contract;
 import :rooms;
@@ -106,10 +106,10 @@ private:
 
     static constexpr std::size_t log_size = 8;
 
-    std::optional<mgame::Timeline<Game>> timeline_;
+    std::optional<xengine::simulation::Timeline<Game>> timeline_;
     Level                                level_;
-    mgame::Sampler                       sampler_;
-    mgame::ui::Pacer                     pacer_;
+    xengine::Sampler                       sampler_;
+    xengine::ui::Pacer                     pacer_;
     Run                                  run_, run_at_start_;   // now, and as the room began
     Rules                                rules_;                // the contraptions' (their scripts'), for every room
     std::optional<Rules>                 pending_rules_;        // to the simulation at the next step's start

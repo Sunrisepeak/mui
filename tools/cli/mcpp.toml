@@ -1,6 +1,6 @@
 # omui — the openmui command line (plan §2.2): agent operations against any
 # running application; check, fmt and schema for view documents; video
-# (openmui.video: descriptions and views rendered to files); add and bench
+# (xengine.video: descriptions and views rendered to files); add and bench
 # as their members land.
 [package]
 namespace   = "openmui"
@@ -27,11 +27,11 @@ openmui.mcp         = { path = "../mcp" }
 openmui.viewdoc     = { path = "../../modules/ui/viewdoc" }
 openmui.ui.base     = { path = "../../components/base" }
 openmui.ui.markdown = { path = "../../components/markdown" }
-"openmui.video"      = { path = "../../modules/media/video" }
-"openmui.video.webm" = { path = "../../modules/media/video/webm" }
-openmui.audio       = { path = "../../modules/media/audio" }
-"openmui.timeline" = { path = "../../modules/media/timeline" }
-"openmui.timeline.audio" = { path = "../../modules/media/timeline/audio" }
+"xengine.video"      = { path = "../../modules/projects/xengine/video" }
+"xengine.video.webm" = { path = "../../modules/projects/xengine/video/webm" }
+xengine.audio       = { path = "../../modules/projects/xengine/audio" }
+"xengine.timeline" = { path = "../../modules/projects/xengine/timeline" }
+"xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }

@@ -69,7 +69,7 @@ bo::Level breakout_wall() {
     std::uint32_t id = 0;
     for (std::uint32_t row = 0; row < 8; ++row)
         for (int col = 0; col < 12; ++col)
-            l.bricks.push_back({mgame::Box{70.0 + col * 96, 80.0 + row * 36, 88, 28}, row < 2 ? bo::Kind::toggle : bo::Kind::button, row < 2 ? 2 : 1, id++, row});
+            l.bricks.push_back({xengine::Box{70.0 + col * 96, 80.0 + row * 36, 88, 28}, row < 2 ? bo::Kind::toggle : bo::Kind::button, row < 2 ? 2 : 1, id++, row});
     l.rules.multi_balls = 4;  // capsules make it busy
     l.rules.drop_one_in = 3;
     return l;
@@ -78,7 +78,7 @@ bo::Level breakout_wall() {
 bo::Input breakout_player(const bo::State& s) {
     bo::Input in;
     double x = bo::field_w / 2, lowest = -1;
-    s.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball& b) {
+    s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
         if (b.on == 0 && b.at.y > lowest) lowest = b.at.y, x = b.at.x;
     });
     in.player.pointer_x = static_cast<std::int16_t>(std::lround(std::clamp(x, 0.0, bo::field_w) / bo::field_w * 32767));
@@ -89,7 +89,7 @@ bo::Input breakout_player(const bo::State& s) {
 }  // namespace
 
 void add_game_benchmarks() {
-    add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (mgame S4 design §5)", [](State& s) {
+    add("breakout/step", "one step of the widget breakout's simulation over a full wall: paddles, swept balls (several), bricks, capsules (xengine S4 design §5)", [](State& s) {
         bo::State st = bo::start(breakout_wall());
         for (int i = 0; i < 600; ++i) bo::step(st, breakout_player(st));  // under way: balls in the wall
         std::int64_t balls = 0, steps = 0;
@@ -100,13 +100,13 @@ void add_game_benchmarks() {
                 s.resume();
             }
             bo::step(st, breakout_player(st));
-            st.world.each<bo::Ball>([&](mgame::Entity, const bo::Ball&) { ++balls; });
+            st.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball&) { ++balls; });
             ++steps;
         }
         s.counter("balls_per_step", static_cast<double>(balls) / static_cast<double>(std::max<std::int64_t>(steps, 1)));
     });
     add("breakout/seek", "a rewind of the widget breakout: the timeline seeks 0.5–30 s back (the snapshot before, then the steps after it again)", [](State& s) {
-        mgame::Timeline<bo::Game> t(bo::start(breakout_wall()), 30 * bo::steps_per_second, 60);
+        xengine::simulation::Timeline<bo::Game> t(bo::start(breakout_wall()), 30 * bo::steps_per_second, 60);
         for (int i = 0; i < 40 * bo::steps_per_second; ++i) t.step(breakout_player(t.state()));
         std::uint64_t r = 7;
         while (s.next()) {

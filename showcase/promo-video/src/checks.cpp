@@ -4,9 +4,9 @@ module openmui.showcase.promo_video;
 import std;
 import hanim.core;
 import openmui;
-import openmui.audio;
-import openmui.video;
-import openmui.timeline;
+import xengine.audio;
+import xengine.video;
+import xengine.timeline;
 
 namespace omui::promo {
 
@@ -118,7 +118,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
         for (const tl::Marker& m : t.markers)
             if (m.name.starts_with("hit:")) on_beat(m.at, std::format("the hit `{}`", m.name.substr(4)));
         // Every cue on its frame's first sample: the mixer starts each voice on the sample it is given.
-        const video::Timing timing{{t.rate.num, t.rate.den}, t.sample_rate};
+        const xengine::video::Timing timing{{t.rate.num, t.rate.den}, t.sample_rate};
         bool cued = true;
         for (const Placed& q : track.cues) cued = cued && timing.sample_of(q.frame) == timing.sample_of(q.frame);
         a.add({"beats", ok && points > 0 && cued,
@@ -163,7 +163,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
         }
         a.add({"onsets", ok && hits > 0, std::format("{} hits heard in the sound track, the furthest onset {:.2f} frames off", hits, worst)});
     }
-    a.add({"sound", !track.samples.empty() && track.samples.size() == static_cast<std::size_t>(video::Timing{{t.rate.num, t.rate.den}, t.sample_rate}.sample_of(cut.frames()) * 2),
+    a.add({"sound", !track.samples.empty() && track.samples.size() == static_cast<std::size_t>(xengine::video::Timing{{t.rate.num, t.rate.den}, t.sample_rate}.sample_of(cut.frames()) * 2),
            std::format("{:.3f} s of stereo at {} Hz; the limiter's deepest {:.2f}", static_cast<double>(track.samples.size() / 2) / t.sample_rate, t.sample_rate,
                        track.limiter.deepest)});
     return a;

@@ -5,9 +5,9 @@ import std;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import openmui.core;
-import openmui.timeline;
-import openmui.timeline.audio;
-import openmui.audio;
+import xengine.timeline;
+import xengine.timeline.audio;
+import xengine.audio;
 import openmui.render.vector;
 import openmui.image;
 import openmui.host.headless;
@@ -15,8 +15,8 @@ import openmui.ui.base;
 
 namespace omui::cli {
 namespace cmd=mcpplibs::cmdline;
-namespace tl=omui::timeline;
-namespace au=omui::audio;
+namespace tl=xengine::timeline;
+namespace au=xengine::audio;
 
 cmd::App audio_command() {
     cmd::App app{"audio"};

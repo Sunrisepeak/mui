@@ -3,7 +3,7 @@ module openmui.showcase.promo_video;
 
 import std;
 import openmui.hash;
-import openmui.timeline;
+import xengine.timeline;
 
 namespace omui::promo {
 

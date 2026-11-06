@@ -5,9 +5,11 @@ Mature projects: branded engines, frameworks and modules that are complex enough
 | Project | One sentence | |
 |---|---|---|
 | [hanim](hanim) | A composable, agent-native animation engine: one set of capabilities for UI animation, video and game animation | `hanim.core` (base), `hanim` (gfx) |
+| [xengine](xengine) | An agent-native game engine system in which people and agents develop and play as equals (internal code name) | `xengine.simulation*` (base, gfx), `xengine.{audio,video,timeline}*` (media), `xengine.{world,input,physics,net,ui}` (game) |
+| [gongfu](gongfu) | A deterministic, rollback-ready fighting-game framework whose characters are data | `gongfu` (the standard library only), `gongfu.{data,ai,training}`, `gongfu.{present2d,studio,rules}` |
 | [xrender](xrender) | A CPU/GPU same-source, Web-first renderer whose pixels agents can review (internal code name) | `xrender.graph`, `xrender.vector`, `xrender.effect`, `xrender.raster`, `xrender.rhi.*`, `xrender.cts` (gfx) |
 
-omui, xengine and gongfu move here in the next steps of milestone M1.
+omui moves here in the next step of milestone M1.
 
 **Admission** — a project here must:
 

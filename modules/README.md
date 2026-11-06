@@ -17,14 +17,13 @@ Rule of thumb: general things go to `mlibs`, concrete implementations go to the 
 
 ## Current layout and migration
 
-The layout above is the target of milestone M1 in the [top-level convergence plan](../.agents/docs/2026-11-06-top-level-assessment-convergence-design.md) (§9). [hanim](projects/hanim) and [xrender](projects/xrender) are in `projects/` already; the rest still uses layer directories:
+The layout above is the target of milestone M1 in the [top-level convergence plan](../.agents/docs/2026-11-06-top-level-assessment-convergence-design.md) (§9). [hanim](projects/hanim), [xrender](projects/xrender), [xengine](projects/xengine) and [gongfu](projects/gongfu) are in `projects/` already; omui still uses its layer directory:
 
 | Layer (today) | What it is | Depends on | Target |
 |---|---|---|---|
-| [base](base) | Foundations (`mlibs.*`, small tools in `utils`), plus `xengine.simulation` | the standard library, third-party libraries | mlibs stay; simulation → `projects/xengine` |
-| [gfx](gfx) | GPU abstraction and shaders, plus simulation's GPU adapter | base | `mlibs.rhi`, `mlibs.shader` stay; the adapter → `projects/xengine` |
+| [base](base) | Foundations (`mlibs.*`, small tools in `utils`) | the standard library, third-party libraries | stays |
+| [gfx](gfx) | GPU abstraction and shaders | base | stays |
 | [content](content) | Text, layout, Markdown, internationalisation | base, gfx | stays |
-| [media](media) | Audio, video and timeline | base, gfx, content | → `projects/xengine` |
 | [ui](ui) | The omui UI implementation | the layers above, [spec](../spec) | → `projects/omui`, together with the top-level `components/` and `lang/` |
 
 A package's directory is its name (D-80): the leaf directory is the last segment of the package name; grouping directories only group.

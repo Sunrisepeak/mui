@@ -1,9 +1,9 @@
 # The breakout's simulation (S4, mgame S4 design §5, §8): a pure function of
 # the state and the frame's actions at 120 steps a second — paddles, balls
-# moving from one collision to the next (mgame.physics) with spin, switches
+# moving from one collision to the next (xengine.physics) with spin, switches
 # and their circuits, capacitors and their beams, kickers, cores, chains
 # banked as sparks, capsules with gifts, score and lives — in one block of
-# plain data (mgame.world), so a timeline (mgame.sim) rewinds and replays it
+# plain data (xengine.world), so a timeline (xengine.simulation) rewinds and replays it
 # exactly and its checksum is the same on every platform. The UI (the bricks
 # as openmui components) reads its events; it knows nothing of openmui.
 [package]
@@ -25,9 +25,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.math = { path = "../../../modules/base/math" }
 mlibs.utils = { path = "../../../modules/base/utils" }
-mgame.world   = { path = "../../../mgame/world" }
-mgame.input   = { path = "../../../mgame/input" }
-mgame.physics = { path = "../../../mgame/physics" }
-xengine.simulation = { path = "../../../modules/base/simulation" }
+xengine.world   = { path = "../../../modules/projects/xengine/world" }
+xengine.input   = { path = "../../../modules/projects/xengine/input" }
+xengine.physics = { path = "../../../modules/projects/xengine/physics" }
+xengine.simulation = { path = "../../../modules/projects/xengine/simulation" }
 
 [dev-dependencies]

@@ -37,10 +37,10 @@ mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk                         = { path = "../.." }
 "openmui.theme"                     = { path = "../../modules/ui/theme" }
 "openmui.theme.styles"                = { path = "../../modules/ui/theme/styles" }
-openmui.timeline                    = { path = "../../modules/media/timeline" }
-"openmui.video"                     = { path = "../../modules/media/video" }
-"openmui.video.webm"                = { path = "../../modules/media/video/webm" }
-openmui.audio                       = { path = "../../modules/media/audio" }
+xengine.timeline                    = { path = "../../modules/projects/xengine/timeline" }
+"xengine.video"                     = { path = "../../modules/projects/xengine/video" }
+"xengine.video.webm"                = { path = "../../modules/projects/xengine/video/webm" }
+xengine.audio                       = { path = "../../modules/projects/xengine/audio" }
 "openmui.ui.canvas"                 = { path = "../../components/canvas" }
 openmui.ui.timeline                 = { path = "../../components/timeline" }
 openmui.abi                         = { path = "../../modules/ui/abi" }

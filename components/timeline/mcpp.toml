@@ -1,5 +1,5 @@
 # openmui.ui.timeline — the timeline every editor shares, as a component
-# (D-86): tracks of clips in exact time (openmui.timeline), a ruler, markers
+# (D-86): tracks of clips in exact time (xengine.timeline), a ruler, markers
 # and a playhead; clips selected, moved, trimmed, split and removed by the
 # pointer, the keys or an agent's actions, every edit undone exactly.
 # Contract-first: contract/timeline.contract.omui.toml becomes the base,
@@ -27,7 +27,7 @@ openmui.core          = { path = "../../modules/ui/core" }
 openmui.view          = { path = "../../modules/ui/view" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 openmui.ui.base       = { path = "../base" }
-openmui.timeline      = { path = "../../modules/media/timeline" }
+xengine.timeline      = { path = "../../modules/projects/xengine/timeline" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }

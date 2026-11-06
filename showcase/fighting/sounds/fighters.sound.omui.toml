@@ -1,4 +1,4 @@
-doc = """The fighters' voices (openmui.audio's recording layers over voice/*.wav,
+doc = """The fighters' voices (xengine.audio's recording layers over voice/*.wav,
 CC0 takes chosen with `omui-music takes` by length, pitch and brightness):
 `<fighter>_hurt_<n>` when a heavy blow or a counter lands on them,
 `<fighter>_ko` when they fall, `<fighter>_effort_<n>` with their own heavy

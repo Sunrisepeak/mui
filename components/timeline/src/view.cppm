@@ -6,7 +6,7 @@ import openmui.core;
 import openmui.view;
 import openmui.render.vector;
 import openmui.ui.base;
-import openmui.timeline;
+import xengine.timeline;
 import :timeline_editor_contract;
 
 export namespace omui {
@@ -31,7 +31,7 @@ public:
     ActResult revert(ActContext& ctx, const Value& change);
 
     // The timeline as it is now (after the edits), and what its document said was wrong (empty: nothing).
-    [[nodiscard]] const timeline::Timeline& model() const noexcept { return model_; }
+    [[nodiscard]] const xengine::timeline::Timeline& model() const noexcept { return model_; }
     [[nodiscard]] const std::vector<std::string>& problems() const noexcept { return problems_; }
     [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> selection() const noexcept { return selected_; }
 
@@ -40,11 +40,11 @@ public:
 
 private:
     void read();
-    ActResult edit(std::expected<timeline::Change, std::string> change);
+    ActResult edit(std::expected<xengine::timeline::Change, std::string> change);
     void changed();
-    [[nodiscard]] float x_of(timeline::Flicks t) const noexcept;
-    [[nodiscard]] timeline::Flicks time_at(float x) const noexcept;
-    [[nodiscard]] timeline::Flicks snapped(timeline::Flicks t) const noexcept;
+    [[nodiscard]] float x_of(xengine::timeline::Flicks t) const noexcept;
+    [[nodiscard]] xengine::timeline::Flicks time_at(float x) const noexcept;
+    [[nodiscard]] xengine::timeline::Flicks snapped(xengine::timeline::Flicks t) const noexcept;
     [[nodiscard]] std::optional<std::size_t> track_at(float y) const noexcept;
     void set_frame(std::int64_t frame);
 
@@ -54,15 +54,15 @@ private:
         Grip              grip = Grip::none;
         std::size_t       track = 0, clip = 0;
         float             from_x = 0, from_y = 0;
-        timeline::Flicks  shift = 0;       // how far the pointer has moved, in time, snapped to frames
+        xengine::timeline::Flicks  shift = 0;       // how far the pointer has moved, in time, snapped to frames
         std::size_t       to_track = 0;
     };
 
-    timeline::Timeline                 model_;
+    xengine::timeline::Timeline                 model_;
     std::vector<std::string>           problems_;
     // The inverses of the edits made, by the id the window's history holds (S-12): each made once, then
     // replaced by its own inverse; a document read again clears them (and the window's history).
-    std::map<std::int64_t, timeline::Change> kept_;
+    std::map<std::int64_t, xengine::timeline::Change> kept_;
     std::int64_t                       next_ = 1;
     std::string                        last_;  // the last edit made, undone or redone
     std::optional<std::pair<std::size_t, std::size_t>> selected_;

@@ -32,15 +32,15 @@ Every layer is usable without the one above it. Nothing was pushed down for the 
 
 | Layer | Package | What it is | Depends on |
 |---|---|---|---|
-| Fighting framework, core | `mgame/gongfu` | The match as a pure function: state, rules, frame data, Q16.16 fixed point | the standard library only |
+| Fighting framework, core | `modules/projects/gongfu` | The match as a pure function: state, rules, frame data, Q16.16 fixed point | the standard library only |
 | Fighting framework, data | `gongfu.data`, `gongfu.rules` | Fighter files read and checked with located diagnostics; the build rule that bakes hurtboxes and embeds fighters | gongfu, toml++ |
 | Fighting framework, presentation | `gongfu.present2d` | A frame drawn: rigs and image parts, key poses, grips, reactions, effects, cut-ins, cinematics | gongfu, `openmui.render.vector`, hanim |
 | Fighting framework, tools | `gongfu.training`, `gongfu.ai`, `gongfu.studio` | Readouts and dummies; seeded bots; cut, picture, sheet, bake, check, versus | the above, `openmui.image` |
-| Independent components | `openmui.image`, `openmui.audio`, `openmui.raster`, `openmui.render.vector`, `hanim` | Images (PNG, WebP, cutting), sound and music, rasterising, vector rendering, animation | the standard library, each other, wrapped C libraries |
+| Independent components | `openmui.image`, `xengine.audio`, `openmui.raster`, `openmui.render.vector`, `hanim` | Images (PNG, WebP, cutting), sound and music, rasterising, vector rendering, animation | the standard library, each other, wrapped C libraries |
 | UI framework | openmui | The stage as a component, its semantic node, its actions, the window | — |
 | The game | `showcase/fighting` | The stage, the HUD, the roster, the fighters' files and art, the music | all of the above |
 
-Examples of the rule at work: recolouring a range of drawn commands (刻's grey time stop) went into the renderer; cutting a sheet into pieces went into `openmui.image`; a piece's long axis (where a limb's joint lies) went into `openmui.image` too; music became an `openmui.audio` capability, not game code.
+Examples of the rule at work: recolouring a range of drawn commands (刻's grey time stop) went into the renderer; cutting a sheet into pieces went into `openmui.image`; a piece's long axis (where a limb's joint lies) went into `openmui.image` too; music became an `xengine.audio` capability, not game code.
 
 ## 3. The fighters
 
@@ -173,14 +173,14 @@ Throwaway scripts were used once — to turn world-angle key poses into tracks b
 
 | Tool | What it does | Where |
 |---|---|---|
-| `gongfu-studio cut` | Sheet → masked pieces, packed atlas (PNG or WebP), JSON manifest with regions, atlas regions, long axes and an alpha histogram | `mgame/gongfu/studio` |
+| `gongfu-studio cut` | Sheet → masked pieces, packed atlas (PNG or WebP), JSON manifest with regions, atlas regions, long axes and an alpha histogram | `modules/projects/gongfu/studio` |
 | `gongfu-studio picture` | Key out, trim, scale, encode a picture (PNG or WebP by its name) | same |
 | `gongfu-studio sheet` | Contact sheets of clips at chosen frames, with boxes, the look's drawn art included | same |
 | `gongfu-studio bake` / `check` | Hurtboxes from the animation; checks that bakes are current | same |
 | `gongfu-studio versus` | Every pair played by bots: win rates and where damage comes from | same |
 | `gongfu-studio stage` | A stage file's painted layers as a frame, with two fighters for scale, framed as the game frames them | same |
 | `openmui.build.embed` `embed(.index = true)` | Every embedded file of a tag in one generated table by name (`<tag>_files`), so a program finds its art without a list kept by hand | `mcpp/rules`, `tools/gen` |
-| `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/media/audio` |
+| `omui-music check / render / stats / fmt` | A piece checked, rendered to WAV at an intensity, measured (loudness, bands, per instrument) | `modules/projects/xengine/audio` |
 | `tools/ci/readme-media.sh` | Copies what the tests drew into each showcase's `media/`; in CI, checks they match | `tools/ci` |
 | `openmui.image` | PNG, WebP (still and animated), key out, pieces, pack, crop, scale, principal axis | `modules/base/image` |
 
@@ -251,14 +251,14 @@ The tools' openmui interfaces (a rig editor, a pose editor with IK handles, a ti
 ## 8. Sound and music
 
 - **Sounds**: synthesised sounds as data (`sounds/fight.sound.omui.toml`), named by each impact (attack, body, tail), mixed sample-accurately; an offline render of a match is the same bits on GCC and LLVM.
-- **The announcer**: Kenney's CC0 Voiceover Pack: Fighter, converted to 22.05 kHz mono WAV (`voice/`, about 450 KB for eight calls) and embedded by the generated `voice_files` table. Playing it needed a capability the synthesiser lacked, so `openmui.audio` gained recordings: `read_wav`, `Mixer::add_recording`, and a sound layer that plays one at a speed under the layer's envelope, filter, drive and pan. The calls (`sounds/voice.sound.omui.toml`) are the takes played a touch slower (0.95), driven a little, and doubled 14 ms behind by a muffled copy, through the stage's hall.
+- **The announcer**: Kenney's CC0 Voiceover Pack: Fighter, converted to 22.05 kHz mono WAV (`voice/`, about 450 KB for eight calls) and embedded by the generated `voice_files` table. Playing it needed a capability the synthesiser lacked, so `xengine.audio` gained recordings: `read_wav`, `Mixer::add_recording`, and a sound layer that plays one at a speed under the layer's envelope, filter, drive and pan. The calls (`sounds/voice.sound.omui.toml`) are the takes played a touch slower (0.95), driven a little, and doubled 14 ms behind by a muffled copy, through the stage's hall.
   - The calls: "fight" on the round's frame 20; "time" when the clock runs out; after the K.O.'s moment, "player 1" or "player 2" then "winner", or "flawless victory" when the winner was never touched; "it's a tie". The select screen says "choose your character". Training is quiet.
   - The first render put "fight" at the limiter: every property the application sets restarts the round, and each restart had queued the call again on the same sample. The call now comes from the match's own clock (its frame 20), so a round makes it once.
 - **The fighters' voices**: CC0 takes (`voice/README.md` names the packs), chosen with a tool made for it. `omui-music takes` splits a recording on its silences and measures each take: length, peak and RMS, pitch (the median of its voiced windows by normalised autocorrelation), how voiced it is, and how bright (zero crossings a second). Grunts were chosen from those numbers, since an agent cannot listen. Low, dark, short takes became 坤's restrained efforts and cries; short bright ones became cries for the women; long voiced ones became falls.
   - `sounds/fighters.sound.omui.toml` processes them into each fighter, and the names say what each take is (`<fighter>_hurt_<n>`, `<fighter>_ko`, `<fighter>_effort_<n>`). 墨's takes are a touch slower and softened. 霓's are quicker and higher, driven, the low end thinned. 坤's are lower and darker.
   - What is said follows the match's events. A heavy blow (800 damage and up) or a counter makes the struck one cry out 3 frames after the crack, with a breath (36 frames) before the next cry, so a combo is not a chorus. The striker strains with a heavy blow. A K.O. is the fall alone, without a cry as well. The take comes from the frame, so the same fight says the same; `Sounds::spoken()` counts them for tests and agents.
   - Not yet: 墨 and 霓 share one actress, told apart only by processing; 璃, 岳 and 刻 are silent; efforts come at contact rather than at a move's start.
-- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `openmui.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super. The round over, the piece goes to its outro over the finish. Six homes, six pieces:
+- **Music**: `music/*.music.omui.toml` pieces — patches, patterns as readable note text, sections, an arrangement, and layers by intensity — played by `xengine.audio`'s sequencer. The stage starts its home's piece with the round; the music rises as the lower health falls, and plays fully under a super. The round over, the piece goes to its outro over the finish. Six homes, six pieces:
   - the study: guzheng in D minor, 128 BPM;
   - the street: drum and bass in F minor, 168 BPM;
   - the rooftop: boom-bap in C minor, 92 BPM;

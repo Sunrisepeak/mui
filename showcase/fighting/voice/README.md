@@ -1,6 +1,6 @@
 # voice — the announcer and the fighters' voices
 
-Recordings played by `openmui.audio`'s recording layers, all CC0 ([CC0 1.0](http://creativecommons.org/publicdomain/zero/1.0/)):
+Recordings played by `xengine.audio`'s recording layers, all CC0 ([CC0 1.0](http://creativecommons.org/publicdomain/zero/1.0/)):
 
 | Files | From |
 |---|---|

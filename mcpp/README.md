@@ -15,6 +15,6 @@ openmui.build.embed     = { path = "…/mcpp/embed", host-module = true }
 | [`openmui.build.toy`](toy) | Your program ships as a Bilibili Toy package, or as a static page | `dist_toy()`: the `dist-toy` pack format |
 | [`openmui.build.plan`](plan) | You write a plugin of your own | What the plugins share: a planned `edge`, `submit()`, `generator()`, UTF-8 path text, the files a plugin reads (each plugin re-exports it) |
 
-Plugins for one subsystem live with it, not here. Examples are `openmui.shader.rules` (Slang shaders, `modules/gfx/shader/rules`) and `gongfu.rules` (fighters, `mgame/gongfu/rules`).
+Plugins for one subsystem live with it, not here. Examples are `openmui.shader.rules` (Slang shaders, `modules/gfx/shader/rules`) and `gongfu.rules` (fighters, `modules/projects/gongfu/rules`).
 
 Every edge declares the generator and the files it reads as its inputs, so changing any of them regenerates and nothing else does. Generated module units are declared with what they provide and what they import, because a file that does not exist yet cannot be scanned. `plan…()` and `submit()` are separate, so a build program can adjust an edge before handing it over. `tests/plugins` holds a third-party package built with each plugin, and its tests.

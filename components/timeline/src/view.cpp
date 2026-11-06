@@ -5,13 +5,13 @@ import openmui.core;
 import openmui.view;
 import openmui.render.vector;
 import openmui.ui.base;
-import openmui.timeline;
+import xengine.timeline;
 
 namespace omui {
 
 namespace {
 
-namespace tl = omui::timeline;
+namespace tl = xengine::timeline;
 
 // A track's colour by what it carries.
 Color kind_colour(const Theme& theme, tl::Kind k) {

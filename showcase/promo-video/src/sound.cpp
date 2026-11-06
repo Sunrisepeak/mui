@@ -4,9 +4,9 @@ module openmui.showcase.promo_video;
 
 import std;
 import hanim.core;
-import openmui.audio;
-import openmui.video;
-import openmui.timeline;
+import xengine.audio;
+import xengine.video;
+import xengine.timeline;
 
 namespace omui::promo {
 
@@ -14,7 +14,7 @@ namespace {
 
 // The music clips into the mixer's "music" bus: each a stretch of its piece,
 // rendered once, from its `in`, at its level through its fades.
-class Score final : public audio::Source {
+class Score final : public xengine::audio::Source {
 public:
     struct Part {
         std::shared_ptr<const std::vector<float>> samples;  // the piece, stereo, from its start
@@ -23,9 +23,9 @@ public:
     };
     Score(std::vector<Part> parts, std::int32_t bus, std::int32_t rate) : parts_(std::move(parts)), bus_(bus), rate_(rate) {}
 
-    void render(std::int64_t clock, std::int32_t frames, std::span<const audio::BusBlock> buses) noexcept override {
+    void render(std::int64_t clock, std::int32_t frames, std::span<const xengine::audio::BusBlock> buses) noexcept override {
         if (bus_ < 0 || static_cast<std::size_t>(bus_) >= buses.size()) return;
-        const audio::BusBlock& out = buses[static_cast<std::size_t>(bus_)];
+        const xengine::audio::BusBlock& out = buses[static_cast<std::size_t>(bus_)];
         for (const Part& p : parts_) {
             const std::int64_t from = std::max(clock, p.at), to = std::min(clock + frames, p.at + p.length);
             if (from >= to) continue;
@@ -53,14 +53,14 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     const tl::Timeline& t = cut.timeline;
     Soundtrack out;
     out.rate = t.sample_rate;
-    const video::Timing timing{{t.rate.num, t.rate.den}, t.sample_rate};
+    const xengine::video::Timing timing{{t.rate.num, t.rate.den}, t.sample_rate};
     const std::int64_t frames = cut.frames();
     const std::int64_t total = timing.sample_of(frames);
     const auto sample_at = [&](tl::Flicks f) { return tl::sample_at(t.sample_rate, f); };
     // What may sound: the film's sounds.
     auto sound_text = film.files.read("sounds/promo.sound.omui.toml");
     if (!sound_text) return std::unexpected(sound_text.error());
-    auto sounds = audio::read_sounds(*sound_text, "promo.sound.omui.toml");
+    auto sounds = xengine::audio::read_sounds(*sound_text, "promo.sound.omui.toml");
     if (!sounds) return std::unexpected(sounds.error().front().text());
     // The cues: the sfx track's, and each shot's of what it does.
     if (cut.sfx >= 0)
@@ -81,9 +81,9 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     }
     std::ranges::stable_sort(out.cues, {}, &Placed::frame);
     // The mixer: the cues on their frames' first samples, the music under them.
-    audio::Mixer mixer({.rate = t.sample_rate, .voices = 64, .queue = static_cast<std::int32_t>(out.cues.size() + 16)});
+    xengine::audio::Mixer mixer({.rate = t.sample_rate, .voices = 64, .queue = static_cast<std::int32_t>(out.cues.size() + 16)});
     std::map<std::string, std::int32_t, std::less<>> index;
-    for (const audio::Sound& s : *sounds) index[s.name] = mixer.add(s);
+    for (const xengine::audio::Sound& s : *sounds) index[s.name] = mixer.add(s);
     mixer.duck("music", {.key = "sfx", .depth = 0.3f, .threshold = 0.3f, .attack = 0.004f, .release = 0.25f});
     // The music clips: each piece rendered once, as long as its clips reach.
     std::map<std::string, std::shared_ptr<const std::vector<float>>> pieces;
@@ -97,10 +97,10 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
                     if (d.source == c.source) need = std::max(need, tl::to_seconds(d.in + d.length));
                 auto text = film.files.read(c.source);
                 if (!text) return std::unexpected(text.error());
-                auto music = audio::read_music(*text, c.source);
+                auto music = xengine::audio::read_music(*text, c.source);
                 if (!music) return std::unexpected(music.error().front().text());
                 out.tempo = music->tempo;
-                auto r = audio::render_music(*music, need + 0.5, {}, {}, {.rate = t.sample_rate});
+                auto r = xengine::audio::render_music(*music, need + 0.5, {}, {}, {.rate = t.sample_rate});
                 if (!r) return std::unexpected(r.error().front().text());
                 pieces[c.source] = std::make_shared<const std::vector<float>>(std::move(r->samples));
             }
@@ -118,7 +118,7 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
         if (!mixer.play(it->second, timing.sample_of(q.frame), q.gain, q.pan, q.pitch))
             return std::unexpected("the mixer's queue is full");
     }
-    out.samples = audio::render(mixer, total);
+    out.samples = xengine::audio::render(mixer, total);
     out.limiter = mixer.limiter();
     // Under a `film` clip, the cut's own sound at its source times: backwards and five times over, the
     // tape rewinding, under what the clip itself sounds (its cues, mixed above).

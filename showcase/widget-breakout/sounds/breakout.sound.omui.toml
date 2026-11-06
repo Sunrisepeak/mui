@@ -1,4 +1,4 @@
-doc = """What the breakout sounds like (openmui.audio): each brick as the component
+doc = """What the breakout sounds like (xengine.audio): each brick as the component
 it is — a button's click, a switch's snap, a capacitor's charge (pitched up
 a step a hit), its fuse and its beam — a pop when one breaks (the program
 pitches it up a pentatonic scale along the chain), a banked chain's chord and

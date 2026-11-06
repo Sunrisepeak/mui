@@ -20,8 +20,8 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | ① lint path→layer table; `mlibs.utils`; fuzzy into its consumer | this checkpoint (D-101): layers by name from a path-prefix table holding today's and M1's directories; hash, log, trace, testing → `modules/base/utils`, every tool built (a feature per tool recompiled the graph per member selection, measured); lint `testing` (test checks only in `tests/`) and `closure` (render and simulation closures, from the retired `tools/ci/foundation-migration`); `mlibs.fuzzy` → `openmui.native.fuzzy:matching` |
 | ② hanim and xrender into `modules/projects/` | this checkpoint (D-102): `modules/projects/hanim` (hanim, hanim.core) and `modules/projects/xrender` (graph, vector, effect, raster, cts, rhi/{sdl,webgpu,webgl}); identities, modules and namespaces `xengine.render*`, `mlibs.raster`, `mlibs.rhi.{sdl,webgpu,webgl}` → `xrender.*`; the render graph is `xrender.graph` (a bare `xrender` collides with X11's `compat.xrender` in mcpp, below); legacy `openmui.*` forwarders kept until ⑤; READMEs: one-sentence definitions and candidate signature features |
 | ②b `mlibs.text` without the renderer | this checkpoint (D-103): text's own `FontRef`/`Glyph`, glyphs as geometry (`outline`, `color_layers`); new `xrender.text` (layer content): `GlyphCache` and `paint`; the display list fills glyphs in place; the pinned glyph pixels unchanged; Windows GPU: the ICD registered in HKLM (red 13) |
-| ③ xengine | next |
-| ④ omui with components, lang, sdk, templates | |
+| ③ xengine and gongfu | this checkpoint (D-104): `modules/projects/xengine` (simulation, audio, video, timeline, world, input, physics, net, ui) and `modules/projects/gongfu`; `openmui.{audio,video,timeline}*`, `mgame.*` → `xengine.*`; `mgame.sim` forwarder removed; `mgame/`, `modules/media`, `modules/gfx/simulation` gone |
+| ④ omui with components, lang, sdk, templates | next |
 | ⑤ namespace rename, forwarders removed, lint `legacy-import` | |
 
 ## CI red list
@@ -69,4 +69,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 ③ xengine (simulation, audio, video, timeline, mgame → `modules/projects/xengine`), then ④ omui; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.
+M1 ④ omui (modules/ui, components, lang, root package → sdk, templates → `modules/projects/omui`), then ⑤ names and forwarders; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.

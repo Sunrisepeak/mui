@@ -12,7 +12,7 @@ import openmui;
 import openmui.hash;
 import openmui.ui.markdown;
 import openmui.ui.timeline;
-import openmui.timeline;
+import xengine.timeline;
 import openmui.theme;
 import openmui.theme.styles;
 import hello;
@@ -135,11 +135,11 @@ struct Site {
     Signal<bool>        timeline_playing = signal(false);
     // The timeline read again only when its text changed: what the monitor shows at the playhead.
     std::string                      timeline_read_from;
-    std::optional<omui::timeline::Timeline> timeline_model;
-    const omui::timeline::Timeline* timeline_now(const std::string& text) {
+    std::optional<xengine::timeline::Timeline> timeline_model;
+    const xengine::timeline::Timeline* timeline_now(const std::string& text) {
         if (text != timeline_read_from || !timeline_model) {
             timeline_read_from = text;
-            auto t = omui::timeline::read_timeline(text, "site.timeline.omui.toml");
+            auto t = xengine::timeline::read_timeline(text, "site.timeline.omui.toml");
             timeline_model = t ? std::optional(std::move(*t)) : std::nullopt;
         }
         return timeline_model ? &*timeline_model : nullptr;
@@ -148,8 +148,8 @@ struct Site {
     void play_timeline() {
         (void)runtime->after(seconds(1.0 / 30), [this] {
             if (!timeline_playing.peek()) return;
-            const omui::timeline::Timeline* t = timeline_now(timeline.peek());
-            const std::int64_t end = t ? omui::timeline::frame_at(t->rate, t->duration()) : 270;
+            const xengine::timeline::Timeline* t = timeline_now(timeline.peek());
+            const std::int64_t end = t ? xengine::timeline::frame_at(t->rate, t->duration()) : 270;
             const std::int32_t next = timeline_frame.peek() + 1;
             if (next > end) {
                 timeline_frame.set(0);
@@ -162,10 +162,10 @@ struct Site {
     }
     // The level (0–1, its fades) the picture clip named `name` plays at the frame shown; 0 when it does not.
     float clip_level(std::string_view name, std::int32_t frame) {
-        const omui::timeline::Timeline* t = timeline_now(timeline.get());
+        const xengine::timeline::Timeline* t = timeline_now(timeline.get());
         if (!t) return 0;
-        std::vector<omui::timeline::Playing> now;
-        omui::timeline::playing(*t, omui::timeline::frame_time(t->rate, frame), now);
+        std::vector<xengine::timeline::Playing> now;
+        xengine::timeline::playing(*t, xengine::timeline::frame_time(t->rate, frame), now);
         for (const auto& p : now)
             if (t->tracks[p.track].clips[p.clip].name == name) return p.level;
         return 0;

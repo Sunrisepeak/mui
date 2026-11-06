@@ -3,14 +3,14 @@
 // fighters' voices. Each rendered, saved as a WAV and its bits pinned.
 import std;
 import openmui;
-import openmui.audio;
+import xengine.audio;
 import openmui.showcase.fighting;
 import openmui.testing;
 import gongfu;
 
 using namespace omui::testing;
 using namespace omui;
-namespace audio = omui::audio;
+namespace audio = xengine::audio;
 
 namespace {
 

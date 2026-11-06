@@ -1,6 +1,6 @@
 # omui — the openmui command line
 
-`omui audio automation FILE --track NAME --clip NAME --out PREFIX [--property gain] [--seconds 2] [--fps 60]` auditions a named timeline gain property on a 220 Hz calibration tone. It exports a float WAV, a labeled eight-frame PNG sheet drawn by omui, a lossless WebP process and a timestamped `.report.omui.json`; no window or audio device is opened. `--fps` changes visual observation only. Duration is 1–10 whole seconds; the visual rate is an exact timeline rate in 1–120 fps (for example 30, 60 or 120). See the [public timeline/audio adapter and minimal SOP](../../modules/media/timeline/audio/README.md) for the sample-clock, ownership, safe binding and failure boundaries. Exit codes are 0 success, 1 domain/output failure, 2 invalid command arguments. A later output failure lists files already written.
+`omui audio automation FILE --track NAME --clip NAME --out PREFIX [--property gain] [--seconds 2] [--fps 60]` auditions a named timeline gain property on a 220 Hz calibration tone. It exports a float WAV, a labeled eight-frame PNG sheet drawn by omui, a lossless WebP process and a timestamped `.report.omui.json`; no window or audio device is opened. `--fps` changes visual observation only. Duration is 1–10 whole seconds; the visual rate is an exact timeline rate in 1–120 fps (for example 30, 60 or 120). See the [public timeline/audio adapter and minimal SOP](../../modules/projects/xengine/timeline/audio/README.md) for the sample-clock, ownership, safe binding and failure boundaries. Exit codes are 0 success, 1 domain/output failure, 2 invalid command arguments. A later output failure lists files already written.
 
 ```text
 omui agent ls                                   the applications that listen
@@ -50,7 +50,7 @@ none to make up, or not as it was after its undo). A failure exits 1.
 
 Videos from descriptions (`*.video.omui.toml`) and view documents
 (`*.view.omui.json`, rendered on the headless host's clock, a step a frame),
-through [openmui.video](../../modules/media/video) and its WebM plugin: one
+through [xengine.video](../../modules/projects/xengine/video) and its WebM plugin: one
 JSON object out and an exit code (0 done, 1 failed, 2 a wrong command line).
 
 ```text

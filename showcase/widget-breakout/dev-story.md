@@ -18,10 +18,10 @@ The first version was a tour: six levels, one per department of the framework, w
 
 | Layer | Package | What it is |
 |---|---|---|
-| Game engine services | `mgame.world`, `mgame.sim`, `mgame.input`, `mgame.physics`, `mgame.ui` | entities in plain columns; a fixed-step clock and a timeline that seeks any kept frame; input sampled once a step; swept circle-against-box collisions with exactly rounded doubles; a game paced on openmui's clock |
+| Game engine services | `xengine.world`, `mgame.sim`, `xengine.input`, `xengine.physics`, `xengine.ui` | entities in plain columns; a fixed-step clock and a timeline that seeks any kept frame; input sampled once a step; swept circle-against-box collisions with exactly rounded doubles; a game paced on openmui's clock |
 | The game's simulation | `showcase/widget-breakout/sim` | the breakout as a pure step over plain data: spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts, the camera |
 | The game | `showcase/widget-breakout` | the field component, the rooms as data, the copilot, the contraptions' scripts, the sounds, the effects, the application |
-| Framework | openmui, `openmui.ui.canvas`, `openmui.theme.styles`, `openmui.lang.{js,lua,python.embedded}`, `openmui.audio` | what the rooms use |
+| Framework | openmui, `openmui.ui.canvas`, `openmui.theme.styles`, `openmui.lang.{js,lua,python.embedded}`, `xengine.audio` | what the rooms use |
 
 The simulation knows nothing of openmui. The field knows the simulation only through its events and state, and the copilot knows the field only through the semantic tree and its actions. Each boundary is the one a third party would use.
 
@@ -39,7 +39,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 
 Everything is made by code and data in this directory; there are no image files in the game.
 
-- **Sounds:** `sounds/breakout.sound.omui.toml`, synthesised by `openmui.audio` from layers of waves, envelopes and filters. A switch snaps, a capacitor charges a step higher each hit and its beam roars, the core knocks and powers down. A chain's pops climb a major pentatonic scale (exact ratios), a banked chain is a chord, a lost one slides down. They play on the step that made them, panned by where across the field.
+- **Sounds:** `sounds/breakout.sound.omui.toml`, synthesised by `xengine.audio` from layers of waves, envelopes and filters. A switch snaps, a capacitor charges a step higher each hit and its beam roars, the core knocks and powers down. A chain's pops climb a major pentatonic scale (exact ratios), a banked chain is a chord, a lost one slides down. They play on the step that made them, panned by where across the field.
 - **Pictures:** drawn each frame into the display list: plates, hatched shutters, wires, arrows, beams, sparks, rings. The components themselves are openmui's, in each room's style pack (glass, neon, ink, retro, liquid).
 - **Rooms:** `src/rooms.cpp`, tuned with the bots (§4).
 - **README media:** rendered headlessly by the tests. The loop is an animated WebP of room 1 played by the planner (`Headless::save_recording`, 640 × 360, 15 frames a second, about 220 KB). The stills are PNGs of a beam, the breakthrough, the X-ray and a casing open.
@@ -58,7 +58,7 @@ Everything is made by code and data in this directory; there are no image files 
 - **A canvas mounted before its scene is filled never placed its live nodes.** It watched the scene only if the scene existed when it mounted, and painting cleared its scene-changed flag before the step that would act on it, so a scene changed from a timer was missed. The field worked around it by filling the scene when the room was composed and recomposing the canvas after changes. Fixed in the canvas since: it watches a named scene from mount (making it if need be), only its step clears the flag, and a node `touch`ed is composed again; the field now fills the scene when the room begins and touches a switch it flips.
 - **PocketPy crashed when the script host was torn down while scripts were still loading** (`py_CFunction corrupts the stack!`). The bot tests build and destroy a game every second. The teardown ran on the script thread inside the very run that was waiting on the runtime, and runs still queued kept a pointer to the freed script; Lua and QuickJS had the same hole. Fixed in `openmui.lang` since (`Host::retire`): a script destroyed mid-run lets that run finish first, its queued runs are refused, its verbs and handlers find it gone. The scripts still load when the first choice opens, which spares the bots three interpreters they never use.
 - **Paused tests freeze springs and cross-fades,** so screenshots caught a switch's knob mid-flight and the last room fading out. The tests now let the picture settle (paused, so the play does not move) before taking it.
-- **A `std::format_to_n` with a format string chosen by `?:`** made GCC 16 escalate the enclosing lambda to `consteval` (P2564), and the error surfaced deep inside `mgame.world::each`. Choose between two calls instead.
+- **A `std::format_to_n` with a format string chosen by `?:`** made GCC 16 escalate the enclosing lambda to `consteval` (P2564), and the error surfaced deep inside `xengine.world::each`. Choose between two calls instead.
 - **White on paper:** the ink style's light background swallowed the white ball and paddle. Gameplay colours need rims, or a darker variant on light styles.
 - **The codex review of the result** (adopted): make the first circuit's payoff unmissable (the opening aim), let the shield visibly slide, give the chosen contraption at once as the next room begins, say "BANKED" plainly and light the meter, introduce the copilot by having it feed you first, keep actionable information visible in the dark, and thin the beam so what it strikes shows. Deferred: a playable preview on each card.
 
@@ -82,5 +82,5 @@ See [best practices](../../docs/en/best-practices.md). From this version:
 ## Playing it
 
 - **Keyboard and pointer**: ← → (A D) or the pointer move the paddle; Space or a click launches.
-- **Gamepad** (any): the left stick or the d-pad moves the paddle and south (A, Cross) launches. They are bound through `mgame.input` like the keys, and `tests/gamepad_test.cpp` plays it headless.
+- **Gamepad** (any): the left stick or the d-pad moves the paddle and south (A, Cross) launches. They are bound through `xengine.input` like the keys, and `tests/gamepad_test.cpp` plays it headless.
 - **Web and Bilibili Toy**: `tools/ci/toy.sh openmui.showcase.widget_breakout` builds it for wasm32-emscripten, packs it with `dist-toy` and checks it with Toy's `toy_doctor.py`; serve `target/toy/omui-breakout/` and open it. The contraptions' scripts do not run on the Web yet: they need a single-threaded script host there, and JavaScript also needs a 32-bit QuickJS wrap.

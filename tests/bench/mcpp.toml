@@ -27,25 +27,25 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
-"xengine.simulation" = { path = "../../modules/base/simulation" }
-"xengine.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
+"xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
+"xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 openmui.sdk             = { path = "../.." }
 openmui.view            = { path = "../../modules/ui/view", features = ["hanim"] }
 mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
-openmui.audio           = { path = "../../modules/media/audio" }
-"openmui.timeline"       = { path = "../../modules/media/timeline" }
-"openmui.timeline.audio" = { path = "../../modules/media/timeline/audio" }
+xengine.audio           = { path = "../../modules/projects/xengine/audio" }
+"xengine.timeline"       = { path = "../../modules/projects/xengine/timeline" }
+"xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
 "openmui.ui.canvas"       = { path = "../../components/canvas" }
 "openmui.ui.canvas.kit"   = { path = "../../components/canvas/kit" }
 openmui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 openmui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 "openmui.showcase.fighting" = { path = "../../showcase/fighting" }
 "openmui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
-"gongfu"                  = { path = "../../mgame/gongfu" }
-"gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
+"gongfu"                  = { path = "../../modules/projects/gongfu" }
+"gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
 "mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
 "xrender.rhi.sdl"       = { path = "../../modules/projects/xrender/rhi/sdl" }

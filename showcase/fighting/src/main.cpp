@@ -8,8 +8,8 @@
 // first two connected, beside the keyboard (controls/pad.controls.omui.json).
 import std;
 import openmui;
-import openmui.audio;
-import openmui.audio.device;
+import xengine.audio;
+import xengine.audio.device;
 import openmui.showcase.fighting;
 
 int main(int argc, char** argv) {
@@ -33,13 +33,13 @@ int main(int argc, char** argv) {
     // The fight heard through the system's output (none headless, or with --quiet).
     if (!quiet)
         omui::fighting::hear_with([](omui::fighting::Sounds& s) -> std::shared_ptr<void> {
-            auto device = omui::audio::Device::open(s.mixer());
+            auto device = xengine::audio::Device::open(s.mixer());
             if (!device) {
                 std::println(std::cerr, "omui-fight: no sound ({})", device.error());
                 return nullptr;
             }
             s.live(true);
-            return std::make_shared<omui::audio::Device>(std::move(*device));
+            return std::make_shared<xengine::audio::Device>(std::move(*device));
         });
     omui::AppSpec a = omui::fighting::app(start);
     if (training)  // training alone (with --fight's fighters and --arena's stage, if given)

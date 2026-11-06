@@ -1,6 +1,6 @@
 # 格斗游戏 — the fighting game
 
-`omui-fight` is gongfu's match (`mgame/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its working title is 拳意. It opens on a title and a select screen. Six fighters, chosen there or by the stage's `player1` and `player2` properties:
+`omui-fight` is gongfu's match (`modules/projects/gongfu`) on openmui's stage: two fighters at 60 frames a second, from the keyboard or an agent, drawn in 2D by `gongfu.present2d`, with a training mode that shows every box and a frame meter (D-85 §8.7). Its working title is 拳意. It opens on a title and a select screen. Six fighters, chosen there or by the stage's `player1` and `player2` properties:
 - Kata, the training fighter;
 - the five designed ([characters design](../../.agents/docs/2026-10-28-gongfu-characters-design.md), [characters design 2](../../.agents/docs/2026-10-28-gongfu-characters-2-design.md)): 墨 (Mo), the ink brush-staff fighter — keep-away with waves of ink and a long reach (her art generated and skinned on bones: the [art pipeline](../../.agents/docs/2026-10-29-fighting-art-pipeline-design.md)); 霓 (Ni), the street fighter — rushdown; 璃 (Li), glass — set-ups with panes (rebuilt on generated art like 墨: a glass artisan with knife-hands, palms and glass bracers); 岳 (Yue), the giant — throws and armour; 刻 (Ke), time — rewinds and a clone.
 
@@ -43,12 +43,12 @@ The feature `art-later` (off by default) matters only on the Web. There the figh
   - `fighters/<name>.boxes.gongfu.toml` holds its hurtboxes, baked from the look's animation by `gongfu-studio bake`. The build (`gongfu.rules`) refuses a stale one, and training draws them: a jab's arm can be hit.
 
   A file that does not read appears in the stage's semantic value with the problem's line and column; the program doesn't crash.
-- **The fight is heard** (`openmui.audio`). Each impact profile in a look names its sounds — attack, body, tail — from `sounds/fight.sound.omui.toml`.
+- **The fight is heard** (`xengine.audio`). Each impact profile in a look names its sounds — attack, body, tail — from `sounds/fight.sound.omui.toml`.
   - The library has shared thuds, cracks, blocks and booms, and each fighter's own: ink for 墨, neon for 霓, glass for 璃, the mountain for 岳, the clock for 刻.
   - Sounds play on the frame the simulation made them, panned by where on the stage and louder for more damage. A super's flash has its sweep.
-  - `omui-fight` hears them through the system's output (`openmui.audio.device`); headless or with `--quiet`, nothing is heard.
+  - `omui-fight` hears them through the system's output (`xengine.audio.device`); headless or with `--quiet`, nothing is heard.
   - The fighters have voices (CC0 takes processed into each, in `voice/`): the struck cry out under a heavy blow or a counter, a breath apart; 坤 strains with his heavy blows; a K.O. is a fall.
-  - An announcer calls the round: "fight", "time", the winner, a flawless victory or a tie (Kenney's CC0 Voiceover Pack: Fighter, in `voice/`, played through `openmui.audio`'s recording layers).
+  - An announcer calls the round: "fight", "time", the winner, a flawless victory or a tie (Kenney's CC0 Voiceover Pack: Fighter, in `voice/`, played through `xengine.audio`'s recording layers).
   - Offline, each sound starts on its frame's very sample, so a match's sound is as determined as its pixels: the tests pin a fight's audio and write it as a WAV.
 - **Versus is best of three** (the stage's `rounds`, 2 by default). A K.O. or the clock ends a round; the next begins three seconds later with the theme playing on, and the announcer calls each one ("round one", "final round"). The rounds won show as red seals beside each name. Once the match is decided, its results come up over the stage: the winner's name, the rounds, and 再战 · REMATCH or 选人 · FIGHTERS (the stage's `rematch` and `leave` for an agent).
 - **Esc pauses** (a pad's start too): the match stands under a card with both players' keys on it — resume, restart, or back to the select screen (training's way out). The cards answer the keys, a pad and the pointer.

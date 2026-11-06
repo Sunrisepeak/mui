@@ -2,8 +2,8 @@ module openmui.showcase.widget_breakout;
 
 import std;
 import openmui;
-import mgame.input;
-import mgame.ui;
+import xengine.input;
+import xengine.ui;
 import openmui.showcase.widget_breakout.sim;
 import openmui.ui.canvas;
 
@@ -19,18 +19,18 @@ constexpr std::uint32_t rewind_hint = 1u << 8;
 // The rules, each said once in a run, when play first meets it (taught by what happens, not read first).
 constexpr std::uint32_t chain_hint = 1u << 9, bank_hint = 1u << 10, lost_hint = 1u << 11;
 
-mgame::Bindings bindings() {
-    mgame::Bindings b;
-    for (const Key k : {Key::left, Key::a}) b.key(mgame::ui::code(k), mgame::Axis{0, -1});
-    for (const Key k : {Key::right, Key::d}) b.key(mgame::ui::code(k), mgame::Axis{0, 1});
-    b.key(mgame::ui::code(Key::space), mgame::Button{launch_button});
-    b.key(mgame::ui::code(Key::z), mgame::Button{look_button});  // a tall room: all of it while held
-    b.mouse(1, mgame::Button{launch_button});
+xengine::Bindings bindings() {
+    xengine::Bindings b;
+    for (const Key k : {Key::left, Key::a}) b.key(xengine::ui::code(k), xengine::Axis{0, -1});
+    for (const Key k : {Key::right, Key::d}) b.key(xengine::ui::code(k), xengine::Axis{0, 1});
+    b.key(xengine::ui::code(Key::space), xengine::Button{launch_button});
+    b.key(xengine::ui::code(Key::z), xengine::Button{look_button});  // a tall room: all of it while held
+    b.mouse(1, xengine::Button{launch_button});
     // Any gamepad: the left stick and the d-pad move the paddle, south (A, Cross) launches.
-    b.pad_axis(mgame::ui::pad(GamepadAxis::left_x), mgame::Axis{0, 1});
-    b.pad_button(mgame::ui::pad(GamepadButton::dpad_left), mgame::Axis{0, -1});
-    b.pad_button(mgame::ui::pad(GamepadButton::dpad_right), mgame::Axis{0, 1});
-    b.pad_button(mgame::ui::pad(GamepadButton::south), mgame::Button{launch_button});
+    b.pad_axis(xengine::ui::pad(GamepadAxis::left_x), xengine::Axis{0, 1});
+    b.pad_button(xengine::ui::pad(GamepadButton::dpad_left), xengine::Axis{0, -1});
+    b.pad_button(xengine::ui::pad(GamepadButton::dpad_right), xengine::Axis{0, 1});
+    b.pad_button(xengine::ui::pad(GamepadButton::south), xengine::Button{launch_button});
     return b;
 }
 
@@ -91,7 +91,7 @@ std::vector<Element> Field::compose() {
         (void)services().after(seconds(0), [this, i] {
             if (!timeline_) return;
             const Brick* found = nullptr;
-            timeline_->state().world.each<Brick>([&](mgame::Entity, const Brick& b) {
+            timeline_->state().world.each<Brick>([&](xengine::Entity, const Brick& b) {
                 if (b.id == i) found = &b;
             });
             if (found) show_brick(i, found);
@@ -193,7 +193,7 @@ bool Field::begin() {
     std::size_t slots = 0;
     for (std::size_t i = 0; i < def.bricks.size(); ++i) {
         const BrickDef& b = def.bricks[i];
-        mgame::Box box{b.x, b.y, b.width, b.height};  // a canvas room: where the room says, in the field's units
+        xengine::Box box{b.x, b.y, b.width, b.height};  // a canvas room: where the room says, in the field's units
         if (!def.canvas) {
             const Rect r = services().bounds(nodes[i]);
             if (r.width <= 0 || r.height <= 0) return false;  // not laid out yet
@@ -251,7 +251,7 @@ void Field::play(const Input& in) {
     fx_.react(s, def);
     // The bricks the step touched, as the simulation has them now (all of them, if its events overflowed).
     std::array<const Brick*, 128> by_id{};
-    s.world.each<Brick>([&](mgame::Entity, const Brick& b) {
+    s.world.each<Brick>([&](xengine::Entity, const Brick& b) {
         if (b.id < by_id.size()) by_id[b.id] = &b;
     });
     const bool all = s.events >= s.event.size();
@@ -339,7 +339,7 @@ void Field::show_bricks() {
     const State& s = timeline_->state();
     const RoomDef& def = room(props.room);
     std::vector<const Brick*> by_id(def.bricks.size(), nullptr);
-    s.world.each<Brick>([&](mgame::Entity, const Brick& b) {
+    s.world.each<Brick>([&](xengine::Entity, const Brick& b) {
         if (b.id < by_id.size()) by_id[b.id] = &b;
     });
     for (std::size_t i = 0; i < def.bricks.size(); ++i) show_brick(i, by_id[i]);
@@ -392,7 +392,7 @@ bool Field::dark() const {
     const RoomDef& def = room(props.room);
     if (!s || !def.dark) return false;
     bool lights_off = false;  // its switch on: dark mode
-    s->world.each<Brick>([&](mgame::Entity, const Brick& b) { lights_off = lights_off || (b.kind == Kind::toggle && b.on != 0); });
+    s->world.each<Brick>([&](xengine::Entity, const Brick& b) { lights_off = lights_off || (b.kind == Kind::toggle && b.on != 0); });
     return lights_off;
 }
 
@@ -475,7 +475,7 @@ void Field::run(std::int32_t steps) {
     }
     if (props.room == 1 && !hint_.empty()) {  // the first: until the first launch
         bool waiting = false;
-        s.world.each<Ball>([&](mgame::Entity, const Ball& b) { waiting = waiting || b.on == 1; });
+        s.world.each<Ball>([&](xengine::Entity, const Ball& b) { waiting = waiting || b.on == 1; });
         if (waiting && s.frame < 30 * steps_per_second) hint_until_ = std::max(hint_until_, s.frame + 1);
     }
     // The chain, the bank and a lost chain: said the first time each happens, while it can still be acted on.
@@ -523,7 +523,7 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
     // The inspector open, the game stands under it: its keys are the inspector's, never a launch or a step (a key
     // let go still reaches the game, so nothing held stays held), and so is its pointer.
     if (props.inspector) {
-        if (k && k->kind == KeyKind::up) (void)mgame::ui::feed(sampler_, e, services().bounds(node()));
+        if (k && k->kind == KeyKind::up) (void)xengine::ui::feed(sampler_, e, services().bounds(node()));
         if (k || std::holds_alternative<PointerEvent>(e) || std::holds_alternative<WheelEvent>(e)) return handled();
     }
     // R held: rewinding, while it reaches (it costs sparks).
@@ -565,7 +565,7 @@ bool Field::on_event(EventContext& ctx, const InputEvent& e) {
         if (k->kind == KeyKind::down && !k->repeat) act([&](ActContext& c) { return next(c); });
         return handled();
     }
-    if (mgame::ui::feed(sampler_, e, services().bounds(node()))) return handled();
+    if (xengine::ui::feed(sampler_, e, services().bounds(node()))) return handled();
     return false;
 }
 
@@ -584,7 +584,7 @@ void Field::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     v.set("bricks", s.bricks).set("cores", s.cores).set("over", static_cast<std::int32_t>(s.over));
     v.set("paddle", s.paddles[0].x / field_w).set("zoom", s.zoom).set("aim", s.aim);
     Value::List balls;
-    s.world.each<Ball>([&](mgame::Entity, const Ball& b) {
+    s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
         balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));
     });
     v.set("balls", Value(std::move(balls)));

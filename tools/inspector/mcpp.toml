@@ -29,8 +29,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp
 [dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk = { path = "../.." }
-"xengine.simulation" = { path = "../../modules/base/simulation" }
-"xengine.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
+"xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
+"xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]

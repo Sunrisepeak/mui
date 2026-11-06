@@ -3,15 +3,15 @@
 // a stretch of it, from its `in`, with its fades), every sound cue — the
 // sfx track's `sound:<name>` clips and the cues each shot makes of what it
 // does (a key typed, an agent's touch, a brick) — on its frame's first
-// sample, mixed through openmui.audio's buses (the music ducked under them)
+// sample, mixed through xengine.audio's buses (the music ducked under them)
 // and its limiter. Under a `film` clip, the cut's own sound at the clip's
 // source times (backwards, five times over: the tape rewinding), and the
 // cues inside the clip over it.
 export module openmui.showcase.promo_video:sound;
 
 import std;
-import openmui.audio;
-import openmui.video;
+import xengine.audio;
+import xengine.video;
 import :film;
 import :player;
 
@@ -29,7 +29,7 @@ struct Soundtrack {
     std::int32_t        rate = 48000;
     std::vector<float>  samples;  // stereo, interleaved: the cut's length exactly
     std::vector<Placed> cues;
-    audio::LimiterStats limiter;
+    xengine::audio::LimiterStats limiter;
     // Where each music clip's bars begin on the cut, in samples (the beats are a quarter of one apart).
     std::vector<std::int64_t> bars;
     double              tempo = 120;

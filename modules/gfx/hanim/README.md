@@ -403,3 +403,48 @@ boundaries, then replay backwards. A paused object and an independently moving
 part must be distinguishable in actual frames. The website note's “Move, pause,
 return” recipe uses this API, including the public UI playback adapter; no page
 clock or separate interpolation code is involved.
+
+
+## Finite child repetition
+
+```cpp
+using namespace std::chrono_literals;
+auto step = hanim::sequence(
+    hanim::anim::move_by(object, {8, 0}).duration(200ms),
+    hanim::wait(100ms));
+auto animation = hanim::sequence(
+    hanim::repeat(3, step),
+    hanim::anim::move_by(object, {-24, 0}).duration(300ms));
+auto prepared = hengine.prepare(animation);
+if (prepared) {
+    auto playback = hengine.play(*prepared);
+    // Check playback, then use the normal seek/pause/reverse/release controls.
+}
+```
+
+Repetition is finite **serial composition**, with the same stage-source rules
+as writing the child three times. Each relative move starts from the previous
+actual endpoint, so three +8 moves produce +24. Repeating `move_to(..., {8,0})`
+reaches the absolute target and stays there on later iterations; no hidden
+reset occurs. Use explicit snapshot sources when resetting is intentional.
+Count is a positive `std::size_t`; zero fails with `invalid-repeat`.
+
+A child can be a leaf, sequence, parallel, stagger, wait, effect scope or another
+repeat. The authored value retains one child regardless of count. Preparation
+expands only within existing node/depth/segment/scope/resource budgets, then
+ordinary channel sampling executes the result. No host loop, callback or second
+clock runs per frame. Preparation size is proportional to the expanded graph;
+large repetitions can legitimately exceed budgets and return an error.
+
+Place an image scope **inside** repeat to restart its explicit effect endpoints
+for each iteration, or **outside** to interpolate across the whole duration.
+A discontinuous effect restart is not automatically blended. The global player's
+reverse/seek apply to the complete prepared result; finite repeat does not add
+an infinite or alternating-loop policy.
+
+Inspect `prepared->nodes()` for each repeat's count and expanded child root's
+`iteration`, parent, start/duration and subtree range. Contract version 7 adds
+these fields and preserves existing enum values. For headless review, sample
+inside every iteration and around its boundaries, then seek backwards through
+the same times. The website note's “Three steps and back” combines repeat with
+independent part feedback, image effects and real editable UI using this API.

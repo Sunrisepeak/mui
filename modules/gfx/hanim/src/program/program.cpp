@@ -12,6 +12,7 @@ struct ProgramNode {
     std::vector<Program> children;
     seconds step{0};
     seconds wait_duration{0};
+    std::size_t repeat_count=0;
     std::unique_ptr<const ProgramFailure> failure;
 };
 struct ProgramData {
@@ -111,7 +112,7 @@ struct Collect {
             if(!end)return std::unexpected(end.error());
             if(length.count()>0 && *end==start)return std::unexpected(failure(ProgramError::invalid_time,node));
             hierarchy[node].duration=length;
-            return length.count();
+            return *end;
         }
         if(value.kind()==ProgramKind::binding) {
             const auto* binding=value.binding();
@@ -120,7 +121,9 @@ struct Collect {
             if(!binding->properties && !binding->additional_properties.empty())
                 return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             if(const auto invalid=invalid_options(binding->options))return std::unexpected(failure(*invalid,node));
-            if(binding->options.duration.count()>0 && start+binding->options.duration.count()==start)
+            const auto end=sum(start,binding->options.duration.count(),node);
+            if(!end)return std::unexpected(end.error());
+            if(binding->options.duration.count()>0 && *end==start)
                 return std::unexpected(failure(ProgramError::invalid_time,node));
             if(leaves.size()>=limits.max_segments)return std::unexpected(failure(ProgramError::segment_budget,node));
             Snapshot from=binding->from,to=binding->to;
@@ -132,28 +135,37 @@ struct Collect {
             if(!from || !to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
             leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches,scope});
             hierarchy[node].duration=binding->options.duration;
-            return binding->options.duration.count();
+            return *end;
         }
         const auto children=value.children();
         if(children.empty())return std::unexpected(failure(ProgramError::empty_program,node));
+        const bool repeating=value.kind()==ProgramKind::repeat;
+        const auto count=repeating?value.repeat_count():children.size();
+        if(repeating && count==0)return std::unexpected(failure(ProgramError::invalid_repeat,node));
+        hierarchy[node].repeat_count=repeating?count:0;
         const auto step=value.step().count();
         if(!std::isfinite(step) || step<0)return std::unexpected(failure(ProgramError::invalid_time,node));
-        double offset=0,end=0;
-        for(std::size_t i=0;i<children.size();++i) {
-            const auto child_start=sum(start,offset,node);if(!child_start)return std::unexpected(child_start.error());
+        // Return absolute ends and pass that exact value to serial successors.
+        // Re-associating start + (local offset + duration) can otherwise make
+        // adjacent decimal-time clips overlap by one representable time step.
+        const bool serial=value.kind()==ProgramKind::sequence || repeating;
+        double offset=0,end=start,cursor=start;
+        for(std::size_t i=0;i<count;++i) {
+            const auto child_start=serial?std::expected<double,ProgramFailure>{cursor}:sum(start,offset,node);
+            if(!child_start)return std::unexpected(child_start.error());
             branches.push_back({node,i,value.kind()});
-            auto length=visit(children[i],*child_start,depth+1,path+"/"+std::to_string(i),branches,node,scope);
-            branches.pop_back();if(!length)return std::unexpected(length.error());
-            const auto child_end=sum(offset,*length,node);if(!child_end)return std::unexpected(child_end.error());
+            const auto child_node=nodes;
+            auto child_end=visit(children[repeating?0:i],*child_start,depth+1,path+"/"+std::to_string(i),branches,node,scope);
+            branches.pop_back();if(!child_end)return std::unexpected(child_end.error());
+            if(repeating)hierarchy[child_node].iteration=i;
             end=std::max(end,*child_end);
-            if(value.kind()==ProgramKind::sequence)offset=*child_end;
+            if(serial)cursor=*child_end;
             else if(value.kind()==ProgramKind::stagger && i+1<children.size()) {
                 const auto next=sum(offset,step,node);if(!next)return std::unexpected(next.error());offset=*next;
             }
         }
-        const auto absolute_end=sum(start,end,node);if(!absolute_end)return std::unexpected(absolute_end.error());
-        hierarchy[node].duration=seconds(end);hierarchy[node].subtree_end=nodes;
-        if(value.kind()==ProgramKind::composite)scopes[scope].prepared.duration=seconds(end);
+        hierarchy[node].duration=seconds(end-start);hierarchy[node].subtree_end=nodes;
+        if(value.kind()==ProgramKind::composite)scopes[scope].prepared.duration=seconds(end-start);
         return end;
     }
 };
@@ -162,7 +174,7 @@ bool serial_before(const Leaf& a,const Leaf& b) noexcept {
     for(std::size_t i=0;i<count;++i) {
         const auto& x=a.branches[i];const auto& y=b.branches[i];
         if(x.node!=y.node)return false;
-        if(x.child!=y.child)return x.kind==ProgramKind::sequence && x.child<y.child;
+        if(x.child!=y.child)return (x.kind==ProgramKind::sequence || x.kind==ProgramKind::repeat) && x.child<y.child;
     }
     return false;
 }
@@ -295,36 +307,41 @@ std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<c
             auto error=failure(ProgramError::scope_conflict,leaf.node,leaf.track,index);error.scope=leaf.scope;
             return std::unexpected(error);
         }
-        clips.push_back({property_targets(binding),leaf.start-first.start,binding.options.duration,
+        // Rebase both canonical endpoints, not start plus an independently
+        // rounded duration. Otherwise an origin shift can reintroduce overlap.
+        const auto local_start=leaf.start-first.start;
+        const auto local_end=leaf.start+binding.options.duration-first.start;
+        if(binding.options.duration.count()>0 && local_end==local_start)
+            return std::unexpected(failure(ProgramError::invalid_time,leaf.node,first.track,index));
+        clips.push_back({property_targets(binding),local_start,local_end-local_start,
             binding.options.easing,binding.morph,{},previous && leaf.start==first.start});
         contributions.push_back({leaf.node,leaf.path,leaf.start,binding.options});
         if(leaf.node<draw_node){draw_node=leaf.node;draw_path=leaf.path;}
     }
-    // A flat library schedule has explicit input order. The author tree is
-    // stricter: unordered instantaneous writes cannot gain an ordering merely
-    // by being listed first in a parallel branch.
-    for(std::size_t begin=0;begin<leaves.size();) {
-        std::size_t end=begin+1;bool zero=clips[begin].duration.count()==0;
-        while(end<leaves.size() && leaves[end].start==leaves[begin].start){zero|=clips[end].duration.count()==0;++end;}
-        if(zero) {
-            struct Write { std::string_view part; std::size_t channel,leaf; };
-            std::vector<Write> writes;
-            for(std::size_t i=begin;i<end;++i)for(const auto& target:clips[i].targets)for(std::size_t c=0;c<4;++c)
-                if(property_mask(target)&(1u<<c)) {
-                    if(writes.size()>=channel_budget)return std::unexpected(failure(ProgramError::channel_budget,leaves[i].node,first.track,index));
-                    writes.push_back({part_name(leaves[i],target),c,i});
-                }
-            std::ranges::sort(writes,[](const Write& a,const Write& b){
-                return a.part!=b.part?a.part<b.part:a.channel!=b.channel?a.channel<b.channel:a.leaf<b.leaf;
-            });
-            for(std::size_t k=1;k<writes.size();++k) {
-                const auto& a=writes[k-1];const auto& b=writes[k];
-                if(a.part==b.part && a.channel==b.channel && a.leaf!=b.leaf &&
-                   (clips[a.leaf].duration.count()==0 || clips[b.leaf].duration.count()==0) && !serial_before(leaves[a.leaf],leaves[b.leaf]))
-                    return std::unexpected(conflict(b.leaf));
-            }
+    // Check writes in their original absolute coordinates before rebasing.
+    // This preserves even representable-step overlaps and the author's serial
+    // ordering for instantaneous writes; local rounding cannot grant a write.
+    std::optional<ProgramFailure> absolute_conflict;
+    struct Write { std::string_view part; std::size_t channel,leaf; };
+    std::vector<Write> writes;
+    for(std::size_t i=0;i<leaves.size();++i)for(const auto& target:clips[i].targets)for(std::size_t c=0;c<4;++c)
+        if(property_mask(target)&(1u<<c)) {
+            if(writes.size()>=channel_budget)return std::unexpected(failure(ProgramError::channel_budget,leaves[i].node,first.track,index));
+            writes.push_back({part_name(leaves[i],target),c,i});
         }
-        begin=end;
+    std::ranges::sort(writes,[](const Write& a,const Write& b){
+        return a.part!=b.part?a.part<b.part:a.channel!=b.channel?a.channel<b.channel:a.leaf<b.leaf;
+    });
+    for(std::size_t k=1;k<writes.size();++k) {
+        const auto& a=writes[k-1];const auto& b=writes[k];
+        if(a.part!=b.part || a.channel!=b.channel || a.leaf==b.leaf)continue;
+        const auto& before=leaves[a.leaf];const auto& after=leaves[b.leaf];
+        if(!absolute_conflict && overlaps_time(before,after)) {
+            auto error=conflict(b.leaf);
+            error.animation=MorphFailure{.code=MorphError::property_conflict,.clip=b.leaf,
+                .channel=static_cast<PropertyChannel>(b.channel)};
+            absolute_conflict=error;
+        }
     }
     if(!channel_budget)return std::unexpected(failure(ProgramError::channel_budget,first.node,first.track,index));
     const PropertyTimelineLimits limits{leaves.size(),channel_budget};
@@ -345,6 +362,9 @@ std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<c
         if(cause.code==MorphError::channel_budget)error.code=ProgramError::channel_budget;
         return std::unexpected(error);
     }
+    // Preserve the library's detailed part/channel diagnostic when available;
+    // never publish a plan if rebasing alone hid an original-coordinate clash.
+    if(absolute_conflict)return std::unexpected(*absolute_conflict);
     const auto empty=PreparedEffects::prepare({});
     if(!empty)return std::unexpected(effect_failure(empty.error(),first.node,first.track,index));
     return PreparedSegment{first.track,draw_node,std::string(draw_path),first.start,{result->timeline_duration(),ease::linear},
@@ -393,6 +413,11 @@ Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOp
     node->inputs=std::move(inputs);return Program(std::move(node));
 }
 seconds Program::wait_duration() const noexcept {return node_ && node_->kind==ProgramKind::wait?node_->wait_duration:seconds(0);}
+std::size_t Program::repeat_count() const noexcept {return node_ && node_->kind==ProgramKind::repeat?node_->repeat_count:0;}
+Program repeat(std::size_t count,Program child) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::repeat;
+    node->repeat_count=count;node->children.push_back(std::move(child));return Program(std::move(node));
+}
 Program wait(seconds duration) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::wait;
     node->wait_duration=duration;return Program(std::move(node));
@@ -418,6 +443,7 @@ std::string_view program_error_name(ProgramError error) noexcept {
         case ProgramError::unprepared:return "unprepared";
         case ProgramError::invalid_limits:return "invalid-limits";
         case ProgramError::empty_program:return "empty-program";
+        case ProgramError::invalid_repeat:return "invalid-repeat";
         case ProgramError::invalid_snapshot:return "invalid-snapshot";
         case ProgramError::invalid_source:return "invalid-source";
         case ProgramError::invalid_time:return "invalid-time";

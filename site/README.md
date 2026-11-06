@@ -272,3 +272,12 @@ holds its pose while another part continues; the interface remains editable.
 These are timeline intervals, not host sleeps. The same semantic seek and
 reverse controls sample the whole process. The copied C++ recipe and the live
 scene use the same Hanim API; image effects and local style stay independent.
+
+
+**Three steps and back** uses one `hanim::repeat(3, ...)` child program: move the
+card +8, hold briefly, wobble its title and pulse its button. The three relative
+moves accumulate before a separate return segment; outer image effects span
+the entire program. Semantic seek, reversed process samples, keyboard selection
+and the real copy action exercise this public composition. This is a finite
+child repetition; the separate preview loop toggle still controls the whole
+preview. It does not add three entries to the public animation catalog.

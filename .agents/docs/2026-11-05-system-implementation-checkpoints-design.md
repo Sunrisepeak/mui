@@ -1392,3 +1392,51 @@ Agent 通过现有 `motion.seek` 控制同一个公共 Playback，无新语义�
 - 20 Mbit/s／40 ms、新 profile、1280×800、访问内缓存开启：总传输 **4,881,447 B**，首帧前 **2,979,218 B**，首帧代理 **1,645.5 ms**、ready **1,601.1 ms**、rAF p95 **16.7 ms**，**7／7** 预算通过。总传输较 §39 增加 **1,189 B**，距 5 MB 预算余 **118,553 B**。单次本地共享机器样本只证明该次预算通过，不宣称性能提高。
 
 原始证据在 `target/hanim-wait/`，提交摘要 `tools/ci/2026-11-06-hanim-timeline-waits.report.omui.json`。新增用例进入既有 Hanim／独立消费者／官网浏览器 CI；按本地验证推进，不等待其他平台。用户 mcpp.lock 保持。完整 40／20 公共交付、默认组件配方迁移、多表示／3D、GPU 资源优化及跨引擎／工具路线继续开放。
+
+
+## 42. 有限子动画重复与串行时间边界
+
+2026-11-06，基线 `c890db9`。继续 S2／S8 的公共编排：让用户写一个可复用子动画，在更大的 sequence／parallel 中重复有限次数，并保留实际阶段源、效果作用域、查询和预算。不是在官网加一个专用循环器，也不把重复三次算作三个基础动画。
+
+### 42.1 描述、准备与查询
+
+```cpp
+using namespace std::chrono_literals;
+auto step = hanim::sequence(
+    hanim::anim::move_by(object, {8, 0}).duration(200ms),
+    hanim::wait(100ms));
+auto animation = hanim::sequence(
+    hanim::repeat(3, step),
+    hanim::anim::move_by(object, {-24, 0}).duration(300ms));
+auto prepared = hengine.prepare(animation);
+// Check prepared, then play with the existing hengine and inspect its nodes.
+```
+
+`repeat(count, child)` 是有限串行组合，count 为正的 std::size_t；零值以 `invalid-repeat` 拒绝。描述只持有一个不可变 child 和次数，巨大次数不在 authoring 阶段分配同样大的子数组。现有有预算编译器展开每次访问，仍受 node／depth／segment／scope／几何／效果／通道预算约束；准备规模随展开结果增长，不宣称任意次数恒定内存准备。没有新包、时钟、脚本热路径或采样解释器。
+
+每次相对目标继续接前一阶段实际端点，所以三次 move_by(+8) 得到 +24；绝对 move_to(+8) 后续仍是 +8，不偷偷重置。显式 snapshot 源保留重置语义。零时长迭代仍有串行先后；嵌套 repeat、wait、parallel、stagger 和 composite 沿用同一编译路径。
+
+效果 scope 在 repeat 内时，每次有独立准备后的 scope，参数按各自明确端点重启；在 repeat 外时，参数跨完整时长插值。主动写出的不连续重启不自动平滑。Prepared contract 升至 **7**，原枚举值保持，追加 repeat kind／invalid-repeat error；repeat 节点记录总次数，展开 child 根记录从零开始的 iteration，后代保留 parent／绝对时间／连续 subtree／诊断路径。模块消费者须重建。UI 只是公共消费者，图像实现继续归共享 renderer。
+
+### 42.2 真实组合暴露的时间精度问题
+
+首轮官网测试在第二次子动画内报 binding-conflict：小数时长经 `start + (local_offset + duration)` 重组，与前段实际 `absolute_start + duration` 相差一个可表示时间步长，使本来相邻的两段被误判为重叠。普通嵌套 sequence 也能复现，不是 repeat 特有的规则。
+
+修复分两层，**不增加 epsilon 或放宽真实冲突**：编译遍历返回实际绝对结束时间，串行后继直接使用该值；属性组换算时间原点时同时换算开始／结束端点，再求局部时长。原始绝对坐标下的写入冲突在预算内另行校验，独立属性库保留自身验证及详细 part／channel 诊断；局部换算不能抹掉原冲突。正时长若换算后坍缩为零，明确拒绝 invalid-time。
+
+新增回归覆盖 0／0.1／0.3／0.137／1／10／1,000,000 秒起点，重复描述与显式拷贝 sequence 的逐时刻输出相同；真正相差一个可表示步长的重叠仍拒绝。初次修复后还发现原诊断中的 channel 信息被提前检查丢失，已保留库的完整诊断并复验旧测试，未弱化断言。此处仍是既有 double 时间契约，不冒充精确有理数时钟或任意原点 bitwise 等价；热采样未新增 repeat 分支。
+
+### 42.3 官网与双视角证据
+
+便笺详情新增“迈三步，再返回”：一个 repeat 子程序组合卡片移动／短暂停留、标题 wobble 和按钮 pulse；随后独立返回。外层图像效果和局部风格继续可选，业务内容不变。有限子重复与“可见时循环”的整段预览选项分别表达。复制出的 C++ 使用同一个公共 repeat，并未在页面手写三份阶段或新增计时器。
+
+原生无窗口测试覆盖 61 时刻、反向逐帧回放、pixel 叠加和真实复制按钮；浏览器通过键盘选配方，并经现有 `motion.seek` 验证三次累积位置与返回。复用原有授权／UI 操作入口，没有新增通用远程编排编辑器的完成声明。
+
+- Hanim **9 个程序**：debug／release 各 **116 项**，Wasm **114 项**通过。新用例验证嵌套、单 child 描述、展开查询、相对／绝对／snapshot 源、瞬时顺序、内外 scope、独立通道、真实冲突、各预算和时间边界；指定稳定采样循环无新增分配。
+- 独立 `import hanim` 消费者 debug／release 各 **183 项**通过，检查实际准备／播放／查询和反向采样，依赖闭包保持无 UI／renderer。
+- 官网组件 **11 项**通过；保留 **739 张 PNG**，新增 **61 张过程图＋1 张 pixel 中间态**，原有 **677 张**与 §41 逐字节一致。已查看真实像素风中间态与最终浏览器画面；不将采样验证当作完整美术／实速节奏验收。
+- 浏览器 **187 项检查／16 张截图**通过，异常为零。20 Mbit/s／40 ms、新 profile、1280×800、访问内缓存开启：总传输 **4,882,809 B**、首帧前 **2,980,580 B**、首帧代理 **1,666.2 ms**、ready **1,630.4 ms**、rAF p95 **16.8 ms**，**7／7** 预算通过。较 §41 总传输增加 **1,362 B**，距 5 MB 预算余 **117,191 B**；共享机器单次样本不用于证明提速。
+
+原始日志和过程图在 `target/hanim-repeat/`，提交摘要 `tools/ci/2026-11-06-hanim-finite-repeat.report.omui.json`。保留首轮真实失败和最终通过的证据；新增测试进入现有 Hanim／独立消费者／官网 CI，本地通过即可继续，不等待其他平台。用户 mcpp.lock 原有字节保持。
+
+无限／alternate 子表达式、reverse expression、任意子树时间映射、通道混合与跨 playback 细通道所有权仍开放；不得把已有整段 preview 控制等同这些能力。完整 40／20 公共交付、默认组件迁移与全局多引擎目标继续推进。本轮也修正综合方案中“单 Program 仍只有整对象冲突”的过时描述，区分已支持的独立属性通道与仍按对象仲裁的跨 playback 边界。

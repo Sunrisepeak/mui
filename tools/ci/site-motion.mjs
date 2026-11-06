@@ -312,7 +312,7 @@ try {
     await pointer(root + '/details/effect'); await key('Home', 'Home', 36); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/effect') === 'none' && await scalar(card + '/editor') === 'A browser-made note',
       'removing the effect preserves the actual edited component data');
-    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('ArrowUp', 'ArrowUp', 38); await key('Enter', 'Enter', 13);
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('ArrowUp', 'ArrowUp', 38); await key('ArrowUp', 'ArrowUp', 38); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/selection') === 'feedback', 'keyboard selects public feedback composition');
     await pointer(root + '/transport/buttons/state-a'); const feedbackA = (await node(card)).bounds;
     await pointer(root + '/transport/buttons/state-b');
@@ -367,7 +367,7 @@ try {
 
 
 
-    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('ArrowUp', 'ArrowUp', 38); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/selection') === 'rhythm', 'keyboard selects the public move-pause-return program');
     await invokeMotion('seek', { progress: 0 }); const rhythmStart = (await node(card)).bounds;
     await invokeMotion('seek', { progress: .5 });
@@ -386,6 +386,18 @@ try {
     await pointer(root + '/details/copy'); const rhythmSource = await page.value('navigator.clipboard.readText()');
     check(rhythmSource.includes('hanim::wait(400ms)') && rhythmSource.includes('hanim::delay(200ms'),
       'the copied rhythm uses public timeline intervals without a page timer');
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/selection') === 'steps', 'keyboard selects the finite repeated child program');
+    await invokeMotion('seek', { progress: 0 }); const stepsStart = (await node(card)).bounds;
+    for (const [progress, offset] of [[.25, 8], [.5, 16], [.75, 24], [1, 0]]) {
+      await invokeMotion('seek', { progress });
+      await requireCheck(async () => Math.abs((await node(card)).bounds[0] - stepsStart[0] - offset) < .5,
+        `finite repeat reaches cumulative step ${offset} at progress ${progress}`);
+    }
+    await pointer(root + '/details/copy'); const stepsSource = await page.value('navigator.clipboard.readText()');
+    check(stepsSource.includes('hanim::repeat(3, hanim::parallel(') && stepsSource.includes('hanim::wait(100ms)'),
+      'the browser copies one finite child program without manually duplicating its iterations');
+    await visibleBounds(card); await invokeMotion('seek', { progress: .5 }); await shot('component-motion-steps');
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
   });

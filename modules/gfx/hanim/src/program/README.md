@@ -110,3 +110,17 @@ composes it with a child using the existing sequence. The compiler stores its
 hierarchy/timing and no object segment, preserving ordinary gap fills and
 independent channels; the existing Engine handles pure timers too. See the
 [product guide](../../README.md#timeline-waits-and-delays) and contract 6.
+
+
+`repeat(count, child)` retains one immutable child and expands finite serial
+iterations in the same bounded compiler. Prepared metadata exposes the count
+and per-child iteration, including nested scopes; zero count is rejected.
+Relative source chaining and explicit snapshot resets keep sequence semantics.
+See [finite repetition](../../README.md#finite-child-repetition) and contract 7.
+
+
+Nested serial scheduling carries the predecessor's absolute end directly.
+Property groups rebase both endpoints and check original-coordinate conflicts;
+no overlap tolerance is introduced. A positive interval lost to time-origin
+conversion is refused explicitly. The compiler's existing trace/diagnostics
+cover this cold work; ordinary prepared sampling remains unchanged.

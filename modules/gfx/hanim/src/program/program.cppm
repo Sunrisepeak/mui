@@ -6,13 +6,13 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 6;
+inline constexpr std::uint32_t program_contract_version = 7;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
 // of that logical ObjectRef use the preceding segment's actual boundary pose.
 enum class ProgramSource : std::uint8_t { previous_endpoint, snapshot };
-enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid, wait };
+enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid, wait, repeat };
 struct CompositeOptions { Ease effect_easing = ease::linear; };
 struct CompositeSpec { Effects effects; CompositeOptions options; };
 struct ProgramBinding {
@@ -47,6 +47,7 @@ public:
     [[nodiscard]] seconds step() const noexcept;
     // Nonzero only for an explicit wait node; never a blocking host sleep.
     [[nodiscard]] seconds wait_duration() const noexcept;
+    [[nodiscard]] std::size_t repeat_count() const noexcept;
     // Non-null only for an explicitly rejected authoring expression. Its
     // domain cause survives composition; preparation supplies the node index.
     [[nodiscard]] const ProgramFailure* failure() const & noexcept;
@@ -56,6 +57,7 @@ private:
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
     friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>, PropertySet);
     friend Program wait(seconds);
+    friend Program repeat(std::size_t, Program);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -71,6 +73,8 @@ private:
                            std::optional<PropertyTargets> properties = {}, PropertySet additional_properties = {});
 // A pure timeline interval: no object, channel, callback or host clock.
 [[nodiscard]] Program wait(seconds duration);
+// Finite serial repetitions. The immutable descriptor retains only one child.
+[[nodiscard]] Program repeat(std::size_t count, Program child);
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
 [[nodiscard]] inline Program delay(seconds duration, Program child) {
@@ -226,7 +230,7 @@ enum class ProgramError : std::uint8_t {
     segment_budget, part_budget, cubic_budget, effect_parameter_budget,
     source_version_mismatch, binding_conflict, animation, effect,
     invalid_track, output_too_small, unresolved_object, object, scope_budget,
-    channel_budget, scope_conflict
+    channel_budget, scope_conflict, invalid_repeat
 };
 struct ProgramFailure {
     ProgramError code;
@@ -264,6 +268,9 @@ struct ProgramNodeInfo {
     seconds start{0}, duration{0};
     std::size_t scope = invalid_program_index, track = invalid_program_index, segment = invalid_program_index;
     std::size_t contribution = invalid_program_index;
+    // Repeat nodes record the authored count; each expanded child root records
+    // its zero-based iteration. Descendants use their ordinary parent links.
+    std::size_t repeat_count = 0, iteration = invalid_program_index;
 };
 struct PreparedScope {
     std::size_t node = 0, parent = invalid_program_index, depth = 1, parameter_offset = 0;

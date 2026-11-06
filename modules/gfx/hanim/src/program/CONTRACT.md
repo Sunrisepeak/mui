@@ -1,4 +1,4 @@
-# Program contract v5: retained author graphs, property channels and image scopes
+# Program contract v7: retained author graphs, channels, scopes and finite iteration
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -6,7 +6,7 @@ application callbacks. Reused values do not share playback cursors. Empty values
 and combinations, invalid times/eases/source modes and exceeded preparation
 limits are rejected by preparation.
 
-The compiler expands nested sequence, parallel and fixed-step stagger into
+The compiler expands nested sequence, parallel, fixed-step stagger and finite repeats into
 bounded object tracks and ordered segments. Each track is identified by the full
 logical source ObjectRef, including owner and generation. Target identity does
 not rename the track. `sequence(bind(A,B),bind(A,C))` means A follows A→B→C.
@@ -26,8 +26,7 @@ boundaries are permitted. Multiple instantaneous writes to the same channel at
 the same start require an explicit sequence dependency; unordered writers to
 that channel conflict. Child
 order is retained for a sequence of instantaneous changes. This first stage does
-not claim additive/weighted channel blending, group transforms/foreach or repeat/reverse time
-expressions. Explicit image scopes are defined below.
+not claim additive/weighted channel blending, group transforms/foreach, reverse/general time mapping or unbounded repeats. Explicit image scopes are defined below.
 
 Unary leaves may carry `PropertyTargets`: absolute position, relative offset,
 absolute/relative rotation, absolute/factor scale and fill, applied to the unique
@@ -207,3 +206,55 @@ children. Endpoint fill and source fill are inherited from existing channels;
 other branches continue. Containing image scope parameters continue over their
 full interval, including the wait. Empty/invalid child expressions retain normal
 failure behavior. Zero-length waits carry ordering, not frame/event callbacks.
+
+
+## Finite serial repetition (contract 7)
+
+`repeat(count, child)` retains exactly one immutable child and an unsigned
+count. Count must be positive; zero returns `invalid-repeat` at preparation,
+while an empty child keeps the normal empty-program error. This is finite
+serial composition, not a separate runtime loop or automatic pose reset.
+Relative targets accumulate from the actual previous endpoint; absolute targets
+remain absolute; explicit snapshot leaves may intentionally reset their source.
+
+The existing compiler expands visits only within node/depth/segment/scope and
+geometry/effect budgets. Huge authored counts do not allocate a huge child
+array; preparation stops at the first exceeded budget. Zero-duration iterations
+are serially ordered, including repeated writes at the same instant. Time
+sums and property target arithmetic retain normal overflow checks.
+
+The repeat node in prepared metadata records `repeat_count`. Each expanded
+child root records its zero-based `iteration`; descendants retain ordinary
+parent links, absolute start/duration, source node paths and contiguous subtree
+ranges. Nested repeats remain distinguishable. Existing enum values are stable;
+repeat kind and invalid-repeat error are appended. Module consumers rebuild for
+contract 7 and its additional metadata fields.
+
+An image scope inside the child gets an independent prepared scope per
+iteration, restarting its explicit parameter endpoints; a scope outside repeat
+spans the total duration. Restart discontinuities are intentional authoring
+choices, not implicitly smoothed. Child payloads share immutable source data;
+prepared outputs/cursors do not share mutable iteration state. Sampling uses
+ordinary compiled segments/channels, supports arbitrary seek/reverse and adds
+no repeat interpreter to the hot path. Preparation/output size grows with the
+expanded program and stays budgeted; this is not constant-memory preparation
+for arbitrary loop counts. Infinite loops, time reversal expressions and
+subtree time remapping remain separate capabilities.
+
+
+### Canonical serial boundaries and time origins
+
+Compiler visits return their actual absolute end. Sequence/repeat successors
+start at that exact value, rather than recomputing an algebraically equivalent
+sum of local offsets. This avoids one-step false overlap from floating-point
+reassociation in nested decimal-duration feedback. Property groups rebase both
+endpoints to their local origin and derive local durations from those endpoints.
+A positive interval that collapses during this conversion is rejected as
+invalid-time, never silently changed to an instantaneous write.
+
+Before rebasing, bounded property-write validation records conflicts in original
+absolute coordinates, including unordered instantaneous writes. The independent
+property library retains its validation and detailed diagnostics; a locally
+rounded result cannot erase an original conflict. No epsilon widens the set of
+allowed overlapping writes. Ordinary double precision still applies; this is
+not a new exact-time format or a claim of bitwise equivalence across all origins.

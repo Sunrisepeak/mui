@@ -797,5 +797,106 @@ int main(int argc,char** argv) {
         check(PreparedProgram::prepare(delay(seconds(1),anim::move_by(f.a,{1,0})),{.max_nodes=2}).error().code==ProgramError::node_budget);
         check(PreparedProgram::prepare(sequence(wait(seconds(0)),Program{})).error().code==ProgramError::empty_program);
     });
+    suite.test("finite repeat keeps one authored child and expands bounded inspectable iterations",[] {
+        Fixture f;const auto child=sequence(anim::move_by(f.a,{10,0}),wait(seconds(.5)));
+        const auto expression=repeat(3,child);
+        check(expression.kind()==ProgramKind::repeat && expression.repeat_count()==3 && expression.children().size()==1);
+        check(child.kind()==ProgramKind::sequence && child.repeat_count()==0);
+        const auto plan=take(PreparedProgram::prepare(expression));
+        check(plan.duration()==seconds(4.5) && plan.nodes().size()==10 && plan.tracks().size()==1);
+        check(plan.nodes()[0].repeat_count==3 && plan.nodes()[0].subtree_end==10);
+        for(std::size_t i=0;i<3;++i) {
+            const auto& node=plan.nodes()[1+3*i];check(node.iteration==i && node.parent==0 && node.start==seconds(1.5*i));
+        }
+        const auto plain=take(PreparedProgram::prepare(sequence(child,child,child)));
+        Buffer actual(plan.tracks()[0]),expected(plain.tracks()[0]);
+        const auto before=allocations.load();
+        for(int i=0;i<=90;++i) {
+            const double t=i*.05;const auto frame=actual.sample(plan,0,t);
+            check(all_same(frame.geometry,expected.sample(plain,0,t).geometry));
+            const double cycle=std::min(2.,std::floor(t/1.5));
+            check_near(frame.geometry.parts[0].local.tx,10*(cycle+std::min(1.,t-cycle*1.5)),1e-10);
+        }
+        check(allocations.load()==before,"repeat introduces no warm sampling allocations");
+        check(actual.sample(plan,0,1.25).geometry.parts[0].local.tx==10);
+        check(actual.sample(plan,0,4.5).geometry.parts[0].local.tx==30);
+    });
+    suite.test("nested repeat preserves serial zero-duration order and explicit source semantics",[] {
+        Fixture f;
+        const auto nested=take(PreparedProgram::prepare(repeat(2,repeat(3,anim::move_by(f.a,{1,0}).duration(seconds(0))))));
+        Buffer out(nested.tracks()[0]);check(nested.duration()==seconds(0) && out.sample(nested,0,0).geometry.parts[0].local.tx==6);
+        check(nested.nodes().size()==9 && nested.nodes()[1].repeat_count==3 && nested.nodes()[5].iteration==1);
+        const auto reset=take(PreparedProgram::prepare(repeat(2,anim::move_by(f.a,{10,0}).source(ProgramSource::snapshot))));
+        Buffer reset_out(reset.tracks()[0]);check(reset_out.sample(reset,0,1.5).geometry.parts[0].local.tx==5);
+        const auto absolute=take(PreparedProgram::prepare(repeat(2,anim::move_to(f.a,{10,0}))));
+        Buffer absolute_out(absolute.tracks()[0]);check(absolute_out.sample(absolute,0,1.5).geometry.parts[0].local.tx==10);
+        const auto timer=take(PreparedProgram::prepare(repeat(3,wait(seconds(.25)))));
+        check(timer.duration()==seconds(.75) && timer.tracks().empty());
+    });
+    suite.test("repeat scopes restart inside each iteration and span all iterations outside",[] {
+        Fixture f;
+        const auto inside=take(PreparedProgram::prepare(repeat(2,composite(anim::move_by(f.a,{10,0})).with_effect(fx::opacity(1,.5)))));
+        check(inside.scopes().size()==2 && inside.scopes()[0].start==seconds(0) && inside.scopes()[1].start==seconds(1));
+        std::array<float,2> values;take(inside.sample_scopes(seconds(1.5),values));check(values[0]==.5f && values[1]==.75f);
+        Buffer out(inside.tracks()[0]);const auto frame=out.sample(inside,0,1.5);
+        check_near(frame.geometry.parts[0].local.tx,15,1e-10);check(inside.segments()[frame.segment_index].scope==1);
+        const auto outside=take(PreparedProgram::prepare(composite(repeat(2,anim::move_by(f.a,{10,0}))).with_effect(fx::opacity(1,.5))));
+        check(outside.scopes().size()==1 && outside.scopes()[0].duration==seconds(2));
+        take(outside.sample_scopes(seconds(1.5),values));check(values[0]==.625f);
+    });
+    suite.test("repeat composes independent channels and rejects overlapping writes",[] {
+        Fixture f;
+        const auto plan=take(PreparedProgram::prepare(parallel(repeat(3,anim::move_by(f.a,{10,0})),anim::rotate_to(f.a,3).duration(seconds(3)))));
+        Buffer out(plan.tracks()[0]);
+        for(int i=60;i>=0;--i) {
+            const double t=i*.05;const auto frame=out.sample(plan,0,t);check_near(frame.geometry.parts[0].local.tx,10*t,1e-10);
+            check_near(frame.geometry.parts[0].local.rotate,t,1e-10);
+        }
+        const auto multiple=take(PreparedProgram::prepare(repeat(2,parallel(anim::move_by(f.a,{10,0}),anim::move_by(f.b,{-2,0})))));
+        check(multiple.tracks().size()==2 && multiple.duration()==seconds(2));
+        for(std::size_t i=0;i<multiple.tracks().size();++i) {
+            Buffer buffer(multiple.tracks()[i]);const bool first=multiple.tracks()[i].object==f.ar;
+            check(buffer.sample(multiple,i,2).geometry.parts[0].local.tx==(first?20:6));
+            check(buffer.sample(multiple,i,.5).geometry.parts[0].local.tx==(first?5:9));
+        }
+        const auto conflict=PreparedProgram::prepare(parallel(repeat(3,anim::move_by(f.a,{10,0})),anim::move_to(f.a,{5,0})));
+        check(!conflict && conflict.error().code==ProgramError::binding_conflict);
+    });
+    suite.test("repeat count and expansion obey the same diagnostic and resource budgets",[] {
+        Fixture f;const auto child=anim::move_by(f.a,{1,0});
+        const auto zero=PreparedProgram::prepare(sequence(wait(seconds(1)),repeat(0,child)));
+        check(!zero && zero.error().code==ProgramError::invalid_repeat && zero.error().node==2);
+        check(program_error_name(ProgramError::invalid_repeat)=="invalid-repeat");
+        const auto huge=repeat(std::numeric_limits<std::size_t>::max(),wait(seconds(0)));
+        check(huge.children().size()==1 && huge.repeat_count()==std::numeric_limits<std::size_t>::max());
+        const auto bound=PreparedProgram::prepare(huge,{.max_nodes=4});check(!bound && bound.error().code==ProgramError::node_budget && bound.error().node==4);
+        check(PreparedProgram::prepare(repeat(3,child),{.max_segments=2}).error().code==ProgramError::segment_budget);
+        check(PreparedProgram::prepare(repeat(3,child),{.max_depth=1}).error().code==ProgramError::depth_budget);
+        check(PreparedProgram::prepare(repeat(2,composite(child).with_effect(fx::opacity(1,.5))),{.max_scopes=1}).error().code==ProgramError::scope_budget);
+        check(PreparedProgram::prepare(repeat(2,Program{})).error().code==ProgramError::empty_program);
+        check(PreparedProgram::prepare(repeat(2,wait(seconds(std::numeric_limits<double>::max())))).error().code==ProgramError::invalid_time);
+    });
+    suite.test("decimal-time serial boundaries remain adjacent without hiding genuine overlap",[] {
+        Fixture f;
+        const auto child=parallel(sequence(anim::move_by(f.a,{8,0}).duration(seconds(.2)),wait(seconds(.1))),
+            anim::wobble(f.a,.03,{.duration=seconds(.3)}),anim::pulse(f.a,{1.04,1.04},{.duration=seconds(.3)}));
+        for(double offset:{0.,.1,.3,.137,1.,10.,1000000.}) {
+            const auto repeated=PreparedProgram::prepare(delay(seconds(offset),sequence(repeat(3,child),anim::move_by(f.a,{-24,0}).duration(seconds(.3)))));
+            check(repeated.has_value(),std::format("nested feedback prepares at offset {}",offset));
+            const auto explicit_sequence=PreparedProgram::prepare(delay(seconds(offset),sequence(child,child,child,anim::move_by(f.a,{-24,0}).duration(seconds(.3)))));
+            check(explicit_sequence.has_value(),"ordinary sequence gets the same canonical boundary treatment");
+            if(repeated && explicit_sequence) {
+                Buffer a(repeated->tracks()[0]),b(explicit_sequence->tracks()[0]);
+                for(int i=0;i<=60;++i)check(all_same(a.sample(*repeated,0,offset+1.2*i/60.).geometry,b.sample(*explicit_sequence,0,offset+1.2*i/60.).geometry));
+            }
+        }
+        const auto collapsed=PreparedProgram::prepare(parallel(
+            delay(seconds(1),anim::rotate_by(f.a,1).duration(seconds(1e16+4))),
+            delay(seconds(1e16),anim::move_by(f.a,{1,0}).duration(seconds(2)))));
+        check(!collapsed && collapsed.error().code==ProgramError::invalid_time,
+            "rebasing must not silently turn a positive interval into an instantaneous write");
+        const auto overlap=PreparedProgram::prepare(parallel(anim::move_by(f.a,{1,0}),delay(seconds(std::nextafter(1.,0.)),anim::move_by(f.a,{1,0}))));
+        check(!overlap && overlap.error().code==ProgramError::binding_conflict,"even one representable step of real overlap remains an error");
+    });
     return suite.run(argc,argv);
 }

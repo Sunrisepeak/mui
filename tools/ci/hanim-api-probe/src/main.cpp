@@ -519,6 +519,26 @@ int main() {
             check(correct,"public_timeline_has_leading_delay_middle_hold_and_return");
             check(hengine.release(*rhythm).has_value(),"rhythm_release");
         }
+        const auto repeated=hengine.prepare(h::sequence(
+            h::repeat(3,h::sequence(anim::move_by(*rhythm_object,{8,0}).duration(200ms),h::wait(100ms))),
+            anim::move_by(*rhythm_object,{-24,0}).duration(300ms)));
+        if(check(bool(repeated),"finite_repeat_prepares_from_public_entry")) {
+            check(repeated->nodes().size()==12 && repeated->nodes()[1].repeat_count==3 && repeated->nodes()[8].iteration==2,
+                "prepared_repeat_exposes_authored_count_and_expanded_iteration");
+            const auto repeated_play=hengine.play(*repeated);
+            if(check(bool(repeated_play),"finite_repeat_plays_prepared_plan")) {
+                bool correct=true;
+                for(int i=60;i>=0;--i) {
+                    const double t=1.2*i/60.;const double cycle=std::min(2.,std::floor(t/.3));
+                    const double x=t<.9?8*(cycle+std::min(1.,(t-cycle*.3)/.2)):24-80*(t-.9);
+                    correct=correct && bool(hengine.seek(*repeated_play,h::seconds(t)));
+                    const auto frame=hengine.frame(*repeated_play);
+                    correct=correct && frame && std::abs(frame->geometry.parts[0].local.tx-x)<1e-10;
+                }
+                check(correct,"repeat_seeks_backwards_through_accumulation_holds_and_return");
+                check(hengine.release(*repeated_play).has_value(),"repeat_releases_normally");
+            }
+        }
         check(hengine.destroy_object(*rhythm_object).has_value(),"rhythm_object_release");
     }
     return finish();

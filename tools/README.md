@@ -17,3 +17,7 @@ designers, animation/audio/MIDI editors and simulation/material workbenches
 reuse public engine APIs, shared project operations and openas semantics.
 They follow their engine capabilities; the table above lists existing tools,
 not a claim that the planned editors are already implemented.
+
+## dev
+
+[`dev/capped.sh`](dev/capped.sh) runs a local build or test within 90% of the machine (AGENTS.md §5): concurrent compiles (`MCPP_JOBS`) at most 90% of the cores and of what 90% of the memory holds at about 2.5 GB a compile, at low CPU and I/O priority — `tools/dev/capped.sh mcpp test -p omui.view`.

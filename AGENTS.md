@@ -66,6 +66,7 @@
 - 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 目标只保留 `[workspace]`，SDK 伞包移到 omui 的 `sdk/`（当前 `import openmui;`，目标 `import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **优先用 mcpp 生态**（D-56）。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
+- **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
 - 工具都有两种界面（D-61）：完整的 CLI／openas 入口（结构化输出、退出码）和可选的 omui GUI／TUI。作品必须是真实可用的东西（D-63），并有能在 headless 下确定重现的招牌镜头。
 
 ## 6. 协作与验收

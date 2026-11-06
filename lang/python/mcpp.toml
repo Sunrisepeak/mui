@@ -29,4 +29,4 @@ nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }
+mlibs.utils = { path = "../../modules/base/utils" }

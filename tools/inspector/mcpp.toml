@@ -27,11 +27,10 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp"]
 
 [dependencies]
-mlibs.hash = { path = "../../modules/base/hash" }
+mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk = { path = "../.." }
 "xengine.simulation" = { path = "../../modules/base/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }

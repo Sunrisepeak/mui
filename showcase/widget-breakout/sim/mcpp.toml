@@ -24,11 +24,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.math = { path = "../../../modules/base/math" }
-mlibs.hash = { path = "../../../modules/base/hash" }
+mlibs.utils = { path = "../../../modules/base/utils" }
 mgame.world   = { path = "../../../mgame/world" }
 mgame.input   = { path = "../../../mgame/input" }
 mgame.physics = { path = "../../../mgame/physics" }
 xengine.simulation = { path = "../../../modules/base/simulation" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../modules/base/testing" }

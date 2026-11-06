@@ -23,7 +23,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.math = { path = "../../base/math" }
-mlibs.hash = { path = "../../base/hash" }
+mlibs.utils = { path = "../../base/utils" }
 openmui.core     = { path = "../core" }
 mlibs.geom     = { path = "../../base/geom" }
 mlibs.memory   = { path = "../../base/memory" }
@@ -35,13 +35,11 @@ xengine.render.vector   = { path = "../../gfx/render/vector" }
 openmui.motion   = { path = "../motion" }
 mlibs.image    = { path = "../../base/image" }
 mlibs.text     = { path = "../../content/text" }
-mlibs.trace    = { path = "../../base/trace" }
 mlibs.pipeline = { path = "../../base/pipeline" }
 mlibs.i18n     = { path = "../../content/i18n" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }
 
 # Optional native adapter. Ordinary views do not force the full Hanim player.
 [features]

@@ -24,6 +24,10 @@ Rules:
                 packages that say so too (dev-dependencies included) (D-84)
   media         a picture in the repository (.png .apng .gif .jpg .webp) is under 1 MB, and every showcase's
                 README shows its signature shot from its media/ (tools/ci/readme-media.sh makes them)
+  testing       `import mlibs.testing` only in test programs (tests/): mlibs.utils carries it, and
+                no artifact does
+  closure       the dependency closures CLOSURES names stay small (the render graph; simulation
+                without UI, game, renderer or, for its CPU packages, GPU)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
   exceptions    no `throw` / `try` in runtime and modules sources (errors are std::expected); a
                 native/ unit may catch what a third-party library throws, to answer std::expected
@@ -34,7 +38,7 @@ Rules:
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
-  hash          no private FNV-1a (its offset bases and primes) outside modules/base/hash: one
+  hash          no private FNV-1a (its offset bases and primes) outside mlibs.utils' hash: one
                 implementation, mlibs.hash, so a pinned hash means the same thing everywhere
   math          no private splitmix64 (its finaliser's constants) or fdlibm (its constants)
                 outside modules/base/math: one implementation, mlibs.math (D-87)
@@ -62,47 +66,85 @@ HEADER_SUFFIXES = {".h", ".hpp", ".hh", ".hxx", ".inl"}
 THE_HEADER = Path("spec/include/openmui.h")
 SKIP_DIRS = {"target", ".git", ".cache", "build", "node_modules", "fixtures", ".venv", "__pycache__"}
 
-# Layers (D-80, D-82). A member's layer is the most specific group its
-# directory lies in; it may depend on the layers listed for it (path
-# dependencies in [dependencies] and target dependencies). The independent
-# components (modules/{base,gfx,content,media}) know nothing of openmui
-# (D-55); openmui (modules/ui) never depends on the game engine (mgame); the
-# fighting framework's core (mgame/gongfu) depends on the standard library
-# alone, so that it can leave the repository unchanged.
-GROUPS = ["modules/base/hash", "modules/base/testing", "modules/base", "modules/gfx", "modules/content", "modules/media", "modules/ui/host", "modules/ui",
-          "spec", "components", "lang", "mgame/gongfu", "mgame", "tools", "mcpp", "src", "tests", "examples", "showcase", "site", "."]
-INDEPENDENT = ["modules/base", "modules/gfx", "modules/content", "modules/media"]
-_BELOW_UI = {"modules/base", "modules/gfx", "modules/content", "modules/media", "spec"}
+# Layers (D-80, D-82; convergence plan §9.2). A name says who owns a package,
+# a directory says which group it is in, and the layer comes from this table:
+# the longest path prefix that holds a member gives its layer, so one project
+# may span layers (hanim.core is base, hanim is gfx). A layer may depend on the
+# layers listed for it (path dependencies in [dependencies] and target
+# dependencies). The table holds today's directories and the ones M1 moves
+# them to (modules/projects/…), so a move changes no rule.
+#
+# The independent components (mlibs, hanim, xrender, xengine below the UI)
+# know nothing of omui (D-55); omui never depends on the game layer; the
+# fighting framework's core depends on the standard library alone, so that it
+# can leave the repository unchanged, and the rest of gongfu on no UI.
+PATH_LAYERS: dict[str, str] = {
+    # mlibs: the layer groups
+    "modules/base/utils": "utils",  # the bottom: small tools, the standard library alone
+    "modules/base": "base",
+    "modules/gfx": "gfx",
+    "modules/content": "content",
+    "modules/media": "media",
+    # the projects (plan §9.2)
+    "modules/projects/hanim/core": "base",
+    "modules/projects/hanim": "gfx",
+    "modules/projects/xrender": "gfx",
+    "modules/projects/xengine/simulation": "base",  # the CPU part
+    "modules/projects/xengine/simulation/cellular/rhi": "gfx",
+    "modules/projects/xengine/audio": "media",
+    "modules/projects/xengine/video": "media",
+    "modules/projects/xengine/timeline": "media",
+    "modules/projects/xengine": "game",  # world, input, physics, net, ui
+    "modules/projects/gongfu": "gongfu",
+    "modules/projects/omui": "ui",
+    "modules/projects/omui/host": "host",
+    "modules/projects/omui/components": "components",
+    "modules/projects/omui/lang": "lang",
+    "modules/projects/omui/sdk": "sdk",
+    # omui and the game layer where they are today
+    "modules/ui": "ui",
+    "modules/ui/host": "host",
+    "components": "components",
+    "lang": "lang",
+    "mgame/gongfu": "gongfu",
+    "mgame": "game",
+    "spec": "spec",
+    # build code, tools and the consumers
+    "tools": "tools",
+    "mcpp": "mcpp",
+    "src": "app",  # entries: the composition roots (component-binding §10.2)
+    "tests": "app",
+    "examples": "app",
+    "showcase": "app",
+    "site": "app",
+    ".": "app",  # the root package (until M1 moves it to modules/projects/omui/sdk)
+}
+# A directory that is its own layer, not the prefix of one: gongfu's core.
+EXACT_LAYERS: dict[str, str] = {"mgame/gongfu": "gongfu.core", "modules/projects/gongfu": "gongfu.core"}
+INDEPENDENT = {"utils", "base", "gfx", "content", "media"}
+_BELOW_UI = {"utils", "base", "gfx", "content", "media", "spec"}
 LAYERS: dict[str, set[str]] = {
-    "modules/base/hash": set(),  # the bottom: what testing hashes with
-    "modules/base/testing": {"modules/base/hash"},
-    "modules/base": {"modules/base"},
-    "modules/gfx": {"modules/base", "modules/gfx"},
-    "modules/content": {"modules/base", "modules/gfx", "modules/content"},
-    "modules/media": {"modules/base", "modules/gfx", "modules/content", "modules/media"},
+    "utils": set(),
+    "base": {"utils", "base"},
+    "gfx": {"utils", "base", "gfx"},
+    "content": {"utils", "base", "gfx", "content"},
+    "media": {"utils", "base", "gfx", "content", "media"},
+    "gongfu.core": set(),
+    "gongfu": {"utils", "base", "gfx", "gongfu.core", "gongfu"},
     "spec": set(),
-    "modules/ui": _BELOW_UI | {"modules/ui"},
-    "modules/ui/host": _BELOW_UI | {"modules/ui", "modules/ui/host"},
-    "components": _BELOW_UI | {"modules/ui", "components"},
-    "lang": {"spec", "modules/ui", "components", "lang"},
-    "mgame/gongfu": set(),
-    "mgame": _BELOW_UI | {"modules/ui", "modules/ui/host", "components", "mgame", "mgame/gongfu"},
+    "ui": _BELOW_UI | {"ui"},
+    "host": _BELOW_UI | {"ui", "host"},
+    "components": _BELOW_UI | {"ui", "components"},
+    "lang": {"spec", "ui", "components", "lang"},
+    "sdk": _BELOW_UI | {"ui", "host", "components", "sdk"},
+    "game": _BELOW_UI | {"ui", "host", "components", "game", "gongfu.core", "gongfu"},
     "tools": {"*"},
     "mcpp": {"tools", "mcpp"},  # build code only: the plugins, their shared base and the generator they run
-    "src": {"*"},  # entries: the composition roots (component-binding §10.2)
-    "tests": {"*"},
-    "examples": {"*"},
-    "showcase": {"*"},
-    "site": {"*"},
-    ".": {"*"},
+    "app": {"*"},
 }
-# mlibs.hash is the base layer's bottom: whoever may use the base may use it.
-for _allowed in LAYERS.values():
-    if "modules/base" in _allowed:
-        _allowed.add("modules/base/hash")
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/base/hanim/core", "modules/gfx/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/base/hanim/core", "modules/gfx/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -117,7 +159,7 @@ FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665
                            re.IGNORECASE)
 # What may keep its own: gongfu's core takes the standard library alone (D-82),
 # so its world checksum is written there.
-FNV_OWN = ("modules/base/hash/", "mgame/gongfu/src/")
+FNV_OWN = ("modules/base/utils/src/hash/", "modules/base/utils/tests/hash/", "mgame/gongfu/src/", "modules/projects/gongfu/src/")
 
 # splitmix64's finaliser and fdlibm's exp/log constants: only mlibs.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
@@ -140,20 +182,21 @@ class Problem:
         return f"[{self.rule}] {self.where}: {self.message}"
 
 
-def layer_of(member: str) -> str:
-    """The most specific group a directory lies in ("mgame/gongfu" is the core alone)."""
-    if member == "mgame/gongfu":
-        return member
-    for g in GROUPS:
-        if g in ("mgame/gongfu", "."):
-            continue
-        if member == g or member.startswith(g + "/"):
-            return g
-    return "."
+def layer_of(member: str) -> str | None:
+    """The layer of a member's directory: its own entry, else the longest path prefix in the table."""
+    if member in EXACT_LAYERS:
+        return EXACT_LAYERS[member]
+    best = None
+    for prefix in PATH_LAYERS:
+        if prefix == "." or member == prefix or member.startswith(prefix + "/"):
+            if best is None or best == "." or len(prefix) > len(best):
+                best = prefix
+    return PATH_LAYERS[best] if best is not None else None
 
 
 def rule_for(member: str) -> set[str] | None:
-    return LAYERS.get(layer_of(member))
+    layer = layer_of(member)
+    return LAYERS.get(layer) if layer else None
 
 
 def source_files(root: Path):
@@ -241,6 +284,9 @@ def check_sources(root: Path) -> list[Problem]:
             if re.match(r"(export\s+)?import\s+mcpplibs\.mwrap\.", stripped) and not in_native and "tests" not in rel.parts:
                 problems.append(Problem("thirdparty", f"{rel_s}:{no}",
                                         "a wrapped C library (mcpplibs.mwrap.*) is used only in a native/ unit (D-83)"))
+            if (re.match(r"(export\s+)?import\s+(mlibs|openmui)\.testing\b", stripped) and "tests" not in rel.parts
+                    and not rel_s.startswith("modules/base/utils/src/testing/")):
+                problems.append(Problem("testing", f"{rel_s}:{no}", "mlibs.testing is for test programs (tests/): no artifact carries it"))
             if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
                 problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or xengine"))
 
@@ -343,10 +389,7 @@ def check_manifests(root: Path) -> list[Problem]:
                     dep_rel = dep.relative_to(root.resolve()).as_posix()
                 except ValueError:
                     continue
-                dep_layer = layer_of(dep_rel) if dep_rel != "" else "."
-                if dep_rel == "modules/base/testing":
-                    problems.append(Problem("layering", member, f"`{name}`: mlibs.testing belongs in [dev-dependencies]"))
-                    continue
+                dep_layer = layer_of(dep_rel if dep_rel != "" else ".")
                 if "*" in allowed:
                     continue
                 if dep_layer not in allowed:
@@ -601,6 +644,83 @@ def flatten_deps(table: dict, prefix: str = ""):
             yield prefix + key, value
 
 
+# Dependency closures that stay small (D-55; plan §5.3 ⑤), by package
+# identity: a package's [dependencies], its target dependencies and the
+# feature-deps of the features it is built with (its defaults and what each
+# edge asks for), followed through path dependencies. `only`: nothing else may
+# be reached; `not`: none of these (a name, or a name and the packages below it).
+CLOSURES: dict[str, dict[str, set[str]]] = {
+    # the render graph: devices, handles and the small tools, nothing more
+    "xengine.render": {"only": {"xengine.render", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}},
+    # drawing vectors needs no effect loader and no shader compiler
+    "xengine.render.vector": {"not": {"xengine.render.effect", "mlibs.shader"}},
+    # simulation knows no UI, game or renderer; its CPU packages no GPU or
+    # compiler; the cellular rules do not make the clock and history mandatory
+    "xengine.simulation": {"not": {"openmui", "mgame", "xengine.render", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
+    "xengine.simulation.cellular": {"not": {"openmui", "mgame", "xengine.render", "mlibs.rhi", "mlibs.shader"}},
+    "xengine.simulation.cellular.rhi": {"not": {"openmui", "mgame", "xengine.render"}},
+}
+
+
+def _features(data: dict, asked: set[str], defaults: bool) -> set[str]:
+    table = data.get("features", {})
+    pending = set(asked) | (set(table.get("default", [])) if defaults else set())
+    active: set[str] = set()
+    while pending:
+        f = pending.pop()
+        if f in active or "/" in f:
+            continue
+        active.add(f)
+        spec = table.get(f, [])
+        pending |= set(spec if isinstance(spec, list) else spec.get("implies", []))
+    return active
+
+
+def closure_of(root: Path, member: str) -> set[str]:
+    """The identities a member reaches through path dependencies (see CLOSURES)."""
+    seen: set[tuple[str, frozenset[str], bool]] = set()
+    names: set[str] = set()
+    pending = [(root / member, frozenset(), True)]
+    while pending:
+        directory, asked, defaults = pending.pop()
+        key = (directory.resolve().as_posix(), asked, defaults)
+        if key in seen:
+            continue
+        seen.add(key)
+        data = tomllib.loads((directory / "mcpp.toml").read_text(encoding="utf-8"))
+        names.add(package_name(data))
+        tables = [data.get("dependencies", {})]
+        tables += [t.get("dependencies", {}) for t in data.get("target", {}).values() if isinstance(t, dict)]
+        tables += [data.get("feature-deps", {}).get(f, {}) for f in _features(data, set(asked), defaults)]
+        for table in tables:
+            for _name, spec in flatten_deps(table):
+                if isinstance(spec, dict) and "path" in spec and (directory / spec["path"] / "mcpp.toml").is_file():
+                    pending.append((directory / spec["path"], frozenset(spec.get("features", [])), spec.get("default-features", True)))
+    return names
+
+
+def check_closures(root: Path) -> list[Problem]:
+    problems = []
+    by_name = {}
+    for m in workspace_members(root):
+        try:
+            by_name[package_name(tomllib.loads((root / m / "mcpp.toml").read_text(encoding="utf-8")))] = m
+        except (OSError, tomllib.TOMLDecodeError):
+            continue
+    if not set(CLOSURES) & set(by_name):
+        return problems  # a tree without these packages (the self-test's)
+    for name, rule in CLOSURES.items():
+        if name not in by_name:
+            problems.append(Problem("closure", name, "a package the closure rules name is not a member; update CLOSURES"))
+            continue
+        reached = closure_of(root, by_name[name]) - {name}
+        extra = sorted(reached - rule["only"]) if "only" in rule else \
+            sorted(n for n in reached if any(n == p or n.startswith(p + ".") for p in rule["not"]))
+        for n in extra:
+            problems.append(Problem("closure", by_name[name], f"reaches {n}, which its closure must not (tools/lint CLOSURES)"))
+    return problems
+
+
 # The data files a schema governs: the committed schema of each kind.
 DOCUMENT_SCHEMAS = [
     ("*.view.omui.json", "view.schema.json", "omui schema --out spec/schema/view.schema.json"),
@@ -665,7 +785,7 @@ def check_media(root: Path) -> list[Problem]:
 
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root))
+            + check_documents(root) + check_media(root) + check_closures(root))
 
 
 def self_test() -> int:
@@ -685,11 +805,13 @@ def self_test() -> int:
         "layout": None,
         "licenses": None,
         "platforms": None,
+        "testing": ("modules/ui/core/src/t.cpp", "module x;\nimport mlibs.testing;\n"),
         "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
         "motion": ("components/base/src/t.cpp", "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }\n"),
         "manifest": None,
         "pins": None,
+        "closure": None,
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
     }
     try:
@@ -728,6 +850,8 @@ def self_test() -> int:
                     deps = '[dependencies]\ncore = { path = "../modules/ui/core" }\n'
                 if rule == "modules" and m == "modules/gfx/hanim":
                     deps = '[dependencies]\ncore = { path = "../../ui/core" }\n'
+                if rule == "closure" and m == "modules/gfx/hanim":
+                    deps = '[dependencies]\nhanim.core = { path = "../../base/hanim/core" }\n'
                 if rule == "manifest" and m == "modules/ui/core":
                     deps = '[dependencies.compat]\nsdl3 = "3.4.18"\n'
                 if rule == "pins" and m == "modules/ui/core":
@@ -749,8 +873,13 @@ def self_test() -> int:
                 path, text = planted
                 (root / path).parent.mkdir(parents=True, exist_ok=True)
                 (root / path).write_text(text, encoding="utf-8")
+            global CLOSURES
+            saved = CLOSURES
+            if rule == "closure":
+                CLOSURES = {"hanim": {"not": {"hanim.core"}}}  # planted: hanim may not reach its core
             found = [p for p in run(root) if p.rule == rule]
             clean = [p for p in run(root) if p.rule != rule]
+            CLOSURES = saved
             ok = bool(found) and not clean
             print(f"  {'ok  ' if ok else 'FAIL'}  {rule}: {found[0] if found else 'not caught'}")
             if clean:

@@ -1,4 +1,4 @@
-// openmui.fuzzy as scripts reach it: the generated define() registers the
+// omui::fuzzy as scripts reach it: the generated define() registers the
 // contract's functions; a call by position or by name is checked against the
 // contract and answers the records the stubs describe.
 import std;

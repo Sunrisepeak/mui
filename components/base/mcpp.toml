@@ -29,11 +29,10 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.core    = { path = "../../modules/ui/core" }
 openmui.view    = { path = "../../modules/ui/view" }
 mlibs.unicode = { path = "../../modules/base/unicode" }
-mlibs.hash    = { path = "../../modules/base/hash" }
+mlibs.utils    = { path = "../../modules/base/utils" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mlibs.testing       = { path = "../../modules/base/testing" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }

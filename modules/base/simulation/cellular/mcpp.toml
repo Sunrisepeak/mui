@@ -17,9 +17,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.trace = { path = "../../trace" }
-mlibs.log = { path = "../../log" }
+mlibs.utils = { path = "../../utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../testing" }
 xengine.simulation = { path = ".." }

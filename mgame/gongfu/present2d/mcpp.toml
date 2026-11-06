@@ -30,6 +30,6 @@ mlibs.geom          = { path = "../../../modules/base/geom" }
 xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../modules/base/testing" }
+mlibs.utils = { path = "../../../modules/base/utils" }
 mlibs.raster  = { path = "../../../modules/gfx/raster" }
 mlibs.image   = { path = "../../../modules/base/image" }

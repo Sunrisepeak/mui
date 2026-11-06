@@ -17,21 +17,17 @@ repo        = "https://github.com/Sunrisepeak/mui"
 members = [
     "spec",
     "modules/base/control",
-    "modules/base/fuzzy",
     "modules/base/geom",
     "modules/base/hanim/core",
-    "modules/base/hash",
     "modules/base/image",
-    "modules/base/log",
     "modules/base/math",
     "modules/base/memory",
     "modules/base/pipeline",
     "modules/base/session",
     "modules/base/simulation",
     "modules/base/simulation/cellular",
-    "modules/base/testing",
-    "modules/base/trace",
     "modules/base/unicode",
+    "modules/base/utils",
     "modules/gfx/hanim",
     "modules/gfx/raster",
     "modules/gfx/render",
@@ -230,7 +226,7 @@ openmui.motion        = { path = "modules/ui/motion" }
 openmui.agent         = { path = "modules/ui/agent" }
 openmui.expr          = { path = "modules/ui/expr" }
 openmui.viewdoc       = { path = "modules/ui/viewdoc" }
-mlibs.trace         = { path = "modules/base/trace" }
+mlibs.utils         = { path = "modules/base/utils" }
 openmui.ui.base       = { path = "components/base" }
 openmui.ui.window     = { path = "components/window" }
 openmui.host.headless = { path = "modules/ui/host/headless" }
@@ -255,7 +251,6 @@ sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 
 # SDK startup CTS exercise the actual generated profile and AppSpec run path.
 [dev-dependencies]
-mlibs.testing = { path = "modules/base/testing" }
 
 [test]
 discover = ["tests/*_test.cpp"]

@@ -32,7 +32,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = "../../modules/base/hanim/core" }
-mlibs.hash = { path = "../../modules/base/hash" }
+mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk                         = { path = "../.." }
 "openmui.theme"                     = { path = "../../modules/ui/theme" }
 openmui.theme.styles                = { path = "../../modules/ui/theme/styles" }
@@ -59,4 +59,3 @@ mcpplibs.os                         = "0.2.2"
 openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }

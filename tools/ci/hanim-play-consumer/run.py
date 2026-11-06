@@ -141,7 +141,7 @@ def main() -> int:
         (project / "src").mkdir(exist_ok=True)
         manifest = (fixture / "mcpp.toml.in").read_text()
         for key, relative in {"engine": "gfx/hanim", "raster": "gfx/raster",
-                              "image": "base/image", "hash": "base/hash", "control": "base/control"}.items():
+                              "image": "base/image", "utils": "base/utils", "control": "base/control"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
         if openas_package:
             manifest = manifest.replace('openlifa.openas = "0.2.0"', 'openlifa.openas = { path = '+json.dumps(str(openas_package))+' }')
@@ -261,12 +261,12 @@ def main() -> int:
                                       **audit(project, repo, artifacts, profile, openas_package)})
             if digest(project / "mcpp.lock") != temporary_lock:
                 raise RuntimeError("locked runs changed the temporary project's resolution")
-        # Test-only dependencies live in a second real consumer, never in the
-        # production program's resolution or compilation database.
+        # The tests run in a second real consumer, so the production program's
+        # resolution and compilation database hold no test program (their
+        # checks, mlibs.testing, come with mlibs.utils).
         integration = project / "integration"
         (integration / "src").mkdir(parents=True, exist_ok=True)
-        (integration / "mcpp.toml").write_text(manifest + '\n[dev-dependencies]\nmlibs.testing = { path = ' +
-                                              json.dumps(str(repo / "modules/base/testing")) + ' }\n')
+        (integration / "mcpp.toml").write_text(manifest)
         shutil.copyfile(fixture / "src/main.cpp", integration / "src/main.cpp")
         shutil.copytree(fixture / "tests", integration / "tests", dirs_exist_ok=True)
         for profile in ("dev", "release"):

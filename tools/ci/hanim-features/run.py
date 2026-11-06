@@ -229,7 +229,7 @@ threads=false
         manifest = ('[package]\nnamespace="hanim.validation"\nname="packed_consumer"\nversion="0.1.0"\n'
                     '[targets.consumer]\nkind="bin"\nmain="src/main.cpp"\n[build]\nsources=["src/*.cpp"]\n'
                     '[dependencies]\n"hanim" = { path = '+json.dumps(str(installed))+' }\n')
-        for identity, relative in {'hanim.core':'hanim/core', 'mlibs.geom':'geom', 'mlibs.memory':'memory', 'mlibs.log':'log', 'mlibs.trace':'trace'}.items():
+        for identity, relative in {'hanim.core':'hanim/core', 'mlibs.geom':'geom', 'mlibs.memory':'memory', 'mlibs.utils':'utils'}.items():
             manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules/base'/relative))+' }\n'
         (project/'mcpp.toml').write_text(manifest)
         shutil.copyfile(repo/'tools/ci/hanim-api-probe/src/main.cpp',project/'src/main.cpp')

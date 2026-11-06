@@ -48,8 +48,6 @@ sources = ["src/platform/none/*.cppm", "src/native/none/*.cpp"]
 openmui.core     = { path = "../core" }
 openmui.view     = { path = "../view" }
 openmui.semantic = { path = "../semantic" }
-mlibs.hash     = { path = "../../base/hash" }
-mlibs.trace    = { path = "../../base/trace" }
+mlibs.utils     = { path = "../../base/utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }

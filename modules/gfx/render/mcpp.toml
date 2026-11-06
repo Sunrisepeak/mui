@@ -24,8 +24,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.rhi   = { path = "../rhi" }
-mlibs.trace = { path = "../../base/trace" }
+mlibs.utils = { path = "../../base/utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }
 mlibs.memory  = { path = "../../base/memory" }

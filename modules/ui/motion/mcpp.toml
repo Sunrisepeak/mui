@@ -26,12 +26,11 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.math          = { path = "../../base/math" }
-mlibs.hash          = { path = "../../base/hash" }
+mlibs.utils          = { path = "../../base/utils" }
 mlibs.geom          = { path = "../../base/geom" }
 "hanim.core" = { path = "../../base/hanim/core" }
 "hanim" = { path = "../../gfx/hanim", default-features = false, features = ["object"] }
 xengine.render.vector = { path = "../../gfx/render/vector" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }
 mlibs.raster  = { path = "../../gfx/raster" }

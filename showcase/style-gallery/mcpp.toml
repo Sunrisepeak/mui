@@ -35,4 +35,4 @@ mlibs.math         = { path = "../../modules/base/math" }
 mcpplibs.os          = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }
+mlibs.utils = { path = "../../modules/base/utils" }

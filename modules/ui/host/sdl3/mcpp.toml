@@ -32,7 +32,7 @@ mlibs.raster   = { path = "../../../gfx/raster" }
 xengine.render.vector   = { path = "../../../gfx/render/vector" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
-mlibs.trace    = { path = "../../../base/trace" }
+mlibs.utils    = { path = "../../../base/utils" }
 # Quoted: as dotted keys of one table, `mlibs.rhi.sdl` would extend the
 # inline table `mlibs.rhi`, which TOML forbids.
 "mlibs.rhi"         = { path = "../../../gfx/rhi" }
@@ -42,4 +42,3 @@ mcpplibs.os      = "0.2.2"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../base/testing" }

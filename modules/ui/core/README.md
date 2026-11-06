@@ -5,7 +5,7 @@ The foundation of the openmui runtime (module `openmui.core`):
 | Partition | Contents |
 |---|---|
 | `:base` | the spec's value types (`Value`, `Rect`, `Role`, `Effect` …) and `seconds` from hanim |
-| `:diag` | Thin compatibility export of independent [openmui.log](../../base/log): `info` / `warn` / `error`, `std::source_location`, `invariant`, sinks and history |
+| `:diag` | Thin compatibility export of independent [mlibs.log](../../base/utils/src/log/README.md): `info` / `warn` / `error`, `std::source_location`, `invariant`, sinks and history |
 | `:signal` | `Signal`, `Computed`, `Watch`, `batch`, `untracked`: push-stale, pull-fresh, glitch-free |
 | `:verb` | `Verbs`: named operations with effects; S-1 enforced at registration, S-2 `needs-answer` at invocation; a journal |
 | `:access` | UI compatibility adapters and Value serialization over independent [mlibs.control](../../base/control); policy, session and openas decisions have one owner |

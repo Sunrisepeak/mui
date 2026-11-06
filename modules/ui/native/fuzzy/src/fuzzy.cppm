@@ -1,4 +1,5 @@
-// openmui.native.fuzzy — openmui.fuzzy for scripts (component-binding §8).
+// openmui.native.fuzzy — fuzzy matching (:matching, omui::fuzzy) for C++ and
+// for scripts (component-binding §8).
 //
 //     (void)omui::natives::fuzzy::define();   // a host, once, before scripts run
 //
@@ -9,4 +10,5 @@
 // into :fuzzy_native; this package only implements it.
 export module openmui.native.fuzzy;
 
+export import :matching;
 export import :fuzzy_native;

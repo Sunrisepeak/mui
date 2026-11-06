@@ -22,10 +22,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
-mlibs.hash = { path = "../../base/hash" }
-mlibs.trace       = { path = "../../base/trace" }
+mlibs.utils = { path = "../../base/utils" }
 mcpplibs.mwrap.md4c = "0.5.3"
 
 [dev-dependencies]
 mlibs.math = { path = "../../base/math" }
-mlibs.testing = { path = "../../base/testing" }

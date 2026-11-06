@@ -18,7 +18,7 @@ openmui.ui.base = { path = {{components_path}} }
 hanim = { path = {{hanim_path}}, features = ["control"] }
 mlibs.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
-mlibs.hash = { path = {{hash_path}} }
+mlibs.utils = { path = {{utils_path}} }
 mcpplibs.os = "0.2.2"
 
 [target.'cfg(os = "emscripten")'.abi]

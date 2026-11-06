@@ -21,10 +21,9 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mlibs.hash = { path = "../../base/hash" }
+mlibs.utils = { path = "../../base/utils" }
 mlibs.geom = { path = "../../base/geom" }
 mlibs.math = { path = "../../base/math" }
 mlibs.memory = { path = "../../base/memory" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }

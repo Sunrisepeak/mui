@@ -19,8 +19,6 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openlifa.openas = "0.2.0"
-mlibs.log = { path = "../log" }
-mlibs.trace = { path = "../trace" }
+mlibs.utils = { path = "../utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../testing" }

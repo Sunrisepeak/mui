@@ -29,4 +29,4 @@ mlibs.i18n     = { path = "../../content/i18n" }
 
 [dev-dependencies]
 mlibs.math = { path = "../../base/math" }
-mlibs.testing = { path = "../../base/testing" }
+mlibs.utils = { path = "../../base/utils" }

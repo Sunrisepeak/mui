@@ -22,4 +22,4 @@ mlibs.shader.rules = { path = "../../../shader/rules", host-module = true }
 [dependencies]
 xengine.simulation.cellular = { path = "../../../../base/simulation/cellular" }
 mlibs.rhi = { path = "../../../rhi" }
-mlibs.trace = { path = "../../../../base/trace" }
+mlibs.utils = { path = "../../../../base/utils" }

@@ -26,8 +26,7 @@ mlibs.shader.rules = { path = "../../shader/rules", host-module = true }
 
 [dependencies]
 mlibs.math = { path = "../../../base/math" }
-mlibs.hash = { path = "../../../base/hash" }
-mlibs.trace = { path = "../../../base/trace" }
+mlibs.utils = { path = "../../../base/utils" }
 xengine.render = { path = ".." }
 mlibs.rhi    = { path = "../../rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
@@ -36,6 +35,5 @@ hanim.core          = { path = "../../../base/hanim/core" }
 mlibs.raster = { path = "../../raster" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../base/testing" }
 mlibs.image   = { path = "../../../base/image" }
 mcpplibs.os     = "0.2.2"

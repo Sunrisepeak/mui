@@ -26,11 +26,10 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 xengine.render.vector = { path = "../vector" }
 mlibs.rhi    = { path = "../../rhi" }
 mlibs.shader = { path = "../../shader" }
-mlibs.trace  = { path = "../../../base/trace" }
+mlibs.utils  = { path = "../../../base/utils" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../base/testing" }
 mlibs.raster  = { path = "../../raster" }
 mlibs.geom    = { path = "../../../base/geom" }
 mlibs.rhi.sdl = { path = "../../rhi/sdl" }

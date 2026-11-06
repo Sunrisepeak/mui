@@ -490,6 +490,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-98 | 影片是程序：影片 = 时间线 + 场景片段，片段用 C++、TypeScript、Python、Lua 写，C++ 的身份片段在浏览器里锁定，脚本片段可改、热加载、只重渲染受影响的帧；时间线、数据、代码三视图双向同步；完整影片在浏览器里实时渲染，帧准确、速率自适应（同上 §4.1） |
 | D-99 | 包粒度按独立库／产品及必要隔离判断：内部小能力默认在同一包的`src/<职责>/`用目录／模块分区组织，不为一个文件或几百行实现机械新建`mcpp.toml`。初期较小但明确独立的库，以及必要的依赖／平台／工具链／许可／构建阶段隔离可例外，需有消费者与收益依据；既有包迁移保持公开入口、裁剪与独立使用。修订§6及D-41的目录粒度解释，详见[核心准则 §5.1](2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断) |
 | D-100 | 命名按产品职责归属：openmui 专属 UI 协议／规范，UI 框架与组件／宿主用 omui，具名产品用自身名字（hanim 等），通用基础库用 mlibs，尚未独立命名的领域引擎用 xengine。新增实现立即按新归属；既有包／module／namespace按依赖顺序迁移并验证兼容，不连带改协议字段、schema、数据后缀或第三方身份。命名空间不等于统一大伞包，也不增加拆包理由；[映射与迁移](2026-11-05-product-namespace-migration-design.md)修订旧全仓openmui实现前缀约定 |
+| D-101 | 层级由 lint 的“路径前缀 → 层”映射表判定（名字表示归属、目录表示分组，收敛方案 §9.2），表中同时包含现有目录和 M1 的目标目录。与领域无关的小工具合为一个包 `mlibs.utils`（`modules/base/utils`，hash、log、trace、testing 各一个目录，模块名不变）。**每个工具都编译，不按工具设 feature**：实测 mcpp 2026.11.2.2 对同一包的不同 feature 组合会重新编译它和所有导入者，而不同命令选中的成员不同，按工具设 feature 会让整张图反复重编；这几项都只依赖标准库、体量小。`mlibs.testing` 随 utils 提供，由 lint `testing` 保证只在 `tests/` 中导入，因此不进入任何产物。只有一个消费者的 `mlibs.fuzzy` 并入 `openmui.native.fuzzy`（`:matching`，`omui::fuzzy`）。验证命名迁移新旧名字的 `tools/ci/foundation-migration` 退役（M1 删除旧名字）；它的依赖闭包检查改为 lint `closure`（按包身份） |
 
 ---
 

@@ -23,7 +23,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-mlibs.hash = { path = "../../modules/base/hash" }
+mlibs.utils = { path = "../../modules/base/utils" }
 openmui.core     = { path = "../../modules/ui/core" }
 openmui.view     = { path = "../../modules/ui/view" }
 mlibs.markdown = { path = "../../modules/content/markdown" }
@@ -32,5 +32,4 @@ mlibs.markdown = { path = "../../modules/content/markdown" }
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mlibs.testing       = { path = "../../modules/base/testing" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }

@@ -32,6 +32,6 @@ xengine.render.vector = { path = "../../modules/gfx/render/vector" }
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
-mlibs.testing       = { path = "../../modules/base/testing" }
+mlibs.utils       = { path = "../../modules/base/utils" }
 openmui.host.headless = { path = "../../modules/ui/host/headless" }
 openmui.semantic      = { path = "../../modules/ui/semantic" }

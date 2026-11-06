@@ -31,8 +31,7 @@ gongfu.present2d = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
 mlibs.raster   = { path = "../../../modules/gfx/raster" }
 mlibs.image    = { path = "../../../modules/base/image" }
-mlibs.hash     = { path = "../../../modules/base/hash" }
+mlibs.utils     = { path = "../../../modules/base/utils" }
 xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../modules/base/testing" }

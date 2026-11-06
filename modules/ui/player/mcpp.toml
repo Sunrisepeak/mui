@@ -26,9 +26,8 @@ openmui.view    = { path = "../view" }
 openmui.viewdoc = { path = "../viewdoc" }
 openmui.abi     = { path = "../abi" }
 openmui.theme   = { path = "../theme" }
-mlibs.trace   = { path = "../../base/trace" }
+mlibs.utils   = { path = "../../base/utils" }
 
 [dev-dependencies]
-mlibs.testing       = { path = "../../base/testing" }
 openmui.ui.base       = { path = "../../../components/base" }
 openmui.host.headless = { path = "../host/headless" }

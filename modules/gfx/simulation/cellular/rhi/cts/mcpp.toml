@@ -20,4 +20,4 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "xengine.simulation.cellular" = { path = "../../../../../base/simulation/cellular" }
 "xengine.simulation.cellular.rhi" = { path = ".." }
 mlibs.rhi = { path = "../../../../rhi" }
-mlibs.hash = { path = "../../../../../base/hash" }
+mlibs.utils = { path = "../../../../../base/utils" }

@@ -11,6 +11,17 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | Convergence plan, AGENTS.md rewrite, STATUS | done (this checkpoint) |
 | `mcpp.lock` untracked and ignored; `site.sh` without `--locked` | done |
 | CI red list below | in progress |
+| CI: a run in progress is not cancelled by a newer push (the x64 rows need ~1 h 50 min; 75655b7's were cancelled minutes before finishing) | done |
+
+## M1 — structure and naming (started beside M0's last red items)
+
+| Step | State |
+|---|---|
+| ① lint path→layer table; `mlibs.utils`; fuzzy into its consumer | this checkpoint (D-101): layers by name from a path-prefix table holding today's and M1's directories; hash, log, trace, testing → `modules/base/utils`, every tool built (a feature per tool recompiled the graph per member selection, measured); lint `testing` (test checks only in `tests/`) and `closure` (render and simulation closures, from the retired `tools/ci/foundation-migration`); `mlibs.fuzzy` → `openmui.native.fuzzy:matching` |
+| ② hanim and xrender into `modules/projects/` | next |
+| ③ xengine | |
+| ④ omui with components, lang, sdk, templates | |
+| ⑤ namespace rename, forwarders removed, lint `legacy-import` | |
 
 ## CI red list
 
@@ -55,4 +66,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 structure and naming (five checkpoints, plan §14): lint path→layer table and `mlibs.utils`; hanim and xrender; xengine; omui with components, lang, sdk, templates; namespace rename and forwarder removal.
+M1 ② (hanim and xrender into `modules/projects/`, raster onto `mlibs.math`, text without the renderer); M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.

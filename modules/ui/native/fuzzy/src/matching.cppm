@@ -1,4 +1,4 @@
-// mlibs.fuzzy.api — fuzzy matching as a finder does it.
+// openmui.native.fuzzy:matching — fuzzy matching as a finder does it.
 //
 //     auto best = fuzzy::rank("mcfg", {"main.cpp", "my_config.toml", "src/mcpp/config.cppm"}, 10);
 //     // my_config.toml (m·c at word starts), then src/mcpp/config.cppm …
@@ -10,11 +10,11 @@
 // uppercase letter matches case exactly (smart case). Words of the query,
 // separated by spaces, must all match. Everything is integer arithmetic over
 // code points: the same input gives the same output on every platform.
-export module mlibs.fuzzy.api;
+export module openmui.native.fuzzy:matching;
 
 import std;
 
-export namespace mlibs::fuzzy {
+export namespace omui::fuzzy {
 
 // A run of the candidate, matched or not: what a view highlights.
 struct Segment {
@@ -52,4 +52,4 @@ inline constexpr std::int32_t consecutive = 4;      // a run continues: at least
 inline constexpr std::int32_t first_multiplier = 2; // the query's first character weighs its bonus twice
 }  // namespace score
 
-}  // namespace mlibs::fuzzy
+}  // namespace omui::fuzzy

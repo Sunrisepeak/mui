@@ -26,6 +26,6 @@ mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
 xengine.simulation.cellular.rhi.cts = { path = "../../simulation/cellular/rhi/cts" }
-mlibs.testing = { path = "../../../base/testing" }
+mlibs.utils = { path = "../../../base/utils" }
 mlibs.rhi.cts = { path = "../cts" }
 mcpplibs.os     = "0.2.2"

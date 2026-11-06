@@ -54,8 +54,7 @@ openmui.theme.styles = { path = "../modules/ui/theme/styles" }
 "openmui.theme"      = { path = "../modules/ui/theme" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 openmui.semantic    = { path = "../modules/ui/semantic" }
-mlibs.trace       = { path = "../modules/base/trace" }
-mlibs.hash        = { path = "../modules/base/hash" }
+mlibs.utils       = { path = "../modules/base/utils" }
 openmui.inspector   = { path = "../tools/inspector" }
 mcpplibs.os         = "0.2.2"
 
@@ -65,5 +64,4 @@ openmui.build.embed     = { path = "../mcpp/embed", host-module = true }
 openmui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
-mlibs.testing = { path = "../modules/base/testing" }
 mlibs.math = { path = "../modules/base/math" }

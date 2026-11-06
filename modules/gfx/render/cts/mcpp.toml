@@ -20,6 +20,5 @@ mlibs.geom = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
 mlibs.raster = { path = "../../raster" }
 mlibs.image = { path = "../../../base/image" }
-mlibs.trace = { path = "../../../base/trace" }
-mlibs.testing = { path = "../../../base/testing" }
+mlibs.utils = { path = "../../../base/utils" }
 mcpplibs.os = "0.2.2"

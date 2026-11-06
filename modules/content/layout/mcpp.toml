@@ -24,4 +24,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.geom = { path = "../../base/geom" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }
+mlibs.utils = { path = "../../base/utils" }

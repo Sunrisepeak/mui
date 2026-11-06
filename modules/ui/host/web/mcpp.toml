@@ -49,9 +49,8 @@ xengine.render.vector = { path = "../../../gfx/render/vector" }
 "mlibs.rhi.webgpu"  = { path = "../../../gfx/rhi/webgpu" }
 "mlibs.rhi.webgl"   = { path = "../../../gfx/rhi/webgl" }
 mlibs.text     = { path = "../../../content/text" }
-mlibs.trace    = { path = "../../../base/trace" }
+mlibs.utils    = { path = "../../../base/utils" }
 mlibs.image    = { path = "../../../base/image" }
 mcpplibs.os      = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../../base/testing" }

@@ -25,10 +25,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 openmui.core  = { path = "../core" }
 openmui.view  = { path = "../view" }
 openmui.expr  = { path = "../expr" }
-mlibs.trace = { path = "../../base/trace" }
+mlibs.utils = { path = "../../base/utils" }
 
 [dev-dependencies]
 mlibs.math = { path = "../../base/math" }
-mlibs.testing       = { path = "../../base/testing" }
 openmui.ui.base       = { path = "../../../components/base" }
 openmui.host.headless = { path = "../host/headless" }

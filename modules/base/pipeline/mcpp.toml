@@ -24,7 +24,6 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-mlibs.trace = { path = "../trace" }
+mlibs.utils = { path = "../utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../testing" }

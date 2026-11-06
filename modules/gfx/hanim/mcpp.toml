@@ -33,12 +33,10 @@ control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/
 [feature-deps.object]
 mlibs.geom = { path = "../../base/geom" }
 mlibs.memory = { path = "../../base/memory" }
-mlibs.log = { path = "../../base/log" }
-mlibs.trace = { path = "../../base/trace" }
+mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.effect]
-mlibs.log = { path = "../../base/log" }
-mlibs.trace = { path = "../../base/trace" }
+mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.render-vector]
 xengine.render.vector = { path = "../render/vector" }
@@ -48,5 +46,5 @@ mlibs.geom = { path = "../../base/geom" }
 mlibs.control = { path = "../../base/control" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }
+mlibs.utils = { path = "../../base/utils" }
 mcpplibs.os = "0.2.2"

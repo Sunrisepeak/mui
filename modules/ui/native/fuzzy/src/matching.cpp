@@ -1,9 +1,9 @@
-module mlibs.fuzzy.api;
+module openmui.native.fuzzy;
 
 import std;
 import mlibs.unicode;
 
-namespace mlibs::fuzzy {
+namespace omui::fuzzy {
 
 namespace {
 
@@ -274,4 +274,4 @@ std::vector<Match> rank(std::string_view query, std::span<const std::string> can
     return all;
 }
 
-}  // namespace mlibs::fuzzy
+}  // namespace omui::fuzzy

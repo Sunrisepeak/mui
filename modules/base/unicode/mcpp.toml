@@ -19,4 +19,4 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
 
 [dev-dependencies]
-mlibs.testing = { path = "../testing" }
+mlibs.utils = { path = "../utils" }

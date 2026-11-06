@@ -24,4 +24,4 @@ mgame.input = { path = "../input" }
 xengine.simulation = { path = "../../modules/base/simulation" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }
+mlibs.utils = { path = "../../modules/base/utils" }

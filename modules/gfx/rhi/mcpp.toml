@@ -22,7 +22,6 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.memory = { path = "../../base/memory" }
-mlibs.hash   = { path = "../../base/hash" }
+mlibs.utils   = { path = "../../base/utils" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../base/testing" }

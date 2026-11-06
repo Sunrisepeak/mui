@@ -32,7 +32,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 "hanim" = { path = "../../modules/gfx/hanim", features = ["render-vector"] }
 openmui.sdk             = { path = "../.." }
 openmui.view            = { path = "../../modules/ui/view", features = ["hanim"] }
-mlibs.trace           = { path = "../../modules/base/trace" }
+mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 openmui.audio           = { path = "../../modules/media/audio" }
 "openmui.timeline"       = { path = "../../modules/media/timeline" }
@@ -51,4 +51,3 @@ openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
 mcpplibs.os           = "0.2.2"
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }

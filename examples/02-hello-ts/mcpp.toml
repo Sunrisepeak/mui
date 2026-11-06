@@ -35,6 +35,6 @@ sources = ["src/*.cpp"]
 openmui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }
+mlibs.utils = { path = "../../modules/base/utils" }
 openmui.player  = { path = "../../modules/ui/player" }
 openmui.lang.js = { path = "../../lang/js" }

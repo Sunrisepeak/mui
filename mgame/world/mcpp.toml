@@ -21,7 +21,6 @@ kind = "lib"
 sources = ["src/*.cppm"]
 
 [dev-dependencies]
-mlibs.testing = { path = "../../modules/base/testing" }
 
 [dependencies]
-mlibs.hash = { path = "../../modules/base/hash" }
+mlibs.utils = { path = "../../modules/base/utils" }

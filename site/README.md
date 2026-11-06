@@ -281,3 +281,11 @@ the entire program. Semantic seek, reversed process samples, keyboard selection
 and the real copy action exercise this public composition. This is a finite
 child repetition; the separate preview loop toggle still controls the whole
 preview. It does not add three entries to the public animation catalog.
+
+
+**Curve tour** follows a closed two-lobe MotionPath with public
+`hanim::anim::follow_path`. Position uses the shared estimated-distance sampler;
+title wobble and button pulse stay independent. The code copied from Details
+uses the same library calls. Native process samples and browser semantic seek
+check both lobes and the return, then exercise real input with the pixel effect.
+No path sampler or per-frame script lives in the scene.

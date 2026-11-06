@@ -541,5 +541,28 @@ int main() {
         }
         check(hengine.destroy_object(*rhythm_object).has_value(),"rhythm_object_release");
     }
+    h::MotionPath route_path;route_path.move_to({0,0}).cubic_to({28,-18},{28,18},{0,0}).cubic_to({-28,-18},{-28,18},{0,0});
+    const auto route_object=hengine.create_object(*da);
+    if(check(bool(route_object),"route_public_object")) {
+        const auto authored_route=anim::follow_path(*route_object,route_path).duration(1200ms);
+        const auto plan=hengine.prepare(h::composite(h::parallel(authored_route,anim::rotate_by(*route_object,.3).duration(1200ms)))
+            .with_effect(h::fx::opacity(1,.5)));
+        if(check(bool(plan),"public_route_prepares_with_independent_channel_and_scope")) {
+            check(plan->route_segment_count()==2,"route_segments_are_inspectable");
+            const auto playback=hengine.play(*plan);
+            if(check(bool(playback),"public_route_playback")) {
+                bool correct=true;
+                for(int i=60;i>=0;--i) {
+                    const double u=i/60.;correct=correct && bool(hengine.seek_progress(*playback,u));
+                    const auto frame=hengine.frame(*playback);const auto point=route_path.point(u);
+                    correct=correct && frame && std::abs(frame->geometry.parts[0].local.tx-point.x)<1e-9 &&
+                        std::abs(frame->geometry.parts[0].local.ty-point.y)<1e-9;
+                }
+                check(correct,"route_reverse_sampling_uses_the_shared_arc_length_path");
+                check(hengine.release(*playback).has_value(),"route_release");
+            }
+        }
+        check(hengine.destroy_object(*route_object).has_value(),"route_object_release");
+    }
     return finish();
 }

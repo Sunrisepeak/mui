@@ -133,3 +133,24 @@ Structured failure includes unprepared/default plans, invalid snapshots or
 frames/options, part/contour/cubic budgets, part-set/hierarchy/ordering/count
 mismatches, missing fills, open/unsupported contours, core preparation failures,
 nonfinite progress, insufficient output and overflowing current transforms.
+
+
+## Immutable translation routes
+
+`TranslationRoute` freezes an owning MotionPath value without accepting a
+caller-owned mutable shared pointer. PropertyTargets::route selects translation
+exclusively against position/offset, while other channels/parts remain independent.
+The same property timeline evaluator samples the route's distance table relative
+to the actual source position, preserving exact selected-channel endpoints.
+Single route bindings lower to that same timeline; a geometry PointPath modifier
+is unsupported in both single and grouped route-property execution.
+
+Preparation requires a nonempty finite continuous path and checks route segment
+budgets before retaining it. A zero-length continuous path is allowed. Every
+selected route counts its segments, including repeated logical uses of shared
+immutable data; `route_segment_count()` exposes this retained count. No route
+storage enters the caller's mutable geometry output. Warm sampling validates
+results before publishing geometry as with other channels. PointPath translation
+modifiers add their endpoint-chord displacement, while image effects remain a
+separate stage. Existing fixed 32-sample arc-length approximation and double
+precision limits apply; no tangent rotation or adaptive accuracy is implied.

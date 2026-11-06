@@ -34,7 +34,7 @@ struct EngineData {
     ObjectRegistry objects;
     EngineLimits limits;
     mlibs::memory::SlotStorage<Playback, PlaybackKey> playbacks;
-    std::size_t parts = 0, cubics = 0, parameters = 0;
+    std::size_t parts = 0, cubics = 0, parameters = 0, routes = 0;
     EngineData(ObjectRegistry registry, EngineLimits budget)
         : objects(std::move(registry)), limits(budget), playbacks(budget.max_playbacks) {}
 };
@@ -158,9 +158,9 @@ std::expected<detail::Playback, EngineFailure> make_playback(PreparedProgram pro
     publish(playback);
     return playback;
 }
-struct Counts { std::size_t parts = 0, cubics = 0, parameters = 0; };
+struct Counts { std::size_t parts = 0, cubics = 0, parameters = 0, routes = 0; };
 Counts counts(const PreparedProgram& program) noexcept {
-    Counts result{.parameters=program.scope_parameter_count()};
+    Counts result{.parameters=program.scope_parameter_count(),.routes=program.route_segment_count()};
     for (const auto& track : program.tracks()) {
         result.parts += track.requirements.parts; result.cubics += track.requirements.cubics;
         result.parameters += track.max_effect_parameters;
@@ -171,12 +171,13 @@ bool within_budget(const detail::EngineData& data, const PreparedProgram& progra
     const auto count = counts(program); const auto old = previous ? counts(previous->program) : Counts{};
     return count.parts <= data.limits.max_total_parts - (data.parts - old.parts) &&
         count.cubics <= data.limits.max_total_cubics - (data.cubics - old.cubics) &&
-        count.parameters <= data.limits.max_total_effect_parameters - (data.parameters - old.parameters);
+        count.parameters <= data.limits.max_total_effect_parameters - (data.parameters - old.parameters) &&
+        count.routes <= data.limits.max_total_route_segments - (data.routes - old.routes);
 }
 void account(detail::EngineData& data, const detail::Playback& playback, bool add) noexcept {
     const auto count = counts(playback.program);
-    if (add) { data.parts += count.parts; data.cubics += count.cubics; data.parameters += count.parameters; }
-    else { data.parts -= count.parts; data.cubics -= count.cubics; data.parameters -= count.parameters; }
+    if (add) { data.parts += count.parts; data.cubics += count.cubics; data.parameters += count.parameters; data.routes += count.routes; }
+    else { data.parts -= count.parts; data.cubics -= count.cubics; data.parameters -= count.parameters; data.routes -= count.routes; }
 }
 std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* data, PreparedProgram program) {
     if (!data) return std::unexpected(fail(EngineError::uninitialized));

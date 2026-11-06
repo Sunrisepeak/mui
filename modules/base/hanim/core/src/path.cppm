@@ -54,6 +54,10 @@ public:
 
     [[nodiscard]] double length() const noexcept { return total_; }
     [[nodiscard]] bool empty() const noexcept { return segments_.empty(); }
+    [[nodiscard]] std::size_t segment_count() const noexcept { return segments_.size(); }
+    [[nodiscard]] bool valid() const noexcept;
+    [[nodiscard]] bool continuous() const noexcept;
+    static constexpr int arc_samples_per_segment = 32;
 
     // Where the path is after the fraction u ∈ [0, 1] of its length, and the
     // direction of travel there (radians, atan2 of the tangent).
@@ -62,16 +66,17 @@ public:
         double angle = 0;
     };
     [[nodiscard]] Pose at(double u) const noexcept;
-    [[nodiscard]] Vec2 point(double u) const noexcept { return at(u).position; }
+    [[nodiscard]] Vec2 point(double u) const noexcept;
 
 private:
-    static constexpr int samples = 32;  // per segment; enough for UI-scale curves
+    static constexpr int samples = arc_samples_per_segment;  // per segment; enough for UI-scale curves
     struct Segment {
         Vec2 p0, c1, c2, p1;            // a line or quadratic is stored as a cubic
         std::array<double, samples + 1> cumulative{};  // arc length at parameter i/samples
         double start = 0;               // arc length before this segment
     };
     void append(Vec2 c1, Vec2 c2, Vec2 p1);
+    [[nodiscard]] std::pair<std::size_t,double> locate(double u) const noexcept;
 
     std::vector<Segment> segments_;
     Vec2   cursor_{};

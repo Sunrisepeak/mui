@@ -182,6 +182,24 @@ int main(int argc,char** argv) {
         const auto save=r.node("stage/scene/composition/card/actions/save");r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
         check(parse_json(r.h.runtime().clipboard_text()).has_value());
     });
+    suite.test("the public distance route follows both closed lobes and composes local image style",[] {
+        Run r;r.details();r.act("details/selection","set_value",Value{}.set("value","route"));
+        r.seek(0);const auto card=r.node("stage/scene/composition/card");const auto initial=r.h.runtime().drawn_bounds(card);
+        hanim::MotionPath path;path.cubic_to({28,-18},{28,18},{0,0}).cubic_to({-28,-18},{-28,18},{0,0});
+        std::vector<std::uint64_t> frames;
+        for(int i=0;i<=60;++i) {
+            r.seek(i/60.);const auto point=path.point(i/60.);const auto bounds=r.h.runtime().drawn_bounds(card);
+            check_near(bounds.x,initial.x+point.x,.1);check_near(bounds.y,initial.y+point.y,.1);frames.push_back(r.pixels());
+            check(r.h.save_png(media()/std::format("route-{:03}.png",i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        }
+        check(frames.front()==frames.back() && frames[15]!=frames[45]);
+        for(int i=60;i>=0;--i){r.seek(i/60.);check(r.pixels()==frames[std::size_t(i)]);}
+        r.act("details/copy");check(r.h.runtime().clipboard_text()==site::component_motion_source("route",true,1));
+        r.act("details/effect","set_value",Value{}.set("value","pixel"));r.seek(.25);check(r.pixels()!=frames[15]);
+        check(r.h.save_png(media()/"route-pixel-quarter.png",r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        const auto save=r.node("stage/scene/composition/card/actions/save");r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
+        check(parse_json(r.h.runtime().clipboard_text()).has_value());
+    });
     suite.test("real input takes over without changing data and the same controls remain agent operable",[] {
         Run r;r.details();r.seek(.5);
         const auto card=r.node("stage/scene/composition/card"),save=r.node("stage/scene/composition/card/actions/save");

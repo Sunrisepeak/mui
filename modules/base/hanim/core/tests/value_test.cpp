@@ -99,5 +99,16 @@ int main(int argc, char** argv) {
         check(i.paused());
     });
 
+    s.test("motion path inspection and position-only evaluation share the arc table", [] {
+        hanim::MotionPath path;path.move_to({3,4}).line_to({13,4}).cubic_to({13,24},{3,24},{3,4});
+        check(path.valid() && path.continuous() && path.segment_count()==2 && path.arc_samples_per_segment==32);
+        for(int i=0;i<=100;++i)check(path.point(i/100.)==path.at(i/100.).position);
+        hanim::MotionPath split;split.line_to({1,0}).move_to({4,0}).line_to({5,0});
+        check(split.valid() && !split.continuous());
+        hanim::MotionPath invalid;invalid.line_to({std::numeric_limits<double>::infinity(),0});check(!invalid.valid());
+        hanim::MotionPath overflowing;overflowing.line_to({1e308,0});check(!overflowing.valid());
+        hanim::MotionPath still;still.move_to({2,3}).line_to({2,3});
+        check(still.valid() && still.continuous() && still.length()==0 && still.point(.5)==hanim::Vec2{2,3});
+    });
     return s.run(argc, argv);
 }

@@ -151,3 +151,13 @@ The separate manifest is intentional: UI motion, the rasterizer and the media
 timeline all directly share this std-plus-math library. Keeping it below the
 product excludes object registries, player, renderer and observability
 dependencies from those consumers; the product re-exports these same entities.
+
+
+`MotionPath` exposes `segment_count()`, `valid()` (finite coordinates and monotone
+finite distance tables) and `continuous()` (no inter-segment position jumps).
+These inspections are cold preparation tools; they do not make the mutable
+builder thread-safe. `point(u)` and `at(u)` share the same distance lookup, but
+position-only consumers do not calculate a tangent heading. The estimate still
+uses 32 chord samples per cubic; it is not an adaptive/exact arc-length solver.
+For Node/Wasm tests that read reference files, select the workspace's existing
+`wasm-test` profile; ordinary browser builds deliberately do not expose host files.

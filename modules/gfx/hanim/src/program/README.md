@@ -124,3 +124,9 @@ Property groups rebase both endpoints and check original-coordinate conflicts;
 no overlap tolerance is introduced. A positive interval lost to time-origin
 conversion is refused explicitly. The compiler's existing trace/diagnostics
 cover this cold work; ordinary prepared sampling remains unchanged.
+
+
+`anim::follow_path` binds an immutable TranslationRoute to the existing property
+channel pipeline. Program preparation counts logical route-segment uses and
+rejects the total over its budget; prepared plans expose the count. Contract 8
+adds route capability/budget metadata without a second compiler or renderer.

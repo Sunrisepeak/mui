@@ -53,6 +53,8 @@ OpenAS 分发边界见[台账 §40](2026-11-05-system-implementation-checkpoints
 
 有限子编排见[台账 §42](2026-11-05-system-implementation-checkpoints-design.md#42-有限子动画重复与串行时间边界)：repeat 只保存一个 child，现有有预算编译器展开迭代并保留次数／iteration 查询；相对源与内外 scope 语义分别明确。串行边界直接传递实际绝对结束时间，属性组同时换算端点且保留原坐标冲突检查，不用 epsilon 掩盖重叠。无限循环和任意时间映射仍未交付。
 
+公共距离路径见[台账 §43](2026-11-05-system-implementation-checkpoints-design.md#43-公共距离路径与本轮收敛交接)：follow_path 复用 MotionPath 的固定采样弧长估计，经不可变 TranslationRoute 进入同一属性通道；提供分层资源预算和真实 UI／Agent 过程验证。精确／自适应弧长、自动朝向、更多空间与完整路径工具仍开放。本轮按维护者要求收敛并交接。
+
 不提供缺少验收分母的总完成百分比。R0–R6、C2–C6、40／20、完整组件默认动效、独立引擎与工具链的目标保留。**本地相关真实验证通过即可继续并提交 PR #1；其他平台 CI 异步反馈，失败按实际影响修复，不作为开始下一项工作的统一等待条件。**
 
 ## 2. 产品边界与共同契约

@@ -898,5 +898,62 @@ int main(int argc,char** argv) {
         const auto overlap=PreparedProgram::prepare(parallel(anim::move_by(f.a,{1,0}),delay(seconds(std::nextafter(1.,0.)),anim::move_by(f.a,{1,0}))));
         check(!overlap && overlap.error().code==ProgramError::binding_conflict,"even one representable step of real overlap remains an error");
     });
+    suite.test("public route follows shared distance samples from the actual stage source",[] {
+        Fixture f;MotionPath path;path.move_to({100,100}).line_to({120,100}).line_to({120,160});
+        const auto authored=anim::follow_path(f.a,path).duration(seconds(2));path.line_to({999,999});
+        const auto plan=take(PreparedProgram::prepare(sequence(anim::move_by(f.a,{5,7}),authored)));
+        check(plan.route_segment_count()==2);Buffer out(plan.tracks()[0]);
+        const auto quarter=out.sample(plan,0,1.5).geometry.parts[0].local;
+        check_near(quarter.tx,25,1e-10);check_near(quarter.ty,7,1e-10);
+        const auto middle=out.sample(plan,0,2).geometry.parts[0].local;
+        check_near(middle.tx,25,1e-10);check_near(middle.ty,27,1e-10);
+        const auto end=out.sample(plan,0,3).geometry.parts[0].local;check(end.tx==25 && end.ty==67);
+        check(out.sample(plan,0,1).geometry.parts[0].local.tx==5);
+    });
+    suite.test("closed routes survive equal endpoints and combine with independent channels and effects",[] {
+        Fixture f;MotionPath loop;loop.move_to({0,0}).cubic_to({30,-20},{30,20},{0,0});
+        const auto route=anim::follow_path(f.a,loop,{.part="shape"});
+        const auto plan=take(PreparedProgram::prepare(composite(parallel(route,anim::rotate_by(f.a,1))).with_effect(fx::opacity(1,.5))));
+        Buffer out(plan.tracks()[0]);const auto before=allocations.load();
+        for(int i=60;i>=0;--i) {
+            const double u=i/60.;const auto frame=out.sample(plan,0,u);const auto point=loop.point(u);
+            check_near(frame.geometry.parts[0].local.tx,point.x,1e-10);check_near(frame.geometry.parts[0].local.ty,point.y,1e-10);
+            check_near(frame.geometry.parts[0].local.rotate,u,1e-10);
+        }
+        check(allocations.load()==before,"route sampling allocates no new storage");
+        check(out.sample(plan,0,.5).geometry.parts[0].local.tx>20);
+        check(out.sample(plan,0,1).geometry.parts[0].local.tx==0);
+        std::array<float,1> values;take(plan.sample_scopes(seconds(.5),values));check(values[0]==.75f);
+        const auto reused=take(PreparedProgram::prepare(repeat(2,route)));check(reused.route_segment_count()==2);
+        Buffer repeated(reused.tracks()[0]);check_near(repeated.sample(reused,0,1.5).geometry.parts[0].local.tx,22.5,1e-8);
+    });
+    suite.test("routes compose the public point modifier and keep part selection and conflicts",[] {
+        Fixture f;auto description=shape(3);description.parts.push_back({.id="child",.parent="shape",.local={.tx=4}});
+        const auto source=take(f.registry.capture(take(f.registry.create(description))));
+        MotionPath path;path.line_to({20,0});
+        const auto plan=take(PreparedProgram::prepare(anim::follow_path(source,path,{.part="child"}).with_effect(fx::translation_path(PointPath::bend(.25)))));
+        Buffer out(plan.tracks()[0]);const auto frame=out.sample(plan,0,.5).geometry;
+        check(frame.parts[0].local.tx==3);check_near(frame.parts[1].local.tx,14,1e-10);check_near(frame.parts[1].local.ty,5,1e-10);
+        const auto vertex=anim::follow_path(f.a,path).with_effect(fx::vertex_path(PointPath::bend(.2)));
+        for(const auto& expression:{Program(vertex),parallel(vertex,anim::rotate_by(f.a,.1))}) {
+            const auto rejected=PreparedProgram::prepare(expression);
+            check(!rejected && rejected.error().animation && rejected.error().animation->code==MorphError::unsupported_property_effect,
+                "route-only translation does not silently accept a geometry deformation in either execution path");
+        }
+        const auto conflict=PreparedProgram::prepare(parallel(anim::follow_path(f.a,path),anim::move_by(f.a,{1,0})));
+        check(!conflict && conflict.error().code==ProgramError::binding_conflict);
+        const auto duplicate=PreparedProgram::prepare(anim::to(f.a,{.offset=Vec2{1,0},.route=TranslationRoute(path)}));
+        check(!duplicate && duplicate.error().animation && duplicate.error().animation->code==MorphError::invalid_property);
+    });
+    suite.test("invalid routes and retained route budgets fail during preparation",[] {
+        Fixture f;MotionPath empty,bad,split,route;bad.line_to({std::numeric_limits<double>::quiet_NaN(),0});
+        split.line_to({1,0}).move_to({3,0}).line_to({4,0});route.line_to({1,0}).line_to({2,0});
+        for(const auto* path:{&empty,&bad,&split})check(!PreparedProgram::prepare(anim::follow_path(f.a,*path)));
+        const auto limited=PreparedProgram::prepare(anim::to(f.a,{.route=TranslationRoute(route)},{.max_route_segments=1}));
+        check(!limited && limited.error().animation && limited.error().animation->code==MorphError::route_budget);
+        const auto retained=PreparedProgram::prepare(repeat(2,anim::follow_path(f.a,route)),{.max_total_route_segments=3});
+        check(!retained && retained.error().code==ProgramError::route_budget);
+        check(PreparedProgram::prepare(anim::follow_path(f.a,route),{.max_total_route_segments=2}).has_value());
+    });
     return suite.run(argc,argv);
 }

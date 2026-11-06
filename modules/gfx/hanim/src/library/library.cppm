@@ -12,6 +12,7 @@ struct MorphOptions {
     std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;
     ShapeMorphOptions shape;
     PointPath translation_path; // each part's local tx/ty, not its geometry or parent
+    std::size_t max_route_segments = 4096;
 };
 // A typed partial target for one part. Empty part selects the object's unique
 // root, never a magic id. Positions are in the parent's coordinate system;
@@ -19,6 +20,16 @@ struct MorphOptions {
 // the part's local origin. Unspecified properties and descendants stay intact.
 // position and offset are exclusive. offset uses the actual segment source,
 // including a preceding animation's endpoint or a retarget's current pose.
+// Owns an immutable copy of the existing arc-length path, cheaply reusable in
+// descriptions. No caller-held mutable shared pointer can alias this storage.
+class TranslationRoute {
+public:
+    explicit TranslationRoute(MotionPath path) : path_(std::make_shared<const MotionPath>(std::move(path))) {}
+    [[nodiscard]] const MotionPath* path() const & noexcept { return path_.get(); }
+    const MotionPath* path() const && = delete;
+private:
+    std::shared_ptr<const MotionPath> path_;
+};
 struct PropertyTargets {
     std::optional<Vec2> position, offset;
     std::optional<double> rotation;
@@ -29,6 +40,8 @@ struct PropertyTargets {
     // and relative forms of the same channel are mutually exclusive.
     std::optional<double> rotation_offset;
     std::optional<Vec2> scale_factor;
+    // Relative to the actual source position: path(u) - path(0).
+    std::optional<TranslationRoute> route;
 };
 // One atomic animation may target several parts and independent properties.
 // Duplicate writes to a part/channel are errors, never implicit last-wins.
@@ -54,6 +67,8 @@ struct PropertyChannelInfo {
     Ease easing = ease::linear;
     PointPath translation_path;
     bool source_snapshot = false;
+    std::optional<TranslationRoute> route;
+    Vec2 route_origin;
 };
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
@@ -61,7 +76,7 @@ enum class MorphError : std::uint8_t {
     hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
     missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
     output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict,
-    invalid_time, invalid_ease, channel_budget, unsupported_property_effect
+    invalid_time, invalid_ease, channel_budget, unsupported_property_effect, route_budget
 };
 [[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
 struct MorphFailure {
@@ -138,6 +153,7 @@ public:
     [[nodiscard]] seconds timeline_duration() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] FrameRequirements requirements() const noexcept;
+    [[nodiscard]] std::size_t route_segment_count() const noexcept;
     [[nodiscard]] std::span<const MorphPartInfo> parts() const & noexcept;
     std::span<const MorphPartInfo> parts() const && = delete;
     [[nodiscard]] std::span<const MorphContourInfo> contours() const & noexcept;

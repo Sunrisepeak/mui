@@ -448,3 +448,61 @@ these fields and preserves existing enum values. For headless review, sample
 inside every iteration and around its boundaries, then seek backwards through
 the same times. The website note's “Three steps and back” combines repeat with
 independent part feedback, image effects and real editable UI using this API.
+
+
+## Following a shared distance path
+
+```cpp
+using namespace std::chrono_literals;
+hanim::MotionPath path;
+path.move_to({0,0}).cubic_to({28,-18},{28,18},{0,0})
+    .cubic_to({-28,-18},{-28,18},{0,0});
+auto travel = hanim::anim::follow_path(object, std::move(path))
+    .duration(1200ms).easing(hanim::ease::in_out_sine);
+auto animation = hanim::composite(travel).with_effect(hanim::fx::opacity(1, .7));
+auto playback = hengine.play(animation); // Check the expected result.
+```
+
+`follow_path` consumes the existing `hanim::MotionPath` distance lookup, without
+lowering the curve to timed straight-line waypoints or adding a page sampler.
+The selected root or named part moves by `path(u) - path(0)` from its actual
+stage source, in its parent's coordinate system. Use the optional
+`FollowPathOptions::part` for a child. Position is the only claimed channel;
+rotation, scale, other parts and image scopes can be independently composed.
+Closed routes work even when their endpoints coincide. This does not rename
+objects, change UI state, orient an object to the tangent, or perform pathfinding.
+
+`MotionPath` uses its existing **32 chord samples per cubic segment** to estimate
+arc length. Linear ease gives approximately uniform local-distance motion;
+nonlinear ease changes that distance progression, and parent transforms can
+change world-space speed. This is not exact arc length, an adaptive error-bound
+solver, or a universal high-precision representation. Existing `at(u)` still
+provides position and heading; position-only sampling shares its lookup and
+avoids calculating an unused heading.
+
+A `TranslationRoute` owns an immutable copy and can be shared across multiple
+bound animations through the overload taking that type. Ordinary MotionPath
+arguments are frozen when the descriptor is created; later caller edits do not
+change it. The low-level `PropertyTargets::route` is mutually exclusive with
+position/offset. Empty, nonfinite or disconnected paths are refused at prepare;
+continuous zero-length paths are valid stationary routes. Translation PointPath
+modifiers add their existing endpoint-chord displacement to the route; closed
+endpoint chords therefore have no bend displacement. Geometry deformation
+modifiers are refused consistently by single-route and grouped property plans.
+Image effects continue through their normal scope pipeline.
+
+`MorphOptions::max_route_segments`, `ProgramLimits::max_total_route_segments`
+and `EngineLimits::max_total_route_segments` bound retained route uses at their
+respective levels. Counts are conservative logical uses, not unique allocation
+bytes: sharing a frozen path does not bypass a budget. Zero disables routes at
+that level. `route_segment_count()` on prepared object/program plans exposes
+this cost; Engine play/retarget/release account for it transactionally. Preparing
+and authoring may allocate; warmed route sampling uses immutable tables and
+caller-provided buffers. Prepared program contract version is 8; rebuild module
+consumers. No UI, renderer or additional package becomes a mandatory dependency.
+
+For review, sample multiple intermediate times and both closed lobes, then seek
+backwards. The website note's “Curve tour” uses this public API with separately
+animated parts, image style and real input. Core reference tests that read files
+use `mcpp test -p hanim.core --target wasm32-emscripten --profile wasm-test`;
+this Node-only test profile is separate from the site's publishing profile.

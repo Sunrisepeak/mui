@@ -22,6 +22,7 @@ struct ProgramData {
     std::vector<PreparedScope> scopes;
     std::size_t scope_parameters = 0;
     std::size_t property_channels = 0;
+    std::size_t route_segments = 0;
     seconds duration{0};
 };
 }
@@ -41,7 +42,7 @@ ProgramFailure effect_failure(EffectError error, std::size_t node, std::size_t t
 bool valid_limits(ProgramLimits limits) noexcept {
     return limits.max_nodes && limits.max_nodes<=65536 && limits.max_depth && limits.max_depth<=256 &&
         limits.max_tracks && limits.max_tracks<=65536 && limits.max_segments && limits.max_segments<=65536 &&
-        limits.max_total_parts && limits.max_scopes<=65536 && limits.max_total_property_channels<=(1u<<20);
+        limits.max_total_parts && limits.max_scopes<=65536 && limits.max_total_property_channels<=(1u<<20) && limits.max_total_route_segments<=(1u<<20);
 }
 std::optional<ProgramError> invalid_options(SegmentOptions options) noexcept {
     if (!std::isfinite(options.duration.count()) || options.duration.count()<0) return ProgramError::invalid_time;
@@ -272,7 +273,7 @@ PropertySchedule schedule_groups(std::vector<Leaf> input) {
     return result;
 }
 std::uint8_t property_mask(const PropertyTargets& target) {
-    return static_cast<std::uint8_t>((target.position || target.offset?1:0) | (target.rotation || target.rotation_offset?2:0) |
+    return static_cast<std::uint8_t>((target.position || target.offset || target.route?1:0) | (target.rotation || target.rotation_offset?2:0) |
         (target.scale || target.scale_factor?4:0) | (target.fill?8:0));
 }
 std::string_view part_name(const Leaf& leaf,const PropertyTargets& target) {
@@ -375,12 +376,15 @@ std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSeg
     const auto count=segment.animation.requirements();const auto params=segment.effects.parameter_count();
     const auto index=data.segments.size();
     const auto channels=segment.animation.channels().size();
+    const auto routes=segment.animation.route_segment_count();
+    if(routes>limits.max_total_route_segments-data.route_segments)
+        return std::unexpected(failure(ProgramError::route_budget,segment.node,segment.track,index));
     if(channels>limits.max_total_property_channels-data.property_channels)
         return std::unexpected(failure(ProgramError::channel_budget,segment.node,segment.track,index));
     if(count.parts>limits.max_total_parts-parts)return std::unexpected(failure(ProgramError::part_budget,segment.node,segment.track,index));
     if(count.cubics>limits.max_total_cubics-cubics)return std::unexpected(failure(ProgramError::cubic_budget,segment.node,segment.track,index));
     if(params>limits.max_total_effect_parameters-parameters)return std::unexpected(failure(ProgramError::effect_parameter_budget,segment.node,segment.track,index));
-    parts+=count.parts;cubics+=count.cubics;parameters+=params;data.property_channels+=channels;
+    parts+=count.parts;cubics+=count.cubics;parameters+=params;data.property_channels+=channels;data.route_segments+=routes;
     auto& track=data.tracks[segment.track];
     track.requirements.parts=std::max(track.requirements.parts,count.parts);
     track.requirements.contours=std::max(track.requirements.contours,count.contours);
@@ -444,6 +448,7 @@ std::string_view program_error_name(ProgramError error) noexcept {
         case ProgramError::invalid_limits:return "invalid-limits";
         case ProgramError::empty_program:return "empty-program";
         case ProgramError::invalid_repeat:return "invalid-repeat";
+        case ProgramError::route_budget:return "route-budget";
         case ProgramError::invalid_snapshot:return "invalid-snapshot";
         case ProgramError::invalid_source:return "invalid-source";
         case ProgramError::invalid_time:return "invalid-time";
@@ -582,6 +587,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedOb
     if(!added)return std::unexpected(added.error());
     PreparedProgram result;result.data_=std::move(data);return result;
 }
+std::size_t PreparedProgram::route_segment_count() const noexcept {return data_?data_->route_segments:0;}
 seconds PreparedProgram::duration() const noexcept {return data_?data_->duration:seconds(0);}
 std::span<const ProgramTrack> PreparedProgram::tracks() const & noexcept {return data_?std::span<const ProgramTrack>(data_->tracks):std::span<const ProgramTrack>{};}
 std::span<const PreparedSegment> PreparedProgram::segments() const & noexcept {return data_?std::span<const PreparedSegment>(data_->segments):std::span<const PreparedSegment>{};}

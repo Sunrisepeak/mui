@@ -23,6 +23,7 @@ struct ObjectMorphData {
     std::vector<PropertyEndpoints> channel_values;
     std::vector<ChannelRun> channel_runs;
     seconds timeline_duration{0};
+    std::size_t route_segments=0;
 };
 }
 namespace hanim {
@@ -46,7 +47,7 @@ bool valid(MorphOptions options) noexcept {
     return options.max_parts && options.max_parts <= (1u<<16) &&
         options.max_contours && options.max_contours <= (1u<<16) &&
         options.max_cubics && options.max_cubics <= (1u<<20) &&
-        options.shape.point_path.valid() && options.translation_path.valid();
+        options.shape.point_path.valid() && options.translation_path.valid() && options.max_route_segments<=(1u<<20);
 }
 struct CurveInput { ShapeContour view; std::vector<ShapeSegment> owned; };
 struct PartInput {
@@ -77,18 +78,25 @@ struct PropertyIndex {
 };
 struct PropertyWrite { std::size_t part; std::uint8_t mask; const PropertyTargets* target; };
 std::expected<std::vector<PropertyWrite>,MorphFailure> resolve_properties(
-    const PropertyIndex& index,std::span<const PropertyTargets> targets) {
+    const PropertyIndex& index,std::span<const PropertyTargets> targets,std::size_t route_budget) {
     if(targets.empty() || targets.size()>index.input.parts.size()*4)
         return std::unexpected(failure(MorphError::invalid_property));
     std::vector<std::uint8_t> masks(index.input.parts.size(),0);
     std::vector<PropertyWrite> writes;writes.reserve(targets.size());
     for(const auto& values:targets) {
-        if((values.position && values.offset) || (values.rotation && values.rotation_offset) || (values.scale && values.scale_factor) ||
-            (!values.position && !values.offset && !values.rotation && !values.rotation_offset && !values.scale && !values.scale_factor && !values.fill))
+        if((values.position && values.offset) || (values.route && (values.position || values.offset)) || (values.rotation && values.rotation_offset) || (values.scale && values.scale_factor) ||
+            (!values.position && !values.offset && !values.route && !values.rotation && !values.rotation_offset && !values.scale && !values.scale_factor && !values.fill))
             return std::unexpected(failure(MorphError::invalid_property));
+        if(values.route) {
+            const auto* path=values.route->path();
+            if(!path || path->empty())return std::unexpected(failure(MorphError::invalid_property));
+            if(path->segment_count()>route_budget)return std::unexpected(failure(MorphError::route_budget));
+            route_budget-=path->segment_count();
+            if(!path->valid() || !path->continuous())return std::unexpected(failure(MorphError::invalid_property));
+        }
         const auto part=index.find(values.part);
         if(part==none)return std::unexpected(failure(MorphError::unknown_part));
-        const auto mask=static_cast<std::uint8_t>((values.position || values.offset?1:0) |
+        const auto mask=static_cast<std::uint8_t>((values.position || values.offset || values.route?1:0) |
             (values.rotation || values.rotation_offset?2:0) | (values.scale || values.scale_factor?4:0) | (values.fill?8:0));
         if(masks[part]&mask)return std::unexpected(failure(MorphError::property_conflict,part));
         masks[part]|=mask;writes.push_back({part,mask,&values});
@@ -98,6 +106,10 @@ std::expected<std::vector<PropertyWrite>,MorphFailure> resolve_properties(
 std::expected<PartPose,MorphFailure> apply_property(PartPose pose,const PropertyTargets& values,std::size_t part) {
     if(values.position){pose.local.tx=values.position->x;pose.local.ty=values.position->y;}
     if(values.offset){pose.local.tx+=values.offset->x;pose.local.ty+=values.offset->y;}
+    if(values.route) {
+        const auto* path=values.route->path();const auto first=path->point(0),last=path->point(1);
+        pose.local.tx+=last.x-first.x;pose.local.ty+=last.y-first.y;
+    }
     if(values.rotation)pose.local.rotate=*values.rotation;
     if(values.rotation_offset)pose.local.rotate+=*values.rotation_offset;
     if(values.scale){pose.local.sx=values.scale->x;pose.local.sy=values.scale->y;}
@@ -137,9 +149,17 @@ std::expected<detail::PropertyValue,MorphFailure> sample_channel(
     if(!std::isfinite(eased))return std::unexpected(channel_failure(MorphError::invalid_ease,info));
     const double u=std::clamp(eased,0.,1.);detail::PropertyValue result;
     switch(info.channel) {
-        case PropertyChannel::translation:
-            result.vector=info.translation_path.linear()?lerp(values.from.vector,values.to.vector,u)
-                :info.translation_path.interpolate(values.from.vector,values.to.vector,u);break;
+        case PropertyChannel::translation: {
+            const auto straight=lerp(values.from.vector,values.to.vector,u);
+            const auto modified=info.translation_path.linear()?straight:info.translation_path.interpolate(values.from.vector,values.to.vector,u);
+            result.vector=modified;
+            if(info.route && u>0 && u<1) {
+                const auto point=info.route->path()->point(u);
+                result.vector={values.from.vector.x+(point.x-info.route_origin.x)+(modified.x-straight.x),
+                    values.from.vector.y+(point.y-info.route_origin.y)+(modified.y-straight.y)};
+            }
+            break;
+        }
         case PropertyChannel::rotation:result.scalar=lerp(values.from.scalar,values.to.scalar,u);break;
         case PropertyChannel::scale:result.vector=lerp(values.from.vector,values.to.vector,u);break;
         case PropertyChannel::fill:result.color=lerp(values.from.color,values.to.color,u);break;
@@ -308,10 +328,17 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
     omui::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
     return result;
 }
+std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compile_timeline(
+    Input,std::span<const PropertyClip>,MorphOptions,PropertyTimelineLimits);
 std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
 compile_properties(Input from, std::span<const PropertyTargets> targets, MorphOptions options) {
-    const PropertyIndex index(from);const auto writes=resolve_properties(index,targets);
+    const PropertyIndex index(from);const auto writes=resolve_properties(index,targets,options.max_route_segments);
     if(!writes)return std::unexpected(writes.error());
+    if(std::ranges::any_of(targets,[](const auto& value){return value.route.has_value();})) {
+        if(!options.shape.point_path.linear())return std::unexpected(failure(MorphError::unsupported_property_effect));
+        PropertyClip clip;clip.targets.assign(targets.begin(),targets.end());clip.options=options;
+        return compile_timeline(std::move(from),std::span(&clip,1),options,{});
+    }
     Input to=from;
     for(const auto& write:*writes) {
         auto& part=to.parts[write.part];const auto applied=apply_property({part.local,part.fill},*write.target,write.part);
@@ -339,6 +366,7 @@ std::expected<MorphOptions,MorphFailure> timeline_options(std::span<const Proper
         if(!o.shape.point_path.linear())return refuse(MorphError::unsupported_property_effect);
         result.max_parts=std::min(result.max_parts,o.max_parts);result.max_contours=std::min(result.max_contours,o.max_contours);
         result.max_cubics=std::min(result.max_cubics,o.max_cubics);
+        result.max_route_segments=std::min(result.max_route_segments,o.max_route_segments);
         result.shape.max_input_segments=std::min(result.shape.max_input_segments,o.shape.max_input_segments);
         result.shape.max_output_segments=std::min(result.shape.max_output_segments,o.shape.max_output_segments);
         result.shape.arc_samples=std::max(result.shape.arc_samples,o.shape.arc_samples);
@@ -360,7 +388,7 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
     for(const auto clip_index:order) {
         const auto& clip=clips[clip_index];
         data->timeline_duration=std::max(data->timeline_duration,clip.start+clip.duration);
-        const auto writes=resolve_properties(index,clip.targets);
+        const auto writes=resolve_properties(index,clip.targets,options.max_route_segments-data->route_segments);
         if(!writes){auto e=writes.error();e.clip=clip_index;return std::unexpected(e);}
         for(const auto& write:*writes) {
             const auto& part=source.parts[write.part];PartPose from{part.local,part.fill};
@@ -386,12 +414,17 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
             }
             const auto to=apply_property(from,*write.target,write.part);
             if(!to){auto e=to.error();e.clip=clip_index;return std::unexpected(e);}
+            if(write.target->route)data->route_segments+=write.target->route->path()->segment_count();
             for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
                 const auto key=write.part*4+c;const auto channel=static_cast<PropertyChannel>(c);
                 PropertyChannelInfo info{write.part,clip_index,channel,clip.start,clip.duration,
                     clip.anchor_source || (!clip.source && last[key]!=none)};
                 info.easing=clip.easing;
-                if(channel==PropertyChannel::translation)info.translation_path=clip.options.translation_path;
+                if(channel==PropertyChannel::translation) {
+                    info.translation_path=clip.options.translation_path;
+                    info.route=write.target->route;
+                    if(info.route)info.route_origin=info.route->path()->point(0);
+                }
                 info.source_snapshot=clip.source.has_value();
                 if(data->channels.size()>=limits.max_channels)return std::unexpected(channel_failure(MorphError::channel_budget,info));
                 last[key]=data->channels.size();data->channels.push_back(info);
@@ -443,6 +476,7 @@ std::string_view morph_error_name(MorphError error) noexcept {
         case MorphError::property_conflict:return "property-conflict";
         case MorphError::invalid_time:return "invalid-time";case MorphError::invalid_ease:return "invalid-ease";
         case MorphError::channel_budget:return "channel-budget";case MorphError::unsupported_property_effect:return "unsupported-property-effect";
+        case MorphError::route_budget:return "route-budget";
     }
     return "unprepared";
 }
@@ -500,6 +534,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
     PreparedObjectMorph result;result.source_=current.source_object;result.revision_=current.source_revision;
     result.data_=std::move(*compiled);return result;
 }
+std::size_t PreparedObjectMorph::route_segment_count() const noexcept {return data_?data_->route_segments:0;}
 FrameRequirements PreparedObjectMorph::requirements() const noexcept {
     return data_ ? FrameRequirements{data_->parts.size(),data_->contours.size(),data_->cubic_count} : FrameRequirements{};
 }

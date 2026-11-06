@@ -39,6 +39,7 @@ struct EngineLimits {
     std::size_t max_total_parts = 65536;
     std::size_t max_total_cubics = 1048576;
     std::size_t max_total_effect_parameters = 65536;
+    std::size_t max_total_route_segments = 65536;
 };
 struct PlaybackInfo {
     PlaybackRef ref;

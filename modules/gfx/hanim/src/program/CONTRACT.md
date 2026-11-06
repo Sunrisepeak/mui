@@ -1,4 +1,4 @@
-# Program contract v7: retained author graphs, channels, scopes and finite iteration
+# Program contract v8: retained author graphs, channels, scopes and finite iteration
 
 Program is immutable shared input data. Builders bind owned snapshots and return
 new values without changing a registry, starting time, rendering or invoking
@@ -258,3 +258,14 @@ property library retains its validation and detailed diagnostics; a locally
 rounded result cannot erase an original conflict. No epsilon widens the set of
 allowed overlapping writes. Ordinary double precision still applies; this is
 not a new exact-time format or a claim of bitwise equivalence across all origins.
+
+
+## Route storage accounting (contract 8)
+
+Route properties claim the translation channel, with the same conflicts,
+source chaining, iteration and image scopes as other properties. Prepared object
+plans report retained route-segment uses; Program accounts these across segments
+and enforces max_total_route_segments before publishing. The count is exposed by
+route_segment_count(), and the appended route-budget error identifies aggregate
+capacity refusal. Existing kind/error values remain stable. A library-level
+route budget remains a typed animation error. Module consumers rebuild.

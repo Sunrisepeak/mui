@@ -95,8 +95,7 @@ void MotionPath::append(Vec2 c1, Vec2 c2, Vec2 p1) {
     cursor_ = p1;
 }
 
-MotionPath::Pose MotionPath::at(double u) const noexcept {
-    if (segments_.empty()) return {cursor_, 0};
+std::pair<std::size_t,double> MotionPath::locate(double u) const noexcept {
     double target = dm::clamp(u, 0.0, 1.0) * total_;
     auto it = std::ranges::upper_bound(segments_, target, {}, &Segment::start);
     const Segment& s = it == segments_.begin() ? segments_.front() : *(it - 1);
@@ -108,8 +107,38 @@ MotionPath::Pose MotionPath::at(double u) const noexcept {
     double l0 = s.cumulative[i - 1], l1 = s.cumulative[i];
     double frac = l1 > l0 ? (local - l0) / (l1 - l0) : 0.0;
     double t = (static_cast<double>(i - 1) + dm::clamp(frac, 0.0, 1.0)) / samples;
-    Vec2 tan = cubic_tangent(s.p0, s.c1, s.c2, s.p1, t);
-    return {cubic_point(s.p0, s.c1, s.c2, s.p1, t), dm::atan2(tan.y, tan.x)};
+    return {static_cast<std::size_t>(&s-segments_.data()),t};
+}
+
+MotionPath::Pose MotionPath::at(double u) const noexcept {
+    if(segments_.empty())return {cursor_,0};
+    const auto [index,t]=locate(u);const auto& s=segments_[index];
+    const auto tangent=cubic_tangent(s.p0,s.c1,s.c2,s.p1,t);
+    return {cubic_point(s.p0,s.c1,s.c2,s.p1,t),dm::atan2(tangent.y,tangent.x)};
+}
+Vec2 MotionPath::point(double u) const noexcept {
+    if(segments_.empty())return cursor_;
+    const auto [index,t]=locate(u);const auto& s=segments_[index];
+    return cubic_point(s.p0,s.c1,s.c2,s.p1,t);
+}
+bool MotionPath::valid() const noexcept {
+    auto finite=[](Vec2 p){return std::isfinite(p.x) && std::isfinite(p.y);};
+    if(!finite(cursor_) || !finite(subpath_start_) || !std::isfinite(total_) || total_<0)return false;
+    double end=0;
+    for(const auto& s:segments_) {
+        if(!finite(s.p0) || !finite(s.c1) || !finite(s.c2) || !finite(s.p1) || s.start!=end || s.cumulative[0]!=0)return false;
+        double previous=0;
+        for(double length:s.cumulative) {
+            if(!std::isfinite(length) || length<previous)return false;
+            previous=length;
+        }
+        end+=previous;if(!std::isfinite(end))return false;
+    }
+    return end==total_;
+}
+bool MotionPath::continuous() const noexcept {
+    for(std::size_t i=1;i<segments_.size();++i)if(segments_[i-1].p1!=segments_[i].p0)return false;
+    return true;
 }
 
 }  // namespace hanim

@@ -6,7 +6,7 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 7;
+inline constexpr std::uint32_t program_contract_version = 8;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
@@ -167,6 +167,13 @@ template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, Prop
 [[nodiscard]] inline BoundAnimation fill_to(ObjectInput object, Rgba fill) {
     return to(std::move(object), {.fill=fill});
 }
+struct FollowPathOptions { std::string part; };
+[[nodiscard]] inline BoundAnimation follow_path(ObjectInput object, TranslationRoute route, FollowPathOptions options = {}) {
+    return to(std::move(object),{.part=std::move(options.part),.route=std::move(route)});
+}
+[[nodiscard]] inline BoundAnimation follow_path(ObjectInput object, MotionPath path, FollowPathOptions options = {}) {
+    return follow_path(std::move(object),TranslationRoute(std::move(path)),std::move(options));
+}
 // Reusable feedback recipes lower to ordinary property sequences. No clock,
 // callback or separate runtime is introduced. Effects can wrap the returned
 // Program with composite(...).with_effect(...).
@@ -223,6 +230,7 @@ struct ProgramLimits {
     EffectLimits effects;
     std::size_t max_scopes = 1024;
     std::size_t max_total_property_channels = 65536;
+    std::size_t max_total_route_segments = 65536;
 };
 enum class ProgramError : std::uint8_t {
     unprepared, invalid_limits, empty_program, invalid_snapshot, invalid_source,
@@ -230,7 +238,7 @@ enum class ProgramError : std::uint8_t {
     segment_budget, part_budget, cubic_budget, effect_parameter_budget,
     source_version_mismatch, binding_conflict, animation, effect,
     invalid_track, output_too_small, unresolved_object, object, scope_budget,
-    channel_budget, scope_conflict, invalid_repeat
+    channel_budget, scope_conflict, invalid_repeat, route_budget
 };
 struct ProgramFailure {
     ProgramError code;
@@ -318,6 +326,7 @@ public:
         PreparedObjectMorph, PreparedEffects, SegmentOptions options = {}, bool anchor_source = false, ProgramLimits limits = {});
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] seconds duration() const noexcept;
+    [[nodiscard]] std::size_t route_segment_count() const noexcept;
     [[nodiscard]] std::span<const ProgramTrack> tracks() const & noexcept;
     std::span<const ProgramTrack> tracks() const && = delete;
     [[nodiscard]] std::span<const PreparedSegment> segments() const & noexcept;

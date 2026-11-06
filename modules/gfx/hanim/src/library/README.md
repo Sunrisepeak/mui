@@ -45,3 +45,11 @@ caller-buffer failure atomicity, warm sampling with active shared trace, and
 native concurrent reads. Run `mcpp test library/ -p hanim` in the containing workspace. Web runs the
 same non-threaded contracts; native
 thread support additionally enables the concurrent-buffer case.
+
+
+`PropertyTargets::route` and `anim::follow_path` use the core MotionPath's shared
+distance evaluator in the ordinary translation channel. Immutable ownership,
+part selection, source chaining, image scope composition and route budgets are
+part of the [route contract](CONTRACT.md#immutable-translation-routes), not a UI
+special case. The product guide distinguishes this approximate distance route
+from explicitly timed `move_through` waypoints.

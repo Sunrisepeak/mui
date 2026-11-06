@@ -1440,3 +1440,40 @@ auto prepared = hengine.prepare(animation);
 原始日志和过程图在 `target/hanim-repeat/`，提交摘要 `tools/ci/2026-11-06-hanim-finite-repeat.report.omui.json`。保留首轮真实失败和最终通过的证据；新增测试进入现有 Hanim／独立消费者／官网 CI，本地通过即可继续，不等待其他平台。用户 mcpp.lock 原有字节保持。
 
 无限／alternate 子表达式、reverse expression、任意子树时间映射、通道混合与跨 playback 细通道所有权仍开放；不得把已有整段 preview 控制等同这些能力。完整 40／20 公共交付、默认组件迁移与全局多引擎目标继续推进。本轮也修正综合方案中“单 Program 仍只有整对象冲突”的过时描述，区分已支持的独立属性通道与仍按对象仲裁的跨 playback 边界。
+
+
+## 43. 公共距离路径与本轮收敛交接
+
+2026-11-06，基线 `1de4a11`。本轮交付 `anim::follow_path(object, path, options)`：将已有 MotionPath 的距离求值接入公开对象动画的 translation 通道；不把曲线改写成官网自己的逐帧采样或直线 waypoint。路径相对实际阶段源放置，可指定部件，与独立旋转／缩放、repeat／sequence 和图像 scope 组合；闭合路径起终点相同时仍有完整中间过程。
+
+### 43.1 实现与边界
+
+`TranslationRoute` 拥有不可变路径副本，支持廉价共享；调用方后续修改原 MotionPath 不影响描述。路径新增 segment_count／valid／continuous 查询，point 与 at 共用查表，位置查询不计算未使用的切线角。有限、非空、连续路径才能准备，连续零长度路径可作为静止路线；position／offset／route 互斥。单段和组合路径属性都拒绝不支持的 geometry PointPath，避免简单／复杂入口行为不同；translation PointPath 则按既有端点弦位移叠加，图像效果继续归共享 renderer。
+
+不新增包或依赖，不引入第二编译器／采样器。普通非路径单属性仍走既有轻路径；新路线使用同一属性时间线。MorphOptions、ProgramLimits、EngineLimits 分别检查路径段预算，prepared object／program 暴露 route_segment_count；按逻辑保留使用计数，不等于唯一内存字节。Engine 播放失败、重定向替换及释放均保持事务性。Program contract 升到 **8**，旧枚举值保持，模块用户须重建。
+
+当前沿用 **每个三次段 32 个弦采样**的弧长估计；几何仍按原曲线求值，但速度参数不是精确弧长。此项是 2D 位移路线，不包含自适应精度证明、自动朝向、绝对世界空间路线、路径寻路、3D 路线或通用路径编辑／导入导出工具。
+
+### 43.2 真实消费与验证
+
+官网便笺新增“曲线环游”：两个闭合弯曲段，加独立标题 wobble／按钮 pulse；详情复制同一公开 C++ 调用。Agent 使用既有 motion.seek，人与 Agent 操作同一实例。原生测试验证 61 时刻及反向逐帧一致、pixel 叠加和真实复制按钮。
+
+| 验证 | 最终本地结果 |
+|---|---|
+| hanim.core，native dev／release／Wasm wasm-test | 各 8 个程序、68 项；含原有 8000 条数学参考值和固定哈希 |
+| hanim，native dev／release | 各 9 个程序、121 项 |
+| hanim，Wasm wasm-test | 9 个程序、119 项；线程能力差异沿用原策略 |
+| 独立 import hanim 工程 | dev／release 各 190 项，无 UI／renderer 闭包 |
+| 官网组件 | 12 项；801 张 PNG，新增 62 张，原有 739 张与 §42 逐字节一致 |
+| Chromium 真实交互 | 193 项、17 张截图、异常为零 |
+| 20 Mbit/s／40 ms 交付预算 | 7／7；总传输 4,885,529 B，首帧前 2,983,300 B，首帧代理 1,646.2 ms，ready 1,609 ms，rAF p95 16.8 ms |
+
+较 §42 总传输增加 2,720 B，距 5 MB 预算余 114,471 B。共享机器单次样本不构成提速或全设备性能声明。已查看真实像素风中间态和浏览器画面；过程采样不代替完整美术与实速节奏验收。
+
+初次核心 Web 命令误用了默认 profile，未映射文件系统，数学测试读取到 0 行。仓库已有 `wasm-test` 的 Node 文件访问配置，正确命令为 `mcpp test -p hanim.core --target wasm32-emscripten --profile wasm-test --locked`；改用该配置后完整通过，未修改参考数据、放宽精度或新增重复加载机制。官网始终使用 site-web 发布配置。新增用例进入已有 workspace／Web／独立消费者／浏览器 CI；本地结果已足够交付本检查点，不宣称其他平台 CI 已通过。
+
+原始证据在 `target/hanim-route/`；提交摘要为 `tools/ci/2026-11-06-hanim-distance-route.report.omui.json`。按用户要求收敛本轮，不继续扩展功能；详细交接见[PR1 交接记录](2026-11-06-pr1-handoff.md)。完整 40／20、默认组件迁移、样式系统与多引擎长期目标仍未完成。
+
+### 43.3 构建缓存清理
+
+按用户追加要求，删除 **21 个**早于本包已更新静态库、且没有进程引用的官网测试可执行文件，释放 **2,270,834,688 B（2.11 GiB）**。保留对象文件、静态库、模块缓存、当前测试／程序、源码及过程证据；这些旧测试下次本来就需要重新链接。清理完成时可用空间约 3.04 GiB，后续共享磁盘状态可变化，不能把其他会话释放的空间归入本轮。清单为 `target/cleanup-stale-tests-2026-11-06.report.json`。用户原有 mcpp.lock 保持，未纳入提交。

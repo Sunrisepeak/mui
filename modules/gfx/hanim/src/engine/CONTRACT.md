@@ -48,3 +48,11 @@ lifetime as existing EngineFrame views. Normal pause, seek, reverse and cancel
 apply to the single program clock. Scope parameter storage counts towards the
 existing parameter budget. Retargeting a scoped program is explicitly refused
 until a scope-preserving retarget contract exists; it must not discard effects.
+
+
+EngineLimits::max_total_route_segments bounds logical retained route uses across
+playbacks. Play fails before publication when the budget is exhausted; retarget
+subtracts the replaced plan's count before checking the candidate and updates
+accounts only on success. Release returns the capacity. Shared immutable paths
+are still counted per logical use, so sharing is not a budget bypass. Prepared
+plans expose their counts; this does not introduce another sampling clock.

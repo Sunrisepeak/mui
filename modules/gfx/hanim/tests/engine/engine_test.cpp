@@ -385,5 +385,20 @@ int main(int argc, char** argv) {
         check(frame->geometry.parts.size()==2 && !frame->geometry.cubics.empty() && frame->effect_values.size()==1);
         check(frame->geometry.parts[1].local.tx==20 && frame->effect_values[0]==4);
     });
+    suite.test("route storage budgets remain transactional across play retarget and release",[] {
+        auto made=Engine::make({.max_total_route_segments=2});check(made.has_value());if(!made)return;
+        auto& engine=*made;const auto a=*engine.create_object(shape(false,0)),b=*engine.create_object(shape(false,0));
+        MotionPath path;path.line_to({10,0}).line_to({10,10});
+        const auto first=engine.play(anim::follow_path(a,path));check(first.has_value());if(!first)return;
+        check(engine.seek_progress(*first,.5).has_value());const auto position=engine.frame(*first)->geometry.parts[0].local;
+        const auto denied=engine.play(anim::follow_path(b,path));check(!denied && denied.error().code==EngineError::capacity);
+        check(engine.frame(*first)->geometry.parts[0].local==position && engine.plan(*first)->route_segment_count()==2);
+        check(engine.retarget(*first,PropertyTargets{.position=Vec2{20,0}}).has_value());
+        check(engine.frame(*first)->geometry.parts[0].local==position && engine.plan(*first)->route_segment_count()==0);
+        const auto second=engine.play(anim::follow_path(b,path));check(second.has_value());if(!second)return;
+        check(engine.release(*second).has_value());
+        const auto replacement=engine.play(anim::follow_path(b,path));check(replacement.has_value());
+        if(replacement)check(engine.release(*replacement).has_value());check(engine.release(*first).has_value());
+    });
     return suite.run(argc,argv);
 }

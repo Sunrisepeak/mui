@@ -39,7 +39,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
-openmui.sdk      = { path = "../.." }
+openmui.sdk      = { path = "../../modules/projects/omui/sdk" }
 gongfu.data      = { path = "../../modules/projects/gongfu/data" }
 gongfu.present2d = { path = "../../modules/projects/gongfu/present2d" }
 gongfu.training  = { path = "../../modules/projects/gongfu/training" }

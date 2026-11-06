@@ -1,0 +1,35 @@
+# openmui.native.fuzzy — fuzzy matching as a finder does it (:matching,
+# omui::fuzzy), and the official native module every host registers for
+# scripts (the player, the Python extension): its contract
+# (native/fuzzy.native.omui.toml) is all that is written about the script
+# interface; that partition and the TS / Python / Lua stubs are generated
+# (`omui-gen native`; tools/gen's test keeps them current). The matcher was
+# mlibs.fuzzy; this package was its one consumer (convergence plan §9.3).
+[package]
+namespace   = "openmui.native"
+name        = "fuzzy"
+version     = "0.1.0"
+description = "Fuzzy matching and ranking with highlight positions, for C++ and, behind a native-module contract, for scripts"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind      = "native"
+contracts = ["native/*.native.omui.toml"]
+
+[targets.openmui-native-fuzzy]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+# Integer arithmetic only, but in the deterministic set all the same
+# (lint rule `determinism`): no floating contraction can creep in.
+cxxflags = ["-ffp-contract=off"]
+
+[dependencies]
+openmui.native = { path = ".." }
+mlibs.unicode  = { path = "../../../../base/unicode" }
+nlohmann.json  = "3.12.0"
+
+[dev-dependencies]
+mlibs.utils = { path = "../../../../base/utils" }

@@ -20,7 +20,7 @@
 //       a data file (a theme) as a partition holding its text
 //   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
 //       diagnostics only
-//   omui-gen abi <registry-dir> --out <modules/ui/abi/src> [--check]
+//   omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]
 //       openmui.h's types and functions for the C++ that implements them, and
 //       the check that their layouts agree with the header
 //   omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]
@@ -80,7 +80,7 @@ int usage() {
                             "       omui-gen embed <file> --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
                             "       omui-gen embed-index <file>=<partition>... --module <name> --name <partition> --out <dir> [--namespace ns] [--check]\n"
                             "       omui-gen check <contract or native>... --registry <dir> [--json]\n"
-                            "       omui-gen abi <registry-dir> --out <modules/ui/abi/src> [--check]\n"
+                            "       omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]\n"
                             "       omui-gen unicode <ucd-dir> --version <x.y.z> --out <dir> [--tests <dir>] [--check]\n"
                             "       omui-gen cldr <cldr-json-dir> --locales <id,…> --version <x.y.z> --out <dir> [--check]");
     return 2;

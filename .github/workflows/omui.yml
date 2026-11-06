@@ -16,7 +16,7 @@ on:
   pull_request:
     paths:
       - 'tools/cli/**'
-      - 'modules/ui/agent/**'
+      - 'modules/projects/omui/agent/**'
       - '.github/workflows/omui.yml'
   workflow_dispatch:
 

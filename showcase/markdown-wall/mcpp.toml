@@ -36,16 +36,16 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk           = { path = "../.." }
-"openmui.ui.canvas"     = { path = "../../components/canvas" }
-"openmui.ui.canvas.kit" = { path = "../../components/canvas/kit" }
-openmui.ui.markdown   = { path = "../../components/markdown" }
+openmui.sdk           = { path = "../../modules/projects/omui/sdk" }
+"openmui.ui.canvas"     = { path = "../../modules/projects/omui/components/canvas" }
+"openmui.ui.canvas.kit" = { path = "../../modules/projects/omui/components/canvas/kit" }
+openmui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" }
 
 [build-dependencies]
 openmui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
-openmui.abi      = { path = "../../modules/ui/abi" }
-openmui.lang.lua = { path = "../../lang/lua" }
-openmui.lang.js  = { path = "../../lang/js" }
+openmui.abi      = { path = "../../modules/projects/omui/abi" }
+openmui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
+openmui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
 mcpplibs.os      = "0.2.2"

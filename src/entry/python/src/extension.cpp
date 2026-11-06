@@ -1,6 +1,6 @@
 // The `_openmui` extension: PyInit__openmui makes the runtime the Python
 // program builds on (and the window shows, when it runs one), and hands the
-// module lang/python makes over it.
+// module modules/projects/omui/lang/python makes over it.
 module openmui.entry.python;
 
 import std;

@@ -1,6 +1,6 @@
 // The Python binding, tested from Python: the extension this package builds
-// is staged with the `openmui` package (lang/python/python) as an importable
-// package, and the binding's own unittest suite (lang/python/tests) runs in
+// is staged with the `openmui` package (modules/projects/omui/lang/python/python) as an importable
+// package, and the binding's own unittest suite (modules/projects/omui/lang/python/tests) runs in
 // the system's CPython 3.10+ against it, headless.
 import std;
 import mcpplibs.os;
@@ -57,7 +57,7 @@ int main(int argc, char** argv) {
         // An importable package: openmui/__init__.py and openmui/_openmui<suffix>.
         const auto stage = scratch_dir("entry-python");
         std::filesystem::create_directories(stage / "openmui");
-        std::filesystem::copy(repo() / "lang" / "python" / "python" / "openmui", stage / "openmui",
+        std::filesystem::copy(repo() / "modules" / "projects" / "omui" / "lang" / "python" / "python" / "openmui", stage / "openmui",
                               std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
         const std::string module_name = os::is_windows ? "_openmui.pyd" : "_openmui.abi3.so";
         std::filesystem::copy_file(*ext, stage / "openmui" / module_name, std::filesystem::copy_options::overwrite_existing);
@@ -75,7 +75,7 @@ int main(int argc, char** argv) {
         o.args = {"-X", "faulthandler", "-c",
                   std::format("import faulthandler, unittest; faulthandler.dump_traceback_later(240, exit=True); "
                               "unittest.main(module=None, argv=['unittest', 'discover', '-s', {}, '-v'])",
-                              std::format("r'{}'", os::fs::utf8(repo() / "lang" / "python" / "tests")))};
+                              std::format("r'{}'", os::fs::utf8(repo() / "modules" / "projects" / "omui" / "lang" / "python" / "tests")))};
         o.env = {{"PYTHONPATH", os::fs::utf8(stage)}, {"OMUI_HEADLESS", "1"}, {"PYTHONUTF8", "1"}};
         // Under AddressSanitizer (the nightly's sanitize profile) the
         // extension is instrumented and the interpreter is not: the sanitizer's

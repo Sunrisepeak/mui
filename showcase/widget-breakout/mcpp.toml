@@ -32,19 +32,19 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.sdk = { path = "../.." }
+openmui.sdk = { path = "../../modules/projects/omui/sdk" }
 "openmui.showcase.widget_breakout.sim" = { path = "sim" }
 xengine.input = { path = "../../modules/projects/xengine/input" }
 xengine.ui    = { path = "../../modules/projects/xengine/ui" }
-"openmui.theme" = { path = "../../modules/ui/theme" }
-"openmui.theme.styles" = { path = "../../modules/ui/theme/styles" }
-openmui.ui.canvas = { path = "../../components/canvas" }
+"openmui.theme" = { path = "../../modules/projects/omui/theme" }
+"openmui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
+openmui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
 "xengine.audio" = { path = "../../modules/projects/xengine/audio" }
-openmui.abi = { path = "../../modules/ui/abi" }
-"openmui.lang" = { path = "../../lang" }
-"openmui.lang.js" = { path = "../../lang/js" }
-"openmui.lang.lua" = { path = "../../lang/lua" }
-"openmui.lang.python.embedded" = { path = "../../lang/python/embedded" }
+openmui.abi = { path = "../../modules/projects/omui/abi" }
+"openmui.lang" = { path = "../../modules/projects/omui/lang" }
+"openmui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
+"openmui.lang.lua" = { path = "../../modules/projects/omui/lang/lua" }
+"openmui.lang.python.embedded" = { path = "../../modules/projects/omui/lang/python/embedded" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
 
 [build-dependencies]

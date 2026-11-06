@@ -21,12 +21,12 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core        = { path = "../../modules/ui/core" }
-openmui.agent       = { path = "../../modules/ui/agent" }
+openmui.core        = { path = "../../modules/projects/omui/core" }
+openmui.agent       = { path = "../../modules/projects/omui/agent" }
 openmui.mcp         = { path = "../mcp" }
-openmui.viewdoc     = { path = "../../modules/ui/viewdoc" }
-openmui.ui.base     = { path = "../../components/base" }
-openmui.ui.markdown = { path = "../../components/markdown" }
+openmui.viewdoc     = { path = "../../modules/projects/omui/viewdoc" }
+openmui.ui.base     = { path = "../../modules/projects/omui/components/base" }
+openmui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 "xengine.video"      = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm" = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio       = { path = "../../modules/projects/xengine/audio" }
@@ -34,7 +34,7 @@ xengine.audio       = { path = "../../modules/projects/xengine/audio" }
 "xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
-openmui.host.headless = { path = "../../modules/ui/host/headless" }
+openmui.host.headless = { path = "../../modules/projects/omui/host/headless" }
 mcpplibs.cmdline = "0.0.2"
 mcpplibs.os      = "0.2.2"
 

@@ -93,7 +93,7 @@ local call is not a substitute for that bridge. Both the UI entry operation
 and this Controller's domain operation must be allowed. The destination checks
 live policy again, so conversion does not preserve revoked permission.
 This module remains UI-independent and does not install the bridge automatically.
-See the [UI contract](../../../../ui/core/README.md#carrying-ui-authority-into-independent-engines)
+See the [UI contract](../../../omui/core/README.md#carrying-ui-authority-into-independent-engines)
 and its real consumer for host wiring and worker-call lifetime rules.
 
 Minimal headless SOP:

@@ -87,7 +87,7 @@ def main() -> int:
     try:
         (project/'src').mkdir(exist_ok=True)
         manifest=(fixture/'mcpp.toml.in').read_text()
-        for key,path in {'view':'modules/ui/view','components':'components/base','raster':'modules/projects/xrender/raster',
+        for key,path in {'view':'modules/projects/omui/view','components':'modules/projects/omui/components/base','raster':'modules/projects/xrender/raster',
                          'image':'modules/base/image','utils':'modules/base/utils','xrender_text':'modules/projects/xrender/text','hanim':'modules/projects/hanim'}.items():
             manifest=manifest.replace('{{'+key+'_path}}',json.dumps(str(repo/path)))
         (project/'mcpp.toml').write_text(manifest);shutil.copyfile(fixture/'src/main.cpp',project/'src/main.cpp')
@@ -118,7 +118,7 @@ def main() -> int:
                 path=Path(command['file']);directory=Path(command['directory'])
                 if not directory.is_absolute():directory=project/directory
                 sources.append((path if path.is_absolute() else directory/path).resolve())
-            if repo/'modules/ui/view/src/hanim/bridge.cpp' not in sources or repo/'modules/projects/hanim/src/engine/engine.cpp' not in sources:
+            if repo/'modules/projects/omui/view/src/hanim/bridge.cpp' not in sources or repo/'modules/projects/hanim/src/engine/engine.cpp' not in sources:
                 raise RuntimeError('optional public adapter/player sources absent')
             shutil.copyfile(resolution,artifacts/(profile+'.resolution.json'));shutil.copyfile(cdb,artifacts/(profile+'.compile_commands.json'))
             (artifacts/(profile+'.active-compile_commands.json')).write_text(json.dumps(commands,indent=2)+'\n')

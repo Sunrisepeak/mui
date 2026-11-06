@@ -24,6 +24,6 @@ The layout above is the target of milestone M1 in the [top-level convergence pla
 | [base](base) | Foundations (`mlibs.*`, small tools in `utils`) | the standard library, third-party libraries | stays |
 | [gfx](gfx) | GPU abstraction and shaders | base | stays |
 | [content](content) | Text, layout, Markdown, internationalisation | base, gfx | stays |
-| [ui](ui) | The omui UI implementation | the layers above, [spec](../spec) | → `projects/omui`, together with the top-level `components/` and `lang/` |
+| [ui](projects/omui) | The omui UI implementation | the layers above, [spec](../spec) | → `projects/omui`, together with the top-level `components/` and `lang/` |
 
 A package's directory is its name (D-80): the leaf directory is the last segment of the package name; grouping directories only group.

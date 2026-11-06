@@ -104,7 +104,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/omui/sdk": "sdk",
     # omui and the game layer where they are today
     "modules/ui": "ui",
-    "modules/ui/host": "host",
+    "modules/projects/omui/host": "host",
     "components": "components",
     "lang": "lang",
     "modules/projects/gongfu": "gongfu",
@@ -145,8 +145,8 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
-                 "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
+DETERMINISTIC = ["modules/base/math", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+                 "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
 # none of ours includes them, native units included.
@@ -351,7 +351,7 @@ def check_manifests(root: Path) -> list[Problem]:
             continue
         if rel in (".",) or rel in listed:
             continue
-        if rel.startswith("templates/"):
+        if rel.startswith("modules/projects/omui/templates/"):
             continue
         problems.append(Problem("members", f"{rel}/mcpp.toml", "a package that is not a workspace member"))
 
@@ -611,7 +611,7 @@ def check_pins(root: Path) -> list[Problem]:
 
     # A template's project depends on openmui itself, so it reaches every pinned package.
     templates = {}
-    for t in sorted((root / "templates").glob("*/mcpp.toml.in")) if (root / "templates").exists() else []:
+    for t in sorted((root / "modules/projects/omui/templates").glob("*/mcpp.toml.in")) if (root / "modules/projects/omui/templates").exists() else []:
         try:
             # Placeholders as mcpp renders them (`{{project.name}}` → a name).
             text = re.sub(r"\{\{[^}]*\}\}", "placeholder", t.read_text(encoding="utf-8"))

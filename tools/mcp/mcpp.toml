@@ -27,11 +27,11 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core  = { path = "../../modules/ui/core" }
-openmui.agent = { path = "../../modules/ui/agent" }
+openmui.core  = { path = "../../modules/projects/omui/core" }
+openmui.agent = { path = "../../modules/projects/omui/agent" }
 mcpplibs.os   = "0.2.2"
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../modules/base/utils" }
-openmui.host.headless = { path = "../../modules/ui/host/headless" }
-openmui.ui.base       = { path = "../../components/base" }
+openmui.host.headless = { path = "../../modules/projects/omui/host/headless" }
+openmui.ui.base       = { path = "../../modules/projects/omui/components/base" }

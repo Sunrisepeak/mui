@@ -59,7 +59,7 @@ omui agent act org.example.hello main/click activate     # an agent presses the 
 |---|---|
 | [spec](spec) | The specification: a submodule of the standard's own repository, [openlifa/openmui](https://github.com/openlifa/openmui) |
 | [modules](modules) | The libraries, in layers: base, gfx, content — each usable alone — and ui, omui itself |
-| [components](components) · [lang](lang) · [tools](tools) | Components, TypeScript / Python / Lua bindings, tools |
+| [components](modules/projects/omui/components) · [lang](modules/projects/omui/lang) · [tools](tools) | Components, TypeScript / Python / Lua bindings, tools |
 | [examples](examples) · [showcase](showcase) | What is made with it |
 
 omui implements two OpenLifa standards: [openmui](https://github.com/openlifa/openmui) (interfaces) and [openas](https://github.com/openlifa/openas) (actors, effects, grants). It is built, tested and packaged with [mcpp](https://github.com/mcpp-community/mcpp); the toolchain it needs is pinned in [.xlings.json](.xlings.json) and installed by [xlings](https://github.com/openxlings/xlings).

@@ -39,10 +39,10 @@ int main(int argc, char** argv) {
         same(spec_dir() / "stubs" / "core.pyi", gen::emit_pyi(reg.contracts, "the Core profile"));
         same(spec_dir() / "stubs" / "core.lua", gen::emit_lua(reg.contracts, "the Core profile"));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
-        // modules/ui/abi's view of the same ABI.
-        const auto abi = spec_dir().parent_path() / "modules" / "ui" / "abi" / "src";
+        // modules/projects/omui/abi's view of the same ABI.
+        const auto abi = spec_dir().parent_path() / "modules" / "projects" / "omui" / "abi" / "src";
         auto current = [](const std::filesystem::path& p, const std::string& now) {
-            check(read(p) == now, std::format("{} is out of date: run omui-gen abi spec/registry --out modules/ui/abi/src", p.generic_string()));
+            check(read(p) == now, std::format("{} is out of date: run omui-gen abi spec/registry --out modules/projects/omui/abi/src", p.generic_string()));
         };
         current(abi / "generated" / "c.cppm", gen::emit_abi_types(reg));
         current(abi / "generated" / "api.cppm", gen::emit_abi_functions(reg));
@@ -50,10 +50,10 @@ int main(int argc, char** argv) {
     });
 
     s.test("the base components' C++ is current", [] {
-        // components/base/src/generated holds `omui-gen cpp` of the Core contracts it implements.
+        // modules/projects/omui/components/base/src/generated holds `omui-gen cpp` of the Core contracts it implements.
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        const auto dir = spec_dir().parent_path() / "components" / "base" / "src" / "generated";
+        const auto dir = spec_dir().parent_path() / "modules" / "projects" / "omui" / "components" / "base" / "src" / "generated";
         const gen::CppOptions o{"openmui.ui.base", "omui", true};
         int seen = 0;
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
             std::vector<gen::Contract> contracts{*it};
             const std::string hint = std::format(
                 "out of date: run omui-gen cpp spec/registry/components/*.contract.omui.toml for {} --registry spec/registry "
-                "--module openmui.ui.base --namespace omui --out components/base/src/generated --catalog",
+                "--module openmui.ui.base --namespace omui --out modules/projects/omui/components/base/src/generated --catalog",
                 name);
             check(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o), hint);
             check(read(dir / (name + "_builder.cpp")) == gen::emit_cpp_builder(contracts[0], reg, o), hint);
@@ -165,10 +165,10 @@ int main(int argc, char** argv) {
         check(text.find("bad.native.omui.toml:10:") != std::string::npos, "diagnostics carry line numbers");
     });
 
-    s.test("the official native modules' generated code and stubs are current (modules/ui/native/*)", [] {
+    s.test("the official native modules' generated code and stubs are current (modules/projects/omui/native/*)", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        const auto root = spec_dir().parent_path() / "modules" / "ui" / "native";
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "native";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -194,11 +194,11 @@ int main(int argc, char** argv) {
                 check(read(pkg.path() / "stubs" / (module + ".natives.lua")) == gen::emit_native_lua(modules, module), module + ".natives.lua");
             }
         }
-        check(seen >= 1, "modules/ui/native/fuzzy at least");
+        check(seen >= 1, "modules/projects/omui/native/fuzzy at least");
     });
 
-    s.test("the theme packages' embedded files are current (modules/ui/theme/*)", [] {
-        const auto root = spec_dir().parent_path() / "modules" / "ui" / "theme";
+    s.test("the theme packages' embedded files are current (modules/projects/omui/theme/*)", [] {
+        const auto root = spec_dir().parent_path() / "modules" / "projects" / "omui" / "theme";
         std::error_code ec;
         int seen = 0;
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
@@ -212,8 +212,8 @@ int main(int argc, char** argv) {
             const std::string module = name == "default" ? "openmui.theme.default_theme" : "openmui.theme." + name;
             const std::string want = gen::emit_embed(text, name + ".theme.omui.toml", module, "omui::themes", name + "_theme");
             check(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want,
-                  std::format("modules/ui/theme/{0}: run omui-gen embed modules/ui/theme/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
-                              "--name {0}_theme --out modules/ui/theme/{0}/src/generated",
+                  std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.toml --module {1} --namespace omui::themes "
+                              "--name {0}_theme --out modules/projects/omui/theme/{0}/src/generated",
                               name, module));
         }
         check(seen >= 2, "default and compact at least");

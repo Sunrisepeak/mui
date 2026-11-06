@@ -21,8 +21,8 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | ② hanim and xrender into `modules/projects/` | this checkpoint (D-102): `modules/projects/hanim` (hanim, hanim.core) and `modules/projects/xrender` (graph, vector, effect, raster, cts, rhi/{sdl,webgpu,webgl}); identities, modules and namespaces `xengine.render*`, `mlibs.raster`, `mlibs.rhi.{sdl,webgpu,webgl}` → `xrender.*`; the render graph is `xrender.graph` (a bare `xrender` collides with X11's `compat.xrender` in mcpp, below); legacy `openmui.*` forwarders kept until ⑤; READMEs: one-sentence definitions and candidate signature features |
 | ②b `mlibs.text` without the renderer | this checkpoint (D-103): text's own `FontRef`/`Glyph`, glyphs as geometry (`outline`, `color_layers`); new `xrender.text` (layer content): `GlyphCache` and `paint`; the display list fills glyphs in place; the pinned glyph pixels unchanged; Windows GPU: the ICD registered in HKLM (red 13) |
 | ③ xengine and gongfu | this checkpoint (D-104): `modules/projects/xengine` (simulation, audio, video, timeline, world, input, physics, net, ui) and `modules/projects/gongfu`; `openmui.{audio,video,timeline}*`, `mgame.*` → `xengine.*`; `mgame.sim` forwarder removed; `mgame/`, `modules/media`, `modules/gfx/simulation` gone |
-| ④ omui with components, lang, sdk, templates | next |
-| ⑤ namespace rename, forwarders removed, lint `legacy-import` | |
+| ④ omui with components, lang, sdk, templates | this checkpoint (D-105): `modules/ui`, `components/`, `lang/`, `templates/` → `modules/projects/omui/`; the root package → `modules/projects/omui/sdk`; the root manifest is the workspace alone |
+| ⑤ namespace rename, forwarders removed, lint `legacy-import` | next |
 
 ## CI red list
 
@@ -38,7 +38,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 6 | promo-video pinned frames (`promo_test.cpp:129/133`) | all | `77979b5` (bisected) | R→baseline | re-pinned with the semantic change stated: 77979b5 makes motion level off skip a style's cross-fade (asserted by `view.theme_motion`); the film runs at off so frame 1860 (the switch to retro, 31.0 s) is now a cut and 1820 no longer carries the previous fade. Restoring the film's fades is M2 input (below) |
 | 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | `77979b5` (bisected) | R | fixed: `Matter::follow_layout` replaced every style-wrapper shape with the target's; only allocation carriers adopt now, state shapes (the lens) keep morphing |
 | 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | fixed in CI: the site has its own lane (`site`, release, 1200 s per test); the matrix rows exclude it. Local release: 22 passed |
-| 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | addressed: rows no longer run the site (its 4 tests timed out at 300 s each), limit 150 min; to confirm |
+| 9 | GCC dev/release jobs cancelled at the 150-minute limit | Linux GCC | — | F | 0dae888: both rows still in "Test every member" at 150 min (LLVM x64: green in ~1 h 50 min). Plan §10.1 ③ applied: the GCC rows, and the steps gated on them (consumers, templates, sweep, benchmarks, README media), run nightly and on demand (`ci.yml` schedule, `workflow_dispatch`, pushes to main); a pull request's matrix leaves them out. Next: make them fit (test-binary build time) |
 | 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | build and delivery budget fixed (4,886,971 B). Browser checks: CI's Chrome refuses clipboard reads, so the scripts observe the page's own clipboard writes (a refused read can no longer pass as `{}`), and NoScript navigation is awaited. Local Chromium: presentation 159/159, motion 151/151. Confirmed: Pages deployed from 75655b7 |
 | 11 | cellular reaction kernel wrong on Direct3D 12 / DXBC (WARP): tick 1, index 515 (channel 2 of the one active cell) GPU 0, CPU 1 | Windows `rhi.sdl` | never validated (Windows did not build since 11-04) | R | open: CI's Windows row now runs lavapipe as intended (`SDL_GPU_DRIVER=vulkan`); the D3D12 path needs its own run. The rhi CTS passed on D3D12 |
 | 12 | agent e2e: `delete-all` by an agent ran without asking | Linux (example 07) | 20e6f54 (development mode is full access) | T | fixed: the acceptance starts the example in dual-user mode, the needs-answer path it checks; the whole e2e passes locally |
@@ -69,4 +69,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 ④ omui (modules/ui, components, lang, root package → sdk, templates → `modules/projects/omui`), then ⑤ names and forwarders; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.
+M1 ⑤: `openmui.*` → `omui.*` (packages, modules, namespaces), every forwarder removed, lint `legacy-import`; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.

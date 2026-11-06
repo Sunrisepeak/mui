@@ -11,7 +11,7 @@ work=$(mktemp -d)
 (cd "$work" && mcpp index update > /dev/null 2>&1) || true
 
 render() {  # render <template> <destination> <project name>
-    python3 - "$root/templates/$1" "$2" "$3" "$root" <<'PY'
+    python3 - "$root/modules/projects/omui/templates/$1" "$2" "$3" "$root" <<'PY'
 import sys, pathlib, re
 src, dst, name, root = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]), sys.argv[3], sys.argv[4]
 vars = {"project.name": name, "self.name": "openmui.sdk", "self.version": "0.1.0",
@@ -27,9 +27,9 @@ for f in src.rglob("*"):
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_bytes(text)
 # This checkout instead of the published packages.
-paths = {"openmui.sdk": ".", "openmui.entry.player": "src/entry/player", "openmui.player": "modules/ui/player",
-         "openmui.lang.js": "lang/js", "openmui.lang.lua": "lang/lua", "openmui.native": "modules/ui/native",
-         "openmui.theme.default": "modules/ui/theme/default"}
+paths = {"openmui.sdk": "modules/projects/omui/sdk", "openmui.entry.player": "src/entry/player", "openmui.player": "modules/projects/omui/player",
+         "openmui.lang.js": "modules/projects/omui/lang/js", "openmui.lang.lua": "modules/projects/omui/lang/lua", "openmui.native": "modules/projects/omui/native",
+         "openmui.theme.default": "modules/projects/omui/theme/default"}
 m = dst / "mcpp.toml"
 if m.exists():
     t = m.read_text()

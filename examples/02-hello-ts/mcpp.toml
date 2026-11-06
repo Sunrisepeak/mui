@@ -36,5 +36,5 @@ openmui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.player  = { path = "../../modules/ui/player" }
-openmui.lang.js = { path = "../../lang/js" }
+openmui.player  = { path = "../../modules/projects/omui/player" }
+openmui.lang.js = { path = "../../modules/projects/omui/lang/js" }

@@ -38,7 +38,7 @@ openmui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../modules/base/utils" }
-openmui.player        = { path = "../../modules/ui/player" }
-openmui.lang.lua      = { path = "../../lang/lua" }
-openmui.theme.default = { path = "../../modules/ui/theme/default" }
-openmui.theme.compact = { path = "../../modules/ui/theme/compact" }
+openmui.player        = { path = "../../modules/projects/omui/player" }
+openmui.lang.lua      = { path = "../../modules/projects/omui/lang/lua" }
+openmui.theme.default = { path = "../../modules/projects/omui/theme/default" }
+openmui.theme.compact = { path = "../../modules/projects/omui/theme/compact" }

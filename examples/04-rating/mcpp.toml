@@ -36,15 +36,15 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui.entry.player = { path = "../../src/entry/player" }
-openmui.ui.base      = { path = "../../components/base" }
+openmui.ui.base      = { path = "../../modules/projects/omui/components/base" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils  = { path = "../../modules/base/utils" }
-openmui.player   = { path = "../../modules/ui/player" }
-openmui.lang.js  = { path = "../../lang/js" }
-openmui.lang.lua = { path = "../../lang/lua" }
-openmui.abi      = { path = "../../modules/ui/abi" }
-openmui.viewdoc  = { path = "../../modules/ui/viewdoc" }
+openmui.player   = { path = "../../modules/projects/omui/player" }
+openmui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
+openmui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
+openmui.abi      = { path = "../../modules/projects/omui/abi" }
+openmui.viewdoc  = { path = "../../modules/projects/omui/viewdoc" }

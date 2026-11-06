@@ -59,7 +59,7 @@ omui agent act org.example.hello main/click activate     # agent 按下同一个
 |---|---|
 | [spec](spec) | 规范：标准自己的仓库 [openlifa/openmui](https://github.com/openlifa/openmui) 的子模块 |
 | [modules](modules) | 分层的库：base、gfx、content（都能单独使用），以及 ui（omui 本身） |
-| [components](components) · [lang](lang) · [tools](tools) | 组件、TypeScript / Python / Lua 绑定、工具 |
+| [components](modules/projects/omui/components) · [lang](modules/projects/omui/lang) · [tools](tools) | 组件、TypeScript / Python / Lua 绑定、工具 |
 | [examples](examples) · [showcase](showcase) | 用它做出来的东西 |
 
 omui 实现两个 OpenLifa 标准：[openmui](https://github.com/openlifa/openmui)（界面）和 [openas](https://github.com/openlifa/openas)（actor、效果、授权）。构建、测试、打包都使用 [mcpp](https://github.com/mcpp-community/mcpp)；需要的工具链版本固定在 [.xlings.json](.xlings.json) 里，由 [xlings](https://github.com/openxlings/xlings) 安装。

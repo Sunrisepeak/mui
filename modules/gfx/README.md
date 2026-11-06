@@ -2,7 +2,7 @@
 
 Graphics: the GPU abstraction and the shader toolchain, shared by the renderer and by GPU computation (simulation's compute kernel is [xengine's](../projects/xengine/simulation/cellular/rhi)). Knows nothing of interfaces or games. The renderer, the CPU rasteriser and the RHI backends are [xrender](../projects/xrender)'s; hanim is [its own project](../projects/hanim).
 
-Depends on: [base](../base). Used by: [content](../content), [ui](../ui).
+Depends on: [base](../base). Used by: [content](../content), [ui](../projects/omui).
 
 | Package | |
 |---|---|

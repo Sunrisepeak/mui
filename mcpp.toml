@@ -1,18 +1,7 @@
-# openmui — the umbrella package, and the workspace of every openmui member.
-#
-# The repository root is the package users name (`openmui`): its module
-# re-exports the runtime, the base components and the default theme; the
-# entries are packages under src/entry (the player's: src/entry/player). Each
-# member below has its own mcpp.toml and depends on others only by `path`, so
-# any of them can move to its own repository (D-41).
-[package]
-namespace   = "openmui"
-name        = "sdk"
-version     = "0.1.0"
-description = "openmui: an open UI specification and its reference implementation in C++ modules"
-license     = "Apache-2.0"
-repo        = "https://github.com/Sunrisepeak/mui"
-
+# The workspace of every member. Each member has its own mcpp.toml and depends
+# on others only by `path`, so any of them can move to its own repository
+# (D-41). The umbrella package users name is modules/projects/omui/sdk; this
+# manifest declares no package (convergence plan §9.2).
 [workspace]
 members = [
     "spec",
@@ -55,28 +44,29 @@ members = [
     "modules/projects/xengine/video/webm",
     "modules/projects/xengine/timeline",
     "modules/projects/xengine/timeline/audio",
-    "modules/ui/abi",
-    "modules/ui/accessibility",
-    "modules/ui/agent",
-    "modules/ui/core",
-    "modules/ui/expr",
-    "modules/ui/host/headless",
-    "modules/ui/host/sdl3",
-    "modules/ui/host/web",
-    "modules/ui/host/web/toy",
-    "modules/ui/native",
-    "modules/ui/native/fuzzy",
-    "modules/ui/native/store",
-    "modules/ui/player",
-    "modules/ui/reflect",
-    "modules/ui/semantic",
-    "modules/ui/motion",
-    "modules/ui/theme",
-    "modules/ui/theme/compact",
-    "modules/ui/theme/default",
-    "modules/ui/theme/styles",
-    "modules/ui/view",
-    "modules/ui/viewdoc",
+    "modules/projects/omui/abi",
+    "modules/projects/omui/accessibility",
+    "modules/projects/omui/agent",
+    "modules/projects/omui/core",
+    "modules/projects/omui/sdk",
+    "modules/projects/omui/expr",
+    "modules/projects/omui/host/headless",
+    "modules/projects/omui/host/sdl3",
+    "modules/projects/omui/host/web",
+    "modules/projects/omui/host/web/toy",
+    "modules/projects/omui/native",
+    "modules/projects/omui/native/fuzzy",
+    "modules/projects/omui/native/store",
+    "modules/projects/omui/player",
+    "modules/projects/omui/reflect",
+    "modules/projects/omui/semantic",
+    "modules/projects/omui/motion",
+    "modules/projects/omui/theme",
+    "modules/projects/omui/theme/compact",
+    "modules/projects/omui/theme/default",
+    "modules/projects/omui/theme/styles",
+    "modules/projects/omui/view",
+    "modules/projects/omui/viewdoc",
     "modules/projects/gongfu",
     "modules/projects/gongfu/data",
     "modules/projects/gongfu/present2d",
@@ -89,18 +79,18 @@ members = [
     "modules/projects/xengine/input",
     "modules/projects/xengine/physics",
     "modules/projects/xengine/ui",
-    "components/base",
-    "components/canvas",
-    "components/canvas/kit",
-    "components/liquid-glass",
-    "components/markdown",
-    "components/timeline",
-    "components/window",
-    "lang",
-    "lang/js",
-    "lang/lua",
-    "lang/python",
-    "lang/python/embedded",
+    "modules/projects/omui/components/base",
+    "modules/projects/omui/components/canvas",
+    "modules/projects/omui/components/canvas/kit",
+    "modules/projects/omui/components/liquid-glass",
+    "modules/projects/omui/components/markdown",
+    "modules/projects/omui/components/timeline",
+    "modules/projects/omui/components/window",
+    "modules/projects/omui/lang",
+    "modules/projects/omui/lang/js",
+    "modules/projects/omui/lang/lua",
+    "modules/projects/omui/lang/python",
+    "modules/projects/omui/lang/python/embedded",
     "tools/cli",
     "tools/gen",
     "tools/inspector",
@@ -212,46 +202,3 @@ ldflags = ["-Wl,--allow-multiple-definition"]
 # HarfBuzz's amalgamated unit exceeds COFF's 2^15 sections under GCC; the big
 # object format lifts the limit. Graph-wide, so it reaches that dependency.
 dialect_cxxflags = ["-Wa,-mbig-obj"]
-
-[targets.openmui]
-kind = "lib"
-
-[build]
-sources = ["src/*.cppm", "src/*.cpp"]
-
-[dependencies]
-openmui.core          = { path = "modules/ui/core" }
-openmui.view          = { path = "modules/ui/view" }
-openmui.semantic      = { path = "modules/ui/semantic" }
-openmui.motion        = { path = "modules/ui/motion" }
-openmui.agent         = { path = "modules/ui/agent" }
-openmui.expr          = { path = "modules/ui/expr" }
-openmui.viewdoc       = { path = "modules/ui/viewdoc" }
-mlibs.utils         = { path = "modules/base/utils" }
-openmui.ui.base       = { path = "components/base" }
-openmui.ui.window     = { path = "components/window" }
-openmui.host.headless = { path = "modules/ui/host/headless" }
-"mlibs.i18n"        = { path = "modules/content/i18n" }
-"mlibs.i18n.cldr"   = { path = "modules/content/i18n/cldr" }
-mcpplibs.os           = "0.2.2"
-
-# Where `omui::run` shows an application (D-84): a desktop window, or on the
-# Web the page's canvas — the host, and the partition (openmui:host) and unit
-# (src/host/<where>/shown.cpp) that name it.
-[target.'cfg(not(os = "emscripten"))'.dependencies]
-openmui.host.sdl3 = { path = "modules/ui/host/sdl3" }
-
-[target.'cfg(os = "emscripten")'.dependencies]
-openmui.host.web = { path = "modules/ui/host/web" }
-
-[target.'cfg(not(os = "emscripten"))'.build]
-sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
-
-[target.'cfg(os = "emscripten")'.build]
-sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
-
-# SDK startup CTS exercise the actual generated profile and AppSpec run path.
-[dev-dependencies]
-
-[test]
-discover = ["tests/*_test.cpp"]

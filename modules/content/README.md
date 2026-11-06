@@ -2,7 +2,7 @@
 
 Text and what is made of it: shaping and paragraphs, layout, Markdown, internationalisation.
 
-Depends on: [base](../base), [gfx](../gfx) (glyphs go into display lists). Used by: [ui](../ui).
+Depends on: [base](../base), [gfx](../gfx) (glyphs go into display lists). Used by: [ui](../projects/omui).
 
 | Package | |
 |---|---|

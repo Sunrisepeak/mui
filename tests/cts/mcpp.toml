@@ -2,7 +2,7 @@
 # (spec/conformance/S): the scenarios, the run of a language's runner through
 # the two verbs it registers, and the comparison of what it records with the
 # trace pinned beside the scenario. The Lua and JavaScript tests use it; the
-# Python suite does the same in Python (lang/python/tests/cts.py).
+# Python suite does the same in Python (modules/projects/omui/lang/python/tests/cts.py).
 #
 # A dev-dependency only: it is part of no artifact.
 [package]

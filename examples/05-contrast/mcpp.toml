@@ -36,7 +36,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 openmui.entry.player = { path = "../../src/entry/player" }
-openmui.native       = { path = "../../modules/ui/native" }
+openmui.native       = { path = "../../modules/projects/omui/native" }
 nlohmann.json        = "3.12.0"
 
 [build-dependencies]
@@ -44,5 +44,5 @@ openmui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
-openmui.player  = { path = "../../modules/ui/player" }
-openmui.lang.js = { path = "../../lang/js" }
+openmui.player  = { path = "../../modules/projects/omui/player" }
+openmui.lang.js = { path = "../../modules/projects/omui/lang/js" }

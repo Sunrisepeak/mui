@@ -1,0 +1,57 @@
+# openmui.sdk — the umbrella package users name (`import openmui;`, target
+# `import omui;`): its module re-exports the runtime, the base components and
+# the default theme, and `omui::run` shows an application on the host the
+# platform has (a desktop window, or the page's canvas on the Web). It was the
+# repository root's package; the root manifest holds the workspace alone
+# (convergence plan §9.2).
+[package]
+namespace   = "openmui"
+name        = "sdk"
+version     = "0.1.0"
+description = "openmui: an open UI specification and its reference implementation in C++ modules"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+
+[targets.openmui]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+openmui.core          = { path = "../core" }
+openmui.view          = { path = "../view" }
+openmui.semantic      = { path = "../semantic" }
+openmui.motion        = { path = "../motion" }
+openmui.agent         = { path = "../agent" }
+openmui.expr          = { path = "../expr" }
+openmui.viewdoc       = { path = "../viewdoc" }
+mlibs.utils         = { path = "../../../base/utils" }
+openmui.ui.base       = { path = "../components/base" }
+openmui.ui.window     = { path = "../components/window" }
+openmui.host.headless = { path = "../host/headless" }
+"mlibs.i18n"        = { path = "../../../content/i18n" }
+"mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
+mcpplibs.os           = "0.2.2"
+
+# Where `omui::run` shows an application (D-84): a desktop window, or on the
+# Web the page's canvas — the host, and the partition (openmui:host) and unit
+# (src/host/<where>/shown.cpp) that name it.
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+openmui.host.sdl3 = { path = "../host/sdl3" }
+
+[target.'cfg(os = "emscripten")'.dependencies]
+openmui.host.web = { path = "../host/web" }
+
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/host/desktop/*.cppm", "src/host/desktop/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
+
+# SDK startup CTS exercise the actual generated profile and AppSpec run path.
+[dev-dependencies]
+
+[test]
+discover = ["tests/*_test.cpp"]

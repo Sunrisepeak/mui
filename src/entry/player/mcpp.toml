@@ -25,13 +25,13 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.sdk           = { path = "../../.." }
-openmui.player        = { path = "../../../modules/ui/player" }
-openmui.lang.lua      = { path = "../../../lang/lua" }
-openmui.lang.js       = { path = "../../../lang/js" }
-openmui.lang.python.embedded = { path = "../../../lang/python/embedded" }
-openmui.ui.markdown   = { path = "../../../components/markdown" }
-openmui.native.fuzzy  = { path = "../../../modules/ui/native/fuzzy" }
-openmui.theme.default = { path = "../../../modules/ui/theme/default" }
-openmui.theme.compact = { path = "../../../modules/ui/theme/compact" }
+openmui.sdk           = { path = "../../../modules/projects/omui/sdk" }
+openmui.player        = { path = "../../../modules/projects/omui/player" }
+openmui.lang.lua      = { path = "../../../modules/projects/omui/lang/lua" }
+openmui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
+openmui.lang.python.embedded = { path = "../../../modules/projects/omui/lang/python/embedded" }
+openmui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
+openmui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
+openmui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
+openmui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
 marzer.tomlplusplus = "3.4.0"

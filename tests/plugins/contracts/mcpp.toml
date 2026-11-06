@@ -18,12 +18,12 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-openmui.core = { path = "../../../modules/ui/core" }
-openmui.view = { path = "../../../modules/ui/view" }
+openmui.core = { path = "../../../modules/projects/omui/core" }
+openmui.view = { path = "../../../modules/projects/omui/view" }
 
 [build-dependencies]
 openmui.build.contracts = { path = "../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../../modules/base/utils" }
-openmui.host.headless = { path = "../../../modules/ui/host/headless" }
+openmui.host.headless = { path = "../../../modules/projects/omui/host/headless" }

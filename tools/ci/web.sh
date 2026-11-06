@@ -48,7 +48,7 @@ node_bin=$(command -v node || ls -d "$HOME"/.xlings/data/xpkgs/xim-x-node/*/bin/
 [ -n "$node_bin" ] || { echo "::error::no node for the page's tests"; exit 1; }
 page_test=$(ls -t target/wasm32-emscripten/*/bin/web/page_test.js 2>/dev/null | head -1)
 [ -n "$page_test" ] || { echo "::error::host.web's page_test was not built"; exit 1; }
-OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/ui/host/web/tests/js/page.test.mjs modules/ui/host/web/tests/js/wasm.test.mjs \
+OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/projects/omui/host/web/tests/js/page.test.mjs modules/projects/omui/host/web/tests/js/wasm.test.mjs \
   || { echo "::error::the page's half of host.web failed its tests"; exit 1; }
 "$node_bin" --test modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs \
   || { echo "::error::the page's halves of rhi.webgpu and rhi.webgl failed their tests"; exit 1; }

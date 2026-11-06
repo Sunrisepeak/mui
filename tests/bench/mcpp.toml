@@ -28,8 +28,8 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 "xengine.simulation" = { path = "../../modules/base/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
-"hanim.core" = { path = "../../modules/base/hanim/core" }
-"hanim" = { path = "../../modules/gfx/hanim", features = ["render-vector"] }
+"hanim.core" = { path = "../../modules/projects/hanim/core" }
+"hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 openmui.sdk             = { path = "../.." }
 openmui.view            = { path = "../../modules/ui/view", features = ["hanim"] }
 mlibs.utils           = { path = "../../modules/base/utils" }
@@ -43,11 +43,11 @@ openmui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 openmui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 "openmui.showcase.fighting" = { path = "../../showcase/fighting" }
 "openmui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
-gongfu                  = { path = "../../mgame/gongfu" }
+"gongfu"                  = { path = "../../mgame/gongfu" }
 "gongfu.present2d"      = { path = "../../mgame/gongfu/present2d" }
 openmui.theme.styles    = { path = "../../modules/ui/theme/styles" }
 "mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
-"mlibs.rhi.sdl"       = { path = "../../modules/gfx/rhi/sdl" }
+"xrender.rhi.sdl"       = { path = "../../modules/projects/xrender/rhi/sdl" }
 mcpplibs.os           = "0.2.2"
 
 [dev-dependencies]

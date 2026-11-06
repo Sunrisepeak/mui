@@ -233,11 +233,11 @@ struct Web::Impl {
             // without the canvas, so that the canvas keeps no context of a
             // device that will not draw (and the CPU can still show its frames).
             if (want == Renderer::automatic) {
-                auto probe = kind == Renderer::webgpu ? rhi::webgpu::create({}) : rhi::webgl::create({});
+                auto probe = kind == Renderer::webgpu ? xrender::rhi::webgpu::create({}) : xrender::rhi::webgl::create({});
                 if (!probe || (*probe)->caps().software) return false;
             }
             const std::string canvas = options.present ? options.canvas : std::string();
-            auto made = kind == Renderer::webgpu ? rhi::webgpu::create({.canvas = canvas}) : rhi::webgl::create({.canvas = canvas});
+            auto made = kind == Renderer::webgpu ? xrender::rhi::webgpu::create({.canvas = canvas}) : xrender::rhi::webgl::create({.canvas = canvas});
             const std::string_view name = kind == Renderer::webgpu ? "WebGPU" : "WebGL2";
             if (!made) {
                 if (want == kind) warn("host.web: {} was asked for and the page has none ({}): the CPU draws", name, made.error().message);

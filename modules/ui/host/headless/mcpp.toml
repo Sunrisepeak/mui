@@ -25,8 +25,8 @@ openmui.core     = { path = "../../core" }
 openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }
 openmui.agent    = { path = "../../agent" }
-mlibs.raster   = { path = "../../../gfx/raster" }
-xengine.render.vector   = { path = "../../../gfx/render/vector" }
+xrender.raster   = { path = "../../../projects/xrender/raster" }
+xrender.vector   = { path = "../../../projects/xrender/vector" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.utils    = { path = "../../../base/utils" }

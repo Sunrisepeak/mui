@@ -28,16 +28,16 @@ openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }
 openmui.agent    = { path = "../../agent" }
 openmui.accessibility = { path = "../../accessibility" }
-mlibs.raster   = { path = "../../../gfx/raster" }
-xengine.render.vector   = { path = "../../../gfx/render/vector" }
+xrender.raster   = { path = "../../../projects/xrender/raster" }
+xrender.vector   = { path = "../../../projects/xrender/vector" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.utils    = { path = "../../../base/utils" }
-# Quoted: as dotted keys of one table, `mlibs.rhi.sdl` would extend the
+# Quoted: as dotted keys of one table, `xrender.rhi.sdl` would extend the
 # inline table `mlibs.rhi`, which TOML forbids.
 "mlibs.rhi"         = { path = "../../../gfx/rhi" }
-"mlibs.rhi.sdl"     = { path = "../../../gfx/rhi/sdl" }
-xengine.render.effect   = { path = "../../../gfx/render/effect" }
+"xrender.rhi.sdl"     = { path = "../../../projects/xrender/rhi/sdl" }
+xrender.effect   = { path = "../../../projects/xrender/effect" }
 mcpplibs.os      = "0.2.2"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 

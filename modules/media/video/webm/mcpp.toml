@@ -31,4 +31,4 @@ mcpplibs.mwrap.libvpx = "1.17.0"
 mcpplibs.mwrap.opus   = "1.6.1"
 
 [dev-dependencies]
-hanim.core = { path = "../../../base/hanim/core" }
+hanim.core = { path = "../../../projects/hanim/core" }

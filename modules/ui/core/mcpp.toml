@@ -31,7 +31,7 @@ sources = ["src/native/web/*.cpp"]
 mlibs.control = { path = "../../base/control" }
 mlibs.utils = { path = "../../base/utils" }
 openlifa.openmui = { path = "../../../spec" }
-hanim.core            = { path = "../../base/hanim/core" }
+hanim.core            = { path = "../../projects/hanim/core" }
 mlibs.geom     = { path = "../../base/geom" }
 mlibs.memory   = { path = "../../base/memory" }
 openlifa.openas        = "0.2.0"

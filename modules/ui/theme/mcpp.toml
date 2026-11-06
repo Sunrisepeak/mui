@@ -23,8 +23,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 [dependencies]
 openmui.core   = { path = "../core" }
 openmui.view   = { path = "../view" }
-hanim.core          = { path = "../../base/hanim/core" }
-xengine.render.vector = { path = "../../gfx/render/vector" }
+hanim.core          = { path = "../../projects/hanim/core" }
+xrender.vector = { path = "../../projects/xrender/vector" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]

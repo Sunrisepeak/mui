@@ -29,9 +29,9 @@ gongfu.ai        = { path = "../ai" }
 gongfu.data      = { path = "../data" }
 gongfu.present2d = { path = "../present2d" }
 nlohmann.json    = "3.12.0"
-mlibs.raster   = { path = "../../../modules/gfx/raster" }
+xrender.raster   = { path = "../../../modules/projects/xrender/raster" }
 mlibs.image    = { path = "../../../modules/base/image" }
 mlibs.utils     = { path = "../../../modules/base/utils" }
-xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
+xrender.vector = { path = "../../../modules/projects/xrender/vector" }
 
 [dev-dependencies]

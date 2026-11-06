@@ -31,11 +31,11 @@ sources  = ["src/*.cppm", "src/*.cpp", "src/shots/*.cpp", "src/native/*.cpp", "c
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.core = { path = "../../modules/base/hanim/core" }
+hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk                         = { path = "../.." }
 "openmui.theme"                     = { path = "../../modules/ui/theme" }
-openmui.theme.styles                = { path = "../../modules/ui/theme/styles" }
+"openmui.theme.styles"                = { path = "../../modules/ui/theme/styles" }
 openmui.timeline                    = { path = "../../modules/media/timeline" }
 "openmui.video"                     = { path = "../../modules/media/video" }
 "openmui.video.webm"                = { path = "../../modules/media/video/webm" }

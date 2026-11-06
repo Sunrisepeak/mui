@@ -32,7 +32,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.utils = { path = "../../base/utils" }
-hanim.core               = { path = "../../base/hanim/core" }
+hanim.core               = { path = "../../projects/hanim/core" }
 mlibs.image       = { path = "../../base/image" }
 openmui.audio       = { path = "../audio" }
 marzer.tomlplusplus = "3.4.0"

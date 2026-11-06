@@ -27,11 +27,11 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openmui.core   = { path = "../../modules/ui/core" }
 openmui.view   = { path = "../../modules/ui/view" }
-xengine.render.vector = { path = "../../modules/gfx/render/vector" }
-mlibs.raster = { path = "../../modules/gfx/raster" }
+xrender.vector = { path = "../../modules/projects/xrender/vector" }
+xrender.raster = { path = "../../modules/projects/xrender/raster" }
 mlibs.geom   = { path = "../../modules/base/geom" }
 mlibs.text   = { path = "../../modules/content/text" }
-hanim.core          = { path = "../../modules/base/hanim/core" }
+hanim.core          = { path = "../../modules/projects/hanim/core" }
 mlibs.utils  = { path = "../../modules/base/utils" }
 
 [build-dependencies]

@@ -100,11 +100,11 @@ HeadlessOptions scene_options(HeadlessLevel level = HeadlessLevel::pixels) {
 class Gpu {
 public:
     explicit Gpu(Size size) {
-        rhi::sdl::Options o;
+        xrender::rhi::sdl::Options o;
         o.formats = render::gpu_shader_formats();
         if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
         if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
-        auto device = rhi::sdl::create(o);
+        auto device = xrender::rhi::sdl::create(o);
         if (!device) {
             why_ = std::format("no GPU device ({})", device.error().message);
             return;

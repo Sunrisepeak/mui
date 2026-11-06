@@ -56,7 +56,7 @@ def main() -> int:
         return process.stdout
     try:
         (project/'src').mkdir(exist_ok=True)
-        text=(fixture/'mcpp.toml.in').read_text().replace('{{hanim_path}}',json.dumps(str(repo/'modules/gfx/hanim')))
+        text=(fixture/'mcpp.toml.in').read_text().replace('{{hanim_path}}',json.dumps(str(repo/'modules/projects/hanim')))
         (project/'mcpp.toml').write_text(text)
         for p in fixture.glob('src/*'):shutil.copyfile(p,project/'src'/p.name)
         shutil.copyfile(project/'mcpp.toml',artifacts/'consumer.mcpp.toml')
@@ -76,13 +76,13 @@ def main() -> int:
             if data.get('schema_version')!=2:raise RuntimeError('unsupported resolution schema')
             for entry in data['graph']['packages']:
                 p=entry['package'];name=(p.get('namespace','')+'.'+p['name']).lstrip('.');names.append(name)
-                if name in {'openmui.core','openmui.sdk','openmui.testing','mlibs.testing','openlifa.openmui','openmui.spec'} or name.startswith(('openmui.ui.','openmui.host.','openmui.site','openmui.rhi','mlibs.rhi','openmui.render','xengine.render')):
+                if name in {'openmui.core','openmui.sdk','openmui.testing','mlibs.testing','openlifa.openmui','openmui.spec'} or name.startswith(('openmui.ui.','openmui.host.','openmui.site','openmui.rhi','mlibs.rhi','openmui.render','xrender')):
                     raise RuntimeError(f'forbidden UI/renderer dependency: {name}')
             # mcpp's existing default namespace normalizes the unqualified
             # package hanim to mcpplibs.hanim; the module/import stays hanim.
             umbrella=next((p['package'] for p in data['graph']['packages']
                            if p['package']['name']=='hanim'),None)
-            if not umbrella or umbrella['source']!='path+'+str(repo/'modules/gfx/hanim'):
+            if not umbrella or umbrella['source']!='path+'+str(repo/'modules/projects/hanim'):
                 raise RuntimeError('umbrella did not resolve to the public source package')
             if not {'mcpplibs.hanim','hanim.core'}.issubset(names):
                 raise RuntimeError('real public hanim package missing')
@@ -99,7 +99,7 @@ def main() -> int:
                     raise RuntimeError('consumer was not compiled as C++23')
             if not {str(project/'src/main.cpp')}.issubset(sources):
                 raise RuntimeError('actual compilation omitted consumer source')
-            required = {str(repo/'modules/gfx/hanim/src'/role/(role+'.cpp'))
+            required = {str(repo/'modules/projects/hanim/src'/role/(role+'.cpp'))
                         for role in ('object','effect','library','program','engine')}
             if not required.issubset(sources):
                 raise RuntimeError('public product omitted an internal implementation')

@@ -9,19 +9,19 @@ export module mlibs.text.api:glyphs;
 
 import std;
 import mlibs.geom;
-import mlibs.raster;
-import xengine.render.vector;
+import xrender.raster;
+import xrender.vector;
 import :font;
 
 export namespace mlibs::text {
 
-class GlyphCache final : public xengine::render::GlyphSource {
+class GlyphCache final : public xrender::GlyphSource {
 public:
     explicit GlyphCache(FontCollection& fonts);
     ~GlyphCache() override;
 
-    xengine::render::GlyphMask mask(xengine::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
-    raster::PathData outline(xengine::render::FontRef font, std::uint32_t glyph) override;
+    xrender::GlyphMask mask(xrender::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) override;
+    xrender::raster::PathData outline(xrender::FontRef font, std::uint32_t glyph) override;
 
     [[nodiscard]] std::size_t size() const noexcept;  // cached entries
     void clear();

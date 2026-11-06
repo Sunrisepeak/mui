@@ -18,8 +18,9 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | Step | State |
 |---|---|
 | ① lint path→layer table; `mlibs.utils`; fuzzy into its consumer | this checkpoint (D-101): layers by name from a path-prefix table holding today's and M1's directories; hash, log, trace, testing → `modules/base/utils`, every tool built (a feature per tool recompiled the graph per member selection, measured); lint `testing` (test checks only in `tests/`) and `closure` (render and simulation closures, from the retired `tools/ci/foundation-migration`); `mlibs.fuzzy` → `openmui.native.fuzzy:matching` |
-| ② hanim and xrender into `modules/projects/` | next |
-| ③ xengine | |
+| ② hanim and xrender into `modules/projects/` | this checkpoint (D-102): `modules/projects/hanim` (hanim, hanim.core) and `modules/projects/xrender` (graph, vector, effect, raster, cts, rhi/{sdl,webgpu,webgl}); identities, modules and namespaces `xengine.render*`, `mlibs.raster`, `mlibs.rhi.{sdl,webgpu,webgl}` → `xrender.*`; the render graph is `xrender.graph` (a bare `xrender` collides with X11's `compat.xrender` in mcpp, below); legacy `openmui.*` forwarders kept until ⑤; READMEs: one-sentence definitions and candidate signature features |
+| ②b `mlibs.text` without the renderer (its glyph types its own, the display-list adapter on xrender's side) | next |
+| ③ xengine | after ②b |
 | ④ omui with components, lang, sdk, templates | |
 | ⑤ namespace rename, forwarders removed, lint `legacy-import` | |
 
@@ -52,6 +53,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ### Upstream issues to report (awaiting the maintainer's go-ahead)
 
+- **mcpp 2026.11.2.2: two packages with the same short name drop one from links.** A package named `xrender` (no namespace) and `compat.xrender` (SDL3's X11 dependency) in one plan: binaries that reach both link without `xrender`'s objects (undefined references), while `-p` of either side alone links. Worked around by naming the package `xrender.graph`.
+
 - **mcpp 2026.11.2.2: `[feature-deps]` not applied when the package is also a selected root.** Workspace `a` (features `f1`, `f2` with sources), `v` (`a` with `f1`; feature `x` whose `[feature-deps.x]` asks `a` for `f2`), `s` (`v` with `x`). `mcpp build -p s` builds; `mcpp build -p s -p v` compiles `v`'s `x` sources but not `a`'s `f2` ("a.f2: failed to read compiled module").
 
 ## Capability matrix (short)
@@ -66,4 +69,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 ② (hanim and xrender into `modules/projects/`, raster onto `mlibs.math`, text without the renderer); M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.
+M1 ②b (`mlibs.text` without the renderer), then ③ xengine; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.

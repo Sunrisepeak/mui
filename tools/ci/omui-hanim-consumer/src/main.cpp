@@ -2,13 +2,13 @@ import std;
 import omui.hanim;
 import hanim.control;
 import openmui.ui.base;
-import mlibs.raster;
+import xrender.raster;
 import mlibs.image;
 import mlibs.hash;
 import mcpplibs.os;
 using namespace omui;
 using namespace std::chrono_literals;
-namespace raster=mlibs::raster;
+namespace raster=xrender::raster;
 
 namespace {
 Value::List checks;

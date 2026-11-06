@@ -1,6 +1,6 @@
 # mlibs.rhi
 
-The shared GPU abstraction for renderer and compute consumers (`mlibs.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Validation holds a pass and the pipelines it sets to the same samples and the same depth format. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/gfx/rhi/sdl`, `modules/gfx/rhi/webgpu`, `modules/gfx/rhi/webgl`); this one depends on no graphics library.
+The shared GPU abstraction for renderer and compute consumers (`mlibs.rhi`, architecture §8.2, D-33, D-58). It has what the rendering features need (D-81): 2D colour targets, sampled and storage textures, depth and stencil targets (`d32_float`, `d32_float_s8`, `TextureUsage::depth_target`, a pass's `DepthTarget` with its clear, load and store), multisampled targets (`TextureDesc::samples` up to `Caps::max_samples`, resolved into `ColorTarget::resolve` when the pass ends), vertex, index and storage buffers, uniforms pushed by value, one blend state and one depth test (`DepthState`) per pipeline, and compute. Validation holds a pass and the pipelines it sets to the same samples and the same depth format. It has no bindless resources and no GPU timestamps — SDL_GPU has none ([#3](https://github.com/Sunrisepeak/mui/issues/3)); the render graph times its passes on the CPU. Backends live in packages of their own (`modules/projects/xrender/rhi/sdl`, `modules/projects/xrender/rhi/webgpu`, `modules/projects/xrender/rhi/webgl`); this one depends on no graphics library.
 
 ```cpp
 import mlibs.rhi;
@@ -41,9 +41,9 @@ The tests (`tests/rhi_test.cpp`) run against a device that only remembers what i
 
 ## Inside
 
-- [sdl](sdl) (`mlibs.rhi.sdl`): `mlibs.rhi` on SDL_GPU — Vulkan, Metal, Direct3D 12.
-- [webgpu](webgpu) (`mlibs.rhi.webgpu`): `mlibs.rhi` on the page's WebGPU — the Web's main path, WGSL shaders.
-- [webgl](webgl) (`mlibs.rhi.webgl`): `mlibs.rhi` on the page's WebGL2 — the Web's compatibility path, ESSL shaders, no compute.
+- [sdl](../../projects/xrender/rhi/sdl) (`xrender.rhi.sdl`): `mlibs.rhi` on SDL_GPU — Vulkan, Metal, Direct3D 12.
+- [webgpu](../../projects/xrender/rhi/webgpu) (`xrender.rhi.webgpu`): `mlibs.rhi` on the page's WebGPU — the Web's main path, WGSL shaders.
+- [webgl](../../projects/xrender/rhi/webgl) (`xrender.rhi.webgl`): `mlibs.rhi` on the page's WebGL2 — the Web's compatibility path, ESSL shaders, no compute.
 - [cts](cts) (`mlibs.rhi.cts`): the backend conformance suite, shaders and cases with exact expected pixels.
 
 Canonical ownership: package/module `mlibs.rhi`, C++ `mlibs::rhi`.

@@ -46,11 +46,11 @@ openmui.view        = { path = "../modules/ui/view", features = ["hanim"] }
 # The site also authors Hanim programs directly. Declared here as well because
 # mcpp does not yet apply openmui.view's [feature-deps.hanim] when the view is
 # selected together with this package (the Web row: -p openmui.view -p openmui.site).
-hanim               = { path = "../modules/gfx/hanim", default-features = false, features = ["engine", "render-vector"] }
+hanim               = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
 openmui.ui.markdown = { path = "../components/markdown" }
 openmui.ui.timeline = { path = "../components/timeline" }
 openmui.timeline    = { path = "../modules/media/timeline" }  # the monitor: what plays at the playhead
-openmui.theme.styles = { path = "../modules/ui/theme/styles" }
+"openmui.theme.styles" = { path = "../modules/ui/theme/styles" }
 "openmui.theme"      = { path = "../modules/ui/theme" }
 openmui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 openmui.semantic    = { path = "../modules/ui/semantic" }

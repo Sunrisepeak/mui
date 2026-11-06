@@ -28,9 +28,9 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.math          = { path = "../../base/math" }
 mlibs.utils          = { path = "../../base/utils" }
 mlibs.geom          = { path = "../../base/geom" }
-"hanim.core" = { path = "../../base/hanim/core" }
-"hanim" = { path = "../../gfx/hanim", default-features = false, features = ["object"] }
-xengine.render.vector = { path = "../../gfx/render/vector" }
+"hanim.core" = { path = "../../projects/hanim/core" }
+"hanim" = { path = "../../projects/hanim", default-features = false, features = ["object"] }
+xrender.vector = { path = "../../projects/xrender/vector" }
 
 [dev-dependencies]
-mlibs.raster  = { path = "../../gfx/raster" }
+xrender.raster  = { path = "../../projects/xrender/raster" }

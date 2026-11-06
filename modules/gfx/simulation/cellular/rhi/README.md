@@ -18,7 +18,7 @@ Minimal SOP: prepare CPU rules; query the target device and `shader_formats`; cr
 |---|---|
 | [cts](cts) | Same backend-neutral scenarios on actual SDL_GPU and WebGPU devices |
 
-The existing backend tests run the domain CTS alongside RHI CTS. Use `OMUI_REQUIRE_GPU=1 OMUI_GPU_VIDEO_DRIVER=offscreen mcpp test --locked -p mlibs.rhi.sdl` on Linux. `tools/ci/browser.sh` builds/runs WebGPU tests in Chromium; a standalone Node run is not GPU validation. Missing compute/readback is not a successful domain CTS run. GPU timings are not yet exposed by RHI; tests do not establish hardware speedup. Trace category `simulation` includes preparation/record spans; no per-cell host logging or callbacks.
+The existing backend tests run the domain CTS alongside RHI CTS. Use `OMUI_REQUIRE_GPU=1 OMUI_GPU_VIDEO_DRIVER=offscreen mcpp test --locked -p xrender.rhi.sdl` on Linux. `tools/ci/browser.sh` builds/runs WebGPU tests in Chromium; a standalone Node run is not GPU validation. Missing compute/readback is not a successful domain CTS run. GPU timings are not yet exposed by RHI; tests do not establish hardware speedup. Trace category `simulation` includes preparation/record spans; no per-cell host logging or callbacks.
 
 ## Independent boundary and compatibility
 

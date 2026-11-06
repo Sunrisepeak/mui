@@ -5,7 +5,7 @@ The conformance suite every [mlibs.rhi](..) backend runs (level B, plan §15). E
 ```cpp
 import mlibs.rhi.cts;
 
-auto device = mlibs::rhi::sdl::create({.formats = mlibs::rhi::cts::shader_formats()});
+auto device = xrender::rhi::sdl::create({.formats = mlibs::rhi::cts::shader_formats()});
 for (const auto& o : mlibs::rhi::cts::run(**device)) check(o.passed, o.name + ": " + o.detail);
 ```
 
@@ -32,7 +32,7 @@ for (const auto& o : mlibs::rhi::cts::run(**device)) check(o.passed, o.name + ":
 
 A failure names the first difference (`pixel (0, 0) is (255, 0, 0, 255); it should be (0, 0, 0, 255)`).
 
-The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`, `depth`). [mlibs.shader.rules](../../shader/rules) compiles them at build time for the target's formats (WGSL on the Web), so the package exports them as `mlibs::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [mlibs.rhi.sdl](../sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI; [mlibs.rhi.webgpu](../webgpu)'s run it on the page's WebGPU in headless Chromium (`tools/ci/browser.sh`).
+The shaders are the suite's own (`shaders/*.slang`: `fill`, `textured`, `compute`, `depth`). [mlibs.shader.rules](../../shader/rules) compiles them at build time for the target's formats (WGSL on the Web), so the package exports them as `mlibs::rhi::cts::shaders::*` constants, and `shader_formats()` says which formats a device must take. [xrender.rhi.sdl](../../../projects/xrender/rhi/sdl)'s tests run the suite on lavapipe (Linux, Windows) and Metal (macOS) in CI; [xrender.rhi.webgpu](../../../projects/xrender/rhi/webgpu)'s run it on the page's WebGPU in headless Chromium (`tools/ci/browser.sh`).
 
 Canonical ownership: package/module `mlibs.rhi.cts`, C++ `mlibs::rhi::cts`.
 The original package keeps `import openmui.rhi.cts;` as a same-implementation

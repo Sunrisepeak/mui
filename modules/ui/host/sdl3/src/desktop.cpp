@@ -120,12 +120,12 @@ struct Desktop::Impl final : WindowHost {
     std::expected<void, std::string> open_gpu() {
         using R = DesktopOptions::Renderer;
         if (options.renderer == R::cpu) return {};
-        rhi::sdl::Options o;
+        xrender::rhi::sdl::Options o;
         o.formats = render::gpu_shader_formats();
         o.window = platform::window_id(*window);
         o.vsync = options.vsync;
         o.vulkan_library = options.vulkan_library;
-        auto made = rhi::sdl::create(o);
+        auto made = xrender::rhi::sdl::create(o);
         if (!made) {
             if (options.renderer == R::gpu) return std::unexpected(std::format("no GPU device for the window: {}", made.error().message));
             return {};

@@ -22,14 +22,14 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.math = { path = "../../../modules/base/math" }
-gongfu                = { path = ".." }
+"gongfu"                = { path = ".." }
 "gongfu.data"         = { path = "../data" }
 marzer.tomlplusplus   = "3.4.0"
-hanim.core                 = { path = "../../../modules/base/hanim/core" }
+hanim.core                 = { path = "../../../modules/projects/hanim/core" }
 mlibs.geom          = { path = "../../../modules/base/geom" }
-xengine.render.vector = { path = "../../../modules/gfx/render/vector" }
+xrender.vector = { path = "../../../modules/projects/xrender/vector" }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../modules/base/utils" }
-mlibs.raster  = { path = "../../../modules/gfx/raster" }
+xrender.raster  = { path = "../../../modules/projects/xrender/raster" }
 mlibs.image   = { path = "../../../modules/base/image" }

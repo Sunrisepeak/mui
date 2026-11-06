@@ -108,7 +108,7 @@ def main() -> int:
     parser.add_argument('--keep-project', action='store_true')
     args = parser.parse_args()
     repo = Path(__file__).resolve().parents[3]
-    product = repo / 'modules/gfx/hanim'
+    product = repo / 'modules/projects/hanim'
     output = args.output.resolve(); output.parent.mkdir(parents=True, exist_ok=True)
     artifacts = output.parent / 'artifacts'; artifacts.mkdir(exist_ok=True)
     work = Path(tempfile.mkdtemp(prefix='hanim-feature-consumer-'))
@@ -163,7 +163,7 @@ int main() {
             packages = {p['package']['canonical'].split('@')[0] for p in data['graph']['packages'] if 'target' in p['instances']}
             if any(p.startswith(('openmui.ui.', 'openmui.host.')) or p in {'openmui.core','openmui.sdk','mlibs.testing','openlifa.openmui'} for p in packages):
                 raise RuntimeError('UI or test dependency in public product')
-            if name != 'render-vector' and any(p.startswith(('openmui.render','xengine.render','mlibs.rhi','mlibs.raster','mlibs.shader')) for p in packages):
+            if name != 'render-vector' and any(p.startswith(('openmui.render','xrender','mlibs.rhi','xrender.raster','mlibs.shader')) for p in packages):
                 raise RuntimeError('renderer enabled without opt-in')
             if (name == 'control') != ('mlibs.control' in packages):
                 raise RuntimeError('control dependency did not follow the selected feature')

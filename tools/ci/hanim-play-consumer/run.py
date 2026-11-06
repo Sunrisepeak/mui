@@ -27,14 +27,14 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_packa
         raise RuntimeError("unrecognized resolution schema")
     names = []
     forbidden = {"openmui.core", "openmui.sdk", "openmui.testing", "mlibs.testing", "openlifa.openmui", "openmui.spec"}
-    required = {"mcpplibs.hanim", "hanim.core", "xengine.render.vector", "mlibs.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
+    required = {"mcpplibs.hanim", "hanim.core", "xrender.vector", "xrender.raster", "mlibs.image", "mlibs.control", "openlifa.openas"}
     def independent_source(path: Path) -> None:
         path = path.resolve()
         if path.is_relative_to(repo):
             relative = path.relative_to(repo)
-            if len(relative.parts) < 2 or relative.parts[:2] not in {
+            if len(relative.parts) < 2 or (relative.parts[:2] not in {
                 ("modules", "base"), ("modules", "gfx"), ("modules", "content"), ("modules", "media")
-            }:
+            } and relative.parts[:3] not in {("modules", "projects", "hanim"), ("modules", "projects", "xrender")}):
                 raise RuntimeError(f"non-independent repository source in closure: {path}")
     for package in data["graph"]["packages"]:
         item = package["package"]
@@ -63,9 +63,9 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_packa
         sources.append(str(source.resolve()))
     if str(project / "src/main.cpp") not in sources:
         raise RuntimeError("actual CDB omitted consumer")
-    required_sources = {str(repo / "modules/gfx/hanim/src" / role / (role + ".cpp"))
+    required_sources = {str(repo / "modules/projects/hanim/src" / role / (role + ".cpp"))
                         for role in ("object", "effect", "library", "program", "engine")}
-    required_sources.add(str(repo / "modules/gfx/hanim/src/render/vector/vector.cpp"))
+    required_sources.add(str(repo / "modules/projects/hanim/src/render/vector/vector.cpp"))
     if not required_sources.issubset(sources):
         raise RuntimeError("actual CDB omitted a selected product implementation")
     if openas_package:
@@ -106,8 +106,8 @@ def main() -> int:
               "fixture_sha256": digest(fixture / "src/main.cpp"), "source_lock_before": lock,
               "openas_package": {"path":str(openas_package), "manifest_sha256":digest(openas_package/"mcpp.toml")} if openas_package else None,
               "runner_sha256": digest(fixture / "run.py"), "manifest_sha256": digest(fixture / "mcpp.toml.in"),
-              "raster_contract": {"source": str(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp") + ":95",
-                                  "source_sha256": digest(repo / "modules/gfx/render/vector/tests/shape_morph_test.cpp"),
+              "raster_contract": {"source": str(repo / "modules/projects/xrender/vector/tests/shape_morph_test.cpp") + ":95",
+                                  "source_sha256": digest(repo / "modules/projects/xrender/vector/tests/shape_morph_test.cpp"),
                                   "max_boundary_coverage_u8": 18, "off_boundary_changes": 0,
                                   "coverage_total_u8_budget": 8192,
                                   "basis": "Existing 1/32-device-pixel flattening error per representation; independent exact subdivision may differ by 1/16 pixel. Boundary-only coverage tolerance; uniform interior/exterior exact."},
@@ -140,7 +140,7 @@ def main() -> int:
     try:
         (project / "src").mkdir(exist_ok=True)
         manifest = (fixture / "mcpp.toml.in").read_text()
-        for key, relative in {"engine": "gfx/hanim", "raster": "gfx/raster",
+        for key, relative in {"engine": "projects/hanim", "raster": "projects/xrender/raster",
                               "image": "base/image", "utils": "base/utils", "control": "base/control"}.items():
             manifest = manifest.replace("{{" + key + "_path}}", json.dumps(str(repo / "modules" / relative)))
         if openas_package:

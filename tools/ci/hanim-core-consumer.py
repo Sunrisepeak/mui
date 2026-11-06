@@ -65,7 +65,7 @@ def main() -> int:
     try:
         (project / "src").mkdir()
         manifest = (fixture / "mcpp.toml.in").read_text(encoding="utf-8")
-        for key, path in {"core_path": repo / "modules/base/hanim/core", "utils_path": repo / "modules/base/utils"}.items():
+        for key, path in {"core_path": repo / "modules/projects/hanim/core", "utils_path": repo / "modules/base/utils"}.items():
             manifest = manifest.replace("{{" + key + "}}", json.dumps(path.as_posix(), ensure_ascii=False))
         (project / "mcpp.toml").write_text(manifest, encoding="utf-8")
         shutil.copyfile(fixture / "src/main.cpp", project / "src/main.cpp")
@@ -80,7 +80,7 @@ def main() -> int:
         # are no index resolutions to pin. --locked still validates every
         # subsequent invocation; an absent lock must remain absent.
         report["temporary_lock_required"] = temporary_lock is not None
-        expected_paths = {"hanim.validation.core_consumer": project, "hanim.core": repo / "modules/base/hanim/core",
+        expected_paths = {"hanim.validation.core_consumer": project, "hanim.core": repo / "modules/projects/hanim/core",
                           "mlibs.math": repo / "modules/base/math", "mlibs.utils": repo / "modules/base/utils"}
         expected = set(expected_paths)
         for profile in ("dev", "release"):
@@ -124,7 +124,7 @@ def main() -> int:
                 raise RuntimeError(f"{profile}: unexpected actual closure {sorted(identities)}")
             cdb = resolution.parent / "compile_commands.json"
             entries = json.loads(cdb.read_text(encoding="utf-8"))
-            allowed_sources = [project, repo / "modules/base/hanim/core", repo / "modules/base/math", repo / "modules/base/utils"]
+            allowed_sources = [project, repo / "modules/projects/hanim/core", repo / "modules/base/math", repo / "modules/base/utils"]
             sources = []
             for entry in entries:
                 source = Path(entry["file"])

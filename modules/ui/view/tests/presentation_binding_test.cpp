@@ -1,11 +1,11 @@
 import std;
 import openmui.view;
-import mlibs.raster;
+import xrender.raster;
 import mlibs.image;
 import mlibs.testing;
 using namespace omui;
 using namespace mlibs::testing;
-namespace raster=mlibs::raster;
+namespace raster=xrender::raster;
 
 namespace {
 template<class T,class E>T take(std::expected<T,E> value) {

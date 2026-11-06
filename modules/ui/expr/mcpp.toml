@@ -24,7 +24,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 openlifa.openmui = { path = "../../../spec" }
 mlibs.unicode  = { path = "../../base/unicode" }
-hanim.core            = { path = "../../base/hanim/core" }
+hanim.core            = { path = "../../projects/hanim/core" }
 mlibs.i18n     = { path = "../../content/i18n" }
 
 [dev-dependencies]

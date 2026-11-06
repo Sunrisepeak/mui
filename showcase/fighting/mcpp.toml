@@ -37,14 +37,14 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-hanim.core = { path = "../../modules/base/hanim/core" }
+hanim.core = { path = "../../modules/projects/hanim/core" }
 openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }
 gongfu.present2d = { path = "../../mgame/gongfu/present2d" }
 gongfu.training  = { path = "../../mgame/gongfu/training" }
 gongfu.ai        = { path = "../../mgame/gongfu/ai" }
 mlibs.image    = { path = "../../modules/base/image" }
-"mlibs.raster" = { path = "../../modules/gfx/raster" }
+"xrender.raster" = { path = "../../modules/projects/xrender/raster" }
 "openmui.audio"  = { path = "../../modules/media/audio" }
 "openmui.audio.device" = { path = "../../modules/media/audio/device" }
 

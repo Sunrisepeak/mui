@@ -15,7 +15,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim = { path = {{engine_path}}, features = ["render-vector", "control"] }
-mlibs.raster = { path = {{raster_path}} }
+xrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 mlibs.control = { path = {{control_path}} }

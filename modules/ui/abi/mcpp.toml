@@ -33,8 +33,8 @@ openmui.view     = { path = "../view" }
 openmui.viewdoc  = { path = "../viewdoc" }
 openmui.semantic = { path = "../semantic" }
 openmui.agent    = { path = "../agent" }
-xengine.render.vector   = { path = "../../gfx/render/vector" }
-mlibs.raster   = { path = "../../gfx/raster" }
+xrender.vector   = { path = "../../projects/xrender/vector" }
+xrender.raster   = { path = "../../projects/xrender/raster" }
 mlibs.text     = { path = "../../content/text" }
 openmui.native   = { path = "../native" }
 openmui.theme    = { path = "../theme" }

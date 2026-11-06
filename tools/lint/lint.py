@@ -144,7 +144,7 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/base/hanim", "modules/base/hanim/core", "modules/gfx/hanim", "modules/gfx/raster", "modules/content/layout", "modules/base/geom", "modules/gfx/render", "modules/gfx/render/vector", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -651,14 +651,14 @@ def flatten_deps(table: dict, prefix: str = ""):
 # be reached; `not`: none of these (a name, or a name and the packages below it).
 CLOSURES: dict[str, dict[str, set[str]]] = {
     # the render graph: devices, handles and the small tools, nothing more
-    "xengine.render": {"only": {"xengine.render", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}},
+    "xrender.graph": {"only": {"xrender.graph", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}},
     # drawing vectors needs no effect loader and no shader compiler
-    "xengine.render.vector": {"not": {"xengine.render.effect", "mlibs.shader"}},
+    "xrender.vector": {"not": {"xrender.effect", "mlibs.shader"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
-    "xengine.simulation": {"not": {"openmui", "mgame", "xengine.render", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
-    "xengine.simulation.cellular": {"not": {"openmui", "mgame", "xengine.render", "mlibs.rhi", "mlibs.shader"}},
-    "xengine.simulation.cellular.rhi": {"not": {"openmui", "mgame", "xengine.render"}},
+    "xengine.simulation": {"not": {"openmui", "mgame", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
+    "xengine.simulation.cellular": {"not": {"openmui", "mgame", "xrender", "mlibs.rhi", "mlibs.shader"}},
+    "xengine.simulation.cellular.rhi": {"not": {"openmui", "mgame", "xrender"}},
 }
 
 
@@ -796,7 +796,7 @@ def self_test() -> int:
         "naming": ("modules/ui/core/src/a.cpp", "namespace mui { }\n"),
         "exceptions": ("modules/base/hanim/core/src/e.cpp", "void f() { throw 1; }\n"),
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
-        "determinism": ("modules/base/hanim/core/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
+        "determinism": ("modules/base/math/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
         "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
         "math": ("modules/ui/core/src/m.cpp", "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),

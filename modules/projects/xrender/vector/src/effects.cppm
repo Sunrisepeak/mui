@@ -1,0 +1,217 @@
+// openmui.render:effects — pixel effects (D-60 pixel tier, D-68).
+//
+// An effect is a pure function of a layer's pixels and its parameters: the
+// renderer draws a layer's content offscreen, hands it to the effect, and
+// composites what the effect wrote. A parameter such as `progress` is an
+// ordinary property of the node, so a dissolve, a wipe or a burst into
+// particles animates, seeks and renders frame by frame like anything else.
+//
+// The registry is a plugin point (D-65): the built-ins are registered first,
+// in a fixed order (their refs are the same in every process), and a program
+// adds its own. An effect has a CPU reference implementation, a GPU path, or
+// both: the built-ins have both, the GPU path held to the CPU's pixels
+// (effects/<name>.slang, written against the effect template
+// effects/lib/openmui_effect.slang); a program's Slang effect (openmui.render.effect)
+// may have only the GPU path, and the CPU renderer counts it as skipped.
+//
+//     auto ref = render::effects().find("dissolve");
+//     list.push_layer(1, BlendMode::normal, *ref, params, bounds);
+export module xrender.vector.api:effects;
+
+import std;
+import mlibs.geom;
+import xrender.raster;
+import mlibs.rhi;
+import :display;
+// The built-ins' GPU paths (effects/*.slang), compiled by build.mcpp.
+export import :quad_shaders;
+export import :dissolve_shaders;
+export import :wipe_shaders;
+export import :reveal_shaders;
+export import :displace_shaders;
+export import :noise_shaders;
+export import :chromatic_shaders;
+export import :blur_shaders;
+export import :pixelate_shaders;
+export import :particles_shaders;
+export import :liquid_glass_shaders;
+export import :neon_shaders;
+export import :crt_shaders;
+export import :paper_shaders;
+export import :wobble_shaders;
+export import :metaball_shaders;
+export import :tone_shaders;
+export import :opacity_shaders;
+// The template's text (effects/lib/openmui_effect.slang), for a program's
+// effects compiled while it runs (openmui.render.effect).
+export import :effect_template;
+
+export namespace xrender {
+
+struct EffectParam {
+    std::string_view name;
+    float            value = 0;          // its default
+    float            min = 0, max = 1;
+    std::string_view doc;
+};
+
+// What an effect computes from: the layer drawn offscreen (premultiplied
+// RGBA, device pixels), and where the layer's own rectangle lies in it (the
+// surface is larger by the effect's reach on every side).
+struct EffectInput {
+    const xrender::raster::Surface& source;
+    xrender::raster::Surface&       target;   // the same size, transparent: the result
+    std::span<const float> params;   // every parameter, in the effect's order
+    float                  scale = 1;  // device pixels per logical pixel (sizes in params are logical)
+    mlibs::geom::Rect             layer;    // the layer's rectangle in source and target
+    // What lies under the layer, the same size and place as source
+    // (EffectInfo::backdrop; transparent beyond the target); else null.
+    const xrender::raster::Surface* backdrop = nullptr;
+    // The layer's shapes in the surface's pixels (at least one: its bounds).
+    std::span<const EffectShape> shapes;
+    // The rows of target to compute, [row_begin, row_end) (row_end < 0: to
+    // the last): an effect each of whose rows depends only on the source
+    // (EffectInfo::row_local) is run in bands at the same time.
+    int row_begin = 0, row_end = -1;
+    [[nodiscard]] int last_row() const noexcept { return row_end < 0 ? target.height() : std::min(row_end, target.height()); }
+};
+
+// The signed distance from p to a shape's edge, negative inside (pixels,
+// the shape's corners rounded): the effect template's shape_distance, in the
+// same operations.
+[[nodiscard]] float shape_distance(const EffectShape& shape, mlibs::geom::Point p) noexcept;
+// The smooth minimum of two distances, `k` wide (k ≤ 0: the minimum): how a
+// glass group's shapes merge like drops (the template's smooth_min).
+[[nodiscard]] float smooth_min(float a, float b, float k) noexcept;
+
+// Three box passes each way of `radius` pixels, in integers: the blur
+// effect's, and how a backdrop is frosted. The radius for `logical` pixels
+// at a scale is box_radius's.
+void box_blur(xrender::raster::Surface& surface, int radius, class Parallel* parallel = nullptr);
+[[nodiscard]] int box_radius(float logical, float scale) noexcept;
+
+// How the GPU renderer runs an effect.
+enum class EffectPass : std::uint8_t {
+    none,       // no GPU path: drawn without the effect, counted as skipped
+    pixel,      // `fragment`, the template's, once per pixel of the surface
+    blur,       // three box passes each way (derived 0: the radius)
+    pixelate,   // a compute pass, one invocation a block (derived 0…3: size, origin, byte weight)
+    particles,  // one instance a cell (derived 0…7, see effects/particles.slang)
+};
+
+// What the GPU path reads besides the parameters, computed on the CPU the
+// way the CPU reference computes it (trigonometry, rounding of sizes): the
+// template's `derived` values and, for some, one value per row of the surface.
+struct EffectFrame {
+    std::array<float, 8> derived{};
+};
+
+struct EffectGpu {
+    EffectPass             pass = EffectPass::none;
+    const mlibs::rhi::ShaderDesc* fragment = nullptr;  // pass pixel
+    void (*derive)(std::span<const float> params, float scale, mlibs::geom::Rect layer, EffectFrame& out) = nullptr;
+    // pass pixel: the aux texture's values, one a row (r32_float), when set.
+    void (*rows)(std::span<const float> params, float scale, std::span<float> out) = nullptr;
+};
+
+struct EffectInfo {
+    std::string_view         name;
+    std::string_view         doc;
+    std::vector<EffectParam> params;
+    // Capture reach, in logical pixels: how far outside the layer the renderer
+    // must retain pixels for the effect to read or produce its result.
+    std::function<float(std::span<const float> params)> reach;
+    void (*cpu)(const EffectInput& in) = nullptr;
+    EffectGpu                gpu;
+    // The effect reads what lies under its layer (OMUI_EXT_backdrop_effect,
+    // D-64): the renderer captures it where the layer begins, frosted by
+    // `backdrop_blur` logical pixels (box_blur, the same on both renderers),
+    // and gives it as EffectInput::backdrop (the template's aux texture).
+    bool                                                 backdrop = false;
+    std::function<float(std::span<const float> params)> backdrop_blur;
+    // A program's effect loaded from files (openmui.render.effect): the file it came
+    // from, and what the entry owns — name, doc, parameter names and the
+    // shader point into it. Empty for the built-ins and effects registered
+    // in code.
+    std::string_view            source;
+    std::shared_ptr<const void> storage;
+    // Each row of the result depends on the inputs alone (not on other rows
+    // of the result): the CPU renderer computes bands of rows at the same time.
+    bool row_local = false;
+    // For an effect that moves what is drawn (a bulging screen, a lens):
+    // where the pixel seen at `p` takes its colour from — the layer's own
+    // coordinates, the layer `layer` — so a pointer aimed at what is seen
+    // reaches what is drawn there (the runtime's hit testing). None: every
+    // pixel is seen where it is drawn (or within a pixel or two of it).
+    std::function<mlibs::geom::Point(mlibs::geom::Point p, mlibs::geom::Rect layer, std::span<const float> params)> source_of;
+    // Where it runs (performance tiers §1, D-94; bit t: tier T<t> — T0 an
+    // MCU … T4 a discrete GPU) and what stands in for it below them: another
+    // effect's name, or none (the layer drawn as it is).
+    std::uint8_t     tiers = 0x1f;
+    std::string_view degrade;
+    // Where the effect can change or generate pixels relative to its input
+    // source, beyond the union of the layer rectangle and its shape rectangles
+    // (logical pixels; raster antialiasing is additional). Existing source
+    // commands can lie outside that union and must also be retained by a
+    // consumer computing the result's bounds. This does not reduce capture:
+    // e.g. a lens reads distant backdrop pixels but only writes its shapes.
+    // Empty: conservatively use capture reach. External effects can declare
+    // the same guarantee; no declaration is inferred from an effect's name.
+    std::function<float(std::span<const float> params)> output_reach;
+    // A declared exact identity: keep ordinary layer opacity/blending, but
+    // bypass capture and filtering. Called with all default parameters filled.
+    // Independent of CPU/GPU availability; no effect-name tests in backends.
+    bool (*identity)(std::span<const float> params) = nullptr;
+    // Extra input neighbourhood needed when clipping capture to the viewport,
+    // in device pixels at the supplied output scale. Finite, nonnegative.
+    // This preserves samples used by visible output; it does not expand the
+    // layer's own capture/output bounds. Empty: use the existing capture reach.
+    float (*input_radius)(std::span<const float> params, float scale) = nullptr;
+    // This filter preserves the identity/location of interactive source
+    // content (e.g. colour, blur or pixel styling). Optional UI consumers can
+    // keep their existing hit geometry only with this explicit declaration.
+    // Default unknown: a spatial/deforming effect needs its own input mapping.
+    bool preserves_hit_geometry = false;
+};
+
+// Runs an effect's CPU reference over its rows — in bands on `parallel` when
+// it is row-local and there is one; the same bytes either way.
+void run_cpu_effect(const EffectInfo& info, const EffectInput& in, class Parallel* parallel);
+
+class EffectRegistry {
+public:
+    EffectRegistry();
+    EffectRegistry(const EffectRegistry&) = delete;
+    EffectRegistry& operator=(const EffectRegistry&) = delete;
+
+    // Registers an effect (a name registered twice keeps its first entry).
+    EffectRef add(EffectInfo info);
+    // Replaces a registered effect's entry (a reloaded shader, new parameters):
+    // its ref stays, its generation grows. False for an unknown ref.
+    bool replace(EffectRef ref, EffectInfo info);
+    // How many times `ref` was replaced: a renderer's cached pipeline for it
+    // is stale when this differs.
+    [[nodiscard]] std::uint64_t generation(EffectRef ref) const;
+    [[nodiscard]] std::optional<EffectRef> find(std::string_view name) const;
+    [[nodiscard]] const EffectInfo* info(EffectRef ref) const;
+    [[nodiscard]] std::vector<std::string_view> names() const;
+
+    // The parameters in order, from values by name (defaults for the rest).
+    [[nodiscard]] std::vector<float> params(EffectRef ref, std::span<const std::pair<std::string_view, float>> values) const;
+    // The reach in logical pixels for these parameters.
+    [[nodiscard]] float reach(EffectRef ref, std::span<const float> params) const;
+    // Output reach, falling back to capture reach when not declared. Unknown
+    // refs or an incomplete parameter vector have no provable output bound.
+    [[nodiscard]] std::optional<float> output_reach(EffectRef ref, std::span<const float> params) const;
+
+private:
+    mutable std::shared_mutex  lock_;
+    std::deque<EffectInfo>     entries_;      // stable addresses
+    std::deque<std::uint64_t>  generations_;
+};
+
+// The process's registry: dissolve, wipe, reveal, displace, noise,
+// chromatic, blur, pixelate, particles; then what the program adds.
+[[nodiscard]] EffectRegistry& effects();
+
+}  // namespace xrender

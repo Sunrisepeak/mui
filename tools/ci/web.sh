@@ -50,7 +50,7 @@ page_test=$(ls -t target/wasm32-emscripten/*/bin/web/page_test.js 2>/dev/null | 
 [ -n "$page_test" ] || { echo "::error::host.web's page_test was not built"; exit 1; }
 OMUI_PAGE_TEST="$page_test" "$node_bin" --test modules/ui/host/web/tests/js/page.test.mjs modules/ui/host/web/tests/js/wasm.test.mjs \
   || { echo "::error::the page's half of host.web failed its tests"; exit 1; }
-"$node_bin" --test modules/gfx/rhi/webgpu/tests/js/webgpu.test.mjs modules/gfx/rhi/webgl/tests/js/webgl.test.mjs \
+"$node_bin" --test modules/projects/xrender/rhi/webgpu/tests/js/webgpu.test.mjs modules/projects/xrender/rhi/webgl/tests/js/webgl.test.mjs \
   || { echo "::error::the page's halves of rhi.webgpu and rhi.webgl failed their tests"; exit 1; }
 
 # What only a real page can check (WebGPU's and WebGL2's conformance, the

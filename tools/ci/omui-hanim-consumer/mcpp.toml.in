@@ -16,7 +16,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 openmui.view = { path = {{view_path}}, features = ["hanim"] }
 openmui.ui.base = { path = {{components_path}} }
 hanim = { path = {{hanim_path}}, features = ["control"] }
-mlibs.raster = { path = {{raster_path}} }
+xrender.raster = { path = {{raster_path}} }
 mlibs.image = { path = {{image_path}} }
 mlibs.utils = { path = {{utils_path}} }
 mcpplibs.os = "0.2.2"

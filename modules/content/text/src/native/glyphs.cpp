@@ -3,7 +3,7 @@
 module mlibs.text.api;
 
 import std;
-import mlibs.raster;
+import xrender.raster;
 import mcpplibs.mwrap.harfbuzz;
 using namespace mcpplibs::mwrap::harfbuzz::macros;
 
@@ -32,14 +32,14 @@ struct KeyHash {
 };
 
 struct Entry {
-    raster::Coverage                 coverage;
-    std::unique_ptr<raster::Surface> color;
+    xrender::raster::Coverage                 coverage;
+    std::unique_ptr<xrender::raster::Surface> color;
     geom::PixelRect                  color_bounds;
 };
 
 // Draw callbacks: font units (y up) into a path (y down), unscaled.
 struct Sink {
-    raster::PathBuilder* path;
+    xrender::raster::PathBuilder* path;
 };
 
 void move_to(hb_draw_funcs_t*, void* d, hb_draw_state_t*, float x, float y, void*) {
@@ -76,14 +76,14 @@ struct GlyphCache::Impl {
     FontCollection* fonts;
     std::unordered_map<Key, Entry, KeyHash> entries;
     // Outlines in em units (1 em = 1.0), per (font, glyph).
-    std::unordered_map<std::uint64_t, std::unique_ptr<raster::PathBuilder>> outlines;
+    std::unordered_map<std::uint64_t, std::unique_ptr<xrender::raster::PathBuilder>> outlines;
 
-    raster::PathBuilder& outline_of(xengine::render::FontRef font, std::uint32_t glyph) {
+    xrender::raster::PathBuilder& outline_of(xrender::FontRef font, std::uint32_t glyph) {
         std::uint64_t key = (static_cast<std::uint64_t>(font.id) << 32) | glyph;
         auto& slot = outlines[key];
         if (!slot) {
-            slot = std::make_unique<raster::PathBuilder>();
-            raster::PathBuilder units;
+            slot = std::make_unique<xrender::raster::PathBuilder>();
+            xrender::raster::PathBuilder units;
             Sink sink{&units};
             auto* hb = static_cast<hb_font_t*>(fonts->hb_font(font));
             hb_font_draw_glyph(hb, glyph, draw_funcs(), &sink);
@@ -91,26 +91,26 @@ struct GlyphCache::Impl {
             float k = 1.0f / static_cast<float>(fonts->face(fonts->face_of(font)).units_per_em);
             auto d = units.data();
             std::size_t pi = 0;
-            for (raster::Verb v : d.verbs) {
+            for (xrender::raster::Verb v : d.verbs) {
                 auto pt = [&] {
                     geom::Point p = d.points[pi++];
                     return geom::Point{p.x * k, p.y * k};
                 };
                 switch (v) {
-                    case raster::Verb::move: slot->move_to(pt()); break;
-                    case raster::Verb::line: slot->line_to(pt()); break;
-                    case raster::Verb::quad: {
+                    case xrender::raster::Verb::move: slot->move_to(pt()); break;
+                    case xrender::raster::Verb::line: slot->line_to(pt()); break;
+                    case xrender::raster::Verb::quad: {
                         auto c = pt();
                         slot->quad_to(c, pt());
                         break;
                     }
-                    case raster::Verb::cubic: {
+                    case xrender::raster::Verb::cubic: {
                         auto c1 = pt();
                         auto c2 = pt();
                         slot->cubic_to(c1, c2, pt());
                         break;
                     }
-                    case raster::Verb::close: slot->close(); break;
+                    case xrender::raster::Verb::close: slot->close(); break;
                 }
             }
         }
@@ -127,11 +127,11 @@ void GlyphCache::clear() {
     impl_->outlines.clear();
 }
 
-raster::PathData GlyphCache::outline(xengine::render::FontRef font, std::uint32_t glyph) {
+xrender::raster::PathData GlyphCache::outline(xrender::FontRef font, std::uint32_t glyph) {
     return impl_->outline_of(font, glyph).data();
 }
 
-xengine::render::GlyphMask GlyphCache::mask(xengine::render::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
+xrender::GlyphMask GlyphCache::mask(xrender::FontRef font, std::uint32_t glyph, float size, geom::Point fraction) {
     auto quant = [](float f) {
         int q = static_cast<int>(std::floor(f * phases + 0.5f));
         return static_cast<std::uint8_t>(std::clamp(q, 0, phases - 1));
@@ -155,10 +155,10 @@ xengine::render::GlyphMask GlyphCache::mask(xengine::render::FontRef font, std::
             unsigned colors = hb_ot_color_palette_get_colors(face, 0, 0, nullptr, nullptr);
             std::vector<hb_color_t> palette(colors);
             hb_ot_color_palette_get_colors(face, 0, 0, &colors, palette.data());
-            std::vector<raster::Coverage> covs(count);
+            std::vector<xrender::raster::Coverage> covs(count);
             geom::PixelRect box{};
             for (unsigned i = 0; i < count; ++i) {
-                raster::fill_coverage(impl_->outline_of(font, ls[i].glyph).data(), m, raster::FillRule::nonzero, everywhere, covs[i]);
+                xrender::raster::fill_coverage(impl_->outline_of(font, ls[i].glyph).data(), m, xrender::raster::FillRule::nonzero, everywhere, covs[i]);
                 if (covs[i].empty()) continue;
                 if (box.empty()) box = covs[i].bounds;
                 else {
@@ -169,9 +169,9 @@ xengine::render::GlyphMask GlyphCache::mask(xengine::render::FontRef font, std::
                 }
             }
             if (!box.empty()) {
-                e.color = std::make_unique<raster::Surface>(box.width, box.height);
+                e.color = std::make_unique<xrender::raster::Surface>(box.width, box.height);
                 e.color_bounds = box;
-                raster::Canvas canvas(*e.color);
+                xrender::raster::Canvas canvas(*e.color);
                 for (unsigned i = 0; i < count; ++i) {
                     if (covs[i].empty()) continue;
                     geom::Color c = geom::Color::black();
@@ -180,11 +180,11 @@ xengine::render::GlyphMask GlyphCache::mask(xengine::render::FontRef font, std::
                         c = geom::Color::rgba8(hb_color_get_red(hc), hb_color_get_green(hc), hb_color_get_blue(hc),
                                                hb_color_get_alpha(hc));
                     }
-                    canvas.fill_coverage(covs[i], raster::Paint::solid(c), -box.x, -box.y);
+                    canvas.fill_coverage(covs[i], xrender::raster::Paint::solid(c), -box.x, -box.y);
                 }
             }
         } else {
-            raster::fill_coverage(impl_->outline_of(font, glyph).data(), m, raster::FillRule::nonzero, everywhere, e.coverage);
+            xrender::raster::fill_coverage(impl_->outline_of(font, glyph).data(), m, xrender::raster::FillRule::nonzero, everywhere, e.coverage);
         }
         it = impl_->entries.emplace(key, std::move(e)).first;
     }

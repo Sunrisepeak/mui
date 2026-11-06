@@ -1,8 +1,10 @@
 # modules/base
 
-Foundations that know nothing of interfaces, graphics or games.
+The lowest layer group: **domain-agnostic foundations** (`mlibs.*`) that know nothing of interfaces, graphics or games.
 
 Depends on: the standard library and third-party libraries. Used by: every other layer.
+
+What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to `utils/` as directories under one package (`mlibs.utils`, one feature per tool, module names such as `mlibs.hash` unchanged), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `hanim.core` and `xengine.simulation` below are scheduled to move to their projects in milestone M1.
 
 | Package | |
 |---|---|

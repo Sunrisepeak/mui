@@ -1,15 +1,30 @@
 # modules
 
-Reusable libraries shared by the project's independent products, organized by dependency layer. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency. Product roles and selective composition are described in the [top-level architecture](../.agents/docs/2026-11-04-multi-engine-product-architecture-design.md). The [system/subsystem review proposal](../.agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md) includes a target code tree and staged migrations; proposed packages are not existing capabilities.
+Every engine, framework and library of the project lives here; the repository's top level holds their consumers (site, showcases, examples), the specification, build plugins, entries and tools. A package depends only on its own layer and the layers below it; `tools/lint` checks every dependency.
 
-| Layer | What it is | Depends on |
+## Two kinds of group
+
+Every group directory has a README that states what belongs in it and lists its packages.
+
+| Group | What it holds | Admission |
 |---|---|---|
-| [base](base) | Foundations: memory, math, geometry, Unicode, logging, tracing, sessions, pipelines, images, and hanim.core | the standard library, third-party libraries |
-| [gfx](gfx) | Graphics: the GPU abstraction, shaders, CPU rasteriser, renderer and independent hanim object layer | base |
-| [content](content) | Text, layout, Markdown and internationalisation | base, gfx |
-| [media](media) | Independent audio, video and timeline libraries and their device/codec packages | base, gfx, content |
-| [ui](ui) | The omui UI implementation: runtime, views, semantics, agents, themes and hosts | the layers above, [spec](../spec) |
+| **Layer groups** — [base](base), [gfx](gfx), [content](content) | `mlibs.*`: domain-agnostic libraries, pure abstract interfaces (`mlibs.rhi`) and general toolchains (`mlibs.shader`); small tools in `base/utils` | general purpose, no domain semantics |
+| **Projects** — `projects/` | Branded engines, frameworks and modules that are mature and complex enough to stand as their own project or repository, **each describable in one sentence and with a few clear signature features that lead the industry or are designed for what comes next**: `hanim`, `omui` (with its components and language bindings), `xengine`, `xrender`, `gongfu`. A project holds its own not-yet-graduated subsystems (xengine: simulation, audio, video, timeline, world, input, physics, net) | the graduation criteria below, or named by the maintainer and completed against them |
 
-`base`, `gfx`, `content` and `media` are independent components: they do not depend on the UI runtime or UI specification, and each can be used and published on its own (D-55). The UI framework never depends on a game engine; games can consume its public UI APIs (D-82).
+Rule of thumb: general things go to `mlibs`, concrete implementations go to the project that owns them. A name says who owns a package, a directory says which group it is in, and the layer comes from the lint's path-to-layer table, so one project may span layers (`hanim.core` is base, `hanim` is gfx).
 
-A package's directory is its name: `openmui.rhi.sdl` lives in `gfx/rhi/sdl`, `hanim.core` in `base/hanim/core`, and `hanim.object` in `gfx/hanim/object` (D-80). The `hanim` product umbrella lives in `gfx/hanim` and exports core, objects, library, effects, programs and the Engine; renderer adapters are opt-in. `base/hanim` is a grouping directory for the independent core.
+**Graduation** (an xengine subsystem or an `mlibs` library becoming its own project under `projects/`): a one-sentence definition (the first line of its README), signature features with evidence (a benchmark against the best alternatives, or a real task that only this design makes possible), at least two independent consumers, a frozen v1 API, ops and skill files, a CTS, documentation and benchmarks. A tool in `base/utils` becomes its own library when it grows into a cohesive API or needs its own third-party dependencies.
+
+## Current layout and migration
+
+The layout above is the target of milestone M1 in the [top-level convergence plan](../.agents/docs/2026-11-06-top-level-assessment-convergence-design.md) (§9). Until it lands, the repository still uses layer directories for everything:
+
+| Layer (today) | What it is | Depends on | Target |
+|---|---|---|---|
+| [base](base) | Foundations, plus `hanim.core` and `xengine.simulation` | the standard library, third-party libraries | mlibs stay; hanim.core → `projects/hanim`; simulation → `projects/xengine` |
+| [gfx](gfx) | GPU abstraction, shaders, CPU rasteriser, renderer, hanim | base | `mlibs.rhi`, `mlibs.shader` stay; renderer, raster and RHI backends → `projects/xrender`; hanim → `projects/hanim` |
+| [content](content) | Text, layout, Markdown, internationalisation | base, gfx | stays |
+| [media](media) | Audio, video and timeline | base, gfx, content | → `projects/xengine` |
+| [ui](ui) | The omui UI implementation | the layers above, [spec](../spec) | → `projects/omui`, together with the top-level `components/` and `lang/` |
+
+A package's directory is its name (D-80): the leaf directory is the last segment of the package name; grouping directories only group.

@@ -26,7 +26,7 @@ cp -r "$(dirname "$index")" "$out"
 # The actual native program draws each opening. The launch envelope preserves
 # mcpp's selected executable/environment; physical paths are stripped from
 # published geometry, and hidden pages have no image src to prefetch.
-"$mcpp" run omui-site -p openmui.site --print-launch --locked > target/site-native.launch.json
+"$mcpp" run omui-site -p openmui.site --print-launch > target/site-native.launch.json
 python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$out"
 
 "$mcpp" run omui-site -p openmui.site -- --prerender "$out/index.html" --opening-assets "$out/first-frames.assets.omui.json" \

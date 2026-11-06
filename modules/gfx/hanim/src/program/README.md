@@ -103,3 +103,10 @@ arrays can be released after authoring. Time/order, ease, path and subtraction
 ranges are checked before each leaf is built; invalid inputs return the existing
 immutable error expression. See the [product guide](../../README.md#timed-translation-paths)
 for units, part selection, composition, continuity and headless review.
+
+
+`wait(seconds)` is the timeline's object-free interval. `delay(seconds, child)`
+composes it with a child using the existing sequence. The compiler stores its
+hierarchy/timing and no object segment, preserving ordinary gap fills and
+independent channels; the existing Engine handles pure timers too. See the
+[product guide](../../README.md#timeline-waits-and-delays) and contract 6.

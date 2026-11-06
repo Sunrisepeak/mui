@@ -497,5 +497,29 @@ int main() {
     const auto bounded=h::import_path({path_verbs,path_points},{.max_segments=1});
     check(!bounded && bounded.error().code==h::ObjectError::capacity,"path_import_respects_geometry_budget");
     check(path_play && hengine.release(*path_play) && hengine.destroy_object(*path_object),"imported_path_resources_released");
+    const auto timer=hengine.play(h::wait(2s));
+    if(check(bool(timer),"wait_only_program_plays_without_objects")) {
+        check(hengine.seek_progress(*timer,.25).has_value(),"wait_only_seek");
+        const auto timer_info=hengine.inspect(*timer);
+        check(timer_info && timer_info->position==500ms && timer_info->track_count==0,"wait_has_time_without_object_claims");
+        check(hengine.release(*timer).has_value(),"wait_releases_normally");
+    }
+    const auto rhythm_object=hengine.create_object(*da);
+    if(check(bool(rhythm_object),"rhythm_public_object")) {
+        const auto rhythm=hengine.play(h::sequence(h::delay(200ms,anim::move_by(*rhythm_object,{18,0}).duration(300ms)),
+            h::wait(400ms),anim::move_by(*rhythm_object,{-18,0}).duration(300ms)));
+        if(check(bool(rhythm),"delay_and_wait_use_public_engine")) {
+            bool correct=true;
+            for(int i=0;i<=60;++i) {
+                const double t=1.2*i/60.;correct=correct && bool(hengine.seek(*rhythm,h::seconds(t)));
+                const auto frame=hengine.frame(*rhythm);
+                const double x=t<.2?0:t<.5?60*(t-.2):t<.9?18:18-60*(t-.9);
+                correct=correct && frame && std::abs(frame->geometry.parts[0].local.tx-x)<1e-10;
+            }
+            check(correct,"public_timeline_has_leading_delay_middle_hold_and_return");
+            check(hengine.release(*rhythm).has_value(),"rhythm_release");
+        }
+        check(hengine.destroy_object(*rhythm_object).has_value(),"rhythm_object_release");
+    }
     return finish();
 }

@@ -264,3 +264,11 @@ with the selected public motion and retains editable note data. This preview
 uses a partially transparent endpoint; it does not use transparency as a visibility or
 permission switch. The browser check captures the same pose with and without
 the effect to verify an actual pixel change, with unchanged UI geometry.
+
+
+The note's **Move, pause, return** selection composes public `hanim::delay` and
+`hanim::wait` with relative movement, title wobble and button pulse. The card
+holds its pose while another part continues; the interface remains editable.
+These are timeline intervals, not host sleeps. The same semantic seek and
+reverse controls sample the whole process. The copied C++ recipe and the live
+scene use the same Hanim API; image effects and local style stay independent.

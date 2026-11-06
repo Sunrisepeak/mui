@@ -361,3 +361,45 @@ times, capture through the authorized renderer and compare reverse replay.
 Check overlapping content, translucent input, other layer opacity/blending,
 clipping and DPI. A backend without image effects must report its limitation;
 this does not introduce an automatic TUI equivalent or a new visibility policy.
+
+
+## Timeline waits and delays
+
+```cpp
+using namespace std::chrono_literals;
+auto animation = hanim::parallel(
+    hanim::sequence(
+        hanim::delay(200ms, hanim::anim::move_by(card, {18, 0}).duration(300ms)),
+        hanim::wait(400ms),
+        hanim::anim::move_by(card, {-18, 0}).duration(300ms)),
+    hanim::delay(500ms, hanim::anim::wobble(title, .04, {.duration=400ms})));
+auto playback = hengine.play(animation); // Check the expected result as usual.
+```
+
+`wait(duration)` is a pure timeline interval, not a blocking sleep, callback,
+object animation, ownership release or permission grant. `delay(duration, child)`
+is shorthand for `sequence(wait(duration), child)`. Both compose with nested
+sequences, parallel/stagger branches and image scopes, use the existing player
+clock and support arbitrary-time seek/reverse. A wait-only program is valid and
+has zero object tracks. It neither draws nor freezes any external object.
+
+Inside a sequence, the previous animation's existing endpoint fill remains
+visible through the gap; a leading delay retains the following track's source
+pose. Independently scheduled channels keep advancing. Existing track ownership
+and conflict rules remain in force across a playback; waits do not allow an
+unrelated playback to acquire that object's channels. A containing image scope
+keeps interpolating its parameters throughout its duration, including waits.
+
+Duration must be finite and nonnegative. Zero waits preserve author-tree order;
+empty child programs remain invalid. Preparation rejects time overflow or a
+positive duration too small to advance its absolute start. Waits count against
+node/depth budgets but add no segments, geometry, properties or effect payload.
+`Program::wait_duration()` and prepared node metadata expose the interval for
+inspection. Prepared program contract version is 6, with existing kind values
+preserved and `ProgramKind::wait` appended. Rebuild module consumers.
+
+For headless review, sample before/during/after each interval and around branch
+boundaries, then replay backwards. A paused object and an independently moving
+part must be distinguishable in actual frames. The website note's “Move, pause,
+return” recipe uses this API, including the public UI playback adapter; no page
+clock or separate interpolation code is involved.

@@ -12,6 +12,7 @@ std::optional<Recipe> recipe(std::string_view selection) {
     if(selection=="title")return Recipe{0,12,-3,.06,1};
     if(selection=="feedback")return Recipe{8,0,0,.08,1.12};
     if(selection=="path")return Recipe{0,0,0,.04,1.06};
+    if(selection=="rhythm")return Recipe{18,0,0,.04,1.06};
     return std::nullopt;
 }
 enum class ImageKind {none,blur,tone,pixel,layered,opacity};
@@ -44,6 +45,12 @@ std::expected<hanim::Program,std::string> component_motion_program(hanim::Object
             {1200ms,{0,0},hanim::ease::in_out_sine,hanim::PointPath::bend(.15)}}),
         hanim::anim::wobble(object,values->turn,{.duration=1200ms,.part="title"}),
         hanim::anim::pulse(object,{values->scale,values->scale},{.duration=1200ms,.part="save"}));
+    if(selection=="rhythm")animation=hanim::parallel(
+        hanim::sequence(
+            hanim::delay(200ms,hanim::anim::move_by(object,{values->move,0}).duration(300ms)),
+            hanim::wait(400ms),hanim::anim::move_by(object,{-values->move,0}).duration(300ms)),
+        hanim::delay(500ms,hanim::anim::wobble(object,values->turn,{.duration=400ms,.part="title"})),
+        hanim::delay(900ms,hanim::anim::pulse(object,{values->scale,values->scale},{.duration=300ms,.part="save"})));
     if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
         animation=hanim::composite(animation).with_effect(hanim::fx::blur(0,image->blur));
     if(image->kind==ImageKind::tone || image->kind==ImageKind::layered)
@@ -84,6 +91,15 @@ auto animation = hanim::parallel(
     hanim::anim::wobble(object, {}, {{.duration=1200ms, .part="title"}}),
     hanim::anim::pulse(object, {{{}, {}}}, {{.duration=1200ms, .part="save"}}));
 )",values->turn,values->scale,values->scale);
+    if(selection=="rhythm")source=std::format(R"(// Timeline intervals never block the host; part animations keep their own timing.
+using namespace std::chrono_literals;
+auto animation = hanim::parallel(
+    hanim::sequence(
+        hanim::delay(200ms, hanim::anim::move_by(object, {{{}, 0}}).duration(300ms)),
+        hanim::wait(400ms), hanim::anim::move_by(object, {{{}, 0}}).duration(300ms)),
+    hanim::delay(500ms, hanim::anim::wobble(object, {}, {{.duration=400ms, .part="title"}})),
+    hanim::delay(900ms, hanim::anim::pulse(object, {{{}, {}}}, {{.duration=300ms, .part="save"}})));
+)",values->move,-values->move,values->turn,values->scale,values->scale);
     if(image->kind==ImageKind::blur || image->kind==ImageKind::layered)
         source+=std::format("animation = hanim::composite(animation).with_effect(hanim::fx::blur(0, {}));\n",image->blur);
     if(image->kind==ImageKind::tone || image->kind==ImageKind::layered)

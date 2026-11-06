@@ -1351,3 +1351,44 @@ auto playback = hengine.play(animation);
 上游提交已进入其已有 PR，**尚未发布／进入索引，本仓仍锁定原依赖**。后续正式发布后，再做明确版本升级和跨平台安装包回归；不覆盖同版本安装目录来绕过发布流程。全局 40／20 公共库、默认组件配方、更多表示与多引擎路线继续开放。
 
 同时按空间清理要求移除两套过期 native 构建的 obj／模块缓存／modmap，以及已结束的浏览器临时 profile，共 **1,111,343,104 B（约 1.04 GiB）**。保留旧目录中的可用程序、最新各 profile 增量、worktree、过程图与运行中服务；清理前检查进程引用。操作清单在 `target/cleanup-2026-11-06.report.json`。用户原有 mcpp.lock 的 SHA-256 保持 `a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186`。
+
+
+## 41. 公共时间停顿与独立部件节奏
+
+2026-11-06，基线 `5cb2afd`。继续 S2／S8：补齐 animation expression 的显式时间间隔，避免调用者为了延迟／停顿而创建虚假对象或属性动画。该能力由独立 Hanim 提供，官网作为普通消费者，不计入 40 个基础动画或 20 个作品的数量。
+
+### 41.1 编排契约与实现边界
+
+公共 `hanim::wait(duration)` 是无对象的时间节点；`hanim::delay(duration, child)` 直接展开为 `sequence(wait(duration), child)`。例子：
+
+```cpp
+using namespace std::chrono_literals;
+auto animation = hanim::parallel(
+    hanim::sequence(
+        hanim::delay(200ms, hanim::anim::move_by(card, {18, 0}).duration(300ms)),
+        hanim::wait(400ms),
+        hanim::anim::move_by(card, {-18, 0}).duration(300ms)),
+    hanim::delay(500ms, hanim::anim::wobble(title, .04, {.duration=400ms})));
+auto playback = hengine.play(animation);
+```
+
+只扩展既有 author tree／有预算编译器：新增 wait kind，保存父子关系、开始时间和时长，没有新对象、轨道、段、几何或效果 payload。原 kind 数值保持，prepared contract 升至 6；C++ Modules 消费者重新构建。没有新清单、时钟、解释器、UI 插值分支或脚本热路径。prepare 继续使用既有 trace／诊断；普通采样走原有通道实现。
+
+纯 wait 可独立准备／播放／查询，零对象轨道，不绘制任何对象；它不是 sleep、回调、播放器暂停、授权或对象所有权释放。序列中前一段原有 endpoint fill 穿过间隔，前置 delay 保持后续轨道的源姿态；其他通道继续运行。包含 wait 的图像 scope 在完整时长上继续插值，不会被局部对象的停留冻结。原有对象所有权与冲突约束保持，不能把空档误解为允许另一 playback 抢占同一对象。
+
+时长必须有限且非负；零间隔保留编排顺序，不触发帧回调。prepare 检查 node／depth 预算、绝对结束时间溢出、正时长小到不能推进绝对起点的情况；空 child 仍拒绝，错误保留实际节点索引。高级自动循环、reverse expression、任意子树时间重映射与混合仲裁继续按原计划实施，本批未用 wait 替代这些能力。
+
+### 41.2 真实消费与官网
+
+独立 `import hanim` 工程验证纯计时 playback、状态／seek／释放，以及带前置 delay、中间 wait 和返回段的 61 时刻位置；解析闭包保持无 UI／renderer。官网便笺的渐进式详情新增“移动、停留、返回”：卡片先延迟，再移动、停留、返回；标题在卡片停留期间 wobble，按钮稍后 pulse。图像效果、局部风格和便笺数据独立；复制出的代码使用相同公开 API。
+
+Agent 通过现有 `motion.seek` 控制同一个公共 Playback，无新语义计时器。浏览器验证键盘选择、语义定位、卡片停留时标题仍变化、终点返回和复制 wait／delay 调用。原生测试采样 61 时刻并反向逐帧比对，叠加 pixel 后仍可真实点击复制按钮。
+
+### 41.3 本地验证与剩余范围
+
+- Hanim **9 个程序**：debug／release 各 **110 项**，Wasm **108 项**通过；后端线程差异保持。新测试覆盖独立通道、前置源保持、中间／尾部停顿、scope 参数继续、纯 wait、零／非法／溢出／不可表示时间、节点预算与空 child；稳定采样无新增分配。
+- 独立公共 API 工程 debug／release 各 **178 项**通过。官网组件 **10 项**通过，保留 **677 张 PNG**，其中新增 **61 张过程图＋1 张 pixel 中间态**，原有 **615 张**与 §39 逐字节一致。已查看真实中间态和像素风叠加，文字／控件可辨；过程采样不等于所有实速节奏与美术已验收。
+- Web 交互验证 **181 项**、**15 张截图**、异常为零。首轮取景落在详情面板，随后调整测试滚动位置，重新验证并保存完整对象画面；未改变产品行为或放宽断言。
+- 20 Mbit/s／40 ms、新 profile、1280×800、访问内缓存开启：总传输 **4,881,447 B**，首帧前 **2,979,218 B**，首帧代理 **1,645.5 ms**、ready **1,601.1 ms**、rAF p95 **16.7 ms**，**7／7** 预算通过。总传输较 §39 增加 **1,189 B**，距 5 MB 预算余 **118,553 B**。单次本地共享机器样本只证明该次预算通过，不宣称性能提高。
+
+原始证据在 `target/hanim-wait/`，提交摘要 `tools/ci/2026-11-06-hanim-timeline-waits.report.omui.json`。新增用例进入既有 Hanim／独立消费者／官网浏览器 CI；按本地验证推进，不等待其他平台。用户 mcpp.lock 保持。完整 40／20 公共交付、默认组件配方迁移、多表示／3D、GPU 资源优化及跨引擎／工具路线继续开放。

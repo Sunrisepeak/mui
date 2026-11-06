@@ -757,5 +757,45 @@ int main(int argc,char** argv) {
         check(before.tx==0 && before.rotate==.5);
         const auto during=out.sample(plan,track,1.5).geometry.parts[0].local;check(during.tx==5 && during.rotate==1.5);
     });
+    suite.test("wait contributes only time and preserves gap poses and independent channels",[] {
+        Fixture f;
+        const auto expression=parallel(sequence(anim::move_by(f.a,{10,0}),wait(seconds(.5)),anim::move_by(f.a,{10,0})),
+            anim::rotate_to(f.a,2.5).duration(seconds(2.5)));
+        const auto plan=take(PreparedProgram::prepare(expression));Buffer out(plan.tracks()[0]);
+        check(plan.duration()==seconds(2.5) && plan.nodes().size()==6 && plan.tracks().size()==1);
+        const auto& pause=plan.nodes()[3];check(pause.kind==ProgramKind::wait && pause.start==seconds(1) && pause.duration==seconds(.5));
+        check(pause.track==invalid_program_index && pause.segment==invalid_program_index && pause.subtree_end==4);
+        const auto before=allocations.load();
+        for(int i=0;i<=100;++i) {
+            const double t=2.5*i/100.;const double x=t<1?10*t:t<1.5?10:10+10*(t-1.5);
+            const auto pose=out.sample(plan,0,t).geometry.parts[0].local;
+            check_near(pose.tx,x,1e-10);check_near(pose.rotate,t,1e-10);
+        }
+        check(allocations.load()==before,"pure timeline waits add no allocations to warm sampling");
+        const auto delayed=take(PreparedProgram::prepare(delay(seconds(.5),anim::move_by(f.a,{10,0}))));
+        Buffer delayed_out(delayed.tracks()[0]);check(delayed.duration()==seconds(1.5));
+        check(delayed_out.sample(delayed,0,.25).geometry.parts[0].local.tx==0);
+        check(delayed_out.sample(delayed,0,1).geometry.parts[0].local.tx==5);
+        check(delayed_out.sample(delayed,0,2).geometry.parts[0].local.tx==10);
+    });
+    suite.test("wait-only plans and scoped holds retain timing and diagnostics",[] {
+        Fixture f;
+        const auto timer=take(PreparedProgram::prepare(wait(seconds(2))));
+        check(timer.duration()==seconds(2) && timer.nodes().size()==1 && timer.tracks().empty() && timer.segments().empty());
+        check(PreparedProgram::prepare(wait(seconds(0))).has_value());
+        const auto scoped=take(PreparedProgram::prepare(composite(sequence(anim::move_by(f.a,{10,0}),wait(seconds(1))))
+            .with_effect(fx::opacity(1,0))));
+        std::array<float,1> values;take(scoped.sample_scopes(seconds(1.5),values));check(values[0]==.25f);
+        Buffer out(scoped.tracks()[0]);check(out.sample(scoped,0,1.5).geometry.parts[0].local.tx==10);
+        for(double time:{-1.,std::numeric_limits<double>::infinity(),std::numeric_limits<double>::quiet_NaN()}) {
+            const auto bad=PreparedProgram::prepare(delay(seconds(time),anim::move_by(f.a,{1,0})));
+            check(!bad && bad.error().code==ProgramError::invalid_time && bad.error().node==1);
+        }
+        const auto huge=std::numeric_limits<double>::max();
+        check(PreparedProgram::prepare(sequence(wait(seconds(huge)),wait(seconds(huge)))).error().code==ProgramError::invalid_time);
+        check(PreparedProgram::prepare(sequence(wait(seconds(huge)),wait(seconds(1)))).error().code==ProgramError::invalid_time);
+        check(PreparedProgram::prepare(delay(seconds(1),anim::move_by(f.a,{1,0})),{.max_nodes=2}).error().code==ProgramError::node_budget);
+        check(PreparedProgram::prepare(sequence(wait(seconds(0)),Program{})).error().code==ProgramError::empty_program);
+    });
     return suite.run(argc,argv);
 }

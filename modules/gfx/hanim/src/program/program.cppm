@@ -6,13 +6,13 @@ export import hanim.effect;
 
 namespace hanim::detail { struct ProgramNode; struct ProgramData; }
 export namespace hanim {
-inline constexpr std::uint32_t program_contract_version = 5;
+inline constexpr std::uint32_t program_contract_version = 6;
 inline constexpr std::size_t invalid_program_index = std::numeric_limits<std::size_t>::max();
 struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
 // of that logical ObjectRef use the preceding segment's actual boundary pose.
 enum class ProgramSource : std::uint8_t { previous_endpoint, snapshot };
-enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid };
+enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid, wait };
 struct CompositeOptions { Ease effect_easing = ease::linear; };
 struct CompositeSpec { Effects effects; CompositeOptions options; };
 struct ProgramBinding {
@@ -45,6 +45,8 @@ public:
     [[nodiscard]] const CompositeSpec* scope() const & noexcept;
     const CompositeSpec* scope() const && = delete;
     [[nodiscard]] seconds step() const noexcept;
+    // Nonzero only for an explicit wait node; never a blocking host sleep.
+    [[nodiscard]] seconds wait_duration() const noexcept;
     // Non-null only for an explicitly rejected authoring expression. Its
     // domain cause survives composition; preparation supplies the node index.
     [[nodiscard]] const ProgramFailure* failure() const & noexcept;
@@ -53,6 +55,7 @@ private:
     friend Program invalid_program(ProgramFailure);
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);
     friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>, PropertySet);
+    friend Program wait(seconds);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -66,8 +69,13 @@ private:
 [[nodiscard]] Program bind(ProgramInputs inputs, Effects effects = {}, SegmentOptions options = {},
                            MorphOptions morph = {}, ProgramSource source = ProgramSource::previous_endpoint,
                            std::optional<PropertyTargets> properties = {}, PropertySet additional_properties = {});
+// A pure timeline interval: no object, channel, callback or host clock.
+[[nodiscard]] Program wait(seconds duration);
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
+[[nodiscard]] inline Program delay(seconds duration, Program child) {
+    return sequence({wait(duration), std::move(child)});
+}
 [[nodiscard]] Program parallel(std::span<const Program> children);
 [[nodiscard]] Program parallel(std::initializer_list<Program> children);
 [[nodiscard]] Program stagger(seconds step, std::span<const Program> children);

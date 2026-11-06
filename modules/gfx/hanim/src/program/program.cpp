@@ -11,6 +11,7 @@ struct ProgramNode {
     CompositeSpec scope;
     std::vector<Program> children;
     seconds step{0};
+    seconds wait_duration{0};
     std::unique_ptr<const ProgramFailure> failure;
 };
 struct ProgramData {
@@ -101,6 +102,16 @@ struct Collect {
             scopes.push_back({spec,{.node=node,.parent=scope,.depth=scope==invalid_program_index?1:scopes[scope].prepared.depth+1,
                 .start=seconds(start),.effect_easing=spec->options.effect_easing}});
             scope=next;hierarchy[node].scope=scope;
+        }
+        if(value.kind()==ProgramKind::wait) {
+            const auto length=value.wait_duration();
+            if(const auto invalid=invalid_options({length,ease::linear}))
+                return std::unexpected(failure(*invalid,node));
+            const auto end=sum(start,length.count(),node);
+            if(!end)return std::unexpected(end.error());
+            if(length.count()>0 && *end==start)return std::unexpected(failure(ProgramError::invalid_time,node));
+            hierarchy[node].duration=length;
+            return length.count();
         }
         if(value.kind()==ProgramKind::binding) {
             const auto* binding=value.binding();
@@ -380,6 +391,11 @@ Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOp
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::binding;
     node->binding={{},{},std::move(effects),options,morph,source,std::move(properties),std::move(additional_properties)};
     node->inputs=std::move(inputs);return Program(std::move(node));
+}
+seconds Program::wait_duration() const noexcept {return node_ && node_->kind==ProgramKind::wait?node_->wait_duration:seconds(0);}
+Program wait(seconds duration) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::wait;
+    node->wait_duration=duration;return Program(std::move(node));
 }
 Program sequence(std::span<const Program> children) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::sequence;node->children.assign(children.begin(),children.end());return Program(std::move(node));

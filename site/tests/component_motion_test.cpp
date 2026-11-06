@@ -143,6 +143,27 @@ int main(int argc,char** argv) {
         const auto save=r.node("stage/scene/composition/card/actions/save");r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
         check(parse_json(r.h.runtime().clipboard_text()).has_value(),"the path-animated styled note retains its real control");
     });
+    suite.test("public wait intervals hold the card while independent parts animate",[] {
+        Run r;r.details();r.act("details/selection","set_value",Value{}.set("value","rhythm"));
+        r.seek(0);const auto card=r.node("stage/scene/composition/card"),title=r.node("stage/scene/composition/card/title");
+        const auto initial=r.h.runtime().drawn_bounds(card);std::vector<std::uint64_t> frames;
+        for(int i=0;i<=60;++i) {
+            r.seek(i/60.);const double t=1.2*i/60.;
+            const double offset=t<.2?0:t<.5?60*(t-.2):t<.9?18:18-60*(t-.9);
+            check_near(r.h.runtime().drawn_bounds(card).x,initial.x+offset,.1);
+            frames.push_back(r.pixels());
+            check(r.h.save_png(media()/std::format("rhythm-{:03}.png",i),r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        }
+        check(frames.front()==frames.back() && frames[0]==frames[5] && frames[25]!=frames[30]);
+        for(int i=60;i>=0;--i){r.seek(i/60.);check(r.pixels()==frames[std::size_t(i)]);}
+        r.seek(.5);const auto held=r.h.runtime().drawn_bounds(card),moving=r.h.runtime().drawn_bounds(title);
+        r.seek(.6);check(r.h.runtime().drawn_bounds(card)==held && r.h.runtime().drawn_bounds(title)!=moving);
+        r.act("details/copy");check(r.h.runtime().clipboard_text()==site::component_motion_source("rhythm",true,1));
+        r.act("details/effect","set_value",Value{}.set("value","pixel"));r.seek(.5);check(r.pixels()!=frames[30]);
+        check(r.h.save_png(media()/"rhythm-pixel-midpoint.png",r.h.runtime().drawn_bounds(r.node("stage"))).has_value());
+        const auto save=r.node("stage/scene/composition/card/actions/save");r.h.click(r.h.runtime().drawn_bounds(save).center());r.step();
+        check(parse_json(r.h.runtime().clipboard_text()).has_value());
+    });
     suite.test("real input takes over without changing data and the same controls remain agent operable",[] {
         Run r;r.details();r.seek(.5);
         const auto card=r.node("stage/scene/composition/card"),save=r.node("stage/scene/composition/card/actions/save");

@@ -189,3 +189,21 @@ source payload unchanged. Limits retain precedence at the node boundary.
 Neither a partial PreparedProgram nor a playback is published. This additive
 source expression cannot occur in valid prepared metadata; the prepared
 contract version and prior kind values remain unchanged. Module users rebuild.
+
+
+## Explicit timeline intervals (contract 6)
+
+`ProgramKind::wait` is appended without changing existing kind values. A wait
+node exposes `wait_duration()`, has no binding/inputs/scope/children, and records
+start/duration/parent/subtree in the prepared hierarchy with no track or segment.
+The normal bounded compiler validates finite nonnegative duration, representable
+absolute end and node/depth budgets. A wait-only program is valid. It does not
+capture objects or add sample-time work per object; it cannot release existing
+playback ownership or freeze outside state. `delay(d, child)` lowers directly
+to `sequence(wait(d), child)`; there is no second timing implementation.
+
+Waits extend their parent sequence, stagger or parallel duration as ordinary
+children. Endpoint fill and source fill are inherited from existing channels;
+other branches continue. Containing image scope parameters continue over their
+full interval, including the wait. Empty/invalid child expressions retain normal
+failure behavior. Zero-length waits carry ordering, not frame/event callbacks.

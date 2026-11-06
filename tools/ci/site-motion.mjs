@@ -312,7 +312,7 @@ try {
     await pointer(root + '/details/effect'); await key('Home', 'Home', 36); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/effect') === 'none' && await scalar(card + '/editor') === 'A browser-made note',
       'removing the effect preserves the actual edited component data');
-    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('ArrowUp', 'ArrowUp', 38); await key('Enter', 'Enter', 13);
     await requireCheck(async () => await scalar(root + '/details/selection') === 'feedback', 'keyboard selects public feedback composition');
     await pointer(root + '/transport/buttons/state-a'); const feedbackA = (await node(card)).bounds;
     await pointer(root + '/transport/buttons/state-b');
@@ -367,6 +367,25 @@ try {
 
 
 
+    await pointer(root + '/details/selection'); await key('End', 'End', 35); await key('Enter', 'Enter', 13);
+    await requireCheck(async () => await scalar(root + '/details/selection') === 'rhythm', 'keyboard selects the public move-pause-return program');
+    await invokeMotion('seek', { progress: 0 }); const rhythmStart = (await node(card)).bounds;
+    await invokeMotion('seek', { progress: .5 });
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - rhythmStart[0] - 18) < .5,
+      'the independent timeline reaches its held position');
+    const heldCard = (await node(card)).bounds;
+    const heldTitle = (await node(card + '/title')).bounds;
+    await invokeMotion('seek', { progress: .6 });
+    await requireCheck(async () => (await node(card)).bounds.every((v, i) => Math.abs(v-heldCard[i]) < .5) &&
+      (await node(card + '/title')).bounds.some((v, i) => Math.abs(v-heldTitle[i]) > .1),
+      'the card holds while its independently delayed title continues animating');
+    await visibleBounds(card); await invokeMotion('seek', { progress: .6 });
+    await shot('component-motion-rhythm');
+    await invokeMotion('seek', { progress: 1 });
+    await requireCheck(async () => Math.abs((await node(card)).bounds[0] - rhythmStart[0]) < .5, 'the rhythm returns after its explicit pause');
+    await pointer(root + '/details/copy'); const rhythmSource = await page.value('navigator.clipboard.readText()');
+    check(rhythmSource.includes('hanim::wait(400ms)') && rhythmSource.includes('hanim::delay(200ms'),
+      'the copied rhythm uses public timeline intervals without a page timer');
     await pointer(root + '/transport/buttons/details');
     await requireCheck(async () => !await exists(root + '/details/selection'), 'closing Details removes the component recipe controls');
   });

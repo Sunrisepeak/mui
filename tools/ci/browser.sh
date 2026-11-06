@@ -88,9 +88,10 @@ workspace = tomllib.loads((root / 'mcpp.toml').read_text())
 # Namespace migrations leave old generated trees in incremental caches. Only
 # current workspace owners may supply the browser's shader checks.
 owners = set()
-for member in ['.', *workspace['workspace']['members']]:
-    package = tomllib.loads((root / member / 'mcpp.toml').read_text())['package']
-    owners.add(package.get('namespace', 'mcpplibs') + '.' + package['name'])
+for member in workspace['workspace']['members']:  # the root declares no package
+    package = tomllib.loads((root / member / 'mcpp.toml').read_text()).get('package', {})
+    if package:
+        owners.add((package.get('namespace', '') + '.' + package['name']).lstrip('.'))
 for f in glob.glob("target/.build-mcpp/out/*/*/mlibs/shader/*_shaders.cppm"):
     key = (f.split(os.sep)[-4], os.path.basename(f))
     if key[0] not in owners:

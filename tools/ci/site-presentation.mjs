@@ -89,8 +89,11 @@ try {
       await clickVisible('[data-gallery-catalog]>summary');
       await clickVisible('[data-gallery-catalog] [data-gallery-group]>summary');
       await clickVisible('[data-gallery-catalog] a');
-      check(await b.value(`location.hash.startsWith(${q('#/' + route + '/')})`), 'native catalogue links open the requested detail without JavaScript');
-      check(await b.value(`(() => {const current=Array.from(document.querySelectorAll('[data-gallery-current]')).filter(n=>n.getBoundingClientRect().width>0);return current.length===1 && current[0].dataset.galleryCurrent===location.hash.split('/').pop();})()`), 'NoScript navigation displays the selected design rather than the overview default');
+      // A native link's navigation and the static page's own update land a moment after the click.
+      check(await wait(() => b.value(`location.hash.startsWith(${q('#/' + route + '/')})`)), 'native catalogue links open the requested detail without JavaScript',
+            await b.value('location.hash'));
+      check(await wait(() => b.value(`(() => {const current=Array.from(document.querySelectorAll('[data-gallery-current]')).filter(n=>n.getBoundingClientRect().width>0);return current.length===1 && current[0].dataset.galleryCurrent===location.hash.split('/').pop();})()`)), 'NoScript navigation displays the selected design rather than the overview default',
+            await b.value(`({hash: location.hash, current: Array.from(document.querySelectorAll('[data-gallery-current]')).filter(n=>n.getBoundingClientRect().width>0).map(n=>n.dataset.galleryCurrent)})`));
       check(await b.value(`(() => {const details=Array.from(document.querySelectorAll('[data-gallery-details]')).filter(n=>n.getBoundingClientRect().width>0);return details.length===1 && !details[0].open;})()`), 'NoScript detail metadata remains progressively disclosed');
     } catch (error) { check(false, 'NoScript presentation ' + route, String(error.stack || error)); }
     finally { b.close(); b = null; }

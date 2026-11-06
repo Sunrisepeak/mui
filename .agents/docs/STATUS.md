@@ -27,7 +27,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 7 | style-gallery liquid tab lens stretch (`styles_test.cpp:143`) | all | `77979b5` (bisected) | R | fixed: `Matter::follow_layout` replaced every style-wrapper shape with the target's; only allocation carriers adopt now, state shapes (the lens) keep morphing |
 | 8 | site motion/site tests exceed 300 s | Linux x64/arm | — | F | fixed in CI: the site has its own lane (`site`, release, 1200 s per test); the matrix rows exclude it. Local release: 22 passed |
 | 9 | GCC dev/release jobs cancelled at 2 h | Linux GCC | — | F | addressed: rows no longer run the site (its 4 tests timed out at 300 s each), limit 150 min; to confirm |
-| 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | fixed: Pages builds and the delivery budget passes (4,886,971 B). Its browser step then failed on a Chrome profile cleanup (now non-fatal) and on a rejected clipboard read (now refocused and retried, reason reported) |
+| 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | build and delivery budget fixed (4,886,971 B). Browser checks: CI's Chrome refuses clipboard reads, so the scripts observe the page's own clipboard writes (a refused read can no longer pass as `{}`), and NoScript navigation is awaited. Local Chromium: presentation 159/159, motion 151/151; CI to confirm |
 
 ### Design input for M2 (motion convergence)
 

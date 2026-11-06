@@ -48,6 +48,9 @@ const clipboardText = async () => {
     const r = await page.value('navigator.clipboard.readText().then(text => ({ text }), e => ({ error: String((e && e.message) || e) }))');
     if (r && typeof r.text === 'string') return r.text;
     reason = (r && r.error) || reason;
+    // Reading back refused: what the page wrote, as it wrote it.
+    const written = await page.value('window.__omuiCopied');
+    if (typeof written === 'string') { report.clipboard = 'observed the page\'s writes (reading back: ' + reason + ')'; return written; }
     await page.call('Page.bringToFront');
     await page.value('(window.focus(), document.hasFocus())');
   }
@@ -151,6 +154,16 @@ try {
   page.on((method, args) => { if (method === 'Runtime.exceptionThrown') report.exceptions.push(args.exceptionDetails?.exception?.description || args.exceptionDetails?.text || 'Runtime exception'); });
   await dispatch('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-reduced-motion', value: 'no-preference' }] });
   await dispatch('Browser.grantPermissions', { origin: new URL(report.url).origin, permissions: ['clipboardReadWrite', 'clipboardSanitizedWrite'] });
+  // What the page writes to the clipboard, observed as it writes it (its own
+  // promise kept, so a refused write still fails): some headless builds refuse
+  // reading the clipboard back whatever is granted.
+  await page.call('Page.addScriptToEvaluateOnNewDocument', { source: `(() => {
+    const c = navigator.clipboard; if (!c || c.__omuiObserved) return;
+    const write = c.writeText.bind(c);
+    c.writeText = (text) => { window.__omuiCopied = String(text); return write(text); };
+    c.__omuiObserved = true;
+    window.__omuiClipboardText = () => c.readText().catch(e => typeof window.__omuiCopied === 'string' ? window.__omuiCopied : Promise.reject(e));
+  })();` });
   await dispatch('Page.navigate', { url: report.url });
   const ready = await wait(() => page.value(`window.omuiStaticHandedOff && !!window.omui && !!${mirror('main/bar/nav/core/open')}`), 60000);
   check(ready, 'the real site hands off to the new live navigation'); if (!ready) throw new Error('The new live site did not become ready');
@@ -317,7 +330,7 @@ try {
     await type(card + '/editor', 'A browser-made note');
     await pointer(card + '/pin'); const pinned = await checked(card + '/pin');
     await pointer(card + '/actions/save');
-    await requireCheck(() => page.value(`navigator.clipboard.readText().then(t=>{try{const n=JSON.parse(t);return n.title==='A browser-made note'&&n.pinned===${pinned}}catch{return false}})`),
+    await requireCheck(() => page.value(`window.__omuiClipboardText().then(t=>{try{const n=JSON.parse(t);return n.title==='A browser-made note'&&n.pinned===${pinned}}catch{return false}}).catch(()=>false)`),
       'real component input copies the edited note JSON to the browser clipboard');
     await key('Escape', 'Escape', 27);
     await requireCheck(async () => (await label(root + '/transport/hint')).includes('real interface'),
@@ -451,7 +464,7 @@ try {
     await requireCheck(async () => { const colours = await hexes(); return colours.length === 4 && colours.every((hex, i) => /^#[0-9a-f]{6}$/i.test(hex) && hex !== originalColours[i]) && new Set(colours).size === 4; }, 'contrast changes all four readable, distinct colour outputs');
     const colours = await hexes();
     await pointer(work + '/actions/copy');
-    await requireCheck(() => page.value(`navigator.clipboard.readText().then(t=>t.startsWith(':root {')&&${q(colours)}.every(hex=>t.includes(hex))&&['light','soft','ink','shade'].every(name=>t.includes('--palette-'+name+':')))`), 'Copy palette puts usable CSS with the current four colours on the actual browser clipboard');
+    await requireCheck(() => page.value(`window.__omuiClipboardText().then(t=>t.startsWith(':root {')&&${q(colours)}.every(hex=>t.includes(hex))&&['light','soft','ink','shade'].every(name=>t.includes('--palette-'+name+':'))).catch(()=>false)`), 'Copy palette puts usable CSS with the current four colours on the actual browser clipboard');
     await shot('creative-palette');
   });
 
@@ -498,7 +511,7 @@ try {
     await requireCheck(async () => await scalar(root + '/design/spacing') === 24, 'Design changes the live specimen spacing');
     check(!!await node(root + '/specimen/record'), 'design layout preserves its action address');
     await pointer(root + '/design/copy_prompt');
-    await requireCheck(() => page.value(`navigator.clipboard.readText().then(t=>t.includes('"origin":"user_content"')&&t.includes('Browser verified idea')&&t.includes('"spacing":24')&&t.includes('agent-design'))`), 'the real clipboard receives the design prompt with current constraints and quoted user data');
+    await requireCheck(() => page.value(`window.__omuiClipboardText().then(t=>t.includes('"origin":"user_content"')&&t.includes('Browser verified idea')&&t.includes('"spacing":24')&&t.includes('agent-design')).catch(()=>false)`), 'the real clipboard receives the design prompt with current constraints and quoted user data');
     await shot('agent-design');
   });
 
@@ -516,7 +529,7 @@ try {
     }
     check(JSON.stringify((await snapshot(object)).map(n => n.id).sort()) === JSON.stringify(ids) && await scalar(object + '/title') === 'Same object in browser', 'changing source language preserves the same object IDs and model');
     const source = await label(root + '/details/source'); await pointer(root + '/details/copy');
-    await requireCheck(() => page.value(`navigator.clipboard.readText().then(t=>t===${q(source)})`), 'the browser clipboard receives the displayed current API expressions');
+    await requireCheck(() => page.value(`window.__omuiClipboardText().then(t=>t===${q(source)}).catch(()=>false)`), 'the browser clipboard receives the displayed current API expressions');
     await shot('interface-language-details');
   });
 

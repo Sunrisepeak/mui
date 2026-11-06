@@ -89,6 +89,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/hanim/core": "base",
     "modules/projects/hanim": "gfx",
     "modules/projects/xrender": "gfx",
+    "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
     "modules/projects/xengine/simulation": "base",  # the CPU part
     "modules/projects/xengine/simulation/cellular/rhi": "gfx",
     "modules/projects/xengine/audio": "media",
@@ -144,7 +145,7 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/ui/native/fuzzy", "modules/media/audio", "modules/media/video", "mgame/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/ui/view", "showcase/promo-video"]
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -654,6 +655,8 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xrender.graph": {"only": {"xrender.graph", "mlibs.rhi", "mlibs.memory", "mlibs.utils"}},
     # drawing vectors needs no effect loader and no shader compiler
     "xrender.vector": {"not": {"xrender.effect", "mlibs.shader"}},
+    # text lays out and gives glyphs as geometry; xrender.text draws them
+    "mlibs.text": {"not": {"xrender"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
     "xengine.simulation": {"not": {"openmui", "mgame", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},

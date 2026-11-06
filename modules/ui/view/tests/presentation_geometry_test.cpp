@@ -5,6 +5,7 @@ import openmui.view;
 import openmui.motion;
 import openmui.raster;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -27,7 +28,7 @@ bool pixels_equal(const raster::Surface& a, const raster::Surface& b) { return a
 struct Fixture {
     typeset::FontCollection fonts;
     Runtime runtime{options(fonts)};
-    typeset::GlyphCache glyphs{fonts};
+    xrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(10.0f);
     int presses = 0;
     Point local{-1, -1};
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
         check(near(f.runtime.drawn_bounds(id), f.runtime.screen_bounds(id)) && !f.runtime.motion_time(id), "settling restores the target border without a stale presented box");
     });
     suite.test("real row reflow and independently moving nested roots retain their actual pointer geometry", [] {
-        typeset::FontCollection fonts; Runtime runtime(options(fonts)); typeset::GlyphCache glyphs(fonts);
+        typeset::FontCollection fonts; Runtime runtime(options(fonts)); xrender::text::GlyphCache glyphs(fonts);
         auto room = signal(230.0f), inside = signal(0.0f); int pressed = 0;
         auto control = box({.id = "control", .width = 70, .height = 30, .background = "#e11d48", .on = {{"press", [&](const Value&) { ++pressed; }}}});
         control.prop("translate_x", Source(derive([inside] { return Value(static_cast<double>(inside.get())); }))).prop("motion", Source(Value("morph motion.normal")));

@@ -3,6 +3,7 @@ import openmui.view;
 import xrender.raster;
 import mlibs.image;
 import mlibs.testing;
+import xrender.text;
 using namespace omui;
 using namespace mlibs::testing;
 namespace raster=xrender::raster;
@@ -28,7 +29,7 @@ struct Fixture {
     typeset::FontCollection& fonts=default_fonts();
     Runtime rt{[&]{RuntimeOptions o;o.size={360,220};o.fonts=&fonts;o.stages=Stages::paint;
         o.theme=Theme::light();o.theme.motion["motion.normal"]=Transition::tween(seconds(1),hanim::ease::linear);return o;}()};
-    typeset::GlyphCache glyphs{fonts};
+    xrender::text::GlyphCache glyphs{fonts};
     Signal<std::string> color=signal(std::string("#e11d48"));
     int presses=0;Point local{};
     Fixture() {

@@ -8,6 +8,7 @@
 import std;
 import openmui.host.web;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -68,7 +69,7 @@ int main(int argc, char** argv) {
         if (!gpu) return;
         // The CPU's reference: the same list, size and scale.
         Runtime& rt = w.runtime();
-        typeset::GlyphCache glyphs(rt.fonts());
+        xrender::text::GlyphCache glyphs(rt.fonts());
         raster::Surface ref(gpu->width(), gpu->height());
         render::CpuRenderer cpu;
         (void)cpu.render(rt.display_list(), ref, {&rt.images(), &glyphs}, {.scale = rt.scale(), .background = Color::white()});

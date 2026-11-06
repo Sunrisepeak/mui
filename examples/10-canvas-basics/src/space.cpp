@@ -4,6 +4,7 @@ import std;
 import openmui.hash;
 import openmui;
 import openmui.ui.canvas;
+import xrender.text;
 
 namespace space {
 
@@ -191,7 +192,7 @@ bool label(omui::world::DrawContext& d, Labels& labels, const std::string& key, 
     const auto& p = labels.get(*d.fonts, d.theme, key, std::move(text), size, weight, colour);
     const omui::Size s = p.size();
     if (at.x + s.width > within.right() || at.y + s.height > within.bottom()) return false;
-    p.paint(d.list, at);
+    xrender::text::paint(p, d.list, at);
     return true;
 }
 

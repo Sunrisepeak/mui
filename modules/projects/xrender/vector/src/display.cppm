@@ -346,6 +346,16 @@ public:
                         Color color, Sampling s = Sampling::linear, float seam = 0.5f, const Material* material = nullptr);
     void draw_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> glyphs, const Paint& p,
                      std::span<const GlyphStyle> styles = {});
+    // The same, the `count` glyphs written in place by `fill` (given them
+    // default-constructed, in the list's arena): a producer with a glyph type
+    // of its own (a text library's) converts them without a buffer of its own.
+    template <class Fill>
+        requires std::invocable<Fill&, std::span<Glyph>>
+    void draw_glyphs(FontRef font, float size, Point origin, std::size_t count, Fill&& fill, const Paint& p) {
+        std::span<Glyph> glyphs = glyph_storage(count);
+        fill(glyphs);
+        add_glyphs(font, size, origin, glyphs, p);
+    }
     // Gives the DrawGlyphs command at `index` per-glyph styles (one per glyph),
     // or removes them (empty): how the runtime animates any node's text after
     // the node painted it (D-68).
@@ -430,6 +440,8 @@ private:
     PathView own(const Path& p);
     StrokeStyle own(const StrokeStyle& s);
     Command own(const Command& c);
+    std::span<Glyph> glyph_storage(std::size_t count);
+    void add_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> placed, const Paint& p);
 
     std::vector<Command> commands_;
     mlibs::memory::Arena                arena_{16 * 1024};

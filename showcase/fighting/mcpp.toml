@@ -37,6 +37,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 openmui.sdk      = { path = "../.." }
 gongfu.data      = { path = "../../mgame/gongfu/data" }

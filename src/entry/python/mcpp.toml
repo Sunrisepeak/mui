@@ -26,6 +26,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 shared = "self-contained"
 
 [dependencies]
+xrender.text = { path = "../../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../../modules/base/utils" }
 openmui.sdk           = { path = "../../.." }
 openmui.abi           = { path = "../../../modules/ui/abi" }

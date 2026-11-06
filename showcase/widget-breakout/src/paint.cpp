@@ -13,6 +13,7 @@ import std;
 import openmui.hash;
 import openmui;
 import openmui.showcase.widget_breakout.sim;
+import xrender.text;
 
 namespace omui::breakout {
 
@@ -277,7 +278,7 @@ void Field::paint_over(PaintContext& ctx) const {
     };
     auto centred = [&](std::string_view text, float size, Color color, Point at) {
         const auto& p = label(text, size, color);
-        p.paint(out, {at.x - p.size().width / 2, at.y - p.size().height / 2});
+        xrender::text::paint(p, out, {at.x - p.size().width / 2, at.y - p.size().height / 2});
     };
     const State* sp = state();
     if (!sp) return;
@@ -556,7 +557,7 @@ void Field::paint_over(PaintContext& ctx) const {
         const float bw = said.size().width + 24, bh = said.size().height + 12;
         const float bx = std::clamp(static_cast<float>(top.x) - bw / 2, 8.0f, static_cast<float>(field_w) - bw - 8), by = static_cast<float>(top.y) + 22;
         out.fill_round_rect({bx, by, bw, bh}, CornerRadii::all(bh / 2), solid(hex(ink::live, 0.92f * fade)));
-        said.paint(out, {bx + 12, by + 6});
+        xrender::text::paint(said, out, {bx + 12, by + 6});
     }
     // Rings: the shutdown's wave, a banked chain, a capsule caught.
     for (const Fx::Ring& r : fx_.rings) {
@@ -571,14 +572,14 @@ void Field::paint_over(PaintContext& ctx) const {
         const Color c = light ? Color{f.color.r * 0.62f, f.color.g * 0.62f, f.color.b * 0.62f, f.color.a} : f.color;
         const auto& p = label(f.view(), f.size, c.with_alpha(std::min(1.0f, f.life * 2)));
         const float x = std::clamp(f.at.x - p.size().width / 2, 8.0f, static_cast<float>(field_w) - p.size().width - 8);
-        p.paint(out, {x, f.at.y - p.size().height / 2});
+        xrender::text::paint(p, out, {x, f.at.y - p.size().height / 2});
     }
     out.pop_transform();
 
     // ── the HUD, on the screen ──
     const float W = ctx.size.width, H = ctx.size.height;
-    label(std::format("{}", s.score), 26, text_ink).paint(out, {24, 14});
-    label(std::format("{} / {}   {} · {}", def.number, room_count, def.name, def.title), 13, text_ink.with_alpha(0.65f), 0, 500).paint(out, {24, 50});
+    xrender::text::paint(label(std::format("{}", s.score), 26, text_ink), out, {24, 14});
+    xrender::text::paint(label(std::format("{} / {}   {} · {}", def.number, room_count, def.name, def.title), 13, text_ink.with_alpha(0.65f), 0, 500), out, {24, 50});
     for (std::int32_t i = 0; i < s.lives; ++i) out.fill_round_rect({W - 30 - 22.0f * static_cast<float>(i), 22, 13, 13}, CornerRadii::all(6.5f), solid(text_ink));
     // Sparks: three diamonds, each a rewind's worth, filling; glowing as a chain is banked.
     if (fx_.banked > 0) out.fill_round_rect({W - 110, 40, 92, 36}, CornerRadii::all(18), solid(cue(ink::spark, 0.35f * fx_.banked)));
@@ -598,7 +599,7 @@ void Field::paint_over(PaintContext& ctx) const {
         // A rewind across the bank that paid for it leaves a debt: owed, in the colour of a loss, until sparks pay it back.
         const auto& n = s.sparks >= 0 ? label(std::format("{} ◆", s.sparks), 12, cue(ink::spark, 0.85f))
                                       : label(std::format("{} ◆ owed", -s.sparks), 12, cue(ink::lost, 0.95f));
-        n.paint(out, {W - 128 - n.size().width, 51});
+        xrender::text::paint(n, out, {W - 128 - n.size().width, 51});
     }
     // The chain, as it grows.
     if (s.combo >= 2 && !s.over) {
@@ -611,21 +612,21 @@ void Field::paint_over(PaintContext& ctx) const {
         for (std::int32_t k = 0; k < duet_full; ++k)
             out.fill_round_rect({24 + 22.0f * static_cast<float>(k), 86, 14, 6}, CornerRadii::all(3),
                                 solid(cue(ink::live, s.finisher ? 0.6f + 0.4f * pulse(s.frame, 12) : k < s.duet ? 0.95f : 0.25f)));
-        label(s.finisher ? std::string("DUET — return it now") : std::format("duet · copilot: {}", order_), 11, cue(ink::live, 0.85f)).paint(out, {24, 98});
+        xrender::text::paint(label(s.finisher ? std::string("DUET — return it now") : std::format("duet · copilot: {}", order_), 11, cue(ink::live, 0.85f)), out, {24, 98});
     }
     // The X-ray: on, or how soon again.
     if (def.dark || scan || (timeline_ && timeline_->frame() < scan_ready_)) {
         const std::int64_t now = timeline_->frame();
         const std::string what = scan ? std::string("X-RAY") : now < scan_ready_ ? std::format("X-ray in {:.1f} s", static_cast<double>(scan_ready_ - now) / steps_per_second)
                                                                                 : std::string("X  X-ray ready");
-        label(what, 12, hex(ink::cache, scan ? 1.0f : 0.7f)).paint(out, {24, H - 28});
+        xrender::text::paint(label(what, 12, hex(ink::cache, scan ? 1.0f : 0.7f)), out, {24, H - 28});
     }
     // A hint, once, when it is needed; fading out.
     if (!hint_.empty() && s.frame < hint_until_ && !s.over) {
         const float a = std::min(1.0f, static_cast<float>(hint_until_ - s.frame) / 60);
         const auto& p = label(hint_, 16, on_dark.with_alpha(0.9f * a));
         out.fill_round_rect({W / 2 - p.size().width / 2 - 16, H - 92, p.size().width + 32, p.size().height + 14}, CornerRadii::all(12), solid(hex(0x0b0e17, 0.7f * a)));
-        p.paint(out, {W / 2 - p.size().width / 2, H - 85});
+        xrender::text::paint(p, out, {W / 2 - p.size().width / 2, H - 85});
     }
     // Rewinding: the picture tinted, how far back.
     if (rewinding_) {
@@ -662,25 +663,25 @@ void Field::paint_over(PaintContext& ctx) const {
             const Color c = hidden ? hex(0xff7043) : hex(0x64ffda);
             out.stroke_round_rect(at, CornerRadii::all(6), hidden ? 2.5f : 1.5f, solid(c));
             const auto& p = label(std::format("{} · {}", role_of(def.bricks[i].kind), brick_id(i)), 10, c);
-            p.paint(out, {at.x + 3, at.y - p.size().height - 1});
+            xrender::text::paint(p, out, {at.x + 3, at.y - p.size().height - 1});
         }
         const float x = W - 352, w = 330;
         const auto& made = label(def.made, 12, on_dark.with_alpha(0.9f), w, 400);
         const float line = 17, top = 84;
         const float h = made.size().height + line * static_cast<float>(log_size + 4) + 40;
         out.fill_round_rect({x - 12, top - 10, w + 24, h}, CornerRadii::all(10), solid(hex(0x0b0e17, 0.9f)));
-        label("INSPECTOR · HOW THIS ROOM IS MADE", 11, hex(0x64ffda, 0.8f)).paint(out, {x, top});
-        made.paint(out, {x, top + 20});
+        xrender::text::paint(label("INSPECTOR · HOW THIS ROOM IS MADE", 11, hex(0x64ffda, 0.8f)), out, {x, top});
+        xrender::text::paint(made, out, {x, top + 20});
         float y = top + 32 + made.size().height;
-        label("SEMANTIC TREE · LATEST CHANGES", 11, hex(0x64ffda, 0.8f)).paint(out, {x, y});
+        xrender::text::paint(label("SEMANTIC TREE · LATEST CHANGES", 11, hex(0x64ffda, 0.8f)), out, {x, y});
         for (std::size_t k = 0; k < log_.size(); ++k) {
             const float alpha = 0.45f + 0.55f * static_cast<float>(k + 1) / static_cast<float>(log_.size());
-            label(log_[k], 11, on_dark.with_alpha(alpha), 0, 500).paint(out, {x, y + line * static_cast<float>(k + 1)});
+            xrender::text::paint(label(log_[k], 11, on_dark.with_alpha(alpha), 0, 500), out, {x, y + line * static_cast<float>(k + 1)});
         }
         y += line * static_cast<float>(log_size + 1) + 6;
-        label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, on_dark.with_alpha(0.6f), 0, 500).paint(out, {x, y});
-        label("Tab — back to the game (paused while you look)", 11, hex(0x64ffda, 0.7f), 0, 500).paint(out, {x, y + line * 2});
-        if (!agent_log_.empty()) label(std::format("copilot: {}", agent_log_.back()), 11, hex(ink::live, 0.8f), w, 500).paint(out, {x, y + line});
+        xrender::text::paint(label(std::format("frame {} · state {:016x}", s.frame, checksum(s)), 11, on_dark.with_alpha(0.6f), 0, 500), out, {x, y});
+        xrender::text::paint(label("Tab — back to the game (paused while you look)", 11, hex(0x64ffda, 0.7f), 0, 500), out, {x, y + line * 2});
+        if (!agent_log_.empty()) xrender::text::paint(label(std::format("copilot: {}", agent_log_.back()), 11, hex(ink::live, 0.8f), w, 500), out, {x, y + line});
     }
 }
 

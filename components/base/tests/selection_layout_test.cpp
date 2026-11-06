@@ -4,6 +4,7 @@
 import std;
 import openmui.ui.base;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -23,7 +24,7 @@ struct Paint {
     std::vector<Rect> selected_glyphs;
     std::optional<Rect> selected_ink;
 };
-Paint painted(Runtime& runtime, typeset::GlyphCache& cache, NodeId node) {
+Paint painted(Runtime& runtime, xrender::text::GlyphCache& cache, NodeId node) {
     Paint result;
     const auto& theme=runtime.theme();
     Affine transform;
@@ -90,7 +91,7 @@ Paint painted(Runtime& runtime, typeset::GlyphCache& cache, NodeId node) {
 struct Fixture {
     typeset::FontCollection fonts;
     Runtime runtime;
-    typeset::GlyphCache glyphs;
+    xrender::text::GlyphCache glyphs;
     Signal<float> width=signal(320.0f);
     Signal<std::string> value;
     Fixture(std::string initial)
@@ -167,7 +168,7 @@ int main(int argc,char** argv) {
     suite.test("an explicit parent reorder owns default Button allocation and stagger without losing label ink",[] {
         auto fonts=Fixture::make_fonts();auto options=Fixture::make_options(fonts);options.size={300,240};
         options.theme.motion["motion.normal"]=Transition::tween(seconds(1),hanim::ease::linear);
-        Runtime runtime(options);typeset::GlyphCache glyphs(fonts);
+        Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);
         auto order=signal(std::vector<std::string>{"alpha","beta","gamma"});
         auto list=column({.id="list",.width=200,.gap=12},{dynamic([order]{
             std::vector<Element> children;

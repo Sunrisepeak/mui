@@ -15,6 +15,7 @@ import openmui.image;
 import openmui.native.fuzzy;
 import openmui.theme.default_theme;
 import openmui.theme.compact;
+import xrender.text;
 
 namespace omui::entry::python {
 
@@ -28,7 +29,7 @@ struct World {
     abi::OmuiRuntime                         handle = nullptr;
     std::unique_ptr<lang::Host>              host;
     std::unique_ptr<lang::Session>           session;
-    std::unique_ptr<typeset::GlyphCache>     glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
     render::CpuRenderer                      renderer;
     raster::Surface                          surface;
     double                                   time = 0;
@@ -52,7 +53,7 @@ struct World {
         });
         host = std::make_unique<lang::Host>(handle);
         session = std::make_unique<lang::Session>(*host);
-        glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+        glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
     }
 
     FrameOutput step() {

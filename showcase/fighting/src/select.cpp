@@ -5,6 +5,7 @@ import openmui.core;
 import openmui.view;
 import gongfu.present2d;
 import hanim.core;
+import xrender.text;
 
 namespace omui::fighting {
 
@@ -546,8 +547,8 @@ void Select::paint(PaintContext& ctx) const {
                 plate.move_to({px + lean, py}).line_to({px + pw + lean, py}).line_to({px + pw - lean, py + ph}).line_to({px - lean, py + ph}).close();
                 out.fill_path(plate, render::FillRule::nonzero, render::Paint::solid(tone(0x07080b, 0.9f)));
                 out.stroke_path(plate, {.width = 1.5f}, render::Paint::solid(tone(0xc9a24a, 0.9f)));
-                tag.paint(out, {px + pw / 2 - t.width / 2, py + 8});
-                hint.paint(out, {px + pw / 2 - h.width / 2, py + 10 + t.height});
+                xrender::text::paint(tag, out, {px + pw / 2 - t.width / 2, py + 8});
+                xrender::text::paint(hint, out, {px + pw / 2 - h.width / 2, py + 10 + t.height});
             }
             if (ready_[static_cast<std::size_t>(p)]) {  // stamped READY across the banner
                 const float rh = 46, rw = wide(region::ready, rh);

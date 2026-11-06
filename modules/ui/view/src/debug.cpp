@@ -9,6 +9,7 @@ import openmui.layout;
 import openmui.render.vector;
 import openmui.text;
 import :impl;
+import xrender.text;
 
 namespace omui {
 
@@ -49,7 +50,7 @@ Rect plate(render::DisplayList& list, typeset::FontCollection& fonts, const Them
     box.x = std::clamp(box.x, 0.0f, std::max(0.0f, window.width - box.width));
     box.y = std::clamp(box.y, 0.0f, std::max(0.0f, window.height - box.height));
     list.fill_round_rect(box, CornerRadii::all(4), render::Paint::solid(Color::hex(0x0f172a, 0.88f)));
-    p.paint(list, {box.x + 6, box.y + 4});
+    xrender::text::paint(p, list, {box.x + 6, box.y + 4});
     return box;
 }
 

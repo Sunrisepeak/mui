@@ -5,6 +5,7 @@ import openmui;
 import openmui.math;
 import openmui.site;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -38,7 +39,7 @@ Contrast contrast(Runtime& rt, NodeId target) {
     check(without.balanced() && coverage.balanced());
     const int width = static_cast<int>(rt.size().width), height = static_cast<int>(rt.size().height);
     raster::Surface full(width, height), paper(width, height), mask(width, height);
-    typeset::GlyphCache glyphs(rt.fonts()); render::CpuRenderer renderer;
+    xrender::text::GlyphCache glyphs(rt.fonts()); render::CpuRenderer renderer;
     const render::Resources resources{&rt.images(), &glyphs};
     const auto a = renderer.render(source, full, resources, {.background = Color::white()});
     const auto b = renderer.render(without, paper, resources, {.background = Color::white()});

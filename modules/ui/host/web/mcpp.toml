@@ -36,6 +36,7 @@ sources = ["src/native/browser/*.cpp"]
 sources = ["src/native/elsewhere/*.cpp"]
 
 [dependencies]
+xrender.text = { path = "../../../projects/xrender/text" }
 openmui.core     = { path = "../../core" }
 openmui.view     = { path = "../../view" }
 openmui.semantic = { path = "../../semantic" }

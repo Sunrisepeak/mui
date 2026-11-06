@@ -6,6 +6,7 @@ import openmui.hash;
 import openmui;
 import openmui.ui.canvas;
 import openmui.ui.markdown;
+import xrender.text;
 
 namespace omui::wall {
 
@@ -124,7 +125,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Size s = p.size();
                                          if (s.width + 24 > r.width) return;
                                          const float y = strip >= s.height + 8 ? r.y + (strip - s.height) / 2 : r.y - s.height - 6;
-                                         p.paint(d.list, {r.x + 16, y});
+                                         xrender::text::paint(p, d.list, {r.x + 16, y});
                                      },
                                  .role = omui::Role::group,
                                  .title_bar = static_cast<float>(g.label),
@@ -151,7 +152,7 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                          const omui::Size s = p.size();
                                          d.list.push_clip({r.x + 4, r.y, r.width - 8, r.height});
                                          const float top = r.y + std::min(r.height / 2 - s.height / 2, 4.0f + static_cast<float>(title_bar * d.zoom));
-                                         p.paint(d.list, {r.x + 8, top});
+                                         xrender::text::paint(p, d.list, {r.x + 8, top});
                                          if (summary) {
                                              float y = top + s.height + 8;
                                              for (auto part : std::views::split(d.scene.text(d.node, "outline"), '\n')) {
@@ -159,11 +160,11 @@ void build(Model& model, Scene& scene, const Geometry& g) {
                                                  if (line.empty()) continue;
                                                  const auto& q = labels->get(d, std::format("{}#{}", key, line), line, 12, 450, d.theme.color("text_muted"));
                                                  if (y + q.size().height > r.y + r.height - 22) break;
-                                                 q.paint(d.list, {r.x + 10, y});
+                                                 xrender::text::paint(q, d.list, {r.x + 10, y});
                                                  y += q.size().height + 3;
                                              }
                                              const auto& path = labels->get(d, key + "#p", std::string(d.scene.text(d.node, "path")), 10, 400, d.theme.color("text_muted"));
-                                             path.paint(d.list, {r.x + 8, r.y + r.height - path.size().height - 6});
+                                             xrender::text::paint(path, d.list, {r.x + 8, r.y + r.height - path.size().height - 6});
                                          }
                                          d.list.pop_clip();
                                      },

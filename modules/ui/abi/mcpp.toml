@@ -27,6 +27,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/native/*.cpp"
 discover = ["tests/**/*.cpp", "tests/**/*.c"]
 
 [dependencies]
+xrender.text = { path = "../../projects/xrender/text" }
 openlifa.openmui = { path = "../../../spec" }
 openmui.core     = { path = "../core" }
 openmui.view     = { path = "../view" }

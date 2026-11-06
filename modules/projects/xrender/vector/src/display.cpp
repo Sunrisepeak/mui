@@ -300,6 +300,15 @@ void DisplayList::draw_glyphs(FontRef font, float size, Point origin, std::span<
                               std::span<const GlyphStyle> styles) {
     commands_.emplace_back(DrawGlyphs{font, size, origin, arena_.copy(glyphs), own(p), arena_.copy(styles)});
 }
+std::span<Glyph> DisplayList::glyph_storage(std::size_t count) {
+    if (count == 0) return {};
+    auto* p = static_cast<Glyph*>(arena_.allocate(sizeof(Glyph) * count, alignof(Glyph)));
+    for (std::size_t i = 0; i < count; ++i) std::construct_at(p + i);
+    return {p, count};
+}
+void DisplayList::add_glyphs(FontRef font, float size, Point origin, std::span<const Glyph> placed, const Paint& p) {
+    commands_.emplace_back(DrawGlyphs{font, size, origin, placed, own(p), {}});
+}
 void DisplayList::style_glyphs(std::size_t index, std::span<const GlyphStyle> styles) {
     if (index >= commands_.size()) return;
     if (auto* g = std::get_if<DrawGlyphs>(&commands_[index]))

@@ -4,6 +4,7 @@ import std;
 import openmui.core;
 import openmui.view;
 import openmui.unicode;
+import xrender.text;
 
 namespace omui {
 
@@ -321,10 +322,10 @@ void TextBox::paint(PaintContext& ctx) const {
         ps.wrap = props.multiline;
         typeset::Paragraph ph(ctx.services.fonts(), props.placeholder, std::move(ps));
         ph.layout(props.multiline ? ctx.content.width : std::numeric_limits<float>::infinity());
-        ph.paint(ctx.list, {ctx.content.x, origin.y});
+        xrender::text::paint(ph, ctx.list, {ctx.content.x, origin.y});
     } else {
         if (off) ctx.list.push_layer(0.55f, render::BlendMode::normal, {}, {}, box);
-        p.paint(ctx.list, origin);
+        xrender::text::paint(p, ctx.list, origin);
         if (off) ctx.list.pop_layer();
     }
     if (editor_.composing()) {

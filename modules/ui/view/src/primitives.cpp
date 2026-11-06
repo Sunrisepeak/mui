@@ -7,6 +7,7 @@ import openmui.render.vector;
 import openmui.text;
 import openmui.image;
 import openmui.raster;
+import xrender.text;
 
 namespace omui {
 
@@ -270,7 +271,7 @@ struct TextNode {
     void paint(PaintContext& ctx) const {
         typeset::Paragraph& p = shaped(ctx.services);
         lay(p, (wrap ? ctx.content.width : std::numeric_limits<float>::infinity()) + width_slack);
-        p.paint(ctx.list, ctx.content.origin());
+        xrender::text::paint(p, ctx.list, ctx.content.origin());
     }
     void semantics(SemanticsContext&, spec::SemanticNode& n) const {
         if (n.name.empty()) n.name = text;  // S-6: text is its own name

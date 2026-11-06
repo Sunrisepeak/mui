@@ -3,6 +3,7 @@ module openmui.ui.base;
 import std;
 import openmui.core;
 import openmui.view;
+import xrender.text;
 
 namespace omui::parts {
 
@@ -119,7 +120,7 @@ float Label::baseline(Services& services, Color color) {
 
 void Label::paint(PaintContext& ctx, Point origin, Color color) {
     if (text_.empty()) return;
-    shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_).paint(ctx.list, origin);
+    xrender::text::paint(shaped(ctx.services, color, width_ < 0 ? std::numeric_limits<float>::infinity() : width_), ctx.list, origin);
 }
 
 }  // namespace omui::parts

@@ -88,7 +88,7 @@ def main() -> int:
         (project/'src').mkdir(exist_ok=True)
         manifest=(fixture/'mcpp.toml.in').read_text()
         for key,path in {'view':'modules/ui/view','components':'components/base','raster':'modules/projects/xrender/raster',
-                         'image':'modules/base/image','utils':'modules/base/utils','hanim':'modules/projects/hanim'}.items():
+                         'image':'modules/base/image','utils':'modules/base/utils','xrender_text':'modules/projects/xrender/text','hanim':'modules/projects/hanim'}.items():
             manifest=manifest.replace('{{'+key+'_path}}',json.dumps(str(repo/path)))
         (project/'mcpp.toml').write_text(manifest);shutil.copyfile(fixture/'src/main.cpp',project/'src/main.cpp')
         unlocked=not (project/'mcpp.lock').is_file()

@@ -30,6 +30,7 @@ members = [
     "modules/base/utils",
     "modules/projects/hanim",
     "modules/projects/xrender/raster",
+    "modules/projects/xrender/text",
     "modules/projects/xrender/graph",
     "modules/projects/xrender/cts",
     "modules/projects/xrender/vector",

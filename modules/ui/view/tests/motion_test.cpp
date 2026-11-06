@@ -8,6 +8,7 @@ import std;
 import openmui.view;
 import openmui.raster;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -31,7 +32,7 @@ RuntimeOptions options(Size size = {200, 100}) {
 }
 
 raster::Surface draw(Runtime& rt) {
-    static typeset::GlyphCache glyphs(fonts());
+    static xrender::text::GlyphCache glyphs(fonts());
     raster::Surface s(static_cast<int>(rt.size().width), static_cast<int>(rt.size().height));
     render::CpuRenderer r;
     render::CpuOptions o;

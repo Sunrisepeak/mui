@@ -26,6 +26,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
 "xengine.simulation" = { path = "../../modules/base/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/base/simulation/cellular" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }

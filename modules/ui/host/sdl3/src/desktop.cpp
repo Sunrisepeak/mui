@@ -16,6 +16,7 @@ import openmui.rhi.sdl;
 import openmui.render.effect;
 import mcpplibs.os;
 import :platform;
+import xrender.text;
 
 namespace omui {
 
@@ -25,7 +26,7 @@ struct Desktop::Impl final : WindowHost {
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;  // own_runtime's, or the one adopted
     std::unique_ptr<semantic::Tree>          tree;
-    std::unique_ptr<typeset::GlyphCache>     glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
     std::unique_ptr<agent::Endpoint>         endpoint;
     // Assistive technology's view of the tree (D-21).
     std::unique_ptr<accessibility::Mirror>   mirror;
@@ -243,7 +244,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
         d.runtime->clock() = hanim::Clock::interactive();
         d.runtime->resize(d.options.size, d.runtime->scale());
         d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-        d.glyphs = std::make_unique<typeset::GlyphCache>(d.runtime->fonts());
+        d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
         return;
     }
     typeset::FontCollection* fonts = d.options.fonts;
@@ -262,7 +263,7 @@ Desktop::Desktop(DesktopOptions options) : impl_(std::make_unique<Impl>()) {
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
 }
 
 Desktop::~Desktop() {

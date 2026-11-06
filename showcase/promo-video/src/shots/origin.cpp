@@ -10,6 +10,7 @@ module openmui.showcase.promo_video;
 import std;
 import hanim.core;
 import openmui;
+import xrender.text;
 
 namespace omui::promo {
 
@@ -376,7 +377,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
         if (on > 0) {
             paint_ticks(list, {pix.x - 10, pix.y - 10, pix.width + 20, pix.height + 20}, hex(ink::ice, 0.8f * on), 26, 2, 0);
             const auto& dim = s.labels.get(fonts, "1 px", 18, hex(ink::muted, on), 500, "JetBrains Mono");
-            dim.paint(list, {pix.x + pix.width / 2 - dim.size().width / 2, pix.y - 44});
+            xrender::text::paint(dim, list, {pix.x + pix.width / 2 - dim.size().width / 2, pix.y - 44});
         }
     }
     // The Save button's frame, as the panel comes into view.
@@ -408,7 +409,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
             list.stroke_round_rect(b.rect, CornerRadii::all(4), b.lit ? 1.6f : 1, render::Paint::solid(hex(b.lit ? ink::cyan : ink::line, on)));
             const auto& l = s.labels.get(fonts, b.label, 18, hex(b.lit ? ink::ice : ink::muted, on), 500, "JetBrains Mono");
             list.push_clip({b.rect.x + 6, b.rect.y, b.rect.width - 12, b.rect.height});
-            l.paint(list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
+            xrender::text::paint(l, list, {b.rect.x + 9, b.rect.y + b.rect.height / 2 - l.size().height / 2});
             list.pop_clip();
         }
         // The lit node to the button it is: a leader line.
@@ -461,7 +462,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<render::ImageRef, 
             for (const float x : {w.x, w.x + w.width}) list.fill_rect({x - 4, dy - 4, 9, 1}, line), list.fill_rect({x, dy - 4, 1, 9}, line);
             const auto& dim = s.labels.get(fonts, "one semantic tree · one wordmark", 18, hex(ink::muted, lines), 500, "JetBrains Mono");
             list.fill_rect({cx - dim.size().width / 2 - 10, dy - 12, dim.size().width + 20, 24}, hex(ink::paper, lines));
-            dim.paint(list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
+            xrender::text::paint(dim, list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
             const float radius = w.width * 0.6f;
             const double sweep = hanim::dm::two_pi * smooth(s.t, 6.0, 7.4);
             render::Path arc;

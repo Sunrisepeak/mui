@@ -10,6 +10,7 @@ import openmui.render.vector;
 import openmui.text;
 import openmui.image;
 import openmui.trace;
+import xrender.text;
 
 namespace omui {
 
@@ -34,7 +35,7 @@ struct Headless::Impl {
     std::unique_ptr<typeset::FontCollection>    own_fonts;
     std::unique_ptr<Runtime>                    runtime;
     std::unique_ptr<semantic::Tree>             tree;
-    std::unique_ptr<typeset::GlyphCache>        glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>        glyphs;
     render::CpuRenderer                         renderer;
     raster::Surface                             surface;
     std::uint64_t                               rendered = 0;   // the list hash the surface shows
@@ -92,7 +93,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.runtime->set_renderer("cpu");
     d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", pipeline::name(d.options.tier)));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
     if (d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;

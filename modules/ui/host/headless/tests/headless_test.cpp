@@ -4,6 +4,7 @@
 import std;
 import openmui.host.headless;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -263,7 +264,7 @@ int main(int argc, char** argv) {
                                    scroll({.id = "list", .y = offset, .height = 80, .gap = 2}, std::move(rows)),
                                }));
         h.settle();
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         int frames = 0;
         auto same_as_full = [&](std::string_view what) {
             const raster::Surface& inc = h.pixels();

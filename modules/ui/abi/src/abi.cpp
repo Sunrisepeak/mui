@@ -19,6 +19,7 @@ import openmui.theme;
 import nlohmann.json;
 import :c;
 import :api;
+import xrender.text;
 
 namespace omui::abi {
 
@@ -93,7 +94,7 @@ struct OmuiRuntime_T {
     Runtime*                                          rt = nullptr;
     std::shared_ptr<bool>                             alive = std::make_shared<bool>(true);
     std::function<void()>                             wake;  // the host's loop, when it sleeps
-    std::unique_ptr<typeset::GlyphCache>              glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>              glyphs;
     std::unique_ptr<agent::Protocol>                  protocol;
     render::CpuRenderer                               renderer;
     raster::Surface                                   surface;
@@ -184,7 +185,7 @@ OmuiRuntime attach(Runtime& runtime, std::string app_id) {
     r->app_id = app_id.empty() ? std::string("openmui-app") : std::move(app_id);
     r->headless = false;
     r->rt = &runtime;
-    r->glyphs = std::make_unique<typeset::GlyphCache>(runtime.fonts());
+    r->glyphs = std::make_unique<xrender::text::GlyphCache>(runtime.fonts());
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "program:binding";
@@ -225,7 +226,7 @@ OmuiResult omuiCreateRuntime(const OmuiRuntimeCreateInfo* info, OmuiRuntime* out
     o.clock = hanim::Clock::virtual_time();
     r->owned = std::make_unique<Runtime>(std::move(o));
     r->rt = r->owned.get();
-    r->glyphs = std::make_unique<typeset::GlyphCache>(*r->fonts);
+    r->glyphs = std::make_unique<xrender::text::GlyphCache>(*r->fonts);
     agent::ProtocolOptions po;
     po.app = r->app_id;
     po.default_actor = "program:binding";

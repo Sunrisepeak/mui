@@ -10,7 +10,6 @@ export module mlibs.text.api:paragraph;
 
 import std;
 import mlibs.geom;
-import xrender.vector;
 import :font;
 
 export namespace mlibs::text {
@@ -70,12 +69,23 @@ struct ParagraphStyle {
     bool          ellipsis = true;     // with max_lines: end the last line with "…"
 };
 
+// A glyph placed by layout: its id in its font and its origin. Where it came
+// from (D-68): the first byte of its cluster in the source text, and its
+// grapheme, word and line in the paragraph — what glyph-level animation, text
+// ranges and selection address. (A renderer's glyph has the same fields:
+// xrender.text draws these.)
+struct Glyph {
+    std::uint32_t id = 0;
+    Point         position;
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+};
+
 // A glyph run of one line: one font, one style, one direction.
 struct GlyphRun {
     FontRef                    font;
     float                      size = 0;
     Color                      color;
-    std::vector<xrender::Glyph> glyphs;  // positions relative to the paragraph origin (baseline)
+    std::vector<Glyph>         glyphs;  // positions relative to the paragraph origin (baseline)
     std::size_t                begin = 0, end = 0;  // bytes
     bool                       rtl = false;
     float                      x = 0, width = 0;
@@ -138,9 +148,6 @@ public:
     // Vertical caret movement: the offset on the line above / below nearest to x.
     [[nodiscard]] std::size_t offset_above(std::size_t offset, float x) const;
     [[nodiscard]] std::size_t offset_below(std::size_t offset, float x) const;
-
-    // Draws the glyph runs (and decorations) with the paragraph's origin at `origin`.
-    void paint(xrender::DisplayList& list, Point origin) const;
 
     struct Shaped;  // the shaped text; defined by the implementation (openmui.text:shaped)
 

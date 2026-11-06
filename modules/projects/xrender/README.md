@@ -15,6 +15,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 | [graph](graph) | `xrender.graph`: the render graph and the texture pool (below) |
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer |
 | [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
+| [text](text) | `xrender.text`: mlibs.text's glyphs rasterised and cached, its paragraphs painted (layer content) |
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
 | [rhi](rhi) | The backends of `mlibs.rhi`: SDL_GPU, WebGPU, WebGL2 |
 | [cts](cts) | Desktop graph and vector device conformance |

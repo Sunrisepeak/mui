@@ -18,6 +18,7 @@ import :theme;
 import :model;
 import :component;
 import :runtime;
+import xrender.text;
 
 namespace omui {
 
@@ -282,7 +283,7 @@ struct Runtime::Impl {
     Theme                                 theme;
     std::unique_ptr<typeset::FontCollection> own_fonts;
     typeset::FontCollection*                 fonts = nullptr;
-    std::unique_ptr<typeset::GlyphCache>      motion_glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>      motion_glyphs;
     std::mutex                              motion_glyph_mutex;
     render::ImageStore                    images;
     hanim::Clock                           clock;

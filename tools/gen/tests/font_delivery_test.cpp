@@ -6,6 +6,7 @@ import openmui.gen.font_subset;
 import openmui.text;
 import openmui.hash;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -138,7 +139,7 @@ void text_is_identical(const Bytes& original, const Bytes& delivered, std::strin
     const auto& ai = before.face(*a); const auto& bi = after.face(*b);
     check(ai.family == bi.family && ai.style == bi.style && ai.units_per_em == bi.units_per_em && ai.weight == bi.weight && ai.slant == bi.slant &&
         ai.variable == bi.variable && ai.min_weight == bi.min_weight && ai.max_weight == bi.max_weight && ai.color == bi.color);
-    typeset::GlyphCache ac(before), bc(after);
+    xrender::text::GlyphCache ac(before), bc(after);
     bool actual_glyph = false;
     for (float weight : {400.0f, 600.0f}) {
         const auto am = before.metrics(before.font(*a, weight, typeset::Slant::normal), 28);
@@ -159,7 +160,7 @@ void text_is_identical(const Bytes& original, const Bytes& delivered, std::strin
                 for (std::size_t i = 0; i < ar.glyphs.size(); ++i) {
                     const auto& ag = ar.glyphs[i]; const auto& bg = br.glyphs[i]; actual_glyph |= ag.id != 0;
                     check(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y, "HarfBuzz glyph ids and positioned results match");
-                    const auto amask = ac.mask(ar.font, ag.id, ar.size, {}), bmask = bc.mask(br.font, bg.id, br.size, {});
+                    const auto amask = ac.mask(xrender::text::font(ar.font), ag.id, ar.size, {}), bmask = bc.mask(xrender::text::font(br.font), bg.id, br.size, {});
                     check(bool(amask.coverage) == bool(bmask.coverage));
                     if (amask.coverage && bmask.coverage) {
                         const auto ab = amask.coverage->bounds, bb = bmask.coverage->bounds;

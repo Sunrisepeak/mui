@@ -6,6 +6,7 @@ import openmui.view;
 import gongfu.present2d;
 import gongfu.training;
 import hanim.core;
+import xrender.text;
 
 namespace omui::fighting::hud {
 
@@ -162,7 +163,7 @@ void readings(render::DisplayList& out, const tr::Readout& readout, Words& words
     out.fill_round_rect({width / 2 - 170, top - 4, 340, 46}, CornerRadii::all(6), render::Paint::solid(tone(0x0b0d12, 0.55f)));
     auto caption = [&](std::string_view text, float centre) {
         const auto& p = words.get(fonts, text, label, muted);
-        p.paint(out, {centre - p.size().width / 2, top});
+        xrender::text::paint(p, out, {centre - p.size().width / 2, top});
     };
     caption("STARTUP", width / 2 - 110);
     caption("ADVANTAGE", width / 2);
@@ -188,7 +189,7 @@ void readings(render::DisplayList& out, const tr::Readout& readout, Words& words
         const float fade_out = 1 - static_cast<float>(std::max(0, frame - x.frame - 60)) / 30;
         const std::uint32_t c = x.kind == gongfu::Event::Kind::guard_break ? 0xf24e5a : x.kind == gongfu::Event::Kind::deflect ? 0x7ad7ff : 0xf2c14e;
         const auto& p = words.get(fonts, text, 14, tone(c, fade_out));
-        p.paint(out, {width / 2 - p.size().width / 2, height - 66});
+        xrender::text::paint(p, out, {width / 2 - p.size().width / 2, height - 66});
     }
     // A dummy recording or playing: a mark under its side's bar.
     for (std::size_t i = 0; i < 2; ++i) {
@@ -198,7 +199,7 @@ void readings(render::DisplayList& out, const tr::Readout& readout, Words& words
         out.fill_round_rect({x, 128, 70, 18}, CornerRadii::all(9), render::Paint::solid(tone(0x0b0d12, 0.7f)));
         out.fill_round_rect({x + 6, 132, 10, 10}, CornerRadii::all(rec ? 5.0f : 1.0f), render::Paint::solid(tone(rec ? 0xf24e5a : 0x4ef27a)));
         const auto& p = words.get(fonts, rec ? "REC" : "PLAY", label, ink);
-        p.paint(out, {x + 22, 131});
+        xrender::text::paint(p, out, {x + 22, 131});
     }
 }
 
@@ -602,14 +603,14 @@ void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageR
         const auto& won = words.get(fonts, "胜", 54, tone(0xf6ecd6));
         const float h = 96, w = placed(nm->second, h), all = w + 16 + won.size().width;
         shape(out, names, nm->second, {width / 2 - all / 2, top, w, h}, tone(0xf6ecd6));
-        won.paint(out, {width / 2 - all / 2 + w + 16, top + h / 2 - won.size().height / 2});
+        xrender::text::paint(won, out, {width / 2 - all / 2 + w + 16, top + h / 2 - won.size().height / 2});
     } else {
         const auto& p = words.get(fonts, c.heading.empty() ? std::string_view("平局") : c.heading, 54, tone(0xf6ecd6));
-        p.paint(out, {width / 2 - p.size().width / 2, top + 48 - p.size().height / 2});
+        xrender::text::paint(p, out, {width / 2 - p.size().width / 2, top + 48 - p.size().height / 2});
     }
     if (!c.sub.empty()) {
         const auto& p = words.get(fonts, c.sub, 15, tone(0xd9b25a));
-        p.paint(out, {width / 2 - p.size().width / 2, top + 106});
+        xrender::text::paint(p, out, {width / 2 - p.size().width / 2, top + 106});
     }
     // The items: a lacquer bar each (as the title's modes), the lit one bright and a little out.
     for (std::size_t i = 0; i < c.items.size(); ++i) {
@@ -621,13 +622,13 @@ void card(render::DisplayList& out, render::ImageRef menu_frames, render::ImageR
         if (menu_frames.id != 0) picture(out, menu_frames, src, bar, lit ? 1.0f : 0.75f);
         else out.fill_round_rect(bar, CornerRadii::all(4), render::Paint::solid(tone(lit ? 0x8f1d1f : 0x15131a, 0.92f)));
         const auto& p = words.get(fonts, c.items[i], many ? 15.0f : 19.0f, lit ? tone(0xf6ecd6) : tone(0xb9ad94));
-        p.paint(out, {bar.x + (many ? 54.0f : 64.0f), bar.y + bar.height / 2 - p.size().height / 2});
+        xrender::text::paint(p, out, {bar.x + (many ? 54.0f : 64.0f), bar.y + bar.height / 2 - p.size().height / 2});
     }
     // The keys, quiet, at the foot.
     float y = height - 26 - 22 * static_cast<float>(c.keys.size());
     for (std::string_view line : c.keys) {
         const auto& p = words.get(fonts, line, 12, ink.with_alpha(0.62f));
-        p.paint(out, {width / 2 - p.size().width / 2, y});
+        xrender::text::paint(p, out, {width / 2 - p.size().width / 2, y});
         y += 22;
     }
 }

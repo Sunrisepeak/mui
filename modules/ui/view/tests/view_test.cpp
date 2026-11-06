@@ -7,6 +7,7 @@ import openmui.view;
 import openmui.raster;
 import openmui.image;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -48,7 +49,7 @@ void click(Runtime& rt, float x, float y) {
     rt.frame({std::nullopt, {pointer(PointerKind::down, x, y), pointer(PointerKind::up, x, y)}});
 }
 
-raster::Surface draw(Runtime& rt, typeset::GlyphCache& glyphs) {
+raster::Surface draw(Runtime& rt, xrender::text::GlyphCache& glyphs) {
     raster::Surface s(static_cast<int>(rt.size().width * rt.scale()), static_cast<int>(rt.size().height * rt.scale()));
     render::CpuRenderer r;
     render::CpuOptions o;
@@ -920,7 +921,7 @@ int main(int argc, char** argv) {
         check(rt.hit_test({15, 15}) == rt.find("main/dot"));
         check(rt.hit_test({115, 35}) == rt.find("main/moved"));
         check(rt.hit_test({15, 35}) == rt.find("main"));
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         auto px = draw(rt, glyphs);
         auto p = px.at(15, 15);
         check(p.g == 255 && p.r == 0, "the painter's green");
@@ -1100,7 +1101,7 @@ int main(int argc, char** argv) {
                                     text({.text = "Body text wraps when it is longer than the line.", .max_lines = 1}),
                                 }));
         rt.frame();
-        typeset::GlyphCache glyphs(own);
+        xrender::text::GlyphCache glyphs(own);
         auto px = draw(rt, glyphs);
         Hash h;
         for (int y = 0; y < px.height(); ++y)
@@ -1141,7 +1142,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("glyph motion: any node's text, glyph by glyph, a function of time (D-68)", [] {
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         Runtime plain(options({260, 60}));
         plain.mount("main", column({.padding = 8}, {text({.id = "t", .text = "Hello glyph motion"})}));
         plain.frame({seconds(0), {}});
@@ -1186,7 +1187,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("theme scopes: a subtree drawn in a theme of its own, its hooks told it, the rest in the runtime's; set again, the runtime's changed, removed", [] {
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         Runtime rt(options({200, 60}));  // the light theme
         Color seen_ctx, seen_services;
         auto panel = [](std::string id, std::vector<Element> kids) {
@@ -1230,7 +1231,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("theme scopes: their own effect rules (\"window\" is the node that joins), and a cross-fade of their area only", [] {
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         auto make = [](Runtime& rt) {
             rt.mount("main", row({}, {box({.id = "out", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})}),
                                       box({.id = "in", .width = 100, .height = 60, .background = "accent"}, {box({.width = 30, .height = 30, .background = "surface"})})
@@ -1301,7 +1302,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("glyph motion on a container: its descendants' text, each a paragraph; one with its own motion keeps it", [] {
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         auto first = [] { return text({.id = "a", .text = "First paragraph"}); };
         auto second = [] { return text({.id = "b", .text = "Second paragraph"}); };
         auto at = [&](Element tree, double t) {
@@ -1330,7 +1331,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("pixel effects on any node: its whole drawing, driven by time (D-68)", [] {
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         auto card = [] {
             return box({.id = "card", .padding = 10, .background = "accent", .radius = 10},
                        {text({.id = "t", .text = "Burst into particles", .color = "on_accent"})});
@@ -1597,7 +1598,7 @@ int main(int argc, char** argv) {
         check_eq(stops, 1);
         rt.mount("main", column({.padding = 10}, {box({.id = "target", .width = 40, .height = 20})}));
         rt.frame();
-        typeset::GlyphCache glyphs(fonts());
+        xrender::text::GlyphCache glyphs(fonts());
         auto hash = [&] {
             Hash h;
             const raster::Surface px = draw(rt, glyphs);

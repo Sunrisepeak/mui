@@ -8,12 +8,11 @@
 #                   driver: the offscreen driver makes no Metal views, so
 #                   SDL_GPU cannot choose Metal under it
 #
-# On Windows (75655b7: "SDL_HINT_GPU_DRIVER vulkan unsupported!" for every
-# device) the loader is given a manifest written here, naming the driver by an
-# absolute path with forward slashes: the payload's own says `.\\vulkan_lvp.dll`
-# and depends on the installer rewriting it, and a manifest the loader cannot
-# parse or resolve is skipped without an error, leaving no physical device.
-# The device is also made under SDL's windows video driver, whose surface
+# On Windows (75655b7, 0dae888: "SDL_HINT_GPU_DRIVER vulkan unsupported!"
+# for every device) the runner's processes are elevated, and the Vulkan
+# loader ignores the driver variables there: the manifest, written here with
+# an absolute path, is registered under HKLM\SOFTWARE\Khronos\Vulkan\Drivers.
+# The device is made under SDL's windows video driver, whose surface
 # (VK_KHR_win32_surface) is the one Mesa's Windows build is used with.
 #
 # Writes the environment to $GITHUB_ENV (stdout without it).
@@ -51,6 +50,11 @@ case "$(uname -s)" in
             "$(cygpath -m "$driver")" "${api:-1.4.0}" > "$icd"
         icd=$(cygpath -w "$icd")
         loader=$(cygpath -w "$loader")
+        # The runner's processes are elevated, and the loader ignores
+        # VK_DRIVER_FILES / VK_ICD_FILENAMES in an elevated process (it said
+        # "Registry lookup failed to get ICD manifest files" on 0dae888): the
+        # manifest is registered where it always looks.
+        MSYS2_ARG_CONV_EXCL='*' reg add 'HKLM\SOFTWARE\Khronos\Vulkan\Drivers' /v "$icd" /t REG_DWORD /d 0 /f
         ;;
 esac
 [ -n "$loader" ] || { echo "::error::the Vulkan loader is not where xlings installs"; exit 1; }

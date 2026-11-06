@@ -6,6 +6,7 @@ import std;
 import openmui.gen.font_subset;
 import openmui.testing;
 import openmui.text;
+import xrender.text;
 
 using namespace omui::testing;
 using namespace omui;
@@ -194,7 +195,7 @@ int main(int argc, char** argv) {
         check(cut.has_value(), cut ? "" : cut.error()); if (!cut) return;
         typeset::FontCollection full, small;
         check(full.add_data(inter).has_value() && small.add_data(*cut).has_value());
-        typeset::GlyphCache full_cache(full), small_cache(small);
+        xrender::text::GlyphCache full_cache(full), small_cache(small);
         bool saw_substitution = false;
         for (const float weight : {400.0f, 600.0f}) for (const auto& sample : samples) {
             typeset::ParagraphStyle style; style.style.size = 28; style.style.weight = weight;
@@ -212,8 +213,8 @@ int main(int argc, char** argv) {
                         const auto& ag = ar[run].glyphs[i]; const auto& bg = br[run].glyphs[i];
                         check(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y,
                               std::format("{} at weight {} retains shaping", sample, weight));
-                        const auto am = full_cache.mask(ar[run].font, ag.id, ar[run].size, {});
-                        const auto bm = small_cache.mask(br[run].font, bg.id, br[run].size, {});
+                        const auto am = full_cache.mask(xrender::text::font(ar[run].font), ag.id, ar[run].size, {});
+                        const auto bm = small_cache.mask(xrender::text::font(br[run].font), bg.id, br[run].size, {});
                         check(bool(am.coverage) == bool(bm.coverage));
                         if (am.coverage && bm.coverage) {
                             const auto ab = am.coverage->bounds, bb = bm.coverage->bounds;

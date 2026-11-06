@@ -5,6 +5,7 @@ import openmui.view;
 import openmui.motion;
 import openmui.raster;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -251,7 +252,7 @@ int main(int argc, char** argv) {
         rt.mount("main",moving(stack({.width=100,.height=60,.radius=10,.clip=true},{std::move(row_view)})));
         frame(rt,0);frame(rt,0.1);const auto id=rt.find("main/lane/control");
         prefix.set(20);rt.constraints_changed(rt.find("main"));frame(rt,1);
-        typeset::GlyphCache glyphs(fonts);
+        xrender::text::GlyphCache glyphs(fonts);
         for(const double time:{1.0,1.3}) {
             frame(rt,time);const Point painted{75,15};
             raster::Surface surface(200,100);render::CpuRenderer renderer;render::CpuOptions cpu;cpu.object_ids=true;

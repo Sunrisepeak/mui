@@ -7,6 +7,7 @@ import openmui.view;
 import openmui.markdown;
 import :markdown_contract;
 import :parts;
+import xrender.text;
 
 namespace omui::mdview {
 
@@ -353,7 +354,7 @@ void Text::paint(PaintContext& ctx) const {
     if (anchor_ != focus_)
         for (const Rect& rr : p.selection(std::min(anchor_, focus_), std::max(anchor_, focus_)))
             ctx.list.fill_rect({origin_.x + rr.x, origin_.y + rr.y, rr.width, rr.height}, th.color("accent").with_alpha(0.28f));
-    p.paint(ctx.list, origin_);
+    xrender::text::paint(p, ctx.list, origin_);
 }
 
 std::string Text::selected() const {
@@ -587,7 +588,7 @@ void Group::paint(PaintContext& ctx) const {
             marker_.emplace(ctx.services.fonts(), std::format("{}{}", data->number, delim), ps);
             marker_->layout(ctx.content.x - 6);
         }
-        marker_->paint(ctx.list, {0, 0});
+        xrender::text::paint(*marker_, ctx.list, {0, 0});
         return;
     }
     const float r = 2.75f;
@@ -775,7 +776,7 @@ void Code::paint(PaintContext& ctx) const {
         laid_ = 1;
     }
     ctx.list.push_clip(ctx.content);
-    p.paint(ctx.list, ctx.content.origin());
+    xrender::text::paint(p, ctx.list, ctx.content.origin());
     ctx.list.pop_clip();
 }
 
@@ -857,7 +858,7 @@ void Copy::paint(PaintContext& ctx) const {
     ctx.list.stroke_round_rect({0.5f, 0.5f, ctx.size.width - 1, ctx.size.height - 1}, r, 1, render::Paint::solid(th.color("border")));
     typeset::Paragraph& p = label(ctx.services);
     const Size s = p.size();
-    p.paint(ctx.list, {(ctx.size.width - s.width) / 2, (ctx.size.height - s.height) / 2});
+    xrender::text::paint(p, ctx.list, {(ctx.size.width - s.width) / 2, (ctx.size.height - s.height) / 2});
 }
 
 void Copy::paint_over(PaintContext& ctx) const {

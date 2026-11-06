@@ -25,6 +25,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
 openmui.sdk       = { path = "../.." }
 openmui.ui.canvas = { path = "../../components/canvas" }

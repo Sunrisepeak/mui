@@ -9,6 +9,7 @@ import openmui.raster;
 import openmui.render.vector;
 import openmui.text;
 import openmui.trace;
+import xrender.text;
 
 namespace omui::world {
 
@@ -130,12 +131,12 @@ void images_of(const render::DisplayList& dl, std::vector<render::ImageRef>& out
 // the caches of collections gone are dropped.
 render::GlyphSource* glyphs_for(typeset::FontCollection* fonts) {
     if (!fonts) return nullptr;
-    thread_local std::map<std::uint64_t, std::unique_ptr<typeset::GlyphCache>> caches;
+    thread_local std::map<std::uint64_t, std::unique_ptr<xrender::text::GlyphCache>> caches;
     const std::uint64_t id = fonts->id();
     auto it = caches.find(id);
     if (it == caches.end()) {
         std::erase_if(caches, [](const auto& kv) { return !typeset::FontCollection::alive(kv.first); });
-        it = caches.emplace(id, std::make_unique<typeset::GlyphCache>(*fonts)).first;
+        it = caches.emplace(id, std::make_unique<xrender::text::GlyphCache>(*fonts)).first;
     }
     return it->second.get();
 }

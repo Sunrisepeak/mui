@@ -16,6 +16,7 @@ import openmui.lang;
 import openmui.lang.lua;
 import openmui.lang.js;
 import openmui.lang.python.embedded;
+import xrender.text;
 
 namespace omui::promo {
 
@@ -400,7 +401,7 @@ void Code::paint(PaintContext& p, State& s) {
                         paint_ticks(list, {dst.x - 4, dst.y - 4, dst.width + 8, dst.height + 8}, hex(ink::cyan, static_cast<float>(fresh)), 8, 1.5f, 0.5f);
                         const auto& tag = s.labels.get(p.services.fonts(), std::format("#{}", id.substr(id.rfind('/') == std::string::npos ? 0 : id.rfind('/') + 1)),
                                                        18, hex(ink::cyan, static_cast<float>(fresh)), 500, "JetBrains Mono");
-                        tag.paint(list, {dst.x + dst.width + 8, dst.y + 2});
+                        xrender::text::paint(tag, list, {dst.x + dst.width + 8, dst.y + 2});
                     }
                 }
             } else {
@@ -409,7 +410,7 @@ void Code::paint(PaintContext& p, State& s) {
         }
         paint_ticks(list, {d.x - 10, d.y - 10, d.width + 20, d.height + 20}, hex(ink::cyan, 0.6f), 16, 1.5f, 0);
         const auto& cap = s.labels.get(p.services.fonts(), std::format("runs in {} · 360 × 240", language_names[i]), 18, hex(ink::muted), 500, "JetBrains Mono");
-        cap.paint(list, {d.x, d.y - 38});
+        xrender::text::paint(cap, list, {d.x, d.y - 38});
     } else {
         // All four, side by side: the same pixels.
         const double u = smooth(s.t, s.switched, s.switched + 0.5);
@@ -423,7 +424,7 @@ void Code::paint(PaintContext& p, State& s) {
             if (s.tallies[i] && s.tallies[i]->pixels) list.draw_image(s.images[i], img_rect(i), r, render::Sampling::linear);
             paint_ticks(list, {r.x - 5, r.y - 5, r.width + 10, r.height + 10}, hex(ink::cyan, 0.6f), 10, 1.5f, 0);
             const auto& cap = s.labels.get(p.services.fonts(), std::string(language_names[i]), 18, hex(ink::cyan, static_cast<float>(u)), 600, "JetBrains Mono");
-            cap.paint(list, {r.x + 6, r.y - 28});
+            xrender::text::paint(cap, list, {r.x + 6, r.y - 28});
         }
     }
 }

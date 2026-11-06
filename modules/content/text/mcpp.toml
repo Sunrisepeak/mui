@@ -1,11 +1,12 @@
-# openmui.text — fonts, shaping, bidi, line breaking, paragraphs, glyph
-# rasterisation and the editing model, over HarfBuzz and SheenBidi as C++ modules (mcpp-index's mwrap)
-# and mlibs.unicode, xrender.raster and openmui.render.
+# mlibs.text — fonts, shaping, bidi, line breaking, paragraphs, glyphs as
+# geometry (outlines, colour layers) and the editing model, over HarfBuzz and
+# SheenBidi as C++ modules (mcpp-index's mwrap) and mlibs.unicode. It knows no
+# renderer: xrender.text rasterises and draws its glyphs (plan §5.3).
 [package]
 namespace   = "mlibs"
 name        = "text"
 version     = "0.1.0"
-description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph rasterisation, editing"
+description = "Text engine: font fallback, HarfBuzz shaping, bidi, UAX #14 line breaking, paragraphs, carets, glyph outlines, editing"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -22,8 +23,6 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.geom    = { path = "../../base/geom" }
 mlibs.unicode = { path = "../../base/unicode" }
-xrender.raster  = { path = "../../projects/xrender/raster" }
-xrender.vector  = { path = "../../projects/xrender/vector" }
 mcpplibs.os     = "0.2.2"
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 mcpplibs.mwrap.sheenbidi = "3.0.0"

@@ -12,6 +12,7 @@ import std;
 import hanim.core;
 import openmui;
 import openmui.theme;
+import xrender.text;
 
 namespace omui::promo {
 
@@ -351,7 +352,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
     const Rect ta = s.tree_area;
     list.fill_round_rect(ta, CornerRadii::all(10), render::Paint::solid(hex(ink::panel, 0.9f)));
     list.stroke_round_rect(ta, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
-    s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono").paint(list, {ta.x + 20, ta.y + 16});
+    xrender::text::paint(s.labels.get(fonts, "SEMANTIC TREE · what the agent reads", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {ta.x + 20, ta.y + 16});
     {
         const std::size_t room = static_cast<std::size_t>((ta.height - 66) / pitch);
         std::size_t lit = 0;
@@ -366,7 +367,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
             if (r.lit) list.fill_round_rect({ta.x + 8, y - 4, ta.width - 16, pitch - 2}, CornerRadii::all(5), render::Paint::solid(hex(ink::cyan, 0.16f)));
             const auto& l = s.labels.get(fonts, r.label, type, hex(r.lit ? ink::ice : ink::muted), r.lit ? 600 : 450, "JetBrains Mono");
             list.push_clip({x, y - 4, ta.x + ta.width - 16 - x, pitch});
-            l.paint(list, {x, y});
+            xrender::text::paint(l, list, {x, y});
             list.pop_clip();
             y += pitch;
         }
@@ -375,7 +376,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
     const Rect la = s.log_area;
     list.fill_round_rect(la, CornerRadii::all(10), render::Paint::solid(hex(0x040d1f, 0.92f)));
     list.stroke_round_rect(la, CornerRadii::all(10), 1, render::Paint::solid(hex(ink::line, 0.8f)));
-    s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono").paint(list, {la.x + 20, la.y + 16});
+    xrender::text::paint(s.labels.get(fonts, "openmui.tree@0.1 · agent:promo", 18, hex(ink::cyan), 600, "JetBrains Mono"), list, {la.x + 20, la.y + 16});
     {
         const std::size_t columns = static_cast<std::size_t>((la.width - 40) / advance);
         struct Shown {
@@ -407,7 +408,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
         const std::size_t room = static_cast<std::size_t>((la.height - 66) / pitch);
         float y = la.y + 58;
         for (std::size_t i = lines.size() > room ? lines.size() - room : 0; i < lines.size(); ++i) {
-            s.labels.get(fonts, lines[i].text, type, hex(lines[i].colour), 450, "JetBrains Mono").paint(list, {la.x + 20, y});
+            xrender::text::paint(s.labels.get(fonts, lines[i].text, type, hex(lines[i].colour), 450, "JetBrains Mono"), list, {la.x + 20, y});
             y += pitch;
         }
     }
@@ -430,7 +431,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
         for (const auto& [dx, dy] : std::array<std::pair<float, float>, 4>{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}})
             list.fill_rect({at.x + dx * 21 - (dx != 0 ? 4 : 1), at.y + dy * 21 - (dy != 0 ? 4 : 1), dx != 0 ? 8.0f : 2.0f, dy != 0 ? 8.0f : 2.0f}, c);
         const auto& tag = s.labels.get(fonts, "agent:promo", 18, c, 600, "JetBrains Mono");
-        tag.paint(list, {at.x + 22, at.y + 14});
+        xrender::text::paint(tag, list, {at.x + 22, at.y + 14});
     }
 }
 

@@ -18,6 +18,7 @@ import openmui.native.store;
 import mcpplibs.os;
 import :platform;
 import :mirror;
+import xrender.text;
 
 namespace omui {
 
@@ -66,7 +67,7 @@ struct Web::Impl {
     std::unique_ptr<Runtime>                 own_runtime;
     Runtime*                                 runtime = nullptr;
     std::unique_ptr<semantic::Tree>          tree;
-    std::unique_ptr<typeset::GlyphCache>     glyphs;
+    std::unique_ptr<xrender::text::GlyphCache>     glyphs;
     render::CpuRenderer                      renderer;
     // The GPU, when one draws (WebOptions::renderer): its device (before the
     // renderer, which holds it), the renderer, the texture each frame is drawn in.
@@ -478,7 +479,7 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
         d.runtime->clock() = hanim::Clock::interactive();
         d.runtime->resize(d.size, d.scale);
         d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-        d.glyphs = std::make_unique<typeset::GlyphCache>(d.runtime->fonts());
+        d.glyphs = std::make_unique<xrender::text::GlyphCache>(d.runtime->fonts());
         d.attach();
         return;
     }
@@ -499,7 +500,7 @@ Web::Web(WebOptions options) : impl_(std::make_unique<Impl>()) {
     d.own_runtime = std::make_unique<Runtime>(std::move(ro));
     d.runtime = d.own_runtime.get();
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
-    d.glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+    d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
     d.attach();
 }
 

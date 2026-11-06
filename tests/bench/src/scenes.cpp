@@ -21,6 +21,7 @@ import openmui.theme.styles;
 import openmui.rhi;
 import openmui.rhi.sdl;
 import mcpplibs.os;
+import xrender.text;
 
 namespace omui::bench {
 
@@ -313,14 +314,14 @@ void add_framework_benchmarks() {
             lease.emplace(std::move(*acquired));
         }
         std::array<hanim::Transform2D,count> poses;
-        render::LayerBoundsMap content_bounds;typeset::GlyphCache glyphs(fonts);
+        render::LayerBoundsMap content_bounds;xrender::text::GlyphCache glyphs(fonts);
         if(images) {
             // This workload animates translation at DPI 1 with fixed glyphs
             // and sizes. Prepare every supported subpixel mask before timing
             // the steady frame; first-use font rasterization is a cold cost.
             for(const auto& command:runtime.display_list().commands())if(const auto* run=std::get_if<render::DrawGlyphs>(&command))
-                for(const auto& glyph:run->glyphs)for(int y=0;y<typeset::GlyphCache::phases;++y)for(int x=0;x<typeset::GlyphCache::phases;++x)
-                    (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/typeset::GlyphCache::phases,static_cast<float>(y)/typeset::GlyphCache::phases});
+                for(const auto& glyph:run->glyphs)for(int y=0;y<xrender::text::GlyphCache::phases;++y)for(int x=0;x<xrender::text::GlyphCache::phases;++x)
+                    (void)glyphs.mask(run->font,glyph.id,run->size,{static_cast<float>(x)/xrender::text::GlyphCache::phases,static_cast<float>(y)/xrender::text::GlyphCache::phases});
             s.note("glyph_resources","Fixed glyphs/sizes at DPI 1: all public GlyphCache subpixel phases prepared before timing. Cold mask generation, changing text and new sizes are outside this steady-state budget.");
         }
         s.items(count);
@@ -512,7 +513,7 @@ void add_framework_benchmarks() {
         Wall w(1000, 40, "bench-wall-zoom-gpu");
         const auto b = world::scene("bench-wall-zoom-gpu").bounds();
         w.camera(b.x + b.width / 2, b.y + b.height / 2, 0.01);
-        typeset::GlyphCache glyphs(w.h.runtime().fonts());
+        xrender::text::GlyphCache glyphs(w.h.runtime().fonts());
         float dir = -1;
         while (s.next()) {
             const double z = w.model.zoom.peek();
@@ -652,7 +653,7 @@ void add_framework_benchmarks() {
                 spec.setup(h.runtime());
                 h.mount("main", spec.view());
                 h.settle();
-                typeset::GlyphCache glyphs(h.runtime().fonts());
+                xrender::text::GlyphCache glyphs(h.runtime().fonts());
                 std::size_t i = 0;
                 while (s.next()) {
                     studio.volume.set(static_cast<double>(++i % 100) / 100.0);
@@ -743,7 +744,7 @@ void add_framework_benchmarks() {
             }
             h.mount("main", column({.padding = 24, .gap = 20}, std::move(rows)));
             h.settle();
-            typeset::GlyphCache glyphs(h.runtime().fonts());
+            xrender::text::GlyphCache glyphs(h.runtime().fonts());
             while (s.next()) {
                 const FrameOutput f = h.step();
                 if (!f.animating) on.set(!on.peek());  // at rest: flip them all again
@@ -790,7 +791,7 @@ void add_framework_benchmarks() {
         Headless h(scene_options());
         h.mount("main", d.view());
         h.settle();
-        typeset::GlyphCache glyphs(h.runtime().fonts());
+        xrender::text::GlyphCache glyphs(h.runtime().fonts());
         render::CpuRenderer renderer;
         raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
         render::CpuOptions o;
@@ -809,7 +810,7 @@ void add_framework_benchmarks() {
         Headless h(scene_options());
         h.mount("main", d.view());
         h.settle();
-        typeset::GlyphCache glyphs(h.runtime().fonts());
+        xrender::text::GlyphCache glyphs(h.runtime().fonts());
         render::CpuRenderer renderer;
         raster::Surface target(static_cast<int>(full_hd.width), static_cast<int>(full_hd.height));
         render::CpuOptions o;
@@ -887,12 +888,15 @@ void add_framework_benchmarks() {
         if (auto r = fonts.add_defaults(); !r) warn("the default fonts did not load: {}", r.error());
         typeset::Paragraph p(fonts, paragraph_text(), {});
         p.layout(600);
+        // The glyphs as the runtime animates them: the painted runs.
+        render::DisplayList painted;
+        xrender::text::paint(p, painted, {0, 0});
         std::vector<std::span<const render::Glyph>> runs;
         std::size_t n = 0;
-        for (const auto& l : p.lines())
-            for (const auto& r : l.runs) {
-                runs.emplace_back(r.glyphs);
-                n += r.glyphs.size();
+        for (const auto& c : painted.commands())
+            if (const auto* g = std::get_if<render::DrawGlyphs>(&c)) {
+                runs.emplace_back(g->glyphs);
+                n += g->glyphs.size();
             }
         const GlyphMotion m = GlyphMotion::gather(3);
         s.items(n);

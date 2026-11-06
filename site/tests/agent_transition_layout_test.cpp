@@ -8,6 +8,7 @@ import openmui.theme;
 import openmui.theme.styles;
 import openmui.testing;
 import mcpplibs.os;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -44,7 +45,7 @@ using Drawings = std::map<std::string, Drawing, std::less<>>;
 
 // Resolve markers with the public node_at_index API. Preserve ancestry when
 // an exiting piece has marker zero: its enclosing root still owns it.
-Drawings drawings(Runtime& runtime, typeset::GlyphCache& cache, std::string_view prefix, bool actions_only = true) {
+Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::string_view prefix, bool actions_only = true) {
     Drawings result;
     Affine transform;
     float opacity = 1;
@@ -126,7 +127,7 @@ struct Page {
     Signal<float> room;
     Headless h;
     Runtime* runtime;
-    typeset::GlyphCache glyphs;
+    xrender::text::GlyphCache glyphs;
     site::AgentFeatureContext context;
     int width;
     std::size_t moving_samples = 0;

@@ -6,6 +6,7 @@ import xrender.raster;
 import mlibs.image;
 import mlibs.hash;
 import mcpplibs.os;
+import xrender.text;
 using namespace omui;
 using namespace std::chrono_literals;
 namespace raster=xrender::raster;
@@ -34,7 +35,7 @@ void bridge_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
     auto authority=std::make_shared<mlibs::control::Access>(mlibs::control::policy_for_profile("dev"));
     auto ui=std::make_shared<AgentAccess>(authority);
     RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;options.access=ui;
-    Runtime runtime(options);typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
     bool clicked=false;
     runtime.mount("main",column({.padding=20,.gap=16},{
         column({.id="card",.width=220,.height=80,.padding=12,.background="surface",.radius=12},{text({.id="title",.text="Shared authority"})}),
@@ -113,7 +114,7 @@ void bridge_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
 
 void image_checks(typeset::FontCollection& fonts,const std::filesystem::path& output) {
     RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
-    Runtime runtime(options);typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
     int activated=0;
     runtime.mount("main",column({.padding=20},{column({.id="card",.width=210,.padding=12,.gap=12,.background="surface",.radius=12},{
         text({.id="title",.text="Real text, shared effects"}),button({.id="action",.text="Use",.on_activated=[&]{++activated;}})})}));
@@ -216,7 +217,7 @@ void driver_checks(typeset::FontCollection& fonts,const std::filesystem::path& o
         animation::PlaybackGate gate;
         RuntimeOptions options;options.fonts=&fonts;options.size={400,220};options.stages=Stages::paint;
         Runtime runtime(options);
-        typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
+        xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;raster::Surface pixels(400,220);
         runtime.mount("main",column({.padding=20},{column({.id="card",.width=150,.height=100,.background="surface"},{
             text({.id="title",.text="Same frame"}),button({.id="action",.text="Use"})})}));
         (void)runtime.frame({0s,{}});(void)runtime.frame({2s,{}});
@@ -326,7 +327,7 @@ int main(int argc,char** argv) {
         if(!loaded)std::println(std::cerr,"{}",loaded.error());return finish();
     }
     RuntimeOptions options;options.fonts=&fonts;options.size={480,260};options.stages=Stages::paint;
-    Runtime runtime(options);typeset::GlyphCache glyphs(fonts);render::CpuRenderer renderer;
+    Runtime runtime(options);xrender::text::GlyphCache glyphs(fonts);render::CpuRenderer renderer;
     int activated=0;auto open=signal(false);
     auto save=button({.id="save",.text="Save changes",.variant=ButtonVariant::primary,.on_activated=[&]{++activated;open.set(true);},.width=116});
     auto card=column({.id="card",.width=204,.height=150,.padding=Edges(16),.gap=14,.background="#f1f5f9",.radius=16,.clip=true},

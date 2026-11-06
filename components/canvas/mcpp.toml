@@ -25,6 +25,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
 openmui.core   = { path = "../../modules/ui/core" }
 openmui.view   = { path = "../../modules/ui/view" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }

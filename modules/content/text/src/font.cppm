@@ -1,7 +1,9 @@
 // openmui.text:font — font files, faces, sized instances, fallback.
 //
 // A face is one font file (variable fonts have axes); a font is a face at a
-// weight and slant, the unit shaping and rendering refer to (xrender::FontRef).
+// weight and slant, the unit shaping and drawing refer to (FontRef). Glyphs
+// leave as geometry (outline, colour layers): rasterising and drawing them is
+// a renderer's (xrender.text), so text knows no renderer.
 // Fallback is per grapheme cluster: the family list first, then the
 // collection's fallback chain (CJK, Arabic, emoji, monospace), so mixed text
 // renders with no tofu and the same face choice on every platform.
@@ -9,12 +11,33 @@ export module mlibs.text.api:font;
 
 import std;
 import mlibs.geom;
-import xrender.vector;
 
 export namespace mlibs::text {
 
 using FaceId = std::uint32_t;
-using xrender::FontRef;
+
+// A face at a weight and slant, interned by its collection: what shaping and
+// drawing refer to (a renderer's font reference carries the same id).
+struct FontRef {
+    std::uint32_t id = 0;
+    friend constexpr bool operator==(FontRef a, FontRef b) noexcept { return a.id == b.id; }
+};
+
+// A glyph's outline in ems (1 em = 1.0), y down, in mlibs.geom's path
+// encoding: what a renderer rasterises. Empty for a glyph with no outline.
+struct GlyphOutline {
+    std::vector<geom::PathVerb> verbs;
+    std::vector<geom::Point>    points;
+
+    [[nodiscard]] geom::PathView view() const noexcept { return {verbs, points}; }
+};
+
+// One layer of a colour glyph (COLR v0): a glyph of the same font, filled with
+// a palette colour (black where the palette has none).
+struct ColorLayer {
+    std::uint32_t glyph = 0;
+    geom::Color   color;
+};
 
 enum class Slant : std::uint8_t { normal, italic };
 
@@ -98,7 +121,12 @@ public:
     [[nodiscard]] float weight_of(FontRef font) const;
     [[nodiscard]] Metrics metrics(FontRef font, float size) const;
 
-    // The native objects, for the shaping and glyph units of this package.
+    // A glyph as geometry, for renderers: its outline, and its colour layers
+    // in drawing order (none for a glyph that is not a colour glyph).
+    [[nodiscard]] GlyphOutline outline(FontRef font, std::uint32_t glyph) const;
+    [[nodiscard]] std::vector<ColorLayer> color_layers(FontRef font, std::uint32_t glyph) const;
+
+    // The native object, for the shaping and outline units of this package.
     [[nodiscard]] void* hb_font(FontRef font) const;  // hb_font_t*, scaled to units per em
 
 private:

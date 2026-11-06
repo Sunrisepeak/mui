@@ -19,8 +19,8 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 |---|---|
 | ① lint path→layer table; `mlibs.utils`; fuzzy into its consumer | this checkpoint (D-101): layers by name from a path-prefix table holding today's and M1's directories; hash, log, trace, testing → `modules/base/utils`, every tool built (a feature per tool recompiled the graph per member selection, measured); lint `testing` (test checks only in `tests/`) and `closure` (render and simulation closures, from the retired `tools/ci/foundation-migration`); `mlibs.fuzzy` → `openmui.native.fuzzy:matching` |
 | ② hanim and xrender into `modules/projects/` | this checkpoint (D-102): `modules/projects/hanim` (hanim, hanim.core) and `modules/projects/xrender` (graph, vector, effect, raster, cts, rhi/{sdl,webgpu,webgl}); identities, modules and namespaces `xengine.render*`, `mlibs.raster`, `mlibs.rhi.{sdl,webgpu,webgl}` → `xrender.*`; the render graph is `xrender.graph` (a bare `xrender` collides with X11's `compat.xrender` in mcpp, below); legacy `openmui.*` forwarders kept until ⑤; READMEs: one-sentence definitions and candidate signature features |
-| ②b `mlibs.text` without the renderer (its glyph types its own, the display-list adapter on xrender's side) | next |
-| ③ xengine | after ②b |
+| ②b `mlibs.text` without the renderer | this checkpoint (D-103): text's own `FontRef`/`Glyph`, glyphs as geometry (`outline`, `color_layers`); new `xrender.text` (layer content): `GlyphCache` and `paint`; the display list fills glyphs in place; the pinned glyph pixels unchanged; Windows GPU: the ICD registered in HKLM (red 13) |
+| ③ xengine | next |
 | ④ omui with components, lang, sdk, templates | |
 | ⑤ namespace rename, forwarders removed, lint `legacy-import` | |
 
@@ -42,8 +42,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 10 | Pages: `--locked` resolution lacks accesskit | Pages | `12d2e15` | E | build and delivery budget fixed (4,886,971 B). Browser checks: CI's Chrome refuses clipboard reads, so the scripts observe the page's own clipboard writes (a refused read can no longer pass as `{}`), and NoScript navigation is awaited. Local Chromium: presentation 159/159, motion 151/151. Confirmed: Pages deployed from 75655b7 |
 | 11 | cellular reaction kernel wrong on Direct3D 12 / DXBC (WARP): tick 1, index 515 (channel 2 of the one active cell) GPU 0, CPU 1 | Windows `rhi.sdl` | never validated (Windows did not build since 11-04) | R | open: CI's Windows row now runs lavapipe as intended (`SDL_GPU_DRIVER=vulkan`); the D3D12 path needs its own run. The rhi CTS passed on D3D12 |
 | 12 | agent e2e: `delete-all` by an agent ran without asking | Linux (example 07) | 20e6f54 (development mode is full access) | T | fixed: the acceptance starts the example in dual-user mode, the needs-answer path it checks; the whole e2e passes locally |
-| 13 | every GPU test on Windows: "SDL_HINT_GPU_DRIVER vulkan unsupported!" (lavapipe, 26 checks) | Windows | 75655b7 (first lavapipe run) | E | fix to confirm: the payload's manifest names `.\\vulkan_lvp.dll` and relies on the installer's rewrite; a manifest the loader cannot parse or resolve is skipped silently. `tools/ci/gpu.sh` writes its own (absolute, forward slashes), makes the device under SDL's windows video driver and turns the loader's diagnostics on |
-| 14 | Python suite hangs 240 s in `test_the_scenarios_record_their_traces` | macOS (intermittent) | ≤ 75655b7 | R | fixed: a handler on the script thread that called the runtime kept the GIL while it waited for the runtime's thread, which was waiting for the GIL to return from `act`. The binding now always releases the GIL around the session's work; a new test (200 acts whose handler invokes a verb) hangs on the old code on Linux and passes 3/3 with the fix |
+| 13 | every GPU test on Windows: "SDL_HINT_GPU_DRIVER vulkan unsupported!" (lavapipe, 26 checks) | Windows | 75655b7 (first lavapipe run) | E | root cause (0dae888, loader diagnostics): the runner's processes are elevated and the Vulkan loader ignores `VK_DRIVER_FILES` there ("Registry lookup failed to get ICD manifest files"). Fix to confirm: `tools/ci/gpu.sh` registers its manifest (absolute path) under `HKLM\SOFTWARE\Khronos\Vulkan\Drivers` |
+| 14 | Python suite hangs 240 s in `test_the_scenarios_record_their_traces` | macOS (intermittent) | ≤ 75655b7 | R | fixed, confirmed on macOS CI (0dae888): a handler on the script thread that called the runtime kept the GIL while it waited for the runtime's thread, which was waiting for the GIL to return from `act`. The binding now always releases the GIL around the session's work; a new test (200 acts whose handler invokes a verb) hangs on the old code on Linux and passes 3/3 with the fix |
 
 ### Design input for M2 (motion convergence)
 
@@ -69,4 +69,4 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ## Next
 
-M1 ②b (`mlibs.text` without the renderer), then ③ xengine; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.
+M1 ③ xengine (simulation, audio, video, timeline, mgame → `modules/projects/xengine`), then ④ omui; M0's remaining red items as CI reports them. CI's PR lane is far from §10.1's 30 minutes (tests ~70 min per x64 row): after M1, move GCC release and the consumer harnesses to Nightly.

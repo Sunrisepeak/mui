@@ -20,6 +20,7 @@ import openmui.hash;
 import openmui.render.vector;
 import openmui.motion;
 import :impl;
+import xrender.text;
 
 namespace omui {
 
@@ -364,7 +365,7 @@ void Runtime::Impl::run_motion() {
             options.proof_scale = scale;
             options.current_proof_scale = [this] { return scale; };
             if (options.minimum_text_contrast > 0) {
-                if (!motion_glyphs) motion_glyphs = std::make_unique<typeset::GlyphCache>(*fonts);
+                if (!motion_glyphs) motion_glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
                 options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const render::DrawGlyphs& run, const Affine& transform) {
                     const std::scoped_lock guard(*lock);
                     return motion::glyph_ink_bounds(run, transform, *cache);

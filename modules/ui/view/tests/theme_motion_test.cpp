@@ -4,6 +4,7 @@ import std;
 import openmui.view;
 import openmui.raster;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -27,7 +28,7 @@ struct QualityOverlay {
 struct Probe {
     typeset::FontCollection fonts;
     Runtime runtime{options(fonts)};
-    typeset::GlyphCache glyphs{fonts};
+    xrender::text::GlyphCache glyphs{fonts};
     Signal<float> x = signal(0.0f);
     std::vector<std::uint32_t> pixel_owners;
     explicit Probe(bool reduce = false, bool overlay = false) {

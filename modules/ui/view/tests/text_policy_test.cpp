@@ -6,6 +6,7 @@ import openmui.view;
 import openmui.math;
 import openmui.raster;
 import openmui.testing;
+import xrender.text;
 
 using namespace omui;
 using namespace omui::testing;
@@ -46,7 +47,7 @@ std::optional<Point> first_pen(const Runtime& runtime) {
     return std::nullopt;
 }
 std::uint64_t pixels(Runtime& runtime) {
-    raster::Surface surface(400, 240); typeset::GlyphCache glyphs(runtime.fonts()); render::CpuRenderer renderer;
+    raster::Surface surface(400, 240); xrender::text::GlyphCache glyphs(runtime.fonts()); render::CpuRenderer renderer;
     const auto report = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, {.background = Color::white()});
     check(report.missing_glyphs == 0);
     return surface.hash();
@@ -81,7 +82,7 @@ struct CaptionShape {
     std::vector<std::uint32_t> glyphs;
     bool has_nonidentity_style = false;
 };
-CaptionShape caption_shape(Runtime& runtime, typeset::GlyphCache& source) {
+CaptionShape caption_shape(Runtime& runtime, xrender::text::GlyphCache& source) {
     const NodeId caption = runtime.find("main/stage/caption");
     CaptionShape shape;
     std::vector<NodeId> nodes;
@@ -290,7 +291,7 @@ int main(int argc, char** argv) {
         theme.text["caption"].size = 13;
         theme.motion_library["test.long"] = compose_motion({MotionPrimitive::match_drawing, MotionPrimitive::match_glyphs, MotionPrimitive::fade},
                                                           Transition::tween(seconds(1), hanim::ease::linear));
-        config.theme = theme; Runtime runtime(config); typeset::GlyphCache outlines(runtime.fonts());
+        config.theme = theme; Runtime runtime(config); xrender::text::GlyphCache outlines(runtime.fonts());
         auto control = text({.id = "control", .text = "Independent nested label", .style = "caption", .wrap = false});
         control.prop("motion", Source(Value("test.long")));
         auto stage = column({.id = "stage", .width = Dim(340), .padding = Edges(20), .gap = 40, .background = "surface"}, {

@@ -193,7 +193,7 @@ jobs:
       # tools/ci/readme-media.sh makes them again after a change in the picture).
       - name: The showcases' README media are up to date
         if: runner.os == 'Linux' && matrix.toolchain == 'gcc@16.1.0' && matrix.profile == 'dev'
-        run: tools/ci/readme-media.sh --check
+        run: tools/ci/readme-media.sh --check $(cd showcase && ls -d */ | tr -d /)  # the site's in its own lane
 
       # A pinned picture that differs on one platform is looked at, not
       # guessed at: every test's pictures, kept when a test failed.
@@ -408,6 +408,8 @@ jobs:
         run: |
           mcpp test -p openmui.site --profile release --timeout 1200 2>&1 | tee site-tests.log
           grep -q "test result ok" site-tests.log || { echo "::error::the site's tests failed"; exit 1; }
+      - name: The site's README media are what its tests draw
+        run: tools/ci/readme-media.sh --check site
       - name: Keep the site's pictures (on failure)
         if: failure()
         run: |

@@ -201,3 +201,52 @@ Changing a document changes the pinned hashes. Look at the pictures (`$TMPDIR/op
 Additional component layout references: [desktop overview](media/catalog-overview-en-1280.png), [button workspace](media/catalog-button-en-1280.png), [input workspace](media/catalog-text_box-en-1280.png), [data workspace](media/catalog-data_grid-en-1280.png), [Chinese phone overview](media/catalog-overview-zh-390.png), [phone button](media/catalog-button-zh-390.png), [phone input](media/catalog-text_box-zh-390.png), [phone code editor](media/catalog-code_editor-zh-390.png). These native renders are checked by the media gate. They establish the gallery's new structure; they do not close the remaining specimen states, full exports, art review or the whole R2 checkpoint.
 
 `tools/ci/site-workspace.mjs` exercises the delivered board with real pointer, keyboard text entry and wheel scrolling, alongside semantic observations. It verifies editing, undo/redo, Markdown clipboard content, shared task data in the motion view, language/page retention, Chinese phone controls, remove/undo and reset/undo. It runs with the other browser checks; its report and screenshots are retained with `site-checks`. Browser input tests wait for actual textarea focus and dynamic controls to mount.
+
+## Semantic control of public-program animation
+
+The active animation/creative gallery exposes six discoverable application
+verbs through the existing `invoke` endpoint. They drive the same public
+`omui::animation::Playback` used by the visible transport. No inner Engine
+handle escapes, and host clock reanchoring, presentation, motion preferences,
+visibility and interaction gates remain effective.
+
+| Verb | Input | Result / effect |
+|---|---|---|
+| `motion.inspect` | none | Availability, selection, seconds, progress, signed rate, requested intent and host suspension; read |
+| `motion.seek` | `progress`: finite number, 0..1 | Sample and pause; reversible |
+| `motion.pause` | none | Pause automatic playback; reversible |
+| `motion.resume` | none | Resume intent, subject to host gates; reversible |
+| `motion.reverse` | none | Reverse direction, retain play intent; reversible |
+| `motion.rate` | `rate`: finite number, 0.25..2 | Change speed magnitude, retain direction; reversible |
+
+Minimal Agent SOP:
+
+1. Open `#/motion/component-motion` (or select that example with the existing
+   semantic navigation). Discover the verbs in the application's generated
+   `agent.md`/manifest and the runtime verb list.
+2. Call `motion.inspect`; continue only when `available` is true. The existing
+   state-morph gallery cases are not falsely presented as Hanim Programs.
+3. Invoke `motion.seek` with several intermediate progress values, inspect the
+   actual resulting state, and use the existing authorized capture endpoint
+   to review real pixels. Repeat in reverse order to verify reproducibility.
+4. Use pause/resume/reverse/rate to review timing. `requested` is intent;
+   `suspension` explains why a hidden, interacting or reduced-motion scene does
+   not advance. No new UI is needed to reveal these controls to an Agent.
+5. On invalid arguments, unavailable selection or denied permission, inspect
+   the failure instead of assuming a change. No undo journal is advertised;
+   seek to a previously recorded progress when restoring a sampled position.
+
+For example: `omui page call '{"op":"invoke","verb":"motion.seek","args":{"progress":0.5}}'`.
+The UI entry and the specific host operation are both checked: an operation
+allowlist must permit `invoke` plus the desired `motion.*` names. The callback
+converts its already bound UI Invocation using `to_control_invocation` and
+enters a shared `mlibs.control::OperationScope`; no session is minted or policy
+copied. Revocation still applies. This second scope controls these verb routes,
+not all other UI entrypoints: configure `act`/`input` separately when narrowing
+those capabilities. It is not a node/resource ACL.
+
+The existing human controls remain usable and observe the same host state.
+The semantic facade adds no animation algorithm, network transport, mandatory
+Hanim control feature, or per-frame authorization. Rendering/capture stays in
+its existing authorized host path. `motion_control_test` samples the real site
+without a window; `site-motion.mjs` exercises the delivered Web interface.

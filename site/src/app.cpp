@@ -1385,6 +1385,12 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
     a.renderer = "automatic";
     auto s = std::make_shared<Site>();
     inspector::cellular::add_verbs(a, s->reactions);
+    for(const auto& desc:motion_control_verbs())a.verbs.push_back({desc,[s,name=desc.name](const Value& args)->VerbResult {
+        const auto place=s->place.peek();
+        if(place=="motion")return motion_control(s->basic,s->basic_site,name,args);
+        if(place=="explore")return motion_control(s->creative,s->creative_site,name,args);
+        return std::unexpected("Open the animation or creative gallery first");
+    }});
     if (const auto parsed = parse_site_route(place, lang)) {
         s->place.set(parsed->place);
         s->lang.set(parsed->language);

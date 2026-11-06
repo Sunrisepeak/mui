@@ -255,6 +255,26 @@ try {
     await pointer(root + '/transport/buttons/state-b');
     await requireCheck(async () => Math.abs((await node(card)).bounds[0] - atA[0] - 24) < .5,
       'the actual component group translates by the public recipe');
+    const invokeMotion = async (verb, args = {}) => {
+      const reply = await page.value(`window.omui.invoke(${q('motion.' + verb)},${q(args)})`);
+      await page.value('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve(true))))');
+      return reply;
+    };
+    const discovered = await invokeMotion('inspect');
+    check(discovered.exitCode === 0 && discovered.data?.available && discovered.data?.selected === 'component-motion',
+      'delivered Web host exposes the actual public animation through a native semantic verb', discovered);
+    for (const progress of [.25, .5, .75]) {
+      const sought = await invokeMotion('seek', { progress });
+      check(sought.exitCode === 0 && sought.data?.executed && Math.abs(sought.data?.progress - progress) < 1e-9,
+        `Agent semantic seek samples progress ${progress}`, sought);
+      await requireCheck(async () => Math.abs(await scalar(root + '/transport/seek') - progress) < .001,
+        `human progress control observes Agent seek ${progress}`);
+    }
+    const atSeek = (await node(card)).bounds;
+    const invalid = await invokeMotion('seek', { progress: 2 });
+    check(invalid.exitCode !== 0 && Math.abs((await node(card)).bounds[0] - atSeek[0]) < .5,
+      'invalid semantic progress preserves the live browser pose');
+    await invokeMotion('seek', { progress: 1 });
     await pointer(root + '/transport/buttons/play');
     await requireCheck(async () => {
       const progress = await scalar(root + '/transport/seek');

@@ -1,0 +1,546 @@
+{
+  "format": "omui.site-motion-control-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T01:22:14.301821+00:00",
+  "base_commit": "e2de60df891d8b6312c60fd05bf4d5188769f66e",
+  "scope": [
+    "Six semantic verbs operate the active public-program gallery through its owning public Playback, preserving host reanchoring, gates and presentation.",
+    "Already bound UI calls are converted to shared native authority; the transport entry and specific host operation are both checked.",
+    "Reject malformed performance network settings before browser startup to keep measurement conditions explicit."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "ab314a35ccb6b7043c242821552703617417e42bc9ed0a7a4b103447467a7860",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "a84c3256a75dcc57280b7211686687d5e89de8f54e6a036019bc981fcc761617",
+    ".agents/docs/README.md": "0377df0714996f525f72081f1bb1161f0564956f34a39fadd231fd696e68725a",
+    "site/README.md": "d02d572fe2eda654cb79a13172fd70a065cf0d2cf717a9e76e4941b2827cf7be",
+    "site/src/app.cpp": "f27f830add9841b18c061bcfdf348f552afe96be82b45818f237380fe5623e01",
+    "site/src/motion_gallery.cppm": "df27bf34ce8541eabbdca323fb555991bc756af67bea249503c88cc8b3a96d16",
+    "tools/ci/site-motion.mjs": "f32182191c445dae9e1acf50b3ca252c99704c194713ae17de45cb72e73453df",
+    "tools/ci/site-perf.mjs": "bbd3ffe285bd60439d300c17027ef90e650db2e0427c642de627daa56f056d30",
+    "site/src/motion_control.cpp": "386c4f288c65ed3545566dfb85b2b9c2cdc58c1cd85f77df9f4413624184b669",
+    "site/tests/motion_control_test.cpp": "1bd5b55012559e2f97cd210c1508293f988282debb6218aeb25ccfd35c59f0d5"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "native": {
+      "control_dev": {
+        "path": "target/site-motion-control/control-dev.log",
+        "sha256": "b7af8906c008718247c8297e1a5a5d07553f386ab3ebf0fd9168369d18bcad0c",
+        "cases": 3
+      },
+      "control_release": {
+        "path": "target/site-motion-control/control-release.log",
+        "sha256": "6085c6fc893ce884539fc1da6cf5aff6d3f59b87e77dae1cb934c44712a2902f",
+        "cases": 3
+      },
+      "existing_component_dev": {
+        "path": "target/site-motion-control/component-dev.log",
+        "sha256": "26e5ba1be0c6119479b89b4fa3abcb7794357e8feca02274ecfababc7523cb06",
+        "cases": 8
+      }
+    },
+    "pixels": {
+      "new_pngs": 122,
+      "sampled_times": 61,
+      "reverse_replay_checked": true,
+      "dev_release_pngs_identical": true,
+      "frames": [
+        {
+          "name": "bridge-000.png",
+          "sha256": "4e25b002f54a59f64dd4a497169f881d4d8340c66639d64ed52899dd1126a9d4"
+        },
+        {
+          "name": "bridge-001.png",
+          "sha256": "8a7e59451cdb9ea7d7915a592d8c223f9eacf33e92a898476e3b395c833e345f"
+        },
+        {
+          "name": "bridge-002.png",
+          "sha256": "7f2c237e5758ec34df7a620cc4f52bd1eda1b051df8a394f04fbd8f831eacbc8"
+        },
+        {
+          "name": "bridge-003.png",
+          "sha256": "b523b6290c0fe3ac411cd0b20dce2ef19c764d613445ce04bc2c783de2820a0b"
+        },
+        {
+          "name": "bridge-004.png",
+          "sha256": "0d7a58c552f96444dc87f64a86fa1fe0b867610e52e62641ca5c6905098c3ac2"
+        },
+        {
+          "name": "bridge-005.png",
+          "sha256": "5df0d42e18a36ee7ac1d26646539399b9ba4d46db89715cbd05e1f8405a501b9"
+        },
+        {
+          "name": "bridge-006.png",
+          "sha256": "6358355f153ec06854b63a9ab36ad93028a7b2f3dd72a2f16f82fdd044909848"
+        },
+        {
+          "name": "bridge-007.png",
+          "sha256": "e8d54a340cdb944ddd34149bcabc86d1d839c4ce6dbee4f037a10b1bb7dd6b9c"
+        },
+        {
+          "name": "bridge-008.png",
+          "sha256": "2c0e0a7ce231e0da1061c04e7c5361438d88730a682bebb4d4a81868fb3aefaa"
+        },
+        {
+          "name": "bridge-009.png",
+          "sha256": "4c5d9c2ac33e44456e4eb62d10ef2135cd1fb4b30f2d9e5fae074ecc502d2c3c"
+        },
+        {
+          "name": "bridge-010.png",
+          "sha256": "688c03d8ee250485280596fe3749237a093e477ab71b5a1d483a8ef8bacad520"
+        },
+        {
+          "name": "bridge-011.png",
+          "sha256": "51b6ba5390bfcf07d6a3f451dd7d2995a7cafe10e727af5523924eabcdb5f559"
+        },
+        {
+          "name": "bridge-012.png",
+          "sha256": "0c2bfadec1b5fd4a7663836a83f00fb1da1b7a731d886422ede9e42416f7b6ac"
+        },
+        {
+          "name": "bridge-013.png",
+          "sha256": "464c581cd86a02ea092b33000d60ae7eace6b7ee289eed8e48d3b50e227960c7"
+        },
+        {
+          "name": "bridge-014.png",
+          "sha256": "b34ff0f5d5f6806adf0f7619e06fec667045c17bd938bec2f0ba0b84b49d9370"
+        },
+        {
+          "name": "bridge-015.png",
+          "sha256": "6e00f2343545a35ead7e79b8c6fac5293eebf4fc85da28b2a96c98f92a102046"
+        },
+        {
+          "name": "bridge-016.png",
+          "sha256": "10925da5f1cad8a1a5272a3d1e1aa4f858701af3682c184bdedbf9e940c4742e"
+        },
+        {
+          "name": "bridge-017.png",
+          "sha256": "1f5f73226ded3db50c8dfad978ac9239339faa6a83f171a1d569a78084063ffc"
+        },
+        {
+          "name": "bridge-018.png",
+          "sha256": "f4039a9aa3a6b6f3cf0173cfb54d8f2b50a04b3c748dab869618e84ef556c6fa"
+        },
+        {
+          "name": "bridge-019.png",
+          "sha256": "081202d29ac3732359458d68adeebd1d9a3fd4c857f33342b2802ff92e91b4d9"
+        },
+        {
+          "name": "bridge-020.png",
+          "sha256": "b0928574aa33584025e4ad1f4f7a5d11276e73a01b2d6f3d882f753f45ce4c27"
+        },
+        {
+          "name": "bridge-021.png",
+          "sha256": "0dd58dc78be4a315299a4aa0e6c9ecf53e0c858209011b68b1d65a9d83716758"
+        },
+        {
+          "name": "bridge-022.png",
+          "sha256": "adabd7535463fa4004b84ce8a807504962e624652686fd037eb896c799538821"
+        },
+        {
+          "name": "bridge-023.png",
+          "sha256": "4ebc40629597b40afe6d84c802f8e363b7c756e7e060c4a3ef00bc933228b297"
+        },
+        {
+          "name": "bridge-024.png",
+          "sha256": "6dea57854135117cb971af557c796b783fbfd4debe833f4019e4a91710d11931"
+        },
+        {
+          "name": "bridge-025.png",
+          "sha256": "e767efef71befcfb7f292c943060103080bba64e74f87de3bfb0fe543c5e20d2"
+        },
+        {
+          "name": "bridge-026.png",
+          "sha256": "a687331d87ec47484ac685b9ff27581326b268a21245f08258ac5d3f8cec5e57"
+        },
+        {
+          "name": "bridge-027.png",
+          "sha256": "ba888a6ab7c08a5bd05eed04263101445c938e4b4f6388d5ba4cc4beae4905e5"
+        },
+        {
+          "name": "bridge-028.png",
+          "sha256": "5a45a45bb4bb51ca0b6b818b470e6555256587d95244ed327739b6e6cf0aec90"
+        },
+        {
+          "name": "bridge-029.png",
+          "sha256": "386531dd2637f46a4a7be769bd9a62ddb52e0fa902f75fda370ac9b4e7828c81"
+        },
+        {
+          "name": "bridge-030.png",
+          "sha256": "4a8d29de60090cc4cdfdf59ccdea115d9cf5d7b6e08d52dfb922bfc206e55b8e"
+        },
+        {
+          "name": "bridge-031.png",
+          "sha256": "98dba6c527df757049fd443faa2a272c16610b5e62c60a8207b5c5739b1c75c3"
+        },
+        {
+          "name": "bridge-032.png",
+          "sha256": "1cbdc3e9b2633ac03e2b571642e8a639160c37608a9e9080f73357c1bd73c748"
+        },
+        {
+          "name": "bridge-033.png",
+          "sha256": "c7fd0e68708db128e6ca570ef680c8d68c73f0439526f112eee2b273f6dda0f6"
+        },
+        {
+          "name": "bridge-034.png",
+          "sha256": "481f0bdb5e5d2bdafa901e2ee3c00b087f2d2137bcf6ae580d00ae63b2fb4f85"
+        },
+        {
+          "name": "bridge-035.png",
+          "sha256": "60d49cd22680255f6671c4a0b4fc1417af62a729a45db89b7a35df56113a664a"
+        },
+        {
+          "name": "bridge-036.png",
+          "sha256": "dc5fb98c3ef12f22c3ae0f709e58c72a3e0b0db1c3e59e014354a6206efbd8c4"
+        },
+        {
+          "name": "bridge-037.png",
+          "sha256": "e7afea17cf009bd11b22fc755f21116909f0d3697ea1054a59f7a9e3a4dd21c0"
+        },
+        {
+          "name": "bridge-038.png",
+          "sha256": "a35ab036ec2bc16a2a69a547136a9eea12a14a43da4c35574787e07ed48e1ff2"
+        },
+        {
+          "name": "bridge-039.png",
+          "sha256": "b8beffc20200dc1f106565b86bf29f5ba517b1cf38273db4cc86ffb327a82b34"
+        },
+        {
+          "name": "bridge-040.png",
+          "sha256": "c984a2a69980dd253dcafe23f6a1b010cef54407c4b47d0375ed476e99d04018"
+        },
+        {
+          "name": "bridge-041.png",
+          "sha256": "a56fd99cb427ba1f6f2c83376632b6f0a3e9fbba323b211afe0dc6096a0af5fa"
+        },
+        {
+          "name": "bridge-042.png",
+          "sha256": "604d3c40c701f16fb42db4185ea5ae6d5e102bef2c85d635bbca3b884e4b396d"
+        },
+        {
+          "name": "bridge-043.png",
+          "sha256": "08709f25d994e086ada923f7e69d812ae3613ae24a0acff547abea1103f11003"
+        },
+        {
+          "name": "bridge-044.png",
+          "sha256": "102d0ca61814e8e5d03cf5eadf56a701f6d21e89ddee654a9b5c3d055a4b20f9"
+        },
+        {
+          "name": "bridge-045.png",
+          "sha256": "66e7033cd55be695626e9121fd3130f610ad66a7d6ea2ce707df3f4eec3bdaef"
+        },
+        {
+          "name": "bridge-046.png",
+          "sha256": "bfc128983c85bb24df7a5b73cd5eb2e7592ff9da387cfd24b083a69cc6417022"
+        },
+        {
+          "name": "bridge-047.png",
+          "sha256": "1c8e73037cd511d28f195acd49873cbc135976950900cebe55519c898ce9247c"
+        },
+        {
+          "name": "bridge-048.png",
+          "sha256": "80d63d2bb64b98e1b15fea9250ac82caaadf02c248e3fd6551554ff32f3d17f9"
+        },
+        {
+          "name": "bridge-049.png",
+          "sha256": "8e84265498a734128b2c54db294ca92e6ef22403c7374596574cfed5749bd92d"
+        },
+        {
+          "name": "bridge-050.png",
+          "sha256": "da4fddd04bc8f0ca451d1e716cdd61ebc7ce5605d756f41e84b155eeb9824c68"
+        },
+        {
+          "name": "bridge-051.png",
+          "sha256": "83c4f62fb5d3dba64f76a5bd7be6129e0394da9a90f3c2e142c0487e43eb0e36"
+        },
+        {
+          "name": "bridge-052.png",
+          "sha256": "d5f14df72c51625293338b798c1268539ab4376cae41461d66edaa183df5b77d"
+        },
+        {
+          "name": "bridge-053.png",
+          "sha256": "bfee0a6952548bae566443b408826bd9634e7d6389bc5adad0e730c8ba5b13bf"
+        },
+        {
+          "name": "bridge-054.png",
+          "sha256": "79b5a2a00a2d5f0ff1468fb8430b7c9f98858231d575053648d6400c4b70261f"
+        },
+        {
+          "name": "bridge-055.png",
+          "sha256": "4be4bbda52778dda8f4971e84266465883d28c432eaaa081e0f6b574baa4a41f"
+        },
+        {
+          "name": "bridge-056.png",
+          "sha256": "064d141294068c6bec8d7d6a3cb241c1b92b0525493250c77290d0addda3cedc"
+        },
+        {
+          "name": "bridge-057.png",
+          "sha256": "7bf25c89d3b6ddbbd3d29d1675d6d2e77437cfa1e2ad6dc8d7f864db2d22bd05"
+        },
+        {
+          "name": "bridge-058.png",
+          "sha256": "ec8ed65cc9d2ccaacaeed41a0b495f3aec1aed94db05ffa41ab73c561229bb96"
+        },
+        {
+          "name": "bridge-059.png",
+          "sha256": "eb871dd852698dd151a657e46e2a9f351f776bff2f0dfd46112a319c7c462e61"
+        },
+        {
+          "name": "bridge-060.png",
+          "sha256": "7079432dbd5660b52f65fb9c97a1d079e8870351f6bacfc9a86168ed3a5df19c"
+        }
+      ],
+      "existing_component_pngs_retained": 492
+    },
+    "web_pack": {
+      "path": "target/site-motion-control/site.tar.gz",
+      "sha256": "6314dca7ba333c139a42e01e2c23a5f23e34995ce79ce3166f730f35738e34a7",
+      "generated_guide": {
+        "path": "target/site/agent.md",
+        "sha256": "aafba850b557b7f6dd20680474de366ab7487f39a60674e25b513acf44b5fa79"
+      },
+      "manifest": {
+        "path": "target/site/.well-known/openmui-agent.json",
+        "sha256": "93a9a2cbe6e71be0af51467d4e70dd58a50551790c227500f6e0d79b30bbfcca"
+      },
+      "operations": [
+        {
+          "name": "motion.inspect",
+          "effect": "read",
+          "summary": "Inspect the active public-program animation and its host gates"
+        },
+        {
+          "name": "motion.seek",
+          "effect": "reversible",
+          "summary": "Pause and sample the active public-program animation at progress 0..1"
+        },
+        {
+          "name": "motion.pause",
+          "effect": "reversible",
+          "summary": "Pause the active public-program animation"
+        },
+        {
+          "name": "motion.resume",
+          "effect": "reversible",
+          "summary": "Resume the active public-program animation, respecting visibility and interaction"
+        },
+        {
+          "name": "motion.reverse",
+          "effect": "reversible",
+          "summary": "Reverse the active public-program animation without changing its play intent"
+        },
+        {
+          "name": "motion.rate",
+          "effect": "reversible",
+          "summary": "Set the active public-program animation speed, keeping direction"
+        }
+      ]
+    },
+    "browser": {
+      "path": "target/site-motion-control/browser.report.omui.json",
+      "sha256": "29575e8e16306d36d4b2abab3601a22c01598ab51584cd01a496c788424956d9",
+      "checks": 166,
+      "exceptions": [],
+      "screenshots": [
+        {
+          "path": "target/site-motion-control/browser-artifacts/shape-morph-opening.png",
+          "sha256": "91d97c71d401eefb19ef19ea122c96da0428b6f8340f8b844e7633549ff60cf2"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/basic-motion-interactive.png",
+          "sha256": "8462919c114e31b5077089206451ac499cf2738f6ce93df8bc496f633b2594a0"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/component-motion-nested-effects.png",
+          "sha256": "83400df79210f71f5e3354f636a56ff16bf8626b26e4b520b8f22006b8956d69"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/component-motion-live-note.png",
+          "sha256": "16b7cbfd9d0c36caa0e7154627f73e5a026f4322233ed9294c306b9cdf28a19e"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/component-motion-feedback.png",
+          "sha256": "3698c6453c7bbef588254ec969b759fe217c4cda973445a8c79b49c4c921391c"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/creative-packing.png",
+          "sha256": "37ffffeea772303874b0dd9ec634671441e4c7730d2bacd6d97852be0b2a1aa0"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/creative-palette.png",
+          "sha256": "504c378f4eaa2e3b3bc8e95904ff63d3ccf959d6c5937d36e0325516fbeb066e"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/agent-design.png",
+          "sha256": "7e9b3b7004ac9ed02c5bbfb0da897bc96f86dc71221aad9aae47ef3a2486d159"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/interface-language-details.png",
+          "sha256": "720071be21b504865dc4693f39e73581ecb70a75db2a7aaf5f5420909130c399"
+        },
+        {
+          "path": "target/site-motion-control/browser-artifacts/scoped-styles-details.png",
+          "sha256": "c59c35cd3b8135481650671186ea4bcb8cdaab279936e48feb481ac52a53937e"
+        }
+      ]
+    },
+    "delivery": {
+      "path": "target/site-motion-control/delivery-final.report.omui.json",
+      "sha256": "54d99ef6fd68569c984215e6be8039a9607921255f05fc9d3b79b1443b8c53df",
+      "requests": {
+        "path": "target/site-motion-control/delivery-final-requests.report.omui.json",
+        "sha256": "8b714d5c677a381806974549f7ddb30b1dfb890185a463f55ab96537753a10fe"
+      },
+      "network": "20/40",
+      "cache": "enabled",
+      "transfer": {
+        "total": 4877302,
+        "before_first_frame": 2975073,
+        "by_kind": {
+          "document": 61031,
+          "fetch": 4757242,
+          "image": 11922,
+          "script": 47107
+        }
+      },
+      "first_frame_ms": 1754.1000000238419,
+      "ready_ms": 1714.8999999761581,
+      "frames": {
+        "acted": [
+          {
+            "node": "main/bar/nav/to_docs",
+            "exitCode": 0
+          },
+          {
+            "node": "main/body/view/docs/page/directory/to_features",
+            "exitCode": 0
+          },
+          {
+            "node": "main/bar/mark",
+            "exitCode": 0
+          }
+        ],
+        "frames": 319,
+        "p50": 16.699999999999818,
+        "p95": 16.799999999999272,
+        "p99": 16.800000000000182,
+        "max": 50,
+        "long": 1
+      },
+      "budgets": [
+        {
+          "metric": "transfer.total",
+          "value": 4877302,
+          "max": 5000000,
+          "pass": true
+        },
+        {
+          "metric": "transfer.before_first_frame",
+          "value": 2975073,
+          "max": 3800000,
+          "pass": true
+        },
+        {
+          "metric": "first_frame_ms",
+          "value": 1754.1000000238419,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "ready_ms",
+          "value": 1714.8999999761581,
+          "max": 4500,
+          "pass": true
+        },
+        {
+          "metric": "frames.p95",
+          "value": 16.799999999999272,
+          "max": 34,
+          "pass": true
+        },
+        {
+          "metric": "frames.long",
+          "value": 1,
+          "max": 15,
+          "pass": true
+        },
+        {
+          "metric": "errors.length",
+          "value": 0,
+          "max": 0,
+          "pass": true
+        }
+      ]
+    },
+    "malformed_network": {
+      "path": "target/site-motion-control/network-validation.report.omui.json",
+      "sha256": "7ca58ceb111b8626398cf454a4fae8a32ec997707d06888ac3696ca4e8260e44",
+      "cases": 8,
+      "initial_invalid_sample": {
+        "path": "target/site-motion-control/delivery-invalid-network.report.omui.json",
+        "sha256": "7156b66b51d359d86861b6c7e7eaee52ed2c5e20b52efd619e4386d4796e2416"
+      },
+      "initial_sample_counted_for_acceptance": false
+    },
+    "lint": {
+      "path": "target/site-motion-control/lint-final.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "documentation_paths_valid": true,
+    "commands": [
+      {
+        "label": "component-dev",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "component_motion_test",
+          "-p",
+          "openmui.site",
+          "--locked"
+        ],
+        "exit": 0,
+        "seconds": 72.60391065699514,
+        "log": "target/site-motion-control/component-dev.log"
+      },
+      {
+        "label": "control-release",
+        "args": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "test",
+          "motion_control_test",
+          "-p",
+          "openmui.site",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit": 0,
+        "seconds": 321.3582112250151,
+        "log": "target/site-motion-control/control-release.log"
+      },
+      {
+        "label": "site-pack",
+        "args": [
+          "bash",
+          "tools/ci/site.sh"
+        ],
+        "exit": 0,
+        "seconds": 96.18496915104333,
+        "log": "target/site-motion-control/site-pack.log"
+      }
+    ]
+  },
+  "limits": [
+    "Scope is currently the authored component-motion scene; legacy state-morph scenes are reported unavailable rather than misrepresented.",
+    "motion.* restrictions govern these verbs; act/input remain separate entries and require their own restrictions. This is not a resource ACL.",
+    "The adapter uses public owning Playback, not direct inner Engine mutation; standalone hanim.control remains a different host use case.",
+    "Headless pixels and scripted browser operation are not external LLM interoperability or complete human motion-quality acceptance.",
+    "Single fresh-profile delivery sample; first-frame proxy is not FCP/LCP and rAF intervals are not GPU execution cost.",
+    "No completion claim for 40/20 public catalog, generic provider/async lifecycle, or the global multi-engine objective."
+  ]
+}

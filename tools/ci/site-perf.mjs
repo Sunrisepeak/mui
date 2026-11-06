@@ -23,6 +23,11 @@ const args = process.argv.slice(2);
 const opt = (name, fallback) => { const i = args.indexOf(`--${name}`); return i >= 0 ? args[i + 1] : fallback; };
 const w = +opt('width', 1280), h = +opt('height', 800), budgetFile = opt('budget', ''), dir = opt('serve', ''), network = opt('network', '');
 const chrome = process.env.CHROME;
+const networkParts = typeof network === 'string' ? network.split('/') : [];
+const networkValues = networkParts.map(Number);
+if (args.includes('--network') && (networkParts.length !== 2 || networkParts.some(v => !v.trim()) ||
+    !networkValues.every(Number.isFinite) || networkValues[0] <= 0 || networkValues[1] < 0))
+  usage('site-perf.mjs', ' --network MBIT/RTT_MS (finite MBIT > 0 and RTT_MS >= 0)');
 const cache = opt('cache', 'enabled');
 if (!['enabled','disabled'].includes(cache)) usage('site-perf.mjs', ' --cache enabled|disabled');
 let url = args[0] && !args[0].startsWith('--') ? args[0] : '';
@@ -54,7 +59,7 @@ await b.call('Network.enable');
 await b.call('Network.setCacheDisabled',{cacheDisabled:cache==='disabled'});
 await b.call('Network.setBypassServiceWorker',{bypass:true});
 if (network) {
-  const [mbit, rtt] = network.split('/').map(Number);
+  const [mbit, rtt] = networkValues;
   await b.call('Network.emulateNetworkConditions', { offline: false, latency: rtt, downloadThroughput: mbit * 125000, uploadThroughput: mbit * 125000 / 4 });
 }
 // From navigation: the first frame the program has drawn (its semantic mirror filled after it), and when it answers as an agent.

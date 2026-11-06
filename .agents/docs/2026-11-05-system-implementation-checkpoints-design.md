@@ -1208,3 +1208,34 @@ UI core 的 **11 个程序／43 项**在 native debug、release、Wasm 各通过
 原始命令／结果和帧图位于 `target/omui-control-bridge/`；结构化摘要为 `tools/ci/2026-11-06-ui-native-authority-bridge.report.omui.json`。全仓库 lint 为零，源锁文件保持原有字节；新用例沿既有 core 与独立消费者 CI 入口执行。本轮没有修改官网布局／动画配方，也没有重跑浏览器或交付性能；后续官网控制面可以复用此桥接，不能将测试界面称为官网已接入。
 
 配套清理了被新验证替代的临时构建与无引用生成缓存，实际释放 834,068,480 B，保留最新增量、源码、图像证据与用户修改。清理报告在 `target/cleanup-2026-11-06.report.omui.json`。通用 provider 注册、资源级 ACL、异步控制与完整 40／20 公共库／官网交付，以及全局多引擎目标继续开放。
+
+
+## 37. 官网公共动画舞台的语义控制
+
+2026-11-06，基线 `e2de60d`。把共享控制机制映射到真实官网，先覆盖已有 `component-motion` 公共编排舞台。实现位于既有 site 包的 `src/motion_control.cpp`，没有新增微型包、动画算法或网络协议。
+
+### 37.1 局部宿主与全局能力的边界
+
+官网使用拥有 Engine 的 `omui::animation::Playback`，负责绝对时钟、播放意图、可见／交互／动态偏好门控和同帧呈现。操作内部 Engine 会绕过 reanchor／publish，下一帧可能覆盖手动结果，因此本轮通过公开 Playback 方法控制宿主，而不是暴露内部句柄或创建第二个播放器。独立 `hanim.control` 继续用于普通 Engine 消费者，两者分别控制正确的状态 owner。
+
+新增六项可发现应用 verb：`motion.inspect`（read）、`motion.seek`（progress 0..1）、pause、resume、reverse、rate（速度幅度 0.25..2，其余 reversible）。它们通过既有 invoke 协议发布，生成的 agent.md／manifest 使用同一描述列表。查询返回当前选择、是否可用、时间／进度／带方向速度、播放意图、暂停原因及帧需求；旧状态 morph 场景如实返回 unavailable，未伪装为公共 Program。完整目录的统一控制仍属后续工作。
+
+callback 取实际 UI Invocation，通过 `to_control_invocation` 转为共享元数据，再进入冷调用的 `OperationScope`，复用宿主的实际 Access。UI 入口 `invoke` 与所选 `motion.*` 分别检查；参数／领域失败不提交界面意图。权限与策略不复制，远端不退回可信本地，dry-run 不执行回调。调用作用域仅包围同步操作，常规帧更新不进行权限查询。
+
+这些领域过滤约束新增 verb 路径，不能宣称是所有节点的资源 ACL；若还允许 `act`／`input`，Agent 仍可使用对应授权的普通控件入口，限制时须一并配置。查询与操作仍使用既有 verb 返回记录；ask／refuse 在此适配层明确返回失败，不自动审批。可逆分类不等于新增撤销历史。
+
+人的进度条／按钮和 Agent 操作观察同一个 Playback。seek 立即采样、暂停并发布；rate 保留方向，reverse 保留播放意图；resume 尊重后续宿主门控，requested 不等于正在运动。输入越界／非数、未挂载或未选公共舞台均明确失败。最小无 GUI SOP、参数、恢复方式和范围见 site README。
+
+### 37.2 验证记录
+
+新增真实官网测试在 native debug／release 各 **3 项**通过：六个实际 verb、61 时刻正／反向过程、参数／dry-run、双重操作过滤、会话撤销后的真人按钮，以及暂停／反向／变速与 reduced-motion。保留 **122 张过程 PNG**，dev／release 的对应 61 张逐字节相同。方向测试按当前查询结果断言，避免把已经往返的动画误当成始终正向。既有 `component_motion_test` 的 **8 项**通过，回归局部部件、反馈组合、图像效果、真实点击、偏好与中英文窄屏。中间态实际离屏图已查看；不以此代替实时节奏评审。
+
+完整 site-web 包由 mcpp 构建，真实 Chromium 通过 **166 项检查**、保留 **10 张截图**、异常为零。新增检查通过交付的 `window.omui.invoke` 调用 motion.inspect／seek，验证三个中间态、人的进度条同步，以及非法参数不改画面；既有真实鼠标／键盘、配方复制、反馈及 Agent 场景仍运行。生成的 agent.md 与机器清单都包含六个真实描述，不是仅在测试内注册。
+
+最终性能工具在 1280×800、新 profile、缓存开启、**20 Mbit/s／40 ms** 下测得总传输 **4,877,302 B**、首帧前 **2,975,073 B**、首帧代理 **1,754.1 ms**、ready **1,714.9 ms**、rAF p95 **16.8 ms**、长帧 **1**，原有 **7／7** 预算通过。总传输较 §33 增加 6,219 B，5 MB 预算余 122,698 B；不将单次样本差异当作性能优化结论，首帧代理不是 FCP／LCP，rAF 不是 GPU 时间。
+
+测量时暴露了工具缺口：误传 `--network 20`，缺失 RTT 时脚本未拒绝，产生与预算条件不一致的样本。该报告明确排除在验收外；现在脚本在启动浏览器前验证带宽／延迟完整、有限且范围合法，8 个非法输入均拒绝；修正后使用最终脚本重新测量上述合法条件。未把错误样本的预算失败隐藏成性能结论。
+
+命令、过程图、Web 包、截图和性能报告保留于 `target/site-motion-control/`；提交摘要为 `tools/ci/2026-11-06-site-motion-control.report.omui.json`。全仓库 lint 为零，既有 mcpp.lock 字节保持。新增官网测试和浏览器检查使用原有 CI 入口，本轮按本地真实结果推进，不等待跨平台 CI。
+
+本轮没有增加动画设计数，也没有完成旧状态 morph 的统一控制、资源 ACL、通用 provider、40／20 公共交付或总体多引擎目标。官网视觉重构与完整场景验收继续按原计划执行。

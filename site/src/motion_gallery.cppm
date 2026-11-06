@@ -51,4 +51,6 @@ void motion_gallery_seek(MotionGallery& gallery, const MotionGalleryContext& con
 void motion_gallery_reset(MotionGallery& gallery, const MotionGalleryContext& context);
 void motion_gallery_interact(MotionGallery& gallery, const MotionGalleryContext& context, bool interactive = true);
 [[nodiscard]] std::string motion_gallery_html(bool zh, bool creative, std::string_view id = {});
+[[nodiscard]] std::span<const VerbDesc> motion_control_verbs();
+[[nodiscard]] VerbResult motion_control(MotionGallery&,const MotionGalleryContext&,std::string_view,const Value&);
 }  // namespace omui::site

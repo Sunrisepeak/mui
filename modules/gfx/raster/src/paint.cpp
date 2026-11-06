@@ -1,7 +1,7 @@
 module mlibs.raster.api;
 
 import std;
-import hanim.core;
+import mlibs.math;
 
 namespace mlibs::raster {
 
@@ -115,8 +115,8 @@ Rgba8 Shader::gradient_at(float px, float py) const {
             break;
         }
         case GradientKind::conic: {
-            double angle = hanim::dm::atan2(q.y - p.start.y, q.x - p.start.x) - p.radius;
-            double turn = angle / hanim::dm::two_pi;
+            double angle = mlibs::math::det::atan2(q.y - p.start.y, q.x - p.start.x) - p.radius;
+            double turn = angle / mlibs::math::det::two_pi;
             t = static_cast<float>(turn - std::floor(turn));
             break;
         }

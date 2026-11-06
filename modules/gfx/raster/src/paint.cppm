@@ -11,6 +11,7 @@ export module mlibs.raster.api:paint;
 
 import std;
 import mlibs.geom;
+import mlibs.memory;
 import :surface;
 
 export namespace mlibs::raster {
@@ -89,7 +90,9 @@ struct Paint {
 
     Affine transform;  // paint space to device space
     float  opacity = 1;
-    std::span<const WeightedPaint> mix; // flat leaf shaders, never recursive
+    // Flat leaf shaders, never recursive. Not a std::span: WeightedPaint is
+    // incomplete here (mlibs::memory::View).
+    mlibs::memory::View<const WeightedPaint> mix;
 
     [[nodiscard]] static Paint solid(Color c) noexcept {
         Paint p;

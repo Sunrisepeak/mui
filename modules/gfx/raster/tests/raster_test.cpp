@@ -3,7 +3,7 @@
 import std;
 import openmui.geom;
 import openmui.raster;
-import hanim.core;
+import mlibs.math;
 import openmui.testing;
 
 using namespace omui::testing;
@@ -305,7 +305,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 10; ++i) {
             double a = i * 3.14159265358979 / 5 - 3.14159265358979 / 2;
             float rad = i % 2 ? 8.0f : 20.0f;
-            geom::Point p{static_cast<float>(220 + rad * hanim::dm::cos(a)), static_cast<float>(36 + rad * hanim::dm::sin(a))};
+            geom::Point p{static_cast<float>(220 + rad * mlibs::math::det::cos(a)), static_cast<float>(36 + rad * mlibs::math::det::sin(a))};
             if (i == 0) star.move_to(p);
             else star.line_to(p);
         }

@@ -23,7 +23,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.hash = { path = "../../base/hash" }
 mlibs.geom = { path = "../../base/geom" }
-hanim.core        = { path = "../../base/hanim/core" }
+mlibs.math = { path = "../../base/math" }
+mlibs.memory = { path = "../../base/memory" }
 
 [dev-dependencies]
 mlibs.testing = { path = "../../base/testing" }

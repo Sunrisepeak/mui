@@ -182,7 +182,8 @@ struct Paint {
     // A flat convex mixture of leaf brushes in premultiplied sRGB. The
     // current geometry/clip coverage is applied ONCE after material shading.
     // Leaf kind must not be mix; resources remain owned by their store.
-    std::span<const WeightedPaint> mix;
+    // Not a std::span: WeightedPaint is incomplete here (mlibs::memory::View).
+    mlibs::memory::View<const WeightedPaint> mix;
     float mix_opacity = 1;
 
     [[nodiscard]] static Paint solid(Color c) noexcept {

@@ -1,13 +1,13 @@
 module mlibs.raster.api;
 
 import std;
-import hanim.core;
+import mlibs.math;
 
 namespace mlibs::raster {
 
 namespace {
 
-namespace dm = hanim::dm;
+namespace dm = mlibs::math::det;
 
 struct Polyline {
     std::vector<Point> points;

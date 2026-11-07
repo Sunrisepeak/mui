@@ -34,7 +34,9 @@ def audit(project: Path, repo: Path, artifacts: Path, profile: str, openas_packa
             relative = path.relative_to(repo)
             if len(relative.parts) < 2 or (relative.parts[:2] not in {
                 ("modules", "base"), ("modules", "gfx"), ("modules", "content"), ("modules", "media")
-            } and relative.parts[:3] not in {("modules", "projects", "hanim"), ("modules", "projects", "xrender")}):
+            } and relative.parts[:3] not in {("modules", "projects", "hanim"), ("modules", "projects", "xrender")}
+                    # xengine.simulation's CPU part is base layer (lint), the solver hanim shares with physics (D-131).
+                    and relative.parts[:4] != ("modules", "projects", "xengine", "simulation")):
                 raise RuntimeError(f"non-independent repository source in closure: {path}")
     for package in data["graph"]["packages"]:
         item = package["package"]

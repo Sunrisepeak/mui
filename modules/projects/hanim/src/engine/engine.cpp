@@ -3,6 +3,7 @@ import std;
 import mlibs.memory;
 import mlibs.log;
 import mlibs.trace;
+import xengine.simulation;
 
 namespace hanim::detail {
 struct PlaybackTag;
@@ -62,6 +63,19 @@ struct EngineData {
     struct ConstraintSlot { Constraint value; std::uint32_t generation = 1; bool live = false; };
     std::vector<ConstraintSlot> constraints;
     std::vector<std::uint32_t> constraint_order;
+    // Simulated bodies: the body's history, its pace, and the cage carrying
+    // the part's points (each a weight a ring point, frozen when made).
+    struct BodySlot {
+        PartAddress part;
+        std::optional<xengine::simulation::Timeline<xengine::simulation::SoftBodyModel>> history;
+        xengine::simulation::BodyInput input;
+        double owed = 0;  // engine seconds not yet stepped
+        std::size_t cubics = 0;
+        std::vector<double> weights;  // cubics × 4 points × ring
+        std::uint32_t generation = 1;
+        bool live = false;
+    };
+    std::vector<BodySlot> bodies;
     EngineData(ObjectRegistry registry, EngineLimits budget)
         : objects(std::move(registry)), limits(budget), playbacks(budget.max_playbacks) {}
 };
@@ -327,9 +341,104 @@ void apply(detail::EngineData& data, const Constraint& constraint) noexcept {
         }
     }
 }
+void apply_bodies(detail::EngineData& data) noexcept {
+    for (const auto& slot : data.bodies) {
+        if (!slot.live || !slot.history) continue;
+        auto place = shown(data, slot.part);
+        if (!place) continue;
+        auto& part = place->parts[place->index];
+        // The part's cubics, in its frame's buffer (the playback's track).
+        const auto& info = part.info;
+        if (!info.contour_count) continue;
+        std::optional<std::span<ShapeCubic>> cubics;
+        data.playbacks.for_each([&](auto, detail::Playback& playback) {
+            if (cubics) return;
+            for (auto& track : playback.tracks)
+                if (track.current.parts.data() == place->parts.data()) {
+                    const auto& animation = playback.program.segments()[track.segment].animation;
+                    const auto contours = animation.contours();
+                    const auto& first = contours[info.first_contour];
+                    const auto& last = contours[info.first_contour + info.contour_count - 1];
+                    cubics = std::span<ShapeCubic>(track.current.cubics).subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
+                }
+        });
+        if (!cubics || cubics->size() != slot.cubics) continue;
+        const auto inverse = mlibs::geom::AffineD::from(part.local.matrix()).inverse();
+        if (!inverse) continue;
+        const auto& body = slot.history->state();
+        const auto ring = body.size();
+        const double* weight = slot.weights.data();
+        for (auto& cubic : *cubics)
+            for (auto* point : {&cubic.start, &cubic.control1, &cubic.control2, &cubic.end}) {
+                double across = 0, down = 0;
+                for (std::size_t index = 0; index < ring; ++index, ++weight) across += *weight * body.x[index], down += *weight * body.y[index];
+                const auto local = inverse->apply(across, down);
+                *point = {local[0], local[1]};
+            }
+    }
+}
 void apply_constraints(detail::EngineData& data) noexcept {
     for (const auto index : data.constraint_order)
         if (data.constraints[index].live) apply(data, data.constraints[index].value);
+    apply_bodies(data);
+}
+// Mean value coordinates of `point` over the closed polygon `ring` (Floater):
+// weights summing to one that reproduce the point from the ring, smooth
+// inside it. A point on a ring point takes it whole.
+void mean_value_weights(std::span<const double> ring_x, std::span<const double> ring_y, double x, double y, double* out) noexcept {
+    const auto count = ring_x.size();
+    std::vector<double> half_tangent(count);
+    for (std::size_t index = 0; index < count; ++index) {
+        const double distance = std::sqrt((ring_x[index] - x) * (ring_x[index] - x) + (ring_y[index] - y) * (ring_y[index] - y));
+        if (distance < 1e-12) {
+            for (std::size_t other = 0; other < count; ++other) out[other] = other == index ? 1 : 0;
+            return;
+        }
+    }
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto next = (index + 1) % count;
+        const double from_x = ring_x[index] - x, from_y = ring_y[index] - y, to_x = ring_x[next] - x, to_y = ring_y[next] - y;
+        const double cross = from_x * to_y - from_y * to_x, dot = from_x * to_x + from_y * to_y;
+        const double lengths = std::sqrt(from_x * from_x + from_y * from_y) * std::sqrt(to_x * to_x + to_y * to_y);
+        // tan(α/2) = sin α / (1 + cos α), signed with the turn.
+        half_tangent[index] = lengths + dot > 1e-300 ? cross / (lengths + dot) : 0;
+    }
+    double total = 0;
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto previous = (index + count - 1) % count;
+        const double distance = std::sqrt((ring_x[index] - x) * (ring_x[index] - x) + (ring_y[index] - y) * (ring_y[index] - y));
+        out[index] = (half_tangent[previous] + half_tangent[index]) / distance;
+        total += out[index];
+    }
+    if (total != 0) for (std::size_t index = 0; index < count; ++index) out[index] /= total;
+}
+// `count` points evenly round the part's largest contour, in its parent's space.
+std::vector<std::array<double, 2>> outline_ring(std::span<const ShapeCubic> contour, const mlibs::geom::AffineD& local, std::size_t count) {
+    std::vector<std::array<double, 2>> dense;
+    constexpr int per_cubic = 32;
+    for (const auto& cubic : contour)
+        for (int sample = 0; sample < per_cubic; ++sample) {
+            const auto point = cubic.point(static_cast<double>(sample) / per_cubic);
+            dense.push_back(local.apply(point.x, point.y));
+        }
+    std::vector<double> along(dense.size() + 1, 0);
+    for (std::size_t index = 0; index < dense.size(); ++index) {
+        const auto& from = dense[index];
+        const auto& to = dense[(index + 1) % dense.size()];
+        along[index + 1] = along[index] + std::sqrt((to[0] - from[0]) * (to[0] - from[0]) + (to[1] - from[1]) * (to[1] - from[1]));
+    }
+    std::vector<std::array<double, 2>> ring;
+    std::size_t segment = 0;
+    for (std::size_t index = 0; index < count; ++index) {
+        const double distance = along.back() * static_cast<double>(index) / static_cast<double>(count);
+        while (segment + 1 < dense.size() && along[segment + 1] < distance) ++segment;
+        const double span = along[segment + 1] - along[segment];
+        const double share = span > 0 ? (distance - along[segment]) / span : 0;
+        const auto& from = dense[segment];
+        const auto& to = dense[(segment + 1) % dense.size()];
+        ring.push_back({from[0] + (to[0] - from[0]) * share, from[1] + (to[1] - from[1]) * share});
+    }
+    return ring;
 }
 std::string_view written(const Constraint& constraint) noexcept {
     return constraint.kind == ConstraintKind::follow ? "position" : constraint.kind == ConstraintKind::aim ? "rotation" : std::string_view(constraint.target_channel);
@@ -567,6 +676,17 @@ Status Engine::advance(seconds elapsed) {
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
     if (elapsed.count() == 0) return {};
     data_->now += elapsed.count();
+    for (auto& slot : data_->bodies) {
+        if (!slot.live || !slot.history) continue;
+        slot.owed += elapsed.count();
+        const double step = slot.history->state().params.step;
+        // At most a second's steps at once: a stall is not owed afterwards.
+        for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
+            slot.history->step(slot.input);
+            slot.owed -= step;
+        }
+        slot.owed = std::min(slot.owed, step);
+    }
     std::optional<EngineFailure> error;
     data_->playbacks.for_each([&](auto, detail::Playback& playback) {
         if (error || state(playback) != PlaybackState::playing) return;
@@ -838,5 +958,109 @@ std::expected<void, EngineFailure> Engine::unconstrain(ConstraintRef constraint)
 }
 std::size_t Engine::constraint_count() const noexcept {
     return data_ ? static_cast<std::size_t>(std::ranges::count_if(data_->constraints, [](const auto& slot) { return slot.live; })) : 0;
+}
+}  // namespace hanim
+
+namespace hanim {
+std::expected<BodyRef, EngineFailure> Engine::simulate(PartAddress address, BodyOptions options) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    WriteScope scope(writing_);
+    if (options.points < 8 || options.points > 1024) return std::unexpected(fail(EngineError::invalid_argument));
+    for (const auto& slot : data_->bodies)
+        if (slot.live && same_part(slot.part, address)) return std::unexpected(fail(EngineError::binding_conflict));
+    auto place = shown(*data_, address);
+    if (!place) return std::unexpected(fail(EngineError::invalid_argument));  // a playback must show it
+    // Its geometry where it shows, and its largest contour as the ring.
+    const auto& part = place->parts[place->index];
+    std::optional<std::span<const ShapeCubic>> cubics;
+    std::span<const MorphContourInfo> contours;
+    data_->playbacks.for_each([&](auto, detail::Playback& playback) {
+        if (cubics) return;
+        for (auto& track : playback.tracks)
+            if (track.current.parts.data() == place->parts.data()) {
+                const auto& animation = playback.program.segments()[track.segment].animation;
+                contours = animation.contours();
+                const auto& first = contours[part.info.first_contour];
+                const auto& last = contours[part.info.first_contour + part.info.contour_count - 1];
+                cubics = std::span<const ShapeCubic>(track.current.cubics).subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
+            }
+    });
+    if (!cubics || !part.info.contour_count) return std::unexpected(fail(EngineError::invalid_argument));
+    const auto local = mlibs::geom::AffineD::from(part.local.matrix());
+    std::size_t largest = 0;
+    double largest_area = -1;
+    const auto first_cubic = contours[part.info.first_contour].first_cubic;
+    for (std::size_t index = 0; index < part.info.contour_count; ++index) {
+        const auto& range = contours[part.info.first_contour + index];
+        const auto measured = mlibs::geom::measure(cubics->subspan(range.first_cubic - first_cubic, range.cubic_count));
+        if (std::abs(measured.area) > largest_area) { largest_area = std::abs(measured.area); largest = index; }
+    }
+    const auto& outer = contours[part.info.first_contour + largest];
+    const auto ring = outline_ring(cubics->subspan(outer.first_cubic - first_cubic, outer.cubic_count), local, options.points);
+    auto body = xengine::simulation::SoftBody::ring(ring, options.params, options.colliders);
+    if (!body) return std::unexpected(fail(EngineError::invalid_argument));
+    detail::EngineData::BodySlot slot;
+    slot.part = std::move(address);
+    slot.cubics = cubics->size();
+    slot.weights.resize(slot.cubics * 4 * ring.size());
+    double* weight = slot.weights.data();
+    for (const auto& cubic : *cubics)
+        for (const auto point : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
+            const auto at = local.apply(point.x, point.y);
+            mean_value_weights(body->x, body->y, at[0], at[1], weight);
+            weight += ring.size();
+        }
+    slot.history.emplace(*body, 600, 60);
+    slot.live = true;
+    std::uint32_t index = 0;
+    while (index < data_->bodies.size() && data_->bodies[index].live) ++index;
+    if (index == data_->bodies.size()) data_->bodies.emplace_back();
+    slot.generation = data_->bodies[index].generation;
+    data_->bodies[index] = std::move(slot);
+    apply_bodies(*data_);
+    return BodyRef{index, data_->bodies[index].generation};
+}
+namespace {
+detail::EngineData::BodySlot* live_body(detail::EngineData* data, BodyRef ref) noexcept {
+    if (!data || ref.index >= data->bodies.size()) return nullptr;
+    auto& slot = data->bodies[ref.index];
+    return slot.live && slot.generation == ref.generation ? &slot : nullptr;
+}
+}  // namespace
+std::expected<void, EngineFailure> Engine::pull(BodyRef ref, std::optional<Vec2> hand) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!hand) { slot->input.pin.active = false; return {}; }
+    if (!std::isfinite(hand->x) || !std::isfinite(hand->y)) return std::unexpected(fail(EngineError::invalid_argument));
+    const auto& body = slot->history->state();
+    if (!slot->input.pin.active) {
+        std::uint32_t nearest = 0;
+        double best = std::numeric_limits<double>::infinity();
+        for (std::uint32_t index = 0; index < body.size(); ++index) {
+            const double distance = (body.x[index] - hand->x) * (body.x[index] - hand->x) + (body.y[index] - hand->y) * (body.y[index] - hand->y);
+            if (distance < best) { best = distance; nearest = index; }
+        }
+        slot->input.pin.particle = nearest;
+    }
+    slot->input.pin.x = hand->x;
+    slot->input.pin.y = hand->y;
+    slot->input.pin.active = true;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::unsimulate(BodyRef ref) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    slot->live = false;
+    slot->history.reset();
+    ++slot->generation;
+    return {};
+}
+std::expected<const xengine::simulation::SoftBody*, EngineFailure> Engine::body(BodyRef ref) const noexcept {
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    return &slot->history->state();
 }
 }  // namespace hanim

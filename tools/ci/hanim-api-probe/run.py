@@ -94,7 +94,9 @@ def main() -> int:
                 p=(p if p.is_absolute() else directory/p).resolve();sources.append(str(p))
                 # mlibs (base, gfx) and the gfx-layer projects hanim and xrender: no UI, no game layer.
                 rel=p.relative_to(repo).parts if p.is_relative_to(repo) else None
-                if rel and rel[:2] not in {('modules','base'),('modules','gfx')} and rel[:3] not in {('modules','projects','hanim'),('modules','projects','xrender')}:
+                # xengine.simulation's CPU part is base layer (lint), the solver hanim shares with physics (D-131).
+                if rel and rel[:2] not in {('modules','base'),('modules','gfx')} and rel[:3] not in {('modules','projects','hanim'),('modules','projects','xrender')} \
+                        and rel[:4]!=('modules','projects','xengine','simulation'):
                     raise RuntimeError(f'non-independent repository source: {p}')
                 if p.is_relative_to(repo):source_hashes[str(p.relative_to(repo))]=digest(p)
                 if p.is_relative_to(project/'src') and '-std=c++23' not in item.get('arguments',[]):

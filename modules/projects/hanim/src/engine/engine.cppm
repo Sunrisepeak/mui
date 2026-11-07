@@ -4,6 +4,7 @@ import std;
 import mlibs.error;
 export import hanim.program;
 import mlibs.memory;
+export import xengine.simulation.bodies;
 
 namespace hanim::detail { struct EngineData; }
 export namespace hanim {
@@ -131,6 +132,25 @@ struct Constraint {
 struct ConstraintTag;
 using ConstraintRef = mlibs::memory::Handle<ConstraintTag>;
 
+// ── Simulated bodies (plan §6.8 ⑨ ①②) ───────────────────────────────────
+// A part made soft: a ring of `points` round its outline becomes a body of
+// xengine.simulation (shared with physics: edges, area, shape matching,
+// gravity, colliders), stepped at its fixed rate as the engine's time
+// advances; a cage of mean value coordinates over the ring carries every
+// point of the part's geometry with it — any shape, glyph or outline. The
+// part is drawn by the playback showing its object (a hold); positions are
+// in its parent's space. A hand pulls it (pull) and lets go (nullopt).
+//
+//     auto body = engine.simulate({ball, "ball"}, {.colliders = {{.normal_y = -1, .offset = -400}}});
+//     engine.advance(1/60.0s);                        // it falls, lands, squashes, bounces
+struct BodyOptions {
+    xengine::simulation::BodyParams       params;
+    std::vector<xengine::simulation::Plane> colliders;
+    std::size_t                           points = 48;  // 8 to 1024
+};
+struct BodyTag;
+using BodyRef = mlibs::memory::Handle<BodyTag>;
+
 // One owning thread or external synchronization. No event loop, window,
 // renderer, UI, transport or business setter. advance() is the batch boundary.
 class Engine {
@@ -214,6 +234,15 @@ public:
     [[nodiscard]] std::expected<ConstraintRef, EngineFailure> constrain(Constraint constraint);
     [[nodiscard]] std::expected<void, EngineFailure> unconstrain(ConstraintRef constraint);
     [[nodiscard]] std::size_t constraint_count() const noexcept;
+
+    // Simulated bodies (above).
+    [[nodiscard]] std::expected<BodyRef, EngineFailure> simulate(PartAddress part, BodyOptions options = {});
+    // The nearest point of the body follows `hand` (its parent's space) while
+    // held; nullopt lets go.
+    [[nodiscard]] std::expected<void, EngineFailure> pull(BodyRef body, std::optional<Vec2> hand);
+    [[nodiscard]] std::expected<void, EngineFailure> unsimulate(BodyRef body);
+    // The body's state (its particles, velocities), for tools and Agents.
+    [[nodiscard]] std::expected<const xengine::simulation::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;
 
 private:
     template <Animatable T> friend class Drive;

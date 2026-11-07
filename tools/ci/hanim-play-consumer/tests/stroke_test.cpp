@@ -225,5 +225,50 @@ int main(int argc, char** argv) {
                          std::format("its lowest row {} on the ground at 62", ground_low));
                });
 
+    suite.test("a simulated soft ball drawn: it widens as it lands and never sinks through the "
+               "ground",
+               [] {
+                   Engine engine = take(Engine::make());
+                   constexpr double k = 10 * .5522847498307936;
+                   const std::array arcs{ShapeSegment::cubic({k, -10}, {10, -k}, {10, 0}),
+                                         ShapeSegment::cubic({10, k}, {k, 10}, {0, 10}),
+                                         ShapeSegment::cubic({-k, 10}, {-10, k}, {-10, 0}),
+                                         ShapeSegment::cubic({-10, -k}, {-k, -10}, {0, -10})};
+                   const auto ball = take(engine.create_object(
+                       {{{.id = "ball",
+                          .local = {.tx = 32, .ty = 12},
+                          .contours = {take(Contour::copy({{0, -10}, arcs, true}))},
+                          .fill = Rgba{1, 1, 1, 1}}}}));
+                   const auto plan = take(engine.prepare(anim::morph(ball, ball)));
+                   const auto playback = take(engine.play(plan));
+                   take(engine.simulate({ball, "ball"},
+                                        {.params = {.shape_stiffness = .02},
+                                         .colliders = {
+                                             {.normal_x = 0, .normal_y = -1, .offset = -62}}}));
+                   const auto renderer = take(PreparedVectorProgram::bind(plan));
+                   Storage storage(renderer.requirements());
+                   int widest = 0, lowest = 0;
+                   for (int step = 0; step < 72; ++step) {  // 0.6 s
+                       take(engine.advance(seconds(1.0 / 120)));
+                       render::DisplayList output;
+                       take(renderer.record(take(engine.program_frame(playback)).scene, output,
+                                            storage.get()));
+                       raster::Surface pixels(64, 72);
+                       render::CpuRenderer cpu;
+                       (void)cpu.render(output, pixels, {});
+                       for (int y = 0; y < pixels.height(); ++y) {
+                           int lit = 0;
+                           for (int x = 0; x < pixels.width(); ++x)
+                               lit += pixels.at(x, y).r > 128;
+                           widest = std::max(widest, lit);
+                           if (lit)
+                               lowest = std::max(lowest, y);
+                       }
+                   }
+                   check(widest >= 22, std::format("it widens on landing: {} px", widest));
+                   check(lowest <= 62,
+                         std::format("its lowest lit row {}: the ground is at 62", lowest));
+               });
+
     return suite.run(argc, argv);
 }

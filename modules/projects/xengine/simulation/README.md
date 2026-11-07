@@ -15,6 +15,10 @@ if (history.seek(frame)) { /* observe reconstructed state; no external effects *
 
 The host chooses bounded, trusted history capacities, records semantic inputs, advances its clock and publishes state. Keep the same model/configuration within a history; changing rules or topology requires an explicit rebuild/reset. Cancel an external job between complete steps; restoring a checkpoint is not undoing external actions. A failed seek leaves state unchanged. See [CONTRACT.md](CONTRACT.md) for limits and clock behavior.
 
+## Soft bodies
+
+`xengine.simulation.bodies` is the particle and constraint solver animation and physics share (convergence plan §6.9, D-131): a `SoftBody` is a ring of particles held by its edges' lengths, its enclosed area and the shape it was made in (shape matching), stepped by small-step XPBD under gravity against half-plane colliders with restitution and friction; a `Pin` is a dragging hand. `SoftBodyModel` is a `Model`, so a body runs in a `Timeline` with checkpoints and exact replay; stepping allocates nothing. hanim's `Engine::simulate` makes any part of any object such a body and carries its geometry on a cage over the ring. `tests/bodies_test.cpp` drops a ring on the ground (it flattens, bounces, holds its area within 5 %, rests on top), drags one, and replays it bit for bit.
+
 | Optional package | Role |
 |---|---|
 | [cellular](cellular) | Prepared integer channel/neighborhood rules, immutable input and tiled output; can also be used without this clock/history |

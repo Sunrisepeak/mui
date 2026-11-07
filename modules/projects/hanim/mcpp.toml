@@ -38,6 +38,9 @@ mlibs.utils = { path = "../../base/utils" }
 [feature-deps.effect]
 mlibs.utils = { path = "../../base/utils" }
 
+[feature-deps.engine]
+xengine.simulation = { path = "../xengine/simulation" }
+
 [feature-deps.render-vector]
 xrender.vector = { path = "../xrender/vector" }
 mlibs.geom = { path = "../../base/geom" }

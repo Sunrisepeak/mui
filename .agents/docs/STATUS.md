@@ -127,7 +127,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 |---|---|
 | 1 glyph/path adapter (glyph outlines → hanim parts) | done: `mlibs::text::outlines(paragraph, fonts)` gives each glyph's placed outline; `hanim::object_from_paths` makes one part a path |
 | 2 stroke representation (trim start/end/offset, writing; xrender trims by arc length) | done: `raster::Stroke`/`StrokeStyle` trims (CPU and GPU share the outline); `PartStroke` on parts through snapshots, morphs and frames; `ch::trim_start/trim_end/trim_offset`; the "一" train sampled over its course in the hanim consumer. Stroke width and colour channels, and focus/write recipes, come with the component recipes |
-| 3 topology-aligning morph (A→B) · 4 selectors + deformers (overshoot, drag) · 5 match modifiers + path noise | planned |
+| 3 topology-aligning morph (A→B) | done in hanim: `ContourPairing::align` (default) pairs outlines/holes by exact measures (`mlibs.geom::measure`, now also hanim.core's area), contours left over grow/close (`PreparedShapeMorph::grow`/`shrink`); 一→二, hole open/close, merge, continuation sampled over 100 steps. Real-glyph A→B pixels come with the `text.reshape` recipe |
+| 4 selectors + deformers (overshoot, drag) · 5 match modifiers + path noise | planned |
 | 6 blending layers · 7 constraints · 9 elastic bodies (cage deformer, soft-body solver in xengine.simulation, motion-derived squash, analytic bounce; any object; ownership split per plan §6.9, D-131) · 8 GPU evaluation | planned |
 
 ## Next

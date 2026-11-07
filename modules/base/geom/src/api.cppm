@@ -2,3 +2,4 @@
 export module mlibs.geom.api;
 export import :primitives;
 export import :path;
+export import :measure;

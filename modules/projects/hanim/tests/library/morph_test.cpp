@@ -207,7 +207,7 @@ int main(int argc,char** argv) {
         auto crossed=tree;crossed.parts[3].parent="right";crossed.parts[4].parent="left";
         error_is(PreparedObjectAnimation::prepare(f.add(tree),f.add(crossed)),MorphError::hierarchy_mismatch);
         auto count=description(circle());count.parts[1].contours.push_back(circle(.25));
-        error_is(PreparedObjectAnimation::prepare(f.from,f.add(count)),MorphError::contour_count_mismatch);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.add(count),{.contours=ContourPairing::strict}),MorphError::contour_count_mismatch);
         auto fill=description(circle());fill.parts[1].fill.reset();
         error_is(PreparedObjectAnimation::prepare(f.from,f.add(fill)),MorphError::missing_fill);
         auto open=description(triangle(false));
@@ -257,7 +257,10 @@ int main(int argc,char** argv) {
         auto target=source;auto a=f.add(source),b=f.add(target);
         auto valid=take(PreparedObjectAnimation::prepare(a,b));Buffer two(valid);check(two.sample(valid,.5).contours.size()==2);
         target.parts[1].contours[1]=circle(.3,false);
-        error_is(PreparedObjectAnimation::prepare(a,f.add(target)),MorphError::unsupported_topology);
+        error_is(PreparedObjectAnimation::prepare(a,f.add(target),{.contours=ContourPairing::strict}),MorphError::unsupported_topology);
+        // Aligned, the hole closes and the inner outline grows instead.
+        auto aligned=take(PreparedObjectAnimation::prepare(a,f.add(target)));Buffer three(aligned);
+        check(three.sample(aligned,.5).contours.size()==3,"a pair, a closing hole and a growing outline");
     });
     suite.test("endpoint resources and metadata outlive registries and the original plan owner",[] {
         PreparedObjectAnimation retained;

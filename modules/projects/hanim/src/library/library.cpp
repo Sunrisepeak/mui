@@ -304,6 +304,80 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
     return result;
 }
 
+// One contour of a morph: a pair, or one end alone and the point it grows
+// from or closes into.
+struct ContourPlan { std::size_t from = none, to = none; Vec2 point{}; };
+
+std::expected<std::vector<ContourPlan>,MorphFailure> pair_contours(const PartInput& source, const PartInput& target,
+    std::size_t part, ContourPairing pairing) {
+    std::vector<ContourPlan> plans;
+    if (pairing==ContourPairing::strict) {
+        if (source.contours.size()!=target.contours.size()) return std::unexpected(failure(MorphError::contour_count_mismatch,part));
+        for (std::size_t index=0;index<source.contours.size();++index) plans.push_back({index,index});
+        return plans;
+    }
+    struct Measured { std::size_t index; ShapeMeasure measure; bool outline; };
+    const auto measure_all=[&](const PartInput& input) -> std::expected<std::vector<Measured>,MorphFailure> {
+        std::vector<Measured> measured;
+        for (std::size_t index=0;index<input.contours.size();++index) {
+            const auto& view=input.contours[index].view;
+            if (!view.closed) return std::unexpected(failure(MorphError::open_contour,part,index));
+            // A contour that is one point (a grown contour's first frame) is no contour.
+            if (std::ranges::all_of(view.segments,[&](const ShapeSegment& segment){
+                    return segment.end==view.start && (segment.verb==ShapeVerb::line || segment.control1==view.start) &&
+                           (segment.verb!=ShapeVerb::cubic || segment.control2==view.start);}))
+                continue;
+            // The input budget is the shape plans' to enforce, with their options.
+            const auto value=measure(view);
+            if (!value) return std::unexpected(failure(MorphError::shape_failure,part,index,value.error()));
+            measured.push_back({index,*value,true});
+        }
+        double largest=0, sign=1;
+        for (const auto& item:measured) if (std::abs(item.measure.area)>largest) { largest=std::abs(item.measure.area); sign=item.measure.area<0?-1:1; }
+        for (auto& item:measured) item.outline=item.measure.area*sign>=0;
+        return measured;
+    };
+    const auto sources=measure_all(source); if (!sources) return std::unexpected(sources.error());
+    const auto targets=measure_all(target); if (!targets) return std::unexpected(targets.error());
+    double extent=0;
+    for (const auto* side:{&*sources,&*targets}) for (const auto& item:*side) extent=std::max(extent,std::abs(item.measure.area));
+    extent=extent>0?std::sqrt(extent):1;
+    const auto distance=[](Vec2 left, Vec2 right){return std::sqrt((left.x-right.x)*(left.x-right.x)+(left.y-right.y)*(left.y-right.y));};
+    struct Candidate { double cost; std::size_t from, to; };
+    std::vector<Candidate> candidates;
+    for (std::size_t from_index=0;from_index<sources->size();++from_index)
+        for (std::size_t to_index=0;to_index<targets->size();++to_index) {
+            const auto& left=(*sources)[from_index]; const auto& right=(*targets)[to_index];
+            if (left.outline!=right.outline) continue;
+            const double sizes=std::abs(mlibs::math::det::log(std::abs(left.measure.area)/std::abs(right.measure.area)));
+            candidates.push_back({distance(left.measure.centroid,right.measure.centroid)/extent+.5*sizes,from_index,to_index});
+        }
+    std::ranges::sort(candidates,[](const Candidate& left, const Candidate& right){
+        return std::tie(left.cost,left.from,left.to)<std::tie(right.cost,right.from,right.to);});
+    std::vector<std::size_t> paired_to(sources->size(),none), paired_from(targets->size(),none);
+    for (const auto& candidate:candidates)
+        if (paired_to[candidate.from]==none && paired_from[candidate.to]==none) {
+            paired_to[candidate.from]=candidate.to; paired_from[candidate.to]=candidate.from;
+        }
+    // Where a contour alone begins or ends: an outline at the nearest outline
+    // of the other end (it splits off or merges in), a hole at its own centre.
+    const auto meeting=[&](const Measured& alone, const std::vector<Measured>& other) {
+        if (!alone.outline) return alone.measure.centroid;
+        std::optional<Vec2> nearest;
+        for (const auto& item:other)
+            if (item.outline && (!nearest || distance(item.measure.centroid,alone.measure.centroid)<distance(*nearest,alone.measure.centroid)))
+                nearest=item.measure.centroid;
+        return nearest.value_or(alone.measure.centroid);
+    };
+    for (std::size_t from_index=0;from_index<sources->size();++from_index)
+        if (paired_to[from_index]!=none) plans.push_back({(*sources)[from_index].index,(*targets)[paired_to[from_index]].index});
+    for (std::size_t from_index=0;from_index<sources->size();++from_index)
+        if (paired_to[from_index]==none) plans.push_back({(*sources)[from_index].index,none,meeting((*sources)[from_index],*targets)});
+    for (std::size_t to_index=0;to_index<targets->size();++to_index)
+        if (paired_from[to_index]==none) plans.push_back({none,(*targets)[to_index].index,meeting((*targets)[to_index],*sources)});
+    return plans;
+}
+
 std::expected<std::shared_ptr<detail::ObjectMorphData>,MorphFailure>
 compile(Input from, Input to, MorphOptions options, bool property_only = false) {
     if (from.parts.size()!=to.parts.size()) return std::unexpected(failure(MorphError::part_set_mismatch));
@@ -335,27 +409,38 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
         for (std::size_t child=0;child<x.children.size();++child)
             if (from.parts[x.children[child]].id!=to.parts[y.children[child]].id)
                 return std::unexpected(failure(MorphError::ordering_mismatch,i));
-        if (x.contours.size()!=y.contours.size()) return std::unexpected(failure(MorphError::contour_count_mismatch,i));
-        if (x.fill.has_value()!=y.fill.has_value() || (!x.contours.empty() && !x.fill && !x.stroke))
+        if (x.fill.has_value()!=y.fill.has_value() || ((!x.contours.empty() || !y.contours.empty()) && !x.fill && !x.stroke))
             return std::unexpected(failure(MorphError::missing_fill,i));
         if (x.stroke.has_value()!=y.stroke.has_value()) return std::unexpected(failure(MorphError::missing_stroke,i));
+        // A property plan keeps its one geometry contour for contour.
+        const auto plans=pair_contours(x,y,i,property_only?ContourPairing::strict:options.contours);
+        if (!plans) return std::unexpected(plans.error());
+        if (plans->size()>options.max_contours-std::min(options.max_contours,result->contours.size()))
+            return std::unexpected(failure(MorphError::contour_budget,i));
         result->ids.push_back(x.id);
-        result->parts.push_back({{},x.ref,y.ref,x.parent,result->contours.size(),x.contours.size()});
+        result->parts.push_back({{},x.ref,y.ref,x.parent,result->contours.size(),plans->size()});
         result->states.push_back({x.local,y.local,x.fill,y.fill,x.stroke,y.stroke});
         std::optional<bool> reversed;
-        for (std::size_t j=0;j<x.contours.size();++j) {
-            if (!x.contours[j].view.closed || !y.contours[j].view.closed) return std::unexpected(failure(MorphError::open_contour,i,j));
+        // Pairs first: a grown contour runs the way their targets were turned.
+        for (std::size_t j=0;j<plans->size();++j) {
+            const auto& plan=(*plans)[j];
+            if ((plan.from!=none && !x.contours[plan.from].view.closed) || (plan.to!=none && !y.contours[plan.to].view.closed))
+                return std::unexpected(failure(MorphError::open_contour,i,j));
             const auto remaining=options.max_cubics-result->cubic_count;
             if (!remaining) return std::unexpected(failure(MorphError::cubic_budget,i,j));
-            auto shape=PreparedShapeMorph::prepare(x.contours[j].view,y.contours[j].view,options.shape);
+            auto shape=plan.from==none ? PreparedShapeMorph::grow(plan.point,y.contours[plan.to].view,options.shape,reversed.value_or(false))
+                     : plan.to==none   ? PreparedShapeMorph::shrink(x.contours[plan.from].view,plan.point,options.shape)
+                                       : PreparedShapeMorph::prepare(x.contours[plan.from].view,y.contours[plan.to].view,options.shape);
             if (!shape) return std::unexpected(failure(MorphError::shape_failure,i,j,shape.error()));
             if (shape->segment_count()>remaining) return std::unexpected(failure(MorphError::cubic_budget,i,j));
             // Independent winding flips can change a compound nonzero fill.
             // Uniform reversal of all target contours preserves that fill;
-            // otherwise this first recipe refuses rather than inventing holes.
-            if (reversed && *reversed!=shape->target_reversed())
-                return std::unexpected(failure(MorphError::unsupported_topology,i,j));
-            reversed=shape->target_reversed();
+            // otherwise this refuses rather than inventing holes.
+            if (plan.from!=none && plan.to!=none) {
+                if (reversed && *reversed!=shape->target_reversed())
+                    return std::unexpected(failure(MorphError::unsupported_topology,i,j));
+                reversed=shape->target_reversed();
+            }
             result->contours.push_back({static_cast<std::uint32_t>(i),j,result->cubic_count,shape->segment_count()});
             result->cubic_count+=shape->segment_count(); result->shapes.push_back(std::move(*shape));
         }

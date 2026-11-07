@@ -9,8 +9,17 @@ namespace hanim::detail { struct ObjectMorphData; }
 
 export namespace hanim {
 
+// How a part's contours correspond when its two ends differ (convergence
+// plan §6.8 ③). align pairs outlines with outlines and holes with holes
+// (by winding against the part's largest contour), nearest and closest in
+// size first; a contour left over grows from a point or closes into one: an
+// outline from (into) the nearest outline of the other end, so "一" splits
+// into "二", a hole from (into) its own centre. strict pairs them in order
+// and refuses differing counts.
+enum class ContourPairing : std::uint8_t { align, strict };
 struct MorphOptions {
     std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;
+    ContourPairing contours = ContourPairing::align;
     ShapeMorphOptions shape;
     PointPath translation_path; // each part's local tx/ty, not its geometry or parent
     std::size_t max_route_segments = 4096;

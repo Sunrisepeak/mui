@@ -70,5 +70,28 @@ int main(int argc, char** argv) {
         check(geom::Affine::translate(1, 1).map({0, 0, 2, 2}) == geom::Rect{1, 1, 2, 2});
     });
 
+    s.test("a closed contour's exact area and centroid, whatever its orientation", [] {
+        struct Cubic { mlibs::geom::Point start, control1, control2, end; };
+        const auto line = [](mlibs::geom::Point from, mlibs::geom::Point to) {
+            return Cubic{from, {from.x + (to.x - from.x) / 3, from.y + (to.y - from.y) / 3},
+                         {from.x + 2 * (to.x - from.x) / 3, from.y + 2 * (to.y - from.y) / 3}, to};
+        };
+        // A 4 × 2 rectangle at (10, 20), counter-clockwise in a y-up sense.
+        const std::array rectangle{line({10, 20}, {14, 20}), line({14, 20}, {14, 22}), line({14, 22}, {10, 22}), line({10, 22}, {10, 20})};
+        const auto measured = mlibs::geom::measure(std::span<const Cubic>(rectangle));
+        check(std::abs(measured.area - 8) < 1e-12 && std::abs(measured.centroid_x - 12) < 1e-12 && std::abs(measured.centroid_y - 21) < 1e-12,
+              std::format("area {} at ({}, {})", measured.area, measured.centroid_x, measured.centroid_y));
+        std::array reversed{line({10, 20}, {10, 22}), line({10, 22}, {14, 22}), line({14, 22}, {14, 20}), line({14, 20}, {10, 20})};
+        const auto backwards = mlibs::geom::measure(std::span<const Cubic>(reversed));
+        check(std::abs(backwards.area + 8) < 1e-12 && std::abs(backwards.centroid_x - 12) < 1e-12, "reversed: the same centre, the opposite sign");
+        check(std::abs(mlibs::geom::normalized_signed_area(std::span<const Cubic>(rectangle)) - 8.0 / 16) < 1e-12, "area over the larger side squared");
+        // A circle of radius 3 about (5, -2) from four cubics: π·9 within the approximation's 1e-3.
+        constexpr float k = 3 * 0.5522847498f;
+        const std::array circle{Cubic{{8, -2}, {8, -2 + k}, {5 + k, 1}, {5, 1}}, Cubic{{5, 1}, {5 - k, 1}, {2, -2 + k}, {2, -2}},
+                                Cubic{{2, -2}, {2, -2 - k}, {5 - k, -5}, {5, -5}}, Cubic{{5, -5}, {5 + k, -5}, {8, -2 - k}, {8, -2}}};
+        const auto round = mlibs::geom::measure(std::span<const Cubic>(circle));
+        check(std::abs(round.area - std::numbers::pi * 9) < 1e-2 && std::abs(round.centroid_x - 5) < 1e-6 && std::abs(round.centroid_y + 2) < 1e-6,
+              std::format("circle area {} at ({}, {})", round.area, round.centroid_x, round.centroid_y));
+    });
     return s.run(argc, argv);
 }

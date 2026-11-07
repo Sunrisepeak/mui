@@ -60,13 +60,24 @@ and a shared immutable payload of copied ids, endpoint states, contour plans
 and ranges. Canonical order is source-root-first DFS in the source's existing
 `children` order. Parts can be arbitrarily positioned in the input snapshot
 array; parent links and ids are authoritative. Names, parent ids, ordered
-children lists and each part's contour count must match. Sibling reordering
+children lists must match. Sibling reordering
 returns `ordering_mismatch`; no z-order switch or fade is invented.
 
-Each contour is paired by ordinal. Both endpoints must be closed and usable
-by the public `PreparedShapeMorph`; the original curves are elevated/subdivided,
-not replaced with sampled polygons or two drawings. A part with contours needs
-solid fills at both ends. Empty groups may omit fill at both ends. Changing
+Contours pair by `MorphOptions::contours`. `align` (the default) measures each
+contour exactly (`mlibs.geom::measure`: signed area and centroid), classes it as
+an outline or a hole by its winding against the part's largest contour, and
+pairs outlines with outlines and holes with holes, cheapest first (centroid
+distance over the part's size plus half the log of the area ratio; ties by
+ordinal). A contour left over grows from a point (`PreparedShapeMorph::grow`)
+or closes into one (`shrink`): an outline at the nearest outline of the other
+end, a hole at its own centre; a grown contour runs the way the part's paired
+targets were turned. A contour that is a single point (a grown contour's first
+frame, continued) is no contour. A part's frame contours are its pairs, then
+its closing contours, then its growing ones. `strict` pairs by ordinal and
+refuses differing counts with `contour_count_mismatch`. Both endpoints must
+be closed and usable by the public `PreparedShapeMorph`; the original curves
+are elevated/subdivided, not replaced with sampled polygons or two drawings.
+A part with contours needs a solid fill or a stroke at both ends. Empty groups may omit fill at both ends. Changing
 fill presence is unsupported. Per-contour target winding changes must be
 uniform within a part, so a compound nonzero fill cannot silently change its
 relative winding. Mixed winding reversals return `unsupported_topology`.

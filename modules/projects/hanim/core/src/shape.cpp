@@ -1,6 +1,7 @@
 module hanim.core;
 
 import std;
+import mlibs.geom;
 
 namespace hanim {
 namespace {
@@ -62,35 +63,9 @@ std::expected<std::vector<ShapeCubic>, ShapeMorphError> cubics(ShapeContour cont
     return result;
 }
 
-// Exact polynomial integral of (x*y' - y*x') / 2. The local origin reduces
-// cancellation for translated contours. Coordinates are additionally scaled by
-// their control bounds before integration, preventing tiny-area underflow.
-// This returns area / extent^2; no flattening decides orientation.
-double area(std::span<const ShapeCubic> curves) noexcept {
-    const auto origin = curves.front().start;
-    Vec2 lo = origin, hi = origin;
-    for (const auto& c : curves) for (auto p : {c.start, c.control1, c.control2, c.end}) {
-        lo = {std::min(lo.x, p.x), std::min(lo.y, p.y)};
-        hi = {std::max(hi.x, p.x), std::max(hi.y, p.y)};
-    }
-    const double scale = std::max(hi.x - lo.x, hi.y - lo.y);
-    if (scale == 0) return 0;
-    double result = 0;
-    for (const auto& c : curves) {
-        auto coefficients = [scale](double p, double a, double b, double q, double o) {
-            p = (p - o) / scale; a = (a - o) / scale;
-            b = (b - o) / scale; q = (q - o) / scale;
-            return std::array<double, 4>{p, 3 * (a - p), 3 * (p - 2 * a + b), q - p + 3 * (a - b)};
-        };
-        const auto x = coefficients(c.start.x, c.control1.x, c.control2.x, c.end.x, origin.x);
-        const auto y = coefficients(c.start.y, c.control1.y, c.control2.y, c.end.y, origin.y);
-        for (unsigned i = 0; i < 4; ++i)
-            for (unsigned j = 1; j < 4; ++j)
-                result += (x[i] * static_cast<double>(j) * y[j] - y[i] * static_cast<double>(j) * x[j]) /
-                          static_cast<double>(i + j);
-    }
-    return result * 0.5;
-}
+// Orientation and relative size: mlibs.geom's exact integral over the
+// control bounds' larger side squared, no flattening (D-131).
+double area(std::span<const ShapeCubic> curves) noexcept { return mlibs::geom::normalized_signed_area(curves); }
 void reverse(std::vector<ShapeCubic>& curves) {
     std::ranges::reverse(curves);
     for (auto& c : curves) { std::swap(c.start, c.end); std::swap(c.control1, c.control2); }
@@ -274,6 +249,44 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
         for (std::size_t i = 1; i < curves->size(); ++i) (*curves)[i].start = (*curves)[i - 1].end;
         curves->back().end = curves->front().start;
     }
+    return result;
+}
+
+std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::size_t max_segments) {
+    auto curves = cubics(contour, max_segments);
+    if (!curves) return std::unexpected(curves.error());
+    const auto measured = mlibs::geom::measure(std::span<const ShapeCubic>(*curves));
+    return ShapeMeasure{measured.area, {measured.centroid_x, measured.centroid_y}};
+}
+
+std::expected<PreparedShapeMorph, ShapeMorphError>
+PreparedShapeMorph::grow(Vec2 point, ShapeContour to, ShapeMorphOptions options, bool reverse) {
+    auto grown = shrink(to, point, options);
+    if (!grown) return grown;
+    std::swap(grown->from_, grown->to_);
+    if (reverse) {
+        hanim::reverse(grown->to_);
+        grown->reversed_ = true;
+    }
+    return grown;
+}
+
+std::expected<PreparedShapeMorph, ShapeMorphError>
+PreparedShapeMorph::shrink(ShapeContour from, Vec2 point, ShapeMorphOptions options) {
+    if (options.max_input_segments < 1 || options.max_input_segments > 4096 || options.max_output_segments < 1 ||
+        options.max_output_segments > 16384 || !options.point_path.valid())
+        return std::unexpected(ShapeMorphError::invalid_options);
+    if (!finite(point)) return std::unexpected(ShapeMorphError::nonfinite_coordinate);
+    if (!in_range(point)) return std::unexpected(ShapeMorphError::numerical_range);
+    auto curves = cubics(from, options.max_input_segments);
+    if (!curves) return std::unexpected(curves.error());
+    remove_constants(*curves);
+    if (curves->empty() || std::abs(area(*curves)) <= 1e-12) return std::unexpected(ShapeMorphError::degenerate_contour);
+    if (curves->size() > options.max_output_segments) return std::unexpected(ShapeMorphError::segment_budget);
+    PreparedShapeMorph result;
+    result.point_path_ = options.point_path;
+    result.from_ = std::move(*curves);
+    result.to_.assign(result.from_.size(), ShapeCubic{point, point, point, point});
     return result;
 }
 

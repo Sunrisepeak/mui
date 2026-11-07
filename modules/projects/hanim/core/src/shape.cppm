@@ -73,6 +73,14 @@ struct ShapeMorphOptions {
     PointPath point_path; // after correspondence, in each point's endpoint frame
 };
 
+// A closed contour's signed area (positive counter-clockwise in a y-up
+// sense) and centroid, exact: mlibs.geom's measure of its cubics.
+struct ShapeMeasure {
+    double area = 0;
+    Vec2   centroid{};
+};
+[[nodiscard]] std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::size_t max_segments = 4096);
+
 // Single closed contour only. Callers supply simple nonzero-area contours;
 // this first checkpoint does not certify simplicity, holes or topology changes.
 // Preparation may allocate. It elevates degrees and SUBDIVIDES the original
@@ -83,6 +91,15 @@ class PreparedShapeMorph {
 public:
     [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError>
         prepare(ShapeContour from, ShapeContour to, ShapeMorphOptions options = {});
+    // A contour that appears from a point, or closes into one (topology
+    // changes, convergence plan §6.8 ③): every point runs between `point` and
+    // its place on the contour, so that end is the point itself. `reverse`
+    // runs the grown contour backwards, keeping its winding beside contours
+    // whose targets were reversed (target_reversed()).
+    [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError>
+        grow(Vec2 point, ShapeContour to, ShapeMorphOptions options = {}, bool reverse = false);
+    [[nodiscard]] static std::expected<PreparedShapeMorph, ShapeMorphError>
+        shrink(ShapeContour from, Vec2 point, ShapeMorphOptions options = {});
 
     [[nodiscard]] std::size_t segment_count() const noexcept { return from_.size(); }
     [[nodiscard]] bool target_reversed() const noexcept { return reversed_; }

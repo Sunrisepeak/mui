@@ -1,8 +1,9 @@
 # hanim.core — deterministic time, values, curves and prepared geometry.
 #
-# The standard library, mlibs.math, mlibs.utils and mlibs.memory only (D-49,
-# D-55, D-87: its deterministic functions moved to mlibs.math; D-110: its time
-# is mlibs.time; D-113: its handles are mlibs.memory's), each an independent
+# The standard library, mlibs.math, mlibs.utils, mlibs.memory and mlibs.geom only
+# (D-49, D-55, D-87: its deterministic functions moved to mlibs.math; D-110: its
+# time is mlibs.time; D-113: its handles are mlibs.memory's; D-131: its contour
+# measures are mlibs.geom's), each an independent
 # component: they can leave this repository unchanged. Every animation is a pure function of time, and its
 # results are the same bits on every platform (A-level conformance), which is
 # why the floating-point flags below are not optional.
@@ -32,3 +33,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.math  = { path = "../../../base/math" }
 mlibs.utils  = { path = "../../../base/utils" }
 mlibs.memory = { path = "../../../base/memory" }
+mlibs.geom   = { path = "../../../base/geom" }

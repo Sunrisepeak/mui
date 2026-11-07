@@ -184,5 +184,43 @@ int main(int argc, char** argv) {
         check(judged >= 10, std::format("{} kinds judged mid-motion", judged));
     });
 
+    s.test("every text-input kind, focused while its container moves: the IME stays on what it draws", [] {
+        std::vector<std::string> judged;
+        for (const auto& recipe : default_component_motion_recipes()) {
+            const std::string type(recipe.component);
+            Headless h(options());
+            auto shift = signal(0.0);
+            auto subject = vd::make(type, {}, {}, "subject");
+            Element holder = column({.id = "holder", .padding = 8}, {std::move(subject)});
+            holder.prop("translate_x", Source(derive([shift] { return Value(shift()); })));
+            holder.prop("motion", Source(Value("morph motion.normal")));
+            h.mount("main", column({.padding = 24}, {std::move(holder)}));
+            h.settle();
+            auto& rt = h.runtime();
+            const auto node = rt.find("main/holder/subject");
+            rt.focus(node);
+            h.step();
+            if (!rt.text_input_rect()) continue;  // not a text input
+            judged.push_back(type);
+            shift.set(120);
+            h.step();
+            h.advance(seconds(0.05));
+            check(!rt.motions().empty(), type + ": its container is moving");
+            const auto ime = rt.text_input_rect();
+            const Rect drawn = rt.drawn_bounds(node);
+            const bool inside = ime && ime->x >= drawn.x - 1 && ime->x <= drawn.x + drawn.width + 1 && ime->y >= drawn.y - 1 &&
+                ime->y <= drawn.y + drawn.height + 1;
+            check(inside, std::format("{}: mid-motion the IME at {} is on its drawing {}", type,
+                                      ime ? std::format("({}, {})", ime->x, ime->y) : std::string("nothing"),
+                                      std::format("({}, {}, {}, {})", drawn.x, drawn.y, drawn.width, drawn.height)));
+            h.settle();
+            const auto rest = rt.text_input_rect();
+            const Rect settled = rt.drawn_bounds(node);
+            check(rest && rest->x >= settled.x - 1 && rest->x <= settled.x + settled.width + 1, type + ": and at rest");
+        }
+        check(judged.size() >= 2, std::format("text-input kinds judged: {}", judged.size()));
+        std::println("    IME judged mid-motion: {}", judged);
+    });
+
     return s.run(argc, argv);
 }

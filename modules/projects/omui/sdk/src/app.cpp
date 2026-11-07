@@ -62,6 +62,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
         }
         else if (a == "--agent-input") o.agent_input = true;
         else if (a == "--no-agent-input") o.agent_input = false;
+        else if (a == "--no-agent-player") o.no_agent_player = true;
         else if (a == "--no-accessibility") o.accessibility = false;
         else if (a == "--dark") o.dark = true;
         else if (a == "--gpu") o.gpu = true;
@@ -142,7 +143,7 @@ std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::st
             o.profile = std::filesystem::path(*v);
         } else {
             return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --agent-mode MODE, --no-agent, --agent-input, --no-agent-input, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
+                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --agent-mode MODE, --no-agent, --agent-input, --no-agent-input, --no-agent-player, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
                                                a));
         }
     }
@@ -240,6 +241,7 @@ struct HeadlessWindow final : WindowHost {
 
 void prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
     rt.set_agent_access(access);
+    rt.set_agent_players(app.agent_players);
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
     if (app.setup) app.setup(rt);
@@ -318,6 +320,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
 }  // namespace
 
 int run(AppSpec app, const RunOptions& o) {
+    if (o.no_agent_player) app.agent_players = false;  // the person's word for this run
     register_base_components();
     register_window_components();
     if (const std::string mode = window_mode(app, o); mode != "native" && mode != "framework" && mode != "switchable") {

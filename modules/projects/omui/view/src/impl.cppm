@@ -380,6 +380,7 @@ struct Runtime::Impl {
     float                                 scale = 1;
     bool                                  reduce_motion = false;
     bool                                  reduce_transparency = false;
+    bool                                  agent_players = false;
 
     // input
     NodeId               capture;

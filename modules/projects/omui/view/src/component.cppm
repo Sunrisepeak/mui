@@ -209,6 +209,10 @@ public:
     // Less motion (the person's setting, or a motion level below full): a
     // drawing that moves by itself (an indeterminate bar) holds still.
     [[nodiscard]] virtual bool motion_reduced() const { return false; }
+    // Whether agents may join as players (plan §8.4): the application allows
+    // them and the person did not turn them off (--no-agent-player). A game
+    // offers its agent player tiers only then.
+    [[nodiscard]] virtual bool agent_players() const { return false; }
     // Physical pixels per logical pixel: what a component rasterising its own
     // textures (a canvas's thumbnails) sizes them by.
     [[nodiscard]] virtual float pixel_scale() const { return 1; }

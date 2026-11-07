@@ -239,6 +239,9 @@ void register_components() { register_type(component_type<Field>()); }
 
 AppSpec app() {
     AppSpec a;
+    // Agents may play the bottom paddle as a person does (the field's human tier);
+    // the person can say no for a run (--no-agent-player).
+    a.agent_players = true;
     a.id = "org.openmui.breakout";
     a.title = "组件打砖块 · 闹鬼的设置";
     a.size = {1280, 720};
@@ -253,6 +256,7 @@ AppSpec app() {
     };
     a.view = [b] {
         Element game = field({.id = "field", .room = 1, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))});
+        game.prop("agent_player", Source(Value("human")));
         // The field is a live surface: the simulation and its camera place what it
         // draws every step, so its drawing never morphs as a whole (a room's style
         // pack still moves the controls inside it and the cards between rooms).

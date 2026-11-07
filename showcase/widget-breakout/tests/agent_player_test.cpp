@@ -18,16 +18,21 @@ namespace {
 struct Session {
     Headless h{HeadlessOptions{.level = HeadlessLevel::pixels, .size = {1280, 720}}};
     std::optional<agent::Protocol> protocol;
-    explicit Session(std::string_view tier) {
+    explicit Session(std::string_view tier, bool allowed = true) {
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development, .source = "agent-player-test"});
         h.runtime().set_agent_access(std::move(access));
         AppSpec spec = bo::app();
+        h.runtime().set_agent_players(
+            spec.agent_players &&
+            allowed);  // as omui::run does: the application's, unless the person said no
         h.runtime().set_theme(spec.theme);
         spec.setup(h.runtime());
         h.mount("main", spec.view());
         h.step();
-        h.runtime().set(h.runtime().find("main/field"), "agent_player", Value(std::string(tier)));
+        if (!tier.empty())
+            h.runtime().set(h.runtime().find("main/field"), "agent_player",
+                            Value(std::string(tier)));
         h.advance(seconds(0.6));
         protocol.emplace(h.runtime(), agent::ProtocolOptions{.app = "breakout",
                                                              .default_actor = "agent:player"});
@@ -191,6 +196,13 @@ int main(int argc, char** argv) {
                                                              .set("look", false));
                    check(future.get("exitCode")->as_int() != 0, "not a step it has not seen");
                });
+
+    suite.test("the application's field offers the human tier as it mounts", [] {
+        Session mounted("");  // the app's own setting, untouched
+        const Value seen = mounted.data("observe");
+        check(seen.get("tier") && seen.get("tier")->as_string() == "human",
+              "observe answers at the human tier");
+    });
 
     suite.test("with agent players off, an agent cannot join", [] {
         Session off("off");

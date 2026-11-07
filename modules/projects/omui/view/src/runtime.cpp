@@ -80,6 +80,7 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     d.scale = options.scale;
     d.reduce_motion = options.reduce_motion;
     d.reduce_transparency = options.reduce_transparency;
+    d.agent_players = options.agent_players;
     d.make_opaque();
     if (options.fonts) {
         d.fonts = options.fonts;
@@ -618,6 +619,11 @@ void Runtime::set_reduce_transparency(bool reduce) {
 }
 
 bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
+void Runtime::set_agent_players(bool allowed) {
+    if (impl_->agent_players == allowed) return;
+    impl_->agent_players = allowed;  // read by components when agents ask (Services::agent_players)
+}
+bool Runtime::agent_players() const { return impl_->agent_players; }
 bool Runtime::motion_reduced() const { return impl_->reduce_motion || impl_->motion_now() != MotionLevel::full; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 

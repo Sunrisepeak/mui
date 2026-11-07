@@ -56,6 +56,9 @@ struct AppSpec {
     // does decided as their requests are (S-10, S-11). On by default, as
     // the endpoint is; --no-agent-input turns it off for a run.
     bool                     agent_input = true;
+    // Whether agents may join as players where a game offers it (plan §8.4:
+    // the application allows; --no-agent-player turns it off for a run).
+    bool                     agent_players = false;
     std::vector<std::string> grants;
     // Deployment mode is independent of the effect cap above. Automatic
     // consumes the mcpp build profile: dev is development, others dual-user.
@@ -121,6 +124,7 @@ struct RunOptions {
     bool                  agent = true;
     std::optional<AgentMode> agent_mode; // trusted startup override, not a remote field
     std::optional<bool>   agent_input;  // --agent-input / --no-agent-input (default: the application's)
+    bool                  no_agent_player = false;  // --no-agent-player: no agent joins as a player
     bool                  accessibility = true;  // --no-accessibility
     bool                  dark = false;
     std::optional<bool>   gpu;  // --gpu / --cpu

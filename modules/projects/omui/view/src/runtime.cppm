@@ -76,6 +76,7 @@ struct RuntimeOptions {
     float                 scale = 1.0f;     // physical pixels per logical pixel
     bool                  reduce_motion = false;
     bool                  reduce_transparency = false;  // see-through materials (glass) drawn opaque
+    bool                  agent_players = false;  // agents may join as players (Services::agent_players)
     Stages                stages = Stages::paint;
     bool                  complete_frames = false;  // every frame as at rest (Services::complete_frames): offline renders
     DebugOptions          debug;
@@ -573,6 +574,9 @@ public:
     // ── Services ──
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
+    // Agents may join as players (the application allows, the person agrees).
+    void set_agent_players(bool allowed);
+    [[nodiscard]] bool agent_players() const override;
     [[nodiscard]] bool motion_reduced() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;

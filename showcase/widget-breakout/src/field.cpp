@@ -68,12 +68,6 @@ Field::~Field() {
     device_.reset();  // the device stops pulling before its mixer goes
 }
 
-void Field::mounted() {
-    services().focus(node());
-    if (hearing()) device_ = hearing()(*sounds_);
-    pacer_.start(services(), steps_per_second, [this](std::int32_t n) { run(n); });
-}
-
 namespace {
 // The tiers an agent player is held to (plan §8.4; breakout.ops.omui.toml).
 constexpr xengine::PlayTier human_tier{.name = "human", .reaction_steps = steps_per_second / 10, .actions_per_second = 10, .full_view = false};
@@ -84,6 +78,14 @@ std::optional<xengine::PlayTier> tier_named(std::string_view name) {
     return std::nullopt;
 }
 }  // namespace
+
+void Field::mounted() {
+    if (const auto tier = tier_named(props.agent_player)) player_lane_.emplace(*tier, steps_per_second);  // as mounted, not only as changed
+    services().focus(node());
+    if (hearing()) device_ = hearing()(*sounds_);
+    pacer_.start(services(), steps_per_second, [this](std::int32_t n) { run(n); });
+}
+
 
 void Field::prop_changed(FieldProp p) {
     if (p == FieldProp::agent_player) {
@@ -231,7 +233,7 @@ Input Field::input() {
     Input in;
     in.player = sampler_.sample();
     // An agent player plays the paddle as a person would, its actions due at this step.
-    if (player_lane_ && timeline_) in.player = player_lane_->take(timeline_->state().frame);
+    if (player_lane_ && timeline_ && services().agent_players()) in.player = player_lane_->take(timeline_->state().frame);
     if (timeline_ && in.player.pointer_x >= 0 && timeline_->state().zoom != 1) {
         // The pointer across the screen, to across the field: zoomed out, the field is the screen's middle.
         const double z = timeline_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
@@ -793,6 +795,7 @@ ActResult Field::next(ActContext& ctx) {
 }
 
 ActResult Field::observe(ActContext&) {
+    if (!services().agent_players()) return ActResult::fail("agent players are off for this run (the application or the person)");
     if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
     if (!timeline_) return ActResult::fail("the room has not begun");
     const State& s = timeline_->state();
@@ -820,6 +823,7 @@ ActResult Field::observe(ActContext&) {
 }
 
 ActResult Field::play(ActContext&, const PlayArgs& args) {
+    if (!services().agent_players()) return ActResult::fail("agent players are off for this run (the application or the person)");
     if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
     if (!timeline_) return ActResult::fail("the room has not begun");
     const double axis = args.axis.as_double();

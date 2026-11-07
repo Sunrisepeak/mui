@@ -32,3 +32,7 @@ slider           = { effect = "neon", color = "accent", radius = 8, intensity = 
 "slider:hovered" = { effect = "neon", intensity = 0.7 }
 "slider:focused" = { effect = "neon", intensity = 0.7 }
 "role:region"    = { effect = "neon", color = "border", radius = 18, intensity = 0.25 }
+
+[style.neon.motions]
+# Light runs round a tube as it lights: a button's ring drawn by its light.
+button = { state = ["trace.focus", "simple"] }

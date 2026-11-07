@@ -19,6 +19,11 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core = { path = "core" }
+# The engine steps simulated bodies with xengine.simulation's solver (D-131). A
+# plain dependency, not the engine feature's: mcpp 2026.11.5.1 leaves a
+# feature's feature-deps out of a graph that selects the feature through
+# another package (red list 22).
+xengine.simulation = { path = "../xengine/simulation" }
 
 [features]
 default = ["engine"]
@@ -37,9 +42,6 @@ mlibs.utils = { path = "../../base/utils" }
 
 [feature-deps.effect]
 mlibs.utils = { path = "../../base/utils" }
-
-[feature-deps.engine]
-xengine.simulation = { path = "../xengine/simulation" }
 
 [feature-deps.render-vector]
 xrender.vector = { path = "../xrender/vector" }

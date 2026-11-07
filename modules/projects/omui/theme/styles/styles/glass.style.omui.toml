@@ -34,3 +34,8 @@ tabs             = { effect = "liquid_glass", thickness = 16, ior = 1.5, blur = 
 button           = { effect = "liquid_glass", thickness = 10, ior = 1.4, blur = 2, tint_a = 0.04, dispersion = 0.3, rim = 0.7, transition = 0.35 }
 "button:hovered" = { effect = "liquid_glass", rim = 0.9 }
 "button:pressed" = { effect = "liquid_glass", thickness = 18, ior = 1.65, rim = 1.0, tint_a = 0.1, light_x = 0.1, light_y = -1 }
+
+[style.glass.motions]
+# A press swells a button's glass and it rubbers back about the finger
+# (recipe ids are the specification's, M-8); the rest keeps the framework's.
+button = { state = ["press.squash", "simple"] }

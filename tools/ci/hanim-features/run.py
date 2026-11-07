@@ -167,14 +167,15 @@ int main() {
                 raise RuntimeError('renderer enabled without opt-in')
             if (name == 'control') != ('mlibs.control' in packages):
                 raise RuntimeError('control dependency did not follow the selected feature')
-            # hanim.core measures its contours with mlibs.geom (D-131).
-            if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math','mlibs.utils','mlibs.memory','mlibs.geom'}:
+            # hanim.core measures its contours with mlibs.geom; the engine's solver is xengine.simulation (D-131).
+            if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math','mlibs.utils','mlibs.memory','mlibs.geom',
+                                               'xengine.simulation'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))
             if 'mlibs.geom' not in packages:
                 raise RuntimeError('shared geometry (the measures of hanim.core and the object feature) is missing')
-            # The engine steps simulated bodies with xengine.simulation's solver (D-131); nothing else needs it.
-            if ('engine' in roles) != ('xengine.simulation' in packages):
-                raise RuntimeError('the simulation dependency did not follow the engine feature')
+            # A plain dependency until mcpp keeps a transitively selected feature's feature-deps (red list 22).
+            if 'xengine.simulation' not in packages:
+                raise RuntimeError('the engine solver dependency is missing')
             cdb = resolution.parent / 'compile_commands.json'; entries = json.loads(cdb.read_text())
             sources = set()
             for entry in entries:

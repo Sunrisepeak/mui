@@ -28,3 +28,5 @@ button        = { effect = "wobble", amount = 1.2, size = 16, ink = 0.6 }
 # A brush's: unhurried, the line wavering as it goes (from the Web up); below, a
 # short tween.
 update = ["ink", "simple"]
+# A check mark is written by the brush, stroke by stroke.
+checkbox = { update = ["write.check", "simple"] }

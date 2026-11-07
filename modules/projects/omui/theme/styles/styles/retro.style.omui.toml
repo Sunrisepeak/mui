@@ -41,3 +41,7 @@ xl     = 2
 # Gentle enough that type stays crisp: the curve bends the edges more than the
 # middle where text sits, and the lines and grille dim it little.
 window = { effect = "crt", curvature = 0.02, scanlines = 0.16, mask = 0.06, vignette = 0.28 }
+
+[style.retro.motions]
+# A terminal's: a check mark drawn stroke by stroke.
+checkbox = { update = ["write.check", "simple"] }

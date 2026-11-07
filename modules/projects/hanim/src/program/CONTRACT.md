@@ -52,8 +52,8 @@ additive/weighted blend support is not yet implemented. Local fields omitted fro
 hierarchical transforms still apply. The old single-target authoring remains
 the one-element case of the same compiler and sampler.
 
-`anim::BoundAnimation` is the shared value builder for morph and properties;
-`anim::Morph` remains a source-compatible alias. Property and morph leaves can
+`anim::BoundAnimation` is the one value builder for morphs and properties (v1:
+no other name). Property and morph leaves can
 be mixed in any schedule, including before/after a topology-preserving morph.
 Existing Process effects and explicit composite image scopes use the same
 preparation and player. Property-only geometry is retained and copied at sample

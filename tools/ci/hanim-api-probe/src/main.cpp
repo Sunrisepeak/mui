@@ -47,10 +47,10 @@ bool equal(const Pose& a,const Pose& b) {
     for(std::size_t i=0;i<a.cubics.size();++i)if(coordinates(a.cubics[i])!=coordinates(b.cubics[i]))return false;
     return true;
 }
-static_assert(api::Animation<anim::Morph> && api::Animation<h::Program> && api::Animation<anim::Composite>);
+static_assert(api::Animation<anim::BoundAnimation> && api::Animation<h::Program> && api::Animation<anim::Composite>);
 static_assert(!api::Animation<int> && !api::Animation<h::ObjectRef>);
 template<class T> concept HasGroupEffect = requires(const T& value) { value.with_effect(h::fx::blur(0,1)); };
-static_assert(HasGroupEffect<anim::Morph> && HasGroupEffect<anim::Composite> && !HasGroupEffect<h::Program>);
+static_assert(HasGroupEffect<anim::BoundAnimation> && HasGroupEffect<anim::Composite> && !HasGroupEffect<h::Program>);
 }
 int main() {
     auto host=h::ObjectRegistry::make(); auto made=h::Engine::make();

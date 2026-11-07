@@ -24,7 +24,7 @@ int main(int argc,char** argv) {
         auto a=take(Contour::copy({{0,-1},triangle})), b=take(Contour::copy({{0,-1},circle}));
         auto describe=[](Contour shape) {return ObjectDescription{{{.id="shape",.local={.tx=64,.ty=64,.sx=40,.sy=40},.contours={shape},.fill=Rgba{1,0,0,1}}}};};
         auto source=take(engine.create_object(describe(a))), target=take(engine.create_object(describe(b)));
-        const auto played=take(engine.play(source,anim::morph_to(target),fx::chain({fx::blur(0,1.5f),fx::tone({}, {.r=0.3f,.g=0.8f,.b=1,.amount=0.35f})})));
+        const auto played=take(engine.play(anim::morph(source, target).with_effects(fx::chain({fx::blur(0,1.5f),fx::tone({}, {.r=0.3f,.g=0.8f,.b=1,.amount=0.35f})}))));
         const auto first=take(engine.frame(played));
         std::array<render::GradientStop,2> stops{{{0,{0.1f,0.8f,1,1}},{1,{0.8f,0.2f,0.9f,1}}}};
         render::Paint gradient;gradient.kind=render::Paint::Kind::gradient;gradient.gradient.start={-1,-1};gradient.gradient.end={1,1};gradient.gradient.stops=stops;

@@ -17,7 +17,7 @@ dependency. Other transform lanes and colors keep their existing interpolation.
 ```cpp
 import hanim.library;
 // source and target are owning Snapshot values.
-auto plan = hanim::PreparedObjectMorph::prepare(source, target);
+auto plan = hanim::PreparedObjectAnimation::prepare(source, target);
 if (plan) {
     const auto count = plan->requirements();
     std::vector<hanim::FramePart> parts(count.parts);
@@ -28,11 +28,8 @@ if (plan) {
 }
 ```
 
-`anim::morph_to(target_ref, options)` is a descriptor for a caller's Engine;
-it starts no clock, modifies no registry and resolves no target by itself.
 The library also prepares property targets and independent property timelines.
-The canonical prepared type is `PreparedObjectAnimation` (the same type as the
-compatible `PreparedObjectMorph`). Timelines retain one source geometry and
+The prepared type is `PreparedObjectAnimation`. Timelines retain one source geometry and
 indexed translation/rotation/scale/fill channel segments; arbitrary-time sampling
 does not replay history. These recipes do not constitute 40 designs, a complete
 animation catalog, pixel transport or arbitrary topology support.

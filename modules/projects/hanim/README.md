@@ -123,7 +123,7 @@ origin. These are explicit rotations in radians, including full turns, not
 shortest-angle guesses. A sequence preserves unmodified properties from its
 actual prior endpoint. `move_by` and `retarget(playback, PropertyTargets{...})`
 use that actual pose. No synthetic target object or business-state mutation is
-performed. `PreparedObjectMorph::to()` is empty for a computed property target.
+performed. `PreparedObjectAnimation::to()` is empty for a computed property target.
 
 `rotate_by(object, radians)` adds to the actual source angle; it does not wrap
 or choose the shortest turn. `scale_by(object, {x, y})` multiplies each source
@@ -174,7 +174,7 @@ The compiler retains author nodes plus `segments().contributions`, and exposes
 prepared channel timing, easing and path metadata. `hengine.plan(playback)`
 returns an immutable plan lease for native tools/Agents, including simple play.
 The advanced library entry is `PreparedObjectAnimation::property_timeline`;
-`PreparedObjectMorph` remains the same compatible type. Its `sample_source`
+`PreparedObjectAnimation` remains the same compatible type. Its `sample_source`
 restores the exact source, distinct from authored jump-start/instant clips at
 ordinary time zero. New capability is not counted as completing 40 recipes.
 
@@ -210,8 +210,8 @@ rejects reentrant writes. Prepared geometry remains owned after source removal.
 
 `play(animation, ProgramLimits)` is a cold-path convenience. For a frame-budgeted
 caller, prepare explicitly and reuse `PreparedProgram`; `play(prepared)` still
-reserves playback buffers. Advanced bindings and the prior
-`play(object, anim::morph_to(target), effects, options)` remain available.
+reserves playback buffers. A morph is a recipe like any other:
+`play(anim::morph(object, target).with_effects(effects).options(options))`.
 Typed `fx::vertex_path(PointPath)` and `fx::translation_path(PointPath)` alter
 matched control-point and local-position trajectories before rendering. They
 compose with the ordered image-effect parameters. See [the effect contract](src/effect/README.md)

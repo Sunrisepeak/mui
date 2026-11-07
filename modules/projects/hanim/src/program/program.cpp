@@ -217,7 +217,7 @@ std::expected<Progress,ProgramFailure> progress_at(seconds start,SegmentOptions 
     const auto eased=options.easing(linear);
     if(!std::isfinite(eased))return std::unexpected(error);
     // An overshooting curve's progress leaves [0, 1]: a property overshoots
-    // with it; geometry and effects take it within (PreparedObjectMorph::sample).
+    // with it; geometry and effects take it within (PreparedObjectAnimation::sample).
     return Progress{linear,eased};
 }
 std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segment,seconds time,bool exact_source,
@@ -229,7 +229,7 @@ std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segmen
     return progress_at(segment.start,segment.options,segment.anchor_source,time,exact_source,
         failure(ProgramError::invalid_ease,segment.node,segment.track,index));
 }
-std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
+std::expected<PreparedObjectAnimation,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
     MorphOptions options,std::span<const PropertyTargets> properties,std::size_t node,std::size_t track,std::size_t segment) {
     const auto count=previous.animation.requirements();
     std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);std::vector<double> values(count.values);
@@ -237,8 +237,8 @@ std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSe
     if(!progress)return std::unexpected(progress.error());
     const auto pose=previous.animation.sample(progress->sampled,{parts,cubics,values});
     if(!pose)return std::unexpected(animation_failure(pose.error(),node,track,segment));
-    const auto result=!properties.empty() ? PreparedObjectMorph::properties(*pose,properties,options)
-        : PreparedObjectMorph::retarget(*pose,to,options);
+    const auto result=!properties.empty() ? PreparedObjectAnimation::properties(*pose,properties,options)
+        : PreparedObjectAnimation::retarget(*pose,to,options);
     if(!result)return std::unexpected(animation_failure(result.error(),node,track,segment));
     return *result;
 }
@@ -562,13 +562,13 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
             }
             previous_leaf=&schedule.leaves[end-1];continue;
         }
-        std::expected<PreparedObjectMorph,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
+        std::expected<PreparedObjectAnimation,ProgramFailure> animation=std::unexpected(failure(ProgramError::animation));
         const bool chained=previous && binding.source==ProgramSource::previous_endpoint;
         const auto targets=property_targets(binding);
         if(chained)animation=from_previous(*previous,leaf.to,binding.morph,targets,leaf.node,leaf.track,index);
         else {
-            const auto result=binding.properties ? PreparedObjectMorph::properties(leaf.from,targets,binding.morph)
-                : PreparedObjectMorph::prepare(leaf.from,leaf.to,binding.morph);
+            const auto result=binding.properties ? PreparedObjectAnimation::properties(leaf.from,targets,binding.morph)
+                : PreparedObjectAnimation::prepare(leaf.from,leaf.to,binding.morph);
             if(!result)return refuse(animation_failure(result.error(),leaf.node,leaf.track,index));
             animation=*result;
         }
@@ -585,7 +585,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
     diagnostic.info("prepared {} tracks and {} segments",data->tracks.size(),data->segments.size());
     PreparedProgram result;result.data_=std::move(data);return result;
 }
-std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedObjectMorph animation,PreparedEffects effects,
+std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedObjectAnimation animation,PreparedEffects effects,
     SegmentOptions options,bool anchor_source,ProgramLimits limits) {
     mlibs::trace::Span span("single","hanim.program");
     if(!valid_limits(limits))return std::unexpected(failure(ProgramError::invalid_limits));

@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
         check(f.engine.program_frame(ref)->scene.position==seconds(.5));
         check(f.engine.reverse(ref).has_value() && f.engine.resume(ref).has_value() && f.engine.advance(seconds(.25)).has_value());
         check(f.engine.program_frame(ref)->scene.scope_effect_values[0]==2);
-        check(f.engine.retarget(ref,anim::morph_to(f.b)).error().code==EngineError::unsupported_operation);
+        check(f.engine.retarget(ref, *f.engine.capture_object(f.b)).error().code==EngineError::unsupported_operation);
         check(f.engine.program_frame(ref)->scene.scope_effect_values[0]==2 && f.engine.inspect(ref)->plan_revision==1);
         check(f.engine.cancel(ref,CancelMode::restore).has_value());
         current=f.engine.program_frame(ref);check(current->scene.scope_effect_values[0]==0 && current->scene.tracks[0].effect_values[0]==0);
@@ -65,7 +65,7 @@ int main(int argc, char** argv) {
     suite.test("the public player samples geometry transform fill and ordered effects on one time", [] {
         Fixture f;
         const auto effects = fx::chain({fx::blur(0,8), fx::tone({}, {.r=1,.g=0,.b=0,.amount=0.5f})});
-        const auto ref = f.engine.play(f.a, anim::morph_to(f.b), effects); check(ref.has_value());
+        const auto ref = f.engine.play(anim::morph(f.a, f.b).with_effects(effects)); check(ref.has_value());
         check(f.engine.advance(seconds(0.25)).has_value());
         auto frame = f.engine.frame(*ref); check(frame.has_value());
         check(frame->info.state == PlaybackState::playing && frame->info.progress == 0.25 && frame->geometry.progress == 0.25);
@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
             "visual sampling never changes the source model");
     });
     suite.test("pause seek reverse rate and finished state preserve deterministic control semantics", [] {
-        Fixture f; const auto ref = *f.engine.play(f.a,anim::morph_to(f.b));
+        Fixture f; const auto ref = *f.engine.play(anim::morph(f.a, f.b));
         check(f.engine.advance(seconds(0.25)).has_value() && f.engine.pause(ref).has_value());
         check(f.engine.advance(seconds(10)).has_value() && f.engine.inspect(ref)->position == seconds(0.25));
         check(f.engine.seek_progress(ref,0.75).has_value() && f.engine.inspect(ref)->state == PlaybackState::paused);
@@ -96,14 +96,14 @@ int main(int argc, char** argv) {
         check(f.engine.seek(ref,seconds(100)).has_value() && f.engine.inspect(ref)->progress == 1);
     });
     suite.test("retarget starts at current pose and effect values without changing business objects", [] {
-        Fixture f; const auto ref = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8));
+        Fixture f; const auto ref = *f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,8)));
         check(f.engine.seek_progress(ref,0.5).has_value() && f.engine.pause(ref).has_value());
         const auto before = f.engine.frame(ref);
         const auto local = before->geometry.parts[1].local; const auto fill = before->geometry.parts[1].fill;
         const auto point = before->geometry.cubics.front().start; const auto effect = before->effect_values[0];
         const auto witness = before->geometry.preparation;
         const auto c = *f.engine.create_object(shape(true,100,{0,1,0,1}));
-        check(f.engine.retarget(ref,anim::morph_to(c),{.duration=seconds(2)}).has_value());
+        check(f.engine.retarget(ref, *f.engine.capture_object(c), {.duration=seconds(2)}).has_value());
         const auto now = f.engine.frame(ref);
         check(now->info.plan_revision == 2 && now->info.state == PlaybackState::paused && now->info.progress == 0);
         check(now->geometry.preparation != witness && now->geometry.source_object == f.a);
@@ -114,9 +114,9 @@ int main(int argc, char** argv) {
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 100 && f.engine.frame(ref)->effect_values[0] == 8);
     });
     suite.test("a failed later sample cannot partially publish an earlier playback in the batch", [] {
-        Fixture f; const auto good = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8));
+        Fixture f; const auto good = *f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,8)));
         const auto a = *f.engine.create_object(shape(false,1e308)), b = *f.engine.create_object(shape(true,-1e308));
-        const auto bad = f.engine.play(a,anim::morph_to(b)); check(bad.has_value());
+        const auto bad = f.engine.play(anim::morph(a, b)); check(bad.has_value());
         const auto current = f.engine.frame(good);
         const auto local = current->geometry.parts[1].local;
         const auto fill = current->geometry.parts[1].fill;
@@ -139,15 +139,15 @@ int main(int argc, char** argv) {
         Fixture f({.max_playbacks=1});
         auto invalid = shape(true,40); invalid.parts[1].id = "other";
         auto other = *f.engine.create_object(invalid);
-        auto failed = f.engine.play(f.a,anim::morph_to(other)); check(!failed && failed.error().code == EngineError::animation);
-        const auto ref = *f.engine.play(f.a,anim::morph_to(f.b)); check(ref.slot == 0 && ref.generation == 1);
+        auto failed = f.engine.play(anim::morph(f.a, other)); check(!failed && failed.error().code == EngineError::animation);
+        const auto ref = *f.engine.play(anim::morph(f.a, f.b)); check(ref.slot == 0 && ref.generation == 1);
         check(f.engine.seek_progress(ref,0.5).has_value());
         const auto witness = f.engine.frame(ref)->geometry.preparation; const auto info = *f.engine.inspect(ref);
-        check(!f.engine.retarget(ref,anim::morph_to(other)));
+        check(!f.engine.retarget(ref, *f.engine.capture_object(other)));
         check(f.engine.frame(ref)->geometry.preparation == witness && f.engine.inspect(ref)->plan_revision == info.plan_revision && f.engine.inspect(ref)->position == info.position);
-        check(f.engine.play(f.a,anim::morph_to(f.b)).error().code == EngineError::binding_conflict);
+        check(f.engine.play(anim::morph(f.a, f.b)).error().code == EngineError::binding_conflict);
         check(f.engine.release(ref).has_value());
-        const auto replacement = *f.engine.play(f.a,anim::morph_to(f.b));
+        const auto replacement = *f.engine.play(anim::morph(f.a, f.b));
         check(replacement.slot == ref.slot && replacement.generation == ref.generation+1);
         check(f.engine.frame(ref).error().code == EngineError::stale_handle);
     });
@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
         Snapshot a,b;
         { auto host = ObjectRegistry::make(); const auto ar = host->create(shape(false,0)), br = host->create(shape(true,40));
           a = *host->capture(*ar); b = *host->capture(*br); }
-        auto engine = Engine::make(); const auto ref = engine->play(a,b); check(ref.has_value());
+        auto engine = Engine::make(); const auto ref = engine->play(bind(a,b)); check(ref.has_value());
         a = {}; b = {};
         check(engine->seek_progress(*ref,0.5).has_value() && engine->frame(*ref)->geometry.parts[1].local.tx == 20);
         Engine moved = std::move(*engine);
@@ -164,55 +164,55 @@ int main(int argc, char** argv) {
         std::array<PlaybackInfo,1> items; check(moved.list(items) == 1 && items[0].ref == *ref);
     });
     suite.test("cancellation keeps explicit hold or restore semantics including instant transitions", [] {
-        Fixture f; auto ref = *f.engine.play(f.a,anim::morph_to(f.b));
+        Fixture f; auto ref = *f.engine.play(anim::morph(f.a, f.b));
         check(f.engine.seek_progress(ref,0.5).has_value() && f.engine.cancel(ref).has_value());
         check(f.engine.inspect(ref)->state == PlaybackState::cancelled && f.engine.inspect(ref)->progress == 0.5);
         check(f.engine.advance(seconds(1)).has_value() && f.engine.inspect(ref)->progress == 0.5);
         check(f.engine.resume(ref).error().code == EngineError::cancelled);
-        check(f.engine.play(f.a,anim::morph_to(f.b)).error().code == EngineError::binding_conflict);
+        check(f.engine.play(anim::morph(f.a, f.b)).error().code == EngineError::binding_conflict);
         check(f.engine.release(ref).has_value());
-        ref = *f.engine.play(f.a,anim::morph_to(f.b),Effects{}, {.duration=seconds(0)});
+        ref = *f.engine.play(anim::morph(f.a, f.b).with_effects(Effects{}).options({.duration=seconds(0)}));
         check(f.engine.inspect(ref)->state == PlaybackState::finished && f.engine.inspect(ref)->progress == 1);
         check(f.engine.cancel(ref,CancelMode::restore).has_value());
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 0 && f.engine.inspect(ref)->progress == 0);
-        check(f.engine.play(f.a,anim::morph_to(f.b)).error().code == EngineError::binding_conflict);
+        check(f.engine.play(anim::morph(f.a, f.b)).error().code == EngineError::binding_conflict);
         check(f.engine.capture_object(f.b)->revision() == 1);
     });
     suite.test("invalid time and easing reject without changing a visible frame", [] {
-        Fixture f; auto ref = *f.engine.play(f.a,anim::morph_to(f.b));
+        Fixture f; auto ref = *f.engine.play(anim::morph(f.a, f.b));
         const auto nan = std::numeric_limits<double>::quiet_NaN();
         check(f.engine.seek_progress(ref,nan).error().code == EngineError::invalid_time);
         check(f.engine.rate(ref,0).error().code == EngineError::invalid_time);
         check(!f.engine.advance(seconds(-1)) && !f.engine.advance(seconds(nan)));
         check(f.engine.inspect(ref)->progress == 0);
         auto bad = Ease::stepped(2); bad.p[0] = 1e300;
-        check(f.engine.retarget(ref,anim::morph_to(f.b),{.easing=bad}).error().code == EngineError::invalid_ease);
+        check(f.engine.retarget(ref, *f.engine.capture_object(f.b), {.easing=bad}).error().code == EngineError::invalid_ease);
         check(f.engine.inspect(ref)->plan_revision == 1);
         check(!Engine::make({.max_playbacks=0}));
         Engine absent; check(absent.advance(seconds(0)).error().code == EngineError::uninitialized);
     });
     suite.test("global retained budgets count bindings and release restores usable capacity", [] {
         Fixture f({.max_playbacks=2,.max_total_parts=2,.max_total_effect_parameters=0});
-        check(f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,1)).error().code == EngineError::capacity);
-        const auto first = *f.engine.play(f.a,anim::morph_to(f.b)); check(first.slot == 0 && first.generation == 1);
+        check(f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,1))).error().code == EngineError::capacity);
+        const auto first = *f.engine.play(anim::morph(f.a, f.b)); check(first.slot == 0 && first.generation == 1);
         const auto c = *f.engine.create_object(shape(false,0)), d = *f.engine.create_object(shape(true,80));
-        check(f.engine.play(c,anim::morph_to(d)).error().code == EngineError::capacity && f.engine.size() == 1);
+        check(f.engine.play(anim::morph(c, d)).error().code == EngineError::capacity && f.engine.size() == 1);
         check(f.engine.list({}).error().code == EngineError::capacity && f.engine.inspect(first).has_value());
         check(f.engine.release(first).has_value());
-        const auto next = f.engine.play(c,anim::morph_to(d)); check(next.has_value());
+        const auto next = f.engine.play(anim::morph(c, d)); check(next.has_value());
         check(next->slot == first.slot && next->generation == first.generation+1);
     });
     suite.test("transform-only objects need no contour or effect allocation quota", [] {
         auto engine = Engine::make({.max_total_cubics=0,.max_total_effect_parameters=0}); check(engine.has_value());
         const auto a = *engine->create_object({{{.id="group"}}});
         const auto b = *engine->create_object({{{.id="group",.local={.tx=20}}}});
-        const auto ref = engine->play(a,anim::morph_to(b)); check(ref.has_value());
+        const auto ref = engine->play(anim::morph(a, b)); check(ref.has_value());
         check(engine->advance(seconds(0.25)).has_value());
         const auto frame = engine->frame(*ref);
         check(frame->geometry.parts[0].local.tx == 5 && frame->geometry.cubics.empty() && frame->effect_values.empty());
     });
     suite.test("log observers see committed controls and cannot reenter mutation", [] {
-        Fixture f; const auto ref = *f.engine.play(f.a,anim::morph_to(f.b));
+        Fixture f; const auto ref = *f.engine.play(anim::morph(f.a, f.b));
         struct Observer { Engine* engine; PlaybackRef ref; int calls=0; bool paused=false,refused=false; } observer{&f.engine,ref};
         check(mlibs::log::set_log_filter("hanim.engine=debug,*=warning").has_value());
         mlibs::log::set_log_sink([](void* context,const mlibs::log::LogRecord& record) {
@@ -249,15 +249,15 @@ int main(int argc, char** argv) {
     suite.test("steps retain their ordinary start but restore and retarget anchor the exact source", [] {
         Fixture f;
         const auto step = Ease::stepped(2,StepPosition::jump_start);
-        auto ref = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8),{.easing=step});
+        auto ref = *f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,8)).options({.easing=step}));
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 20,"ordinary play keeps core jump-start semantics");
         check(f.engine.cancel(ref,CancelMode::restore).has_value());
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 0 && f.engine.frame(ref)->effect_values[0] == 0);
         check(f.engine.release(ref).has_value());
-        ref = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8));
+        ref = *f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,8)));
         check(f.engine.seek_progress(ref,0.25).has_value());
         const auto c = *f.engine.create_object(shape(true,80));
-        check(f.engine.retarget(ref,anim::morph_to(c),{.easing=step}).has_value());
+        check(f.engine.retarget(ref, *f.engine.capture_object(c), {.easing=step}).has_value());
         check(f.engine.frame(ref)->geometry.parts[1].local.tx == 10 && f.engine.frame(ref)->effect_values[0] == 2,
             "retarget's exact start is the old current pose, even for a jump-start curve");
         check(f.engine.seek_progress(ref,0.01).has_value() && f.engine.frame(ref)->geometry.parts[1].local.tx == 45);
@@ -301,9 +301,9 @@ int main(int argc, char** argv) {
         auto plan = PreparedProgram::prepare(parallel({sequence({bind(a,b),bind(a,b)}),
             bind(*f.engine.capture_object(c),*f.engine.capture_object(d))})); check(plan.has_value());
         const auto ref = f.engine.play(*plan); check(ref.has_value());
-        check(f.engine.play(c,anim::morph_to(d)).error().code==EngineError::binding_conflict);
+        check(f.engine.play(anim::morph(c, d)).error().code==EngineError::binding_conflict);
         const auto extra = *f.engine.create_object(shape(false,10));
-        check(f.engine.play(extra,anim::morph_to(d)).error().code==EngineError::capacity);
+        check(f.engine.play(anim::morph(extra, d)).error().code==EngineError::capacity);
         check(f.engine.cancel(*ref).has_value() && f.engine.play(*plan).error().code==EngineError::binding_conflict);
         check(f.engine.release(*ref).has_value());
         const auto replacement = f.engine.play(*plan); check(replacement.has_value());
@@ -311,7 +311,7 @@ int main(int argc, char** argv) {
         check(f.engine.frame(*ref,0).error().code==EngineError::stale_handle);
     });
     suite.test("a later failing program track cannot publish earlier tracks or other playbacks", [] {
-        Fixture f; const auto independent = *f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,8));
+        Fixture f; const auto independent = *f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,8)));
         const auto c = *f.engine.create_object(shape(false,0)), d = *f.engine.create_object(shape(true,80));
         const auto x = *f.engine.create_object(shape(false,1e308)), y = *f.engine.create_object(shape(true,-1e308));
         auto plan = PreparedProgram::prepare(parallel({
@@ -333,13 +333,13 @@ int main(int argc, char** argv) {
         const auto plan = PreparedProgram::prepare(sequence({bind(a,b,{fx::blur(0,8)}),bind(a,*f.engine.capture_object(c),{fx::blur(8,12)})}));
         check(plan.has_value()); const auto ref = *f.engine.play(*plan);
         check(f.engine.seek(ref,seconds(1.5)).has_value() && f.engine.pause(ref).has_value());
-        check(f.engine.retarget(ref,anim::morph_to(d),{.easing=Ease::stepped(2,StepPosition::jump_start)}).has_value());
+        check(f.engine.retarget(ref, *f.engine.capture_object(d), {.easing=Ease::stepped(2,StepPosition::jump_start)}).has_value());
         check(f.engine.frame(ref)->geometry.parts[1].local.tx==60 && f.engine.frame(ref)->effect_values[0]==10);
         check(f.engine.inspect(ref)->segment_count==1 && f.engine.inspect(ref)->plan_revision==2 && f.engine.inspect(ref)->state==PlaybackState::paused);
         check(f.engine.release(ref).has_value());
         const auto multiple = PreparedProgram::prepare(parallel({bind(a,b),bind(*f.engine.capture_object(c),*f.engine.capture_object(d))}));
         const auto multi = *f.engine.play(*multiple);
-        check(f.engine.retarget(multi,anim::morph_to(d)).error().code==EngineError::unsupported_operation);
+        check(f.engine.retarget(multi, *f.engine.capture_object(d)).error().code==EngineError::unsupported_operation);
         check(f.engine.inspect(multi)->track_count==2 && f.engine.inspect(multi)->plan_revision==1);
     });
     suite.test("program copies own inputs and playback instances keep separate cursors", [] {
@@ -363,7 +363,7 @@ int main(int argc, char** argv) {
         const auto refused = f.engine.play(*plan);
         check(!refused && refused.error().code==EngineError::effect && refused.error().caused_by(EffectError::capacity));
         check(f.engine.size()==0);
-        check(f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,1)).has_value());
+        check(f.engine.play(anim::morph(f.a, f.b).with_effect(fx::blur(0,1))).has_value());
     });
     suite.test("phase changes expose actual geometry and effect ranges rather than maximum scratch capacity", [] {
         Fixture f;

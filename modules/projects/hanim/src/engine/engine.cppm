@@ -78,7 +78,7 @@ struct PlaybackInfo {
 struct EngineFrame {
     PlaybackInfo info;
     FrameView geometry;
-    const PreparedObjectMorph* animation = nullptr;
+    const PreparedObjectAnimation* animation = nullptr;
     const PreparedEffects* effects = nullptr;
     std::span<const float> effect_values;
     std::size_t track_index = 0, segment_index = 0;
@@ -125,21 +125,11 @@ public:
     [[nodiscard]] std::expected<PreparedProgram, EngineFailure> prepare(const Program&, ProgramLimits limits = {});
     [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(const Program&, ProgramLimits limits = {});
 
-    [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(
-        ObjectRef object, anim::MorphTo animation, std::span<const EffectSpec> effects = {}, PlayOptions options = {});
-    [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(
-        ObjectRef object, anim::MorphTo animation, const EffectSpec& effect, PlayOptions options = {});
-    // External hosts can publish endpoints through the same player without
-    // moving their registry into the Engine or invoking their setters per frame.
-    [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(
-        Snapshot from, Snapshot to, std::span<const EffectSpec> effects = {}, PlayOptions options = {}, MorphOptions morph = {});
     // Preparation is explicit and immutable. All tracks use the same clock,
     // lifecycle and batch publication as the single-object convenience calls.
     [[nodiscard]] std::expected<PlaybackRef, EngineFailure> play(PreparedProgram program);
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
         PlaybackRef playback, Snapshot to, PlayOptions options = {}, MorphOptions morph = {});
-    [[nodiscard]] std::expected<void, EngineFailure> retarget(
-        PlaybackRef playback, anim::MorphTo animation, PlayOptions options = {});
     [[nodiscard]] std::expected<void, EngineFailure> retarget(
         PlaybackRef playback, const PropertyTargets& values, PlayOptions options = {}, MorphOptions morph = {});
     template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, PropertySet>

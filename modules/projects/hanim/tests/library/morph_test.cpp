@@ -104,14 +104,14 @@ struct Fixture {
         b=take(registry.create(target)); from=take(registry.capture(a)); to=take(registry.capture(b));
     }
     Snapshot add(ObjectDescription data) { return take(registry.capture(take(registry.create(data)))); }
-    PreparedObjectMorph plan() { return take(PreparedObjectMorph::prepare(from,to)); }
+    PreparedObjectAnimation plan() { return take(PreparedObjectAnimation::prepare(from,to)); }
 };
 struct Buffer {
     std::vector<FramePart> parts;
     std::vector<ShapeCubic> cubics;
-    explicit Buffer(const PreparedObjectMorph& plan):parts(plan.requirements().parts),cubics(plan.requirements().cubics) {}
+    explicit Buffer(const PreparedObjectAnimation& plan):parts(plan.requirements().parts),cubics(plan.requirements().cubics) {}
     FrameBuffer output() { return {parts,cubics}; }
-    FrameView sample(const PreparedObjectMorph& plan,double progress) { return take(plan.sample(progress,output())); }
+    FrameView sample(const PreparedObjectAnimation& plan,double progress) { return take(plan.sample(progress,output())); }
 };
 bool near(double a,double b,double tolerance=1e-10) { return std::abs(a-b)<=tolerance; }
 bool same(Vec2 a,Vec2 b) { return std::bit_cast<std::uint64_t>(a.x)==std::bit_cast<std::uint64_t>(b.x) && std::bit_cast<std::uint64_t>(a.y)==std::bit_cast<std::uint64_t>(b.y); }
@@ -181,7 +181,6 @@ int main(int argc,char** argv) {
         auto copy=plan; check(copy.identity()==plan.identity());
         check(last.preparation==plan.identity() && last.source_object==f.a && last.source_revision==f.from.revision());
         check(plan.from().object()==f.a && plan.to().object()==f.b);
-        auto descriptor=anim::morph_to(f.b);check(descriptor.target==f.b && descriptor.options.max_parts==4096);
     });
     suite.test("midpoint channels and arbitrary repeat seek are deterministic single current geometry",[] {
         Fixture f;auto plan=f.plan();Buffer output(plan);
@@ -195,40 +194,40 @@ int main(int argc,char** argv) {
     suite.test("strict capabilities reject part set ordering hierarchy count fill and open-contour changes",[] {
         Fixture f;
         auto missing=description(circle());missing.parts[1].id="different";
-        error_is(PreparedObjectMorph::prepare(f.from,f.add(missing)),MorphError::part_set_mismatch);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.add(missing)),MorphError::part_set_mismatch);
         auto extra=description(circle());extra.parts.push_back({.id="other",.parent="root"});
         auto source=description(triangle());source.parts.push_back({.id="other",.parent="root"});
         auto a=f.add(source);std::swap(extra.parts[1],extra.parts[2]);
-        error_is(PreparedObjectMorph::prepare(a,f.add(extra)),MorphError::ordering_mismatch);
+        error_is(PreparedObjectAnimation::prepare(a,f.add(extra)),MorphError::ordering_mismatch);
         auto parent=source;parent.parts[2].parent="shape";
-        error_is(PreparedObjectMorph::prepare(a,f.add(parent)),MorphError::hierarchy_mismatch);
+        error_is(PreparedObjectAnimation::prepare(a,f.add(parent)),MorphError::hierarchy_mismatch);
         ObjectDescription tree;
         tree.parts={{.id="root"},{.id="left",.parent="root"},{.id="right",.parent="root"},
                     {.id="a",.parent="left"},{.id="b",.parent="right"}};
         auto crossed=tree;crossed.parts[3].parent="right";crossed.parts[4].parent="left";
-        error_is(PreparedObjectMorph::prepare(f.add(tree),f.add(crossed)),MorphError::hierarchy_mismatch);
+        error_is(PreparedObjectAnimation::prepare(f.add(tree),f.add(crossed)),MorphError::hierarchy_mismatch);
         auto count=description(circle());count.parts[1].contours.push_back(circle(.25));
-        error_is(PreparedObjectMorph::prepare(f.from,f.add(count)),MorphError::contour_count_mismatch);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.add(count)),MorphError::contour_count_mismatch);
         auto fill=description(circle());fill.parts[1].fill.reset();
-        error_is(PreparedObjectMorph::prepare(f.from,f.add(fill)),MorphError::missing_fill);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.add(fill)),MorphError::missing_fill);
         auto open=description(triangle(false));
-        error_is(PreparedObjectMorph::prepare(f.add(open),f.to),MorphError::open_contour);
+        error_is(PreparedObjectAnimation::prepare(f.add(open),f.to),MorphError::open_contour);
     });
     suite.test("budgets and delegated core errors reject preparation without changing any snapshot",[] {
         Fixture f;const auto revision=take(f.registry.revision(f.a));
-        error_is(PreparedObjectMorph::prepare({},f.to),MorphError::invalid_snapshot);
-        error_is(PreparedObjectMorph::prepare(f.from,f.to,{.max_parts=0}),MorphError::invalid_options);
-        error_is(PreparedObjectMorph::prepare(f.from,f.to,{.max_parts=1}),MorphError::part_budget);
+        error_is(PreparedObjectAnimation::prepare({},f.to),MorphError::invalid_snapshot);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.to,{.max_parts=0}),MorphError::invalid_options);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.to,{.max_parts=1}),MorphError::part_budget);
         auto double_shape=description(triangle());double_shape.parts[1].contours.push_back(triangle());
         auto capture=f.add(double_shape);
-        error_is(PreparedObjectMorph::prepare(capture,capture,{.max_contours=1}),MorphError::contour_budget);
-        error_is(PreparedObjectMorph::prepare(f.from,f.to,{.max_cubics=1}),MorphError::cubic_budget);
+        error_is(PreparedObjectAnimation::prepare(capture,capture,{.max_contours=1}),MorphError::contour_budget);
+        error_is(PreparedObjectAnimation::prepare(f.from,f.to,{.max_cubics=1}),MorphError::cubic_budget);
         MorphOptions options;options.shape.max_input_segments=0;
-        auto core=PreparedObjectMorph::prepare(f.from,f.to,options);
+        auto core=PreparedObjectAnimation::prepare(f.from,f.to,options);
         error_is(core,MorphError::shape_failure);if(!core) check(core.error().caused_by(ShapeMorphError::invalid_options));
         const std::array flat{ShapeSegment::line({1,0}),ShapeSegment::line({2,0})};
         auto degenerate=description(take(Contour::copy({{0,0},flat})));
-        auto bad=PreparedObjectMorph::prepare(f.add(degenerate),f.to);
+        auto bad=PreparedObjectAnimation::prepare(f.add(degenerate),f.to);
         error_is(bad,MorphError::shape_failure);if(!bad) check(bad.error().caused_by(ShapeMorphError::degenerate_contour));
         check(take(f.registry.revision(f.a))==revision);
     });
@@ -237,31 +236,31 @@ int main(int argc,char** argv) {
         for(auto& part:buffer.parts) {part.info.id="sentinel";part.local.tx=123;}
         for(auto& curve:buffer.cubics) curve.start={456,789};
         auto unchanged=[&] {for(const auto& p:buffer.parts) check(p.info.id=="sentinel" && p.local.tx==123);for(const auto& c:buffer.cubics)check(c.start==Vec2{456,789});};
-        error_is(PreparedObjectMorph{}.sample(.5,buffer.output()),MorphError::unprepared);unchanged();
+        error_is(PreparedObjectAnimation{}.sample(.5,buffer.output()),MorphError::unprepared);unchanged();
         for(double bad:{std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::infinity(),-std::numeric_limits<double>::infinity()}) {error_is(plan.sample(bad,buffer.output()),MorphError::invalid_progress);unchanged();}
         error_is(plan.sample(.5,{std::span(buffer.parts).first(1),buffer.cubics}),MorphError::output_too_small);unchanged();
         error_is(plan.sample(.5,{buffer.parts,std::span(buffer.cubics).first(1)}),MorphError::output_too_small);unchanged();
         auto x=description(triangle()),y=description(circle());x.parts[1].local.tx=-1.7e308;y.parts[1].local.tx=1.7e308;
-        auto overflow=take(PreparedObjectMorph::prepare(f.add(x),f.add(y)));
+        auto overflow=take(PreparedObjectAnimation::prepare(f.add(x),f.add(y)));
         error_is(overflow.sample(.5,buffer.output()),MorphError::nonfinite_transform);unchanged();
         // Linear translation is representable, but its path effect is not.
         x.parts[1].local.tx=0;y.parts[1].local.tx=1e308;
         MorphOptions curved;curved.translation_path=PointPath::bend(8);
-        auto process_overflow=take(PreparedObjectMorph::prepare(f.add(x),f.add(y),curved));
+        auto process_overflow=take(PreparedObjectAnimation::prepare(f.add(x),f.add(y),curved));
         error_is(process_overflow.sample(.5,buffer.output()),MorphError::nonfinite_transform);unchanged();
     });
     suite.test("empty groups remain usable and multiple contours preserve compound winding",[] {
         Fixture f;ObjectDescription empty;empty.parts.push_back({.id="group"});
-        auto capture=f.add(empty);auto groups=take(PreparedObjectMorph::prepare(capture,capture));Buffer no_geometry(groups);
+        auto capture=f.add(empty);auto groups=take(PreparedObjectAnimation::prepare(capture,capture));Buffer no_geometry(groups);
         auto frame=no_geometry.sample(groups,.5);check(frame.cubics.empty() && frame.contours.empty() && !frame.parts[0].fill);
         auto source=description(circle());source.parts[1].contours.push_back(circle(.3,true));
         auto target=source;auto a=f.add(source),b=f.add(target);
-        auto valid=take(PreparedObjectMorph::prepare(a,b));Buffer two(valid);check(two.sample(valid,.5).contours.size()==2);
+        auto valid=take(PreparedObjectAnimation::prepare(a,b));Buffer two(valid);check(two.sample(valid,.5).contours.size()==2);
         target.parts[1].contours[1]=circle(.3,false);
-        error_is(PreparedObjectMorph::prepare(a,f.add(target)),MorphError::unsupported_topology);
+        error_is(PreparedObjectAnimation::prepare(a,f.add(target)),MorphError::unsupported_topology);
     });
     suite.test("endpoint resources and metadata outlive registries and the original plan owner",[] {
-        PreparedObjectMorph retained;
+        PreparedObjectAnimation retained;
         { Fixture f;auto original=f.plan();retained=original;check(f.registry.destroy(f.a).has_value(),"destroy source");check(f.registry.destroy(f.b).has_value(),"destroy target"); }
         Buffer buffer(retained);auto frame=buffer.sample(retained,.75);
         check(frame.parts[1].info.id=="shape" && retained.from() && retained.to());check_connected(frame);
@@ -276,7 +275,7 @@ int main(int argc,char** argv) {
         auto* old_a=allocation_containing(f.from.parts().data());auto* old_b=allocation_containing(f.to.parts().data());
         recording=false;check(old_payload && old_a && old_b);
         watching[0]=old_payload;watching[1]=old_a;watching[2]=old_b;for(auto& flag:freed)flag=false;
-        auto next=take(PreparedObjectMorph::retarget(frame,target));
+        auto next=take(PreparedObjectAnimation::retarget(frame,target));
         check(next.identity()!=old.identity() && !next.from() && next.to().object()==target.object());
         check(next.source_object()==f.a && next.source_revision()==f.from.revision());
         check(next.parts()[1].from_ref==frame.parts[1].info.from_ref && next.parts()[1].to_ref==take(target.find("shape")));
@@ -291,13 +290,13 @@ int main(int argc,char** argv) {
     suite.test("retarget rejects malformed ranges disconnected cubics and changed part contracts",[] {
         Fixture f;auto plan=f.plan();Buffer current(plan);auto frame=current.sample(plan,.5);
         auto target=f.add(description(triangle(),4));
-        auto bad=frame;bad.preparation=nullptr;error_is(PreparedObjectMorph::retarget(bad,target),MorphError::invalid_frame);
+        auto bad=frame;bad.preparation=nullptr;error_is(PreparedObjectAnimation::retarget(bad,target),MorphError::invalid_frame);
         auto info=std::vector<MorphContourInfo>(frame.contours.begin(),frame.contours.end());info[0].cubic_count+=1;bad=frame;bad.contours=info;
-        error_is(PreparedObjectMorph::retarget(bad,target),MorphError::invalid_frame);
+        error_is(PreparedObjectAnimation::retarget(bad,target),MorphError::invalid_frame);
         auto curves=current.cubics;curves[0].end.x+=.5;bad=frame;bad.cubics=curves;
-        error_is(PreparedObjectMorph::retarget(bad,target),MorphError::invalid_frame);
+        error_is(PreparedObjectAnimation::retarget(bad,target),MorphError::invalid_frame);
         auto missing=description(triangle());missing.parts[1].id="other";
-        error_is(PreparedObjectMorph::retarget(frame,f.add(missing)),MorphError::part_set_mismatch);
+        error_is(PreparedObjectAnimation::retarget(frame,f.add(missing)),MorphError::part_set_mismatch);
         auto old=plan.identity();check(plan.sample(.5,current.output()).has_value() && plan.identity()==old);
     });
     suite.test("warm metadata and caller-buffer sampling add no heap allocation even with active trace",[] {

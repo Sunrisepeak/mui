@@ -164,7 +164,7 @@ class BoundAnimation {
 public:
     BoundAnimation(ObjectInput from, ObjectInput to, MorphOptions options = {})
         : inputs_{std::move(from), std::move(to)} { binding_.morph = options; }
-    // Constrained deduction preserves Morph(source, {}) as an empty ObjectInput.
+    // Constrained deduction keeps BoundAnimation(source, {}) an empty ObjectInput.
     template<class Values> requires std::same_as<std::remove_cvref_t<Values>, PropertyTargets>
     BoundAnimation(ObjectInput object, Values&& values, MorphOptions options = {})
         : inputs_{object, std::move(object)} { binding_.morph = options; binding_.properties = std::forward<Values>(values); }
@@ -193,6 +193,13 @@ public:
     [[nodiscard]] BoundAnimation with_effect(EffectSpec value) const {
         auto result = *this; result.binding_.effects.push_back(std::move(value)); return result;
     }
+    [[nodiscard]] BoundAnimation with_effects(std::span<const EffectSpec> values) const {
+        auto result = *this; result.binding_.effects.insert(result.binding_.effects.end(), values.begin(), values.end()); return result;
+    }
+    // Duration and easing at once (an engine's PlayOptions).
+    [[nodiscard]] BoundAnimation options(SegmentOptions value) const {
+        auto result = *this; result.binding_.options = value; return result;
+    }
     // Deduction keeps legacy with_effect({}) unambiguous (EffectSpec).
     template<class Process> requires (std::same_as<Process, fx::VertexPath> || std::same_as<Process, fx::TranslationPath>)
     [[nodiscard]] BoundAnimation with_effect(Process value) const {
@@ -214,9 +221,8 @@ private:
     ProgramInputs inputs_;
     ProgramBinding binding_;
 };
-using Morph = BoundAnimation; // source-compatible name for the original recipe
-[[nodiscard]] inline Morph morph(ObjectInput from, ObjectInput to, MorphOptions options = {}) {
-    return Morph{std::move(from), std::move(to), options};
+[[nodiscard]] inline BoundAnimation morph(ObjectInput from, ObjectInput to, MorphOptions options = {}) {
+    return BoundAnimation{std::move(from), std::move(to), options};
 }
 [[nodiscard]] inline BoundAnimation to(ObjectInput object, PropertyTargets values, MorphOptions options = {}) {
     return BoundAnimation{std::move(object), std::move(values), options};
@@ -348,7 +354,7 @@ private:
 [[nodiscard]] inline anim::Composite composite(Program child) { return anim::Composite{std::move(child)}; }
 [[nodiscard]] inline anim::PartTarget part(ObjectInput object, std::string id) { return {std::move(object), std::move(id)}; }
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
-                                    std::same_as<std::remove_cvref_t<T>, anim::Morph> ||
+                                    std::same_as<std::remove_cvref_t<T>, anim::BoundAnimation> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::Composite>;
 template<Animation... T> requires (sizeof...(T) > 0)
 [[nodiscard]] Program sequence(const T&... values) { return sequence({Program(values)...}); }
@@ -447,7 +453,7 @@ public:
     // Normalization path for the existing strict morph API and current-pose
     // retarget plans whose from() Snapshot can deliberately be empty.
     [[nodiscard]] static std::expected<PreparedProgram, ProgramFailure> single(
-        PreparedObjectMorph, PreparedEffects, SegmentOptions options = {}, bool anchor_source = false, ProgramLimits limits = {});
+        PreparedObjectAnimation, PreparedEffects, SegmentOptions options = {}, bool anchor_source = false, ProgramLimits limits = {});
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     // Its whole length in time: for a time-mapped program the mapped length
     // (infinite when it loops forever); natural_duration() is one course.

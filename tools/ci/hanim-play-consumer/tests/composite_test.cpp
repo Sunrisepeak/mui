@@ -60,7 +60,7 @@ struct Fixture {
         return take(engine.create_object({{{.id="shape",.local={.tx=x,.ty=16},
             .contours={take(Contour::copy({{},edges,true}))},.fill=fill}}}));
     }
-    anim::Morph hold(ObjectRef object) {return anim::morph(object,object);}
+    anim::BoundAnimation hold(ObjectRef object) {return anim::morph(object,object);}
 };
 struct Storage {
     render::DisplayList staging;

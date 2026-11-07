@@ -163,7 +163,7 @@ MorphFailure channel_failure(MorphError code,const PropertyChannelInfo& info) {
     auto error=failure(code,info.part);error.where.clip=info.clip;error.where.channel=info.channel;return error;
 }
 // `beyond`: a plan's progress past its ends (an overshooting curve the
-// program applied, PreparedObjectMorph::sample), taken by a clip spanning the
+// program applied, PreparedObjectAnimation::sample), taken by a clip spanning the
 // whole plan as its own linear progress.
 std::expected<detail::PropertyValue,MorphFailure> sample_channel(
     const PropertyChannelInfo& info,const detail::PropertyEndpoints& values,seconds time,std::optional<double> beyond = {}) {
@@ -556,90 +556,90 @@ std::string describe_where(const MorphWhere& where) {
     if(where.channel)out+=std::format("{}channel {}",out.empty()?"":", ",property_channel_name(*where.channel));
     return out;
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::prepare(Snapshot from, Snapshot to, MorphOptions options) {
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::prepare(Snapshot from, Snapshot to, MorphOptions options) {
     mlibs::trace::Span span("morph.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto a=snapshot_input(from,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
     auto compiled=compile(std::move(*a),std::move(*b),options);
     if (!compiled) { diagnostic.debug("morph refused: {}",describe(compiled.error().code).name); return std::unexpected(compiled.error()); }
-    PreparedObjectMorph result; result.source_=from.object(); result.revision_=from.revision();
+    PreparedObjectAnimation result; result.source_=from.object(); result.revision_=from.revision();
     result.from_=std::move(from); result.to_=std::move(to); result.data_=std::move(*compiled); return result;
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::retarget(FrameView current, Snapshot to, MorphOptions options) {
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::retarget(FrameView current, Snapshot to, MorphOptions options) {
     mlibs::trace::Span span("morph.retarget","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto a=frame_input(current,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
     auto compiled=compile(std::move(*a),std::move(*b),options);
     if (!compiled) { diagnostic.debug("retarget refused: {}",describe(compiled.error().code).name); return std::unexpected(compiled.error()); }
-    PreparedObjectMorph result; result.source_=current.source_object; result.revision_=current.source_revision;
+    PreparedObjectAnimation result; result.source_=current.source_object; result.revision_=current.source_revision;
     result.to_=std::move(to); result.data_=std::move(*compiled); return result;
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::properties(
     Snapshot from, const PropertyTargets& values, MorphOptions options) {
     return properties(std::move(from),std::span(&values,1),options);
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::properties(
     FrameView current, const PropertyTargets& values, MorphOptions options) {
     return properties(current,std::span(&values,1),options);
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::properties(
     Snapshot from, std::span<const PropertyTargets> values, MorphOptions options) {
     mlibs::trace::Span span("properties.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=snapshot_input(from,options);if(!input)return std::unexpected(input.error());
     auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
-    PreparedObjectMorph result;result.source_=from.object();result.revision_=from.revision();
+    PreparedObjectAnimation result;result.source_=from.object();result.revision_=from.revision();
     result.from_=std::move(from);result.data_=std::move(*compiled);return result;
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::properties(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::properties(
     FrameView current, std::span<const PropertyTargets> values, MorphOptions options) {
     mlibs::trace::Span span("properties.retarget","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto input=frame_input(current,options);if(!input)return std::unexpected(input.error());
     auto compiled=compile_properties(std::move(*input),values,options);if(!compiled)return std::unexpected(compiled.error());
-    PreparedObjectMorph result;result.source_=current.source_object;result.revision_=current.source_revision;
+    PreparedObjectAnimation result;result.source_=current.source_object;result.revision_=current.source_revision;
     result.data_=std::move(*compiled);return result;
 }
-std::size_t PreparedObjectMorph::route_segment_count() const noexcept {return data_?data_->route_segments:0;}
-FrameRequirements PreparedObjectMorph::requirements() const noexcept {
+std::size_t PreparedObjectAnimation::route_segment_count() const noexcept {return data_?data_->route_segments:0;}
+FrameRequirements PreparedObjectAnimation::requirements() const noexcept {
     return data_ ? FrameRequirements{data_->parts.size(),data_->contours.size(),data_->cubic_count,data_->value_count} : FrameRequirements{};
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::property_timeline(
     Snapshot from,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
     mlibs::trace::Span span("property-timeline.prepare","hanim.library");
     auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
     auto input=snapshot_input(from,*options);if(!input)return std::unexpected(input.error());
     auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
-    PreparedObjectMorph result;result.source_=from.object();result.revision_=from.revision();
+    PreparedObjectAnimation result;result.source_=from.object();result.revision_=from.revision();
     result.from_=std::move(from);result.data_=std::move(*data);return result;
 }
-std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::property_timeline(
+std::expected<PreparedObjectAnimation,MorphFailure> PreparedObjectAnimation::property_timeline(
     FrameView current,std::span<const PropertyClip> clips,PropertyTimelineLimits limits) {
     mlibs::trace::Span span("property-timeline.retarget","hanim.library");
     auto options=timeline_options(clips,limits);if(!options)return std::unexpected(options.error());
     auto input=frame_input(current,*options);if(!input)return std::unexpected(input.error());
     auto data=compile_timeline(std::move(*input),clips,*options,limits);if(!data)return std::unexpected(data.error());
-    PreparedObjectMorph result;result.source_=current.source_object;result.revision_=current.source_revision;
+    PreparedObjectAnimation result;result.source_=current.source_object;result.revision_=current.source_revision;
     result.data_=std::move(*data);return result;
 }
-std::span<const ValueSlot> PreparedObjectMorph::value_slots() const & noexcept {
+std::span<const ValueSlot> PreparedObjectAnimation::value_slots() const & noexcept {
     return data_?std::span<const ValueSlot>(data_->value_slots):std::span<const ValueSlot>{};
 }
-std::span<const PropertyChannelInfo> PreparedObjectMorph::channels() const & noexcept {
+std::span<const PropertyChannelInfo> PreparedObjectAnimation::channels() const & noexcept {
     return data_?std::span<const PropertyChannelInfo>(data_->channels):std::span<const PropertyChannelInfo>{};
 }
-seconds PreparedObjectMorph::timeline_duration() const noexcept {return data_?data_->timeline_duration:seconds(0);}
-std::span<const MorphPartInfo> PreparedObjectMorph::parts() const & noexcept { return data_ ? std::span<const MorphPartInfo>(data_->parts) : std::span<const MorphPartInfo>{}; }
-std::span<const MorphContourInfo> PreparedObjectMorph::contours() const & noexcept { return data_ ? std::span<const MorphContourInfo>(data_->contours) : std::span<const MorphContourInfo>{}; }
-std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample(double progress,FrameBuffer output) const noexcept {
+seconds PreparedObjectAnimation::timeline_duration() const noexcept {return data_?data_->timeline_duration:seconds(0);}
+std::span<const MorphPartInfo> PreparedObjectAnimation::parts() const & noexcept { return data_ ? std::span<const MorphPartInfo>(data_->parts) : std::span<const MorphPartInfo>{}; }
+std::span<const MorphContourInfo> PreparedObjectAnimation::contours() const & noexcept { return data_ ? std::span<const MorphContourInfo>(data_->contours) : std::span<const MorphContourInfo>{}; }
+std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample(double progress,FrameBuffer output) const noexcept {
     return sample_at(progress,output,false);
 }
-std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_source(FrameBuffer output) const noexcept {
+std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_source(FrameBuffer output) const noexcept {
     return sample_at(0,output,true);
 }
-std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double progress, FrameBuffer output,bool exact_source) const noexcept {
+std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double progress, FrameBuffer output,bool exact_source) const noexcept {
     mlibs::trace::Span span("morph.sample","hanim.library");
     if (!data_) return std::unexpected(failure(MorphError::unprepared));
     if (!std::isfinite(progress)) return std::unexpected(failure(MorphError::invalid_progress));

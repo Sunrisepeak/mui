@@ -194,7 +194,7 @@ void add_public_motion_benchmarks() {
             const auto a = engine->create_object({{{.id="shape",.contours={*triangle},.fill=hanim::Rgba{1,0,0,1}}}});
             const auto b = engine->create_object({{{.id="shape",.local={.tx=40},.contours={*circle},.fill=hanim::Rgba{0,0,1,1}}}});
             if (!a || !b) { s.fail("engine object publication failed"); return; }
-            const auto played = engine->play(*a,hanim::anim::morph_to(*b),hanim::fx::blur(0,4),{.duration=hanim::seconds(3600)});
+            const auto played = engine->play(hanim::anim::morph(*a, *b).with_effect(hanim::fx::blur(0,4)).options({.duration=hanim::seconds(3600)}));
             if (!played) { s.fail("public play failed"); return; }
             refs[i]=*played;
         }

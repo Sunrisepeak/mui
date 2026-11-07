@@ -25,9 +25,9 @@ shared geometry buffers and one clock. Each channel keeps its own time/ease;
 an immutable O(1) lease for native tool/Agent inspection, also after convenience
 play. Retaining that plan does not retain mutable player frame spans.
 
-`Engine::play(object, anim::morph_to(target), effects, options)` captures owned
-endpoints from its registry. External hosts can instead publish two public
-Snapshots to the same player. Sampling never calls a business setter. Every
+`Engine::play(anim::morph(object, target))` captures owned endpoints from its
+registry. External hosts can instead publish two public Snapshots to the same
+player (`play(bind(from, to, effects, options))`). Sampling never calls a business setter. Every
 source object has one binding: repeated play reports `binding_conflict`; use
 retarget for a continuous replacement, release for an explicit new binding.
 The convenience call normalizes to `PreparedProgram::single`; the engine also

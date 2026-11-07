@@ -322,44 +322,15 @@ std::expected<PlaybackRef, EngineFailure> Engine::play(const Program& descriptio
     if (!program) return std::unexpected(program_failure(program.error()));
     return insert_playback(data_.get(), std::move(*program));
 }
-std::expected<PlaybackRef, EngineFailure> Engine::play(ObjectRef object, anim::MorphTo animation, const EffectSpec& effect, PlayOptions options) {
-    return play(object, animation, std::span<const EffectSpec>(&effect, 1), options);
-}
-std::expected<PlaybackRef, EngineFailure> Engine::play(ObjectRef object, anim::MorphTo animation, std::span<const EffectSpec> effects, PlayOptions options) {
-    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    const auto from = capture_object(object), to = capture_object(animation.target);
-    if (!from) return std::unexpected(object_failure(from.error()));
-    if (!to) return std::unexpected(object_failure(to.error()));
-    return play(*from, *to, effects, options, animation.options);
-}
-std::expected<PlaybackRef, EngineFailure> Engine::play(Snapshot from, Snapshot to, std::span<const EffectSpec> effects, PlayOptions options, MorphOptions morph) {
-    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    WriteScope write(writing_); mlibs::trace::Span span("play", "hanim.engine");
-    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
-    auto animation = PreparedObjectMorph::prepare(std::move(from), std::move(to), morph);
-    if (!animation) return std::unexpected(animation_failure(animation.error()));
-    auto effect = PreparedEffects::prepare(effects, data_->limits.effects);
-    if (!effect) return std::unexpected(effect_failure(effect.error()));
-    auto program = PreparedProgram::single(std::move(*animation), std::move(*effect), options, false,
-        {.effects = data_->limits.effects});
-    if (!program) return std::unexpected(program_failure(program.error()));
-    return insert_playback(data_.get(), std::move(*program));
-}
 std::expected<PlaybackRef, EngineFailure> Engine::play(PreparedProgram program) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     WriteScope write(writing_); mlibs::trace::Span span("play-program", "hanim.engine");
     return insert_playback(data_.get(), std::move(program));
 }
-Status Engine::retarget(PlaybackRef ref, anim::MorphTo animation, PlayOptions options) {
-    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
-    const auto to = capture_object(animation.target);
-    if (!to) return std::unexpected(object_failure(to.error()));
-    return retarget(ref, *to, options, animation.options);
-}
 Status Engine::retarget(PlaybackRef ref, Snapshot to, PlayOptions options, MorphOptions morph) {
     return mutate(data_.get(), writing_, ref, "retarget", [&](detail::Playback& old) -> Status {
         return replace_plan(*data_,old,options,[&](FrameView current) {
-            return PreparedObjectMorph::retarget(current,std::move(to),morph);
+            return PreparedObjectAnimation::retarget(current,std::move(to),morph);
         });
     });
 }
@@ -369,7 +340,7 @@ Status Engine::retarget(PlaybackRef ref, const PropertyTargets& values, PlayOpti
 Status Engine::retarget_properties(PlaybackRef ref,std::span<const PropertyTargets> values,PlayOptions options,MorphOptions morph) {
     return mutate(data_.get(),writing_,ref,"retarget-properties",[&](detail::Playback& old) -> Status {
         return replace_plan(*data_,old,options,[&](FrameView current) {
-            return PreparedObjectMorph::properties(current,values,morph);
+            return PreparedObjectAnimation::properties(current,values,morph);
         });
     });
 }

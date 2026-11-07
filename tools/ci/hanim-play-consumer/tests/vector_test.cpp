@@ -14,8 +14,8 @@ namespace {
 struct GeometryBuffers {
     std::vector<FramePart> parts;
     std::vector<ShapeCubic> cubics;
-    explicit GeometryBuffers(const PreparedObjectMorph& plan) : parts(plan.requirements().parts), cubics(plan.requirements().cubics) {}
-    FrameView sample(const PreparedObjectMorph& plan, double t) {
+    explicit GeometryBuffers(const PreparedObjectAnimation& plan) : parts(plan.requirements().parts), cubics(plan.requirements().cubics) {}
+    FrameView sample(const PreparedObjectAnimation& plan, double t) {
         const auto frame = plan.sample(t, {parts, cubics}); check(frame.has_value());
         return frame ? *frame : FrameView{};
     }
@@ -29,7 +29,7 @@ struct RecordBuffers {
         parameters(plan.requirements().backend_parameters), layers(plan.requirements().effect_layers) {}
     VectorScratch get() { return {&staging, world, parameters, layers}; }
 };
-struct Fixture { ObjectRegistry objects; Snapshot from, to; PreparedObjectMorph plan; };
+struct Fixture { ObjectRegistry objects; Snapshot from, to; PreparedObjectAnimation plan; };
 Fixture fixture(bool box = false) {
     auto objects = ObjectRegistry::make(); check(objects.has_value());
     const std::array triangle{ShapeSegment::line({18, 0}), ShapeSegment::line({9, 18})};
@@ -52,7 +52,7 @@ Fixture fixture(bool box = false) {
     }
     check(objects->update(*object, description).has_value());
     const auto to = objects->capture(*object); check(to.has_value());
-    const auto plan = PreparedObjectMorph::prepare(*from, *to); check(plan.has_value());
+    const auto plan = PreparedObjectAnimation::prepare(*from, *to); check(plan.has_value());
     return {std::move(*objects), *from, *to, *plan};
 }
 raster::Surface draw(const render::DisplayList& list) {
@@ -169,7 +169,7 @@ int main(int argc, char** argv) {
             {.id = "shape", .parent = "root", .local = {.tx = 10}, .contours = (*shape)->contours, .fill = Rgba{1, 0, 0, 1}}}};
         check(source.objects.update(source.from.object(), description).has_value());
         const auto snapshot = source.objects.capture(source.from.object()); check(snapshot.has_value());
-        const auto plan = PreparedObjectMorph::prepare(*snapshot, *snapshot); check(plan.has_value());
+        const auto plan = PreparedObjectAnimation::prepare(*snapshot, *snapshot); check(plan.has_value());
         const auto bound = PreparedVector::bind(*plan); check(bound.has_value()); if (!bound) return;
         GeometryBuffers geometry(*plan); RecordBuffers buffers(*bound); render::DisplayList output;
         check(bound->record(geometry.sample(*plan, 0.5), {}, output, buffers.get()).has_value());
@@ -188,7 +188,7 @@ int main(int argc, char** argv) {
             {.id = "shape", .parent = "root", .contours = contours, .fill = Rgba{1, 1, 1, 1}}}};
         check(source.objects.update(source.from.object(), description).has_value());
         const auto snapshot = source.objects.capture(source.from.object()); check(snapshot.has_value());
-        const auto plan = PreparedObjectMorph::prepare(*snapshot, *snapshot); check(plan.has_value());
+        const auto plan = PreparedObjectAnimation::prepare(*snapshot, *snapshot); check(plan.has_value());
         const auto bound = PreparedVector::bind(*plan); check(bound.has_value()); if (!bound) return;
         GeometryBuffers geometry(*plan); RecordBuffers buffers(*bound); render::DisplayList output;
         check(bound->record(geometry.sample(*plan, 0.5), {}, output, buffers.get()).has_value());
@@ -277,7 +277,7 @@ int main(int argc, char** argv) {
         check(bound->record(frame, {}, output, buffers.get()).error().code == VectorError::invalid_geometry && output.hash() == before);
         frame = geometry.sample(source.plan, 0.5); geometry.cubics[0].end.x += 1;
         check(bound->record(frame, {}, output, buffers.get()).error().code == VectorError::invalid_geometry && output.hash() == before);
-        const auto other = PreparedObjectMorph::prepare(source.from, source.to); check(other.has_value());
+        const auto other = PreparedObjectAnimation::prepare(source.from, source.to); check(other.has_value());
         GeometryBuffers other_geometry(*other); const auto other_frame = other_geometry.sample(*other, 0.5);
         check(bound->record(other_frame, {}, output, buffers.get()).error().code == VectorError::foreign_frame && output.hash() == before,
             "same ids, revisions and counts do not authorize an old renderer binding for a new prepared plan");

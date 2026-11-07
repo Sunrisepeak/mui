@@ -131,7 +131,7 @@ struct PropertyChannelInfo {
     bool source_snapshot = false;
     std::optional<TranslationRoute> route;
     Vec2 route_origin;
-    // A value channel's slot (PreparedObjectMorph::value_slots()).
+    // A value channel's slot (PreparedObjectAnimation::value_slots()).
     std::size_t value_slot = std::numeric_limits<std::size_t>::max();
 };
 // Where a part's value channel lands in FrameView::values: [offset, offset + lanes);
@@ -244,34 +244,34 @@ struct FrameView {
 };
 struct FrameRequirements { std::size_t parts = 0, contours = 0, cubics = 0, values = 0; };
 
-class PreparedObjectMorph {
+class PreparedObjectAnimation {
 public:
-    PreparedObjectMorph() noexcept = default;
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    PreparedObjectAnimation() noexcept = default;
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         prepare(Snapshot from, Snapshot to, MorphOptions options = {});
     // Deep-copy the current pose into the new preparation. No registry writes
     // or old plan/frame/snapshot chain is retained. current must remain valid
     // and unchanged throughout this call. Its logical from_ref is preserved.
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         retarget(FrameView current, Snapshot to, MorphOptions options = {});
     // Unary property recipes share the same geometry/effect sampler. There is
     // no synthetic target object or registry mutation; to() is empty for these
     // plans. Current supported representations are the same closed vector
     // contours as object morph, not arbitrary application fields or open paths.
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         properties(Snapshot from, const PropertyTargets&, MorphOptions options = {});
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         properties(FrameView current, const PropertyTargets&, MorphOptions options = {});
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         properties(Snapshot from, std::span<const PropertyTargets>, MorphOptions options = {});
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         properties(FrameView current, std::span<const PropertyTargets>, MorphOptions options = {});
     // Pure prepared property tracks with independent timing. Input order
     // explicitly orders zero-duration writes at a shared start. Positive
     // overlap on one part/channel is rejected; geometry stays unchanged.
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         property_timeline(Snapshot from, std::span<const PropertyClip>, PropertyTimelineLimits limits = {});
-    [[nodiscard]] static std::expected<PreparedObjectMorph, MorphFailure>
+    [[nodiscard]] static std::expected<PreparedObjectAnimation, MorphFailure>
         property_timeline(FrameView current, std::span<const PropertyClip>, PropertyTimelineLimits limits = {});
     [[nodiscard]] std::span<const PropertyChannelInfo> channels() const & noexcept;
     std::span<const PropertyChannelInfo> channels() const && = delete;
@@ -305,12 +305,5 @@ private:
     std::uint64_t revision_ = 0;
     std::shared_ptr<const detail::ObjectMorphData> data_;
 };
-// Canonical name covers morph, property recipes and prepared channel timelines;
-// the original name remains the same type for source compatibility.
-using PreparedObjectAnimation = PreparedObjectMorph;
 
-namespace anim {
-struct MorphTo { ObjectRef target; MorphOptions options; };
-[[nodiscard]] constexpr MorphTo morph_to(ObjectRef target, MorphOptions options = {}) noexcept { return {target, options}; }
-}
 } // namespace hanim

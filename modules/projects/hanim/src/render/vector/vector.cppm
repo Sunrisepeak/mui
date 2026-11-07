@@ -95,7 +95,7 @@ public:
     // Strict CPU binding, with deep-owned solid/gradient material endpoints.
     // No dependency on an Engine, UI, device or host.
     [[nodiscard]] static std::expected<PreparedVector, VectorFailure> bind(
-        const PreparedObjectMorph& geometry, const PreparedEffects& effects = {},
+        const PreparedObjectAnimation& geometry, const PreparedEffects& effects = {},
         std::span<const MaterialBinding> materials = {});
     [[nodiscard]] VectorRequirements requirements() const noexcept;
     // Uses this binding's effects metadata and already-sampled float values.

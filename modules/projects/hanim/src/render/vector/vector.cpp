@@ -12,7 +12,7 @@ struct VectorEffects {
     std::vector<VectorParameter> parameters;
 };
 struct VectorData {
-    PreparedObjectMorph geometry;
+    PreparedObjectAnimation geometry;
     VectorEffects effects;
     std::vector<std::optional<xrender::PreparedPaintMix>> materials;
 };
@@ -275,7 +275,7 @@ std::string describe_where(const VectorWhere& where) {
     return out;
 }
 std::expected<PreparedVector, VectorFailure> PreparedVector::bind(
-    const PreparedObjectMorph& geometry, const PreparedEffects& effects, std::span<const MaterialBinding> materials) {
+    const PreparedObjectAnimation& geometry, const PreparedEffects& effects, std::span<const MaterialBinding> materials) {
     mlibs::trace::Span span("bind", "hanim.render.vector");
     auto refuse = [](VectorError code, std::size_t entry = 0, std::size_t detail = 0) -> std::expected<PreparedVector, VectorFailure> {
         log.warn("bind refused: {} (entry={}, detail={})", describe(code).name, entry, detail);

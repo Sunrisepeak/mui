@@ -294,9 +294,9 @@ int main(int argc,char** argv) {
         check(!bad && bad.error().code==ProgramError::animation && unsafe.parts[0].local==original && unsafe.effects[0]==0);
     });
     suite.test("single normalization retains prepared retargets and source restoration semantics",[] {
-        Fixture f;const auto morph=take(PreparedObjectMorph::prepare(f.a,f.b));const auto effects=take(PreparedEffects::prepare({}));
+        Fixture f;const auto morph=take(PreparedObjectAnimation::prepare(f.a,f.b));const auto effects=take(PreparedEffects::prepare({}));
         const auto first=take(PreparedProgram::single(morph,effects));Buffer output(first.tracks()[0]);const auto current=output.sample(first,0,.5);
-        const auto retarget=take(PreparedObjectMorph::retarget(current.geometry,f.c));
+        const auto retarget=take(PreparedObjectAnimation::retarget(current.geometry,f.c));
         const auto plan=take(PreparedProgram::single(retarget,effects,{seconds(1),Ease::stepped(4,StepPosition::jump_start)},true));
         Buffer next(plan.tracks()[0]);check(next.sample(plan,0,0).geometry.parts[0].local.tx==5);
         next.sample(plan,0,.5);check(next.sample(plan,0,0).geometry.parts[0].local.tx==5);

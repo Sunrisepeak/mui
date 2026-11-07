@@ -348,7 +348,7 @@ int main(int argc,char** argv) {
         raster::Surface original_coverage(options.width,options.height),retarget_coverage(options.width,options.height);
         if(!coverage(original_coverage))return fail("pre-retarget bare coverage");
         MorphOptions path_options;path_options.shape.point_path=PointPath::bend(options.bend);
-        if(!engine.retarget(*played,anim::morph_to(*next,path_options),{.duration=seconds{1},.easing=ease::linear}) || !rebind() || !draw())return fail("retarget/rebind/current draw");
+        if(!engine.retarget(*played, *engine.capture_object(*next), {.duration=seconds{1},.easing=ease::linear}, path_options) || !rebind() || !draw())return fail("retarget/rebind/current draw");
         for(std::size_t i=0;i<before.size();++i) {
             const auto a=std::bit_cast<std::array<std::uint8_t,4>>(before[i]),b=std::bit_cast<std::array<std::uint8_t,4>>(pixels.pixels()[i]);
             for(int c=0;c<4;++c)continuity_max=std::max(continuity_max,std::abs(int(a[c])-int(b[c])));

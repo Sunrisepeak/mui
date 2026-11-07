@@ -321,7 +321,7 @@ public:
 
     // ── the tree ──
     [[nodiscard]] bool valid(NodeId node) const noexcept;
-    [[nodiscard]] NodeId find(std::string_view path) const;
+    [[nodiscard]] NodeId find(std::string_view path) const override;
     // The component of type C at a node — the program's own access to what
     // it mounted (a canvas's statistics for its HUD); null when the node is
     // not a C. Checked against C's type, not cast blindly (no RTTI needed).

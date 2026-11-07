@@ -186,6 +186,8 @@ public:
     virtual std::uint64_t on(NodeId node, std::string event, Handler handler) = 0;
     virtual void off(std::uint64_t token) = 0;
     [[nodiscard]] virtual std::string path(NodeId node) const = 0;
+    // The node at a path, if it is there (nothing is materialised: see reveal).
+    [[nodiscard]] virtual NodeId find(std::string_view path) const { (void)path; return {}; }
     // The node's default style depends on what changed (a menu that closed).
     virtual void restyle(NodeId node) = 0;
     // A composite component's own children are built again (compose()).

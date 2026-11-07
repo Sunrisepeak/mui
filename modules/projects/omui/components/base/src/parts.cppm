@@ -26,6 +26,11 @@ void chevron(PaintContext& ctx, Point c, float size, Color color);
 // The ring keyboard focus draws around a control (theme token `focus`).
 void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii);
 
+// Where an agent acts (agent presence, C2): four corners round `box`, each
+// arm `arm` long — the one mark of an agent's attention, wherever it is
+// drawn (the presence over a page, the promo's agent, a game's intent).
+void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width = 2);
+
 // A small ×, centred on `c` (a close or a remove button).
 void cross(PaintContext& ctx, Point c, float size, Color color);
 

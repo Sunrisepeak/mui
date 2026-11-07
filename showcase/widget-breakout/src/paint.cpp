@@ -569,12 +569,10 @@ void Field::paint_over(PaintContext& ctx) const {
             const Paddle& p = s.paddles[0];
             const Point at{static_cast<float>(p.x), static_cast<float>(p.y)};
             const Color tint = cue(0x5eead4);
-            if (now->target) {  // where it means to be: a dotted line up from the paddle's track, a ring on it
+            if (now->target) {  // where it means to be: a dotted line up from the paddle's track, the agent's corners on it
                 const float x = static_cast<float>(*now->target * field_w);
                 for (float y = at.y - 12; y > at.y - 220; y -= 14) out.fill_round_rect({x - 2, y - 3, 4, 6}, CornerRadii::all(2), solid(tint.with_alpha(0.55f * (y - at.y + 220) / 208)));
-                path_.clear();
-                path_.add_circle({x, at.y}, 11);
-                out.stroke_path(path_, {.width = 3}, solid(tint.with_alpha(0.9f)));
+                parts::agent_corners(out, {x - 12, at.y - 12, 24, 24}, tint.with_alpha(0.9f), 7, 3);
             }
             if (std::abs(now->axis) > 0.01) {  // the arrow it holds
                 const float len = static_cast<float>(now->axis) * 70, y = at.y - 26;

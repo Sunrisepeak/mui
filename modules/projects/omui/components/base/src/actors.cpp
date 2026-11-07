@@ -291,4 +291,148 @@ ActResult ActorLog::previous(ActContext&) {
     return ActResult::done();
 }
 
+// ── Another actor at work, seen ──
+
+AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail, std::string_view except) {
+    AgentPresenceState out;
+    const auto step_of = [&](const ActionEntry& e) {
+        PresenceStep step{e.path, e.action, {}, e.at};
+        if (const NodeId n = services.find(e.path); n) step.bounds = services.bounds(n);
+        return step;
+    };
+    const auto journal = services.action_journal();
+    for (auto it = journal.rbegin(); it != journal.rend(); ++it) {
+        if (!it->actor.starts_with(actors) || (!except.empty() && it->path.starts_with(except))) continue;
+        if (!out.now) {
+            out.actor = it->actor;
+            out.now = step_of(*it);
+            out.asking = it->exit_code == spec::exit_code::needs_answer;
+            continue;
+        }
+        if (out.trail.size() >= trail) break;
+        // One step a node: a slider dragged in ten writes is one step.
+        const std::string_view last = out.trail.empty() ? std::string_view(out.now->path) : std::string_view(out.trail.back().path);
+        if (it->path == last) continue;
+        if (PresenceStep step = step_of(*it); !step.bounds.empty()) out.trail.push_back(std::move(step));
+    }
+    std::ranges::reverse(out.trail);
+    return out;
+}
+
+void AgentPresence::mounted() {
+    tag_.set_style("caption");
+    tag_.set_max_lines(1);
+    card_.set_style("label");
+    card_.set_max_lines(2);
+    services().set(node(), "pointer_events", Value("none"));  // over the page, it takes no pointer
+    services().follow_actions(node(), true);
+}
+
+void AgentPresence::prop_changed(AgentPresenceProp) {
+    if (!attached()) return;
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+}
+
+Size AgentPresence::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                            mlibs::layout::Available ah) {
+    // As large as it is let be: it lies over what it shows.
+    return {width.value_or(aw.is_definite() ? aw.value : 0), height.value_or(ah.is_definite() ? ah.value : 0)};
+}
+
+AgentPresenceState AgentPresence::state() const {
+    if (!attached()) return {};
+    return agent_presence_state(services(), props.actors, static_cast<std::size_t>(std::max<std::int64_t>(0, props.trail)),
+                                services().path(node()) + "/");
+}
+
+std::string AgentPresence::phrase(std::string_view key) const {
+    if (const Value* own = props.phrases.get(key); own && !own->as_string().empty()) return std::string(own->as_string());
+    return key == "asks" ? std::string("{agent} asks you") : std::string(key);
+}
+
+std::string AgentPresence::said() const {
+    const AgentPresenceState now = state();
+    if (!now.now) return {};
+    const std::string agent(who(now.actor));
+    if (now.asking) {
+        std::string text = phrase("asks");
+        if (const auto at = text.find("{agent}"); at != std::string::npos) text.replace(at, 7, agent);
+        return props.asking.empty() ? text : std::format("{}: {}", text, props.asking);
+    }
+    return std::format("{} {} {}", agent, now.now->action, short_path(now.now->path));
+}
+
+void AgentPresence::paint(PaintContext& ctx) const {
+    if (props.skin == AgentPresenceSkin::none) return;
+    const AgentPresenceState now = state();
+    if (!now.now || now.now->bounds.empty()) return;
+    const Theme& th = ctx.theme;
+    const Color ink = th.color("agent", Color::hex(0x0891b2));
+    const Rect self = services().bounds(node());
+    const auto local = [&](const Rect& r) { return Rect{r.x - self.x, r.y - self.y, r.width, r.height}; };
+
+    // The steps before: a dot at each, joined by a dotted line to the next, fainter the older.
+    std::vector<Point> stops;
+    for (const PresenceStep& step : now.trail) stops.push_back(local(step.bounds).center());
+    stops.push_back(local(now.now->bounds).center());
+    ctx.part({.role = "trail", .kind = xrender::PartKind::content}, [&] {
+        for (std::size_t i = 0; i + 1 < stops.size(); ++i) {
+            const float age = static_cast<float>(i + 1) / static_cast<float>(stops.size());
+            const Point a = stops[i], b = stops[i + 1];
+            const float length = std::hypot(b.x - a.x, b.y - a.y);
+            for (float d = 6; d < length - 6; d += 9) {
+                const float t = d / length;
+                ctx.list.fill_round_rect({a.x + (b.x - a.x) * t - 1.5f, a.y + (b.y - a.y) * t - 1.5f, 3, 3}, CornerRadii::all(1.5f),
+                                         xrender::Paint::solid(ink.with_alpha(0.25f + 0.35f * age)));
+            }
+            ctx.list.fill_round_rect({a.x - 4, a.y - 4, 8, 8}, CornerRadii::all(4), xrender::Paint::solid(ink.with_alpha(0.3f + 0.4f * age)));
+        }
+    });
+
+    // Where it acts: four corners round the node, a little outside it; its name and the action above.
+    const Rect at = local(now.now->bounds);
+    const float out = 5, arm = std::clamp(std::min(at.width, at.height) * 0.3f, 6.0f, 14.0f);
+    const Rect box{at.x - out, at.y - out, at.width + 2 * out, at.height + 2 * out};
+    ctx.part({.role = "frame", .allocation = box, .kind = xrender::PartKind::box}, [&] {
+        parts::agent_corners(ctx.list, box, ink, arm);
+        tag_.set_text(std::format("{} · {}", who(now.actor), now.now->action));
+        const Size t = tag_.measure(ctx.services, th.color("on_accent", Color::white()));
+        // Above the frame, or under it where the page's top leaves no room.
+        const float above = box.y - t.height - 8;
+        const Rect pill{box.x, above >= 0 ? above : box.bottom() + 4, t.width + 12, t.height + 4};
+        ctx.list.fill_round_rect(pill, th.radii(pill.height / 2), xrender::Paint::solid(ink));
+        tag_.paint(ctx, {pill.x + 6, pill.y + 2}, th.color("on_accent", Color::white()));
+    });
+
+    // Waiting for the person: a card under the node, saying so. Nothing on it answers (S-10).
+    if (now.asking) {
+        card_.set_text(said());
+        const Size t = card_.measure(ctx.services, th.color("text"), 260);
+        // Beside the node where the page has room, else under it: not over what it acts on.
+        const float width = t.width + 24, height = t.height + 16;
+        const bool beside = box.right() + 12 + width <= ctx.size.width;
+        const Rect card = beside ? Rect{box.right() + 12, box.y + (box.height - height) / 2, width, height}
+                                 : Rect{std::clamp(box.x, 0.0f, std::max(0.0f, ctx.size.width - width)), box.bottom() + 30, width, height};
+        ctx.part({.role = "card", .allocation = card, .kind = xrender::PartKind::box}, [&] {
+            if (auto it = th.shadows.find("md"); it != th.shadows.end()) paint_shadow(ctx.list, card, th.radii(10), it->second);
+            ctx.list.fill_round_rect(card, th.radii(10), xrender::Paint::solid(th.color("surface")));
+            ctx.list.fill_round_rect({card.x, card.y + 8, 3, card.height - 16}, CornerRadii::all(1.5f), xrender::Paint::solid(ink));
+            card_.paint(ctx, {card.x + 14, card.y + 8}, th.color("text"));
+        });
+    }
+}
+
+void AgentPresence::semantics(SemanticsContext&, spec::SemanticNode& node) const {
+    const AgentPresenceState now = state();
+    node.name = said();
+    Value value;
+    value.set("actor", now.actor).set("asking", now.asking);
+    if (now.now) value.set("node", now.now->path).set("action", now.now->action);
+    Value::List steps;
+    for (const PresenceStep& step : now.trail) steps.emplace_back(step.path);
+    value.set("trail", Value(std::move(steps)));
+    node.value = std::move(value);
+}
+
 }  // namespace omui

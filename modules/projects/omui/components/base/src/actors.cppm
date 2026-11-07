@@ -10,6 +10,7 @@ import omui.core;
 import omui.view;
 import :parts;
 import :actor_log_contract;
+import :agent_presence_contract;
 
 export namespace omui {
 
@@ -52,6 +53,45 @@ private:
     int                                   hover_ = -1;
     std::size_t                           focus_ = 0;
     bool                                  pointing_ = false;
+};
+
+// Another actor at work here, as a model (the site plan §9.5): who, what it
+// acts on now (its node's box in window coordinates), the steps before it
+// (oldest first) and whether it waits for the person's answer. Every skin
+// draws this — the framework's reticle (AgentPresence), the site's Mui — and
+// tests and agents read the same.
+struct PresenceStep {
+    std::string path, action;
+    Rect        bounds;  // window coordinates; empty: the node is not there now
+    double      at = 0;
+};
+struct AgentPresenceState {
+    std::string                 actor;  // empty: no one of these actors has acted
+    std::optional<PresenceStep> now;
+    std::vector<PresenceStep>   trail;
+    bool                        asking = false;  // its last request waits for the person's answer
+};
+// From the journal: the actors whose names begin with `actors`, the newest
+// action theirs and up to `trail` before it on other nodes; what was done
+// inside `except` (the presence's own subtree, a log's records) left out.
+[[nodiscard]] AgentPresenceState agent_presence_state(const Services& services, std::string_view actors, std::size_t trail = 3,
+                                                      std::string_view except = {});
+
+class AgentPresence : public AgentPresenceContract<AgentPresence> {
+public:
+    void mounted();
+    void prop_changed(AgentPresenceProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+
+    [[nodiscard]] AgentPresenceState state() const;
+    // What it says now: "guide activate …/save", "guide asks you", or nothing.
+    [[nodiscard]] std::string said() const;
+
+private:
+    [[nodiscard]] std::string phrase(std::string_view key) const;
+    mutable parts::Label tag_, card_;
 };
 
 }  // namespace omui

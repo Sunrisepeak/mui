@@ -45,6 +45,7 @@ export import :breadcrumb_contract;
 export import :pagination_contract;
 export import :number_input_contract;
 export import :actor_log_contract;
+export import :agent_presence_contract;
 export import :segmented_contract;
 export import :chip_contract;
 export import :range_slider_contract;

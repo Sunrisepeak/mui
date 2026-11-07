@@ -37,6 +37,7 @@ void register_base_components() {
     register_type(component_type<Pagination>());
     register_type(component_type<NumberInput>());
     register_type(component_type<ActorLog>());
+    register_type(component_type<AgentPresence>());
     register_type(component_type<Segmented>());
     register_type(component_type<Chip>());
     register_type(component_type<RangeSlider>());

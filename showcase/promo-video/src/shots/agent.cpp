@@ -435,7 +435,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
             y += pitch;
         }
     }
-    // The agent's cursor: a reticle gliding to each node it acts on.
+    // The agent's cursor: the agent's corners gliding to each node it acts on.
     if (!s.path.empty() && s.t >= s.path.front().first - 0.6) {
         Point at = s.path.front().second;
         for (std::size_t k = 1; k < s.path.size(); ++k) {
@@ -445,13 +445,8 @@ void Agent::paint_front(PaintContext& p, State& s) {
         }
         const float appear = static_cast<float>(s.timing["cursor.appear"]);
         const Color c = hex(ink::cyan, appear);
-        xrender::Path ring;
-        ring.add_ellipse({at.x - 15, at.y - 15, 30, 30});
-        xrender::StrokeStyle st;
-        st.width = 2;
-        list.stroke_path(ring, st, xrender::Paint::solid(c));
-        for (const auto& [dx, dy] : std::array<std::pair<float, float>, 4>{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}})
-            list.fill_rect({at.x + dx * 21 - (dx != 0 ? 4 : 1), at.y + dy * 21 - (dy != 0 ? 4 : 1), dx != 0 ? 8.0f : 2.0f, dy != 0 ? 8.0f : 2.0f}, c);
+        // The framework's mark of an agent's attention (omui.ui.base, agent presence).
+        parts::agent_corners(list, {at.x - 16, at.y - 16, 32, 32}, c, 9);
         const auto& tag = s.labels.get(fonts, "agent:promo", 18, c, 600, "JetBrains Mono");
         xrender::text::paint(tag, list, {at.x + 22, at.y + 14});
     }

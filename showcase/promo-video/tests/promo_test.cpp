@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("c7f1c158e482f48f"));
+        check_eq(all.hex(), std::string("dc5c3e3586b5ce3b"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");

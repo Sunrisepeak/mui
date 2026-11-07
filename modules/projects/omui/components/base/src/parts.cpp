@@ -32,6 +32,16 @@ void focus_ring(PaintContext& ctx, const Rect& r, const CornerRadii& radii) {
                                xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
 }
 
+void agent_corners(xrender::DisplayList& list, const Rect& box, Color ink, float arm, float width) {
+    xrender::Path corners;
+    const auto corner = [&](Point p, float dx, float dy) { corners.move_to({p.x + dx * arm, p.y}).line_to(p).line_to({p.x, p.y + dy * arm}); };
+    corner({box.x, box.y}, 1, 1);
+    corner({box.right(), box.y}, -1, 1);
+    corner({box.x, box.bottom()}, 1, -1);
+    corner({box.right(), box.bottom()}, -1, -1);
+    list.stroke_path(corners, {.width = width, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, xrender::Paint::solid(ink));
+}
+
 void cross(PaintContext& ctx, Point c, float size, Color color) {
     xrender::Path p;
     p.move_to({c.x - size / 2, c.y - size / 2}).line_to({c.x + size / 2, c.y + size / 2});

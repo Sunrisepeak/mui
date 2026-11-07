@@ -289,7 +289,7 @@ L0 数值        lanes<T> · OKLab · Transform2D · mlibs.math（hanim.core，�
 
 UI Runtime 帧管线：input → state → **motion 阶段（唯一 Engine）** → 布局与呈现 → paint。
 - 节点槽声明 motion 意图，风格包给出配方 ID 和参数，UI 提供表示和身份，hanim 负责求值。
-- **第七轮补充：统一动效词汇。** 现状是两套词汇：omui 的槽保存一组过渡参数（升起距离、缩放、弹簧、错开顺序），hanim 有 40 个具名配方（`fade_in`、`rise_in`、`pop_in`…），二者常常描述同一件事。改为：槽引用 hanim 的配方 ID 和 `RecipeOptions`，出现、消失、强调等参数由配方换算；状态之间的匹配与形变（同一对象在两种布局或两个值之间）仍是 UI 的能力，不进配方库。风格包按配方 ID 覆盖参数。
+- **第七轮补充：统一动效词汇。** 现状是两套词汇：omui 的槽保存一组过渡参数（升起距离、缩放、弹簧、错开顺序），hanim 有 40 个具名配方（`fade_in`、`rise_in`、`pop_in`…），二者常常描述同一件事。改为：槽引用 hanim 的配方 ID 和 `RecipeOptions`，出现、消失、强调等参数由配方换算；状态之间的匹配与形变（同一对象在两种布局或两个值之间）仍是 UI 的能力，不进配方库。风格包按配方 ID 覆盖参数。具体映射、归属（“出现／消失／强调”的课程归 hanim）和步骤见[统一动效词汇](2026-11-08-motion-vocabulary-design.md)。
 - `Set` 的用法改为 interactive 模式；`openmui.motion` 包删除；Playback 改为轻量句柄。
 - spec 中定义 motion 槽的语义，并和配方 ID 建立映射。
 

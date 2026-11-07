@@ -27,10 +27,6 @@ main = "src/vector.cpp"
 [dependencies]
 "hanim.core" = { path = "../../../modules/projects/hanim/core" }
 "hanim" = { path = "../../../modules/projects/hanim" }
-# A workspace build unifies hanim's features across its users (render-vector,
-# control) but drops those features' own dependencies here (mcpp#897, red
-# list 22): named directly so this program links in it too.
-mlibs.control = { path = "../../../modules/base/control" }
 xrender.vector = { path = "../../../modules/projects/xrender/vector" }
 xrender.raster = { path = "../../../modules/projects/xrender/raster" }
 mlibs.geom = { path = "../../../modules/base/geom" }

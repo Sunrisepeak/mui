@@ -27,9 +27,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim          = { path = "..", features = ["render-vector", "control"] }
-# Named here too though render-vector brings it: a workspace build that
-# selects hanim through several edges drops the feature's feature-deps
-# (mcpp#897, red list 22), and the hanim binary then misses xrender.vector.
+# The hanim command writes frames as SVG (xrender.vector.svg).
 xrender.vector = { path = "../../xrender/vector" }
 xrender.raster = { path = "../../xrender/raster" }
 mlibs.control  = { path = "../../../base/control" }

@@ -245,15 +245,24 @@ struct ProofPool {
     std::array<DrawProof, 8> slots;
     std::size_t depth = 0;
 };
-thread_local ProofPool proof_pool;
+// Each thread's pool, made on its first draw: kept out of the thread's own
+// storage, whose static part a module loaded later (a Python extension) has
+// only a few kilobytes of (132 KB here made `import` fail), and which every
+// new thread would otherwise copy in whole.
+ProofPool& proof_pool() {
+    thread_local std::unique_ptr<ProofPool> pool;
+    if (!pool) pool = std::make_unique<ProofPool>();
+    return *pool;
+}
 class ProofLease {
 public:
     ProofLease() {
-        if (proof_pool.depth == proof_pool.slots.size()) return;
-        proof_ = &proof_pool.slots[proof_pool.depth++];
+        ProofPool& pool = proof_pool();
+        if (pool.depth == pool.slots.size()) return;
+        proof_ = &pool.slots[pool.depth++];
         proof_->group_count = 0; proof_->patch_count = 0; proof_->overflow = false;
     }
-    ~ProofLease() { if (proof_) --proof_pool.depth; }
+    ~ProofLease() { if (proof_) --proof_pool().depth; }
     ProofLease(const ProofLease&) = delete;
     ProofLease& operator=(const ProofLease&) = delete;
     [[nodiscard]] DrawProof* get() const noexcept { return proof_; }

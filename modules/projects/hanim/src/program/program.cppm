@@ -139,7 +139,10 @@ private:
 // Time mapping (L4): the child prepared once and played through hanim.core's
 // TimeMap — rate, trim, repeats (fractional or forever), alternate, reverse,
 // fill. A repeat here replays the same course (a relative move starts over).
-// For now a time map maps a whole program (ProgramError::nested_time_map).
+// Inside a program whole courses — an integral repeat, alternate, reverse —
+// unroll into replicas of the first; rate, trim, a length, fractional or
+// endless repeats and other fills map a whole program only
+// (ProgramError::nested_time_map).
 [[nodiscard]] Program timed(Program child, TimeMap map);
 // `times` plays (forever by default), every other one backwards when `alternate`.
 [[nodiscard]] inline Program loop(Program child, double times = std::numeric_limits<double>::infinity(), bool alternate = false) {
@@ -394,6 +397,9 @@ struct PreparedSegment {
     PreparedEffects effects;
     bool anchor_source = false;
     std::size_t scope = invalid_program_index;
+    // A course a time map replays backwards (a later iteration of an
+    // alternating loop inside a program): its progress mirrored.
+    bool reversed = false;
     // Nonempty only when overlapping property leaves compile to one object
     // output. Original author nodes/times remain inspectable; clip indices in
     // animation.channels() address this array, not a rewritten author tree.

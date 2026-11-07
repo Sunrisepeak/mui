@@ -98,7 +98,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | hanim v1 API: compatibility names removed | this checkpoint (D-119) |
 | hanim `visual` representation | this checkpoint (D-120): `omui.motion` is `hanim.visual` (its own package in the hanim project: its tests need it; mcpp has no per-package test features) |
 | hanim L5: timeline takeover of driven channels | this checkpoint (D-122): `drive.follow(playback)`; handed back with momentum (`Set::carry`) |
-| hanim L4 nested time maps (per-track spans); v1 freeze (one Animation value type; Wasm size); compile cost measured (D-121) | next |
+| hanim L4: time maps inside programs | this checkpoint (D-123): whole courses (integral repeat, alternate, reverse) unrolled into replicas; rate/trim/endless stay root-only |
+| hanim v1 freeze (one Animation value type; Wasm size); M2 exit review | next |
 
 ## Next
 

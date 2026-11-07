@@ -77,12 +77,42 @@ int main(int argc, char** argv) {
         check(!seek && seek.error().kind() == mlibs::error::Kind::refused, "no fraction of forever");
     });
 
-    s.test("a time map inside a program is refused for now; markers name instants", [] {
+    s.test("inside a program a loop unrolls into courses that replay the first, forwards or backwards", [] {
         Fixture f;
         const auto move = anim::move_by(f.a, {10, 0}).duration(seconds(1));
-        const auto nested = f.engine.prepare(sequence(move, loop(anim::move_by(f.a, {1, 0}), 2)));
-        check(!nested && nested.error().caused_by(ProgramError::nested_time_map) && nested.error().kind() == mlibs::error::Kind::refused,
-              nested ? "accepted" : nested.error().text());
+        const auto step = anim::move_by(f.a, {1, 0}).duration(seconds(1));
+        const auto looped = f.prepare(sequence(move, loop(step, 2)));
+        check_eq(looped.duration().count(), 3.0);
+        // At a boundary the next course has begun (later starts win), from the first course's start.
+        for (const auto& [t, x] : std::array<std::pair<double, double>, 4>{{{1.5, 10.5}, {2, 10}, {2.5, 10.5}, {3, 11}}})
+            check_eq(x_at(looped, t), x);
+        const auto ping = f.prepare(sequence(move, loop(step, 3, true)));
+        for (const auto& [t, x] : std::array<std::pair<double, double>, 5>{{{1.5, 10.5}, {2.25, 10.75}, {2.5, 10.5}, {3, 10}, {3.5, 10.5}}})
+            check_eq(x_at(ping, t), x);
+        // What follows goes on from where the last course left the object.
+        const auto after = f.prepare(sequence(loop(move, 2, true), step));
+        check_eq(x_at(after, 2), 0.0);
+        check_eq(x_at(after, 3), 1.0);
+        const auto backwards = f.prepare(sequence(step, timed(move, {.reverse = true})));
+        check_eq(x_at(backwards, 1.25), 8.5);   // from 1 + 10 back toward 1
+        check_eq(x_at(backwards, 2), 1.0);
+        const auto nested = f.prepare(loop(sequence(loop(step, 2, true), move), 2));
+        check_eq(nested.duration().count(), 6.0);
+        check_eq(x_at(nested, 0.5), .5);
+        check_eq(x_at(nested, 1.5), .5);
+        check_eq(x_at(nested, 2.5), 5.0);
+        check_eq(x_at(nested, 3.5), .5);  // the outer loop replays from its own start
+    });
+
+    s.test("rates, trims and endless loops map a whole program only; markers name instants", [] {
+        Fixture f;
+        const auto move = anim::move_by(f.a, {10, 0}).duration(seconds(1));
+        for (const TimeMap m : {TimeMap{.rate = 2}, TimeMap{.trim = seconds(.5)}, TimeMap{.repeat = 1.5},
+                                TimeMap{.repeat = std::numeric_limits<double>::infinity()}}) {
+            const auto nested = f.engine.prepare(sequence(move, timed(anim::move_by(f.a, {1, 0}), m)));
+            check(!nested && nested.error().caused_by(ProgramError::nested_time_map) && nested.error().kind() == mlibs::error::Kind::refused,
+                  nested ? "accepted" : nested.error().text());
+        }
         const auto bad = f.engine.prepare(timed(move, {.rate = 0}));
         check(!bad && bad.error().kind() == mlibs::error::Kind::invalid_argument, "a rate of zero is refused");
         const auto cued = f.prepare(sequence(move, marker("hit"), move));

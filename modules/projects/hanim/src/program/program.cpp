@@ -66,6 +66,11 @@ struct Leaf {
     seconds start{0};
     std::vector<Branch> branches;
     std::size_t scope=invalid_program_index;
+    // A time map inside a program unrolls into replicas: later courses replay
+    // the first course's prepared plan (replica_of: its leaf), forwards or
+    // backwards.
+    std::size_t uid=0,replica_of=invalid_program_index;
+    bool reversed=false;
 };
 struct ScopeInput { const CompositeSpec* spec; PreparedScope prepared; };
 struct Collect {
@@ -78,6 +83,7 @@ struct Collect {
     std::vector<ProgramMarker> markers;
     std::optional<TimeMap> map;
     seconds natural{0};
+    std::size_t next_uid=0;
     std::expected<Snapshot,ProgramFailure> capture(const ObjectInput& input,std::size_t node) const {
         if(const auto* snapshot=std::get_if<Snapshot>(&input))return *snapshot;
         if(!registry)return std::unexpected(failure(ProgramError::unresolved_object,node));
@@ -117,9 +123,42 @@ struct Collect {
             return start;
         }
         if(value.kind()==ProgramKind::timed) {
-            // One course, prepared once, then mapped; a map anywhere but the root waits for nested mapping.
-            if(node!=0)return std::unexpected(failure(ProgramError::nested_time_map,node));
             const auto& m=*value.time_map();
+            if(node!=0) {
+                // Inside a program: whole courses, forwards or backwards, unrolled
+                // into replicas of the first. Rate, trim, a length, a fractional
+                // or endless repeat and other fills map a whole program only.
+                if(m.rate!=1 || m.trim.count()!=0 || m.length || m.fill!=Fill::forwards || !std::isfinite(m.repeat) ||
+                   m.repeat<1 || m.repeat!=std::floor(m.repeat))
+                    return std::unexpected(failure(ProgramError::nested_time_map,node));
+                const auto first=leaves.size();
+                branches.push_back({node,0,ProgramKind::sequence});
+                auto child_end=visit(value.children()[0],start,depth+1,path+"/0",branches,node,scope);
+                branches.pop_back();if(!child_end)return std::unexpected(child_end.error());
+                const double length=*child_end-start;
+                const auto count=static_cast<std::size_t>(m.repeat),last=leaves.size();
+                if(count>1 && (last-first)*(count-1)>limits.max_segments-std::min(limits.max_segments,leaves.size()))
+                    return std::unexpected(failure(ProgramError::segment_budget,node));
+                for(std::size_t k=1;k<count;++k) {
+                    const bool backwards=m.reverse!=(m.alternate && k%2==1);
+                    for(std::size_t i=first;i<last;++i) {
+                        Leaf replica=leaves[i];
+                        const double at=leaves[i].start.count()-start,span=leaves[i].binding->options.duration.count();
+                        replica.start=seconds(start+static_cast<double>(k)*length+(backwards?length-at-span:at));
+                        replica.reversed=leaves[i].reversed!=backwards;
+                        replica.replica_of=leaves[i].replica_of!=invalid_program_index?leaves[i].replica_of:leaves[i].uid;
+                        replica.uid=next_uid++;
+                        leaves.push_back(std::move(replica));
+                    }
+                }
+                if(m.reverse)for(std::size_t i=first;i<last;++i) {
+                    const double at=leaves[i].start.count()-start,span=leaves[i].binding->options.duration.count();
+                    leaves[i].start=seconds(start+length-at-span);leaves[i].reversed=!leaves[i].reversed;
+                }
+                const auto end=start+static_cast<double>(count)*length;
+                hierarchy[node].duration=seconds(end-start);hierarchy[node].subtree_end=nodes;
+                return end;
+            }
             if(!std::isfinite(m.rate) || m.rate<=0 || !std::isfinite(m.trim.count()) || m.trim.count()<0 || std::isnan(m.repeat) || m.repeat<=0 ||
                (m.length && (!std::isfinite(m.length->count()) || m.length->count()<=0)) || m.fill>Fill::both)
                 return std::unexpected(failure(ProgramError::invalid_time,node));
@@ -161,7 +200,7 @@ struct Collect {
                 from=std::move(*first);to=std::move(*last);
             }
             if(!from || !to)return std::unexpected(failure(ProgramError::invalid_snapshot,node));
-            leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches,scope});
+            leaves.push_back({binding,std::move(from),std::move(to),node,0,std::move(path),seconds(start),branches,scope,next_uid++});
             hierarchy[node].duration=binding->options.duration;
             return *end;
         }
@@ -208,11 +247,13 @@ bool serial_before(const Leaf& a,const Leaf& b) noexcept {
 }
 struct Progress { double linear, sampled; };
 std::expected<Progress,ProgramFailure> progress_at(seconds start,SegmentOptions options,bool anchor_source,
-    seconds time,bool exact_source,ProgramFailure error) noexcept {
+    seconds time,bool exact_source,ProgramFailure error,bool reversed=false) noexcept {
     if(exact_source || time<start)return Progress{0,0};
     const auto duration=options.duration.count();
-    const auto linear=duration==0?1:Tween<double>{.from=0,.to=1,
+    const auto forwards=duration==0?1:Tween<double>{.from=0,.to=1,
         .duration=options.duration,.ease=ease::linear,.delay=start}.value(time);
+    // A replayed course backwards: its own progress mirrored.
+    const auto linear=reversed?1-forwards:forwards;
     if(anchor_source && duration>0 && linear==0)return Progress{linear,0};
     const auto eased=options.easing(linear);
     if(!std::isfinite(eased))return std::unexpected(error);
@@ -226,8 +267,8 @@ std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segmen
     // Use the core's simple inline time primitive instead of evaluating the
     // general repeat/alternate mapper for every object. Author easing is still
     // applied below, including jump-start at zero.
-    return progress_at(segment.start,segment.options,segment.anchor_source,time,exact_source,
-        failure(ProgramError::invalid_ease,segment.node,segment.track,index));
+    return progress_at(segment.start,segment.options,segment.anchor_source && !segment.reversed,time,exact_source,
+        failure(ProgramError::invalid_ease,segment.node,segment.track,index),segment.reversed);
 }
 std::expected<PreparedObjectAnimation,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
     MorphOptions options,std::span<const PropertyTargets> properties,std::size_t node,std::size_t track,std::size_t segment) {
@@ -398,7 +439,7 @@ std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<c
     const auto empty=PreparedEffects::prepare({});
     if(!empty)return std::unexpected(effect_failure(empty.error(),first.node,first.track,index));
     return PreparedSegment{first.track,draw_node,std::string(draw_path),first.start,{result->timeline_duration(),ease::linear},
-        std::move(*result),*empty,false,first.scope,std::move(contributions)};
+        std::move(*result),*empty,false,first.scope,false,std::move(contributions)};
 }
 std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSegment segment,ProgramLimits limits,
     std::size_t& parts,std::size_t& cubics,std::size_t& parameters) {
@@ -534,6 +575,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
     auto schedule=schedule_groups(std::move(collect.leaves));
     std::size_t parts=0,cubics=0,parameters=data->scope_parameters;
     const Leaf* previous_leaf=nullptr;
+    std::unordered_map<std::size_t,std::size_t> segment_of;  // a leaf's uid → the segment it became
     for(const auto [begin,end]:schedule.groups) {
         const auto& leaf=schedule.leaves[begin];
         const auto& binding=*leaf.binding;auto& track=data->tracks[leaf.track];
@@ -551,14 +593,32 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         for(std::size_t i=begin+1;i<end;++i)
             if(schedule.leaves[i].binding->source==ProgramSource::previous_endpoint && schedule.leaves[i].from.revision()!=track.source_revision)
                 return refuse(failure(ProgramError::source_version_mismatch,schedule.leaves[i].node,leaf.track,index));
+        // A replica replays its first course's plan (forwards or backwards);
+        // one segment is replicas alone, all one way, or none.
+        const bool replica=leaf.replica_of!=invalid_program_index;
+        for(std::size_t i=begin+1;i<end;++i)
+            if((schedule.leaves[i].replica_of!=invalid_program_index)!=replica || schedule.leaves[i].reversed!=leaf.reversed)
+                return refuse(failure(ProgramError::binding_conflict,schedule.leaves[i].node,leaf.track,index));
+        if(replica) {
+            const auto found=segment_of.find(leaf.replica_of);
+            if(found==segment_of.end())return refuse(failure(ProgramError::nested_time_map,leaf.node,leaf.track,index));
+            auto copy=data->segments[found->second];
+            copy.start=leaf.start;copy.reversed=leaf.reversed;copy.anchor_source=false;
+            const auto added=account(*data,std::move(copy),limits,parts,cubics,parameters);
+            if(!added)return refuse(added.error());
+            for(std::size_t i=begin;i<end;++i)segment_of[schedule.leaves[i].uid]=index;
+            previous_leaf=&schedule.leaves[end-1];continue;
+        }
         if(end>begin+1) {
             auto prepared=compile_property_group(std::span(schedule.leaves).subspan(begin,end-begin),previous,index,
                 limits.max_total_property_channels-data->property_channels);
             if(!prepared)return refuse(prepared.error());
+            prepared->reversed=leaf.reversed;
             const auto added=account(*data,std::move(*prepared),limits,parts,cubics,parameters);
             if(!added)return refuse(added.error());
             for(std::size_t i=begin;i<end;++i) {
                 auto& node=data->nodes[schedule.leaves[i].node];node.track=leaf.track;node.segment=index;node.contribution=i-begin;
+                segment_of[schedule.leaves[i].uid]=index;
             }
             previous_leaf=&schedule.leaves[end-1];continue;
         }
@@ -575,8 +635,9 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
         if(!animation)return refuse(animation.error());
         const auto effects=PreparedEffects::prepare(binding.effects,limits.effects);
         if(!effects)return refuse(effect_failure(effects.error(),leaf.node,leaf.track,index));
-        const auto added=account(*data,{leaf.track,leaf.node,leaf.path,leaf.start,binding.options,*animation,*effects,chained,leaf.scope},limits,parts,cubics,parameters);
-        if(!added)return refuse(added.error());previous_leaf=&leaf;
+        const auto added=account(*data,{leaf.track,leaf.node,leaf.path,leaf.start,binding.options,*animation,*effects,chained,leaf.scope,leaf.reversed},
+            limits,parts,cubics,parameters);
+        if(!added)return refuse(added.error());previous_leaf=&leaf;segment_of[leaf.uid]=index;
         data->nodes[leaf.node].track=leaf.track;data->nodes[leaf.node].segment=index;
     }
     mlibs::trace::count("tracks",static_cast<double>(data->tracks.size()),"hanim.program");

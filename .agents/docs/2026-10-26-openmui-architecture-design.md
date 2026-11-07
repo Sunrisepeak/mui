@@ -512,6 +512,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-120 | hanim 的 `visual` 表示（L3）：原 `omui.motion`（Matter 与 Morph：从显示列表取出的物质，按节点、语义、字形匹配两次绘制并按时间求值）移入 hanim 项目，成为包 `hanim.visual`（`modules/projects/hanim/visual`，模块 `hanim.visual`，命名空间 `hanim::visual`）。它本来就只依赖 mlibs、hanim.core、hanim（object）和 xrender.vector，不依赖 UI。收敛方案说它是 hanim 包的一个 feature；没有这样做，是因为 mcpp 不能为一个包自己的测试单独打开 feature（`--features` 只作用于整次测试），而它的 7 个测试程序要在每次工作区测试中运行，所以按 D-99 的“依赖／构建阶段隔离”单独成包，和 hanim.core 一样位于 hanim 项目内。UI 仍负责显示归属（节点键、何时变化、呈现、命中）：omui.view 与 SDK 改为导入 `hanim.visual`；`omui.motion` 包不再存在。M3 把 view 的 motion 阶段并入唯一的 Engine |
 | D-121 | v1 语法的编译成本（收敛方案 §6.6“先测编译、BMI 和 Wasm 成本”）：同一 TU 里 40 个三通道写入，类型化写法 `anim::to(part(o, id), ch::position = …, ch::rotation = …, ch::fill = …)` 与 `PropertyTargets{…}` 相比，GCC 16.1 在 -O0 下编译 0.76 s 对 0.61 s、目标文件 473 KB 对 401 KB；-O2 下 1.07 s 对 1.03 s（+3%）、代码段 50.4 KB 对 49.0 KB（+2.9%，每次调用约 36 字节）。`hanim.program` 的 BMI 为 1.0 MB。成本可接受，类型化写法保留为首选；冻结前还剩“一个 Animation 值类型”的取舍和 Wasm 体积对照 |
 | D-122 | hanim L5，时间线接管驱动通道：`drive.follow(playback, track, part)` 让播放在播放期间决定该通道的值（取该轨道对应部件上同一通道的值，每次 `advance` 后写入）；播放结束、取消或释放时把通道交还，从时间线留下的位置、以它最后的速度继续（hanim.core `Set::carry`：从该位置、带该速度、停在该位置的弹簧），下一次 `spring_to` 沿用这一速度。速度取相邻两帧的差分，不额外采样、不分配 |
+| D-123 | hanim L4 第二步，程序内部的时间映射：整数次重复、交替、反向可以出现在程序任意位置（含嵌套）；准备时展开为副本，后续各次重放第一次的已准备计划（`PreparedSegment::reversed` 镜像其进度），不重新准备，因此引擎、渲染与检查工具都无需改动；映射之后的叶子从最后一次留下的姿态继续。速率、裁剪、长度、小数或无限次重复、其他填充方式仍只能映射整个程序（内部出现时拒绝为 `hanim.program.nested-time-map`）。在分界时刻，后一次已经开始（与“后开始者胜”一致） |
 
 ---
 

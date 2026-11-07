@@ -78,7 +78,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | `mlibs.cts` framework (§5.5) | this checkpoint (D-108) |
 | RHI conformance on mlibs.cts | this checkpoint: 19 cases, the same results; backends keep the JSON report |
 | simulation GPU conformance on mlibs.cts | done: 17 cases (16 scenarios and the refusal) needing `compute`; the same totals and process hash as before (`0769cee00d2cbf3a`); backends require compute |
-| render (xrender CPU/GPU) and spec S-level suites onto mlibs.cts | next |
+| spec level S on mlibs.cts | done: the harness is `modules/projects/omui/cts` (was `tests/cts`); `conform()` gives one case a scenario; JavaScript, Lua and embedded Python 7/7 each |
+| render (xrender CPU/GPU) suite onto mlibs.cts, run by the backends | next |
 | handle, error, time, budget, prepare/execute contracts; lint `owner` | |
 | hanim L2–L5, `visual` representation, v1 API | |
 

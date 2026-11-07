@@ -103,7 +103,7 @@ members = [
     "src/entry/player",
     "src/entry/python",
     "tests/bench",
-    "tests/cts",
+    "modules/projects/omui/cts",
     "tests/features",
     "tests/plugins/contracts",
     "tests/plugins/embed",

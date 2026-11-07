@@ -18,6 +18,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [sdk](sdk) | `omui.sdk`: the umbrella package users name (`import openmui;`): the runtime, the base components, the default theme, `omui::run` |
 | [components](components) | The component libraries (`openmui.ui.*`) |
 | [lang](lang) | The language bindings: TypeScript, Lua, Python, over the C ABI |
+| [cts](cts) | `omui.cts`: the specification's level S run in every language, on mlibs.cts |
 | [templates](templates) | Application, component, native-module and theme templates (`omui new`) |
 
 | Package | |

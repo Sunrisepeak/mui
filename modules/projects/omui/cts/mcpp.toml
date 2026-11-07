@@ -12,12 +12,13 @@ version     = "0.1.0"
 description = "The CTS level S harness: language-neutral scenarios and their pinned traces"
 license     = "Apache-2.0"
 
-[targets.openmui-cts]
+[targets.omui-cts]
 kind = "lib"
 
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+mlibs.cts     = { path = "../../../base/cts" }
 nlohmann.json = "3.12.0"
 mcpplibs.os   = "0.2.2"

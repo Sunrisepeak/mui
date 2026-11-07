@@ -29,7 +29,7 @@ mcpplibs.mwrap.lua = "5.4.7"
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../../../base/utils" }
-omui.cts           = { path = "../../../../../tests/cts" }
+omui.cts           = { path = "../../cts" }
 omui.native.fuzzy  = { path = "../../native/fuzzy" }
 omui.theme.default = { path = "../../theme/default" }
 omui.theme.compact = { path = "../../theme/compact" }

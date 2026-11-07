@@ -2,14 +2,15 @@
 // runs the same scenarios through its own builders and API and must record
 // the trace pinned beside each.
 //
-//     for (const auto& s : cts::scenarios()) {
-//         Json trace = cts::run(s, invoke, settle);   // the runner's verbs
-//         for (const auto& d : cts::check(s, trace)) fail(d);
-//     }
+//     const auto report = cts::conform([&](const cts::Scenario& s) {
+//         return cts::run(s, invoke, settle);   // the language runner's verbs
+//     }, {.subject = "lua"});
+//     check(report && report->ok(), report ? report->text() : report.error());
 export module omui.cts;
 
 import std;
 import nlohmann.json;
+export import mlibs.cts;
 
 export namespace omui::cts {
 
@@ -43,5 +44,11 @@ struct Scenario {
 // record, with both). Empty when nothing is. With OMUI_CTS_WRITE=1 the pinned
 // trace is written instead of compared.
 [[nodiscard]] std::vector<std::string> check(const Scenario& scenario, const Json& trace);
+
+// The suite of level S (mlibs.cts): one case a scenario (`openmui.S.<name>`,
+// contract openmui.conformance.S@0.1), whose body is `trace_of(scenario)`
+// checked against the pinned trace. Every scenario, or why there are none.
+[[nodiscard]] std::expected<mlibs::cts::Report, std::string> conform(const std::function<Json(const Scenario&)>& trace_of,
+                                                                     mlibs::cts::Environment environment = {});
 
 }  // namespace omui::cts

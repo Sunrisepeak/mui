@@ -533,17 +533,14 @@ omui.verb("gift.slow", lambda args: {"slow_percent": 50}, effect="read")
     s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.py)", [] {
         if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
         check(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value(), "the official themes");
-        auto all = omui::cts::scenarios();
-        check(all.has_value() && all->size() >= 3, all ? "fewer than three scenarios" : all.error());
-        if (!all) return;
         const std::string runner = text_of(tests_dir() / "cts.py");
-        for (const omui::cts::Scenario& scenario : *all) {
+        const auto report = omui::cts::conform([&](const omui::cts::Scenario& scenario) -> Json {
             Runtime r;
             r.height = 480;  // the scenarios' viewport: 320 × 480
             Python py(r);
             auto ran = py.run(runner, "cts.py");
             check(ran.has_value(), ran ? "" : ran.error().text());
-            if (!ran) continue;
+            if (!ran) return Json::array();
             const Json trace = omui::cts::run(
                 scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); },
                 [&] {
@@ -556,9 +553,13 @@ omui.verb("gift.slow", lambda args: {"slow_percent": 50}, effect="read")
                         if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
                     }
                 });
-            for (const std::string& d : omui::cts::check(scenario, trace)) fail(scenario.name + ": " + d);
             check(py.errors.empty(), py.errors.empty() ? "" : scenario.name + ": " + py.errors[0]);
-        }
+            return trace;
+        }, {.subject = "python-embedded"});
+        check(report.has_value() && report->outcomes.size() >= 3, report ? "fewer than three scenarios" : report.error());
+        if (!report) return;
+        std::print("{}", report->text());
+        check(report->ok() && report->count(mlibs::cts::Status::passed) == report->outcomes.size(), report->text());
     });
 
     return s.run(argc, argv);

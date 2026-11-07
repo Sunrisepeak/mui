@@ -30,9 +30,9 @@ const Json* recorded(const Json& record) {
 }  // namespace
 
 std::filesystem::path directory() {
-    // tests/cts/src/cts.cpp → the workspace → spec/conformance/S.
+    // modules/projects/omui/cts/src/cts.cpp → the workspace → spec/conformance/S.
     const std::filesystem::path here = os::fs::from_utf8(std::source_location::current().file_name());
-    return here.parent_path().parent_path().parent_path().parent_path() / "spec" / "conformance" / "S";
+    return here.parent_path().parent_path().parent_path().parent_path().parent_path().parent_path() / "spec" / "conformance" / "S";
 }
 
 std::expected<std::vector<Scenario>, std::string> scenarios() {
@@ -159,6 +159,24 @@ std::vector<std::string> check(const Scenario& scenario, const Json& raw) {
         break;
     }
     return out;
+}
+
+std::expected<mlibs::cts::Report, std::string> conform(const std::function<Json(const Scenario&)>& trace_of,
+                                                     mlibs::cts::Environment environment) {
+    auto all = scenarios();
+    if (!all) return std::unexpected(all.error());
+    if (all->empty()) return std::unexpected(std::format("no scenario in {}", os::fs::utf8(directory())));
+    struct Language {
+        const std::function<Json(const Scenario&)>& trace_of;
+    };
+    mlibs::cts::Suite<Language> suite{"openmui.S", "0.1"};
+    for (const Scenario& scenario : *all)
+        suite.add({.id = "openmui.S." + scenario.name, .contract = "openmui.conformance.S@0.1", .level = mlibs::cts::Level::semantic, .needs = {},
+                   .body = [scenario](Language& l, mlibs::cts::Check& c) {
+                       for (const std::string& d : check(scenario, l.trace_of(scenario))) c.that(false, d);
+                   }});
+    Language language{trace_of};
+    return suite.run(language, {}, {}, std::move(environment));
 }
 
 }  // namespace omui::cts

@@ -308,17 +308,27 @@ card   = { radius = 3 }
         }
     });
 
-    s.test("a style's corners: continuous curvature, carried into the theme and written back; out of range refused", [&] {
+    s.test("a style's corners and shadows: continuous curvature and an ambient layer, carried into the theme and written back; out of range refused", [&] {
         const char* smooth = R"toml(
 [style.smooth]
 theme = "light"
 corner_smoothing = 0.6
+[style.smooth.shadows]
+lg = { x = 0, y = 12, blur = 24, spread = -6, color = "#0f172a2e", ambient = { x = 0, y = 2, blur = 48, spread = 0, color = "#0f172a14" } }
 )toml";
         auto added = lib.add_styles(smooth, "smooth.style.omui.toml");
         check(added.has_value(), added ? "" : all(added.error()));
         auto t = lib.compose_style("smooth");
         check(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f), "the theme's corners are smoothed");
-        if (const auto st = lib.find_style("smooth")) check(theme::write_style(*st).contains("corner_smoothing = 0.6"), theme::write_style(*st));
+        if (const auto st = lib.find_style("smooth")) {
+            const std::string text = theme::write_style(*st);
+            check(text.contains("corner_smoothing = 0.6") && text.contains("ambient = { x = 0, y = 2, blur = 48"), text);
+        }
+        // Shadows in layers: the key light's, and under it the ambient one.
+        if (t) {
+            const auto lg = t->shadows.find("lg");
+            check(lg != t->shadows.end() && lg->second.blur == 24 && lg->second.ambient && lg->second.ambient->blur == 48, "the lg shadow has its ambient layer");
+        }
         auto bad = lib.add_styles("[style.rough]\ntheme = \"light\"\ncorner_smoothing = 2\n", "rough.style.omui.toml");
         check(!bad.has_value(), "2 is out of range");
     });

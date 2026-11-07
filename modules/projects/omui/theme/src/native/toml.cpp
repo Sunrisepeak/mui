@@ -16,7 +16,8 @@ namespace {
 constexpr std::array<std::string_view, 12> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
                                                       "text",    "spacing", "radius", "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
-constexpr std::array<std::string_view, 5> shadow_keys{"x", "y", "blur", "spread", "color"};
+constexpr std::array<std::string_view, 6> shadow_keys{"x", "y", "blur", "spread", "color", "ambient"};
+constexpr std::array<std::string_view, 5> shadow_layer_keys{"x", "y", "blur", "spread", "color"};
 constexpr std::array<std::string_view, 12> style_keys{"doc",    "theme",   "crossfade", "effects", "motions", "colors",
                                                       "text",   "spacing", "radius",    "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
@@ -144,11 +145,25 @@ struct Reader {
         }
         only(*t, shadow_keys, std::format("a shadow (`{}`)", name));
         ShadowToken s;
-        if (auto* x = t->get("x")) s.offset.x = number(*x, "x").value_or(0);
-        if (auto* x = t->get("y")) s.offset.y = number(*x, "y").value_or(0);
-        if (auto* x = t->get("blur")) s.blur = number(*x, "blur", 0).value_or(0);
-        if (auto* x = t->get("spread")) s.spread = number(*x, "spread").value_or(0);
-        if (auto* x = t->get("color")) s.color = color(*x, "a shadow's colour").value_or(s.color);
+        const auto layer = [&](const toml::table& from, auto& into) {
+            if (auto* x = from.get("x")) into.offset.x = number(*x, "x").value_or(0);
+            if (auto* x = from.get("y")) into.offset.y = number(*x, "y").value_or(0);
+            if (auto* x = from.get("blur")) into.blur = number(*x, "blur", 0).value_or(0);
+            if (auto* x = from.get("spread")) into.spread = number(*x, "spread").value_or(0);
+            if (auto* x = from.get("color")) into.color = color(*x, "a shadow's colour").value_or(into.color);
+        };
+        layer(*t, s);
+        // Under the key light's shadow, the ambient one: wide, soft, faint.
+        if (const toml::node* a = t->get("ambient")) {
+            if (const toml::table* at = a->as_table()) {
+                only(*at, shadow_layer_keys, std::format("a shadow's ambient layer (`{}`)", name));
+                ShadowLayer ambient;
+                layer(*at, ambient);
+                s.ambient = ambient;
+            } else {
+                error(a, std::format("shadow `{}`'s ambient must be a table {{ x, y, blur, spread, color }}", name));
+            }
+        }
         return s;
     }
 

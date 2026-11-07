@@ -520,4 +520,10 @@ std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme
     return out;
 }
 
+void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity) {
+    if (const auto& a = shadow.ambient)
+        list.box_shadow(box, radii, a->offset, a->blur, a->spread, opacity == 1 ? a->color : a->color.with_alpha(a->color.a * opacity));
+    list.box_shadow(box, radii, shadow.offset, shadow.blur, shadow.spread, opacity == 1 ? shadow.color : shadow.color.with_alpha(shadow.color.a * opacity));
+}
+
 }  // namespace omui

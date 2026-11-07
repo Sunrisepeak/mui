@@ -10,6 +10,7 @@ export module omui.view:theme;
 import std;
 import omui.core;
 import :element;
+import xrender.vector;
 
 export namespace omui {
 
@@ -21,11 +22,23 @@ struct TextToken {
     std::vector<std::string> families{"Inter"};
 };
 
+// A shadow layer: moved by `offset`, blurred by `blur` (CSS: σ = blur / 2),
+// grown by `spread`, in `color`.
+struct ShadowLayer {
+    Point offset{0, 2};
+    float blur = 8;
+    float spread = 0;
+    Color color{0, 0, 0, 0.15f};
+};
+// A shadow token: the key light's shadow (its own fields), and under it an
+// optional ambient one — wide, soft and faint, as light from all round
+// lifts an object off the page — painted first (paint_shadow).
 struct ShadowToken {
     Point offset{0, 2};
     float blur = 8;
     float spread = 0;
     Color color{0, 0, 0, 0.15f};
+    std::optional<ShadowLayer> ambient;
 };
 
 // Reusable operations compiled into one seekable motion. They share a
@@ -197,4 +210,9 @@ public:
 [[nodiscard]] std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme);
 // One, or a list of candidates.
 [[nodiscard]] std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme& theme);
+
+// A shadow token under a rounded box: its ambient layer first, then its key
+// light's — every box, menu and dialog paints its shadow so. `opacity`
+// scales both (a menu fading in).
+void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1);
 }  // namespace omui

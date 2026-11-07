@@ -310,7 +310,10 @@ std::string write_style(const Style& st) {
     section("spacing", t.spacing, [](float v) { return std::format("{}", v); });
     section("radius", t.radius, [](float v) { return std::format("{}", v); });
     section("shadows", t.shadows, [](const ShadowToken& sh) {
-        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color));
+        std::string ambient;
+        if (const auto& a = sh.ambient)
+            ambient = std::format(", ambient = {{ x = {}, y = {}, blur = {}, spread = {}, color = {} }}", a->offset.x, a->offset.y, a->blur, a->spread, colour(a->color));
+        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {}{} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color), ambient);
     });
     section("motion", t.motion, [](const Transition& m) {
         std::string f = m.kind == Transition::Kind::spring

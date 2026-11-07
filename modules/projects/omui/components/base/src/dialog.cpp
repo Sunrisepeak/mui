@@ -79,7 +79,7 @@ void Dialog::paint(PaintContext& ctx) const {
     const Point c = box.center();
     ctx.list.push_transform(Affine::translate(c.x, c.y) * Affine::scale(s, s) * Affine::translate(-c.x, -c.y));
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
-        ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
+        paint_shadow(ctx.list, box, r, it->second);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     ctx.list.pop_transform();
     if (!title_.text().empty()) title_.paint(ctx, {pad, pad}, th.color("text"));

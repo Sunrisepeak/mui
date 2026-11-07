@@ -86,7 +86,7 @@ void Menu::paint(PaintContext& ctx) const {
     const Rect box{0, 0, ctx.size.width, ctx.size.height};
     const CornerRadii r = CornerRadii::all(th.corner("medium", 8)).fitted(ctx.size);
     if (auto it = th.shadows.find("lg"); it != th.shadows.end())
-        ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color.with_alpha(it->second.color.a * k));
+        paint_shadow(ctx.list, box, r, it->second, k);
     ctx.list.fill_round_rect(box, r, xrender::Paint::solid(th.color("surface")));
     ctx.list.stroke_round_rect({0.5f, 0.5f, box.width - 1, box.height - 1}, r, 1, xrender::Paint::solid(th.color("border")));
 }

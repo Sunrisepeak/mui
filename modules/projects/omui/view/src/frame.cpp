@@ -787,7 +787,7 @@ void Runtime::Impl::paint_node(NodeId id) {
     list.node_frame(n.index, box, 1, n.frame, constraint, Affine::translate(-n.frame.x, -n.frame.y) * local);
     if (!v.shadow.empty())
         if (auto it = theme.shadows.find(v.shadow); it != theme.shadows.end())
-            list.box_shadow(box, radii, it->second.offset, it->second.blur, it->second.spread, it->second.color);
+            paint_shadow(list, box, radii, it->second);
     if (Color bg = v.background(); bg.a > 0) {
         if (solid && bg.a < 1) {
             const Color under = theme.color("background");

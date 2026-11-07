@@ -54,7 +54,7 @@ void check_mark(PaintContext& ctx, Point c, float size, Color color, float width
 
 void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r) {
     if (auto it = ctx.theme.shadows.find(token); it != ctx.theme.shadows.end())
-        ctx.list.box_shadow(box, r, it->second.offset, it->second.blur, it->second.spread, it->second.color);
+        paint_shadow(ctx.list, box, r, it->second);
 }
 
 void Label::set_text(std::string text) {

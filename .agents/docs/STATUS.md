@@ -2,7 +2,11 @@
 
 The single progress entry (plan §12, at most 200 lines). Updated by every checkpoint commit on PR #1 (`openmui-design`). Decisions and the full roadmap: [top-level convergence plan](2026-11-06-top-level-assessment-convergence-design.md).
 
-## Current milestone: M0 — stop the bleeding
+## Current milestone: M3 — UI animation on the one Engine (M3.5 planned next)
+
+**M0 and M2 exits met on CI:** run 42336690239 on 46b3cdfd (an M2 checkpoint: the render suite on mlibs.cts) is green on every row — lint, Linux x64 and arm, macOS, Windows (lavapipe), Web, the site; Pages had deployed before (red list 10). The GCC rows and their gated steps run in the nightly lane.
+
+## M0 — stop the bleeding (exit met: 46b3cdfd all green)
 
 Goal: the whole CI matrix green once, Pages deployed. CI does not block progress, but every round starts by reconciling the previous checkpoint's CI (plan §10.1).
 
@@ -13,7 +17,7 @@ Goal: the whole CI matrix green once, Pages deployed. CI does not block progress
 | CI red list below | in progress |
 | CI: a run in progress is not cancelled by a newer push (the x64 rows need ~1 h 50 min; 75655b7's were cancelled minutes before finishing) | done |
 
-## M1 — structure and naming: done locally (exit: lint 0, every member builds and passes), CI to confirm
+## M1 — structure and naming: done (exit: lint 0, every member builds and passes; CI green on 46b3cdfd)
 
 | Step | State |
 |---|---|
@@ -77,7 +81,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | xengine | Game engine system where people and agents develop and play as equals | eval 62 (game engine) |
 | gongfu | Deterministic, rollback-ready, data-driven fighting framework | 10,000-rollback determinism test |
 
-## M2 — global contracts and the hanim kernel (exit review)
+## M2 — global contracts and the hanim kernel (exit met)
 
 | Item | State |
 |---|---|
@@ -104,7 +108,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | exit: independent consumers | all six probes ok locally (hanim-api-probe, hanim-play-consumer, omui-hanim-consumer, hanim-features 8 cases, hanim-core-consumer, the templates) |
 | exit: Set and Morph benchmarks | release, locally: `motion/drive-1000` p95 0.011 ms beside `motion/set-1000` 0.021 ms; `motion/switches-100` 1.59 ms (budget 5.5), `-liquid` 13.4 ms (45), `-ink` 33.9 ms (90) |
 | exit: pixel baselines | unchanged: the site (22), the promo, the style gallery, widget-breakout and the markdown wall pass their pins after every M2 checkpoint |
-| exit: CI | pending: one all-green run on an M2 commit (cb26e381: every row green but the templates step, fixed in 7283d34a) |
+| exit: CI | met: 46b3cdfd, every row green |
 
 ## M3 — UI animation on the one Engine (started)
 

@@ -23,6 +23,65 @@ struct MorphOptions {
 // including a preceding animation's endpoint or a retarget's current pose.
 // Owns an immutable copy of the existing arc-length path, cheaply reusable in
 // descriptions. No caller-held mutable shared pointer can alias this storage.
+// ── Channels (L2): what an animation writes, typed ─────────────────────
+//
+//     anim::to(card, ch::position = {120, 40}, ch::fill = Rgba::bytes(0x33, 0x55, 0xff))
+//     inline constexpr auto glow = ch::define<double>("app.glow");   // a channel of the application's
+//     anim::to(card, glow = 1.0)                                     // sampled into FrameView::values
+//
+// position, rotation, scale and fill write a part's transform and fill; any
+// other channel is a value of the part, interpolated in its lanes (hanim.core's
+// lanes<T>), its own until the consumer reads it.
+namespace ch {
+inline constexpr std::size_t max_lanes = 8;
+// A channel's identity: its name and how many lanes its values have.
+struct Id {
+    std::string_view name;
+    std::uint8_t lanes = 1;
+    friend constexpr bool operator==(const Id& a, const Id& b) noexcept { return a.name == b.name && a.lanes == b.lanes; }
+};
+using Lanes = std::array<double, max_lanes>;
+// A write to a channel, in its lanes: absolute (to) or relative (by: added
+// to where the channel is); `rest` is its value before anything writes it.
+struct Value {
+    Id    id;
+    Lanes lanes{}, rest{};
+    bool  relative = false;
+};
+template <Animatable T> struct Channel;
+template <Animatable T>
+struct Write {
+    Channel<T> channel;
+    T          value;
+};
+template <Animatable T>
+struct Channel {
+    Id id;
+    T  rest{};
+    // `ch::position = {120, 40}`: a write, not an assignment to the channel.
+    constexpr Write<T> operator=(T value) const noexcept { return {*this, value}; }
+    [[nodiscard]] Value value(const T& v, bool relative = false) const {
+        Value out{id, {}, {}, relative};
+        const auto a = lanes<T>::to(v), r = lanes<T>::to(rest);
+        std::ranges::copy(a, out.lanes.begin());
+        std::ranges::copy(r, out.rest.begin());
+        return out;
+    }
+};
+template <Animatable T> requires (lanes<T>::count >= 1 && static_cast<std::size_t>(lanes<T>::count) <= max_lanes)
+[[nodiscard]] consteval Channel<T> define(std::string_view name, T rest = {}) {
+    return {{name, static_cast<std::uint8_t>(lanes<T>::count)}, rest};
+}
+inline constexpr Channel<Vec2>   position = define<Vec2>("position");
+inline constexpr Channel<double> rotation = define<double>("rotation");
+inline constexpr Channel<Vec2>   scale    = define<Vec2>("scale", {1, 1});
+inline constexpr Channel<Rgba>   fill     = define<Rgba>("fill");
+// The channels a part's own fields carry: no Value may name them.
+[[nodiscard]] constexpr bool builtin(std::string_view name) noexcept {
+    return name == "position" || name == "rotation" || name == "scale" || name == "fill";
+}
+}  // namespace ch
+
 class TranslationRoute {
 public:
     explicit TranslationRoute(MotionPath path) : path_(std::make_shared<const MotionPath>(std::move(path))) {}
@@ -43,11 +102,13 @@ struct PropertyTargets {
     std::optional<Vec2> scale_factor;
     // Relative to the actual source position: path(u) - path(0).
     std::optional<TranslationRoute> route;
+    // The part's other channels (an application's): one write a channel.
+    std::vector<ch::Value> values;
 };
 // One atomic animation may target several parts and independent properties.
 // Duplicate writes to a part/channel are errors, never implicit last-wins.
 using PropertySet = std::vector<PropertyTargets>;
-enum class PropertyChannel : std::uint8_t { translation, rotation, scale, fill };
+enum class PropertyChannel : std::uint8_t { translation, rotation, scale, fill, value };
 [[nodiscard]] std::string_view property_channel_name(PropertyChannel) noexcept;
 struct PropertyClip {
     PropertySet targets;
@@ -70,6 +131,17 @@ struct PropertyChannelInfo {
     bool source_snapshot = false;
     std::optional<TranslationRoute> route;
     Vec2 route_origin;
+    // A value channel's slot (PreparedObjectMorph::value_slots()).
+    std::size_t value_slot = std::numeric_limits<std::size_t>::max();
+};
+// Where a part's value channel lands in FrameView::values: [offset, offset + lanes);
+// rest is its value before this animation writes it (its channel's rest, or
+// where the frame it continues from had it).
+struct ValueSlot {
+    std::size_t part = 0;
+    ch::Id      id;
+    std::size_t offset = 0;
+    ch::Lanes   rest{};
 };
 enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
@@ -140,6 +212,7 @@ struct FramePart {
 struct FrameBuffer {
     std::span<FramePart> parts;
     std::span<ShapeCubic> cubics;
+    std::span<double> values = {};  // value channels' lanes (FrameRequirements::values)
 };
 // parts/cubics borrow the caller buffer; contours and ids borrow a retained,
 // unmoved plan (or its O(1) copy). A FrameView itself is not a lifetime lease.
@@ -151,8 +224,25 @@ struct FrameView {
     ObjectRef source_object;
     std::uint64_t source_revision = 0;
     const void* preparation = nullptr; // opaque process-local witness, never an Agent/serialized id
+    // Value channels: their lanes, laid out as value_slots says.
+    std::span<const double> values = {};
+    std::span<const ValueSlot> value_slots = {};
+    // The value of `channel` on part `part` (its lanes), when it has one.
+    [[nodiscard]] std::optional<std::span<const double>> value(std::size_t part, ch::Id channel) const noexcept {
+        for (const auto& slot : value_slots)
+            if (slot.part == part && slot.id == channel) return values.subspan(slot.offset, slot.id.lanes);
+        return std::nullopt;
+    }
+    template <Animatable T>
+    [[nodiscard]] std::optional<T> value(std::size_t part, const ch::Channel<T>& channel) const noexcept {
+        const auto lanes_of = value(part, channel.id);
+        if (!lanes_of) return std::nullopt;
+        std::array<double, lanes<T>::count> a{};
+        std::ranges::copy(*lanes_of, a.begin());
+        return lanes<T>::from(a);
+    }
 };
-struct FrameRequirements { std::size_t parts = 0, contours = 0, cubics = 0; };
+struct FrameRequirements { std::size_t parts = 0, contours = 0, cubics = 0, values = 0; };
 
 class PreparedObjectMorph {
 public:
@@ -185,6 +275,8 @@ public:
         property_timeline(FrameView current, std::span<const PropertyClip>, PropertyTimelineLimits limits = {});
     [[nodiscard]] std::span<const PropertyChannelInfo> channels() const & noexcept;
     std::span<const PropertyChannelInfo> channels() const && = delete;
+    [[nodiscard]] std::span<const ValueSlot> value_slots() const & noexcept;
+    std::span<const ValueSlot> value_slots() const && = delete;
     [[nodiscard]] seconds timeline_duration() const noexcept;
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
     [[nodiscard]] FrameRequirements requirements() const noexcept;

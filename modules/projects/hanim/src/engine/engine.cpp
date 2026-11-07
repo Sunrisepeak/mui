@@ -10,9 +10,10 @@ using PlaybackKey = mlibs::memory::SlotKey<PlaybackTag>;
 struct FrameStorage {
     std::vector<FramePart> parts;
     std::vector<ShapeCubic> cubics;
-    void resize(FrameRequirements count) { parts.resize(count.parts); cubics.resize(count.cubics); }
-    FrameBuffer output() noexcept { return {parts, cubics}; }
-    void swap(FrameStorage& other) noexcept { parts.swap(other.parts); cubics.swap(other.cubics); }
+    std::vector<double> values;
+    void resize(FrameRequirements count) { parts.resize(count.parts); cubics.resize(count.cubics); values.resize(count.values); }
+    FrameBuffer output() noexcept { return {parts, cubics, values}; }
+    void swap(FrameStorage& other) noexcept { parts.swap(other.parts); cubics.swap(other.cubics); values.swap(other.values); }
 };
 struct TrackPlayback {
     FrameStorage current, scratch;
@@ -86,7 +87,8 @@ FrameView geometry(const detail::Playback& playback, std::size_t track) noexcept
     return {.parts = std::span<const FramePart>(current.current.parts).first(count.parts), .contours = animation.contours(),
         .cubics = std::span<const ShapeCubic>(current.current.cubics).first(count.cubics),
         .progress = current.progress, .source_object = animation.source_object(),
-        .source_revision = animation.source_revision(), .preparation = animation.identity()};
+        .source_revision = animation.source_revision(), .preparation = animation.identity(),
+        .values = std::span<const double>(current.current.values).first(count.values), .value_slots = animation.value_slots()};
 }
 PlaybackInfo info(const detail::EngineData& data, detail::PlaybackKey key, const detail::Playback& playback) noexcept {
     PlaybackInfo result{.ref = {data.objects.owner(), key.index, key.generation}, .plan_revision = playback.revision,

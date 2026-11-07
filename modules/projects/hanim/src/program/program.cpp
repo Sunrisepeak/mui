@@ -203,10 +203,10 @@ std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segmen
 std::expected<PreparedObjectMorph,ProgramFailure> from_previous(const PreparedSegment& previous,const Snapshot& to,
     MorphOptions options,std::span<const PropertyTargets> properties,std::size_t node,std::size_t track,std::size_t segment) {
     const auto count=previous.animation.requirements();
-    std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
+    std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);std::vector<double> values(count.values);
     const auto progress=progress_at(previous,previous.start+previous.options.duration,false,segment-1);
     if(!progress)return std::unexpected(progress.error());
-    const auto pose=previous.animation.sample(progress->sampled,{parts,cubics});
+    const auto pose=previous.animation.sample(progress->sampled,{parts,cubics,values});
     if(!pose)return std::unexpected(animation_failure(pose.error(),node,track,segment));
     const auto result=!properties.empty() ? PreparedObjectMorph::properties(*pose,properties,options)
         : PreparedObjectMorph::retarget(*pose,to,options);
@@ -349,10 +349,10 @@ std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<c
     std::expected<PreparedObjectAnimation,MorphFailure> result=std::unexpected(MorphFailure{});
     if(previous) {
         const auto count=previous->animation.requirements();
-        std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);
+        std::vector<FramePart> parts(count.parts);std::vector<ShapeCubic> cubics(count.cubics);std::vector<double> values(count.values);
         const auto progress=progress_at(*previous,previous->start+previous->options.duration,false,index-1);
         if(!progress)return std::unexpected(progress.error());
-        const auto pose=previous->animation.sample(progress->sampled,{parts,cubics});
+        const auto pose=previous->animation.sample(progress->sampled,{parts,cubics,values});
         if(!pose)return std::unexpected(animation_failure(pose.error(),first.node,first.track,index));
         result=PreparedObjectAnimation::property_timeline(*pose,clips,limits);
     }else result=PreparedObjectAnimation::property_timeline(first.from,clips,limits);
@@ -389,6 +389,7 @@ std::expected<void,ProgramFailure> account(detail::ProgramData& data,PreparedSeg
     track.requirements.parts=std::max(track.requirements.parts,count.parts);
     track.requirements.contours=std::max(track.requirements.contours,count.contours);
     track.requirements.cubics=std::max(track.requirements.cubics,count.cubics);
+    track.requirements.values=std::max(track.requirements.values,count.values);
     track.max_effect_parameters=std::max(track.max_effect_parameters,params);
     if(!track.segment_count)track.first_segment=index;
     ++track.segment_count;data.segments.push_back(std::move(segment));
@@ -605,7 +606,8 @@ std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t 
         if(after!=begin)index=static_cast<std::size_t>((after-1)-data_->segments.begin());
     }
     const auto& segment=data_->segments[index];const auto count=segment.animation.requirements();
-    if(output.parts.size()<count.parts || output.cubics.size()<count.cubics || values.size()<segment.effects.parameter_count())
+    if(output.parts.size()<count.parts || output.cubics.size()<count.cubics || output.values.size()<count.values ||
+       values.size()<segment.effects.parameter_count())
         return std::unexpected(failure(ProgramError::output_too_small,segment.node,track_index,index));
     const auto progress=progress_at(segment,time,exact_source,index);if(!progress)return std::unexpected(progress.error());
     const bool raw_source=exact_source || time<segment.start ||

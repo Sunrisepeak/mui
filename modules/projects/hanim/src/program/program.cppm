@@ -218,6 +218,50 @@ template<class Targets> requires std::same_as<std::remove_cvref_t<Targets>, Prop
 [[nodiscard]] inline BoundAnimation fill_to(ObjectInput object, Rgba fill) {
     return to(std::move(object), {.fill=fill});
 }
+// Typed writes (L2): `to(card, ch::position = {120, 40}, glow = 1.0)` sets
+// channels; `by(card, ch::rotation = .5)` moves them from where they are
+// (position and value channels add, scale multiplies). `part(card, "icon")`
+// targets one part.
+struct PartTarget { ObjectInput object; std::string part; };
+namespace writes {
+template <class T>
+void lower(PropertyTargets& t, const ch::Write<T>& w, bool relative) {
+    const ch::Id& id = w.channel.id;
+    if constexpr (std::same_as<T, Vec2>) {
+        if (id == ch::position.id) { (relative ? t.offset : t.position) = w.value; return; }
+        if (id == ch::scale.id) { (relative ? t.scale_factor : t.scale) = w.value; return; }
+    }
+    if constexpr (std::same_as<T, double>)
+        if (id == ch::rotation.id) { (relative ? t.rotation_offset : t.rotation) = w.value; return; }
+    if constexpr (std::same_as<T, Rgba>)
+        if (id == ch::fill.id && !relative) { t.fill = w.value; return; }
+    // Any other channel (a relative fill too: preparation refuses it).
+    t.values.push_back(w.channel.value(w.value, relative));
+}
+template <class... T>
+[[nodiscard]] PropertyTargets targets(std::string part, bool relative, const ch::Write<T>&... w) {
+    PropertyTargets t;
+    t.part = std::move(part);
+    (lower(t, w, relative), ...);
+    return t;
+}
+}  // namespace writes
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation to(ObjectInput object, const ch::Write<T>&... w) {
+    return BoundAnimation{std::move(object), writes::targets({}, false, w...)};
+}
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation to(PartTarget target, const ch::Write<T>&... w) {
+    return BoundAnimation{std::move(target.object), writes::targets(std::move(target.part), false, w...)};
+}
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation by(ObjectInput object, const ch::Write<T>&... w) {
+    return BoundAnimation{std::move(object), writes::targets({}, true, w...)};
+}
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation by(PartTarget target, const ch::Write<T>&... w) {
+    return BoundAnimation{std::move(target.object), writes::targets(std::move(target.part), true, w...)};
+}
 struct FollowPathOptions { std::string part; };
 [[nodiscard]] inline BoundAnimation follow_path(ObjectInput object, TranslationRoute route, FollowPathOptions options = {}) {
     return to(std::move(object),{.part=std::move(options.part),.route=std::move(route)});
@@ -265,6 +309,7 @@ private:
 };
 }
 [[nodiscard]] inline anim::Composite composite(Program child) { return anim::Composite{std::move(child)}; }
+[[nodiscard]] inline anim::PartTarget part(ObjectInput object, std::string id) { return {std::move(object), std::move(id)}; }
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::Morph> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::Composite>;

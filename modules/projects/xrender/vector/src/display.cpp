@@ -128,22 +128,8 @@ Path& Path::add_rect(const Rect& r) {
 }
 
 Path& Path::add_rounded_rect(const Rect& r, const CornerRadii& radii) {
-    if (radii.zero()) return add_rect(r);
-    // Radii larger than the sides are scaled down together (CSS §5.5).
-    CornerRadii f = radii.fitted(r.size());
-    float tl = f.top_left, tr = f.top_right, br = f.bottom_right, bl = f.bottom_left;
-    constexpr float k = 0.5522847498307936f;  // 4/3·(√2 − 1): a quarter circle as one cubic
-    float l = r.x, t = r.y, rr = r.right(), b = r.bottom();
-    move_to({l + tl, t});
-    line_to({rr - tr, t});
-    if (tr > 0) cubic_to({rr - tr + k * tr, t}, {rr, t + tr - k * tr}, {rr, t + tr});
-    line_to({rr, b - br});
-    if (br > 0) cubic_to({rr, b - br + k * br}, {rr - br + k * br, b}, {rr - br, b});
-    line_to({l + bl, b});
-    if (bl > 0) cubic_to({l + bl - k * bl, b}, {l, b - bl + k * bl}, {l, b - bl});
-    line_to({l, t + tl});
-    if (tl > 0) cubic_to({l, t + tl - k * tl}, {l + tl - k * tl, t}, {l + tl, t});
-    return close();
+    mlibs::geom::rounded_rect(*this, r, radii);
+    return *this;
 }
 
 Path& Path::add_ellipse(const Rect& r) {
@@ -513,7 +499,10 @@ struct Hasher {
     void put(const Point& p) { put(p.x); put(p.y); }
     void put(const Rect& r) { put(r.x); put(r.y); put(r.width); put(r.height); }
     void put(const Color& c) { put(c.r); put(c.g); put(c.b); put(c.a); }
-    void put(const CornerRadii& r) { put(r.top_left); put(r.top_right); put(r.bottom_right); put(r.bottom_left); }
+    void put(const CornerRadii& r) {
+        put(r.top_left); put(r.top_right); put(r.bottom_right); put(r.bottom_left);
+        if (r.smoothing != 0) put(r.smoothing);  // circular corners hash as they always have
+    }
     void put(const Affine& m) { put(m.a); put(m.b); put(m.c); put(m.d); put(m.e); put(m.f); }
     void put(const PathView& p) {
         put(static_cast<std::uint64_t>(p.verbs.size()));

@@ -190,7 +190,10 @@ public:
         return *this;
     }
     Key& rect(const Rect& r) noexcept { return f32(r.x).f32(r.y).f32(r.width).f32(r.height); }
-    Key& radii(const CornerRadii& c) noexcept { return f32(c.top_left).f32(c.top_right).f32(c.bottom_right).f32(c.bottom_left); }
+    Key& radii(const CornerRadii& c) noexcept {
+        f32(c.top_left).f32(c.top_right).f32(c.bottom_right).f32(c.bottom_left);
+        return c.smoothing != 0 ? f32(c.smoothing) : *this;
+    }
     Key& affine(const Affine& m) noexcept { return f32(m.a).f32(m.b).f32(m.c).f32(m.d).f32(m.e).f32(m.f); }
     Key& pixels(const xrender::raster::PixelRect& r) noexcept { return i32(r.x).i32(r.y).i32(r.width).i32(r.height); }
     Key& path(const PathView& v) noexcept { return bytes(std::as_bytes(v.verbs)).bytes(std::as_bytes(v.points)); }
@@ -1284,11 +1287,36 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                     if constexpr (std::same_as<T, FillRect>) {
                         shape(c.rect, {}, c.paint);
                     } else if constexpr (std::same_as<T, FillRoundRect>) {
+                        if (c.radii.smoothing > 0 && !c.radii.zero()) {
+                            // Smoothed corners have no closed-form area: the shared outline's mask, as a path is drawn.
+                            Path outline;
+                            outline.add_rounded_rect(c.rect, c.radii);
+                            const auto key = device_key(3).path(outline.view()).u64(static_cast<std::uint64_t>(FillRule::nonzero)).value();
+                            mask(g.cover(key,
+                                         [&](xrender::raster::Coverage& cov) {
+                                             xrender::raster::fill_coverage(outline.view(), m(), FillRule::nonzero, pixels(clips.back()), cov);
+                                         }),
+                                 0, 0, c.paint);
+                            return;
+                        }
                         shape(c.rect, c.radii, c.paint);
                     } else if constexpr (std::same_as<T, StrokeRoundRect>) {
                         // Analytic, as a fill: the stroke's outer rrect less its inner (ui.slang's rring).
                         if (!(c.width > 0)) return;
                         const Ring ring = stroke_ring(c.rect, c.radii, c.width);
+                        if (c.radii.smoothing > 0 && !c.radii.zero()) {
+                            // Smoothed: the two outlines even-odd, through a mask, as the CPU fills them.
+                            Path outline;
+                            outline.add_rounded_rect(ring.outer, ring.outer_radii);
+                            if (ring.hollow) outline.add_rounded_rect(ring.inner, ring.inner_radii);
+                            const auto key = device_key(3).path(outline.view()).u64(static_cast<std::uint64_t>(FillRule::even_odd)).value();
+                            mask(g.cover(key,
+                                         [&](xrender::raster::Coverage& cov) {
+                                             xrender::raster::fill_coverage(outline.view(), m(), FillRule::even_odd, pixels(clips.back()), cov);
+                                         }),
+                                 0, 0, c.paint);
+                            return;
+                        }
                         Draw d;
                         Prim& p = d.prim;
                         const Affine& mm = m();

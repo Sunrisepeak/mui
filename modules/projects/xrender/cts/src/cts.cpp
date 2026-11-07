@@ -407,6 +407,15 @@ const std::vector<Case>& cases() {
              dl.stroke_round_rect({20.25f, 64.75f, 120, 44}, {14, 0, 22, 4}, 1.5f, render::Paint::solid(geom::Color::hex(0x0f766e)));
          },
          {8, 480}},
+        // Continuous-curvature corners (smoothing): no closed-form area, so
+        // both renderers cover the one shared outline (mlibs.geom::rounded_rect).
+        {"smoothed corners",
+         [](render::DisplayList& dl, Rig&) {
+             dl.fill_round_rect({10, 10, 70, 50}, geom::CornerRadii::all(16).smoothed(0.6f), render::Paint::solid(geom::Color::hex(0x4f46e5)));
+             dl.fill_round_rect({60.5f, 40.25f, 80, 60}, geom::CornerRadii{4, 20, 0, 30}.smoothed(1), render::Paint::solid(geom::Color{0.95f, 0.6f, 0.1f, 0.7f}));
+             dl.stroke_round_rect({100.5f, 8.5f, 50, 30}, geom::CornerRadii::all(12).smoothed(0.6f), 3, render::Paint::solid(geom::Color::hex(0x0f766e)));
+         },
+         {1, 0}},
         {"strokes",
          [](render::DisplayList& dl, Rig&) {
              dl.stroke_round_rect({90, 10, 50, 40}, {}, 2, render::Paint::solid(geom::Color::hex(0xdc2626)));

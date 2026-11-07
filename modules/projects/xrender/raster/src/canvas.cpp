@@ -109,25 +109,7 @@ Rgba8 composite_pixel(Rgba8 d, Rgba8 s, Blend mode) {
 }  // namespace
 
 // A shape for clips and shadows.
-void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii) {
-    if (radii.zero()) {
-        pb.rect(r);
-        return;
-    }
-    CornerRadii f = radii.fitted(r.size());
-    constexpr float k = 0.5522847498307936f;
-    float l = r.x, t = r.y, rr = r.right(), b = r.bottom();
-    pb.move_to({l + f.top_left, t});
-    pb.line_to({rr - f.top_right, t});
-    if (f.top_right > 0) pb.cubic_to({rr - f.top_right + k * f.top_right, t}, {rr, t + f.top_right - k * f.top_right}, {rr, t + f.top_right});
-    pb.line_to({rr, b - f.bottom_right});
-    if (f.bottom_right > 0) pb.cubic_to({rr, b - f.bottom_right + k * f.bottom_right}, {rr - f.bottom_right + k * f.bottom_right, b}, {rr - f.bottom_right, b});
-    pb.line_to({l + f.bottom_left, b});
-    if (f.bottom_left > 0) pb.cubic_to({l + f.bottom_left - k * f.bottom_left, b}, {l, b - f.bottom_left + k * f.bottom_left}, {l, b - f.bottom_left});
-    pb.line_to({l, t + f.top_left});
-    if (f.top_left > 0) pb.cubic_to({l, t + f.top_left - k * f.top_left}, {l + f.top_left - k * f.top_left, t}, {l + f.top_left, t});
-    pb.close();
-}
+void rounded_rect_path(PathBuilder& pb, const Rect& r, const CornerRadii& radii) { mlibs::geom::rounded_rect(pb, r, radii); }
 
 
 Canvas::Canvas(Surface& target) : base_(&target) {

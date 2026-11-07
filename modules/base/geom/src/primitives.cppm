@@ -121,6 +121,10 @@ struct PixelRect {
 
 struct CornerRadii {
     float top_left = 0, top_right = 0, bottom_right = 0, bottom_left = 0;
+    // 0: circular corners; up to 1, continuous curvature — each corner eases
+    // into its curve from further along the edge (Figma's corner smoothing;
+    // iOS's corners are about 0.6). rounded_rect (mlibs.geom:rounded) draws it.
+    float smoothing = 0;
 
     [[nodiscard]] static constexpr CornerRadii all(float r) noexcept { return {r, r, r, r}; }
     [[nodiscard]] constexpr bool zero() const noexcept {
@@ -139,11 +143,16 @@ struct CornerRadii {
         fit(s.width, bottom_left, bottom_right);
         fit(s.height, top_left, bottom_left);
         fit(s.height, top_right, bottom_right);
-        return {top_left * f, top_right * f, bottom_right * f, bottom_left * f};
+        return {top_left * f, top_right * f, bottom_right * f, bottom_left * f, smoothing};
+    }
+    [[nodiscard]] constexpr CornerRadii smoothed(float amount) const noexcept {
+        CornerRadii out = *this;
+        out.smoothing = amount;
+        return out;
     }
     friend constexpr bool operator==(const CornerRadii& a, const CornerRadii& b) noexcept {
         return a.top_left == b.top_left && a.top_right == b.top_right && a.bottom_right == b.bottom_right &&
-               a.bottom_left == b.bottom_left;
+               a.bottom_left == b.bottom_left && a.smoothing == b.smoothing;
     }
 };
 

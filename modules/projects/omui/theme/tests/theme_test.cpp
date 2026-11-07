@@ -308,6 +308,21 @@ card   = { radius = 3 }
         }
     });
 
+    s.test("a style's corners: continuous curvature, carried into the theme and written back; out of range refused", [&] {
+        const char* smooth = R"toml(
+[style.smooth]
+theme = "light"
+corner_smoothing = 0.6
+)toml";
+        auto added = lib.add_styles(smooth, "smooth.style.omui.toml");
+        check(added.has_value(), added ? "" : all(added.error()));
+        auto t = lib.compose_style("smooth");
+        check(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f), "the theme's corners are smoothed");
+        if (const auto st = lib.find_style("smooth")) check(theme::write_style(*st).contains("corner_smoothing = 0.6"), theme::write_style(*st));
+        auto bad = lib.add_styles("[style.rough]\ntheme = \"light\"\ncorner_smoothing = 2\n", "rough.style.omui.toml");
+        check(!bad.has_value(), "2 is out of range");
+    });
+
     s.test("a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused", [&] {
         const char* ink = R"toml(
 [style.inky]

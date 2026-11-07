@@ -13,12 +13,12 @@ namespace omui::theme {
 
 namespace {
 
-constexpr std::array<std::string_view, 11> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
-                                                      "text",    "spacing", "radius", "shadows", "motion"};
+constexpr std::array<std::string_view, 12> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
+                                                      "text",    "spacing", "radius", "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
 constexpr std::array<std::string_view, 5> shadow_keys{"x", "y", "blur", "spread", "color"};
-constexpr std::array<std::string_view, 11> style_keys{"doc",    "theme",   "crossfade", "effects", "motions", "colors",
-                                                      "text",   "spacing", "radius",    "shadows", "motion"};
+constexpr std::array<std::string_view, 12> style_keys{"doc",    "theme",   "crossfade", "effects", "motions", "colors",
+                                                      "text",   "spacing", "radius",    "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> effect_control_keys{"effect", "duration", "delay", "ease", "transition"};
 
 std::size_t distance(std::string_view a, std::string_view b) {
@@ -191,6 +191,12 @@ struct Reader {
 
     // A layer's tokens: colours, text styles, spacing, radii, shadows, motion.
     void tokens(const toml::table& t, Layer& l) {
+        // Corners with continuous curvature: 0 circular, up to 1 (iOS's about 0.6).
+        if (const toml::node* c = t.get("corner_smoothing")) {
+            auto v = c->value<double>();
+            if (!v || *v < 0 || *v > 1) error(c, "corner_smoothing must be a number from 0 to 1", "0 is circular; about 0.6 is iOS's");
+            else l.corner_smoothing = static_cast<float>(*v);
+        }
         auto each = [&](std::string_view section, auto&& fn) {
             if (const toml::node* n = t.get(section)) {
                 if (const toml::table* s = n->as_table())

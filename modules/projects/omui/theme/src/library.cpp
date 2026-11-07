@@ -63,6 +63,7 @@ std::expected<void, std::string> layer_onto(const Layer& l, Theme& t, bool over)
     auto same = [](auto& to, const auto& from) { to = from; };
     if (l.dark) t.dark = *l.dark;
     if (l.density) t.density = *l.density;
+    if (l.corner_smoothing) t.corner_smoothing = *l.corner_smoothing;
     if (auto r = set(t.colors, "colour", l.colors, same); !r) return r;
     if (auto r = set(t.spacing, "spacing", l.spacing, same); !r) return r;
     if (auto r = set(t.radius, "radius", l.radius, same); !r) return r;
@@ -285,6 +286,7 @@ std::string write_style(const Style& st) {
     out += std::format("theme     = \"{}\"\n", layers);
     out += std::format("crossfade = {}\n", st.crossfade);
     const Layer& t = st.tokens;
+    if (t.corner_smoothing) out += std::format("corner_smoothing = {}\n", *t.corner_smoothing);
     auto section = [&](std::string_view name, const auto& map, auto&& write) {
         if (map.empty()) return;
         out += std::format("\n[{}.{}]\n", at, name);

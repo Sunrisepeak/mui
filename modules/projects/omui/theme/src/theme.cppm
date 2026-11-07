@@ -58,6 +58,7 @@ struct Layer {
     bool                overlay = false;
     std::optional<bool> dark;
     std::optional<float> density;  // controls' metrics, scaled (compact: 0.8)
+    std::optional<float> corner_smoothing;  // corners' continuous curvature, 0 … 1
     std::map<std::string, Color, std::less<>>       colors;
     std::map<std::string, TextPatch, std::less<>>   text;
     std::map<std::string, float, std::less<>>       spacing;

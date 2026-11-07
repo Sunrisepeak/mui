@@ -257,9 +257,9 @@ inline Ring stroke_ring(const Rect& r, const CornerRadii& radii, float width) no
     auto in = [h](float x) { return std::max(x - h, 0.0f); };
     Ring ring;
     ring.outer = {r.x - h, r.y - h, r.width + width, r.height + width};
-    ring.outer_radii = {out(f.top_left), out(f.top_right), out(f.bottom_right), out(f.bottom_left)};
+    ring.outer_radii = {out(f.top_left), out(f.top_right), out(f.bottom_right), out(f.bottom_left), f.smoothing};
     ring.inner = {r.x + h, r.y + h, r.width - width, r.height - width};
-    ring.inner_radii = {in(f.top_left), in(f.top_right), in(f.bottom_right), in(f.bottom_left)};
+    ring.inner_radii = {in(f.top_left), in(f.top_right), in(f.bottom_right), in(f.bottom_left), f.smoothing};
     ring.hollow = ring.inner.width > 0 && ring.inner.height > 0;
     return ring;
 }

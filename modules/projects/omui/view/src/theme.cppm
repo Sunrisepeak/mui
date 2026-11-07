@@ -150,6 +150,10 @@ public:
     // How dense controls are: their heights, paddings and items scale by it
     // (1, the default; 0.8, compact). Whole pixels: see scaled().
     float       density = 1;
+    // Corners' continuous curvature, 0 (circular) … 1 (iOS's: about 0.6):
+    // every rounded box and every component's own corners (radii()).
+    float       corner_smoothing = 0;
+    [[nodiscard]] CornerRadii radii(float radius) const noexcept { return CornerRadii::all(radius).smoothed(corner_smoothing); }
     std::map<std::string, Color, std::less<>>       colors;
     std::map<std::string, TextToken, std::less<>>   text;
     std::map<std::string, float, std::less<>>       spacing;

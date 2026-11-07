@@ -777,7 +777,7 @@ void Runtime::Impl::paint_node(NodeId id) {
     }
     if (layer) list.push_layer(v[Field::opacity], xrender::BlendMode::normal, {}, {}, box);
 
-    const CornerRadii radii = v.corners(size);
+    const CornerRadii radii = v.corners(size).smoothed(theme.corner_smoothing);
     Size constraint = this->size;
     if (alive(n.parent)) {
         const Node& parent = at(n.parent);

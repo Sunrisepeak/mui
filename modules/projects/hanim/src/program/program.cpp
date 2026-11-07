@@ -774,7 +774,8 @@ Program drop(PartTarget target, Vec2 offset, DropOptions options) {
         shape.push_back(to(target, ch::squash = shaped(-options.stretch * speed)).duration(seconds(descent)).easing(ease::in_quad));
         if (landing == options.bounces) {
             shape.push_back(to(target, ch::squash = shaped(options.squash * speed)).duration(seconds(.04 * options.duration.count())).easing(ease::out_quad));
-            shape.push_back(to(target, ch::squash = Vec2{1, 1}).spring(springs::wobbly));
+            // Round again on a spring as quick as the drop: a short wobble, not a second of it after the landing.
+            shape.push_back(to(target, ch::squash = Vec2{1, 1}).spring(SpringParams::response(std::max(0.06, first_fall * 0.4), 0.3)));
             break;
         }
         const double on_ground = options.contact * speed * first_fall;

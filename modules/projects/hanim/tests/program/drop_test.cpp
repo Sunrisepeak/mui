@@ -84,6 +84,9 @@ int main(int argc, char** argv) {
                    check(widest_first > 46 && widest_second > 40 && widest_second < widest_first,
                          std::format("squashed {} wide at the first landing, {} at the second",
                                      widest_first, widest_second));
+                   // The last squash rounds quickly: the whole drop is not much longer than its fall.
+                   const auto length = take(engine.inspect(playback)).duration.count();
+                   check(length > 1 && length < 1.5, std::format("the drop lasts {} s for a 1 s fall", length));
                    take(engine.advance(seconds(5)));
                    const auto rest = measure(take(engine.frame(playback)).geometry);
                    check(std::abs(rest.position - 200) < 1e-9 && std::abs(rest.width - 40) < 1e-6 &&

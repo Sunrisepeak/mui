@@ -381,7 +381,7 @@ namespace anim {
 struct DropOptions {
     double  restitution = 0.45;
     int     bounces = 2;
-    seconds duration{1};   // the whole course, landing for good at its end
+    seconds duration{1};   // the fall's whole course, landing for good at its end (the last squash rounds after it, on a spring as quick as the drop)
     double  squash = 0.2;   // the first landing's flattening, a fraction
     double  stretch = 0.08; // the lengthening just before it
     double  contact = 0.1;  // time on the ground per landing, in first falls at the first's speed

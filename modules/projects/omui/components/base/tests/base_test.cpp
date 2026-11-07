@@ -679,7 +679,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base overlays {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-overlays") / "overlays@2x.png").has_value());
-        check(hash.value() == 0x15eb2f781ed25a6cULL, std::format("overlays {:016x}", hash.value()));
+        check(hash.value() == 0xf735a220f8651df1ULL, std::format("overlays {:016x}", hash.value()));
     });
 
     s.test("list: a thousand rows, the visible ones materialised, all of them queryable (S-7)", [] {
@@ -793,7 +793,7 @@ int main(int argc, char** argv) {
         std::println("ui.base gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base") / "gallery@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(hash.value() == 0x7fb37ee5587b0587ULL, std::format("gallery {:016x}", hash.value()));
+        check(hash.value() == 0x9ebc220003683659ULL, std::format("gallery {:016x}", hash.value()));
         // The same gallery as vectors: every control named, nothing left as pixels.
         const auto vectors = h.svg();
         check(vectors.has_value(), vectors ? "" : vectors.error());
@@ -867,9 +867,9 @@ int main(int argc, char** argv) {
         // selection_layout_test checks real bodies, full label ink and parent
         // timing. The reviewed middle frame agrees on GCC and LLVM; both
         // source and rest remain unchanged.
-        check(before == 0x386e25e3b6af0078ULL, std::format("before {:016x}", before));
-        check(mid == 0xebd32a0410f5fad5ULL, std::format("mid {:016x}", mid));
-        check(rest == 0xfa5cbbab36eaa981ULL, std::format("rest {:016x}", rest));
+        check(before == 0x4b96f196fc28423cULL, std::format("before {:016x}", before));
+        check(mid == 0x35db1e7db2c348e1ULL, std::format("mid {:016x}", mid));
+        check(rest == 0xbf27e7fc58818d4dULL, std::format("rest {:016x}", rest));
     });
 
     return s.run(argc, argv);

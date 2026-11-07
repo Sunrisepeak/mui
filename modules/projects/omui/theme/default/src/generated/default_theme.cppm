@@ -13,8 +13,9 @@ inline constexpr std::string_view default_theme = R"omui(# openmui's default the
 # the package's test holds the two equal.
 
 [theme.light]
-doc  = "Light: slate surfaces, an indigo accent."
-dark = false
+doc              = "Light: slate surfaces, an indigo accent."
+dark             = false
+corner_smoothing = 0.6
 
 [theme.light.colors]
 background      = "#f8fafc"
@@ -72,23 +73,24 @@ xl     = 16
 full   = 9999
 
 [theme.light.shadows]
-sm = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.08" }
-md = { x = 0, y = 4, blur = 12, spread = -2, color = "#0f172a / 0.12" }
-lg = { x = 0, y = 12, blur = 32, spread = -4, color = "#0f172a / 0.18" }
-# Controls' depth, by state: buttons flat, thumbs raised a little and the
-# same under the pointer and pressed.
-control                  = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-"control:hovered"        = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-"control:pressed"        = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-control_accent           = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-"control_accent:hovered" = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-"control_accent:pressed" = { x = 0, y = 0, blur = 0, spread = 0, color = "#00000000" }
-thumb                    = { x = 0, y = 1, blur = 3, spread = 0, color = "#0f172a / 0.3" }
-"thumb:hovered"          = { x = 0, y = 1, blur = 3, spread = 0, color = "#0f172a / 0.3" }
-"thumb:pressed"          = { x = 0, y = 1, blur = 3, spread = 0, color = "#0f172a / 0.3" }
-switch_thumb             = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.25" }
-"switch_thumb:hovered"   = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.25" }
-"switch_thumb:pressed"   = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.25" }
+# In two layers (site plan §3.3): under the key light's shadow a faint ambient
+# one hugging the edge. Controls' depth by state: lifted under the pointer,
+# tighter pressed; an accent control's shadow takes a little of its colour.
+sm                       = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.06", ambient = { x = 0, y = 0, blur = 1, spread = 0.5, color = "#0f172a / 0.06" } }
+md                       = { x = 0, y = 4, blur = 10, spread = -2, color = "#0f172a / 0.1", ambient = { x = 0, y = 1, blur = 3, spread = 0, color = "#0f172a / 0.06" } }
+lg                       = { x = 0, y = 14, blur = 32, spread = -6, color = "#0f172a / 0.16", ambient = { x = 0, y = 2, blur = 6, spread = 0, color = "#0f172a / 0.07" } }
+control                  = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.06", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
+"control:hovered"        = { x = 0, y = 3, blur = 6, spread = -1, color = "#0f172a / 0.09", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
+"control:pressed"        = { x = 0, y = 0.5, blur = 1, spread = 0, color = "#0f172a / 0.08", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
+control_accent           = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a / 0.22", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"control_accent:hovered" = { x = 0, y = 5, blur = 10, spread = -2, color = "#0f172a / 0.28", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"control_accent:pressed" = { x = 0, y = 1, blur = 1.5, spread = 0, color = "#0f172a / 0.22", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+thumb                    = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f172a / 0.16", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"thumb:hovered"          = { x = 0, y = 2.5, blur = 6, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"thumb:pressed"          = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+switch_thumb             = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f172a / 0.16", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"switch_thumb:hovered"   = { x = 0, y = 2, blur = 5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+"switch_thumb:pressed"   = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
 
 [theme.dark]
 doc     = "Dark: deep slate surfaces, a lighter indigo accent."
@@ -117,6 +119,25 @@ thumb           = "#f1f5f9"
 tooltip         = "#f1f5f9"
 on_tooltip      = "#0b1120"
 
+# On deep surfaces a shadow is black and stronger (dark mode tuned on its
+# own, not the light theme's inverted).
+[theme.dark.shadows]
+sm                       = { x = 0, y = 1, blur = 2, spread = 0, color = "#000000 / 0.15", ambient = { x = 0, y = 0, blur = 1, spread = 0.5, color = "#000000 / 0.18" } }
+md                       = { x = 0, y = 4, blur = 10, spread = -2, color = "#000000 / 0.25", ambient = { x = 0, y = 1, blur = 3, spread = 0, color = "#000000 / 0.18" } }
+lg                       = { x = 0, y = 14, blur = 32, spread = -6, color = "#000000 / 0.4", ambient = { x = 0, y = 2, blur = 6, spread = 0, color = "#000000 / 0.21" } }
+control                  = { x = 0, y = 1, blur = 2, spread = 0, color = "#000000 / 0.15", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.24" } }
+"control:hovered"        = { x = 0, y = 3, blur = 6, spread = -1, color = "#000000 / 0.22", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.24" } }
+"control:pressed"        = { x = 0, y = 0.5, blur = 1, spread = 0, color = "#000000 / 0.2", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.24" } }
+control_accent           = { x = 0, y = 2, blur = 4, spread = -1, color = "#000000 / 0.55", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"control_accent:hovered" = { x = 0, y = 5, blur = 10, spread = -2, color = "#000000 / 0.6", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"control_accent:pressed" = { x = 0, y = 1, blur = 1.5, spread = 0, color = "#000000 / 0.55", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+thumb                    = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#000000 / 0.4", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"thumb:hovered"          = { x = 0, y = 2.5, blur = 6, spread = 0, color = "#000000 / 0.45", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"thumb:pressed"          = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#000000 / 0.45", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+switch_thumb             = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#000000 / 0.4", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"switch_thumb:hovered"   = { x = 0, y = 2, blur = 5, spread = 0, color = "#000000 / 0.45", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+"switch_thumb:pressed"   = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#000000 / 0.45", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#000000 / 0.3" } }
+
 # The person asked for less motion (spec/registry/motion.toml, reduced_motion):
 # every transition shows its target at once, springs settle at once.
 [theme.reduced_motion]
@@ -132,32 +153,6 @@ overlay = true
 "motion.spring.snappy" = "motion.instant"
 "motion.spring.gentle" = "motion.instant"
 "motion.spring.bouncy" = "motion.instant"
-
-# The quality pass (site redesign §3, B4–B6), staged: what the defaults become
-# once it is approved — corners of continuous curvature, shadows in two layers
-# that take a little of the colour of what casts them, controls with depth
-# that lifts under the pointer and tightens when pressed.
-[theme.refined]
-doc              = "Refined: continuous corners, layered tinted shadows, controls with depth."
-overlay          = true
-corner_smoothing = 0.6
-
-[theme.refined.shadows]
-sm                      = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.06", ambient = { x = 0, y = 0, blur = 1, spread = 0.5, color = "#0f172a / 0.06" } }
-md                      = { x = 0, y = 4, blur = 10, spread = -2, color = "#0f172a / 0.10", ambient = { x = 0, y = 1, blur = 3, spread = 0, color = "#0f172a / 0.06" } }
-lg                      = { x = 0, y = 14, blur = 32, spread = -6, color = "#0f172a / 0.16", ambient = { x = 0, y = 2, blur = 6, spread = 0, color = "#0f172a / 0.07" } }
-control                 = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.06", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
-"control:hovered"       = { x = 0, y = 3, blur = 6, spread = -1, color = "#0f172a / 0.09", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
-"control:pressed"       = { x = 0, y = 0.5, blur = 1, spread = 0, color = "#0f172a / 0.08", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.08" } }
-control_accent          = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a / 0.22", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"control_accent:hovered" = { x = 0, y = 5, blur = 10, spread = -2, color = "#0f172a / 0.28", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"control_accent:pressed" = { x = 0, y = 1, blur = 1.5, spread = 0, color = "#0f172a / 0.22", tint = 0.6, ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-thumb                   = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f172a / 0.16", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"thumb:hovered"         = { x = 0, y = 2.5, blur = 6, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"thumb:pressed"         = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-switch_thumb            = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f172a / 0.16", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"switch_thumb:hovered"  = { x = 0, y = 2, blur = 5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
-"switch_thumb:pressed"  = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.10" } }
 )omui";
 
 }  // namespace omui::themes

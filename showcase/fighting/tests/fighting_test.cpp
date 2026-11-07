@@ -552,7 +552,7 @@ int main(int argc, char** argv) {
         }
         check_eq(saved, 8);
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("6c006d68c83dd22f"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("e60f979a68c4f921"));  // GCC and LLVM, every platform
     });
 
     s.test("霓's afterimages and her level 3: the collar taken, two knees to the gut and a headbutt while held, heaved overhead, four kicks in the air, the axe kick into the street — frames pinned", [] {
@@ -601,7 +601,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("6d288b55a643e3c8"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("271128ba39f63cd4"));  // GCC and LLVM, every platform
     });
 
     s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
@@ -746,7 +746,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    yue level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("de66c42e29fe3b4d"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("9f2d992a48677f03"));  // GCC and LLVM, every platform
     });
 
     s.test("璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)", [] {
@@ -877,7 +877,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li panes {}", all.hex());
-        check_eq(all.hex(), std::string("670ef4b6cf3464b9"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("652bd0686aa245dd"));  // GCC and LLVM, every platform
     });
 
     s.test("璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned", [] {
@@ -1041,7 +1041,7 @@ int main(int argc, char** argv) {
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("25a2c3e2113085f6"));  // GCC and LLVM, every platform
+        check_eq(all.hex(), std::string("be8ef0535af6cd2f"));  // GCC and LLVM, every platform
     });
 
     s.test("刻's level 3, 「零时」: the stab, the watch clicked and time stops — the picture grey, a dial's hands standing, the struck still, ten blows' sweeps and sparks hanging — then the bell, every blow at once, her finishing picture — frames pinned", [] {
@@ -1491,7 +1491,7 @@ int main(int argc, char** argv) {
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
         check(px[0] != px[1], "training draws the boxes");
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x94a1a5b726fa0f80ULL, 0xfc6b7121ebef4d6fULL}, "pinned");
+        check(px == std::vector<std::uint64_t>{0x94a1a5b726fa0f80ULL, 0xec061c667333e9e3ULL}, "pinned");
     });
 
     return s.run(argc, argv);

@@ -325,7 +325,7 @@ int main(int argc, char** argv) {
         std::println("ui.base actor log {:016x}", hash.value());
         // Purposeful default motions also change the settled virtual times
         // shown by this log; the final controls and real records stay pinned.
-        check(hash.value() == 0x63ff43abfa3ef767ULL, std::format("actor log {:016x}", hash.value()));
+        check(hash.value() == 0x3e359291c557bc68ULL, std::format("actor log {:016x}", hash.value()));
     });
 
     s.test("the gallery: the ten, the same pixels on every platform", [] {
@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
         std::println("ui.base kit gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-kit") / "kit@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(hash.value() == 0x23c31c5d66c90bddULL, std::format("kit gallery {:016x}", hash.value()));
+        check(hash.value() == 0x1052ce5d88a6bc86ULL, std::format("kit gallery {:016x}", hash.value()));
     });
 
     return s.run(argc, argv);

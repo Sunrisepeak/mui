@@ -64,6 +64,14 @@ void common(Theme& t) {
 
 }  // namespace
 
+namespace {
+ShadowToken shadow(float y, float blur, float spread, Color color, float tint, ShadowLayer ambient) {
+    ShadowToken token{{0, y}, blur, spread, color, ambient};
+    token.tint = tint;
+    return token;
+}
+}  // namespace
+
 Theme Theme::light() {
     Theme t;
     t.name = "light";
@@ -96,19 +104,24 @@ Theme Theme::light() {
     c("thumb", 0xffffff);
     c("tooltip", 0x0f172a);
     c("on_tooltip", 0xf8fafc);
-    t.shadows["sm"] = {{0, 1}, 2, 0, Color::hex(0x0f172a, 0.08f)};
-    t.shadows["md"] = {{0, 4}, 12, -2, Color::hex(0x0f172a, 0.12f)};
-    t.shadows["lg"] = {{0, 12}, 32, -4, Color::hex(0x0f172a, 0.18f)};
-    // Controls' depth (parts::depth), by state: buttons flat, thumbs raised a
-    // little and the same under the pointer and pressed.
-    const ShadowToken flat{{0, 0}, 0, 0, Color::transparent()};
-    const ShadowToken thumb{{0, 1}, 3, 0, Color::hex(0x0f172a, 0.3f)}, switch_thumb{{0, 1}, 2, 0, Color::hex(0x0f172a, 0.25f)};
-    for (const std::string state : {"", ":hovered", ":pressed"}) {
-        t.shadows["control" + state] = flat;
-        t.shadows["control_accent" + state] = flat;
-        t.shadows["thumb" + state] = thumb;
-        t.shadows["switch_thumb" + state] = switch_thumb;
-    }
+    // Corners of continuous curvature, iOS's (site plan §3.3).
+    t.corner_smoothing = 0.6f;
+    // Shadows in two layers; controls' depth by state (parts::depth).
+    t.shadows["sm"] = shadow(1, 2, 0, Color::hex(0x0f172a, 0.06f), 0.0f, {{0, 0}, 1, 0.5, Color::hex(0x0f172a, 0.06f)});
+    t.shadows["md"] = shadow(4, 10, -2, Color::hex(0x0f172a, 0.1f), 0.0f, {{0, 1}, 3, 0, Color::hex(0x0f172a, 0.06f)});
+    t.shadows["lg"] = shadow(14, 32, -6, Color::hex(0x0f172a, 0.16f), 0.0f, {{0, 2}, 6, 0, Color::hex(0x0f172a, 0.07f)});
+    t.shadows["control"] = shadow(1, 2, 0, Color::hex(0x0f172a, 0.06f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.08f)});
+    t.shadows["control:hovered"] = shadow(3, 6, -1, Color::hex(0x0f172a, 0.09f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.08f)});
+    t.shadows["control:pressed"] = shadow(0.5, 1, 0, Color::hex(0x0f172a, 0.08f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.08f)});
+    t.shadows["control_accent"] = shadow(2, 4, -1, Color::hex(0x0f172a, 0.22f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["control_accent:hovered"] = shadow(5, 10, -2, Color::hex(0x0f172a, 0.28f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["control_accent:pressed"] = shadow(1, 1.5, 0, Color::hex(0x0f172a, 0.22f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["thumb"] = shadow(1.5, 3, 0, Color::hex(0x0f172a, 0.16f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["thumb:hovered"] = shadow(2.5, 6, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["thumb:pressed"] = shadow(0.5, 1.5, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["switch_thumb"] = shadow(1.5, 3, 0, Color::hex(0x0f172a, 0.16f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["switch_thumb:hovered"] = shadow(2, 5, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    t.shadows["switch_thumb:pressed"] = shadow(0.5, 1.5, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
     common(t);
     return t;
 }
@@ -138,6 +151,22 @@ Theme Theme::dark_theme() {
     c("thumb", 0xf1f5f9);
     c("tooltip", 0xf1f5f9);
     c("on_tooltip", 0x0b1120);
+    // On deep surfaces a shadow is black and stronger.
+    t.shadows["sm"] = shadow(1, 2, 0, Color::hex(0x000000, 0.15f), 0.0f, {{0, 0}, 1, 0.5, Color::hex(0x000000, 0.18f)});
+    t.shadows["md"] = shadow(4, 10, -2, Color::hex(0x000000, 0.25f), 0.0f, {{0, 1}, 3, 0, Color::hex(0x000000, 0.18f)});
+    t.shadows["lg"] = shadow(14, 32, -6, Color::hex(0x000000, 0.4f), 0.0f, {{0, 2}, 6, 0, Color::hex(0x000000, 0.21f)});
+    t.shadows["control"] = shadow(1, 2, 0, Color::hex(0x000000, 0.15f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.24f)});
+    t.shadows["control:hovered"] = shadow(3, 6, -1, Color::hex(0x000000, 0.22f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.24f)});
+    t.shadows["control:pressed"] = shadow(0.5, 1, 0, Color::hex(0x000000, 0.2f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.24f)});
+    t.shadows["control_accent"] = shadow(2, 4, -1, Color::hex(0x000000, 0.55f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["control_accent:hovered"] = shadow(5, 10, -2, Color::hex(0x000000, 0.6f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["control_accent:pressed"] = shadow(1, 1.5, 0, Color::hex(0x000000, 0.55f), 0.6f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["thumb"] = shadow(1.5, 3, 0, Color::hex(0x000000, 0.4f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["thumb:hovered"] = shadow(2.5, 6, 0, Color::hex(0x000000, 0.45f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["thumb:pressed"] = shadow(0.5, 1.5, 0, Color::hex(0x000000, 0.45f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["switch_thumb"] = shadow(1.5, 3, 0, Color::hex(0x000000, 0.4f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["switch_thumb:hovered"] = shadow(2, 5, 0, Color::hex(0x000000, 0.45f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
+    t.shadows["switch_thumb:pressed"] = shadow(0.5, 1.5, 0, Color::hex(0x000000, 0.45f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x000000, 0.3f)});
     return t;
 }
 

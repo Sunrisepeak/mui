@@ -616,7 +616,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(still).has_value() && std::filesystem::file_size(still) < 1024 * 1024);
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("4d2204a1f27f1453"));
+        check_eq(hash.hex(), std::string("b6ec1e50fa6e8f66"));
     });
 
     return s.run(argc, argv);

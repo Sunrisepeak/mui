@@ -187,7 +187,7 @@ int main(int argc, char** argv) {
         check(e.h.save_png(scratch_dir("ui-timeline") / "timeline.png").has_value());
         const std::uint64_t px = e.pixels();
         std::println("    timeline editor {:016x}", px);
-        check_eq(px, std::uint64_t{0x1b6839e07ca9c576});  // GCC and LLVM
+        check_eq(px, std::uint64_t{0x837e206c6b7e2734});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

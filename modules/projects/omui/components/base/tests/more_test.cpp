@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base pickers {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-pickers") / "pickers@2x.png").has_value());
-        check(hash.value() == 0x972f8fd6eb4e490eULL, std::format("pickers {:016x}", hash.value()));
+        check(hash.value() == 0x23c483bef2e1f8afULL, std::format("pickers {:016x}", hash.value()));
     });
 
     s.test("split view: two panes sharing their room as the handle says; the handle a splitter of its own; dragged and taken back whole; kept within min", [] {
@@ -367,7 +367,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base containers {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-containers") / "containers@2x.png").has_value());
-        check(hash.value() == 0xa270461f27038704ULL, std::format("containers {:016x}", hash.value()));
+        check(hash.value() == 0x7dcb343857ea88b7ULL, std::format("containers {:016x}", hash.value()));
     });
 
     s.test("tree view: a model's rows as a hierarchy; each a tree item opened, closed, chosen by the arrows, a press or an agent; closed ones' rows not stated; taken back", [] {
@@ -476,7 +476,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base collections {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-collections") / "collections@2x.png").has_value());
-        check(hash.value() == 0xfeb1213b18f4b3a1ULL, std::format("collections {:016x}", hash.value()));
+        check(hash.value() == 0xbdf489c318862501ULL, std::format("collections {:016x}", hash.value()));
     });
 
     s.test("combobox: typing filters the options; arrows and Enter choose; each option an item an agent chooses; free text only when free; taken back", [] {
@@ -549,7 +549,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base entry {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-entry") / "entry@2x.png").has_value());
-        check(hash.value() == 0x81534110e198a1bfULL, std::format("entry {:016x}", hash.value()));
+        check(hash.value() == 0x69641969a6aab991ULL, std::format("entry {:016x}", hash.value()));
     });
 
     s.test("code editor: its field a text box in code; set whole and taken back; Enter keeps the indent, Tab indents, Escape then Tab leaves", [] {
@@ -593,7 +593,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base code {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-code") / "code@2x.png").has_value());
-        check(hash.value() == 0xfee8a273eccca542ULL, std::format("code {:016x}", hash.value()));
+        check(hash.value() == 0x300f5cb5bfc41d5aULL, std::format("code {:016x}", hash.value()));
     });
 
     s.test("the gallery: the second batch, the same pixels on every platform", [] {
@@ -620,7 +620,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base second batch gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-more") / "more@2x.png").has_value());
-        check(hash.value() == 0x39118c141892a5a7ULL, std::format("gallery {:016x}", hash.value()));
+        check(hash.value() == 0xbe5531ecf232a8a2ULL, std::format("gallery {:016x}", hash.value()));
     });
 
     return s.run(argc, argv);

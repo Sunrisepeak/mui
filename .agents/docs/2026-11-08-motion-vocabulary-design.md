@@ -63,10 +63,10 @@
 | `motion.duration.exit_ratio` | 0.8 | 消失比出现快 |
 | `motion.spring.snappy/gentle/…` | 已有 | 弹簧预设 |
 | `motion.stagger` | 24 ms，总长上限 240 ms | 成组出现的错开 |
-| `shadows.sm/md/lg` 的 `ambient` | 无（单层） | 分层阴影：环境光层在主光层之下（B3，`omui::paint_shadow`） |
-| 阴影的 `tint` | 0 | 阴影带投射物的颜色（0…1），例如主按钮的阴影带一点靛蓝（B4） |
-| `shadows.control`、`control_accent`、`thumb`、`switch_thumb`，各带 `:hovered`、`:pressed` | 按钮无阴影；滑块与开关的拇指保持现在的阴影 | 控件的深度随状态：悬停抬升、按下收紧（B4，`parts::depth`） |
-| `corner_smoothing` | 0（圆）… 0.6（iOS 风格） | 连续曲率圆角（B2）；组件自己画的圆角由框架统一套上（B4，`DisplayList::smooth_corners`） |
+| `shadows.sm/md/lg` 的 `ambient` | 有：贴边的淡环境光层；深色主题为黑色、更强 | 分层阴影：环境光层在主光层之下（B3，`omui::paint_shadow`） |
+| 阴影的 `tint` | 0（`control_accent` 为 0.6） | 阴影带投射物的颜色（0…1），例如主按钮的阴影带一点靛蓝（B4） |
+| `shadows.control`、`control_accent`、`thumb`、`switch_thumb`，各带 `:hovered`、`:pressed` | 发丝级静止深度、悬停抬升、按下收紧；主按钮的阴影 `tint = 0.6` | 控件的深度随状态：悬停抬升、按下收紧（B4，`parts::depth`） |
+| `corner_smoothing` | 0.6（iOS 风格；0 为圆） | 连续曲率圆角（B2）；组件自己画的圆角由框架统一套上（B4，`DisplayList::smooth_corners`） |
 | `line.hairline` | 1 物理像素 | 发丝线 |
 
 风格包可以覆盖任何令牌。令牌名同样登记在规范的令牌表中（`[[token]]` 已有这一机制）。

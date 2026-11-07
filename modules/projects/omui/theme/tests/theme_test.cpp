@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     s.test("the default theme file is the runtime's built-in tokens, light and dark", [&] {
         auto added = lib.add_file(default_file);
         check(added.has_value(), added ? "" : all(added.error()));
-        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion", "refined"}));
+        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
         auto light = lib.compose(L({"light"}));
         check(light.has_value(), light ? "" : light.error());
         if (light) check_eq(difference(*light, Theme::light()), std::string());
@@ -341,8 +341,8 @@ control_accent = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a38", tin
         check(!overtinted.has_value(), "a tint over 1 is refused");
     });
 
-    s.test("the refined overlay (B4, staged): continuous corners, layered shadows, controls' depth by state", [&] {
-        auto t = lib.compose(L({"light", "refined"}));
+    s.test("the defaults' finish (B4): continuous corners, shadows in two layers, controls' depth by state; dark tuned on its own", [&] {
+        auto t = lib.compose(L({"light"}));
         check(t.has_value(), t ? "" : t.error());
         if (!t) return;
         check(t->corner_smoothing == 0.6f);
@@ -354,9 +354,9 @@ control_accent = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a38", tin
                   t->shadows.at("control:pressed").offset.y < t->shadows.at("control").offset.y,
               "lifted under the pointer, tighter pressed");
         check(t->shadows.at("control_accent").tint > 0, "an accent control's shadow takes its colour");
-        auto plain = lib.compose(L({"light"}));
-        check(plain && plain->corner_smoothing == 0 && plain->shadows.at("control").color.a == 0 && !plain->shadows.at("lg").ambient,
-              "without it, the defaults as they are: flat buttons, one-layer shadows");
+        auto dark = lib.compose(L({"dark"}));
+        check(dark && dark->shadows.at("md").color.a > t->shadows.at("md").color.a && dark->shadows.at("md").color.r == 0,
+              "dark: black and stronger, not the light theme's");
     });
 
     s.test("a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused", [&] {

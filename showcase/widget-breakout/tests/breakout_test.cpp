@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
         check_eq(g.state().over, std::uint32_t{1});
         check_eq(g.disagreement(), std::string());
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0x9d77cb2d2a6f4bcf});  // GCC (LLVM: CI)
+        check_eq(beam, std::uint64_t{0xa8ad53b398a6093f});  // GCC (LLVM: CI)
     });
 
     s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
@@ -557,7 +557,7 @@ int main(int argc, char** argv) {
         };
         check_eq(agrees(), std::size_t{0});
         std::println("    chamber {:016x}", chamber);
-        check_eq(chamber, std::uint64_t{0xbfb778d68e61ec9e});  // GCC (LLVM: CI)
+        check_eq(chamber, std::uint64_t{0xe59fbd4073a0798f});  // GCC (LLVM: CI)
     });
 
     s.test("room 4: dark but round the ball and the paddle; the X-ray shows what hides, then recharges; the gate comes round", [] {
@@ -588,8 +588,8 @@ int main(int argc, char** argv) {
         check(g.act("scan"), "recharged");
         check_eq(g.disagreement(), std::string());
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x491dbe60dabf5f49});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0x03e637b13aaea6f2});
+        check_eq(dark, std::uint64_t{0x7594d1fc283bea2b});  // GCC (LLVM: CI)
+        check_eq(scanned, std::uint64_t{0x4f01954e2d27d653});
     });
 
     s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
@@ -633,7 +633,7 @@ int main(int argc, char** argv) {
         const auto px = p.pixels();
         check(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
-        check_eq(px, std::uint64_t{0x79924488ecf28187});  // GCC (LLVM: CI)
+        check_eq(px, std::uint64_t{0x5f2cf42ec4b0fc91});  // GCC (LLVM: CI)
     });
 
     s.test("a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it", [] {
@@ -679,7 +679,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0xbdbcea5b7a5b235d});  // GCC (LLVM: CI)
+        check_eq(choice, std::uint64_t{0x9db0d154abf33d39});  // GCC (LLVM: CI)
     });
 
     s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
@@ -803,9 +803,9 @@ int main(int argc, char** argv) {
         const auto inspector = g.pixels();
         check(g.h.save_png(dir / "inspector.png").has_value());
         std::println("    start {:016x}, played {:016x}, inspector {:016x}", start, played, inspector);
-        check_eq(start, std::uint64_t{0x39db50a8a16a25ea});  // GCC (LLVM: CI)
-        check_eq(played, std::uint64_t{0x0102e09626cbb0f6});
-        check_eq(inspector, std::uint64_t{0x10ee55cc37bf1af8});
+        check_eq(start, std::uint64_t{0xe54a8fcdd97b1865});  // GCC (LLVM: CI)
+        check_eq(played, std::uint64_t{0x85cd01f515200a90});
+        check_eq(inspector, std::uint64_t{0xc88a844d0df6a473});
     });
 
     s.test("the README's loop: room 1 played from its launch to its shutdown — an animated WebP under 1 MB", [] {

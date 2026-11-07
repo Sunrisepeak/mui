@@ -105,7 +105,7 @@ int main(int argc, char** argv) {
         check(a.h.save_png(scratch_dir("markdown-stream") / "answer.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check_eq(hash.hex(), std::string("bfe33727e8a0f1d4"));
+        check_eq(hash.hex(), std::string("a99930d8b3882068"));
     });
 
     return s.run(argc, argv);

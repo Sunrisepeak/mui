@@ -346,7 +346,7 @@ int main(int argc, char** argv) {
         std::println("    menus title {:016x} select {:016x}", title, select);
         check(title != select, "two screens");
         check_eq(title, std::uint64_t{0x643fb24c0ef4dddf});   // GCC and LLVM
-        check_eq(select, std::uint64_t{0xdc17b7a7d12389a8});  // GCC and LLVM
+        check_eq(select, std::uint64_t{0xc33cdb5cf57ed497});  // GCC and LLVM
     });
 
     return s.run(argc, argv);

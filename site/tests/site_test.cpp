@@ -958,7 +958,8 @@ int main(int argc, char** argv) {
         // Reviewed production frames after the text/contrast, sampled-layout
         // and nested default-motion corrections. Intermediate ink, bounds,
         // real input and seek regressions have separate behavioural CTS.
-        check_eq(all.hex(), std::string("3027fb6720e6078d"));
+        // Re-pinned with M1 ⑤b: the pages show the packages' new names (omui.*).
+        check_eq(all.hex(), std::string("d68fc52a5c531679"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

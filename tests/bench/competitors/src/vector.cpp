@@ -7,7 +7,9 @@
 //   omui-bench-vector --out DIR [--runs N]
 //
 // DIR/<scene>.svg, DIR/<scene>.scene.json (path data and paints, for a
-// canvas), DIR/<scene>.xrender.png; one JSON line a scene on standard output
+// canvas), DIR/<scene>.xrender.png and DIR/<scene>.xrender.svg (the display
+// list written by xrender.vector.svg, for the others to draw back); one JSON
+// line a scene on standard output
 // (its median, mean and fastest frame over N runs, after three to warm up).
 import std;
 import mlibs.geom;
@@ -15,6 +17,7 @@ import mlibs.math;
 import mlibs.image;
 import xrender.raster;
 import xrender.vector;
+import xrender.vector.svg;
 
 namespace {
 
@@ -300,6 +303,11 @@ int main(int argc, char** argv) {
             std::println(std::cerr, "{}: {}", scene.name, saved.error());
             return 1;
         }
+        const auto picture = xrender::svg::write(list, resources, {.view = {0, 0, side, side}, .background = xrender::Color::white(),
+            .encode_png = [](std::span<const std::uint8_t> rgba, int width, int height) {
+                return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
+            }});
+        if (!picture || !write(out / (scene.name + ".xrender.svg"), picture->text)) return 1;
         double mean = 0;
         for (const double time : times) mean += time;
         mean /= static_cast<double>(times.size());

@@ -222,12 +222,13 @@ int main(int argc, char** argv) {
             return;
         }
         std::atomic<bool> done{false};
-        std::vector<Value> acted, captured;
+        std::vector<Value> acted, captured, vectors;
         std::jthread agent_thread([&] {
             auto client = agent::Client::connect("counter-h3", dir);
             if (client) {
                 acted = client->call(parse_json(R"({"op":"act","node":"main/inc","action":"activate","actor":"agent:test"})").value());
                 captured = client->call(parse_json(R"({"op":"capture","node":"main/inc"})").value());
+                vectors = client->call(parse_json(R"({"op":"capture","format":"svg"})").value());
             }
             done = true;
         });
@@ -241,6 +242,31 @@ int main(int argc, char** argv) {
         check(!captured.empty() && captured.back().get("exitCode")->as_int() == 0);
         check(captured.front().get("data") && captured.front().get("data")->get("base64")->as_string().starts_with("iVBOR"),
               "a PNG, base64");
+        // The same window as vectors: its nodes' drawings marked by their paths.
+        check(!vectors.empty() && vectors.back().get("exitCode")->as_int() == 0);
+        const Value* picture = vectors.empty() ? nullptr : vectors.front().get("data");
+        check(picture && picture->get("format")->as_string() == "svg");
+        const std::string svg = picture ? std::string(picture->get("svg")->as_string()) : std::string{};
+        check(svg.starts_with("<svg") && svg.contains(R"(data-node="main/inc")"), "an SVG naming the button");
+        check(picture && picture->get("islands") && picture->get("islands")->list(), "the islands listed (none or more)");
+    });
+
+    s.test("a frame as SVG: the same frame, the nodes named, glyphs as outlines, the same bytes twice", [] {
+        HeadlessOptions o;
+        o.size = {240, 120};
+        Headless h(o);
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        const auto first = h.svg();
+        check(first.has_value(), first ? "" : first.error());
+        if (!first) return;
+        check(first->svg.contains(R"(data-node="main/inc")"), "the button's path");
+        check(first->svg.contains(R"(<path id="g)") && first->svg.contains(R"(<use href="#g)"), "its label's glyphs as outlines");
+        const auto again = h.svg();
+        check(again && again->svg == first->svg, "the same bytes for the same frame");
+        const auto region = h.svg(Rect{10, 10, 100, 50});
+        check(region && region->svg.contains(R"(viewBox="10 10 100 50")"), "a region is the picture's view");
     });
 
     s.test("every incremental frame is the full render of its list, byte for byte", [] {

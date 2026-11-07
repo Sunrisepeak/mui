@@ -7,6 +7,7 @@ import omui.semantic;
 import mlibs.trace;
 import mlibs.pipeline;
 import mlibs.control;
+import mlibs.base64;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -113,25 +114,6 @@ Envelope invalid(std::string message, std::string_view hint = {}) {
     return e;
 }
 
-std::string base64(std::span<const std::uint8_t> bytes) {
-    static constexpr std::string_view table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    std::string out;
-    out.reserve((bytes.size() + 2) / 3 * 4);
-    std::size_t i = 0;
-    for (; i + 2 < bytes.size(); i += 3) {
-        const std::uint32_t v = (std::uint32_t{bytes[i]} << 16) | (std::uint32_t{bytes[i + 1]} << 8) | bytes[i + 2];
-        for (int s : {18, 12, 6, 0}) out += table[(v >> s) & 63];
-    }
-    if (const std::size_t rest = bytes.size() - i; rest > 0) {
-        std::uint32_t v = std::uint32_t{bytes[i]} << 16;
-        if (rest == 2) v |= std::uint32_t{bytes[i + 1]} << 8;
-        out += table[(v >> 18) & 63];
-        out += table[(v >> 12) & 63];
-        out += rest == 2 ? table[(v >> 6) & 63] : '=';
-        out += '=';
-    }
-    return out;
-}
 
 std::string_view text_of(const Value& req, std::string_view key) {
     const Value* v = req.get(key);
@@ -579,7 +561,14 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         return e;
     }
     if (op == "capture") {
-        if (!options_.capture) {
+        const std::string_view format = text_of(req, "format");
+        if (!format.empty() && format != "png" && format != "svg")
+            return invalid("`format` is png (pixels, the default) or svg (vectors, the nodes marked)", R"({"op":"capture","format":"svg"})");
+        if (format == "svg" && !options_.capture_svg) {
+            e.error(spec::error_code::refused, "this host gives no vector picture: capture as png").result(spec::exit_code::failure);
+            return e;
+        }
+        if (format != "svg" && !options_.capture) {
             e.error(spec::error_code::refused, "this host does not render (headless without a renderer)").result(spec::exit_code::failure);
             return e;
         }
@@ -604,6 +593,24 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             if (!(x1 > x0 && y1 > y0)) return invalid("`region` lies outside what is captured", R"({"op":"capture","region":[100,80,200,150]})");
             region = {x0, y0, x1 - x0, y1 - y0};
         }
+        if (format == "svg") {
+            auto picture = options_.capture_svg(region);
+            if (!picture) {
+                e.error(spec::error_code::internal, picture.error()).result(spec::exit_code::failure);
+                return e;
+            }
+            Value::List islands;
+            for (const VectorIsland& island : picture->islands) {
+                Value one;
+                one.set("why", island.why)
+                    .set("bounds", Value(Value::List{Value(island.bounds.x), Value(island.bounds.y), Value(island.bounds.width), Value(island.bounds.height)}));
+                islands.push_back(std::move(one));
+            }
+            Value d;
+            d.set("format", "svg").set("bounds", Value(Value::List{Value(region.x), Value(region.y), Value(region.width), Value(region.height)}));
+            d.set("svg", std::move(picture->svg)).set("islands", Value(std::move(islands)));
+            return e.data(std::move(d)).result(spec::exit_code::success);
+        }
         auto png = options_.capture(region);
         if (!png) {
             e.error(spec::error_code::internal, png.error()).result(spec::exit_code::failure);
@@ -611,7 +618,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         Value d;
         d.set("format", "png").set("bounds", Value(Value::List{Value(region.x), Value(region.y), Value(region.width), Value(region.height)}));
-        d.set("base64", base64(*png));
+        d.set("base64", mlibs::base64::encode(*png));
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     if (op == "input") {

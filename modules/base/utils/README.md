@@ -5,6 +5,7 @@ Small domain-agnostic tools that are not libraries of their own yet, one directo
 | Tool | Module | |
 |---|---|---|
 | [hash](src/hash/README.md) | `mlibs.hash` | FNV-1a (64 and 32 bit): determinism hashes, content hashes, cache keys, generated ids — the one implementation (lint `hash`) |
+| [base64](src/base64/README.md) | `mlibs.base64` | RFC 4648 base64: pictures in JSON and SVG, read back by the command line — the one implementation |
 | [log](src/log/README.md) | `mlibs.log` | Categories, filters, sinks, record history and invariants |
 | [trace](src/trace/README.md) | `mlibs.trace` | Spans, counters and marks; Chrome trace JSON; per-span statistics; near-free while off |
 | [testing](src/testing/README.md) | `mlibs.testing` | The checks test programs share: suites, `check*` with source locations, pinned hashes |

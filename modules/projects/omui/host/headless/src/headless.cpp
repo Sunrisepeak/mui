@@ -7,6 +7,7 @@ import omui.semantic;
 import omui.agent;
 import xrender.raster;
 import xrender.vector;
+import xrender.vector.svg;
 import mlibs.text;
 import mlibs.image;
 import mlibs.trace;
@@ -104,6 +105,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         eo.directory = d.options.endpoint_directory;
         eo.protocol.app = d.options.app;
         eo.protocol.capture = capture();
+        eo.protocol.capture_svg = capture_svg();
         eo.protocol.input = d.options.agent_input;
         d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
         if (auto r = d.endpoint->start(); !r) {
@@ -327,6 +329,32 @@ NodeId Headless::node_at_pixel(Point p) {
 
 agent::CaptureFn Headless::capture() {
     return [this](Rect region) { return png(region); };
+}
+
+agent::CaptureSvgFn Headless::capture_svg() {
+    return [this](Rect region) { return svg(region); };
+}
+
+std::expected<agent::VectorCapture, std::string> Headless::svg(std::optional<Rect> region) {
+    Impl& d = *impl_;
+    Runtime& runtime = *d.runtime;
+    const xrender::Resources resources{&runtime.images(), d.glyphs.get()};
+    xrender::svg::Options options;
+    options.view = region.value_or(Rect{0, 0, d.options.size.width, d.options.size.height});
+    options.island_scale = d.options.scale;
+    options.background = d.options.background;
+    options.node_name = [&runtime](std::uint32_t index) {
+        const NodeId node = runtime.node_at_index(index);
+        return runtime.valid(node) ? runtime.path(node) : std::string{};
+    };
+    options.encode_png = [](std::span<const std::uint8_t> rgba, int width, int height) {
+        return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
+    };
+    auto picture = xrender::svg::write(runtime.display_list(), resources, options);
+    if (!picture) return std::unexpected(picture.error());
+    agent::VectorCapture out{std::move(picture->text), {}};
+    for (const auto& island : picture->report.islands) out.islands.push_back({std::string(xrender::svg::describe(island.why)), island.bounds});
+    return out;
 }
 
 }  // namespace omui

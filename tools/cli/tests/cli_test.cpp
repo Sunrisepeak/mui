@@ -95,8 +95,6 @@ int main(int argc, char** argv) {
         check(!cli::agent_request(wait->subcommand()->get()).has_value(), "wait for what?");
         auto bad = a.parse_from(mcpplibs::cmdline::Argv{"omui", "agent", "act", "notes", "x", "y", "--args", "{oops"});
         check(!cli::agent_request(bad->subcommand()->get()).has_value());
-        auto b64 = cli::base64_decode("UE5HAA==");
-        check(b64 && b64->size() == 4 && (*b64)[0] == 'P' && (*b64)[3] == 0);
         check(omui_cmd({"agent", "find", "nobody-listens", "--dir", "/nonexistent/openmui"}).code == 1);
         check(omui_cmd({"frobnicate"}).code == 2);
     });
@@ -140,8 +138,9 @@ int main(int argc, char** argv) {
                                  {"agent", "undo", "notes-cli", "--dir", d},
                                  {"agent", "history", "notes-cli", "--dir", d},
                                  {"agent", "transaction", "notes-cli", R"([{"node":"notes/delete","action":"activate","answer":"yes"}])", "--dir", d},
+                                 {"agent", "capture", "notes-cli", "--format", "svg", "--out", (dir / "window.svg").string(), "--dir", d},
                              });
-        check(r.size() == 11);
+        check(r.size() == 12);
         check(r[0].code == 0 && r[0].out.starts_with("notes-cli\tnotes-cli\topenmui.tree@0.1"), r[0].out + r[0].err);
         check(r[1].code == 0 && r[1].out.find("notes/delete") != std::string::npos && r[1].out.find("notes/title") == std::string::npos);
         check(r[2].code == 0 && r[2].out.find(R"("effect":"irreversible")") != std::string::npos, r[2].out);
@@ -149,6 +148,12 @@ int main(int argc, char** argv) {
         check(r[4].code == 0 && deleted == 1, r[4].out + r[4].err);
         check(r[5].code == 0, r[5].out + r[5].err);
         check(r[6].code == 0 && std::filesystem::exists(png) && std::filesystem::file_size(png) > 50, r[6].out + r[6].err);
+        {
+            std::ifstream in(dir / "window.svg", std::ios::binary);
+            const std::string svg{std::istreambuf_iterator<char>(in), {}};
+            check(r[11].code == 0 && r[11].out.contains(R"("islands":)") && svg.starts_with("<svg") && svg.contains(R"(data-node="notes/delete")"),
+                  r[11].out + r[11].err);
+        }
         check(r[7].code == 0 && r[7].out.find(R"("outcome":"refused")") != std::string::npos, r[7].out + r[7].err);
         check(r[8].code == 1 && r[8].out.find("cannot be taken back") != std::string::npos, r[8].out + r[8].err);
         check(r[9].code == 0 && r[9].out.find(R"("barrier":true)") != std::string::npos, r[9].out + r[9].err);

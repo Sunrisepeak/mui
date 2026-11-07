@@ -1,6 +1,7 @@
 module omui.cli;
 
 import std;
+import mlibs.base64;
 import mcpplibs.cmdline;
 import mcpplibs.os;
 import omui.core;
@@ -87,9 +88,10 @@ cmd::App operations(cmd::App a, bool app) {
     wait.option("timeout").takes_value().value_name("SECONDS").help("give up after this long (default 5)");
     (void)a.subcommand(std::move(wait));
 
-    cmd::App capture = with_app("capture", "Pixels of the window or of a node, as PNG");
+    cmd::App capture = with_app("capture", "The window or a node as drawn: PNG pixels, or SVG with every node's drawing marked");
     capture.option("node").takes_value().value_name("ID").help("a node (default: the window)");
-    capture.option("out").takes_value().value_name("FILE").help("write the PNG here");
+    capture.option("format").takes_value().value_name("png|svg").help("png (default) or svg (vectors at any size, the nodes marked)");
+    capture.option("out").takes_value().value_name("FILE").help("write the picture here");
     (void)a.subcommand(std::move(capture));
 
     cmd::App inspect = with_app("inspect", "Everything the runtime knows of a node: type, source line, props, layout, state");
@@ -166,32 +168,6 @@ std::expected<Value, std::string> json_option(const cmd::ParsedArgs& p, std::str
 }
 
 }  // namespace
-
-std::expected<std::vector<std::uint8_t>, std::string> base64_decode(std::string_view text) {
-    auto digit = [](char c) -> int {
-        if (c >= 'A' && c <= 'Z') return c - 'A';
-        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
-        if (c >= '0' && c <= '9') return c - '0' + 52;
-        if (c == '+') return 62;
-        if (c == '/') return 63;
-        return -1;
-    };
-    std::vector<std::uint8_t> out;
-    std::uint32_t acc = 0;
-    int bits = 0;
-    for (char c : text) {
-        if (c == '=') break;
-        const int d = digit(c);
-        if (d < 0) return std::unexpected(std::format("not base64: `{}`", c));
-        acc = (acc << 6) | static_cast<std::uint32_t>(d);
-        bits += 6;
-        if (bits >= 8) {
-            bits -= 8;
-            out.push_back(static_cast<std::uint8_t>((acc >> bits) & 0xff));
-        }
-    }
-    return out;
-}
 
 std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, std::size_t first) {
     const std::string op(p.subcommand_name());
@@ -345,6 +321,7 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, 
     }
     if (op == "capture") {
         if (auto v = a.value("node")) req.set("node", *v);
+        if (auto v = a.value("format")) req.set("format", *v);
         return req.json();
     }
     if (op == "call") {
@@ -444,9 +421,18 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
             r.map()->erase(std::ranges::find(*r.map(), std::string("data"), &std::pair<std::string, Value>::first));
             r.set("data", Value{}.set("file", *trace_file));
         }
+        if (out_file && kind == "data" && r.get("data") && r.get("data")->get("svg")) {
+            if (auto w = mcpplibs::os::fs::write_atomic(*out_file, r.get("data")->get("svg")->as_string()); !w) {
+                err << w.error().message() << '\n';
+                return 1;
+            }
+            out << std::format("{{\"kind\":\"data\",\"data\":{{\"file\":{},\"islands\":{}}}}}\n", Value(*out_file).json(),
+                               r.get("data")->get("islands") ? r.get("data")->get("islands")->json() : std::string("[]"));
+            continue;
+        }
         if (out_file && kind == "data") {
             const Value* b = r.get("data") ? r.get("data")->get("base64") : nullptr;
-            auto bytes = base64_decode(b ? b->as_string() : "");
+            auto bytes = mlibs::base64::decode(b ? b->as_string() : "");
             if (!bytes) {
                 err << bytes.error() << '\n';
                 return 1;

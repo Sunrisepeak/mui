@@ -22,8 +22,6 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
 // `first`: where the operation's own positional arguments begin (1 for `omui agent <op> <app>`, 0 for `omui page <op>`).
 [[nodiscard]] std::expected<std::string, std::string> agent_request(const mcpplibs::cmdline::ParsedArgs& op, std::size_t first = 1);
 
-[[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> base64_decode(std::string_view text);
-
 // A bridge (omui connect, agent connect §4) run until `stop`: the pairing
 // code, who the agent is, the origin it serves (empty: any), the port
 // (0: the first free of 47110–47113; any_port: one the system chooses) and

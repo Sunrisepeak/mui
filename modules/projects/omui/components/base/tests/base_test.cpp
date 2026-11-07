@@ -794,6 +794,15 @@ int main(int argc, char** argv) {
         check(h.save_png(scratch_dir("ui-base") / "gallery@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         check(hash.value() == 0x7fb37ee5587b0587ULL, std::format("gallery {:016x}", hash.value()));
+        // The same gallery as vectors: every control named, nothing left as pixels.
+        const auto vectors = h.svg();
+        check(vectors.has_value(), vectors ? "" : vectors.error());
+        if (vectors) {
+            std::ofstream(scratch_dir("ui-base-svg") / "gallery.svg", std::ios::binary) << vectors->svg;
+            for (const auto* id : {"main/row:1/c", "main/v", "main/name", "main/filled"})
+                check(vectors->svg.contains(std::format(R"(data-node="{}")", id)), std::format("{} named in the SVG", id));
+            check(vectors->islands.empty(), std::format("{} islands", vectors->islands.size()));
+        }
     });
 
     s.test("universal motion's use cases 1, 2, 4, 7 on the real components: a switch, a label, a list's order, one switch's three motions — frames pinned", [] {

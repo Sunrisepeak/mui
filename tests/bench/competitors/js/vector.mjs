@@ -100,4 +100,10 @@ for (const file of readdirSync(dir).filter((name) => name.endsWith(".scene.json"
   console.log(JSON.stringify({ renderer: `skia (@napi-rs/canvas ${versions["@napi-rs/canvas"]})`, scene: scene.name, runs, ...skia }));
   console.log(JSON.stringify({ renderer: `resvg ${versions["@resvg/resvg-js"]}`, scene: scene.name, runs, ...tiny }));
   console.log(JSON.stringify({ scene: scene.name, "xrender against skia": compare(reference, ours), "resvg against skia": compare(reference, theirs) }));
+  // xrender's own SVG of the scene, drawn back by resvg and by Skia (its SVG
+  // module, through loadImage), against xrender's pixels.
+  const svg = readFileSync(join(dir, `${scene.name}.xrender.svg`));
+  const backByResvg = await pixels(new Resvg(svg, { fitTo: { mode: "original" } }).render().asPng(), width, height);
+  const backBySkia = await pixels(svg, width, height);
+  console.log(JSON.stringify({ scene: scene.name, svg_bytes: svg.length, "its SVG by resvg against xrender": compare(ours, backByResvg), "its SVG by skia against xrender": compare(ours, backBySkia) }));
 }

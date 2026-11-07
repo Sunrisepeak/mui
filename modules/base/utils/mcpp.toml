@@ -1,5 +1,5 @@
 # mlibs.utils — small domain-agnostic tools that are not libraries of their own
-# yet, one directory each (convergence plan §9.3): hash (FNV-1a), log
+# yet, one directory each (convergence plan §9.3): hash (FNV-1a), base64, log
 # (categories, sinks, invariants), trace (spans, counters, Chrome trace),
 # error and time (the global contracts' shapes, §5.2) and testing (the checks
 # every test program shares). A tool keeps its module name
@@ -17,7 +17,7 @@
 namespace   = "mlibs"
 name        = "utils"
 version     = "0.1.0"
-description = "Small tools: FNV-1a hashes, logging and invariants, tracing, and the checks test programs share"
+description = "Small tools: FNV-1a hashes, base64, logging and invariants, tracing, and the checks test programs share"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 repo        = "https://github.com/Sunrisepeak/mui"

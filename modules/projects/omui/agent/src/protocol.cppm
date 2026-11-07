@@ -27,11 +27,25 @@ inline constexpr std::string_view interface_name = "openmui.tree@0.1";
 // Pixels of a region, as PNG bytes (hosts that render provide it).
 using CaptureFn = std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect window)>;
 
+// The same region as a picture of vectors: SVG with every node's drawing
+// marked by its path (data-node), and where pixels stand in for what SVG
+// cannot say (an effect, a conic paint), each island and why.
+struct VectorIsland {
+    std::string why;
+    Rect        bounds;
+};
+struct VectorCapture {
+    std::string               svg;
+    std::vector<VectorIsland> islands;
+};
+using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rect window)>;
+
 struct ProtocolOptions {
     std::string app;              // the application id, for `describe`
     std::string default_actor = "agent:anonymous";  // when a request names none
     double      default_timeout = 5.0;               // seconds, for `wait`
     CaptureFn   capture;
+    CaptureSvgFn capture_svg;  // `capture` with format "svg"; none: PNG only
     // Requests come over the bus (an endpoint, another process): a person's
     // own action is refused to them whatever actor they name (S-10). False
     // only for the program's own requests through this handler (the C ABI

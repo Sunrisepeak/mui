@@ -111,6 +111,23 @@ existing required-device policy. Web CI runs every serial CPU case and image
 pin here; only thread-only cases are selected by `omui::testing::threads`.
 No rendering algorithm, shader or pinned image hash changes in this split.
 
+## The picture as SVG
+
+`xrender.vector.svg` writes a display list as SVG: the same picture as vectors, at any size, the same bytes on every platform.
+
+```cpp
+import xrender.vector.svg;
+auto picture = xrender::svg::write(list, resources, {.view = {0, 0, 800, 600}, .encode_png = png});
+// picture->text: the SVG; picture->report: shapes, glyphs, images, islands
+```
+
+- **SVG's own elements** for rectangles and rounded rectangles, paths (fill rules), strokes (caps, joins, miter limits, dashes), clips (rectangles, rounded, paths), transforms, layers' opacity and blend modes, solid, linear and radial paints, outer box shadows (blur and spread as CSS: σ = blur / 2, shown outside the box only), images (each defined once, nearest sampling kept), and glyphs as their outlines from the `GlyphSource` (each glyph defined once, placed where the renderers place it, its own style's transform, opacity and tint) — so text needs no font where it is read.
+- **Islands of pixels** where SVG cannot say the same thing: a layer's pixel effect (drawn alone; one that reads its backdrop, with what lies under it, cut to its layer), conic, image and mixed paints, the erase blend, inset shadows, trimmed strokes and colour glyphs. The CPU reference draws them at `island_scale` and they sit in place as PNG, marked `data-island="<why>"` and listed in the report. A GPU texture (`external_texture`) keeps only its place (`data-external`).
+- **Provenance:** node markers are groups marked `data-node` (the host names them: omui gives each node's path) and paint parts `data-part`/`data-part-id`, so an agent reading the picture knows what drew each piece.
+- **No codec here:** PNG for images and islands comes from the caller (`Options::encode_png`, e.g. `mlibs::image::encode_png`); without one they are left out and counted.
+
+Fidelity, measured (tests/bench/competitors): Skia drawing xrender's SVG of each benchmark scene gives the same picture as Skia drawing the original canvas calls (the same differences from xrender's pixels to the last digit), and resvg drawing it is within 0.11–0.84 per channel of xrender's own pixels. The component gallery's SVG (45 KB) drawn by resvg differs from its pinned pixels by 0.18 per channel on average, with no fonts given to resvg. omui offers it as `capture` with `format` `svg` (`omui agent capture --format svg`).
+
 ## Independent boundary and compatibility
 
 This substantial rendering feature is independently consumed by Hanim, text,

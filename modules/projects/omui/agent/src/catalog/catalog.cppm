@@ -50,9 +50,10 @@ inline constexpr std::array<mlibs::control::Parameter, 4> parameters_ui_wait{{
     {"settled", "bool", "no animation or layout pending", true},
     {"timeout", "seconds", "", true},
 }};
-inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_capture{{
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_capture{{
     {"node", "node", "", true},
     {"region", "json", "[x, y, width, height] from the node's corner, in logical pixels", true},
+    {"format", "string", "png (pixels, the default) or svg (vectors at any size; each node's drawing a group marked data-node with its path; what SVG cannot say kept as pixels, listed in `islands`)", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_input{{
     {"events", "json", "a list of {type: move, click, drag, wheel, key, keys, text, wait, …}", false},
@@ -106,7 +107,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 20> catalog{{
     {{"ui.transaction", openas::Effect::reversible, false}, "Steps performed as one: all done, or all taken back", parameters_ui_transaction, "json", mlibs::control::Cost::bounded, "ui.undo takes the whole transaction back", false, false, false},
     {{"ui.history", openas::Effect::read, false}, "A history scope's changes, what can be undone and redone", parameters_ui_history, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.wait", openas::Effect::read, false}, "Answer when a condition holds: a node present or absent, the tree settled", parameters_ui_wait, "json", mlibs::control::Cost::heavy, "", false, false, false},
-    {{"ui.capture", openas::Effect::read, false}, "The pixels as drawn: the window, a node, or a region of it, as PNG", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},
+    {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},
     {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false},
     {{"ui.inspect", openas::Effect::read, false}, "A node's layout, style, state, bindings and motion, for development", parameters_ui_inspect, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.stats", openas::Effect::read, false}, "Frame times (mean, percentiles, phases) and the last frame's counts", parameters_ui_stats, "json", mlibs::control::Cost::instant, "", false, false, false},

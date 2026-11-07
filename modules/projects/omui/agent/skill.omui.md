@@ -19,7 +19,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 ## Verifying
 
 - The tree after: `snapshot` or `find` shows the state the task asked for (values, checked, selected, present).
-- The pixels after: `capture` (the window, a node or a region) — the same renderer as on screen. Look at the parts the task touched.
+- The pixels after: `capture` (the window, a node or a region) — the same renderer as on screen. Look at the parts the task touched. With `format` `svg` the same picture comes as vectors: each node's drawing a group marked `data-node` with its path, so you can tell which node drew what and read its exact geometry and colours; `islands` lists what is still pixels (effects) and where.
 - Motion: drive the `clock` (`pause`, `step`, `seek`) and capture several moments of a change, not only its ends.
 - Performance and health when it matters: `stats` (frame times), `profile` (a trace), `logs` (warnings and errors).
 - Record what you did: the requests, their envelopes, the captures' hashes.

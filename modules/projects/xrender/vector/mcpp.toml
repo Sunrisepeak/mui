@@ -18,7 +18,7 @@ kind = "backend"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm"]
+sources  = ["src/*.cppm", "src/*.cpp", "src/generated/*.cppm", "src/svg/*.cppm", "src/svg/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [build-dependencies]

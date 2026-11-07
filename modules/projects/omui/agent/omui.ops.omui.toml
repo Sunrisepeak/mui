@@ -129,10 +129,11 @@ cost    = "heavy"
 [[operation]]
 name    = "ui.capture"
 effect  = "read"
-summary = "The pixels as drawn: the window, a node, or a region of it, as PNG"
+summary = "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked"
 params  = [
     { name = "node", type = "node", optional = true },
     { name = "region", type = "json", doc = "[x, y, width, height] from the node's corner, in logical pixels", optional = true },
+    { name = "format", type = "string", doc = "png (pixels, the default) or svg (vectors at any size; each node's drawing a group marked data-node with its path; what SVG cannot say kept as pixels, listed in `islands`)", optional = true },
 ]
 result  = "image"
 cost    = "frame"

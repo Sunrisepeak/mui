@@ -102,6 +102,10 @@ public:
     [[nodiscard]] const xrender::raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
     std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
+    // The same frame as vectors (xrender.vector.svg): SVG at any size, each
+    // node's drawing a group marked with its path (data-node), and the
+    // pieces SVG cannot say kept as the reference renderer's pixels, listed.
+    [[nodiscard]] std::expected<agent::VectorCapture, std::string> svg(std::optional<Rect> region = {});
     // A recording for an animation (a README's loop, a bug report): each
     // `record()` keeps the current frame (of `region`, the first's for the
     // rest); `save_recording` writes them and starts afresh: an animated WebP
@@ -112,8 +116,9 @@ public:
     std::expected<void, std::string> save_recording(const std::filesystem::path& file, RecordingOptions options = {});
     // The node that drew a pixel (logical coordinates), through the object-id buffer.
     [[nodiscard]] NodeId node_at_pixel(Point p);
-    // A capture function for the agent protocol.
+    // Capture functions for the agent protocol: pixels, and vectors.
     [[nodiscard]] agent::CaptureFn capture();
+    [[nodiscard]] agent::CaptureSvgFn capture_svg();
 
     // ── H3 ──
     [[nodiscard]] agent::Endpoint* endpoint() noexcept;

@@ -247,6 +247,15 @@ channel mixing and catalog, GPU resource scheduling and the complete UI adapter 
 implementation work. CPU/GPU renderer support is evaluated by its own adapter
 tests, not inferred from effect-parameter interpolation.
 
+**M3.5's signature shots**, headless and drawn by both renderers (`hanim.studio`'s `signature_test`: each sampled through its course, the GPU renderer's frames within the vector suite's tolerance of the CPU reference's; the strips are the CPU frames):
+
+| Shot | Frames |
+|---|---|
+| "一" becomes "二": the second bar grows out of the first (topology-aligning morph) | ![](media/signature/one-to-two.strip.png) |
+| A stretch of the outline runs round "一" (the stroke's trim channels) | ![](media/signature/trace.strip.png) |
+| The crossbar of an "H" pulled down and let go on a spring: past its rest and back (selector and deformer) | ![](media/signature/crossbar.strip.png) |
+| A ball dropped: squashed at each landing, lower each bounce (fall curve, squash) | ![](media/signature/drop.strip.png) |
+
 **The recipe library (L6).** Forty reusable animations are public ordinary `Program` factories in `hanim::anim` — what a site, a video or a game composes with sequences and parallels. Each lowers at authoring time to relative property writes from the actual pose (so any object, or one part of it, takes it from wherever it is), the group opacity effect, the stroke's trim or the squash channel; no hidden state, clock or runtime.
 
 | Kind | Recipes (defaults) |

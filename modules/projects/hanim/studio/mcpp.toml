@@ -41,3 +41,5 @@ nlohmann.json  = "3.12.0"
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../base/utils" }
+mlibs.rhi = { path = "../../../gfx/rhi" }
+"xrender.rhi.sdl" = { path = "../../xrender/rhi/sdl" }

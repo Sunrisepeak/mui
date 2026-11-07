@@ -10,6 +10,11 @@ mcpp run -p omui.bench --profile release -- --filter ui/frame     # some of them
 mcpp run -p omui.bench -- --list                                  # what there is
 ```
 
+Against the competitors: [competitors](competitors) holds their side of a
+benchmark (pinned, with the method and the numbers), and [web](web) is
+motion/drive-1000's loop as a program that also runs as WebAssembly, so the
+Web's comparison is in the same JavaScript engine.
+
 | Benchmark | What it measures |
 |---|---|
 | `ui/frame/one-label` | **M1 ⑤**: one value of the 1000-node dashboard changes; layout, paint and the CPU raster at 1920×1080 |

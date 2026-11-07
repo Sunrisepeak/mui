@@ -1,0 +1,25 @@
+# omui.bench.web — motion/drive-1000's work as a program of its own, so the
+# same loop runs natively and as WebAssembly beside the competitors' scripts
+# (tests/bench/competitors) in the same JavaScript engine. A package apart
+# from omui.bench because omui.bench's dependencies do not run on the Web.
+#
+#   mcpp build --target wasm32-emscripten --profile release -p omui.bench.web
+#   node target/wasm32-emscripten/<hash>/bin/omui-bench-web.js [--json]
+[package]
+namespace   = "omui"
+name        = "bench.web"
+version     = "0.1.0"
+description = "motion/drive-1000 as a program that runs natively and on the Web"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui-bench-web]
+kind = "bin"
+main = "src/main.cpp"
+
+[dependencies]
+"hanim.core" = { path = "../../../modules/projects/hanim/core" }
+"hanim" = { path = "../../../modules/projects/hanim" }

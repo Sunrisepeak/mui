@@ -154,6 +154,24 @@ struct PathPolylines {
     }
 };
 
+// A path as SVG's path data writes it (a `d` attribute): moveto, lineto,
+// horizontal and vertical lineto, cubic and smooth cubic, quadratic and smooth
+// quadratic, elliptical arc and closepath, absolute and relative (M L H V C S
+// Q T A Z and their lowercase forms), numbers as SVG reads them (1e3, .5-.5,
+// implicit repetition). Arcs become cubics, a quarter turn at most each, with
+// mlibs.math's deterministic functions: the same points everywhere.
+struct PathData {
+    std::vector<PathVerb> verbs;
+    std::vector<Point> points;
+    [[nodiscard]] PathView view() const noexcept { return {verbs, points}; }
+};
+// Where the text stops being path data (a byte offset) and why.
+struct PathDataError {
+    std::size_t offset = 0;
+    std::string message;
+};
+[[nodiscard]] std::expected<PathData, PathDataError> parse_path_data(std::string_view text, PathLimits limits = {});
+
 // Low-level append operation used by the rasterizer. The source must have a
 // valid encoding (inspect_path provides validation), transform/coordinates
 // must be finite and tolerance must be finite and positive. It uses the

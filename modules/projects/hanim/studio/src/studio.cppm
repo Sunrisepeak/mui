@@ -36,10 +36,10 @@ struct Problem {
 using Problems = std::vector<Problem>;
 [[nodiscard]] std::string to_text(const Problems& problems);
 
-enum class ShapeKind : std::uint8_t { rect, circle, ellipse, polygon, star };
+enum class ShapeKind : std::uint8_t { rect, circle, ellipse, polygon, star, path };
 // A shape about its object's origin, in pixels: a rectangle (size, corner
 // radius), a circle (radius), an ellipse (radii), a polygon (points), a star
-// (points, outer and inner radius).
+// (points, outer and inner radius), a path (SVG path data, its own coordinates).
 struct ShapeSpec {
     ShapeKind kind = ShapeKind::rect;
     Vec2 size{};                // rect: width, height; ellipse: the two radii
@@ -47,6 +47,7 @@ struct ShapeSpec {
     double inner = 0;           // star: inner radius
     int count = 5;              // star: its points
     std::vector<Vec2> points;   // polygon
+    std::string data;           // path: SVG path data (one contour or several)
 };
 struct ObjectSpec {
     std::string id;

@@ -3,7 +3,7 @@
   "size": [200, 200],
   "background": "#fff1f2",
   "objects": [
-    { "id": "heart", "shape": { "polygon": [[0, 30], [-34, -2], [-38, -18], [-30, -32], [-14, -36], [0, -24], [14, -36], [30, -32], [38, -18], [34, -2]] }, "fill": "#e11d48", "at": [100, 104], "scale": 0.9 },
+    { "id": "heart", "shape": { "path": "M0 30 C-42 6 -42 -30 -18 -32 C-8 -33 -2 -26 0 -19 C2 -26 8 -33 18 -32 C42 -30 42 6 0 30 Z" }, "fill": "#e11d48", "at": [100, 104], "scale": 0.9 },
     { "id": "spark1", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [52, 60], "hidden": false },
     { "id": "spark2", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [148, 60] },
     { "id": "spark3", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [100, 40] }

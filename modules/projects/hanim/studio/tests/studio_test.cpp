@@ -139,6 +139,17 @@ int main(int argc, char** argv) {
         check(waiting && !find(*waiting->state(hanim::seconds(.2)), "a").drawn && find(*waiting->state(hanim::seconds(.2)), "b").drawn &&
                   find(*waiting->state(hanim::seconds(.6)), "a").drawn,
               "on the stage from its entrance");
+        // A path shape: SVG path data, arcs and all; bad data said where it stops.
+        const auto drawn = studio::read(R"({"version": 1, "objects": [{"id": "ring", "shape": {"path": "M-10 0 A10 10 0 1 1 10 0 A10 10 0 1 1 -10 0 Z M-5 0 A5 5 0 1 0 5 0 A5 5 0 1 0 -5 0 Z"}, "fill": "#fff", "at": [50, 50]}],
+            "program": {"do": "pulse", "object": "ring"}})");
+        auto ring = drawn ? studio::Studio::open(*drawn) : std::unexpected(drawn.error());
+        check(ring.has_value(), ring ? "" : studio::to_text(ring.error()));
+        if (ring) {
+            const auto& state = find(*ring->state(hanim::seconds(0)), "ring");
+            check(std::abs(state.high.x - state.low.x - 20) < .01, std::format("a ring 20 across: {}", state.high.x - state.low.x));
+        }
+        const auto broken_path = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"path": "M0 0 L5"}, "fill": "#fff"}], "program": {"do": "pulse", "object": "a"}})");
+        check(!broken_path && says(broken_path.error(), "/objects/0/shape/path", "stops at character"), broken_path ? "accepted" : studio::to_text(broken_path.error()));
         // A recipe's fields are its own.
         const auto wrong = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}],
             "program": {"do": "rise_in", "object": "a", "distnace": 10}})");

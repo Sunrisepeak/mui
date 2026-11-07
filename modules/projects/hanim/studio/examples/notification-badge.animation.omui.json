@@ -3,7 +3,7 @@
   "size": [200, 200],
   "background": "#0b1220",
   "objects": [
-    { "id": "bell", "shape": { "polygon": [[-30, 26], [-24, 14], [-22, -10], [-12, -26], [0, -30], [12, -26], [22, -10], [24, 14], [30, 26]] }, "fill": "#fbbf24", "at": [100, 104] },
+    { "id": "bell", "shape": { "path": "M-30 26 Q-24 20 -24 8 L-24 -6 Q-24 -28 0 -30 Q24 -28 24 -6 L24 8 Q24 20 30 26 Z" }, "fill": "#fbbf24", "at": [100, 104] },
     { "id": "clapper", "shape": { "circle": 7 }, "fill": "#fbbf24", "at": [100, 136] },
     { "id": "badge", "shape": { "circle": 13 }, "fill": "#ef4444", "stroke": { "color": "#0b1220", "width": 3 }, "at": [128, 76] }
   ],

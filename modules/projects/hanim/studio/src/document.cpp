@@ -164,7 +164,7 @@ public:
     ShapeSpec shape(const Json& value, const std::string& where) {
         ShapeSpec result;
         if (!value.is_object() || value.size() != 1) {
-            problem(where, "one shape: {\"rect\": [w, h]}, {\"circle\": r}, {\"ellipse\": [rx, ry]}, {\"polygon\": [[x, y], …]} or {\"star\": {…}}");
+            problem(where, "one shape: {\"rect\": [w, h]}, {\"circle\": r}, {\"ellipse\": [rx, ry]}, {\"polygon\": [[x, y], …]}, {\"star\": {…}} or {\"path\": \"M…\"}");
             return result;
         }
         const auto first = value.begin();
@@ -197,6 +197,15 @@ public:
                 for (std::size_t index = 0; index < body.size(); ++index)
                     if (auto point = pair(body[index], std::format("{}/{}", at, index), -1e5, 1e5)) result.points.push_back(*point);
             }
+        } else if (kind == "path") {
+            result.kind = ShapeKind::path;
+            if (!body.is_string() || body.get<std::string>().empty()) {
+                problem(at, "a path is SVG path data: \"M0 0 L10 0 …\"");
+            } else {
+                result.data = body.get<std::string>();
+                if (const auto parsed = mlibs::geom::parse_path_data(result.data); !parsed)
+                    problem(at, std::format("path data stops at character {}: {}", parsed.error().offset, parsed.error().message));
+            }
         } else if (kind == "star") {
             result.kind = ShapeKind::star;
             if (!body.is_object()) {
@@ -209,7 +218,7 @@ public:
                 if (result.inner >= result.radius) problem(at + "/inner", "a star's inner radius is less than its outer");
             }
         } else {
-            problem(at, std::format("`{}` is not a shape (rect, circle, ellipse, polygon, star)", kind));
+            problem(at, std::format("`{}` is not a shape (rect, circle, ellipse, polygon, star, path)", kind));
         }
         return result;
     }

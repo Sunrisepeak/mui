@@ -23,3 +23,4 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 mlibs.utils = { path = "../utils" }
+mlibs.math  = { path = "../math" }

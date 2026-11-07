@@ -20,7 +20,19 @@ std::vector<ShapeSegment> ellipse_arcs(double rx, double ry) {
 }
 
 // A shape's one closed contour, about its origin; and its lowest point (where a drop lands).
-std::expected<std::pair<Contour, double>, std::string> contour_of(const ShapeSpec& shape) {
+std::expected<std::pair<std::vector<Contour>, double>, std::string> contour_of(const ShapeSpec& shape) {
+    if (shape.kind == ShapeKind::path) {
+        const auto data = mlibs::geom::parse_path_data(shape.data);
+        if (!data) return std::unexpected(data.error().message);
+        auto imported = import_path(data->view());
+        if (!imported) return std::unexpected(imported.error().text());
+        std::vector<Contour> contours;
+        for (auto& contour : imported->contours) contours.push_back(std::move(contour.geometry));
+        double bottom = 0;
+        for (const auto& point : data->points) bottom = std::max(bottom, static_cast<double>(point.y));
+        if (contours.empty()) return std::unexpected(std::string("the path draws nothing"));
+        return std::pair{std::move(contours), bottom};
+    }
     Vec2 start{};
     std::vector<ShapeSegment> segments;
     double bottom = 0;
@@ -67,7 +79,7 @@ std::expected<std::pair<Contour, double>, std::string> contour_of(const ShapeSpe
     }
     auto contour = Contour::copy({start, segments, true});
     if (!contour) return std::unexpected(std::string("its outline could not be made"));
-    return std::pair{std::move(*contour), bottom};
+    return std::pair{std::vector<Contour>{std::move(*contour)}, bottom};
 }
 
 // The objects a step animates (a morph's target is not one).
@@ -281,7 +293,7 @@ std::expected<Studio, Problems> Studio::open(const Document& document) {
         // One part an object, the same id for all: a morph pairs parts by id.
         PartDescription part{.id = "shape",
                              .local = {.tx = spec.at.x, .ty = spec.at.y, .sx = spec.scale.x, .sy = spec.scale.y, .rotate = spec.rotation},
-                             .contours = {contour->first},
+                             .contours = contour->first,
                              .fill = spec.fill,
                              .stroke = spec.stroke};
         if (falling.contains(spec.id)) part.deformers.push_back(deform::squash({0, contour->second}));

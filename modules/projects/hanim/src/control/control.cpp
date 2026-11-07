@@ -7,21 +7,7 @@ namespace hanim::control {
 namespace {
 constexpr mlibs::log::Log diagnostic{"hanim.control"};
 enum class Op {prepare,play,list,inspect,plan,seek,seek_progress,pause,resume,reverse,rate,cancel,release};
-constexpr std::array<OperationInfo,13> catalog{{
-    {{"animation.prepare",openas::Effect::read},"Prepare an immutable animation plan"},
-    {{"animation.play",openas::Effect::reversible},"Start an authored or prepared animation"},
-    {{"animation.list",openas::Effect::read},"List owned playback identities and transport state"},
-    {{"animation.inspect",openas::Effect::read},"Read one playback's transport state"},
-    {{"animation.plan",openas::Effect::read},"Read its immutable plan and channels"},
-    {{"animation.seek",openas::Effect::reversible},"Sample absolute seconds"},
-    {{"animation.seek-progress",openas::Effect::reversible},"Sample normalized progress"},
-    {{"animation.pause",openas::Effect::reversible},"Pause transport"},
-    {{"animation.resume",openas::Effect::reversible},"Resume transport"},
-    {{"animation.reverse",openas::Effect::reversible},"Reverse transport direction"},
-    {{"animation.rate",openas::Effect::reversible},"Set a nonzero signed rate"},
-    {{"animation.cancel",openas::Effect::irreversible},"Cancel a playback; optionally restore its initial pose"},
-    {{"animation.release",openas::Effect::irreversible},"Release a playback and invalidate its handle"},
-}};
+static_assert(catalog.size()==13,"one Op a catalog entry, in its order (hanim.ops.omui.toml)");
 template<class Fn> auto invoke(mlibs::control::InvocationContext& context,
     const std::shared_ptr<const mlibs::control::Access>& access,const mlibs::control::Invocation& call,
     Op operation,Fn&& execute) -> Reply<typename std::invoke_result_t<Fn>::value_type> {
@@ -44,7 +30,7 @@ template<class Fn> auto invoke(mlibs::control::InvocationContext& context,
     else return Receipt<T>{true,std::move(*value)};
 }
 }
-std::span<const OperationInfo> operations() noexcept {return catalog;}
+std::span<const mlibs::control::CatalogEntry> operations() noexcept {return catalog;}
 Reply<PreparedProgram> Controller::prepare(const mlibs::control::Invocation& call,const Program& p,ProgramLimits limits) {
     return invoke(context_,access_,call,Op::prepare,[&]{return engine_.prepare(p,limits);});
 }

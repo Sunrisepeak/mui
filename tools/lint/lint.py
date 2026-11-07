@@ -797,9 +797,48 @@ def check_media(root: Path) -> list[Problem]:
     return problems
 
 
+OPERATION = re.compile(r'"([a-z0-9-]+\.[a-z0-9.-]+)"\s*,\s*openas::Effect::')
+
+
+def check_operations(root: Path) -> list[Problem]:
+    """A package that declares operations (a name with an openas effect) has a
+    catalog, <product>.ops.omui.toml, naming each one, and a skill.omui.md
+    (convergence plan §10.3); omui-gen ops makes its table from the catalog."""
+    import tomllib
+    problems = []
+    for member in workspace_members(root):
+        base = root / member
+        declared = {}
+        for f in source_files(base):
+            rel = f.relative_to(base)
+            if "tests" in rel.parts or "generated" in rel.parts:
+                continue
+            for m in OPERATION.finditer(f.read_text(encoding="utf-8")):  # names are string literals: not stripped
+                declared.setdefault(m.group(1), f.relative_to(root).as_posix())
+        catalogs = sorted(base.glob("*.ops.omui.toml"))
+        if not declared and not catalogs:
+            continue
+        where = f"{member}/"
+        if len(catalogs) != 1:
+            problems.append(Problem("ops", where, f"declares operations ({', '.join(sorted(declared)[:3])}…) but has {len(catalogs)} catalogs: one <product>.ops.omui.toml"))
+            continue
+        try:
+            data = tomllib.loads(catalogs[0].read_text(encoding="utf-8"))
+        except tomllib.TOMLDecodeError as e:
+            problems.append(Problem("ops", catalogs[0].relative_to(root).as_posix(), str(e)))
+            continue
+        listed = {op.get("name") for op in data.get("operation", [])}
+        for name, f in sorted(declared.items()):
+            if name not in listed:
+                problems.append(Problem("ops", f, f"operation `{name}` is not in {catalogs[0].name}"))
+        if not (base / "skill.omui.md").exists():
+            problems.append(Problem("ops", where, "has operations but no skill.omui.md (how an Agent does the work, and how it is verified)"))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root))
+            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root))
 
 
 def self_test() -> int:
@@ -824,6 +863,7 @@ def self_test() -> int:
         "manifest": None,
         "pins": None,
         "closure": None,
+        "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
     }
     try:

@@ -2,13 +2,11 @@ export module hanim.control;
 import std;
 export import hanim.engine;
 export import mlibs.control;
+export import :catalog;  // generated from hanim.ops.omui.toml (omui-gen ops)
 
 export namespace hanim::control {
-struct OperationInfo {
-    mlibs::control::Operation operation;
-    std::string_view purpose;
-};
-[[nodiscard]] std::span<const OperationInfo> operations() noexcept;
+// The catalog's entries: names, openas effects, parameters, results, costs, undo.
+[[nodiscard]] std::span<const mlibs::control::CatalogEntry> operations() noexcept;
 enum class Error : std::uint8_t { admission, engine };
 struct Failure {
     Error code = Error::admission;

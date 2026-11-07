@@ -38,7 +38,7 @@ Json control_catalog() {
     auto result=Json::array();
     for(const auto& item:hanim::control::operations())result.push_back({
         {"name",item.operation.name},{"effect",openas::name(item.operation.effect)},
-        {"person",item.operation.person},{"purpose",item.purpose}});
+        {"person",item.operation.person},{"purpose",item.summary}});
     return result;
 }
 template<std::size_t N> bool integers(std::string_view text,std::array<int,N>& values) {
@@ -119,7 +119,7 @@ std::expected<Json,std::string> review_agent(Engine& engine, PlaybackRef playbac
         return invoke(call,"animation.capture",openas::Effect::read,draw);
     };
     const auto discovered=hanim::control::operations();
-    if(discovered.size()!=13 || std::ranges::any_of(discovered,[](const auto& item){return item.operation.name.empty() || item.purpose.empty();}))
+    if(discovered.size()!=13 || std::ranges::any_of(discovered,[](const auto& item){return item.operation.name.empty() || item.summary.empty();}))
         return std::unexpected("native control discovery incomplete");
     const auto inspected=controller.inspect(request,playback);const auto listed=controller.list(request);const auto planned=controller.plan(request,playback);
     if(!inspected || !inspected->executed || !inspected->value || !listed || !listed->value || listed->value->size()!=engine.size() ||

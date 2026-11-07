@@ -4,6 +4,7 @@ import std;
 import omui.gen.model;
 import omui.gen.read;
 import omui.gen.emit;
+import omui.gen.ops;
 import mlibs.testing;
 
 using namespace mlibs::testing;
@@ -228,6 +229,53 @@ int main(int argc, char** argv) {
                   gen::emit_embed(text, "openmui_effect.slang", "xrender.vector.api", "xrender", "effect_template"),
               "modules/projects/xrender/vector: run omui-gen embed modules/projects/xrender/vector/effects/lib/openmui_effect.slang --module xrender.vector.api "
               "--name effect_template --namespace xrender --out modules/projects/xrender/vector/src/generated");
+    });
+
+    s.test("every operation catalog reads clean and its committed outputs are current (§10.3)", [] {
+        const auto repo = spec_dir().parent_path();
+        std::size_t catalogs = 0;
+        for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / "modules")) {
+            const auto name = entry.path().filename().generic_string();
+            if (!entry.is_regular_file() || !name.ends_with(".ops.omui.toml") || entry.path().generic_string().find("/target/") != std::string::npos) continue;
+            ++catalogs;
+            auto catalog = gen::read_catalog(read(entry.path()), name);
+            check(catalog.has_value(), catalog ? std::string() : catalog.error().front());
+            if (!catalog) continue;
+            // Its outputs beside the module that holds the table: the product's control sources.
+            const auto out = entry.path().parent_path() / "src" / "control";
+            const auto stale = [&](const std::filesystem::path& file, const std::string& now) {
+                check(read(file) == now, std::format("{} is out of date: run omui-gen ops {} --out {}", file.generic_string(), entry.path().generic_string(), out.generic_string()));
+            };
+            stale(out / "catalog.cppm", gen::emit_catalog_cpp(*catalog, name));
+            stale(out / (catalog->product + ".ops.json"), gen::emit_catalog_json(*catalog));
+            stale(out / (catalog->product + ".ops.md"), gen::emit_catalog_markdown(*catalog));
+        }
+        check(catalogs >= 1, "hanim's catalog at least");
+    });
+
+    s.test("a malformed catalog is reported line by line", [] {
+        const auto broken = gen::read_catalog(R"([catalog]
+product = "x"
+module = "x.control"
+namespace = "x::control"
+
+[[operation]]
+name = "Bad Name"
+effect = "maybe"
+summary = "something"
+
+[[operation]]
+name = "x.change"
+effect = "reversible"
+summary = "changes"
+)", "x.ops.omui.toml");
+        check(!broken, "refused");
+        if (broken) return;
+        const auto& problems = broken.error();
+        const auto says = [&](std::string_view text) { return std::ranges::any_of(problems, [&](const std::string& p) { return p.find(text) != std::string::npos; }); };
+        check(says("x.ops.omui.toml:6") && says("dotted lowercase"), "the bad name at its line");
+        check(says("not read, reversible or irreversible"), "the bad effect");
+        check(says("say how it is undone"), "a change without its undo");
     });
 
     return s.run(argc, argv);

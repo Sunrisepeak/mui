@@ -2,7 +2,7 @@
 
 The single progress entry (plan §12, at most 200 lines). Updated by every checkpoint commit on PR #1 (`openmui-design`). Decisions and the full roadmap: [top-level convergence plan](2026-11-06-top-level-assessment-convergence-design.md).
 
-## Current milestone: M3 — UI animation on the one Engine (M3.5 planned next)
+## Current milestone: M3 and M3.5 implemented (their exits await CI); M4 started
 
 **M0 and M2 exits met on CI:** run 42336690239 on 46b3cdfd (an M2 checkpoint: the render suite on mlibs.cts) is green on every row — lint, Linux x64 and arm, macOS, Windows (lavapipe), Web, the site; Pages had deployed before (red list 10). The GCC rows and their gated steps run in the nightly lane.
 
@@ -125,6 +125,12 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | interruption and hit/focus consistency across kinds | done: the sweep's second case takes every moving kind mid-motion — the middle of what it draws hits it, an interruption's frame step is no larger than an uninterrupted one's (no jump), focus reaches it, then it rests. IME: the sweep's third case focuses every text-input kind (number_input, text_box) in a moving container: mid-motion and at rest the IME is on what it draws. The breakout click under an every-node update recipe (neon `travel.noise`) was not a hit bug: the freshly opened panel faded in from nothing, its button not yet drawn (empty drawn bounds, layout bounds fine), so a click on what is drawn correctly found nothing — why packs target their recipes |
 | frame time and Wasm against M2 | measured (local Linux, release): `ui/frame/animate-all` p95 3.22 ms, `ui/frame/all-labels` 3.05 ms (16.67 ms budgets), `motion/switches-100` 1.65 ms (5.5), `motion/drive-1000` 0.013 ms the same as `motion/set-1000`'s (interactive mode costs no more than the old `Set`), `ui/presentation/hanim-frame-100` 0.159 ms and zero allocations; every CPU budget met (the GPU scenes need a device). The site's Wasm against Nov 1 (before M2): shipped 10.99 MB, −1102 KiB (total −2167 KiB, 3818 functions fewer) with hanim's packages in it (~0.6 MiB of code) — the deleted paths paid for it |
 | old paths deleted | done: no component animates itself (lint `motion`; the canvas camera's flight is the one marked navigation exception), `Set` users, `openmui.motion` and the heavy Playback were gone (D-125–D-127); the last private animation arithmetic in the UI — glyph motion's stagger orders and repeated cycles — moved to `hanim.core:choreography` (`stagger_slots`, `repeated`), the same bits (promo video, site, markdown, bench pins hold) |
+
+## M4 — Agent catalog, the first tool, the first Agent player (started)
+
+| Item | State |
+|---|---|
+| operation catalogs (§10.3): format, generator, lint | started: a product's `<product>.ops.omui.toml` (operations, openas effects, parameters, result, cost, undo, cancellation) is the source; `omui-gen ops` makes the product's C++ table (`mlibs::control::CatalogEntry`, the types mlibs.control owns), a CLI/MCP listing (`<product>.ops.json`: tools with JSON schemas) and a reference (`.ops.md`); omui.gen's tests read every catalog and hold its outputs current; lint `ops`: a package declaring operations has its catalog naming each and a `skill.omui.md`. hanim's thirteen operations and its skill are the first. Next: the UI's and the cellular Inspector's operations, the MCP/openas bindings generated from the listing, an Agent's animation task without a GUI |
 
 ## M3.5 — hanim representations and deformation (planned, D-129)
 

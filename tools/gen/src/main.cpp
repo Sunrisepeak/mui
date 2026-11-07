@@ -46,6 +46,7 @@ import omui.gen.unicode;
 import omui.gen.cldr;
 import omui.gen.dist_toy;
 import omui.gen.wasm_size;
+import omui.gen.ops;
 
 using namespace omui::gen;
 
@@ -439,7 +440,52 @@ int wasm_size_main(int argc, char** argv) {
     return 0;
 }
 
+// omui-gen ops <file.ops.omui.toml> --out <dir> [--check]: the C++ partition
+// (<dir>/catalog.cppm) and the listings (<dir>/<product>.ops.json, .ops.md).
+int ops_main(int argc, char** argv) {
+    std::string file, out;
+    bool check = false;
+    for (int i = 2; i < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--check") check = true;
+        else if (a == "--out" && i + 1 < argc) out = argv[++i];
+        else if (!a.starts_with("--") && file.empty()) file = std::string(a);
+        else {
+            std::println(std::cerr, "usage: omui-gen ops <file.ops.omui.toml> --out <dir> [--check]");
+            return 2;
+        }
+    }
+    if (file.empty() || out.empty()) {
+        std::println(std::cerr, "usage: omui-gen ops <file.ops.omui.toml> --out <dir> [--check]");
+        return 2;
+    }
+    std::ifstream in(std::filesystem::path(file), std::ios::binary);
+    if (!in) {
+        std::println(std::cerr, "omui-gen ops: cannot read {}", file);
+        return 1;
+    }
+    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+    const auto name = generic_utf8(std::filesystem::path(file).filename());
+    auto catalog = omui::gen::read_catalog(text, name);
+    if (!catalog) {
+        for (const auto& problem : catalog.error()) std::println(std::cerr, "{}", problem);
+        return 1;
+    }
+    Writer w{check};
+    const std::filesystem::path dir(out);
+    w.put(dir / "catalog.cppm", omui::gen::emit_catalog_cpp(*catalog, name));
+    w.put(dir / (catalog->product + ".ops.json"), omui::gen::emit_catalog_json(*catalog));
+    w.put(dir / (catalog->product + ".ops.md"), omui::gen::emit_catalog_markdown(*catalog));
+    if (check && w.stale) {
+        std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen ops {} --out {}", w.stale, file, out);
+        return 1;
+    }
+    std::println("omui-gen ops: {} operations, {} file(s) {}", catalog->operations.size(), check ? 3 - w.stale : w.written, check ? "current" : "written");
+    return 0;
+}
+
 int main(int argc, char** argv) {
+    if (argc >= 2 && std::string_view(argv[1]) == "ops") return ops_main(argc, argv);
     if (argc >= 2 && std::string_view(argv[1]) == "dist-toy") return dist_toy_main(argc, argv);
     if (argc >= 2 && std::string_view(argv[1]) == "wasm-size") return wasm_size_main(argc, argv);
     auto options = parse_args(argc, argv);

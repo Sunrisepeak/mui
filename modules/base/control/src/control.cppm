@@ -173,6 +173,23 @@ struct Operation {
     openas::Effect effect = openas::Effect::read;
     bool person = false;
 };
+// An operation's catalog entry (convergence plan §10.3): a product's
+// `<product>.ops.omui.toml`, generated into its code by `omui-gen ops`, from
+// which its CLI, MCP and openas bindings and its reference are made.
+struct Parameter {
+    std::string_view name, type, doc;  // type: bool integer number seconds string json, or a named kind ("playback")
+    bool optional = false;
+};
+enum class Cost : std::uint8_t { instant, frame, bounded, heavy };
+struct CatalogEntry {
+    Operation operation;
+    std::string_view summary;
+    std::span<const Parameter> parameters;
+    std::string_view result;      // a type as parameters' (empty: nothing)
+    Cost cost = Cost::instant;    // instant: no work; frame: a frame's; bounded: bounded by its inputs; heavy: may take long
+    std::string_view undo;        // how its effect is undone (empty for a read)
+    bool cancellable = false;     // it can be cancelled while it runs
+};
 // Cold synchronous admission. Bind authority before authorization callbacks;
 // keep this scope alive through domain execution and dependent output.
 class OperationScope {

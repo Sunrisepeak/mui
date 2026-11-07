@@ -573,6 +573,7 @@ public:
     // ── Services ──
     [[nodiscard]] const Theme& theme() const override;
     [[nodiscard]] bool reduce_transparency() const override;
+    [[nodiscard]] bool motion_reduced() const override;
     [[nodiscard]] float pixel_scale() const override { return scale(); }
     [[nodiscard]] bool deterministic() const override;
     [[nodiscard]] bool complete_frames() const override;

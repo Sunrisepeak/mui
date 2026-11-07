@@ -114,7 +114,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | the view runtime's values on the host's Engine (no private `Set`) | done (D-126): pins unchanged; `services.engine()` |
 | Playback as a light handle on the same Engine | done (D-127) |
 | motion slots and recipe ids in the specification | done (D-128; openlifa/openmui 18cd62d) |
-| the 37 component kinds, swept | done: `omui.viewdoc`'s component motion sweep builds every kind generically and changes `disabled`: 15 kinds move (a middle neither endpoint at full and reduced, rest exactly motion off's drawing, nothing left moving); `text_box` is immediate as its recipe says. Findings: 21 kinds draw no disabled state at all (tabs, pagination, combobox, tag_input, tree_view, data_grid … — a UI gap, not motion); `progress`'s indeterminate sweep ignores reduced/off motion |
+| the 37 component kinds, swept | done: `omui.viewdoc`'s component motion sweep builds every kind generically and changes `disabled`: 15 kinds move (a middle neither endpoint at full and reduced, rest exactly motion off's drawing, nothing left moving); `text_box` is immediate as its recipe says. Findings: 21 kinds draw no disabled state at all (tabs, pagination, combobox, tag_input, tree_view, data_grid … — a UI gap, not motion); `progress`'s indeterminate sweep ignored reduced/off motion — fixed: it holds still (`Services::motion_reduced`) |
 | style packs naming recipe ids end to end; interruption and hit/focus/IME consistency across kinds; old paths deleted | next |
 
 ## Next

@@ -37,15 +37,19 @@ void Progress::paint(PaintContext& ctx) const {
     const CornerRadii round = CornerRadii::all(bar_h / 2);
     ctx.list.fill_round_rect(track, round, xrender::Paint::solid(th.color("track")));
     if (props.value < 0) {
-        // Indeterminate: a segment sweeps across, on the runtime's clock.
-        const double phase = std::fmod(ctx.services.now().count() / sweep, 1.0);
+        // Indeterminate: a segment sweeps across, on the runtime's clock — or,
+        // with less motion, holds still in the middle.
+        const bool still = ctx.services.motion_reduced();
+        const double phase = still ? 0.5 : std::fmod(ctx.services.now().count() / sweep, 1.0);
         const float w = track.width * 0.3f;
         const float x = static_cast<float>(phase) * (track.width + w) - w;
         ctx.list.push_clip(track, round);
         ctx.list.fill_round_rect({x, track.y, w, bar_h}, round, xrender::Paint::solid(th.color("accent")));
         ctx.list.pop_clip();
-        ctx.services.invalidate_paint(ctx.node);
-        ctx.services.request_frame();
+        if (!still) {
+            ctx.services.invalidate_paint(ctx.node);
+            ctx.services.request_frame();
+        }
         return;
     }
     const float f = static_cast<float>(std::clamp(fill_, 0.0, 1.0));

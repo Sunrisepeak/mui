@@ -206,6 +206,9 @@ public:
     // The person asked for less transparency (a system setting): glass and
     // other see-through materials draw as opaque panels.
     [[nodiscard]] virtual bool reduce_transparency() const { return false; }
+    // Less motion (the person's setting, or a motion level below full): a
+    // drawing that moves by itself (an indeterminate bar) holds still.
+    [[nodiscard]] virtual bool motion_reduced() const { return false; }
     // Physical pixels per logical pixel: what a component rasterising its own
     // textures (a canvas's thumbnails) sizes them by.
     [[nodiscard]] virtual float pixel_scale() const { return 1; }

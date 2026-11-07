@@ -68,6 +68,13 @@ int main(int argc, char** argv) {
                 probe.h.advance(seconds(0.25));
                 if (pixels(probe.h) != first) {
                     continuous.push_back(type);
+                    // With less motion it holds still.
+                    for (const auto level : {MotionLevel::reduced, MotionLevel::off}) {
+                        Sample quiet(type, level);
+                        const auto held = pixels(quiet.h);
+                        quiet.h.advance(seconds(0.25));
+                        check(pixels(quiet.h) == held, type + ": still with less motion");
+                    }
                     continue;
                 }
             }

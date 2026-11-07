@@ -618,6 +618,7 @@ void Runtime::set_reduce_transparency(bool reduce) {
 }
 
 bool Runtime::reduce_transparency() const { return impl_->reduce_transparency; }
+bool Runtime::motion_reduced() const { return impl_->reduce_motion || impl_->motion_now() != MotionLevel::full; }
 bool Runtime::reduce_motion() const noexcept { return impl_->reduce_motion; }
 
 const Theme& Runtime::theme() const { return impl_->current_theme ? *impl_->current_theme : impl_->theme; }

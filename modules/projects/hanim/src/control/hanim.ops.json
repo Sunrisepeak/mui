@@ -30,5 +30,6 @@
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}, "restore": {"type": "boolean", "description": "back to its first pose"}}, "required": ["playback"]}},
     {"name": "animation.release", "description": "Release a playback and invalidate its handle", "effect": "irreversible", "person": false, "cost": "instant", "undo": "none: the handle is gone (play its program again for a new one)", "cancellable": false, "result": "",
      "inputSchema": {"type": "object", "properties": {"playback": {"type": "string", "description": "a playback (its id)"}}, "required": ["playback"]}}
-  ]
+  ],
+  "tiers": []
 }

@@ -455,8 +455,8 @@ int ops_main(int argc, char** argv) {
             return 2;
         }
     }
-    if (file.empty() || out.empty()) {
-        std::println(std::cerr, "usage: omui-gen ops <file.ops.omui.toml> --out <dir> [--check]");
+    if (file.empty()) {
+        std::println(std::cerr, "usage: omui-gen ops <file.ops.omui.toml> [--out <dir>] [--check]");
         return 2;
     }
     std::ifstream in(std::filesystem::path(file), std::ios::binary);
@@ -472,15 +472,17 @@ int ops_main(int argc, char** argv) {
         return 1;
     }
     Writer w{check};
-    const std::filesystem::path dir(out);
-    w.put(dir / "catalog.cppm", omui::gen::emit_catalog_cpp(*catalog, name));
+    // Its outputs where the catalog says, beside it, unless --out says otherwise.
+    const std::filesystem::path dir = out.empty() ? std::filesystem::path(file).parent_path() / catalog->generated : std::filesystem::path(out);
+    if (!catalog->module.empty()) w.put(dir / "catalog.cppm", omui::gen::emit_catalog_cpp(*catalog, name));
     w.put(dir / (catalog->product + ".ops.json"), omui::gen::emit_catalog_json(*catalog));
     w.put(dir / (catalog->product + ".ops.md"), omui::gen::emit_catalog_markdown(*catalog));
     if (check && w.stale) {
         std::println(std::cerr, "{} generated file(s) are out of date; run: omui-gen ops {} --out {}", w.stale, file, out);
         return 1;
     }
-    std::println("omui-gen ops: {} operations, {} file(s) {}", catalog->operations.size(), check ? 3 - w.stale : w.written, check ? "current" : "written");
+    std::println("omui-gen ops: {} operations, {} tiers, {} file(s) {}", catalog->operations.size(), catalog->tiers.size(), check ? 0 : w.written,
+                 check ? "checked" : "written");
     return 0;
 }
 

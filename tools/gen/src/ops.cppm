@@ -1,7 +1,8 @@
 // omui.gen.ops — a product's operation catalog (`<product>.ops.omui.toml`,
 // convergence plan §10.3) to its generated code and listings:
 //
-//   - a C++ partition `<module>:catalog` holding `catalog`, an array of
+//   - (when the catalog names a module) a C++ partition `<module>:catalog` holding `catalog`, an
+//   array of
 //     mlibs::control::CatalogEntry (names, openas effects, parameters, result,
 //     cost, undo, cancellation), which the product's control adapter uses;
 //   - `<product>.ops.json`: the operations as tools (name, description, a JSON
@@ -25,9 +26,19 @@ struct Operation {
     std::vector<OpParameter> parameters;
     int line = 0;
 };
+// An agent player's tier (plan §8.4): what it is shown, how soon its actions
+// take effect after what it saw, how often it may act, which operations it uses.
+struct Tier {
+    std::string name, view = "drawn", doc;
+    int reaction_ms = 0, actions_per_second = 0;
+    std::vector<std::string> operations;
+    int line = 0;
+};
 struct Catalog {
     std::string product, module, ns, doc;
+    std::string generated = "src/control";  // where its outputs go, beside the catalog
     std::vector<Operation> operations;
+    std::vector<Tier> tiers;
 };
 
 // The catalog in `text` (named `file` in messages), or every problem in it.

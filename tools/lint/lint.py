@@ -797,7 +797,7 @@ def check_media(root: Path) -> list[Problem]:
     return problems
 
 
-OPERATION = re.compile(r'"([a-z0-9-]+\.[a-z0-9.-]+)"\s*,\s*openas::Effect::')
+OPERATION = re.compile(r'"([a-z0-9_-]+\.[a-z0-9._-]+)"\s*,\s*openas::Effect::')
 
 
 def check_operations(root: Path) -> list[Problem]:

@@ -125,4 +125,32 @@ std::expected<std::vector<Actions>, std::string> from_text(std::string_view text
     return out;
 }
 
+
+AgentLane::AgentLane(PlayTier tier, std::int32_t steps_per_second) : tier_(tier), steps_per_second_(std::max(1, steps_per_second)) {}
+
+std::expected<std::int64_t, AgentLane::Refusal> AgentLane::submit(std::int64_t now, std::int64_t seen, Actions actions) {
+    if (seen > now) return std::unexpected(Refusal::unseen);
+    while (!accepted_.empty() && accepted_.front() <= now - steps_per_second_) accepted_.pop_front();
+    if (tier_.actions_per_second > 0 && static_cast<std::int32_t>(accepted_.size()) >= tier_.actions_per_second)
+        return std::unexpected(Refusal::too_often);
+    accepted_.push_back(now);
+    const std::int64_t due = std::max(seen + tier_.reaction_steps, now + 1);
+    // Kept in step order; one submitted later for the same step follows it.
+    auto at = std::ranges::upper_bound(queue_, due, {}, &Due::step);
+    actions.pressed = actions.released = 0;
+    queue_.insert(at, {due, actions});
+    return due;
+}
+
+Actions AgentLane::take(std::int64_t step) {
+    const std::uint32_t before = held_.held;
+    while (!queue_.empty() && queue_.front().step <= step) {
+        held_ = queue_.front().actions;
+        queue_.pop_front();
+    }
+    Actions now = held_;
+    now.pressed = now.held & ~before;
+    now.released = before & ~now.held;
+    return now;
+}
 }  // namespace xengine

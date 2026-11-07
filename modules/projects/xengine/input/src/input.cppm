@@ -96,4 +96,45 @@ private:
 [[nodiscard]] std::string to_text(std::span<const Actions> frames);
 [[nodiscard]] std::expected<std::vector<Actions>, std::string> from_text(std::string_view text);
 
+
+// ── Agent players (convergence plan §8.4) ─────────────────────────────────
+// An agent playing as a person plays through the same actions (a held axis,
+// pressed buttons), held to a tier the game declares: what it is shown, how
+// soon its actions can take effect after what it saw, how often it may act.
+struct PlayTier {
+    std::string_view name;                 // "human": as a person; "assist": privileged
+    std::int32_t     reaction_steps = 0;   // an action takes effect no sooner than this many steps after the step it saw
+    std::int32_t     actions_per_second = 0;  // at most this many actions a second of steps (0: no limit)
+    bool             full_view = false;    // shown everything (hidden state too), not only what is drawn
+};
+
+// An agent's lane of actions on its tier. Each action says the step it saw;
+// it takes effect at that step plus the tier's reaction, or at the next step
+// when that has passed, and holds — like a key held — until the next one.
+// Deterministic: the same submissions at the same steps give the same steps'
+// actions, so a game records and replays them as a person's.
+class AgentLane {
+public:
+    enum class Refusal : std::uint8_t { unseen, too_often };
+    AgentLane(PlayTier tier, std::int32_t steps_per_second);
+    // At step `now`, an action decided on what step `seen` showed: the step it
+    // takes effect, or why not (it saw a step not yet played; over its rate).
+    [[nodiscard]] std::expected<std::int64_t, Refusal> submit(std::int64_t now, std::int64_t seen, Actions actions);
+    // The agent's actions for step `step` (called once a step, in order):
+    // what it holds, with pressed and released at the step they change.
+    [[nodiscard]] Actions take(std::int64_t step);
+    [[nodiscard]] const PlayTier& tier() const noexcept { return tier_; }
+    [[nodiscard]] std::size_t pending() const noexcept { return queue_.size(); }
+
+private:
+    struct Due {
+        std::int64_t step;
+        Actions      actions;
+    };
+    PlayTier             tier_;
+    std::int32_t         steps_per_second_;
+    std::deque<Due>      queue_;
+    std::deque<std::int64_t> accepted_;  // the steps of the actions accepted within the last second
+    Actions              held_{};
+};
 }  // namespace xengine

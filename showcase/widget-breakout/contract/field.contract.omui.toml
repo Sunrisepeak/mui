@@ -12,6 +12,7 @@ room      = { type = "i32", default = 1, doc = "Which room of the run (1–5): i
 paused    = { type = "bool", default = false, doc = "Stand still: `step` plays one frame." }
 inspector = { type = "bool", default = false, doc = "The inspector (Tab): every brick's role and id, the hidden ones, the semantic tree's latest changes, the state's checksum, and how the room is made; the game waits while it is open." }
 copilot   = { type = "bool", default = true, doc = "Room 5: the application's agent plays the top paddle; off, it leaves it to another agent." }
+agent_player = { type = "string", default = "off", doc = "Whether an agent may play the bottom paddle as a player, and at which tier (plan §8.4): `off`; `human`, as a person plays — the arrows held and Space (`play`), taking effect 100 ms after what it saw, at most ten actions a second, shown what is drawn (`observe`); `assist`, no delay and no limit, shown everything. The application sets it; the person can turn it off." }
 
 [contract.field.events]
 brick_broke = { args = { id = "string" } }
@@ -37,3 +38,5 @@ guard_to  = { effect = "reversible", args = { x = "f64", seen = "string", says =
 set_rules = { effect = "reversible", args = { drop_one_in = "i32", magnet_catches = "i32", multi_balls = "i32", pierce_steps = "i32", slow_percent = "i32", slow_steps = "i32", wide_half = "i32", wide_steps = "i32" }, doc = "What the contraptions do from the next step on (their scripts answer them); each within its bounds, or none is changed." }
 choose    = { effect = "reversible", args = { gift = "string" }, doc = "Between rooms: takes one of the two contraptions offered (`wide`, `magnet`, `multi`, `pierce`, `slow`), and the next room begins." }
 next      = { effect = "reversible", doc = "On from a room over: lost, the run again; the run complete, a new one." }
+observe   = { effect = "read", doc = "What an agent player is shown at its tier: the step, the paddle, the balls, the score, lives and bricks left, whether the room is over; at `assist` also the contraptions' rules and the hidden bricks. Refused while agent players are off." }
+play      = { effect = "reversible", args = { seen = "i64", axis = "f64", launch = "bool", look = "bool" }, doc = "An agent player's actions, a person's: the arrows held (axis −1 … 1, 0: neither), Space held (launch), Z held (look). They take effect no sooner than the tier's reaction after step `seen` (what it saw) and hold until the next; the answer says the step. Refused while agent players are off, for a step not yet played, or more often than the tier allows." }

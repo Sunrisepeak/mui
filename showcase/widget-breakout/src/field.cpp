@@ -74,7 +74,23 @@ void Field::mounted() {
     pacer_.start(services(), steps_per_second, [this](std::int32_t n) { run(n); });
 }
 
+namespace {
+// The tiers an agent player is held to (plan §8.4; breakout.ops.omui.toml).
+constexpr xengine::PlayTier human_tier{.name = "human", .reaction_steps = steps_per_second / 10, .actions_per_second = 10, .full_view = false};
+constexpr xengine::PlayTier assist_tier{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
+std::optional<xengine::PlayTier> tier_named(std::string_view name) {
+    if (name == "human") return human_tier;
+    if (name == "assist") return assist_tier;
+    return std::nullopt;
+}
+}  // namespace
+
 void Field::prop_changed(FieldProp p) {
+    if (p == FieldProp::agent_player) {
+        const auto tier = tier_named(props.agent_player);
+        if (tier) player_lane_.emplace(*tier, steps_per_second);
+        else player_lane_.reset();
+    }
     if (!attached()) return;
     if (p == FieldProp::room) {
         services().recompose(node());  // its bricks: read into a new simulation on the next step
@@ -214,6 +230,8 @@ bool Field::begin() {
 Input Field::input() {
     Input in;
     in.player = sampler_.sample();
+    // An agent player plays the paddle as a person would, its actions due at this step.
+    if (player_lane_ && timeline_) in.player = player_lane_->take(timeline_->state().frame);
     if (timeline_ && in.player.pointer_x >= 0 && timeline_->state().zoom != 1) {
         // The pointer across the screen, to across the field: zoomed out, the field is the screen's middle.
         const double z = timeline_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
@@ -774,4 +792,46 @@ ActResult Field::next(ActContext& ctx) {
     return again(ctx);  // lost, or the run complete: a new one
 }
 
+ActResult Field::observe(ActContext&) {
+    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
+    if (!timeline_) return ActResult::fail("the room has not begun");
+    const State& s = timeline_->state();
+    Value v;
+    v.set("tier", std::string(player_lane_->tier().name)).set("step", s.frame).set("room", props.room);
+    v.set("paddle", s.paddles[0].x / field_w).set("score", s.score).set("lives", s.lives).set("bricks", s.bricks).set("over", static_cast<std::int32_t>(s.over));
+    Value::List balls;
+    s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
+        balls.push_back(Value{}.set("x", b.at.x / field_w).set("y", b.at.y / field_h).set("vx", b.velocity.x).set("vy", b.velocity.y).set("on_paddle", b.on != 0));
+    });
+    v.set("balls", Value(std::move(balls)));
+    if (player_lane_->tier().full_view) {
+        // What is not drawn: the contraptions' rules and the hidden bricks.
+        v.set("rules", Value{}.set("wide_steps", s.rules.wide_steps).set("multi_balls", s.rules.multi_balls).set("drop_one_in", s.rules.drop_one_in));
+        Value::List hidden;
+        s.world.each<Brick>([&](xengine::Entity, const Brick& b) {
+            if (b.kind != Kind::hidden) return;
+            for (const auto& spec : level_.bricks)
+                if (spec.id == b.id)
+                    hidden.push_back(Value{}.set("id", static_cast<std::int64_t>(b.id)).set("x", (spec.box.x + spec.box.w / 2) / field_w).set("y", (spec.box.y + spec.box.h / 2) / field_h));
+        });
+        v.set("hidden", Value(std::move(hidden)));
+    }
+    return ActResult::done(std::move(v));
+}
+
+ActResult Field::play(ActContext&, const PlayArgs& args) {
+    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
+    if (!timeline_) return ActResult::fail("the room has not begun");
+    const double axis = args.axis.as_double();
+    if (!std::isfinite(axis) || axis < -1 || axis > 1) return ActResult::fail("axis is −1 … 1");
+    xengine::Actions actions;
+    actions.axes[0] = static_cast<std::int16_t>(std::lround(axis * 32767));
+    if (args.launch.as_bool()) actions.held |= 1u << launch_button;
+    if (args.look.as_bool()) actions.held |= 1u << look_button;
+    const auto due = player_lane_->submit(timeline_->state().frame, args.seen.as_int(), actions);
+    if (!due) return ActResult::fail(due.error() == xengine::AgentLane::Refusal::too_often ? "more often than the tier allows" : "a step not yet played");
+    return ActResult::done(Value{}.set("at", *due));
+}
+
 }  // namespace omui::breakout
+

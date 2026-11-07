@@ -234,19 +234,23 @@ int main(int argc, char** argv) {
     s.test("every operation catalog reads clean and its committed outputs are current (§10.3)", [] {
         const auto repo = spec_dir().parent_path();
         std::size_t catalogs = 0;
-        for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / "modules")) {
+        std::vector<std::filesystem::path> files;
+        for (const auto* place : {"modules", "showcase"})
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(repo / place)) files.push_back(entry.path());
+        for (const auto& path : files) {
+            const std::filesystem::directory_entry entry(path);
             const auto name = entry.path().filename().generic_string();
             if (!entry.is_regular_file() || !name.ends_with(".ops.omui.toml") || entry.path().generic_string().find("/target/") != std::string::npos) continue;
             ++catalogs;
             auto catalog = gen::read_catalog(read(entry.path()), name);
             check(catalog.has_value(), catalog ? std::string() : catalog.error().front());
             if (!catalog) continue;
-            // Its outputs beside the module that holds the table: the product's control sources.
-            const auto out = entry.path().parent_path() / "src" / "control";
+            // Its outputs where the catalog says, beside it.
+            const auto out = entry.path().parent_path() / catalog->generated;
             const auto stale = [&](const std::filesystem::path& file, const std::string& now) {
                 check(read(file) == now, std::format("{} is out of date: run omui-gen ops {} --out {}", file.generic_string(), entry.path().generic_string(), out.generic_string()));
             };
-            stale(out / "catalog.cppm", gen::emit_catalog_cpp(*catalog, name));
+            if (!catalog->module.empty()) stale(out / "catalog.cppm", gen::emit_catalog_cpp(*catalog, name));
             stale(out / (catalog->product + ".ops.json"), gen::emit_catalog_json(*catalog));
             stale(out / (catalog->product + ".ops.md"), gen::emit_catalog_markdown(*catalog));
         }

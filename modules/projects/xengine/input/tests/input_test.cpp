@@ -117,5 +117,32 @@ int main(int argc, char** argv) {
         check(!xengine::from_text("1 2 3\n").has_value(), "a short line: refused");
     });
 
+    s.test("an agent's lane: no sooner than its reaction after what it saw, held like a key, rate-limited, the same every time", [] {
+        const xengine::PlayTier human{.name = "human", .reaction_steps = 12, .actions_per_second = 10};
+        const auto right = [] { xengine::Actions a; a.axes[0] = 32767; a.held = 1; return a; };
+        const auto run = [&] {
+            xengine::AgentLane lane(human, 120);
+            std::vector<xengine::Actions> steps;
+            for (std::int64_t step = 0; step < 60; ++step) {
+                if (step == 5) check(lane.submit(step, 2, right()) == std::expected<std::int64_t, xengine::AgentLane::Refusal>(14), "seen at 2: from step 14");
+                if (step == 20) check(lane.submit(step, 20, {}) == std::expected<std::int64_t, xengine::AgentLane::Refusal>(32), "let go: from 32");
+                steps.push_back(lane.take(step));
+            }
+            return steps;
+        };
+        const auto steps = run();
+        check(steps[13].axes[0] == 0 && steps[14].axes[0] == 32767 && steps[31].axes[0] == 32767 && steps[32].axes[0] == 0, "held from 14 to 31");
+        check(steps[14].went_down(0) && !steps[15].went_down(0) && (steps[32].released & 1u), "pressed once, released once");
+        check(run() == steps, "the same submissions, the same steps");
+        xengine::AgentLane lane(human, 120);
+        check(!lane.submit(10, 11, right()) && lane.submit(10, 11, right()).error() == xengine::AgentLane::Refusal::unseen, "not a step it has not seen");
+        int accepted = 0;
+        for (int index = 0; index < 15; ++index) accepted += lane.submit(10 + index, 10, right()).has_value();
+        check(accepted == 10, std::format("ten a second: {}", accepted));
+        check(lane.submit(10 + 120, 130, right()).has_value(), "a second later, again");
+        xengine::AgentLane late(human, 120);
+        check(late.submit(100, 40, right()) == std::expected<std::int64_t, xengine::AgentLane::Refusal>(101), "seen long ago: the next step");
+    });
+
     return s.run(argc, argv);
 }

@@ -18,7 +18,7 @@ bool dotted_name(std::string_view name) {
         name.back() == '.')
         return false;
     return std::ranges::all_of(name, [](char c) {
-        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-';
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_';
     });
 }
 bool type_name(std::string_view type) {
@@ -113,9 +113,10 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
         catalog.module = (*head)["module"].value_or(std::string());
         catalog.ns = (*head)["namespace"].value_or(std::string());
         catalog.doc = (*head)["doc"].value_or(std::string());
-        if (catalog.product.empty() || catalog.module.empty() || catalog.ns.empty())
-            problem(at(head), "the catalog names its product, the module holding the table and its "
-                              "namespace");
+        catalog.generated = (*head)["generated"].value_or(std::string("src/control"));
+        if (catalog.product.empty() || catalog.module.empty() != catalog.ns.empty())
+            problem(at(head), "the catalog names its product, and the module holding its table "
+                              "with that table's namespace (or neither)");
     }
     std::set<std::string> names;
     if (const auto* list = root["operation"].as_array()) {
@@ -182,6 +183,43 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
     }
     if (catalog.operations.empty())
         problem(1, "a catalog lists at least one [[operation]]");
+    if (const auto* list = root["tier"].as_array())
+        for (const auto& node : *list) {
+            const auto* entry = node.as_table();
+            const int line = at(&node);
+            if (!entry) {
+                problem(line, "a [[tier]] is a table");
+                continue;
+            }
+            Tier tier;
+            tier.line = line;
+            tier.name = (*entry)["name"].value_or(std::string());
+            tier.view = (*entry)["view"].value_or(std::string("drawn"));
+            tier.doc = (*entry)["doc"].value_or(std::string());
+            tier.reaction_ms = static_cast<int>((*entry)["reaction_ms"].value_or(std::int64_t{0}));
+            tier.actions_per_second =
+                static_cast<int>((*entry)["actions_per_second"].value_or(std::int64_t{0}));
+            if (tier.name.empty())
+                problem(line, "a tier has a name");
+            if (tier.view != "drawn" && tier.view != "full")
+                problem(line,
+                        std::format("tier `{}`: view `{}` is drawn or full", tier.name, tier.view));
+            if (tier.reaction_ms < 0 || tier.actions_per_second < 0)
+                problem(line,
+                        std::format("tier `{}`: reaction and rate are not negative", tier.name));
+            if (const auto* operations = (*entry)["operations"].as_array())
+                for (const auto& item : *operations) {
+                    const std::string name = item.value_or(std::string());
+                    if (!names.contains(name))
+                        problem(at(&item),
+                                std::format("tier `{}` uses `{}`, not an operation of the catalog",
+                                            tier.name, name));
+                    tier.operations.push_back(name);
+                }
+            if (tier.operations.empty())
+                problem(line, std::format("tier `{}` names the operations it uses", tier.name));
+            catalog.tiers.push_back(std::move(tier));
+        }
     if (!problems.empty())
         return std::unexpected(std::move(problems));
     return catalog;
@@ -246,7 +284,19 @@ std::string emit_catalog_json(const Catalog& catalog) {
                            operation.cancellable ? "true" : "false", json_string(operation.result),
                            properties, required, index + 1 < catalog.operations.size() ? "," : "");
     }
-    return out + "  ]\n}\n";
+    out += "  ],\n  \"tiers\": [";
+    for (std::size_t index = 0; index < catalog.tiers.size(); ++index) {
+        const auto& tier = catalog.tiers[index];
+        std::string operations;
+        for (const auto& name : tier.operations)
+            operations += std::format("{}{}", operations.empty() ? "" : ", ", json_string(name));
+        out += std::format("{}\n    {{\"name\": {}, \"view\": {}, \"reaction_ms\": {}, "
+                           "\"actions_per_second\": {}, \"doc\": {}, \"operations\": [{}]}}",
+                           index ? "," : "", json_string(tier.name), json_string(tier.view),
+                           tier.reaction_ms, tier.actions_per_second, json_string(tier.doc),
+                           operations);
+    }
+    return out + (catalog.tiers.empty() ? "]\n}\n" : "\n  ]\n}\n");
 }
 
 std::string emit_catalog_markdown(const Catalog& catalog) {
@@ -268,6 +318,21 @@ std::string emit_catalog_markdown(const Catalog& catalog) {
                         operation.result.empty() ? "—" : operation.result, operation.cost,
                         operation.undo.empty() ? "—" : operation.undo,
                         operation.cancellable ? "yes" : "no");
+    }
+    if (!catalog.tiers.empty()) {
+        out += "\n## Agent player tiers\n\n| Tier | Shown | Reaction | Actions a second | "
+               "Operations |\n|---|---|---|---|---|\n";
+        for (const auto& tier : catalog.tiers) {
+            std::string operations;
+            for (const auto& name : tier.operations)
+                operations += std::format("{}`{}`", operations.empty() ? "" : ", ", name);
+            out +=
+                std::format("| `{}` — {} | {} | {} ms | {} | {} |\n", tier.name, tier.doc,
+                            tier.view == "full" ? "everything" : "what is drawn", tier.reaction_ms,
+                            tier.actions_per_second ? std::to_string(tier.actions_per_second)
+                                                    : std::string("no limit"),
+                            operations);
+        }
     }
     return out;
 }

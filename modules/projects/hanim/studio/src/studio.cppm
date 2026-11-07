@@ -140,6 +140,9 @@ public:
 
     // Every object at `time` (clamped to the program), in the document's order.
     [[nodiscard]] std::expected<std::vector<ObjectState>, Problems> state(seconds time);
+    // The stage at `time` as the display list `render` draws (the studio's own,
+    // valid until the next call): for other renderers, or SVG.
+    [[nodiscard]] std::expected<const xrender::DisplayList*, Problems> display(seconds time);
     // The stage at `time` drawn into `surface` (of the document's size).
     [[nodiscard]] std::expected<void, Problems> render(seconds time, xrender::raster::Surface& surface);
 

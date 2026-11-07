@@ -3,13 +3,15 @@
 //
 //   hanim check  FILE                         the plan: duration, tracks, markers — or every problem
 //   hanim sample FILE --at T [--at T …]       every object's position, scale, rotation, fill and bounds
-//   hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS]
-//                                             PREFIX-000.png …, PREFIX.strip.png, PREFIX.report.omui.json
+//   hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]
+//                                             PREFIX-000.png …, PREFIX.strip.png, PREFIX.report.omui.json;
+//                                             with --svg each frame as vectors too: PREFIX-000.svg …
 //
 // Every answer is one JSON object on standard output; exit 0 done, 1 the
 // document or the work failed (its problems said), 2 the command was wrong.
 import std;
 import hanim.studio;
+import xrender.vector.svg;
 import mlibs.image;
 import mlibs.hash;
 import mcpplibs.os;
@@ -22,7 +24,7 @@ namespace os = mcpplibs::os;
 using Json = nlohmann::json;
 
 constexpr std::string_view usage =
-    "usage: hanim check FILE | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS]";
+    "usage: hanim check FILE | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]";
 
 int answer(const Json& json, int code) {
     std::println("{}", json.dump());
@@ -84,6 +86,7 @@ int main(int argc, char** argv) {
     std::vector<double> times;
     std::optional<std::string> out;
     int frames = 0, fps = 0;
+    bool svg = false;
     for (int index = 3; index < argc; ++index) {
         const std::string_view option = argv[index];
         const bool has_value = index + 1 < argc;
@@ -102,6 +105,8 @@ int main(int argc, char** argv) {
             double count = 0;
             if (!number(count) || count < 1 || count > 240 || count != std::floor(count)) return wrong("--frames takes 1 … 240");
             frames = static_cast<int>(count);
+        } else if (option == "--svg") {
+            svg = true;
         } else if (option == "--webp" && has_value) {
             double rate = 0;
             if (!number(rate) || rate < 1 || rate > 120 || rate != std::floor(rate)) return wrong("--webp takes frames a second, 1 … 120");
@@ -159,7 +164,25 @@ int main(int argc, char** argv) {
         if (auto saved = save(name, *png); !saved) return failed({{"", std::format("cannot write {}: {}", name, saved.error().message())}});
         mlibs::hash::Fnv1a hash;
         hash.bytes(std::as_bytes(surface.pixels()));
-        list.push_back({{"time", round3(times[index])}, {"file", name}, {"pixels", std::format("{:016x}", hash.value())}, {"objects", states(*at)}});
+        Json frame{{"time", round3(times[index])}, {"file", name}, {"pixels", std::format("{:016x}", hash.value())}, {"objects", states(*at)}};
+        if (svg) {
+            // The same frame as vectors: what SVG cannot say stays the reference's pixels, listed.
+            const auto drawn = opened->display(hanim::seconds(times[index]));
+            if (!drawn) return failed(drawn.error());
+            const auto& background = document->background;
+            const auto picture = xrender::svg::write(**drawn, {}, {.view = {0, 0, static_cast<float>(document->width), static_cast<float>(document->height)},
+                .background = mlibs::geom::Color{background.r, background.g, background.b, background.a},
+                .encode_png = [](std::span<const std::uint8_t> rgba, int width, int height) {
+                    return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
+                }});
+            if (!picture) return failed({{"", "SVG: " + picture.error()}});
+            const std::string svg_name = std::format("{}-{:03}.svg", *out, index);
+            if (auto saved = os::fs::write_atomic(os::fs::from_utf8(svg_name), picture->text); !saved)
+                return failed({{"", std::format("cannot write {}: {}", svg_name, saved.error().message())}});
+            frame["svg"] = svg_name;
+            frame["islands"] = picture->report.islands.size();
+        }
+        list.push_back(std::move(frame));
         pictures.push_back(std::move(surface));
     }
     // The frames side by side, at most eight a row: the whole course at a glance.

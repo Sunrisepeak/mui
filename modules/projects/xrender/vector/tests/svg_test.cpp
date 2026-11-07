@@ -166,10 +166,35 @@ int main(int argc, char** argv) {
         check_eq(picture->report.islands.size(), std::size_t{1});
         check(picture->report.islands.front().why == xrender::svg::Why::effect);
         check_eq(picture->report.islands.front().command, std::size_t{1});
+        check_eq(picture->report.islands.front().effect, std::string("pixelate"));
+        check(picture->text.contains(R"svg(data-island="effect" data-effect="pixelate")svg"));
         // What follows the layer is vectors again.
         check(picture->text.find(R"(fill="#ffffff")") > picture->text.find("data-island"));
         const auto bare = xrender::svg::write(list, {}, {.view = {0, 0, 64, 64}});
         check(bare && bare->report.unencoded == 1 && !bare->text.contains("data-island"));
+    });
+
+    s.test("the opacity effect is SVG's group opacity, not pixels", [] {
+        xrender::DisplayList list;
+        const auto ref = *xrender::effects().find("opacity");
+        const auto params = xrender::effects().params(ref, std::vector<std::pair<std::string_view, float>>{{"amount", 0.5f}});
+        list.push_layer(0.5f, xrender::BlendMode::normal, ref, params, {0, 0, 32, 32});
+        list.fill_rect({4, 4, 24, 24}, geom::Color::hex(0x0ea5e9));
+        list.pop_layer();
+        const auto picture = xrender::svg::write(list, {}, {.view = {0, 0, 32, 32}, .encode_png = png});
+        check(picture && picture->report.islands.empty() && picture->text.contains(R"(<g opacity="0.25">)"), picture ? picture->text : picture.error());
+    });
+
+    s.test("a trimmed stroke is a dash one contour long, each contour its own, the start wrapping", [] {
+        xrender::DisplayList list;
+        xrender::Path two;
+        two.move_to({2, 2}).line_to({30, 2}).move_to({2, 20}).line_to({30, 20});
+        list.stroke_path(two, {.width = 2, .trim_start = 0.25f, .trim_end = 0.75f, .trim_offset = 0.5f}, xrender::Paint::solid(geom::Color::hex(0x111827)));
+        const auto picture = xrender::svg::write(list, {}, {.view = {0, 0, 32, 32}});
+        check(picture.has_value());
+        if (!picture) return;
+        check_eq(count(picture->text, R"(stroke-dasharray="14 14" stroke-dashoffset="-21")"), std::size_t{2});
+        check(picture->report.islands.empty());
     });
 
     s.test("pushes and pops that do not nest are refused; a picture needs a size", [] {

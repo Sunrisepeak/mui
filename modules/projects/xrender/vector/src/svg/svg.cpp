@@ -58,6 +58,27 @@ std::string path_data(PathView path) {
     return data;
 }
 
+// A path's contours, each from its move.
+std::vector<PathView> contours(PathView path) {
+    std::vector<PathView> out;
+    std::size_t verb_from = 0, point_from = 0, point_at = 0;
+    for (std::size_t verb = 0; verb < path.verbs.size(); ++verb) {
+        if (path.verbs[verb] == PathVerb::move && verb > verb_from) {
+            out.push_back({path.verbs.subspan(verb_from, verb - verb_from), path.points.subspan(point_from, point_at - point_from)});
+            verb_from = verb;
+            point_from = point_at;
+        }
+        switch (path.verbs[verb]) {
+        case PathVerb::move: case PathVerb::line: point_at += 1; break;
+        case PathVerb::quad: point_at += 2; break;
+        case PathVerb::cubic: point_at += 3; break;
+        case PathVerb::close: break;
+        }
+    }
+    if (verb_from < path.verbs.size()) out.push_back({path.verbs.subspan(verb_from), path.points.subspan(point_from, point_at - point_from)});
+    return out;
+}
+
 std::string_view blend_name(BlendMode blend) noexcept {
     switch (blend) {
     case BlendMode::normal: return "normal";
@@ -195,7 +216,8 @@ private:
     // Commands [from, to] drawn by the CPU reference at island_scale and kept
     // as a picture in their place. A backdrop effect is drawn over everything
     // before it, as it reads it, and cut to its layer.
-    void island(std::span<const Command> commands, std::size_t from, std::size_t to, Why why, std::optional<Rect> cut = {}) {
+    void island(std::span<const Command> commands, std::size_t from, std::size_t to, Why why, std::optional<Rect> cut = {},
+                std::string_view effect_name = {}) {
         const Rect view = options_.view;
         const float scale = options_.island_scale;
         const Affine& current = transforms_.back();
@@ -254,9 +276,9 @@ private:
         if (!png) return;
         const Rect bounds{view.x + static_cast<float>(left) / scale, view.y + static_cast<float>(top) / scale, static_cast<float>(cut_width) / scale,
                           static_cast<float>(cut_height) / scale};
-        picture_.report.islands.push_back({from, why, bounds});
-        out_ += std::format(R"(<image data-island="{}" x="{}" y="{}" width="{}" height="{}" preserveAspectRatio="none"{} href="data:image/png;base64,{}"/>)",
-                            describe(why), number(bounds.x), number(bounds.y), number(bounds.width), number(bounds.height),
+        picture_.report.islands.push_back({from, why, bounds, std::string(effect_name)});
+        out_ += std::format(R"(<image data-island="{}"{} x="{}" y="{}" width="{}" height="{}" preserveAspectRatio="none"{} href="data:image/png;base64,{}"/>)",
+                            describe(why), effect_name.empty() ? std::string{} : std::format(R"( data-effect="{}")", escaped(effect_name)), number(bounds.x), number(bounds.y), number(bounds.width), number(bounds.height),
                             back->identity() ? std::string{} : std::format(R"( transform="{}")", matrix(*back)), mlibs::base64::encode(*png)) +
                 "\n";
     }
@@ -393,7 +415,8 @@ private:
                             "\n";
                 } else if constexpr (std::same_as<T, StrokePath>) {
                     const StrokeStyle& style = c.style;
-                    if (style.trim_start != 0 || style.trim_end != 1 || style.trim_offset != 0) return island(commands, index, index, Why::trimmed_stroke);
+                    const bool trimmed = style.trim_start != 0 || style.trim_end != 1 || style.trim_offset != 0;
+                    if (trimmed && !style.dashes.empty()) return island(commands, index, index, Why::trimmed_stroke);
                     if (!(style.width > 0)) return;
                     const auto painted = paint(c.paint, "stroke");
                     if (!painted) return island(commands, index, index, Why::paint);
@@ -408,6 +431,39 @@ private:
                         if (style.dash_offset != 0) attributes += std::format(R"( stroke-dashoffset="{}")", number(style.dash_offset));
                     }
                     ++picture_.report.shapes;
+                    if (trimmed) {
+                        // The renderers' trim, each contour by fractions of its own
+                        // length (measured on the flattening the stroker trims): a dash
+                        // as long as the part drawn, its pattern one contour long, so a
+                        // start moved past the end wraps round.
+                        const auto finite_or = [](float value, float fallback) { return std::isfinite(value) ? value : fallback; };
+                        float first = std::clamp(finite_or(style.trim_start, 0), 0.0f, 1.0f), last = std::clamp(finite_or(style.trim_end, 1), 0.0f, 1.0f);
+                        if (first > last) std::swap(first, last);
+                        if (last - first <= 0) return;
+                        double from = static_cast<double>(first) + finite_or(style.trim_offset, 0);
+                        from -= std::floor(from);
+                        const float scale = transforms_.back().max_scale();
+                        for (const PathView contour : contours(c.path)) {
+                            mlibs::geom::PathPolylines flat;
+                            mlibs::geom::flatten_path(contour, Affine{}, flat, (1.0f / 32.0f) / (scale > 0 ? scale : 1.0f));
+                            double length = 0;
+                            for (std::size_t line = 0; line < flat.count(); ++line) {
+                                const auto points = flat.polygon(line);
+                                const std::size_t segments = flat.closed[line] ? points.size() : points.size() - 1;
+                                for (std::size_t at = 0; at < segments && points.size() > 1; ++at) {
+                                    const Point head = points[at], tail = points[(at + 1) % points.size()];
+                                    length += std::hypot(static_cast<double>(tail.x - head.x), static_cast<double>(tail.y - head.y));
+                                }
+                            }
+                            if (!(length > 0)) continue;
+                            const std::string dash =
+                                last - first >= 1 ? std::string{}
+                                                  : std::format(R"( stroke-dasharray="{} {}" stroke-dashoffset="{}")", number(static_cast<float>((last - first) * length)),
+                                                                number(static_cast<float>((1 - (last - first)) * length)), number(static_cast<float>(-from * length)));
+                            out_ += std::format(R"(<path d="{}"{}{}{}/>)", path_data(contour), attributes, dash, *painted) + "\n";
+                        }
+                        return;
+                    }
                     out_ += std::format(R"(<path d="{}"{}{}/>)", path_data(c.path), attributes, *painted) + "\n";
                 } else if constexpr (std::same_as<T, DrawImage>) {
                     image(c);
@@ -438,15 +494,19 @@ private:
                     if (auto closed = close(Group::transform, index); !closed) done = std::unexpected(closed.error());
                 } else if constexpr (std::same_as<T, PushLayer>) {
                     const std::string_view blend = blend_name(c.blend);
-                    if (c.effect.id != 0 || blend.empty()) {
+                    const EffectInfo* effect = c.effect.id != 0 ? effects().info(c.effect) : nullptr;
+                    // The opacity effect scales the composed layer once: SVG's group opacity exactly.
+                    float opacity = c.opacity;
+                    if (effect && effect->name == "opacity" && !c.params.empty()) opacity *= std::clamp(c.params[0], 0.0f, 1.0f);
+                    else if (c.effect.id != 0 || blend.empty()) {
                         const std::size_t pop = matching_pop(commands, index);
-                        const EffectInfo* info = c.effect.id != 0 ? effects().info(c.effect) : nullptr;
-                        const Why why = c.effect.id == 0 ? Why::blend : info && info->backdrop ? Why::backdrop_effect : Why::effect;
-                        island(commands, index, pop, why, why == Why::backdrop_effect && c.bounds.width > 0 ? std::optional<Rect>(c.bounds) : std::nullopt);
+                        const Why why = c.effect.id == 0 ? Why::blend : effect && effect->backdrop ? Why::backdrop_effect : Why::effect;
+                        island(commands, index, pop, why, why == Why::backdrop_effect && c.bounds.width > 0 ? std::optional<Rect>(c.bounds) : std::nullopt,
+                               effect ? effect->name : std::string_view{});
                         done = pop;
                         return;
                     }
-                    std::string attributes = opacity_attribute("opacity", c.opacity);
+                    std::string attributes = opacity_attribute("opacity", opacity);
                     if (c.blend != BlendMode::normal) attributes += std::format(R"( style="mix-blend-mode:{}")", blend);
                     open(Group::layer, attributes);
                 } else if constexpr (std::same_as<T, PopLayer>) {

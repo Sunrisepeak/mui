@@ -381,7 +381,7 @@ std::expected<std::vector<ObjectState>, Problems> Studio::state(seconds time) {
     return states;
 }
 
-std::expected<void, Problems> Studio::render(seconds time, xrender::raster::Surface& surface) {
+std::expected<const xrender::DisplayList*, Problems> Studio::display(seconds time) {
     if (auto sought = data_->seek(time); !sought) return std::unexpected(sought.error());
     const auto frame = data_->engine.program_frame(data_->playback);
     if (!frame) return std::unexpected(Problems{{"", frame.error().text()}});
@@ -404,8 +404,15 @@ std::expected<void, Problems> Studio::render(seconds time, xrender::raster::Surf
         const auto recorded = bound->second.record(frame->geometry, frame->effect_values, d.list, {&d.recording, d.world, d.parameters, d.layers});
         if (!recorded) return std::unexpected(Problems{{"", "drawing failed: " + recorded.error().text()}});
     }
+    return &d.list;
+}
+
+std::expected<void, Problems> Studio::render(seconds time, xrender::raster::Surface& surface) {
+    const auto list = display(time);
+    if (!list) return std::unexpected(list.error());
+    auto& d = *data_;
     const auto& background = d.document.background;
-    const auto report = d.renderer.render(d.list, surface, {}, {.background = mlibs::geom::Color{background.r, background.g, background.b, background.a}});
+    const auto report = d.renderer.render(**list, surface, {}, {.background = mlibs::geom::Color{background.r, background.g, background.b, background.a}});
     if (report.invalid_paints || report.effects_skipped)
         return std::unexpected(Problems{{"", "the renderer skipped part of the frame"}});
     return {};

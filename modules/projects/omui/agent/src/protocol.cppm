@@ -19,6 +19,7 @@ import std;
 import omui.core;
 import omui.view;
 import omui.semantic;
+import xrender.vector;
 
 export namespace omui::agent {
 
@@ -39,6 +40,12 @@ struct VectorCapture {
     std::vector<VectorIsland> islands;
 };
 using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rect window)>;
+
+// What every rendering host gives as its CaptureSvgFn: the runtime's current
+// display list as SVG over `region` (logical pixels), each node named by its
+// path, islands drawn at `scale` device pixels per logical one.
+[[nodiscard]] std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region,
+                                                                       float scale, std::optional<Color> background);
 
 struct ProtocolOptions {
     std::string app;              // the application id, for `describe`

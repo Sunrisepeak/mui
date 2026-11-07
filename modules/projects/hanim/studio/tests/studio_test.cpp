@@ -4,6 +4,7 @@
 // in its numbers and its pixels, not only its ends.
 import std;
 import hanim.studio;
+import xrender.vector.svg;
 import mlibs.testing;
 
 using namespace mlibs::testing;
@@ -156,7 +157,7 @@ int main(int argc, char** argv) {
         check(!wrong && says(wrong.error(), "/program/distnace", "not a field of `rise_in`"), wrong ? "accepted" : studio::to_text(wrong.error()));
     });
 
-    s.test("the examples: each reads, opens, has an end and moves through it — every object drawn where it should be", [] {
+    s.test("the examples: each reads, opens, has an end and moves through it — every object drawn where it should be; each frame as SVG is vectors alone", [] {
         const auto dir = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "examples";
         std::size_t count = 0;
         for (const auto& entry : std::filesystem::directory_iterator(dir)) {
@@ -178,6 +179,15 @@ int main(int argc, char** argv) {
                       opened->render(hanim::seconds(length), c).has_value(),
                   std::format("{} draws", name));
             check(!std::ranges::equal(a.bytes(), b.bytes()) || !std::ranges::equal(b.bytes(), c.bytes()), std::format("{} moves", name));
+            // Every frame of it as SVG is vectors alone: shapes, paths, fades (the opacity
+            // effect), trimmed strokes — nothing left as pixels.
+            for (const double at : {0.0, length * .25, length * .5, length * .75, length}) {
+                const auto list = opened->display(hanim::seconds(at));
+                const auto picture = list ? xrender::svg::write(**list, {}, {.view = {0, 0, static_cast<float>(document->width), static_cast<float>(document->height)}})
+                                          : std::expected<xrender::svg::Picture, std::string>(std::unexpected("no list"));
+                check(picture && picture->report.islands.empty() && picture->report.unencoded == 0,
+                      std::format("{} at {:.2f} s as SVG: {}", name, at, picture ? std::format("{} islands", picture->report.islands.size()) : picture.error()));
+            }
         }
         check(count >= 20, std::format("{} examples", count));
     });

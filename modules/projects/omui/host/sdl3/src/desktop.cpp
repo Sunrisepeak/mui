@@ -357,6 +357,10 @@ std::expected<void, std::string> Desktop::open() {
             mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
             return mlibs::image::encode_png(v);
         };
+        eo.protocol.capture_svg = [&d](Rect region) {
+            const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+            return agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+        };
         eo.wake = [] { platform::wake(); };
         d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
         if (auto r = d.endpoint->start(); !r) {

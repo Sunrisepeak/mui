@@ -8,6 +8,9 @@ import mlibs.trace;
 import mlibs.pipeline;
 import mlibs.control;
 import mlibs.base64;
+import mlibs.image;
+import xrender.vector;
+import xrender.vector.svg;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -930,6 +933,26 @@ void Protocol::poll() {
     }
     waits_ = std::move(still);
     if (!waits_.empty()) runtime_.request_frame();
+}
+
+std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,
+                                                        std::optional<Color> background) {
+    xrender::svg::Options options;
+    options.view = region;
+    options.island_scale = scale;
+    options.background = background;
+    options.node_name = [&runtime](std::uint32_t index) {
+        const NodeId node = runtime.node_at_index(index);
+        return runtime.valid(node) ? runtime.path(node) : std::string{};
+    };
+    options.encode_png = [](std::span<const std::uint8_t> rgba, int width, int height) {
+        return mlibs::image::encode_png({rgba.data(), width, height, width * 4, mlibs::image::Alpha::premultiplied});
+    };
+    auto picture = xrender::svg::write(runtime.display_list(), resources, options);
+    if (!picture) return std::unexpected(picture.error());
+    VectorCapture out{std::move(picture->text), {}};
+    for (const auto& island : picture->report.islands) out.islands.push_back({std::string(xrender::svg::describe(island.why)), island.bounds});
+    return out;
 }
 
 }  // namespace omui::agent

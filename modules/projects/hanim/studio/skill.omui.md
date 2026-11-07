@@ -12,7 +12,7 @@ How an Agent (or a person at a terminal) makes an animation without a GUI: write
 1. Write the program as steps: the recipes (entrances, exits, cues, idle loops, moves) for the common motions, `move_to` / `scale_to` / `morph` / … with an ease or a spring for the rest, composed in `sequence`, `parallel`, `stagger`, `loop`. Put a `marker` at each moment the task names.
 2. `document.check`: fix every problem at its JSON pointer, then check again. A composition hanim refuses (two recipes with effects on one object at once) is said there too.
 3. `document.sample` at the markers and between them: positions, scales, rotations, fills, opacity, bounds — the numbers to hold against the task.
-4. `document.render --frames 8`: look at the strip. The whole course, not only its ends: entrances appear only when they begin; later objects draw over earlier ones in the document's order.
+4. `document.render --frames 8`: look at the strip. The whole course, not only its ends: entrances appear only when they begin; later objects draw over earlier ones in the document's order. With `--svg` each frame is written as SVG too (`hanim render FILE --out PREFIX --svg`): vectors at any size, to read exact positions, paths and colours rather than estimate them from pixels; a frame's `islands` counts what had to stay pixels (none in the examples).
 
 ## Verifying
 

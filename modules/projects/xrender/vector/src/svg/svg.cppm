@@ -4,8 +4,8 @@
 // Shapes, paths, strokes, clips, transforms, layers' opacity and blending,
 // solid and gradient paints, images and glyphs (as their outlines, each
 // defined once) are SVG's own elements. What SVG cannot say the same way — a
-// pixel effect, a conic or mixed paint, an inset shadow, a trimmed stroke, a
-// colour glyph — is drawn by the CPU reference renderer and kept as an
+// pixel effect (but opacity, which is SVG's group opacity), a conic or mixed paint, an inset shadow, a stroke both
+// trimmed and dashed, a colour glyph — is drawn by the CPU reference renderer and kept as an
 // island of pixels in its place, marked `data-island` with why; the
 // report lists every one. Node and part markers become groups marked
 // `data-node` and `data-part`: what drew each piece, for an agent
@@ -40,7 +40,7 @@ enum class Why : std::uint8_t {
     paint,            // conic gradients, image and mixed paints
     blend,            // a blend mode SVG has not (erase)
     inset_shadow,
-    trimmed_stroke,
+    trimmed_stroke,   // trimmed and dashed at once
     colour_glyph,     // an emoji: a picture, not an outline
 };
 [[nodiscard]] std::string_view describe(Why why) noexcept;
@@ -49,6 +49,7 @@ struct Island {
     std::size_t command = 0;  // where it begins in the list
     Why         why = Why::effect;
     Rect        bounds;       // in the picture's units
+    std::string effect;       // the effect's name, for an effect layer
 };
 
 struct Report {

@@ -32,13 +32,14 @@ cost    = "bounded"
 [[operation]]
 name    = "document.render"
 effect  = "reversible"
-summary = "The stage drawn at evenly spaced or given moments: PNG frames, a strip of them, an optional animated WebP and a report with each frame's pixel hash and objects"
+summary = "The stage drawn at evenly spaced or given moments: PNG frames (and SVG), a strip of them, an optional animated WebP and a report with each frame's pixel hash and objects"
 params  = [
     { name = "file", type = "path" },
     { name = "out", type = "path", doc = "the prefix of the files written" },
     { name = "frames", type = "integer", doc = "1 … 240 evenly spaced (9 by default)", optional = true },
     { name = "at", type = "json", doc = "given moments instead", optional = true },
     { name = "webp", type = "integer", doc = "frames a second of an animated WebP", optional = true },
+    { name = "svg", type = "bool", doc = "each frame as SVG too (vectors at any size; what SVG cannot say kept as pixels, counted per frame)", optional = true },
 ]
 result  = "json"
 cost    = "heavy"

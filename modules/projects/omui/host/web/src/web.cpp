@@ -173,6 +173,10 @@ struct Web::Impl {
                                 mlibs::image::Alpha::premultiplied};
                 return mlibs::image::encode_png(v);
             };
+            o.capture_svg = [this](Rect region) {
+                const xrender::Resources resources{&runtime->images(), glyphs.get()};
+                return agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
+            };
             protocol = std::make_unique<agent::Protocol>(*runtime, std::move(o));
         }
         return *protocol;

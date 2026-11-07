@@ -1,0 +1,37 @@
+# xrender.tool — the `xrender` command: what an Agent (or a person at a
+# terminal) does with the renderer without a GUI — check a pixel effect,
+# preview it on a picture through the real GPU renderer, run the render
+# contract's conformance suite on this machine's device, describe the device.
+# JSON out, exit codes. Its own package: a tool's dependencies (a device
+# backend, the suite, image files) stay out of the renderer's.
+[package]
+namespace   = "xrender"
+name        = "tool"
+version     = "0.1.0"
+description = "The xrender command: effects checked and previewed, the conformance suite and the device, headless"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.xrender]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+xrender.vector  = { path = "../vector" }
+xrender.raster  = { path = "../raster" }
+xrender.effect  = { path = "../effect" }
+"xrender.cts"   = { path = "../cts" }
+"xrender.rhi.sdl" = { path = "../rhi/sdl" }
+mlibs.rhi       = { path = "../../../gfx/rhi" }
+mlibs.cts       = { path = "../../../base/cts" }
+mlibs.image     = { path = "../../../base/image" }
+mlibs.geom      = { path = "../../../base/geom" }
+mcpplibs.os     = "0.2.2"
+nlohmann.json   = "3.12.0"

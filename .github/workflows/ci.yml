@@ -252,6 +252,12 @@ jobs:
           PROFILE: ${{ matrix.profile }}
         run: tools/ci/agent-e2e.sh
 
+      - name: The products' commands as an Agent uses them (hanim, xrender; plan §10.3)
+        if: runner.os == 'Linux'
+        env:
+          PROFILE: ${{ matrix.profile }}
+        run: tools/ci/tools-e2e.sh
+
       - name: The interaction sweep — every program, every action an agent can perform (D-91)
         if: runner.os == 'Linux' && matrix.profile == 'dev'
         run: tools/ci/sweep.sh

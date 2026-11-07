@@ -19,6 +19,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
 | [rhi](rhi) | The backends of `mlibs.rhi`: SDL_GPU, WebGPU, WebGL2 |
 | [cts](cts) | Desktop graph and vector device conformance |
+| [tool](tool) | The `xrender` command: effects checked and previewed by the GPU renderer, the conformance suite and the device, headless (its operations' catalog and skill) |
 
 The general pieces stay in mlibs: the GPU interface [mlibs.rhi](../../gfx/rhi) and the shader toolchain [mlibs.shader](../../gfx/shader), shared with GPU computation.
 
@@ -51,7 +52,7 @@ portable runtime package. Both this package and its serial tests run on Web.
 |---|---|
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, whose passes are this graph's |
 | [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
-| [cts](cts) | The render contract's suite on mlibs.cts (47 cases), run by each backend's tests (D-118) |
+| [cts](cts) | The render contract's suite on mlibs.cts (48 cases), run by each backend's tests (D-118) |
 
 Depends on: `mlibs.rhi`, `mlibs.trace`.
 

@@ -28,6 +28,7 @@ members = [
     "modules/gfx/rhi",
     "modules/gfx/rhi/cts",
     "modules/projects/xrender/rhi/sdl",
+    "modules/projects/xrender/tool",
     "modules/projects/xrender/rhi/webgpu",
     "modules/projects/xrender/rhi/webgl",
     "modules/gfx/shader",

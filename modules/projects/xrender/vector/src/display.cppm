@@ -95,6 +95,11 @@ struct StrokeStyle {
     float                   miter_limit = 4;
     std::span<const float>  dashes;  // on, off, on, off … (arena-owned in a list)
     float                   dash_offset = 0;
+    // The part of each contour drawn, as fractions of its length (see
+    // xrender::raster::Stroke): trimmed before dashing.
+    float                   trim_start = 0;
+    float                   trim_end = 1;
+    float                   trim_offset = 0;
 };
 
 struct GradientStop {

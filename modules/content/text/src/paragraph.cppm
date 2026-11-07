@@ -159,4 +159,23 @@ private:
     bool                    truncated_ = false;
 };
 
+// A glyph of a laid-out paragraph as geometry (convergence plan §6.8 ①): which
+// glyph, where it came from (its cluster, grapheme, word and line), where it
+// stands (its origin on the baseline, in the paragraph's coordinates), its size
+// and colour, and its outline in ems (y down; scale by `size`, then move to
+// `origin`). What an animation engine turns into parts to move, morph or stroke.
+struct PlacedOutline {
+    FontRef       font;
+    std::uint32_t glyph = 0;
+    std::uint32_t cluster = 0, grapheme = 0, word = 0, line = 0;
+    Point         origin;
+    float         size = 0;
+    Color         color;
+    GlyphOutline  outline;
+};
+
+// Every glyph of the paragraph's lines, in visual order (a glyph without an
+// outline, a space, has an empty one).
+[[nodiscard]] std::vector<PlacedOutline> outlines(const Paragraph& paragraph, const FontCollection& fonts);
+
 }  // namespace mlibs::text

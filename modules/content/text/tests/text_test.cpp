@@ -33,6 +33,23 @@ text::ParagraphStyle style(float size = 16) {
 int main(int argc, char** argv) {
     Suite s{"text"};
 
+    s.test("a paragraph's glyphs as placed outlines: which glyph, where from, its contours in ems", [] {
+        text::Paragraph p(fonts(), "A一 B", style(40));
+        p.layout(std::numeric_limits<float>::infinity());
+        const auto glyphs = text::outlines(p, fonts());
+        check_eq(glyphs.size(), std::size_t{4});
+        auto contours = [](const text::GlyphOutline& o) {
+            return std::ranges::count(o.verbs, geom::PathVerb::move);
+        };
+        check_eq(contours(glyphs[0].outline), std::ptrdiff_t{2});   // A: the outline and its counter
+        check_eq(contours(glyphs[1].outline), std::ptrdiff_t{1});   // 一: one stroke
+        check(glyphs[2].outline.verbs.empty(), "a space has no outline");
+        check_eq(contours(glyphs[3].outline), std::ptrdiff_t{3});   // B: the outline and two counters
+        check(glyphs[0].cluster == 0 && glyphs[1].cluster == 1 && glyphs[3].cluster == 5, "clusters are byte offsets of the source");
+        check(glyphs[0].size == 40 && glyphs[1].origin.x > glyphs[0].origin.x && glyphs[3].origin.x > glyphs[1].origin.x, "placed left to right at the size");
+        check(geom::inspect_path(glyphs[0].outline.view()).has_value(), "a valid mlibs.geom path");
+    });
+
     s.test("the default fonts load, with fallback per cluster", [] {
         auto& f = fonts();
         check(f.face_count() == 5);

@@ -106,6 +106,62 @@ std::vector<Polyline> dash(const std::vector<Polyline>& lines, std::span<const f
     return out;
 }
 
+// The stretch of `line` from distance `from` to `to` along it, `to` past
+// its length wrapping round a closed line.
+void stretch(const Polyline& line, double from, double to, std::vector<Polyline>& out) {
+    const auto& points = line.points;
+    const std::size_t corners = points.size();
+    const std::size_t segments = line.closed ? corners : corners - 1;
+    Polyline piece;
+    double walked = 0;
+    // Twice round a closed line covers any wrapped stretch.
+    const std::size_t steps = line.closed ? 2 * segments : segments;
+    for (std::size_t step = 0; step < steps && walked < to; ++step) {
+        const Point& head = points[step % corners];
+        const Point& tail = points[(step + 1) % corners];
+        const double length = dist(head, tail);
+        const double next = walked + length;
+        if (next > from && length > 0) {
+            const auto at = [&](double distance) {
+                const float along = static_cast<float>(std::clamp((distance - walked) / length, 0.0, 1.0));
+                return Point{head.x + (tail.x - head.x) * along, head.y + (tail.y - head.y) * along};
+            };
+            if (piece.points.empty()) piece.points.push_back(at(std::max(from, walked)));
+            piece.points.push_back(next <= to ? tail : at(to));
+        }
+        walked = next;
+    }
+    if (!piece.points.empty()) out.push_back(std::move(piece));
+}
+
+std::vector<Polyline> trim(const std::vector<Polyline>& lines, float start, float end, float offset) {
+    const auto finite_or = [](float value, float fallback) { return std::isfinite(value) ? value : fallback; };
+    double first = std::clamp(finite_or(start, 0), 0.0f, 1.0f);
+    double last = std::clamp(finite_or(end, 1), 0.0f, 1.0f);
+    if (first > last) std::swap(first, last);
+    const double shift = finite_or(offset, 0);
+    if (last - first >= 1) return lines;
+    std::vector<Polyline> out;
+    if (last - first <= 0) return out;
+    for (const Polyline& line : lines) {
+        if (line.points.size() < 2) continue;
+        double length = 0;
+        const std::size_t corners = line.points.size();
+        const std::size_t segments = line.closed ? corners : corners - 1;
+        for (std::size_t index = 0; index < segments; ++index) length += dist(line.points[index], line.points[(index + 1) % corners]);
+        if (!(length > 0)) continue;
+        double from = first + shift;
+        from -= std::floor(from);
+        const double to = from + (last - first);
+        if (line.closed || to <= 1) stretch(line, from * length, to * length, out);
+        else {  // an open line splits where the stretch passes its end
+            stretch(line, from * length, length, out);
+            stretch(line, 0, (to - 1) * length, out);
+        }
+    }
+    return out;
+}
+
 }  // namespace
 
 void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygons& out) {
@@ -125,6 +181,8 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
         if (pl.closed && pl.points.size() > 1 && dist(pl.points.front(), pl.points.back()) <= 1e-6f) pl.points.pop_back();
         lines.push_back(std::move(pl));
     }
+    if (stroke.trim_start != 0 || stroke.trim_end != 1 || stroke.trim_offset != 0)
+        lines = trim(lines, stroke.trim_start, stroke.trim_end, stroke.trim_offset);
     if (!stroke.dashes.empty()) lines = dash(lines, stroke.dashes, stroke.dash_offset);
 
     Polygons local;

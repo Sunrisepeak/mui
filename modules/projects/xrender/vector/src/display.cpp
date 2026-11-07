@@ -541,6 +541,7 @@ struct Hasher {
     }
     void put(const StrokeStyle& s) {
         put(s.width); put(s.cap); put(s.join); put(s.miter_limit); put(s.dash_offset);
+        put(s.trim_start); put(s.trim_end); put(s.trim_offset);
         for (float d : s.dashes) put(d);
     }
 };

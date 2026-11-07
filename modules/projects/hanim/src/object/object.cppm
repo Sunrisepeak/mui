@@ -117,16 +117,43 @@ struct ImportedPath { std::vector<ImportedContour> contours; };
 [[nodiscard]] std::expected<ImportedPath,PathImportFailure>
 import_path(mlibs::geom::PathView path,PathImportLimits limits = {});
 
+// A part's outline drawn over its fill: its colour and width, in the part's
+// units. How much of each contour it draws is a value of the part, the trim
+// channels' (ch::trim_start, trim_end, trim_offset in hanim.library).
+struct PartStroke {
+    Rgba   color;
+    double width = 1;
+};
 // Explicit ids are stable host keys, never derived from displayed labels or
 // drawing order. They are unique across an object; an empty parent is its root.
+// A part with contours has a fill, a stroke or both.
 struct PartDescription {
     std::string id;
     std::string parent;
     Transform2D local;
     std::vector<Contour> contours;
     std::optional<Rgba> fill;
+    std::optional<PartStroke> stroke;
 };
 struct ObjectDescription { std::vector<PartDescription> parts; };
+
+// One part made from a path (convergence plan §6.8 ①: the glyph and path
+// adapter): its id, its parent (empty: the object's root), where it stands
+// (`local`: a glyph's origin and size), its path, fill and stroke. A glyph's outline
+// from mlibs.text (`outlines(paragraph, fonts)`) is such a path, in ems.
+struct PathPart {
+    std::string               id;
+    std::string               parent;
+    Transform2D               local;
+    mlibs::geom::PathView     path;
+    std::optional<Rgba>       fill;
+    std::optional<PartStroke> stroke;
+};
+// An object of a root `root` and one part a path, each path's contours its
+// part's (an empty path, a space, gives a part without contours). Every part
+// keeps its id; the paths' commands are imported as they are (import_path).
+[[nodiscard]] std::expected<ObjectDescription, PathImportFailure>
+object_from_paths(std::string root, std::span<const PathPart> parts, PathImportLimits limits = {});
 
 // max_objects bounds registry slots; all other limits apply per object.
 // Referenced contours/segments count per occurrence, including shared assets.
@@ -147,6 +174,7 @@ struct CapturedPart {
     Transform2D local;
     std::vector<Contour> contours;
     std::optional<Rgba> fill;
+    std::optional<PartStroke> stroke;
 };
 
 class ObjectRegistry;

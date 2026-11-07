@@ -134,6 +134,17 @@ int main(int argc, char** argv) {
         check_eq(timed.duration().count(), spring_ease(springs::snappy).settle());
     });
 
+    s.test("a value written earlier holds through a later segment that writes another channel", [] {
+        Fixture f;
+        const auto plan = take(f.engine.prepare(sequence(anim::to(part(f.a, "outline"), glow = .5).duration(seconds(0)),
+                                                         anim::to(part(f.a, "outline"), drift = Vec2{3, 3}).duration(seconds(1)))));
+        Frames frames(plan);
+        const auto frame = frames.at(plan, .5);
+        const auto outline = index_of(frame, "outline");
+        check(frame.value(outline, glow) == std::optional<double>(.5), "the glow written first is where it was left");
+        check(frame.value(outline, drift) == std::optional<Vec2>(Vec2{2, 2}), "the drift halfway from its rest");
+    });
+
     s.test("the engine publishes a playback's values with its frame", [] {
         Fixture f;
         const auto ref = f.engine.play(anim::to(f.a, glow = 1.0).duration(seconds(1)));

@@ -75,5 +75,30 @@ int main(int argc,char** argv) {
         }
         take(engine.release(playback));
     });
+    suite.test("paths become an object's parts, each keeping its id, place, fill and stroke",[] {
+        // A glyph's outline as mlibs.text gives it, in ems: a square with a hole, and a space.
+        const std::array verbs{geom::PathVerb::move,geom::PathVerb::line,geom::PathVerb::line,geom::PathVerb::line,geom::PathVerb::close,
+            geom::PathVerb::move,geom::PathVerb::line,geom::PathVerb::line,geom::PathVerb::close};
+        const std::array points{geom::Point{0,0},geom::Point{1,0},geom::Point{1,1},geom::Point{0,1},
+            geom::Point{.25f,.25f},geom::Point{.75f,.25f},geom::Point{.5f,.75f}};
+        const std::array parts{
+            PathPart{.id="glyph-0",.local={.tx=4,.sx=40,.sy=40},.path={verbs,points},.fill=Rgba{1,1,1,1},.stroke=PartStroke{{1,0,0,1},.05}},
+            PathPart{.id="glyph-1",.local={.tx=44}},
+        };
+        const auto object=take(object_from_paths("word",parts));
+        check(object.parts.size()==3 && object.parts[0].id=="word" && object.parts[0].contours.empty());
+        const auto& glyph=object.parts[1];
+        check(glyph.id=="glyph-0" && glyph.parent=="word" && glyph.local.sx==40 && glyph.contours.size()==2);
+        check(glyph.fill && glyph.stroke && glyph.stroke->width==.05 && glyph.stroke->color.r==1);
+        check(object.parts[2].contours.empty() && !object.parts[2].fill,"a space is a part without contours");
+        auto registry=take(ObjectRegistry::make());const auto made=take(registry.create(object));
+        const auto snapshot=take(registry.capture(made));
+        check(snapshot.capability_version("hanim.stroke")==1,"a stroked part declares the stroke capability");
+        check(take(snapshot.get(take(snapshot.find("glyph-0"))))->stroke->width==.05);
+        auto outlined=object;outlined.parts[1].fill.reset();
+        check(registry.update(made,outlined).has_value(),"a part may be drawn by its stroke alone");
+        auto unseen=object;unseen.parts[1].stroke->width=-1;
+        check(!registry.update(made,unseen),"a negative stroke width is refused");
+    });
     return suite.run(argc,argv);
 }

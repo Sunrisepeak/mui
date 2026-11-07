@@ -238,6 +238,8 @@ C1 落地的形状（`openmui.view`）：
 | `press.elastic`：按下处局部内陷、松开回弹 | state | 选择器＋形变器（位移通道、弹簧过冲） | button、chip、card |
 | `text.reshape`：替换文字时相同位置的字形轮廓形变，而不是淡入淡出 | replace | glyph adapter＋拓扑对齐 morph | 文本、数字、标签 |
 | `travel.noise`：移动途中沿路径轻微扰动 | update | 路径扰动核 | 选择指示、抽屉、浮层 |
+| `enter.drop`：落入、触地挤压、反弹后回稳 | enter | 解析弹跳曲线＋运动导出的挤压拉伸（或软体求解核） | 徽标、通知、卡片、图标 |
+| `press.squash`：按下整体被压扁、松开像橡胶一样回弹 | state | 笼形形变＋软体求解核（或运动导出形变） | button、card、开关滑块 |
 
 验收与 §12 相同：过程帧（端点、中间态、打断、反向）、reduced／off、命中与焦点一致；新配方进入规范的 `[[recipe]]`（M-8）。
 

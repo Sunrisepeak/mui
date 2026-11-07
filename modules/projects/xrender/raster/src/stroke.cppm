@@ -23,6 +23,13 @@ struct Stroke {
     // Empty/all-zero or negative/nonfinite patterns use a solid stroke.
     std::span<const float> dashes;
     float                  dash_offset = 0; // nonfinite: zero; finite offsets wrap through the complete cycle
+    // The part of each contour drawn, as fractions of its length: from
+    // trim_start to trim_end (clamped to 0…1, swapped when reversed), both
+    // moved on by trim_offset, wrapping round a closed contour and splitting
+    // an open one. Trimming comes before dashing; the defaults draw it all.
+    float                  trim_start = 0;
+    float                  trim_end = 1;
+    float                  trim_offset = 0;
 };
 
 // Appends the stroke outline of `path` (transformed by `m`) to `out`. The

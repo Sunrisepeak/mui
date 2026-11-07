@@ -166,7 +166,7 @@ std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,F
     for (std::size_t i = 0; i < contours.size(); ++i)
         if (!same(frame.contours[i], contours[i])) return refuse(VectorError::foreign_frame, i);
     bool has_bounds = false;
-    float left = 0, top = 0, right = 0, bottom = 0;
+    float left = 0, top = 0, right = 0, bottom = 0, stroke_reach = 0;
     for (std::size_t i = 0; i < parts.size(); ++i) {
         if (!same(frame.parts[i].info, parts[i])) return refuse(VectorError::foreign_frame, i);
         const auto matrix = frame.parts[i].local.matrix();
@@ -178,8 +178,15 @@ std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,F
         auto& world = scratch.world[i]; world = parent == invalid_object_slot ? local : scratch.world[parent] * local;
         if (!finite(world)) return refuse(VectorError::invalid_geometry, i);
         const auto fill = frame.parts[i].fill;
-        if ((parts[i].contour_count && !fill) || (fill && !color({fill->r, fill->g, fill->b, fill->a})))
+        const auto& stroke = frame.parts[i].stroke;
+        if ((parts[i].contour_count && !fill && !stroke) || (fill && !color({fill->r, fill->g, fill->b, fill->a})))
             return refuse(VectorError::invalid_geometry, i);
+        if (stroke) {
+            const auto& ink = stroke->color;
+            if (!color({ink.r, ink.g, ink.b, ink.a}) || !scalar(stroke->width) || stroke->width < 0) return refuse(VectorError::invalid_geometry, i);
+            // Miter joins reach miter_limit · width / 2 beyond the outline.
+            stroke_reach = std::max(stroke_reach, static_cast<float>(stroke->width) * 2 * world.max_scale());
+        }
     }
     for (std::size_t i = 0; i < contours.size(); ++i) {
         const auto& contour = contours[i];
@@ -198,7 +205,7 @@ std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,F
             }
         }
     }
-    auto bounds = geom::Rect::ltrb(left, top, right, bottom);
+    auto bounds = geom::Rect::ltrb(left - stroke_reach, top - stroke_reach, right + stroke_reach, bottom + stroke_reach);
     if (!finite(bounds)) return refuse(VectorError::invalid_geometry);
     return measure_effects(data.effects,effect_values,bounds,scratch);
 }
@@ -219,14 +226,14 @@ std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView 
     for (std::size_t i = 0; i < parts.size(); ++i) {
         const auto& part = parts[i]; if (!part.contour_count) continue;
         output.push_transform(scratch.world[i]);
-        render::Paint material;
+        const auto& drawn = frame.parts[i];
+        std::optional<render::Paint> material;
         if (data.materials[i]) {
             const auto current = data.materials[i]->record(frame.progress, output);
             if (!current) return refuse(VectorError::recording_failed, i);
             material = *current;
-        } else {
-            const auto fill = *frame.parts[i].fill;
-            material = render::Paint::solid({fill.r, fill.g, fill.b, fill.a});
+        } else if (drawn.fill) {
+            material = render::Paint::solid({drawn.fill->r, drawn.fill->g, drawn.fill->b, drawn.fill->a});
         }
         std::size_t verbs = 0, points = 0;
         for (std::size_t j = 0; j < part.contour_count; ++j) {
@@ -246,7 +253,22 @@ std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView 
                 target.verbs[v++] = render::PathVerb::close;
             }
         });
-        if (!path || !output.fill_path(*path, render::FillRule::nonzero, material)) return refuse(VectorError::recording_failed, i);
+        if (!path || (material && !output.fill_path(*path, render::FillRule::nonzero, *material)))
+            return refuse(VectorError::recording_failed, i);
+        if (drawn.stroke && drawn.stroke->width > 0) {
+            const auto trim = [&](const ch::Channel<double>& channel) {
+                const auto value = frame.value(i, channel.id);
+                return static_cast<float>(value ? (*value)[0] : channel.rest);
+            };
+            const auto& ink = drawn.stroke->color;
+            const render::StrokeStyle style{.width = static_cast<float>(drawn.stroke->width),
+                                            .join = render::LineJoin::round,
+                                            .trim_start = trim(ch::trim_start),
+                                            .trim_end = trim(ch::trim_end),
+                                            .trim_offset = trim(ch::trim_offset)};
+            if (!output.stroke_path(*path, style, render::Paint::solid({ink.r, ink.g, ink.b, ink.a})))
+                return refuse(VectorError::recording_failed, i);
+        }
         output.pop_transform();
     }
     for (std::size_t i = 0; i < data.effects.bindings.size(); ++i) output.pop_layer();

@@ -476,4 +476,13 @@ std::size_t Paragraph::offset_below(std::size_t offset, float x) const {
     return offset_at({x, l.top + l.height / 2});
 }
 
+std::vector<PlacedOutline> outlines(const Paragraph& paragraph, const FontCollection& fonts) {
+    std::vector<PlacedOutline> out;
+    for (const Line& line : paragraph.lines())
+        for (const GlyphRun& run : line.runs)
+            for (const Glyph& g : run.glyphs)
+                out.push_back({run.font, g.id, g.cluster, g.grapheme, g.word, g.line, g.position, run.size, run.color, fonts.outline(run.font, g.id)});
+    return out;
+}
+
 }  // namespace mlibs::text

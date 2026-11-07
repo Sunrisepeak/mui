@@ -60,4 +60,20 @@ std::expected<ImportedPath,PathImportFailure> import_path(mlibs::geom::PathView 
     mlibs::trace::count("path.segments",static_cast<double>(info.segments),"hanim.object");
     return result;
 }
+std::expected<ObjectDescription,PathImportFailure> object_from_paths(std::string root,std::span<const PathPart> parts,PathImportLimits limits) {
+    ObjectDescription object;object.parts.reserve(parts.size()+1);
+    object.parts.push_back({.id=std::move(root)});
+    for(const auto& part:parts) {
+        PartDescription described{.id=part.id,.parent=part.parent.empty()?object.parts.front().id:part.parent,.local=part.local,
+            .fill=part.fill,.stroke=part.stroke};
+        if(!part.path.verbs.empty()) {
+            auto imported=import_path(part.path,limits);
+            if(!imported)return std::unexpected(imported.error());
+            described.contours.reserve(imported->contours.size());
+            for(auto& contour:imported->contours)described.contours.push_back(std::move(contour.geometry));
+        }
+        object.parts.push_back(std::move(described));
+    }
+    return object;
+}
 } // namespace hanim

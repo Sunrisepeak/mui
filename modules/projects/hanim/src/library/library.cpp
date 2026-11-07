@@ -6,7 +6,7 @@ import mlibs.log;
 import mlibs.trace;
 
 namespace hanim::detail {
-struct MorphEndpoints { Transform2D from, to; std::optional<Rgba> from_fill, to_fill; };
+struct MorphEndpoints { Transform2D from, to; std::optional<Rgba> from_fill, to_fill; std::optional<PartStroke> from_stroke, to_stroke; };
 struct PropertyValue { Vec2 vector; double scalar = 0; Rgba color; ch::Lanes lanes{}; };
 struct PropertyEndpoints { PropertyValue from, to; };
 struct ChannelRun { std::size_t first=0, count=0; };
@@ -48,6 +48,9 @@ bool valid(std::optional<Rgba> fill) noexcept {
         if (!std::isfinite(component) || component < 0 || component > 1) return false;
     return true;
 }
+bool valid(const std::optional<PartStroke>& stroke) noexcept {
+    return !stroke || (valid(std::optional<Rgba>(stroke->color)) && std::isfinite(stroke->width) && stroke->width >= 0);
+}
 bool valid(MorphOptions options) noexcept {
     // These are aggregate preparation limits, not per-frame preallocations.
     return options.max_parts && options.max_parts <= (1u<<16) &&
@@ -63,6 +66,7 @@ struct PartInput {
     std::vector<std::uint32_t> children;
     Transform2D local;
     std::optional<Rgba> fill;
+    std::optional<PartStroke> stroke;
     std::vector<CurveInput> contours;
 };
 // A value channel's value carried from the frame an animation continues from.
@@ -219,7 +223,7 @@ std::expected<Input,MorphFailure> snapshot_input(const Snapshot& snapshot, Morph
         const auto index = static_cast<std::uint32_t>(result.parts.size());
         if (part.contours.size() > options.max_contours - contours) return std::unexpected(failure(MorphError::contour_budget,index));
         contours += part.contours.size();
-        PartInput item; item.id=part.id; item.ref=part.ref; item.parent=visit.parent; item.local=part.local; item.fill=part.fill;
+        PartInput item; item.id=part.id; item.ref=part.ref; item.parent=visit.parent; item.local=part.local; item.fill=part.fill; item.stroke=part.stroke;
         item.contours.reserve(part.contours.size()); item.children.reserve(part.children.size());
         for (std::size_t ordinal=0;ordinal<part.contours.size();++ordinal) {
             const auto view=part.contours[ordinal].view();
@@ -245,12 +249,12 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
     std::size_t first_contour=0, first_cubic=0, roots=0; std::uint32_t root=invalid_object_slot;
     for (std::size_t i=0;i<frame.parts.size();++i) {
         const auto& part=frame.parts[i]; const auto& info=part.info;
-        if (!info.from_ref || info.from_ref.object!=frame.source_object || info.id.empty() || !finite(part.local) || !valid(part.fill) ||
+        if (!info.from_ref || info.from_ref.object!=frame.source_object || info.id.empty() || !finite(part.local) || !valid(part.fill) || !valid(part.stroke) ||
             info.first_contour!=first_contour || first_contour>frame.contours.size() || info.contour_count>frame.contours.size()-first_contour)
             return std::unexpected(failure(MorphError::invalid_frame,i));
         if (info.parent==invalid_object_slot) { ++roots; root=static_cast<std::uint32_t>(i); }
         else if (info.parent>=frame.parts.size() || info.parent==i) return std::unexpected(failure(MorphError::invalid_frame,i));
-        PartInput item; item.id=info.id; item.ref=info.from_ref; item.parent=info.parent; item.local=part.local; item.fill=part.fill;
+        PartInput item; item.id=info.id; item.ref=info.from_ref; item.parent=info.parent; item.local=part.local; item.fill=part.fill; item.stroke=part.stroke;
         item.contours.reserve(info.contour_count);
         for (std::size_t j=0;j<info.contour_count;++j) {
             const auto& range=frame.contours[first_contour+j];
@@ -332,11 +336,12 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
             if (from.parts[x.children[child]].id!=to.parts[y.children[child]].id)
                 return std::unexpected(failure(MorphError::ordering_mismatch,i));
         if (x.contours.size()!=y.contours.size()) return std::unexpected(failure(MorphError::contour_count_mismatch,i));
-        if (x.fill.has_value()!=y.fill.has_value() || (!x.contours.empty() && !x.fill))
+        if (x.fill.has_value()!=y.fill.has_value() || (!x.contours.empty() && !x.fill && !x.stroke))
             return std::unexpected(failure(MorphError::missing_fill,i));
+        if (x.stroke.has_value()!=y.stroke.has_value()) return std::unexpected(failure(MorphError::missing_stroke,i));
         result->ids.push_back(x.id);
         result->parts.push_back({{},x.ref,y.ref,x.parent,result->contours.size(),x.contours.size()});
-        result->states.push_back({x.local,y.local,x.fill,y.fill});
+        result->states.push_back({x.local,y.local,x.fill,y.fill,x.stroke,y.stroke});
         std::optional<bool> reversed;
         for (std::size_t j=0;j<x.contours.size();++j) {
             if (!x.contours[j].view.closed || !y.contours[j].view.closed) return std::unexpected(failure(MorphError::open_contour,i,j));
@@ -513,6 +518,15 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
             }
         }
     }
+    // A value written before this timeline holds through it: the frame it
+    // continues from carries it, unwritten here, at where it was left.
+    for(const auto& carried:source.values) {
+        const auto owner=std::ranges::find(source.parts,carried.part,&PartInput::id);
+        if(owner==source.parts.end())continue;
+        const auto part=static_cast<std::size_t>(owner-source.parts.begin());
+        if(std::ranges::any_of(data->value_slots,[&](const ValueSlot& slot){return slot.part==part && slot.id.name==carried.id.name;}))continue;
+        data->value_slots.push_back({part,carried.id,data->value_count,carried.lanes});data->value_count+=carried.id.lanes;
+    }
     // One run per part/channel. Sampling finds just its current segment rather
     // than replaying every earlier writer or allocating a mutable pose cache.
     std::vector<std::size_t> sorted(data->channels.size());std::iota(sorted.begin(),sorted.end(),std::size_t{0});
@@ -661,7 +675,7 @@ std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double 
             if(!value)return std::unexpected(value.error());
         }
         for(std::size_t i=0;i<needed.parts;++i)
-            output.parts[i]={data_->parts[i],data_->states[i].from,data_->states[i].from_fill};
+            output.parts[i]={data_->parts[i],data_->states[i].from,data_->states[i].from_fill,data_->states[i].from_stroke};
         for(const auto& slot:data_->value_slots)
             std::copy_n(slot.rest.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
         if(!exact_source)for(const auto run:data_->channel_runs) {
@@ -696,7 +710,10 @@ std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double 
         if (!finite(transform(data_->states[i]))) return std::unexpected(failure(MorphError::nonfinite_transform,i));
     for (std::size_t i=0;i<needed.parts;++i) {
         const auto& state=data_->states[i];
-        output.parts[i]={data_->parts[i],transform(state),state.from_fill ? std::optional<Rgba>(lerp(*state.from_fill,*state.to_fill,u)) : std::nullopt};
+        output.parts[i]={data_->parts[i],transform(state),state.from_fill ? std::optional<Rgba>(lerp(*state.from_fill,*state.to_fill,u)) : std::nullopt,
+                         state.from_stroke ? std::optional<PartStroke>(PartStroke{lerp(state.from_stroke->color,state.to_stroke->color,u),
+                                                                                  lerp(state.from_stroke->width,state.to_stroke->width,u)})
+                                           : std::nullopt};
     }
     if (!data_->static_cubics.empty()) std::ranges::copy(data_->static_cubics,output.cubics.begin());
     else for (std::size_t i=0;i<data_->shapes.size();++i) {

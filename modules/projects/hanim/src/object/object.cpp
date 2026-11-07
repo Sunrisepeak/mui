@@ -13,7 +13,7 @@ struct SnapshotData {
     PartRef root;
     std::vector<CapturedPart> parts;
     std::vector<std::uint32_t> by_slot, by_name;
-    std::array<Capability, 4> capabilities;
+    std::array<Capability, 5> capabilities;
     std::size_t capability_count = 0;
 };
 struct PartTag;
@@ -112,7 +112,7 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
     std::vector<std::uint32_t> parents(count, invalid_object_slot);
     std::size_t contours = 0, segments = 0, root_count = 0;
     std::uint32_t root = 0;
-    bool any_fill = false;
+    bool any_fill = false, any_stroke = false;
     for (std::size_t i = 0; i < count; ++i) {
         const auto& part = description.parts[i];
         if (!valid_id(part.id) || (!part.parent.empty() && !valid_id(part.parent))) return std::unexpected(ObjectError::invalid_id);
@@ -120,6 +120,9 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
         if (!finite(part.local)) return std::unexpected(ObjectError::invalid_transform);
         if (part.fill && !valid_color(*part.fill)) return std::unexpected(ObjectError::invalid_color);
         any_fill |= part.fill.has_value();
+        if (part.stroke && (!valid_color(part.stroke->color) || !std::isfinite(part.stroke->width) || part.stroke->width < 0))
+            return std::unexpected(ObjectError::invalid_color);
+        any_stroke |= part.stroke.has_value();
         if (part.contours.size() > limits.max_contours - contours) return std::unexpected(ObjectError::capacity);
         contours += part.contours.size();
         for (const auto& contour : part.contours) {
@@ -174,7 +177,7 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
             key = *inserted;
         }
         data->parts.push_back({.ref = {object, key.index, key.generation}, .id = source.id, .local = source.local,
-            .contours = source.contours, .fill = source.fill});
+            .contours = source.contours, .fill = source.fill, .stroke = source.stroke});
         data->by_name.push_back(static_cast<std::uint32_t>(i));
     }
     data->by_slot.assign(result.identities.slot_count(), invalid_object_slot);
@@ -191,6 +194,7 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
     data->capabilities[data->capability_count++] = {"hanim.local-transform2d", 1};
     if (contours) data->capabilities[data->capability_count++] = {"hanim.contours", 1};
     if (any_fill) data->capabilities[data->capability_count++] = {"hanim.solid-fill", 1};
+    if (any_stroke) data->capabilities[data->capability_count++] = {"hanim.stroke", 1};
     // Publish only const ownership; the mutable construction alias ends here.
     result.snapshot = std::move(data);
     return result;

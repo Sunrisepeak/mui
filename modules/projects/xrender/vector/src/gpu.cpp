@@ -1289,7 +1289,8 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                              0, 0, c.paint);
                     } else if constexpr (std::same_as<T, StrokePath>) {
                         Key k = device_key(4).path(c.path).f32(c.style.width).u64(static_cast<std::uint64_t>(c.style.cap));
-                        k.u64(static_cast<std::uint64_t>(c.style.join)).f32(c.style.miter_limit).f32(c.style.dash_offset).bytes(std::as_bytes(std::span(c.style.dashes)));
+                        k.u64(static_cast<std::uint64_t>(c.style.join)).f32(c.style.miter_limit).f32(c.style.dash_offset);
+                        k.f32(c.style.trim_start).f32(c.style.trim_end).f32(c.style.trim_offset).bytes(std::as_bytes(std::span(c.style.dashes)));
                         mask(g.cover(k.value(),
                                      [&](xrender::raster::Coverage& cov) {
                                          xrender::raster::stroke_coverage(c.path,
@@ -1298,7 +1299,10 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                                                                   .join = static_cast<xrender::raster::Join>(c.style.join),
                                                                   .miter_limit = c.style.miter_limit,
                                                                   .dashes = c.style.dashes,
-                                                                  .dash_offset = c.style.dash_offset},
+                                                                  .dash_offset = c.style.dash_offset,
+                                                                  .trim_start = c.style.trim_start,
+                                                                  .trim_end = c.style.trim_end,
+                                                                  .trim_offset = c.style.trim_offset},
                                                                  m(), pixels(clips.back()), cov);
                                      }),
                              0, 0, c.paint);

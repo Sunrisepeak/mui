@@ -76,6 +76,13 @@ inline constexpr Channel<Vec2>   position = define<Vec2>("position");
 inline constexpr Channel<double> rotation = define<double>("rotation");
 inline constexpr Channel<Vec2>   scale    = define<Vec2>("scale", {1, 1});
 inline constexpr Channel<Rgba>   fill     = define<Rgba>("fill");
+// How much of each contour a part's stroke draws, as fractions of its length:
+// from trim_start to trim_end, both moved on by trim_offset (wrapping round a
+// closed contour). Values of the part, as any channel of the application's:
+// `anim::to(glyph, ch::trim_offset = 1)` runs a stretch once round.
+inline constexpr Channel<double> trim_start  = define<double>("trim.start");
+inline constexpr Channel<double> trim_end    = define<double>("trim.end", 1);
+inline constexpr Channel<double> trim_offset = define<double>("trim.offset");
 // The channels a part's own fields carry: no Value may name them.
 [[nodiscard]] constexpr bool builtin(std::string_view name) noexcept {
     return name == "position" || name == "rotation" || name == "scale" || name == "fill";
@@ -147,7 +154,7 @@ enum class MorphError : std::uint8_t {
     unprepared, invalid_snapshot, invalid_frame, invalid_options,
     part_budget, contour_budget, cubic_budget, part_set_mismatch,
     hierarchy_mismatch, ordering_mismatch, contour_count_mismatch,
-    missing_fill, open_contour, unsupported_topology, shape_failure, invalid_progress,
+    missing_fill, missing_stroke, open_contour, unsupported_topology, shape_failure, invalid_progress,
     output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict,
     invalid_time, invalid_ease, channel_budget, unsupported_property_effect, route_budget
 };
@@ -167,6 +174,7 @@ enum class MorphError : std::uint8_t {
         case MorphError::ordering_mismatch: return {"hanim.morph.ordering-mismatch", Kind::invalid_argument};
         case MorphError::contour_count_mismatch: return {"hanim.morph.contour-count-mismatch", Kind::invalid_argument};
         case MorphError::missing_fill: return {"hanim.morph.missing-fill", Kind::invalid_argument};
+        case MorphError::missing_stroke: return {"hanim.morph.missing-stroke", Kind::invalid_argument};
         case MorphError::open_contour: return {"hanim.morph.open-contour", Kind::invalid_argument};
         case MorphError::unsupported_topology: return {"hanim.morph.unsupported-topology", Kind::refused};
         case MorphError::shape_failure: return {"hanim.morph.shape-failure", Kind::failed, {}, true};
@@ -208,6 +216,7 @@ struct FramePart {
     MorphPartInfo info;
     Transform2D local;
     std::optional<Rgba> fill;
+    std::optional<PartStroke> stroke;
 };
 struct FrameBuffer {
     std::span<FramePart> parts;

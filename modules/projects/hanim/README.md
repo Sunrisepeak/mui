@@ -10,7 +10,7 @@ The one owner of general animation in the repository (AGENTS.md §2.3): values, 
 | `hanim` (this directory) | gfx | Objects, typed channels, recipes, effects, nested and time-mapped programs, the explicit-clock Engine and its interactive mode (`drive`), by feature; rendering is opt-in (`render-vector`) |
 | [hanim.visual](visual) | gfx | The visual representation (L3): matter taken from display lists, two drawings matched (by node, by meaning, glyph by glyph) and drawn between as a pure function of time; its own package because it reaches xrender's display lists and carries its own tests (D-120) |
 
-**Representations next (M3.5, convergence plan §6.8):** glyph and path objects, strokes (trim and writing), topology-aligning morphs (A→B), selectors and deformers (displacement that overshoots with a spring, follows a drag), match modifiers and path noise, blending layers on one channel, constraints, then GPU evaluation. Rig, particles and fields follow in M6.
+**Representations next (M3.5, convergence plan §6.8):** glyph and path objects, strokes (trim and writing), topology-aligning morphs (A→B), selectors and deformers (displacement that overshoots with a spring, follows a drag), match modifiers and path noise, blending layers on one channel, constraints, elastic bodies (any object falls, squashes on contact and rebounds: a cage deformer, xengine.simulation's soft-body solver shared with physics, motion-derived squash and stretch, an analytic bounce curve), then GPU evaluation. Rig, particles and fields follow in M6.
 
 **Signature features — candidates** (plan §9.5; none is claimed outside the repository before its evidence exists):
 

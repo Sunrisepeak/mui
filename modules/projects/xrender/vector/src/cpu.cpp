@@ -93,7 +93,10 @@ xrender::raster::Stroke stroke_of(const StrokeStyle& s) {
             .join = static_cast<xrender::raster::Join>(s.join),
             .miter_limit = s.miter_limit,
             .dashes = s.dashes,
-            .dash_offset = s.dash_offset};
+            .dash_offset = s.dash_offset,
+            .trim_start = s.trim_start,
+            .trim_end = s.trim_end,
+            .trim_offset = s.trim_offset};
 }
 
 }  // namespace

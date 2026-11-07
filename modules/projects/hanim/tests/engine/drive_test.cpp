@@ -92,6 +92,29 @@ int main(int argc, char** argv) {
         check(again && *again->value() == Vec2{}, "driven again from rest");
     });
 
+    s.test("a timeline takes a driven channel over and hands it back with its momentum", [] {
+        auto engine = *Engine::make();
+        const auto contour = Contour::copy({{0, -1}, std::vector<ShapeSegment>{ShapeSegment::line({-1, 1}), ShapeSegment::line({1, 1})}, true});
+        const auto card = *engine.create_object({{{.id = "card", .contours = {*contour}, .fill = Rgba{1, 0, 0, 1}}}});
+        auto glow = *engine.drive(11, opacity);
+        const auto playback = engine.play(anim::to(card, opacity = 1.0).duration(seconds(1)));
+        check(playback && glow.follow(*playback).has_value());
+        for (int frame = 0; frame < 30; ++frame) check(engine.advance(seconds(1.0 / 60)).has_value());
+        check_near(*glow.value(), .5, 1e-12);
+        check_near((*glow.velocity())[0], 1.0, 1e-9);
+        for (int frame = 0; frame < 30; ++frame) check(engine.advance(seconds(1.0 / 60)).has_value());
+        check_near(*glow.value(), 1.0, 1e-12);
+        const auto handed = (*glow.velocity())[0];
+        check_near(handed, 1.0, 1e-9);  // the timeline's last speed, kept
+        check(engine.moving() == 1, "moving on with that momentum");
+        check(glow.spring_to(0.0).has_value());
+        check_near((*glow.velocity())[0], handed, 1e-9 * std::abs(handed));  // the next spring starts with it
+        check(engine.advance(seconds(1.0 / 60)).has_value());
+        Set reference;
+        const auto lane = reference.spring(1.0, 0.0, seconds(0), springs::standard, handed);
+        check_near(*glow.value(), reference.value(lane, seconds(1.0 / 60)), 1e-12);
+    });
+
     s.test("under reduced motion a driven channel shows its target", [] {
         auto engine = *Engine::make();
         auto fade = *engine.drive(7, opacity);

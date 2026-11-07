@@ -126,6 +126,22 @@ void Set::tween_to(Channel c, seconds now, double target, seconds duration, Ease
     ease_[i] = e;
 }
 
+void Set::carry(Channel c, seconds now, double position, double velocity, std::optional<SpringParams> p) {
+    if (!valid(c)) return;
+    std::uint32_t i = c.index;
+    push_history(i);
+    SpringParams params = p.value_or(kind_[i] == Kind::spring ? params_[i] : springs::standard);
+    Rest rest = kind_[i] == Kind::spring ? rest_[i] : Rest{};
+    kind_[i] = Kind::spring;
+    start_[i] = now.count();
+    from_[i] = position;
+    target_[i] = position;
+    params_[i] = params;
+    rest_[i] = rest;
+    osc_[i] = Oscillator(position, velocity, position, params, rest);
+    end_[i] = start_[i] + osc_[i].settle_time();
+}
+
 void Set::jump(Channel c, double value) {
     if (!valid(c)) return;
     std::uint32_t i = c.index;

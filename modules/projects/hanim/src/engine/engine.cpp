@@ -38,6 +38,13 @@ struct DriveSlot {
     std::array<Set::Channel, ch::max_lanes> lanes{};
     std::uint32_t generation = 1;
     bool live = false;
+    // A playback driving the channel (timeline takeover), its last value and
+    // how fast it moved there.
+    std::optional<PlaybackRef> follows;
+    std::size_t track = 0, part = 0;
+    std::array<double, ch::max_lanes> last{}, speed{};
+    double last_at = 0;
+    bool seen = false;
 };
 struct EngineData {
     ObjectRegistry objects;
@@ -424,6 +431,7 @@ Status Engine::advance(seconds elapsed) {
     data_->playbacks.for_each([](auto, detail::Playback& playback) {
         if (state(playback) == PlaybackState::playing) publish(playback);
     });
+    follow_playbacks();
     return {};
 }
 std::expected<PlaybackInfo, EngineFailure> Engine::inspect(PlaybackRef ref) const noexcept {
@@ -526,7 +534,7 @@ std::expected<void, EngineFailure> Engine::drive_read(DriveRef ref, std::span<do
     const seconds now(data_->now);
     for (std::size_t i = 0; i < (*slot)->id.lanes; ++i) {
         value[i] = data_->drives.value((*slot)->lanes[i], now, data_->policy);
-        velocity[i] = data_->policy.reduce_motion ? 0 : data_->drives.velocity((*slot)->lanes[i], now);
+        velocity[i] = data_->policy.reduce_motion ? 0 : (*slot)->follows ? (*slot)->speed[i] : data_->drives.velocity((*slot)->lanes[i], now);
     }
     return {};
 }
@@ -553,6 +561,47 @@ std::expected<void, EngineFailure> Engine::drive_release(DriveRef ref) {
     slot.live = false; ++slot.generation; if (slot.generation == 0) slot.generation = 1;
     data_->drive_free.push_back(ref.index);
     return {};
+}
+std::expected<void, EngineFailure> Engine::drive_follow(DriveRef ref, PlaybackRef playback, std::size_t track, std::size_t part) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    const auto found = drive_slot(data_.get(), ref); if (!found) return std::unexpected(found.error());
+    const auto info = inspect(playback); if (!info) return std::unexpected(info.error());
+    if (track >= info->track_count) return std::unexpected(fail(EngineError::invalid_argument));
+    auto& slot = data_->drive_slots[ref.index];
+    slot.follows = playback; slot.track = track; slot.part = part; slot.seen = false;
+    follow_playbacks();
+    return {};
+}
+// Each followed playback's value lands on its channel; one that ended hands
+// the channel back with its momentum.
+void Engine::follow_playbacks() noexcept {
+    if (!data_) return;
+    const seconds now(data_->now);
+    for (auto& slot : data_->drive_slots) {
+        if (!slot.live || !slot.follows) continue;
+        const auto info = inspect(*slot.follows);
+        const bool playing = info && (info->state == PlaybackState::playing || info->state == PlaybackState::paused);
+        std::optional<std::span<const double>> value;
+        if (info) {
+            const auto frame = this->frame(*slot.follows, slot.track);
+            if (frame) value = frame->geometry.value(slot.part, slot.id);
+        }
+        if (value && value->size() == slot.id.lanes) {
+            for (std::size_t i = 0; i < slot.id.lanes; ++i) {
+                const double x = (*value)[i], dt = data_->now - slot.last_at;
+                slot.speed[i] = slot.seen && dt > 0 ? (x - slot.last[i]) / dt : 0;
+                slot.last[i] = x;
+                data_->drives.jump(slot.lanes[i], x);
+            }
+            slot.last_at = data_->now; slot.seen = true;
+        }
+        if (!playing) {
+            // Handed back: from where the timeline left it, as fast as it moved.
+            if (slot.seen)
+                for (std::size_t i = 0; i < slot.id.lanes; ++i) data_->drives.carry(slot.lanes[i], now, slot.last[i], slot.speed[i]);
+            slot.follows.reset(); slot.seen = false;
+        }
+    }
 }
 std::size_t Engine::moving() const noexcept {
     if (!data_ || data_->policy.reduce_motion) return 0;

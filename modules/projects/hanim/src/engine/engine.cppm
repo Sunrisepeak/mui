@@ -188,6 +188,8 @@ private:
     [[nodiscard]] std::expected<bool, EngineFailure> drive_settled(DriveRef) const noexcept;
     [[nodiscard]] std::expected<std::uint32_t, EngineFailure> drive_lane(DriveRef, std::size_t lane) const noexcept;
     [[nodiscard]] std::expected<void, EngineFailure> drive_release(DriveRef);
+    [[nodiscard]] std::expected<void, EngineFailure> drive_follow(DriveRef, PlaybackRef, std::size_t track, std::size_t part);
+    void follow_playbacks() noexcept;
     [[nodiscard]] std::expected<void, EngineFailure> retarget_properties(
         PlaybackRef, std::span<const PropertyTargets>, PlayOptions, MorphOptions);
     std::unique_ptr<detail::EngineData> data_;
@@ -228,6 +230,13 @@ public:
     // Lane i's place in evaluate_driven()'s output.
     [[nodiscard]] std::expected<std::uint32_t, EngineFailure> lane(std::size_t i) const noexcept { return engine_->drive_lane(ref_, i); }
     std::expected<void, EngineFailure> release() { return engine_->drive_release(ref_); }
+    // Timeline takeover: while `playback` plays, the channel is what the
+    // playback's track draws for this channel on `part`; when it ends
+    // (finished, cancelled, released) the channel goes on from there as fast
+    // as it was moving, for the next spring_to to carry on.
+    std::expected<void, EngineFailure> follow(PlaybackRef playback, std::size_t track = 0, std::size_t part = 0) {
+        return engine_->drive_follow(ref_, playback, track, part);
+    }
     [[nodiscard]] DriveRef ref() const noexcept { return ref_; }
 
 private:

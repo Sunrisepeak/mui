@@ -45,6 +45,10 @@ public:
     void tween_to(Channel c, seconds now, double target, seconds duration, Ease e = ease::out_cubic);
     // This value at every time: the history is gone.
     void jump(Channel c, double value);
+    // From `position`, moving at `velocity`, as a spring that comes to rest
+    // there: what another motion handed over (a timeline that drove the
+    // channel and ended), its momentum kept for whatever retarget comes next.
+    void carry(Channel c, seconds now, double position, double velocity, std::optional<SpringParams> p = std::nullopt);
     // How far back the history of retargets reaches (default 30 s): older
     // segments are dropped, and a time before them reads the oldest kept.
     void keep_history(seconds window) noexcept { history_window_ = window.count(); }

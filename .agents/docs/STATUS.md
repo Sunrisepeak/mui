@@ -83,7 +83,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | spec level S on mlibs.cts | done: the harness is `modules/projects/omui/cts` (was `tests/cts`); `conform()` gives one case a scenario; JavaScript, Lua and embedded Python 7/7 each |
 | render (xrender CPU/GPU) suite onto mlibs.cts, run by the backends | next |
 | error contract `mlibs.error` | this checkpoint (D-109): `Error<Code, Where>{code, message, where, causes}`, kinds = openas error codes; `mlibs.rhi` and the cellular simulation on it |
-| handle, time, budget, prepare/execute contracts; lint `owner`; hanim's Failure family on mlibs.error | next |
+| handle contract | this checkpoint: `mlibs::memory::OwnedHandle<Tag>{owner, slot, generation}` beside `Handle<Tag>`; hanim's `ObjectRef` and `PlaybackRef` are it, tagged |
+| time, budget, prepare/execute contracts; lint `owner`; hanim's Failure family on mlibs.error | next |
 | hanim L2–L5, `visual` representation, v1 API | |
 
 ## Next

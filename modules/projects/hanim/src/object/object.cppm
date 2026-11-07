@@ -4,6 +4,7 @@ export module hanim.object;
 import std;
 export import hanim.core;
 export import mlibs.geom;
+import mlibs.memory;
 
 namespace hanim::detail {
 struct ContourData;
@@ -16,13 +17,11 @@ export namespace hanim {
 inline constexpr std::uint32_t object_contract_version = 1;
 inline constexpr std::uint32_t invalid_object_slot = std::numeric_limits<std::uint32_t>::max();
 
-struct ObjectRef {
-    std::uint64_t owner = 0;
-    std::uint32_t slot = invalid_object_slot;
-    std::uint64_t generation = 0;
-    [[nodiscard]] constexpr explicit operator bool() const noexcept { return owner != 0 && slot != invalid_object_slot && generation != 0; }
-    friend constexpr bool operator==(const ObjectRef& a, const ObjectRef& b) noexcept { return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation; }
-};
+// An object of a registry: the handle every engine's references share
+// (mlibs.memory's OwnedHandle), tagged.
+struct ObjectTag;
+using ObjectRef = mlibs::memory::OwnedHandle<ObjectTag>;
+static_assert(ObjectRef::invalid_slot == invalid_object_slot);
 // HObject is a thin identity. Its live representation belongs to its registry;
 // a frozen representation belongs to a Snapshot, not to the original host.
 using HObject = ObjectRef;

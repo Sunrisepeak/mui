@@ -2,19 +2,14 @@
 export module hanim.engine;
 import std;
 export import hanim.program;
+import mlibs.memory;
 
 namespace hanim::detail { struct EngineData; }
 export namespace hanim {
 
-struct PlaybackRef {
-    std::uint64_t owner = 0;
-    std::uint32_t slot = invalid_object_slot;
-    std::uint64_t generation = 0;
-    [[nodiscard]] explicit operator bool() const noexcept { return owner && slot != invalid_object_slot && generation; }
-    friend bool operator==(const PlaybackRef& a, const PlaybackRef& b) noexcept {
-        return a.owner == b.owner && a.slot == b.slot && a.generation == b.generation;
-    }
-};
+// A playback of an engine (mlibs.memory's OwnedHandle, tagged).
+struct PlaybackTag;
+using PlaybackRef = mlibs::memory::OwnedHandle<PlaybackTag>;
 enum class PlaybackState : std::uint8_t { playing, paused, finished, cancelled };
 enum class CancelMode : std::uint8_t { hold, restore };
 enum class EngineError : std::uint8_t {

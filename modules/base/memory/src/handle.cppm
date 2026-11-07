@@ -35,6 +35,23 @@ struct Handle {
     }
 };
 
+// A handle that also names the registry that issued it (an engine, a host,
+// a store): handles of two registries never compare equal, a stale one is
+// told by its generation, and the zero owner or generation is never issued
+// (an empty handle is false). The shape every engine's references share
+// (convergence plan §5.2); a domain keeps only its tag.
+template <class Tag>
+struct OwnedHandle {
+    static constexpr std::uint32_t invalid_slot = std::numeric_limits<std::uint32_t>::max();
+
+    std::uint64_t owner      = 0;
+    std::uint32_t slot       = invalid_slot;
+    std::uint64_t generation = 0;
+
+    [[nodiscard]] constexpr explicit operator bool() const noexcept { return owner != 0 && slot != invalid_slot && generation != 0; }
+    friend constexpr bool operator==(const OwnedHandle&, const OwnedHandle&) noexcept = default;
+};
+
 // Compatibility adapter over the shared slot mechanism. The original
 // index32/generation32 ABI and generation-zero first insertion are preserved.
 // Exhaustion now safely retires the slot instead of wrapping to generation 0.

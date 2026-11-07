@@ -88,5 +88,16 @@ int main(int argc, char** argv) {
         check_eq(twice([](int v) { return v * 3; }), 9);
     });
 
+    s.test("an owned handle names its registry: two registries' handles never meet, a stale one is told", [] {
+        struct NodeTag;
+        using Ref = mlibs::memory::OwnedHandle<NodeTag>;
+        const Ref a{1, 4, 7}, b{2, 4, 7}, stale{1, 4, 6};
+        check(bool(a) && !bool(Ref{}), "an empty handle is false");
+        check(!bool(Ref{0, 4, 7}) && !bool(Ref{1, Ref::invalid_slot, 7}) && !bool(Ref{1, 4, 0}), "no zero owner, slot or generation is issued");
+        check(a != b, "the same slot and generation in another registry is another object");
+        check(a != stale && a == Ref{1, 4, 7}, "a generation tells a stale handle");
+        static_assert(!std::is_same_v<Ref, mlibs::memory::OwnedHandle<struct OtherTag>>, "tags keep domains apart");
+    });
+
     return s.run(argc, argv);
 }

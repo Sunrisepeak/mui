@@ -489,16 +489,18 @@ void buffers(Bench& b) {
 }
 
 struct Case {
-    std::string_view name;
+    std::string_view          name;
     void (*run)(Bench&);
+    mlibs::cts::Level         level = mlibs::cts::Level::exact;
 };
+constexpr auto within = mlibs::cts::Level::tolerance;  // blending and resolving round: ±1
 constexpr std::array<Case, 19> all{{
     {"clear", clear},
     {"orientation", orientation},
     {"instancing", instancing},
     {"firsts", firsts},
     {"indexed", indexed},
-    {"blending", blending},
+    {"blending", blending, within},
     {"scissor", scissor},
     {"viewport", viewport},
     {"texture_nearest", texture_nearest},
@@ -511,7 +513,7 @@ constexpr std::array<Case, 19> all{{
     {"buffers", buffers},
     {"depth_test", depth_test},
     {"depth_kept", depth_kept},
-    {"multisample", multisample},
+    {"multisample", multisample, within},
 }};
 
 }  // namespace
@@ -524,20 +526,26 @@ std::vector<std::string_view> cases() {
 
 ShaderFormats shader_formats() noexcept { return shaders::fill::fill_vs.formats(); }
 
-std::vector<Outcome> run(Device& device) {
-    std::vector<Outcome> out;
+mlibs::cts::Report run(Device& device, mlibs::cts::Environment environment) {
+    if (environment.subject.empty()) environment.subject = device.caps().device;
+    mlibs::cts::Suite<Bench> suite{"mlibs.rhi", "1"};
+    for (const Case& c : all)
+        suite.add({.id = std::format("rhi.{}", c.name), .contract = "mlibs.rhi@1", .level = c.level, .needs = {},
+                   .body = [run = c.run](Bench& b, mlibs::cts::Check& check) {
+                       b.failure.clear();
+                       b.note.clear();
+                       run(b);
+                       check.that(!b.failed(), b.failure);
+                       if (!b.failed() && !b.note.empty()) check.evidence("note", b.note);
+                   }});
     Bench bench(device);
-    if (bench.failed()) {
-        for (const Case& c : all) out.push_back({std::string(c.name), false, "the suite's resources: " + bench.failure});
-        return out;
+    if (bench.failed()) {  // the suite's own resources: every case fails with why
+        mlibs::cts::Report r{suite.id(), suite.version(), std::move(environment), {}};
+        for (const auto& c : suite.cases())
+            r.outcomes.push_back({c.id, c.contract, c.level, mlibs::cts::Status::failed, {{"", "the suite's resources: " + bench.failure}}});
+        return r;
     }
-    for (const Case& c : all) {
-        bench.failure.clear();
-        bench.note.clear();
-        c.run(bench);
-        out.push_back({std::string(c.name), !bench.failed(), bench.failed() ? bench.failure : bench.note});
-    }
-    return out;
+    return suite.run(bench, {}, {}, std::move(environment));
 }
 
 }  // namespace mlibs::rhi::cts

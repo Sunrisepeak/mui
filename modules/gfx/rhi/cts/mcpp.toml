@@ -1,7 +1,12 @@
 # mlibs.rhi.cts — the conformance suite every mlibs.rhi backend runs (level B,
 # plan §15): its own Slang shaders, compiled at build time for the target's
 # formats (mlibs.shader.rules), and cases that render or dispatch and read
-# back what an exact device must produce. A backend's tests call run(device).
+# back what an exact device must produce, on mlibs.cts (passed/failed, a
+# report). A backend's tests call run(device). A package of its own, not
+# mlibs.rhi's feature `cts` (plan §5.5): its build program compiles the suite's
+# Slang shaders, and a build program's imports are not conditional on a
+# feature, so the shader toolchain would enter every build of the abstraction
+# (D-99's build-stage isolation; D-108).
 [package]
 namespace   = "mlibs.rhi"
 name        = "cts"
@@ -25,3 +30,4 @@ mlibs.shader.rules = { path = "../../shader/rules", host-module = true }
 
 [dependencies]
 mlibs.rhi = { path = ".." }
+mlibs.cts = { path = "../../../base/cts" }

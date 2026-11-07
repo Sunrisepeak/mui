@@ -6,6 +6,7 @@
 members = [
     "spec",
     "modules/base/control",
+    "modules/base/cts",
     "modules/base/geom",
     "modules/projects/hanim/core",
     "modules/base/image",

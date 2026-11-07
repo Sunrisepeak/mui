@@ -8,6 +8,7 @@ What belongs here: general-purpose libraries with no domain semantics. Small too
 
 | Package | |
 |---|---|
+| [cts](cts) | `mlibs.cts`: the conformance framework — suites with stable ids, levels S/A/B, passed/failed/unsupported (from capabilities only), comparisons, `*.cts.omui.json` reports; suites live with their contract's owner |
 | [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |

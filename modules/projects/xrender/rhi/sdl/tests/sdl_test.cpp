@@ -96,12 +96,11 @@ int main(int argc, char** argv) {
     s.test("the omui.rhi conformance suite (level B): every case, exactly", [] {
         auto d = open_device();
         if (!d) return;
-        const auto outcomes = cts::run(*d);
-        check_eq(outcomes.size(), cts::cases().size());
-        for (const cts::Outcome& o : outcomes) {
-            std::println("  cts {:<16} {}", o.name, o.passed ? "ok" : o.detail);
-            check(o.passed, std::format("{}: {}", o.name, o.detail));
-        }
+        const auto report = cts::run(*d, {.subject = d->caps().device, .platform = "sdl"});
+        check_eq(report.outcomes.size(), cts::cases().size());
+        std::print("{}", report.text());
+        check(report.ok() && report.count(mlibs::cts::Status::passed) == cts::cases().size(), report.text());
+        std::ofstream(scratch_dir("rhi") / "sdl.cts.omui.json") << report.json();  // the evidence, for a reviewer
     });
 
     s.test("an invalid list never reaches SDL", [] {

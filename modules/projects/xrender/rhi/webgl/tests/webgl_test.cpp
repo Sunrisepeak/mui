@@ -159,12 +159,11 @@ int main(int argc, char** argv) {
         auto d = open_device();
         if (!d) return;
         check(cts::shader_formats().has(ShaderFormat::essl), "the suite's shaders were compiled to ESSL");
-        const auto outcomes = cts::run(*d);
-        check_eq(outcomes.size(), cts::cases().size());
-        for (const cts::Outcome& o : outcomes) {
-            std::println("  cts {:<16} {}", o.name, o.passed ? (o.detail.empty() ? "ok" : "ok — " + o.detail) : o.detail);
-            check(o.passed, std::format("{}: {}", o.name, o.detail));
-        }
+        const auto report = cts::run(*d, {.subject = d->caps().device, .platform = "webgl"});
+        check_eq(report.outcomes.size(), cts::cases().size());
+        std::print("{}", report.text());
+        check(report.ok() && report.count(mlibs::cts::Status::passed) == cts::cases().size(), report.text());
+        std::ofstream(scratch_dir("rhi") / "webgl.cts.omui.json") << report.json();  // the evidence, for a reviewer
     });
 
     return s.run(static_cast<int>(args.size()), args.data());

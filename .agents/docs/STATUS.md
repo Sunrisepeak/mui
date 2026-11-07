@@ -70,6 +70,16 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | xengine | Game engine system where people and agents develop and play as equals | eval 62 (game engine) |
 | gongfu | Deterministic, rollback-ready, data-driven fighting framework | 10,000-rollback determinism test |
 
+## M2 — global contracts and the hanim kernel (started)
+
+| Item | State |
+|---|---|
+| `mlibs.cts` framework (§5.5) | this checkpoint (D-108) |
+| RHI conformance on mlibs.cts | this checkpoint: 19 cases, the same results; backends keep the JSON report |
+| simulation GPU, render, spec S-level suites onto mlibs.cts | next |
+| handle, error, time, budget, prepare/execute contracts; lint `owner` | |
+| hanim L2–L5, `visual` representation, v1 API | |
+
 ## Next
 
-M0's exit (the whole matrix green once, the GCC rows in the nightly lane) as CI reports on this checkpoint. Then M2 (plan §11): the global contracts of §5.2 (handle, error, time, budget, prepare/execute), lint `owner`, `mlibs.cts` and the four CTS migrated (§5.5), and hanim's L2–L5 with the `visual` representation (§6.2). The mcpp pin moves to the latest release (2026.11.5.1) once the workspace builds and passes with it locally.
+M0's exit (the whole matrix green once, the GCC rows in the nightly lane) as CI reports on this checkpoint. Then M2 (plan §11): the global contracts of §5.2 (handle, error, time, budget, prepare/execute), lint `owner`, `mlibs.cts` and the four CTS migrated (§5.5), and hanim's L2–L5 with the `visual` representation (§6.2). mcpp is pinned to the latest release, 2026.11.5.1 (`.xlings.json`): the workspace builds and its 119 members pass with it locally.

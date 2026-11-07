@@ -116,20 +116,20 @@ public:
         const double dive = c_.value("dive", t, 9.6);
         s.zoom = hanim::dm::exp(dive * hanim::dm::ln2);
         const Point pixel{panel.pixel.x + 0.5f, panel.pixel.y + 0.5f}, middle{panel.size.width / 2, panel.size.height / 2};
-        const double u = smooth(dive, 0.2, 5.5);
-        s.look = {static_cast<float>(mix(middle.x, pixel.x, u)), static_cast<float>(mix(middle.y, pixel.y, u))};
+        const double u = hanim::window(dive, 0.2, 5.5, hanim::ease::smoothstep);
+        s.look = {static_cast<float>(hanim::dm::mix(middle.x, pixel.x, u)), static_cast<float>(hanim::dm::mix(middle.y, pixel.y, u))};
         s.at = {screen.width / 2, screen.height / 2};
-        s.caret = smooth(t, typed_from_ - 0.3, typed_from_);
+        s.caret = hanim::window(t, typed_from_ - 0.3, typed_from_, hanim::ease::smoothstep);
         // The cursor after what is typed.
         const double chars = std::clamp((t - typed_from_) / std::max(1e-6, stagger_), 0.0, static_cast<double>(text_length(command)));
         s.cursor = {s.line.x + static_cast<float>(std::ceil(chars)) * s.advance + 4, s.line.y + s.line_height * 0.12f, s.advance * 0.62f, s.line_height * 0.8f};
         const auto closing = c_.steps("close");
         const double close_from = closing.empty() ? 3.2 : closing.front().first;
-        rt.set(data_, "opacity", Value(smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)));
-        rt.set(data_, "translate_y", Value((1 - smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)) * 18));
+        rt.set(data_, "opacity", Value(hanim::window(t, typed_from_ + 0.5, typed_from_ + 0.9, hanim::ease::smoothstep)));
+        rt.set(data_, "translate_y", Value((1 - hanim::window(t, typed_from_ + 0.5, typed_from_ + 0.9, hanim::ease::smoothstep)) * 18));
         frame.set(static_cast<std::int32_t>(c_.cut->timeline.rate.frame_at(c_.clip->at) + std::llround((t - mlibs::time::to_seconds(c_.clip->in)) * c_.rate())));
         // The command and the editor give way as the card comes.
-        const double away = smooth(t, close_from - 0.2, close_from + 0.15);
+        const double away = hanim::window(t, close_from - 0.2, close_from + 0.15, hanim::ease::smoothstep);
         rt.set(first_, "opacity", Value(1 - away));
         s.caret_away = static_cast<float>(away);
         rt.invalidate_paint(back_);
@@ -176,8 +176,8 @@ void End::paint(PaintContext& p, State& s) {
     // The pixel becomes the cursor: from where it is to after the command's last letter.
     if (s.caret > 0) {
         const double u = hanim::ease::in_out_cubic(s.caret);
-        const Rect r{static_cast<float>(mix(pix.x, s.cursor.x, u)), static_cast<float>(mix(pix.y, s.cursor.y, u)), static_cast<float>(mix(pix.width, s.cursor.width, u)),
-                     static_cast<float>(mix(pix.height, s.cursor.height, u))};
+        const Rect r{static_cast<float>(hanim::dm::mix(pix.x, s.cursor.x, u)), static_cast<float>(hanim::dm::mix(pix.y, s.cursor.y, u)), static_cast<float>(hanim::dm::mix(pix.width, s.cursor.width, u)),
+                     static_cast<float>(hanim::dm::mix(pix.height, s.cursor.height, u))};
         // A cursor blinks twice a second once it has landed.
         const bool on = s.caret < 1 || std::fmod(s.t * 2, 1.0) < 0.62;
         if (on && s.caret_away < 1) list.fill_rect(r, hex(ink::cyan, 1 - s.caret_away));

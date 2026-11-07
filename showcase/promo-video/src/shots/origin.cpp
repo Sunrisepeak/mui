@@ -132,21 +132,21 @@ public:
         // Where the camera looks: the pixel, sliding to the panel's middle as it pulls back; the panel moving aside for its tree.
         const Point pixel{panel.pixel.x + 0.5f, panel.pixel.y + 0.5f};
         const Point middle{panel.size.width / 2, panel.size.height / 2};
-        const double u = smooth(magnify, 5.5, 0.4);
-        s.look = {static_cast<float>(mix(pixel.x, middle.x, u)), static_cast<float>(mix(pixel.y, middle.y, u))};
-        const double aside = smooth(s.tree, 0, 1);
+        const double u = hanim::window(magnify, 5.5, 0.4, hanim::ease::smoothstep);
+        s.look = {static_cast<float>(hanim::dm::mix(pixel.x, middle.x, u)), static_cast<float>(hanim::dm::mix(pixel.y, middle.y, u))};
+        const double aside = hanim::window(s.tree, 0, 1, hanim::ease::smoothstep);
         const Point centre{screen.width / 2, screen.height / 2};
         const Point side = c_.portrait() ? Point{screen.width / 2, screen.height * 0.27f} : Point{screen.width * 0.3f, screen.height / 2};
-        s.at = {static_cast<float>(mix(centre.x, side.x, aside)), static_cast<float>(mix(centre.y, side.y, aside))};
+        s.at = {static_cast<float>(hanim::dm::mix(centre.x, side.x, aside)), static_cast<float>(hanim::dm::mix(centre.y, side.y, aside))};
         // The dark: only the pixel at first, then the panel around it as the camera pulls back.
         // Lit on the first frame, with the ping: a flash round it that settles.
-        s.pixel_glow = static_cast<float>(1 + 1.6 * (1 - smooth(t, 0.0, 0.6)));
-        s.dark = static_cast<float>(1 - smooth(t, 1.4, 2.6));
-        s.panel_opacity = static_cast<float>(1 - smooth(s.gather, 0.05, 0.6));
+        s.pixel_glow = static_cast<float>(1 + 1.6 * (1 - hanim::window(t, 0.0, 0.6, hanim::ease::smoothstep)));
+        s.dark = static_cast<float>(1 - hanim::window(t, 1.4, 2.6, hanim::ease::smoothstep));
+        s.panel_opacity = static_cast<float>(1 - hanim::window(s.gather, 0.05, 0.6, hanim::ease::smoothstep));
         // The label: beside the pixel while it is the whole screen, gone as the panel comes.
         const float off = c_.portrait() ? 0.18f : 0.22f;
         const Point p = panel_to_screen({panel.pixel.x + 1, panel.pixel.y + 1}, s.at, s.look, s.zoom);
-        const double label_on = smooth(t, 0.45, 0.6) * (1 - smooth(t, 2.4, 2.9));
+        const double label_on = hanim::window(t, 0.45, 0.6, hanim::ease::smoothstep) * (1 - hanim::window(t, 2.4, 2.9, hanim::ease::smoothstep));
         rt.set(label_, "opacity", Value(label_on));
         const Rect lb = rt.bounds(label_);
         rt.set(label_, "translate_x", Value(std::clamp(static_cast<double>(p.x) + screen.width * 0.025, screen.width * 0.06,
@@ -155,7 +155,7 @@ public:
         rt.set(label_, "translate_y", Value(std::clamp(static_cast<double>(p.y) - lb.height + screen.height * off * 0.05, screen.height * 0.08,
                                                        screen.height * 0.66 - lb.height)));
         // The wordmark: filled in as the dashes settle, then the band of light.
-        const double filled = smooth(s.gather, 0.82, 1.0);
+        const double filled = hanim::window(s.gather, 0.82, 1.0, hanim::ease::smoothstep);
         rt.set(word_, "opacity", Value(filled));
         rt.set(word_, "translate_x", Value(static_cast<double>(s.wordmark.x)));
         rt.set(word_, "translate_y", Value(static_cast<double>(s.wordmark.y)));
@@ -164,7 +164,7 @@ public:
         rt.set(under_, "opacity", Value(filled));
         rt.set(under_, "translate_x", Value(static_cast<double>((screen.width - tag.width) / 2)));
         rt.set(under_, "translate_y", Value(static_cast<double>(s.wordmark.y + s.wordmark.height + 34)));
-        const double band = 0.16, at_x = mix(-band, 1 + band, s.sweep);
+        const double band = 0.16, at_x = hanim::dm::mix(-band, 1 + band, s.sweep);
         const bool sweeping = s.sweep > 0 && s.sweep < 1;
         rt.set(sweep_from_, "pixel_effect",
                sweeping ? Value{}.set("name", "wipe").set("progress", std::clamp(at_x - band, 0.0, 1.0)).set("angle", 0.0).set("softness", 0.06) : Value{});
@@ -373,7 +373,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
     }
     // The pixel's frame and dimension, while it is large.
     if (pix.width > 60) {
-        const float on = static_cast<float>(smooth(s.t, 0.35, 0.7) * (1 - smooth(s.t, 2.4, 2.9)));
+        const float on = static_cast<float>(hanim::window(s.t, 0.35, 0.7, hanim::ease::smoothstep) * (1 - hanim::window(s.t, 2.4, 2.9, hanim::ease::smoothstep)));
         if (on > 0) {
             paint_ticks(list, {pix.x - 10, pix.y - 10, pix.width + 20, pix.height + 20}, hex(ink::ice, 0.8f * on), 26, 2, 0);
             const auto& dim = s.labels.get(fonts, "1 px", 18, hex(ink::muted, on), 500, "JetBrains Mono");
@@ -382,7 +382,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
     }
     // The Save button's frame, as the panel comes into view.
     {
-        const double on = smooth(s.t, 2.6, 3.1) * (1 - smooth(s.tree, 0.6, 1.0));
+        const double on = hanim::window(s.t, 2.6, 3.1, hanim::ease::smoothstep) * (1 - hanim::window(s.tree, 0.6, 1.0, hanim::ease::smoothstep));
         if (on > 0) {
             const Point a = panel_to_screen({panel.button.x, panel.button.y}, s.at, s.look, s.zoom);
             const Point z = panel_to_screen({panel.button.x + panel.button.width, panel.button.y + panel.button.height}, s.at, s.look, s.zoom);
@@ -391,11 +391,11 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
     }
     // The semantic tree, growing level by level; the lit path to the button.
     const float grow = static_cast<float>(s.tree);
-    const float solid = static_cast<float>(1 - smooth(s.gather, 0.0, 0.12));
+    const float solid = static_cast<float>(1 - hanim::window(s.gather, 0.0, 0.12, hanim::ease::smoothstep));
     if (grow > 0 && solid > 0) {
         int levels = 1;
         for (const TreeBox& b : s.boxes) levels = std::max(levels, b.level + 1);
-        auto shown = [&](int level) { return static_cast<float>(smooth(grow * (levels + 1.5), level, level + 1.2)); };
+        auto shown = [&](int level) { return static_cast<float>(hanim::window(grow * (levels + 1.5), level, level + 1.2, hanim::ease::smoothstep)); };
         for (const TreeEdge& e : s.edges) {
             const float on = shown(e.level);
             if (on <= 0) continue;
@@ -417,7 +417,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
         for (const TreeBox& b : s.boxes)
             if (b.lit) last = &b;
         if (last) {
-            const float on = static_cast<float>(smooth(grow, 0.85, 1.0)) * solid;
+            const float on = static_cast<float>(hanim::window(grow, 0.85, 1.0, hanim::ease::smoothstep)) * solid;
             const Point z = panel_to_screen({panel.button.x + panel.button.width, panel.button.y + panel.button.height / 2}, s.at, s.look, s.zoom);
             const Point a{last->rect.x, last->rect.y + last->rect.height / 2};
             if (on > 0) paint_line(list, a, {a.x + (z.x - a.x) * on, a.y + (z.y - a.y) * on}, hex(ink::cyan, 0.9f), 1.5f);
@@ -425,7 +425,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
     }
     // The gathering: the tree's lines as dashes, flying to the wordmark's outline.
     if (s.gather > 0 && !s.marks.empty()) {
-        const float fade = static_cast<float>(1 - smooth(s.gather, 0.9, 1.0));
+        const float fade = static_cast<float>(1 - hanim::window(s.gather, 0.9, 1.0, hanim::ease::smoothstep));
         if (fade > 0) {
             xrender::Path dashes;
             for (std::size_t i = 0; i < s.marks.size(); ++i) {
@@ -433,11 +433,11 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
                 const Mark& a = s.sources[i];
                 const Mark& z = s.marks[i];
                 const double arc = hanim::dm::sin(g * hanim::dm::pi) * 40 * (static_cast<double>(i % 7) - 3) / 3;
-                const double x = mix(a.at.x, z.at.x, g) + arc * 0.3, y = mix(a.at.y, z.at.y, g) + arc;
+                const double x = hanim::dm::mix(a.at.x, z.at.x, g) + arc * 0.3, y = hanim::dm::mix(a.at.y, z.at.y, g) + arc;
                 double da = z.angle - a.angle;
                 while (da > hanim::dm::pi) da -= hanim::dm::two_pi;
                 while (da < -hanim::dm::pi) da += hanim::dm::two_pi;
-                const double angle = a.angle + da * g, len = mix(7, 4.5, g);
+                const double angle = a.angle + da * g, len = hanim::dm::mix(7, 4.5, g);
                 const double cx = hanim::dm::cos(angle) * len / 2, cy = hanim::dm::sin(angle) * len / 2;
                 dashes.move_to({static_cast<float>(x - cx), static_cast<float>(y - cy)});
                 dashes.line_to({static_cast<float>(x + cx), static_cast<float>(y + cy)});
@@ -448,12 +448,12 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
             list.stroke_path(dashes, st, xrender::Paint::solid(hex(ink::cyan, fade)));
         }
         // The drawing's construction lines round the wordmark: its axis, its edges and their dimension, a circle drawn round it.
-        const float lines = static_cast<float>(smooth(s.t, 5.9, 6.8));
+        const float lines = static_cast<float>(hanim::window(s.t, 5.9, 6.8, hanim::ease::smoothstep));
         if (lines > 0) {
             const Rect w = s.wordmark;
             const float cx = w.x + w.width / 2, cy = w.y + w.height / 2;
             const Color faint = hex(ink::cyan, 0.16f * lines), line = hex(ink::cyan, 0.45f * lines);
-            const float reach = static_cast<float>(smooth(s.t, 5.9, 7.0));
+            const float reach = static_cast<float>(hanim::window(s.t, 5.9, 7.0, hanim::ease::smoothstep));
             list.fill_rect({cx - screen.width * 0.48f * reach, cy, screen.width * 0.96f * reach, 1}, faint);
             list.fill_rect({cx, cy - screen.height * 0.42f * reach, 1, screen.height * 0.84f * reach}, faint);
             for (const float x : {w.x, w.x + w.width}) list.fill_rect({x, w.y - 46, 1, w.height + 60}, line);
@@ -464,7 +464,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
             list.fill_rect({cx - dim.size().width / 2 - 10, dy - 12, dim.size().width + 20, 24}, hex(ink::paper, lines));
             xrender::text::paint(dim, list, {cx - dim.size().width / 2, dy - dim.size().height / 2});
             const float radius = w.width * 0.6f;
-            const double sweep = hanim::dm::two_pi * smooth(s.t, 6.0, 7.4);
+            const double sweep = hanim::dm::two_pi * hanim::window(s.t, 6.0, 7.4, hanim::ease::smoothstep);
             xrender::Path arc;
             const int steps = 180;
             for (int k = 0; k <= steps; ++k) {
@@ -478,7 +478,7 @@ void Origin::paint(PaintContext& p, State& s, const std::pair<xrender::ImageRef,
             if (sweep > 0) list.stroke_path(arc, st, xrender::Paint::solid(faint));
         }
         // A rule under the wordmark, drawn out once it stands.
-        const float rule = static_cast<float>(smooth(s.gather, 0.9, 1.0) * smooth(s.t, 6.0, 6.6));
+        const float rule = static_cast<float>(hanim::window(s.gather, 0.9, 1.0, hanim::ease::smoothstep) * hanim::window(s.t, 6.0, 6.6, hanim::ease::smoothstep));
         if (rule > 0) {
             const float y = s.wordmark.y + s.wordmark.height + 8, cx = screen.width / 2, half = s.wordmark.width * 0.5f * rule;
             list.fill_rect({cx - half, y, half * 2, 2}, hex(ink::cyan, 0.8f));

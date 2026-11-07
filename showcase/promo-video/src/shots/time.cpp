@@ -213,7 +213,7 @@ public:
             if (!first_.empty()) {
                 const auto f = static_cast<std::size_t>(std::clamp<std::int64_t>(std::llround(t * c_.rate()), 0, static_cast<std::int64_t>(first_.size()) - 1));
                 const bool same = first_[f] == now;
-                const double on = smooth(t, 0.8, 1.1) * (1 - smooth(t, 3.4, 3.8));
+                const double on = hanim::window(t, 0.8, 1.1, hanim::ease::smoothstep) * (1 - hanim::window(t, 3.4, 3.8, hanim::ease::smoothstep));
                 rt.set(rt.find("main/type/stamp"), "opacity", Value(on));
                 rt.set(rt.find("main/type/stamp/match"), "text", Value(std::string(same ? "MATCH ✓" : "DIFFERS ✗")));
                 rt.set(rt.find("main/type/stamp/against"), "text", Value(std::format("first play {:016x} · now {:016x}", first_[f], now)));

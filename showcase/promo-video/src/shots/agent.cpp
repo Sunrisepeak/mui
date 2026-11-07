@@ -263,10 +263,10 @@ public:
         const NodeId card = rt.find("main/type/card");
         const bool up = s.asked >= 0 && (s.answered < 0 || t < s.answered + 0.35);
         rt.set(card, "visible", Value(up));
-        rt.set(card, "opacity", Value(up ? smooth(t, s.asked, s.asked + 0.25) * (s.answered >= 0 ? 1 - smooth(t, s.answered + 0.1, s.answered + 0.35) : 1.0) : 0.0));
+        rt.set(card, "opacity", Value(up ? hanim::window(t, s.asked, s.asked + 0.25, hanim::ease::smoothstep) * (s.answered >= 0 ? 1 - hanim::window(t, s.answered + 0.1, s.answered + 0.35, hanim::ease::smoothstep) : 1.0) : 0.0));
         // A modal over the panel, in its middle.
         rt.set(card, "translate_x", Value(static_cast<double>(s.panel.x + (s.panel.width - s.card.width) / 2)));
-        rt.set(card, "translate_y", Value(static_cast<double>(s.panel.y + (s.panel.height - s.card.height) / 2) + (1 - smooth(t, s.asked, s.asked + 0.3)) * 24));
+        rt.set(card, "translate_y", Value(static_cast<double>(s.panel.y + (s.panel.height - s.card.height) / 2) + (1 - hanim::window(t, s.asked, s.asked + 0.3, hanim::ease::smoothstep)) * 24));
         // The headline: what the agent's last step means.
         {
             int last = 0;
@@ -285,7 +285,7 @@ public:
             rt.set(status, "color", Value(std::format("#{:06x}", colour)));
         }
         // The camera leans in, slowly, as the stakes rise.
-        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * smooth(t, 0.0, 9.5)));
+        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * hanim::window(t, 0.0, 9.5, hanim::ease::smoothstep)));
         rt.invalidate_paint(rt.find("main/front"));
         rt.invalidate_paint(rt.find("main/backdrop"));
     }
@@ -345,7 +345,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
     const float advance = type * 0.6f;      // JetBrains Mono's
     // Behind the person's answer, the panel dims.
     if (s.asked >= 0) {
-        const double up = smooth(s.t, s.asked, s.asked + 0.25) * (s.answered >= 0 ? 1 - smooth(s.t, s.answered + 0.1, s.answered + 0.35) : 1.0);
+        const double up = hanim::window(s.t, s.asked, s.asked + 0.25, hanim::ease::smoothstep) * (s.answered >= 0 ? 1 - hanim::window(s.t, s.answered + 0.1, s.answered + 0.35, hanim::ease::smoothstep) : 1.0);
         if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), xrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
     }
     // The tree, as an inspector shows it: the rows about the node the agent is at.
@@ -386,7 +386,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
         std::vector<Shown> lines;
         for (const LogLine& l : s.log) {
             if (l.at > s.t) continue;
-            const double typed = ramp(s.t, l.at, l.at + 0.25);
+            const double typed = hanim::window(s.t, l.at, l.at + 0.25);
             std::size_t cut = static_cast<std::size_t>(static_cast<double>(l.text.size()) * typed);
             while (cut < l.text.size() && (static_cast<unsigned char>(l.text[cut]) & 0xC0) == 0x80) ++cut;
             // Into lines of `columns` characters (code points), the ones after the first indented under it.
@@ -418,10 +418,10 @@ void Agent::paint_front(PaintContext& p, State& s) {
         for (std::size_t k = 1; k < s.path.size(); ++k) {
             const double from = s.path[k - 1].first, to = s.path[k].first - 0.25;
             if (s.t <= from) break;
-            const double u = hanim::ease::in_out_cubic(ramp(s.t, from + 0.1, std::max(from + 0.2, to)));
-            at = {static_cast<float>(mix(s.path[k - 1].second.x, s.path[k].second.x, u)), static_cast<float>(mix(s.path[k - 1].second.y, s.path[k].second.y, u))};
+            const double u = hanim::ease::in_out_cubic(hanim::window(s.t, from + 0.1, std::max(from + 0.2, to)));
+            at = {static_cast<float>(hanim::dm::mix(s.path[k - 1].second.x, s.path[k].second.x, u)), static_cast<float>(hanim::dm::mix(s.path[k - 1].second.y, s.path[k].second.y, u))};
         }
-        const float appear = static_cast<float>(smooth(s.t, s.path.front().first - 0.6, s.path.front().first - 0.2));
+        const float appear = static_cast<float>(hanim::window(s.t, s.path.front().first - 0.6, s.path.front().first - 0.2, hanim::ease::smoothstep));
         const Color c = hex(ink::cyan, appear);
         xrender::Path ring;
         ring.add_ellipse({at.x - 15, at.y - 15, 30, 30});

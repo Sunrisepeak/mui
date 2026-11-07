@@ -185,6 +185,7 @@ double Ease::operator()(double t) const noexcept {
             const Oscillator o(0.0, 0.0, 1.0, {p[0], p[1], p[2]}, unit_rest);
             return t * p[3] >= o.settle_time() ? 1.0 : o.position(t * p[3]);
         }
+        case EaseKind::smoothstep: return t * t * (3 - 2 * t);
         case EaseKind::fall: {
             if (t >= 1.0) return 1.0;
             // In first falls: the drop takes 1; bounce k flies 2·eᵏ, rising eᵏ high in time.
@@ -245,7 +246,7 @@ Ease Ease::fall(double restitution, int bounces, double contact) noexcept {
 }
 
 bool Ease::valid() const noexcept {
-    if (kind > EaseKind::fall) return false;
+    if (kind > EaseKind::smoothstep) return false;
     if (kind == EaseKind::fall)
         return std::isfinite(p[0]) && p[0] >= 0 && p[0] < 1 && p[1] >= 0 && p[1] <= 64 && p[1] == std::floor(p[1]) && p[2] >= 1 &&
             std::isfinite(p[2]) && p[3] >= 0 && p[3] <= 1;
@@ -269,7 +270,7 @@ double Ease::slope(double t) const noexcept {
 
 namespace {
 
-constexpr std::array<std::pair<EaseKind, std::string_view>, 31> names{{
+constexpr std::array<std::pair<EaseKind, std::string_view>, 32> names{{
     {EaseKind::linear, "linear"},
     {EaseKind::in_quad, "in_quad"},       {EaseKind::out_quad, "out_quad"},       {EaseKind::in_out_quad, "in_out_quad"},
     {EaseKind::in_cubic, "in_cubic"},     {EaseKind::out_cubic, "out_cubic"},     {EaseKind::in_out_cubic, "in_out_cubic"},
@@ -281,6 +282,7 @@ constexpr std::array<std::pair<EaseKind, std::string_view>, 31> names{{
     {EaseKind::in_back, "in_back"},       {EaseKind::out_back, "out_back"},       {EaseKind::in_out_back, "in_out_back"},
     {EaseKind::in_elastic, "in_elastic"}, {EaseKind::out_elastic, "out_elastic"}, {EaseKind::in_out_elastic, "in_out_elastic"},
     {EaseKind::in_bounce, "in_bounce"},   {EaseKind::out_bounce, "out_bounce"},   {EaseKind::in_out_bounce, "in_out_bounce"},
+    {EaseKind::smoothstep, "smoothstep"},
 }};
 
 constexpr std::array<std::string_view, 4> step_names{"jump-start", "jump-end", "jump-none", "jump-both"};
@@ -384,6 +386,11 @@ std::optional<Ease> parse_ease(std::string_view text) {
         return Ease::stepped(static_cast<int>(*n), at);
     }
     return std::nullopt;
+}
+
+double window(double time, double from, double to, const Ease& ease) noexcept {
+    if (to == from) return ease(time >= to ? 1.0 : 0.0);
+    return ease(std::clamp((time - from) / (to - from), 0.0, 1.0));
 }
 
 }  // namespace hanim

@@ -301,16 +301,5 @@ const mlibs::text::Paragraph& Labels::get(mlibs::text::FontCollection& fonts, st
 
 // ── time ────────────────────────────────────────────────────────────────
 
-double ramp(double t, double from, double to) noexcept {
-    if (to == from) return t >= to ? 1 : 0;
-    return std::clamp((t - from) / (to - from), 0.0, 1.0);  // falling when `to` is below `from`
-}
-
-double smooth(double t, double from, double to) noexcept {
-    const double u = ramp(t, from, to);
-    return u * u * (3 - 2 * u);
-}
-
-double mix(double a, double b, double u) noexcept { return a + (b - a) * u; }
 
 }  // namespace omui::promo

@@ -88,7 +88,7 @@ void paint_panel(xrender::DisplayList& list, xrender::ImageStore& images, std::p
         const Point d1 = panel_to_screen({static_cast<float>(ix1), static_cast<float>(iy1)}, at, look, zoom);
         const Rect dest{d0.x, d0.y, d1.x - d0.x, d1.y - d0.y};
         // Larger than 1:1 its real pixels, square; smaller, the 2× picture; between, one over the other.
-        const double big = smooth(hanim::dm::log(zoom) / hanim::dm::ln2, 0.15, 0.7);
+        const double big = hanim::window(hanim::dm::log(zoom) / hanim::dm::ln2, 0.15, 0.7, hanim::ease::smoothstep);
         if (big < 1 && images.get(refs.second))
             list.draw_image(refs.second, {static_cast<float>(ix0 * 2), static_cast<float>(iy0 * 2), static_cast<float>((ix1 - ix0) * 2), static_cast<float>((iy1 - iy0) * 2)},
                             dest, xrender::Sampling::linear);
@@ -96,7 +96,7 @@ void paint_panel(xrender::DisplayList& list, xrender::ImageStore& images, std::p
             list.draw_image(refs.first, {static_cast<float>(ix0), static_cast<float>(iy0), static_cast<float>(ix1 - ix0), static_cast<float>(iy1 - iy0)}, dest,
                             zoom >= 2 ? xrender::Sampling::nearest : xrender::Sampling::linear, static_cast<float>(big));
         // Between the pixels, once each is large: the hairlines of a sheet of graph paper.
-        const double lines = smooth(hanim::dm::log(zoom) / hanim::dm::ln2, 3.2, 5.5);
+        const double lines = hanim::window(hanim::dm::log(zoom) / hanim::dm::ln2, 3.2, 5.5, hanim::ease::smoothstep);
         if (lines > 0) {
             const Color c = hex(ink::paper_deep, static_cast<float>(0.55 * lines));
             const float w = std::max(1.0f, static_cast<float>(zoom * 0.035));

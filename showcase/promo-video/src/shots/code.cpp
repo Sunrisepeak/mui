@@ -305,7 +305,7 @@ public:
         for (std::size_t i = 0; i < languages.size(); ++i) {
             double o = 0;
             if (static_cast<int>(i) == code) o = 1;
-            else if (lang <= 3 && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - ramp(t, since + 0.45, since + 0.6);
+            else if (lang <= 3 && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - hanim::window(t, since + 0.45, since + 0.6);
             rt.set(blocks_[i], "opacity", Value(o));
         }
         rt.set(rt.find("main/type/panel/title/file"), "text", Value(std::string(file_names[static_cast<std::size_t>(code)])));
@@ -314,7 +314,7 @@ public:
         const Tally* shown = s.tallies[static_cast<std::size_t>(code)];
         const Tally* first = s.tallies[0];
         const bool done_typing = t >= s.typed_from + 0.2 + static_cast<double>(typed_chars(code_[0])) * s.per_char;
-        const double badge = smooth(t, s.typed_from + static_cast<double>(typed_chars(code_[0])) * s.per_char, s.typed_from + 0.3 + static_cast<double>(typed_chars(code_[0])) * s.per_char);
+        const double badge = hanim::window(t, s.typed_from + static_cast<double>(typed_chars(code_[0])) * s.per_char, s.typed_from + 0.3 + static_cast<double>(typed_chars(code_[0])) * s.per_char, hanim::ease::smoothstep);
         rt.set(rt.find("main/type/badges"), "opacity", Value(badge));
         if (shown) {
             rt.set(rt.find("main/type/badges/tree"), "text", Value(std::format("semantic tree  {:016x}", shown->tree)));
@@ -391,7 +391,7 @@ void Code::paint(PaintContext& p, State& s) {
         if (v && v->pixels) {
             if (lang == 0) {
                 for (const auto& [id, when] : s.revealed) {
-                    const double on = smooth(s.t, when, when + 0.25);
+                    const double on = hanim::window(s.t, when, when + 0.25, hanim::ease::smoothstep);
                     const auto it = v->bounds.find(id);
                     if (on <= 0 || it == v->bounds.end()) continue;
                     const Rect b = it->second;
@@ -400,7 +400,7 @@ void Code::paint(PaintContext& p, State& s) {
                     const Rect dst{d.x + b.x * s.shown_scale, d.y + b.y * s.shown_scale, b.width * s.shown_scale, b.height * s.shown_scale};
                     list.draw_image(s.images[i], src, dst, xrender::Sampling::linear, static_cast<float>(on));
                     // Its frame and id, while it is new.
-                    const double fresh = on * (1 - smooth(s.t, when + 0.6, when + 1.1));
+                    const double fresh = on * (1 - hanim::window(s.t, when + 0.6, when + 1.1, hanim::ease::smoothstep));
                     if (fresh > 0) {
                         paint_ticks(list, {dst.x - 4, dst.y - 4, dst.width + 8, dst.height + 8}, hex(ink::cyan, static_cast<float>(fresh)), 8, 1.5f, 0.5f);
                         const auto& tag = s.labels.get(p.services.fonts(), std::format("#{}", id.substr(id.rfind('/') == std::string::npos ? 0 : id.rfind('/') + 1)),
@@ -417,13 +417,13 @@ void Code::paint(PaintContext& p, State& s) {
         xrender::text::paint(cap, list, {d.x, d.y - 38});
     } else {
         // All four, side by side: the same pixels.
-        const double u = smooth(s.t, s.switched, s.switched + 0.5);
+        const double u = hanim::window(s.t, s.switched, s.switched + 0.5, hanim::ease::smoothstep);
         // Two rows with room for the names between them, as tall as the one counter was.
         const float h = (d.height - 38) / 2, w = h * tally_size.width / tally_size.height;
         for (std::size_t i = 0; i < 4; ++i) {
             const Rect to{d.x + (i % 2) * (d.width - w), d.y + (i / 2) * (h + 38), w, h};
-            const Rect r{static_cast<float>(mix(d.x, to.x, u)), static_cast<float>(mix(d.y, to.y, u)), static_cast<float>(mix(d.width, to.width, u)),
-                         static_cast<float>(mix(d.height, to.height, u))};
+            const Rect r{static_cast<float>(hanim::dm::mix(d.x, to.x, u)), static_cast<float>(hanim::dm::mix(d.y, to.y, u)), static_cast<float>(hanim::dm::mix(d.width, to.width, u)),
+                         static_cast<float>(hanim::dm::mix(d.height, to.height, u))};
             list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(hex(ink::paper)));
             if (s.tallies[i] && s.tallies[i]->pixels) list.draw_image(s.images[i], img_rect(i), r, xrender::Sampling::linear);
             paint_ticks(list, {r.x - 5, r.y - 5, r.width + 10, r.height + 10}, hex(ink::cyan, 0.6f), 10, 1.5f, 0);

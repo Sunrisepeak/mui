@@ -120,5 +120,16 @@ int main(int argc, char** argv) {
         check_near(hanim::ease::out_cubic.slope(0.0), 3.0, 2e-3);
     });
 
+    s.test("smoothstep and a window's eased progress: exact ends, flat there, the specification's formula", [] {
+        const auto e = hanim::ease::smoothstep;
+        check(e.valid() && e(0) == 0 && e(1) == 1 && e(.5) == .5, "0, ½, 1");
+        for (const double t : {.1, .3, .7, .9}) check(e(t) == t * t * (3 - 2 * t), "t²(3 − 2t)");
+        check(e.slope(0) < 1e-3 && e.slope(1) < 1e-3, "flat at both ends");
+        check(hanim::to_string(e) == "smoothstep" && hanim::parse_ease("smoothstep") == e, "named");
+        check(hanim::window(1, 2, 4) == 0 && hanim::window(3, 2, 4) == .5 && hanim::window(5, 2, 4) == 1, "before, within, after");
+        check(hanim::window(3, 4, 2) == .5 && hanim::window(4.5, 4, 2) == 0, "a window backwards");
+        check(hanim::window(2, 2, 2) == 1 && hanim::window(1.9, 2, 2) == 0, "an empty window: a step at its moment");
+        check(hanim::window(2.5, 2, 4, e) == e(.25), "eased");
+    });
     return s.run(argc, argv);
 }

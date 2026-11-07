@@ -84,10 +84,6 @@ private:
 
 // ── time ────────────────────────────────────────────────────────────────
 
-// 0 at `from`, 1 at `to`, linear between and held beyond (`to` may be below `from`).
-[[nodiscard]] double ramp(double t, double from, double to) noexcept;
-// The same through a smoothstep.
-[[nodiscard]] double smooth(double t, double from, double to) noexcept;
-[[nodiscard]] double mix(double a, double b, double u) noexcept;
+// Moments read through hanim's windows: hanim::window(t, from, to[, ease::smoothstep]).
 
 }  // namespace omui::promo

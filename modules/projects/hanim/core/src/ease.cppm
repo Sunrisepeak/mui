@@ -27,6 +27,7 @@ enum class EaseKind : std::uint8_t {
     steps,         // p[0] = count, p[1] = StepPosition
     spring,        // p = stiffness, damping, mass, settle (s): a spring's unit response over the curve
     fall,          // p = restitution, bounces, length (in falls), contact: a dropped body's height, bouncing
+    smoothstep,    // t²(3 − 2t): the cubic Hermite step, flat at both ends
 };
 
 // Where the jumps of a `steps` curve fall (CSS Easing Functions Level 1).
@@ -113,6 +114,7 @@ inline constexpr Ease in_out_elastic{EaseKind::in_out_elastic};
 inline constexpr Ease in_bounce{EaseKind::in_bounce};
 inline constexpr Ease out_bounce{EaseKind::out_bounce};
 inline constexpr Ease in_out_bounce{EaseKind::in_out_bounce};
+inline constexpr Ease smoothstep{EaseKind::smoothstep};
 
 // The CSS keywords.
 inline constexpr Ease css_ease        = Ease::bezier(0.25, 0.1, 0.25, 1.0);
@@ -131,5 +133,10 @@ inline constexpr Ease emphasized = Ease::bezier(0.3, 0.0, 0.0, 1.0);
 // ("ease", "ease-in" …); it answers nullopt for anything else.
 [[nodiscard]] std::string to_string(const Ease& e);
 [[nodiscard]] std::optional<Ease> parse_ease(std::string_view text);
+
+// How far `time` is through the window [from, to], eased: 0 before it, 1
+// after (`to` below `from` runs it backwards; an empty window is a step at
+// `to`). What a timed sequence of changes reads its moments with.
+[[nodiscard]] double window(double time, double from, double to, const Ease& ease = Ease{}) noexcept;
 
 }  // namespace hanim

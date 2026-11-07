@@ -125,7 +125,7 @@ public:
         rt.set(rt.find("main/type/hud/count"), "text", Value(std::format("{} of {} on screen", grouped(windows), grouped(wall_size))));
         rt.set(rt.find("main/type/hud/tiers"), "text", Value(std::format("boxes {} · textures {} · live {}", boxes, textured, live)));
         rt.set(rt.find("main/type/hud/zoom"), "text", Value(std::format("zoom {:.1f}%", c.zoom * 100)));
-        rt.set(hud_, "opacity", Value(smooth(t, 0.4, 0.9)));
+        rt.set(hud_, "opacity", Value(hanim::window(t, 0.4, 0.9, hanim::ease::smoothstep)));
     }
 
     std::vector<Cue> cues(double) override { return {}; }
@@ -139,8 +139,8 @@ private:
         const world::Camera& from = pan <= 1 ? anchors_.a : o;
         const world::Camera& to = pan <= 1 ? o : anchors_.b;
         const double u = pan <= 1 ? pan : pan - 1;
-        const double lz = mix(hanim::dm::log(live_zoom), hanim::dm::log(o.zoom), out);
-        return {mix(from.x, to.x, u), mix(from.y, to.y, u), hanim::dm::exp(lz)};
+        const double lz = hanim::dm::mix(hanim::dm::log(live_zoom), hanim::dm::log(o.zoom), out);
+        return {hanim::dm::mix(from.x, to.x, u), hanim::dm::mix(from.y, to.y, u), hanim::dm::exp(lz)};
     }
 
     ShotContext  c_;

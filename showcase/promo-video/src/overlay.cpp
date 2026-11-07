@@ -204,10 +204,10 @@ void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& sh
         const tl::Clip& c = *lines_[i].clip;
         const double from = mlibs::time::to_seconds(c.at), to = mlibs::time::to_seconds(c.end());
         const bool up = options_.subtitles && !film && t >= from && t < to;
-        const double fade = std::min(ramp(t, from, from + 0.16), 1 - ramp(t, to - 0.2, to));
+        const double fade = std::min(hanim::window(t, from, from + 0.16), 1 - hanim::window(t, to - 0.2, to));
         rt.set(line_nodes_[i], "visible", Value(up));
         rt.set(line_nodes_[i], "opacity", Value(up ? fade : 0.0));
-        rt.set(line_nodes_[i], "translate_y", Value(up ? (1 - smooth(t, from, from + 0.3)) * 10 : 0.0));
+        rt.set(line_nodes_[i], "translate_y", Value(up ? (1 - hanim::window(t, from, from + 0.3, hanim::ease::smoothstep)) * 10 : 0.0));
     }
     // The chapter: from its marker to the next; not in the first three seconds (the hook is dark).
     for (std::size_t i = 0; i < chapters_.size(); ++i) {
@@ -215,11 +215,11 @@ void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& sh
         const double to = i + 1 < chapters_.size() ? cut_->seconds_of(chapters_[i + 1].frame) : 1e9;
         const bool on = options_.chapters && !film && t >= std::max(from, 3.0) && t < to;
         rt.set(chapter_nodes_[i], "visible", Value(on));
-        rt.set(chapter_nodes_[i], "opacity", Value(on ? smooth(t, std::max(from, 3.0), std::max(from, 3.0) + 0.3) : 0.0));
+        rt.set(chapter_nodes_[i], "opacity", Value(on ? hanim::window(t, std::max(from, 3.0), std::max(from, 3.0) + 0.3, hanim::ease::smoothstep) : 0.0));
     }
     // The timeline along the bottom, from the title on; over played-back frames theirs shows.
     const bool bar = options_.timebar && !film && t >= 3.4;
-    rt.set(timeline_, "opacity", Value(bar ? smooth(t, 3.4, 4.0) : 0.0));
+    rt.set(timeline_, "opacity", Value(bar ? hanim::window(t, 3.4, 4.0, hanim::ease::smoothstep) : 0.0));
     rt.set(timecode_, "text", Value(timecode(t)));
     rt.invalidate_paint(timebar_);
     // The tape: its speed, its colours drifting apart and its rows wavering, the more the faster.

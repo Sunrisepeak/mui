@@ -48,6 +48,16 @@ bool valid_color(Rgba value) noexcept {
     for (float lane : {value.r, value.g, value.b, value.a}) if (!std::isfinite(lane) || lane < 0 || lane > 1) return false;
     return true;
 }
+bool valid_deformer(const PartDeformer& deformer) noexcept {
+    const auto& select = deformer.select;
+    if (deformer.channel.empty() || deformer.channel.size() > 128 || !finite(deformer.anchor) || !finite(select.center) ||
+        !finite(select.low) || !finite(select.high) || !std::isfinite(select.radius) || !std::isfinite(select.feather))
+        return false;
+    if (select.shape == Selector::Shape::near && !(select.radius > 0)) return false;
+    if (select.shape == Selector::Shape::within && (select.low.x > select.high.x || select.low.y > select.high.y || select.feather < 0))
+        return false;
+    return select.shape <= Selector::Shape::within && deformer.kind <= DeformKind::rotate;
+}
 bool valid_id(std::string_view id) noexcept {
     return !id.empty() && id.size() <= 128 && std::ranges::none_of(id, [](unsigned char c) { return c < 32 || c == 127; });
 }
@@ -123,6 +133,8 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
         if (part.stroke && (!valid_color(part.stroke->color) || !std::isfinite(part.stroke->width) || part.stroke->width < 0))
             return std::unexpected(ObjectError::invalid_color);
         any_stroke |= part.stroke.has_value();
+        for (const auto& deformer : part.deformers)
+            if (!valid_deformer(deformer)) return std::unexpected(ObjectError::invalid_part);
         if (part.contours.size() > limits.max_contours - contours) return std::unexpected(ObjectError::capacity);
         contours += part.contours.size();
         for (const auto& contour : part.contours) {
@@ -177,7 +189,8 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
             key = *inserted;
         }
         data->parts.push_back({.ref = {object, key.index, key.generation}, .id = source.id, .local = source.local,
-            .contours = source.contours, .fill = source.fill, .stroke = source.stroke});
+            .contours = source.contours, .fill = source.fill, .stroke = source.stroke,
+            .deformers = source.deformers});
         data->by_name.push_back(static_cast<std::uint32_t>(i));
     }
     data->by_slot.assign(result.identities.slot_count(), invalid_object_slot);
@@ -199,6 +212,29 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
     result.snapshot = std::move(data);
     return result;
 }
+}
+
+double Selector::weight(Vec2 point) const noexcept {
+    double reach = 1;  // 1 at the centre or inside, 0 at the edge of the falloff
+    switch (shape) {
+        case Shape::all: return 1;
+        case Shape::near: {
+            const double distance = std::sqrt((point.x - center.x) * (point.x - center.x) + (point.y - center.y) * (point.y - center.y));
+            if (distance >= radius) return 0;
+            reach = 1 - distance / radius;
+            break;
+        }
+        case Shape::within: {
+            const double outside_x = std::max({low.x - point.x, 0.0, point.x - high.x});
+            const double outside_y = std::max({low.y - point.y, 0.0, point.y - high.y});
+            const double outside = std::sqrt(outside_x * outside_x + outside_y * outside_y);
+            if (outside == 0) return 1;
+            if (outside >= feather) return 0;
+            reach = 1 - outside / feather;
+            break;
+        }
+    }
+    return std::clamp(falloff(reach), 0.0, 1.0);
 }
 
 std::expected<Contour, ObjectError> Contour::copy(ShapeContour input, std::size_t max_segments) {

@@ -26,6 +26,11 @@ struct ObjectMorphData {
     std::size_t value_count = 0;
     seconds timeline_duration{0};
     std::size_t route_segments=0;
+    // Each part's deformers (MorphPartInfo::deformers borrows them) and, for
+    // each, its points' frozen weights: four a cubic, over the part's cubics.
+    std::vector<std::vector<PartDeformer>> deformers;
+    struct Deformation { std::uint32_t part = 0; std::size_t deformer = 0, first_cubic = 0, cubic_count = 0; std::vector<double> weights; };
+    std::vector<Deformation> deformations;
 };
 }
 namespace hanim {
@@ -67,6 +72,7 @@ struct PartInput {
     Transform2D local;
     std::optional<Rgba> fill;
     std::optional<PartStroke> stroke;
+    std::vector<PartDeformer> deformers;
     std::vector<CurveInput> contours;
 };
 // A value channel's value carried from the frame an animation continues from.
@@ -224,6 +230,7 @@ std::expected<Input,MorphFailure> snapshot_input(const Snapshot& snapshot, Morph
         if (part.contours.size() > options.max_contours - contours) return std::unexpected(failure(MorphError::contour_budget,index));
         contours += part.contours.size();
         PartInput item; item.id=part.id; item.ref=part.ref; item.parent=visit.parent; item.local=part.local; item.fill=part.fill; item.stroke=part.stroke;
+        item.deformers=part.deformers;
         item.contours.reserve(part.contours.size()); item.children.reserve(part.children.size());
         for (std::size_t ordinal=0;ordinal<part.contours.size();++ordinal) {
             const auto view=part.contours[ordinal].view();
@@ -255,13 +262,21 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
         if (info.parent==invalid_object_slot) { ++roots; root=static_cast<std::uint32_t>(i); }
         else if (info.parent>=frame.parts.size() || info.parent==i) return std::unexpected(failure(MorphError::invalid_frame,i));
         PartInput item; item.id=info.id; item.ref=info.from_ref; item.parent=info.parent; item.local=part.local; item.fill=part.fill; item.stroke=part.stroke;
+        item.deformers.assign(info.deformers.begin(),info.deformers.end());
         item.contours.reserve(info.contour_count);
+        const auto part_first_cubic=first_cubic;
+        std::size_t part_cubics=0;
+        for (std::size_t j=0;j<info.contour_count && first_contour+j<frame.contours.size();++j) part_cubics+=frame.contours[first_contour+j].cubic_count;
+        // A deformed part goes on from its geometry before the deformers, not
+        // deformed twice.
+        const bool undeformed=!info.deformers.empty() && info.base.size()==part_cubics;
         for (std::size_t j=0;j<info.contour_count;++j) {
             const auto& range=frame.contours[first_contour+j];
             if (range.part!=i || range.ordinal!=j || range.first_cubic!=first_cubic || !range.cubic_count ||
                 first_cubic>frame.cubics.size() || range.cubic_count>frame.cubics.size()-first_cubic)
                 return std::unexpected(failure(MorphError::invalid_frame,i,j));
-            const auto cubics=frame.cubics.subspan(first_cubic,range.cubic_count);
+            const auto cubics=undeformed ? info.base.subspan(first_cubic-part_first_cubic,range.cubic_count)
+                                         : frame.cubics.subspan(first_cubic,range.cubic_count);
             CurveInput curve; curve.owned.reserve(cubics.size());
             for (std::size_t k=0;k<cubics.size();++k) {
                 const auto& cubic=cubics[k];
@@ -446,6 +461,41 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
         }
     }
     for (std::size_t i=0;i<count;++i) result->parts[i].id=result->ids[i];
+    // Deformers: the source end's, weighed on the geometry the plan starts from.
+    result->deformers.resize(count);
+    std::vector<ShapeCubic> start;
+    for (std::size_t i=0;i<count;++i) {
+        const auto& source=from.parts[i];
+        if (source.deformers.empty()) continue;
+        for (const auto& deformer:source.deformers)
+            if (ch::builtin(deformer.channel)) return std::unexpected(failure(MorphError::invalid_property,i));
+        result->deformers[i]=source.deformers;
+        const auto& info=result->parts[i];
+        if (!info.contour_count) continue;
+        const auto& first=result->contours[info.first_contour];
+        const auto& last=result->contours[info.first_contour+info.contour_count-1];
+        const auto first_cubic=first.first_cubic, cubic_count=last.first_cubic+last.cubic_count-first.first_cubic;
+        start.resize(cubic_count);
+        for (std::size_t j=0;j<info.contour_count;++j) {
+            const auto& range=result->contours[info.first_contour+j];
+            const auto sampled=result->shapes[info.first_contour+j].sample(0,std::span(start).subspan(range.first_cubic-first_cubic,range.cubic_count));
+            mlibs::log::invariant(sampled.has_value(),"deformer start geometry invariant");
+        }
+        for (std::size_t index=0;index<source.deformers.size();++index) {
+            detail::ObjectMorphData::Deformation deformation{static_cast<std::uint32_t>(i),index,first_cubic,cubic_count,{}};
+            deformation.weights.reserve(cubic_count*4);
+            for (const auto& cubic:start)
+                for (const auto point:{cubic.start,cubic.control1,cubic.control2,cubic.end})
+                    deformation.weights.push_back(source.deformers[index].select.weight(point));
+            result->deformations.push_back(std::move(deformation));
+        }
+    }
+    for (std::size_t i=0;i<count;++i) result->parts[i].deformers=result->deformers[i];
+    const auto set_bases=[&] {
+        for (const auto& deformation:result->deformations)
+            if (deformation.deformer==0 && !result->static_cubics.empty())
+                result->parts[deformation.part].base=std::span<const ShapeCubic>(result->static_cubics).subspan(deformation.first_cubic,deformation.cubic_count);
+    };
     // Property-only plans retain geometry once. An explicit vertex-path effect
     // still runs the normal shape sampler; no second interpolation algorithm.
     if (property_only && options.shape.point_path.linear()) {
@@ -457,6 +507,7 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
         }
         result->shapes.clear();
     }
+    set_bases();
     mlibs::trace::count("morph.parts",static_cast<double>(count),"hanim.library");
     mlibs::trace::count("morph.cubics",static_cast<double>(result->cubic_count),"hanim.library");
     return result;
@@ -632,6 +683,41 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
     diagnostic.info("prepared {} property channel segments",data->channels.size());
     return std::shared_ptr<const detail::ObjectMorphData>(std::move(data));
 }
+// Moves each deformer's points by its channel's amount (its rest without
+// one), each in proportion to its frozen weight.
+void apply_deformers(const detail::ObjectMorphData& data, std::span<ShapeCubic> cubics, std::span<const double> values) noexcept {
+    constexpr double largest = 1e100;
+    for (const auto& deformation:data.deformations) {
+        const auto& deformer=data.deformers[deformation.part][deformation.deformer];
+        const std::uint8_t lanes=deformer.kind==DeformKind::rotate?1:2;
+        std::array<double,2> amount=deformer.kind==DeformKind::scale?std::array<double,2>{1,1}:std::array<double,2>{0,0};
+        for (const auto& slot:data.value_slots)
+            if (slot.part==deformation.part && slot.id.name==deformer.channel && slot.id.lanes==lanes)
+                for (std::size_t lane=0;lane<lanes;++lane) amount[lane]=values[slot.offset+lane];
+        for (auto& lane:amount) lane=std::clamp(lane,-largest,largest);
+        const auto anchor=deformer.anchor;
+        const auto* weight=deformation.weights.data();
+        for (auto& cubic:cubics.subspan(deformation.first_cubic,deformation.cubic_count))
+            for (auto* point:{&cubic.start,&cubic.control1,&cubic.control2,&cubic.end}) {
+                const double share=*weight++;
+                if (share==0) continue;
+                switch (deformer.kind) {
+                    case DeformKind::displace: point->x+=share*amount[0]; point->y+=share*amount[1]; break;
+                    case DeformKind::scale:
+                        point->x=anchor.x+(point->x-anchor.x)*(1+share*(amount[0]-1));
+                        point->y=anchor.y+(point->y-anchor.y)*(1+share*(amount[1]-1));
+                        break;
+                    case DeformKind::rotate: {
+                        const double angle=share*amount[0], cosine=mlibs::math::det::cos(angle), sine=mlibs::math::det::sin(angle);
+                        const double across=point->x-anchor.x, down=point->y-anchor.y;
+                        point->x=anchor.x+across*cosine-down*sine; point->y=anchor.y+across*sine+down*cosine;
+                        break;
+                    }
+                }
+            }
+        // A contour's seams stay shared: each start is the previous end, moved alike.
+    }
+}
 std::size_t current_channel(const detail::ObjectMorphData& data,detail::ChannelRun run,seconds time) {
     const auto begin=data.channels.begin()+static_cast<std::ptrdiff_t>(run.first);
     const auto after=std::ranges::upper_bound(begin,begin+static_cast<std::ptrdiff_t>(run.count),time,{},&PropertyChannelInfo::start);
@@ -774,6 +860,7 @@ std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double 
             auto& part=output.parts[info.part];assign_property(part.local,part.fill,info.channel,*value);
         }
         std::ranges::copy(data_->static_cubics,output.cubics.begin());
+        apply_deformers(*data_,output.cubics,output.values);
         return FrameView{output.parts.first(needed.parts),data_->contours,output.cubics.first(needed.cubics),u,source_,revision_,identity(),
                          output.values.first(needed.values),data_->value_slots};
     }

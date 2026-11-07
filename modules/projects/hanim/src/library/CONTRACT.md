@@ -85,6 +85,19 @@ This does not certify simplicity, contour nesting, holes, or nonintersecting
 intermediates. Core numeric/degeneracy limits and its stated caller simplicity
 precondition remain applicable; no full topology analysis is claimed.
 
+A part's deformers (`PartDescription::deformers`, made by `deform::displace`,
+`scale`, `rotate`) come from the source end. Each weighs its points once
+(`Selector`: everything, around a centre, inside a feathered box; the falloff
+an `Ease`) on the geometry the plan starts from, and on every property frame
+moves them by its value channel's amount (its rest without one), in
+proportion to the weight; amounts are clamped to ±1e100. A spring writing the
+channel overshoots the geometry with it. A deformer naming a built-in channel
+is refused (`invalid_property`); a malformed selector is refused at object
+creation (`invalid_part`). A deformed part's frame info carries its geometry
+before the deformers (`MorphPartInfo::base`, borrowed from the plan), and an
+animation continued from that frame starts from it, so nothing is deformed
+twice. Morph plans carry no values, so their geometry is not deformed.
+
 The positive preparation budgets have hard maxima: 65,536 parts, 65,536
 contours and 1,048,576 output cubics. Defaults are 4,096 / 4,096 / 65,536.
 Counts apply per occurrence, including shared geometry. They bound the retained

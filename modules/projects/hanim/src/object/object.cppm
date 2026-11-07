@@ -124,6 +124,43 @@ struct PartStroke {
     Rgba   color;
     double width = 1;
 };
+// Which of a part's points a deformer moves, and how much (0 to 1), in the
+// part's own space (convergence plan §6.8 ④). Weighed once, on the geometry
+// an animation starts from: a soft selection, not a per-frame search.
+struct Selector {
+    enum class Shape : std::uint8_t { all, near, within };
+    Shape  shape = Shape::all;
+    Vec2   center{};          // near: full weight here …
+    double radius = 0;        // … none from this far
+    Vec2   low{}, high{};     // within: full weight in this box …
+    double feather = 0;       // … none from this far outside it
+    Ease   falloff = ease::css_ease_in_out;  // the weight from the edge (0) inwards (1)
+
+    [[nodiscard]] static Selector everything() noexcept { return {}; }
+    [[nodiscard]] static Selector around(Vec2 center, double radius, Ease falloff = ease::css_ease_in_out) noexcept {
+        return {.shape = Shape::near, .center = center, .radius = radius, .falloff = falloff};
+    }
+    [[nodiscard]] static Selector inside(Vec2 low, Vec2 high, double feather, Ease falloff = ease::css_ease_in_out) noexcept {
+        return {.shape = Shape::within, .low = low, .high = high, .feather = feather, .falloff = falloff};
+    }
+    // The weight of `point`: 0 to 1.
+    [[nodiscard]] double weight(Vec2 point) const noexcept;
+};
+// How a deformer moves its selected points by its channel's amount, each in
+// proportion to its weight: displace by an offset (Vec2, rest {0, 0}), scale
+// about `anchor` by factors (Vec2, rest {1, 1}), rotate about `anchor` by
+// radians (double, rest 0).
+enum class DeformKind : std::uint8_t { displace, scale, rotate };
+// A deformer of a part: its geometry follows one of the part's value
+// channels, so whatever animates that channel — a tween, a spring that
+// overshoots, a drag — moves the selected points (hanim.library's
+// deform::displace, scale, rotate make one from a typed channel).
+struct PartDeformer {
+    std::string channel;
+    DeformKind  kind = DeformKind::displace;
+    Selector    select;
+    Vec2        anchor{};
+};
 // Explicit ids are stable host keys, never derived from displayed labels or
 // drawing order. They are unique across an object; an empty parent is its root.
 // A part with contours has a fill, a stroke or both.
@@ -134,6 +171,7 @@ struct PartDescription {
     std::vector<Contour> contours;
     std::optional<Rgba> fill;
     std::optional<PartStroke> stroke;
+    std::vector<PartDeformer> deformers;
 };
 struct ObjectDescription { std::vector<PartDescription> parts; };
 
@@ -175,6 +213,7 @@ struct CapturedPart {
     std::vector<Contour> contours;
     std::optional<Rgba> fill;
     std::optional<PartStroke> stroke;
+    std::vector<PartDeformer> deformers;
 };
 
 class ObjectRegistry;

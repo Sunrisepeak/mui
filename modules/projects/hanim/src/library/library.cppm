@@ -98,6 +98,28 @@ inline constexpr Channel<double> trim_offset = define<double>("trim.offset");
 }
 }  // namespace ch
 
+// ── Deformers (L2, plan §6.8 ④): a part's geometry follows a channel ──
+//
+//     inline constexpr auto pull = ch::define<Vec2>("glyph.pull");
+//     part.deformers = {deform::displace(Selector::inside({10, 40}, {50, 48}, 6), pull)};
+//     anim::to(part(a, "A"), pull = Vec2{0, 12})            // the crossbar pulled down …
+//     anim::to(part(a, "A"), pull = Vec2{}).spring(springs::bouncy)   // … and let go: it overshoots
+//
+// The amount is any animation's value of the channel (its rest without one);
+// weights are frozen on the geometry the animation starts from. Amounts are
+// clamped to ±1e100, so a deformed point stays finite.
+namespace deform {
+[[nodiscard]] inline PartDeformer displace(Selector select, const ch::Channel<Vec2>& offset) {
+    return {std::string(offset.id.name), DeformKind::displace, select, {}};
+}
+[[nodiscard]] inline PartDeformer scale(Selector select, const ch::Channel<Vec2>& factors, Vec2 anchor) {
+    return {std::string(factors.id.name), DeformKind::scale, select, anchor};
+}
+[[nodiscard]] inline PartDeformer rotate(Selector select, const ch::Channel<double>& radians, Vec2 anchor) {
+    return {std::string(radians.id.name), DeformKind::rotate, select, anchor};
+}
+}  // namespace deform
+
 class TranslationRoute {
 public:
     explicit TranslationRoute(MotionPath path) : path_(std::make_shared<const MotionPath>(std::move(path))) {}
@@ -216,6 +238,10 @@ struct MorphPartInfo {
     PartRef from_ref, to_ref;
     std::uint32_t parent = invalid_object_slot;
     std::size_t first_contour = 0, contour_count = 0;
+    std::span<const PartDeformer> deformers;  // the source end's, borrowed from the plan
+    // The part's cubics before its deformers (when it has any), borrowed from
+    // the plan: what an animation continued from this frame starts from.
+    std::span<const ShapeCubic> base;
 };
 struct MorphContourInfo {
     std::uint32_t part = 0;

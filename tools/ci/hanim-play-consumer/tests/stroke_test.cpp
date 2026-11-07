@@ -1,6 +1,7 @@
-// A stroked part's trim channels drawn through the shared renderer: a red
-// stretch of the outline of "一" runs once round it like a train, a time
-// function sampled through its whole course.
+// Representations drawn through the shared renderer: a stroked part's trim
+// channels run a red stretch of the outline of "一" once round it like a
+// train, a time function sampled through its whole course; a deformer bends
+// the crossbar of an "H" down and back.
 import std;
 import hanim.engine;
 import hanim.render.vector;
@@ -130,5 +131,49 @@ int main(int argc, char** argv) {
                                  }),
               "seeking back draws the same frame: a function of time");
     });
+    suite.test("a deformer bends the crossbar of an H down, drawn, and lets it back", [] {
+        static constexpr auto pull = ch::define<Vec2>("glyph.pull");
+        Engine engine = take(Engine::make());
+        const std::array<Vec2, 12> corners{{{30, 0},
+                                            {30, 45},
+                                            {70, 45},
+                                            {70, 0},
+                                            {100, 0},
+                                            {100, 100},
+                                            {70, 100},
+                                            {70, 55},
+                                            {30, 55},
+                                            {30, 100},
+                                            {0, 100},
+                                            {0, 0}}};
+        std::vector<ShapeSegment> edges;
+        for (const auto corner : std::span(corners).subspan(1))
+            edges.push_back(ShapeSegment::line(corner));
+        const auto letter = take(engine.create_object(
+            {{{.id = "H",
+               .local = {.tx = 8, .ty = 8, .sx = .5, .sy = .5},
+               .contours = {take(Contour::copy({corners[0], edges, true}))},
+               .fill = Rgba{1, 1, 1, 1},
+               .deformers = {deform::displace(Selector::inside({35, 44}, {65, 56}, 6), pull)}}}}));
+        const auto plan = take(engine.prepare(
+            sequence(anim::to(part(letter, "H"), pull = Vec2{0, 20}).duration(seconds(0)),
+                     anim::to(part(letter, "H"), pull = Vec2{}).duration(seconds(1)))));
+        const auto playback = take(engine.play(plan));
+        const auto renderer = take(PreparedVectorProgram::bind(plan));
+        Storage storage(renderer.requirements());
+        const auto lit_below_bar = [&](double time) {
+            take(engine.seek(playback, seconds(time)));
+            render::DisplayList output;
+            take(
+                renderer.record(take(engine.program_frame(playback)).scene, output, storage.get()));
+            raster::Surface pixels(64, 64);
+            render::CpuRenderer cpu;
+            (void)cpu.render(output, pixels, {});
+            return pixels.at(33, 39).r > 128;  // (50, 62) in the letter: below the bar at rest
+        };
+        check(lit_below_bar(0), "pulled: the bar bends down over (50, 62)");
+        check(!lit_below_bar(1), "let back: below the bar is empty again");
+    });
+
     return suite.run(argc, argv);
 }

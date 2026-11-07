@@ -160,6 +160,31 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("text.reshape: a replaced letter's real outline becomes the new letter's, holes and all, then is the glyph", [&] {
+        auto label = signal(std::string("cAt"));
+        Runtime rt(options());
+        Element t = text({.id = "label", .text = label, .size = 48.0f});
+        t.prop("motion", Source(Value("text.reshape")));
+        rt.mount("main", column({}, {std::move(t)}));
+        rt.frame({seconds(0), {}});
+        rt.frame({seconds(0.016), {}});
+        label.set("cBt");
+        rt.frame({seconds(0.1), {}});
+        const auto most_contours = [&] {
+            std::size_t most = 0;
+            for (const auto& command : rt.display_list().commands())
+                if (const auto* fill = std::get_if<xrender::FillPath>(&command))
+                    most = std::max(most, static_cast<std::size_t>(std::ranges::count(fill->path.verbs, xrender::PathVerb::move)));
+            return most;
+        };
+        rt.frame({seconds(0.25), {}});
+        // A's outline and hole, B's outline and two holes: the hole pairs, the second grows.
+        check(most_contours() >= 3, std::format("mid-way one reshaping outline of {} contours", most_contours()));
+        check(!rt.motions().empty() && rt.motions()[0].glyphs_kept == 2, "c and t kept");
+        rt.frame({seconds(4), {}});
+        check(rt.motions().empty() && most_contours() == 0, "settled: the glyphs as drawn");
+    });
+
     s.test("a text that changed changes glyph by glyph; an order that changed travels (each item matched by its key)", [&] {
         {
             auto label = signal(std::string("Save"));

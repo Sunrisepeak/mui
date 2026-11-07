@@ -147,5 +147,71 @@ int main(int argc, char** argv) {
                          "exact where it leaves and arrives");
                });
 
+    suite.test("a replaced glyph reshapes into its replacement, holes and all, then is the glyph",
+               [] {
+                   // "A" (an outline with a hole) becomes "B" (an outline with two): stand-in em
+                   // outlines.
+                   const auto outline_of = [](std::uint32_t id) {
+                       xrender::Path path;
+                       path.add_rect({0, -0.7f, 0.6f, 0.7f});
+                       if (id == 1)
+                           path.add_rect({0.2f, -0.5f, 0.2f, 0.2f});
+                       else {
+                           path.add_rect({0.2f, -0.6f, 0.2f, 0.15f});
+                           path.add_rect({0.2f, -0.3f, 0.2f, 0.15f});
+                       }
+                       return path;
+                   };
+                   auto options = linear();
+                   options.glyph_outline = [&](const xrender::DrawGlyphs& run,
+                                               std::size_t glyph) -> std::optional<xrender::Path> {
+                       const auto& placed = run.glyphs[glyph];
+                       return outline_of(placed.id).transformed(
+                           geom::Affine::translate(run.origin.x + placed.position.x,
+                                                   run.origin.y + placed.position.y) *
+                           geom::Affine::scale(run.size, run.size));
+                   };
+                   const auto letter = [](std::uint32_t id) {
+                       xrender::DisplayList list;
+                       list.begin_node(1);
+                       const std::array glyphs{xrender::Glyph{.id = 7,
+                                                              .position = {0, 0},
+                                                              .cluster = 0,
+                                                              .grapheme = 0},
+                                               xrender::Glyph{.id = id,
+                                                              .position = {12, 0},
+                                                              .cluster = 1,
+                                                              .grapheme = 1}};
+                       list.draw_glyphs(xrender::FontRef{1}, 20, {20, 40}, glyphs,
+                                        xrender::Paint::solid(geom::Color::hex(0x182030)));
+                       list.end_node();
+                       return list;
+                   };
+                   const mo::Morph morph(mo::Matter::extract(letter(1), resolver()),
+                                         mo::Matter::extract(letter(2), resolver()), options, 0);
+                   const auto contours = [](const xrender::DisplayList& list) {
+                       std::size_t most = 0;
+                       for (const auto& command : list.commands())
+                           if (const auto* fill = std::get_if<xrender::FillPath>(&command))
+                               most = std::max(most, static_cast<std::size_t>(
+                                                         std::ranges::count(fill->path.verbs,
+                                                                            geom::PathVerb::move)));
+                       return most;
+                   };
+                   const auto middle = drawn(morph, .5);
+                   check(contours(middle) == 3, std::format("half-way one outline of {} contours: "
+                                                            "the hole kept, the second growing",
+                                                            contours(middle)));
+                   bool replaced_hidden = true;
+                   for (const auto& command : middle.commands())
+                       if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
+                           for (std::size_t index = 0; index < run->glyphs.size(); ++index)
+                               if (run->glyphs[index].id != 7 && !run->styles.empty() &&
+                                   run->styles[index].opacity > 0)
+                                   replaced_hidden = false;
+                   check(replaced_hidden, "neither letter fades meanwhile");
+                   check(contours(drawn(morph, 1.5)) == 0, "settled: the glyph as drawn");
+               });
+
     return suite.run(argc, argv);
 }

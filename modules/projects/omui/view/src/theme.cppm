@@ -33,7 +33,7 @@ struct ShadowToken {
 enum class MotionPrimitive : std::uint16_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
     grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024,
-    write = 2048, drop = 4096, noise = 8192
+    write = 2048, drop = 4096, noise = 8192, reshape = 16384
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -83,6 +83,7 @@ struct MotionSpec {
     hanim::PointPath      translation_path; // a moving piece's way (noise); reduced motion goes straight
     bool                  write = false;  // strokes drawn along their length as they appear (hanim.visual's write)
     float                 drop = 0;       // what appears falls in from this far above and flattens landing
+    bool                  reshape = false; // a replaced glyph's outline morphs into its replacement's
     friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 

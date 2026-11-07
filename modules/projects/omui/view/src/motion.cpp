@@ -378,6 +378,13 @@ void Runtime::Impl::run_motion() {
                     return hanim::visual::glyph_ink_bounds(run, transform, *cache);
                 };
             }
+            if (spec.reshape && level != MotionLevel::reduced) {
+                if (!motion_glyphs) motion_glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+                options.glyph_outline = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const xrender::DrawGlyphs& run, std::size_t glyph) {
+                    const std::scoped_lock guard(*lock);
+                    return hanim::visual::glyph_outline(run, glyph, *cache);
+                };
+            }
             options.curve.velocity = velocity;
             options.rebase_layout = spec.placement == MotionSpec::PlacementPolicy::follow_layout ||
                 (spec.placement == MotionSpec::PlacementPolicy::automatic && external_layout);

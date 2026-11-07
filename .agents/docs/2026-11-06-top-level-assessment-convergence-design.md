@@ -333,6 +333,26 @@ M2 交付了 L2–L5、visual 表示与 v1 形状后复核（D-129）：hanim �
 
 模拟的结果只经类型化通道进入动画（例如求解核写笼的控制点），动画也只经通道把目标交给模拟；两边不互相持有内部状态。渲染只在 xrender。
 
+### 6.10 元胞自动机、像素反应与大规模像素：拆分与归属（D-132）
+
+2026-11-07 复核现状：规则与步进、GPU 内核、步进与重放、局部刷新（damage）、并行光栅、像素 effect 各有 owner 且已实现；缺口在“场如何上屏”和“材料反应规则放在哪”。Inspector 的元胞视图每格一条 `fill_rect`（512×512 即约 26 万条命令，每 tick 都要哈希和比较 damage），是大规模像素的主要瓶颈；GPU 内核的输出也没有直接上屏。
+
+| 能力 | 归属 | 现状 | 阶段 |
+|---|---|---|---|
+| 元胞规则与步进（整数通道、邻域条件、有序规则、tile 与 halo、变化计数） | `xengine.simulation.cellular`（base 层 CPU） | 已有，标量 oracle 与基准 | — |
+| 元胞 GPU 执行（同一 Slang 内核：SPIR-V、WGSL；同一规则描述） | `xengine.simulation.cellular.rhi`（gfx 层，只依赖 `mlibs.rhi` 接口） | 已有；D3D12 结果错误仍在红灯清单 11 | 一致性套件并入 `xengine.simulation` 的 `src/cts/`（§5） |
+| 固定步长、checkpoint、重放 | `xengine.simulation` | 已有（元胞、软体、游戏共用） | — |
+| 材料与反应规则预设（火、沙、水、烟等，数据而非内核） | `xengine.simulation.cellular` 下的可选预设包（新） | 只有消费者自写的规则（Inspector 模型、官网 reactions 页） | M4 起，随第一个需要它的作品 |
+| 场上屏适配：场 → 像素（调色与通道映射）；CPU 写入 `ImageStore` 的一张 surface，一条 `DrawImage`；GPU 内核输出直接作为 `ExternalTexture`，不回读 | 位于 cellular 与 xrender 资源接口之间的小适配包（新；渲染器不认识“格子”，元胞内核不认识绘制） | 无；Inspector 逐格画矩形 | M4 性能工作 |
+| 脏 tile：每步变化的 tile 掩码，只重传、只重画变化的 tile | 掩码归 cellular（已有变化计数的扩展）；图像与纹理的局部上传归 xrender 资源层 | 无 | 同上 |
+| 局部刷新（按节点哈希与边界的 damage，输出整行带；增量帧与全量帧逐字节一致） | `xrender.vector::DamageTracker`＋`xrender.raster` 的 `restrict_rows` | 已有，SDL3／Web／headless／C ABI 四个宿主都在用 | 扩展：图像源的局部更新进入 damage |
+| 并行与增量 CPU 光栅（行带并行、同字节） | `xrender.raster` | 已有 | — |
+| GPU 渲染与覆盖缓存（按键缓存的覆盖 mask，后端经 `mlibs.rhi` 注入） | `xrender.vector` GPU 路径 | 已有 | — |
+| 像素 effect（blur、metaball、wobble …） | `xrender.effect`；动画只挂载（travel） | 已有 | — |
+| 位图网格与像素场作为动画表示（hanim 形变图像或场） | hanim（M6：mesh、粒子、场）；场采样归 `mlibs.math`，网格模拟归 `xengine.simulation`（§6.9） | 规划中 | M6 |
+
+验收：同一 1024×1024 场在 CPU 与 GPU 两条路径上每 tick 一条绘制命令，脏 tile 之外零上传；增量帧与全量帧逐字节一致；基准 `simulation/cellular-1024` 与上屏帧时间进入 `tests/bench`，与业界同类（Noita 类落沙）对照后才宣称领先。
+
 ### 6.7 性能约束
 
 - interactive 模式不慢于 `Set`；简单过渡不走 prepare。
@@ -600,7 +620,7 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 | **M2 全局契约与 hanim 内核** | §5.2 的句柄、错误、时间、预算、准备与执行约定；lint `owner`；`mlibs.cts` 框架与现有四套 CTS 的迁移（§5.5）；契约 CTS；§6.2 的 L2–L5、visual 表示和 v1 API | 独立消费者通过；`Set` 和 Morph 的基准、像素基线不退化 |
 | **M3 UI 动画迁移** | §6.4；37 类组件；删除旧实现 | 中间态、打断、reduced／off、命中、焦点、IME 一致；帧时间和 Wasm 对照 |
 | **M3.5 hanim 表示与形变** | §6.8：glyph／path adapter、stroke（trim／书写）、拓扑对齐 morph、选择器＋形变器（几何过冲）、匹配修饰与路径扰动核、同通道混合层、约束与驱动、弹性体（笼形形变＋软体求解核＋运动导出形变＋解析弹跳）、GPU 批量求值；组件经配方使用（焦点环跑圈、描边书写、按压局部回弹、文字替换时的字形形变） | 每项的过程帧、打断与反向、CPU／GPU 像素和 CTS 通过；A→B、“一”的描边跑圈、A 横杠皮筋回弹、任何对象掉落挤压反弹四个招牌镜头可 headless 重现；基准无退化 |
-| **M4 Agent 目录、首个工具与首个 Agent 玩家** | §10.3；动画工具 CLI 完整任务；openas 扩展草案（§8.3）；组件打砖块的 Agent 玩家（§8.4） | 真实 LLM 任务成功率有记录；所有公开产品都有 ops 和 skill；§8.4 的验收通过 |
+| **M4 Agent 目录、首个工具与首个 Agent 玩家** | §10.3；动画工具 CLI 完整任务；openas 扩展草案（§8.3）；组件打砖块的 Agent 玩家（§8.4）；元胞场上屏适配与脏 tile 局部上传（§6.10） | 真实 LLM 任务成功率有记录；所有公开产品都有 ops 和 skill；§8.4 的验收通过 |
 | **M5 公共库与官网** | 40 个公共配方（依赖 M3.5 的表示）、20 个可带走工程；官网与按页交付；作品迁移到统一内核（宣传片、打砖块、timeline）；首批竞品基准；xrender 补齐毕业条件 | UI、动画、渲染、官网复评 ≥85 |
 | **M6 游戏引擎与 Agent 游玩** | xengine 游戏层；Agent 游玩推广到格斗等实时对战（回滚联机接入）；rig／粒子／场；simulation GPU；audio／MIDI；Toy／TUI／移动端 | 实时对战中的 Agent 玩家可回放；openas 扩展进入规范 |
 | **M7 全面验收** | 恢复作品质量目标；≥90 评审循环 | 每维 ≥90；CI 稳定运行 4 周 |

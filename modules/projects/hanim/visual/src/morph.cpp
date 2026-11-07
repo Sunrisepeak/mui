@@ -91,8 +91,9 @@ struct ShapeInputFailure {
     PathMorphIssue issue;
     std::optional<hanim::ShapeMorphError> geometry;
 };
-std::expected<hanim::Contour, ShapeInputFailure> shape_input(PathView path) {
-    auto imported=hanim::import_path(path,{.max_contours=1,.max_segments=256,.source={.max_contours=1}});
+// Every closed contour of a path (up to 64: a glyph's, a compound icon's).
+std::expected<std::vector<hanim::Contour>, ShapeInputFailure> shape_inputs(PathView path) {
+    auto imported=hanim::import_path(path,{.max_contours=64,.max_segments=4096,.source={.max_contours=64}});
     if(!imported) {
         const auto& error=imported.error();
         if(error.caused_by(mlibs::geom::PathError::contour_budget))
@@ -104,30 +105,70 @@ std::expected<hanim::Contour, ShapeInputFailure> shape_input(PathView path) {
         return std::unexpected(ShapeInputFailure{PathMorphIssue::malformed_path});
     }
     if(imported->contours.empty())return std::unexpected(ShapeInputFailure{PathMorphIssue::malformed_path});
-    auto contour=std::move(imported->contours.front().geometry);
-    if(!contour.view()->closed)return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
-    return contour;
+    std::vector<hanim::Contour> contours;
+    for(auto& contour:imported->contours) {
+        if(!contour.geometry.view()->closed)return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
+        contours.push_back(std::move(contour.geometry));
+    }
+    return contours;
+}
+// Two paths' contours paired (hanim.core's pairing: outlines with outlines,
+// holes with holes, the rest growing or closing) and each pair prepared.
+std::expected<std::vector<hanim::PreparedShapeMorph>, ShapeInputFailure> prepare_paths(PathView a, PathView b, const hanim::ShapeMorphOptions& options) {
+    auto from=shape_inputs(a);if(!from)return std::unexpected(from.error());
+    auto to=shape_inputs(b);if(!to)return std::unexpected(to.error());
+    std::vector<hanim::PreparedShapeMorph> plans;
+    if(from->size()==1 && to->size()==1) {
+        auto prepared=hanim::PreparedShapeMorph::prepare(*from->front().view(),*to->front().view(),options);
+        if(!prepared)return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,prepared.error()});
+        plans.push_back(std::move(*prepared));
+        return plans;
+    }
+    std::vector<hanim::ShapeContour> from_views,to_views;
+    for(const auto& contour:*from)from_views.push_back(*contour.view());
+    for(const auto& contour:*to)to_views.push_back(*contour.view());
+    const auto pairs=hanim::pair_contours(from_views,to_views);
+    if(!pairs)return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,pairs.error().cause});
+    std::optional<bool> reversed;
+    for(const auto& pair:*pairs) {
+        constexpr auto none=hanim::ContourPair::none;
+        auto prepared=pair.from==none?hanim::PreparedShapeMorph::grow(pair.point,to_views[pair.to],options,reversed.value_or(false))
+                     :pair.to==none?hanim::PreparedShapeMorph::shrink(from_views[pair.from],pair.point,options)
+                                   :hanim::PreparedShapeMorph::prepare(from_views[pair.from],to_views[pair.to],options);
+        if(!prepared)return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,prepared.error()});
+        if(pair.from!=none && pair.to!=none) {
+            // Uniform turning keeps a compound nonzero fill's holes holes.
+            if(reversed && *reversed!=prepared->target_reversed())return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
+            reversed=prepared->target_reversed();
+        }
+        plans.push_back(std::move(*prepared));
+    }
+    return plans;
 }
 
 // Caller-owned arena storage, never a shared Morph scratch or per-frame Path
 // vector. Material alternatives can reuse this exact immutable path recording.
-std::optional<RecordedPath> sampled_path(DisplayList& out, const hanim::PreparedShapeMorph* plan,
+std::optional<RecordedPath> sampled_path(DisplayList& out, std::span<const hanim::PreparedShapeMorph> plans,
                                         const PathView& a, const PathView& b, double u, hanim::PointPath point_path) {
-    const std::size_t verbs = plan ? plan->segment_count() + 2 : b.verbs.size();
-    const std::size_t points = plan ? plan->segment_count() * 3 + 1 : b.points.size();
+    std::size_t verbs = plans.empty() ? b.verbs.size() : 0, points = plans.empty() ? b.points.size() : 0;
+    for (const auto& plan : plans) verbs += plan.segment_count() + 2, points += plan.segment_count() * 3 + 1;
     bool sampled = true;
     const auto path = out.record_path(verbs, points, [&](MutablePathView buffer) {
-        if (plan) {
-            buffer.verbs.front() = PathVerb::move; buffer.verbs.back() = PathVerb::close;
-            for (std::size_t i = 0; i < plan->segment_count(); ++i) {
-                const auto c = plan->sample_segment(u, i);
-                if (!c) { sampled = false; return; }
-                auto point = [](hanim::Vec2 p) { return Point{static_cast<float>(p.x), static_cast<float>(p.y)}; };
-                if (i == 0) buffer.points[0] = point(c->start);
-                buffer.verbs[i + 1] = PathVerb::cubic;
-                buffer.points[i * 3 + 1] = point(c->control1);
-                buffer.points[i * 3 + 2] = point(c->control2);
-                buffer.points[i * 3 + 3] = point(c->end);
+        if (!plans.empty()) {
+            std::size_t verb = 0, at = 0;
+            auto point = [](hanim::Vec2 p) { return Point{static_cast<float>(p.x), static_cast<float>(p.y)}; };
+            for (const auto& plan : plans) {
+                buffer.verbs[verb++] = PathVerb::move;
+                for (std::size_t i = 0; i < plan.segment_count(); ++i) {
+                    const auto c = plan.sample_segment(u, i);
+                    if (!c) { sampled = false; return; }
+                    if (i == 0) buffer.points[at++] = point(c->start);
+                    buffer.verbs[verb++] = PathVerb::cubic;
+                    buffer.points[at++] = point(c->control1);
+                    buffer.points[at++] = point(c->control2);
+                    buffer.points[at++] = point(c->end);
+                }
+                buffer.verbs[verb++] = PathVerb::close;
             }
         } else {
             std::ranges::copy(b.verbs, buffer.verbs.begin());
@@ -800,6 +841,16 @@ double fade_in(double u, double from) noexcept { return clamp01(from >= 1 ? (u >
 
 }  // namespace
 
+std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::size_t glyph, xrender::GlyphSource& source) {
+    if (glyph >= run.glyphs.size() || !std::isfinite(run.size) || run.size <= 0 || (!run.styles.empty() && run.styles.size() != run.glyphs.size()))
+        return std::nullopt;
+    const auto outline = source.outline(run.font, run.glyphs[glyph].id);
+    if (outline.verbs.empty()) return std::nullopt;
+    const auto style = run.styles.empty() ? GlyphStyle{} : run.styles[glyph];
+    const Point pen{run.origin.x + run.glyphs[glyph].position.x, run.origin.y + run.glyphs[glyph].position.y};
+    return path_of({outline.verbs, outline.points}).transformed(Affine::translate(pen.x, pen.y) * style.transform * Affine::scale(run.size, run.size));
+}
+
 std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source) {
     if (run.glyphs.empty() || run.paint.color.a <= 0) return Rect{};
     if (!std::isfinite(run.size) || run.size <= 0 || (!run.styles.empty() && run.styles.size() != run.glyphs.size()) ||
@@ -1021,18 +1072,11 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
             } else if (p.path_compatible) {
                 status.mode = PathMorphMode::compatible; ++stats_.paths_compatible;
             } else {
-                auto aa = shape_input(a_path), bb = shape_input(b_path);
-                if (!aa || !bb) {
-                    const auto& error=!aa?aa.error():bb.error();
-                    status.issue=error.issue;status.geometry_error=error.geometry;
-                }
-                else {
-                    hanim::ShapeMorphOptions shape_options; shape_options.point_path = options_.vertex_path;
-                    auto prepared = hanim::PreparedShapeMorph::prepare(*aa->view(), *bb->view(), shape_options);
-                    if (prepared) {
-                        p.path = std::move(*prepared); status.mode = PathMorphMode::prepared; ++stats_.paths_prepared;
-                    } else { status.issue = PathMorphIssue::geometry; status.geometry_error = prepared.error(); }
-                }
+                hanim::ShapeMorphOptions shape_options; shape_options.point_path = options_.vertex_path;
+                auto prepared = prepare_paths(a_path, b_path, shape_options);
+                if (prepared) {
+                    p.paths = std::move(*prepared); status.mode = PathMorphMode::prepared; ++stats_.paths_prepared;
+                } else { status.issue = prepared.error().issue; status.geometry_error = prepared.error().geometry; }
                 if (status.mode == PathMorphMode::unsupported) ++stats_.paths_unsupported;
             }
             path_status_.push_back(status);
@@ -1054,6 +1098,33 @@ Morph::Morph(Matter from, Matter to, Options options, double start)
                     if (k >= 0) p.glyph_kept[static_cast<std::size_t>(k)] = 1, ++stats_.glyphs_kept;
                 stats_.glyphs_new += static_cast<std::size_t>(std::ranges::count(p.glyph_from, -1));
                 stats_.glyphs_gone += static_cast<std::size_t>(std::ranges::count(p.glyph_kept, 0));
+                // A replaced glyph reshapes into its replacement: a gone glyph of the first run
+                // between the same kept neighbours, each used once, in order.
+                if (options_.glyph_outline) {
+                    const auto& from_piece = A[static_cast<std::size_t>(p.a)];
+                    const auto& to_piece = B[static_cast<std::size_t>(p.b)];
+                    std::vector<char> used(ga.glyphs.size(), 0);
+                    for (std::size_t glyph = 0; glyph < gb.glyphs.size(); ++glyph) {
+                        if (p.glyph_from[glyph] >= 0) continue;
+                        int low = -1, high = static_cast<int>(ga.glyphs.size());
+                        for (std::size_t before = 0; before < glyph; ++before) low = std::max(low, p.glyph_from[before]);
+                        for (std::size_t later = glyph + 1; later < gb.glyphs.size(); ++later)
+                            if (p.glyph_from[later] >= 0) { high = p.glyph_from[later]; break; }
+                        for (int candidate = low + 1; candidate < high; ++candidate) {
+                            const auto gone = static_cast<std::size_t>(candidate);
+                            if (p.glyph_kept[gone] || used[gone]) continue;
+                            used[gone] = 1;
+                            const auto from_outline = options_.glyph_outline(ga, gone), to_outline = options_.glyph_outline(gb, glyph);
+                            if (!from_outline || !to_outline) break;
+                            const auto from_world = from_outline->transformed(from_piece.transform);
+                            const auto to_world = to_outline->transformed(to_piece.transform);
+                            hanim::ShapeMorphOptions shape_options; shape_options.point_path = options_.vertex_path;
+                            if (auto plans = prepare_paths(from_world.view(), to_world.view(), shape_options))
+                                p.reshapes.push_back({gone, glyph, std::move(*plans)});
+                            break;
+                        }
+                    }
+                }
             }
         }
         if (p.a >= 0) ++stats_.matched;
@@ -1578,8 +1649,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             case PieceClass::path_fill: {
                 const auto& fa = std::get<FillPath>(ca);
                 const auto& fb = std::get<FillPath>(cb);
-                if (!p.path && !p.path_compatible) { drawn = false; break; }
-                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u, options_.vertex_path);
+                if (p.paths.empty() && !p.path_compatible) { drawn = false; break; }
+                const auto path = sampled_path(out, p.paths, fa.path, fb.path, u, options_.vertex_path);
                 if (!path) { drawn = false; break; }
                 if (p.paint) {
                     if (auto paint = p.paint->record(k, out, std::clamp(op, 0.0f, 1.0f))) (void)out.fill_path(*path, fb.rule, *paint);
@@ -1599,8 +1670,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             case PieceClass::path_stroke: {
                 const auto& fa = std::get<StrokePath>(ca);
                 const auto& fb = std::get<StrokePath>(cb);
-                if (!p.path && !p.path_compatible) { drawn = false; break; }
-                const auto path = sampled_path(out, p.path ? &*p.path : nullptr, fa.path, fb.path, u, options_.vertex_path);
+                if (p.paths.empty() && !p.path_compatible) { drawn = false; break; }
+                const auto path = sampled_path(out, p.paths, fa.path, fb.path, u, options_.vertex_path);
                 if (!path) { drawn = false; break; }
                 StrokeStyle style = fb.style;
                 style.width = std::max(0.0f, mixf(fa.style.width, fb.style.width, u));
@@ -1700,6 +1771,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                         }
                         s.opacity = mixf(sa.opacity, s.opacity, k);
                         s.tint = mix_tint(sa.tint, s.tint, k);
+                    } else if (std::ranges::any_of(p.reshapes, [&](const auto& reshape) { return reshape.to_glyph == j; })) {
+                        s.opacity = 0;  // drawn as the outline it reshapes from
                     } else {
                         s.opacity *= static_cast<float>(fade_in(u, options_.fade_in));
                     }
@@ -1725,7 +1798,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                     const auto inv_b = pb.transform.inverse();
                     for (std::size_t i = 0; i < ga.glyphs.size(); ++i) {
                         GlyphStyle s = ga.styles.empty() ? GlyphStyle{} : ga.styles[i];
-                        s.opacity *= p.glyph_kept[i] ? 0.0f : static_cast<float>(fade_out(u, options_.fade_out));
+                        const bool reshaping = std::ranges::any_of(p.reshapes, [&](const auto& reshape) { return reshape.from_glyph == i; });
+                        s.opacity *= p.glyph_kept[i] || reshaping ? 0.0f : static_cast<float>(fade_out(u, options_.fade_out));
                         // Drawn under tf: where it was, mapped from the first run's space.
                         const Point at_a{ga.origin.x + ga.glyphs[i].position.x, ga.origin.y + ga.glyphs[i].position.y};
                         const Point here = inv->apply(pa.transform.apply(at_a));
@@ -1734,6 +1808,22 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                     }
                     (void)inv_b;
                     if (auto f = faded(ga.paint, op)) out.draw_glyphs(ga.font, ga.size, ga.origin, ga.glyphs, *f, gone);
+                }
+                // Replaced glyphs reshaping, outline into outline (in the morph's space, drawn under tf).
+                for (const auto& reshape : p.reshapes) {
+                    Path outline;
+                    const double along = std::clamp(u, 0.0, 1.0);
+                    for (const auto& plan : reshape.plans) {
+                        for (std::size_t segment = 0; segment < plan.segment_count(); ++segment) {
+                            const auto cubic = plan.sample_segment(along, segment);
+                            if (!cubic) break;
+                            const auto point = [](hanim::Vec2 at) { return Point{static_cast<float>(at.x), static_cast<float>(at.y)}; };
+                            if (segment == 0) outline.move_to(point(cubic->start));
+                            outline.cubic_to(point(cubic->control1), point(cubic->control2), point(cubic->end));
+                        }
+                        outline.close();
+                    }
+                    if (auto f = faded(*paint, op)) (void)out.fill_path(outline.transformed(*inv), FillRule::nonzero, *f);
                 }
                 break;
             }

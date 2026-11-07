@@ -32,7 +32,13 @@ clock/history library; caller-owned ticks and buffers are sufficient. Its
 separate manifest makes that omission real. Individual rules, conditions,
 channel operators and tile helpers stay inside this package.
 
-The same package exports `openmui.simulation.cellular` and the old
-`omui::simulation::cellular` alias. It does not import `xengine.simulation` to
-create that compatibility namespace. CPU-only consumers therefore keep their
-no-clock/no-RHI/no-renderer dependency boundary under either source spelling.
+The package's one module is `xengine.simulation.cellular` (no forwarding
+names). It does not import `xengine.simulation`, so CPU-only consumers keep
+their no-clock/no-RHI/no-renderer dependency boundary.
+
+Ownership around it (convergence plan §6.10, D-132): material and reaction
+presets are an optional data package beside this kernel, not rules inside it;
+putting a field on screen is a small adapter between this package and
+xrender's resources (one `ImageStore` surface on the CPU, the GPU kernel's
+output as one `ExternalTexture`, a dirty-tile mask from this package's change
+counts), replacing a rectangle per cell.

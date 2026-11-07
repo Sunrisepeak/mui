@@ -521,6 +521,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-129 | hanim 表示与形变能力补齐，新增里程碑 M3.5（位于 M3 与 M4 之间，M5 的 40 个配方依赖它）：glyph／path adapter、stroke（trim／书写）、拓扑对齐 morph、选择器＋形变器（位移通道可随弹簧过冲、可跟手）、匹配修饰与路径扰动核、同通道混合层、约束与驱动、GPU 批量求值；rig、粒子、场仍在 M6。写入收敛方案 §6.2、§6.8、§7、§11，多表示方案 §5.1，组合 IR 设计 §10，通用运动设计 §13.1（组件经配方使用：焦点环跑圈、描边书写、按压局部回弹、文字字形形变），hanim 与 xrender README。顺序：1、2 先行 |
 | D-130 | M3.5 增加第 9 项弹性体（维护者 2026-11-07 补充）：任何可视对象都能像皮球、橡胶一样掉落、触地挤压、反弹、回稳，作为基础能力而不是某个对象的专门效果，拆成四个通用能力——笼形／晶格形变载体、确定性软体求解核（粒子＋约束、宿主给碰撞体、固定步长、checkpoint 与重放）、由运动导出的保面积挤压拉伸、解析抛落弹跳曲线；归属按 D-131 拆分。写入收敛方案 §6.8、§11，多表示方案 §5.1，通用运动设计 §13.1（`enter.drop`、`press.squash`），hanim README |
 | D-131 | 动画与物理／模拟的通用基础能力拆分与归属（维护者 2026-11-07）：两边都要的放在两边之下、只有一边要的归那一边，上层只组合不复制——确定性数值、噪声、求积、积分器归 `mlibs.math`；几何度量与碰撞查询、空间索引归 `mlibs.geom`（补 double 精度，hanim.core 的形状度量和 `xengine.physics::sweep` 的几何部分迁入）；固定步长与重放、粒子＋约束求解核（XPBD）归 `xengine.simulation`（base 层，hanim 的软体与 physics 的软体共用）；刚体动力学归 `xengine.physics`；曲线与解析运动归 `hanim.core`；表示与形变归 `hanim`；模拟与动画只经类型化通道交换。收敛方案 §6.9 |
+| D-132 | 元胞自动机、像素反应与大规模像素的归属（维护者 2026-11-07）：规则与步进归 `xengine.simulation.cellular`，GPU 内核归其 `.rhi`，步进与重放归 `xengine.simulation`；材料与反应规则是 cellular 下的可选数据预设包，不进内核；场上屏是 cellular 与 xrender 资源接口之间的小适配包（CPU 一张 `ImageStore` surface、GPU 输出直接作 `ExternalTexture`，每 tick 一条绘制命令，替代逐格矩形）；脏 tile 掩码归 cellular、图像与纹理局部上传归 xrender 资源层；damage 与行带光栅留在 xrender；像素 effect 归 `xrender.effect`；位图网格／像素场的动画表示在 M6 归 hanim。收敛方案 §6.10，阶段：适配与局部上传随 M4 性能工作，预设随第一个作品，网格表示 M6 |
 
 ---
 

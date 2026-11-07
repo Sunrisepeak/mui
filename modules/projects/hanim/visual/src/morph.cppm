@@ -52,6 +52,10 @@ using GlyphBounds = std::function<std::optional<Rect>(const xrender::DrawGlyphs&
 // bounds (and the renderer's colour-bitmap fallback) otherwise. Unknown
 // coverage-only transformed bitmaps never become an em approximation.
 [[nodiscard]] std::optional<Rect> glyph_ink_bounds(const xrender::DrawGlyphs& run, const Affine& transform, xrender::GlyphSource& source);
+// A glyph's outline as a path in its run's space (pen, style and size
+// applied), from the text engine's em outline; nullopt for a blank glyph.
+using GlyphOutline = std::function<std::optional<xrender::Path>(const xrender::DrawGlyphs&, std::size_t glyph)>;
+[[nodiscard]] std::optional<xrender::Path> glyph_outline(const xrender::DrawGlyphs& run, std::size_t glyph, xrender::GlyphSource& source);
 
 struct Options {
     Curve  curve;
@@ -116,6 +120,11 @@ struct Options {
     float  drop = 0;
     hanim::Ease drop_curve = hanim::Ease::fall(0.45, 2);
     float  squash = 0.2f;
+    // A glyph replaced by another in a matched run (between the same kept
+    // neighbours) reshapes into it — its outline morphing contour by contour,
+    // holes and all (plan §6.8 ③: "A" becoming "B") — instead of fading out
+    // as the other fades in. Needs the glyphs' outlines.
+    GlyphOutline glyph_outline;
 };
 
 struct MorphStats {
@@ -190,8 +199,14 @@ private:
         int    a = -1, b = -1;  // pieces of from and to; -1: none
         double delay = 0;
         std::vector<int>  glyph_from;  // per glyph of b: the glyph of a it comes from (-1: new)
+        // Replaced glyphs reshaping, their outlines in the morph's space.
+        struct Reshape {
+            std::size_t from_glyph = 0, to_glyph = 0;
+            std::vector<hanim::PreparedShapeMorph> plans;
+        };
+        std::vector<Reshape> reshapes;
         std::vector<char> glyph_kept;  // per glyph of a: whether some glyph of b comes from it
-        std::optional<hanim::PreparedShapeMorph> path;
+        std::vector<hanim::PreparedShapeMorph> paths;  // a prepared pair per contour pair (hanim.core's pairing)
         std::optional<xrender::PreparedPaintMix> paint;
         bool path_compatible = false; // direct verb/point interpolation, including legacy open paths
         bool replace_text = false;

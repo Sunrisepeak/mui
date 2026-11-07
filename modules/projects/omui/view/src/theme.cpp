@@ -140,7 +140,7 @@ constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"grow", MotionPrimitive::grow}, {"check-grow", MotionPrimitive::check_grow},
     {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance},
     {"write", MotionPrimitive::write}, {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise},
-    {"reshape", MotionPrimitive::reshape}
+    {"reshape", MotionPrimitive::reshape}, {"press", MotionPrimitive::press}
 };
 
 void add_primitive(MotionSpec& m, MotionPrimitive part) {
@@ -161,6 +161,7 @@ void add_primitive(MotionSpec& m, MotionPrimitive part) {
         case MotionPrimitive::drop: m.drop = 24; break;
         case MotionPrimitive::noise: m.translation_path = hanim::PointPath::jitter(3, 40, 7); break;
         case MotionPrimitive::reshape: m.reshape = true; break;
+        case MotionPrimitive::press: m.press = 0.06f; break;
     }
 }
 
@@ -303,6 +304,7 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("enter.drop", compose_motion({P::match_drawing, P::drop}, Transition::tween(hanim::seconds(0.7), hanim::ease::linear)));
     add("travel.noise", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::noise}, gentle));
     add("text.reshape", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::reshape}, gentle));
+    add("press.squash", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::press}, Transition::tween(hanim::seconds(0.45), hanim::ease::linear)));
     return lib;
 }
 

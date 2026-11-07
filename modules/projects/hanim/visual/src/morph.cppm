@@ -125,6 +125,13 @@ struct Options {
     // holes and all (plan §6.8 ③: "A" becoming "B") — instead of fading out
     // as the other fades in. Needs the glyphs' outlines.
     GlyphOutline glyph_outline;
+    // A press (plan §6.8; universal motion §13.1 press.squash): the whole
+    // drawing pressed by `pulse` (a fraction; negative springs out) about
+    // `pulse_at` (a point as fractions of the drawing's bounds: where the
+    // finger is), rising at once and ringing out like rubber to rest by the
+    // end; at rest it is not there.
+    std::optional<Point> pulse_at;
+    float                pulse = 0;
 };
 
 struct MorphStats {

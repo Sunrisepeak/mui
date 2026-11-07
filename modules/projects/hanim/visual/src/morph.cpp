@@ -1472,6 +1472,17 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         out.push_layer(opacity, lb.blend, lb.effect, params, bounds, shapes, lb.bounds_mode);
         e.base = wb.transform.inverse().value_or(Affine{});
     }
+    // A press: pressed in about the finger at once, ringing out like rubber to nothing by the end.
+    const double pressed_course = clamp01(options_.curve.at(since));
+    const bool pressing = options_.pulse_at && options_.pulse != 0 && since > 0 && pressed_course < 1;
+    if (pressing) {
+        const Rect area = to_.empty() ? from_.bounds() : to_.bounds();
+        const Point about{area.x + area.width * options_.pulse_at->x, area.y + area.height * options_.pulse_at->y};
+        // sin(3πk)·(1 − k)², scaled to peak at 1 (its first crest, k = 1/6).
+        const double ring = dm::sin(3 * std::numbers::pi * pressed_course) * (1 - pressed_course) * (1 - pressed_course) / (25.0 / 36.0);
+        const float scale = static_cast<float>(1 - options_.pulse * ring);
+        out.push_transform(Affine::translate(about.x, about.y) * Affine::scale(scale, scale) * Affine::translate(-about.x, -about.y));
+    }
 
     // Metadata follows the very same sampled curve/clip/transform as drawing,
     // but emits no paint and cannot influence the visual morph's cadence.
@@ -1834,6 +1845,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         e.end();
     }
 
+    if (pressing) out.pop_transform();
     if (proof) apply_deferred_ink(out, *proof, options_.glyph_bounds, proof_scale);
 
     if (wb.present) {

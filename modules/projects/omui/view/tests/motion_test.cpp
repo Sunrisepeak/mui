@@ -317,6 +317,27 @@ int main(int argc, char** argv) {
         check(!draws(rt, "metaball") && !draws(rt, "wobble"), "at rest, no travel effect anywhere");
     });
 
+    s.test("trace.focus writes a focus ring round as it appears", [&] {
+        {
+            Runtime rt(options());
+            Element b = box({.id = "b", .width = 60, .height = 20, .background = "#334155"});
+            b.prop("focusable", Source(Value(true)));
+            b.prop("motion", Source(Value(Value::Map{{"update", Value("none")}, {"state", Value("trace.focus")}})));
+            rt.mount("main", column({.padding = 8}, {std::move(b)}));
+            rt.frame({seconds(0), {}});
+            rt.frame({seconds(0.016), {}});
+            rt.focus_visibly(rt.find("main/b"));
+            rt.frame({seconds(0.02), {}});
+            rt.frame({seconds(0.1), {}});
+            float written = -1;
+            for (const auto& command : rt.display_list().commands())
+                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command); stroke && stroke->style.trim_end < 1) written = stroke->style.trim_end;
+            check(written > 0 && written < 1, std::format("the ring part drawn: to {} of its length", written));
+            rt.frame({seconds(1), {}});
+            check(rt.motions().empty(), "then the ring as it is");
+        }
+    });
+
     s.test("a change's slot: a state (focus shown, nothing written), an order, a replacement — each its own; one holding none moves by the update slot's", [&] {
         {
             Runtime rt(options());

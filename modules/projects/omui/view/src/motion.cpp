@@ -9,7 +9,7 @@
 // colour and a label's text all move by this one rule.
 //
 // Not morphed: a node held by the pointer (a slider dragged follows the
-// hand), a node moving by itself (its own transitions, glyph motion,
+// hand; a press recipe's own press excepted), a node moving by itself (its own transitions, glyph motion,
 // effect, a component's motion said), the first drawing of a node (its
 // enter slot's), and anything while motion is off or the time is held.
 module omui.view;
@@ -360,6 +360,8 @@ void Runtime::Impl::run_motion() {
         });
         const bool rebase_existing = external_layout && n.constraint_epoch != constraint_epoch && n.morph;
         n.constraint_epoch = constraint_epoch;
+        // A press or a release of this node (a state change under the pointer): where, and which way.
+        std::optional<std::pair<Point, float>> press;
         auto start = [&](std::optional<hanim::visual::Matter> from, hanim::visual::Matter to, const MotionSpec& spec, double velocity) {
             // More pieces than the device's tier moves in a frame (performance tiers §3): shown as it is.
             const std::size_t pieces = (from ? from->pieces().size() : 0) + to.pieces().size();
@@ -384,6 +386,10 @@ void Runtime::Impl::run_motion() {
                     const std::scoped_lock guard(*lock);
                     return hanim::visual::glyph_outline(run, glyph, *cache);
                 };
+            }
+            if (press && spec.press > 0 && level != MotionLevel::reduced) {
+                options.pulse_at = press->first;
+                options.pulse = press->second * spec.press;
             }
             options.curve.velocity = velocity;
             options.rebase_layout = spec.placement == MotionSpec::PlacementPolicy::follow_layout ||
@@ -457,6 +463,16 @@ void Runtime::Impl::run_motion() {
             continue;
         }
         n.drawn_hash = h, n.drawn_changes = changes, n.drawn_states = states, n.drawn_children = n.children;
+        press.reset();
+        if (spec->press > 0 && n.screen.width > 0 && n.screen.height > 0) {
+            // Pressed in about the finger while it is held (whatever the press changed); a state change
+            // after it lets go springs out a little.
+            const bool held_here = held && alive(pressed) && (pressed == id || contains(id, pressed));
+            const Point at{std::clamp((pressed_at.x - n.screen.x) / n.screen.width, 0.0f, 1.0f),
+                           std::clamp((pressed_at.y - n.screen.y) / n.screen.height, 0.0f, 1.0f)};
+            if (held_here) press = std::pair{at, 1.0f};
+            else if (slot == 3) press = std::pair{at, -0.5f};
+        }
         // Changing on and on (a meter, a playhead, a scroll gliding, a camera flying): it moves by itself, shown as it
         // is; a morph is for a change, not for a motion.
         const bool continuous = t - n.changed_at < 0.05;
@@ -468,7 +484,8 @@ void Runtime::Impl::run_motion() {
         // Held by the pointer (dragged), moving by itself, or motion off: shown as it is.
         const bool held = alive(capture) && (capture == id || contains(id, capture));
         const bool rebase_held = external_layout && !reduce_motion && level != MotionLevel::off;
-        if ((off && !rebase_held) || held || by_itself) {
+        // A press recipe asks for the press itself: held, it still moves (the hand does not move it).
+        if ((off && !rebase_held) || (held && !(spec->press > 0)) || by_itself) {
             if (n.morph) n.morph.reset(), touch(dirty_semantics);
             continue;
         }

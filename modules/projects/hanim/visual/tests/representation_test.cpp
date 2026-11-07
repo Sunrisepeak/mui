@@ -213,5 +213,26 @@ int main(int argc, char** argv) {
                    check(contours(drawn(morph, 1.5)) == 0, "settled: the glyph as drawn");
                });
 
+    suite
+        .test("a press presses the drawing in about the finger and rings out to nothing by the end",
+              [] {
+                  auto options = linear();
+                  options.pulse_at = geom::Point{0.25f, 1};  // the card's lower left quarter
+                  options.pulse = .1f;
+                  const auto from = card(), to = card();
+                  const mo::Morph morph(mo::Matter::extract(from, resolver()),
+                                        mo::Matter::extract(to, resolver()), options, 0);
+                  const auto pressed = placed_fill(drawn(morph, 1.0 / 6));  // the first crest
+                  check(pressed && std::abs(pressed->width - 36) < 1e-3 &&
+                            std::abs(pressed->bottom() - 80) < 1e-3 &&
+                            std::abs(pressed->x - 31) < 1e-3,
+                        std::format("pressed to {} wide about (40, 80)",
+                                    pressed ? pressed->width : 0));
+                  const auto ringing = placed_fill(drawn(morph, .5));
+                  check(ringing && ringing->width > 40, "ringing back out past its size");
+                  const auto rest = placed_fill(drawn(morph, 1.5));
+                  check(rest && rest->width == 40 && rest->x == 30, "at rest it is not there");
+              });
+
     return suite.run(argc, argv);
 }

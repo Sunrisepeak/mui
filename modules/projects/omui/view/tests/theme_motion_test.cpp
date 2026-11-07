@@ -144,6 +144,7 @@ int main(int argc, char** argv) {
         check(library.at("enter.drop").drop > 0 && library.at("enter.drop").curve.kind == Transition::Kind::tween, "a drop on a linear course");
         check(!library.at("travel.noise").translation_path.linear(), "a wandering way");
         check(library.at("text.reshape").reshape && library.at("text.reshape").glyphs, "replaced letters reshaped");
+        check(library.at("press.squash").press > 0, "pressed in about the finger");
         check(!library.at("default.focus").write && library.at("default.focus").drop == 0, "the defaults unchanged");
     });
     suite.test("a scoped theme crossfade cannot replace a running morph's marker ranges with historical ones", [] {

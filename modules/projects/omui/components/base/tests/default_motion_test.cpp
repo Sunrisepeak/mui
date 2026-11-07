@@ -321,5 +321,30 @@ int main(int argc, char** argv) {
         }
     });
 
+    suite.test("press.squash: a pressed button is pressed in about the finger and rings out", [] {
+        Headless h(options());
+        auto sample = button({.id = "go", .text = "Go"});
+        sample.prop("motion", Source(Value("press.squash")));
+        h.mount("main", column({.padding = 24}, {std::move(sample)}));
+        h.settle();
+        const auto bounds = h.runtime().screen_bounds(h.runtime().find("main/go"));
+        PointerEvent down;
+        down.kind = PointerKind::down; down.button = MouseButton::left; down.buttons = 1;
+        down.position = {bounds.x + bounds.width * .25f, bounds.center().y};
+        PointerEvent over = down;
+        over.kind = PointerKind::move; over.buttons = 0;
+        h.step({over});
+        h.settle();  // hovered first: the press alone is the state change
+        h.step({down});
+        h.advance(seconds(0.45 / 6));  // the press's first crest
+        float pressed = 1;
+        for (const auto& command : h.runtime().display_list().commands())
+            if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a < 1)
+                pressed = std::min(pressed, push->transform.a);
+        check(pressed < .955f, std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size()));
+        h.advance(seconds(1));
+        check(h.runtime().motions().empty(), "then at rest, pressed");
+    });
+
     return suite.run(argc, argv);
 }

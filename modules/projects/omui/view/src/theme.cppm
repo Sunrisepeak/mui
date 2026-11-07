@@ -33,7 +33,7 @@ struct ShadowToken {
 enum class MotionPrimitive : std::uint16_t {
     match_drawing = 1, match_glyphs = 2, fade = 4, lift = 8, panel_lift = 16,
     grow = 32, check_grow = 64, stretch = 128, stagger = 256, distance = 512, readable_text = 1024,
-    write = 2048, drop = 4096, noise = 8192, reshape = 16384
+    write = 2048, drop = 4096, noise = 8192, reshape = 16384, press = 32768
 };
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
@@ -84,6 +84,7 @@ struct MotionSpec {
     bool                  write = false;  // strokes drawn along their length as they appear (hanim.visual's write)
     float                 drop = 0;       // what appears falls in from this far above and flattens landing
     bool                  reshape = false; // a replaced glyph's outline morphs into its replacement's
+    float                 press = 0;       // a state change under the pointer presses the drawing in by this, ringing out
     friend bool operator==(const MotionSpec&, const MotionSpec&);
 };
 

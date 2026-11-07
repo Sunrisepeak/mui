@@ -1,3 +1,133 @@
+module xrender.cts;
+
+import std;
+import mlibs.cts;
+import mlibs.geom;
+import mlibs.image;
+import mlibs.rhi;
+import mlibs.trace;
+import xrender.graph;
+import xrender.raster;
+import xrender.vector;
+
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
+
+namespace xrender::cts {
+namespace {
+
+// The device under test and where failing pictures go.
+struct Bench {
+    rhi::Device& device;
+    Options      options;
+};
+
+// The cases were device tests; their bodies say check(…) and check_eq(…) as
+// tests do. While a case runs, those record into its Check.
+thread_local mlibs::cts::Check* current = nullptr;
+void check(bool ok, std::string_view why = {}, std::source_location at = std::source_location::current()) {
+    if (current) current->that(ok, why.empty() ? std::string_view("check failed") : why, at);
+}
+template <class A, class B>
+void check_eq(const A& got, const B& want, std::source_location at = std::source_location::current()) {
+    if (!current) return;
+    if (got == want) { current->that(true, {}, at); return; }
+    if constexpr (std::formattable<A, char> && std::formattable<B, char>) current->that(false, std::format("expected {}, got {}", want, got), at);
+    else current->that(false, "not the expected value", at);
+}
+// A path's text in UTF-8, never through the code page (lint `paths`).
+std::string utf8(const std::filesystem::path& p) {
+    const std::u8string u = p.generic_u8string();
+    return std::string(u.begin(), u.end());
+}
+// A failing picture's directory, made when the runner gave one.
+thread_local const Bench* running = nullptr;
+std::filesystem::path scratch_dir(std::string_view what) {
+    if (!running || running->options.scratch.empty()) return {};
+    auto dir = running->options.scratch / what;
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+void add_case(mlibs::cts::Suite<Bench>& suite, std::string id, mlibs::cts::Level level, std::function<void(Bench&)> body) {
+    suite.add({.id = std::move(id), .contract = "xrender@1", .level = level, .needs = {},
+               .body = [body = std::move(body)](Bench& bench, mlibs::cts::Check& c) {
+                   current = &c;
+                   running = &bench;
+                   body(bench);
+                   current = nullptr;
+                   running = nullptr;
+               }});
+}
+
+namespace graph_cases {
+// Actual desktop device graph CTS; portable mock-device cases stay in render/tests.
+namespace {
+constexpr auto target_usage = mlibs::rhi::TextureUsage::color_target | mlibs::rhi::TextureUsage::sampled;
+
+
+} // namespace
+void add(mlibs::cts::Suite<Bench>& suite) {
+    add_case(suite, "render.graph.layers-and-culling", mlibs::cts::Level::semantic, [](Bench& bench) {  // on a device: a layer made, copied to the target; what nothing reads never runs
+        rhi::Device* device = &bench.device;
+        xrender::TexturePool pool(*device);
+        pool.begin_frame();
+        constexpr std::uint32_t W = 24, H = 16;
+        auto target = device->create(mlibs::rhi::TextureDesc{mlibs::rhi::Format::rgba8_unorm, W, H, target_usage, "graph.target"});
+        check(target.has_value());
+        if (!target) return;
+        xrender::Graph g(pool);
+        const xrender::TextureNeed need{W, H, mlibs::rhi::Format::rgba8_unorm, target_usage};
+        auto red = g.transient(need, "red");
+        auto blue = g.transient(need, "blue");
+        check(red && blue);
+        g.pass({.name = "test.clear", .writes = {*target}}, [&](mlibs::rhi::CommandList& l) {
+            l.begin_render({*target, mlibs::rhi::LoadOp::clear, {0, 0, 0, 1}});
+            l.end_render();
+        });
+        g.pass({.name = "test.red", .writes = {*red}}, [&](mlibs::rhi::CommandList& l) {
+            l.begin_render({*red, mlibs::rhi::LoadOp::clear, {1, 0, 0, 1}});
+            l.end_render();
+        });
+        g.pass({.name = "test.blue", .writes = {*blue}}, [&](mlibs::rhi::CommandList& l) {
+            l.begin_render({*blue, mlibs::rhi::LoadOp::clear, {0, 0, 1, 1}});
+            l.end_render();
+        });
+        // The left half from the red layer; the blue one is read by nothing.
+        g.pass({.name = "test.copy", .reads = {*red}, .writes = {*target}},
+               [&](mlibs::rhi::CommandList& l) { l.copy(*red, mlibs::rhi::Region{0, 0, W / 2, H}, *target, 0, 0); });
+        mlibs::rhi::CommandList list;
+        auto report = g.record(list, std::span(&*target, 1));
+        check(report && report->recorded == 3 && report->culled == 1);
+        auto submitted = device->submit(list);
+        check(submitted.has_value(), submitted ? "" : submitted.error().message);
+        auto px = device->read(*target, mlibs::rhi::Region{0, 0, W, H});
+        check(px.has_value());
+        if (px) {
+            auto at = [&](std::uint32_t x, std::uint32_t y) {
+                const std::size_t i = (y * W + x) * 4;
+                return std::array{std::to_integer<int>((*px)[i]), std::to_integer<int>((*px)[i + 1]), std::to_integer<int>((*px)[i + 2]),
+                                  std::to_integer<int>((*px)[i + 3])};
+            };
+            check(at(0, 0) == std::array{255, 0, 0, 255} && at(W / 2 - 1, H - 1) == std::array{255, 0, 0, 255},
+                  std::format("left {}", at(0, 0)));
+            check(at(W / 2, 0) == std::array{0, 0, 0, 255} && at(W - 1, H - 1) == std::array{0, 0, 0, 255},
+                  std::format("right {}: the blue layer never ran", at(W - 1, 0)));
+        }
+        // The next frame reuses both layers: nothing made.
+        pool.begin_frame();
+        xrender::Graph next(pool);
+        check(next.transient(need, "red").has_value() && next.transient(need, "blue").has_value());
+        check_eq(pool.made(), std::size_t{2});
+        device->destroy(*target);
+    });
+}
+
+}  // namespace graph_cases
+
+namespace vector_cases {
 // The GPU backend against the CPU reference, scene by scene, on the
 // machine's device (lavapipe on Linux and Windows CI, Metal on macOS; with
 // OMUI_REQUIRE_GPU=1 a missing device fails). The GPU works in the CPU's
@@ -16,18 +146,7 @@
 // so 8; only edge pixels may differ. Rotated, the GPU's distance is exact
 // along straight edges and approximate across a corner or an arc, which the
 // transforms scene allows two levels more.
-import std;
-import mcpplibs.os;
-import mlibs.geom;
-import xrender.raster;
-import xrender.vector;
-import mlibs.rhi;
-import xrender.rhi.sdl;
-import mlibs.image;
-import mlibs.testing;
-import mlibs.trace;
 
-using namespace mlibs::testing;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -37,21 +156,8 @@ namespace {
 
 constexpr std::uint32_t W = 160, H = 120;
 
-bool required() { return mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1"; }
 
-std::unique_ptr<rhi::Device> open_device() {
-    xrender::rhi::sdl::Options o;
-    o.formats = render::gpu_shader_formats();
-    if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
-    if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
-    auto d = xrender::rhi::sdl::create(o);
-    if (!d) {
-        if (required()) check(false, std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message));
-        else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", d.error().message);
-        return nullptr;
-    }
-    return std::move(*d);
-}
+
 
 // Glyphs without fonts: glyph n is a box (n + 2) / 10 em wide and 0.7 em
 // tall, its masks made by the rasteriser at the subpixel offset asked for.
@@ -120,18 +226,20 @@ struct Rig {
                 if (diff > 1) ++off;
                 if (diff > worst) worst = diff, wx = x, wy = y;
             }
-        std::println("    {:<12} max diff {:>3}, {:>4} pixels off by more than 1 (allowed {} and {})", name, worst, off, t.max_diff, t.max_off_pixels);
+        if (current) current->evidence(std::string(name), std::format("max diff {}, {} pixels off by more than 1 (allowed {} and {})", worst, off, t.max_diff, t.max_off_pixels));
         if (worst <= t.max_diff && off <= t.max_off_pixels) return {};
         // Both images, to look at.
         const auto dir = scratch_dir("render-gpu");
-        mlibs::image::View cv{reinterpret_cast<const std::uint8_t*>(ref.pixels().data()), W, H, W * 4};
-        mlibs::image::View gv{reinterpret_cast<const std::uint8_t*>(bytes->data()), W, H, W * 4};
-        static_cast<void>(mlibs::image::save_png(dir / std::format("{}.cpu.png", name), cv));
-        static_cast<void>(mlibs::image::save_png(dir / std::format("{}.gpu.png", name), gv));
+        if (!dir.empty()) {
+            mlibs::image::View cv{reinterpret_cast<const std::uint8_t*>(ref.pixels().data()), W, H, W * 4};
+            mlibs::image::View gv{reinterpret_cast<const std::uint8_t*>(bytes->data()), W, H, W * 4};
+            static_cast<void>(mlibs::image::save_png(dir / std::format("{}.cpu.png", name), cv));
+            static_cast<void>(mlibs::image::save_png(dir / std::format("{}.gpu.png", name), gv));
+        }
         const raster::Rgba8 c = ref.at(static_cast<int>(wx), static_cast<int>(wy));
         const auto* g = reinterpret_cast<const std::uint8_t*>(bytes->data()) + (wy * W + wx) * 4;
         return std::format("{}: max diff {} at ({}, {}): cpu ({}, {}, {}, {}) gpu ({}, {}, {}, {}); {} pixels off (images in {})", name, worst,
-                           wx, wy, c.r, c.g, c.b, c.a, g[0], g[1], g[2], g[3], off, dir.generic_string());
+                           wx, wy, c.r, c.g, c.b, c.a, g[0], g[1], g[2], g[3], off, dir.empty() ? std::string("nowhere") : utf8(dir));
     }
 };
 
@@ -512,11 +620,10 @@ const std::vector<Case>& cases() {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.gpu"};
+void add(mlibs::cts::Suite<Bench>& suite) {
 
-    s.test("pixel grid units strength and identity on the real compute backend at multiple DPI", [] {
-        auto device = open_device(); if (!device) return;
+    add_case(suite, "render.vector.pixelate-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // pixel grid units strength and identity on the real compute backend at multiple DPI
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
             rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.pixelate"});
@@ -535,8 +642,8 @@ int main(int argc, char** argv) {
         device->destroy(*target);
     });
 
-    s.test("composed opacity matches CPU on the real pixel backend including identity and transparency", [] {
-        auto device=open_device();if(!device)return;
+    add_case(suite, "render.vector.opacity-dpi", mlibs::cts::Level::tolerance, [](Bench& bench) {  // composed opacity matches CPU on the real pixel backend including identity and transparency
+        rhi::Device* device = &bench.device;
         auto gpu=render::GpuRenderer::create(*device);check(gpu.has_value());if(!gpu)return;
         auto target=device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm,W,H,
             rhi::TextureUsage::color_target|rhi::TextureUsage::sampled,"test.opacity"});
@@ -550,28 +657,32 @@ int main(int argc, char** argv) {
         }
         device->destroy(*target);
     });
-    s.test("each scene as the CPU reference draws it, within the scene's tolerance", [] {
-        auto device = open_device();
-        if (!device) return;
-        auto gpu = render::GpuRenderer::create(*device);
-        check(gpu.has_value(), gpu ? "" : gpu.error().message);
-        if (!gpu) return;
-        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
-                                                      rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
-        check(target.has_value());
-        if (!target) return;
-        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
-        for (const Case& c : cases()) {
+    // Each scene as the CPU reference draws it, within the scene's tolerance: a case a scene.
+    for (std::size_t index = 0; index < cases().size(); ++index) {
+        std::string slug(cases()[index].name);
+        for (auto& ch : slug) ch = ch == ' ' || ch == ',' ? '-' : ch;
+        while (slug.find("--") != std::string::npos) slug.erase(slug.find("--"), 1);
+        add_case(suite, "render.vector.scene." + slug, mlibs::cts::Level::tolerance, [index](Bench& bench) {
+            rhi::Device* device = &bench.device;
+            auto gpu = render::GpuRenderer::create(*device);
+            check(gpu.has_value(), gpu ? "" : gpu.error().message);
+            if (!gpu) return;
+            auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+                                                          rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+            check(target.has_value());
+            if (!target) return;
+            Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+            const Case& c = cases()[index];
             render::DisplayList dl;
             c.build(dl, rig);
             const std::string problem = rig.compare(dl, c.name, c.tolerance);
             check(problem.empty(), problem);
-        }
-    });
+            device->destroy(*target);
+        });
+    }
 
-    s.test("masks are kept from frame to frame; the atlas grows, and past its size is emptied — every frame the CPU's pixels", [] {
-        auto device = open_device();
-        if (!device) return;
+    add_case(suite, "render.vector.mask-atlas", mlibs::cts::Level::tolerance, [](Bench& bench) {  // masks are kept from frame to frame; the atlas grows, and past its size is emptied — every frame the CPU's pixels
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);
         if (!gpu) return;
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
@@ -619,9 +730,8 @@ int main(int argc, char** argv) {
         if (last) check(last->masks_made + last->masks_reused == 30, "the first frame's masks, made again or kept");
     });
 
-    s.test("a frame is the render graph's (D-81): each pass that runs a trace span, the same passes frame after frame", [] {
-        auto device = open_device();
-        if (!device) return;
+    add_case(suite, "render.vector.graph-passes", mlibs::cts::Level::semantic, [](Bench& bench) {  // a frame is the render graph's (D-81): each pass that runs a trace span, the same passes frame after frame
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);
         if (!gpu) return;
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 64, 48, rhi::TextureUsage::color_target, "test.graph"});
@@ -652,9 +762,8 @@ int main(int argc, char** argv) {
         check(second && second->gpu_passes == first->gpu_passes, "the same frame again, the same passes");
     });
 
-    s.test("what the GPU does not draw yet is counted, as the CPU counts what it skips", [] {
-        auto device = open_device();
-        if (!device) return;
+    add_case(suite, "render.vector.unsupported-counted", mlibs::cts::Level::semantic, [](Bench& bench) {  // what the GPU does not draw yet is counted, as the CPU counts what it skips
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);
         if (!gpu) return;
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, 8, 8, rhi::TextureUsage::color_target, "test.small"});
@@ -666,9 +775,8 @@ int main(int argc, char** argv) {
         if (report) check(report->external_skipped == 1 && report->commands == dl.size());
     });
 
-    s.test("an image of the store is uploaded once, whatever frames draw it, and released when the store drops it", [] {
-        auto device = open_device();
-        if (!device) return;
+    add_case(suite, "render.vector.image-upload-once", mlibs::cts::Level::semantic, [](Bench& bench) {  // an image of the store is uploaded once, whatever frames draw it, and released when the store drops it
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target, "test.target"});
         if (!gpu || !target) return;
@@ -687,9 +795,8 @@ int main(int argc, char** argv) {
         check(gpu->render(empty, *target, {&images, nullptr}).has_value(), "a frame after the store dropped it");
     });
 
-    s.test("an external texture the program made on the device is drawn like an image of its pixels", [] {
-        auto device = open_device();
-        if (!device) return;
+    add_case(suite, "render.vector.external-texture", mlibs::cts::Level::tolerance, [](Bench& bench) {  // an external texture the program made on the device is drawn like an image of its pixels
+        rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);
         if (!gpu) return;
         auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
@@ -731,6 +838,293 @@ int main(int argc, char** argv) {
             worst = std::max(worst, std::abs(std::to_integer<int>((*got)[i]) - static_cast<int>(cpu.bytes()[i])));
         check(worst <= 1, std::format("the external texture is {} levels from the CPU's image of its pixels", worst));
     });
-
-    return s.run(argc, argv);
 }
+
+}  // namespace vector_cases
+
+namespace mix_cases {
+// Required-device runs exercise the real GPU pipelines and read back pixels.
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
+namespace {
+constexpr std::uint32_t W = 128, H = 96;
+
+render::Path contour() {
+    render::Path path;
+    path.move_to({63.25f, 8.5f}).cubic_to({112, 5}, {120, 80}, {80, 84})
+        .line_to({11.5f, 70.25f}).quad_to({8, 30}, {63.25f, 8.5f}).close(); return path;
+}
+void compare(rhi::Device& device, render::GpuRenderer& gpu, rhi::Texture target,
+             const render::DisplayList& list, render::ImageStore* images = nullptr) {
+    raster::Surface reference(W, H); render::CpuRenderer cpu;
+    const auto cr = cpu.render(list, reference, {images, nullptr});
+    check_eq(cr.invalid_paints, std::size_t{0}); check_eq(cr.missing_images, std::size_t{0});
+    const auto report = gpu.render(list, target, {images, nullptr});
+    check(report.has_value(), report ? "" : report.error().message); if (!report) return;
+    check_eq(report->invalid_paints, std::size_t{0}); check_eq(report->missing_images, std::size_t{0});
+    const auto bytes = device.read(target, {0, 0, W, H});
+    check(bytes.has_value()); if (!bytes) return;
+    unsigned worst = 0, off = 0;
+    for (std::uint32_t y = 0; y < H; ++y) for (std::uint32_t x = 0; x < W; ++x) {
+        const auto a = reference.at(static_cast<int>(x), static_cast<int>(y));
+        const auto* b = reinterpret_cast<const std::uint8_t*>(bytes->data()) + (y * W + x) * 4;
+        const auto difference = static_cast<unsigned>(std::max({std::abs(a.r - b[0]), std::abs(a.g - b[1]), std::abs(a.b - b[2]), std::abs(a.a - b[3])}));
+        worst = std::max(worst, difference); off += difference > 2 ? 1u : 0u;
+    }
+    // Leaf shading and coverage use the existing CPU/GPU contract. Mixture
+    // fields accumulate in rgba16_float, then quantize to RGBA8 once; allow
+    // two levels for that precision and the final device blend rounding.
+    if (current) current->evidence("paint-mix", std::format("max {} /255, pixels beyond 2: {}", worst, off));
+    check(worst <= 2); check_eq(off, 0u);
+}
+}
+void add(mlibs::cts::Suite<Bench>& suite) {
+    add_case(suite, "render.paint-mix.lit-fields", mlibs::cts::Level::tolerance, [](Bench& bench) {  // gradient and differently lit image fields mix before a shared path and clip mask
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        const auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled});
+        check(target.has_value()); if (!target) return;
+        const std::array<render::GradientStop, 2> stops{{{0, geom::Color{0.9f, 0.1f, 0.2f, 0.4f}}, {1, geom::Color{0.1f, 0.9f, 0.2f, 0.9f}}}};
+        render::Paint gradient; gradient.kind = render::Paint::Kind::gradient; gradient.gradient.start = {0, 0};
+        gradient.gradient.end = {W, H}; gradient.gradient.stops = stops;
+        render::ImageStore images;
+        const auto image = images.add(2, 2, std::vector<raster::Rgba8>{{180, 120, 60, 255}, {40, 80, 160, 200}, {10, 30, 70, 100}, {20, 100, 40, 180}});
+        const auto normal = images.add(2, 2, std::vector<raster::Rgba8>(4, raster::Rgba8{128, 128, 255, 255}));
+        render::Material material; material.normal = normal; material.key = {0.7f, 0.4f, 1, 1};
+        render::Paint picture; picture.kind = render::Paint::Kind::image; picture.image = image; picture.material = &material;
+        picture.color = geom::Color::white(); picture.image_transform = geom::Affine::translate(7.25f, 3.5f) * geom::Affine::scale(55, 35);
+        const auto plan = render::PreparedPaintMix::prepare(gradient, picture); check(plan.has_value()); if (!plan) return;
+        for (double t : {0.0, 0.25, 0.5, 0.75, 1.0, 0.37}) {
+            render::DisplayList list;
+            list.push_clip({14, 9, 95, 72}, geom::CornerRadii::all(10));
+            list.push_transform(geom::Affine::translate(1.25f, 2.5f));
+            const auto paint = plan->record(t, list); check(paint.has_value()); if (!paint) continue;
+            list.fill_path(contour(), render::FillRule::nonzero, *paint);
+            list.pop_transform(); list.pop_clip();
+            compare(*device, *gpu, *target, list, &images);
+        }
+        device->destroy(*target);
+    });
+    add_case(suite, "render.paint-mix.sixteen-leaves", mlibs::cts::Level::tolerance, [](Bench& bench) {  // sixteen distinct translucent leaves and one opaque mixture retain once-only coverage
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device); check(gpu.has_value()); if (!gpu) return;
+        const auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled});
+        check(target.has_value()); if (!target) return;
+        std::array<render::WeightedPaint, 16> terms;
+        for (std::size_t i = 0; i < terms.size(); ++i) {
+            const auto f = static_cast<float>(i) / 15;
+            terms[i] = {render::Paint::solid({f, 1 - f, 0.7f, 0.2f + f * 0.7f}), 1.0f / 16};
+        }
+        render::Paint paint; paint.kind = render::Paint::Kind::mix; paint.mix = terms;
+        render::DisplayList list; list.fill_path(contour(), render::FillRule::nonzero, paint);
+        compare(*device, *gpu, *target, list);
+        for (auto& term : terms) term.paint.color.a = 1;
+        list.clear(); list.stroke_path(contour(), {.width = 5.5f, .join = render::LineJoin::round}, paint);
+        compare(*device, *gpu, *target, list);
+        device->destroy(*target);
+    });
+}
+
+}  // namespace mix_cases
+
+namespace bounds_cases {
+// Capture is the region an effect reads; output bounds are where it may
+// change its source. Check the latter against actual CPU/GPU pixels.
+
+namespace render = xrender;
+namespace raster = xrender::raster;
+namespace geom = mlibs::geom;
+namespace rhi = mlibs::rhi;
+
+namespace {
+constexpr int W = 192, H = 144;
+constexpr geom::Rect layer{64, 48, 64, 48};
+
+struct Case {
+    std::string_view name;
+    std::vector<render::EffectShape> shapes;
+    float smoothness = 0, thickness = 12, blur = 0;
+};
+
+std::vector<Case> cases() {
+    const render::EffectShape single{layer, geom::CornerRadii::all(8)};
+    const std::vector<render::EffectShape> pair{
+        {{64, 48, 28, 48}, geom::CornerRadii::all(8)}, {{100, 48, 28, 48}, geom::CornerRadii::all(8)}};
+    return {{"single", {single}}, {"single smooth", {single}, 12}, {"pair smooth", pair, 12},
+            {"eight overlapping", std::vector<render::EffectShape>(8, single), 12},
+            {"thick frosted", pair, 12, 70, 18}, {"thin frosted", {single}, 0, 4, 18}};
+}
+
+std::vector<float> params(render::EffectRef ref, const Case& c) {
+    const std::array<std::pair<std::string_view, float>, 5> values{{
+        {"smoothness", c.smoothness}, {"thickness", c.thickness}, {"blur", c.blur}, {"tint_a", 0.6f}, {"adaptive", 0}}};
+    return render::effects().params(ref, values);
+}
+
+geom::Rect scaled(geom::Rect r, float scale) { return {r.x * scale, r.y * scale, r.width * scale, r.height * scale}; }
+
+geom::Rect geometry(const Case& c) {
+    float left = layer.x, top = layer.y, right = layer.right(), bottom = layer.bottom();
+    for (const auto& shape : c.shapes) {
+        left = std::min(left, shape.rect.x);
+        top = std::min(top, shape.rect.y);
+        right = std::max(right, shape.rect.right());
+        bottom = std::max(bottom, shape.rect.bottom());
+    }
+    return {left, top, right - left, bottom - top};
+}
+
+bool inside(geom::Rect r, geom::Point p, float reach) {
+    return p.x >= r.x - reach && p.x < r.right() + reach && p.y >= r.y - reach && p.y < r.bottom() + reach;
+}
+
+void compare(std::span<const raster::Rgba8> source, std::span<const raster::Rgba8> result,
+             const Case& c, float scale, float reach) {
+    const int width = static_cast<int>(static_cast<float>(W) * scale);
+    const int height = static_cast<int>(static_cast<float>(H) * scale);
+    const auto bounds = scaled(geometry(c), scale);
+    int outside = 0, escaped = 0, changed = 0, beyond_geometry = 0;
+    for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x) {
+            const auto i = static_cast<std::size_t>(y * width + x);
+            const bool different = source[i] != result[i];
+            const geom::Point p{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f};
+            // One logical pixel is a conservative allowance for the CPU and
+            // shader's half-device-pixel glass coverage ramp.
+            if (!inside(bounds, p, (reach + 1) * scale)) {
+                ++outside;
+                escaped += different;
+            }
+            changed += different;
+            if (!inside(bounds, p, scale)) beyond_geometry += different;
+        }
+    check(outside > 1000, std::format("{} has substantial outside-source evidence", c.name));
+    check(escaped == 0, std::format("{} scale {}: {} pixels outside output reach + AA differ from input", c.name, scale, escaped));
+    check(changed > 50, std::format("{} actually runs the effect", c.name));
+    if (c.name == "eight overlapping")
+        check(beyond_geometry > 0, "smooth unions really generate pixels beyond geometry; zero reach would be false");
+}
+
+// The layer's own content extends outside the declared geometry, but within
+// capture reach. It must survive: output reach describes newly written
+// pixels, not a clip for existing source commands.
+void scene(render::DisplayList& dl, render::EffectRef ref, const Case& c, bool effect) {
+    dl.fill_rect({0, 0, W, H}, geom::Color::hex(0x243456));
+    for (int x = 0; x < W; x += 8)
+        dl.fill_rect({static_cast<float>(x), 0, 4, H}, geom::Color::hex(0xc07845));
+    const auto p = params(ref, c);
+    if (effect) dl.push_layer(1, render::BlendMode::normal, ref, p, layer, c.shapes);
+    dl.fill_rect({60, 56, 3, 6}, geom::Color::hex(0x18bca1));
+    dl.fill_rect({88, 70, 6, 5}, geom::Color::hex(0x152141));
+    if (effect) dl.pop_layer();
+}
+
+
+}  // namespace
+
+void add(mlibs::cts::Suite<Bench>& suite) {
+    add_case(suite, "render.effect.content-scopes", mlibs::cts::Level::tolerance, [](Bench& bench) {  // nested content scopes and scaled objects agree on actual CPU and GPU filter sizes
+        rhi::Device* device = &bench.device;
+        auto gpu=render::GpuRenderer::create(*device);check(gpu.has_value());if(!gpu)return;
+        const auto blur=*render::effects().find("blur");
+        for(float dpi:{1.f,2.f}) {
+            const auto w=static_cast<std::uint32_t>(W*dpi),h=static_cast<std::uint32_t>(H*dpi);
+            auto texture=device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm,w,h,
+                rhi::TextureUsage::color_target|rhi::TextureUsage::sampled,"test.content_scopes"});
+            check(texture.has_value());if(!texture)return;
+            std::array<std::vector<std::byte>,3> images;
+            for(int variant=0;variant<3;++variant) {
+                render::DisplayList list;
+                if(variant!=2)list.push_transform(geom::Affine::translate(20,20)*geom::Affine::scale(2,2));
+                for(float radius:{2.f,3.f}) {
+                    const auto values=render::effects().params(blur,std::array{std::pair<std::string_view,float>{"radius",radius}});
+                    const auto box=variant==0?geom::Rect{}:variant==1?geom::Rect{0,0,30,30}:geom::Rect{20,20,60,60};
+                    list.push_layer(1,render::BlendMode::normal,blur,values,box,{},
+                        variant==0?render::LayerBoundsMode::content:render::LayerBoundsMode::declared);
+                }
+                list.fill_rect(variant==2?geom::Rect{30,30,20,20}:geom::Rect{5,5,10,10},geom::Color::white());
+                list.pop_layer();list.pop_layer();if(variant!=2)list.pop_transform();
+                const auto report=gpu->render(list,*texture,{}, {.scale=dpi});check(report && report->effects_skipped==0);
+                if(!report)return;
+                const auto bytes=device->read(*texture,{0,0,w,h});check(bytes.has_value());if(!bytes)return;
+                images[static_cast<std::size_t>(variant)].assign(bytes->begin(),bytes->end());
+                raster::Surface reference(static_cast<int>(w),static_cast<int>(h));render::CpuRenderer cpu;
+                const auto cpu_report=cpu.render(list,reference,{}, {.scale=dpi});check(cpu_report.effects_skipped==0);
+                const auto expected=std::as_bytes(reference.pixels());int worst=0;
+                for(std::size_t i=0;i<expected.size();++i)worst=std::max(worst,std::abs(std::to_integer<int>(expected[i])-std::to_integer<int>((*bytes)[i])));
+                check(worst<=2,std::format("DPI {} variant {}: two nested filter roundings differ by at most two levels, got {}",dpi,variant,worst));
+            }
+            for(std::size_t variant=1;variant<3;++variant) {
+                int worst=0;for(std::size_t i=0;i<images[0].size();++i)
+                    worst=std::max(worst,std::abs(std::to_integer<int>(images[0][i])-std::to_integer<int>(images[variant][i])));
+                check(worst<=2,"GPU automatic, declared and flattened captures describe the same picture");
+            }
+            device->destroy(*texture);
+        }
+    });
+    add_case(suite, "render.effect.output-bounds", mlibs::cts::Level::semantic, [](Bench& bench) {  // real GPU glass preserves source outside output bounds with single and smooth grouped shapes
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device);
+        check(gpu.has_value(), gpu ? "" : gpu.error().message);
+        if (!gpu) return;
+        auto texture = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H,
+            rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.output_bounds"});
+        check(texture.has_value());
+        if (!texture) return;
+        const auto ref = render::effects().find("liquid_glass");
+        check(ref.has_value());
+        if (!ref) return;
+        for (const auto& c : cases()) {
+            std::array<std::vector<raster::Rgba8>, 2> images;
+            bool complete = true;
+            for (int variant = 0; variant < 2; ++variant) {
+                render::DisplayList dl;
+                scene(dl, *ref, c, variant != 0);
+                const auto report = gpu->render(dl, *texture, {}, {.scale = 1, .background = geom::Color::transparent()});
+                check(report.has_value(), report ? "" : report.error().message);
+                if (!report) { complete = false; break; }
+                check(report->effects_skipped == 0, "real shader path runs");
+                const auto bytes = device->read(*texture, {0, 0, W, H});
+                check(bytes.has_value(), bytes ? "" : bytes.error().message);
+                if (!bytes) { complete = false; break; }
+                images[static_cast<std::size_t>(variant)].resize(W * H);
+                std::memcpy(images[static_cast<std::size_t>(variant)].data(), bytes->data(), W * H * 4);
+            }
+            if (!complete) continue;
+            const auto p = params(*ref, c);
+            compare(images[0], images[1], c, 1, *render::effects().output_reach(*ref, p));
+            check(images[0][56 * W + 60] == images[1][56 * W + 60], "source command outside geometry survives output-reach declaration");
+        }
+    });
+}
+
+}  // namespace bounds_cases
+
+mlibs::cts::Suite<Bench> suite() {
+    mlibs::cts::Suite<Bench> s{"xrender", "1"};
+    graph_cases::add(s);
+    vector_cases::add(s);
+    mix_cases::add(s);
+    bounds_cases::add(s);
+    return s;
+}
+
+}  // namespace
+
+rhi::ShaderFormats shader_formats() { return render::gpu_shader_formats(); }
+
+std::vector<std::string> cases() {
+    std::vector<std::string> out;
+    for (const auto& c : suite().cases()) out.push_back(c.id);
+    return out;
+}
+
+mlibs::cts::Report run(rhi::Device& device, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy, Options options) {
+    if (environment.subject.empty()) environment.subject = device.caps().device;
+    Bench bench{device, std::move(options)};
+    return suite().run(bench, {}, policy, std::move(environment));
+}
+
+}  // namespace xrender::cts

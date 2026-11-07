@@ -28,4 +28,5 @@ mcpplibs.mwrap.sdl3 = "3.4.18"
 xengine.simulation.cellular.rhi.cts = { path = "../../../xengine/simulation/cellular/rhi/cts" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
+"xrender.cts" = { path = "../../cts" }
 mcpplibs.os     = "0.2.2"

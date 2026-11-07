@@ -2,6 +2,7 @@ module omui.bench;
 import std;
 import xengine.simulation;
 import xengine.simulation.cellular;
+import xengine.simulation.cellular.present;
 
 namespace omui::bench {
 namespace {
@@ -26,7 +27,68 @@ std::optional<Model::State> setup(std::uint32_t side) {
     return Model::State{std::move(*p),{side,side},field,field};
 }
 }
+namespace {
+// A 1024 × 1024 field on screen (D-132): a path everywhere, a fire spreading
+// from the centre — after 60 steps its front crosses a few dozen tiles.
+struct Field {
+    Model::State state;
+    std::vector<std::uint32_t> after;     // the cells after the steps
+    std::vector<std::uint8_t> mask;       // the last step's changed tiles
+};
+std::optional<Field> spreading(std::uint32_t side, int steps) {
+    auto fixture=setup(side);if(!fixture)return {};
+    const auto cells=side*side;
+    std::ranges::fill(fixture->current,0u);
+    std::fill_n(fixture->current.begin(),cells,1u);
+    fixture->current[cells+(side/2)*side+side/2]=1;
+    const auto grid=ca::tiles({side,side},{32,32});
+    Field f{std::move(*fixture),{},std::vector<std::uint8_t>(grid.width*grid.height)};
+    for(int k=0;k<steps;++k){(void)f.state.program.step(f.state.shape,f.state.current,f.state.next,{.changed_tiles=f.mask});f.state.current.swap(f.state.next);}
+    f.after=f.state.current;
+    return f;
+}
+ca::Palette fire() {
+    return {{{{{1,{1,1}}},mlibs::geom::Color::hex(0xff7a1a)},{{{1,{2,2}}},mlibs::geom::Color::hex(0x3a2a20)},{{{0,{1,1}}},mlibs::geom::Color::hex(0x8fa3b8)}},
+            mlibs::geom::Color::hex(0x101820)};
+}
+}
 void add_simulation_benchmarks() {
+    add("simulation/cellular-1024-present","1024x1024 cells on screen: the tiles one step of a spreading fire changed, recoloured and named in the image (D-132)",[](State& s) {
+        auto f=spreading(1024,60);if(!f){s.fail("rule preparation failed");return;}
+        xrender::ImageStore store;
+        auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
+        (void)view->present(f->after);
+        const auto changed=static_cast<std::size_t>(std::ranges::count(f->mask,1));
+        s.items(changed*32*32);
+        while(s.next()) (void)view->present(f->after,f->mask);
+        s.note("scope",std::format("{} of {} tiles changed by the step; recolour and image update only — the step, upload and drawing excluded",changed,f->mask.size()));
+    });
+    add("simulation/cellular-1024-present-all","1024x1024 cells on screen, every tile changed: the whole field recoloured (the worst case)",[](State& s) {
+        auto f=spreading(1024,1);if(!f){s.fail("rule preparation failed");return;}
+        xrender::ImageStore store;
+        auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
+        std::ranges::fill(f->mask,1);s.items(1024*1024);
+        while(s.next()) (void)view->present(f->after,f->mask);
+        s.note("scope","three swatches tested per cell, one pixel a cell; the step, upload and drawing excluded");
+    });
+    add("simulation/cellular-1024-frame","1024x1024 cells drawn 1:1 after one step of a spreading fire: present, damage, incremental CPU raster of the changed rows",[](State& s) {
+        auto f=spreading(1024,60);if(!f){s.fail("rule preparation failed");return;}
+        xrender::ImageStore store;
+        auto view=ca::FieldPresenter::make(store,{1024,1024},3,fire());if(!view){s.fail(view.error());return;}
+        (void)view->present(f->after);
+        const xrender::Resources resources{&store,nullptr};
+        xrender::DisplayList list;view->draw(list,{0,0,1024,1024});
+        xrender::raster::Surface surface(1024,1024);xrender::CpuRenderer renderer;xrender::DamageTracker tracker;
+        (void)renderer.render(list,surface,resources,{.rows=tracker.update(list,1024,1024,1,resources)});
+        std::size_t rows=0;
+        while(s.next()) {
+            (void)view->present(f->after,f->mask);
+            const auto spans=tracker.update(list,1024,1024,1,resources);
+            rows=0;for(auto r:spans)rows+=static_cast<std::size_t>(r.bottom-r.top);
+            (void)renderer.render(list,surface,resources,{.rows=spans});
+        }
+        s.note("scope",std::format("one DrawImage for the whole field; {} of 1024 rows redrawn; the step excluded",rows));
+    });
     add("simulation/cellular-256","256x256 integer cells: 3 channels, first-match reaction rules, 32x32 tiles",[](State& s) {
         auto fixture=setup(256);if(!fixture){s.fail("rule preparation failed");return;}
         const auto initial=fixture->current;

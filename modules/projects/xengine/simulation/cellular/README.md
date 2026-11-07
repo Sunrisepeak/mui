@@ -39,6 +39,7 @@ their no-clock/no-RHI/no-renderer dependency boundary.
 Ownership around it (convergence plan §6.10, D-132): material and reaction
 presets are an optional data package beside this kernel, not rules inside it;
 putting a field on screen is a small adapter between this package and
-xrender's resources (one `ImageStore` surface on the CPU, the GPU kernel's
-output as one `ExternalTexture`, a dirty-tile mask from this package's change
-counts), replacing a rectangle per cell.
+xrender's resources, [present](present): one `ImageStore` image a pixel a
+cell, recoloured, re-uploaded and redrawn only where `Execution::changed_tiles`
+says a tile changed, drawn by one command (the GPU kernel's output as one
+`ExternalTexture` is next).

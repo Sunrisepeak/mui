@@ -4,6 +4,7 @@ import omui;
 import mlibs.hash;
 import xengine.simulation;
 import xengine.simulation.cellular;
+import xengine.simulation.cellular.present;
 
 namespace omui::inspector::cellular {
 namespace ca = xengine::simulation::cellular;
@@ -206,6 +207,10 @@ struct Session::Impl {
     bool playing=false;
     std::uint64_t timer=0;
     Invocation authority;
+    // The field on screen (D-132): made for a store and a project (its shape and palette).
+    std::optional<ca::FieldPresenter> presenter;
+    const xrender::ImageStore* presenter_store=nullptr;
+    std::shared_ptr<const Project> presented_project;  // held: its address is never another project's
 };
 Session::Session() : impl_(std::make_unique<Impl>()) {}
 Session::~Session() = default;
@@ -251,6 +256,20 @@ Color Session::color(std::uint32_t x,std::uint32_t y) {
         if (std::ranges::all_of(swatch.when,[&](const auto& t){const auto v=s.cells[t.channel*area+i];return v>=t.value.low && v<=t.value.high;}))
             return swatch.color;
     return Color{};
+}
+void Session::draw_field(xrender::DisplayList& list,xrender::ImageStore& store,Rect dest) {
+    ensure();auto& d=*impl_;const auto& s=d.history->state();const auto& p=*s.project;
+    if (!d.presenter || d.presenter_store!=&store || d.presented_project!=s.project) {
+        ca::Palette palette;
+        for (const auto& swatch:p.palette) palette.swatches.push_back({swatch.when,swatch.color});
+        if (d.presenter && d.presenter_store==&store) d.presenter->release();  // the same store, alive: its old image goes
+        d.presenter.reset();
+        auto made=ca::FieldPresenter::make(store,p.shape,p.program.channels(),std::move(palette));
+        if (!made) {problem.set(made.error());return;}
+        d.presenter.emplace(std::move(*made));d.presenter_store=&store;d.presented_project=s.project;
+    }
+    if (auto shown=d.presenter->present(s.cells);!shown) {problem.set(shown.error());return;}
+    d.presenter->draw(list,dest);
 }
 void Session::pause() {
     if (!impl_->playing && !impl_->timer) return;

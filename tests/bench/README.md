@@ -25,6 +25,7 @@ mcpp run -p omui.bench -- --list                                  # what there i
 | `text/paragraph` | shaping and breaking 2 KB of text (per byte) |
 | `trace/span-off`, `trace/span-on` | a span while nothing records, and while a profile does (per span) |
 | `log/filtered-out` | a debug record the filter leaves out (per record) |
+| `simulation/cellular-1024-present`, `-present-all`, `-frame` | a 1024×1024 cellular field on screen (D-132): the tiles one step changed recoloured into its image; every cell recoloured; and the whole frame — present, damage, the CPU raster of the changed rows, one draw command |
 | `canvas/pan-1000`, `canvas/zoom-sweep-1000` | a wall of 1000 windows panned by a trackpad, zoomed in and out by the wheel: the visible set, tiers, the display list |
 | `canvas/pan-100k` | 100,000 windows, a few hundred on screen: the grid index makes it cost what is visible |
 | `canvas/sharpen` | 40 windows of content, the camera stops at a new zoom: until every texture is rasterised at it |

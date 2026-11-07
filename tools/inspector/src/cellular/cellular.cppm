@@ -28,6 +28,9 @@ public:
     [[nodiscard]] std::string state_hash();
     [[nodiscard]] Size shape();
     [[nodiscard]] Color color(std::uint32_t x, std::uint32_t y);
+    // The field into `dest`: one image of `store` (a pixel a cell, only the
+    // cells that changed recoloured and re-uploaded), one draw command.
+    void draw_field(xrender::DisplayList& list, xrender::ImageStore& store, Rect dest);
     void pause();
 
 private:

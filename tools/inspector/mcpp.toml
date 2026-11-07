@@ -32,6 +32,7 @@ mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
+"xengine.simulation.cellular.present" = { path = "../../modules/projects/xengine/simulation/cellular/present" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]

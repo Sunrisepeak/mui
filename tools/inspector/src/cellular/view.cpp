@@ -44,9 +44,7 @@ Element view(const std::shared_ptr<Session>& s,float width,bool zh) {
         .paint=[s](PaintContext& ctx) {
             const auto shape=s->shape();const auto g=grid(ctx.size,shape);
             ctx.list.fill_rect({0,0,ctx.size.width,ctx.size.height},Color::hex(0x152133));
-            for (std::uint32_t y=0;y<static_cast<std::uint32_t>(shape.height);++y)
-                for (std::uint32_t x=0;x<static_cast<std::uint32_t>(shape.width);++x)
-                    ctx.list.fill_rect({g.x+static_cast<float>(x)*g.cell,g.y+static_cast<float>(y)*g.cell,g.cell+.02f,g.cell+.02f},s->color(x,y));
+            s->draw_field(ctx.list,ctx.services.images(),{g.x,g.y,g.cell*shape.width,g.cell*shape.height});
             if (ctx.state.focused && ctx.state.focus_visible) {
                 const float x=g.x+static_cast<float>(s->cursor_x.peek())*g.cell,y=g.y+static_cast<float>(s->cursor_y.peek())*g.cell;
                 const auto white=Color::white();const float edge=std::min(2.0f,g.cell*.25f);

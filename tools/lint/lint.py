@@ -94,6 +94,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
     "modules/projects/xengine/simulation": "base",  # the CPU part
     "modules/projects/xengine/simulation/cellular/rhi": "gfx",
+    "modules/projects/xengine/simulation/cellular/present": "gfx",  # cells to an xrender image
     "modules/projects/xengine/audio": "media",
     "modules/projects/xengine/video": "media",
     "modules/projects/xengine/timeline": "media",
@@ -673,6 +674,8 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xengine.simulation": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
     "xengine.simulation.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
     "xengine.simulation.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender"}},
+    # the field on screen: the renderer's resources (and what they reach), no UI, game, effect loader or shader compiler
+    "xengine.simulation.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "mlibs.shader", "xrender.effect"}},
 }
 
 

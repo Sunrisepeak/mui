@@ -16,22 +16,10 @@ bool valid_key(std::string_view key) noexcept {
         std::ranges::none_of(key, [](unsigned char c) { return c < 32 || c == 127; });
 }
 }
-std::string_view effect_error_name(EffectError error) noexcept {
-    switch (error) {
-        case EffectError::invalid_limits: return "invalid-limits";
-        case EffectError::invalid_id: return "invalid-id";
-        case EffectError::duplicate_parameter: return "duplicate-parameter";
-        case EffectError::nonfinite_value: return "nonfinite-value";
-        case EffectError::capacity: return "capacity";
-        case EffectError::nonfinite_progress: return "nonfinite-progress";
-        case EffectError::buffer_too_small: return "buffer-too-small";
-    }
-    return "unknown";
-}
 std::expected<PreparedEffects, EffectError> PreparedEffects::prepare(std::span<const EffectSpec> input, EffectLimits limits) {
     mlibs::trace::Span span("prepare", "hanim.effect");
     auto refuse = [](EffectError error) -> std::expected<PreparedEffects, EffectError> {
-        log.warn("prepare refused: {}", effect_error_name(error));
+        log.warn("prepare refused: {}", describe(error).name);
         mlibs::trace::mark("refused", "hanim.effect");
         return std::unexpected(error);
     };

@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
         auto invalid = triangle;
         invalid[0].verb = static_cast<ShapeVerb>(99);
         check(PreparedShapeMorph::prepare({{0, -1}, invalid}, disk()).error() == ShapeMorphError::invalid_verb);
-        check_eq(shape_morph_error_name(ShapeMorphError::open_contour), std::string_view("open_contour"));
+        check_eq(describe(ShapeMorphError::open_contour).name, std::string_view("hanim.shape.open-contour"));
     });
 
     s.test("nonfinite coordinates, unsafe numeric range and invalid option budgets fail preparation", [] {

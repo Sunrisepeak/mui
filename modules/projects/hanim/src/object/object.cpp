@@ -66,7 +66,7 @@ void trace_ref(ObjectRef ref) noexcept {
     mlibs::trace::count("generation.low", static_cast<double>(static_cast<std::uint32_t>(ref.generation)), "hanim.object");
 }
 void failed(std::string_view operation, ObjectError error, ObjectRef ref = {}) {
-    object_log.warn("{} refused: {} (owner={}, slot={}, generation={})", operation, object_error_name(error), ref.owner, ref.slot, ref.generation);
+    object_log.warn("{} refused: {} (owner={}, slot={}, generation={})", operation, describe(error).name, ref.owner, ref.slot, ref.generation);
     mlibs::trace::mark("refused", "hanim.object");
 }
 struct WriteScope {
@@ -197,37 +197,6 @@ std::expected<PreparedObject, ObjectError> prepare(ObjectRef object, std::uint64
 }
 }
 
-std::string_view object_error_name(ObjectError error) noexcept {
-    switch (error) {
-        case ObjectError::uninitialized: return "uninitialized";
-        case ObjectError::invalid_limits: return "invalid-limits";
-        case ObjectError::identity_exhausted: return "identity-exhausted";
-        case ObjectError::version_exhausted: return "version-exhausted";
-        case ObjectError::invalid_object: return "invalid-object";
-        case ObjectError::foreign_owner: return "foreign-owner";
-        case ObjectError::stale_object: return "stale-object";
-        case ObjectError::different_object: return "different-object";
-        case ObjectError::invalid_part: return "invalid-part";
-        case ObjectError::stale_part: return "stale-part";
-        case ObjectError::part_not_found: return "part-not-found";
-        case ObjectError::invalid_id: return "invalid-id";
-        case ObjectError::duplicate_id: return "duplicate-id";
-        case ObjectError::missing_parent: return "missing-parent";
-        case ObjectError::multiple_roots: return "multiple-roots";
-        case ObjectError::cycle: return "cycle";
-        case ObjectError::depth_limit: return "depth-limit";
-        case ObjectError::capacity: return "capacity";
-        case ObjectError::invalid_coordinate: return "invalid-coordinate";
-        case ObjectError::invalid_verb: return "invalid-verb";
-        case ObjectError::invalid_transform: return "invalid-transform";
-        case ObjectError::invalid_color: return "invalid-color";
-        case ObjectError::invalid_resource: return "invalid-resource";
-        case ObjectError::unsupported_capability: return "unsupported-capability";
-        case ObjectError::reentrant_mutation: return "reentrant-mutation";
-        case ObjectError::invalid_path: return "invalid-path";
-    }
-    return "unknown";
-}
 std::expected<Contour, ObjectError> Contour::copy(ShapeContour input, std::size_t max_segments) {
     mlibs::trace::Span span("contour.copy", "hanim.object");
     auto refuse = [](ObjectError error) -> std::expected<Contour, ObjectError> { failed("contour.copy", error); return std::unexpected(error); };

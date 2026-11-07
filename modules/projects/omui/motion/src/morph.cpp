@@ -95,11 +95,11 @@ std::expected<hanim::Contour, ShapeInputFailure> shape_input(PathView path) {
     auto imported=hanim::import_path(path,{.max_contours=1,.max_segments=256,.source={.max_contours=1}});
     if(!imported) {
         const auto& error=imported.error();
-        if(error.path && error.path->code==mlibs::geom::PathError::contour_budget)
+        if(error.caused_by(mlibs::geom::PathError::contour_budget))
             return std::unexpected(ShapeInputFailure{PathMorphIssue::unsupported_contours});
         if(error.code==hanim::ObjectError::capacity)
             return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,hanim::ShapeMorphError::segment_budget});
-        if(error.path && error.path->code==mlibs::geom::PathError::nonfinite_coordinate)
+        if(error.caused_by(mlibs::geom::PathError::nonfinite_coordinate))
             return std::unexpected(ShapeInputFailure{PathMorphIssue::geometry,hanim::ShapeMorphError::nonfinite_coordinate});
         return std::unexpected(ShapeInputFailure{PathMorphIssue::malformed_path});
     }

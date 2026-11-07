@@ -315,22 +315,4 @@ PreparedShapeMorph::sample_segment(double progress, std::size_t segment) const n
                       point_path_.interpolate(a.control2, b.control2, t), point_path_.interpolate(a.end, b.end, t)};
 }
 
-std::string_view shape_morph_error_name(ShapeMorphError error) noexcept {
-    switch (error) {
-    case ShapeMorphError::empty_contour: return "empty_contour";
-    case ShapeMorphError::open_contour: return "open_contour";
-    case ShapeMorphError::invalid_verb: return "invalid_verb";
-    case ShapeMorphError::nonfinite_coordinate: return "nonfinite_coordinate";
-    case ShapeMorphError::numerical_range: return "numerical_range";
-    case ShapeMorphError::degenerate_contour: return "degenerate_contour";
-    case ShapeMorphError::segment_budget: return "segment_budget";
-    case ShapeMorphError::invalid_options: return "invalid_options";
-    case ShapeMorphError::invalid_progress: return "invalid_progress";
-    case ShapeMorphError::output_too_small: return "output_too_small";
-    case ShapeMorphError::unprepared: return "unprepared";
-    case ShapeMorphError::invalid_segment: return "invalid_segment";
-    }
-    return "unknown";
-}
-
 } // namespace hanim

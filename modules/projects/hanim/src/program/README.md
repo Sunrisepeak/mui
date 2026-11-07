@@ -12,7 +12,8 @@ existing low-level Programs. There is no second authoring AST or compiler.
 For live inputs, call `PreparedProgram::prepare(program, registry, limits)` or
 `Engine::prepare(program, limits)`. Without a registry, live inputs report
 `unresolved_object`; snapshot-only descriptions still prepare independently.
-`ProgramFailure` retains the offending node and nested `ObjectError`.
+`ProgramFailure` (an `mlibs::error::Error`) keeps the offending node in `where` and
+the `ObjectError` beneath it as a cause (`caused_by(ObjectError::stale_object)`).
 
 ```cpp
 import hanim.program;

@@ -320,7 +320,7 @@ int main(int argc, char** argv) {
         const auto ref = f.engine.play(*plan); check(ref.has_value());
         const auto ci = plan->tracks()[0].object==c ? 0u : 1u;
         const auto result = f.engine.advance(seconds(.5));
-        check(!result && result.error().code==EngineError::animation && result.error().program.has_value());
+        check(!result && result.error().code==EngineError::animation && !result.error().causes.empty() && result.error().causes.front().code.starts_with("hanim.program."));
         check(f.engine.inspect(independent)->position==seconds(0) && f.engine.inspect(*ref)->position==seconds(0));
         check(f.engine.frame(independent)->effect_values[0]==0 && f.engine.frame(*ref,ci)->effect_values[0]==0);
         check(f.engine.frame(independent)->geometry.parts[1].local.tx==0 && f.engine.frame(*ref,ci)->geometry.parts[1].local.tx==0);
@@ -361,7 +361,7 @@ int main(int argc, char** argv) {
         const auto plan = PreparedProgram::prepare(bind(*f.engine.capture_object(f.a),*f.engine.capture_object(f.b),
             {fx::blur(0,1),fx::tone({}, {})})); check(plan.has_value());
         const auto refused = f.engine.play(*plan);
-        check(!refused && refused.error().code==EngineError::effect && refused.error().effect==EffectError::capacity);
+        check(!refused && refused.error().code==EngineError::effect && refused.error().caused_by(EffectError::capacity));
         check(f.engine.size()==0);
         check(f.engine.play(f.a,anim::morph_to(f.b),fx::blur(0,1)).has_value());
     });

@@ -165,7 +165,7 @@ int main(int argc,char** argv) {
         Fixture f;
         for(const auto& effect:std::array<EffectSpec,3>{{{"missing",{}},{"blur",{{"typo",0,1}}},{"liquid_glass",{}}}}) {
             const auto plan=take(f.engine.prepare(composite(f.hold(f.a)).with_effect(effect)));
-            const auto result=PreparedVectorProgram::bind(plan);check(!result && result.error().scope==0);
+            const auto result=PreparedVectorProgram::bind(plan);check(!result && result.error().where.scope==0);
         }
         const auto plan=take(f.engine.prepare(composite(f.hold(f.a)).with_effect({"tone",{}})));
         check(PreparedVectorProgram::bind(plan,{.max_prepared_backend_parameters=0}).error().code==VectorError::capacity,
@@ -181,7 +181,7 @@ int main(int argc,char** argv) {
         auto scratch=storage.get();scratch.scope_stack={};check(renderer.record(frame,output,scratch).error().code==VectorError::buffer_too_small);
         scratch=storage.get();scratch.order=scratch.scope_members;check(renderer.record(frame,output,scratch).error().code==VectorError::recording_alias);
         std::array<float,1> invalid{201};bad=frame;bad.scope_effect_values=invalid;
-        const auto error=renderer.record(bad,output,storage.get());check(!error && error.error().scope==0 && error.error().code==VectorError::invalid_parameter);
+        const auto error=renderer.record(bad,output,storage.get());check(!error && error.error().where.scope==0 && error.error().code==VectorError::invalid_parameter);
         std::vector<ProgramTrackView> views(frame.tracks.begin(),frame.tracks.end());std::swap(views[0],views[1]);bad=frame;bad.tracks=views;
         check(renderer.record(bad,output,storage.get()).error().code==VectorError::foreign_frame);
         check(output.hash()==before);
@@ -189,7 +189,7 @@ int main(int argc,char** argv) {
         check(render::effects().replace(blur,original));
         const auto stale=renderer.record(frame,output,storage.get());
         check(render::effects().replace(blur,original));
-        check(!stale && stale.error().code==VectorError::stale_effect && stale.error().scope==0 && output.hash()==before);
+        check(!stale && stale.error().code==VectorError::stale_effect && stale.error().where.scope==0 && output.hash()==before);
     });
     suite.test("prepared scoped playback query and warmed recording allocate nothing",[] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(0,4))));

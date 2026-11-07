@@ -132,7 +132,7 @@ void check_connected(FrameView frame) {
     }
 }
 template<class T> void error_is(const std::expected<T,MorphFailure>& result,MorphError code) {
-    check(!result); if(!result) check(result.error().code==code,morph_error_name(result.error().code));
+    check(!result); if(!result) check(result.error().code==code,describe(result.error().code).name);
 }
 // The fixture's convex cubics are monotone on their endpoint-dominant axis.
 // This independent geometric witness permits new de Casteljau cuts without
@@ -225,11 +225,11 @@ int main(int argc,char** argv) {
         error_is(PreparedObjectMorph::prepare(f.from,f.to,{.max_cubics=1}),MorphError::cubic_budget);
         MorphOptions options;options.shape.max_input_segments=0;
         auto core=PreparedObjectMorph::prepare(f.from,f.to,options);
-        error_is(core,MorphError::shape_failure);if(!core) check(core.error().shape==ShapeMorphError::invalid_options);
+        error_is(core,MorphError::shape_failure);if(!core) check(core.error().caused_by(ShapeMorphError::invalid_options));
         const std::array flat{ShapeSegment::line({1,0}),ShapeSegment::line({2,0})};
         auto degenerate=description(take(Contour::copy({{0,0},flat})));
         auto bad=PreparedObjectMorph::prepare(f.add(degenerate),f.to);
-        error_is(bad,MorphError::shape_failure);if(!bad) check(bad.error().shape==ShapeMorphError::degenerate_contour);
+        error_is(bad,MorphError::shape_failure);if(!bad) check(bad.error().caused_by(ShapeMorphError::degenerate_contour));
         check(take(f.registry.revision(f.a))==revision);
     });
     suite.test("all sample errors preserve caller buffers including late overflowing transforms",[] {

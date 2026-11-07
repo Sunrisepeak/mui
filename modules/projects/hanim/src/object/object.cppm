@@ -2,6 +2,7 @@
 export module hanim.object;
 
 import std;
+import mlibs.error;
 export import hanim.core;
 export import mlibs.geom;
 import mlibs.memory;
@@ -42,7 +43,39 @@ enum class ObjectError : std::uint8_t {
     invalid_coordinate, invalid_verb, invalid_transform, invalid_color,
     invalid_resource, unsupported_capability, reentrant_mutation, invalid_path
 };
-[[nodiscard]] std::string_view object_error_name(ObjectError error) noexcept;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(ObjectError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case ObjectError::uninitialized: return {"hanim.object.uninitialized", Kind::invalid_argument};
+        case ObjectError::invalid_limits: return {"hanim.object.invalid-limits", Kind::invalid_argument};
+        case ObjectError::identity_exhausted: return {"hanim.object.identity-exhausted", Kind::refused};
+        case ObjectError::version_exhausted: return {"hanim.object.version-exhausted", Kind::refused};
+        case ObjectError::invalid_object: return {"hanim.object.invalid-object", Kind::invalid_argument};
+        case ObjectError::foreign_owner: return {"hanim.object.foreign-owner", Kind::invalid_argument};
+        case ObjectError::stale_object: return {"hanim.object.stale-object", Kind::stale};
+        case ObjectError::different_object: return {"hanim.object.different-object", Kind::invalid_argument};
+        case ObjectError::invalid_part: return {"hanim.object.invalid-part", Kind::invalid_argument};
+        case ObjectError::stale_part: return {"hanim.object.stale-part", Kind::stale};
+        case ObjectError::part_not_found: return {"hanim.object.part-not-found", Kind::not_found};
+        case ObjectError::invalid_id: return {"hanim.object.invalid-id", Kind::invalid_argument};
+        case ObjectError::duplicate_id: return {"hanim.object.duplicate-id", Kind::invalid_argument};
+        case ObjectError::missing_parent: return {"hanim.object.missing-parent", Kind::invalid_argument};
+        case ObjectError::multiple_roots: return {"hanim.object.multiple-roots", Kind::invalid_argument};
+        case ObjectError::cycle: return {"hanim.object.cycle", Kind::invalid_argument};
+        case ObjectError::depth_limit: return {"hanim.object.depth-limit", Kind::refused};
+        case ObjectError::capacity: return {"hanim.object.capacity", Kind::refused};
+        case ObjectError::invalid_coordinate: return {"hanim.object.invalid-coordinate", Kind::invalid_argument};
+        case ObjectError::invalid_verb: return {"hanim.object.invalid-verb", Kind::invalid_argument};
+        case ObjectError::invalid_transform: return {"hanim.object.invalid-transform", Kind::invalid_argument};
+        case ObjectError::invalid_color: return {"hanim.object.invalid-color", Kind::invalid_argument};
+        case ObjectError::invalid_resource: return {"hanim.object.invalid-resource", Kind::invalid_argument};
+        case ObjectError::unsupported_capability: return {"hanim.object.unsupported-capability", Kind::refused};
+        case ObjectError::reentrant_mutation: return {"hanim.object.reentrant-mutation", Kind::refused};
+        case ObjectError::invalid_path: return {"hanim.object.invalid-path", Kind::failed, {}, true};
+    }
+    return {"hanim.object.?", Kind::internal};
+}
 
 // Immutable geometry lease. copy() owns its data, including when the source
 // ShapeContour spans a temporary vector. Open/move-only contours are valid
@@ -63,11 +96,12 @@ struct PathImportLimits {
     std::size_t max_contours = 4096, max_segments = 65536;
     mlibs::geom::PathLimits source;
 };
-struct PathImportFailure {
-    ObjectError code;
-    std::optional<mlibs::geom::PathFailure> path;
+// Where an import failed: the contour. The path's own error is a cause.
+struct PathImportWhere {
     std::size_t contour = std::numeric_limits<std::size_t>::max();
 };
+[[nodiscard]] std::string describe_where(const PathImportWhere& where);
+using PathImportFailure = mlibs::error::Error<ObjectError, PathImportWhere>;
 struct ImportedContour {
     Contour geometry;
     // Half-open command/operand ranges in the captured source. For an implicit

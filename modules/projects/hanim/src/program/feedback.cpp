@@ -12,7 +12,7 @@ std::optional<ProgramFailure> invalid_feedback(const FeedbackOptions& options,do
     return {};
 }
 Program invalid_target() {
-    return invalid_program({.code=ProgramError::animation,.animation=MorphFailure{MorphError::invalid_property}});
+    return invalid_program(ProgramFailure{ProgramError::animation}.because(MorphFailure{MorphError::invalid_property}));
 }
 bool can_double(double value) {
     return std::isfinite(value) && std::abs(value)<=std::numeric_limits<double>::max()/2;

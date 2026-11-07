@@ -43,11 +43,15 @@ enum class Kind : std::uint8_t { invalid_argument, not_found, refused, stale, ti
 }
 
 // What a domain says of one of its codes: its name (`domain.code`), its kind,
-// and a sentence a person reads.
+// and a sentence a person reads. A code that says a lower layer failed (an
+// engine's `program`, wrapping the program's own error) `wraps`: its kind is
+// its first cause's, so an agent learns that the program was refused, not
+// merely that something failed.
 struct Description {
     std::string_view name;
     Kind             kind = Kind::failed;
     std::string_view text = {};
+    bool             wraps = false;
 };
 
 // A domain's code: an enum described by `describe(code)`, found beside it.
@@ -83,7 +87,21 @@ struct Error {
     std::vector<Cause> causes;
 
     [[nodiscard]] Description description() const noexcept { return describe(code); }
-    [[nodiscard]] Kind kind() const noexcept { return describe(code).kind; }
+    [[nodiscard]] Kind kind() const noexcept {
+        const Description d = describe(code);
+        return d.wraps && !causes.empty() ? causes.front().kind : d.kind;
+    }
+
+    // Whether `c` failed beneath this error, and the first time it did.
+    template <Code D>
+    [[nodiscard]] const Cause* cause_of(D c) const noexcept {
+        const std::string_view n = describe(c).name;
+        for (const Cause& k : causes)
+            if (k.code == n) return &k;
+        return nullptr;
+    }
+    template <Code D>
+    [[nodiscard]] bool caused_by(D c) const noexcept { return cause_of(c) != nullptr; }
 
     // This error as a cause of another.
     [[nodiscard]] Cause cause() const { return {std::string(describe(code).name), kind(), where_text(where), message}; }
@@ -99,11 +117,21 @@ struct Error {
     Error&& because(const Error<D, W>& inner) && {
         return std::move(because(inner));
     }
+    // A lower layer's bare code (a domain whose errors carry nothing more) beneath this error.
+    template <Code D>
+    Error& because(D inner) & {
+        causes.push_back({std::string(describe(inner).name), describe(inner).kind, {}, {}});
+        return *this;
+    }
+    template <Code D>
+    Error&& because(D inner) && {
+        return std::move(because(inner));
+    }
 
     // `rhi.invalid (invalid-argument) at track 2: a pass inside a pass; because …`
     [[nodiscard]] std::string text() const {
         const Description d = describe(code);
-        std::string out = std::format("{} ({})", d.name, name(d.kind));
+        std::string out = std::format("{} ({})", d.name, name(kind()));
         if (const std::string w = where_text(where); !w.empty()) out += " at " + w;
         if (!message.empty()) out += ": " + message;
         else if (!d.text.empty()) out += ": " + std::string(d.text);

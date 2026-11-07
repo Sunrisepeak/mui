@@ -24,8 +24,11 @@ std::string describe_where(const Cell& c) { return std::format("cell ({}, {})", 
 }  // namespace demo
 
 namespace outer {
-enum class Errc : std::uint8_t { failed };
-constexpr err::Description describe(Errc) noexcept { return {"outer.failed", err::Kind::failed}; }
+enum class Errc : std::uint8_t { failed, inner };
+constexpr err::Description describe(Errc e) noexcept {
+    if (e == Errc::inner) return {"outer.inner", err::Kind::failed, {}, true};
+    return {"outer.failed", err::Kind::failed};
+}
 }  // namespace outer
 
 int main(int argc, char** argv) {
@@ -69,6 +72,24 @@ int main(int argc, char** argv) {
                                                                               {err::Kind::failed, "failed"},
                                                                               {err::Kind::internal, "internal"}}};
         for (const auto& [k, n] : openas) check_eq(std::string(err::name(k)), std::string(n));
+    });
+
+    s.test("a code that wraps takes its kind from the error beneath it", [] {
+        auto e = err::Error<outer::Errc>{outer::Errc::inner};
+        check(e.kind() == err::Kind::failed, "nothing beneath: its own kind");
+        e.because(err::Error<demo::Errc>{demo::Errc::gone});
+        check(e.kind() == err::Kind::not_found, "the cause's kind");
+        check(err::Error<outer::Errc>{outer::Errc::failed}.because(demo::Errc::gone).kind() == err::Kind::failed,
+              "a code that does not wrap keeps its own");
+    });
+
+    s.test("a cause is found by its code, a bare code too", [] {
+        const auto e = err::Error<outer::Errc>{outer::Errc::inner}.because(err::Error<demo::Errc, demo::Cell>{demo::Errc::bad, {}, {5, 6}});
+        check(e.caused_by(demo::Errc::bad) && !e.caused_by(demo::Errc::gone), "by code");
+        check_eq(e.cause_of(demo::Errc::bad)->where, std::string("cell (5, 6)"));
+        const auto bare = err::Error<outer::Errc>{outer::Errc::inner}.because(demo::Errc::gone);
+        check(bare.caused_by(demo::Errc::gone) && bare.kind() == err::Kind::not_found, "a bare code is a cause");
+        check_eq(bare.text(), std::string("outer.inner (not-found); because demo.gone (not-found)"));
     });
 
     s.test("an error is a Result's error", [] {

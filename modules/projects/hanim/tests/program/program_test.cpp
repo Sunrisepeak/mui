@@ -111,7 +111,7 @@ int main(int argc,char** argv) {
     suite.test("scope budgets and invalid output preserve diagnostics and caller storage",[] {
         Fixture f;const auto recipe=composite(anim::morph(f.a,f.b).with_effect(fx::blur(0,2))).with_effect(fx::blur(1,4));
         const auto absent=PreparedProgram::prepare(recipe,{.max_scopes=0});
-        check(!absent && absent.error().code==ProgramError::scope_budget && absent.error().node==0 && absent.error().scope==0);
+        check(!absent && absent.error().code==ProgramError::scope_budget && absent.error().where.node==0 && absent.error().where.scope==0);
         check(PreparedProgram::prepare(recipe,{.max_total_effect_parameters=1}).error().code==ProgramError::effect_parameter_budget);
         const auto plan=take(PreparedProgram::prepare(recipe));std::array<float,1> values{123};
         check(plan.sample_scopes(seconds(.5),{}).error().code==ProgramError::output_too_small);
@@ -154,8 +154,8 @@ int main(int argc,char** argv) {
         Buffer sum(combined.tracks()[0]);
         check(sum.sample(combined,0,.5).geometry.parts[0].local.ty==2.5);
         const auto bad=PreparedProgram::prepare(base.with_effect(fx::vertex_path({{std::numeric_limits<double>::quiet_NaN(),0},{}})));
-        check(!bad && bad.error().code==ProgramError::animation && bad.error().node==0 &&
-              bad.error().animation && bad.error().animation->code==MorphError::invalid_options);
+        check(!bad && bad.error().code==ProgramError::animation && bad.error().where.node==0 &&
+              bad.error().caused_by(MorphError::invalid_options));
     });
     suite.test("standalone live inputs capture once and retain geometry after registry changes",[] {
         Fixture f;
@@ -169,7 +169,7 @@ int main(int argc,char** argv) {
         take(f.registry.destroy(f.ar));take(f.registry.destroy(f.br));
         check(output.sample(plan,0,.5).geometry.parts[0].local.tx==7);
         const auto stale=PreparedProgram::prepare(recipe,f.registry);
-        check(!stale && stale.error().code==ProgramError::object && stale.error().object==ObjectError::stale_object);
+        check(!stale && stale.error().code==ProgramError::object && stale.error().caused_by(ObjectError::stale_object));
         const auto missing=PreparedProgram::prepare(recipe);
         check(!missing && missing.error().code==ProgramError::unresolved_object);
         check(PreparedProgram::prepare(bind(f.a,f.b),{}).has_value(),"legacy braced default limits stay unambiguous");
@@ -215,7 +215,7 @@ int main(int argc,char** argv) {
     suite.test("same-object overlaps and parallel instantaneous writes refuse with structured locations",[] {
         Fixture f;const auto x=bind(f.a,f.b),y=bind(f.a,f.c);
         const auto overlap=PreparedProgram::prepare(parallel({x,y}));
-        check(!overlap && overlap.error().code==ProgramError::binding_conflict && overlap.error().node==2 && overlap.error().track==0 && overlap.error().segment==1);
+        check(!overlap && overlap.error().code==ProgramError::binding_conflict && overlap.error().where.node==2 && overlap.error().where.track==0 && overlap.error().where.segment==1);
         const auto delayed=PreparedProgram::prepare(stagger(seconds(.5),{x,y}));check(!delayed && delayed.error().code==ProgramError::binding_conflict);
         const auto instant=bind(f.a,f.b,{}, {.duration=seconds(0)});
         const auto conflicting=PreparedProgram::prepare(parallel({instant,instant}));check(!conflicting && conflicting.error().code==ProgramError::binding_conflict);
@@ -246,7 +246,7 @@ int main(int argc,char** argv) {
     suite.test("version mismatch needs explicit frozen-source mode",[] {
         Fixture f;take(f.registry.update(f.ar,shape(100)));const auto newer=take(f.registry.capture(f.ar));
         const auto bad=PreparedProgram::prepare(sequence({bind(f.a,f.b),bind(newer,f.c)}));
-        check(!bad && bad.error().code==ProgramError::source_version_mismatch && bad.error().node==2);
+        check(!bad && bad.error().code==ProgramError::source_version_mismatch && bad.error().where.node==2);
         const auto good=take(PreparedProgram::prepare(sequence({bind(f.a,f.b),bind(newer,f.c,{}, {},{},ProgramSource::snapshot)})));
         Buffer output(good.tracks()[0]);check(output.sample(good,0,1).geometry.parts[0].local.tx==100);
         const auto frozen=take(PreparedProgram::prepare(bind(f.a,f.b)));Buffer old(frozen.tracks()[0]);
@@ -277,7 +277,7 @@ int main(int argc,char** argv) {
         const auto overflow=sequence({bind(f.a,f.b,{}, {.duration=seconds(std::numeric_limits<double>::max())}),bind(f.b,f.c,{}, {.duration=seconds(std::numeric_limits<double>::max())})});
         check(PreparedProgram::prepare(overflow).error().code==ProgramError::invalid_time);
         const auto bad_effect=PreparedProgram::prepare(bind(f.a,f.b,{{"blur",{{"radius",0,std::numeric_limits<float>::infinity()}}}}));
-        check(!bad_effect && bad_effect.error().code==ProgramError::effect && bad_effect.error().effect==EffectError::nonfinite_value);
+        check(!bad_effect && bad_effect.error().code==ProgramError::effect && bad_effect.error().caused_by(EffectError::nonfinite_value));
     });
     suite.test("sampling errors preserve both geometry and effect buffers",[] {
         Fixture f;const auto plan=take(PreparedProgram::prepare(bind(f.a,f.b,{fx::blur(0,8)})));Buffer output(plan.tracks()[0]);
@@ -443,32 +443,32 @@ int main(int argc,char** argv) {
         const auto repeated=anim::move_through(f.a,{{seconds(1),{1,0}},{seconds(1),{2,0}}});check(repeated.failure());
         const auto overflow=anim::move_through(f.a,{{seconds(1),{std::numeric_limits<double>::max(),0}},
             {seconds(2),{-std::numeric_limits<double>::max(),0}}});
-        check(overflow.failure() && overflow.failure()->animation && overflow.failure()->animation->clip==1 &&
-            overflow.failure()->animation->code==MorphError::invalid_property);
+        check(overflow.failure() && overflow.failure()->caused_by(MorphError::invalid_property) &&
+            overflow.failure()->cause_of(MorphError::invalid_property)->where=="clip 1");
         const auto bad_ease=anim::move_through(f.a,{{seconds(1),{1,0},Ease{static_cast<EaseKind>(255)}}});
         check(bad_ease.failure() && bad_ease.failure()->code==ProgramError::invalid_ease);
         const auto nonfinite=anim::move_through(f.a,{{seconds(1),{std::numeric_limits<double>::quiet_NaN(),0}}});
-        check(nonfinite.failure() && nonfinite.failure()->animation->code==MorphError::invalid_property);
+        check(nonfinite.failure() && nonfinite.failure()->caused_by(MorphError::invalid_property));
         const auto bad_path=anim::move_through(f.a,{{seconds(1),{1,0},ease::linear,{{1e7,0},{}}}});
-        check(bad_path.failure() && bad_path.failure()->animation->code==MorphError::invalid_options);
+        check(bad_path.failure() && bad_path.failure()->caused_by(MorphError::invalid_options));
         const auto unknown=PreparedProgram::prepare(anim::move_through(f.a,{{seconds(1),{1,0}}},{.part="missing"}));
-        check(!unknown && unknown.error().animation->code==MorphError::unknown_part);
+        check(!unknown && unknown.error().caused_by(MorphError::unknown_part));
         const auto hold=take(PreparedProgram::prepare(anim::move_through(f.a,{{seconds(.5),{0,0}},{seconds(1),{5,0}}})));
         Buffer out(hold.tracks()[0]);check(out.sample(hold,0,.25).geometry.parts[0].local.tx==0);
         check(out.sample(hold,0,1).geometry.parts[0].local.tx==5);
     });
     suite.test("deferred authoring errors retain typed causes and acquire the actual composition node",[] {
         Fixture f;
-        const auto rejected=invalid_program({.code=ProgramError::animation,.node=99,
-            .animation=MorphFailure{.code=MorphError::invalid_property,.part=7}});
+        const auto rejected=invalid_program(ProgramFailure{.code=ProgramError::animation,.where={.node=99}}
+            .because(MorphFailure{.code=MorphError::invalid_property,.where={.part=7}}));
         const auto copy=rejected;
         check(rejected && rejected.kind()==ProgramKind::invalid && copy.failure()==rejected.failure());
         check(!rejected.binding() && !rejected.inputs() && !rejected.scope() && rejected.children().empty());
         const auto nested=sequence(anim::move_to(f.a,{4,0}),parallel(rejected,anim::rotate_to(f.a,1)));
         const auto prepared=PreparedProgram::prepare(nested);
-        check(!prepared && prepared.error().code==ProgramError::animation && prepared.error().node==3 &&
-            prepared.error().animation && prepared.error().animation->part==7);
-        check(rejected.failure()->node==99,"preparing a composition does not mutate its reusable error expression");
+        check(!prepared && prepared.error().code==ProgramError::animation && prepared.error().where.node==3 &&
+            prepared.error().cause_of(MorphError::invalid_property) && prepared.error().cause_of(MorphError::invalid_property)->where=="part 7");
+        check(rejected.failure()->where.node==99,"preparing a composition does not mutate its reusable error expression");
         const auto bounded=PreparedProgram::prepare(nested,{.max_nodes=2});
         check(!bounded && bounded.error().code==ProgramError::node_budget);
         const Program empty;check(!empty.failure());
@@ -482,8 +482,8 @@ int main(int argc,char** argv) {
             anim::wobble(f.a,std::numeric_limits<double>::max())}) {
             check(value.kind()==ProgramKind::invalid && value.failure() && value.children().empty());
             const auto error=PreparedProgram::prepare(value);
-            check(!error && error.error().code==ProgramError::animation && error.error().animation &&
-                error.error().animation->code==MorphError::invalid_property);
+            check(!error && error.error().code==ProgramError::animation &&
+                error.error().caused_by(MorphError::invalid_property));
         }
         for(const auto& value:{anim::pulse(f.a,{1,1},{.duration=seconds(std::numeric_limits<double>::denorm_min())}),
             anim::shake(f.a,{1,1},{.duration=seconds(3*std::numeric_limits<double>::denorm_min())}),
@@ -542,10 +542,10 @@ int main(int argc,char** argv) {
             {.rotation=std::numeric_limits<double>::quiet_NaN()}, {.scale=Vec2{1,std::numeric_limits<double>::infinity()}},
             {.fill=Rgba{2,0,0,1}}}) {
             const auto plan=PreparedProgram::prepare(anim::to(f.a,values));
-            check(!plan && plan.error().animation && plan.error().animation->code==MorphError::invalid_property);
+            check(!plan && plan.error().caused_by(MorphError::invalid_property));
         }
         const auto missing=PreparedProgram::prepare(anim::to(f.a,{.position=Vec2{1,2},.part="absent"}));
-        check(!missing && missing.error().animation->code==MorphError::unknown_part);
+        check(!missing && missing.error().caused_by(MorphError::unknown_part));
         check(take(f.registry.capture(f.ar)).revision()==f.a.revision());
     });
     suite.test("property sampling with process and image effects is allocation free across the whole process",[] {
@@ -591,10 +591,10 @@ int main(int argc,char** argv) {
         Fixture f;
         const auto collision=PreparedProgram::prepare(anim::to(f.a,PropertySet{
             {.position=Vec2{2,4}}, {.offset=Vec2{1,1},.part="shape"}}));
-        check(!collision && collision.error().animation->code==MorphError::property_conflict);
-        check(collision.error().animation->part==0);
+        check(!collision && collision.error().caused_by(MorphError::property_conflict));
+        check(collision.error().cause_of(MorphError::property_conflict)->where.starts_with("part 0"));
         const auto empty=PreparedProgram::prepare(anim::to(f.a,PropertySet{}));
-        check(!empty && empty.error().animation->code==MorphError::invalid_property);
+        check(!empty && empty.error().caused_by(MorphError::invalid_property));
         const auto independent=take(PreparedProgram::prepare(anim::to(f.a,PropertySet{
             {.position=Vec2{2,4}}, {.rotation=1,.part="shape"}, {.fill=Rgba{0,1,0,1}}})));
         Buffer output(independent.tracks()[0]);const auto pose=output.sample(independent,0,1).geometry.parts[0];
@@ -648,8 +648,8 @@ int main(int argc,char** argv) {
     suite.test("parallel channel conflict scope and budget failures identify the responsible author node",[] {
         Fixture f;
         const auto conflict=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}),anim::move_by(f.a,{1,0})));
-        check(!conflict && conflict.error().code==ProgramError::binding_conflict && conflict.error().node==2);
-        check(conflict.error().animation && conflict.error().animation->channel==PropertyChannel::translation);
+        check(!conflict && conflict.error().code==ProgramError::binding_conflict && conflict.error().where.node==2);
+        check(conflict.error().cause_of(MorphError::property_conflict) && conflict.error().cause_of(MorphError::property_conflict)->where.ends_with("channel translation"));
         const auto scope=PreparedProgram::prepare(parallel(anim::move_to(f.a,{10,0}).with_effect(fx::blur(0,4)),anim::rotate_to(f.a,1)));
         check(!scope && scope.error().code==ProgramError::scope_conflict);
         const auto nested=PreparedProgram::prepare(parallel(composite(anim::move_to(f.a,{10,0})).with_effect(fx::blur(0,4)),anim::rotate_to(f.a,1)));
@@ -720,7 +720,7 @@ int main(int argc,char** argv) {
         Fixture f;
         const std::array clip{PropertyClip{.targets={{.position=Vec2{1,2},.rotation=1,.scale=Vec2{2,2},.fill=Rgba{0,0,1,1}}}}};
         const auto budget=PreparedObjectAnimation::property_timeline(f.a,clip,{.max_channels=3});
-        check(!budget && budget.error().code==MorphError::channel_budget && budget.error().channel==PropertyChannel::fill);
+        check(!budget && budget.error().code==MorphError::channel_budget && budget.error().where.channel==PropertyChannel::fill);
         auto invalid=clip;invalid[0].start=seconds(1e300);
         check(PreparedObjectAnimation::property_timeline(f.a,invalid).error().code==MorphError::invalid_time);
         invalid=clip;invalid[0].options.shape.point_path=PointPath::bend(.2);
@@ -789,7 +789,7 @@ int main(int argc,char** argv) {
         Buffer out(scoped.tracks()[0]);check(out.sample(scoped,0,1.5).geometry.parts[0].local.tx==10);
         for(double time:{-1.,std::numeric_limits<double>::infinity(),std::numeric_limits<double>::quiet_NaN()}) {
             const auto bad=PreparedProgram::prepare(delay(seconds(time),anim::move_by(f.a,{1,0})));
-            check(!bad && bad.error().code==ProgramError::invalid_time && bad.error().node==1);
+            check(!bad && bad.error().code==ProgramError::invalid_time && bad.error().where.node==1);
         }
         const auto huge=std::numeric_limits<double>::max();
         check(PreparedProgram::prepare(sequence(wait(seconds(huge)),wait(seconds(huge)))).error().code==ProgramError::invalid_time);
@@ -865,11 +865,11 @@ int main(int argc,char** argv) {
     suite.test("repeat count and expansion obey the same diagnostic and resource budgets",[] {
         Fixture f;const auto child=anim::move_by(f.a,{1,0});
         const auto zero=PreparedProgram::prepare(sequence(wait(seconds(1)),repeat(0,child)));
-        check(!zero && zero.error().code==ProgramError::invalid_repeat && zero.error().node==2);
-        check(program_error_name(ProgramError::invalid_repeat)=="invalid-repeat");
+        check(!zero && zero.error().code==ProgramError::invalid_repeat && zero.error().where.node==2);
+        check(describe(ProgramError::invalid_repeat).name=="hanim.program.invalid-repeat");
         const auto huge=repeat(std::numeric_limits<std::size_t>::max(),wait(seconds(0)));
         check(huge.children().size()==1 && huge.repeat_count()==std::numeric_limits<std::size_t>::max());
-        const auto bound=PreparedProgram::prepare(huge,{.max_nodes=4});check(!bound && bound.error().code==ProgramError::node_budget && bound.error().node==4);
+        const auto bound=PreparedProgram::prepare(huge,{.max_nodes=4});check(!bound && bound.error().code==ProgramError::node_budget && bound.error().where.node==4);
         check(PreparedProgram::prepare(repeat(3,child),{.max_segments=2}).error().code==ProgramError::segment_budget);
         check(PreparedProgram::prepare(repeat(3,child),{.max_depth=1}).error().code==ProgramError::depth_budget);
         check(PreparedProgram::prepare(repeat(2,composite(child).with_effect(fx::opacity(1,.5))),{.max_scopes=1}).error().code==ProgramError::scope_budget);
@@ -937,20 +937,20 @@ int main(int argc,char** argv) {
         const auto vertex=anim::follow_path(f.a,path).with_effect(fx::vertex_path(PointPath::bend(.2)));
         for(const auto& expression:{Program(vertex),parallel(vertex,anim::rotate_by(f.a,.1))}) {
             const auto rejected=PreparedProgram::prepare(expression);
-            check(!rejected && rejected.error().animation && rejected.error().animation->code==MorphError::unsupported_property_effect,
+            check(!rejected && rejected.error().caused_by(MorphError::unsupported_property_effect),
                 "route-only translation does not silently accept a geometry deformation in either execution path");
         }
         const auto conflict=PreparedProgram::prepare(parallel(anim::follow_path(f.a,path),anim::move_by(f.a,{1,0})));
         check(!conflict && conflict.error().code==ProgramError::binding_conflict);
         const auto duplicate=PreparedProgram::prepare(anim::to(f.a,{.offset=Vec2{1,0},.route=TranslationRoute(path)}));
-        check(!duplicate && duplicate.error().animation && duplicate.error().animation->code==MorphError::invalid_property);
+        check(!duplicate && duplicate.error().caused_by(MorphError::invalid_property));
     });
     suite.test("invalid routes and retained route budgets fail during preparation",[] {
         Fixture f;MotionPath empty,bad,split,route;bad.line_to({std::numeric_limits<double>::quiet_NaN(),0});
         split.line_to({1,0}).move_to({3,0}).line_to({4,0});route.line_to({1,0}).line_to({2,0});
         for(const auto* path:{&empty,&bad,&split})check(!PreparedProgram::prepare(anim::follow_path(f.a,*path)));
         const auto limited=PreparedProgram::prepare(anim::to(f.a,{.route=TranslationRoute(route)},{.max_route_segments=1}));
-        check(!limited && limited.error().animation && limited.error().animation->code==MorphError::route_budget);
+        check(!limited && limited.error().caused_by(MorphError::route_budget));
         const auto retained=PreparedProgram::prepare(repeat(2,anim::follow_path(f.a,route)),{.max_total_route_segments=3});
         check(!retained && retained.error().code==ProgramError::route_budget);
         check(PreparedProgram::prepare(anim::follow_path(f.a,route),{.max_total_route_segments=2}).has_value());

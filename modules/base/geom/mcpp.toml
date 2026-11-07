@@ -1,6 +1,7 @@
 # mlibs.geom — the geometry the independent modules share: points, sizes,
 # rectangles, insets, radii, colours, affine transforms, pixel snapping.
-# Standard library only; constexpr value/path contracts and shared curve flattening.
+# The standard library and mlibs.utils (its errors are mlibs.error's);
+# constexpr value/path contracts and shared curve flattening.
 [package]
 namespace   = "mlibs"
 name        = "geom"
@@ -20,5 +21,5 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
-[dev-dependencies]
+[dependencies]
 mlibs.utils = { path = "../utils" }

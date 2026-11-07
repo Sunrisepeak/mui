@@ -654,7 +654,7 @@ std::optional<Node::PixelEffectState> Runtime::Impl::effect_state(const Value& v
     if (!recipe.parameters.empty()) {
         const std::array recipes{std::move(recipe)};
         auto prepared = hanim::PreparedEffects::prepare(recipes);
-        if (!prepared) return bad(hanim::effect_error_name(prepared.error()));
+        if (!prepared) return bad(describe(prepared.error()).name);
         st.animation = std::make_unique<Node::PixelEffectState::Animation>();
         st.animation->plan = std::move(*prepared);
         st.animation->params = std::move(indices);

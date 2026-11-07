@@ -84,8 +84,9 @@ Unused shape options on a group-only plan perform no contour preparation.
 Process-path controls are validated even on a group-only plan; invalid
 `shape.point_path` or `translation_path` returns `invalid_options` before
 capturing/compiling shapes. Other shape-only budgets keep their prior policy.
-Failure returns no partial plan. `MorphFailure.part` uses source DFS index;
-`contour` is the ordinal within it, with max-size sentinels when not applicable.
+Failure returns no partial plan. A `MorphFailure` (an `mlibs::error::Error`) says
+where in `where`: `part` uses source DFS index; `contour` is the ordinal within
+it, with max-size sentinels when not applicable. A shape's own error is a cause.
 
 `sample` is a pure function of finite progress and immutable endpoint data;
 finite progress clamps uniformly to [0,1]. It performs no matching, ownership

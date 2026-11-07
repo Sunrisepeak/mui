@@ -4,13 +4,18 @@ import mlibs.log;
 import mlibs.trace;
 
 namespace hanim {
+std::string describe_where(const PathImportWhere& where) {
+    return where.contour==std::numeric_limits<std::size_t>::max() ? std::string() : std::format("contour {}",where.contour);
+}
 std::expected<ImportedPath,PathImportFailure> import_path(mlibs::geom::PathView path,PathImportLimits limits) {
     mlibs::trace::Span span("path.import","hanim.object");
     constexpr mlibs::log::Log diagnostic{"hanim.object"};
     auto refuse=[&](ObjectError code,std::optional<mlibs::geom::PathFailure> cause={},
                     std::size_t contour=std::numeric_limits<std::size_t>::max()) -> std::expected<ImportedPath,PathImportFailure> {
-        diagnostic.debug("path import refused: {}",object_error_name(code));
-        return std::unexpected(PathImportFailure{code,cause,contour});
+        PathImportFailure error{code,{},{contour}};
+        if(cause)error.because(*cause);
+        diagnostic.debug("path import refused: {}",error.text());
+        return std::unexpected(std::move(error));
     };
     if(!limits.max_contours || limits.max_contours>65536 || !limits.max_segments || limits.max_segments>(1u<<20))
         return refuse(ObjectError::invalid_limits);

@@ -1,6 +1,7 @@
 // Immutable binding expressions and prepared per-object schedules, no clock.
 export module hanim.program;
 import std;
+import mlibs.error;
 export import hanim.library;
 export import hanim.effect;
 
@@ -28,7 +29,57 @@ struct ProgramBinding {
 // captured revision. Neither form owns or mutates the application's registry.
 using ObjectInput = std::variant<Snapshot, ObjectRef>;
 struct ProgramInputs { ObjectInput from, to; };
-struct ProgramFailure;
+enum class ProgramError : std::uint8_t {
+    unprepared, invalid_limits, empty_program, invalid_snapshot, invalid_source,
+    invalid_time, invalid_ease, node_budget, depth_budget, track_budget,
+    segment_budget, part_budget, cubic_budget, effect_parameter_budget,
+    source_version_mismatch, binding_conflict, animation, effect,
+    invalid_track, output_too_small, unresolved_object, object, scope_budget,
+    channel_budget, scope_conflict, invalid_repeat, route_budget
+};
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(ProgramError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case ProgramError::unprepared: return {"hanim.program.unprepared", Kind::invalid_argument};
+        case ProgramError::invalid_limits: return {"hanim.program.invalid-limits", Kind::invalid_argument};
+        case ProgramError::empty_program: return {"hanim.program.empty-program", Kind::invalid_argument};
+        case ProgramError::invalid_snapshot: return {"hanim.program.invalid-snapshot", Kind::invalid_argument};
+        case ProgramError::invalid_source: return {"hanim.program.invalid-source", Kind::invalid_argument};
+        case ProgramError::invalid_time: return {"hanim.program.invalid-time", Kind::invalid_argument};
+        case ProgramError::invalid_ease: return {"hanim.program.invalid-ease", Kind::invalid_argument};
+        case ProgramError::node_budget: return {"hanim.program.node-budget", Kind::refused};
+        case ProgramError::depth_budget: return {"hanim.program.depth-budget", Kind::refused};
+        case ProgramError::track_budget: return {"hanim.program.track-budget", Kind::refused};
+        case ProgramError::segment_budget: return {"hanim.program.segment-budget", Kind::refused};
+        case ProgramError::part_budget: return {"hanim.program.part-budget", Kind::refused};
+        case ProgramError::cubic_budget: return {"hanim.program.cubic-budget", Kind::refused};
+        case ProgramError::effect_parameter_budget: return {"hanim.program.effect-parameter-budget", Kind::refused};
+        case ProgramError::source_version_mismatch: return {"hanim.program.source-version-mismatch", Kind::invalid_argument};
+        case ProgramError::binding_conflict: return {"hanim.program.binding-conflict", Kind::refused};
+        case ProgramError::animation: return {"hanim.program.animation", Kind::failed, {}, true};
+        case ProgramError::effect: return {"hanim.program.effect", Kind::failed, {}, true};
+        case ProgramError::invalid_track: return {"hanim.program.invalid-track", Kind::invalid_argument};
+        case ProgramError::output_too_small: return {"hanim.program.output-too-small", Kind::invalid_argument};
+        case ProgramError::unresolved_object: return {"hanim.program.unresolved-object", Kind::not_found};
+        case ProgramError::object: return {"hanim.program.object", Kind::failed, {}, true};
+        case ProgramError::scope_budget: return {"hanim.program.scope-budget", Kind::refused};
+        case ProgramError::channel_budget: return {"hanim.program.channel-budget", Kind::refused};
+        case ProgramError::scope_conflict: return {"hanim.program.scope-conflict", Kind::refused};
+        case ProgramError::invalid_repeat: return {"hanim.program.invalid-repeat", Kind::invalid_argument};
+        case ProgramError::route_budget: return {"hanim.program.route-budget", Kind::refused};
+    }
+    return {"hanim.program.?", Kind::internal};
+}
+// Where in a program an error is: its node, track, segment and scope, each
+// when it applies. What failed beneath (an animation, an effect, an object)
+// is a cause.
+struct ProgramWhere {
+    std::size_t node = invalid_program_index, track = invalid_program_index, segment = invalid_program_index;
+    std::size_t scope = invalid_program_index;
+};
+[[nodiscard]] std::string describe_where(const ProgramWhere& where);
+using ProgramFailure = mlibs::error::Error<ProgramError, ProgramWhere>;
 class Program {
 public:
     Program() noexcept = default;
@@ -232,23 +283,6 @@ struct ProgramLimits {
     std::size_t max_total_property_channels = 65536;
     std::size_t max_total_route_segments = 65536;
 };
-enum class ProgramError : std::uint8_t {
-    unprepared, invalid_limits, empty_program, invalid_snapshot, invalid_source,
-    invalid_time, invalid_ease, node_budget, depth_budget, track_budget,
-    segment_budget, part_budget, cubic_budget, effect_parameter_budget,
-    source_version_mismatch, binding_conflict, animation, effect,
-    invalid_track, output_too_small, unresolved_object, object, scope_budget,
-    channel_budget, scope_conflict, invalid_repeat, route_budget
-};
-struct ProgramFailure {
-    ProgramError code;
-    std::size_t node = invalid_program_index, track = invalid_program_index, segment = invalid_program_index;
-    std::optional<MorphFailure> animation;
-    std::optional<EffectError> effect;
-    std::optional<ObjectError> object;
-    std::size_t scope = invalid_program_index;
-};
-[[nodiscard]] std::string_view program_error_name(ProgramError error) noexcept;
 struct ProgramContribution {
     std::size_t node = 0;
     std::string path;

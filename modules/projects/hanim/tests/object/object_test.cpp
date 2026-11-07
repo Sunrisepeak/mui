@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
         const auto snapshot = registry->capture(*object); const auto child = registry->part(*object, "child");
         auto rejects = [&](ObjectDescription bad, ObjectError expected) {
             const auto result = registry->update(*object, bad);
-            check(!result && result.error() == expected, std::string(object_error_name(expected)));
+            check(!result && result.error() == expected, std::string(describe(expected).name));
             check(registry->revision(*object) == 1 && registry->part(*object, "child") == child);
             const auto current = registry->capture(*object);
             check(current->parts().data() == snapshot->parts().data() && current->revision() == 1, "failed preparation publishes no replacement");

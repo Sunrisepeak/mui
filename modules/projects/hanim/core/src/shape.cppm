@@ -2,6 +2,7 @@
 export module hanim.core:shape;
 
 import std;
+import mlibs.error;
 import :value;
 import :path;
 
@@ -40,7 +41,25 @@ enum class ShapeMorphError : std::uint8_t {
     numerical_range, degenerate_contour, segment_budget, invalid_options,
     invalid_progress, output_too_small, unprepared, invalid_segment
 };
-[[nodiscard]] std::string_view shape_morph_error_name(ShapeMorphError error) noexcept;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(ShapeMorphError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case ShapeMorphError::empty_contour: return {"hanim.shape.empty-contour", Kind::invalid_argument};
+        case ShapeMorphError::open_contour: return {"hanim.shape.open-contour", Kind::invalid_argument};
+        case ShapeMorphError::invalid_verb: return {"hanim.shape.invalid-verb", Kind::invalid_argument};
+        case ShapeMorphError::nonfinite_coordinate: return {"hanim.shape.nonfinite-coordinate", Kind::invalid_argument};
+        case ShapeMorphError::numerical_range: return {"hanim.shape.numerical-range", Kind::failed};
+        case ShapeMorphError::degenerate_contour: return {"hanim.shape.degenerate-contour", Kind::invalid_argument};
+        case ShapeMorphError::segment_budget: return {"hanim.shape.segment-budget", Kind::refused};
+        case ShapeMorphError::invalid_options: return {"hanim.shape.invalid-options", Kind::invalid_argument};
+        case ShapeMorphError::invalid_progress: return {"hanim.shape.invalid-progress", Kind::invalid_argument};
+        case ShapeMorphError::output_too_small: return {"hanim.shape.output-too-small", Kind::invalid_argument};
+        case ShapeMorphError::unprepared: return {"hanim.shape.unprepared", Kind::invalid_argument};
+        case ShapeMorphError::invalid_segment: return {"hanim.shape.invalid-segment", Kind::invalid_argument};
+    }
+    return {"hanim.shape.?", Kind::internal};
+}
 
 struct ShapeMorphOptions {
     // Includes the implicit closing segment and subdivisions on both sides.

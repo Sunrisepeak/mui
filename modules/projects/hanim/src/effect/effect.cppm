@@ -2,6 +2,7 @@
 export module hanim.effect;
 
 import std;
+import mlibs.error;
 export import hanim.core;
 
 namespace hanim::detail { struct EffectsData; }
@@ -17,7 +18,20 @@ enum class EffectError : std::uint8_t {
     invalid_limits, invalid_id, duplicate_parameter, nonfinite_value,
     capacity, nonfinite_progress, buffer_too_small
 };
-[[nodiscard]] std::string_view effect_error_name(EffectError error) noexcept;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(EffectError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case EffectError::invalid_limits: return {"hanim.effect.invalid-limits", Kind::invalid_argument};
+        case EffectError::invalid_id: return {"hanim.effect.invalid-id", Kind::invalid_argument};
+        case EffectError::duplicate_parameter: return {"hanim.effect.duplicate-parameter", Kind::invalid_argument};
+        case EffectError::nonfinite_value: return {"hanim.effect.nonfinite-value", Kind::invalid_argument};
+        case EffectError::capacity: return {"hanim.effect.capacity", Kind::refused};
+        case EffectError::nonfinite_progress: return {"hanim.effect.nonfinite-progress", Kind::invalid_argument};
+        case EffectError::buffer_too_small: return {"hanim.effect.buffer-too-small", Kind::invalid_argument};
+    }
+    return {"hanim.effect.?", Kind::internal};
+}
 // Parameters occupy [offset, offset + count) in parameters()/sample output.
 // Identical effect ids can occur repeatedly; order is never sorted/deduped.
 struct EffectEntry { std::string id; std::size_t offset = 0, count = 0; };

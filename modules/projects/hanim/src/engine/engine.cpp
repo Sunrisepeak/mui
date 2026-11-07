@@ -45,9 +45,9 @@ namespace {
 constexpr mlibs::log::Log engine_log{"hanim.engine"};
 using Status = std::expected<void, EngineFailure>;
 EngineFailure fail(EngineError code) noexcept { return {.code = code}; }
-EngineFailure object_failure(ObjectError error) noexcept { return {.code = EngineError::object, .object = error}; }
-EngineFailure animation_failure(MorphFailure error) noexcept { return {.code = EngineError::animation, .animation = error}; }
-EngineFailure effect_failure(EffectError error) noexcept { return {.code = EngineError::effect, .effect = error}; }
+EngineFailure object_failure(ObjectError error) noexcept { return EngineFailure{EngineError::object}.because(error); }
+EngineFailure animation_failure(const MorphFailure& error) noexcept { return EngineFailure{EngineError::animation}.because(error); }
+EngineFailure effect_failure(EffectError error) noexcept { return EngineFailure{EngineError::effect}.because(error); }
 EngineFailure program_failure(ProgramFailure error) noexcept {
     EngineError code = EngineError::program;
     switch (error.code) {
@@ -64,7 +64,7 @@ EngineFailure program_failure(ProgramFailure error) noexcept {
         case ProgramError::scope_conflict: code = EngineError::unsupported_operation; break;
         default: break;
     }
-    return {.code = code, .object = error.object, .animation = error.animation, .effect = error.effect, .program = error};
+    return EngineFailure{code}.because(error);
 }
 struct WriteScope {
     bool& writing;
@@ -215,7 +215,7 @@ Status mutate(detail::EngineData* data, bool& writing, PlaybackRef ref, const ch
     if (!playback) return std::unexpected(playback.error());
     const auto result = action(**playback);
     if (result) engine_log.debug("{} owner={} slot={} generation={}", operation, ref.owner, ref.slot, ref.generation);
-    else engine_log.warn("{} refused: {}", operation, engine_error_name(result.error().code));
+    else engine_log.warn("{} refused: {}", operation, result.error().text());
     return result;
 }
 Status active(const detail::Playback& playback) noexcept {
@@ -252,30 +252,6 @@ Status replace_plan(detail::EngineData& data,detail::Playback& old,PlayOptions o
 }
 }
 
-std::string_view engine_error_name(EngineError error) noexcept {
-    switch (error) {
-        case EngineError::uninitialized: return "uninitialized";
-        case EngineError::invalid_limits: return "invalid-limits";
-        case EngineError::invalid_handle: return "invalid-handle";
-        case EngineError::foreign_engine: return "foreign-engine";
-        case EngineError::stale_handle: return "stale-handle";
-        case EngineError::invalid_time: return "invalid-time";
-        case EngineError::invalid_ease: return "invalid-ease";
-        case EngineError::invalid_argument: return "invalid-argument";
-        case EngineError::capacity: return "capacity";
-        case EngineError::binding_conflict: return "binding-conflict";
-        case EngineError::cancelled: return "cancelled";
-        case EngineError::version_exhausted: return "version-exhausted";
-        case EngineError::object: return "object";
-        case EngineError::animation: return "animation";
-        case EngineError::effect: return "effect";
-        case EngineError::reentrant_mutation: return "reentrant-mutation";
-        case EngineError::program: return "program";
-        case EngineError::ambiguous_frame: return "ambiguous-frame";
-        case EngineError::unsupported_operation: return "unsupported-operation";
-    }
-    return "unknown";
-}
 Engine::Engine() noexcept = default;
 Engine::~Engine() = default;
 Engine::Engine(Engine&&) noexcept = default;

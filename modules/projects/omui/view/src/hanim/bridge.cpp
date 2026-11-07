@@ -117,11 +117,11 @@ std::expected<void,BindingFailure> Binding::prepare(const hanim::PreparedProgram
         if(effects.effects().empty())return chain;
         auto result=hanim::vector_render::PreparedImageEffects::bind(effects);
         auto failure=[&](hanim::vector_render::VectorFailure error)->std::expected<detail::BindingImageChain,BindingFailure>{
-            error.segment=segment;error.scope=scope;return std::unexpected(BindingFailure{.code=BindingError::rendering,.rendering=error});};
+            error.where.segment=segment;error.where.scope=scope;return std::unexpected(BindingFailure{.code=BindingError::rendering,.rendering=error});};
         if(!result)return failure(result.error());
         for(std::size_t i=0;i<result->bindings().size();++i) {
             const auto* info=xrender::effects().info(result->bindings()[i].ref);
-            if(!info || !info->preserves_hit_geometry || info->source_of)return failure({hanim::vector_render::VectorError::unsupported_effect,i});
+            if(!info || !info->preserves_hit_geometry || info->source_of)return failure({hanim::vector_render::VectorError::unsupported_effect,{},{i}});
         }
         chain.layers=result->bindings().size();chain.parameters=result->parameter_count();chain.binding=std::move(*result);
         if(chain.layers>limits.max_prepared_effect_layers-total_layers || chain.parameters>limits.max_prepared_backend_parameters-total_parameters)
@@ -184,7 +184,7 @@ std::expected<void,BindingFailure> Binding::present(const hanim::EngineProgramFr
         if(!chain.layers)return {};
         auto output=std::span(image_parameters_).subspan(parameters,chain.parameters);
         const auto resolved=chain.binding.resolve(values,output);
-        if(!resolved) {auto error=resolved.error();error.segment=segment;error.scope=scope;
+        if(!resolved) {auto error=resolved.error();error.where.segment=segment;error.where.scope=scope;
             return std::unexpected(BindingFailure{.code=BindingError::rendering,.rendering=error});}
         for(const auto& effect:chain.binding.bindings())
             image_layers_[layers++]={effect.ref,effect.generation,output.subspan(effect.offset,effect.count)};

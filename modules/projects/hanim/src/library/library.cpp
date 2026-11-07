@@ -31,7 +31,11 @@ namespace {
 constexpr mlibs::log::Log diagnostic{"hanim.library"};
 constexpr auto none = std::numeric_limits<std::size_t>::max();
 MorphFailure failure(MorphError code, std::size_t part = none, std::size_t contour = none,
-                     std::optional<ShapeMorphError> shape = {}) { return {code,part,contour,shape}; }
+                     std::optional<ShapeMorphError> shape = {}) {
+    MorphFailure error{code, {}, {part, contour}};
+    if (shape) error.because(*shape);
+    return error;
+}
 bool finite(Transform2D value) noexcept {
     for (double component : lanes<Transform2D>::to(value)) if (!std::isfinite(component)) return false;
     return true;
@@ -138,7 +142,7 @@ void assign_property(Transform2D& local,std::optional<Rgba>& fill,PropertyChanne
     }
 }
 MorphFailure channel_failure(MorphError code,const PropertyChannelInfo& info) {
-    auto error=failure(code,info.part);error.clip=info.clip;error.channel=info.channel;return error;
+    auto error=failure(code,info.part);error.where.clip=info.clip;error.where.channel=info.channel;return error;
 }
 std::expected<detail::PropertyValue,MorphFailure> sample_channel(
     const PropertyChannelInfo& info,const detail::PropertyEndpoints& values,seconds time) {
@@ -353,7 +357,7 @@ std::expected<MorphOptions,MorphFailure> timeline_options(std::span<const Proper
     MorphOptions result=clips.front().options;
     for(std::size_t i=0;i<clips.size();++i) {
         const auto& clip=clips[i];const auto& o=clip.options;
-        auto refuse=[&](MorphError code)->std::expected<MorphOptions,MorphFailure>{auto e=failure(code);e.clip=i;return std::unexpected(e);};
+        auto refuse=[&](MorphError code)->std::expected<MorphOptions,MorphFailure>{auto e=failure(code);e.where.clip=i;return std::unexpected(e);};
         if(!std::isfinite(clip.start.count()) || clip.start.count()<0 || !std::isfinite(clip.duration.count()) || clip.duration.count()<0 ||
            clip.start.count()>std::numeric_limits<double>::max()-clip.duration.count())return refuse(MorphError::invalid_time);
         if(!clip.easing.valid())return refuse(MorphError::invalid_ease);
@@ -389,14 +393,14 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
         const auto& clip=clips[clip_index];
         data->timeline_duration=std::max(data->timeline_duration,clip.start+clip.duration);
         const auto writes=resolve_properties(index,clip.targets,options.max_route_segments-data->route_segments);
-        if(!writes){auto e=writes.error();e.clip=clip_index;return std::unexpected(e);}
+        if(!writes){auto e=writes.error();e.where.clip=clip_index;return std::unexpected(e);}
         for(const auto& write:*writes) {
             const auto& part=source.parts[write.part];PartPose from{part.local,part.fill};
             if(clip.source) {
                 const auto ref=clip.source->find(part.id);
-                if(!ref){auto e=failure(MorphError::unknown_part,write.part);e.clip=clip_index;return std::unexpected(e);}
+                if(!ref){auto e=failure(MorphError::unknown_part,write.part);e.where.clip=clip_index;return std::unexpected(e);}
                 const auto captured=clip.source->get(*ref);
-                if(!captured){auto e=failure(MorphError::invalid_snapshot,write.part);e.clip=clip_index;return std::unexpected(e);}
+                if(!captured){auto e=failure(MorphError::invalid_snapshot,write.part);e.where.clip=clip_index;return std::unexpected(e);}
                 from={(*captured)->local,(*captured)->fill};
             }
             for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
@@ -413,7 +417,7 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
                 }
             }
             const auto to=apply_property(from,*write.target,write.part);
-            if(!to){auto e=to.error();e.clip=clip_index;return std::unexpected(e);}
+            if(!to){auto e=to.error();e.where.clip=clip_index;return std::unexpected(e);}
             if(write.target->route)data->route_segments+=write.target->route->path()->segment_count();
             for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
                 const auto key=write.part*4+c;const auto channel=static_cast<PropertyChannel>(c);
@@ -459,27 +463,6 @@ std::size_t current_channel(const detail::ObjectMorphData& data,detail::ChannelR
 }
 }
 
-std::string_view morph_error_name(MorphError error) noexcept {
-    switch(error) {
-        case MorphError::unprepared:return "unprepared";case MorphError::invalid_snapshot:return "invalid-snapshot";
-        case MorphError::invalid_frame:return "invalid-frame";case MorphError::invalid_options:return "invalid-options";
-        case MorphError::part_budget:return "part-budget";case MorphError::contour_budget:return "contour-budget";
-        case MorphError::cubic_budget:return "cubic-budget";case MorphError::part_set_mismatch:return "part-set-mismatch";
-        case MorphError::hierarchy_mismatch:return "hierarchy-mismatch";case MorphError::ordering_mismatch:return "ordering-mismatch";
-        case MorphError::contour_count_mismatch:return "contour-count-mismatch";case MorphError::missing_fill:return "missing-fill";
-        case MorphError::open_contour:return "open-contour";case MorphError::unsupported_topology:return "unsupported-topology";
-        case MorphError::shape_failure:return "shape-failure";
-        case MorphError::invalid_progress:return "invalid-progress";case MorphError::output_too_small:return "output-too-small";
-        case MorphError::nonfinite_transform:return "nonfinite-transform";
-        case MorphError::invalid_property:return "invalid-property";
-        case MorphError::unknown_part:return "unknown-part";
-        case MorphError::property_conflict:return "property-conflict";
-        case MorphError::invalid_time:return "invalid-time";case MorphError::invalid_ease:return "invalid-ease";
-        case MorphError::channel_budget:return "channel-budget";case MorphError::unsupported_property_effect:return "unsupported-property-effect";
-        case MorphError::route_budget:return "route-budget";
-    }
-    return "unprepared";
-}
 std::string_view property_channel_name(PropertyChannel channel) noexcept {
     switch(channel) {
         case PropertyChannel::translation:return "translation";
@@ -488,13 +471,20 @@ std::string_view property_channel_name(PropertyChannel channel) noexcept {
         case PropertyChannel::fill:return "fill";
     }return "unknown";
 }
+std::string describe_where(const MorphWhere& where) {
+    std::string out;
+    const auto add=[&](std::string_view what,std::size_t at){if(at!=none)out+=std::format("{}{} {}",out.empty()?"":", ",what,at);};
+    add("part",where.part);add("contour",where.contour);add("clip",where.clip);
+    if(where.channel)out+=std::format("{}channel {}",out.empty()?"":", ",property_channel_name(*where.channel));
+    return out;
+}
 std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::prepare(Snapshot from, Snapshot to, MorphOptions options) {
     mlibs::trace::Span span("morph.prepare","hanim.library");
     if (!valid(options)) return std::unexpected(failure(MorphError::invalid_options));
     auto a=snapshot_input(from,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
     auto compiled=compile(std::move(*a),std::move(*b),options);
-    if (!compiled) { diagnostic.debug("morph refused: {}",morph_error_name(compiled.error().code)); return std::unexpected(compiled.error()); }
+    if (!compiled) { diagnostic.debug("morph refused: {}",describe(compiled.error().code).name); return std::unexpected(compiled.error()); }
     PreparedObjectMorph result; result.source_=from.object(); result.revision_=from.revision();
     result.from_=std::move(from); result.to_=std::move(to); result.data_=std::move(*compiled); return result;
 }
@@ -504,7 +494,7 @@ std::expected<PreparedObjectMorph,MorphFailure> PreparedObjectMorph::retarget(Fr
     auto a=frame_input(current,options); if (!a) return std::unexpected(a.error());
     auto b=snapshot_input(to,options); if (!b) return std::unexpected(b.error());
     auto compiled=compile(std::move(*a),std::move(*b),options);
-    if (!compiled) { diagnostic.debug("retarget refused: {}",morph_error_name(compiled.error().code)); return std::unexpected(compiled.error()); }
+    if (!compiled) { diagnostic.debug("retarget refused: {}",describe(compiled.error().code).name); return std::unexpected(compiled.error()); }
     PreparedObjectMorph result; result.source_=current.source_object; result.revision_=current.source_revision;
     result.to_=std::move(to); result.data_=std::move(*compiled); return result;
 }

@@ -72,7 +72,7 @@ template<class T>bool overlaps(std::span<T> a,std::span<T> b) {
 }
 std::expected<detail::VectorEffects, VectorFailure> bind_effects(const PreparedEffects& effects) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<detail::VectorEffects,VectorFailure> {
-        return std::unexpected(VectorFailure{code,entry,detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     detail::VectorEffects data; data.plan=effects;
     auto& registry = render::effects();
@@ -114,7 +114,7 @@ std::expected<detail::VectorEffects, VectorFailure> bind_effects(const PreparedE
 std::expected<void,VectorFailure> resolve_effects(const detail::VectorEffects& data,
     std::span<const float> effect_values,std::span<float> parameters) noexcept {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<void,VectorFailure> {
-        return std::unexpected(VectorFailure{code,entry,detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     if(effect_values.size()<data.plan.parameter_count() || parameters.size()<data.parameters.size())
         return refuse(VectorError::buffer_too_small);
@@ -137,7 +137,7 @@ std::expected<void,VectorFailure> resolve_effects(const detail::VectorEffects& d
 std::expected<geom::Rect,VectorFailure> measure_effects(const detail::VectorEffects& data,
     std::span<const float> effect_values,geom::Rect bounds,VectorScratch scratch) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<geom::Rect,VectorFailure> {
-        return std::unexpected(VectorFailure{code,entry,detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     if(auto resolved=resolve_effects(data,effect_values,scratch.backend_parameters);!resolved)return std::unexpected(resolved.error());
     auto& registry = render::effects();
@@ -155,7 +155,7 @@ std::expected<geom::Rect,VectorFailure> measure_effects(const detail::VectorEffe
 std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,FrameView frame,
     std::span<const float> effect_values,VectorScratch scratch) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<geom::Rect,VectorFailure> {
-        return std::unexpected(VectorFailure{code,entry,detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     const auto parts = data.geometry.parts(); const auto contours = data.geometry.contours();
     if (frame.preparation != data.geometry.identity() || frame.parts.size() != parts.size() || frame.contours.size() != contours.size() ||
@@ -212,7 +212,7 @@ void open_effects(const detail::VectorEffects& data,VectorScratch scratch,render
 std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView frame,VectorScratch scratch,
     render::DisplayList& output) {
     auto refuse=[](VectorError code,std::size_t entry=0,std::size_t detail=0)->std::expected<void,VectorFailure> {
-        return std::unexpected(VectorFailure{code,entry,detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     const auto parts=data.geometry.parts();const auto contours=data.geometry.contours();
     open_effects(data.effects,scratch,output);
@@ -267,33 +267,19 @@ std::expected<void,VectorFailure> PreparedImageEffects::resolve(std::span<const 
     if(!data_)return std::unexpected(VectorFailure{VectorError::unprepared});
     return resolve_effects(*data_,sampled,output);
 }
-std::string_view vector_error_name(VectorError error) noexcept {
-    switch (error) {
-        case VectorError::unprepared: return "unprepared";
-        case VectorError::foreign_frame: return "foreign-frame";
-        case VectorError::invalid_geometry: return "invalid-geometry";
-        case VectorError::invalid_progress: return "invalid-progress";
-        case VectorError::buffer_too_small: return "buffer-too-small";
-        case VectorError::recording_alias: return "recording-alias";
-        case VectorError::capacity: return "capacity";
-        case VectorError::unknown_effect: return "unknown-effect";
-        case VectorError::unsupported_effect: return "unsupported-effect";
-        case VectorError::unknown_parameter: return "unknown-parameter";
-        case VectorError::invalid_parameter: return "invalid-parameter";
-        case VectorError::stale_effect: return "stale-effect";
-        case VectorError::unknown_part: return "unknown-part";
-        case VectorError::duplicate_material: return "duplicate-material";
-        case VectorError::invalid_material: return "invalid-material";
-        case VectorError::recording_failed: return "recording-failed";
-    }
-    return "unknown";
+std::string describe_where(const VectorWhere& where) {
+    std::string out=std::format("entry {}, detail {}",where.entry,where.detail);
+    if(where.track!=invalid_program_index)out+=std::format(", track {}",where.track);
+    if(where.segment!=invalid_program_index)out+=std::format(", segment {}",where.segment);
+    if(where.scope!=invalid_program_index)out+=std::format(", scope {}",where.scope);
+    return out;
 }
 std::expected<PreparedVector, VectorFailure> PreparedVector::bind(
     const PreparedObjectMorph& geometry, const PreparedEffects& effects, std::span<const MaterialBinding> materials) {
     mlibs::trace::Span span("bind", "hanim.render.vector");
     auto refuse = [](VectorError code, std::size_t entry = 0, std::size_t detail = 0) -> std::expected<PreparedVector, VectorFailure> {
-        log.warn("bind refused: {} (entry={}, detail={})", vector_error_name(code), entry, detail);
-        return std::unexpected(VectorFailure{code, entry, detail});
+        log.warn("bind refused: {} (entry={}, detail={})", describe(code).name, entry, detail);
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     const auto parts = geometry.parts();
     if (parts.empty()) return refuse(VectorError::unprepared);
@@ -324,7 +310,7 @@ std::expected<void, VectorFailure> PreparedVector::record(
     mlibs::trace::Span span("record", "hanim.render.vector");
     auto refuse = [](VectorError code, std::size_t entry = 0, std::size_t detail = 0) -> std::expected<void, VectorFailure> {
         mlibs::trace::mark("refused", "hanim.render.vector");
-        return std::unexpected(VectorFailure{code, entry, detail});
+        return std::unexpected(VectorFailure{code, {}, {entry, detail}});
     };
     if (!data_) return refuse(VectorError::unprepared);
     if (scratch.recording == &destination) return refuse(VectorError::recording_alias);
@@ -346,7 +332,7 @@ VectorScratch portion(VectorScratch scratch,VectorRequirements offset) {
 }
 VectorFailure located(VectorFailure error,std::size_t track=invalid_program_index,
     std::size_t segment=invalid_program_index,std::size_t scope=invalid_program_index) {
-    error.track=track;error.segment=segment;error.scope=scope;return error;
+    error.where.track=track;error.where.segment=segment;error.where.scope=scope;return error;
 }
 }
 std::expected<PreparedVectorProgram,VectorFailure> PreparedVectorProgram::bind(

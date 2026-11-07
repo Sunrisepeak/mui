@@ -92,7 +92,9 @@ def main() -> int:
                 p=Path(item['file']);directory=Path(item['directory'])
                 directory=directory if directory.is_absolute() else project/directory
                 p=(p if p.is_absolute() else directory/p).resolve();sources.append(str(p))
-                if p.is_relative_to(repo) and p.relative_to(repo).parts[:2] not in {('modules','base'),('modules','gfx')}:
+                # mlibs (base, gfx) and the gfx-layer projects hanim and xrender: no UI, no game layer.
+                rel=p.relative_to(repo).parts if p.is_relative_to(repo) else None
+                if rel and rel[:2] not in {('modules','base'),('modules','gfx')} and rel[:3] not in {('modules','projects','hanim'),('modules','projects','xrender')}:
                     raise RuntimeError(f'non-independent repository source: {p}')
                 if p.is_relative_to(repo):source_hashes[str(p.relative_to(repo))]=digest(p)
                 if p.is_relative_to(project/'src') and '-std=c++23' not in item.get('arguments',[]):

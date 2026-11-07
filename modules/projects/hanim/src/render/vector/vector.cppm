@@ -2,6 +2,7 @@
 export module hanim.render.vector;
 
 import std;
+import mlibs.error;
 export import hanim.library;
 export import hanim.effect;
 export import hanim.program;
@@ -17,14 +18,38 @@ enum class VectorError : std::uint8_t {
     unsupported_effect, unknown_parameter, invalid_parameter, stale_effect,
     unknown_part, duplicate_material, invalid_material, recording_failed
 };
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(VectorError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case VectorError::unprepared: return {"hanim.vector.unprepared", Kind::invalid_argument};
+        case VectorError::foreign_frame: return {"hanim.vector.foreign-frame", Kind::invalid_argument};
+        case VectorError::invalid_geometry: return {"hanim.vector.invalid-geometry", Kind::invalid_argument};
+        case VectorError::invalid_progress: return {"hanim.vector.invalid-progress", Kind::invalid_argument};
+        case VectorError::buffer_too_small: return {"hanim.vector.buffer-too-small", Kind::invalid_argument};
+        case VectorError::recording_alias: return {"hanim.vector.recording-alias", Kind::invalid_argument};
+        case VectorError::capacity: return {"hanim.vector.capacity", Kind::refused};
+        case VectorError::unknown_effect: return {"hanim.vector.unknown-effect", Kind::not_found};
+        case VectorError::unsupported_effect: return {"hanim.vector.unsupported-effect", Kind::refused};
+        case VectorError::unknown_parameter: return {"hanim.vector.unknown-parameter", Kind::not_found};
+        case VectorError::invalid_parameter: return {"hanim.vector.invalid-parameter", Kind::invalid_argument};
+        case VectorError::stale_effect: return {"hanim.vector.stale-effect", Kind::stale};
+        case VectorError::unknown_part: return {"hanim.vector.unknown-part", Kind::not_found};
+        case VectorError::duplicate_material: return {"hanim.vector.duplicate-material", Kind::invalid_argument};
+        case VectorError::invalid_material: return {"hanim.vector.invalid-material", Kind::invalid_argument};
+        case VectorError::recording_failed: return {"hanim.vector.recording-failed", Kind::failed};
+    }
+    return {"hanim.vector.?", Kind::internal};
+}
 // entry/detail identify the relevant part, effect or parameter; no borrowed
-// failure strings or per-frame diagnostic allocations.
-struct VectorFailure {
-    VectorError code;
+// failure strings or per-frame diagnostic allocations (a failure's message
+// and causes stay empty here).
+struct VectorWhere {
     std::size_t entry = 0, detail = 0;
     std::size_t track = invalid_program_index, segment = invalid_program_index, scope = invalid_program_index;
 };
-[[nodiscard]] std::string_view vector_error_name(VectorError code) noexcept;
+[[nodiscard]] std::string describe_where(const VectorWhere& where);
+using VectorFailure = mlibs::error::Error<VectorError, VectorWhere>;
 // One binding of Hanim's sampled image parameters to the shared renderer.
 // UI, vector and other content adapters consume these same validated slots;
 // this type owns neither content geometry, a player nor a clock.

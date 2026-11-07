@@ -50,8 +50,8 @@ int main(int argc,char** argv) {
         const std::array points{geom::Point{0,0},geom::Point{3,0},geom::Point{0,3}};
         const auto capacity=import_path({verbs,points},{.max_segments=1});check(!capacity && capacity.error().code==ObjectError::capacity);
         const auto invalid=import_path({verbs,std::span(points).first(2)});
-        check(!invalid && invalid.error().code==ObjectError::invalid_path && invalid.error().path->code==geom::PathError::missing_points);
-        check(invalid.error().path->verb==2 && invalid.error().path->point==2);
+        check(!invalid && invalid.error().code==ObjectError::invalid_path && invalid.error().caused_by(geom::PathError::missing_points));
+        check(invalid.error().cause_of(geom::PathError::missing_points)->where=="verb 2, point 2");
         const auto limit=import_path({verbs,points},{.max_contours=0});check(!limit && limit.error().code==ObjectError::invalid_limits);
     });
     suite.test("imported paths feed the public object and morph plan with identical process geometry",[] {

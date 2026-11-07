@@ -1,6 +1,7 @@
 // Neutral 2D paths shared by rendering, outlines and animation adapters.
 export module mlibs.geom.api:path;
 import std;
+import mlibs.error;
 import :primitives;
 
 export namespace mlibs::geom {
@@ -22,25 +23,30 @@ enum class PathError : std::uint8_t {
     verb_budget, point_budget, contour_budget, invalid_verb, missing_move,
     missing_points, trailing_points, nonfinite_coordinate
 };
-struct PathFailure {
-    PathError code;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(PathError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case PathError::verb_budget: return {"geom.path.verb-budget", Kind::refused};
+        case PathError::point_budget: return {"geom.path.point-budget", Kind::refused};
+        case PathError::contour_budget: return {"geom.path.contour-budget", Kind::refused};
+        case PathError::invalid_verb: return {"geom.path.invalid-verb", Kind::invalid_argument};
+        case PathError::missing_move: return {"geom.path.missing-move", Kind::invalid_argument};
+        case PathError::missing_points: return {"geom.path.missing-points", Kind::invalid_argument};
+        case PathError::trailing_points: return {"geom.path.trailing-points", Kind::invalid_argument};
+        case PathError::nonfinite_coordinate: return {"geom.path.nonfinite-coordinate", Kind::invalid_argument};
+    }
+    return {"geom.path.?", Kind::internal};
+}
+// Where in a path an error is: the verb and the point it reached.
+struct PathWhere {
     std::size_t verb = 0, point = 0;
 };
+[[nodiscard]] inline std::string describe_where(const PathWhere& w) { return std::format("verb {}, point {}", w.verb, w.point); }
+using PathFailure = mlibs::error::Error<PathError, PathWhere>;
 struct PathInfo {
     std::size_t contours = 0, segments = 0, closes = 0;
 };
-[[nodiscard]] constexpr std::string_view path_error_name(PathError code) noexcept {
-    switch(code) {
-        case PathError::verb_budget:return "verb-budget";
-        case PathError::point_budget:return "point-budget";
-        case PathError::contour_budget:return "contour-budget";
-        case PathError::invalid_verb:return "invalid-verb";
-        case PathError::missing_move:return "missing-move";
-        case PathError::missing_points:return "missing-points";
-        case PathError::trailing_points:return "trailing-points";
-        case PathError::nonfinite_coordinate:return "nonfinite-coordinate";
-    }return "unknown";
-}
 // Empty is valid. After close, a drawing command begins a new contour at the
 // preceding contour's start, matching the renderer's existing path semantics.
 // This validates encoding and finite coordinates, not simplicity or topology.
@@ -57,26 +63,26 @@ inspect_path(PathView path,PathLimits limits = {}) noexcept {
             case PathVerb::quad:count=2;break;
             case PathVerb::cubic:count=3;break;
             case PathVerb::close:break;
-            default:return std::unexpected(PathFailure{PathError::invalid_verb,i,point});
+            default:return std::unexpected(PathFailure{PathError::invalid_verb, {}, {i,point}});
         }
         if(verb==PathVerb::move)moved=true;
-        if(!moved)return std::unexpected(PathFailure{PathError::missing_move,i,point});
-        if(count>path.points.size()-point)return std::unexpected(PathFailure{PathError::missing_points,i,point});
+        if(!moved)return std::unexpected(PathFailure{PathError::missing_move, {}, {i,point}});
+        if(count>path.points.size()-point)return std::unexpected(PathFailure{PathError::missing_points, {}, {i,point}});
         for(std::size_t j=0;j<count;++j) {
             const auto p=path.points[point+j];
             if(!std::isfinite(p.x) || !std::isfinite(p.y))
-                return std::unexpected(PathFailure{PathError::nonfinite_coordinate,i,point+j});
+                return std::unexpected(PathFailure{PathError::nonfinite_coordinate, {}, {i,point+j}});
         }
         if(verb==PathVerb::move || (!open && verb!=PathVerb::close)) {
             if(result.contours>=limits.max_contours)
-                return std::unexpected(PathFailure{PathError::contour_budget,i,point});
+                return std::unexpected(PathFailure{PathError::contour_budget, {}, {i,point}});
             ++result.contours;open=true;
         }
         if(verb==PathVerb::close){++result.closes;open=false;}
         else if(verb!=PathVerb::move)++result.segments;
         point+=count;
     }
-    if(point!=path.points.size())return std::unexpected(PathFailure{PathError::trailing_points,path.verbs.size(),point});
+    if(point!=path.points.size())return std::unexpected(PathFailure{PathError::trailing_points, {}, {path.verbs.size(),point}});
     return result;
 }
 

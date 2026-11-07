@@ -9,7 +9,7 @@ bool subtractable(double a,double b) {
     return !(b>0 && a< -bound+b) && !(b<0 && a>bound+b);
 }
 Program rejected(MorphError error,std::size_t point) {
-    return invalid_program({.code=ProgramError::animation,.animation=MorphFailure{.code=error,.clip=point}});
+    return invalid_program(ProgramFailure{ProgramError::animation}.because(MorphFailure{.code=error,.where={.clip=point}}));
 }
 }
 Program move_through(ObjectInput object,std::span<const MoveWaypoint> points,MoveThroughOptions options) {

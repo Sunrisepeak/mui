@@ -177,38 +177,36 @@ int main() {
     if(!check(bool(engine.release(*delayed_play)),"release_stagger"))return finish();
 
     const auto invalid=hengine.play(base.duration(-1ms));
-    check(!invalid && invalid.error().code==h::EngineError::invalid_time && invalid.error().program &&
-          invalid.error().program->code==h::ProgramError::invalid_time && engine.size()==0,
+    check(!invalid && invalid.error().code==h::EngineError::invalid_time && invalid.error().caused_by(h::ProgramError::invalid_time) && engine.size()==0,
           "invalid_duration_keeps_structured_program_error_and_no_playback");
-    const auto authored=h::invalid_program({.code=h::ProgramError::invalid_time,.node=99});
+    const auto authored=h::invalid_program({.code=h::ProgramError::invalid_time,.where={.node=99}});
     const auto authored_play=hengine.play(api::sequence(quick,authored));
-    check(authored.kind()==h::ProgramKind::invalid && authored.failure()->node==99 && !authored_play &&
-          authored_play.error().program && authored_play.error().program->code==h::ProgramError::invalid_time &&
-          authored_play.error().program->node==2 && engine.size()==0,
+    check(authored.kind()==h::ProgramKind::invalid && authored.failure()->where.node==99 && !authored_play &&
+          authored_play.error().caused_by(h::ProgramError::invalid_time) &&
+          authored_play.error().cause_of(h::ProgramError::invalid_time)->where=="node 2" && engine.size()==0,
           "deferred_authoring_error_keeps_its_cause_with_actual_node_and_no_playback");
     const auto bad_feedback=anim::pulse(*a,{0,1});
     const auto refused_feedback=hengine.prepare(bad_feedback);
-    check(bad_feedback.failure() && !refused_feedback && refused_feedback.error().program &&
-          refused_feedback.error().program->animation &&
-          refused_feedback.error().program->animation->code==h::MorphError::invalid_property,
+    check(bad_feedback.failure() && !refused_feedback && refused_feedback.error().caused_by(h::ProgramError::animation) &&
+          refused_feedback.error().caused_by(h::MorphError::invalid_property),
           "feedback_invalid_arithmetic_is_a_typed_authoring_failure");
     const auto empty=hengine.prepare(anim::morph(h::Snapshot{},*b));
-    check(!empty && empty.error().program && empty.error().program->code==h::ProgramError::invalid_snapshot,"invalid_snapshot_is_rejected");
+    check(!empty && empty.error().caused_by(h::ProgramError::invalid_snapshot),"invalid_snapshot_is_rejected");
     const auto overlap=hengine.prepare(api::parallel(quick,quick));
-    check(!overlap && overlap.error().program && overlap.error().program->code==h::ProgramError::binding_conflict,"same_object_overlap_is_not_silently_blended");
+    check(!overlap && overlap.error().caused_by(h::ProgramError::binding_conflict),"same_object_overlap_is_not_silently_blended");
     h::ProgramLimits limits;limits.max_nodes=1;
     const auto limited=hengine.prepare(series,limits);
-    check(!limited && limited.error().program && limited.error().program->code==h::ProgramError::node_budget,"prepare_respects_node_budget");
+    check(!limited && limited.error().caused_by(h::ProgramError::node_budget),"prepare_respects_node_budget");
     const auto implicit_limited=hengine.play(series,limits);
-    check(!implicit_limited && implicit_limited.error().program && implicit_limited.error().program->code==h::ProgramError::node_budget,
+    check(!implicit_limited && implicit_limited.error().caused_by(h::ProgramError::node_budget),
           "convenient_prepare_respects_configured_limits");
     const auto default_limited=hengine.prepare(series,limits);
-    check(!default_limited && default_limited.error().program && default_limited.error().program->code==h::ProgramError::node_budget,
+    check(!default_limited && default_limited.error().caused_by(h::ProgramError::node_budget),
           "explicit_prepare_uses_same_limits_as_convenient_play");
     auto badfx=h::fx::blur(0,1);badfx.parameters.push_back(badfx.parameters.front());
     const auto effect_error=hengine.prepare(base.with_effect(std::move(badfx)));
-    check(!effect_error && effect_error.error().program && effect_error.error().program->code==h::ProgramError::effect &&
-          effect_error.error().program->effect==h::EffectError::duplicate_parameter,
+    check(!effect_error && effect_error.error().caused_by(h::ProgramError::effect) &&
+          effect_error.error().caused_by(h::EffectError::duplicate_parameter),
           "effect_validation_error_is_preserved");
     const auto updated=host->update(*ar,*dc);
     check(updated && *updated==2 && a->revision()==1 && a->parts()[0].local.tx==0,"snapshot_stays_frozen_after_host_update");
@@ -231,13 +229,13 @@ int main() {
     auto live_plan=hengine.prepare(live_quick);
     if(!check(bool(live_plan),"object_ref_prepare_captures_current_revision"))return finish();
     const auto unresolved=h::PreparedProgram::prepare(live_quick);
-    check(!unresolved && unresolved.error().code==h::ProgramError::unresolved_object && unresolved.error().node==0,
+    check(!unresolved && unresolved.error().code==h::ProgramError::unresolved_object && unresolved.error().where.node==0,
           "standalone_compiler_requires_registry_for_live_inputs");
     const auto independent=h::PreparedProgram::prepare(anim::morph(*a,*b));
     check(bool(independent),"snapshot_recipe_prepares_without_engine_or_registry");
     const auto registry_recipe=h::PreparedProgram::prepare(anim::morph(*live_a,*live_b),*host);
     check(!registry_recipe && registry_recipe.error().code==h::ProgramError::object &&
-          registry_recipe.error().object==h::ObjectError::foreign_owner,
+          registry_recipe.error().caused_by(h::ObjectError::foreign_owner),
           "explicit_registry_rejects_foreign_live_ref");
     const auto mixed=hengine.prepare(anim::morph(*live_a,*b));
     check(mixed && mixed->segments()[0].animation.from().revision()==2 &&
@@ -269,15 +267,15 @@ int main() {
     if(!check(bool(engine.release(*reset)),"release_reset_sequence"))return finish();
     auto depth_limits=h::ProgramLimits{};depth_limits.max_depth=1;
     const auto deep=hengine.prepare(api::parallel(live_quick),depth_limits);
-    check(!deep && deep.error().program && deep.error().program->code==h::ProgramError::depth_budget,
+    check(!deep && deep.error().caused_by(h::ProgramError::depth_budget),
           "authoring_lowering_depth_is_bounded");
     const auto foreign=hengine.prepare(anim::morph(*ar,*live_b));
-    check(!foreign && foreign.error().code==h::EngineError::object && foreign.error().object==h::ObjectError::foreign_owner,
+    check(!foreign && foreign.error().code==h::EngineError::object && foreign.error().caused_by(h::ObjectError::foreign_owner),
           "foreign_owner_error_is_preserved");
     check(bool(engine.destroy_object(*live_a)) && bool(engine.destroy_object(*live_b)) && bool(engine.destroy_object(*live_c)),
           "live_objects_destroyed");
     const auto stale=hengine.play(live_quick);
-    check(!stale && stale.error().code==h::EngineError::object && stale.error().object==h::ObjectError::stale_object && engine.size()==0,
+    check(!stale && stale.error().code==h::EngineError::object && stale.error().caused_by(h::ObjectError::stale_object) && engine.size()==0,
           "stale_description_rejected_without_partial_playback");
     const std::array reused{engine.create_object(*da),engine.create_object(*db),engine.create_object(*dc)};
     if(!check(std::ranges::all_of(reused,[](const auto& ref){return bool(ref);}),"new_generation_objects_created"))return finish();
@@ -285,7 +283,7 @@ int main() {
               return ref->owner==live_a->owner && ref->slot==live_a->slot && ref->generation!=live_a->generation;
           }),"destroyed_source_slot_was_reused_with_new_generation");
     const auto reused_stale=hengine.prepare(live_quick);
-    check(!reused_stale && reused_stale.error().object==h::ObjectError::stale_object,
+    check(!reused_stale && reused_stale.error().caused_by(h::ObjectError::stale_object),
           "old_ref_does_not_rebind_after_slot_reuse");
     bool cleaned=true;
     for(const auto& ref:reused)cleaned &= bool(engine.destroy_object(*ref));
@@ -492,7 +490,7 @@ int main() {
     }
     check(path_samples,"imported_geometry_animates_through_61_public_samples");
     const auto malformed=h::import_path({path_verbs,std::span(path_points).first(1)});
-    check(!malformed && malformed.error().path && malformed.error().path->code==mlibs::geom::PathError::missing_points,
+    check(!malformed && malformed.error().caused_by(mlibs::geom::PathError::missing_points),
         "malformed_path_keeps_shared_source_diagnostic");
     const auto bounded=h::import_path({path_verbs,path_points},{.max_segments=1});
     check(!bounded && bounded.error().code==h::ObjectError::capacity,"path_import_respects_geometry_budget");

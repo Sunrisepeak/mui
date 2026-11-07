@@ -1,6 +1,7 @@
 // The player owns time and buffers; immutable library plans own correspondence.
 export module hanim.engine;
 import std;
+import mlibs.error;
 export import hanim.program;
 import mlibs.memory;
 
@@ -18,14 +19,35 @@ enum class EngineError : std::uint8_t {
     version_exhausted, object, animation, effect, reentrant_mutation,
     program, ambiguous_frame, unsupported_operation
 };
-struct EngineFailure {
-    EngineError code;
-    std::optional<ObjectError> object;
-    std::optional<MorphFailure> animation;
-    std::optional<EffectError> effect;
-    std::optional<ProgramFailure> program;
-};
-[[nodiscard]] std::string_view engine_error_name(EngineError error) noexcept;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(EngineError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case EngineError::uninitialized: return {"hanim.engine.uninitialized", Kind::invalid_argument};
+        case EngineError::invalid_limits: return {"hanim.engine.invalid-limits", Kind::invalid_argument};
+        case EngineError::invalid_handle: return {"hanim.engine.invalid-handle", Kind::invalid_argument};
+        case EngineError::foreign_engine: return {"hanim.engine.foreign-engine", Kind::invalid_argument};
+        case EngineError::stale_handle: return {"hanim.engine.stale-handle", Kind::stale};
+        case EngineError::invalid_time: return {"hanim.engine.invalid-time", Kind::invalid_argument};
+        case EngineError::invalid_ease: return {"hanim.engine.invalid-ease", Kind::invalid_argument};
+        case EngineError::invalid_argument: return {"hanim.engine.invalid-argument", Kind::invalid_argument};
+        case EngineError::capacity: return {"hanim.engine.capacity", Kind::refused};
+        case EngineError::binding_conflict: return {"hanim.engine.binding-conflict", Kind::refused};
+        case EngineError::cancelled: return {"hanim.engine.cancelled", Kind::failed};
+        case EngineError::version_exhausted: return {"hanim.engine.version-exhausted", Kind::refused};
+        case EngineError::object: return {"hanim.engine.object", Kind::failed, {}, true};
+        case EngineError::animation: return {"hanim.engine.animation", Kind::failed, {}, true};
+        case EngineError::effect: return {"hanim.engine.effect", Kind::failed, {}, true};
+        case EngineError::reentrant_mutation: return {"hanim.engine.reentrant-mutation", Kind::refused};
+        case EngineError::program: return {"hanim.engine.program", Kind::failed, {}, true};
+        case EngineError::ambiguous_frame: return {"hanim.engine.ambiguous-frame", Kind::invalid_argument};
+        case EngineError::unsupported_operation: return {"hanim.engine.unsupported-operation", Kind::refused};
+    }
+    return {"hanim.engine.?", Kind::internal};
+}
+// What failed beneath an engine's error (an object, an animation, an effect,
+// a program) is a cause.
+using EngineFailure = mlibs::error::Error<EngineError>;
 using PlayOptions = SegmentOptions;
 struct EngineLimits {
     ObjectLimits objects;

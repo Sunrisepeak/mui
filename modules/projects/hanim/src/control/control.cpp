@@ -37,7 +37,7 @@ template<class Fn> auto invoke(mlibs::control::InvocationContext& context,
     if(scope.dry_run())return Receipt<T>{};
     auto value=execute();
     if(!value) {
-        diagnostic.warn("{} failed: {}",descriptor.name,engine_error_name(value.error().code));
+        diagnostic.warn("{} failed: {}",descriptor.name,value.error().text());
         return std::unexpected(Failure{.code=Error::engine,.decision=openas::Decision::run,.engine=value.error()});
     }
     if constexpr(std::is_void_v<T>)return Receipt<void>{true};

@@ -2,6 +2,7 @@
 export module hanim.library;
 
 import std;
+import mlibs.error;
 export import hanim.object;
 
 namespace hanim::detail { struct ObjectMorphData; }
@@ -78,15 +79,49 @@ enum class MorphError : std::uint8_t {
     output_too_small, nonfinite_transform, invalid_property, unknown_part, property_conflict,
     invalid_time, invalid_ease, channel_budget, unsupported_property_effect, route_budget
 };
-[[nodiscard]] std::string_view morph_error_name(MorphError error) noexcept;
-struct MorphFailure {
-    MorphError code = MorphError::unprepared;
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(MorphError e) noexcept {
+    using Kind = mlibs::error::Kind;  // not a using-declaration: that is an ICE in GCC 16
+    switch (e) {
+        case MorphError::unprepared: return {"hanim.morph.unprepared", Kind::invalid_argument};
+        case MorphError::invalid_snapshot: return {"hanim.morph.invalid-snapshot", Kind::invalid_argument};
+        case MorphError::invalid_frame: return {"hanim.morph.invalid-frame", Kind::invalid_argument};
+        case MorphError::invalid_options: return {"hanim.morph.invalid-options", Kind::invalid_argument};
+        case MorphError::part_budget: return {"hanim.morph.part-budget", Kind::refused};
+        case MorphError::contour_budget: return {"hanim.morph.contour-budget", Kind::refused};
+        case MorphError::cubic_budget: return {"hanim.morph.cubic-budget", Kind::refused};
+        case MorphError::part_set_mismatch: return {"hanim.morph.part-set-mismatch", Kind::invalid_argument};
+        case MorphError::hierarchy_mismatch: return {"hanim.morph.hierarchy-mismatch", Kind::invalid_argument};
+        case MorphError::ordering_mismatch: return {"hanim.morph.ordering-mismatch", Kind::invalid_argument};
+        case MorphError::contour_count_mismatch: return {"hanim.morph.contour-count-mismatch", Kind::invalid_argument};
+        case MorphError::missing_fill: return {"hanim.morph.missing-fill", Kind::invalid_argument};
+        case MorphError::open_contour: return {"hanim.morph.open-contour", Kind::invalid_argument};
+        case MorphError::unsupported_topology: return {"hanim.morph.unsupported-topology", Kind::refused};
+        case MorphError::shape_failure: return {"hanim.morph.shape-failure", Kind::failed, {}, true};
+        case MorphError::invalid_progress: return {"hanim.morph.invalid-progress", Kind::invalid_argument};
+        case MorphError::output_too_small: return {"hanim.morph.output-too-small", Kind::invalid_argument};
+        case MorphError::nonfinite_transform: return {"hanim.morph.nonfinite-transform", Kind::invalid_argument};
+        case MorphError::invalid_property: return {"hanim.morph.invalid-property", Kind::invalid_argument};
+        case MorphError::unknown_part: return {"hanim.morph.unknown-part", Kind::not_found};
+        case MorphError::property_conflict: return {"hanim.morph.property-conflict", Kind::refused};
+        case MorphError::invalid_time: return {"hanim.morph.invalid-time", Kind::invalid_argument};
+        case MorphError::invalid_ease: return {"hanim.morph.invalid-ease", Kind::invalid_argument};
+        case MorphError::channel_budget: return {"hanim.morph.channel-budget", Kind::refused};
+        case MorphError::unsupported_property_effect: return {"hanim.morph.unsupported-property-effect", Kind::refused};
+        case MorphError::route_budget: return {"hanim.morph.route-budget", Kind::refused};
+    }
+    return {"hanim.morph.?", Kind::internal};
+}
+// Where in a morph an error is: the part, the contour, the clip and the
+// channel, each when it applies. A shape's own error is a cause beneath.
+struct MorphWhere {
     std::size_t part = std::numeric_limits<std::size_t>::max();
     std::size_t contour = std::numeric_limits<std::size_t>::max();
-    std::optional<ShapeMorphError> shape;
     std::size_t clip = std::numeric_limits<std::size_t>::max();
     std::optional<PropertyChannel> channel;
 };
+[[nodiscard]] std::string describe_where(const MorphWhere& where);
+using MorphFailure = mlibs::error::Error<MorphError, MorphWhere>;
 struct MorphPartInfo {
     std::string_view id;
     PartRef from_ref, to_ref;

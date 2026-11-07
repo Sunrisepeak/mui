@@ -294,7 +294,7 @@ Invalid feedback parameters produce a queryable `ProgramKind::invalid`
 expression before reciprocal/doubled-amplitude arithmetic. The same
 `invalid_program(ProgramFailure)` mechanism is available to custom recipe
 libraries; preparation reports the actual node in the composition and keeps
-the original typed cause. Positive durations too small to retain each leg are
+the original cause beneath it. Positive durations too small to retain each leg are
 refused rather than silently turning a phase into an instantaneous step.
 This does not change valid feedback pixels or require another error transport.
 

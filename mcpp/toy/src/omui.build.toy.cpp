@@ -4,7 +4,7 @@ import std;
 import mcpp;
 import omui.build.plan;
 
-namespace openmui::build {
+namespace omui::build {
 
 bool dist_toy(toy_options opt) {
     mcpp::provides_pack_format("dist-toy");
@@ -65,4 +65,4 @@ bool dist_toy(toy_options opt) {
     return true;
 }
 
-}  // namespace openmui::build
+}  // namespace omui::build

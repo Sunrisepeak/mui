@@ -9,7 +9,7 @@ import std;
 import mcpp;
 export import omui.build.plan;
 
-export namespace openmui::build {
+export namespace omui::build {
 
 struct embed_options {
     std::string module;                                   // the package's module
@@ -62,4 +62,4 @@ struct behavior_options {
 // so a shipped program carries its behaviours and reads no file to have them.
 bool behaviors(behavior_options opt);
 
-}  // namespace openmui::build
+}  // namespace omui::build

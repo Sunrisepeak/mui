@@ -1,7 +1,7 @@
-# openmui.viewdoc — view documents (`*.view.omui.json`, view-data-files §3):
+# omui.viewdoc — view documents (`*.view.omui.json`, view-data-files §3):
 # an interface as data, checked against the registered components with
 # located diagnostics, turned into the same Elements a builder makes, bound
-# to signals and models by openmui.expr expressions, reloaded in place with
+# to signals and models by omui.expr expressions, reloaded in place with
 # its state kept; a document with an interface is a component every language
 # can use. Also the documents' JSON Schema and canonical format.
 [package]

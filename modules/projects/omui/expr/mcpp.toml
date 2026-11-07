@@ -1,4 +1,4 @@
-# openmui.expr — the expression language of bindings (view-data-files §4,
+# omui.expr — the expression language of bindings (view-data-files §4,
 # registry/expr.toml): one AST, built by combinators in code and parsed from
 # CEL-compatible text in data files; evaluated synchronously by native code,
 # without side effects, always terminating, an error giving null and a

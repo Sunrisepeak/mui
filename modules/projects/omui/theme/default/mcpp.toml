@@ -1,7 +1,7 @@
-# openmui.theme.default (module openmui.theme.default_theme: `default` is a
+# omui.theme.default (module openmui.theme.default_theme: `default` is a
 # C++ keyword) — the default theme file (default.theme.omui.toml), embedded:
 # add_default() adds what it declares to the program's theme library
-# (openmui.theme). The partition holding the text is generated
+# (omui.theme). The partition holding the text is generated
 # (`omui-gen embed`; tools/gen's test keeps it current).
 [package]
 namespace   = "omui.theme"

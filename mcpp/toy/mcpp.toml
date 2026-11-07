@@ -1,13 +1,13 @@
-# openmui.build.toy — the build plugin for Bilibili Toy (D-84 §6.5): the pack
+# omui.build.toy — the build plugin for Bilibili Toy (D-84 §6.5): the pack
 # format `dist-toy`, a wasm32-emscripten program packaged for Toy (or, without
 # Toy's SDK, as a plain static page: the site's).
 #
 #   [build-dependencies]
-#   openmui.build.toy = { path = "…/mcpp/toy", host-module = true }
+#   omui.build.toy = { path = "…/mcpp/toy", host-module = true }
 #
 #   // build.mcpp
 #   import mcpp;
-#   import openmui.build.toy;
+#   import omui.build.toy;
 #   int main() { return openmui::build::dist_toy({.target = "omui-fight", .title = "格斗"}) ? 0 : 1; }
 #
 #   mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-toy

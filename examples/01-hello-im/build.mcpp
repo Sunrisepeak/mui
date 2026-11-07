@@ -5,5 +5,5 @@ import mcpp;
 import omui.build.embed;
 
 int main() {
-    return openmui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"}) ? 0 : 1;
+    return omui::build::embed({.module = "hello", .ns = "hello", .dir = "src", .suffix = ".cppm", .tag = "source"}) ? 0 : 1;
 }

@@ -3,4 +3,4 @@ import std;
 import mcpp;
 import omui.build.contracts;
 
-int main() { return openmui::build::natives({.module = "{{project.name}}"}) ? 0 : 1; }
+int main() { return omui::build::natives({.module = "{{project.name}}"}) ? 0 : 1; }

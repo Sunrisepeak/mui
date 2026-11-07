@@ -12,7 +12,7 @@ With `.sdk = false` the page does not load Toy's SDK, and it is a plain static p
 // build.mcpp
 import mcpp;
 import omui.build.toy;
-int main() { return openmui::build::dist_toy({.target = "omui-fight", .title = "格斗"}) ? 0 : 1; }
+int main() { return omui::build::dist_toy({.target = "omui-fight", .title = "格斗"}) ? 0 : 1; }
 ```
 
 ```
@@ -26,7 +26,7 @@ The package lands in `<out_dir>/toy/<target>/`, and the list of its contents bes
 Language fonts can keep a small amount of initial coverage:
 
 ```cpp
-openmui::build::dist_toy({
+omui::build::dist_toy({
     .target = "omui-site", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .sdk = false,
     .font_languages = {{"NotoSansSC", {"zh"}}},
     .font_initial = {{"NotoSansSC", "中文"}}

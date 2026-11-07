@@ -23,7 +23,7 @@ int main() {
                                         {"code", ".cpp", "cpp"}}};
     bool ok = true;
     for (const Set& s : sets)
-        ok = openmui::build::embed({.module = std::string(module), .ns = "omui::promo::files", .dir = std::string(s.dir), .suffix = std::string(s.suffix),
+        ok = omui::build::embed({.module = std::string(module), .ns = "omui::promo::files", .dir = std::string(s.dir), .suffix = std::string(s.suffix),
                                     .tag = std::string(s.tag), .index = true}) && ok;
     return ok ? 0 : 1;
 }

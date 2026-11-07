@@ -1,4 +1,4 @@
-# openmui.mcp — an MCP server (Model Context Protocol, stdio) for any running
+# omui.mcp — an MCP server (Model Context Protocol, stdio) for any running
 # openmui application (plan §11, S3): Claude Code and other agents list the
 # applications, read their semantic trees, find nodes, act, invoke verbs,
 # wait and capture pixels through ui_* tools, over the application's own

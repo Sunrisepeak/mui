@@ -1,4 +1,4 @@
-# openmui.host.sdl3 — openmui on the desktop through SDL3 (imported as the
+# omui.host.sdl3 — openmui on the desktop through SDL3 (imported as the
 # C++ module mcpplibs.mwrap.sdl3 over mcpp-index's compat.sdl3): a window, the display's scale, mouse, touch, wheel,
 # keyboard, text and input methods, the system clipboard and cursors; frames
 # drawn by the GPU renderer into the window's swapchain (mlibs.rhi on SDL_GPU)

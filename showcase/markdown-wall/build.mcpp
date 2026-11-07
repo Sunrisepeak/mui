@@ -4,4 +4,4 @@ import std;
 import mcpp;
 import omui.build.embed;
 
-int main() { return openmui::build::behaviors({.module = "omui.showcase.markdown_wall", .ns = "omui::wall"}) ? 0 : 1; }
+int main() { return omui::build::behaviors({.module = "omui.showcase.markdown_wall", .ns = "omui::wall"}) ? 0 : 1; }

@@ -1,4 +1,4 @@
-# openmui.build.contracts — the build plugin for contracts
+# omui.build.contracts — the build plugin for contracts
 # (component-binding §2.3, §8, §10.3): a component package's
 # `contract/*.contract.omui.toml` become, at build time, the C++ partitions
 # and builders it compiles (omui-gen cpp) and the script stubs and
@@ -6,11 +6,11 @@
 # `native/*.native.omui.toml` the same way (omui-gen native).
 #
 #   [build-dependencies]
-#   openmui.build.contracts = { path = "…/mcpp/contracts", host-module = true }
+#   omui.build.contracts = { path = "…/mcpp/contracts", host-module = true }
 #
 #   // build.mcpp
 #   import mcpp;
-#   import openmui.build.contracts;
+#   import omui.build.contracts;
 #   int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
 [package]
 name        = "contracts"

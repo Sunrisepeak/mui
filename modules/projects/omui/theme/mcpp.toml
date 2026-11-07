@@ -1,4 +1,4 @@
-# openmui.theme — themes as data (view-data-files §3, component-binding §11):
+# omui.theme — themes as data (view-data-files §3, component-binding §11):
 # `*.theme.omui.toml` files declare themes (light, dark) and overlays
 # (density, reduced motion); a library composes layers into the runtime's
 # Theme, with every mistake reported where it is. Theme packages

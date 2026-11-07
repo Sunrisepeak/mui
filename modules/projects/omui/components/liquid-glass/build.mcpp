@@ -4,4 +4,4 @@ import std;
 import mcpp;
 import omui.build.contracts;
 
-int main() { return openmui::build::components({.module = "omui.ui.liquid_glass", .ns = "omui"}) ? 0 : 1; }
+int main() { return omui::build::components({.module = "omui.ui.liquid_glass", .ns = "omui"}) ? 0 : 1; }

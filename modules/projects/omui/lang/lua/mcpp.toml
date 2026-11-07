@@ -1,8 +1,8 @@
-# openmui.lang.lua — Lua 5.4 (mcpplibs.mwrap.lua, lua-m) on the Script Binding Profile
+# omui.lang.lua — Lua 5.4 (mcpplibs.mwrap.lua, lua-m) on the Script Binding Profile
 # (component-binding §7): the `omui` module, its builders (table
 # constructors: omui.Column { gap = 8, omui.Text { … } }), signals with
 # expression arithmetic, regions, verbs, models and the bus interface.
-# Embedded: the script runs on openmui.lang's script thread.
+# Embedded: the script runs on omui.lang's script thread.
 [package]
 namespace   = "omui.lang"
 name        = "lua"

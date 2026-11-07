@@ -1,4 +1,4 @@
-# openmui.reflect — C++26 reflection's convenience layer (D-39): a form from a
+# omui.reflect — C++26 reflection's convenience layer (D-39): a form from a
 # struct's members, a struct as openmui's values and back. GCC 16 with
 # -freflection only, and nothing else depends on it: the core is C++23
 # (contracts are its alternative). CI builds it on the GCC rows.

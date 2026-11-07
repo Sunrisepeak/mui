@@ -1,4 +1,4 @@
-# openmui.host.web.toy — Bilibili Toy's SDK (window.toy, github.com/bilibili/toy)
+# omui.host.web.toy — Bilibili Toy's SDK (window.toy, github.com/bilibili/toy)
 # for an openmui program in a Toy page (D-84 §6.5): a thin, optional layer —
 # whether the SDK is there and what it supports, cloud storage written to
 # memory and to Toy at checkpoints (the page hidden, flush()), leaderboards

@@ -1,4 +1,4 @@
-# openmui.theme.styles — the style packs (S2, D-69) as data, embedded: glass,
+# omui.theme.styles — the style packs (S2, D-69) as data, embedded: glass,
 # neon, retro (a CRT), ink (on paper) and liquid. Each is a theme to start
 # from, the tokens it changes and the effects it puts on the window, on
 # component types and on roles; add_styles() adds them to the program's

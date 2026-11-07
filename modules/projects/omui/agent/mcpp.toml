@@ -1,4 +1,4 @@
-# openmui.agent — the local agent endpoint (openmui.tree@0.1 over JSON
+# omui.agent — the local agent endpoint (openmui.tree@0.1 over JSON
 # lines): every application listens in a known directory through
 # mcpplibs.os.ipc; agents and the `omui agent` command connect, read the
 # semantic tree, find nodes, perform actions under the effect rules, and

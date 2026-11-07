@@ -1,4 +1,4 @@
-# openmui.gen — the generator: spec/registry and *.contract.omui.toml to
+# omui.gen — the generator: spec/registry and *.contract.omui.toml to
 # openmui.h, the openmui.spec partitions, component partitions, script
 # builders, schemas and reference tables (implementation plan §4.2).
 #

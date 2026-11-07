@@ -8,15 +8,15 @@ import omui.build.embed;
 import omui.build.toy;
 
 int main() {
-    const bool lens = openmui::build::components({.module = "omui.site", .ns = "omui::site"});
-    const bool content = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
-    const bool en = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
-    const bool zh = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
+    const bool lens = omui::build::components({.module = "omui.site", .ns = "omui::site"});
+    const bool content = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "content", .suffix = ".md", .tag = "content", .index = true});
+    const bool en = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/en", .suffix = ".md", .tag = "en", .index = true});
+    const bool zh = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "../docs/zh", .suffix = ".md", .tag = "zh", .index = true});
     // The reference run's frames as CI hashed them (the footer compares a browser's own with them).
-    const bool frames = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
+    const bool frames = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "reference", .suffix = ".frames.omui.json", .tag = "frames"});
     // Its own theme: the design language's tokens, light and dark.
-    const bool theme = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
-    const bool bootstrap = openmui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
+    const bool theme = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "theme", .suffix = ".theme.omui.toml", .tag = "theme", .index = true});
+    const bool bootstrap = omui::build::embed({.module = "omui.site", .ns = "omui::site::files", .dir = "src", .suffix = ".bootstrap.js", .tag = "bootstrap"});
     // The Chinese font cut down to the characters the site draws (2.7 of the 7.7 MB before its first frame):
     // its text, the docs it shows, the program it runs — and the common characters people type.
     const std::string here = mcpp::manifest_dir();
@@ -29,7 +29,7 @@ int main() {
     std::string initial_latin;
     for (int c = 32; c < 127; ++c) initial_latin += static_cast<char>(c);
     initial_latin += " áéíóúàèìòùäëïöüÿÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñÆæØøßÇçµαβγΔΣπΩμ°€£¥±·×−–—‘’“”…→←↔↑↓✓✗ﬁﬂﬀﬃﬄﬅﬆ";
-    const bool page = openmui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
+    const bool page = omui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
                                                 .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
                                                 // The Chinese font before the first frame only for a page opened in Chinese; else just after it.
                                                 .font_languages = {{"NotoSansSC", {"zh"}}},

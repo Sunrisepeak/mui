@@ -1,11 +1,11 @@
-# openmui.ui.canvas — the infinite canvas's core (canvas-markdown §1,
+# omui.ui.canvas — the infinite canvas's core (canvas-markdown §1,
 # OMUI_EXT_canvas): a scene stored by column with a grid index, a camera in
 # double precision, tiers of detail per node kind (instanced boxes, a kind's
 # own drawing, a live component), pan / zoom about the cursor / pinch /
 # fling, named views on springs, and semantics that state what is on screen
 # and find anything in the scene. Mechanism only: selection, dragging,
 # handles, snapping, connectors and the minimap are canvas-kit's.
-# Contract-first (openmui.build.contracts).
+# Contract-first (omui.build.contracts).
 [package]
 namespace   = "omui.ui"
 name        = "canvas"

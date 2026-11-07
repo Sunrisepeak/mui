@@ -9,8 +9,8 @@
 # static HTML from the same documents so a reader without JavaScript and a
 # search engine see them.
 #
-#   mcpp run -p openmui.site                       the site in a window
-#   mcpp run -p openmui.site -- --prerender out/index.html   its places into a packed page
+#   mcpp run -p omui.site                       the site in a window
+#   mcpp run -p omui.site -- --prerender out/index.html   its places into a packed page
 [package]
 namespace   = "omui"
 name        = "site"
@@ -44,8 +44,8 @@ sources = ["src/targets/web.cppm"]
 omui.sdk         = { path = "../modules/projects/omui/sdk" }
 omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
 # The site also authors Hanim programs directly. Declared here as well because
-# mcpp does not yet apply openmui.view's [feature-deps.hanim] when the view is
-# selected together with this package (the Web row: -p openmui.view -p openmui.site).
+# mcpp does not yet apply omui.view's [feature-deps.hanim] when the view is
+# selected together with this package (the Web row: -p omui.view -p omui.site).
 hanim               = { path = "../modules/projects/hanim", default-features = false, features = ["engine", "render-vector"] }
 omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
 omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }

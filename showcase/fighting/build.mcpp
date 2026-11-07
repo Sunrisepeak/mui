@@ -13,36 +13,36 @@ int main() {
     // layers, their music, the announcer. Left out, their tables are empty —
     // training's plain room needs none (the site's move list).
     const bool arenas = mcpp::has_feature("arenas");
-    const bool stage = openmui::build::components({.module = "omui.showcase.fighting", .ns = "omui::fighting"});
+    const bool stage = omui::build::components({.module = "omui.showcase.fighting", .ns = "omui::fighting"});
     // The fighters, their looks and baked hurtboxes; a stale bake fails the build.
     const bool fighters = gongfu::rules::fighters({.module = "omui.showcase.fighting", .ns = "omui::fighting::files"});
     // What the fight sounds like (xengine.audio).
-    const bool sounds = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
+    const bool sounds = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "sounds",
                                                .suffix = ".sound.omui.toml", .tag = "sound"});
     // The stages' art (gongfu.present2d's stage files).
-    const bool stages = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
+    const bool stages = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages",
                                                .suffix = ".stage.gongfu.toml", .tag = "stage", .index = true, .left_out = !arenas});
     // Their painted layers (the pictures the stage files name).
-    const bool stage_art = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages/art",
+    const bool stage_art = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "stages/art",
                                                   .suffix = ".webp", .tag = "stage_art", .index = true, .left_out = !arenas});
     // The fighters' drawn art (pictures their looks' image parts are cut from) — on the Web with
     // `art-later`, left out: the page fetches it after the program is drawn (the site's 4 MB).
     const bool later = mcpp::has_feature("art-later") && std::string_view(mcpp::target()).contains("emscripten");
-    const bool art = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
+    const bool art = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "fighters/art",
                                             .suffix = ".webp", .tag = "art", .index = true, .left_out = later});
     // The HUD's art: its frames, its lettering, the names' calligraphy, its fills.
-    const bool hud = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "hud",
+    const bool hud = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "hud",
                                             .suffix = ".webp", .tag = "hud", .index = true});
     // The stages' music (xengine.audio's pieces).
-    const bool music = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
+    const bool music = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "music",
                                               .suffix = ".music.omui.toml", .tag = "music", .index = true, .left_out = !arenas});
     // The announcer's recordings (voice/*.wav, Kenney's CC0 Voiceover Pack: Fighter).
-    const bool voice = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "voice",
+    const bool voice = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "voice",
                                               .suffix = ".wav", .tag = "voice", .index = true, .left_out = !arenas});
     // What a gamepad's buttons do (controls/*.controls.omui.json): data, so it can be remapped.
-    const bool controls = openmui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
+    const bool controls = omui::build::embed({.module = "omui.showcase.fighting", .ns = "omui::fighting::files", .dir = "controls",
                                                  .suffix = ".controls.omui.json", .tag = "controls"});
     // On the Web, a Bilibili Toy package (D-84 §8.9): mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
-    const bool toy = openmui::build::dist_toy({.target = "omui-fight", .title = "格斗游戏", .fonts = {"Inter", "NotoSansSC"}, .background = "#0b0d12"});
+    const bool toy = omui::build::dist_toy({.target = "omui-fight", .title = "格斗游戏", .fonts = {"Inter", "NotoSansSC"}, .background = "#0b0d12"});
     return stage && fighters && sounds && stages && stage_art && art && hud && music && voice && controls && toy ? 0 : 1;
 }

@@ -1,4 +1,4 @@
-# openmui.host.headless — openmui without a display: a virtual surface, a
+# omui.host.headless — openmui without a display: a virtual surface, a
 # clock stepped frame by frame, input injected by point or by id, pixels from
 # the CPU renderer as PNG, and the agent endpoint served between frames. The
 # four headless levels (H0 semantics, H1 layout, H2 pixels, H3 a session an

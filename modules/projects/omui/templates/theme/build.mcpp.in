@@ -3,4 +3,4 @@ import std;
 import mcpp;
 import omui.build.embed;
 
-int main() { return openmui::build::themes({.module = "{{project.name}}"}) ? 0 : 1; }
+int main() { return omui::build::themes({.module = "{{project.name}}"}) ? 0 : 1; }

@@ -1,4 +1,4 @@
-# openmui.motion — universal motion (D-93): what a node drew, taken apart into
+# omui.motion — universal motion (D-93): what a node drew, taken apart into
 # matter (pieces of its display list, each with whose it is and what it is
 # drawn under), two drawings of it matched (by node, by meaning, glyph by
 # glyph) and drawn between them as a pure function of time. Knows display

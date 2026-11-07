@@ -1,7 +1,7 @@
-# openmui.lang.js — JavaScript (and TypeScript compiled to it) on the Script
+# omui.lang.js — JavaScript (and TypeScript compiled to it) on the Script
 # Binding Profile, with QuickJS-ng (component-binding §7): the `openmui`
 # ES module (builders, signals, expressions, regions, verbs, models, the
-# semantic tree), embedded on openmui.lang's script thread.
+# semantic tree), embedded on omui.lang's script thread.
 [package]
 namespace   = "omui.lang"
 name        = "js"

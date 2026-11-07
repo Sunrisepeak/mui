@@ -17,7 +17,7 @@ import std;
 import mcpp;
 export import omui.build.plan;
 
-export namespace openmui::build {
+export namespace omui::build {
 
 struct component_options {
     std::string module;                                   // the package's module (acme.ui)
@@ -56,4 +56,4 @@ struct native_options {
 // the build cannot go on.
 bool natives(native_options opt);
 
-}  // namespace openmui::build
+}  // namespace omui::build

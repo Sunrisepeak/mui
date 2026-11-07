@@ -1,14 +1,14 @@
-# openmui.build.embed — the build plugin for data files a program carries
+# omui.build.embed — the build plugin for data files a program carries
 # (D-73's embed plugin): each file a partition holding its text (omui-gen
 # embed), so a shipped program reads no file to have them; themes() and
 # behaviors() for theme packages and canvas programs.
 #
 #   [build-dependencies]
-#   openmui.build.embed = { path = "…/mcpp/embed", host-module = true }
+#   omui.build.embed = { path = "…/mcpp/embed", host-module = true }
 #
 #   // build.mcpp
 #   import mcpp;
-#   import openmui.build.embed;
+#   import omui.build.embed;
 #   int main() { return openmui::build::embed({.module = "acme", .dir = "data", .suffix = ".json", .tag = "data"}) ? 0 : 1; }
 [package]
 name        = "embed"

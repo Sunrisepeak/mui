@@ -1,4 +1,4 @@
-# openmui.core — the foundation of the runtime: signals, verbs, input events
+# omui.core — the foundation of the runtime: signals, verbs, input events
 # and keys, JSON, diagnostics, task scheduling; it re-exports the shared
 # geometry, memory utilities and the clock (mlibs.geom, -memory, -anim).
 [package]

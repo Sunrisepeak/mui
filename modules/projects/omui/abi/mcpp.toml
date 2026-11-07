@@ -1,8 +1,8 @@
-# openmui.abi — openmui.h implemented (spec §8): the one boundary every
+# omui.abi — openmui.h implemented (spec §8): the one boundary every
 # language binding is written against. Handles and values cross it, never a
 # C++ type or an exception; text and structured results reach the caller's
-# sink; views are view documents (openmui.viewdoc), queries and actions the
-# bus interface's (openmui.agent). Its types and declarations are generated
+# sink; views are view documents (omui.viewdoc), queries and actions the
+# bus interface's (omui.agent). Its types and declarations are generated
 # from spec/registry/abi.toml (`omui-gen abi`), and a native unit checks every
 # layout against the header.
 [package]

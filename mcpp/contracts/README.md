@@ -12,7 +12,7 @@ The build plugin for contracts (component-binding §2.3, §8, §10.3). A package
 // build.mcpp
 import mcpp;
 import omui.build.contracts;
-int main() { return openmui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
+int main() { return omui::build::components({.module = "acme.ui", .ns = "acme::ui"}) ? 0 : 1; }
 ```
 
 A native-module package (component-binding §8, `kind = "native"`) does the same for `native/*.native.omui.toml`:
@@ -23,7 +23,7 @@ A native-module package (component-binding §8, `kind = "native"`) does the same
 | `<module>.natives.d.ts`, `<name>.pyi`, `<module>.natives.lua` | `omui-gen native --part stubs` | shipped beside the package |
 
 ```cpp
-int main() { return openmui::build::natives({.module = "acme.finder"}) ? 0 : 1; }
+int main() { return omui::build::natives({.module = "acme.finder"}) ? 0 : 1; }
 ```
 
 The package implements the functions the partition declares. Its program calls `<name>::define()` once, before scripts run. The registry is openmui's `spec/registry`, found beside the plugin unless `registry` names another.

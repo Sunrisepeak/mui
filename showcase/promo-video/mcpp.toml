@@ -6,9 +6,9 @@
 # every time. `omui-promo` renders it (WebM: VP9 and Opus; Y4M; PNG), draws
 # a frame, and checks it against the acceptance (§5.1).
 #
-#   mcpp run --release -p openmui.showcase.promo_video -- render promo --out promo.webm
-#   mcpp run --release -p openmui.showcase.promo_video -- still promo --frame 1800 --out wall.png
-#   mcpp run --release -p openmui.showcase.promo_video -- check promo
+#   mcpp run --release -p omui.showcase.promo_video -- render promo --out promo.webm
+#   mcpp run --release -p omui.showcase.promo_video -- still promo --frame 1800 --out wall.png
+#   mcpp run --release -p omui.showcase.promo_video -- check promo
 [package]
 namespace   = "omui.showcase"
 name        = "promo_video"

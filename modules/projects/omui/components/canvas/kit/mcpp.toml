@@ -1,4 +1,4 @@
-# openmui.ui.canvas.kit — what a canvas can do beyond panning and zooming
+# omui.ui.canvas.kit — what a canvas can do beyond panning and zooming
 # (canvas-markdown §1.1, the optional layer): select, drag, resize, snap
 # (alignment guides, a grid), connect, grid, minimap and delete, as
 # behaviours a canvas names in `behaviors`, each adding to the semantic tree

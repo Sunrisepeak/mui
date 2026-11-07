@@ -1,4 +1,4 @@
-# openmui.view — the retained view runtime: elements (contract ②), the
+# omui.view — the retained view runtime: elements (contract ②), the
 # component function tables, design tokens, the runtime (tree, bindings,
 # regions, transitions, layout, paint, input, focus, actions, semantics) and
 # the primitives (box, column, row, stack, grid, spacer, text, image,

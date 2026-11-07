@@ -4,8 +4,8 @@
 # words fade in by glyph motion on just the new bytes. A real tool for
 # watching a model write, and the showcase of streaming and glyph motion.
 #
-#   some-llm "explain modules" | mcpp run -p openmui.example.markdown-stream
-#   mcpp run -p openmui.example.markdown-stream -- --demo
+#   some-llm "explain modules" | mcpp run -p omui.example.markdown-stream
+#   mcpp run -p omui.example.markdown-stream -- --demo
 [package]
 namespace   = "omui.example"
 name        = "markdown-stream"

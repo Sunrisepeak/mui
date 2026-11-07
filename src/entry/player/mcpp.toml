@@ -1,4 +1,4 @@
-# openmui.entry.player — the player's main (component-binding §10.2): what a
+# omui.entry.player — the player's main (component-binding §10.2): what a
 # script-first application's one-line src/main.cpp calls. It reads the
 # application's [package.metadata.openmui], registers the official components
 # and the script languages (Lua, JavaScript, TypeScript, Python), and runs

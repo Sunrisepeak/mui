@@ -1,4 +1,4 @@
-# openmui.native — the native modules of a program (component-binding §8):
+# omui.native — the native modules of a program (component-binding §8):
 # functions written in C++ behind a `*.native.omui.toml` contract, registered
 # once and called by scripts through the C ABI (omuiNativeCall). The
 # contract's types check every call's arguments here, in one place; the code

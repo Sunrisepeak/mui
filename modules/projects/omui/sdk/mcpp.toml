@@ -1,4 +1,4 @@
-# openmui.sdk — the umbrella package users name (`import openmui;`, target
+# omui.sdk — the umbrella package users name (`import openmui;`, target
 # `import omui;`): its module re-exports the runtime, the base components and
 # the default theme, and `omui::run` shows an application on the host the
 # platform has (a desktop window, or the page's canvas on the Web). It was the

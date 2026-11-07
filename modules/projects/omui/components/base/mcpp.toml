@@ -1,4 +1,4 @@
-# openmui.ui.base — the Core components (spec §11), behaviour over the
+# omui.ui.base — the Core components (spec §11), behaviour over the
 # runtime's public API only (component-binding §1: no privilege). Each
 # component's interface is its contract in spec/registry/components; the
 # partitions in src/generated are omui-gen's (`omui-gen cpp … --namespace omui
@@ -6,7 +6,7 @@
 # the classes beside them are the behaviour, and the look comes from the
 # theme's tokens. The package's own components (badge, card, pagination …)
 # have their contracts in contract/, made into code when it builds
-# (build.mcpp, openmui.build.contracts).
+# (build.mcpp, omui.build.contracts).
 [package]
 namespace   = "omui.ui"
 name        = "base"

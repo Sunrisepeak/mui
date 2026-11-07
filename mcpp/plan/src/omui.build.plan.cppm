@@ -8,7 +8,7 @@ export module omui.build.plan;
 import std;
 import mcpp;
 
-export namespace openmui::build {
+export namespace omui::build {
 
 // One planned edge, so a build program can adjust it before submitting.
 struct edge {
@@ -55,4 +55,4 @@ bool submit(std::span<const edge> edges);
 // `[<table>.<name>.<part>]` is a sub-table, not a name).
 [[nodiscard]] std::vector<std::string> table_names(const std::filesystem::path& file, std::string_view table);
 
-}  // namespace openmui::build
+}  // namespace omui::build

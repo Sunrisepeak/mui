@@ -1,9 +1,9 @@
-# openmui.ui.window — the framework's own window frame (D-75): `window_frame`,
+# omui.ui.window — the framework's own window frame (D-75): `window_frame`,
 # the shadow, rounded edge, title bar and buttons of a framework-drawn window
 # (only its content in a native one), and `caption_button`, its minimize,
 # maximize, restore and close buttons. Contract-first: contract/*.contract.omui.toml
-# become the bases, builders, stubs and schema when it builds (openmui.build.contracts).
-# The window's state and operations are openmui.view's (`window()`, the
+# become the bases, builders, stubs and schema when it builds (omui.build.contracts).
+# The window's state and operations are omui.view's (`window()`, the
 # window.* verbs); a host makes them real.
 [package]
 namespace   = "omui.ui"

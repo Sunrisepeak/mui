@@ -1,4 +1,4 @@
-# openmui.host.web — openmui in the browser (D-84 §6.2): wasm32-emscripten,
+# omui.host.web — openmui in the browser (D-84 §6.2): wasm32-emscripten,
 # single-threaded; a <canvas> sized by the page, at the device's pixel ratio;
 # the frame loop on requestAnimationFrame (emscripten's main loop), frames
 # only when something wants one; pointer, touch, wheel, keyboard and the

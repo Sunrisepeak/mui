@@ -5,7 +5,7 @@ import mcpp;
 import omui.build.embed;
 
 int main() {
-    return openmui::build::embed({.module = "mlibs.i18n.cldr.api", .ns = "mlibs::i18n::cldr", .dir = "data", .suffix = ".locale.omui.json", .tag = "locale"})
+    return omui::build::embed({.module = "mlibs.i18n.cldr.api", .ns = "mlibs::i18n::cldr", .dir = "data", .suffix = ".locale.omui.json", .tag = "locale"})
                ? 0
                : 1;
 }

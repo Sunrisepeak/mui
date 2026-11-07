@@ -4,7 +4,7 @@ import std;
 import mcpp;
 import omui.build.plan;
 
-namespace openmui::build {
+namespace omui::build {
 
 namespace {
 
@@ -157,4 +157,4 @@ bool natives(native_options opt) {
     return submit(edges);
 }
 
-}  // namespace openmui::build
+}  // namespace omui::build

@@ -3,7 +3,7 @@ module omui.build.plan;
 import std;
 import mcpp;
 
-namespace openmui::build {
+namespace omui::build {
 
 bool submit(std::span<const edge> edges) {
     for (const edge& e : edges) {
@@ -79,4 +79,4 @@ std::vector<std::string> table_names(const std::filesystem::path& file, std::str
     return out;
 }
 
-}  // namespace openmui::build
+}  // namespace omui::build

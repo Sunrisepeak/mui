@@ -1,4 +1,4 @@
-# openmui.build.plan — what openmui's build plugins share: a planned edge,
+# omui.build.plan — what openmui's build plugins share: a planned edge,
 # submitting it, the generator, the files a plugin reads (mcpp/README.md).
 # Only build-system code lives under mcpp/ (AGENTS.md).
 [package]

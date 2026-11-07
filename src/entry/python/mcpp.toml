@@ -1,4 +1,4 @@
-# openmui.entry.python — the `_openmui` extension module that `import openmui`
+# omui.entry.python — the `_openmui` extension module that `import openmui`
 # loads (component-binding §7, D-46): a shared library holding the runtime,
 # the official components, the desktop host and modules/projects/omui/lang/python, written against
 # CPython's stable ABI (abi3) and linked against no libpython. Its window
@@ -30,7 +30,7 @@ xrender.text = { path = "../../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../../modules/base/utils" }
 omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
 omui.abi           = { path = "../../../modules/projects/omui/abi" }
-omui.lang.python   = { path = "../../../modules/projects/omui/lang/python" }  # and openmui.lang, through it (a TOML key cannot be both)
+omui.lang.python   = { path = "../../../modules/projects/omui/lang/python" }  # and omui.lang, through it (a TOML key cannot be both)
 omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
 mlibs.image         = { path = "../../../modules/base/image" }
 omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }

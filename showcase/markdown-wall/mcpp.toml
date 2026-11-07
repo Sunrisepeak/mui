@@ -9,8 +9,8 @@
 # mode shows what each frame cost. `--stream N` has N windows written into
 # at a language model's pace; `--synthetic N` is the benchmark's dataset.
 #
-#   mcpp run -p openmui.showcase.markdown_wall -- .agents/docs
-#   mcpp run -p openmui.showcase.markdown_wall -- --synthetic 1000 --stream 20
+#   mcpp run -p omui.showcase.markdown_wall -- .agents/docs
+#   mcpp run -p omui.showcase.markdown_wall -- --synthetic 1000 --stream 20
 [package]
 namespace   = "omui.showcase"
 name        = "markdown_wall"

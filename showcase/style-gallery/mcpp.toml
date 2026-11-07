@@ -5,8 +5,8 @@
 # real program loads. The semantic tree is the same under every style: only
 # pixels change, and agents act the same.
 #
-#   mcpp run -p openmui.showcase.style_gallery
-#   mcpp run -p openmui.showcase.style_gallery -- --style neon --headless --png neon.png
+#   mcpp run -p omui.showcase.style_gallery
+#   mcpp run -p omui.showcase.style_gallery -- --style neon --headless --png neon.png
 [package]
 namespace   = "omui.showcase"
 name        = "style_gallery"

@@ -1,11 +1,11 @@
-# openmui.inspector — the openmui Inspector (D-61, D-63, D-67): a tool
+# omui.inspector — the openmui Inspector (D-61, D-63, D-67): a tool
 # written in openmui that connects to any running openmui application and
 # shows its semantic tree, a node's type / source / props / layout / state,
 # frame times against the 60 Hz budget, the frame's pipeline, and the
 # application's clock — which it can pause, step, slow down and send back in
 # time. `omui agent` prints the same data as JSON.
 #
-#   mcpp run -p openmui.inspector -- [--app org.example.notes] [--agent-dir DIR]
+#   mcpp run -p omui.inspector -- [--app org.example.notes] [--agent-dir DIR]
 [package]
 namespace   = "omui"
 name        = "inspector"

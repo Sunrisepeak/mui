@@ -1,4 +1,4 @@
-# openmui.native.fuzzy — fuzzy matching as a finder does it (:matching,
+# omui.native.fuzzy — fuzzy matching as a finder does it (:matching,
 # omui::fuzzy), and the official native module every host registers for
 # scripts (the player, the Python extension): its contract
 # (native/fuzzy.native.omui.toml) is all that is written about the script

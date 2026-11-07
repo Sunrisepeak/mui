@@ -1,4 +1,4 @@
-# openmui.cts — the harness of the conformance suite's level S
+# omui.cts — the harness of the conformance suite's level S
 # (spec/conformance/S): the scenarios, the run of a language's runner through
 # the two verbs it registers, and the comparison of what it records with the
 # trace pinned beside the scenario. The Lua and JavaScript tests use it; the

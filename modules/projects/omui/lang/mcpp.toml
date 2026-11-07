@@ -1,4 +1,4 @@
-# openmui.lang — what every language binding shares (component-binding §6):
+# omui.lang — what every language binding shares (component-binding §6):
 # the Script Binding Profile over openmui.h. A script runs on its own thread
 # (the logical thread); the tree stays on the runtime's. Views a script builds
 # are view documents, its signals are runtime signals it mirrors, its event

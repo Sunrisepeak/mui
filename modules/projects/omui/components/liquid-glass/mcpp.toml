@@ -1,8 +1,8 @@
-# openmui.ui.liquid_glass — liquid glass as components (D-64, features §3.3):
+# omui.ui.liquid_glass — liquid glass as components (D-64, features §3.3):
 # `liquid_glass`, a container whose surface is a thick transparent material
 # over what lies under it, and `glass_group`, whose members merge like drops.
 # Contract-first: contract/*.contract.omui.toml become the bases, builders,
-# stubs and schema when it builds (openmui.build.contracts). The look is the renderer's
+# stubs and schema when it builds (omui.build.contracts). The look is the renderer's
 # built-in `liquid_glass` effect (openmui.render); the semantics are an
 # ordinary group's; reduced transparency draws an opaque panel.
 [package]

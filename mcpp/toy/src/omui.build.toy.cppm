@@ -6,7 +6,7 @@
 // it is a plain static page (the site's).
 //
 //     // build.mcpp
-//     openmui::build::dist_toy({.target = "omui-fight", .title = "格斗"});
+//     omui::build::dist_toy({.target = "omui-fight", .title = "格斗"});
 //
 //     mcpp pack -p <package> --target wasm32-emscripten --release --pkg-format dist-toy
 //
@@ -19,7 +19,7 @@ import std;
 import mcpp;
 export import omui.build.plan;
 
-export namespace openmui::build {
+export namespace omui::build {
 
 // Files the page fetches once the program is drawn (not before it starts):
 // each of `dir`'s files ending in `suffix`, a hashed asset, written to
@@ -61,4 +61,4 @@ struct toy_options {
 // available) and, when the pack asks for it, the edge that makes the package.
 bool dist_toy(toy_options opt);
 
-}  // namespace openmui::build
+}  // namespace omui::build

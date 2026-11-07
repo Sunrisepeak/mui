@@ -1,4 +1,4 @@
-# openmui.accessibility — the semantic tree served to the platform's
+# omui.accessibility — the semantic tree served to the platform's
 # assistive technology (D-21): UI Automation on Windows, NSAccessibility on
 # macOS, AT-SPI on Linux, through AccessKit's C bindings (mcpp-index's
 # compat.accesskit, imported as the module mcpplibs.mwrap.accesskit). A screen

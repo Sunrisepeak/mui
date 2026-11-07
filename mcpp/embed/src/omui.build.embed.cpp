@@ -4,7 +4,7 @@ import std;
 import mcpp;
 import omui.build.plan;
 
-namespace openmui::build {
+namespace omui::build {
 
 std::vector<edge> plan_embed(const embed_options& opt) {
     const std::string root = mcpp::manifest_dir();
@@ -74,4 +74,4 @@ bool behaviors(behavior_options opt) {
                   .tag = "behavior", .out_dir = std::move(opt.out_dir)});
 }
 
-}  // namespace openmui::build
+}  // namespace omui::build

@@ -1,10 +1,10 @@
-# openmui.bench — the framework's benchmarks: what a frame of the 1000-node
+# omui.bench — the framework's benchmarks: what a frame of the 1000-node
 # dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
 # and what tracing and logging cost when off. `omui-bench` prints a table,
 # writes `<name>.bench.omui.json`, and checks budgets.bench.omui.json (CI's
 # release row; the budgets are for release builds).
 #
-#   mcpp run -p openmui.bench --profile release -- --check tests/bench/budgets.bench.omui.json
+#   mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json
 [package]
 namespace   = "omui"
 name        = "bench"

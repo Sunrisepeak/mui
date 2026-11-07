@@ -1,9 +1,9 @@
-# openmui.ui.timeline — the timeline every editor shares, as a component
+# omui.ui.timeline — the timeline every editor shares, as a component
 # (D-86): tracks of clips in exact time (xengine.timeline), a ruler, markers
 # and a playhead; clips selected, moved, trimmed, split and removed by the
 # pointer, the keys or an agent's actions, every edit undone exactly.
 # Contract-first: contract/timeline.contract.omui.toml becomes the base,
-# builders, stubs and schema when it builds (openmui.build.contracts).
+# builders, stubs and schema when it builds (omui.build.contracts).
 [package]
 namespace   = "omui.ui"
 name        = "timeline"

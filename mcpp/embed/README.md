@@ -7,7 +7,7 @@ The build plugin for data files a program carries (D-73's embed plugin). Each fi
 import mcpp;
 import omui.build.embed;
 int main() {
-    return openmui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "styles",
+    return omui::build::embed({.module = "omui.theme.styles", .ns = "omui::themes", .dir = "styles",
                                   .suffix = ".style.omui.toml", .tag = "style"}) ? 0 : 1;
 }
 ```

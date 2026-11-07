@@ -217,7 +217,8 @@ int main(int argc, char** argv) {
         check(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; }), "the jab landed");
         check(pixels[0] != pixels[1] && pixels[1] != pixels[2], "each frame differs");
         std::println("    present2d lists {:016x} {:016x} {:016x} pixels {:016x} {:016x} {:016x}", lists[0], lists[1], lists[2], pixels[0], pixels[1], pixels[2]);
-        check(lists == std::vector<std::uint64_t>{0x2bc57d3dbc61c26bULL, 0x80e98231d906210aULL, 0x60ca589059e2ffb2ULL}, "lists pinned");
+        // The list hash covers stroke trims since cd341715; the pixels did not move.
+        check(lists == std::vector<std::uint64_t>{0x2bc57d3dbc61c26bULL, 0xc699396f7f54c996ULL, 0xf052d619b4c80b06ULL}, "lists pinned");
         check(pixels == std::vector<std::uint64_t>{0x63cbb3e2c177a1bcULL, 0x94b2608af7e6ac66ULL, 0xa8ef2d37eb4b6200ULL}, "pixels pinned");
     });
 
@@ -1884,7 +1885,7 @@ spark = { style = "rays", colour = "#ffd166" }
         Hash h;
         h.u64(dl.hash());
         std::println("    panes {}", h.hex());
-        check_eq(h.hex(), std::string("fe59333316dc82e9"));
+        check_eq(h.hex(), std::string("6de55fbe33f431db"));  // the list hash covers stroke trims since cd341715
         // A pane's colours read back from a look file.
         auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\" }\n" +
                                       read(here() / "data" / "kata.look.gongfu.toml"),
@@ -1992,7 +1993,7 @@ spark = { style = "rays", colour = "#ffd166" }
         }
         check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
         std::println("    sparks {}", all.hex());
-        check_eq(all.hex(), std::string("bf3e3b2b5499bef8"));
+        check_eq(all.hex(), std::string("37ddd5753e77d72a"));  // the list hash covers stroke trims since cd341715
     });
 
     s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {

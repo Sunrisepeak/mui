@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
             report(std::format("to {}", p.id), t);
             check(t.rested, std::format("to {}: at rest within 5 s (still: {})", p.id, t.wants));
             const Value v = r.reading();
-            check(v.get("idle") && v.get("idle")->as_bool(), std::format("to {}: the meter idle at rest", p.id));
+            check(v.get("idle") && v.get("idle")->as_bool(), std::format("to {}: the meter idle at rest ({})", p.id, v.json()));
             check(v.get("renderer") && v.get("renderer")->as_string() == "cpu", "the headless host's renderer");
             check(v.get("frames") && v.get("frames")->as_int() > 0, std::format("to {}: its frames counted", p.id));
             check(v.get("cost_ms") && v.get("cost_ms")->is_null(), "no cost where the host does not measure");

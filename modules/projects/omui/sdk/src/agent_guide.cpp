@@ -147,6 +147,10 @@ AgentGuide agent_guide(const AppSpec& app, Runtime& runtime, const Value& snapsh
             if (!v->person) line(std::format("| `{}` | {} | {} |", v->name, effect_name(v->effect), v->summary));
         line();
     }
+    if (!app.agent_skill.empty()) {
+        line(app.agent_skill);
+        line();
+    }
     if (!check.activate.empty()) {
         line("## The self-check");
         line();

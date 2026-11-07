@@ -42,10 +42,10 @@ FrameReading read_frames(const ShownFrames& f, std::string_view renderer) {
         while (first > 0 && f[first].at.count() - f[first - 1].at.count() < run_gap) --first;
         return first;
     };
-    std::size_t end = f.size() - 1, first = run_start(end);
-    r.idle = first == end || f.now.count() - f[end].at.count() >= FrameMeter::rest;
     // What is read: the last run that moved (a tenth of a second at 60 Hz, or more).
     constexpr std::size_t least_motion = 6;
+    std::size_t end = f.size() - 1, first = run_start(end);
+    r.idle = end + 1 - first < least_motion || f.now.count() - f[end].at.count() >= FrameMeter::rest;
     while (end + 1 - first < least_motion && first > 0) {
         end = first - 1;
         first = run_start(end);

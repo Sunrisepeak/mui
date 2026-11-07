@@ -86,6 +86,10 @@ struct AppSpec {
     // the self-check an agent does once linked.
     std::string              description;
     AgentCheck               agent_check;
+    // Its own short skill (markdown): what an agent should know beyond its
+    // verbs and places — a figure that is its body on the page, a step that
+    // needs the person — under "This application" in agent.md.
+    std::string              agent_skill;
 };
 
 // How to run, from the command line:

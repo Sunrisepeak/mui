@@ -106,10 +106,17 @@ void Mui::ensure(const PaintContext& ctx) const {
     if (figure_ && figure_->room == ctx.size) return;
     const MuiArt& art = mui_art();
     if (art.frames.empty() || ctx.size.width <= 0 || ctx.size.height <= 0) return;
+    // A new size (another place, a window resized): the figure made again at
+    // its place on the new floor, not falling to it — a page's layout is not an event.
+    std::string frame = "sit", palette = "indigo";
+    bool right = true, facing_right = false;  // sitting, facing left: the art's sit mirrored
     if (figure_) {
-        // A new size: the figure stays, its floor moves (steer gives the ledges).
-        figure_->room = ctx.size;
-        return;
+        frame = figure_->frame, palette = figure_->palette, right = figure_->right, facing_right = figure_->facing_right;
+        Figure& old = *figure_;
+        if (old.body) (void)old.engine->unsimulate(*old.body);
+        if (old.showing) (void)old.engine->release(*old.showing);
+        if (old.object) (void)old.engine->destroy_object(old.object);
+        figure_.reset();
     }
     auto made = std::make_unique<Figure>();
     made->engine = &services().engine();
@@ -117,8 +124,9 @@ void Mui::ensure(const PaintContext& ctx) const {
     const float side = static_cast<float>(props.cell) * static_cast<float>(art.size);
     // Its hull's bottom (a pixel above the grid's) on the page's bottom: standing, not falling.
     made->spawn = {ctx.size.width - side - 32, ctx.size.height - 4 - (side - static_cast<float>(props.cell))};
+    made->facing_right = facing_right;
     figure_ = std::move(made);
-    show("sit", "indigo", false);
+    show(frame, palette, right);
 }
 
 // Shows a frame, in a palette, facing a way: the object updated, shown anew,
@@ -248,10 +256,9 @@ void Mui::steer(const PaintContext& ctx) const {
 
     // Walk to it (unless it only looks, or less motion is asked); under it, stop and hop up onto it.
     double push = 0;
-    bool facing_right = f.right;
     if (target) {
         const double dx = (target->x + target->width / 2) - centre_x;
-        if (std::abs(dx) > 2) facing_right = dx > 0;
+        if (std::abs(dx) > 2) f.facing_right = dx > 0;
         const bool goes = kind != "look" && kind != "sleep" && !still;
         const double reach = std::max(near_enough, target->width / 2 * 0.6);
         // It climbs only onto what it may stand on (a card); a control it points at from below.
@@ -270,9 +277,27 @@ void Mui::steer(const PaintContext& ctx) const {
             push = dx > 0 ? stride_speed : -stride_speed;
         }
     }
+    // Its body sleeps once it has settled (as a physics engine's does): frames
+    // drawn for anything else then leave it exactly as it is. A walk, a hop or
+    // what it stands on changing wakes it.
+    double speed = 0;
+    if (body)
+        for (std::size_t i = 0; i < body->size(); ++i) speed = std::max(speed, std::abs(body->velocity_x[i]) + std::abs(body->velocity_y[i]));
+    // Made standing on its floor, it starts asleep: its first surfaces are not a change.
+    if (!f.started) f.started = true, f.asleep = true, f.ledges_seen = ledges.size();
+    const bool woken = push != 0 || t - f.hopped < 0.6 || ledges.size() != f.ledges_seen;
+    if (woken || (!f.asleep && speed > 4)) {
+        f.asleep = false;
+        f.settled_at = -1;
+    } else if (!f.asleep) {
+        if (f.settled_at < 0) f.settled_at = t;
+        if (t - f.settled_at > 0.3) f.asleep = true;
+    }
+    const bool sleeping = f.asleep;
+    f.ledges_seen = ledges.size();
     if (f.body) {
         (void)engine.walk(*f.body, push);
-        if (!still && dt > 0) (void)engine.advance_bodies(hanim::seconds(dt));
+        if (!still && !sleeping && dt > 0) (void)engine.advance_bodies(hanim::seconds(dt));
     }
 
     // The frame: asleep, holding the card, striding, pointing, looking, or sitting and now and then blinking.
@@ -291,18 +316,17 @@ void Mui::steer(const PaintContext& ctx) const {
         frame = "look", f.state = kind == "look" ? "looking" : "quiet";
     } else {
         f.state = "quiet";
+        // A blink now and then while it is awake; asleep in body, its drawing stays exactly as it is.
         if (t >= f.next_blink) f.next_blink = t + blink_every;
-        if (!still && t >= f.next_blink - blink_for) frame = "blink";
+        if (!still && !sleeping && t >= f.next_blink - blink_for) frame = "blink";
     }
     const std::string palette = agent_here && !props.asleep ? (dark ? "agent_night" : "agent") : (dark ? "night" : "indigo");
-    show(frame, palette, frame.starts_with("walk") ? facing_right : !facing_right);
+    // The art walks facing left and sits facing right: mirrored to face the way it faces.
+    show(frame, palette, frame.starts_with("walk") ? f.facing_right : !f.facing_right);
 
     // Frames while it moves (its stride, its body settling) and not otherwise:
     // at rest the page draws nothing (D-70); it blinks in frames drawn anyway.
-    double speed = 0;
-    if (body)
-        for (std::size_t i = 0; i < body->size(); ++i) speed = std::max(speed, std::abs(body->velocity_x[i]) + std::abs(body->velocity_y[i]));
-    if (!still && (push != 0 || speed > 4)) {
+    if (!still && !sleeping) {
         services().moving(node());
         services().invalidate_paint(node());  // the next frame draws it again
         services().invalidate_semantics(node());  // and says where it is: an agent reads it there
@@ -368,7 +392,7 @@ Mui::Now Mui::now() const {
     out.frame = f.frame;
     out.palette = f.palette;
     out.target = f.target;
-    out.facing_right = f.frame.starts_with("walk") ? f.right : !f.right;
+    out.facing_right = f.facing_right;
     if (f.body)
         if (const auto body = f.engine->body(*f.body); body && *body) {
             out.feet = {static_cast<float>(f.spawn.x + (*body)->centre()[0]), static_cast<float>(f.spawn.y + *std::ranges::max_element((*body)->y))};

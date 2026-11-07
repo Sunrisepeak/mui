@@ -69,9 +69,12 @@ private:
         std::optional<hanim::vector_render::PreparedVector>  drawn;
         Point                                                spawn;  // the root's place in its box
         std::string                                          frame, palette, state = "quiet", target, said_frame;
-        bool                                                 right = false;
+        bool                                                 right = false;          // its art mirrored
+        bool                                                 facing_right = false;   // the way it faces
         std::vector<std::string>                             inks;
-        double                                               last = -1, next_blink = 3.7, stride = 0, hopped = -1;
+        double                                               last = -1, next_blink = 3.7, stride = 0, hopped = -1, settled_at = -1;
+        std::size_t                                          ledges_seen = 0;
+        bool                                                 started = false, asleep = false;  // its body: stepped only while awake
         Size                                                 room;
         FrameDemandLease                                     frames;  // held while it moves
     };

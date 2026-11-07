@@ -207,6 +207,16 @@ int main(int argc, char** argv) {
         check(site::tree_hash(switched_tree) == site::tree_hash(direct_tree), "the tree is already the other language's: the motion is only paint");
         a.h.settle(seconds(3));
         (void)a.h.save_png(scratch_dir("site-sw") / "a.png");
+        if (a.page() != direct) {  // where they differ, to look at
+            const auto& one = a.h.pixels();
+            const auto& two = zh.h.pixels();
+            int left = one.width(), top = one.height(), right = -1, bottom = -1;
+            for (int y = 0; y < std::min(one.height(), two.height()); ++y)
+                for (int x = 0; x < std::min(one.width(), two.width()); ++x)
+                    if (std::memcmp(&one.row(y)[x], &two.row(y)[x], 4) != 0) left = std::min(left, x), right = std::max(right, x), top = std::min(top, y), bottom = std::max(bottom, y);
+            std::println("    language pixels differ in [{}, {}] – [{}, {}]", left, top, right, bottom);
+            (void)zh.h.save_png(scratch_dir("site-sw-direct") / "direct.png");
+        }
         check(a.page() == direct, "at rest: the very pixels of the page opened in Chinese (above the foot, where the switch is marked)");
         check(site::tree_hash(a.snapshot("home")) == site::tree_hash(direct_tree), "the semantic tree also remains the directly opened Chinese tree at rest");
     });
@@ -959,7 +969,7 @@ int main(int argc, char** argv) {
         // and nested default-motion corrections. Intermediate ink, bounds,
         // real input and seek regressions have separate behavioural CTS.
         // Re-pinned with M1 ⑤b: the pages show the packages' new names (omui.*).
-        check_eq(all.hex(), std::string("de26564780f9d469"));
+        check_eq(all.hex(), std::string("060e8eff4d7f1817"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

@@ -1375,6 +1375,12 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
     a.description = "omui's own website: a UI framework implementing the openmui specification. Its components, identity and tools are live, and your agent can operate them.";
     // What agent.md asks of an agent once it is linked (the panel is open: the person copied the prompt there).
     a.agent_check = {"main/body/guide/check/hello", "main/body/guide/check/hellos", "pressed 1 time"};
+    // Mui, the agent's body on the page (the site plan §9.2.1).
+    a.agent_skill =
+        "Mui (`main/body/view/mui`, a pixel cat) is your body on the page. When you act on a node it goes there, its eyes lit, and points; "
+        "while a request of yours waits for the person (exit code 2) it holds up a card — the answer stays the person's. You can also ask it: "
+        "`move_to {node}`, `point_at {node}`, `look_at {node}`, `say {text}` (one line), `sleep`, `wake`. Everything else on the page you "
+        "operate yourself, except what asks the person on purpose (publishing, deleting everything, opening another site).";
     // The site's own theme (its tokens: the design language), over the framework's default themes and the style packs
     // (the components page shows them in a scope of its own).
     a.theme = site_theme();
@@ -1643,6 +1649,9 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                              {text({.id = key + "_text", .text = key == "agent" ? s->agent : s->test, .style = "code"})}),
                                       [s, key] { return s->lens.get() == key; }));
         }
+        // Mui, over the place (not over the documents: they stay plain, §9.4), as the pixels show it.
+        shown.push_back(only_when(mui({.id = "mui", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
+                                  [s] { return !is_document(s->place.get()) && s->lens.get() == "pixels"; }));
         Element view = stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown));
         view.prop("role", Source(Value("main")));  // a landmark: where a screen reader goes to read
         // A phone: a panel takes the place's room while it is open.

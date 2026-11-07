@@ -176,18 +176,20 @@ int main(int argc, char** argv) {
             const float side = static_cast<float>(sprites.get("sprites")->get(sprite)->get("size")->as_double()) * cell;
             std::vector<std::string> states;
             for (const auto& [name, rows] : *frames.map()) states.push_back(name);
-            const Size size{40 + (side + 30) * static_cast<float>(states.size()) + 120, 40 + (side + 50) * 3};
+            const Size size{40 + (side + 30) * static_cast<float>(states.size()) + 120, 40 + (side + 50) * 4};
             Headless h(HeadlessOptions{.size = size, .scale = 1});
             std::vector<Element> rows;
-            for (const std::string palette : {"indigo", "cream", "night"}) {
+            // The chosen palettes (A2): indigo and night, and the agent's eyes in each.
+            for (const std::string palette : {"indigo", "night", "agent", "agent_night"}) {
+                const bool dark = palette.ends_with("night");
                 std::vector<Element> cells{omui::text({.id = palette + "-name", .text = palette,
-                                                       .color = Fill(palette == "night" ? Color::hex(0x9a9aa5) : Color::hex(0x55555f)), .size = 15})};
+                                                       .color = Fill(dark ? Color::hex(0x9a9aa5) : Color::hex(0x55555f)), .size = 15})};
                 for (const auto& state : states)
                     cells.push_back(canvas(palette + "-" + state, side, side, [&sprites, sprite, state, palette, cell](xrender::DisplayList& l) {
                         draw_sprite(l, sprites, sprite, state, palette, {0, 0}, cell);
                     }));
                 rows.push_back(row({.id = palette, .gap = 30, .align = "center",
-                                    .background = palette == "night" ? Fill(Color::hex(0x0c0d10)) : Fill(Color::hex(0xfbfbfa))},
+                                    .background = dark ? Fill(Color::hex(0x0c0d10)) : Fill(Color::hex(0xfbfbfa))},
                                    std::move(cells)));
             }
             h.mount("main", column({.id = "sheet", .width = size.width, .height = size.height, .padding = 20, .gap = 20, .background = Fill(Color::hex(0xfbfbfa))},
@@ -236,9 +238,28 @@ int main(int argc, char** argv) {
             check(std::filesystem::exists(dir / name) && std::filesystem::file_size(dir / name) < 1'000'000, std::format("{} under 1 MB", name));
     });
 
+    s.test("A2: the mark, chosen — the O with ears round mui, drawn by the framework; site/brand/omui-mark.svg is what it draws", [] {
+        const Value marks = read_json("marks.mark.omui.json");
+        Headless h(HeadlessOptions{.size = {100, 100}, .scale = 1});
+        h.mount("main", stack({.id = "mark", .width = 100.0f, .height = 100.0f},
+                              {canvas("o", 100, 100, [&marks](xrender::DisplayList& l) { draw_mark(l, marks, "ears", {0, 0}, 100, Color::hex(0x4f46e5)); })}));
+        h.settle();
+        const auto vectors = h.svg();
+        check(vectors.has_value() && vectors->islands.empty(), "vectors alone");
+        if (!vectors) return;
+        const auto file = brand_dir / "omui-mark.svg";
+        std::ifstream in(file, std::ios::binary);
+        const std::string kept{std::istreambuf_iterator<char>(in), {}};
+        if (kept != vectors->svg) {
+            const auto out = scratch_dir("brand-mark") / "omui-mark.svg";
+            std::ofstream(out, std::ios::binary) << vectors->svg;
+            check(false, std::format("site/brand/omui-mark.svg is not what the framework draws: copy {} over it", out.string()));
+        }
+    });
+
     s.test("C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved", [] {
         const Value sprites = read_json("mui.sprite.omui.json");
-        const auto dir = scratch_dir("brand-lab");
+        const auto dir = scratch_dir("brand-pixels");
         const auto grid = pixel_grid(sprites, "body24", "sit", "indigo", 6);
         hanim::Engine engine = *hanim::Engine::make();
         const auto sharp = engine.create_object(*hanim::pixel_object("mui", grid));

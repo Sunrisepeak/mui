@@ -1,0 +1,1014 @@
+{
+  "format": "hanim.selected-property-set@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T07:55:07.330002+00:00",
+  "base_commit": "033cf2e5b5db1b80ee3c617d5a16b7658ec2e185",
+  "implementation": "A1: one shared-time atomic property animation targets several parts and independent property channels.",
+  "program_contract_version": 4,
+  "new_manifests": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "programs": 8,
+      "cases": 85,
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 27,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-selection/logs/dev.log",
+        "sha256": "6eb183c81b7cca8de299ed51e117498689c1d10ceca8c7f79a817a62915b6ae0"
+      }
+    },
+    {
+      "profile": "release",
+      "programs": 8,
+      "cases": 85,
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 27,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-selection/logs/release.log",
+        "sha256": "1b4a3f2139b5bb31981cdd3ed22663d9fdfc431012bc61aee4d217fbbd262e0d"
+      }
+    },
+    {
+      "profile": "wasm",
+      "programs": 8,
+      "cases": 83,
+      "suites": [
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 26,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-selection/logs/wasm.log",
+        "sha256": "856180e328d02030de1f42fc6f9d53b94fbdf4483ed7b8fc4b068fe6f07ec748"
+      }
+    }
+  ],
+  "independent_api": {
+    "report": {
+      "path": "target/hanim-selection/api.report.omui.json",
+      "sha256": "efb57beb5d78bb8498283de7418a572b4b32eb2f1697f8c3d08ca1029cb5275d"
+    },
+    "checks_each_profile": 128
+  },
+  "features": {
+    "report": {
+      "path": "target/hanim-selection/features.report.omui.json",
+      "sha256": "c17dc2b7da449a233c83b437242320155336cc2b6c76806596415463c7862963"
+    },
+    "choices": 7,
+    "packed_checks": 128
+  },
+  "process": {
+    "report": {
+      "path": "target/hanim-selection/play.report.omui.json",
+      "sha256": "53720cceaa6efae4bd4dc25ae9ea22f2e89389a94bb47490e34e1119c6dea9b0"
+    },
+    "integration": [
+      {
+        "profile": "dev",
+        "cases": 18,
+        "log": {
+          "path": "target/hanim-selection/play.report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "d133bedff957687c96bc969320a1e399320bf1c75ec70920c0b61f7b4b774692"
+        }
+      },
+      {
+        "profile": "release",
+        "cases": 18,
+        "log": {
+          "path": "target/hanim-selection/play.report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "01f51bc30ab28a3757701abecffce5ad30d16e2787e522bae5af33357d238bea"
+        }
+      }
+    ],
+    "old_process_frames_unchanged": 366,
+    "selected_frames_each_profile": 61,
+    "reverse_frames_each_profile": 61,
+    "dev_release_pixels_equal": true,
+    "kept_region_fnv1a": "944ff30771b47601",
+    "samples": [
+      {
+        "index": 0,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "8787258dd1980bde",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-000.png",
+        "sample_time_seconds": 0.0,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 0,
+        "png_sha256": "9739dada132ba597d91c66a9b270a1c3761c3065d380902e9ba5cdcacc72f990"
+      },
+      {
+        "index": 1,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "9f50c99ef790d592",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-001.png",
+        "sample_time_seconds": 0.016666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 1,
+        "png_sha256": "f33e158a4d70e340243c818b79e9ec3bccf533c44422d88dac9fae120f8cd352"
+      },
+      {
+        "index": 2,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "17ff69e47c164814",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-002.png",
+        "sample_time_seconds": 0.03333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 2,
+        "png_sha256": "6ebd12f3fb4d7a4ed04c146d869873f3567eb56631568a6357dc3fa956f4489f"
+      },
+      {
+        "index": 3,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "749844ac556cf39d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-003.png",
+        "sample_time_seconds": 0.05,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 3,
+        "png_sha256": "fff37b15f345224c78661893c13f806aad4acffaf24aee2976939b46bee348f7"
+      },
+      {
+        "index": 4,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "1e510b8394d746cd",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-004.png",
+        "sample_time_seconds": 0.06666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 4,
+        "png_sha256": "a6b9e36ddd73c2b21b8c9eabc5266ad02c4efb469f220765de39ad87998a25e2"
+      },
+      {
+        "index": 5,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "ca31ca6717ade316",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-005.png",
+        "sample_time_seconds": 0.08333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 5,
+        "png_sha256": "7f35386fff773fdc21f964bf15e5ef64b279e2ae14bb83800f44846bb65f1c30"
+      },
+      {
+        "index": 6,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "9e51e781b8c306ac",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-006.png",
+        "sample_time_seconds": 0.1,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 6,
+        "png_sha256": "c0df11e5ee882b8c982290df47bbb119e39c24be09c8a2a92e2e68abb127fb6a"
+      },
+      {
+        "index": 7,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a4eaaf689257f84e",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-007.png",
+        "sample_time_seconds": 0.11666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 7,
+        "png_sha256": "78c6c30283d924b0302c7fc5395af487646ab7c39b0c2fc0869ebfef66f7b15d"
+      },
+      {
+        "index": 8,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a5f1a91ca65ac6dd",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-008.png",
+        "sample_time_seconds": 0.13333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 8,
+        "png_sha256": "dcfea1120fd10e7d18672c8f0bbbcc012d4d53fdc2c2a24c51eaa450992cea70"
+      },
+      {
+        "index": 9,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "d55427a8c8db4a71",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-009.png",
+        "sample_time_seconds": 0.15,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 9,
+        "png_sha256": "5296575a86627dc87effd04f967ebfebfe1877f27d644d15f7fe705ded60dcde"
+      },
+      {
+        "index": 10,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "cb25fc38b9b15743",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-010.png",
+        "sample_time_seconds": 0.16666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 10,
+        "png_sha256": "3e9e515ab68cd32347620705a5cb8632401c8ca07a9d3d7ca42ce429ab4c1f44"
+      },
+      {
+        "index": 11,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "bd0d83d6c8f94404",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-011.png",
+        "sample_time_seconds": 0.18333333333333332,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 11,
+        "png_sha256": "d46c2d83206361efb69e26555d0e7a13dfdeea80292b1e07bf5af5839fda6888"
+      },
+      {
+        "index": 12,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c3cedbfd8b70498f",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-012.png",
+        "sample_time_seconds": 0.2,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 12,
+        "png_sha256": "085d068b7649d8bc2c3628221157a89304fe83e7a7bab3356cdbb8c53ed531cc"
+      },
+      {
+        "index": 13,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "cf8d8275c436fe1e",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-013.png",
+        "sample_time_seconds": 0.21666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 13,
+        "png_sha256": "96e893b7bea1eab99a91c2f3cb40d2138363aab8d5b0a4da1d951d7afcb1bd03"
+      },
+      {
+        "index": 14,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "1623161555b216fa",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-014.png",
+        "sample_time_seconds": 0.23333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 14,
+        "png_sha256": "b171bc30cf2e7c58177be15a92d957a22a2a0cc4a7d2174e1e264285215af473"
+      },
+      {
+        "index": 15,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "ad4787ba3e345c91",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-015.png",
+        "sample_time_seconds": 0.25,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 15,
+        "png_sha256": "735b9dd29c1a7521585997f95a84a020fcd18523daeb3afcf3f6afff56c3507b"
+      },
+      {
+        "index": 16,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a5ae49f48c7f8a1a",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-016.png",
+        "sample_time_seconds": 0.26666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 16,
+        "png_sha256": "74dfe844ebc11044194abb7369cd3851be41ec943fd655127baee6ad0afb4f60"
+      },
+      {
+        "index": 17,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "cc7c50c0beb99b1a",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-017.png",
+        "sample_time_seconds": 0.2833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 17,
+        "png_sha256": "94bc57ccc6a7bb0a77c412ca7a8d59491a3cb76daef96d9207393ef12cb803bc"
+      },
+      {
+        "index": 18,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c496233aeafc0a5e",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-018.png",
+        "sample_time_seconds": 0.3,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 18,
+        "png_sha256": "5d891db70e5fdb54e924a1ceba39b6c61c40d9fbfa57e9f7b9bca704e54733a6"
+      },
+      {
+        "index": 19,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "ed9591c05e85223c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-019.png",
+        "sample_time_seconds": 0.31666666666666665,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 19,
+        "png_sha256": "4ed92461e35c7c6d3ff720d407c99ccb5526d71458ddc780090c27c93a04a6a9"
+      },
+      {
+        "index": 20,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "89ca027f8b9ba76e",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-020.png",
+        "sample_time_seconds": 0.3333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 20,
+        "png_sha256": "19ef87984adfae98122ea7472b027944bdd1e014d5f333deea2c0e6ac3d61de8"
+      },
+      {
+        "index": 21,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "f290611e9c76b3a6",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-021.png",
+        "sample_time_seconds": 0.35,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 21,
+        "png_sha256": "bf0598fbd668f99fdf8488798e6ced146401eca0d680c3830646cd60a435eba4"
+      },
+      {
+        "index": 22,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "e1ecc7f6d7010b88",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-022.png",
+        "sample_time_seconds": 0.36666666666666664,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 22,
+        "png_sha256": "ebffab20f5a18e62f6a657ec89de18c45f705051bcabf657293ab7014148ee84"
+      },
+      {
+        "index": 23,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "813e0fdedd4181cc",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-023.png",
+        "sample_time_seconds": 0.38333333333333336,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 23,
+        "png_sha256": "6148e80e253e1bbb3496f1ab0d976ec03f0347a832176f384fdef91e862cb3d2"
+      },
+      {
+        "index": 24,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "63965037aa4a901c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-024.png",
+        "sample_time_seconds": 0.4,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 24,
+        "png_sha256": "68655097e5eff01b436e7099fe0134ee643a8b90c695ca7e11be5d9ac616d97b"
+      },
+      {
+        "index": 25,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a544b05983a52220",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-025.png",
+        "sample_time_seconds": 0.4166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 25,
+        "png_sha256": "3832a0bada6d0fb4ec8fa20bfb776bca855fdabae0a0aa2c59be99313236ba44"
+      },
+      {
+        "index": 26,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "b6cc990f60c4d143",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-026.png",
+        "sample_time_seconds": 0.43333333333333335,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 26,
+        "png_sha256": "ea81ef23f77b484dcba65d7c4ee3f62f2029ee1259a4972693f36dd51ae1798e"
+      },
+      {
+        "index": 27,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "ea76c10e1bec9af0",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-027.png",
+        "sample_time_seconds": 0.45,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 27,
+        "png_sha256": "4cacd493b037d61510a67175b9cbfaea600ff7bed8f3540fc50e3c4d63f4e326"
+      },
+      {
+        "index": 28,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "ac3e1a7d624a6a90",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-028.png",
+        "sample_time_seconds": 0.4666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 28,
+        "png_sha256": "319e9b3f82259dfeabdabdf895b86053dc16f4e7fe0e5b6d3d5704539071815b"
+      },
+      {
+        "index": 29,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "44f95bd0355969a1",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-029.png",
+        "sample_time_seconds": 0.48333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 29,
+        "png_sha256": "ab244afa16c41a69f96e70943a589eb418eca6d521e08e3a88cdbfdcbd646fe3"
+      },
+      {
+        "index": 30,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "32568325f7377946",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-030.png",
+        "sample_time_seconds": 0.5,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 30,
+        "png_sha256": "304148e302db76c315d862842060be3b9b4ba66c83189266d8cca46646367ca3"
+      },
+      {
+        "index": 31,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "b18d94666ad9c1dc",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-031.png",
+        "sample_time_seconds": 0.5166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 31,
+        "png_sha256": "3b5f0c61aabaf4fe87929a12ac2aebe27bde1628dc4bf9a1e81641087a003d81"
+      },
+      {
+        "index": 32,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "6865457205120660",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-032.png",
+        "sample_time_seconds": 0.5333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 32,
+        "png_sha256": "ef8ef4a9ba1a4bec776a1aadb2da39b2a971386d65edf683b8fd39fb5de0cd32"
+      },
+      {
+        "index": 33,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "2f9254e349031411",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-033.png",
+        "sample_time_seconds": 0.55,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 33,
+        "png_sha256": "664af350d8abcc59ac99735b128df68dc2e8826d291a87cfa6883f0f9f36bd56"
+      },
+      {
+        "index": 34,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c48203345d838235",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-034.png",
+        "sample_time_seconds": 0.5666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 34,
+        "png_sha256": "85613cebbe209c25f9188231e658c00a933ee90feab542fd02fa3e3a25402df8"
+      },
+      {
+        "index": 35,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "1fb6ab223e8fb651",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-035.png",
+        "sample_time_seconds": 0.5833333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 35,
+        "png_sha256": "fa922adecc8b9ceca1109171fd1b8b8648279c66639e7021ce467d52123ae6cb"
+      },
+      {
+        "index": 36,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "6f95cc3317cd3028",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-036.png",
+        "sample_time_seconds": 0.6,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 36,
+        "png_sha256": "60cae87073f0ec0fa09879bb9ef588b1d40d3390da60ccb3d86ae51d0bd58ebc"
+      },
+      {
+        "index": 37,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "cad52beffc76a59c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-037.png",
+        "sample_time_seconds": 0.6166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 37,
+        "png_sha256": "900792948454753961dd17e3f3b80d4d05dd415e5c0d5a9e8ecba19644d79321"
+      },
+      {
+        "index": 38,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "eb0fbe81b26dcc56",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-038.png",
+        "sample_time_seconds": 0.6333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 38,
+        "png_sha256": "3fdaeb82edfe78f47dbf6d1cef1460a35a2cf934748659dc66783cfe43324c36"
+      },
+      {
+        "index": 39,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "58f592ddd6d7d693",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-039.png",
+        "sample_time_seconds": 0.65,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 39,
+        "png_sha256": "3b6871cce72330aa96f4a4cff591df3714f510f695367468531dfe0bc857aaa5"
+      },
+      {
+        "index": 40,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "e879eae6937c3070",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-040.png",
+        "sample_time_seconds": 0.6666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 40,
+        "png_sha256": "f18a841a3052d3825f9ee39680ca080a175149dd549d0fac31161d03237c62a9"
+      },
+      {
+        "index": 41,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "2d6ec8dd21064ecf",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-041.png",
+        "sample_time_seconds": 0.6833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 41,
+        "png_sha256": "6a0ae98ef06c1a99cdfd8a2b10e32de7f9504225e1546bda4d105a514282729a"
+      },
+      {
+        "index": 42,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "490064324024a7f8",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-042.png",
+        "sample_time_seconds": 0.7,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 42,
+        "png_sha256": "bfdaf791e11d50a2ff243657c1bcf981cf3a753a01e5d0b280eb50f579427ff2"
+      },
+      {
+        "index": 43,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "07a3f075aa80c0f6",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-043.png",
+        "sample_time_seconds": 0.7166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 43,
+        "png_sha256": "d854860347ff0c1f7fc9dea7866ea8906cae7f2db776e9f1eec674ac9e520abf"
+      },
+      {
+        "index": 44,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "f17f956176ccd18c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-044.png",
+        "sample_time_seconds": 0.7333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 44,
+        "png_sha256": "f598aad4ba619de53ca0b61d1266cea8ec422945745af864d64d215d8fe73594"
+      },
+      {
+        "index": 45,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "8eb1b36e51f354f8",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-045.png",
+        "sample_time_seconds": 0.75,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 45,
+        "png_sha256": "88eca40a8cfd3cfcdd0e79b4d4e4388bfac489eb2bf7be38796f089f246d188b"
+      },
+      {
+        "index": 46,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "dcfdac5bbb573e11",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-046.png",
+        "sample_time_seconds": 0.7666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 46,
+        "png_sha256": "81ea325aa36942a82c5c864ee4a33a84fac4a44e2748c62365425ad91afdb102"
+      },
+      {
+        "index": 47,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c9a0297fe044fa93",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-047.png",
+        "sample_time_seconds": 0.7833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 47,
+        "png_sha256": "78145ecfcecc11e269fd66dcf94d5ccb5ba7cb7ddd8501d7ce4d84af060b7060"
+      },
+      {
+        "index": 48,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a234c5c25696ffa1",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-048.png",
+        "sample_time_seconds": 0.8,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 48,
+        "png_sha256": "09d0d68d060587493895d20b682e755bf94ed95cd293940c3a39e31cdbaef317"
+      },
+      {
+        "index": 49,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "5cfedb2b29b9792c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-049.png",
+        "sample_time_seconds": 0.8166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 49,
+        "png_sha256": "2cef8355ea3b20e291abe7a09a4d24b9f052d175bce2eaeaac1c3531d3143889"
+      },
+      {
+        "index": 50,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "2d1c07adb6337cba",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-050.png",
+        "sample_time_seconds": 0.8333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 50,
+        "png_sha256": "72661f9f3d5aef558d91ffca872e78f15d734ffc85dc97ec70989a67afb1f33a"
+      },
+      {
+        "index": 51,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "e89b51625c68e563",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-051.png",
+        "sample_time_seconds": 0.85,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 51,
+        "png_sha256": "b6a8dce6f6ff473b3269a2578ec02244c5fcf022aaa1925ef0ae33df5a78c8ad"
+      },
+      {
+        "index": 52,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "6cbaa1d71fa71a09",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-052.png",
+        "sample_time_seconds": 0.8666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 52,
+        "png_sha256": "0782a1138c83db72fdd94f716d26c9ff6137585967ab5715216c4243c666e8b6"
+      },
+      {
+        "index": 53,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c1b0747121c0a7c3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-053.png",
+        "sample_time_seconds": 0.8833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 53,
+        "png_sha256": "fc79c53c79f8b634aa53585f2a17774ad0fef69d72c52ca4f0f3d0cef59bfa38"
+      },
+      {
+        "index": 54,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "a67754eb78980769",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-054.png",
+        "sample_time_seconds": 0.9,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 54,
+        "png_sha256": "de33c80a62aa282299a5e33d7417532a2c3c9a3853e72a7f42330aacea288d68"
+      },
+      {
+        "index": 55,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "c74bf37184d58d9b",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-055.png",
+        "sample_time_seconds": 0.9166666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 55,
+        "png_sha256": "7c75c0ba51ae1af2694406d24432d9164fc1e47081a0877e6d0d8735abd1dad5"
+      },
+      {
+        "index": 56,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "577c787b599ba4d0",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-056.png",
+        "sample_time_seconds": 0.9333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 56,
+        "png_sha256": "85b836aaa88c66029251798525540a2f4d2a74ca020c739f5d13945c26f9f3bc"
+      },
+      {
+        "index": 57,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "1d88d9c59e24c225",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-057.png",
+        "sample_time_seconds": 0.95,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 57,
+        "png_sha256": "1ad153cc2cd0e3727805a7402a1ebf63d3b77ed5eda7ab805d45d294abc621b2"
+      },
+      {
+        "index": 58,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "e4a04cd5b10eaeec",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-058.png",
+        "sample_time_seconds": 0.9666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 58,
+        "png_sha256": "9ccdb0599a151fefda4d46326727aa9f491e7a79c172beca3fc8d01d9f7c939d"
+      },
+      {
+        "index": 59,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "39b1440570a6e28c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-059.png",
+        "sample_time_seconds": 0.9833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 59,
+        "png_sha256": "dc4801a660ffc48b26e3445804c307016b5130cf11b42536f6f1553a32b14b6a"
+      },
+      {
+        "index": 60,
+        "kept_region_fnv1a": "944ff30771b47601",
+        "pixel_fnv1a": "24b9030efc2f8cad",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-selection/play.report.omui-artifacts/release-agent-parts.png.agent-060.png",
+        "sample_time_seconds": 1.0,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 60,
+        "png_sha256": "853a291b10aa525ca33da9a788488e32bde56e4fd1b80a26367a3d4733d9c690"
+      }
+    ],
+    "visually_inspected_indices": [
+      0,
+      30,
+      60
+    ],
+    "visual_observation": "The left triangle translates, the right triangle rotates/recolors, and the unselected green badge remains visibly fixed. Its actual pixel region hash is identical at every sample.",
+    "scope": "CPU reference renderer without GUI/display server; no realtime pacing, 3D or hardware throughput claim."
+  },
+  "source_files_sha256": {
+    "modules/base/hanim/core/src/core.cppm": "575d97a962dcdaf79d4178c2ce1330532380914a490e66f03ac7943eeb759897",
+    "modules/base/hanim/core/src/ease.cpp": "755750fd2cc2958bbcaeccad9a2f02818c5d2c8acb2c55d9b7be070b611197f0",
+    "modules/base/hanim/core/src/ease.cppm": "f09264c2685375cb3efb93810006392a634902fc0c7b55751679c1e0774e5b47",
+    "modules/base/hanim/core/src/math.cppm": "e9bc7493c41ab8537466e613de19cffe6b3c5ac0f8aea1141f0ec750132c2ff6",
+    "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+    "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+    "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+    "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+    "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+    "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+    "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+    "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+    "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+    "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+    "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+    "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+    "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+    "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+    "modules/base/log/src/api.cppm": "801c722af580c5f901485305f3faaa49fb7b8bc2267455ccf109e3f95aad6dd6",
+    "modules/base/log/src/legacy.cppm": "300bd0543a1c33775baec972715cc0c0353faf9deb52a13e6ec29244c0206273",
+    "modules/base/log/src/log.cpp": "0d9629a65bd0e97924ca31d634cf75ea1ecf81a28ca5895344af07df5efd4aa6",
+    "modules/base/log/src/log.cppm": "04319c3ba8952782742a99a0353ad9f622ab320c8b63b72f755f60d7709b96d5",
+    "modules/base/math/src/api.cppm": "140ae86d8a44719b65642b9856de633103d29a62bef72be94426cc025fce2743",
+    "modules/base/math/src/color.cppm": "c61346dc7c7edc53506e77ceae32293db88beedc27910e973362d46e30cd3d73",
+    "modules/base/math/src/det.cpp": "e7651556c5c851a5f3eb0b3fd87da66e8e0de1d097690d9a9f23b16895f156be",
+    "modules/base/math/src/det.cppm": "c6d91b075ca4e75c51dea0117b0916443b0a6705ec469c15ae5799950b4a20f4",
+    "modules/base/math/src/legacy.cppm": "a28ebf8a0b189196e960710934a3672e320e4072f380ce7da74084e77f751359",
+    "modules/base/math/src/math.cppm": "d26932af98aca48e3a0bdb2270623edf639096d716bcca61e33e06e82960e3d6",
+    "modules/base/math/src/random.cppm": "57e3222b2fd5fe2f931cb78270fadc3bb4487dc2d87acabf986d92a2ba41688a",
+    "modules/base/memory/src/api.cppm": "833c4d3595034dbbf15e39983610dedd24dac5ebd53277e73f948abb158a1395",
+    "modules/base/memory/src/arena.cpp": "61140ec25b7496b567ff0e5cc27d32f43b6602bed29e4fd0ba12f4b1364ad52b",
+    "modules/base/memory/src/arena.cppm": "664f90dd862fd4183e0ccf45e5881c4fabd56c0a43ece230269586a482e64e90",
+    "modules/base/memory/src/function.cppm": "ea9b5a740726b93dc0cce592e734dc751e76760b4d72d113af31ea5bcc3efb79",
+    "modules/base/memory/src/handle.cppm": "902ed5dae09573ef54fa105dd9d29b330be20504292b3a5dc772009694c97c01",
+    "modules/base/memory/src/legacy.cppm": "2f6fc565309545c48580ea81739e341af74b03a02769168fc9cf7ffeed8e7d81",
+    "modules/base/memory/src/memory.cppm": "a0c295a802d9110a9a6a97d3a33a088ade39b6c9d1cc7a7cfdfcad6737185c08",
+    "modules/base/memory/src/slots.cppm": "a1adac69e39a6f3bb742ec070a7b53626f175521a1b9fd5bac04ac7953e07869",
+    "modules/base/trace/src/api.cppm": "c46cee392af1ae26e32f6dce63a1251a2009bb60516941fb9ff870e5bed76eb6",
+    "modules/base/trace/src/legacy.cppm": "3ed640d2b0ba532256d88faebe49624e368e433381d4e28738f093eb57379c44",
+    "modules/base/trace/src/trace.cpp": "947c005ffdc7ad78f37e07b8cb288ab302ead7081f4f62de493d83de1de6b5fb",
+    "modules/base/trace/src/trace.cppm": "829106548ec6c36d1f4f8820eebc724632e1beae8ce88838d5b5f751ce9fae98",
+    "modules/gfx/hanim/src/effect/effect.cpp": "0516f9d9450f9d3d40961b248bd697e472c6c9d36b7a09890fc2f703a5d2bc92",
+    "modules/gfx/hanim/src/effect/effect.cppm": "9a51b7b120a51fb122878997369067141164d422519c02ec89911d49c198a5d1",
+    "modules/gfx/hanim/src/engine/engine.cpp": "4e1d3d8b2473631e255552a2ccc22d856afceeb8ffacb2288da41cf9d5ef7ce9",
+    "modules/gfx/hanim/src/engine/engine.cppm": "aae890af87bd0bfcd6fbadccd52c7d1af983390ac4dfee915d233b4a5f6c3706",
+    "modules/gfx/hanim/src/hanim.cppm": "8a08a5b75a648d0742b16d57e8c9952b0be1a9e5747a9d5dbe0198cad1814c34",
+    "modules/gfx/hanim/src/library/library.cpp": "bf05380337df5f5f7f86afca69cc8547a89a198d951c8d087bea3941b1e1066b",
+    "modules/gfx/hanim/src/library/library.cppm": "551831744c088e6491847edb1647871fb2b4321cc09a5f864e9e3b9bdbb5712a",
+    "modules/gfx/hanim/src/object/object.cpp": "7fafe53350282a942f79983e04c0aa6e09cc1a88981ac5d19998d7516db5c8b8",
+    "modules/gfx/hanim/src/object/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+    "modules/gfx/hanim/src/program/program.cpp": "67b753d99ded563685aca54967ad977f8e6f2a11a4e962f589cd4fb00332acfc",
+    "modules/gfx/hanim/src/program/program.cppm": "1d39c31bd140018ee3b9029d9ee9b06e28dacfc5d40ac0006fa98a7c36e4ff36"
+  },
+  "lint": {
+    "path": "target/hanim-selection/logs/lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  },
+  "limits": [
+    "This property set shares one time/ease; independent overlapping Program channels, blend modes and hold-world constraints remain unimplemented.",
+    "The current geometry domain remains closed 2D vectors. Shared geometry conversion, 3D mesh/rig and sampled-field representation contracts are design work.",
+    "The whole-node-exclusive UI prototype was removed before commit because its fixed ownership partition did not meet configurable composition requirements; no UI integration success is claimed.",
+    "Selection, representation, compute/render backend and quality/performance tiers remain separate design dimensions; no adaptive-performance completion is claimed."
+  ]
+}

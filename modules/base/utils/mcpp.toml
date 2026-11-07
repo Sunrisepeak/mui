@@ -1,0 +1,45 @@
+# mlibs.utils — small domain-agnostic tools that are not libraries of their own
+# yet, one directory each (convergence plan §9.3): hash (FNV-1a), base64, log
+# (categories, sinks, invariants), trace (spans, counters, Chrome trace),
+# error and time (the global contracts' shapes, §5.2) and testing (the checks
+# every test program shares). A tool keeps its module name
+# (`import mlibs.hash;`): one that grows into its own library moves out with no
+# import changed, only the dependency key.
+#
+# Every tool is always built. They are small and take the standard library
+# alone, and a feature per tool would give this package a different feature set
+# for each selection of members: mcpp then compiles it again, and everything
+# that imports it, whenever a command selects other members than the last
+# (measured with mcpp 2026.11.2.2). mlibs.testing is for tests only: lint
+# `testing` keeps `import mlibs.testing` under tests/.
+# An independent component (D-55): the standard library only.
+[package]
+namespace   = "mlibs"
+name        = "utils"
+version     = "0.1.0"
+description = "Small tools: FNV-1a hashes, base64, logging and invariants, tracing, and the checks test programs share"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-utils]
+kind = "lib"
+
+[build]
+sources = ["src/*/*.cppm", "src/*/*.cpp"]
+# time's conversions are the same bits everywhere (lint `determinism`).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+# What the target can do, as constants (mlibs.testing:target): the Web row runs
+# no threads.
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/testing/targets/threads.cppm"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/testing/targets/web.cppm"]
+
+[dev-dependencies]
+mcpplibs.os = "0.2.2"

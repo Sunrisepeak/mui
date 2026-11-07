@@ -1,0 +1,59 @@
+# The fighting game (D-85 §8.7; 拳意, its working title): gongfu's match on
+# openmui's stage — played from the keyboard or by an agent, drawn in 2D by
+# gongfu.present2d, with a training mode's tools. Fighters are data files
+# (fighters/*.fighter.gongfu.toml), carried in the program.
+[package]
+namespace   = "omui.showcase"
+name        = "fighting"
+version     = "0.1.0"
+description = "The fighting game: gongfu's deterministic rollback match on openmui's stage, played from the keyboard or by an agent, with a training mode"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind      = "showcase"
+contracts = ["contract/*.contract.omui.toml"]
+
+[targets.openmui-showcase-fighting]
+kind = "lib"
+
+[targets.omui-fight]
+kind = "bin"
+main = "src/main.cpp"
+
+# The arenas: the stages and their painted layers, their music, the
+# announcer (about 4 MB of the program). Training's plain room needs none:
+# openmui's site, showing the move list, depends with default-features = false.
+[features]
+default = ["arenas"]
+arenas  = []
+# On the Web, the fighters' pictures are not carried in the program: a page
+# fetches them once it is drawn (dist-toy's `later` files), and the roster
+# takes them when they arrive (arrive_art). Elsewhere it changes nothing.
+art-later = []
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
+hanim.core = { path = "../../modules/projects/hanim/core" }
+omui.sdk      = { path = "../../modules/projects/omui/sdk" }
+gongfu.data      = { path = "../../modules/projects/gongfu/data" }
+gongfu.present2d = { path = "../../modules/projects/gongfu/present2d" }
+gongfu.training  = { path = "../../modules/projects/gongfu/training" }
+gongfu.ai        = { path = "../../modules/projects/gongfu/ai" }
+mlibs.image    = { path = "../../modules/base/image" }
+"xrender.raster" = { path = "../../modules/projects/xrender/raster" }
+"xengine.audio"  = { path = "../../modules/projects/xengine/audio" }
+"xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
+
+[build-dependencies]
+omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-module = true }
+
+[dev-dependencies]
+mlibs.utils = { path = "../../modules/base/utils" }

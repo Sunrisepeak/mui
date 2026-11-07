@@ -1,0 +1,973 @@
+{
+  "format": "hanim.property-recipes-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T06:54:42.541167+00:00",
+  "base_commit": "6d3a64f15df001c9fb4928a901c9ea1413e4154a",
+  "public_recipes": [
+    "move_to",
+    "move_by",
+    "rotate_to",
+    "scale_to",
+    "fill_to"
+  ],
+  "advanced_entry": "anim::to(object, PropertyTargets)",
+  "program_contract_version": 3,
+  "new_manifests": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "profile": "dev",
+      "programs": 8,
+      "cases": 83,
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 25,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-properties/logs/hanim-dev.log",
+        "sha256": "2d89f7761d2c1bbe93b0ca1bdb0339a1a0810380c18caa23595630eb89fcec21"
+      }
+    },
+    {
+      "profile": "release",
+      "programs": 8,
+      "cases": 83,
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 25,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-properties/logs/hanim-release.log",
+        "sha256": "9f73112a28bfea1e1c5c1a8fd35f8bfe663e0f828d7ba2753af966feed88f58a"
+      }
+    },
+    {
+      "profile": "wasm",
+      "programs": 8,
+      "cases": 81,
+      "suites": [
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 24,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/hanim-properties/logs/hanim-wasm.log",
+        "sha256": "63c04ba05aea980ff55088666c1f21e16b0d6512ea2c44f5c36b729cd43161a1"
+      }
+    }
+  ],
+  "independent_api": {
+    "profiles": [
+      "dev",
+      "release"
+    ],
+    "checks_each": 119,
+    "latest_report": {
+      "path": "target/hanim-properties/latest-consumers.report.omui.json",
+      "sha256": "8b9dc8e801ead329645f084917709437c90fcf169cb98f2892998abf1f8b0b86"
+    },
+    "scope": "Public import hanim only; no UI, renderer, window or script runtime."
+  },
+  "features": {
+    "report": {
+      "path": "target/hanim-properties/features.report.omui.json",
+      "sha256": "9e67da3cd42ecdfd293c46a9f2da7f6642a8fc608e2f8be502fb52e8ec0c9bfc"
+    },
+    "choices": 7,
+    "packed_checks": 119,
+    "limits": [
+      "Native release consumers; no clean-machine timing or GPU performance claim.",
+      "The default archive is tested with explicit source dependencies: mcpp pack omits local path-dependency edges.",
+      "The archive freezes selected features; this is not registry publication or binary feature reselection."
+    ]
+  },
+  "renderer": {
+    "report": {
+      "path": "target/hanim-properties/play.report.omui.json",
+      "sha256": "b622710b82a377dbbfd58fc021d00330859aafac9ed8a22c02f758dfab3f49bb"
+    },
+    "integration": [
+      {
+        "profile": "dev",
+        "cases": 18,
+        "suites": [
+          {
+            "name": "hanim.render.vector",
+            "passed": 9,
+            "failed": 0
+          },
+          {
+            "name": "hanim.composite",
+            "passed": 7,
+            "failed": 0
+          },
+          {
+            "name": "hanim.engine.visual",
+            "passed": 2,
+            "failed": 0
+          }
+        ],
+        "log": {
+          "path": "target/hanim-properties/play.report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "77004c841131ad680cd9db291bde369865a4360545281161102d53bdbffefa59"
+        }
+      },
+      {
+        "profile": "release",
+        "cases": 18,
+        "suites": [
+          {
+            "name": "hanim.render.vector",
+            "passed": 9,
+            "failed": 0
+          },
+          {
+            "name": "hanim.composite",
+            "passed": 7,
+            "failed": 0
+          },
+          {
+            "name": "hanim.engine.visual",
+            "passed": 2,
+            "failed": 0
+          }
+        ],
+        "log": {
+          "path": "target/hanim-properties/play.report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "7a5a55bce37c9427fc6a5aa60c579d73c056650efdd895f848710e15e04f8a08"
+        }
+      }
+    ],
+    "previous_morph_frames_unchanged": 244,
+    "property_frames_each_profile": 61,
+    "reverse_frames_each_profile": 61,
+    "dev_release_property_pixels_equal": true,
+    "samples": [
+      {
+        "index": 0,
+        "pixel_fnv1a": "c00db1820f73e61a",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-000.png",
+        "sample_time_seconds": 0.0,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 0,
+        "png_sha256": "58d203704f219e1d0f4dd2ae35770f1ff3c9d0e222cab2039814c74474ac0df6"
+      },
+      {
+        "index": 1,
+        "pixel_fnv1a": "4c6a89a38f11931d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-001.png",
+        "sample_time_seconds": 0.016666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 1,
+        "png_sha256": "6b076fdb7d75995697b70cf04a70f27a3c594cf87ee9c8620170d07d31934cbd"
+      },
+      {
+        "index": 2,
+        "pixel_fnv1a": "9b269db9ad3ec36b",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-002.png",
+        "sample_time_seconds": 0.03333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 2,
+        "png_sha256": "049d41184500a44193194537b53b2d1346299719308a519bc5556c8733623c3c"
+      },
+      {
+        "index": 3,
+        "pixel_fnv1a": "b375329dffda5b11",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-003.png",
+        "sample_time_seconds": 0.05,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 3,
+        "png_sha256": "2ea3758b16db019cd8c8d194b719453d8ba7f936945a9724f60c5ce215ad716e"
+      },
+      {
+        "index": 4,
+        "pixel_fnv1a": "e5b0dd95523b8c26",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-004.png",
+        "sample_time_seconds": 0.06666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 4,
+        "png_sha256": "558ca3ea0158a0bdc44a1b15cbc31cd9d42a0961b236976502aadabbc1a0241e"
+      },
+      {
+        "index": 5,
+        "pixel_fnv1a": "0eccd12c5a5c264d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-005.png",
+        "sample_time_seconds": 0.08333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 5,
+        "png_sha256": "497d36a7dd7dedde96c2645d4e0c93047c3b282f99682d69c88074ec411832b0"
+      },
+      {
+        "index": 6,
+        "pixel_fnv1a": "584486e06d04a962",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-006.png",
+        "sample_time_seconds": 0.1,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 6,
+        "png_sha256": "5c87543e142a26838528fc965c2588fbe2f8b848d24f0833b2c504b440a5f9a4"
+      },
+      {
+        "index": 7,
+        "pixel_fnv1a": "2b7ba1d466c87af6",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-007.png",
+        "sample_time_seconds": 0.11666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 7,
+        "png_sha256": "760a3bba2f9293b71ce98116ca4d54fe059a72c7a9885a94873ae770da6b3d6e"
+      },
+      {
+        "index": 8,
+        "pixel_fnv1a": "0561b9d96cdcbcf7",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-008.png",
+        "sample_time_seconds": 0.13333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 8,
+        "png_sha256": "7e87b9ca0d2c98e1103d91e5396675933483435754fd6f839d6942ab5dd895f1"
+      },
+      {
+        "index": 9,
+        "pixel_fnv1a": "35c3fb50c7cdf523",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-009.png",
+        "sample_time_seconds": 0.15,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 9,
+        "png_sha256": "851e5cc863bf5edf963145f30319ae6d4371eb3bfd3f715b89a2475a38b6600e"
+      },
+      {
+        "index": 10,
+        "pixel_fnv1a": "905a877ae4a69d56",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-010.png",
+        "sample_time_seconds": 0.16666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 10,
+        "png_sha256": "f8e1b69854babeccdb7bf073570e33fccc29ae54a9f82d778eadec638f18fe2d"
+      },
+      {
+        "index": 11,
+        "pixel_fnv1a": "73862b8a75774ec9",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-011.png",
+        "sample_time_seconds": 0.18333333333333332,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 11,
+        "png_sha256": "10b86dc2ee5dd976d57b6498b32a113ffad6e1f4c8c21912f489651197dcc843"
+      },
+      {
+        "index": 12,
+        "pixel_fnv1a": "61b63452b263261d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-012.png",
+        "sample_time_seconds": 0.2,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 12,
+        "png_sha256": "78c45ba3be92b2faa73b9ca46757f8420baa69823bf22ad7f61d88af5b4dbf92"
+      },
+      {
+        "index": 13,
+        "pixel_fnv1a": "8b286cf7310593c0",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-013.png",
+        "sample_time_seconds": 0.21666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 13,
+        "png_sha256": "4c419ff3a6dd50691a0053e5be72b31a489260c09d8ff927de2f50d1e92f951d"
+      },
+      {
+        "index": 14,
+        "pixel_fnv1a": "d9743a6db341fda6",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-014.png",
+        "sample_time_seconds": 0.23333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 14,
+        "png_sha256": "f56494c8230746f5cf49d04cf95b3038192954d7e694954ec9347c68d7dad1df"
+      },
+      {
+        "index": 15,
+        "pixel_fnv1a": "ce426a953c3cb444",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-015.png",
+        "sample_time_seconds": 0.25,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 15,
+        "png_sha256": "22ff69f842a8334972007cb0b9cbc2722a4f157f534eae3d2e5397cf3a7a2d7d"
+      },
+      {
+        "index": 16,
+        "pixel_fnv1a": "88b623d540bbfbcd",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-016.png",
+        "sample_time_seconds": 0.26666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 16,
+        "png_sha256": "3e465e1fb64f8c8bd4c89b4a3eccca52c6d6e9b33142ea09e4ecfe3ffed55056"
+      },
+      {
+        "index": 17,
+        "pixel_fnv1a": "5def70749ec39eb0",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-017.png",
+        "sample_time_seconds": 0.2833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 17,
+        "png_sha256": "2ea8ee7c83cd44f4beab793630c856e9f04c53d0bd38a25e474e4c08d40cc421"
+      },
+      {
+        "index": 18,
+        "pixel_fnv1a": "71a7a10edc493aa8",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-018.png",
+        "sample_time_seconds": 0.3,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 18,
+        "png_sha256": "10f4f085c0a9549bc771c9dc64c12afae017aab65fc3c14f110e32e280eca852"
+      },
+      {
+        "index": 19,
+        "pixel_fnv1a": "02ef3272bf8660cd",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-019.png",
+        "sample_time_seconds": 0.31666666666666665,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 19,
+        "png_sha256": "87af80c24078a2162a3cf1a567286462a9c3b98ed48bab0ed79136b3e1262f27"
+      },
+      {
+        "index": 20,
+        "pixel_fnv1a": "f5afd92ff4ce3d69",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-020.png",
+        "sample_time_seconds": 0.3333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 20,
+        "png_sha256": "650727fea4ed39cc3d21ca61090028a18a2ccc201731c14dc66f4235c802de21"
+      },
+      {
+        "index": 21,
+        "pixel_fnv1a": "667ff516ca5c3ee4",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-021.png",
+        "sample_time_seconds": 0.35,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 21,
+        "png_sha256": "2041fb61ebea755b2f59e96bd6501dbabfd41c21008d3b0f11b6b36e40e82977"
+      },
+      {
+        "index": 22,
+        "pixel_fnv1a": "27b279f319fab5e1",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-022.png",
+        "sample_time_seconds": 0.36666666666666664,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 22,
+        "png_sha256": "2ee0ac581bfff76673da7355193f97548ce54a373e1aef0b4d6dd7fb0499c2d1"
+      },
+      {
+        "index": 23,
+        "pixel_fnv1a": "d7cec44b816a7189",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-023.png",
+        "sample_time_seconds": 0.38333333333333336,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 23,
+        "png_sha256": "e2c7d16927072547059ca783975f91a5ee6aab182b8cc4b412d254137122162f"
+      },
+      {
+        "index": 24,
+        "pixel_fnv1a": "46ce294b5980bf2a",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-024.png",
+        "sample_time_seconds": 0.4,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 24,
+        "png_sha256": "f66ad3ae14095278869ef578c2752ae6b7fcc3ec4bf518c8be0de93509a86b1c"
+      },
+      {
+        "index": 25,
+        "pixel_fnv1a": "17a93ba75640a8bb",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-025.png",
+        "sample_time_seconds": 0.4166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 25,
+        "png_sha256": "d3eaf39a31997fe0050f67a98c642b936fea9fde07042c2ee9e95ada9b5074a9"
+      },
+      {
+        "index": 26,
+        "pixel_fnv1a": "64a2083daff2cd65",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-026.png",
+        "sample_time_seconds": 0.43333333333333335,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 26,
+        "png_sha256": "b3233d04d94b65c8197d6f59312f3a8194d704bb11095236342af7edb0816095"
+      },
+      {
+        "index": 27,
+        "pixel_fnv1a": "040363f05b6e871e",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-027.png",
+        "sample_time_seconds": 0.45,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 27,
+        "png_sha256": "762cf4be0a248736f708ad2d660009d18c7ff049aa7d794d77439013818ef03f"
+      },
+      {
+        "index": 28,
+        "pixel_fnv1a": "a6e52ca35b0c203c",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-028.png",
+        "sample_time_seconds": 0.4666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 28,
+        "png_sha256": "3dfdbcf0e401dc574b1b98c11e699d2f9ae928288f43407e9f277417e8c7d75a"
+      },
+      {
+        "index": 29,
+        "pixel_fnv1a": "794f986ad836019f",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-029.png",
+        "sample_time_seconds": 0.48333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 29,
+        "png_sha256": "a750b898dbb1c6ac9ee848ee2fede0fce16f873c62d3627c5a6d2e1ec0e02cc6"
+      },
+      {
+        "index": 30,
+        "pixel_fnv1a": "98338d9e876c30d3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-030.png",
+        "sample_time_seconds": 0.5,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 30,
+        "png_sha256": "e10c53c723f500e23c0bb8b4f264e1b5dc7be48825cdff2371685563860a9775"
+      },
+      {
+        "index": 31,
+        "pixel_fnv1a": "8555dec6c248dcd4",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-031.png",
+        "sample_time_seconds": 0.5166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 31,
+        "png_sha256": "7b7c3258ae4c346bd1ca4f18870a6d5a5793a4c9bd34a77be2da097232300f3e"
+      },
+      {
+        "index": 32,
+        "pixel_fnv1a": "0edd4dcd04e0291b",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-032.png",
+        "sample_time_seconds": 0.5333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 32,
+        "png_sha256": "89b908e888202accc250c6b400555e05f39e14e671155003666ddcf332837b26"
+      },
+      {
+        "index": 33,
+        "pixel_fnv1a": "840fb9eddd8b9f52",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-033.png",
+        "sample_time_seconds": 0.55,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 33,
+        "png_sha256": "0e36fc4858fcba992f806602e77e2aaa9b2c7e6c42d4709facb831600faafef9"
+      },
+      {
+        "index": 34,
+        "pixel_fnv1a": "9e11af86d2356851",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-034.png",
+        "sample_time_seconds": 0.5666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 34,
+        "png_sha256": "5ae847153fbe3df5788507d54ee241bcbac0c8b38bcf02b8ebdd4344d897c6be"
+      },
+      {
+        "index": 35,
+        "pixel_fnv1a": "0b500b242a0c7e11",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-035.png",
+        "sample_time_seconds": 0.5833333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 35,
+        "png_sha256": "d9e58c3d192fb8561964c30c80c771f91424a8114cc4026946342325f1c36c99"
+      },
+      {
+        "index": 36,
+        "pixel_fnv1a": "b7de56fd04426d0f",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-036.png",
+        "sample_time_seconds": 0.6,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 36,
+        "png_sha256": "cdad690a4e4780ab26553a3c4c3a72489760d924f775629b7260c5b17da41b49"
+      },
+      {
+        "index": 37,
+        "pixel_fnv1a": "7c9179738eee34e3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-037.png",
+        "sample_time_seconds": 0.6166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 37,
+        "png_sha256": "de8bb026bae12c778f8db87015a28d3c10e25c4c7c7dd3b2bcd62329ee6111f9"
+      },
+      {
+        "index": 38,
+        "pixel_fnv1a": "928725fa26b0be83",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-038.png",
+        "sample_time_seconds": 0.6333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 38,
+        "png_sha256": "06bc3cc831ffe391d11a44331ddd69aaaaeb89945a6636c4f08cdd291e986b52"
+      },
+      {
+        "index": 39,
+        "pixel_fnv1a": "9894671c242275fc",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-039.png",
+        "sample_time_seconds": 0.65,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 39,
+        "png_sha256": "478b6530926d68f149a2df70080577bc598b6cb3d5acd30871e3d3259d1ce40b"
+      },
+      {
+        "index": 40,
+        "pixel_fnv1a": "d4f320d85746ab38",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-040.png",
+        "sample_time_seconds": 0.6666666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 40,
+        "png_sha256": "ea08deefeddee39fd932249fa1e76b956b976f1b3350ebfd9de0845b528c7dca"
+      },
+      {
+        "index": 41,
+        "pixel_fnv1a": "5b7bbd7fe4101b13",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-041.png",
+        "sample_time_seconds": 0.6833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 41,
+        "png_sha256": "404d5351f30fa57e00ad6bf2654854d220f52f5496e4c14f53ae982e09f6454a"
+      },
+      {
+        "index": 42,
+        "pixel_fnv1a": "2c9cbc14362526ec",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-042.png",
+        "sample_time_seconds": 0.7,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 42,
+        "png_sha256": "9a8e7e9cde4b871d847699c6d0a680145d262f019ac53ff1ccc09d0a0c1d1708"
+      },
+      {
+        "index": 43,
+        "pixel_fnv1a": "dc36008e89772dce",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-043.png",
+        "sample_time_seconds": 0.7166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 43,
+        "png_sha256": "4a7d3bd8c1d55c8e3837bcce5deba84fa06f385ea9a458cad997bbb3f15b3a5b"
+      },
+      {
+        "index": 44,
+        "pixel_fnv1a": "d20d8e4f3336b4d3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-044.png",
+        "sample_time_seconds": 0.7333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 44,
+        "png_sha256": "75fc6e43fba6877c9e9d40040ca03d80bc39a006889cfed64d8ebf74d6b25b5c"
+      },
+      {
+        "index": 45,
+        "pixel_fnv1a": "9dc1da8d9c65e760",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-045.png",
+        "sample_time_seconds": 0.75,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 45,
+        "png_sha256": "0678dd42bd17433e8a5504cacfa999a0dc89c65c16de5deda0292ec51621c038"
+      },
+      {
+        "index": 46,
+        "pixel_fnv1a": "132470aba3626984",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-046.png",
+        "sample_time_seconds": 0.7666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 46,
+        "png_sha256": "7ff789ad759e9dfd83afaab392ba143ef5b83fcffde0d3653c4a1650c87e0c4e"
+      },
+      {
+        "index": 47,
+        "pixel_fnv1a": "3afcf9cb01127577",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-047.png",
+        "sample_time_seconds": 0.7833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 47,
+        "png_sha256": "1ba04df99190c705c40baadee88293e3258ca8847f5587b43f9b5e332ef60245"
+      },
+      {
+        "index": 48,
+        "pixel_fnv1a": "8b4114ff96de00c4",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-048.png",
+        "sample_time_seconds": 0.8,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 48,
+        "png_sha256": "090ca02394de70cbd6cd5c4eb0cd53ea64779dfc13d1d67cb3ac888ad48f2169"
+      },
+      {
+        "index": 49,
+        "pixel_fnv1a": "ae0921e955445c6d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-049.png",
+        "sample_time_seconds": 0.8166666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 49,
+        "png_sha256": "3a2e2d58ae5e372cf4ec45e169e0aab5788998611a5ec3104ff48a1a128a39e5"
+      },
+      {
+        "index": 50,
+        "pixel_fnv1a": "77a23c4dfe0794b0",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-050.png",
+        "sample_time_seconds": 0.8333333333333334,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 50,
+        "png_sha256": "3c2cde390c69c4b8ee7409d7abe2c2311319015ff47a448baecc372fefa1d190"
+      },
+      {
+        "index": 51,
+        "pixel_fnv1a": "de78225efe006732",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-051.png",
+        "sample_time_seconds": 0.85,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 51,
+        "png_sha256": "2089802c97e381851b0cddd5f39c8ef61a5e244104cee92979758e71ca247ffa"
+      },
+      {
+        "index": 52,
+        "pixel_fnv1a": "f2c6aa7661cfae52",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-052.png",
+        "sample_time_seconds": 0.8666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 52,
+        "png_sha256": "c74d569738355c4aa7455ca73ed62670237d4ac64b323d1ce476c9bebbc88b2e"
+      },
+      {
+        "index": 53,
+        "pixel_fnv1a": "c40ce7db827cf90b",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-053.png",
+        "sample_time_seconds": 0.8833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 53,
+        "png_sha256": "6384d8efde96c4cfab2cb02a666ed1067acbd906ae7bf09d085446c1e3c491e9"
+      },
+      {
+        "index": 54,
+        "pixel_fnv1a": "37557b4631c8cab3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-054.png",
+        "sample_time_seconds": 0.9,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 54,
+        "png_sha256": "09f2da222b720f10bad887e70ed0d53a8742863708e79c1b84de689ef59850df"
+      },
+      {
+        "index": 55,
+        "pixel_fnv1a": "a7fa6ced843c9796",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-055.png",
+        "sample_time_seconds": 0.9166666666666666,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 55,
+        "png_sha256": "3456f0992a97d54db14af833d449d4d02d00ba8c9ae1607c75689b2822097faa"
+      },
+      {
+        "index": 56,
+        "pixel_fnv1a": "16f88f76d51f8f0d",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-056.png",
+        "sample_time_seconds": 0.9333333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 56,
+        "png_sha256": "e794a1adacf144363656112342ef642a28d1aee8e75e9e1128f77126d639437a"
+      },
+      {
+        "index": 57,
+        "pixel_fnv1a": "b975a1ddbe010f19",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-057.png",
+        "sample_time_seconds": 0.95,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 57,
+        "png_sha256": "67c3e6938231c8b8ace800142533e9b9036e27795ab7c72e3961f75ffe09d053"
+      },
+      {
+        "index": 58,
+        "pixel_fnv1a": "df72e9681fc0d1c3",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-058.png",
+        "sample_time_seconds": 0.9666666666666667,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 58,
+        "png_sha256": "cfda03d5d98be552761d5fbe8579ca0a366d3d9b67394afd2497ca5312cb9bd5"
+      },
+      {
+        "index": 59,
+        "pixel_fnv1a": "723d5f6396f0ff00",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-059.png",
+        "sample_time_seconds": 0.9833333333333333,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 59,
+        "png_sha256": "9f06974b4784ec172442286e4447dd46f2ee83fe4e71638411e7edcd6eb06025"
+      },
+      {
+        "index": 60,
+        "pixel_fnv1a": "2341de12e9ca8213",
+        "plan_revision": 1,
+        "png": "/home/speak/workspace/mui/target/hanim-properties/play-latest-release.png.agent-060.png",
+        "sample_time_seconds": 1.0,
+        "target_revision": 0,
+        "time_denominator": 60,
+        "time_numerator": 60,
+        "png_sha256": "23e80d89fcbcbf3c1aef2028854011966c43d7a7e379db68ecc7275c30aaa35b"
+      }
+    ],
+    "visually_inspected_indices": [
+      0,
+      15,
+      30,
+      45,
+      60
+    ],
+    "visual_observation": "The triangle translates, rotates and scales continuously at inspected samples; the chosen tone starts fully tinted and blur increases by design. No clipping observed in this reference viewport.",
+    "scope": "Same CPU renderer, no GUI or display server. Process review and pixels do not certify realtime pacing or artistic quality."
+  },
+  "source_files_sha256": {
+    "modules/gfx/hanim/src/hanim.cppm": "8a08a5b75a648d0742b16d57e8c9952b0be1a9e5747a9d5dbe0198cad1814c34",
+    "modules/gfx/hanim/src/library/library.cppm": "d8c0a5d0695d1d4184e9dedcd27211e4bcf5bdbc2898dba5ab02cda18596cb0f",
+    "modules/gfx/hanim/src/object/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+    "modules/gfx/hanim/src/effect/effect.cppm": "9a51b7b120a51fb122878997369067141164d422519c02ec89911d49c198a5d1",
+    "modules/gfx/hanim/src/program/program.cppm": "52f7020910d560ca0c5f02d3b715ff93460515a2bd96c64c7299cc18c3a5f1f0",
+    "modules/gfx/hanim/src/engine/engine.cppm": "ee64c4f2c6e5f7e4123ffe9d84dd214a3f7a58feaa31af61bee71499c07ee54c",
+    "modules/gfx/hanim/src/render/vector/vector.cppm": "0151eca7cb1f51bfc84e94c50f1ffee48dfdd9ede2e3469ae14a87335f4b79ad",
+    "modules/gfx/hanim/src/library/library.cpp": "4f4e0e64c40360011126eae007fae18fd96bd9e78384f21dfc16da724aa24407",
+    "modules/gfx/hanim/src/object/object.cpp": "7fafe53350282a942f79983e04c0aa6e09cc1a88981ac5d19998d7516db5c8b8",
+    "modules/gfx/hanim/src/effect/effect.cpp": "0516f9d9450f9d3d40961b248bd697e472c6c9d36b7a09890fc2f703a5d2bc92",
+    "modules/gfx/hanim/src/program/program.cpp": "44be206d8268a380f10fafabf6c6cb6e6228aa721e9232a7c7df94e66535c202",
+    "modules/gfx/hanim/src/engine/engine.cpp": "9adba7e6fff0a54b539d13fe4e33213242128352872595bbb072020807c686d3",
+    "modules/gfx/hanim/src/render/vector/vector.cpp": "4b760d3f4f33f81b16cea43c4e6b823b0bbf85d2f9332e74b034d00c7b300176"
+  },
+  "static_checks": {
+    "lint": {
+      "path": "target/hanim-properties/logs/lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+    },
+    "changed_TOML_Python_parsed": true,
+    "changed_Markdown_local_links": true,
+    "git_diff_check": true
+  },
+  "limits": [
+    "Closed vector HObject domain only; not arbitrary application properties, open paths, cameras or rigs.",
+    "Parallel bindings still own the whole object. Combine different properties in one typed target; per-channel blending is not implemented.",
+    "Property preparation reuses the existing strict contour compiler; no faster cold preparation, throughput or GPU claim.",
+    "UI default-motion migration and direct website consumption of these five new recipes remain the next functional checkpoint.",
+    "Five added recipes and one multi-property entry do not complete the 40 public-animation or 20 creative-work requirements.",
+    "Generic OpenAS provider discovery is not newly delivered; the independent consumer uses the existing shared authority adapter."
+  ]
+}

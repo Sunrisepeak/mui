@@ -1,0 +1,29 @@
+# A section that opens and closes: its header always shown, its content only
+# while expanded (a disclosure, WAI-ARIA's pattern: the header a button that
+# says whether it is expanded). How it opens is the slot's (universal motion).
+[contract.accordion]
+children = "any"
+role = "region"
+spec = "0.1"
+doc  = "A section whose header is always shown and whose content shows while it is expanded."
+
+[contract.accordion.props]
+title    = { type = "string", default = "", bindable = true, doc = "The header, also the accessible name." }
+expanded = { type = "bool", default = false, bindable = true }
+disabled = { type = "bool", default = false }
+
+[contract.accordion.events]
+toggled = { args = { expanded = "bool" } }
+
+[contract.accordion.actions]
+expand   = { effect = "reversible" }
+collapse = { effect = "reversible" }
+activate = { effect = "reversible", doc = "Expands it when collapsed, collapses it when expanded." }
+
+[contract.accordion.keys]
+"Enter|Space" = "activate"
+
+[contract.accordion.parts]
+header  = {}
+chevron = {}
+panel   = {}

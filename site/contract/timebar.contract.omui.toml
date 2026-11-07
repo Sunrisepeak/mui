@@ -1,0 +1,32 @@
+# The page's recent time as a strip along the bottom of the site: what
+# happened when (a flight, a language switch, a lens), and a playhead. The
+# page is drawn as it was at the playhead: animations are functions of time,
+# so seeking back plays them backwards. Drawn straight from its properties —
+# no motion of its own — so moving the page's time never moves the strip.
+[contract.timebar]
+role = "slider"
+spec = "0.1"
+doc  = "The page's recent time: what happened when, and a playhead to drag through it; the page is drawn as it was at the playhead."
+
+[contract.timebar.props]
+time   = { type = "f64", default = 0, bindable = true, doc = "The playhead, in seconds of the page's time; dragged, written back." }
+start  = { type = "f64", default = 0, doc = "The strip's first second (not live)." }
+end    = { type = "f64", default = 10, doc = "Its last second: the newest time the page had shown (while live, its owner moves it on, a second at a time and to each mark)." }
+live   = { type = "bool", default = false, doc = "The page's time runs on: the playhead is at the strip's end, and the strip reaches `window` back from it." }
+window = { type = "f64", default = 20, doc = "How far back the strip reaches while live, in seconds." }
+marks = { type = "any", doc = "What happened: a list of { at (seconds), label }." }
+label = { type = "string", default = "" }
+
+[contract.timebar.events]
+scrubbed = { args = { time = "f64" }, coalesce = "frame" }
+
+[contract.timebar.actions]
+increment = { effect = "reversible", doc = "A tenth of a second later." }
+decrement = { effect = "reversible", doc = "A tenth of a second earlier." }
+set_value = { effect = "reversible", args = { value = "f64 | min | max" }, doc = "Moves the playhead to a second of the page's time (min: the strip's first, max: its last)." }
+
+[contract.timebar.keys]
+"Right|Up"  = "increment"
+"Left|Down" = "decrement"
+"Home"      = "set_value(min)"
+"End"       = "set_value(max)"

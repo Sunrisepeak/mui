@@ -1,0 +1,3212 @@
+{
+  "format": "omui.render-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T05:28:02.723616+00:00",
+  "base_commit": "594786929de0844925961f02f39ba90af675b7ab",
+  "scope": "N2 renderer ownership, same-package compatibility, actual dependency boundaries and native/Web/source/archive regressions.",
+  "migrated_packages": [
+    "xengine.render",
+    "xengine.render.vector",
+    "xengine.render.effect",
+    "xengine.render.cts"
+  ],
+  "workspace_members": 123,
+  "new_or_removed_manifests": 0,
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "selection": "render-dev",
+      "profile": "dev",
+      "target": "native",
+      "successful_program_results": 12,
+      "reported_suite_cases": 60,
+      "programs": [
+        "graph_test",
+        "blank_glyph_test",
+        "cpu_test",
+        "display_test",
+        "damage_test",
+        "effect_output_bounds_test",
+        "paint_mix_cpu_test",
+        "paint_mix_test",
+        "path_recording_test",
+        "pixelate_test",
+        "shape_morph_test",
+        "effects_test"
+      ],
+      "suites": [
+        {
+          "name": "render.graph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-render-dev.log",
+        "sha256": "e9072fe69e8286d3ec0ff91537d8d21a2d573e6f2067841be9d3482432555d7b"
+      }
+    },
+    {
+      "selection": "render-release",
+      "profile": "release",
+      "target": "native",
+      "successful_program_results": 12,
+      "reported_suite_cases": 60,
+      "programs": [
+        "graph_test",
+        "blank_glyph_test",
+        "cpu_test",
+        "display_test",
+        "damage_test",
+        "effect_output_bounds_test",
+        "paint_mix_cpu_test",
+        "paint_mix_test",
+        "path_recording_test",
+        "pixelate_test",
+        "shape_morph_test",
+        "effects_test"
+      ],
+      "suites": [
+        {
+          "name": "render.graph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 11,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-render-release.log",
+        "sha256": "40f1c454acf96f5c4b14c2186a2addf48eff47b6cdeb2f7c5a6f53d85d94f1c0"
+      }
+    },
+    {
+      "selection": "render-wasm",
+      "profile": "wasm-test",
+      "target": "Wasm/Node",
+      "successful_program_results": 12,
+      "reported_suite_cases": 57,
+      "programs": [
+        "graph_test",
+        "blank_glyph_test",
+        "cpu_test",
+        "display_test",
+        "damage_test",
+        "effect_output_bounds_test",
+        "paint_mix_cpu_test",
+        "paint_mix_test",
+        "path_recording_test",
+        "effects_test",
+        "pixelate_test",
+        "shape_morph_test"
+      ],
+      "suites": [
+        {
+          "name": "render.graph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.damage",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "render.effects",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-render-wasm.log",
+        "sha256": "7d155f09de8191ac99270274456bd531c3dd93942c546a9bbc54da2b19755fa5"
+      }
+    },
+    {
+      "selection": "device-dev",
+      "profile": "dev",
+      "target": "native SDL offscreen required device",
+      "successful_program_results": 19,
+      "reported_suite_cases": 141,
+      "programs": [
+        "compatibility_test",
+        "effect/effect_test",
+        "library/morph_test",
+        "object/consumer_test",
+        "engine/engine_test",
+        "object/object_test",
+        "object/query_allocation_test",
+        "program/program_test",
+        "graph_device_test",
+        "effect_output_bounds_gpu_test",
+        "paint_mix_gpu_test",
+        "vector_gpu_test",
+        "effect_test",
+        "text_test",
+        "font_delivery_test",
+        "dist_toy_test",
+        "gen_test",
+        "wasm_size_test",
+        "font_subset_test"
+      ],
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "name": "render.graph",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-gpu",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.gpu",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "effect",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "text",
+          "passed": 16,
+          "failed": 0
+        },
+        {
+          "name": "gen.font_delivery",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "gen.dist_toy",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "gen",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "gen.wasm_size",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "gen.font_subset",
+          "passed": 7,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-device-dev.log",
+        "sha256": "ad257820a69e4cb8987156ab4b078bef49cf1f8279cd603e407ba54ba64a5a96"
+      }
+    },
+    {
+      "selection": "device-release",
+      "profile": "release",
+      "target": "native SDL offscreen required device",
+      "successful_program_results": 19,
+      "reported_suite_cases": 141,
+      "programs": [
+        "compatibility_test",
+        "effect/effect_test",
+        "engine/engine_test",
+        "library/morph_test",
+        "object/consumer_test",
+        "object/object_test",
+        "object/query_allocation_test",
+        "program/program_test",
+        "graph_device_test",
+        "effect_output_bounds_gpu_test",
+        "paint_mix_gpu_test",
+        "vector_gpu_test",
+        "effect_test",
+        "text_test",
+        "font_delivery_test",
+        "dist_toy_test",
+        "font_subset_test",
+        "wasm_size_test",
+        "gen_test"
+      ],
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "name": "render.graph",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "render.effect_output_bounds",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "render.paint-mix-gpu",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "render.gpu",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "effect",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "text",
+          "passed": 16,
+          "failed": 0
+        },
+        {
+          "name": "gen.font_delivery",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "gen.dist_toy",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "gen.font_subset",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "gen.wasm_size",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "gen",
+          "passed": 13,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-device-release.log",
+        "sha256": "5425a977d6a00cb61c23c82c8f0a0e12962f487e5263b5994fbb2352c486a9e9"
+      }
+    },
+    {
+      "selection": "consumers-wasm",
+      "profile": "wasm-test",
+      "target": "Wasm/Node",
+      "successful_program_results": 28,
+      "reported_suite_cases": 275,
+      "programs": [
+        "compatibility_test",
+        "effect/effect_test",
+        "engine/engine_test",
+        "library/morph_test",
+        "object/consumer_test",
+        "object/object_test",
+        "object/query_allocation_test",
+        "program/program_test",
+        "text_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "path_morph_test",
+        "text_contrast_test",
+        "text_transition_test",
+        "travel_reentry_test",
+        "adapt_test",
+        "agent_context_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "effect_animation_test",
+        "presentation_geometry_test",
+        "theme_motion_test",
+        "text_policy_test",
+        "view_test"
+      ],
+      "suites": [
+        {
+          "name": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "hanim.engine",
+          "passed": 23,
+          "failed": 0
+        },
+        {
+          "name": "hanim.library.morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.consumer",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "hanim.object.query_allocations",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "hanim.program",
+          "passed": 19,
+          "failed": 0
+        },
+        {
+          "name": "text",
+          "passed": 16,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "view.effect-animation",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "view",
+          "passed": 52,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-consumers-wasm.log",
+        "sha256": "96c779ae746c6752b5da4275f252ca791b5793d1ca7851b3ea0de20bba800a18"
+      }
+    },
+    {
+      "selection": "ui-dev",
+      "profile": "dev",
+      "target": "native",
+      "successful_program_results": 46,
+      "reported_suite_cases": 350,
+      "programs": [
+        "c_abi_test",
+        "abi_test",
+        "agent_policy_test",
+        "headless_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "text_contrast_test",
+        "text_transition_test",
+        "path_morph_test",
+        "travel_reentry_test",
+        "theme_test",
+        "agent_context_test",
+        "adapt_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "effect_animation_test",
+        "theme_motion_test",
+        "text_policy_test",
+        "view_test",
+        "inspector_test",
+        "cellular_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "basic_motion_test",
+        "feature_examples_test",
+        "creative_motion_test",
+        "frames_test",
+        "first_frame_test",
+        "guide_access_test",
+        "home_landing_test",
+        "gallery_redesign_test",
+        "navigation_redesign_test",
+        "motion_gallery_test",
+        "reactions_test",
+        "p0_layout_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "suites": [
+        {
+          "name": "abi",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "host.headless.agent_policy",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "headless",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "theme",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.effect-animation",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-ui-dev.log",
+        "sha256": "c0b21403e0756121fe968eb45729ccfc32f4f1f3a14378642adbf7fba5b6f8ec"
+      }
+    },
+    {
+      "selection": "ui-release",
+      "profile": "release",
+      "target": "native",
+      "successful_program_results": 46,
+      "reported_suite_cases": 350,
+      "programs": [
+        "c_abi_test",
+        "abi_test",
+        "agent_policy_test",
+        "headless_test",
+        "motion_test",
+        "path_material_retarget_probe_test",
+        "reference_test",
+        "path_morph_test",
+        "text_contrast_test",
+        "text_transition_test",
+        "travel_reentry_test",
+        "theme_test",
+        "adapt_test",
+        "agent_context_test",
+        "constraint_placement_test",
+        "agent_policy_test",
+        "input_attribution_test",
+        "motion_test",
+        "path_policy_test",
+        "presentation_geometry_test",
+        "text_policy_test",
+        "theme_motion_test",
+        "view_test",
+        "effect_animation_test",
+        "cellular_test",
+        "inspector_test",
+        "agent_guard_test",
+        "agent_preview_test",
+        "agent_contrast_test",
+        "basic_motion_test",
+        "agent_transition_layout_test",
+        "brand_test",
+        "feature_examples_test",
+        "first_frame_test",
+        "frames_test",
+        "gallery_redesign_test",
+        "guide_access_test",
+        "home_landing_test",
+        "motion_gallery_test",
+        "navigation_redesign_test",
+        "p0_layout_test",
+        "reactions_test",
+        "creative_motion_test",
+        "static_gallery_test",
+        "text_motion_quality_test",
+        "site_test"
+      ],
+      "suites": [
+        {
+          "name": "abi",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "host.headless.agent_policy",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "headless",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "ui.motion",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-material-retarget-probe",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "motion.references",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "motion.path-morph",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-contrast",
+          "passed": 21,
+          "failed": 0
+        },
+        {
+          "name": "motion.text-transition",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "nested travel scratch lifetime",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "theme",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "name": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "name": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "name": "view.effect-animation",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-render-validation/logs/omui-n2-ui-release.log",
+        "sha256": "adaaafceab0260a7eebdc590026807632c25372ab8884aa8554f34c97f9057c9"
+      }
+    }
+  ],
+  "totals": {
+    "native_program_results_per_profile": 77,
+    "native_reported_suite_cases_per_profile": 551,
+    "wasm_node_program_results": 40,
+    "wasm_reported_suite_cases": 332,
+    "count_limits": "Selected program results, not distinct product capabilities. Existing thread capability branches remain; C ABI C assertions are not separately added to suite counts."
+  },
+  "implementation_normalization": {
+    "ok": true,
+    "units": [
+      {
+        "before": "modules/gfx/render/src/graph.cpp",
+        "after": "modules/gfx/render/src/graph.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "42b216c4499451d329afd795fa57ca6902f0deb6072f427ad13c2d63500ee339"
+      },
+      {
+        "before": "modules/gfx/render/src/graph.cppm",
+        "after": "modules/gfx/render/src/graph.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "cf96ee8057ae6df26a67d59400589214b5e9621e614e751c0cdef59d9bf3f7e8"
+      },
+      {
+        "before": "modules/gfx/render/src/pool.cpp",
+        "after": "modules/gfx/render/src/pool.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "459586b4a1803228ae9e9de89bab95a2d380cbd8be16d7d70428d1dd9cd9fe1e"
+      },
+      {
+        "before": "modules/gfx/render/src/pool.cppm",
+        "after": "modules/gfx/render/src/pool.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "be98e4764dc00161345d2d3e7eee06e8f698ec8f1ec7975961037da0ea95c3dd"
+      },
+      {
+        "before": "modules/gfx/render/src/render.cppm",
+        "after": "modules/gfx/render/src/api.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "1d4b958a0d26f7d90b2a12cf60ce0e3d8286945a56eed02224f5421d5c835c65"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/cpu.cpp",
+        "after": "modules/gfx/render/vector/src/cpu.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "1e174eb4ffd929e566bdd62124bb8524293942cd0ee2346975efcff67aa4bee4"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/cpu.cppm",
+        "after": "modules/gfx/render/vector/src/cpu.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "c612d6ebe06b778540b62036d139fd628d4258496470176c49cba12c88d91dcf"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/damage.cpp",
+        "after": "modules/gfx/render/vector/src/damage.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "8e02cdcf18285796d5a377883d7e01b8cfd0c20046e52acd597e0f48507e209f"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/damage.cppm",
+        "after": "modules/gfx/render/vector/src/damage.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "310791dc72dc5a97adac5fcc0483e7221fa59b64562520cfd36b2a99134e2526"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/display.cpp",
+        "after": "modules/gfx/render/vector/src/display.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "5d18ee5093c2ef1c3c7400c30985b06982db9a9aa94987ab5874995c79de2c0f"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/display.cppm",
+        "after": "modules/gfx/render/vector/src/display.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "b24ef4bc78f207521955fd2dbf868417a0b8024e9f447bb80c4af7306caa8917"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/effects.cpp",
+        "after": "modules/gfx/render/vector/src/effects.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "909703b33b02b6a695b406793aec7e0ecf24c28702d7d3462c171973c41096c3"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/effects.cppm",
+        "after": "modules/gfx/render/vector/src/effects.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "e2ae572a58dc096746d07ef7fb804897b5fe62125cdb133953cd28ca0d712477"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/generated/effect_template.cppm",
+        "after": "modules/gfx/render/vector/src/generated/effect_template.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "dff341f3892c78a89664220d2ec82b9a5f84441f1899969bef66050a108a2189"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/gpu.cpp",
+        "after": "modules/gfx/render/vector/src/gpu.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "3c33afd52ba37e766a0f45aaa91c7b645fddc8e1badc10cc45ec4dd7c5b660af"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/gpu.cppm",
+        "after": "modules/gfx/render/vector/src/gpu.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "508f804138c3bfdbfb730cada53ee12ef6351d9d07ff73996528e41b3d615159"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/paint_mix.cpp",
+        "after": "modules/gfx/render/vector/src/paint_mix.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "e4e0544f945e396938279afcf392937796ec58c6dfdd5eec1236c3f25e80cd77"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/paint_mix.cppm",
+        "after": "modules/gfx/render/vector/src/paint_mix.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "8d8c79353442784cca43aed05e47f36a9de33a49aa95d029b63184d8794107c3"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/resources.cpp",
+        "after": "modules/gfx/render/vector/src/resources.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "de86e518ace7d0a28c0cc78fb48209b8b548f117757ea358d7226aed5d2f5d66"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/resources.cppm",
+        "after": "modules/gfx/render/vector/src/resources.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "77d75f9d5bf8ca77ba22ddbf59093383752e7f3a89d66cce8ae9eea0e9fbd6fa"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/shared.cppm",
+        "after": "modules/gfx/render/vector/src/shared.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "9a9c44668d8b09f56780d27759dbfe29d5fd1b276878056d927c4c9feae53ca1"
+      },
+      {
+        "before": "modules/gfx/render/vector/src/vector.cppm",
+        "after": "modules/gfx/render/vector/src/api.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "e7a580aae08d80c78eb1ed29861accc3e106c2c3605857d1b61cb9449a88ef70"
+      },
+      {
+        "before": "modules/gfx/render/effect/src/effect.cppm",
+        "after": "modules/gfx/render/effect/src/api.cppm",
+        "only_declared_identity_changes": true,
+        "sha256": "f123645e6ddadc48dba827158d45e5177ba0cd0f0b497e0a6b6ac533f98ced19"
+      },
+      {
+        "before": "modules/gfx/render/effect/src/library.cpp",
+        "after": "modules/gfx/render/effect/src/library.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "e446613542bcb38b7be259d44b72f78de1cfb366dcfa67b0400d96ea11b90b1b"
+      },
+      {
+        "before": "modules/gfx/render/effect/src/native/toml.cpp",
+        "after": "modules/gfx/render/effect/src/native/toml.cpp",
+        "only_declared_identity_changes": true,
+        "sha256": "5bcf9715ba6333b66a34e802655ef4cb9deb7be971b9ebe2fe1e662d35bcef36"
+      }
+    ],
+    "shader_assets_unchanged": true
+  },
+  "dependency_boundaries": {
+    "ok": true,
+    "target_closures": {
+      "canonical": {
+        "xengine.render": [
+          "mlibs.hash",
+          "mlibs.memory",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render"
+        ],
+        "xengine.render.vector": [
+          "hanim.core",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render",
+          "xengine.render.vector"
+        ],
+        "xengine.render.effect": [
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.trace",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ]
+      },
+      "legacy": {
+        "xengine.render": [
+          "mlibs.hash",
+          "mlibs.memory",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render"
+        ],
+        "xengine.render.vector": [
+          "hanim.core",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render",
+          "xengine.render.vector"
+        ],
+        "xengine.render.effect": [
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.trace",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ]
+      },
+      "mixed": {
+        "xengine.render": [
+          "mlibs.hash",
+          "mlibs.memory",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render"
+        ],
+        "xengine.render.vector": [
+          "hanim.core",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render",
+          "xengine.render.vector"
+        ],
+        "xengine.render.effect": [
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.trace",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ]
+      }
+    },
+    "runner_sha256": "96168300c94273ffac153f59f5de9b3f2a5109914a269797afcc33486b32f005",
+    "host_build_edges_excluded": true,
+    "scope": "Actual resolver graphs of all three completed source consumers; no recompilation required for this added audit."
+  },
+  "foundation": {
+    "report": {
+      "path": "target/namespace-render-consumers/report.omui.json",
+      "sha256": "1741aab49775d3c58e5f8e7247740ff36ad883cbc1ebbdaca4755fec8cf21594"
+    },
+    "packs": [
+      {
+        "name": "mlibs.hash",
+        "archive": "/home/speak/workspace/mui/modules/base/hash/target/dist/hash-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "06b22acf5b53f1accd1a4217f5563df7214b9e73c4f069d9ba5cf45649a7fbd3",
+        "archive_bytes": 72262,
+        "library_bytes": 214492,
+        "interfaces": [
+          "api.cppm",
+          "hash.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.math",
+        "archive": "/home/speak/workspace/mui/modules/base/math/target/dist/math-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "706472343e6a5865cb76b2f4f4f9875e9a099e0d73d2aeeaa7390d2c61ccf95f",
+        "archive_bytes": 10540,
+        "library_bytes": 15516,
+        "interfaces": [
+          "api.cppm",
+          "color.cppm",
+          "det.cppm",
+          "legacy.cppm",
+          "math.cppm",
+          "random.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.log",
+        "archive": "/home/speak/workspace/mui/modules/base/log/target/dist/log-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "6ab8304b6ed506a712996819b47c06898547d32d9208607378fc6b5744a678ea",
+        "archive_bytes": 82271,
+        "library_bytes": 241574,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "log.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.trace",
+        "archive": "/home/speak/workspace/mui/modules/base/trace/target/dist/trace-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "430bd8e4fd0472f946bee50decd7bc86bce25f59a6eb978b115fb0175fe8d5c5",
+        "archive_bytes": 106229,
+        "library_bytes": 312876,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "trace.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.testing",
+        "archive": "/home/speak/workspace/mui/modules/base/testing/target/dist/testing-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "481b31902f9921446c877c042007060f04d10cb0de26b42723d80e758c40ee00",
+        "archive_bytes": 75646,
+        "library_bytes": 225104,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "testing.cppm",
+          "threads.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.geom",
+        "archive": "/home/speak/workspace/mui/modules/base/geom/target/dist/geom-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "364e29a3e6e7cb73b4df34d9fcab88ab4cae72968d4caf763c53954e13f9f741",
+        "archive_bytes": 4995,
+        "library_bytes": 8,
+        "interfaces": [
+          "api.cppm",
+          "geom.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.memory",
+        "archive": "/home/speak/workspace/mui/modules/base/memory/target/dist/memory-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "5e71096d348617d6b2522a3a0b3fee92cad4fdc0806397b6496326c0586550d7",
+        "archive_bytes": 9549,
+        "library_bytes": 5720,
+        "interfaces": [
+          "api.cppm",
+          "arena.cppm",
+          "function.cppm",
+          "handle.cppm",
+          "legacy.cppm",
+          "memory.cppm",
+          "slots.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.unicode",
+        "archive": "/home/speak/workspace/mui/modules/base/unicode/target/dist/unicode-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "319ad906cda46e8d44db5247c34cd5e71b4152fbb8c65fa87bf65dafb4a74dbe",
+        "archive_bytes": 69849,
+        "library_bytes": 345766,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "tables.cppm",
+          "unicode.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.fuzzy",
+        "archive": "/home/speak/workspace/mui/modules/base/fuzzy/target/dist/fuzzy-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "8116189eaaa86dcf648cc443c0d9dbdec8c890a8e2f1d83c2e026218c4465332",
+        "archive_bytes": 27675,
+        "library_bytes": 60700,
+        "interfaces": [
+          "api.cppm",
+          "fuzzy.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.session",
+        "archive": "/home/speak/workspace/mui/modules/base/session/target/dist/session-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "80c36e0f395500fdb7c9fb347bd2175aeba2c43fbc2d549c652bc7a4d8716a14",
+        "archive_bytes": 155445,
+        "library_bytes": 564414,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "session.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.pipeline",
+        "archive": "/home/speak/workspace/mui/modules/base/pipeline/target/dist/pipeline-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "4459a32a8481c5c96d8a0a3bfba1c57e3af039a086005cc9127a910ff720806e",
+        "archive_bytes": 114949,
+        "library_bytes": 345606,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "pipeline.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.image",
+        "archive": "/home/speak/workspace/mui/modules/base/image/target/dist/image-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "1bdd8ef3ea8e2e5e3f77e1679ccb25417ae9b1ca321e54f0454f9036c733db08",
+        "archive_bytes": 191042,
+        "library_bytes": 560528,
+        "interfaces": [
+          "api.cppm",
+          "image.cppm",
+          "legacy.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.rhi",
+        "archive": "/home/speak/workspace/mui/modules/gfx/rhi/target/dist/rhi-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "8479e4ab74776ef86dcbd051483408dcda8dc732ff1004828dfc2dac95313e1b",
+        "archive_bytes": 189301,
+        "library_bytes": 645860,
+        "interfaces": [
+          "api.cppm",
+          "commands.cppm",
+          "device.cppm",
+          "legacy.cppm",
+          "rhi.cppm",
+          "types.cppm",
+          "wire.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.raster",
+        "archive": "/home/speak/workspace/mui/modules/gfx/raster/target/dist/raster-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "c391e6205376862a0d6dfcde074447d75bb548dd1d097b7b661896515f4c6b3c",
+        "archive_bytes": 83965,
+        "library_bytes": 201260,
+        "interfaces": [
+          "api.cppm",
+          "canvas.cppm",
+          "legacy.cppm",
+          "paint.cppm",
+          "raster.cppm",
+          "rasterizer.cppm",
+          "stroke.cppm",
+          "surface.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.shader",
+        "archive": "/home/speak/workspace/mui/modules/gfx/shader/target/dist/shader-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "dd17b7dabb3bc6b97aea113790b61cb9c42d2fa92abeafc3574e8cf9fe14409c",
+        "archive_bytes": 424465,
+        "library_bytes": 1509200,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "shader.cppm",
+          "slang_provisioned.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.text",
+        "archive": "/home/speak/workspace/mui/modules/content/text/target/dist/text-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "aa62863d95a7e45ef51bc0012aab94aede9f34f0e23f4fa8d6704adaad18a794",
+        "archive_bytes": 165733,
+        "library_bytes": 469264,
+        "interfaces": [
+          "api.cppm",
+          "edit.cppm",
+          "font.cppm",
+          "glyphs.cppm",
+          "legacy.cppm",
+          "paragraph.cppm",
+          "text.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.layout",
+        "archive": "/home/speak/workspace/mui/modules/content/layout/target/dist/layout-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "b75bc5ee1a328df3656400b4e0425a45d45857880341a4dbd32f9724c2ac1425",
+        "archive_bytes": 40049,
+        "library_bytes": 84972,
+        "interfaces": [
+          "api.cppm",
+          "engine.cppm",
+          "layout.cppm",
+          "legacy.cppm",
+          "style.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.markdown",
+        "archive": "/home/speak/workspace/mui/modules/content/markdown/target/dist/markdown-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "99794cd0e6dcc249b0e27e6111b67a6a6d2b39a8b6bda153ad602a6315c60c1d",
+        "archive_bytes": 187338,
+        "library_bytes": 548092,
+        "interfaces": [
+          "api.cppm",
+          "legacy.cppm",
+          "markdown.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.i18n",
+        "archive": "/home/speak/workspace/mui/modules/content/i18n/target/dist/i18n-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "534b8c4e16e4295120090102a8800ab905d9b3d6f8d9d11733fc308d14e52ed6",
+        "archive_bytes": 750244,
+        "library_bytes": 2580298,
+        "interfaces": [
+          "api.cppm",
+          "catalog.cppm",
+          "data.cppm",
+          "format.cppm",
+          "i18n.cppm",
+          "legacy.cppm",
+          "locale.cppm",
+          "message.cppm",
+          "plural.cppm"
+        ]
+      },
+      {
+        "name": "mlibs.i18n.cldr",
+        "archive": "/home/speak/workspace/mui/modules/content/i18n/cldr/target/dist/cldr-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "73e6649942d9fe18b2fed26fa6353b9123258195718c612d0f648b77dfa0298b",
+        "archive_bytes": 92667,
+        "library_bytes": 304422,
+        "interfaces": [
+          "api.cppm",
+          "cldr.cppm",
+          "en_locale.cppm",
+          "legacy.cppm",
+          "likely_locale.cppm",
+          "zh_Hant_locale.cppm",
+          "zh_locale.cppm"
+        ]
+      },
+      {
+        "name": "hanim.core",
+        "archive": "/home/speak/workspace/mui/modules/base/hanim/core/target/dist/core-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "00ada224acb172bc3686070b483daebad4b7e02ce3915d5d37bbfd03e011c242",
+        "archive_bytes": 155725,
+        "library_bytes": 401594,
+        "interfaces": [
+          "core.cppm",
+          "ease.cppm",
+          "math.cppm",
+          "motion.cppm",
+          "path.cppm",
+          "set.cppm",
+          "shape.cppm",
+          "time.cppm",
+          "timeline.cppm",
+          "value.cppm"
+        ]
+      },
+      {
+        "name": "xengine.render",
+        "archive": "/home/speak/workspace/mui/modules/gfx/render/target/dist/render-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "67e51f2be6f149ccc0e067dfc90d5a99dd9b9b3b1bc57b156a526518a2a94c44",
+        "archive_bytes": 80445,
+        "library_bytes": 231228,
+        "interfaces": [
+          "api.cppm",
+          "graph.cppm",
+          "legacy.cppm",
+          "pool.cppm",
+          "render.cppm"
+        ]
+      },
+      {
+        "name": "xengine.render.vector",
+        "archive": "/home/speak/workspace/mui/modules/gfx/render/vector/target/dist/vector-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "9e8cd6ff4a82937ece1d09db816ec4ca6310a8c7615b21292803dac9442fde9a",
+        "archive_bytes": 781024,
+        "library_bytes": 1533864,
+        "interfaces": [
+          "api.cppm",
+          "blend_shaders.cppm",
+          "blur_shaders.cppm",
+          "chromatic_shaders.cppm",
+          "cpu.cppm",
+          "crt_shaders.cppm",
+          "damage.cppm",
+          "displace_shaders.cppm",
+          "display.cppm",
+          "dissolve_shaders.cppm",
+          "effect_template.cppm",
+          "effects.cppm",
+          "gpu.cppm",
+          "legacy.cppm",
+          "liquid_glass_shaders.cppm",
+          "material_shaders.cppm",
+          "metaball_shaders.cppm",
+          "neon_shaders.cppm",
+          "noise_shaders.cppm",
+          "paint_mix.cppm",
+          "paper_shaders.cppm",
+          "particles_shaders.cppm",
+          "pixelate_shaders.cppm",
+          "quad_shaders.cppm",
+          "resources.cppm",
+          "reveal_shaders.cppm",
+          "tone_shaders.cppm",
+          "ui_shaders.cppm",
+          "vector.cppm",
+          "wipe_shaders.cppm",
+          "wobble_shaders.cppm"
+        ]
+      },
+      {
+        "name": "xengine.render.effect",
+        "archive": "/home/speak/workspace/mui/modules/gfx/render/effect/target/dist/effect-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+        "sha256": "c606051cdf252af57085dbf257d5cbaea101940b1345206041caf876da4289e3",
+        "archive_bytes": 272405,
+        "library_bytes": 998870,
+        "interfaces": [
+          "api.cppm",
+          "effect.cppm",
+          "legacy.cppm"
+        ]
+      }
+    ],
+    "runs": [
+      {
+        "kind": "source",
+        "style": "canonical",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [
+          "mlibs.shader.rules",
+          "openmui.build.embed",
+          "openmui.build.plan",
+          "openmui.gen"
+        ],
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/en_locale.cppm",
+            "sha256": "9a46db64816c978374408cd0b5605a92f4bf11eb36c5d495c91d1c045c7b9b87"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/likely_locale.cppm",
+            "sha256": "ad0212a12d81dbae124473ca35af3a16fe510cf9382b7f3583a9d7fcf4f31cdc"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_Hant_locale.cppm",
+            "sha256": "e53af3a44418648dfeb61c0e04049df681ab5d1c0c177eb34907eb31a376f82b"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_locale.cppm",
+            "sha256": "5c74f75e4d1d2e14e77d2052b8e294acedbaa31d5ca13f9957a74ff99ff7538d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-canonical/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
+          }
+        ],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 193,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": false
+      },
+      {
+        "kind": "source",
+        "style": "legacy",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [
+          "mlibs.shader.rules",
+          "openmui.build.embed",
+          "openmui.build.plan",
+          "openmui.gen"
+        ],
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/en_locale.cppm",
+            "sha256": "9a46db64816c978374408cd0b5605a92f4bf11eb36c5d495c91d1c045c7b9b87"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/likely_locale.cppm",
+            "sha256": "ad0212a12d81dbae124473ca35af3a16fe510cf9382b7f3583a9d7fcf4f31cdc"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_Hant_locale.cppm",
+            "sha256": "e53af3a44418648dfeb61c0e04049df681ab5d1c0c177eb34907eb31a376f82b"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_locale.cppm",
+            "sha256": "5c74f75e4d1d2e14e77d2052b8e294acedbaa31d5ca13f9957a74ff99ff7538d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-legacy/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
+          }
+        ],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 193,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": false
+      },
+      {
+        "kind": "source",
+        "style": "mixed",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [
+          "mlibs.shader.rules",
+          "openmui.build.embed",
+          "openmui.build.plan",
+          "openmui.gen"
+        ],
+        "generated_sources": [
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/en_locale.cppm",
+            "sha256": "9a46db64816c978374408cd0b5605a92f4bf11eb36c5d495c91d1c045c7b9b87"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/likely_locale.cppm",
+            "sha256": "ad0212a12d81dbae124473ca35af3a16fe510cf9382b7f3583a9d7fcf4f31cdc"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_Hant_locale.cppm",
+            "sha256": "e53af3a44418648dfeb61c0e04049df681ab5d1c0c177eb34907eb31a376f82b"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.i18n.cldr/openmui/zh_locale.cppm",
+            "sha256": "5c74f75e4d1d2e14e77d2052b8e294acedbaa31d5ca13f9957a74ff99ff7538d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/mlibs.shader/mlibs/slang_provisioned.cppm",
+            "sha256": "b1b097f9d6a29f7403b49f4876874515e05fdecddaedb209642837dbc632a239"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blend_shaders.cppm",
+            "sha256": "4a7b752e1d0ec24e2a328a4907b05255b629755a515313f36689675687b226c4"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/blur_shaders.cppm",
+            "sha256": "ed542c3da70cecfefd46c50669368589ba60982f208cc23fdbbc3438bc94c288"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/chromatic_shaders.cppm",
+            "sha256": "7ec4f6436c27b2bcf57f97d3bb3e9676ec3ce81972cae944c8bf737581d8b9d9"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/crt_shaders.cppm",
+            "sha256": "8277dc152c64c4f1b97095a82e2ecf9febee61e2d352fb3c0d66021aeeb74473"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/displace_shaders.cppm",
+            "sha256": "32dbfe1e9b526d935f0e588efabf6a333d8b783686575972f900051feb1668d6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/dissolve_shaders.cppm",
+            "sha256": "6c9eca2d247b185cb8c505541ca1800553aabc63a2529661fd0c2ce5ef966569"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/liquid_glass_shaders.cppm",
+            "sha256": "59bfc0cf79440879ebd02670b5f6fe57c0e052ba523177d43832f1fb55f0d32d"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/material_shaders.cppm",
+            "sha256": "026c40fe030380df6c29393a6add625c743882443827700385fe1126af396d0a"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/metaball_shaders.cppm",
+            "sha256": "0ca05f2c4f0331cf9b9bb6acb28d71248d0e9de47fef2462f96f8a0d24c86d08"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/neon_shaders.cppm",
+            "sha256": "14082652c67f9f3e4fd52fd4fbbbdf991ff42cb311d71486c73050a1e3d11d2e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/noise_shaders.cppm",
+            "sha256": "a776d1badf8c18c4c9d8036d2665bba1b53226febe9f44eeb1ddee81a7280280"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/paper_shaders.cppm",
+            "sha256": "7f6a173a0921000661901dd0a338a20f371f7dab1c1b47cf32ea5d2be0b57d6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/particles_shaders.cppm",
+            "sha256": "5d2c4ff86936c36723115575592e4b61c57fd1c4e1398f066567e32d1026a120"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/pixelate_shaders.cppm",
+            "sha256": "6a58d193b9c61288e6c63655b67dcee382b381c2bb7579fbaf629842be80c409"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/quad_shaders.cppm",
+            "sha256": "f6a206632f87c1b36abd20ef2f0e4096ffa8b8ae65f0e9ffdaf7c99f83b11859"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/reveal_shaders.cppm",
+            "sha256": "40201b09ef91d5f357d51865f5bb42cb98520eda6341f259b0d587c764a80de6"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/tone_shaders.cppm",
+            "sha256": "cffae32f9fb5b021d1a4650e51d9ee3f5e1586bead7a912c40a3c88a524d8b6e"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/ui_shaders.cppm",
+            "sha256": "3afb7d2eafd8fe34303566d37116e5f72e9f0a9df0ed16c3e677a4356f2f9532"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wipe_shaders.cppm",
+            "sha256": "cae8f3bd04142aaab1460952e6fb0425203dad38d4aa3502ef571249f7ee3199"
+          },
+          {
+            "path": "/tmp/mlibs-namespace-consumer-b35qo4rs/source-mixed/target/.build-mcpp/out/addbc821b64dff6f/xengine.render.vector/mlibs/shader/wobble_shaders.cppm",
+            "sha256": "7b820786aa34f0a150539e9563068446e9d2c432837ba70946d5ecb97270cc7c"
+          }
+        ],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 193,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": false
+      },
+      {
+        "kind": "packed",
+        "style": "canonical",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [],
+        "generated_sources": [],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 145,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": true
+      },
+      {
+        "kind": "packed",
+        "style": "legacy",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [],
+        "generated_sources": [],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 145,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": true
+      },
+      {
+        "kind": "packed",
+        "style": "mixed",
+        "cases": 23,
+        "target_packages": [
+          "compat.freetype",
+          "compat.harfbuzz",
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.md4c",
+          "compat.sheenbidi",
+          "compat.zlib",
+          "hanim.core",
+          "marzer.tomlplusplus",
+          "mcpplibs.mwrap.harfbuzz",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.mwrap.md4c",
+          "mcpplibs.mwrap.sheenbidi",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.fuzzy",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.i18n",
+          "mlibs.i18n.cldr",
+          "mlibs.image",
+          "mlibs.layout",
+          "mlibs.log",
+          "mlibs.markdown",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.pipeline",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.session",
+          "mlibs.shader",
+          "mlibs.testing",
+          "mlibs.text",
+          "mlibs.trace",
+          "mlibs.unicode",
+          "mlibs.validation.namespace_consumer",
+          "nlohmann.json",
+          "xengine.render",
+          "xengine.render.effect",
+          "xengine.render.vector"
+        ],
+        "host_only_packages": [],
+        "generated_sources": [],
+        "content_png_sha256": "ace866e3f8be4efcab2c971b3dfda7a46adeb71c3d671a8f2a4e43f202d278d8",
+        "content_pixel_hash": "0b79c391d61c1532",
+        "local_compilation_units": 145,
+        "external_compilation_units": 300,
+        "explicit_archive_rescan_group": true
+      }
+    ],
+    "rule_runs": [
+      {
+        "style": "canonical",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      },
+      {
+        "style": "legacy",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      },
+      {
+        "style": "mixed",
+        "result": {
+          "kind": "mlibs.rules-consumer",
+          "ok": true,
+          "entries": 2
+        },
+        "generated_sha256": "289329002faa223dfff2e618e2191d26a501da0b8e4ce775b4d4eb193f0648b1"
+      }
+    ],
+    "limits": [
+      "Source compatibility after rebuild; not C++ binary ABI compatibility or registry aliases.",
+      "Native release source and archive consumers; this gate does not test other targets.",
+      "Fresh consumer build times can reuse global toolchain caches; they are not clean-machine benchmarks.",
+      "The packed consumer explicitly declares foundation dependencies, hanim.core and external index dependencies.",
+      "Shader provisioning is tested on this machine; relocation of the recorded Slang tool path is not verified.",
+      "mcpp index lock hashes describe namespace/name/version, not downloaded artifact content.",
+      "Packed GNU ld consumers explicitly rescan the installed archives because mcpp pack omits path-dependency ordering edges.",
+      "No package publication or claim that mcpp pack preserves dependency metadata."
+    ]
+  },
+  "hanim_features": {
+    "report": {
+      "path": "target/namespace-render-validation/features/report.omui.json",
+      "sha256": "925917b062c10e15f69e1f98a16ef0508e5e02929c9fc329f3e028736338bad7"
+    },
+    "cases": [
+      {
+        "name": "core",
+        "features": [],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.math"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/hanim.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;"
+        ]
+      },
+      {
+        "name": "effect",
+        "features": [
+          "effect"
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.trace"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/effect/effect.cpp",
+          "modules/gfx/hanim/src/effect/effect.cppm",
+          "modules/gfx/hanim/src/hanim.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.effect;"
+        ]
+      },
+      {
+        "name": "object",
+        "features": [
+          "object"
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/hanim.cppm",
+          "modules/gfx/hanim/src/object/object.cpp",
+          "modules/gfx/hanim/src/object/object.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.object;"
+        ]
+      },
+      {
+        "name": "library",
+        "features": [
+          "library"
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/hanim.cppm",
+          "modules/gfx/hanim/src/library/library.cpp",
+          "modules/gfx/hanim/src/library/library.cppm",
+          "modules/gfx/hanim/src/object/object.cpp",
+          "modules/gfx/hanim/src/object/object.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.library;",
+          "export import hanim.object;"
+        ]
+      },
+      {
+        "name": "program",
+        "features": [
+          "program"
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/effect/effect.cpp",
+          "modules/gfx/hanim/src/effect/effect.cppm",
+          "modules/gfx/hanim/src/hanim.cppm",
+          "modules/gfx/hanim/src/library/library.cpp",
+          "modules/gfx/hanim/src/library/library.cppm",
+          "modules/gfx/hanim/src/object/object.cpp",
+          "modules/gfx/hanim/src/object/object.cppm",
+          "modules/gfx/hanim/src/program/program.cpp",
+          "modules/gfx/hanim/src/program/program.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.effect;",
+          "export import hanim.library;",
+          "export import hanim.object;",
+          "export import hanim.program;"
+        ]
+      },
+      {
+        "name": "default",
+        "features": null,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/effect/effect.cpp",
+          "modules/gfx/hanim/src/effect/effect.cppm",
+          "modules/gfx/hanim/src/engine/engine.cpp",
+          "modules/gfx/hanim/src/engine/engine.cppm",
+          "modules/gfx/hanim/src/hanim.cppm",
+          "modules/gfx/hanim/src/library/library.cpp",
+          "modules/gfx/hanim/src/library/library.cppm",
+          "modules/gfx/hanim/src/object/object.cpp",
+          "modules/gfx/hanim/src/object/object.cppm",
+          "modules/gfx/hanim/src/program/program.cpp",
+          "modules/gfx/hanim/src/program/program.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.effect;",
+          "export import hanim.engine;",
+          "export import hanim.library;",
+          "export import hanim.object;",
+          "export import hanim.program;"
+        ]
+      },
+      {
+        "name": "render-vector",
+        "features": [
+          "render-vector"
+        ],
+        "packages": [
+          "hanim.core",
+          "hanim.validation.feature_consumer",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.trace",
+          "xengine.render",
+          "xengine.render.vector"
+        ],
+        "product_sources": [
+          "modules/gfx/hanim/src/effect/effect.cpp",
+          "modules/gfx/hanim/src/effect/effect.cppm",
+          "modules/gfx/hanim/src/hanim.cppm",
+          "modules/gfx/hanim/src/library/library.cpp",
+          "modules/gfx/hanim/src/library/library.cppm",
+          "modules/gfx/hanim/src/object/object.cpp",
+          "modules/gfx/hanim/src/object/object.cppm",
+          "modules/gfx/hanim/src/program/program.cpp",
+          "modules/gfx/hanim/src/program/program.cppm",
+          "modules/gfx/hanim/src/render/vector/vector.cpp",
+          "modules/gfx/hanim/src/render/vector/vector.cppm"
+        ],
+        "public_exports": [
+          "export import hanim.core;",
+          "export import hanim.effect;",
+          "export import hanim.library;",
+          "export import hanim.object;",
+          "export import hanim.program;",
+          "export import hanim.render.vector;"
+        ]
+      }
+    ],
+    "packed_checks": 104,
+    "limits": [
+      "Native release consumers; no clean-machine timing or GPU performance claim.",
+      "The default archive is tested with explicit source dependencies: mcpp pack omits local path-dependency edges.",
+      "The archive freezes selected features; this is not registry publication or binary feature reselection."
+    ]
+  },
+  "hanim_play": {
+    "report": {
+      "path": "target/namespace-render-validation/play/report.omui.json",
+      "sha256": "a68f17198189eaff9c1c38dbfb3bcc298059a7b46dea9885f276aa47bd3ae1d7"
+    },
+    "matched_process_frames": 244,
+    "committed_baseline": {
+      "path": "tools/ci/2026-11-05-content-hanim-consolidation.report.omui.json",
+      "sha256": "7b237805a3195d0567be66a1991d9b5674ebad5f80bce484622295b56e408e6e"
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.shader.rules",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "xengine.render",
+          "xengine.render.vector"
+        ]
+      },
+      {
+        "profile": "release",
+        "denied_capture_published_no_files": true,
+        "display_environment_removed": true,
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "mlibs.control",
+          "mlibs.geom",
+          "mlibs.hash",
+          "mlibs.image",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.raster",
+          "mlibs.rhi",
+          "mlibs.shader",
+          "mlibs.shader.rules",
+          "mlibs.trace",
+          "nlohmann.json",
+          "openlifa.openas",
+          "xengine.render",
+          "xengine.render.vector"
+        ]
+      }
+    ],
+    "integration_tests": [
+      {
+        "suites": [
+          [
+            "hanim.render.vector",
+            "9",
+            "0"
+          ],
+          [
+            "hanim.composite",
+            "7",
+            "0"
+          ],
+          [
+            "hanim.engine.visual",
+            "2",
+            "0"
+          ]
+        ],
+        "log": {
+          "path": "target/namespace-render-validation/play/report.omui-artifacts/dev-integration-tests.stdout.log",
+          "sha256": "626de901f5d1d096cc36a7c81628881a5584e724c5f54649e62f51ef7dd3a5ff"
+        },
+        "exit_code": 0
+      },
+      {
+        "suites": [
+          [
+            "hanim.render.vector",
+            "9",
+            "0"
+          ],
+          [
+            "hanim.composite",
+            "7",
+            "0"
+          ],
+          [
+            "hanim.engine.visual",
+            "2",
+            "0"
+          ]
+        ],
+        "log": {
+          "path": "target/namespace-render-validation/play/report.omui-artifacts/release-integration-tests.stdout.log",
+          "sha256": "1109913870ced13635c2fef05533a368d88d741d097669be9be001f530929386"
+        },
+        "exit_code": 0
+      }
+    ]
+  },
+  "browser_gpu": {
+    "log": {
+      "path": "target/namespace-render-validation/logs/omui-n2-browser-backends.log",
+      "sha256": "d3e702fc9d1abfd09754059a0bdddbd737a4a065769afa3379fe8ddbc845aebf"
+    },
+    "browser": "Google Chrome for Testing 156.0.8078.4",
+    "rhi_cts_per_backend": 19,
+    "shader_checks": 70,
+    "wgsl_entries": 33,
+    "essl_entries": 30,
+    "partitions": 25,
+    "cellular_process": "16 scenarios, 266 steps, 168 comparisons / 61320 values, 129 validation checks, process 0769cee00d2cbf3a",
+    "webgl_compute": "Explicit unsupported rejection; no WebGL compute claim.",
+    "host_drawing": {
+      "max_diff_u8": 4,
+      "pixels_diff_over_1": 64,
+      "pixels": 76800
+    },
+    "initial_webgpu_failure": "Default headless presentation lost the device (Device was destroyed). Existing Vulkan/SwiftShader flags retried the same actual presentation check successfully. No offscreen fallback or skipped assertion was needed.",
+    "software_gpu_performance_claim": false,
+    "physical_gpu_performance_claim": false
+  },
+  "native_gpu": {
+    "environment": {
+      "OMUI_REQUIRE_GPU": "1",
+      "OMUI_GPU_VIDEO_DRIVER": "offscreen"
+    },
+    "device_test_programs_per_profile": 4,
+    "device_suite_cases_per_profile": 11,
+    "dynamic_loader_cases_per_profile": 3,
+    "hot_reload": "Existing 500ms assertion passed; no broader latency guarantee.",
+    "adapter_identity_limit": "These suites create and require an actual SDL device and read real texture pixels, but do not emit its adapter name. No claim about a physical GPU model or hardware throughput."
+  },
+  "website": {
+    "report": {
+      "path": "target/namespace-render-validation/site-browser.report.omui.json",
+      "sha256": "0cf36c1a7bc28c081cbec87447909963ef782f02990c04f17581258b448e93e0"
+    },
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "fixed_samples_matched": 25,
+    "baseline": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "pack": {
+      "path": "target/namespace-render-validation/site-pack.report.omui.json",
+      "sha256": "f124080453a9f7f2102b28b42dd31a855619141d3f504020a1b3a3ee18f83f94"
+    },
+    "native_release_prerender_and_guide": {
+      "path": "target/namespace-render-validation/site-native.report.omui.json",
+      "sha256": "66dd68099d5dd74a0557d2fd5f07ee9147c40ec8d46158f66ea60191cc4db23e"
+    },
+    "visually_inspected": [
+      {
+        "path": "target/site-reactions/phone-zh.png",
+        "sha256": "9d5085e6eda060e3c93d56b0b20dd1009b261bd3c8850ac10087136b01e21d03"
+      },
+      {
+        "path": "target/namespace-render-validation/play/report.omui-artifacts/dev-agent-curved.png.agent-030.png",
+        "sha256": "3a02f00bf742fd71f8cb201f79f552d6e0de467d15f23970f1e27d475b024477"
+      }
+    ],
+    "wasm": [
+      {
+        "path": "target/namespace-render-validation/site/omui-site-5e6329517867.wasm",
+        "sha256": "3f11d2eca61892001bca5a9c8466b59843e92576cd4bff38e5c076eafe8b3aa7",
+        "bytes": 7075181
+      }
+    ]
+  },
+  "generator": {
+    "template": "modules/gfx/render/vector/src/generated/effect_template.cppm",
+    "regenerated_by_actual_tool": true,
+    "regeneration_log": {
+      "path": "/tmp/omui-n2-effect-template.log",
+      "sha256": "dc58b3893b5c312f4e5c14812ae152cc5e1ca58b39e482c2894f6ca8bbe6b0f8"
+    },
+    "assertion": "gen_test compares actual emitted module/namespace and exact embedded source bytes"
+  },
+  "gate_corrections": [
+    "Removed accidental effect-asset copying from the independent shader-rules fixture and corrected expected runtime case count from 20 to 23. Actual runtime assertions remain intact.",
+    "Browser shader collection now filters current workspace owners so obsolete pre-migration output trees cannot replace current shader data.",
+    "Renderer dependency boundary checks were added after completed builds and executed directly on all three actual source resolver graphs; the same function now runs in CI."
+  ],
+  "limits": [
+    "Only N2 renderer ownership is complete; simulation/audio/media and UI/spec/tool migrations remain open.",
+    "Same-package source aliases require rebuilding and cannot be reopened. No C++ ABI/BMI, old package selector or registry alias guarantee.",
+    "mcpp pack still omits local path-dependency edges. Archive consumers explicitly declare dependencies and GNU rescan groups; automatic top-level-only installation and Slang tool relocation remain unverified.",
+    "Linux GCC16 and actual Emscripten/Node/Chromium tested locally. No new Windows/macOS/mobile/physical GPU or realtime performance qualification.",
+    "No new 3D capability, animation count, 40/20 acceptance, C2-C6 or S1-S10 completion is inferred from these migrations and fixed process regressions."
+  ],
+  "static_checks": {
+    "lint": "0 problems",
+    "diff": "pass",
+    "python_toml_shell_syntax": "pass",
+    "local_document_links": "pass",
+    "spec_shader_assets_unchanged": true
+  },
+  "source_files_sha256": {
+    "components/canvas/kit/mcpp.toml": "abc8992f544d8e20d3a0ec0e3b84c6559608cb08d0e96b81e1580d9f3c8ec5bd",
+    "components/canvas/mcpp.toml": "833776216db99c9e5bda0e2f0766316009a5c4709f118984ba2c0da1f5285d89",
+    "components/liquid-glass/mcpp.toml": "31d507ceeaabcad1e3dbc6c23a08a55e72024e4f7a9debfd9b69abc9de5ff365",
+    "components/timeline/mcpp.toml": "7483179fc44065e76f087f3ea4c350344cd623df89ee5dadc73dc428f226103c",
+    "components/window/mcpp.toml": "7ed815b388e3ba7eef1be4a01e49dbeda57d7780614f0fea86d6715976e2c23e",
+    "mgame/gongfu/present2d/mcpp.toml": "e83f793a66dc46ac195ee6760cc702e9ed71161bbf558c409183157183cc393a",
+    "mgame/gongfu/studio/mcpp.toml": "98807c34da752cf457494a3e3d755cc5f567b04a9c703d7cc0e5b24f71bb063e",
+    "modules/content/text/mcpp.toml": "02dc9b2125fcf74bf28551fc7e4f159cf5921162503c84fecba857a251b045ad",
+    "modules/content/text/src/font.cppm": "329e6aa1931b5488dde61dc8a2aaaac4e8e25c8a7d860171b443c255690bd155",
+    "modules/content/text/src/glyphs.cppm": "cd7f4d3439bbc258a63bd10477744b7f8caa63942945b14bdc133a24c397b37a",
+    "modules/content/text/src/native/glyphs.cpp": "ffa2a3ec3995b72e6c200a691ee2bc5631d9ba8457aa89d27474fb561363e524",
+    "modules/content/text/src/paragraph.cpp": "3e15e6eb03d6c1916f0a6b6354f92140b7dd501a77e11d2b74e96e845fc80503",
+    "modules/content/text/src/paragraph.cppm": "c261a6f7d5fd7d848cbcbe67e00bd8e6449e6a653dac667555b884ef20aabb53",
+    "modules/content/text/src/shaped.cppm": "d8ad8d426e23b0a4d1bfd789d45eee10f848e04be8bf89b80d2867dfc3c590c9",
+    "modules/gfx/hanim/mcpp.toml": "01535570c122bd0256ea307956bf3f8ef8540ec9fe5089c4f9a13398f677cb50",
+    "modules/gfx/hanim/src/render/vector/vector.cpp": "4b760d3f4f33f81b16cea43c4e6b823b0bbf85d2f9332e74b034d00c7b300176",
+    "modules/gfx/hanim/src/render/vector/vector.cppm": "0151eca7cb1f51bfc84e94c50f1ffee48dfdd9ede2e3469ae14a87335f4b79ad",
+    "modules/gfx/render/cts/mcpp.toml": "aefe8aeb5f8989ee521fdc1f00e9db7a50b64865731e7e53c41420372f2a1597",
+    "modules/gfx/render/effect/mcpp.toml": "982da591e003335c209e2b0d777c9f8a78cd748d07f4232d2f844b990dfbcb53",
+    "modules/gfx/render/effect/src/api.cppm": "f123645e6ddadc48dba827158d45e5177ba0cd0f0b497e0a6b6ac533f98ced19",
+    "modules/gfx/render/effect/src/effect.cppm": "8d41ab29317e11dce8be28cf6d000e75eae9d1b32f3568f12c45f115d3277475",
+    "modules/gfx/render/effect/src/legacy.cppm": "a929b430cb9ed4f3d003062320586c48488272ded9bf29460210f38d8c537b1e",
+    "modules/gfx/render/effect/src/library.cpp": "e446613542bcb38b7be259d44b72f78de1cfb366dcfa67b0400d96ea11b90b1b",
+    "modules/gfx/render/effect/src/native/toml.cpp": "5bcf9715ba6333b66a34e802655ef4cb9deb7be971b9ebe2fe1e662d35bcef36",
+    "modules/gfx/render/mcpp.toml": "6f1d11eba1f2e6211c0ee3f9742d2beb8ab4e5251de5056ee3321b037e8ac8f5",
+    "modules/gfx/render/src/api.cppm": "1d4b958a0d26f7d90b2a12cf60ce0e3d8286945a56eed02224f5421d5c835c65",
+    "modules/gfx/render/src/graph.cpp": "42b216c4499451d329afd795fa57ca6902f0deb6072f427ad13c2d63500ee339",
+    "modules/gfx/render/src/graph.cppm": "cf96ee8057ae6df26a67d59400589214b5e9621e614e751c0cdef59d9bf3f7e8",
+    "modules/gfx/render/src/legacy.cppm": "959a7b2bc88e37aac4ed0f56640d94596787292fd41fa002bc1743ab94fc804d",
+    "modules/gfx/render/src/pool.cpp": "459586b4a1803228ae9e9de89bab95a2d380cbd8be16d7d70428d1dd9cd9fe1e",
+    "modules/gfx/render/src/pool.cppm": "be98e4764dc00161345d2d3e7eee06e8f698ec8f1ec7975961037da0ea95c3dd",
+    "modules/gfx/render/src/render.cppm": "fe860ea51f0ad88af6549f342c822f9a6ebc9a585c5720b8cbaa3b7738632c25",
+    "modules/gfx/render/vector/build.mcpp": "b2a9f561faedfbfe898e2c160300be2ae828e5654b4939c06cba0a8a30b60b85",
+    "modules/gfx/render/vector/mcpp.toml": "141d62c36b5b7fe2dc053e44c30ac356270bbed08c54da4d691d977223be5c45",
+    "modules/gfx/render/vector/src/api.cppm": "e7a580aae08d80c78eb1ed29861accc3e106c2c3605857d1b61cb9449a88ef70",
+    "modules/gfx/render/vector/src/cpu.cpp": "1e174eb4ffd929e566bdd62124bb8524293942cd0ee2346975efcff67aa4bee4",
+    "modules/gfx/render/vector/src/cpu.cppm": "c612d6ebe06b778540b62036d139fd628d4258496470176c49cba12c88d91dcf",
+    "modules/gfx/render/vector/src/damage.cpp": "8e02cdcf18285796d5a377883d7e01b8cfd0c20046e52acd597e0f48507e209f",
+    "modules/gfx/render/vector/src/damage.cppm": "310791dc72dc5a97adac5fcc0483e7221fa59b64562520cfd36b2a99134e2526",
+    "modules/gfx/render/vector/src/display.cpp": "5d18ee5093c2ef1c3c7400c30985b06982db9a9aa94987ab5874995c79de2c0f",
+    "modules/gfx/render/vector/src/display.cppm": "b24ef4bc78f207521955fd2dbf868417a0b8024e9f447bb80c4af7306caa8917",
+    "modules/gfx/render/vector/src/effects.cpp": "909703b33b02b6a695b406793aec7e0ecf24c28702d7d3462c171973c41096c3",
+    "modules/gfx/render/vector/src/effects.cppm": "e2ae572a58dc096746d07ef7fb804897b5fe62125cdb133953cd28ca0d712477",
+    "modules/gfx/render/vector/src/generated/effect_template.cppm": "dff341f3892c78a89664220d2ec82b9a5f84441f1899969bef66050a108a2189",
+    "modules/gfx/render/vector/src/gpu.cpp": "3c33afd52ba37e766a0f45aaa91c7b645fddc8e1badc10cc45ec4dd7c5b660af",
+    "modules/gfx/render/vector/src/gpu.cppm": "508f804138c3bfdbfb730cada53ee12ef6351d9d07ff73996528e41b3d615159",
+    "modules/gfx/render/vector/src/legacy.cppm": "4e0a7a2e9d6323a3fbfe1d0573e2a56f1578cdf67b601565a4f2e9b2268db642",
+    "modules/gfx/render/vector/src/paint_mix.cpp": "e4e0544f945e396938279afcf392937796ec58c6dfdd5eec1236c3f25e80cd77",
+    "modules/gfx/render/vector/src/paint_mix.cppm": "8d8c79353442784cca43aed05e47f36a9de33a49aa95d029b63184d8794107c3",
+    "modules/gfx/render/vector/src/resources.cpp": "de86e518ace7d0a28c0cc78fb48209b8b548f117757ea358d7226aed5d2f5d66",
+    "modules/gfx/render/vector/src/resources.cppm": "77d75f9d5bf8ca77ba22ddbf59093383752e7f3a89d66cce8ae9eea0e9fbd6fa",
+    "modules/gfx/render/vector/src/shared.cppm": "9a9c44668d8b09f56780d27759dbfe29d5fd1b276878056d927c4c9feae53ca1",
+    "modules/gfx/render/vector/src/vector.cppm": "e50a363d78c8200c781336755f6860f69252d97d2138f5b5ceb256eb7ac36240",
+    "modules/ui/abi/mcpp.toml": "01523630c1ab3232c70d2ede86274f75768ae76deda26215567ac9734408e863",
+    "modules/ui/host/headless/mcpp.toml": "84090a00f38ed49007d314202fca6307e1eecda0c5c98b7563a11992c38bd594",
+    "modules/ui/host/sdl3/mcpp.toml": "786001949ced69356567df4c5a527fb7aaa40652e395716eb1b802c68399d241",
+    "modules/ui/host/web/mcpp.toml": "392680cb842488c05efb1029c163a38b76a6d15f71950978d59c9da139dc86d0",
+    "modules/ui/motion/mcpp.toml": "efea6eda1b4f433f663955dcfe0dd29bfb1e241116450dd4ea9f37782f68aef9",
+    "modules/ui/theme/mcpp.toml": "5e74493233f9a93db4721bb7fa25de9dfb987d27fe50ef5d235f2058b00574f7",
+    "modules/ui/view/mcpp.toml": "3be935f20867c918730e8ca8395ef5fe5a29b750a97d462de8c4625c3659a10a",
+    "tools/ci/browser.sh": "14372d8e7947fd46a7994df6ef1f1066e9d04a50bd62e6ae0b69961cf70e7b7a",
+    "tools/ci/foundation-migration/main.cpp.in": "13b02b206b90989575faa9624cec653b9e3db35134df227c1cd31f17ba93b1b4",
+    "tools/ci/foundation-migration/run.py": "96168300c94273ffac153f59f5de9b3f2a5109914a269797afcc33486b32f005",
+    "tools/ci/hanim-api-probe/run.py": "a02071638159ddbff6b8e50f920f3b411b2ae012a93431bf68e6036cf60fd0f5",
+    "tools/ci/hanim-features/run.py": "89f6579d162c7677a8b9552318101bdaf7e787eec5364f70ef239b9ee6db196e",
+    "tools/ci/hanim-play-consumer/run.py": "09222624b1e9a09019f9431a13d3bbf5b6265f8f8731a504b000654d35fc68a6",
+    "tools/cli/mcpp.toml": "d9237ab4b011ec548108740ddf4f64bd8a0d6772428d0013d91752e012592aeb",
+    "tools/gen/tests/gen_test.cpp": "5b33dd57f08387bfd1c5af60edf063f7d9e3bfe966e447d2badb96f8ee6b317d"
+  }
+}

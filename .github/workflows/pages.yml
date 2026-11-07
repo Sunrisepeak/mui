@@ -1,0 +1,144 @@
+name: Pages
+
+# omui's website (D-84 §6.6, W3): site/ built for the Web, its places
+# pre-rendered, published to GitHub Pages (tools/ci/site.sh) at
+# https://sunrisepeak.github.io/mui/. A pull request that touches the site or
+# the documents it shows builds it (the built site kept as an artifact); a
+# push to main or to the design branch, or a run by hand, publishes it — where
+# the github-pages environment's deployment branches allow (§13.3 of the
+# structure design: main, and openmui-design once added); a branch it does
+# not allow leaves the run green and the site unpublished.
+
+on:
+  push:
+    branches: [main, openmui-design]
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'docs/**'
+      - 'modules/projects/omui/components/markdown/**'
+      - 'modules/projects/omui/components/timeline/**'
+      - 'mcpp/toy/**'
+      - 'tools/gen/src/dist_toy.*'
+      - 'tools/gen/tests/dist_toy_test.cpp'
+      - 'tools/ci/dist-toy-loading.mjs'
+      - 'tools/gen/src/font_subset.*'
+      - 'tools/ci/site.sh'
+      - 'tools/ci/site-*'
+      - 'tools/ci/wasm-size.sh'
+      - 'tools/ci/visitor-path.*'
+      - 'tools/cli/src/page.cpp'
+      - 'modules/projects/omui/host/web/src/**'
+      - 'tools/gen/src/wasm_size.cpp'
+      - 'tools/ci/page.mjs'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  build:
+    # The design branch's pull request is built by its pushes (once).
+    if: github.event_name != 'pull_request' || github.head_ref != 'openmui-design'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+      - name: The native toolchain (the pre-renderer)
+        run: |
+          mcpp toolchain install gcc 16.1.0
+          mcpp toolchain default gcc@16.1.0
+      - name: The site, packed for the Web and pre-rendered
+        run: tools/ci/site.sh
+      - name: The generated loader handles real streams, failures and retries
+        run: |
+          mcpp test dist_toy -p omui.gen
+          fixture="$(python3 -c 'import os,tempfile; print(os.path.join(tempfile.gettempdir(), "openmui-tests", "dist-toy-loading", "index.html"))')"
+          node tools/ci/dist-toy-loading.mjs "$fixture" > target/dist-toy-loading.report.omui.json
+      - name: The site in a real browser — its delivery within budget, what assistive technology reads
+        # tools/ci/site-browser.sh: the page served as Pages serves it; a cold
+        # visit over 20 Mbit/s — transfer, first frame, readiness, frame tails
+        # (site/delivery.budget.omui.json); the browser's accessibility tree
+        # and the keyboard's way in by the skip link.
+        run: tools/ci/site-browser.sh
+      - name: The visitor's path — the page paired with an agent through omui connect, operated by omui page (D-95)
+        # tools/ci/visitor-path.sh: the pairing code the page gives, the bridge
+        # with it, both ends seeing the pairing, an action, the interaction
+        # sweep through the page, the bridge's end seen by the page.
+        run: tools/ci/visitor-path.sh
+      - name: Keep the site checks and font handoff pixels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-checks
+          path: |
+            target/site-perf.json
+            target/site-a11y.json
+            target/site-*.report.omui.json
+            target/visitor-path.json
+            target/site-fonts/
+            target/site-catalog/
+            target/site-workspace/
+            target/site-reactions/
+            target/site-motion/
+            target/site-presentation/
+            target/site-loading/
+            target/site-font-delivery/
+            target/dist-toy-loading.report.omui.json
+          if-no-files-found: ignore
+      - name: Where the site's WebAssembly bytes go (W8; Q-38)
+        # tools/ci/wasm-size.sh: the release's code with its functions' names
+        # kept, by owner (module, namespace, library) and its largest functions.
+        run: tools/ci/wasm-size.sh
+      - name: Keep the wasm's size report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-size
+          path: |
+            target/wasm-size.json
+            target/wasm-size.md
+      - name: Keep the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: target/site
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    continue-on-error: true
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

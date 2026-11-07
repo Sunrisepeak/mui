@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "size": [400, 120],
+  "background": "#ffffff",
+  "objects": [
+    { "id": "track", "shape": { "rect": { "size": [300, 6], "radius": 3 } }, "fill": "#e5e7eb", "at": [200, 60] },
+    { "id": "step1", "shape": { "circle": 12 }, "fill": "#d1d5db", "at": [50, 60] },
+    { "id": "step2", "shape": { "circle": 12 }, "fill": "#d1d5db", "at": [150, 60] },
+    { "id": "step3", "shape": { "circle": 12 }, "fill": "#d1d5db", "at": [250, 60] },
+    { "id": "step4", "shape": { "circle": 12 }, "fill": "#d1d5db", "at": [350, 60] }
+  ],
+  "program": {
+    "do": "stagger", "step": 0.5,
+    "items": [
+      { "do": "sequence", "items": [{ "do": "fill_to", "object": "step1", "color": "#6366f1", "duration": 0.25 }, { "do": "pulse", "object": "step1", "scale": 1.2 }] },
+      { "do": "sequence", "items": [{ "do": "fill_to", "object": "step2", "color": "#6366f1", "duration": 0.25 }, { "do": "pulse", "object": "step2", "scale": 1.2 }] },
+      { "do": "sequence", "items": [{ "do": "fill_to", "object": "step3", "color": "#6366f1", "duration": 0.25 }, { "do": "pulse", "object": "step3", "scale": 1.2 }] },
+      { "do": "sequence", "items": [{ "do": "fill_to", "object": "step4", "color": "#22c55e", "duration": 0.25 }, { "do": "tada", "object": "step4" }] }
+    ]
+  }
+}

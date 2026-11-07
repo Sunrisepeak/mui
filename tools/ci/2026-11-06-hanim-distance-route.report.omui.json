@@ -1,0 +1,332 @@
+{
+  "format": "hanim.distance-route-checkpoint@0.1",
+  "ok": true,
+  "recorded_at": "2026-11-06T04:52:57.935803+00:00",
+  "base_commit": "1de4a118fdc7a5c7111f9e3d807c26a095427312",
+  "scope": [
+    "Public follow_path uses the existing MotionPath distance table through the same property channel pipeline; no UI or new renderer dependency.",
+    "Immutable TranslationRoute, named part/source chaining, closed routes, process/image effect boundaries and transactional logical route budgets.",
+    "Program contract 8; ordinary non-route single-property path retained; no per-frame path script or second sampler."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "5211f6f508e5819ce064a9e5054e58c7ba79d5ccfc1547e156c0b5cae29ce5f8",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "b09af60d386bb9a803c01ce2a8fb0c389ea902404e404d4874863cb4512efc7d",
+    ".agents/docs/README.md": "bae46e42192c7075e0a9ae2f66ac8139fe10eb0acdb2f9426c36a5d981b799d9",
+    "modules/base/hanim/core/README.md": "500658879989b84d212a91104087e42868c53d0b3a399e4eb5147f6f20795c2a",
+    "modules/base/hanim/core/src/path.cpp": "90f895ca3acdb62a4b691943b0bf516c30010e65e03dbb8692e813d4959daae8",
+    "modules/base/hanim/core/src/path.cppm": "d7401ab081d0c74c043449241326a8891ea1cc0f7fe8944eb876eace15736cab",
+    "modules/base/hanim/core/tests/value_test.cpp": "80d0880187dbbd2dec346c34b92c96e002d9da73648e223432ec554c1c8ba199",
+    "modules/gfx/hanim/README.md": "e0cfa9517fc60fe9118d6a0aaaeefc49ff96ccb8a6ef818a1fe0940d17c1e517",
+    "modules/gfx/hanim/src/engine/CONTRACT.md": "fe1864cf11f1db2f84337a00c412109b334aa2e599fcab8524a9363ac812b67c",
+    "modules/gfx/hanim/src/engine/engine.cpp": "05a11e7540912e49c4992912e5934bfacf07efa8aac74f4ea2d7e81827321fb3",
+    "modules/gfx/hanim/src/engine/engine.cppm": "e9aad861c1cccab6406405e0c5e5f087da20b0dd7bd2a529a5981de766b17e1c",
+    "modules/gfx/hanim/src/library/CONTRACT.md": "5ec326e7c55c03f39880926cf5b0a35d6489dd7fa7c33b244a9ebb1bcd12f643",
+    "modules/gfx/hanim/src/library/README.md": "4aa345f2b047fd9ef30f0395eadb99efbe477f2dfa22a18f3c4f86ccb95074c1",
+    "modules/gfx/hanim/src/library/library.cpp": "eade481d5ce9027c771bf614b387cd112adfc9a9fbe0fd71cc99817a486a37e1",
+    "modules/gfx/hanim/src/library/library.cppm": "49f5fa122ab14c3e1e9b997830288898f099f02e4f500585696148fff26adab3",
+    "modules/gfx/hanim/src/program/CONTRACT.md": "95b592cf7fbaa88c2122bd788bb7941f4e4a4b6475aecd48064507bfefafa470",
+    "modules/gfx/hanim/src/program/README.md": "4b59ac7a465ed375e5bcabb3123486a004c61827c11c8ba22f9575277e33a468",
+    "modules/gfx/hanim/src/program/program.cpp": "d9711d01bce409591ae2eb1f00a3e6c2d07e7c95b55ad58210d36eb9a82978d0",
+    "modules/gfx/hanim/src/program/program.cppm": "428dbe54681911833a8b6ac2053a74ce05074a2cc7deead6534d150bc2994f7d",
+    "modules/gfx/hanim/tests/engine/engine_test.cpp": "ddb7c391d963066df36e9a6d6c306d00662e38cc70689d04972bd1b59fadc41f",
+    "modules/gfx/hanim/tests/program/program_test.cpp": "3aa5127f420f18ed4e14e5799258d4f10c811e59645a3140d55dd3ab274f81d7",
+    "site/README.md": "5dad5751776192cd7f9b7f83897fe29a33b2bf2619b39e32b20f015bba41a848",
+    "site/src/component_motion.cpp": "3a4e5a9044e22377154b31bfbc4be218494d1caccda9dbea52f95079fdf7d66e",
+    "site/src/motion_gallery.cpp": "b9fb213fe44ee4846fcf32ee780cea87232b5533d1db07872affbb7db582fd50",
+    "site/tests/component_motion_test.cpp": "cb3c5bed40f8b19d203d6550c9a147fbd064eaf15cbbfc1cda629d188c548bea",
+    "tools/ci/hanim-api-probe/src/main.cpp": "9aa549e32070518ed3149b1272ff1b39efff25ad5d91c6cf4099b93fd425d425",
+    "tools/ci/site-motion.mjs": "a3d273e5297983c2ca74a393a32a5ded773906e0bb4fb0fb4c7a28114619c266",
+    ".agents/docs/2026-11-06-pr1-handoff.md": "2df41076b995c40a028b5c3ed6eb9e988a4406ec678f191c968b0832d2698d1c"
+  },
+  "tests": [
+    {
+      "run": "core-dev",
+      "programs": 8,
+      "cases": 68,
+      "log": {
+        "path": "target/hanim-route/core-dev.log",
+        "sha256": "0a93152619d5313eaf7a21a9bbf31df23bda577d2ca82889279017f9393ec362"
+      }
+    },
+    {
+      "run": "core-release",
+      "programs": 8,
+      "cases": 68,
+      "log": {
+        "path": "target/hanim-route/core-release.log",
+        "sha256": "14eef61fecc106875c239fee9170f639fd17daed0362a0a16962af9c89e5a683"
+      }
+    },
+    {
+      "run": "core-wasm-final",
+      "programs": 8,
+      "cases": 68,
+      "log": {
+        "path": "target/hanim-route/core-wasm-final.log",
+        "sha256": "ea3f11b552513e8dbafc128929a7df4d5d653409e592b69a7d57613de06d2620"
+      }
+    },
+    {
+      "run": "native-dev-final",
+      "programs": 9,
+      "cases": 121,
+      "log": {
+        "path": "target/hanim-route/native-dev-final.log",
+        "sha256": "56ea3df83d3235eddbef6362b1633998f2a7d4cdbd8b5bdf3afdafe3ec04ae7e"
+      }
+    },
+    {
+      "run": "native-release-final",
+      "programs": 9,
+      "cases": 121,
+      "log": {
+        "path": "target/hanim-route/native-release-final.log",
+        "sha256": "22fe968c31c8b5e71e98876f62f24c88eb296ad81533d9e914684ee91aa07c0f"
+      }
+    },
+    {
+      "run": "wasm-final",
+      "programs": 9,
+      "cases": 119,
+      "log": {
+        "path": "target/hanim-route/wasm-final.log",
+        "sha256": "cb0675593ecd568d8462317ac043d10cb0c117918844cccef72681ab2af69333"
+      }
+    }
+  ],
+  "public_consumer": {
+    "report": {
+      "path": "target/hanim-route/public-final.report.omui.json",
+      "sha256": "9b625d5bde0c9c1fea27a6a068d87c3feda99cbab13b7800dad70d433ee92b49"
+    },
+    "production_hashes_match_final_sources": true,
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 190,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      },
+      {
+        "profile": "release",
+        "checks": 190,
+        "ok": true,
+        "packages": [
+          "hanim.core",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "mlibs.geom",
+          "mlibs.log",
+          "mlibs.math",
+          "mlibs.memory",
+          "mlibs.trace"
+        ]
+      }
+    ]
+  },
+  "ui_process": {
+    "cases": 12,
+    "log": {
+      "path": "target/hanim-route/site-native-final.log",
+      "sha256": "caa7a9f7bf87eb50197e72fd0bf5200321a40aaad14d4d87a4f39890ae6fe694"
+    },
+    "frames": 801,
+    "new_frames": 62,
+    "old_frames_identical": 739,
+    "reverse_frames_exact": true,
+    "manifest": {
+      "path": "target/hanim-route/frames.sha256.json",
+      "sha256": "3bb580d41833dbdf0c443c063dd8ee66221ea09a36012d651e96c207cf51b036"
+    },
+    "reviewed_frames": [
+      "route-pixel-quarter.png"
+    ],
+    "interaction": "real copy action remains usable while curve motion and pixel effect compose"
+  },
+  "browser": {
+    "report": {
+      "path": "target/hanim-route/browser-artifacts/report.json",
+      "sha256": "00de77298730981537c20225216b9f6779db1c3417075c8394e3b48eb21066b5"
+    },
+    "checks": 193,
+    "screenshots": 17,
+    "exceptions": [],
+    "reviewed_screenshot": {
+      "path": "target/hanim-route/browser-artifacts/component-motion-route.png",
+      "sha256": "99c3bfbfa99991948793c9f35367df3ca16666a618bd22bbd235e5e0aba30e79"
+    }
+  },
+  "delivery": {
+    "report": {
+      "path": "target/hanim-route/perf.report.omui.json",
+      "sha256": "37fc5d3e21aa33d5a4a877a07b127df593095fb6cdde034c35b67526b19c5120"
+    },
+    "transfer_bytes": {
+      "total": 4885529,
+      "before_first_frame": 2983300,
+      "by_kind": {
+        "document": 61031,
+        "fetch": 4765473,
+        "image": 11922,
+        "script": 47103
+      }
+    },
+    "first_frame_proxy_ms": 1646.1999999284744,
+    "ready_ms": 1609,
+    "raf_p95_ms": 16.799999999999727,
+    "budgets_passed": 7,
+    "headroom_bytes": 114471,
+    "method": "20 Mbit/s, 40 ms, 1280x800, fresh profile with in-visit cache enabled; shared machine concurrent with browser gate, not isolated performance proof"
+  },
+  "test_profile_correction": {
+    "initial_wrong_profile_log": {
+      "path": "target/hanim-route/core-wasm.log",
+      "sha256": "859d764010e53d756d41f936838d7bf545e8fadd3cec504ed7f319bd4d88f47b"
+    },
+    "cause": "Default browser profile cannot read the host reference TSV; existing wasm-test profile provides Node file access.",
+    "corrected_profile": "wasm-test",
+    "reference_rows": 8000,
+    "reference_data_or_thresholds_changed": false,
+    "site_profile": "site-web"
+  },
+  "cleanup": {
+    "state": "complete",
+    "paths": [
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/motion_gallery_test",
+        "allocated_bytes": 108277760,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/site_test",
+        "allocated_bytes": 108613632,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/motion_control_test",
+        "allocated_bytes": 108281856,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/guide_access_test",
+        "allocated_bytes": 107974656,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/static_gallery_test",
+        "allocated_bytes": 107999232,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/basic_motion_test",
+        "allocated_bytes": 108105728,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/agent_guard_test",
+        "allocated_bytes": 107991040,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/frames_test",
+        "allocated_bytes": 108060672,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/text_motion_quality_test",
+        "allocated_bytes": 108048384,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/home_landing_test",
+        "allocated_bytes": 108077056,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/feature_examples_test",
+        "allocated_bytes": 108199936,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/gallery_redesign_test",
+        "allocated_bytes": 108113920,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/creative_motion_test",
+        "allocated_bytes": 108163072,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/brand_test",
+        "allocated_bytes": 108085248,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/agent_preview_test",
+        "allocated_bytes": 108179456,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/navigation_redesign_test",
+        "allocated_bytes": 108081152,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/agent_transition_layout_test",
+        "allocated_bytes": 108212224,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/first_frame_test",
+        "allocated_bytes": 108085248,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/reactions_test",
+        "allocated_bytes": 108032000,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/p0_layout_test",
+        "allocated_bytes": 108093440,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      },
+      {
+        "path": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/agent_contrast_test",
+        "allocated_bytes": 108158976,
+        "stale_because_newer_local_archive": "/home/speak/workspace/mui/target/x86_64-linux-gnu/7a79da1e5e530c8c/bin/site/libopenmui-site.a"
+      }
+    ],
+    "before_free_bytes": 989245440,
+    "after_free_bytes": 3260080128,
+    "removed_allocated_bytes": 2270834688,
+    "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186"
+  },
+  "lint": {
+    "path": "target/hanim-route/lint.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "unchanged": true,
+    "user_changes_excluded": true
+  },
+  "limits": [
+    "2D translation using fixed 32 chord samples per cubic for estimated arc length, not exact or adaptive error-bounded length.",
+    "No automatic heading, absolute world-space path, pathfinding, 3D route or generic remote path editor/asset round trip.",
+    "Route counts are conservative logical retained uses, not unique allocation bytes.",
+    "No new physical GPU throughput or universal realtime/aesthetic claim.",
+    "Complete 40/20 public library, default component migration and original multi-engine roadmap remain unfinished.",
+    "This checkpoint is being closed and handed off at the user request."
+  ]
+}

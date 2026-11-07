@@ -1,0 +1,31 @@
+# xengine.tool — the `xengine` command: what an Agent (or a person at a
+# terminal) does with xengine's shared editing pieces without a GUI. Now the
+# timeline every editor shares (xengine.timeline): check a file (every
+# problem at its line and column), ask what plays at a moment, make the usual
+# edits (split, trim, move, remove, ripple remove) and take them back. JSON
+# out, exit codes. Its own package: a tool's dependencies stay out of the
+# libraries'.
+[package]
+namespace   = "xengine"
+name        = "tool"
+version     = "0.1.0"
+description = "The xengine command: timelines checked, read at a moment, edited and edits taken back, headless"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.xengine]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+
+[dependencies]
+xengine.timeline = { path = "../timeline" }
+mlibs.utils      = { path = "../../../base/utils" }
+mcpplibs.os      = "0.2.2"
+nlohmann.json    = "3.12.0"

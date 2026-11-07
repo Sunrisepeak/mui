@@ -1,0 +1,111 @@
+# openmui's default theme: calm slate surfaces and an indigo accent, light
+# and dark, and the reduced-motion overlay every program offers. These are
+# the runtime's built-in tokens (omui::Theme::light / dark_theme) as data:
+# the package's test holds the two equal.
+
+[theme.light]
+doc  = "Light: slate surfaces, an indigo accent."
+dark = false
+
+[theme.light.colors]
+background      = "#f8fafc"
+surface         = "#ffffff"
+surface_variant = "#f1f5f9"
+surface_pressed = "#e2e8f0"
+text            = "#0f172a"
+text_muted      = "#64748b"
+text_disabled   = "#94a3b8"
+border          = "#cbd5e1"
+border_strong   = "#94a3b8"
+accent          = "#4f46e5"
+accent_hover    = "#4338ca"
+accent_pressed  = "#3730a3"
+on_accent       = "#ffffff"
+accent_subtle   = "#e0e7ff"
+bar             = "#f1f5f9"
+tab_lens        = "#ffffff"
+focus           = "#6366f1 / 0.55"
+danger          = "#dc2626"
+on_danger       = "#ffffff"
+success         = "#16a34a"
+warning         = "#d97706"
+selection       = "#6366f1 / 0.25"
+scrim           = "#0f172a / 0.45"
+track           = "#e2e8f0"
+thumb           = "#ffffff"
+tooltip         = "#0f172a"
+on_tooltip      = "#f8fafc"
+
+[theme.light.text]
+display = { size = 40, weight = 700, line_height = 1.15, letter_spacing = -0.5, families = ["Inter"] }
+title   = { size = 28, weight = 650, line_height = 1.2, letter_spacing = -0.3, families = ["Inter"] }
+heading = { size = 20, weight = 600, line_height = 1.3, letter_spacing = -0.1, families = ["Inter"] }
+body    = { size = 15, weight = 400, line_height = 1.45, letter_spacing = 0, families = ["Inter"] }
+label   = { size = 14, weight = 500, line_height = 1.3, letter_spacing = 0, families = ["Inter"] }
+caption = { size = 12, weight = 400, line_height = 1.35, letter_spacing = 0.1, families = ["Inter"] }
+code    = { size = 13, weight = 400, line_height = 1.5, letter_spacing = 0, families = ["JetBrains Mono"] }
+
+[theme.light.spacing]
+none = 0
+xs   = 4
+s    = 8
+m    = 12
+l    = 16
+xl   = 24
+xxl  = 32
+
+[theme.light.radius]
+none   = 0
+small  = 4
+medium = 8
+large  = 12
+xl     = 16
+full   = 9999
+
+[theme.light.shadows]
+sm = { x = 0, y = 1, blur = 2, spread = 0, color = "#0f172a / 0.08" }
+md = { x = 0, y = 4, blur = 12, spread = -2, color = "#0f172a / 0.12" }
+lg = { x = 0, y = 12, blur = 32, spread = -4, color = "#0f172a / 0.18" }
+
+[theme.dark]
+doc     = "Dark: deep slate surfaces, a lighter indigo accent."
+extends = "light"
+dark    = true
+
+[theme.dark.colors]
+background      = "#0b1120"
+surface         = "#111827"
+surface_variant = "#1f2937"
+surface_pressed = "#374151"
+text            = "#f1f5f9"
+text_muted      = "#94a3b8"
+text_disabled   = "#475569"
+border          = "#334155"
+border_strong   = "#475569"
+accent          = "#818cf8"
+accent_hover    = "#6366f1"
+accent_pressed  = "#4f46e5"
+on_accent       = "#0b1120"
+accent_subtle   = "#312e81"
+bar             = "#1f2937"
+tab_lens        = "#374151"
+track           = "#334155"
+thumb           = "#f1f5f9"
+tooltip         = "#f1f5f9"
+on_tooltip      = "#0b1120"
+
+# The person asked for less motion (spec/registry/motion.toml, reduced_motion):
+# every transition shows its target at once, springs settle at once.
+[theme.reduced_motion]
+doc     = "Reduced motion: transitions show their targets at once."
+overlay = true
+
+[theme.reduced_motion.motion]
+"motion.fast"          = "motion.instant"
+"motion.normal"        = "motion.instant"
+"motion.slow"          = "motion.instant"
+"motion.enter"         = "motion.instant"
+"motion.exit"          = "motion.instant"
+"motion.spring.snappy" = "motion.instant"
+"motion.spring.gentle" = "motion.instant"
+"motion.spring.bouncy" = "motion.instant"

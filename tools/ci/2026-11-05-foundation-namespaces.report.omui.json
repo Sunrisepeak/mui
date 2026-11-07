@@ -1,0 +1,675 @@
+{
+  "format": "omui.foundation-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T01:59:57.312333+00:00",
+  "base_commit": "891070210cded0e52b14b9fb1a2ccb27fa2df298",
+  "scope": "N1 first dependency group: hash, math, log, trace, testing; canonical owners and same-package source compatibility; not the complete naming migration.",
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "workspace_members": 129,
+  "new_workspace_members": 0,
+  "tests": [
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "mlibs.hash"
+      ],
+      "successful_programs": 1,
+      "reported_named_cases": 0,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-hash.log",
+        "sha256": "418cdb1e971c8eb45f22d08aea4769ee0bf55687367692a92c7f1cab88838d20"
+      },
+      "notes": null
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "mlibs.math"
+      ],
+      "successful_programs": 3,
+      "reported_named_cases": 8,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-math.log",
+        "sha256": "bb661e651da8df4b0c63b444c5ca8654615b1d0bb2dc5c71154d5c9168575fbf"
+      },
+      "notes": null
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "mlibs.log"
+      ],
+      "successful_programs": 2,
+      "reported_named_cases": 9,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-log.log",
+        "sha256": "5cf085ec341632d8782548d9b3d2547f57976b4e74231e43d703da05ce81cb95"
+      },
+      "notes": null
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "mlibs.trace"
+      ],
+      "successful_programs": 1,
+      "reported_named_cases": 6,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-trace.log",
+        "sha256": "065e23ec7c02ff6ac75efabb9216e35ddb381562764b560b1b1ceb3bf438ab1c"
+      },
+      "notes": null
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "mlibs.control"
+      ],
+      "successful_programs": 2,
+      "reported_named_cases": 11,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-control.log",
+        "sha256": "64b812fa3418f616302a993849f6cf738e6675e1f20381aed4ebeabfe9f6e6b6"
+      },
+      "notes": null
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "hanim.core",
+        "openmui.core"
+      ],
+      "successful_programs": 19,
+      "reported_named_cases": 107,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-regression-dev.log",
+        "sha256": "8bba90ef6714635278e6a0c47e643a979e7a722ee37fbcd5286d58c3c8e3016b"
+      },
+      "notes": "Initial command passed these two members; four other members failed host-tool lock bootstrap and passed the separate retry."
+    },
+    {
+      "profile": "dev",
+      "target": "native",
+      "packages": [
+        "hanim.engine",
+        "openmui.agent",
+        "openmui.inspector",
+        "openmui.site"
+      ],
+      "successful_programs": 30,
+      "reported_named_cases": 203,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-regression-dev-retry.log",
+        "sha256": "5cfa7e1601427a8a9984c0e1700f141c585316d350275c3571f72cc0e1913112"
+      },
+      "notes": null
+    },
+    {
+      "profile": "release",
+      "target": "native",
+      "packages": [
+        "mlibs.hash",
+        "mlibs.math",
+        "mlibs.log",
+        "mlibs.trace",
+        "mlibs.control",
+        "hanim.core",
+        "hanim.engine",
+        "openmui.core",
+        "openmui.agent",
+        "openmui.inspector",
+        "openmui.site"
+      ],
+      "successful_programs": 58,
+      "reported_named_cases": 344,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-release.log",
+        "sha256": "32fc3a1cad270482b51d6f19cf53c504d9129782ccb5ea488b7b5302bb599ae2"
+      },
+      "notes": null
+    },
+    {
+      "profile": "wasm-test",
+      "target": "wasm32-emscripten/Node",
+      "packages": [
+        "mlibs.hash",
+        "mlibs.math",
+        "mlibs.log",
+        "mlibs.trace",
+        "mlibs.control",
+        "hanim.core",
+        "openmui.core"
+      ],
+      "successful_programs": 28,
+      "reported_named_cases": 138,
+      "log": {
+        "path": "target/namespace-validation/logs/omui-n1-wasm.log",
+        "sha256": "d8d41726bfa8e7a5b1ab022d64d28b2d2e5d2910634a8983edf2d720aa313e1f"
+      },
+      "notes": null
+    }
+  ],
+  "independent_consumers": {
+    "foundation": {
+      "report": {
+        "path": "target/foundation-migration/report.omui.json",
+        "sha256": "afb32c60a2be4313c0393723005700fb2991d93de5d240fb8e7a19a3e947f6e7"
+      },
+      "runs": [
+        {
+          "kind": "source",
+          "style": "canonical",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "source",
+          "style": "legacy",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "source",
+          "style": "mixed",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "canonical",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "legacy",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        },
+        {
+          "kind": "packed",
+          "style": "mixed",
+          "result": {
+            "kind": "mlibs.namespace-consumer",
+            "ok": true,
+            "cases": 4
+          },
+          "packages": [
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.testing",
+            "mlibs.trace",
+            "mlibs.validation.namespace_consumer"
+          ]
+        }
+      ],
+      "packs": [
+        {
+          "name": "mlibs.hash",
+          "archive": "/home/speak/workspace/mui/modules/base/hash/target/dist/hash-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "06b22acf5b53f1accd1a4217f5563df7214b9e73c4f069d9ba5cf45649a7fbd3",
+          "archive_bytes": 72262,
+          "library_bytes": 214492,
+          "interfaces": [
+            "api.cppm",
+            "hash.cppm",
+            "legacy.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.math",
+          "archive": "/home/speak/workspace/mui/modules/base/math/target/dist/math-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "706472343e6a5865cb76b2f4f4f9875e9a099e0d73d2aeeaa7390d2c61ccf95f",
+          "archive_bytes": 10540,
+          "library_bytes": 15516,
+          "interfaces": [
+            "api.cppm",
+            "color.cppm",
+            "det.cppm",
+            "legacy.cppm",
+            "math.cppm",
+            "random.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.log",
+          "archive": "/home/speak/workspace/mui/modules/base/log/target/dist/log-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "6ab8304b6ed506a712996819b47c06898547d32d9208607378fc6b5744a678ea",
+          "archive_bytes": 82271,
+          "library_bytes": 241574,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "log.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.trace",
+          "archive": "/home/speak/workspace/mui/modules/base/trace/target/dist/trace-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "430bd8e4fd0472f946bee50decd7bc86bce25f59a6eb978b115fb0175fe8d5c5",
+          "archive_bytes": 106229,
+          "library_bytes": 312876,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "trace.cppm"
+          ]
+        },
+        {
+          "name": "mlibs.testing",
+          "archive": "/home/speak/workspace/mui/modules/base/testing/target/dist/testing-0.1.0-x86_64-linux-gnu-gcc16-libstdcxx16-c++23.tar.gz",
+          "sha256": "481b31902f9921446c877c042007060f04d10cb0de26b42723d80e758c40ee00",
+          "archive_bytes": 75646,
+          "library_bytes": 225104,
+          "interfaces": [
+            "api.cppm",
+            "legacy.cppm",
+            "testing.cppm",
+            "threads.cppm"
+          ]
+        }
+      ],
+      "timings": [
+        {
+          "label": "source-canonical",
+          "seconds": 6.880303122045007
+        },
+        {
+          "label": "source-canonical-incremental",
+          "seconds": 0.12471878697397187
+        },
+        {
+          "label": "source-legacy",
+          "seconds": 6.527801288000774
+        },
+        {
+          "label": "source-legacy-incremental",
+          "seconds": 0.11533661099383608
+        },
+        {
+          "label": "source-mixed",
+          "seconds": 6.695981608994771
+        },
+        {
+          "label": "source-mixed-incremental",
+          "seconds": 0.11930807598400861
+        },
+        {
+          "label": "packed-canonical",
+          "seconds": 2.9105919579742476
+        },
+        {
+          "label": "packed-canonical-incremental",
+          "seconds": 0.11991470400243998
+        },
+        {
+          "label": "packed-legacy",
+          "seconds": 2.7398561449954286
+        },
+        {
+          "label": "packed-legacy-incremental",
+          "seconds": 0.12205643398920074
+        },
+        {
+          "label": "packed-mixed",
+          "seconds": 2.8818918479955755
+        },
+        {
+          "label": "packed-mixed-incremental",
+          "seconds": 0.11481430003186688
+        }
+      ]
+    },
+    "core": {
+      "report": {
+        "path": "target/namespace-validation/core-consumer/report.omui.json",
+        "sha256": "195ef2b107ef03c3b196b6bf30d1542417b214f878452e1caafe98d39d578b82"
+      },
+      "profiles": 2
+    },
+    "api": {
+      "report": {
+        "path": "target/namespace-validation/api-probe/report.omui.json",
+        "sha256": "68998fd2d6e8fe56c66a7c8c49931b94a04095eb53512fd2d335fb3dd208a235"
+      },
+      "profiles": 2
+    },
+    "play": {
+      "report": {
+        "path": "target/namespace-validation/play-consumer/report.omui.json",
+        "sha256": "9479281678b84ef2081fb23ff8d064dea547db7650c4f3ebaea8053cbfdc8043"
+      },
+      "profiles": [
+        {
+          "profile": "dev",
+          "ordinary_runs": 9,
+          "agent_sequences": 2,
+          "sampled_frames": 122,
+          "denied_capture_published_no_files": true,
+          "display_environment_removed": true,
+          "package_names": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.effect",
+            "hanim.engine",
+            "hanim.library",
+            "hanim.object",
+            "hanim.program",
+            "hanim.render.vector",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "openmui.geom",
+            "openmui.image",
+            "openmui.memory",
+            "openmui.raster",
+            "openmui.render",
+            "openmui.render.vector",
+            "openmui.rhi",
+            "openmui.shader",
+            "openmui.shader.rules"
+          ]
+        },
+        {
+          "profile": "release",
+          "ordinary_runs": 9,
+          "agent_sequences": 2,
+          "sampled_frames": 122,
+          "denied_capture_published_no_files": true,
+          "display_environment_removed": true,
+          "package_names": [
+            "compat.libpng",
+            "compat.libwebp",
+            "compat.zlib",
+            "hanim.core",
+            "hanim.effect",
+            "hanim.engine",
+            "hanim.library",
+            "hanim.object",
+            "hanim.program",
+            "hanim.render.vector",
+            "hanim.validation.play_consumer",
+            "mcpplibs.hanim",
+            "mcpplibs.mwrap.libpng",
+            "mcpplibs.mwrap.libwebp",
+            "mcpplibs.openkal",
+            "mcpplibs.openkal-linux",
+            "mcpplibs.os",
+            "mlibs.control",
+            "mlibs.hash",
+            "mlibs.log",
+            "mlibs.math",
+            "mlibs.trace",
+            "nlohmann.json",
+            "openlifa.openas",
+            "openmui.geom",
+            "openmui.image",
+            "openmui.memory",
+            "openmui.raster",
+            "openmui.render",
+            "openmui.render.vector",
+            "openmui.rhi",
+            "openmui.shader",
+            "openmui.shader.rules"
+          ]
+        }
+      ]
+    }
+  },
+  "limits": [
+    "No C++ binary ABI/BMI compatibility or registry alias/publication claim. Consumers rebuild and use canonical manifest/package selector identities.",
+    "Only five foundations moved. Other N1 foundations, N2 engines, N3 UI/spec and N4 retirement remain open.",
+    "Packed testing lacks transitive hash dependency metadata in the current mcpp output; the packed consumer explicitly declares all five libraries. A testing-only installation must be fixed and checked before publication.",
+    "Library artifact checks cover native Linux GCC 16.1 release only. Wasm evidence is actual source test execution; Windows/macOS/mobile are not locally verified here.",
+    "Fresh independent project timings may use global compiler caches. No new speed/size budget or real-time animation quality claim.",
+    "Native suite case totals exclude the hash program, which reports failed checks rather than named case counts.",
+    "Browser fixed-state canvas samples match the prior baseline. Whole-page captures include live animation/play timing and are not asserted byte-identical.",
+    "40 animations/20 creative projects and the overall S1-S10 programme are not accepted by this naming checkpoint."
+  ],
+  "test_totals": {
+    "successful_program_executions": 144,
+    "reported_named_case_executions": 826
+  },
+  "local_host_tools": {
+    "cause": "--locked fresh host-tool scratch resolution lacked json/tomlplusplus entries despite the repository lock containing them.",
+    "build_command": "MCPP_JOBS=2 mcpp build -p openmui.gen -p openmui.shader --profile release --locked",
+    "workaround": "Use mcpp-supported MCPP_TOOL_GEN_OMUI_GEN and MCPP_TOOL_SHADER_OMUI_SHADER overrides to the actual newly built locked tools; repository lock remains unchanged.",
+    "upstream_reference": "https://github.com/mcpp-community/mcpp/blob/main/modules/buildmcpp/src/tool_store.cppm",
+    "programs": {
+      "omui-gen": {
+        "path": "target/x86_64-linux-gnu/676693b5a82b7db5/bin/gen/omui-gen",
+        "sha256": "b1854f97e44eae6019dd4f3720f2241adb31e1efe5d9d8dbc82dfb8fc9651aab"
+      },
+      "omui-shader": {
+        "path": "target/x86_64-linux-gnu/676693b5a82b7db5/bin/shader/omui-shader",
+        "sha256": "85f1da7abde23448d4e25cf88df8acbc997c82be1a730835257d99e2f902d1d6"
+      }
+    }
+  },
+  "browser": {
+    "command": "CHROME=<local Chromium> node tools/ci/site-reactions.mjs target/namespace-validation/site",
+    "report": {
+      "path": "target/namespace-validation/site-browser.report.omui.json",
+      "sha256": "29ca984e2b76a76f355426b31e726d6cf3777a17c2b4199754e39472a3982253"
+    },
+    "version": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "sample_count": 25,
+    "fixed_sample_state_and_png_match_prior": 25,
+    "prior_reference": "tools/ci/2026-11-05-cellular-workbench.report.omui.json",
+    "visual_review": [
+      "390px Chinese phone layout and controls readable",
+      "actual intermediate tick-12 canvas observed"
+    ]
+  },
+  "site_pack": {
+    "command": "MCPP_JOBS=2 MCPP_LOCKED=1 mcpp pack -p openmui.site --target wasm32-emscripten --profile site-web --pkg-format dist-toy --message-format json",
+    "report": {
+      "path": "target/namespace-validation/site-pack.report.omui.json",
+      "sha256": "8697877b6e21c3458bf09492a5101e76460dd7ccabd26fbd95b14542c7e6952b"
+    },
+    "native_prerender": {
+      "path": "target/namespace-validation/site-native.report.omui.json",
+      "sha256": "2833034702521b9706e57865e333a6c5c6ba506aa623df34bb3521728f248b93"
+    },
+    "wasm": [
+      {
+        "path": "target/namespace-validation/site/omui-site-e9a631d004f1.wasm",
+        "sha256": "ee5a3cd54352ced4ddd3d33cc3b46fb574ea0d0679fbeb23c78a1241e0882dcc",
+        "bytes": 7074407
+      }
+    ]
+  },
+  "changed_manifest_count": 120,
+  "source_files_sha256": {
+    "modules/base/control/src/access.cpp": "5f4742bde01e3d994e3caf428eefa54ff3c1b0b20d50f1db683d19d654d2958c",
+    "modules/base/control/tests/context_test.cpp": "6bb7f404a282c243f5cd82e36aa46d7a987664915554c78d89fbf0a61efe3b4c",
+    "modules/base/control/tests/policy_test.cpp": "c5cea2b2e0b5f9fedf86265c770c2ffe3399b4689a2fc12910561864d81471a1",
+    "modules/base/hanim/core/src/core.cppm": "575d97a962dcdaf79d4178c2ce1330532380914a490e66f03ac7943eeb759897",
+    "modules/base/hanim/core/src/math.cppm": "e9bc7493c41ab8537466e613de19cffe6b3c5ac0f8aea1141f0ec750132c2ff6",
+    "modules/base/hanim/core/tests/ease_test.cpp": "8c3affb5d4541511da050c30c5402b23e2efc7eaac58d97657c61006dc3aa16c",
+    "modules/base/hanim/core/tests/golden_test.cpp": "54a3387b4be63624de29aa613db155d90b4069b92d2eb58bca3e459437950361",
+    "modules/base/hanim/core/tests/math_test.cpp": "ea83c1ace35ee812d8f82b1ecb117db50304d68af161acaa3f94c8dfe20f9769",
+    "modules/base/hanim/core/tests/motion_test.cpp": "b9268e09744a33c24943aaafd0d645afb7e4bca57c5b901b3ea43c1e774f399a",
+    "modules/base/hanim/core/tests/set_test.cpp": "ba60c5af6f3b56fcc06301b8ae8a1f5d73e5bfe723aaef835a73328b50a88468",
+    "modules/base/hanim/core/tests/shape_test.cpp": "43548a454856dc63558e88a7230272b1ac109350264a853ed1ddd2c24af0030d",
+    "modules/base/hanim/core/tests/timeline_test.cpp": "e9c800893f01f1e929aa38e42e5c28a983d71b1ef88eb5dfd54d4b3038b24fc8",
+    "modules/base/hanim/core/tests/value_test.cpp": "c5367fbd1fcbc653c0c3b892adf2df816bb444249e97047a86c9660593c2bc72",
+    "modules/base/hash/src/api.cppm": "1f2bd7fdf96b37ef82babdb9ace2a089b6000eaf3c673b4407e925aaf7cf797b",
+    "modules/base/hash/src/hash.cpp": "3cb17f0696db49a2565cdf1b16d4d913be051aaa775b4f0e2751ca45d46b5da9",
+    "modules/base/hash/src/hash.cppm": "bfdb0690e7c78e7e5f42ab60a61c4543c04cd7e33247a7c07a49a6f25801c206",
+    "modules/base/hash/src/legacy.cppm": "30e961aebef9b9179f9ef04da4a2391e2e7541066d7fd112be268e5affded6d7",
+    "modules/base/log/src/api.cppm": "801c722af580c5f901485305f3faaa49fb7b8bc2267455ccf109e3f95aad6dd6",
+    "modules/base/log/src/legacy.cppm": "300bd0543a1c33775baec972715cc0c0353faf9deb52a13e6ec29244c0206273",
+    "modules/base/log/src/log.cpp": "0d9629a65bd0e97924ca31d634cf75ea1ecf81a28ca5895344af07df5efd4aa6",
+    "modules/base/log/src/log.cppm": "04319c3ba8952782742a99a0353ad9f622ab320c8b63b72f755f60d7709b96d5",
+    "modules/base/math/src/api.cppm": "140ae86d8a44719b65642b9856de633103d29a62bef72be94426cc025fce2743",
+    "modules/base/math/src/color.cppm": "c61346dc7c7edc53506e77ceae32293db88beedc27910e973362d46e30cd3d73",
+    "modules/base/math/src/det.cpp": "e7651556c5c851a5f3eb0b3fd87da66e8e0de1d097690d9a9f23b16895f156be",
+    "modules/base/math/src/det.cppm": "c6d91b075ca4e75c51dea0117b0916443b0a6705ec469c15ae5799950b4a20f4",
+    "modules/base/math/src/legacy.cppm": "a28ebf8a0b189196e960710934a3672e320e4072f380ce7da74084e77f751359",
+    "modules/base/math/src/math.cppm": "d26932af98aca48e3a0bdb2270623edf639096d716bcca61e33e06e82960e3d6",
+    "modules/base/math/src/random.cppm": "57e3222b2fd5fe2f931cb78270fadc3bb4487dc2d87acabf986d92a2ba41688a",
+    "modules/base/testing/src/api.cppm": "e8b631a782c0fb3f796085d186575508f2d1c2a8072c341152149a7e8a66556e",
+    "modules/base/testing/src/legacy.cppm": "9fd2bebce09e8ef3059d07601be081b38514cb3cb2b77fa152439b3c7a8a6359",
+    "modules/base/testing/src/targets/threads.cppm": "9346ade6cf3e2f0f081eddfe77ca2e8d8dad7f9a82461b54eacbe47ae8ed2e66",
+    "modules/base/testing/src/targets/web.cppm": "2c53f15b7dfa475621556e320d9ed804153ca61040f013c165079ede0b460ee8",
+    "modules/base/testing/src/testing.cpp": "6a647c91c6577de0dc16b40f47ac6c90d8cc2202ff70d9f8859e0ce6d25355ad",
+    "modules/base/testing/src/testing.cppm": "93ac7256c03438fc21c1ea2c36a785fa5ecdf1a4b4176dca296b8232f602e728",
+    "modules/base/trace/src/api.cppm": "c46cee392af1ae26e32f6dce63a1251a2009bb60516941fb9ff870e5bed76eb6",
+    "modules/base/trace/src/legacy.cppm": "3ed640d2b0ba532256d88faebe49624e368e433381d4e28738f093eb57379c44",
+    "modules/base/trace/src/trace.cpp": "947c005ffdc7ad78f37e07b8cb288ab302ead7081f4f62de493d83de1de6b5fb",
+    "modules/base/trace/src/trace.cppm": "829106548ec6c36d1f4f8820eebc724632e1beae8ce88838d5b5f751ce9fae98",
+    "tools/ci/features-consumer/mcpp.toml.in": "cb93f0c4a3ec0a8325755d2bea7c6509d2fb03cf3681532339f512a7c9998c6d",
+    "tools/ci/foundation-migration/main.cpp.in": "d0505c2cd9ffed4c3ccf1eb5791b7f80136a9dc2bd2174c4fd2baf4d5b8a8961",
+    "tools/ci/foundation-migration/mcpp.toml.in": "fec464b942d30ec3f52be7e24c749f53a397d2de0845afe802af6080087ad63b",
+    "tools/ci/foundation-migration/run.py": "4a5aa4b59a5ffb4da68bf681720c5cb9e953d750f2188e73f230484cf040193e",
+    "tools/ci/hanim-api-probe/run.py": "3fc1c25f4022bfe1e56d13dda69b20e778882dd073f241d1b3211526dead7e81",
+    "tools/ci/hanim-core-consumer.py": "03f73cf60e15962e36d1d3635f1c1783d7544bacd5cf66f199242e909b7a0650",
+    "tools/ci/hanim-core-consumer/mcpp.toml.in": "be33bbb2a3006df60ba48094eae8ccc8dfaa8e45ab348da902a201e1db82ce94",
+    "tools/ci/hanim-play-consumer/mcpp.toml.in": "fcc661c7eee8ef187b0448221d6403c542bd9a369c5e1b42f5977d26eb83001e",
+    "tools/ci/hanim-play-consumer/run.py": "84fed2b9ac65b48f3b29c40f5e5c26e4197180a0f58cf5a86473506c5c78d8f3",
+    "tools/lint/lint.py": "edca9f5e35f84267c2c153fa88c8382c6b1b8b67eb7bb58f76b2ea4deb0ce67b",
+    "tools/repin.py": "0935f53d16d6c2c58f2448a77705d476f6151574eaaa3b38736648a74c2cff97"
+  },
+  "static_checks": {
+    "lint": "lint: 0 problem(s)",
+    "toml_parsing": 120,
+    "python_syntax": "pass",
+    "git_diff_check": "pass",
+    "local_document_links": "pass",
+    "standard_submodule_unchanged": true
+  }
+}

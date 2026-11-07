@@ -1,0 +1,45 @@
+[package]
+namespace = "omui.validation"
+name = "hanim_consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.omui-hanim-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+omui.view = { path = {{view_path}}, features = ["hanim"] }
+omui.ui.base = { path = {{components_path}} }
+hanim = { path = {{hanim_path}}, features = ["control"] }
+xrender.raster = { path = {{raster_path}} }
+mlibs.image = { path = {{image_path}} }
+mlibs.utils = { path = {{utils_path}} }
+xrender.text = { path = {{xrender_text_path}} }
+mcpplibs.os = "0.2.2"
+
+[target.'cfg(os = "emscripten")'.abi]
+exceptions = true
+threads = false
+
+# Some indexed C dependencies still contribute -pthread at link time.
+# Preserve the application's single-thread Web contract after those flags.
+[target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sALLOW_MEMORY_GROWTH=1", "-sSTACK_SIZE=1048576", "-sUSE_PTHREADS=0"]
+
+[profile.wasm-test]
+opt = 1
+debug = false
+ldflags = ["-sNODERAWFS=1"]
+
+[profile.dev]
+opt = 0
+debug = true
+
+[profile.release]
+opt = 2
+debug = false

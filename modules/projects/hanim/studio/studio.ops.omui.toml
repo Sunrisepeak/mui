@@ -1,0 +1,46 @@
+# hanim.studio's operations (convergence plan §10.3): animation documents
+# checked, sampled and rendered without a GUI, through the `hanim` command
+# (JSON out; exit 0 done, 1 the document or the work failed with its
+# problems, 2 a wrong command). omui-gen ops makes the listing
+# (media/ops/studio.ops.json for CLI and MCP bindings) and the reference
+# (media/ops/studio.ops.md); effects are openas's. Operating a host's Engine
+# is hanim's own catalog (hanim.ops.omui.toml).
+[catalog]
+product   = "studio"
+doc       = "Check, sample and render hanim animation documents (<name>.animation.omui.json) headless."
+generated = "media/ops"
+
+[[operation]]
+name    = "document.check"
+effect  = "read"
+summary = "The document's plan (duration, tracks, segments, markers, stage size) and the operations it took, or every problem at its JSON pointer (syntax at line and column)"
+params  = [{ name = "file", type = "path", doc = "a <name>.animation.omui.json" }]
+result  = "json"
+cost    = "bounded"
+
+[[operation]]
+name    = "document.sample"
+effect  = "read"
+summary = "Every object at given moments: drawn or not, position, scale, rotation, fill, group opacity and the bounds it covers"
+params  = [
+    { name = "file", type = "path" },
+    { name = "at", type = "json", doc = "the moments in seconds, one --at each" },
+]
+result  = "json"
+cost    = "bounded"
+
+[[operation]]
+name    = "document.render"
+effect  = "reversible"
+summary = "The stage drawn at evenly spaced or given moments: PNG frames (and SVG), a strip of them, an optional animated WebP and a report with each frame's pixel hash and objects"
+params  = [
+    { name = "file", type = "path" },
+    { name = "out", type = "path", doc = "the prefix of the files written" },
+    { name = "frames", type = "integer", doc = "1 … 240 evenly spaced (9 by default)", optional = true },
+    { name = "at", type = "json", doc = "given moments instead", optional = true },
+    { name = "webp", type = "integer", doc = "frames a second of an animated WebP", optional = true },
+    { name = "svg", type = "bool", doc = "each frame as SVG too (vectors at any size; what SVG cannot say kept as pixels, counted per frame)", optional = true },
+]
+result  = "json"
+cost    = "heavy"
+undo    = "delete the written files"

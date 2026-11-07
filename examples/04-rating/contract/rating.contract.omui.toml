@@ -1,0 +1,40 @@
+# The application's own component (component-binding §2): its interface is
+# this contract; openmui.build.contracts generates the C++ partition, the builder and
+# the TypeScript / Python / Lua stubs when the package builds, and every
+# language reaches it by name once the program registers it.
+[contract.rating]
+role = "slider"
+spec = "0.1"
+doc  = "A rating from none to a number of stars, in whole or half stars: set with the pointer, the keys or an agent."
+
+[contract.rating.props]
+value    = { type = "f64", default = 0, bindable = true, doc = "The rating, from 0 to max." }
+max      = { type = "i32", default = 5, doc = "How many stars." }
+half     = { type = "bool", default = false, doc = "Half stars may be given." }
+label    = { type = "string", default = "", doc = "What is rated (the accessible name)." }
+readonly = { type = "bool", default = false, doc = "Shown, not set: an average, a review's stars." }
+disabled = { type = "bool", default = false }
+
+[contract.rating.events]
+changed = { args = { value = "f64" } }
+
+[contract.rating.actions]
+set_value = { effect = "reversible", args = { value = "f64 | max" } }
+increment = { effect = "reversible" }
+decrement = { effect = "reversible" }
+clear     = { effect = "reversible", doc = "Takes the rating away (0 stars)." }
+
+[contract.rating.keys]
+"Right"  = "increment"
+"Up"     = "increment"
+"Left"   = "decrement"
+"Down"   = "decrement"
+"Home"   = "clear"
+"Delete" = "clear"
+"End"    = "set_value(max)"
+
+[contract.rating.parts]
+star = {}
+
+[contract.rating.motion]
+star = "motion.spring.snappy"

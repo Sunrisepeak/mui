@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "size": [320, 160],
+  "background": "#fafaf9",
+  "objects": [
+    { "id": "button", "shape": { "rect": { "size": [180, 52], "radius": 26 } }, "fill": "#2563eb", "at": [160, 80] },
+    { "id": "label", "shape": { "rect": { "size": [96, 10], "radius": 5 } }, "fill": "#dbeafe", "at": [150, 80] },
+    { "id": "arrow", "shape": { "polygon": [[-6, -8], [6, 0], [-6, 8]] }, "fill": "#dbeafe", "at": [214, 80] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "parallel", "items": [{ "do": "rubber_band", "object": "button" }, { "do": "rubber_band", "object": "label" }] },
+      { "do": "nudge", "object": "arrow", "by": [10, 0] },
+      { "do": "nudge", "object": "arrow", "by": [10, 0] },
+      { "do": "marker", "name": "invited" }
+    ]
+  }
+}

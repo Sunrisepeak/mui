@@ -1,0 +1,3 @@
+[template]
+description  = "An openmui native-module package: a contract, its functions in C++, bindings for TS / Python / Lua generated at build time"
+post_message = "cd into the project: native/ is the interface, src/ the C++; `mcpp test` builds both. A program calls <module>::words::define() once, then scripts import it (\"openmui:native/words\", openmui.native, omui.native)."

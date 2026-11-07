@@ -1,0 +1,11 @@
+// On the Web, the page's half of the Toy layer (src/js/omui_toy.js: calls
+// into window.toy, answered through a callback) goes to the program's link.
+import std;
+import mcpp;
+
+int main() {
+    mcpp::rerun_if_changed("src/js/omui_toy.js");
+    if (std::string_view(mcpp::target_os()) == "emscripten")
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_toy.js", mcpp::manifest_dir()).c_str());
+    return 0;
+}

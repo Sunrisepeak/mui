@@ -1,0 +1,152 @@
+doc = """The fifteen-second cut: the hook, the unbroken shot through the wall,
+the styles on every beat, the command. The same scenes as the film's,
+with their own camera and choreography keyed here; rendered 16:9 as
+written, or 9:16 with --size 1080x1920 (every scene lays itself out for
+either)."""
+
+[timeline]
+name = "short"
+rate = 60
+sample_rate = 48000
+size = [1920, 1080]
+
+[[marker]]
+at = "0s"
+name = "chapter:hook"
+
+[[marker]]
+at = "0s"
+name = "hit:pixel"
+
+[[marker]]
+at = "3s"
+name = "chapter:infinite"
+
+[[marker]]
+at = "5s"
+name = "hit:dive"
+
+[[marker]]
+at = "9s"
+name = "chapter:styles"
+
+[[marker]]
+at = "12s"
+name = "chapter:end"
+
+[[marker]]
+at = "14s"
+name = "hit:sting"
+
+[[track]]
+name = "picture"
+kind = "video"
+
+[[track.clip]]
+name = "hook"
+source = "shot:origin"
+at = "0f"
+length = "3s"
+
+[[track.clip.property]]
+name = "magnify"
+keys = [["0s", 9.4, "linear"], ["1s", 9.2, "in_out_cubic"], ["3s", -0.35]]
+
+[[track.clip]]
+name = "infinite"
+source = "shot:infinite"
+at = "3s"
+length = "6s"
+
+[[track.clip.property]]
+name = "out"
+keys = [["0s", 0, "in_out_cubic"], ["2s", 1, "linear"], ["2.4s", 0.98, "in_out_cubic"], ["5.2s", 0]]
+
+[[track.clip.property]]
+name = "pan"
+keys = [["0s", 0, "in_cubic"], ["2s", 1, "linear"], ["2.4s", 1.04, "out_cubic"], ["5s", 2]]
+
+[[track.clip]]
+name = "styles"
+source = "shot:styles"
+at = "9s"
+length = "3s"
+
+[[track.clip.property]]
+name = "style"
+keys = [["0s", 1, "hold"], ["0.5s", 2, "hold"], ["1s", 3, "hold"], ["1.5s", 4, "hold"], ["2s", 5, "hold"], ["2.5s", 0, "hold"]]
+
+[[track.clip]]
+name = "end"
+source = "shot:end"
+at = "12s"
+length = "3s"
+fade = { in = "0f", out = "0.4s", ease = "in_quad" }
+
+[[track.clip.property]]
+name = "dive"
+keys = [["0s", 9.6, "hold"]]
+
+[[track.clip.property]]
+name = "typed"
+keys = [["0.1s", 0, "linear"], ["1.1s", 1]]
+
+[[track.clip.property]]
+name = "close"
+keys = [["1.4s", 0, "out_cubic"], ["2.1s", 1]]
+
+[[track]]
+name = "subtitles"
+kind = "events"
+
+[[track.clip]]
+name = "hook"
+source = "line:short"
+at = "0.5s"
+length = "2.4s"
+
+[[track.clip]]
+name = "infinite"
+source = "line:infinite"
+at = "3.4s"
+length = "5.4s"
+
+[[track.clip]]
+name = "styles"
+source = "line:styles"
+at = "9.1s"
+length = "2.8s"
+
+[[track]]
+name = "music"
+kind = "audio"
+
+[[track.clip]]
+name = "score"
+source = "music/promo.music.omui.toml"
+at = "0f"
+length = "15s"
+in = "19s"
+fade = { in = "0.3s", out = "0.5s", ease = "in_quad" }
+
+[[track]]
+name = "sfx"
+kind = "events"
+
+[[track.clip]]
+name = "ping"
+source = "sound:ping"
+at = "0f"
+length = "1s"
+
+[[track.clip]]
+name = "dive"
+source = "sound:whoosh"
+at = "4.5s"
+length = "1s"
+
+[[track.clip]]
+name = "closing"
+source = "sound:sting"
+at = "14s"
+length = "1s"

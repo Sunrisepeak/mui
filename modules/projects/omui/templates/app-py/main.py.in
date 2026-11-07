@@ -1,0 +1,19 @@
+"""{{project.name}}: a button that counts.
+
+    python main.py                         a window
+    python main.py --headless --png app.png
+"""
+
+import openmui as omui
+
+clicks = omui.signal(0)
+
+
+def app() -> None:
+    with omui.column(padding=24, gap=12):
+        omui.text(id="count", text=omui.fmt("Clicked {} times", clicks), style="heading")
+        omui.button(id="click", text="Click me", variant="primary", on_activated=lambda e: clicks.update(lambda n: n + 1))
+
+
+if __name__ == "__main__":
+    raise SystemExit(omui.run(app, title="{{project.name}}", size=(480, 320)))

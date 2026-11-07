@@ -1,0 +1,50 @@
+doc = """The film's lines, in Chinese and English, shown together (Chinese above).
+A cut places them on its `subtitles` track: a clip whose source is
+`line:<id>` shows that line for as long as the clip lasts. Each line must
+stay up at least as long as it takes to read it: one second, and at most 9
+Chinese characters or 17 English characters a second (the acceptance
+checks hold every cut to it)."""
+
+[line.title]
+zh = "Agent 原生的现代 C++ UI"
+en = "The agent-native modern C++ UI"
+
+[line.code]
+zh = "代码就是界面"
+en = "The code is the interface"
+
+[line.languages]
+zh = "四种语言，一棵语义树"
+en = "Four languages, one semantic tree"
+
+[line.infinite]
+zh = "一千个窗口，一镜到底"
+en = "A thousand windows, one unbroken shot"
+
+[line.tiers]
+zh = "远处是纹理，近处是真正的组件"
+en = "Far away a texture, up close a live component"
+
+[line.styles]
+zh = "同一棵语义树，五种风格"
+en = "One semantic tree, five styles"
+
+[line.agents]
+zh = "Agent 读的是语义树，不是截图"
+en = "Agents read the semantic tree, not screenshots"
+
+[line.effects]
+zh = "每个动作都知道后果"
+en = "Every action knows its consequences"
+
+[line.time]
+zh = "动画是时间的函数"
+en = "Animation is a function of time"
+
+[line.replay]
+zh = "再放一遍：逐位相同"
+en = "Played again: the same, bit for bit"
+
+[line.short]
+zh = "这个像素知道自己是什么"
+en = "This pixel knows what it is"

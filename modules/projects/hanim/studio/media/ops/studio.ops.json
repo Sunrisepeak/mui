@@ -1,0 +1,15 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "studio",
+  "doc": "Check, sample and render hanim animation documents (<name>.animation.omui.json) headless.",
+  "tools": [
+    {"name": "document.check", "description": "The document's plan (duration, tracks, segments, markers, stage size) and the operations it took, or every problem at its JSON pointer (syntax at line and column)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a <name>.animation.omui.json"}}, "required": ["file"]}},
+    {"name": "document.sample", "description": "Every object at given moments: drawn or not, position, scale, rotation, fill, group opacity and the bounds it covers", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "at": {"description": "the moments in seconds, one --at each"}}, "required": ["file", "at"]}},
+    {"name": "document.render", "description": "The stage drawn at evenly spaced or given moments: PNG frames (and SVG), a strip of them, an optional animated WebP and a report with each frame's pixel hash and objects", "effect": "reversible", "person": false, "delegated": false, "cost": "heavy", "undo": "delete the written files", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "out": {"type": "string", "description": "a file or directory path: the prefix of the files written"}, "frames": {"type": "integer", "description": "1 … 240 evenly spaced (9 by default)"}, "at": {"description": "given moments instead"}, "webp": {"type": "integer", "description": "frames a second of an animated WebP"}, "svg": {"type": "boolean", "description": "each frame as SVG too (vectors at any size; what SVG cannot say kept as pixels, counted per frame)"}}, "required": ["file", "out"]}}
+  ],
+  "tiers": []
+}

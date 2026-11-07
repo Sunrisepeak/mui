@@ -1,0 +1,24 @@
+// Select public exports from mcpp's resolved features. No runtime dispatcher,
+// feature macros or extra package: every selected module owns its one implementation.
+import std;
+import mcpp;
+
+int main() {
+    mcpp::rerun_if_env_changed("MCPP_FEATURES");
+    std::string content = "export module hanim:selected;\nexport import hanim.core;\n";
+    for (const auto* feature : {"object", "effect", "library", "program", "engine", "control"})
+        if (mcpp::has_feature(feature)) content += std::format("export import hanim.{};\n", feature);
+    if (mcpp::has_feature("render-vector")) content += "export import hanim.render.vector;\n";
+    const auto output = std::filesystem::path(mcpp::out_dir()) / "selected.cppm";
+    std::ifstream previous(output);
+    const std::string old{std::istreambuf_iterator<char>(previous), std::istreambuf_iterator<char>()};
+    previous.close();
+    if (old != content) {
+        std::ofstream file(output, std::ios::binary | std::ios::trunc);
+        file << content;
+        file.close();
+        if (!file) return 1;
+    }
+    mcpp::generated(output.string().c_str());
+    return 0;
+}

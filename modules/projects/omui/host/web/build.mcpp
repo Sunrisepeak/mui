@@ -1,0 +1,16 @@
+// On the Web, what every program the host runs needs at its link: the page's
+// half of the host (src/js/omui_web.js: the canvas a frame is put on) as an
+// Emscripten library, and the file system the page fills before the program
+// starts (the fonts, as the page's assets: /fonts).
+import std;
+import mcpp;
+
+int main() {
+    mcpp::rerun_if_changed("src/js/omui_web.js");
+    if (std::string_view(mcpp::target_os()) == "emscripten") {
+        mcpp::link_flag(std::format("--js-library={}/src/js/omui_web.js", mcpp::manifest_dir()).c_str());
+        mcpp::link_flag("-sFORCE_FILESYSTEM=1");
+        mcpp::link_flag("-sEXPORTED_RUNTIME_METHODS=FS,addRunDependency,removeRunDependency,callMain");
+    }
+    return 0;
+}

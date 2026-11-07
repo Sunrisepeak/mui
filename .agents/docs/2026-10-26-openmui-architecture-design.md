@@ -1,11 +1,14 @@
 # openmui 总体架构设计
 
-> 状态：**草案 v0.1**（2026-10-26），待 review
+> 状态：**草案 v0.3**（2026-10-26），待 review
 > 仓库：`Sunrisepeak/mui`（私有，暂定）。**内部的包名、模块名、命令、文档一律使用 openmui**；等各方面成熟后，再评估是否迁移到 openmui 的公开仓库。
 > 配套文档：
+> - **[实施计划](2026-10-26-openmui-implementation-plan.md)**（目录树、成员划分、里程碑、展示、CI、生态补充以它为准）
+> - [宣传片设计：对标拆解、分镜与验收](2026-10-26-openmui-promo-video-design.md)
 > - [规范设计](2026-10-26-openmui-spec-design.md)
 > - [组件、绑定与工程模型](2026-10-26-openmui-component-binding-design.md)
 > - [画布、Markdown 与旗舰示例](2026-10-26-openmui-canvas-markdown-design.md)
+> - [视图与数据文件：代码优先、视图文档、表达式、行为、后缀体系](2026-10-26-openmui-view-data-files-design.md)
 > - 前期调研见 `research/`（命名已经过时）
 > 写法说明：标注了路径的内容是本地已有事实；其余都是设计提议。示意代码和命令只表达设计意图，接口名还没有定。
 
@@ -23,7 +26,7 @@
 ### 1.1 目标
 
 1. 统一的语义层：节点、动作、效果分级、来源标记、稳定 ID。
-2. 一个运行时同时支持立即模式和保留模式（含 DSL），两者产出同一棵树。
+2. 一个运行时同时支持立即模式和保留模式，两者产出同一棵树。保留模式**代码优先**：布局和逻辑一起用各语言原生的 builder 来写；`*.view.omui.json` 视图文档是给工具和 agent 用的可选数据格式。
 3. 渲染和宿主都可以替换，用 S / L / X 三种边界区分（见 §4.3）。
 4. 组件“契约优先”：C++ 实现，三种语言的绑定自动生成。
 5. 由 mcpp.toml 驱动整个工程，构建、运行、测试、打包都走 mcpp；工具和应用的分发走 xlings。
@@ -69,17 +72,18 @@
 │ 语言 openmui-lang-*：ts · py · lua（另外有 wasm 插件沙箱）                         │
 │ 工具 openmui-tools：生成器 · openmui.rules · 检查器 · 基准测试 · MCP 服务器         │
 ├─────────────────────────────── 运行时面（openmui-runtime，C++ Modules）──────────┤
-│ 写法：  openmui.im（立即模式） ──对账──► 同一棵节点树 ◄── openmui.rt（signals + DSL） │
+│ 写法：  openmui.im（立即模式）──对账──► 同一棵节点树 ◄── openmui.rt（signals + builder / 视图文档）│
 │ 核心：  树与 ID · 状态与 Verb · 事件、焦点与导航 · 输入法 · 任务系统               │
 │ 布局：  flex / grid / 栈 / 滚动 / 虚拟化      文本：富文本、排版、双向文字、回退、msdf │
 │ 动画：  时钟 · tween / spring / decay · 过渡 · 时间线      语义：产出、动作、效果、审计 │
 ├─────────────────────────────── 后端面 ──────────────────────────────────────────┤
-│ 渲染 openmui-gfx-*：cpu（参考后端）· sdlgpu · gles · vk · mcu · 引擎宿主            │
+│ 渲染：render（UI 渲染器，只写一次）→ omui.rhi 抽象层 → rhi-sdl · rhi-gles · rhi-webgpu · rhi-vk │
+│       raster（CPU 参考光栅器）· mcu（这两个不经过抽象层）· 着色器用 Slang               │
 │ 宿主 openmui-host-*：sdl3 · opensal · web · godot …                                │
 │ 跨框架桥 openmui-bridge-*：imgui · qt · godot-control · atspi · dom                │
-├─────────────────────────────── 规范面（openmui-spec）───────────────────────────┤
+├─────────────────────────────── 规范面（openmui.spec）───────────────────────────┤
 │ registry → 6 个契约：①语义树 ②视图描述 ③状态与 Verb ④宿主接口 ⑤渲染接口 ⑥C ABI     │
-│ Core 配置档 + 扩展（MUI_EXT_*）· 组件契约 · 动画语义 · 清单 schema · CTS           │
+│ Core 配置档 + 扩展（OMUI_EXT_*）· 组件契约 · 动画语义 · 视图文档 schema · 效果着色器接口 · CTS │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -88,8 +92,13 @@
 | 包 | 只允许依赖 |
 |---|---|
 | spec | 标准库（MCU 上是 `mcpplibs.std.freestanding`） |
-| runtime | spec、C 库、mcpp-index 中的包 |
-| gfx / host | runtime 的后端接口 |
+| openmui（伞包，仓库根目录） | runtime、base 组件、默认主题；`rules` / `entry-*` 特性 |
+| modules/ui（runtime） | 独立组件、spec、C 库、mcpp-index 中的包；不依赖 mgame（D-82） |
+| **modules/{base,gfx,content,media}**（独立组件） | **标准库、这四组里更低层或同层的成员、第三方库；不允许依赖 openmui 的任何其他包**（D-55、D-80） |
+| modules/gfx/rhi/* | 只依赖 `modules/gfx/rhi`（`omui.rhi` 接口）和各自的图形库 |
+| modules/gfx/render | `modules/base/geom`、`modules/gfx/raster`、`modules/gfx/rhi`、`modules/base/image` |
+| runtime/platform | **mcpplibs.os**（平台相关的代码只在这里经由 mcpplibs.os 出现） |
+| host | runtime 的宿主接口 |
 | bridge | **只依赖 spec**（这样它才算第二个实现者） |
 | component | **只依赖 runtime 的公开 API**，不能依赖任何后端 |
 | lang | 只依赖 `openmui.h`（C ABI） |
@@ -113,7 +122,7 @@
 ### 4.2 核心 + 扩展
 
 - **Core**：每个实现都必须支持。包括语义树、视图描述、基础组件契约、flex 布局、文本、键盘焦点、基础动画。
-- **扩展 `MUI_EXT_*`**：按需查询，例如 `gpu_node`、`shader_effect`、`instanced_draw`、`canvas`、`external_texture`、`world_space`、`gamepad_navigation`、`ime`、`native_handle`、`lottie`。
+- **扩展 `OMUI_EXT_*`**：按需查询，例如 `gpu_node`、`shader_effect`、`instanced_draw`、`canvas`、`external_texture`、`world_space`、`gamepad_navigation`、`ime`、`native_handle`、`lottie`。
 - 应用通过枚举扩展来了解当前 Runtime 的能力，**不靠尝试调用来判断**（opensal §2.3 的规则）。
 - 用到逃生口（原生句柄等）时必须通过扩展声明，并且会被 CTS 标记为不可移植。
 
@@ -142,7 +151,7 @@ openmui 沿用同样的约定：
 | openbus 的路径、接口、交互类型 | 总线接口按 openbus 的约定命名：`openmui.tree@0.1`，路径 `app/<id>/ui` | 由应用层或宿主层发布到总线 |
 | opencaps 的能力匹配 | 扩展和配置档的协商沿用它的思路 | — |
 
-**待决（Q-04）**：openmui 的实现层如何依赖 opensal 等规范包。可以通过 mcpp-index 发布后依赖，也可以用 git 路径依赖。规范层不受影响。
+**已确定（D-20）**：实现层先用 git 路径依赖 opensal 等规范包；等它们发布到 mcpp-index 后再改成版本依赖。规范层不受影响。
 
 ---
 
@@ -151,54 +160,54 @@ openmui 沿用同样的约定：
 ### 6.1 仓库策略
 
 - **阶段一（现在到规范 1.0，或者出现第二个独立实现者为止）**：规范和实现放在**同一个仓库** `Sunrisepeak/mui`（私有）。理由是规范由实现驱动，两者需要原子地一起修改，CI 每次都对参考实现跑 CTS。
-- **阶段二**：把规范、registry、生成的头文件和 CTS 拆成 `openmui-spec` 仓库（参考 openkal、Vulkan-Docs）。各语言绑定只有在出现独立维护者时才拆。
+- **阶段二**：把规范、registry、生成的头文件和 CTS 拆成 `openmui.spec` 仓库（参考 openkal、Vulkan-Docs）。各语言绑定只有在出现独立维护者时才拆。
 - **迁移到公开仓库**：等各方面成熟后再评估，迁移到 openmui 的公开组织。因为内部一直使用 openmui 命名，迁移只需要改仓库地址。
 
 ### 6.2 目录结构
 
+**完整的目录树和成员划分以[实施计划](2026-10-26-openmui-implementation-plan.md) §2 为准（D-41）。** 概要如下：
+
 ```
-mui/                                  （仓库名；内部一律叫 openmui）
-├── spec/                             # openmui-spec：只依赖标准库，有自己的版本号
-│   ├── SPEC.md                       #   契约正文（写法和 opensal / openas 一致）
-│   ├── registry/                     #   roles · actions · effects · motion · extensions · components/*.contract.toml · manifest schema
-│   ├── include/openmui.h             #   由 registry 生成
-│   ├── src/                          #   由 registry 生成的值类型模块（openmui.spec）
-│   └── conformance/                  #   CTS：分为 S / A / B / C 四级
-├── runtime/                          # openmui-runtime：core · im · rt · layout · text · anim · semantic · jobs · devtools
-├── gfx/{cpu,sdlgpu,gles,vk,mcu}/
-├── hosts/{sdl3,opensal,web}/
-├── bridges/{imgui,qt,godot-control,atspi,dom}/   （后期）
-├── components/{base,data,editor,canvas,canvas-kit,markdown}/
-├── themes/{tokens,default,compact}/
-├── lang/{ts,py,lua}/
-├── tools/{gen,rules,inspector,bench,mcp}/
-├── examples/                         # 01–13，见画布和 Markdown 的设计文档
-├── templates/                        # mcpp new 用的模板：openmui-cpp / -ts / -py / -lua / -mixed / -component / -native
-├── docs/                             # 用户文档、llms.txt
-├── AGENTS.md
-└── .agents/docs/                     # 设计记录（本目录）
+mui/                 # 根目录 = openmui 伞包 + workspace
+├── mcpp.toml  src/{openmui.cppm, entry/}  mcpp/{plan,contracts,embed,toy}/  templates/
+├── spec/                                  # 规范；全仓库唯一的头文件 include/openmui.h
+├── modules/{geom,anim,layout,unicode,text,raster,image,render,rhi,rhi-sdl,rhi-gles,record,encode,trace,pipeline}/
+│                                          # 独立组件：不依赖 openmui 的任何包，将来可以直接独立成仓库（D-55、D-57）
+├── runtime/{core,view,semantic,agent,platform,abi,player,reflect,devtools}/
+├── hosts/{sdl3,headless,opensal,web}/
+├── components/{base,markdown,canvas,canvas-kit,timeline,data,editor}/
+├── themes/{tokens,default,compact,styles}/   video/   lang/{ts,py,lua}/
+├── tools/{gen,omui,mcp,inspector}/   examples/   showcase/   tests/   skills/   docs/
+└── .agents/docs/
 ```
+
+独立库／产品才作为 workspace 成员，有自己的 `mcpp.toml`，成员间只通过 `path` 依赖引用，为独立使用和迁移保留边界。普通源码子目录不是成员；少量内部实现先放所属包的 `src/<职责>/`，需要独立使用或真实隔离时再提取（D-99，修订原“每个目录都是成员”的要求）。上图是早期结构概要，当前方向与包粒度见[综合方案 §5](2026-11-05-system-subsystem-architecture-and-api-design.md#5-目标代码树与兼容迁移)。
+
+**为什么仓库根目录就是伞包**：mcpp 支持“带根包的 workspace”（`mcpp/docs/07-workspace.md` §2.2）。用户写的 `features = ["rules"]`、`--template openmui:app-ts` 都指向 `openmui` 这个包，所以 `rules` 特性、入口特性和 `templates/` 都必须属于它。**`mcpp/` 只放构建系统的代码**；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`（D-32）。
 
 ### 6.3 包的种类（用 `[package.metadata.openmui] kind` 标注）
 
 `spec` · `runtime` · `backend` · `host` · `bridge` · `component` · `native` · `theme` · `lang` · `tool` · `app`
 
-每个目录都是一个独立的 `mcpp.toml` 包，各有各的版本号，tag 按包打（例如 `spec-v0.1.0`、`runtime-v0.1.0`）。
+每个已成立的独立包有自己的 `mcpp.toml` 和版本；普通目录／模块分区不单独版本化。tag 按包打（例如 `spec-v0.1.0`、`runtime-v0.1.0`）。
 
 ### 6.4 命名约定
 
 | 对象 | 名字 |
 |---|---|
 | 伞包 | `openmui`（模块 `openmui`，再导出 runtime、base 组件和默认主题） |
-| 规范 | `openmui-spec`（模块 `openmui.spec`） |
-| 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`openmui.anim` …） |
-| 后端和宿主 | `openmui-gfx-*`、`openmui-host-*`、`openmui-bridge-*` |
+| 规范 | `openmui.spec`（模块 `openmui.spec`） |
+| 运行时 | `openmui-runtime`（模块 `openmui.core`、`openmui.im`、`openmui.rt`、`openmui.text`、`hanim` …） |
+| 渲染和宿主 | `openmui.render`（模块 `openmui.render`）、`openmui-rhi`、`openmui-rhi-*`（模块 `openmui.gpu`、命名空间 `omui::gpu`）、`openmui-host-*`、`openmui-bridge-*` |
 | 组件 | `openmui-ui-*`（模块 `openmui.ui.*`） |
-| 构建规则 | **`openmui` 包的 `rules` 特性**，模块 `openmui.rules` |
-| 命令行工具 | `openmui`（可选的便利工具，**只读取 mcpp.toml**） |
-| 文件 | 视图 `*.mui`；契约 `*.contract.toml` |
-| 扩展 | `MUI_EXT_*` |
-| C ABI | 前缀 `mui`，命名风格待决（Q-01） |
+| 构建插件 | `mcpp/` 下按功能拆分的包 `openmui.build.*`，每个包只依赖自己用到的（D-73） |
+| 入口 | `openmui` 包的 `entry-player` / `entry-app` 特性；源码在 `src/entry/`（D-26、D-32） |
+| 模板 | `openmui` 包的 `templates/`：`mcpp new <名字> --template openmui:<模板>`（D-27） |
+| 命令行工具 | `openmui`，短名 `omui`（可选的便利工具：fmt / check / add / inspect；**只读写 mcpp.toml，不引入新的工程文件**） |
+| 文件 | 数据文件一律是 `<名字>.<种类>.omui.{toml,json}`；另有 `*.omuipkg`；着色器 `*.slang`；逻辑代码保持原生后缀（完整规则见 view-data-files §6，D-30） |
+| 扩展 | `OMUI_EXT_*`（D-25） |
+| C ABI | Vulkan 风格，前缀 `omui` / `Omui` / `OMUI_`（D-17、D-25） |
+| C++ 命名空间 | `omui`（D-25） |
 | 各语言的包 | npm、PyPI、LuaRocks 上都叫 `openmui` |
 
 **对外不用裸的 `mui`**，因为它和 React 的 Material UI（`@mui/*`）重名太严重。仓库名 `mui` 只是暂时的私有仓库名。
@@ -218,16 +227,18 @@ mui/                                  （仓库名；内部一律叫 openmui）
 
 ```toml
 [build-dependencies]
-openmui = { version = "0.1", features = ["rules"], host-module = true }
+openmui.build.contracts = { version = "0.1", host-module = true }   # 契约 → 代码
+openmui.build.embed     = { version = "0.1", host-module = true }   # 数据文件嵌入程序
 ```
 
-`openmui.rules` 负责：
+构建插件按功能拆成多个包（D-73，`mcpp/README.md`）：`openmui.build.contracts`（契约和 native 模块）、`openmui.build.embed`（数据文件、主题、行为）、`openmui.build.toy`（dist-toy 打包格式），共用基础 `openmui.build.plan`。下面是构建插件整体要负责的事，每件事落在对应的插件里：
 1. 收集依赖图上每个包的 `[package.metadata.openmui]`；
 2. 把契约编译成 IR，再生成各种产物；
-3. 编译 `.mui`：发布时生成 `.cppm`，开发时生成可以热重载的字节码；
-4. 做语义检查；
-5. 烘焙字体、图片、着色器；
-6. 打包脚本（TS 编译成 JS，Python / Lua 打包）。
+3. 检查 `*.view.omui.json` 视图文档（schema、名字、类型、ID、语义），发布时嵌入成二进制格式；开发时由运行时直接加载，可以热重载；
+4. 编译 `.behavior.omui.toml`（行为状态机）；
+5. 处理非 C++ 依赖 `[package.metadata.openmui.deps.<lang>]`（D-29）：生成各语言原生的清单，调用 npm / uv，获取 Lua 包，锁文件放在 `lock/`；
+6. 编译着色器：调用 `rules-slang` 把 `*.slang` 编译到各后端的格式，并通过反射得到参数；烘焙字体和图片；
+7. 打包脚本（TS 用 esbuild 转成 JS，Python / Lua 打包），并生成编辑器配置（tsconfig、.venv、.luarc.json）。
 
 每一步都是一个 mcpp action，按文件指纹做增量构建；生成 C++ 的 action 用 `role = "source"`，生成的代码由声明它的包继续编译（`mcpp/docs/31-authoring-a-rule-package.md`）。
 
@@ -236,8 +247,8 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 | 角色 | 职责 |
 |---|---|
 | mcpp | 工程文件、构建、运行、测试、打包；交叉编译；执行规则包；`mcpp emit xpkg` |
-| xlings | 安装 mcpp、工具链、SDK、**预编译播放器**、node / esbuild / python / uv / luarocks 等外部工具；隔离环境；应用分发（`xlings install <app>`） |
-| openmui.rules | 见 §7.2 |
+| xlings | 安装 mcpp、工具链、SDK、node / esbuild / python / uv 等外部工具（xim 索引中已有；**还没有 luarocks**）；以后提供预编译播放器；隔离环境；应用分发（`xlings install <app>`） |
+| openmui.build.* | 见 §7.2 |
 | mcpp-index | 库级生态：runtime、组件、主题、后端、语言运行时 |
 | xpkg 索引 | 应用和运行时插件的分发 |
 | npm / PyPI | 只用于“Node 作为宿主”或“Python 作为宿主”的模式；包本身仍然由 mcpp 构建 |
@@ -246,15 +257,18 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 
 | 类型 | 载体 | 例子 |
 |---|---|---|
-| 构建插件 | mcpp 规则包（特性 + `rule_module`） | `openmui.rules`、着色器和字体的烘焙 |
+| 构建插件 | mcpp 规则包（host module，按功能各一个包） | `openmui.build.contracts`、`openmui.build.embed`、`openmui.shader.rules`、字体的烘焙 |
 | 库插件 | mcpp-index 中的包 | 组件、主题、后端、宿主、语言运行时、跨框架桥 |
 | 运行时插件 | xpkg，运行时加载 | 脚本插件、Wasm 插件；权限受效果分级约束 |
 
-### 7.5 需要 mcpp 支持的能力（待和 mcpp 确认，Q-05）
+### 7.5 需要 mcpp 支持的能力
 
-- 没有 C++ 源文件的应用目标（“预编译播放器 + 资源包”这种形态）；
-- 规则调用外部工具链（node / uv / luarocks）时的声明方式；
-- 每个包单独打 tag、在同一个仓库里分别发布。
+| 能力 | 现状 | 处理 |
+|---|---|---|
+| 入口由依赖提供（代替 `main`） | `kind = "app"` 要求 `main` 指向本包里的文件 | 已提 issue [mcpp#845](https://github.com/mcpp-community/mcpp/issues/845)；在那之前，模板生成一行的 `src/main.cpp` |
+| 规则调用外部工具 | 已经支持：`[xlings]` / `[feature-xlings]` | 直接使用；luarocks 还需要补一个 xpkg，在那之前 Lua 依赖走 git / tarball + sha256 |
+| 同一个仓库里每个包单独打 tag、单独发布 | mcpp 有 workspace | M0 时验证 |
+| 不编译 C++、直接用“预编译播放器 + 资源包”的产物 | 不支持 | 以后再评估，非必需 |
 
 ---
 
@@ -264,21 +278,58 @@ openmui = { version = "0.1", features = ["rules"], host-module = true }
 
 图元：矩形、圆角矩形、路径、图片、字形串、裁剪、变换、图层（不透明度、模糊）、外部纹理。每帧携带脏区。像素格式是预乘 BGRA，和 opensal §4 一致。
 
-### 8.2 后端
+### 8.2 渲染：UI 渲染器 + GPU 抽象层（D-33）
 
-| 后端 | 用途 | 依赖（mcpp-index 中已有） | 优先级 |
+**UI 渲染器只写一次**，写在一个“UI 尺度”的 GPU 抽象层 `omui.rhi` 之上；每个平台只需要实现一个比较薄的后端。范围参考 sokol_gfx 和 SDL_GPU 的规模，不做成游戏引擎那种大而全的 RHI。
+
+```cpp
+export module openmui.gpu;
+export namespace omui::gpu {
+
+struct Caps { bool compute, instancing, msaa, external_texture, timestamps; ShaderFormats formats; };
+
+class Device {                                         // 由各后端实现
+public:
+    virtual Caps caps() const = 0;
+    virtual std::expected<Buffer,   Error> create_buffer(const BufferDesc&) = 0;
+    virtual std::expected<Texture,  Error> create_texture(const TextureDesc&) = 0;
+    virtual std::expected<Pipeline, Error> create_pipeline(const PipelineDesc&) = 0;   // 着色器 + 顶点布局 + 混合
+    virtual std::expected<Texture,  Error> import_external(const ExternalDesc&) = 0;   // dmabuf / IOSurface / D3D 共享句柄
+    virtual CommandList begin() = 0;                                                   // render pass、实例化绘制、可选的 compute
+    virtual void submit(CommandList&&, Target&) = 0;
+    virtual ~Device() = default;
+};
+
+}
+```
+
+| 渲染路径 | 用途 | 依赖（mcpp-index 中已有） | 优先级 |
 |---|---|---|---|
-| **cpu（参考后端）** | 正确性基准、headless 金图、兜底 | pixman、freetype、harfbuzz、nanosvg、libpng（**借鉴 xdesk.draw 的思路，但不依赖 xdesk**） | M1 |
-| **sdlgpu** | 桌面和移动的 GPU 后端（Vulkan / Metal / D3D12） | `compat.sdl3` 3.4.2 | M4 |
-| gles | 嵌入式 Linux；以后在合成器内部使用 | glad / EGL | 后期 |
-| vk | 自研引擎、需要细粒度控制的场景 | vulkan、VMA | 后期 |
-| mcu | 局部帧缓冲 + 脏区 | std-freestanding + 板级包 | 后期 |
+| **raster（CPU 参考光栅器）** | 正确性基准、headless 金图、视频的 CPU 渲染、兜底；不经过抽象层 | **自己实现的定点光栅器**（解析覆盖率抗锯齿，跨平台逐字节一致，D-43）；字形用 freetype、harfbuzz；图片用 libpng、nanosvg（借鉴 xdesk.draw 的思路，但不依赖 xdesk） | M1 |
+| **rhi-sdl** | 第一个 GPU 后端，覆盖桌面和移动（Vulkan / Metal / D3D12） | `compat.sdl3` 3.4.2 | M4 |
+| **rhi-gles** | 嵌入式 Linux、**Web（emscripten 把 GLES 3 映射到 WebGL2）**、以后在合成器里使用 | glad / EGL | M6 |
+| rhi-webgpu | Web 的现代 GPU 路径；也可以把 wgpu-native / Dawn 作为这个后端的实现 | — | 后期 |
+| rhi-vk | 自研引擎、合成器、需要细粒度控制的场景 | vulkan、VMA | 后期 |
+| mcu | 局部帧缓冲 + 脏区；不经过抽象层 | std-freestanding + 板级包 | 后期 |
 
-### 8.3 宿主
+### 8.3 自定义着色器（D-34）
 
-M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、引擎宿主放在后面。
+- **着色器语言用 Slang**：写一次，编译成 SPIR-V / MSL / DXIL / GLSL ES / WGSL。本地 `mcpp-plugins` 已经有 `rules-slang` 和 `rules-spirv`；参数通过反射得到（`compat.spirv-reflect`）。WGSL 和 GLSL ES 的输出质量要在 M4 之前验证，不行就回退到 SPIRV-Cross / Naga 来转换。
+- **自定义渲染分四级**：
+  1. 效果：节点或图层上的片段着色器，`OMUI_EXT_shader_effect`；
+  2. 材质：画布节点类型自己的顶点和片段着色器，`OMUI_EXT_instanced_draw`；
+  3. GPU 节点：通过 `omui.rhi` 完全接管一个 render pass，`OMUI_EXT_gpu_node`；
+  4. 原生句柄：逃生口，不可移植，`OMUI_EXT_native_handle`。
+- **着色器参数就是带类型的属性**：可以绑定，也可以由原生代码驱动动画。
+- **开发期热重载**：着色器文件改动后重新编译、替换管线。
+- **测试**：CPU 参考光栅器不执行自定义着色器（按“不带效果”绘制并给出诊断）；GPU 后端的金图测试在 headless 下用 **lavapipe（软件 Vulkan）**来跑，mcpp 的 adapter 文档里正好提到了 lavapipe 的 ICD。
+- **安全**：第三方插件的着色器只能使用“效果模板”（固定的输入和输出，不能改管线状态），并且必须经过编译器校验。
 
-### 8.4 平台服务
+### 8.4 宿主
+
+M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲染走 rhi-gles 映射到 WebGL2，D-36）、引擎宿主放在后面。
+
+### 8.5 平台服务
 
 文件对话框、通知、托盘、菜单、打开链接、剪贴板、生命周期、权限，单独做成 `openmui-platform`（通过能力查询提供）。**每个服务都标注效果分级**，例如打开链接是 `external`。
 
@@ -305,21 +356,19 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 
 ---
 
-## 11. 里程碑（第一阶段不涉及 xdesk）
+## 11. 里程碑
 
-| 里程碑 | 内容 | 验收 |
+**以[实施计划](2026-10-26-openmui-implementation-plan.md) §18 为准。** 概要：
+
+| 里程碑 | 主要内容 | 对应的展示 |
 |---|---|---|
-| **M0 骨架** | 仓库结构；registry 和契约 IR；生成器（`openmui.h`、`.cppm`、`.d.ts`、`.pyi`、Lua 注解）；`openmui.rules` 雏形；lint | `mcpp build` 能从契约生成全部产物 |
-| **M1 核心** | 树和 ID、立即模式、flex 布局、基础文本、CPU 后端、SDL3 宿主、headless H0–H2、语义树和 `act` | 示例 01 和 07 能运行 |
-| **M2 文本 + Markdown** | 富文本引擎；接入 md4c；块缓存；语义映射；流式追加 | 示例 08 和 09；公开 CommonMark 测试集的通过率 |
-| **M3 声明式 + 三种语言** | signals、DSL、C ABI、TS / Python / Lua 绑定、`kind=native` | 示例 02–05、12；示例 03 三种语言的语义完全一致 |
-| **M4 GPU + 画布** | SDL_GPU 后端、实例化 SDF、msdf、图层缓存、任务系统、canvas 和 canvas-kit | 示例 10 和 11；第一份基准报告 |
-| **M5 打磨** | 性能调优、检查器（语义树、像素溯源）、基准测试进 CI | 指标稳定，进入回归门禁 |
-| 以后 | xdesk 集成（`openwx-view` 的阶段一和阶段二）、MCU、游戏引擎、跨框架桥 | — |
-
-**排期说明**：M2 的富文本是整个项目耗时最长的一项，建议和 M1 并行启动。M4 可以提前做一个最小的 GPU 原型（1 万个矩形加标签），尽早用实测数据校准性能目标。
-
----
+| M0 骨架 | workspace、registry、生成器、rules、模板、lint、CI | — |
+| M1 核心 | core（任务调度用 taskflow）/ layout / 基础文本 / 立即模式 / 语义 / agent 端点 / CPU raster / headless + SDL3 | 示例 01、07 |
+| M2 文本 + 动画 + Markdown | 富文本、**动画全部功能**（视频依赖它）、Markdown、录制和回放、三个桌面平台 | 示例 08、09 |
+| M3 声明式 + 三种语言 | rt / 表达式 / 视图文档、C ABI、TS / Python / Lua、native、player | 示例 02–06、12 |
+| M4 GPU + 画布 + 风格化 | omui.rhi + rhi-sdl、render、Slang、canvas | S1 Markdown 墙、S2 风格画廊 |
+| M5 视频 + 游戏 + Agent | openmui-video、timeline、MCP、skills | S3 Agent 操作、S4《组件打砖块：openmui 巡礼》、S5 openmui 宣传片 |
+| M6 打磨和跨平台 | 检查器、性能门禁、rhi-gles / Web、文档 | — |
 
 ## 12. 风险
 
@@ -345,8 +394,8 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | D-04 | openmui 规范自包含：和 openas / opensal 的概念保持取值兼容，但不 import 它们；由实现层把它们连起来 |
 | D-05 | 立即模式和保留模式经过对账后产出同一棵树，两种写法共用组件和 ID |
 | D-06 | 核心用 C++ Modules 实现，不用异常、不用 RTTI，错误用 `std::expected`，可以在 freestanding 目标上编译 |
-| D-07 | 脚本层是一层薄接口；**完整发行版**至少提供 TS/JS、Python、Lua 三种；脚本不进入每帧路径；DSL 的绑定表达式不是 JS |
-| D-08 | 契约优先：`*.contract.toml` 和 `.mui` 里的 `export component` 编译成同一种 IR；mcpp.toml 只放包级声明 |
+| D-07 | 脚本层是一层薄接口；**完整发行版**至少提供 TS/JS、Python、Lua 三种；脚本不进入每帧路径；需要同步求值的绑定用兼容 CEL 的表达式子集（由原生代码求值，不是 JS） |
+| D-08 | 契约优先：`*.contract.omui.toml`（C++ 组件）和带 `interface` 的视图文档（语言中立的组合组件）编译成同一种契约 IR；mcpp.toml 只放包级声明 |
 | D-09 | mcpp.toml 是唯一的工程文件；`openmui` 包的 `rules` 特性就是构建插件；分发走 xlings |
 | D-10 | 组件分三层：契约（规范）、行为（官方提供，没有特权）、设计系统（可以替换） |
 | D-11 | CPU 是参考后端；GPU 先做 SDL_GPU；宿主先做 SDL3 |
@@ -355,20 +404,156 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten）、�
 | D-14 | Markdown 是官方组件（解析用 md4c），markdown-wall 是旗舰示例和基准测试 |
 | D-15 | agent 控制分三层：verb、语义 UI、像素 / 输入 |
 | D-16 | 第一阶段完全不改 xdesk |
+| D-17 | （原 Q-01）C ABI 用 Vulkan 风格命名；缩写是 `omui`（见 §6.4、D-25） |
+| D-18 | （原 Q-02）GPU 第一个后端是 SDL_GPU；GLES 后端放到 M5 之后 |
+| D-19 | （原 Q-03）role 集合对齐 AccessKit / ARIA 的子集 |
+| D-20 | （原 Q-04）实现层先用 git 路径依赖 Luban 的规范包（opensal 等） |
+| D-21 | （原 Q-06）无障碍层先评估 AccessKit 的 C 绑定。2026-10-31 落地为 `openmui.accessibility`：AccessKit 0.23.1 的预编译库经 mcpp-index（`compat.accesskit`）和 mwrap（`mcpplibs.mwrap.accesskit`）使用；Windows x86_64 是 UI Automation，macOS arm64 是 NSAccessibility，Linux x86_64 是 AT-SPI，其他平台只有映射。辅助技术的请求在帧之间按人自己的输入执行。Linux CI 用 AT-SPI 客户端读树并操作示例 03 |
+| D-22 | （原 Q-08）许可证：Apache-2.0 |
+| D-23 | （原 Q-09）JS 引擎用 quickjs-ng；TS 用 esbuild 转换（xim 索引里已有 `esbuild`、`node`） |
+| D-24 | （原 Q-10）Python 提供两种模式：作为宿主（pip）和嵌入，接口相同；M3 先做宿主模式；宿主模式下主线程运行 C++ 事件循环并释放 GIL，Python 运行在逻辑线程上 |
+| D-25 | （原 Q-11）**身份用全名 `openmui`**：包、模块（`openmui.*`）、仓库、总线接口。**需要反复输入的地方用缩写 `omui`**：C++ 命名空间、C ABI（`omui` / `Omui` / `OMUI_`）、`OMUI_EXT_*`、`OMUI_*` 环境变量、命令行短名、脚本里的惯用别名 |
+
+| D-26 | （原 Q-05）入口由框架提供，用 `openmui` 的特性控制：`entry-player`（脚本应用）/ `entry-app`（C++ 应用实现 `omui_app()` 回调，类似 SDL3 的 main callbacks）/ 都不启用（自己写 `main`）。在 mcpp#845 落地之前，模板生成一行的 `src/main.cpp` |
+| D-27 | `openmui` 包通过 `templates/` 提供 `mcpp new` 模板：`app-cpp`（默认）、`app-ts`、`app-py`、`app-lua`、`app-mixed`、`component`、`native`、`theme` |
+| D-28 | **视图文件完全可选**，只有视图 IR 是必需的。保留模式**代码优先**：原生 builder（C++ / TS，可选 TSX / Python / Lua），布局和逻辑写在一起；`*.view.omui.json` 视图文档是可选的数据格式，可以和代码混用；立即模式不使用视图文件 |
+| D-29 | 非 C++ 依赖写在 `[package.metadata.openmui.deps.<lang>]`，由构建插件处理：生成各语言原生的清单，锁文件放在 `lock/`；Lua 的 C 模块由 mcpp 编译；`manifest = "…"` 作为逃生口 |
+| D-30 | 后缀体系：数据文件一律是 `<名字>.<种类>.omui.{toml,json}`（view / contract / native / behavior / theme / effect）；另有 `.omuipkg`；着色器 `.slang`；逻辑代码保持原生后缀 |
+| D-31 | **人和 agent 的可读性都要很高**：可读性主要由宿主语言保证；builder 和数据文件遵守 view-data-files §2 的八条要求（名字和契约一致、显式 ID、事件的后果可见、类型明确、诊断支持 `--json`、文件自带版本、JSON Schema、llms.txt） |
+
+| D-32 | **仓库根目录就是 `openmui` 伞包 + workspace**。`mcpp/` 只放构建系统的代码（按功能拆分的构建插件，D-73）；入口是运行时代码，放在 `src/entry/`；播放器在 `modules/ui/player`；`templates/` 按 mcpp 的约定放在根目录 |
+| D-33 | **GPU 抽象层 `omui.rhi`**（UI 尺度）：UI 渲染器只写一次；后端顺序是 rhi-sdl → rhi-gles → rhi-webgpu / rhi-vk；CPU 参考光栅器和 MCU 不经过抽象层；抽象层是实现细节，不属于规范 |
+| D-34 | **着色器用 Slang**（`rules-slang`）；自定义渲染分四级（效果、材质、GPU 节点、原生句柄）；着色器参数就是带类型的属性；headless 下用 lavapipe 测试 GPU 后端；规范只规定效果着色器的接口（Slang 源码，SPIR-V 作为交换格式） |
+| D-35 | （原 Q-14）自动 ID：保留模式用结构化 ID（`<类型>:<序号>`），立即模式用 ID 栈 + 调用位置；**ID 永远不依赖显示文本**；可交互的节点必须写显式 ID（spec S-8、S-9） |
+| D-36 | （原 Q-13）Web 先通过 rhi-gles 映射到 WebGL2，以后再补 rhi-webgpu；不依赖 SDL_GPU 将来是否提供 Web 后端 |
+| D-37 | （原 Q-12）**取消 `.omui` 视图语言**：代码优先，符合当前的趋势（SwiftUI / Compose / Flutter / React）；给机器用的视图文档是 JSON；表达式的写法是“代码里用组合函数 + 数据文件里用 CEL 字符串”，两者编译成同一个 AST |
+| D-38 | **不用宏，用 constexpr**：平台和特性用“清单按目标选择模块分区 + constexpr 常量 + `if constexpr`”；编译期校验用 `consteval`；C 宏在绑定模块里转换；只有生成的 `openmui.h` 是例外 |
+| D-39 | C++23 是基线；C++26 特性（反射等）只在单独的成员 `openmui-reflect` 里使用（GCC 16，`-freflection`），核心不依赖它 |
+| D-40 | 全项目只有一个头文件 `openmui.h`（C ABI）；其他全部是模块；第三方头文件只出现在 `native/` 实现分区里 |
+| D-41 | 一个仓库，多个 workspace 成员；每个成员有独立的 `mcpp.toml`、版本、测试，只通过 `path` 依赖互相引用，可以随时拆成独立仓库 |
+| D-42 | OS 服务通过 git 依赖 `mcpplibs/os`（分支 `os-0.1.0`）；窗口和输入走 SDL3 |
+| D-43 | CPU 参考光栅器自己实现（定点数、解析覆盖率），保证跨平台逐字节一致 |
+| D-44 | 动画是时间的纯函数（spring、decay 用解析解），可以任意跳转、结果确定；交互模式和渲染模式共用；核心动画提前到 M2 |
+| D-45 | 新增 openmui-video（用代码制作动画视频，对标 Remotion）和配套的 agent skill |
+| D-46 | Python 绑定用 CPython 的稳定 ABI（abi3）自己实现，不用 pybind11 |
+| D-47 | UAX#14 断行表由 `tools/gen` 从 Unicode 数据生成，不依赖 ICU |
+| D-48 | 默认字体通过 `openmui-fonts` 固定下来，作为渲染确定性的一部分 |
+| D-49 | 通用动画引擎 `hanim`：独立的 workspace 成员 `modules/base/hanim/`，只依赖标准库；UI、视频、游戏、画布共用；将来可以独立成仓库 |
+| D-50 | S4《组件打砖块：openmui 巡礼》：六个关卡，每一关的玩法本身就是一项框架能力 |
+| D-51 | S5 openmui 宣传片：约 60 秒主片 + 15 秒短片，用 openmui-video 制作；对标三部播放量几百万到上千万的 agent 代码动画视频（promo-video 设计文档） |
+| D-52 | 协作流程：单个 PR，每一轮修改一个 commit 作为检查点 |
+| D-53 | 每个里程碑、展示、模块都有验收标准（实施计划 §19）；能自动检查的进 CI |
+| D-55 | **独立组件放在 `modules/` 下**（参考 mcpp 的 `modules/`）：anim、unicode、text、raster、gpu 和各个 gpu 后端。它们不依赖 openmui 的任何其他包，只依赖标准库、彼此和第三方库，所以随时可以拆成独立仓库；openmui 专用的包（spec、runtime、host、组件、video、lang）留在原来的位置 **修订（D-80）**：独立组件是 `modules/{base,gfx,content,media}` 四组；`modules/ui` 是 openmui 本身。 |
+| D-57 | 渲染层抽象（`modules/gfx/render`）、布局（`modules/content/layout`）、图像（`modules/base/image`）、录制回放（`modules/base/session`）、文件和视频输出（`modules/encode`）都是独立组件，共用几何模块 `modules/base/geom`；`gfx/` 取消；平台相关的代码一律经由 `mcpplibs.os`（实施计划 §21） |
+| D-56 | mcpp-index 里已经有知名、跨平台的库时优先使用（JSON：nlohmann.json；TOML：tomlplusplus；任务：taskflow；队列：concurrentqueue；PNG：libpng；Markdown：md4c；排版：HarfBuzz / FreeType / fribidi）；只有生态里没有、或者确定性要求无法满足时才自己实现（实施计划 §21） |
+| D-54 | openmui-video 的渲染速度、增量渲染（四层缓存）、GPU 和硬件编码、预览和可再编辑性都作为指标，每一项都要优于业界最好的工具（实施计划 §12.6） |
+| D-58 | GPU 抽象层叫 RHI：`modules/gpu` 改名为 `modules/gfx/rhi`（后端 `rhi-sdl` 等）；`modules/gfx/render` 是渲染子系统，保持原名（实施计划 §21） **修订（D-80、D-81）**：rhi 在 `modules/gfx/rhi`（后端 `rhi/sdl`、一致性 `rhi/cts`）；范围不再限于 UI 规模，由渲染特性的需要决定。 |
+| D-59 | 可观测性是框架的一部分：`modules/base/trace`（span、计数器、Chrome trace、百分位汇总）、分类别的日志和过滤、每帧各阶段耗时和历史、调试叠加层（边界、重绘、检查器、HUD），agent 开发操作 `inspect` / `stats` / `profile` / `logs` / `debug`（实施计划 §21） |
+| D-60 | 所有可视属性都可以做动画；粒度分对象 / 属性、子对象（字形、路径弧长、实例）、像素（Slang 效果、图层、遮罩）三层，全部是时间的纯函数，可以跳转（实施计划 §6.3、§6.8） |
+| D-61 | 开发工具（检查器、帧时间、火焰图、日志、动画检查器、依赖图）用 openmui 自己写，经 agent 协议连接任何应用，同时作为示例（实施计划 §21） |
+| D-62 | 增量帧是精确的：`DamageTracker` 给出变化的整行带，CPU 光栅器保证行带和完整渲染逐字节相同，只画这些行（实施计划 §21） |
+| D-63 | 每个作品都是双视角：真实可用，同时展示一项特色；有招牌镜头，可以确定地重现（[特色与管线](2026-10-27-openmui-features-plugins-pipeline-design.md) §1、§2） |
+| D-64 | 液态玻璃是效果组件，建立在背景输入、形状 SDF、效果组、模糊金字塔、damage 依赖这些通用能力之上；语义不变（同上 §3） |
+| D-65 | 可拔插架构：核心只规定组件模型、数据契约和管线（契约⑦）；其他都是插件，按阶段或按批调用（同上 §4） |
+| D-66 | 管线编排：一帧是 `stage` 插件组成的 DAG，用 `*.pipeline.omui.toml` 描述；H0 到 H3、视频、CPU / GPU 都是不同的管线（同上 §4.4） |
+| D-67 | 开发工具共用一个 openmui 外壳，可以单独运行或嵌入目标应用；每个工具都有命令行（同上 §5） |
+| D-68 | 细粒度动画是基础设施：显示列表的字形记录来历（源字节、字素、词、行），绘制命令可以带逐字形样式，运行时按 `f(t, i)` 改写任何节点的字形；效果有注册表（CPU 参考实现 + 以后的 GPU 路径），任何节点的 `effect` 属性把子树放进带效果的图层。组件不需要为动画做任何事（features-plugins-pipeline §4A） |
+| D-69 | 每项能力分层暴露：L0 零配置、L1 声明式提示、L2 编程接口、L3 插件；只有一套机制，每层可观测（[渐进式披露](2026-10-28-openmui-progressive-disclosure-design.md) §0） |
+| D-70 | 帧需求与帧节奏：合并各来源的 FrameDemand，`frame.pacer` 插件按预测上屏时间求值，宿主映射到 ProMotion / VRR 等平台机制；空闲不画（同上 §1） |
+| D-71 | 画布晋升策略分层；相机移动时不晋升；晋升复用离屏布局（同上 §2） |
+| D-72 | 构建期标记：各语言合法语法，字段语义按 `markers.toml` 对齐；库契约优先，应用内部允许代码优先（同上 §3） |
+| D-73 | 构建插件按功能拆包：共用基础 `openmui.build.plan` + 内置插件（`contracts`、`embed`、`toy`）+ 经 mcpp-index 分发的可选插件；不设伞包，每个包只依赖自己用到的插件（同上 §4；2026-10-30 落地） |
+| D-74 | i18n 引擎（`modules/content/i18n`，只依赖标准库，可独立发布）和语言数据（由 CLDR 生成的数据包）、应用消息目录分开，只通过数据格式相连；不用 ICU，结果只取决于数据版本；en / zh 做到顶级支持（2026-10-28 i18n 设计 §1） |
+| D-75 | 窗口默认用系统的；自绘窗口是完整的深度能力，分两层：`openmui.window`（去掉系统外框、命中测试区域、形状、阴影、状态、输入穿透、与系统的衔接）和 `openmui.ui.window`（框架默认的标题栏、布局、交互、动画、风格）；开发者一行切换，用户可在运行时切换；关闭时应用立即在逻辑上关闭、整窗输入透明，溶解只是呈现（2026-10-28 i18n 设计 §2） |
+| D-76 | 三层：基础（不知道 UI）、引擎服务、框架；openmui 可以作为游戏引擎的 UI 模块嵌入，主循环、时钟、设备、输入都可注入；lint 检查分层（同上 §3） **修订（D-82）**：引擎服务就是 mgame（`mgame/`），openmui 是它的 UI 模块；openmui 永远不依赖 mgame。 |
+| D-77 | 宿主是插件（D-65）：SDL3 是默认的桌面宿主，不是框架的依赖；运行时、渲染、rhi 抽象和 C ABI 都不依赖它（headless 宿主、引擎嵌入、以后的 Web / 原生宿主）。SDL 缺的窗口系统能力在宿主自己的原生单元里实现，上游缺口用 `upstream` 标签的 issue 记录，不改上游 |
+| D-78 | 规范是 OpenLifa 的开放标准，各自一个仓库：`openlifa/openmui`（本仓库的 `spec/`，git 子模块，和实现一起演进）和 `openlifa/openas`（经 mcpp-index 依赖 `openlifa.openas`）；包名 `openlifa.<标准>`，模块名不变（`openmui.spec`、`openas`）；代码 Apache-2.0，规范文本 CC BY-SA 4.0；每个标准仓库单 PR、全平台 CI。D-04 不变：openmui 规范的 C++ 代码仍只依赖标准库，文本上引用 openas 0.2；actor、效果、信封、授权以 openas 为准 |
+| D-79 | agent 授权（S-11，openas §5）：应用的上限（`AppSpec::agent` / 清单 `agent`，默认 `external`）在构建时定，运行时不能提高；授权由在场的人通过应用自己的界面给出（`agent_access().give`），总线上的请求不能给；`person` 动作任何授权都够不到；决定由运行时调用 `openas::decide` 做出。总线上的读（snapshot、find）不是动词，不受上限约束；不要 agent 的构建去掉总线（`--no-agent`） |
+| D-80 | 目录与命名：路径就是包名，`modules/` 按层分组（base、gfx、content、media、ui，宿主在 `ui/host`），按角色命名，动画引擎叫 hanim，有包的目录都有 README（[structure-render-web-game](2026-10-28-openmui-structure-render-web-game-design.md) §3） |
+| D-81 | 统一渲染：rhi → shader → render（渲染图）→ 渲染特性，2D 和 3D 同一套架构（同上 §4） |
+| D-82 | 产品分层：基础组件、openmui、mgame、gongfu、作品，依赖只向下；openmui 不依赖 mgame；gongfu 核心只依赖标准库（同上 §2） |
+| D-83 | 第三方库：compat + mwrap，只在 native/ 单元使用；不用 GPL，LGPL 只能可选、动态链接（同上 §5） |
+| D-84 | Web 与 Toy：wasm 单线程、host.web、WebGPU / WebGL2 / CPU、Toy 能力映射、官网（同上 §6） |
+| D-85 | mgame 与 gongfu：引擎服务；确定性回滚格斗框架，模拟和画面分离，2D 先验证、3D 同一核心（同上 §7、§8） |
+| D-86 | 媒体：音频图、视频导出、时间线、撤销和事务（同上 §9） |
+| D-87 | `modules/base/math`（`openmui.math`）统一全仓库的数学：确定性函数、定点数、向量矩阵、曲线、几何、随机、噪声、数值方法、批量计算；确定性分级写在命名空间上；批量计算有标量参考实现，SIMD、多线程、GPU compute（`openmui.compute`）、可选 CUDA 按它验收；模拟只走确定的 CPU 路径（同上 §3） |
+| D-88 | 人物技术分层：`openmui.rig`（骨架、蒙皮网格、约束、混合）、`render.mesh`、表现物理（`mgame.physics`、`openmui.compute`）、gongfu.present2d 只留格斗专有部分；打击是一个档案驱动的多通道同步反馈；角色差异来自数据组合通用原语（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §4–§8） |
+| D-89 | 主题作用域：一棵子树可以有自己的主题和效果规则（`Runtime::set_scope(名字, 主题, 规则)`，节点的 `theme_scope` 属性加入），最近的作用域整体生效、不合并；组件的钩子经 `Services::theme()` 拿到的是自己作用域的主题，弹出的覆盖层跟着打开它的节点；"window" 规则作用在加入作用域的那个节点上，交叉淡入只覆盖作用域的区域。风格包因此可以只作用于页面的一部分（官网里的风格工坊），一棵语义树不拆开；不选“嵌入另一个运行时”（焦点、输入、时钟、语义树都要再接一遍）。经 codex 评审（同样选作用域） |
+| D-90 | 格斗人物的制作方式（维护者 2026-10-31 定，依据 codex 的调研、动作排查和按 SF6 标准的严格评估 25 分，见 `evaluation/research/`）：混合 2D——骨骼用在合适的地方，关键攻击姿势、转身、压缩和受击用按姿势替换的手绘，必要时整身重画，难的体积和接触先用离线 3D 摆位参考；画风为动画简化（统一干净的线条和色块），现在的精细插画留给立绘、选人和宣传；先做 霓 一套（一个重攻击、一个升空必杀、三级超必杀、各级受击），通过对标 SF6、Strive、Skullgirls 的严格评审后才推到其他五人。“精确到关节甚至手指”指制作精度（绑定、手型、接触、特效位置），不是手指招式，也不一定要骨骼细到手指 |
+| D-91 | 推进策略（维护者 2026-11-01 定）：核心是框架和引擎的能力，官网是它们的唯一验收对象；讨论定下的范围全部要做，按检查点 C0–C6 验证，不分批砍范围；不达标的作品不上官网；新增交互扫描为硬门槛；评分细则固定锚点，评估工具做不到的维度要有替代证据（[推进策略与待办](2026-11-01-openmui-strategy-backlog-design.md)） |
+| D-92 | 定位：一个基础（一棵语义树）、三个亮点（① agent 原生且安全 ② 时间与确定性 ③ 通用动画）、一个前提（处处都快）；代码即一切；没有证据的不说"远超"（[定位与官网](2026-11-01-openmui-positioning-site-design.md) §1） |
+| D-93 | 通用动画：一切动画都是状态 A → B 的变换，作用在组件真实的物质上（节点、部件、字形、点、粒子五层）；四层匹配；组件只声明状态和部件，不写动画（lint `motion`），内置组件和用户共用一个库；组件、效果、动画三维三级，内部和相互可组合；槽 + 策略 + 叠加链；一个节点多个效果；脚本只声明；GPU 自定义默认要有 CPU 参考实现。取代 §6 计划中单独的 FLIP 和共享元素过渡（[通用动画](2026-11-01-openmui-universal-motion-design.md)） |
+| D-94 | 性能分档 T0（MCU）到 T4（独立显卡）：编译期裁剪；每个插件声明代价和降档序列，进 CTS；档位探测和帧预算调度器；档位是记进会话的输入，保持确定性；自动、开发者、用户三层控制，用户只能改开发者暴露的部分；对 Flutter、Qt Quick、Slint、React 的对比基准（[性能分档](2026-11-01-openmui-performance-tiers-design.md)） |
+| D-95 | agent 原生接入：用户叫自己本机的任意 agent 操作任何 openmui 应用；agent 是发起者，用语义协议原生控制，不是 computer use，页面不显示光标；网页只暴露接口、提示词和状态 / 操作记录，不做对话框、API key、模型选择；Web 宿主的默认插件 agent-link（HTTP 长轮询到 127.0.0.1、配对码），开发者可关；本地桥 `omui connect` + `omui page` 命令行（不要求 MCP），或 agent 按规范自己写；`agent.md` 由 dist 工具生成（[agent 接入与回溯](2026-11-01-openmui-agent-connect-rewind-design.md) §1–§5） |
+| D-96 | 状态回溯：回溯条让状态真的回去（撤销历史，与录像重放交叉校验）；按 actor 回溯，冲突时退回线性回溯并说明；回溯后形成分支，旧分支保留；"时间回溯"是通用组合动画（同上 §6） |
+| D-97 | 官网：视觉方向 B（明亮的编辑风），透视镜为签名元素；导航 组件 · 动画 · 效果 · 实验室 · 场景 · 作品 · 文档 · 开始使用；首页一屏一个主角、往下每屏一个亮点；分四批加载，加载时语义树结构按真实字节生长、再变形成像素；全站有时间旋钮、即时回放、回溯条、设置面板。取代 D-84 中"网站是一块无限画布"的创意方向（[定位与官网](2026-11-01-openmui-positioning-site-design.md) §2、§5、§6） |
+| D-98 | 影片是程序：影片 = 时间线 + 场景片段，片段用 C++、TypeScript、Python、Lua 写，C++ 的身份片段在浏览器里锁定，脚本片段可改、热加载、只重渲染受影响的帧；时间线、数据、代码三视图双向同步；完整影片在浏览器里实时渲染，帧准确、速率自适应（同上 §4.1） |
+| D-99 | 包粒度按独立库／产品及必要隔离判断：内部小能力默认在同一包的`src/<职责>/`用目录／模块分区组织，不为一个文件或几百行实现机械新建`mcpp.toml`。初期较小但明确独立的库，以及必要的依赖／平台／工具链／许可／构建阶段隔离可例外，需有消费者与收益依据；既有包迁移保持公开入口、裁剪与独立使用。修订§6及D-41的目录粒度解释，详见[核心准则 §5.1](2026-11-05-local-global-composable-architecture-design.md#51-目录语言模块与独立包分开判断) |
+| D-100 | 命名按产品职责归属：openmui 专属 UI 协议／规范，UI 框架与组件／宿主用 omui，具名产品用自身名字（hanim 等），通用基础库用 mlibs，尚未独立命名的领域引擎用 xengine。新增实现立即按新归属；既有包／module／namespace按依赖顺序迁移并验证兼容，不连带改协议字段、schema、数据后缀或第三方身份。命名空间不等于统一大伞包，也不增加拆包理由；[映射与迁移](2026-11-05-product-namespace-migration-design.md)修订旧全仓openmui实现前缀约定 |
+| D-101 | 层级由 lint 的“路径前缀 → 层”映射表判定（名字表示归属、目录表示分组，收敛方案 §9.2），表中同时包含现有目录和 M1 的目标目录。与领域无关的小工具合为一个包 `mlibs.utils`（`modules/base/utils`，hash、log、trace、testing 各一个目录，模块名不变）。**每个工具都编译，不按工具设 feature**：实测 mcpp 2026.11.2.2 对同一包的不同 feature 组合会重新编译它和所有导入者，而不同命令选中的成员不同，按工具设 feature 会让整张图反复重编；这几项都只依赖标准库、体量小。`mlibs.testing` 随 utils 提供，由 lint `testing` 保证只在 `tests/` 中导入，因此不进入任何产物。只有一个消费者的 `mlibs.fuzzy` 并入 `openmui.native.fuzzy`（`:matching`，`omui::fuzzy`）。验证命名迁移新旧名字的 `tools/ci/foundation-migration` 退役（M1 删除旧名字）；它的依赖闭包检查改为 lint `closure`（按包身份） |
+| D-102 | hanim 与 xrender 进入 `modules/projects/`：`projects/hanim`（`hanim`，`core/` 为 `hanim.core`）、`projects/xrender`（`graph`、`vector`、`effect`、`raster`、`cts`、`rhi/{sdl,webgpu,webgl}`）。包身份、模块和命名空间一次改完：`xengine.render*` → `xrender.*`、`mlibs.raster` → `xrender.raster`、`mlibs.rhi.{sdl,webgpu,webgl}` → `xrender.rhi.*`（命名空间 `xrender`、`xrender::raster`、`xrender::rhi::*`）；`mlibs.rhi`、`mlibs.shader` 留在 mlibs。渲染图包名为 `xrender.graph` 而不是裸 `xrender`：mcpp 会把它和 SDL3 的 X11 依赖 `compat.xrender` 当成同一短名，链接时丢掉其中之一（实测，已记为上游问题），这也印证了收敛方案 §7 对 xrender 名字的提醒。旧的 `openmui.*` 转发入口在 M1 ⑤ 删除 |
+| D-103 | `mlibs.text` 不依赖渲染器（收敛方案 §5.3 ⑤）：它有自己的 `FontRef` 与 `Glyph`（字段与渲染器的相同），字形以几何形式输出（`FontCollection::outline`：em 单位、y 向下、`mlibs.geom` 路径编码；`color_layers`：COLR v0 图层）。栅格化与绘制属于新包 `xrender.text`（`modules/projects/xrender/text`，层级由路径表定为 content）：`GlyphCache`（渲染器的 `GlyphSource`）和 `paint(paragraph, list, origin)`；显示列表新增按数量就地填写字形的 `draw_glyphs` 重载，转换不另分配。字形像素逐位不变（原 text 测试的两个固定哈希随测试移到 xrender.text 后不变）；lint `closure` 保证 `mlibs.text` 不再触及 `xrender` |
+| D-104 | xengine 与 gongfu 进入 `modules/projects/`：`projects/xengine/{simulation(+cellular、cellular/rhi),audio,video,timeline,world,input,physics,net,ui}`、`projects/gongfu`（身份不变）。`openmui.{audio,video,timeline}*` → `xengine.*`（命名空间 `omui::audio` 等 → `xengine::audio`），`mgame.*` → `xengine.*`（命名空间 `mgame` → `xengine`）；`mgame/`、`modules/media`、`modules/gfx/simulation` 目录取消。无人使用的转发入口 `mgame.sim` 删除，其使用者直接用 `xengine::simulation::{Clock,Timeline}`。WebM 文件中的 `writing_app`（`openmui.video`）是数据格式字段，保持不变 |
+| D-105 | omui 进入 `modules/projects/omui`：原 `modules/ui` 的各包、`components/`、`lang/`、`templates/` 都在其下；仓库根包（`openmui.sdk`，`src/*.cppm`、`src/host/`、`build.mcpp`、两个启动测试）成为 `modules/projects/omui/sdk`，根 `mcpp.toml` 只保留 `[workspace]`（`src/entry/` 仍是入口）。本步只移目录，包身份不变；`openmui.*` → `omui.*` 的改名和转发入口删除在 M1 ⑤。根目录误提交的 `liquid.style.omui.toml`（风格画廊导出测试写入工作目录）删除 |
+| D-106 | 转发入口全部删除（收敛方案 §10.2，不留兼容层）：31 个旧名模块（`openmui.geom`、`openmui.render`、`openmui.simulation`……）及其在 `omui::` 下给其他 owner 起的别名（`omui::geom`、`omui::Handle`、`omui::info`……）。代码直接写 owner（`mlibs::`、`xrender::`、`xengine::`）；一个文件若在 `namespace omui` 中不加限定地使用 owner 的名字，就在该文件里写一个不导出的 `using` 块，不再由 owner 包统一转发。lint `legacy-import` 拒绝旧模块名和这些别名 |
+| D-107 | omui 的 66 个包与模块一次改名 `openmui.*` → `omui.*`（伞包模块 `openmui` → `omui`，分区 `omui:build_profile`，构建插件 `omui.build.*`，示例、作品、官网、工具、入口同改）；视图文档的 `imports`、生成器输出、CI 与脚本里的包名随之改变。保持不变：规范（包 `openlifa.openmui`、模块 `openmui.spec`）、协议与数据格式标识（`openmui.tree@0.1`、`openmui.bench@0.1`）、`[package.metadata.openmui]`、`openmui.h` 与 C ABI、WebM 的 `writing_app`、mcpp-index 的模板名 `openmui:*`；脚本 API 的名字也保持 `openmui`（Python 包 `openmui`、PocketPy 的 `openmui` 与 `openmui.native`、TS 的 `"openmui"` 与 `openmui:native/*`）：规范的 `stubs/core.d.ts`、`stubs/core.pyi` 定义了脚本模块 `openmui`，原生模块经规范的 C ABI（`omuiNativeCatalog`／`omuiNativeCall`）。判定规则（维护者）：属于规范层面的公开名用 `openmui`，具体实现、非规范层面的用 `omui`。lint `legacy-import` 拒绝 `openmui.spec` 以外的 `openmui` 模块 |
+| D-108 | 通用一致性测试框架 `mlibs.cts`（`modules/base/cts`，收敛方案 §5.5）：套件与用例（稳定 ID、所检查的契约与版本、等级 S/A/B）、三态结果（“不支持”只来自能力查询、永不算通过；运行方要求的能力缺失即失败）、比较工具（逐字节、带预算的容差、图像、固定哈希、按时间采样的过程）、机器可读报告（`mlibs.cts@0.1`，`*.cts.omui.json`）。第一个迁移的套件是 RHI 一致性（19 个用例，迁移前后数量与结果相同），各后端测试检查完整报告并留存为证据。与 §5.5 的偏差：带构建期着色器的套件（RHI、模拟 GPU）保留为独立包，不并入 owner 的 `cts` feature——构建程序的 import 不能按 feature 条件化，并入会把 Slang 工具链带进抽象层的每次构建（D-99 的构建阶段隔离）|
+| D-109 | 错误契约 `mlibs.error`（`mlibs.utils` 的 `src/error/`，收敛方案 §5.2）：`Error<Code, Where = std::string>{code, message, where, causes}`；错误码仍归各领域，由领域在枚举旁写 `describe(code)`（名字 `领域.码`、种类、说明），结构化位置由 `describe_where` 说明；`causes` 是下层错误按外到内展开的记录，取代各 Failure 结构里嵌套的可选原因；`Kind` 与 openas 的错误码同名（SPEC §6.3），错误经 openas 到达 Agent 时就是它本来的种类；`text()` 是统一的文字。第一批使用者：`mlibs.rhi`（`Errc`，`Error{code, message}` 的写法不变）与 `xengine.simulation.cellular`（`Errc`、结构化位置 `Location{rule, item}`）；hanim 的 Failure 族在其 v1 API 中迁移。GCC 16 的已知问题：函数内对外部模块枚举写 using 声明会 ICE，改用别名声明 |
+| D-110 | 时间契约 `mlibs.time`（`mlibs.utils` 的 `src/time/`，收敛方案 §5.2）：`seconds`（连续时间，double）、`Flicks`（精确时间，int64，1/705,600,000 秒）、`Rate{num, den}`（帧在 flicks 中的精确起点与长度、在秒中的一次正确舍入起点、时间所在的帧，零以前也一样）、采样率的精确换算、秒与 flicks 的最近换算。只统一类型和换算；时钟语义仍归各领域（时间源 ≠ 步进器）。`xengine.timeline` 删掉自己的一份，直接用它；`hanim::FrameRate` 删除，用 `mlibs::time::Rate`；`hanim::seconds` 保留为 hanim 的词，定义为 `mlibs::time::seconds`。lint `time`：flick 常数只在 mlibs.time |
+| D-111 | hanim 的 Failure 族归入 `mlibs.error`：`EngineFailure`、`ProgramFailure`、`MorphFailure`、`VectorFailure`、`PathImportFailure` 与 mlibs.geom 的 `PathFailure` 都是 `Error<领域码, 位置>`，位置是各自的结构（`ProgramWhere{node, track, segment, scope}`、`MorphWhere{part, contour, clip, channel}`、`VectorWhere`、`PathImportWhere`、`PathWhere`），嵌套的可选原因改为 `causes`；每个领域码在枚举旁 `describe`（名字 `hanim.<域>.<码>`、`geom.path.<码>`），取名函数 `*_error_name` 删除。包装下层错误的码（引擎的 `program`、程序的 `animation` 等）标为 `wraps`：其种类取第一个原因的种类，Agent 看到的是“程序预算被拒绝”而不只是“失败”。按码查原因：`caused_by(code)`／`cause_of(code)`；没有更多内容的领域（`EffectError`、`ObjectError`、`ShapeMorphError`）以裸码作原因（`because(code)`）。热路径的错误不分配：消息与原因为空 |
+| D-112 | 准备与执行、预算两项全局契约是约定（核心设计准则 §10），验收是 `mlibs.cts:prepare` 的契约用例：有效描述准备两次相同、执行 `noexcept` 且逐位相同；无效描述按 `invalid-argument`、超预算按 `refused` 拒绝，拒绝后状态不变（不部分发布）。预算词汇 `max_<名词>`／`max_total_<名词>`，外层嵌入内层的 Limits，超预算 `<名词>_budget`、不成立的限制 `invalid_limits`。首批运行于 hanim（程序准备、引擎发布）与细胞模拟；后者因此修正两处拒绝种类并增加 `cellular.invalid-limits` |
+| D-113 | lint `owner`：能力 → 唯一 owner 的机读表 `tools/lint/capabilities.owners.omui.toml`（owner、用法、owner 的文件、带理由的例外、单行特征或若干行内同时出现的形状、作用范围、标记、自检样本），原 `hash`／`math`／`time`／`motion` 并入，新增 `oklab`（hanim.core）与 `handle`（mlibs.memory：index 或 owner 与 generation 的结构）。首次运行即把三处私有句柄（hanim 的 `Set::Channel`、画布的 `NodeRef`、世界的 `Entity`）改为 `mlibs::memory::Handle<Tag>`，示例 05 的私有 OKLab 改用 hanim.core 新增的双精度线性接口 `linear_to_oklab`／`oklab_to_linear`。`motion` 规则自 M1 起按旧目录 `components/` 判断而失效，并入后按 `modules/projects/omui/components/` 检查 |
+| D-114 | hanim L2 第一步，类型化通道 `hanim::ch`：`Channel<T>{Id{name, lanes}, rest}`，`ch::define<T>(name, rest)` 为 consteval（名字是静态字符串）；`ch::position = {120, 40}` 是一次写入（`Write<T>`），不是赋值。内建的 position／rotation／scale／fill 降为部件自身字段（与原 `PropertyTargets` 逐位相同）；其他通道是部件的值，按 hanim.core 的 `lanes<T>` 线性插值，采样到 `FrameView::values`，布局由 `value_slots` 给出（`frame.value(part, channel)`）。`anim::to`／`anim::by`（位置与值相加、缩放相乘）与 `part(object, id)` 目标；序列从通道当前值继续（跨段经帧携带），同一通道的重叠写入、相对 fill、同名不同 lanes、非有限值被拒绝。不透明度等需要渲染配合的通道等渲染接入后再定义为内建 |
+| D-115 | hanim L1 进入程序：弹簧是一条曲线 `EaseKind::spring`（p = 刚度、阻尼、质量、稳定时长），即 hanim.core `Oscillator` 从静止到 1 的单位响应，按自身节奏走完全程（稳定在 1e-4 内、速度低于 1e-3 时恰为 1）；`Ease::spring(k, c, m)`、`spring_ease(params)`、文本形式 `spring(170, 26, 1)`、`springs::snappy`。程序叶子 `.spring(params)` 和 `anim::spring(target, params, writes…)` 以稳定时长为时长，因此程序的时间结构在作者阶段就已确定。会过冲的曲线（弹簧、back、elastic）在属性通道上真正过冲：位置、旋转、缩放、值随进度越过两端，几何形变、颜色、路线弧长和效果参数仍限制在两端内；进度在 [0, 1] 内时结果逐位不变。中途接管的速度延续属于 L5 的 interactive 模式（`drive`），程序里的弹簧从上一段的终点、以零速度开始 |
+| D-116 | hanim L4 第一步：时间映射是 Program 节点 `timed(child, TimeMap)`（hanim.core 的 TimeMap：速率、裁剪、可为小数或无限的重复、交替、反向、填充），子程序只准备一次，按映射后的时间采样；`loop(child, times = ∞, alternate)`；与 `repeat`（每次从上次的终点继续，相对移动累加）区分：loop 重放同一段过程。暂时只允许映射整个程序（内层映射拒绝为 `hanim.program.nested-time-map`，种类 refused），嵌套映射需要按轨道的区段采样，留待下一步。无限长的程序：`duration()` 为无穷，`natural_duration()` 为一段；引擎一直播放，进度为当前一段的比例，`seek_progress` 拒绝。`marker(name)` 是零时长节点，`PreparedProgram::markers()` 给出名字与时间（映射的程序为其一段内的时间） |
+| D-117 | hanim L5 第一步，interactive 模式：`engine.drive(key, channel)` 返回类型化的 `Drive<T>`（`spring_to`／`tween_to`／`jump`、`value`、`velocity`、`settled`、`lane`、`release`），通道由宿主的键（UI 节点等）和类型化通道命名；每条 lane 是引擎内唯一一个 hanim.core `Set` 的 lane，因此重定向保持位置和（弹簧的）速度，求值与 `Set` 逐位相同、同样快（基准 `motion/drive-1000` 与 `motion/set-1000`：本地 p95 0.046 与 0.048 ms，预算 1 ms）；引擎的时间就是 `advance()` 的步长之和，播放与驱动共用；`evaluate_driven(out)` 一次读出所有 lane 不分配；`moving()` 告诉宿主是否还需要下一帧；`reduce_motion` 直接显示目标。时间线对驱动通道的显式接管（结束时带速度交还）与 UI 的 `Set` 迁移在 M3 |
+| D-118 | 渲染 CTS 归入 `mlibs.cts`：`xrender.cts` 由测试包变为契约 owner 的套件库，`run(device, env, policy, {scratch})` 返回报告，47 个用例（渲染图、每个场景一个 CPU 对照用例、DPI、掩码图集、图通道与 trace、上传、外部纹理、混合绘制、效果输出边界），各有稳定 ID 与等级；后端的测试运行它（`xrender.rhi.sdl` 的 `render_cts_test`，证据 `sdl.render.cts.omui.json`）。四套 CTS（rhi、细胞模拟 GPU、规范 S 级、渲染）都已在同一框架上 |
+| D-119 | hanim v1 API 第一步，删掉兼容名：`PreparedObjectMorph` 改名为唯一的 `PreparedObjectAnimation`；删除 `anim::Morph` 别名（值类型就是 `anim::BoundAnimation`）、`anim::MorphTo`／`morph_to`，以及 `Engine::play(ObjectRef, MorphTo, …)` 两个重载、`play(Snapshot, Snapshot, …)` 和 `retarget(PlaybackRef, MorphTo, …)`：形变和其他动画一样是配方，`play(anim::morph(a, b).with_effects(e).options(o))`，外部端点用 `play(bind(from, to, …))`，换目标用 `retarget(ref, snapshot, …)`。新增 `with_effects(span)` 与 `options(SegmentOptions)`。调用方（hanim 测试、基准、三个消费者探针）一次改完 |
+| D-120 | hanim 的 `visual` 表示（L3）：原 `omui.motion`（Matter 与 Morph：从显示列表取出的物质，按节点、语义、字形匹配两次绘制并按时间求值）移入 hanim 项目，成为包 `hanim.visual`（`modules/projects/hanim/visual`，模块 `hanim.visual`，命名空间 `hanim::visual`）。它本来就只依赖 mlibs、hanim.core、hanim（object）和 xrender.vector，不依赖 UI。收敛方案说它是 hanim 包的一个 feature；没有这样做，是因为 mcpp 不能为一个包自己的测试单独打开 feature（`--features` 只作用于整次测试），而它的 7 个测试程序要在每次工作区测试中运行，所以按 D-99 的“依赖／构建阶段隔离”单独成包，和 hanim.core 一样位于 hanim 项目内。UI 仍负责显示归属（节点键、何时变化、呈现、命中）：omui.view 与 SDK 改为导入 `hanim.visual`；`omui.motion` 包不再存在。M3 把 view 的 motion 阶段并入唯一的 Engine |
+| D-121 | v1 语法的编译成本（收敛方案 §6.6“先测编译、BMI 和 Wasm 成本”）：同一 TU 里 40 个三通道写入，类型化写法 `anim::to(part(o, id), ch::position = …, ch::rotation = …, ch::fill = …)` 与 `PropertyTargets{…}` 相比，GCC 16.1 在 -O0 下编译 0.76 s 对 0.61 s、目标文件 473 KB 对 401 KB；-O2 下 1.07 s 对 1.03 s（+3%）、代码段 50.4 KB 对 49.0 KB（+2.9%，每次调用约 36 字节）。`hanim.program` 的 BMI 为 1.0 MB。成本可接受，类型化写法保留为首选；冻结前还剩“一个 Animation 值类型”的取舍和 Wasm 体积对照 |
+| D-122 | hanim L5，时间线接管驱动通道：`drive.follow(playback, track, part)` 让播放在播放期间决定该通道的值（取该轨道对应部件上同一通道的值，每次 `advance` 后写入）；播放结束、取消或释放时把通道交还，从时间线留下的位置、以它最后的速度继续（hanim.core `Set::carry`：从该位置、带该速度、停在该位置的弹簧），下一次 `spring_to` 沿用这一速度。速度取相邻两帧的差分，不额外采样、不分配 |
+| D-123 | hanim L4 第二步，程序内部的时间映射：整数次重复、交替、反向可以出现在程序任意位置（含嵌套）；准备时展开为副本，后续各次重放第一次的已准备计划（`PreparedSegment::reversed` 镜像其进度），不重新准备，因此引擎、渲染与检查工具都无需改动；映射之后的叶子从最后一次留下的姿态继续。速率、裁剪、长度、小数或无限次重复、其他填充方式仍只能映射整个程序（内部出现时拒绝为 `hanim.program.nested-time-map`）。在分界时刻，后一次已经开始（与“后开始者胜”一致） |
+| D-124 | hanim v1 的值类型：唯一的动画值类型是 `Program`（不可变表达式）；`anim::BoundAnimation`（叶子）与 `anim::Composite`（图像作用域）只是构造它的生成器，隐式转为 Program，`Animation` 概念即“能成为 Program 的东西”。时间写在表达式上：`p.loop(n)`、`.alternate()`、`.reverse()`、`.rate(r)` 产生或修改同一个时间映射节点（`sequence(a, wait(100ms), b).loop(3).alternate()`）；`repeat(n, p)` 仍是“每次从上次终点继续”的累加重复，`delay(d, p)` 先等待。至此 v1 的公开形状确定，之后只做加法；Wasm 体积由 Web 行的体积预算持续检查 |
+| D-125 | interactive 模式补齐宿主所需（M3 的前提）：`Drive<T>` 的动词可带时间 `at`（宿主自己的时钟、延迟开始的过渡），值、速度、是否静止可按任意时间读取（`Set` 的历史覆盖的范围）；新增 `glide(velocity, DecayParams, at)`（甩动后的惯性，hanim.core `Set::glide` 从当前位置继续、保留历史）、`target()`（滑行的终点也可预知）与 `settle_time()`。这正是视图运行时现在用私有 `Set` 做的全部事情 |
+| D-126 | M3 第一步，视图运行时的动画值改由宿主唯一的 hanim Engine 求值：运行时不再持有私有的 `hanim::Set`，节点字段、属性的每条 lane、滚动偏移都是 Engine interactive 模式的驱动通道（`DrivenLanes`：键由节点、名称和 lane 组成，按运行时自己的时钟传入时间），逐位等于原先 `Set` 的结果（所有像素基线不变）。组件服务的 `animations()`（返回 `Set&`）改为 `engine()`；lint `owner` 的 motion 特征同时识别 `engine().drive/play`（组件只画状态）。因此每个视图的依赖闭包都含 hanim 的 engine feature（原来只有 effect），消费者探针相应更新；播放器适配器、矢量渲染与 control 仍是可选。下一步：Playback 改为同一个 Engine 上的轻量句柄、motion 槽语义进规范 |
+| D-127 | M3：`omui::animation::Playback` 改为轻量句柄——不再各自持有一个 Engine，而是把对象和播放放在运行时唯一的 Engine 上（`Runtime::engine()`，与运行时自己的动画值同一个）；析构时释放播放、解除绑定、销毁对象（仅在运行时仍活着时；`status()` 同样只在运行时活着时读取原生状态）。移动语义显式定义，被移走的句柄不再触碰 Engine。消费者探针在 release 下发现了一处运行时已销毁后读取状态的悬空访问，已在同一检查点修正 |
+| D-128 | motion 槽语义进入规范（openmui 规范 18cd62d）：registry/motion.toml 增加有序的 `[[slot]]`（update、enter、exit、state、reorder、replace）与 `[[recipe]]`（none、morph、simple、spring、liquid、ink 及 37 类组件所用的 default.* 配方：原语组合、时间（动效令牌、tween(ms) 或 spring(k, c[, m])）、可选的图像效果），以及缓动 `spring(k, c, m)`；SPEC §10 新增 M-7（变化选定槽，槽里的配方决定怎么动）、M-8（按 ID 引用配方；节点自身的 motion 属性优先，其后是风格包按类型或角色的规则；取第一个宿主支持的候选；减弱动效对所有配方生效）、M-9（组件只画状态、可命名部件，不写动画）。生成器读取、校验并导出 `motion_slots`、`motion_recipes`、`find_motion_recipe`；omui.view 的槽名改为取自规范，测试逐一核对内建配方库与规范的名称、原语和效果一致 |
+| D-129 | hanim 表示与形变能力补齐，新增里程碑 M3.5（位于 M3 与 M4 之间，M5 的 40 个配方依赖它）：glyph／path adapter、stroke（trim／书写）、拓扑对齐 morph、选择器＋形变器（位移通道可随弹簧过冲、可跟手）、匹配修饰与路径扰动核、同通道混合层、约束与驱动、GPU 批量求值；rig、粒子、场仍在 M6。写入收敛方案 §6.2、§6.8、§7、§11，多表示方案 §5.1，组合 IR 设计 §10，通用运动设计 §13.1（组件经配方使用：焦点环跑圈、描边书写、按压局部回弹、文字字形形变），hanim 与 xrender README。顺序：1、2 先行 |
+| D-130 | M3.5 增加第 9 项弹性体（维护者 2026-11-07 补充）：任何可视对象都能像皮球、橡胶一样掉落、触地挤压、反弹、回稳，作为基础能力而不是某个对象的专门效果，拆成四个通用能力——笼形／晶格形变载体、确定性软体求解核（粒子＋约束、宿主给碰撞体、固定步长、checkpoint 与重放）、由运动导出的保面积挤压拉伸、解析抛落弹跳曲线；归属按 D-131 拆分。写入收敛方案 §6.8、§11，多表示方案 §5.1，通用运动设计 §13.1（`enter.drop`、`press.squash`），hanim README |
+| D-131 | 动画与物理／模拟的通用基础能力拆分与归属（维护者 2026-11-07）：两边都要的放在两边之下、只有一边要的归那一边，上层只组合不复制——确定性数值、噪声、求积、积分器归 `mlibs.math`；几何度量与碰撞查询、空间索引归 `mlibs.geom`（补 double 精度，hanim.core 的形状度量和 `xengine.physics::sweep` 的几何部分迁入）；固定步长与重放、粒子＋约束求解核（XPBD）归 `xengine.simulation`（base 层，hanim 的软体与 physics 的软体共用）；刚体动力学归 `xengine.physics`；曲线与解析运动归 `hanim.core`；表示与形变归 `hanim`；模拟与动画只经类型化通道交换。收敛方案 §6.9 |
+| D-132 | 元胞自动机、像素反应与大规模像素的归属（维护者 2026-11-07）：规则与步进归 `xengine.simulation.cellular`，GPU 内核归其 `.rhi`，步进与重放归 `xengine.simulation`；材料与反应规则是 cellular 下的可选数据预设包，不进内核；场上屏是 cellular 与 xrender 资源接口之间的小适配包（CPU 一张 `ImageStore` surface、GPU 输出直接作 `ExternalTexture`，每 tick 一条绘制命令，替代逐格矩形）；脏 tile 掩码归 cellular、图像与纹理局部上传归 xrender 资源层；damage 与行带光栅留在 xrender；像素 effect 归 `xrender.effect`；位图网格／像素场的动画表示在 M6 归 hanim。收敛方案 §6.10，阶段：适配与局部上传随 M4 性能工作，预设随第一个作品，网格表示 M6 |
 
 ---
 
 ## 14. 待决问题
 
-| ID | 问题 | 倾向 |
+目前没有阻塞设计的待决问题。下面是实现过程中需要验证的事项：
+
+| ID | 事项 | 什么时候验证 |
 |---|---|---|
-| Q-01 | C ABI 的命名风格：`muiCreateRuntime`（Vulkan 风格）还是 `mui_runtime_create`（C 惯例） | 倾向 Vulkan 风格，方便生成 |
-| Q-02 | GPU 第一个后端是否确定为 SDL_GPU；GLES 后端什么时候做 | SDL_GPU 先做；GLES 放在 M5 之后 |
-| Q-03 | role 集合是否对齐 AccessKit / ARIA 的子集 | 对齐 |
-| Q-04 | 实现层怎么依赖 Luban 的 opensal 等规范包 | 等它们发布到 mcpp-index；在那之前用 git 路径依赖 |
-| Q-05 | 没有 C++ 源文件的应用目标、外部工具调用，mcpp 是否支持 | 和 mcpp 一起推进 |
-| Q-06 | 无障碍：用 AccessKit 的 C 绑定还是自己实现 | 先评估 AccessKit C |
-| Q-07 | DSL 的语法风格参考谁（Slint / QML / 自定义） | 参考 Slint：类型化，可以编译 |
-| Q-08 | 许可证（Apache-2.0 和 mcpp 一致，还是 MIT） | 待定 |
-| Q-09 | JS 引擎默认用 quickjs-ng；TS 编译工具链用 esbuild（由 xlings 提供） | 倾向这样 |
-| Q-10 | Python 是否同时提供“作为宿主”（pip）和“嵌入”两种模式 | 两种都提供；M3 先做宿主模式 |
+| V-01 | Slang 输出 WGSL / GLSL ES 的质量 | M4 之前 |
+| V-02 | mcpp 的 workspace 能不能每个包单独打 tag、单独发布 | M0 |
+| V-03 | mcpp#845（入口由依赖提供）的进展；在那之前用一行的 `main.cpp` 过渡 | 持续跟进 |
+| V-04 | lavapipe 在 CI 里运行 GPU 后端金图测试的速度和稳定性 | M4 |
+| V-05 | 表达式的组合函数在四种语言里的命名和手感（例如 Python 的 `not_`） | M3 |
+| V-06 | ~~mcpp 能否按特性开关选择互斥的源文件；依赖图里有 C++26 成员时 BMI 的兼容性~~ **已确认 mcpp 支持**（M0 用一个最小示例作为样板） | — |
+| V-07 | GCC 16 的 `-freflection` 在 `openmui-reflect` 里的稳定性 | M3 |
+
+[特色与管线](2026-10-27-openmui-features-plugins-pipeline-design.md) 提出了四个待决问题，都不阻塞当前的工作：
+
+| ID | 问题 | 什么时候决定 |
+|---|---|---|
+| Q-15 | 效果的 CPU 参考实现：Slang 的 CPU 目标，还是手写参考实现 | M4 之前做原型比较 |
+| Q-16 | 插件动态加载的 ABI 稳定性承诺；第三方效果插件是否需要进程级隔离 | M5 |
+| Q-17 | 管线描述只允许应用级配置，还是允许组件在子树里插入阶段 | M2（管线落地时） |
+| Q-18 | 多个液态玻璃元素的背景截断：按效果组合并，还是允许用上一帧的背景 | M4 |
+| Q-19 | ~~关闭动画期间让窗口输入透明，SDL3 没有接口~~ **已定**：不改 SDL 上游，在 SDL 宿主的原生单元里按平台实现（宿主报告能力，不支持时淡出后立即隐藏）；`mcpplibs.os` 只做系统层，不放窗口能力；上游缺口记在 issue #2（`upstream` 标签） | — |
+| Q-30 | gongfu 核心能否依赖 `openmui.math`（同样只依赖标准库），统一定点数和确定性函数？倾向允许，拆仓时一起（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §3） |
+| Q-31 | 表现物理的大系统：自写的 `mgame.physics`，还是引入 Box2D v3 / Jolt 作为可选后端？倾向先自写（[数学与人物技术](2026-10-29-math-fighter-tech-design.md) §7） |
+| Q-32 | ~~只有 GPU 版本的自定义效果~~ **已定**：默认要求 CPU 参考实现；只有 GPU 版本的允许，声明 `deterministic = false`、不参与像素固定（[通用动画](2026-11-01-openmui-universal-motion-design.md) §9） |
+| Q-33 | `openmui.player` 和三个脚本宿主（Lua、QuickJS-ng、PocketPy）能否都编译到 wasm、体积是否可接受——C2 前实测（[定位与官网](2026-11-01-openmui-positioning-site-design.md) §3） |
+| Q-34 | 官网首屏的最终预算：建议 4G 下可见 ≤ 1 s、可交互 ≤ 2.5 s（[性能分档](2026-11-01-openmui-performance-tiers-design.md) §7） |
+| Q-35 | ~~T0 的目标板子~~ **已定**：ESP32，首选 ESP32-S3，备选 ESP32-P4；宿主 `openmui.host.esp32`；C1 做工具链 spike（同上 §1）。**spike 的结果**：Xtensa 没有工具链，按备选先做 P4（RISC-V）；mcu 配置档缺完整标准库（[ESP32 spike](2026-11-01-openmui-esp32-spike.md)） |
+| Q-36 | ~~Safari 下本地连接的默认行为~~ **已定**：先直连，失败时 agent 改用 `omui connect --serve`（[agent 接入与回溯](2026-11-01-openmui-agent-connect-rewind-design.md) §8） |
+| Q-37 | 按 actor 回溯的依赖判断，第一版的规则是否够用（同上 §6） |
+| Q-38 | 官网的重型页面（实验室要带三个脚本宿主、影片要带全部场景）：Emscripten 动态链接，还是单独程序加页面跳转？C3 前由 wasm 体积分析定（[总体方案](2026-11-01-openmui-master-plan-design.md) §9）。**分析的建议**：单独程序、按需加载（[wasm 体积分析](2026-11-01-openmui-wasm-size-analysis.md) §4），待评审 |

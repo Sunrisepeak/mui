@@ -1,0 +1,2944 @@
+{
+  "format": "openmui.system-checkpoint@0.1",
+  "checkpoint": "S1",
+  "base_commit": "7b22704d7e490a4dea1ee64c3465b7ce5e012f03",
+  "status": "local-verification-passed",
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "scope": [
+    "Public umbrella and animation-first strict morph authoring using one Program/compiler/player.",
+    "Linux GCC16.1 dev/release independent consumers and unit regressions.",
+    "Emscripten6.0.9 wasm32 product import and playback smoke execution.",
+    "CPU reference visual region/retarget outputs; no GPU/browser/UI-adapter/full catalog acceptance."
+  ],
+  "authoring": {
+    "format": "hanim.public-authoring@0.2",
+    "ok": true,
+    "source_root": "/home/speak/workspace/mui",
+    "source_commit": "7b22704d7e490a4dea1ee64c3465b7ce5e012f03",
+    "project": "/tmp/hanim-api-probe-q1ef7api",
+    "source_lock_before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "commands": [
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 12.71687279100297,
+        "stdout": "/tmp/omui-public-authoring/report.omui-artifacts/bootstrap.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/report.omui-artifacts/bootstrap.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 0.16899367200676352,
+        "stdout": "/tmp/omui-public-authoring/report.omui-artifacts/dev.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/report.omui-artifacts/dev.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "dev",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.15566375700291246,
+        "stdout": "/tmp/omui-public-authoring/report.omui-artifacts/dev-metadata.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/report.omui-artifacts/dev-metadata.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit_code": 0,
+        "seconds": 17.193886112014297,
+        "stdout": "/tmp/omui-public-authoring/report.omui-artifacts/release.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/report.omui-artifacts/release.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "release",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.13809933996526524,
+        "stdout": "/tmp/omui-public-authoring/report.omui-artifacts/release-metadata.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/report.omui-artifacts/release-metadata.stderr.log"
+      }
+    ],
+    "profiles": [
+      {
+        "profile": "dev",
+        "result": {
+          "kind": "hanim.api-probe",
+          "ok": true,
+          "checks": [
+            {
+              "name": "registry_and_engine_created",
+              "ok": true
+            },
+            {
+              "name": "public_contours_created",
+              "ok": true
+            },
+            {
+              "name": "object_refs_created",
+              "ok": true
+            },
+            {
+              "name": "owned_snapshots_created",
+              "ok": true
+            },
+            {
+              "name": "description_construction_has_no_playback_or_object_side_effect",
+              "ok": true
+            },
+            {
+              "name": "fluent_values_reuse_without_mutating_recipe",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_succeeds",
+              "ok": true
+            },
+            {
+              "name": "prepare_does_not_start_clock",
+              "ok": true
+            },
+            {
+              "name": "convenient_play_uses_public_engine",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t0",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t015",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t030",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t045",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t060",
+              "ok": true
+            },
+            {
+              "name": "true_cubic_geometry_transform_effect_midpoint",
+              "ok": true
+            },
+            {
+              "name": "playback_never_writes_business_object",
+              "ok": true
+            },
+            {
+              "name": "release_convenient_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_play_succeeds",
+              "ok": true
+            },
+            {
+              "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+              "ok": true
+            },
+            {
+              "name": "occupied_source_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "release_prepared_instance",
+              "ok": true
+            },
+            {
+              "name": "released_handle_is_stale",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_prepares",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_samples",
+              "ok": true
+            },
+            {
+              "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+              "ok": true
+            },
+            {
+              "name": "release_layered_effects",
+              "ok": true
+            },
+            {
+              "name": "sequence_prepares_on_existing_compiler",
+              "ok": true
+            },
+            {
+              "name": "sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "sequence_boundary_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_segment_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_source_is_preceding_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_sequence",
+              "ok": true
+            },
+            {
+              "name": "nested_parallel_plays",
+              "ok": true
+            },
+            {
+              "name": "parallel_retains_two_tracks_three_segments",
+              "ok": true
+            },
+            {
+              "name": "multitrack_requires_explicit_frame_selection",
+              "ok": true
+            },
+            {
+              "name": "release_parallel",
+              "ok": true
+            },
+            {
+              "name": "stagger_prepares",
+              "ok": true
+            },
+            {
+              "name": "stagger_before_second_start",
+              "ok": true
+            },
+            {
+              "name": "stagger_holds_unstarted_track_source",
+              "ok": true
+            },
+            {
+              "name": "release_stagger",
+              "ok": true
+            },
+            {
+              "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+              "ok": true
+            },
+            {
+              "name": "invalid_snapshot_is_rejected",
+              "ok": true
+            },
+            {
+              "name": "same_object_overlap_is_not_silently_blended",
+              "ok": true
+            },
+            {
+              "name": "prepare_respects_node_budget",
+              "ok": true
+            },
+            {
+              "name": "convenient_prepare_respects_configured_limits",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "effect_validation_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "snapshot_stays_frozen_after_host_update",
+              "ok": true
+            },
+            {
+              "name": "host_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_plan_survives_destroyed_host_objects",
+              "ok": true
+            },
+            {
+              "name": "frozen_geometry_retains_owned_inputs",
+              "ok": true
+            },
+            {
+              "name": "release_frozen_snapshot_playback",
+              "ok": true
+            },
+            {
+              "name": "live_engine_objects_created",
+              "ok": true
+            },
+            {
+              "name": "object_ref_description_has_no_capture_or_play_side_effect",
+              "ok": true
+            },
+            {
+              "name": "live_source_updated_after_description",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepare_captures_current_revision",
+              "ok": true
+            },
+            {
+              "name": "standalone_compiler_requires_registry_for_live_inputs",
+              "ok": true
+            },
+            {
+              "name": "snapshot_recipe_prepares_without_engine_or_registry",
+              "ok": true
+            },
+            {
+              "name": "explicit_registry_rejects_foreign_live_ref",
+              "ok": true
+            },
+            {
+              "name": "live_source_accepts_frozen_external_target",
+              "ok": true
+            },
+            {
+              "name": "legacy_snapshot_program_composes_with_public_recipe",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "capture_is_deferred_until_prepare_not_description_creation",
+              "ok": true
+            },
+            {
+              "name": "release_live_convenient",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepared_play",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_and_prepared_equivalent",
+              "ok": true
+            },
+            {
+              "name": "release_live_prepared",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_uses_previous_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_live_sequence",
+              "ok": true
+            },
+            {
+              "name": "explicit_reset_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "explicit_source_mode_resets_to_captured_pose",
+              "ok": true
+            },
+            {
+              "name": "release_reset_sequence",
+              "ok": true
+            },
+            {
+              "name": "authoring_lowering_depth_is_bounded",
+              "ok": true
+            },
+            {
+              "name": "foreign_owner_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "live_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "stale_description_rejected_without_partial_playback",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_created",
+              "ok": true
+            },
+            {
+              "name": "destroyed_source_slot_was_reused_with_new_generation",
+              "ok": true
+            },
+            {
+              "name": "old_ref_does_not_rebind_after_slot_reuse",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_survives_object_destruction",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_keeps_owned_geometry",
+              "ok": true
+            },
+            {
+              "name": "all_playback_resources_released",
+              "ok": true
+            }
+          ]
+        },
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/tmp/hanim-api-probe-q1ef7api/src/main.cpp"
+        ],
+        "source_files_sha256": {
+          "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+          "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+          "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+          "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+          "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+          "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+          "modules/base/hanim/core/src/path.cpp": "6cec36356b6b51aa2562c0f518f325d0e1eda7546db86d0f18e164b1cd8ad369",
+          "modules/base/hanim/core/src/path.cppm": "b78cfae35234a6c4bc716d78d1e4e2402b2a881bf6dcf6ac262a5672b597e7a3",
+          "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+          "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+          "modules/base/hanim/core/src/shape.cpp": "d89cd6a16631a52dc11c2a9eb7cf6b08afe5834aeeba50f8f619188a2d7d6caf",
+          "modules/base/hanim/core/src/shape.cppm": "eb6fa36567db5d72e53935f0ceab8d6dfe9cac0903270fb490e564fdf9de64f1",
+          "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+          "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+          "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+          "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+          "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+          "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+          "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+          "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+          "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+          "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+          "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+          "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+          "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+          "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+          "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+          "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+          "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+          "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+          "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+          "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+          "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+          "modules/gfx/hanim/effect/src/effect.cpp": "a8ee5d32965ec21bc5ba45e840466dc36f13e47c7c9afc86d3147233990e3144",
+          "modules/gfx/hanim/effect/src/effect.cppm": "d29a63210bc6ed7623a3c68721527200b7c84590e6e93e0e650fa0581f12d033",
+          "modules/gfx/hanim/engine/src/engine.cpp": "594eeb639c9527715b4cbccb1cfe559718daa2318ed92f05ff5c2b28a35220f8",
+          "modules/gfx/hanim/engine/src/engine.cppm": "14793740166df0cc16f2ee7ac8c5521007c03c0b1e4f7909bb1ee3e0692d9cfd",
+          "modules/gfx/hanim/library/src/library.cpp": "ebdd007bce656df01879d7882ee3ffca33f1098b8e7ad489a7e6b2c02a0187c1",
+          "modules/gfx/hanim/library/src/library.cppm": "fd80bc8bab9acef5711960a5bebe8e4ac9b3f5239351fe0ceeb17bb994dfde96",
+          "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+          "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+          "modules/gfx/hanim/program/src/program.cpp": "2815d65c0f2dc1a26305f9d2fa54ba918791bf593daf143c7735f30686359b6d",
+          "modules/gfx/hanim/program/src/program.cppm": "8d746a9ff6aa7297cbd0b26643b617a36adea22ae431f15c23872281e7452599",
+          "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18"
+        },
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution": "/tmp/omui-public-authoring/report.omui-artifacts/dev.resolution.json",
+        "cdb": "/tmp/omui-public-authoring/report.omui-artifacts/dev.compile_commands.json"
+      },
+      {
+        "profile": "release",
+        "result": {
+          "kind": "hanim.api-probe",
+          "ok": true,
+          "checks": [
+            {
+              "name": "registry_and_engine_created",
+              "ok": true
+            },
+            {
+              "name": "public_contours_created",
+              "ok": true
+            },
+            {
+              "name": "object_refs_created",
+              "ok": true
+            },
+            {
+              "name": "owned_snapshots_created",
+              "ok": true
+            },
+            {
+              "name": "description_construction_has_no_playback_or_object_side_effect",
+              "ok": true
+            },
+            {
+              "name": "fluent_values_reuse_without_mutating_recipe",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_succeeds",
+              "ok": true
+            },
+            {
+              "name": "prepare_does_not_start_clock",
+              "ok": true
+            },
+            {
+              "name": "convenient_play_uses_public_engine",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t0",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t015",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t030",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t045",
+              "ok": true
+            },
+            {
+              "name": "convenient_pose_t060",
+              "ok": true
+            },
+            {
+              "name": "true_cubic_geometry_transform_effect_midpoint",
+              "ok": true
+            },
+            {
+              "name": "playback_never_writes_business_object",
+              "ok": true
+            },
+            {
+              "name": "release_convenient_instance",
+              "ok": true
+            },
+            {
+              "name": "prepared_play_succeeds",
+              "ok": true
+            },
+            {
+              "name": "convenient_and_explicit_prepare_identical_under_unordered_seek",
+              "ok": true
+            },
+            {
+              "name": "occupied_source_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "release_prepared_instance",
+              "ok": true
+            },
+            {
+              "name": "released_handle_is_stale",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_prepares",
+              "ok": true
+            },
+            {
+              "name": "ordered_effect_chain_samples",
+              "ok": true
+            },
+            {
+              "name": "leaf_effects_preserve_order_values_and_fluent_reuse",
+              "ok": true
+            },
+            {
+              "name": "release_layered_effects",
+              "ok": true
+            },
+            {
+              "name": "sequence_prepares_on_existing_compiler",
+              "ok": true
+            },
+            {
+              "name": "sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "sequence_boundary_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_segment_seek",
+              "ok": true
+            },
+            {
+              "name": "sequence_second_source_is_preceding_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_sequence",
+              "ok": true
+            },
+            {
+              "name": "nested_parallel_plays",
+              "ok": true
+            },
+            {
+              "name": "parallel_retains_two_tracks_three_segments",
+              "ok": true
+            },
+            {
+              "name": "multitrack_requires_explicit_frame_selection",
+              "ok": true
+            },
+            {
+              "name": "release_parallel",
+              "ok": true
+            },
+            {
+              "name": "stagger_prepares",
+              "ok": true
+            },
+            {
+              "name": "stagger_before_second_start",
+              "ok": true
+            },
+            {
+              "name": "stagger_holds_unstarted_track_source",
+              "ok": true
+            },
+            {
+              "name": "release_stagger",
+              "ok": true
+            },
+            {
+              "name": "invalid_duration_keeps_structured_program_error_and_no_playback",
+              "ok": true
+            },
+            {
+              "name": "invalid_snapshot_is_rejected",
+              "ok": true
+            },
+            {
+              "name": "same_object_overlap_is_not_silently_blended",
+              "ok": true
+            },
+            {
+              "name": "prepare_respects_node_budget",
+              "ok": true
+            },
+            {
+              "name": "convenient_prepare_respects_configured_limits",
+              "ok": true
+            },
+            {
+              "name": "explicit_prepare_uses_same_limits_as_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "effect_validation_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "snapshot_stays_frozen_after_host_update",
+              "ok": true
+            },
+            {
+              "name": "host_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_plan_survives_destroyed_host_objects",
+              "ok": true
+            },
+            {
+              "name": "frozen_geometry_retains_owned_inputs",
+              "ok": true
+            },
+            {
+              "name": "release_frozen_snapshot_playback",
+              "ok": true
+            },
+            {
+              "name": "live_engine_objects_created",
+              "ok": true
+            },
+            {
+              "name": "object_ref_description_has_no_capture_or_play_side_effect",
+              "ok": true
+            },
+            {
+              "name": "live_source_updated_after_description",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepare_captures_current_revision",
+              "ok": true
+            },
+            {
+              "name": "standalone_compiler_requires_registry_for_live_inputs",
+              "ok": true
+            },
+            {
+              "name": "snapshot_recipe_prepares_without_engine_or_registry",
+              "ok": true
+            },
+            {
+              "name": "explicit_registry_rejects_foreign_live_ref",
+              "ok": true
+            },
+            {
+              "name": "live_source_accepts_frozen_external_target",
+              "ok": true
+            },
+            {
+              "name": "legacy_snapshot_program_composes_with_public_recipe",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_play",
+              "ok": true
+            },
+            {
+              "name": "capture_is_deferred_until_prepare_not_description_creation",
+              "ok": true
+            },
+            {
+              "name": "release_live_convenient",
+              "ok": true
+            },
+            {
+              "name": "object_ref_prepared_play",
+              "ok": true
+            },
+            {
+              "name": "object_ref_convenient_and_prepared_equivalent",
+              "ok": true
+            },
+            {
+              "name": "release_live_prepared",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "object_ref_sequence_uses_previous_endpoint",
+              "ok": true
+            },
+            {
+              "name": "release_live_sequence",
+              "ok": true
+            },
+            {
+              "name": "explicit_reset_sequence_plays",
+              "ok": true
+            },
+            {
+              "name": "explicit_source_mode_resets_to_captured_pose",
+              "ok": true
+            },
+            {
+              "name": "release_reset_sequence",
+              "ok": true
+            },
+            {
+              "name": "authoring_lowering_depth_is_bounded",
+              "ok": true
+            },
+            {
+              "name": "foreign_owner_error_is_preserved",
+              "ok": true
+            },
+            {
+              "name": "live_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "stale_description_rejected_without_partial_playback",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_created",
+              "ok": true
+            },
+            {
+              "name": "destroyed_source_slot_was_reused_with_new_generation",
+              "ok": true
+            },
+            {
+              "name": "old_ref_does_not_rebind_after_slot_reuse",
+              "ok": true
+            },
+            {
+              "name": "new_generation_objects_destroyed",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_survives_object_destruction",
+              "ok": true
+            },
+            {
+              "name": "prepared_ref_plan_keeps_owned_geometry",
+              "ok": true
+            },
+            {
+              "name": "all_playback_resources_released",
+              "ok": true
+            }
+          ]
+        },
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/tmp/hanim-api-probe-q1ef7api/src/main.cpp"
+        ],
+        "source_files_sha256": {
+          "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+          "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+          "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+          "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+          "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+          "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+          "modules/base/hanim/core/src/path.cpp": "6cec36356b6b51aa2562c0f518f325d0e1eda7546db86d0f18e164b1cd8ad369",
+          "modules/base/hanim/core/src/path.cppm": "b78cfae35234a6c4bc716d78d1e4e2402b2a881bf6dcf6ac262a5672b597e7a3",
+          "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+          "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+          "modules/base/hanim/core/src/shape.cpp": "d89cd6a16631a52dc11c2a9eb7cf6b08afe5834aeeba50f8f619188a2d7d6caf",
+          "modules/base/hanim/core/src/shape.cppm": "eb6fa36567db5d72e53935f0ceab8d6dfe9cac0903270fb490e564fdf9de64f1",
+          "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+          "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+          "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+          "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+          "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+          "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+          "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+          "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+          "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+          "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+          "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+          "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+          "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+          "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+          "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+          "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+          "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+          "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+          "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+          "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+          "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+          "modules/gfx/hanim/effect/src/effect.cpp": "a8ee5d32965ec21bc5ba45e840466dc36f13e47c7c9afc86d3147233990e3144",
+          "modules/gfx/hanim/effect/src/effect.cppm": "d29a63210bc6ed7623a3c68721527200b7c84590e6e93e0e650fa0581f12d033",
+          "modules/gfx/hanim/engine/src/engine.cpp": "594eeb639c9527715b4cbccb1cfe559718daa2318ed92f05ff5c2b28a35220f8",
+          "modules/gfx/hanim/engine/src/engine.cppm": "14793740166df0cc16f2ee7ac8c5521007c03c0b1e4f7909bb1ee3e0692d9cfd",
+          "modules/gfx/hanim/library/src/library.cpp": "ebdd007bce656df01879d7882ee3ffca33f1098b8e7ad489a7e6b2c02a0187c1",
+          "modules/gfx/hanim/library/src/library.cppm": "fd80bc8bab9acef5711960a5bebe8e4ac9b3f5239351fe0ceeb17bb994dfde96",
+          "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+          "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+          "modules/gfx/hanim/program/src/program.cpp": "2815d65c0f2dc1a26305f9d2fa54ba918791bf593daf143c7735f30686359b6d",
+          "modules/gfx/hanim/program/src/program.cppm": "8d746a9ff6aa7297cbd0b26643b617a36adea22ae431f15c23872281e7452599",
+          "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18"
+        },
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        },
+        "resolution": "/tmp/omui-public-authoring/report.omui-artifacts/release.resolution.json",
+        "cdb": "/tmp/omui-public-authoring/report.omui-artifacts/release.compile_commands.json"
+      }
+    ],
+    "fixture_sha256": {
+      "mcpp.toml.in": "ee8de4e9d07e9ca05049da3cabd8f55cd650401728e16cc377d8e0f3da1a73ea",
+      "run.py": "dd4033d81d59c01cd8a09d17512e0d71a523ffe0541616d65df7b5294d1df46e",
+      "src/main.cpp": "8c34e86f92a168f3e099ad8a508efb56b1d3a6d99eb60a13f9875235bf3c5053"
+    },
+    "scope": [
+      "Public import hanim; no consumer facade or second compiler/player.",
+      "Real strict contour/transform/fill morph and parameter effects only.",
+      "ObjectRef uses borrowed Engine registry; external hosts use explicit Snapshot inputs.",
+      "No renderer, GPU, move/reveal, general effect scopes or Agent provider.",
+      "No hot-path performance/allocation or sanitizer claim."
+    ],
+    "temporary_lock_sha256": null,
+    "temporary_lock_present": false,
+    "source_lock_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "project_retained": true
+  },
+  "visual": {
+    "format": "hanim.independent-play-consumer@0.1",
+    "ok": true,
+    "project": "/tmp/hanim-public-play-consumer-5rtdhkas",
+    "fixture_sha256": "6a21036dd174aefe66056591f510d68f91d9b707675d0d25f6a1fdaf0bd21da5",
+    "source_lock_before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "raster_contract": {
+      "source": "/home/speak/workspace/mui/modules/gfx/render/vector/tests/shape_morph_test.cpp:95",
+      "source_sha256": "b924b6ab24eceedb744a3c3f4a7aba7a200f59d191452145bf61259cbadd5411",
+      "max_boundary_coverage_u8": 18,
+      "off_boundary_changes": 0,
+      "coverage_total_u8_budget": 8192,
+      "basis": "Existing 1/32-device-pixel flattening error per representation; independent exact subdivision may differ by 1/16 pixel. Boundary-only coverage tolerance; uniform interior/exterior exact."
+    },
+    "commands": [
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/bootstrap.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/bootstrap.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--time",
+          "0",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-start.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-start.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-start.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-middle.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-middle.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-middle.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--time",
+          "1",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-end.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-end.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-end.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "80,40,160,160",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-crop.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-crop.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-crop.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-retarget.png",
+          "--retarget"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-retarget.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-retarget.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev",
+          "--",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-invalid.png",
+          "--region",
+          "319,0,2,240"
+        ],
+        "exit_code": 2,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-invalid-region.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-invalid-region.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "dev",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-metadata.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-metadata.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--time",
+          "0",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-start.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-start.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-start.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-middle.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-middle.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-middle.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--time",
+          "1",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-end.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-end.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-end.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "80,40,160,160",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-crop.png"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-crop.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-crop.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--time",
+          "0.5",
+          "--region",
+          "0,0,320,240",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-retarget.png",
+          "--retarget"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-retarget.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-retarget.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release",
+          "--",
+          "--out",
+          "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-invalid.png",
+          "--region",
+          "319,0,2,240"
+        ],
+        "exit_code": 2,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-invalid-region.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-invalid-region.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "release",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "stdout": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-metadata.stdout.log",
+        "stderr": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-metadata.stderr.log"
+      }
+    ],
+    "profiles": [
+      {
+        "profile": "dev",
+        "runs": [
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-start.png",
+            "parts": 1,
+            "pixel_fnv1a": "e613ac5267363865",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 1819,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.0,
+            "sample_progress": 0.0,
+            "sample_time_seconds": 0.0,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 10512
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-middle.png",
+            "parts": 1,
+            "pixel_fnv1a": "4b1cb0ea4369212f",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 3887,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 13826
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-end.png",
+            "parts": 1,
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 8413,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 1.0,
+            "sample_progress": 1.0,
+            "sample_time_seconds": 1.0,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 17984
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-crop.png",
+            "parts": 1,
+            "pixel_fnv1a": "0e5623dc8de67daf",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 3271,
+            "region": {
+              "height": 160,
+              "width": 160,
+              "x": 80,
+              "y": 40
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 13826
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": true,
+              "retarget_coverage_max_u8": 3,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 184,
+              "retarget_from_seconds": 0.7,
+              "retarget_pixel_max_u8": 3,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 8,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev-retarget.png",
+            "parts": 1,
+            "pixel_fnv1a": "a04df51ecddc3c91",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 4414,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 2
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 12842
+          }
+        ],
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "nlohmann.json",
+          "openmui.geom",
+          "openmui.hash",
+          "openmui.image",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/png.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngerror.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngget.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngmem.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngpread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrio.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrtran.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngset.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngtrans.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwio.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwrite.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwtran.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/adler32.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/compress.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/crc32.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/deflate.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzclose.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzlib.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzwrite.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/infback.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inffast.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inflate.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inftrees.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/trees.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/uncompr.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/zutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/nlohmann-x-json/3.12.0/mcpp_generated/nlohmann.json.cppm",
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_cpu.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_csp.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_dsp.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_gamma.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/alpha_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/buffer_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/frame_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/idec_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/io_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/quant_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/tree_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/vp8_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/vp8l_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/webp_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/demux/anim_decode.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/demux/demux.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cpu.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_clip_tables.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/ssim.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/ssim_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/alpha_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/analysis_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/backward_references_cost_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/backward_references_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/config_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/cost_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/filter_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/frame_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/histogram_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/iterator_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/near_lossless_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_csp_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_psnr_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_rescale_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_tools_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/predictor_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/quant_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/syntax_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/token_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/tree_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/vp8l_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/webp_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/anim_encode.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxedit.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxinternal.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxread.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/bit_reader_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/bit_writer_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/color_cache_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/filters_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/huffman_encode_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/huffman_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/palette.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/quant_levels_dec_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/quant_levels_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/random_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/rescaler_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/thread_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/utils.c",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/abort.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/datagram.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/env.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/exec.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/memory.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/net.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/process.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/random.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/space.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/start.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/stream.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/task.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/time.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/timeout.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/version.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/abort.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/datagram.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/env.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/exec.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/fs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/memory.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/net.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/process.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/random.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/space.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/stream.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/task.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/terminal.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/time.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/timeout.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/types.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/version.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/arch/x86_64.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/dirs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/dirs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/env.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/env.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/error.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/error.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/fs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/interrupt.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/ipc.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/ipc.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/kal/interrupt.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/library.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/arch/x86_64.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/linux.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/machine.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/machine.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/macos.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/net.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/net.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/os.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/platform.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/exec.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/interrupt.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/library.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/posix.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/stdio.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/process.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/process.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/random.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/random.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/stdio.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/stdio.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/targets/linux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/terminal.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/windows.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/libpng.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/options.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/demux/demux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/demux/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/libwebp.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/mux/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/mux/mux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/sharpyuv.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/sharpyuv_inline.cpp",
+          "/home/speak/workspace/mui/modules/base/geom/src/geom.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/hash/src/hash.cpp",
+          "/home/speak/workspace/mui/modules/base/hash/src/hash.cppm",
+          "/home/speak/workspace/mui/modules/base/image/src/image.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/image.cppm",
+          "/home/speak/workspace/mui/modules/base/image/src/native/png.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/native/webp.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/normal.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/render/vector/src/vector.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/render/vector/src/vector.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/canvas.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/canvas.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/paint.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/paint.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/raster.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/rasterizer.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/rasterizer.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/stroke.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/stroke.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/surface.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/surface.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/graph.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/src/graph.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/pool.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/src/pool.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/render.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/cpu.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/cpu.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/damage.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/damage.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/display.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/display.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/effects.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/effects.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/generated/effect_template.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/gpu.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/gpu.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/paint_mix.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/paint_mix.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/resources.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/resources.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/shared.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/vector.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/commands.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/commands.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/device.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/device.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/rhi.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/types.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/types.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/wire.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/wire.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/src/main.cpp",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/blend_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/blur_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/chromatic_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/crt_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/displace_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/dissolve_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/liquid_glass_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/material_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/metaball_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/neon_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/noise_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/paper_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/particles_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/pixelate_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/quad_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/reveal_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/tone_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/ui_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/wipe_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/5ffd6c3b00114e4d/openmui.render.vector/openmui/shader/wobble_shaders.cppm"
+        ],
+        "resolution": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev.resolution.json",
+        "cdb": "/tmp/omui-public-authoring/visual.report.omui-artifacts/dev.compile_commands.json",
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        }
+      },
+      {
+        "profile": "release",
+        "runs": [
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-start.png",
+            "parts": 1,
+            "pixel_fnv1a": "e613ac5267363865",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 1819,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.0,
+            "sample_progress": 0.0,
+            "sample_time_seconds": 0.0,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 10512
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-middle.png",
+            "parts": 1,
+            "pixel_fnv1a": "4b1cb0ea4369212f",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 3887,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 13826
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-end.png",
+            "parts": 1,
+            "pixel_fnv1a": "d085e2e1f4dff977",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 8413,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 1.0,
+            "sample_progress": 1.0,
+            "sample_time_seconds": 1.0,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 17984
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": false,
+              "retarget_coverage_max_u8": 0,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 0,
+              "retarget_from_seconds": 0.0,
+              "retarget_pixel_max_u8": 0,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 6,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-crop.png",
+            "parts": 1,
+            "pixel_fnv1a": "0e5623dc8de67daf",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 3271,
+            "region": {
+              "height": 160,
+              "width": 160,
+              "x": 80,
+              "y": 40
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 13826
+          },
+          {
+            "backend": "cpu-reference",
+            "contours": 1,
+            "controls": {
+              "pause_holds": true,
+              "retarget": true,
+              "retarget_coverage_max_u8": 3,
+              "retarget_coverage_off_boundary": 0,
+              "retarget_coverage_total_u8": 184,
+              "retarget_from_seconds": 0.7,
+              "retarget_pixel_max_u8": 3,
+              "retarget_styled_off_boundary": 0,
+              "reverse_moves_backwards": true,
+              "seek": true
+            },
+            "crop_roundtrip_max_u8": 0,
+            "cubics": 8,
+            "duration_seconds": 1.0,
+            "effects": [
+              "blur",
+              "tone"
+            ],
+            "fixture": "triangle-circle",
+            "initial_target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 1
+            },
+            "kind": "hanim.play-consumer",
+            "ok": true,
+            "output": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release-retarget.png",
+            "parts": 1,
+            "pixel_fnv1a": "a04df51ecddc3c91",
+            "playback_rate": 1.0,
+            "playback_state": "paused",
+            "png_bytes": 4414,
+            "region": {
+              "height": 240,
+              "width": 320,
+              "x": 0,
+              "y": 0
+            },
+            "requested_time_seconds": 0.5,
+            "sample_progress": 0.5,
+            "sample_time_seconds": 0.5,
+            "source": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 0
+            },
+            "target": {
+              "generation": 1,
+              "owner": 1,
+              "slot": 2
+            },
+            "viewport": {
+              "height": 240,
+              "width": 320
+            },
+            "visible_pixels": 12842
+          }
+        ],
+        "packages": [
+          "compat.libpng",
+          "compat.libwebp",
+          "compat.zlib",
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.render.vector",
+          "hanim.validation.play_consumer",
+          "mcpplibs.hanim",
+          "mcpplibs.mwrap.libpng",
+          "mcpplibs.mwrap.libwebp",
+          "mcpplibs.openkal",
+          "mcpplibs.openkal-linux",
+          "mcpplibs.os",
+          "nlohmann.json",
+          "openmui.geom",
+          "openmui.hash",
+          "openmui.image",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.raster",
+          "openmui.render",
+          "openmui.render.vector",
+          "openmui.rhi",
+          "openmui.shader",
+          "openmui.shader.rules",
+          "openmui.trace"
+        ],
+        "compiled_sources": [
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/png.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngerror.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngget.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngmem.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngpread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrio.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrtran.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngrutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngset.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngtrans.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwio.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwrite.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwtran.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-libpng/1.6.43/libpng-1.6.43/pngwutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/adler32.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/compress.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/crc32.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/deflate.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzclose.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzlib.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzread.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/gzwrite.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/infback.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inffast.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inflate.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/inftrees.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/trees.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/uncompr.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/compat-x-zlib/1.3.2/zlib-1.3.2/zutil.c",
+          "/home/speak/.mcpp/registry/data/xpkgs/nlohmann-x-json/3.12.0/mcpp_generated/nlohmann.json.cppm",
+          "/home/speak/.mcpp/registry/data/xpkgs/xim-x-gcc/16.1.0/include/c++/16.1.0/bits/std.cc",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_cpu.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_csp.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_dsp.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_gamma.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/sharpyuv/sharpyuv_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/alpha_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/buffer_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/frame_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/idec_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/io_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/quant_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/tree_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/vp8_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/vp8l_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dec/webp_dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/demux/anim_decode.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/demux/demux.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/alpha_processing_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cost_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/cpu.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_clip_tables.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/dec_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/enc_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/filters_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_enc_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/lossless_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/rescaler_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/ssim.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/ssim_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_msa.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/upsampling_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_mips32.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_mips_dsp_r2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_neon.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_sse2.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/dsp/yuv_sse41.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/alpha_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/analysis_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/backward_references_cost_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/backward_references_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/config_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/cost_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/filter_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/frame_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/histogram_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/iterator_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/near_lossless_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_csp_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_psnr_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_rescale_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/picture_tools_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/predictor_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/quant_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/syntax_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/token_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/tree_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/vp8l_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/enc/webp_enc.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/anim_encode.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxedit.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxinternal.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/mux/muxread.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/bit_reader_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/bit_writer_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/color_cache_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/filters_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/huffman_encode_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/huffman_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/palette.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/quant_levels_dec_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/quant_levels_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/random_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/rescaler_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/thread_utils.c",
+          "/home/speak/.mcpp/xpkgs/compat-x-libwebp/1.5.0/libwebp-1.5.0/src/utils/utils.c",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/abort.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/datagram.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/env.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/exec.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/memory.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/net.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/process.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/random.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/space.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/start.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/stream.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/task.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/time.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/timeout.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal-linux/0.18.2/openkal-linux-0.18.2/src/version.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/abort.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/datagram.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/env.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/exec.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/fs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/memory.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/net.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/process.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/random.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/space.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/stream.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/task.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/terminal.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/time.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/timeout.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/types.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-openkal/0.17.1/openkal-0.17.1/src/version.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/arch/x86_64.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/dirs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/dirs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/env.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/env.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/error.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/error.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/fs.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/interrupt.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/ipc.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/ipc.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/kal/interrupt.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/library.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/arch/x86_64.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/linux.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/linux/machine.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/machine.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/macos.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/net.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/net.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/os.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/platform.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/exec.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/fs.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/interrupt.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/library.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/posix.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/stdio.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/posix/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/process.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/process.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/random.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/random.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/stdio.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/stdio.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/targets/linux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/terminal.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/terminal.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs-x-os/0.2.2/os-0.2.2/src/windows.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/libpng.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libpng/1.6.43/libpng-m-1.6.43/src/options.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/demux/demux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/demux/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/libwebp.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/macros.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/mux/inline.cpp",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/mux/mux.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/sharpyuv.cppm",
+          "/home/speak/.mcpp/xpkgs/mcpplibs.mwrap-x-libwebp/1.5.0/libwebp-m-1.5.0/src/sharpyuv_inline.cpp",
+          "/home/speak/workspace/mui/modules/base/geom/src/geom.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/core.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/ease.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/motion.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/path.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/set.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/shape.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/time.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/timeline.cppm",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cpp",
+          "/home/speak/workspace/mui/modules/base/hanim/core/src/value.cppm",
+          "/home/speak/workspace/mui/modules/base/hash/src/hash.cpp",
+          "/home/speak/workspace/mui/modules/base/hash/src/hash.cppm",
+          "/home/speak/workspace/mui/modules/base/image/src/image.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/image.cppm",
+          "/home/speak/workspace/mui/modules/base/image/src/native/png.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/native/webp.cpp",
+          "/home/speak/workspace/mui/modules/base/image/src/normal.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cpp",
+          "/home/speak/workspace/mui/modules/base/log/src/log.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/color.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cpp",
+          "/home/speak/workspace/mui/modules/base/math/src/det.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/math.cppm",
+          "/home/speak/workspace/mui/modules/base/math/src/random.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cpp",
+          "/home/speak/workspace/mui/modules/base/memory/src/arena.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/function.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/handle.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/memory.cppm",
+          "/home/speak/workspace/mui/modules/base/memory/src/slots.cppm",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cpp",
+          "/home/speak/workspace/mui/modules/base/trace/src/trace.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/effect/src/effect.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/engine/src/engine.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/library/src/library.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/object/src/object.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/program/src/program.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/render/vector/src/vector.cpp",
+          "/home/speak/workspace/mui/modules/gfx/hanim/render/vector/src/vector.cppm",
+          "/home/speak/workspace/mui/modules/gfx/hanim/src/hanim.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/canvas.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/canvas.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/paint.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/paint.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/raster.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/rasterizer.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/rasterizer.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/stroke.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/stroke.cppm",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/surface.cpp",
+          "/home/speak/workspace/mui/modules/gfx/raster/src/surface.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/graph.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/src/graph.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/pool.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/src/pool.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/src/render.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/cpu.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/cpu.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/damage.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/damage.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/display.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/display.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/effects.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/effects.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/generated/effect_template.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/gpu.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/gpu.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/paint_mix.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/paint_mix.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/resources.cpp",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/resources.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/shared.cppm",
+          "/home/speak/workspace/mui/modules/gfx/render/vector/src/vector.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/commands.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/commands.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/device.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/device.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/rhi.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/types.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/types.cppm",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/wire.cpp",
+          "/home/speak/workspace/mui/modules/gfx/rhi/src/wire.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/src/main.cpp",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/blend_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/blur_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/chromatic_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/crt_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/displace_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/dissolve_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/liquid_glass_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/material_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/metaball_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/neon_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/noise_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/paper_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/particles_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/pixelate_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/quad_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/reveal_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/tone_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/ui_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/wipe_shaders.cppm",
+          "/tmp/hanim-public-play-consumer-5rtdhkas/target/.build-mcpp/out/addbc821b64dff6f/openmui.render.vector/openmui/shader/wobble_shaders.cppm"
+        ],
+        "resolution": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release.resolution.json",
+        "cdb": "/tmp/omui-public-authoring/visual.report.omui-artifacts/release.compile_commands.json",
+        "toolchain": {
+          "abi": "glibc",
+          "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+          "stdlib": "libstdc++",
+          "triple": "x86_64-linux-gnu"
+        }
+      }
+    ],
+    "limits": [
+      "Fixed triangle/circle/diamond fixture; not a general asset editor or complete Engine acceptance.",
+      "CPU reference pixels only; no GUI, window, physical GPU performance or Agent provider claim.",
+      "No sanitizer claim: this gate runs dev and release."
+    ],
+    "temporary_lock_sha256": "3b6218fc717145b9a777e3efda251249e8709b6db09d0f3912b4cc040aebc02f",
+    "source_lock_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "project_retained": true
+  },
+  "unit_tests": [
+    {
+      "profile": "dev",
+      "suites": [
+        {
+          "suite": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.program",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.engine",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.engine.visual",
+          "passed": 2,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-hanim-public-dev-tests.log",
+      "log_sha256": "08ea0444eeb3ead2410e3fe502a5c4cc9e9f786063678720d29b9baa4a033eef"
+    },
+    {
+      "profile": "release",
+      "suites": [
+        {
+          "suite": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.program",
+          "passed": 15,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.engine",
+          "passed": 20,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.engine.visual",
+          "passed": 2,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-hanim-public-release-tests.log",
+      "log_sha256": "7d431ebfdfa0de8ce63938c3ddbad97b5529e089d1691032fca83e86c2102f28"
+    },
+    {
+      "profile": "web",
+      "suites": [
+        {
+          "suite": "hanim.compatibility",
+          "passed": 3,
+          "failed": 0
+        }
+      ],
+      "log": "/tmp/omui-hanim-public-web-tests.log",
+      "log_sha256": "2baf6c88b1fb2198927da70bf676d73a67eca62e5ac452f64b931eae117a2b56"
+    }
+  ],
+  "wasm_toolchain": {
+    "abi": "libc++",
+    "spec": "clang 6.0.9 (wasm32-emscripten)",
+    "stdlib": "libc++",
+    "triple": "wasm32-emscripten"
+  },
+  "unit_source_sha256": {
+    "modules/gfx/hanim/effect/tests/effect_test.cpp": "15a357e23d3ec18340a4be9559c2e4c62f46299778ce008f3a74929f0d88205c",
+    "modules/gfx/hanim/engine/tests/engine_test.cpp": "594756e481e8cffe865f568819981769b271209b6575c887ebbab255613f1c47",
+    "modules/gfx/hanim/engine/tests/visual_test.cpp": "9cd82c3185d919caf8c9fac7e8392314c1dd3c2cd387651882d8c78213e78319",
+    "modules/gfx/hanim/library/tests/morph_test.cpp": "bbdd4b5eeeec1acad419a06aab6456096b83887ab7aee217df233796032f3e75",
+    "modules/gfx/hanim/object/tests/consumer_test.cpp": "f0af013c70a86170140f8ba78bdf9fce5dfd6d477b42fb3091ab87fc66cdb5e9",
+    "modules/gfx/hanim/object/tests/object_test.cpp": "aa8cacdb4762abd3770827e7a9cd4641345c3980c5630f26ac81faee28791db7",
+    "modules/gfx/hanim/object/tests/query_allocation_test.cpp": "0c21ef14f90aa75323d19eb475f39ea26d24c7fe6ec39b9bc8ec67f27a2d8ac2",
+    "modules/gfx/hanim/program/tests/program_test.cpp": "61333e6a5827f57c30337018a64ca7822cc253f8952e2414122bf71555932d09",
+    "modules/gfx/hanim/render/vector/tests/vector_test.cpp": "ad8b82495014eb136621b7e42719724e4d2de41215b079c810a20d3b21fc5e35",
+    "modules/gfx/hanim/tests/compatibility_test.cpp": "d422b5efe5b8f7009ccddbda49ff461a5a575a06b6d5dce8b661e3a0a840c692"
+  },
+  "visual_source_sha256": {
+    "tools/ci/hanim-play-consumer/src/main.cpp": "6a21036dd174aefe66056591f510d68f91d9b707675d0d25f6a1fdaf0bd21da5"
+  },
+  "visual_hashes_by_profile": {
+    "dev": [
+      {
+        "time": 0.0,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "e613ac5267363865"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "4b1cb0ea4369212f"
+      },
+      {
+        "time": 1.0,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "d085e2e1f4dff977"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 160,
+          "width": 160,
+          "x": 80,
+          "y": 40
+        },
+        "hash": "0e5623dc8de67daf"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "a04df51ecddc3c91"
+      }
+    ],
+    "release": [
+      {
+        "time": 0.0,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "e613ac5267363865"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "4b1cb0ea4369212f"
+      },
+      {
+        "time": 1.0,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "d085e2e1f4dff977"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 160,
+          "width": 160,
+          "x": 80,
+          "y": 40
+        },
+        "hash": "0e5623dc8de67daf"
+      },
+      {
+        "time": 0.5,
+        "region": {
+          "height": 240,
+          "width": 320,
+          "x": 0,
+          "y": 0
+        },
+        "hash": "a04df51ecddc3c91"
+      }
+    ]
+  }
+}

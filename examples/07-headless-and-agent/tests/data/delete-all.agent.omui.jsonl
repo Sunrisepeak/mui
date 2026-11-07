@@ -1,0 +1,11 @@
+{"op":"describe","expect":{"exit":0}}
+{"op":"find","q":{"role":"button","name":"Delete*"},"expect":{"exit":0,"nodes":1}}
+{"op":"snapshot","root":"main/list","expect":{"exit":0,"nodes":2}}
+{"op":"act","node":"main/compose/draft","action":"set_value","args":{"value":"Write the report"},"actor":"agent:helper","expect":{"exit":0}}
+{"op":"act","node":"main/compose/add","action":"activate","actor":"agent:helper","expect":{"exit":0}}
+{"op":"wait","q":{"name":"3 notes"},"timeout":2,"expect":{"exit":0}}
+{"op":"act","node":"main/delete-all","action":"activate","actor":"agent:cleaner;via=person:alice","expect":{"exit":2,"code":"needs-answer"}}
+{"op":"find","q":{"name":"3 notes"},"expect":{"exit":0,"nodes":1}}
+{"op":"act","node":"main/delete-all","action":"activate","answer":"delete","actor":"agent:cleaner;via=person:alice","expect":{"exit":0}}
+{"op":"wait","q":{"name":"0 notes"},"settled":true,"timeout":2,"expect":{"exit":0}}
+{"op":"act","node":"main/nothing","action":"activate","expect":{"exit":1,"code":"not-found"}}

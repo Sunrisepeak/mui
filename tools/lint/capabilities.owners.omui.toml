@@ -1,0 +1,75 @@
+# Each capability's one owner (convergence plan §5.3 ①): lint `owner` refuses
+# its signature anywhere else — the owner implements it, everyone else
+# imports it. A capability gains a row here when it gains an owner.
+#
+#   owner     the package that has it, and `use`: what to call instead
+#   paths     the owner's files (its sources and tests), where the signature belongs
+#   allow     others that keep their own, each with why
+#   pattern   a regular expression a line of a re-implementation matches, or
+#   together  expressions that all match within `window` lines (a shape)
+#   within    where the rule looks (every source when absent)
+#   skip      path parts the rule does not look in (tests, generated code)
+#   marker    a line carrying it is allowed (its reason written beside it)
+#   sample    a violation the lint's self-test plants and must catch
+
+[[capability]]
+name    = "fnv1a"
+owner   = "mlibs.hash"
+use     = "mlibs::hash::Fnv1a, fnv1a, fnv1a32"
+paths   = ["modules/base/utils/src/hash/", "modules/base/utils/tests/hash/"]
+allow   = [{ path = "modules/projects/gongfu/src/", why = "gongfu's core takes the standard library alone (D-82)" }]
+# The offset bases and primes, 64- and 32-bit, in hex and decimal (and the
+# 64-bit basis with its last digit lost, as copies had it).
+pattern = '0x100000001b3|0xcbf29ce484222325|\b1469598103934665603[0-9]?|\b1099511628211\b|\b16777619u?\b|\b2166136261u?\b'
+ignore_case = true
+sample  = { path = "modules/ui/core/src/h.cpp", text = "std::uint64_t h = 0xcbf29ce484222325ull;" }
+
+[[capability]]
+name    = "splitmix64-fdlibm"
+owner   = "mlibs.math"
+use     = "math::mix64, SplitMix64, det::"
+paths   = ["modules/base/math/"]
+# splitmix64's finaliser and fdlibm's exp/log constants (D-87).
+pattern = '0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01'
+ignore_case = true
+sample  = { path = "modules/ui/core/src/m.cpp", text = "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;" }
+
+[[capability]]
+name    = "flicks"
+owner   = "mlibs.time"
+use     = "mlibs::time::Flicks, flicks_per_second, Rate (D-110)"
+paths   = ["modules/base/utils/src/time/", "modules/base/utils/tests/time/"]
+pattern = "\\b705'?600'?000\\b"
+sample  = { path = "modules/ui/core/src/f.cpp", text = "using Flicks = std::int64_t; inline constexpr Flicks per_second = 705'600'000;" }
+
+[[capability]]
+name    = "oklab"
+owner   = "hanim.core"
+use     = "hanim::to_oklab, from_oklab, linear_to_oklab, oklab_to_linear"
+paths   = ["modules/projects/hanim/core/"]
+# Ottosson's linear-sRGB → LMS matrix, its first row.
+pattern = '0\.4122214708|0\.5363325363'
+sample  = { path = "modules/ui/core/src/c.cpp", text = "const double l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;" }
+
+[[capability]]
+name     = "handle"
+owner    = "mlibs.memory"
+use      = "mlibs::memory::Handle<Tag> (index, generation) or OwnedHandle<Tag> (owner, slot, generation), with the domain's tag (D-107)"
+paths    = ["modules/base/memory/"]
+# A struct of an index (or an owner) and a generation: the handle's shape.
+together = ['\bstd::uint(32|64)_t\s+(index|owner)\b', '\bstd::uint(32|64)_t\s+generation\b']
+window   = 3
+skip     = ["tests"]
+sample   = { path = "modules/ui/core/src/r.cppm", text = "struct Ref {\n    std::uint32_t index = 0;\n    std::uint32_t generation = 0;\n};" }
+
+[[capability]]
+name    = "motion"
+owner   = "hanim (through a node's motion slots and a style's motion rules)"
+use     = "the `motion` property and a style's motion rules: a component draws its state (universal motion, D-93)"
+paths   = []
+within  = ["modules/projects/omui/components/"]
+skip    = ["tests", "generated"]
+marker  = "MOTION-OK:"
+# A component animating itself.
+pattern = '\banimations\(\)|\bengine\(\)\s*\.\s*(drive|play)\b|\bspring_to\s*\(|\btween_to\s*\(|\.transition\("motion\.|\bTransition::(tween|spring_with)\b|\bhanim::(Spring|Tween|Track|Set|Oscillator)\b|\bGlyphMotion::|\bparts::Motion\b'
+sample  = { path = "modules/projects/omui/components/base/src/t.cpp", text = "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }" }

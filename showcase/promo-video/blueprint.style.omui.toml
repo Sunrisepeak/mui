@@ -1,0 +1,32 @@
+# Blueprint: the film's own look — an engineering drawing at night. Deep
+# navy paper, fine cyan lines, one accent (cyan), every surface a drawn
+# outline. The film shows its scenes in it, and the style workshop
+# switches back to it after the five packs.
+[style.blueprint]
+doc       = "An engineering drawing at night: navy paper, cyan lines, one accent."
+theme     = "dark"
+crossfade = 0.25
+
+[style.blueprint.colors]
+background      = "#06122a"
+surface         = "#0a1b38"
+surface_variant = "#0f2549"
+surface_pressed = "#173462"
+border          = "#2b6aa3"
+border_strong   = "#4f8fc7"
+text            = "#e6f4ff"
+text_muted      = "#8fb3d6"
+text_disabled   = "#4c6c8f"
+accent          = "#22d3ee"
+accent_hover    = "#67e8f9"
+accent_pressed  = "#0891b2"
+on_accent       = "#03121f"
+accent_subtle   = "#0d3b55"
+focus           = "#22d3ee / 0.55"
+danger          = "#fb7185"
+on_danger       = "#1f0610"
+success         = "#34d399"
+warning         = "#fbbf24"
+selection       = "#22d3ee / 0.25"
+track           = "#16365e"
+thumb           = "#e6f4ff"

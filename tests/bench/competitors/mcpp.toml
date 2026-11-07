@@ -1,0 +1,38 @@
+# omui.bench.competitors — our side of the comparisons with the best of each
+# field, beside theirs (js/: pinned in package.json). Programs of their own,
+# apart from omui.bench, because omui.bench's dependencies do not all run on
+# the Web and these must: the Web's comparison runs in the same JavaScript
+# engine as the competitor.
+#
+#   tests/bench/competitors/run.sh       everything, three runs each
+[package]
+namespace   = "omui"
+name        = "bench.competitors"
+version     = "0.1.0"
+description = "omui's side of the competitor benchmarks: hanim's motion and xrender's vector raster, native and on the Web"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.omui-bench-motion]
+kind = "bin"
+main = "src/motion.cpp"
+
+[targets.omui-bench-vector]
+kind = "bin"
+main = "src/vector.cpp"
+
+[dependencies]
+"hanim.core" = { path = "../../../modules/projects/hanim/core" }
+"hanim" = { path = "../../../modules/projects/hanim" }
+# A workspace build unifies hanim's features across its users (render-vector,
+# control) but drops those features' own dependencies here (mcpp#897, red
+# list 22): named directly so this program links in it too.
+mlibs.control = { path = "../../../modules/base/control" }
+xrender.vector = { path = "../../../modules/projects/xrender/vector" }
+xrender.raster = { path = "../../../modules/projects/xrender/raster" }
+mlibs.geom = { path = "../../../modules/base/geom" }
+mlibs.math = { path = "../../../modules/base/math" }
+mlibs.image = { path = "../../../modules/base/image" }

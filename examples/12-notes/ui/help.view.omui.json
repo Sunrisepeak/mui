@@ -1,0 +1,15 @@
+{
+  "omui": "0.1",
+  "view": {
+    "root": {
+      "type": "column",
+      "props": {"gap": 4, "padding": 12, "background": "surface_variant", "radius": "medium"},
+      "children": [
+        {"type": "text", "props": {"text": "How it works", "style": "label"}},
+        {"type": "text", "props": {"text": "Search ranks titles and text as you type (fuzzy, in C++).", "style": "caption"}},
+        {"type": "text", "props": {"text": "Today and Task are Lua macros; tick a task in the preview.", "style": "caption"}},
+        {"type": "text", "props": {"text": "This panel is a view document the player reloads on save.", "style": "caption"}}
+      ]
+    }
+  }
+}

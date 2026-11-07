@@ -1,0 +1,14 @@
+# A theme of your own, over openmui's light theme: change what you need, the
+# rest is light's. Compose it with overlays: omui.theme("brand", "compact").
+[theme.brand]
+doc     = "Brand: a teal accent and rounder corners."
+extends = "light"
+
+[theme.brand.colors]
+accent         = "#0f766e"
+accent_hover   = "#115e59"
+accent_pressed = "#134e4a"
+accent_subtle  = "#ccfbf1"
+
+[theme.brand.radius]
+medium = 12

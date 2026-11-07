@@ -1,0 +1,55 @@
+# 《组件打砖块：闹鬼的设置》 (S4, D-50; mgame S4 design §8): the Settings panel
+# is haunted, and every control works — a breakout whose bricks are real
+# openmui components (switches that rewire the room, sliders that charge and
+# fire, a core to shut down), placed by openmui's layout and read into the
+# simulation; a run of five rooms, chains banked as sparks that pay for
+# rewinds, contraptions between rooms whose scripts you can open; an agent
+# plays it through the field's actions, and the inspector shows the rest.
+[package]
+namespace   = "omui.showcase"
+name        = "widget_breakout"
+version     = "0.1.0"
+description = "A breakout over a haunted Settings panel of real openmui components: circuits, capacitors, a core; rewindable for sparks, played by a person or an agent"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind      = "showcase"
+contracts = ["contract/*.contract.omui.toml"]
+
+[targets.openmui-showcase-widget-breakout]
+kind = "lib"
+
+[targets.omui-breakout]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+# Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
+mlibs.math = { path = "../../modules/base/math" }
+mlibs.utils = { path = "../../modules/base/utils" }
+omui.sdk = { path = "../../modules/projects/omui/sdk" }
+"omui.showcase.widget_breakout.sim" = { path = "sim" }
+xengine.input = { path = "../../modules/projects/xengine/input" }
+xengine.ui    = { path = "../../modules/projects/xengine/ui" }
+"omui.theme" = { path = "../../modules/projects/omui/theme" }
+"omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
+omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
+"xengine.audio" = { path = "../../modules/projects/xengine/audio" }
+omui.abi = { path = "../../modules/projects/omui/abi" }
+"omui.lang" = { path = "../../modules/projects/omui/lang" }
+"omui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
+"omui.lang.lua" = { path = "../../modules/projects/omui/lang/lua" }
+"omui.lang.python.embedded" = { path = "../../modules/projects/omui/lang/python/embedded" }
+"xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
+
+[build-dependencies]
+omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
+omui.build.embed     = { path = "../../mcpp/embed", host-module = true }
+omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
+
+[dev-dependencies]

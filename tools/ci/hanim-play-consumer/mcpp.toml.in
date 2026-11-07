@@ -1,0 +1,24 @@
+# Materialized into a fresh external project; no parent workspace or lock.
+[package]
+namespace = "hanim.validation"
+name = "play_consumer"
+version = "0.1.0"
+license = "Apache-2.0"
+
+[targets.hanim-play-consumer]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+hanim = { path = {{engine_path}}, features = ["render-vector", "control"] }
+xrender.raster = { path = {{raster_path}} }
+mlibs.image = { path = {{image_path}} }
+mlibs.utils = { path = {{utils_path}} }
+mlibs.control = { path = {{control_path}} }
+openlifa.openas = "0.2.0"
+mcpplibs.os = "0.2.2"
+nlohmann.json = "3.12.0"

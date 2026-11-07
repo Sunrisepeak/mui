@@ -1,0 +1,1253 @@
+{
+  "format": "omui.simulation-namespace-checkpoint@0.1",
+  "ok": true,
+  "recorded_utc": "2026-11-05T06:31:18.829793+00:00",
+  "base_commit": "9893ab9fa147daa7979a12e21333c3264497933a",
+  "scope": "Simulation ownership, removal of the empty mgame.sim package, source/archive compatibility, native/Web and headless process regression.",
+  "workspace_members": 122,
+  "removed_manifests": [
+    "mgame/sim/mcpp.toml"
+  ],
+  "migrated_packages": [
+    "xengine.simulation",
+    "xengine.simulation.cellular",
+    "xengine.simulation.cellular.rhi",
+    "xengine.simulation.cellular.rhi.cts"
+  ],
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "tests": [
+    {
+      "selection": "base-dev",
+      "programs": 5,
+      "cases": 38,
+      "suites": [
+        {
+          "name": "mgame.sim",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation.cellular",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "mgame.ui",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "breakout.sim",
+          "passed": 26,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-base-dev.log",
+        "sha256": "169280044b7972c6522c91e05b6bc73c1f8ce3c5e725309aa8f9a114ebdfefb9"
+      }
+    },
+    {
+      "selection": "base-release",
+      "programs": 5,
+      "cases": 38,
+      "suites": [
+        {
+          "name": "mgame.sim",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation.cellular",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "mgame.ui",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "breakout.sim",
+          "passed": 26,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-base-release.log",
+        "sha256": "18f66df84e5ce1424d723e1a059df8a0c90c8981d58909d2262456d5c1905e65"
+      }
+    },
+    {
+      "selection": "base-wasm",
+      "programs": 4,
+      "cases": 36,
+      "suites": [
+        {
+          "name": "mgame.sim",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "simulation.cellular",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "breakout.sim",
+          "passed": 26,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-base-wasm.log",
+        "sha256": "3f8fffd1ec74ff9ded4af5e61abd235a4e4e4d0ff1792ec4b96ec755e17bbb9e"
+      }
+    },
+    {
+      "selection": "gpu-dev-pinned",
+      "programs": 2,
+      "cases": 10,
+      "suites": [
+        {
+          "name": "rhi.sdl-lifetime-probe",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi.sdl",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-gpu-dev-pinned.log",
+        "sha256": "4eab596d67d9074b13b99a8d379a228075bfc4fbaf522dd410493312eb251c26"
+      }
+    },
+    {
+      "selection": "gpu-release-pinned",
+      "programs": 2,
+      "cases": 10,
+      "suites": [
+        {
+          "name": "rhi.sdl-lifetime-probe",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "name": "rhi.sdl",
+          "passed": 6,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-gpu-release-pinned.log",
+        "sha256": "26a3d9f8aecbd282429f88b12317a9d4989c4e89989cd96cdb87bbd0a30960c7"
+      }
+    },
+    {
+      "selection": "ui-dev",
+      "programs": 22,
+      "cases": 138,
+      "suites": [
+        {
+          "name": "inspector",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "inspector.cellular",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "name": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "name": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "name": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "name": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "name": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "name": "site.reactions",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "name": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "name": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ],
+      "log": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-ui-dev.log",
+        "sha256": "8db336fae49ab0ea7771a2fd0425c50867fba5f473d586e30e54cf806e9d6b61"
+      }
+    }
+  ],
+  "normalization": [
+    {
+      "old": "modules/base/simulation/src/simulation.cppm",
+      "new": "modules/base/simulation/src/api.cppm",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/base/simulation/src/clock.cpp",
+      "new": "modules/base/simulation/src/clock.cpp",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/base/simulation/cellular/src/cellular.cppm",
+      "new": "modules/base/simulation/cellular/src/api.cppm",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/base/simulation/cellular/src/cellular.cpp",
+      "new": "modules/base/simulation/cellular/src/cellular.cpp",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/gfx/simulation/cellular/rhi/src/rhi.cppm",
+      "new": "modules/gfx/simulation/cellular/rhi/src/api.cppm",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/gfx/simulation/cellular/rhi/src/rhi.cpp",
+      "new": "modules/gfx/simulation/cellular/rhi/src/rhi.cpp",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/gfx/simulation/cellular/rhi/cts/src/cts.cppm",
+      "new": "modules/gfx/simulation/cellular/rhi/cts/src/api.cppm",
+      "identity_only_equal": true
+    },
+    {
+      "old": "modules/gfx/simulation/cellular/rhi/cts/src/cts.cpp",
+      "new": "modules/gfx/simulation/cellular/rhi/cts/src/cts.cpp",
+      "identity_only_equal": true
+    }
+  ],
+  "dependency_boundaries": {
+    "xengine.simulation": [
+      "mlibs.log",
+      "mlibs.trace",
+      "xengine.simulation"
+    ],
+    "xengine.simulation.cellular": [
+      "mlibs.log",
+      "mlibs.trace",
+      "xengine.simulation.cellular"
+    ],
+    "xengine.simulation.cellular.rhi": [
+      "mlibs.hash",
+      "mlibs.log",
+      "mlibs.memory",
+      "mlibs.rhi",
+      "mlibs.trace",
+      "xengine.simulation.cellular",
+      "xengine.simulation.cellular.rhi"
+    ],
+    "xengine.simulation.cellular.rhi.cts": [
+      "mlibs.hash",
+      "mlibs.log",
+      "mlibs.memory",
+      "mlibs.rhi",
+      "mlibs.trace",
+      "xengine.simulation.cellular",
+      "xengine.simulation.cellular.rhi",
+      "xengine.simulation.cellular.rhi.cts"
+    ]
+  },
+  "foundation": {
+    "report": {
+      "path": "target/namespace-simulation-consumers/report.omui.json",
+      "sha256": "e1cd850ebfec61479e845adb88840765118010da198a956cc69adbbdb4671af7"
+    },
+    "packs": 28,
+    "runs": 6,
+    "cases_each": 26,
+    "rules_runs": 3,
+    "limits": [
+      "Source compatibility after rebuild; not C++ binary ABI compatibility or registry aliases.",
+      "Native release source and archive consumers; this gate does not test other targets.",
+      "Fresh consumer build times can reuse global toolchain caches; they are not clean-machine benchmarks.",
+      "The packed consumer explicitly declares foundation dependencies, hanim.core and external index dependencies.",
+      "Shader provisioning is tested on this machine; relocation of the recorded Slang tool path is not verified.",
+      "mcpp index lock hashes describe namespace/name/version, not downloaded artifact content.",
+      "Packed GNU ld consumers explicitly rescan the installed archives because mcpp pack omits path-dependency ordering edges.",
+      "No package publication or claim that mcpp pack preserves dependency metadata."
+    ]
+  },
+  "gpu": {
+    "process_hash": "0769cee00d2cbf3a",
+    "scenarios": 16,
+    "steps": 266,
+    "compared_values": 61320,
+    "diagnosis": "Initial SDL SIGSEGV mixed LLVM 20 and LLVM 22; existing CI loader/ICD pinning leaves only LLVM 22 and the unchanged test passes dev/release.",
+    "device": "llvmpipe LLVM 22.1.8, software Vulkan",
+    "logs": {
+      "gpu-dev": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-gpu-dev.log",
+        "sha256": "a90a5a34ad1f1e7410d75a46035dabe984b6f19883b10ab137a26b0b48f025c1"
+      },
+      "gpu-gdb": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-gpu-gdb.log",
+        "sha256": "2c1efe82b778780737e40fe852ae4260de92c52c87e17a0ee69f505874e7422d"
+      },
+      "gpu-gdb-pinned": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-gpu-gdb-pinned.log",
+        "sha256": "5a23d35b053f0fa5f80f7c465da7352ae73f267322a3f3c8e7310b59e76a70e0"
+      },
+      "browser-backends": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-browser-backends.log",
+        "sha256": "821e088d8c94e988480e6e9543479191c630b2d8e1f40913f9ee0ff03d8e9d92"
+      },
+      "bench-build-resolved": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-bench-build-resolved.log",
+        "sha256": "ba30b9a7a1568f17fe4a973ee1f628ec8c1f3448b7087125c60e62cfa63a0f7a"
+      },
+      "lint": {
+        "path": "target/namespace-simulation-validation/logs/omui-n2sim-lint.log",
+        "sha256": "015162d053828471d060ba559446b612d7da9b7bee08112bac4184d2f42e3f00"
+      }
+    }
+  },
+  "headless_cli": {
+    "ok": true,
+    "environment_removed": [
+      "DISPLAY",
+      "WAYLAND_DISPLAY"
+    ],
+    "program": "/home/speak/workspace/mui/target/x86_64-linux-gnu/676693b5a82b7db5/bin/inspector/omui-inspector",
+    "program_sha256": "fac50906e32834aaf1185218fe183234815bc4bf0a3292d4ebd500e2ca5df38a",
+    "runs": [
+      {
+        "args": [
+          "--cellular-batch",
+          "tools/inspector/examples/spark.batch.omui.json",
+          "--out",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/process"
+        ],
+        "exit_code": 0,
+        "seconds": 2.274781400919892
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/reload.batch.omui.json",
+          "--out",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/reload"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1301702429773286
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/reference.batch.omui.json",
+          "--out",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/reference"
+        ],
+        "exit_code": 0,
+        "seconds": 0.04865144600626081
+      },
+      {
+        "args": [
+          "--cellular-batch"
+        ],
+        "exit_code": 2,
+        "seconds": 0.0015511370729655027
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "tools/inspector/examples/spark.batch.omui.json",
+          "--out"
+        ],
+        "exit_code": 2,
+        "seconds": 0.001067674020305276
+      },
+      {
+        "args": [
+          "--cellular-batch",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/does-not-exist.json",
+          "--out",
+          "/home/speak/workspace/mui/target/namespace-simulation-validation/invalid"
+        ],
+        "exit_code": 1,
+        "seconds": 0.001104563008993864
+      }
+    ],
+    "frames": [
+      {
+        "path": "target/namespace-simulation-validation/process.frame-000.png",
+        "bytes": 41600,
+        "sha256": "ac1849156d64fdfcd9a651a1441fca99ba52179d2ff8d8bc83cbc9c43c6ccfd5"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-001.png",
+        "bytes": 41769,
+        "sha256": "93885f39774534e671c1fdb835dd6424edadd4999bf1f8dcd223a6dbd9c2bc6a"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-002.png",
+        "bytes": 42287,
+        "sha256": "0cc7926f057c776466fdf2ef24444be40ed46ec5992310f2ca54a0b90234a8f2"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-003.png",
+        "bytes": 42662,
+        "sha256": "c8b655b2d64486d119da30423d553537ba52b148226e239f42dfb89116dfa4f8"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-004.png",
+        "bytes": 43036,
+        "sha256": "ebd4df76c9a8f966775dfdbc3e0f3e8a9416e911cb726d7ec935ed020d42a5de"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-005.png",
+        "bytes": 43506,
+        "sha256": "0076b0ab7eead5a456363c9a2e8123859f9326a5a10aafe585cff84257c0ae8c"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-006.png",
+        "bytes": 43871,
+        "sha256": "39febaf8c6c4b3c93ff1cb34cd2bf440fea24b4cc4fa33b5eb643307a09008c1"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-007.png",
+        "bytes": 44268,
+        "sha256": "b0a647bfecdf05c506f95b82ebf5b18eb905500319458be9df22e0ffa89caab9"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-008.png",
+        "bytes": 44883,
+        "sha256": "621b51b5071b16594123fdee3c05fa2bdd53f60549b917fe206bb463079d4b4b"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-009.png",
+        "bytes": 45414,
+        "sha256": "87e89de0dad4b26d118bb57e539ec0bdecbef89a9be750ea7cf5f87e5c9d1595"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-010.png",
+        "bytes": 45539,
+        "sha256": "ec1b087f40151741161aec6c08ff3e2935e30e7471c7a31f815e96546c8988d0"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-011.png",
+        "bytes": 45764,
+        "sha256": "a76853b070a089aee8f1f0e65309aad0f232439e74a7fa254aae1ba49833dbff"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-012.png",
+        "bytes": 46410,
+        "sha256": "9e25cad8b16131611990a09fb8c80deb2ca03c836fdd2d97ffb5ae17add3b742"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-013.png",
+        "bytes": 46595,
+        "sha256": "da6682519382f841fd20f82e34350736b6d86b02c118265471172443b2ee6562"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-014.png",
+        "bytes": 46574,
+        "sha256": "8a3a95ad5d8d39e1a06e07c88f9b3120c75150e6b6edc9434b124ddf21f38f26"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-015.png",
+        "bytes": 46620,
+        "sha256": "c47ee9857f2353e24a519b5deff429e52ff8931b8063f79cae13a0059f44285b"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-016.png",
+        "bytes": 46656,
+        "sha256": "e4b2d27fb189c16acf2f623d178ad3e166bc3f5062b1848e85b9c2f19c1e6753"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-017.png",
+        "bytes": 46754,
+        "sha256": "f658269e2192b03d95d2505b9a782c92c9878b8ac578e4aa12eece1ebb79b71b"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-018.png",
+        "bytes": 46631,
+        "sha256": "9ad1c9b78217a303d0385de1742284c59c6234d2f325b2eb529ac22ebc3cc90c"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-019.png",
+        "bytes": 46631,
+        "sha256": "40fe7f84fc264fbac4519bc0b7dee3fd1ef53866909eaf5ae26b6450fe5ce0b2"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-020.png",
+        "bytes": 46605,
+        "sha256": "f1ebaf99e71ec07cab0d9c21fe69c523968e1134fd6c22f7967bd8883ab18765"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-021.png",
+        "bytes": 46301,
+        "sha256": "a36d0c928eb41a6967e9228fb444d5f0e54937832a971dabeb2a5a54c631b6a9"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-022.png",
+        "bytes": 46192,
+        "sha256": "619649bfbfa919db50964c5fd9d18acc88ba61b0af9e6df9bd16f195c33d792e"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-023.png",
+        "bytes": 46164,
+        "sha256": "57fa0ecdb62f711b856acefedef5f3f5230b96508dcef7174bd807e47067140c"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-024.png",
+        "bytes": 45822,
+        "sha256": "94336fc77ecf71a1b63a27ab7296c40d8d80bd878b23c368dd315158b87dd946"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-025.png",
+        "bytes": 45631,
+        "sha256": "94d1e9c55fe987ea7c012a251c4a77aadb5fb35dc668a6e7fbf8c272e506fca3"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-026.png",
+        "bytes": 45404,
+        "sha256": "d4825bdac83cc0fccf7bbc2e6a7e99d655618e910e54d1bb2caa02b9b6bdfc11"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-027.png",
+        "bytes": 45057,
+        "sha256": "3b22b509ad53dc4d7b7b23dfd1e4914288592dd728535a6a0525ca02dee3254c"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-028.png",
+        "bytes": 44807,
+        "sha256": "22af0fa3342f526b39dae5b4e1772a4d752ad0a8c33f34730470d5a3240dc584"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-029.png",
+        "bytes": 44303,
+        "sha256": "269b155b282728501c667b2fdcb72dbe3d8e460f3434b646f8d74eb563528764"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-030.png",
+        "bytes": 43988,
+        "sha256": "763a8f6c17ff3154ae6bc7efd9ae0acb2f8841064702c70540f4c950da30d082"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-031.png",
+        "bytes": 43651,
+        "sha256": "5c7865444db4fa548acb3f1a375096cac4baa1f501eaf94af417db7c1e873aea"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-032.png",
+        "bytes": 43635,
+        "sha256": "1b2385e6c7d125d8b57bf820365a474ba688f57411f1c69c285ff0994bb91b2d"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-033.png",
+        "bytes": 43508,
+        "sha256": "cd84101b84c2f32d2598bd3f2d472e26cb84ad0fe5a6e09ed39a89a8a5aed663"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-034.png",
+        "bytes": 43419,
+        "sha256": "957fcb9d223e64d02fb544beee932addf482e53ede78c8df9fd8a84a99dc8511"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-035.png",
+        "bytes": 43205,
+        "sha256": "bb409ecfa1cd56593000aa7a309793dbf1ae80668aa792d888e9be11caf88f12"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-036.png",
+        "bytes": 43100,
+        "sha256": "2a045782bd72bfec0be510cd7377ccec318a366d3a593d22cf43e9b0815c5398"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-037.png",
+        "bytes": 42983,
+        "sha256": "471b1bdf22f119ebfe26a9da266d23c8192a7cc5ed0acb7e241a41b7c965f751"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-038.png",
+        "bytes": 42915,
+        "sha256": "493c81a76c1e30e810b9f224c315139c3b584c4a6f2a5e33d1724567ec931524"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-039.png",
+        "bytes": 42787,
+        "sha256": "888ae9595f59f597a63e3aec20393de3e5b57775f39dd65e2f0262a016bc25fc"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-040.png",
+        "bytes": 42342,
+        "sha256": "781a81a004cdf105d5375a678a7d7d204486bf9cb7e5b45135fc65d4daf61ba0"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-041.png",
+        "bytes": 42119,
+        "sha256": "f564f0b73adb5dfeab5e7df388687800f79664b1587596f1f255f3f468bba9d5"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-042.png",
+        "bytes": 42263,
+        "sha256": "683ba6aad80a9e5bc8a9f151a5d102c733228ce30289f7b2d3801123704eb32a"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-043.png",
+        "bytes": 41932,
+        "sha256": "ade1e8c2fd6c6e0231411d7450856724114584a820064ae49b05d80832b5ed3e"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-044.png",
+        "bytes": 41697,
+        "sha256": "1594acce1688c81c635f7f95d5fdf448a7979e28e5c8800689b7ee5d6cacc580"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-045.png",
+        "bytes": 41876,
+        "sha256": "ac6770bbe35754237c7b62a524a4b908a709bfd79b0ce404c8967028062cc487"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-046.png",
+        "bytes": 41692,
+        "sha256": "3f309d51192acd0210614d94d7e5cca4abce8602401761149661e29466cdac6d"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-047.png",
+        "bytes": 41434,
+        "sha256": "a6ac52af8707ff6292d80adcbf37daf9ac2e9761d029696cce3300a1c2565a68"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-048.png",
+        "bytes": 41563,
+        "sha256": "0ef4e23f5cc2dd4e90320d348bc9eeca7c87348741a19e9c8410626cddc30b0d"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-049.png",
+        "bytes": 41490,
+        "sha256": "78145f3608d98a14912f905be132a8975156f36a6da6092aea8d6afe8a409aa3"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-050.png",
+        "bytes": 41211,
+        "sha256": "f98dbf00b3d71456eb7cda42f1a117b1b5c16dca5a9978e32133b4e2bba869f0"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-051.png",
+        "bytes": 41154,
+        "sha256": "f211d9e47cb989a6d79ea58eb39ee50948547d59ffc9a304f61baa41d9023f96"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-052.png",
+        "bytes": 41144,
+        "sha256": "e6bbf7818b4972906a0b066f415deb6deafea7f5b4813dcd281f07f4a7a8f650"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-053.png",
+        "bytes": 41060,
+        "sha256": "8877f919ad63ee48bf34f07e1b86bb56fcbfd9f8afa22a92766844c1b306e71a"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-054.png",
+        "bytes": 41142,
+        "sha256": "cbc584859da1079d2667aec93a798a6a5731a25f6c8abe9683e893a059536f87"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-055.png",
+        "bytes": 41265,
+        "sha256": "9f61164d4165cec2b6947a3efef0defb3dbea682ce224faf9ca84ebb559dd68d"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-056.png",
+        "bytes": 40993,
+        "sha256": "4bad6c81e8c1d81857c7ddba5bf064f0aedac50d86a75d88cede4eb0af7fae9e"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-057.png",
+        "bytes": 41135,
+        "sha256": "e79e91b1a82bcc82c7b77e2f217f017fcf91a6aa498947edbb575056a84d1dfd"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-058.png",
+        "bytes": 41098,
+        "sha256": "e6b2b51253306c97620e2ecc547e5b16c35fbb58d499baf31bcd52e75f79b38c"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-059.png",
+        "bytes": 41313,
+        "sha256": "c14b25335cf65fbf9a77be16ec34bd35e267b9a1f7590bfcf69af00dae50fd25"
+      },
+      {
+        "path": "target/namespace-simulation-validation/process.frame-060.png",
+        "bytes": 41135,
+        "sha256": "b36fa73f50175dfc9a0024573cf60e5916416a5124e6a11ef631137b177135d8"
+      }
+    ],
+    "all_process_pngs_match_baseline": true,
+    "reload_tick": 62
+  },
+  "website": {
+    "browser": "HeadlessChrome/156.0.8078.4",
+    "checks": [
+      {
+        "ok": true,
+        "what": "the website opens the shared reaction workspace"
+      },
+      {
+        "ok": true,
+        "what": "rules and project details start closed"
+      },
+      {
+        "ok": true,
+        "what": "a real pointer paints the intended cell"
+      },
+      {
+        "ok": true,
+        "what": "Agent and pointer produce identical material state"
+      },
+      {
+        "ok": true,
+        "what": "all 25 intermediate states differ"
+      },
+      {
+        "ok": true,
+        "what": "all 25 actual canvas images differ"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 17"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 8"
+      },
+      {
+        "ok": true,
+        "what": "reverse seek reproduces state and actual canvas pixels at frame 0"
+      },
+      {
+        "ok": true,
+        "what": "real keyboard input edits and applies the rule configuration"
+      },
+      {
+        "ok": true,
+        "what": "real Play input advances the live simulation"
+      },
+      {
+        "ok": true,
+        "what": "leaving the route cancels ongoing playback"
+      },
+      {
+        "ok": true,
+        "what": "navigation and language changes preserve the edited project"
+      },
+      {
+        "ok": true,
+        "what": "the real resized phone canvas fits its viewport"
+      }
+    ],
+    "samples": [
+      {
+        "frame": 0,
+        "tick": 0,
+        "state_hash": "2ff7d08ffe731c7d",
+        "time_numerator": 0,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-00.png",
+        "sha256": "abd52bfed00303d91fd814fd4783bd2e9c5cb8e57c3f7c049ff8cb1ccb1ad749"
+      },
+      {
+        "frame": 1,
+        "tick": 1,
+        "state_hash": "ec170e52102cb39d",
+        "time_numerator": 1,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-01.png",
+        "sha256": "3b518b0a5e46e3487c21d9777f2e513fbf23bf65d641386131a4d05fc097dee8"
+      },
+      {
+        "frame": 2,
+        "tick": 2,
+        "state_hash": "8056bc6ce42a1cfd",
+        "time_numerator": 2,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-02.png",
+        "sha256": "862d43515187f9044fc77d507c297e3c84596566d24513d45d4ea5ba83048075"
+      },
+      {
+        "frame": 3,
+        "tick": 3,
+        "state_hash": "844dd6adb4db6bdd",
+        "time_numerator": 3,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-03.png",
+        "sha256": "c7d384c96d4c0b7c3af44896b1a244a27e5ada96fde1ea83a7c0946070ee57b0"
+      },
+      {
+        "frame": 4,
+        "tick": 4,
+        "state_hash": "cb96e63134aa59fc",
+        "time_numerator": 4,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-04.png",
+        "sha256": "c1183678a6abc0bf986adcb911e4b389d7aac8f3f69725f9a925b76662095df2"
+      },
+      {
+        "frame": 5,
+        "tick": 5,
+        "state_hash": "7c13aadd540658fe",
+        "time_numerator": 5,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-05.png",
+        "sha256": "b8715ffd65ca50505b35274bcfeff96ea5323e9c5747cc79d734b65074a09441"
+      },
+      {
+        "frame": 6,
+        "tick": 6,
+        "state_hash": "47b2258a2a003b7e",
+        "time_numerator": 6,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-06.png",
+        "sha256": "2095b9e0efe7f253ad29a04431d59217b59ebcbb5133f8fbf7456c72c39c412b"
+      },
+      {
+        "frame": 7,
+        "tick": 7,
+        "state_hash": "022f9f346d639b1d",
+        "time_numerator": 7,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-07.png",
+        "sha256": "18a85f9482e625f16939b27a9228c506fcf8c263d8a62a922e6e458725de81ae"
+      },
+      {
+        "frame": 8,
+        "tick": 8,
+        "state_hash": "25fe19de75ae88f7",
+        "time_numerator": 8,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-08.png",
+        "sha256": "169fcadea1969cfea2f3ab9ba393c30c19be8769d777cfda1c0b41c7f37bfff0"
+      },
+      {
+        "frame": 9,
+        "tick": 9,
+        "state_hash": "f8f50e8df01111b0",
+        "time_numerator": 9,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-09.png",
+        "sha256": "eb0db1ec19af09313f1ddaa26caa414844ed5c7782fdbbb3200948db02e4bab8"
+      },
+      {
+        "frame": 10,
+        "tick": 10,
+        "state_hash": "d375b10843373075",
+        "time_numerator": 10,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-10.png",
+        "sha256": "3ce85d7b97431b371e601b686c7d20693f607881e0490cfcfbd0f041d31a03d0"
+      },
+      {
+        "frame": 11,
+        "tick": 11,
+        "state_hash": "f24141e649251a32",
+        "time_numerator": 11,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-11.png",
+        "sha256": "4a1485b137c6465bbcb5521780e7a66359a98e1eaaae77a65fb9c12b1bafdf2c"
+      },
+      {
+        "frame": 12,
+        "tick": 12,
+        "state_hash": "44bebac312368c73",
+        "time_numerator": 12,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-12.png",
+        "sha256": "7d45f68196988cc2cf3b3c4acd4def193639d5240e536e927b225feefa9e4819"
+      },
+      {
+        "frame": 13,
+        "tick": 13,
+        "state_hash": "f376a0d27901a7b5",
+        "time_numerator": 13,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-13.png",
+        "sha256": "83804e6e8b1c31e944b13f78edd06ee390a1bb2ba926e6d6a0be5e44416f2a86"
+      },
+      {
+        "frame": 14,
+        "tick": 14,
+        "state_hash": "3db6f4da09b86b71",
+        "time_numerator": 14,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-14.png",
+        "sha256": "d88eb7f1111a57e19bd6f26b9d0ba1981c6c30c35f511695f90487b77a645c05"
+      },
+      {
+        "frame": 15,
+        "tick": 15,
+        "state_hash": "83d356969b5342f5",
+        "time_numerator": 15,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-15.png",
+        "sha256": "35432e69b850635743e8fbb8c8110eb96d9551cc905f8d676b7f9e14ddb41aba"
+      },
+      {
+        "frame": 16,
+        "tick": 16,
+        "state_hash": "c5d720973a7b9bed",
+        "time_numerator": 16,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-16.png",
+        "sha256": "ed10e8811868ba2d9c5ba3e3779fce57759f4555a8895a6a5551721fbad1dd5b"
+      },
+      {
+        "frame": 17,
+        "tick": 17,
+        "state_hash": "be05e913cf3593ac",
+        "time_numerator": 17,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-17.png",
+        "sha256": "3adbbd44ff51457e92fafb8183f472ba9387ec2e6d20807635a0bd3cc0b2e654"
+      },
+      {
+        "frame": 18,
+        "tick": 18,
+        "state_hash": "ecb00af823ce6d8a",
+        "time_numerator": 18,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-18.png",
+        "sha256": "f4edf52a25734cb16b064b0c0549f1273589df9ab0d5adf82a52f12a94818eb1"
+      },
+      {
+        "frame": 19,
+        "tick": 19,
+        "state_hash": "de785e3726fdbfae",
+        "time_numerator": 19,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-19.png",
+        "sha256": "0365dafe36eb3d72501937e58e68bfd5817fae0b8d33f52bd62417c4efecbe54"
+      },
+      {
+        "frame": 20,
+        "tick": 20,
+        "state_hash": "074974761bab8c2d",
+        "time_numerator": 20,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-20.png",
+        "sha256": "79fb9dc8450d8d1e0e9172c3baaf5a859edcac19b6cb7fbdec2a8130ef3dfdcf"
+      },
+      {
+        "frame": 21,
+        "tick": 21,
+        "state_hash": "4f827679bedd646f",
+        "time_numerator": 21,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-21.png",
+        "sha256": "04a12c3586355b8af772458eb4114a4318b486b8dd14a5d9466375efa0c39e11"
+      },
+      {
+        "frame": 22,
+        "tick": 22,
+        "state_hash": "698bedbc5bf0934d",
+        "time_numerator": 22,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-22.png",
+        "sha256": "f9d768309fec0e5e33e87363bc49a55994facf210f8ad7fffd0b5746bdf65105"
+      },
+      {
+        "frame": 23,
+        "tick": 23,
+        "state_hash": "d12390c4377c9a0c",
+        "time_numerator": 23,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-23.png",
+        "sha256": "b65dd3fa35a3a6ed011b6ad96bdce88944fd84253533a505ca8a6e93dc25adff"
+      },
+      {
+        "frame": 24,
+        "tick": 24,
+        "state_hash": "98d8ecf3acedd2c0",
+        "time_numerator": 24,
+        "time_denominator": 12,
+        "bounds": [
+          80,
+          254.5,
+          1120,
+          480
+        ],
+        "image": "target/site-reactions/tick-24.png",
+        "sha256": "4bc5b62d2d8e2bbb21a45217e83ebf8b4b745b2339a7a771317a71364a036fe9"
+      }
+    ],
+    "scope": "Actual browser pixels and input; offline process samples do not certify real-time performance.",
+    "opening": {
+      "image": "target/site-reactions/opening-en.png",
+      "sha256": "368b5be3ec6a0c4ffa451f959c57b31974612d0d51473e26744aea58cd54b641"
+    },
+    "phone": {
+      "image": "target/site-reactions/phone-zh.png",
+      "sha256": "442adfdcdaa75a4199d127ff5917cde28e33a84b9fc98caff8b5fd93f838f6b3"
+    },
+    "ok": true
+  },
+  "limits": [
+    "No hardware GPU performance or all-platform CI claim.",
+    "Simulation benchmark did not run: root locked resolution passed, but the generated fighting host-build workspace repeatedly missed six image/TOML dependencies; rebuilding that scratch workspace did not persist through replanning. Existing budgets were not weakened.",
+    "Legacy mgame.sim C++ import remains usable, but the dependency key, directory and -p selector must migrate to xengine.simulation.",
+    "No new public animation or creative-work count is claimed by this refactor."
+  ],
+  "static_checks": [
+    "full repository lint including document schemas: 0 problems",
+    "changed TOML and Python parsed",
+    "changed Markdown local links exist",
+    "git diff --check"
+  ],
+  "lint": {
+    "path": "target/namespace-simulation-validation/logs/omui-n2sim-lint-full.log",
+    "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+  }
+}

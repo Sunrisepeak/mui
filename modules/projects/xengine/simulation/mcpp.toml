@@ -1,0 +1,23 @@
+[package]
+namespace = "xengine"
+name = "simulation"
+version = "0.1.0"
+description = "Independent fixed-step clocks and owned checkpoint/input replay"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.xengine-simulation]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/bodies/*.cppm", "src/bodies/*.cpp"]
+cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
+
+[dependencies]
+mlibs.utils = { path = "../../../base/utils" }
+
+[dev-dependencies]

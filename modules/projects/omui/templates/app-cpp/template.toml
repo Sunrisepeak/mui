@@ -1,0 +1,4 @@
+[template]
+description  = "An openmui application in C++: a window by default, headless for tests and agents"
+default      = true
+post_message = "cd into the project, then `mcpp run` (a window), `mcpp run -- --serve` (agents: omui agent ls) or `mcpp test` (headless)."

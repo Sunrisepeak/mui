@@ -1,0 +1,625 @@
+doc = """墨 Mo's study: an ink-painter's room, bamboo outside a paper window.
+A guzheng carries the tune in D yu (the minor pentatonic: D F G A C, with E and Bb
+as passing colour), bending into its long notes the way a player presses a string;
+a koto-like string arpeggiates under it, a warm pad holds the harmony, a temple
+bell marks the sections, taiko and a shaker keep time.
+
+Intensity (0–1) adds parts at the next bar: below 0.35 the guzheng, the pad, the
+bell and a quiet taiko; from 0.35 the pulsing bass, woodblock and the taiko
+groove; from 0.6 the full drums, the arpeggio and the strings; from 0.85 the
+crash and a dizi doubling the climax an octave down.
+
+128 beats a minute; a four-bar intro, then a loop of 32 bars (A, A2, B, C) —
+A states the hook, A2 answers it higher, B turns to F major, C brings the hook
+back over the climax and rolls the taiko into the loop's start."""
+
+[music]
+name = "study"
+tempo = 128
+meter = [4, 4]
+gain = 0.5
+
+# ── patches: the built-ins, shaded ───────────────────────────────────────
+
+[patch.zheng]
+base = "guzheng"
+pluck = { decay = 3.6 }
+vibrato = { depth = 12, delay = 0.45 }
+
+[patch.zheng_low]
+base = "koto"
+pluck = { brightness = 0.55, decay = 1.4, pick = 0.2 }
+filter = { cutoff = 3600 }
+
+[patch.pulse]
+base = "fm_bass"
+fm = { index = 2.6, decay = 0.09 }
+
+[patch.warm]
+base = "pad"
+filter = { cutoff = 700, envelope = 1 }
+
+# ── instruments ──────────────────────────────────────────────────────────
+
+[instrument.lead]
+patch = "zheng"
+gain = 1
+pan = 0.05
+legato = 1
+voices = 8
+sends = { hall = 0.25, delay = 0.12 }
+
+[instrument.arp]
+patch = "zheng_low"
+gain = 0.48
+pan = -0.3
+legato = 1
+humanize = 0.3
+voices = 10
+sends = { hall = 0.15, delay = 0.18 }
+
+[instrument.pad]
+patch = "warm"
+bus = "pads"
+gain = 0.35
+legato = 1
+voices = 8
+sends = { hall = 0.35 }
+
+[instrument.strings]
+patch = "strings"
+gain = 0.5
+pan = 0.25
+legato = 1
+sends = { hall = 0.35 }
+
+[instrument.dizi]
+patch = "dizi"
+gain = 0.45
+pan = -0.15
+sends = { hall = 0.3, delay = 0.1 }
+
+[instrument.bell]
+patch = "bell"
+gain = 0.45
+pan = 0.2
+legato = 1
+sends = { hall = 0.5 }
+
+[instrument.bass]
+patch = "pulse"
+bus = "low"
+gain = 0.9
+legato = 0.55
+
+[instrument.taiko]
+patch = "taiko"
+bus = "drums"
+gain = 0.68
+humanize = 0.15
+sends = { hall = 0.15 }
+
+[instrument.taiko_hi]
+patch = "tom"
+bus = "drums"
+gain = 0.6
+pan = 0.2
+transpose = 7
+humanize = 0.2
+sends = { hall = 0.15 }
+
+[instrument.kick]
+patch = "kick"
+bus = "drums"
+gain = 0.55
+
+[instrument.snare]
+patch = "snare"
+bus = "drums"
+gain = 0.55
+sends = { hall = 0.25 }
+
+[instrument.woodblock]
+patch = "woodblock"
+bus = "drums"
+gain = 0.5
+pan = -0.25
+humanize = 0.3
+sends = { hall = 0.2 }
+
+[instrument.shaker]
+patch = "shaker"
+bus = "drums"
+gain = 0.55
+pan = 0.3
+humanize = 0.4
+
+[instrument.crash]
+patch = "crash"
+bus = "drums"
+gain = 0.35
+sends = { hall = 0.2 }
+
+# ── the air (the night: crickets in the bamboo and a low breath of air) ────────
+
+[patch.cricket]
+engine = "fm"
+gain = 0.25
+fm = { ratio = 1.5, index = 0.8, decay = 0.05 }
+amp = { attack = 0.003, decay = 0.05, sustain = 0, release = 0.03 }
+
+[patch.night_air]
+engine = "analog"
+gain = 0.18
+osc = { wave = "noise" }
+amp = { attack = 2, decay = 1, sustain = 1, release = 2 }
+filter = { kind = "lowpass", cutoff = 900, q = 0.5 }
+
+[instrument.cricket]
+patch = "cricket"
+bus = "air"
+gain = 0.8
+pan = 0.45
+humanize = 0.5
+
+[instrument.night_air]
+patch = "night_air"
+bus = "air"
+gain = 1.4
+legato = 1
+voices = 2
+
+# ── buses ────────────────────────────────────────────────────────────────
+
+[bus.air]
+effects = [{ kind = "highpass", cutoff = 120 }]
+
+[bus.hall]
+effects = [
+    { kind = "reverb", size = 0.82, damping = 0.45, predelay = 0.025, wet = 1, dry = 0 },
+    { kind = "highpass", cutoff = 220 },
+]
+
+[bus.delay]
+effects = [
+    { kind = "echo", beats = 0.75, feedback = 0.3, pingpong = true, wet = 1, dry = 0 },
+    { kind = "highpass", cutoff = 300 },
+    { kind = "lowpass", cutoff = 5000 },
+]
+
+[bus.pads]
+effects = [{ kind = "chorus", delay = 0.014, depth = 0.004, rate = 0.3, wet = 0.5 }]
+
+[bus.drums]
+
+[bus.low]
+duck = { key = "drums", depth = 0.35, threshold = 0.3, attack = 0.002, release = 0.1 }
+
+# ── the intro ────────────────────────────────────────────────────────────
+
+[pattern.intro_bell]
+instrument = "bell"
+step = "1/1"
+notes = "D5 | . | . | A4"
+
+[pattern.intro_zheng]
+instrument = "lead"
+step = "1/16"
+notes = """
+D4? F4? G4? A4? C5 D5 F5 G5 A5:8! |
+G5>A5:4! F5:2 D5:2 C5:4 D5:4 |
+F5:3! G5 A5:4 C6:4 A5:2 G5:2 |
+A5:8! . . G5? F5? D5:2 C5:2 |
+"""
+
+[pattern.intro_pad]
+instrument = "pad"
+step = "1/1"
+notes = "D3+A3+E4+F4 | D3+A3+E4+F4 | F3+A3+Bb3+D4 | E3+A3+D4+E4"
+
+[pattern.intro_drums]
+step = "1/16"
+
+[pattern.intro_drums.lanes]
+taiko  = "X............... | X.......x.x.xxXX"
+shaker = "........o.o.x.x. | oxoxoxoxxxxxXXXX"
+
+# ── the hook and its answers (the guzheng) ───────────────────────────────
+
+[pattern.hook_a]
+instrument = "lead"
+step = "1/16"
+notes = """
+D5:3! F5? G5:2 A5:6 G5? F5? D5:2 |
+F5:3! G5 D5:4 . . C5? D5 F5:4 |
+G5:3! A5 C6:2 A5:2 G5:4 E5? G5 A5:2 |
+A5>C6:6! A5? G5? E5:4 D5:2 E5:2 |
+D5:3! F5? G5:2 A5:4 C6 A5? G5:2 F5:2 |
+F5:2! G5:2 A5:4 D6:6 C6:2 |
+C6>D6:3! C6? A5:2 G5:2 F5:4 G5:2 A5:2 |
+A5:10! . . D5? F5? G5 A5 |
+"""
+
+[pattern.hook_a2]
+instrument = "lead"
+step = "1/16"
+notes = """
+D6:3! C6 A5:2 G5:2 A5:4 F5:2 G5:2 |
+D5:6! F5:2 G5:4 F5? D5? C5:2 |
+E5:3! G5 A5:2 C6:2 D6:4 C6:2 A5:2 |
+C6>D6:6! C6:2 A5:4 G5:2 E5:2 |
+F5:2! G5:2 A5:2 C6:2 D6:4 F6:4 |
+F6>G6:4! F6:2 D6:2 C6:4 A5:4 |
+G5:3! A5 C6:2 D6:2 C6:2 A5:2 G5:2 F5:2 |
+E5:4! D5:4 A4:8 |
+"""
+
+[pattern.hook_b]
+instrument = "lead"
+step = "1/16"
+notes = """
+C5:4! A4:2 C5:2 F5:6 G5:2 |
+E5:4! D5:2 C5:2 G4:8 |
+F5:4! D5:2 F5:2 Bb5:4 A5:2 F5:2 |
+G5:12! . . E5? F5 |
+A5:4! G5:2 F5:2 C6:6 A5:2 |
+G5:4! E5:2 G5:2 C6:4 D6:4 |
+D6>F6:4! D6:2 C6:2 Bb5:4 A5:2 F5:2 |
+E5:4! G5:4 A5:8 |
+"""
+
+[pattern.hook_c]
+instrument = "lead"
+step = "1/16"
+notes = """
+D6:3! F6 D6:2 C6:2 A5:4 C6:2 D6:2 |
+E6:4! D6:2 C6:2 G5:4 A5:2 C6:2 |
+D5:3! F5? G5:2 A5:6 G5? F5? D5:2 |
+A5>C6:4! D6:4 F6:4 D6:4 |
+F6:3! D6 C6:2 A5:2 D6:8 |
+E6:3! D6 C6:2 G5:2 C6:8 |
+D6:4! A5:4 G5:4 E5:4 |
+A5:8! . . . . . . . . |
+"""
+
+[pattern.bell_d]
+instrument = "bell"
+step = "1/1"
+notes = "D5"
+
+[pattern.bell_f]
+instrument = "bell"
+step = "1/1"
+notes = "F5"
+
+# ── harmony ──────────────────────────────────────────────────────────────
+
+# Dm9 | Bbmaj7 | Cadd9 | Am7 | Dm9 | Bbmaj7 | Gm7 | Asus4
+[pattern.pad_a]
+instrument = "pad"
+step = "1/1"
+notes = """
+D3+A3+E4+F4 | F3+A3+Bb3+D4 | E3+G3+C4+D4 | E3+A3+C4+G4 |
+D3+A3+E4+F4 | F3+A3+Bb3+D4 | D3+G3+Bb3+F4 | E3+A3+D4+E4 |
+"""
+
+# Fadd9 | Cadd9 | Bb | Cadd9 | Fadd9 | Cadd9 | Bb | Asus4
+[pattern.pad_b]
+instrument = "pad"
+step = "1/1"
+notes = """
+F3+A3+C4+G4 | E3+G3+C4+D4 | F3+Bb3+D4+F4 | E3+G3+C4+D4 |
+F3+A3+C4+G4 | E3+G3+C4+D4 | F3+Bb3+D4+F4 | E3+A3+D4+E4 |
+"""
+
+# Bb | Cadd9 | Dm9 | Dm9 | Bb | Cadd9 | Asus4 | A
+[pattern.pad_c]
+instrument = "pad"
+step = "1/1"
+notes = """
+F3+Bb3+D4+F4 | E3+G3+C4+D4 | D3+A3+E4+F4 | D3+A3+E4+F4 |
+F3+Bb3+D4+F4 | E3+G3+C4+D4 | E3+A3+D4+E4 | E3+A3+C#4+E4 |
+"""
+
+[pattern.strings_a2]
+instrument = "strings"
+step = "1/2"
+notes = "A4:2 | Bb4 A4 | G4:2 | E4 G4 | A4:2 | Bb4 D5 | D5 C5 | A4:2"
+
+[pattern.strings_b]
+instrument = "strings"
+step = "1/2"
+notes = "A4:2 | G4:2 | F4 Bb4 | G4:2 | A4 C5 | G4 E4 | F4 D4 | E4:2"
+
+[pattern.strings_c]
+instrument = "strings"
+step = "1/2"
+notes = "F4:2 | G4:2 | A4:2 | A4 C5 | Bb4:2 | C5:2 | D5 C#5 | C#5:2"
+
+# ── the pulsing bass (eighths, the root and its octave) ──────────────────
+
+[pattern.bass_a]
+instrument = "bass"
+notes = """
+D2! D2 D3 D2 D2! D2 D3 D2 | Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 |
+C2! C2 C3 C2 C2! C2 C3 C2 | A1! A1 A2 A1 A1! A1 A2 A1 |
+D2! D2 D3 D2 D2! D2 D3 D2 | Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 |
+G1! G1 G2 G1 G1! G1 G2 G1 | A1! A1 A2 A1 A1! A2 C3 E2 |
+"""
+
+[pattern.bass_b]
+instrument = "bass"
+notes = """
+F1! F1 F2 F1 F1! F1 F2 F1 | C2! C2 C3 C2 C2! C2 C3 C2 |
+Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 | C2! C2 C3 C2 C2! C2 C3 C2 |
+F1! F1 F2 F1 F1! F1 F2 F1 | C2! C2 C3 C2 C2! C2 C3 C2 |
+Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 | A1! A1 A2 A1 A1! A2 G2 E2 |
+"""
+
+[pattern.bass_c]
+instrument = "bass"
+notes = """
+Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 | C2! C2 C3 C2 C2! C2 C3 C2 |
+D2! D2 D3 D2 D2! D2 D3 D2 | D2! D2 D3 D2 D2! D3 F2 G2 |
+Bb1! Bb1 Bb2 Bb1 Bb1! Bb1 Bb2 Bb1 | C2! C2 C3 C2 C2! C2 C3 C2 |
+A1! A1 A2 A1 A1! A1 A2 A1 | A1! A1 A2 A1 A1! A1! A1! A1! |
+"""
+
+# ── the arpeggio under the tune (sixteenths) ─────────────────────────────
+
+[pattern.arp_a]
+instrument = "arp"
+step = "1/16"
+notes = """
+D4! A4? D5 A4? F4! A4? D5 A4? D4! A4? D5 A4? F4! A4? C5 A4? |
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+A3! E4? A4 E4? C4! E4? A4 E4? A3! E4? A4 E4? C4! E4? G4 E4? |
+D4! A4? D5 A4? F4! A4? D5 A4? D4! A4? D5 A4? F4! A4? C5 A4? |
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+G3! D4? G4 D4? Bb3! D4? G4 D4? G3! D4? G4 D4? Bb3! D4? F4 D4? |
+A3! E4? A4 E4? D4! E4? A4 E4? A3! E4? A4 E4? D4! E4? G4 E4? |
+"""
+
+[pattern.arp_b]
+instrument = "arp"
+step = "1/16"
+notes = """
+F3! C4? F4 C4? A3! C4? F4 C4? F3! C4? F4 C4? A3! C4? G4 C4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+F3! C4? F4 C4? A3! C4? F4 C4? F3! C4? F4 C4? A3! C4? G4 C4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+A3! E4? A4 E4? D4! E4? A4 E4? A3! E4? A4 E4? D4! E4? G4 E4? |
+"""
+
+[pattern.arp_c]
+instrument = "arp"
+step = "1/16"
+notes = """
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+D4! A4? D5 A4? F4! A4? D5 A4? D4! A4? D5 A4? F4! A4? C5 A4? |
+D4! A4? D5 A4? F4! A4? D5 A4? D4! A4? D5 A4? F4! A4? E5 A4? |
+Bb3! F4? Bb4 F4? D4! F4? Bb4 F4? Bb3! F4? Bb4 F4? D4! F4? A4 F4? |
+C4! G4? C5 G4? E4! G4? C5 G4? C4! G4? C5 G4? E4! G4? D5 G4? |
+A3! E4? A4 E4? D4! E4? A4 E4? A3! E4? A4 E4? D4! E4? G4 E4? |
+A3! E4? A4 E4? C#4! E4? A4 E4? A3! E4? A4 E4? C#4! E4? E5 E4? |
+"""
+
+# ── drums (sixteenths) ───────────────────────────────────────────────────
+
+[pattern.drums_soft]
+step = "1/16"
+
+[pattern.drums_soft.lanes]
+taiko  = "X.......o......."
+shaker = "....x.......x..o"
+
+[pattern.drums_mid]
+step = "1/16"
+
+[pattern.drums_mid.lanes]
+taiko     = "X.....x.x....... | X.....x.x...o.o."
+woodblock = "....x.......x.x. | ....x.......x..x"
+shaker    = "oxoXoxoXoxoXoxoX | oxoXoxoXoxoXoxoX"
+
+[pattern.drums_mid_1]
+step = "1/16"
+
+[pattern.drums_mid_1.lanes]
+taiko     = "X.....x.x......."
+woodblock = "....x.......x.x."
+shaker    = "oxoXoxoXoxoXoxoX"
+
+[pattern.drums_full]
+step = "1/16"
+
+[pattern.drums_full.lanes]
+taiko     = "X.....x.x...X... | X.....x.x.x.X..o"
+taiko_hi  = "......x....x..x. | ...x..x....x.xx."
+kick      = "x.......x.....x. | x.......x.x....."
+snare     = "....x.......x... | ....x.......x..o"
+woodblock = "..x.......x..... | ..x.......x...x."
+shaker    = "oxoXoxoXoxoXoxoX | oxoXoxoXoxoXoxoX"
+
+[pattern.drums_full_1]
+step = "1/16"
+
+[pattern.drums_full_1.lanes]
+taiko     = "X.....x.x...X..."
+taiko_hi  = "......x....x..x."
+kick      = "x.......x.....x."
+snare     = "....x.......x..."
+woodblock = "..x.......x....."
+shaker    = "oxoXoxoXoxoXoxoX"
+
+[pattern.fill_mid]
+step = "1/16"
+
+[pattern.fill_mid.lanes]
+taiko  = "X.....x.x.x.xxXX"
+shaker = "oxoXoxoXoxoXxxxx"
+
+[pattern.fill_full]
+step = "1/16"
+
+[pattern.fill_full.lanes]
+taiko    = "X.....x.X.x.XxXX"
+taiko_hi = "....x.x.x.xxxxxx"
+kick     = "x.......x......."
+snare    = "....x.......xxxX"
+shaker   = "oxoXoxoXoxoXxxxx"
+
+[pattern.roll]
+step = "1/16"
+
+[pattern.roll.lanes]
+taiko    = "X.x.X.x.XxXxXXXX"
+taiko_hi = "xxxxxxxxxxxxXXXX"
+kick     = "x.......x.x.x.x."
+snare    = "....X.......X.XX"
+
+[pattern.crash]
+step = "1/16"
+
+[pattern.crash.lanes]
+crash = "X..............."
+
+# ── the outro ────────────────────────────────────────────────────────────
+
+[pattern.end_zheng]
+instrument = "lead"
+step = "1/16"
+notes = "A5? G5? F5? D5? C5? A4? G4? F4? D4:8! | .:16"
+
+[pattern.end_pad]
+instrument = "pad"
+step = "1/1"
+notes = "D3+A3+E4+F4:2"
+
+[pattern.end_drums]
+step = "1/16"
+
+[pattern.end_drums.lanes]
+taiko = "X............... | ................"
+
+[pattern.air]
+instrument = "night_air"
+step = "1/16"
+notes = "C4:16"
+
+[pattern.air_crickets]
+instrument = "cricket"
+step = "1/32"
+notes = "E7? E7? E7? . . . . . . . . . . . . . E7? E7? E7? . . . . . . . . . . . . . | . . . . . . . . E7? E7? E7? E7? . . . . . . . . . . . . . . . . . . . ."
+
+# ── sections ─────────────────────────────────────────────────────────────
+
+[section.intro]
+bars = 4
+layers = [
+    { pattern = "intro_bell" },
+    { pattern = "intro_zheng" },
+    { pattern = "intro_pad" },
+    { pattern = "intro_drums", at = 2 },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
+]
+
+[section.a]
+bars = 8
+layers = [
+    { pattern = "hook_a" },
+    { pattern = "pad_a" },
+    { pattern = "bell_d", times = 1, intensity = [0, 0.6] },
+    { pattern = "drums_soft", intensity = [0, 0.35] },
+    { pattern = "drums_mid", times = 3, intensity = [0.35, 0.6] },
+    { pattern = "drums_mid_1", at = 6, intensity = [0.35, 0.6] },
+    { pattern = "fill_mid", at = 7, intensity = [0.35, 0.6] },
+    { pattern = "drums_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "drums_full_1", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill_full", at = 7, intensity = [0.6, 1] },
+    { pattern = "bass_a", intensity = [0.35, 1] },
+    { pattern = "arp_a", intensity = [0.6, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
+]
+
+[section.a2]
+bars = 8
+layers = [
+    { pattern = "hook_a2" },
+    { pattern = "pad_a" },
+    { pattern = "drums_soft", intensity = [0, 0.35] },
+    { pattern = "drums_mid", times = 3, intensity = [0.35, 0.6] },
+    { pattern = "drums_mid_1", at = 6, intensity = [0.35, 0.6] },
+    { pattern = "fill_mid", at = 7, intensity = [0.35, 0.6] },
+    { pattern = "drums_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "drums_full_1", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill_full", at = 7, intensity = [0.6, 1] },
+    { pattern = "bass_a", intensity = [0.35, 1] },
+    { pattern = "arp_a", intensity = [0.6, 1] },
+    { pattern = "strings_a2", intensity = [0.6, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
+]
+
+[section.b]
+bars = 8
+layers = [
+    { pattern = "hook_b" },
+    { pattern = "pad_b" },
+    { pattern = "bell_f", times = 1, intensity = [0, 0.6] },
+    { pattern = "drums_soft", intensity = [0, 0.35] },
+    { pattern = "drums_mid", times = 3, intensity = [0.35, 1] },
+    { pattern = "drums_mid_1", at = 6, intensity = [0.35, 1] },
+    { pattern = "fill_mid", at = 7, intensity = [0.35, 0.6] },
+    { pattern = "fill_full", at = 7, intensity = [0.6, 1] },
+    { pattern = "bass_b", intensity = [0.35, 1] },
+    { pattern = "arp_b", intensity = [0.6, 1] },
+    { pattern = "strings_b", intensity = [0.35, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
+]
+
+[section.c]
+bars = 8
+layers = [
+    { pattern = "hook_c" },
+    { pattern = "hook_c", instrument = "dizi", transpose = -12, intensity = [0.85, 1] },
+    { pattern = "pad_c" },
+    { pattern = "bell_d", at = 2, times = 1, intensity = [0, 0.6] },
+    { pattern = "drums_soft", times = 7, intensity = [0, 0.35] },
+    { pattern = "drums_mid", times = 3, intensity = [0.35, 0.6] },
+    { pattern = "drums_mid_1", at = 6, intensity = [0.35, 0.6] },
+    { pattern = "drums_full", times = 3, intensity = [0.6, 1] },
+    { pattern = "drums_full_1", at = 6, intensity = [0.6, 1] },
+    { pattern = "fill_mid", at = 7, intensity = [0, 0.6] },
+    { pattern = "roll", at = 7, intensity = [0.6, 1] },
+    { pattern = "bass_c", intensity = [0.35, 1] },
+    { pattern = "arp_c", intensity = [0.6, 1] },
+    { pattern = "strings_c", intensity = [0.6, 1] },
+    { pattern = "crash", times = 1, intensity = [0.85, 1] },
+    { pattern = "air" },
+    { pattern = "air_crickets" },
+]
+
+[section.end]
+bars = 2
+layers = [
+    { pattern = "end_zheng" },
+    { pattern = "end_pad" },
+    { pattern = "bell_d", times = 1 },
+    { pattern = "end_drums" },
+]
+
+[arrangement]
+intro = ["intro"]
+loop = ["a", "a2", "b", "c"]
+outro = ["end"]

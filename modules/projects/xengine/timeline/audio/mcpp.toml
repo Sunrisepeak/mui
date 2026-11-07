@@ -1,0 +1,26 @@
+[package]
+namespace = "xengine.timeline"
+name = "audio"
+version = "0.1.0"
+description = "Optional immutable timeline-to-audio sample-clock automation"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.openmui-timeline-audio]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+xengine.timeline = { path = ".." }
+xengine.audio = { path = "../../audio" }
+hanim.core = { path = "../../../hanim/core" }
+mlibs.utils = { path = "../../../../base/utils" }
+
+[dev-dependencies]

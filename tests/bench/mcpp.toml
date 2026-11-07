@@ -1,0 +1,55 @@
+# omui.bench — the framework's benchmarks: what a frame of the 1000-node
+# dashboard costs at 1080p on the CPU (M1 acceptance ⑤), the pieces alone,
+# and what tracing and logging cost when off. `omui-bench` prints a table,
+# writes `<name>.bench.omui.json`, and checks budgets.bench.omui.json (CI's
+# release row; the budgets are for release builds).
+#
+#   mcpp run -p omui.bench --profile release -- --check tests/bench/budgets.bench.omui.json
+[package]
+namespace   = "omui"
+name        = "bench"
+version     = "0.1.0"
+description = "openmui benchmarks: frame costs, pieces alone, reports and budgets"
+license     = "Apache-2.0"
+
+[package.metadata.openmui]
+kind = "tool"
+
+[targets.openmui-bench]
+kind = "lib"
+
+[targets.omui-bench]
+kind = "bin"
+main = "src/main.cpp"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+xrender.text = { path = "../../modules/projects/xrender/text" }
+"xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
+"xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
+"xengine.simulation.cellular.present" = { path = "../../modules/projects/xengine/simulation/cellular/present" }
+"hanim.core" = { path = "../../modules/projects/hanim/core" }
+"hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
+omui.sdk             = { path = "../../modules/projects/omui/sdk" }
+omui.view            = { path = "../../modules/projects/omui/view", features = ["hanim"] }
+mlibs.utils           = { path = "../../modules/base/utils" }
+mlibs.markdown        = { path = "../../modules/content/markdown" }
+xengine.audio           = { path = "../../modules/projects/xengine/audio" }
+"xengine.timeline"       = { path = "../../modules/projects/xengine/timeline" }
+"xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
+"omui.ui.canvas"       = { path = "../../modules/projects/omui/components/canvas" }
+"omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
+omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
+omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
+"omui.showcase.fighting" = { path = "../../showcase/fighting" }
+"omui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
+"gongfu"                  = { path = "../../modules/projects/gongfu" }
+"gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
+omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
+"mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
+"xrender.rhi.sdl"       = { path = "../../modules/projects/xrender/rhi/sdl" }
+mcpplibs.os           = "0.2.2"
+
+[dev-dependencies]

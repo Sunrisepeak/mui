@@ -1,0 +1,26 @@
+# mlibs.geom — the geometry the independent modules share: points, sizes,
+# rectangles, insets, radii, colours, affine transforms, pixel snapping.
+# The standard library and mlibs.utils (its errors are mlibs.error's);
+# constexpr value/path contracts and shared curve flattening.
+[package]
+namespace   = "mlibs"
+name        = "geom"
+version     = "0.1.0"
+description = "Shared 2D geometry: values, path contracts, validation, curve flattening and pixel snapping"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "runtime"
+
+[targets.mlibs-geom]
+kind = "lib"
+
+[build]
+sources  = ["src/*.cppm", "src/*.cpp"]
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
+
+[dependencies]
+mlibs.utils = { path = "../utils" }
+mlibs.math  = { path = "../math" }

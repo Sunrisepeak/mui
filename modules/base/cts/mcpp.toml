@@ -1,0 +1,31 @@
+# mlibs.cts — the conformance framework every contract's suite runs on
+# (convergence plan §5.5): suites and cases with stable ids, the contract and
+# the level they check (S semantic, A exact, B within a declared tolerance);
+# three results — passed, failed, unsupported — where "unsupported" comes only
+# from the subject's capabilities and never counts as passed; comparisons
+# (bytes, tolerances with a budget, pinned hashes, images, sampled processes);
+# a machine-readable report (*.cts.omui.json). The suites themselves live with
+# their contract's owner (`src/cts/`, feature `cts`). For tests only: no
+# artifact depends on it. Its own package, not a tool of mlibs.utils, because
+# the report needs a JSON library.
+[package]
+namespace   = "mlibs"
+name        = "cts"
+version     = "0.1.0"
+description = "Conformance framework: suites, levels, passed/failed/unsupported, comparisons, machine-readable reports"
+license     = "Apache-2.0"
+platforms   = ["linux", "macos", "windows", "emscripten"]
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "module"
+
+[targets.mlibs-cts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+mlibs.utils   = { path = "../utils" }
+nlohmann.json = "3.12.0"

@@ -1,0 +1,19 @@
+# CRT scanlines: every `period`-th row of the layer darkened, as on an old
+# monitor. A program's own effect: this file and scanlines.slang, no C++.
+name = "scanlines"
+doc  = "Every period-th row darkened by strength, as on a CRT."
+reach = 0
+
+[[param]]
+name    = "strength"
+default = 0.5
+min     = 0
+max     = 1
+doc     = "how much darker a scanline is (0: not at all; 1: black)"
+
+[[param]]
+name    = "period"
+default = 2
+min     = 1
+max     = 16
+doc     = "rows from one scanline to the next, logical pixels"

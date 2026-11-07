@@ -1,0 +1,48 @@
+// openmui.ui.base:slider — a number in a range, by dragging the thumb,
+// clicking the track, keys (arrows step, Home and End jump) or actions;
+// `changed` while it moves, `committed` when a drag ends.
+export module omui.ui.base:slider;
+
+import std;
+import omui.core;
+import omui.view;
+import :parts;
+import :slider_contract;
+
+export namespace omui {
+
+class Slider : public SliderContract<Slider> {
+public:
+    void mounted();
+    void prop_changed(SliderProp p);
+    Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw,
+                 mlibs::layout::Available ah);
+    void paint(PaintContext& ctx) const;
+    void paint_over(PaintContext& ctx) const;
+    std::size_t effect_shapes(Size size, Rect content, std::span<xrender::EffectShape> out) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+    void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+
+    ActResult increment(ActContext& ctx);
+    ActResult decrement(ActContext& ctx);
+    ActResult set_value(ActContext& ctx, const Value& value);
+    // A dry run (S-13): the value it would land on (snapped, clamped).
+    ActResult preview(ActContext& ctx, std::string_view action) const;
+
+    // The value a raw number becomes: in range, on a step.
+    [[nodiscard]] double snap(double v) const noexcept;
+
+private:
+    // Sets the value; `animate` glides the thumb (keys), else it follows (drags).
+    // To v, snapped to its step unless exact (an undo putting back what was).
+    bool change(double v, bool commit, bool exact = false);
+    [[nodiscard]] double fraction(double v) const noexcept;
+    [[nodiscard]] Rect track(Size size) const noexcept;
+
+    mutable double thumb_ = 0, hover_ = 0, halo_ = 0;
+    mutable Size   size_{};  // the last painted size: pointer positions map onto it
+    bool           dragging_ = false;
+    double         drag_from_ = 0;  // the value when the drag began: the drag is one step of history
+};
+
+}  // namespace omui

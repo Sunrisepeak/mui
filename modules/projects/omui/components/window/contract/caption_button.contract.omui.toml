@@ -1,0 +1,29 @@
+# One of a window frame's buttons (D-75): minimize, maximize, restore or
+# close, as a square glyph button (`standard`) or a coloured circle
+# (`traffic`). Activating it invokes its window.* verb.
+[contract.caption_button]
+role = "button"
+spec = "0.1"
+doc  = "A window frame's button: minimize, maximize, restore or close."
+
+[contract.caption_button.props]
+kind   = { type = "enum", values = ["minimize", "maximize", "restore", "close"], default = "close", doc = "What it does." }
+look   = { type = "enum", values = ["standard", "traffic"], default = "standard", doc = "A square glyph button, or a coloured circle." }
+active = { type = "bool", default = true, doc = "Whether its window is active (an inactive window's circles are grey)." }
+label  = { type = "string", default = "", doc = "The accessible name (default: what it does, in the person's language)." }
+
+[contract.caption_button.events]
+activated = { args = {} }
+
+[contract.caption_button.actions]
+activate = { effect = "reversible" }
+
+[contract.caption_button.keys]
+"Enter|Space" = "activate"
+
+[contract.caption_button.parts]
+background = {}
+glyph      = {}
+
+[contract.caption_button.motion]
+hover = "motion.fast"

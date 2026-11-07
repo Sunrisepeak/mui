@@ -1,0 +1,37 @@
+# omui.entry.player — the player's main (component-binding §10.2): what a
+# script-first application's one-line src/main.cpp calls. It reads the
+# application's [package.metadata.openmui], registers the official components
+# and the script languages (Lua, JavaScript, TypeScript, Python), and runs
+# the player with openmui's options; saved files reload in place.
+#
+# A package of its own rather than a feature of the umbrella: a workspace
+# builds each package once, so a feature one member enables would reach every
+# member that depends on the umbrella, without the feature's dependencies.
+[package]
+namespace   = "omui.entry"
+name        = "player"
+version     = "0.1.0"
+description = "The player's main for script-first openmui applications (entry-player)"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "entry"
+
+[targets.openmui-entry-player]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[dependencies]
+omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
+omui.player        = { path = "../../../modules/projects/omui/player" }
+omui.lang.lua      = { path = "../../../modules/projects/omui/lang/lua" }
+omui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
+omui.lang.python.embedded = { path = "../../../modules/projects/omui/lang/python/embedded" }
+omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
+omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
+omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
+omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
+marzer.tomlplusplus = "3.4.0"

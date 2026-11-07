@@ -1,0 +1,17 @@
+{
+  "about": "What a gamepad does in a fight: the first two connected are players 1 and 2. The buttons by their place in openmui's standard set (spec §6.1: south is A or Cross, west X or Square, rightShoulder R1, rightTrigger R2), each to a fighting game's button; the six-button layout puts the punches on top and the kicks below.",
+  "layout": "six-button",
+  "buttons": {
+    "west": "LP",
+    "north": "MP",
+    "rightShoulder": "HP",
+    "south": "LK",
+    "east": "MK",
+    "rightTrigger": "HK"
+  },
+  "directions": {
+    "dpad": true,
+    "leftStick": true,
+    "stick": 0.5
+  }
+}

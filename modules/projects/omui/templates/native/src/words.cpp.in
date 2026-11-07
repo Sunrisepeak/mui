@@ -1,0 +1,22 @@
+// The functions native/words.native.omui.toml declares.
+module {{project.name}};
+
+import std;
+
+namespace {{project.name}}::words {
+
+std::expected<Counts, std::string> count(const std::string& text) {
+    Counts c;
+    bool in_word = false;
+    for (std::size_t i = 0; i < text.size(); ++i) {
+        const auto b = static_cast<unsigned char>(text[i]);
+        if ((b & 0xC0) != 0x80) ++c.characters;  // a code point starts
+        const bool space = b == ' ' || b == '\t' || b == '\n' || b == '\r';
+        if (!space && !in_word) ++c.words;
+        in_word = !space;
+        if (b == '.' || b == '!' || b == '?') ++c.sentences;
+    }
+    return c;
+}
+
+}  // namespace {{project.name}}::words

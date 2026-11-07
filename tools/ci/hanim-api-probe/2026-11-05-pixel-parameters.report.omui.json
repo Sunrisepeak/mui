@@ -1,0 +1,2823 @@
+{
+  "format": "hanim.pixel-parameters-checkpoint@0.1",
+  "ok": true,
+  "base_commit": "4245048ccce762504c25a96bf4171e601cfecc40",
+  "scope": [
+    "S3 partial: public parameter recipe, shared renderer grid/identity/input neighbourhood, UI named effect animation and appearance usage, progressive site controls and real Agent capture.",
+    "Add animation-process acceptance norm and a 61-timestamp actual CPU-rendered example; no claim that existing endpoint-only cases satisfy it."
+  ],
+  "source_identity_note": "Base commit plus actual file hashes identify the working tree tested. Full regression runs and final targeted reruns are recorded separately. User-owned source lock was used, remains unchanged, and is excluded from the commit.",
+  "source_lock_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+  "source_files_sha256": {
+    "modules/base/hanim/core/src/core.cppm": "ecdc0172eddf8448fafcaed48175e40ac58edf8bbe0e8bc0d3e7cd18bab8a458",
+    "modules/base/hanim/core/src/ease.cpp": "df318b3d47ba56252d60858d85e8d9e01d68360b2ea2fe91a95013a68a9f2de4",
+    "modules/base/hanim/core/src/ease.cppm": "b43599eee8e3642e1609777af5be4890a082cddb953aff73a705cb4c87aba044",
+    "modules/base/hanim/core/src/math.cppm": "2cf5c0f7b2d61516ba4464d126fa9a921c19076b13cad0221404cb706d8693e9",
+    "modules/base/hanim/core/src/motion.cpp": "39457ec62bfa40cd0715b0c2f45434868ed0bf0aef0f168a8b1ee6770c954618",
+    "modules/base/hanim/core/src/motion.cppm": "3741d1351824a869d5af96b644eaecc44476256c2c6458eee28be5b4c0f3e436",
+    "modules/base/hanim/core/src/path.cpp": "7f4f8627d762fed3d90852f4df159a0a56f93ac1c034fb97bc0fe5452994718d",
+    "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+    "modules/base/hanim/core/src/set.cpp": "555c887d0aaf7bfdae97d46633c9fb577ac0ad44da1bdf2d27836614636ebbdf",
+    "modules/base/hanim/core/src/set.cppm": "5df90d61b8f4c9d4721fca9a79048be7face5a3b1c471a7805242f4f022957cc",
+    "modules/base/hanim/core/src/shape.cpp": "30968d4f2b799545b0903ec9e3e8fb2a5ce684fff17f065ae295d931adc3ad80",
+    "modules/base/hanim/core/src/shape.cppm": "8f2b8d443409f581eb0eb1c06c5327245a3c6cdba29ac06c249469b5b02fc463",
+    "modules/base/hanim/core/src/time.cpp": "e22baaca35c596c9c4d5565c05b4928e1730f4204b0dec453e4705ab82d070a5",
+    "modules/base/hanim/core/src/time.cppm": "a7e8d6ecfca6e593484f59a2661557d551db4afd7f9b6cf55b3604fc30a7aaaa",
+    "modules/base/hanim/core/src/timeline.cpp": "4f8928509e45533448107e1cf94579ecb29bbeafdbc1976071b02638c58505a7",
+    "modules/base/hanim/core/src/timeline.cppm": "f91bb2e4c10289705dcd2f995edc5237a9df320ceaa32c67819a2caabc7a131f",
+    "modules/base/hanim/core/src/value.cpp": "04e35cdd9e386067f63649a05c015e2760a123e1630b356ee08cb2b6a20c1fc3",
+    "modules/base/hanim/core/src/value.cppm": "dccbb6e135146983b3dfaf719d792fa12bddd5fa6b2cfc26201874ad7545f926",
+    "modules/base/log/src/log.cpp": "e53a904664ef4aedd8427afe687f79a7de9a0b0ed93237fc0d49a9854a52ac43",
+    "modules/base/log/src/log.cppm": "5e9dc5bf1ec327ac8050f8d298d85bccd2b01bc88da695449c9c96784f6b7c35",
+    "modules/base/math/src/color.cppm": "0bf26bcd84c5317c0d992dc02ddd92c38b1d4e8e365d6caa1a870f8587b07d49",
+    "modules/base/math/src/det.cpp": "4f475be69a518141e005a45b0b0d06540ba96e61eb83c7cb4cacc05ed7d8c64e",
+    "modules/base/math/src/det.cppm": "44f2a3ee6a2c2e98a680725bd1d527bd9f2c2690bd67150c476bad78e11100bd",
+    "modules/base/math/src/math.cppm": "16104515ed5113c10f4c7bb33f13b5b8af7e7917b7c58f367e68749723cac1c6",
+    "modules/base/math/src/random.cppm": "46df72cbc1ad333a21330d9b93727bda2f131f3d83601b62592e5dfc3bb9c562",
+    "modules/base/memory/src/arena.cpp": "971d79859651edcf92cbeb2ab4ff2560eaa7ceeda3790b17b27051abc42b144b",
+    "modules/base/memory/src/arena.cppm": "84d4ceab9fc36c8eac2398b9b94d6acbdb0c827640f808f7db4405c879f7f6fd",
+    "modules/base/memory/src/function.cppm": "c02058a7572c1890d26bcafdb71a6a0f23b0382399a87364a169ecf1d80d7dbd",
+    "modules/base/memory/src/handle.cppm": "b43d8e7d00a816dd961c8a93c25fd3ff47d25fe44d671cd883b316f9df2bb41d",
+    "modules/base/memory/src/memory.cppm": "0ab605950b5d8016abb26d6fb4e9708798343cb130a4907a8ccc1f3c8facf4ff",
+    "modules/base/memory/src/slots.cppm": "35a479cc40ab294652b521ea3656e74a057f71520066cae36c195c5a6ec09cbc",
+    "modules/base/trace/src/trace.cpp": "6ac0d632a395568de2ba87eda1cb922a524ab1d06ae04d9002a9aedeba57fda4",
+    "modules/base/trace/src/trace.cppm": "1985ccf2b3f5536b3ade39163b4d565bc300ce6d0c9b898e46195b69271b57be",
+    "modules/gfx/hanim/effect/src/effect.cpp": "0516f9d9450f9d3d40961b248bd697e472c6c9d36b7a09890fc2f703a5d2bc92",
+    "modules/gfx/hanim/effect/src/effect.cppm": "9a51b7b120a51fb122878997369067141164d422519c02ec89911d49c198a5d1",
+    "modules/gfx/hanim/effect/tests/effect_test.cpp": "4da94d02f51dce19057b2af2b34fe3e74f4e381c10943af3441609fde8988aa9",
+    "modules/gfx/hanim/engine/src/engine.cpp": "ea75e83a795a4d8352304b116f423cefbcb8e6765c2badf36aecb237135390bb",
+    "modules/gfx/hanim/engine/src/engine.cppm": "563ffa555340e246a628828e498cab4699c8fd735347fc6ba9561527af8c87c7",
+    "modules/gfx/hanim/library/src/library.cpp": "b28925e3747ce392bd19696fe287b78be9d0cde6ea68840aa07f8d69bb935c4b",
+    "modules/gfx/hanim/library/src/library.cppm": "bc2eb5dd721d2dcb8f53f39958a8f0ee4314ab9932a3ef2c1635e40b34b7cb7f",
+    "modules/gfx/hanim/object/src/object.cpp": "f7b882e962f57e813b37a08c418a823fa9f7e08d3a910974175c23c4a1e09eeb",
+    "modules/gfx/hanim/object/src/object.cppm": "65ba64989e4e14557a6d9cf41a74011c00a959d1b2cbea0f0253086b48ba07c2",
+    "modules/gfx/hanim/program/src/program.cpp": "39812596c5edf58506b429daf190e616794cc6d26d69e967119af1db34beae96",
+    "modules/gfx/hanim/program/src/program.cppm": "e6680fad04aedfaa7c5895cfd56afaa5370e06f5780a040f398d60421233c710",
+    "modules/gfx/hanim/render/vector/tests/vector_test.cpp": "5e0c0aac5002edca42a7f96449f7e9ad0ee9fd55f0c58c2e828d43d4922714bf",
+    "modules/gfx/hanim/src/hanim.cppm": "f37667dee4bc780775aa365ad452ec4386eb3c63ac21e299ab0c1e48bf458c18",
+    "modules/gfx/render/cts/tests/vector_gpu_test.cpp": "12e5677a904f42568e884dbb1aafd488e305070481e081d9d62151ca15ec42a9",
+    "modules/gfx/render/vector/effects/pixelate.slang": "a2cef7e870f31663955331f4b74cc690bcd2e2318869f202a916661e1a9b782a",
+    "modules/gfx/render/vector/src/cpu.cpp": "01916ee1133c8fb9772d2af5854a35faedfd2e1420e0052136368563fcdc485a",
+    "modules/gfx/render/vector/src/display.cpp": "84c60a2ebb04c17b25f596ba2201839f5d2faaf5d7718bdc433618e408077a11",
+    "modules/gfx/render/vector/src/effects.cpp": "162692052c5165b82f404476d782a4b700f4aa573f362cbcd7eeb41cfaef50ec",
+    "modules/gfx/render/vector/src/effects.cppm": "b992a1e650573bd7a0e2bfcccfa01fe627249f686e8489d47ca040d72793a2fd",
+    "modules/gfx/render/vector/src/gpu.cpp": "344ad96b5ad7409dc43329b431d05ae194c0eb0347adad28f51256e48b1e1267",
+    "modules/gfx/render/vector/tests/pixelate_test.cpp": "c776b64f8373ecb364851b87bb573980d2e3818e6457600b01872ec70e3a827e",
+    "modules/ui/theme/src/library.cpp": "2076181c77e22d8f8fe0a692beb1dd22e47a1a52ee363981e566a4f92e655539",
+    "modules/ui/theme/src/native/toml.cpp": "7da159f7a1d809efa46d632740418ec386c1a1c6605e0cf3e6796789b8e9d08c",
+    "modules/ui/theme/tests/theme_test.cpp": "675763ab52d53c418a92e4df15fa9c74eead79867cf9d5b00eb15256f362345c",
+    "modules/ui/view/mcpp.toml": "b9c8c86ee727dd61c8ab3eabe320a94711064fc7194687fa00d82868ca15ae11",
+    "modules/ui/view/src/frame.cpp": "e3c7231c94f0dcd9f1a92a819aec23d0929e479c8105cf36548d49ffd8bdf9ba",
+    "modules/ui/view/src/impl.cppm": "5846d1498e6bf8c4bd31c39a1f0de250f449ee369b711fc5fd9b2b5ce9c096d5",
+    "modules/ui/view/src/props.cpp": "785d20b7a574ca798863bc0ea777879b16d8d64e3de2023e5327d9a7a8e480f0",
+    "modules/ui/view/tests/effect_animation_test.cpp": "bc8678be35c5d0ff316de24e9a71d79fcbea9a48be90f5b8925526ec81bbc196",
+    "site/src/feature_examples.cpp": "2524c8512d3e1cd6f24be00e8c0c9e77c4ba95f2398a08e08f32a5a86a7e2da9",
+    "site/src/feature_examples.cppm": "9d171428c5af8722563074ebfa0d5986845661009da5cd935830ae02276f8994",
+    "site/tests/feature_examples_test.cpp": "b2d395371188454bdca4e8007376108ac677f08fbf2ccd5263f3320226912f2b",
+    "tools/ci/hanim-api-probe/src/main.cpp": "6ce3933be42be96345fb79d9b09967d8a6eb0df250edeee3b73526e50f33950e",
+    "tools/ci/readme-media.sh": "f4879a7f1d8dd448c731b15894f22165ddb42db4155505ed6a2887bec784042b",
+    "tools/ci/site-presentation.mjs": "b8b0b3b1f24e1ae89520c6a7999a25325e78f5598ae2d567c7b774c994279224"
+  },
+  "toolchains": {
+    "mcpp": "2026.11.2.2",
+    "native": {
+      "abi": "glibc",
+      "spec": "gcc 16.1.0 (x86_64-linux-gnu)",
+      "stdlib": "libstdc++",
+      "triple": "x86_64-linux-gnu"
+    },
+    "web": "Emscripten 6.0.9, actual Node execution using wasm-test",
+    "chromium": "HeadlessChrome/156.0.8078.4"
+  },
+  "regression": [
+    {
+      "command": "MCPP_JOBS=2 /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.render.vector -p hanim.effect -p hanim.render.vector -p openmui.view -p openmui.theme -p openmui.site --profile dev",
+      "scope": "Full related packages before final UI identity-wrapper correction, visible labels, and added 61-frame test.",
+      "log": {
+        "path": "/tmp/omui-pixel-integration-dev.log",
+        "bytes": 68511,
+        "sha256": "b41a5b9d1dbae5085d62e7806d896e52f025bffc897e504626e387031fa8fa3a"
+      },
+      "programs": 45,
+      "cases_passed": 329,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.render.vector",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "suite": "theme",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "suite": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-release-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.render.vector -p hanim.effect -p hanim.render.vector -p openmui.view -p openmui.theme -p openmui.site -p openmui.render.cts --profile release",
+      "scope": "Full related packages and required real GPU CTS; see gpu.environment. Before final UI identity-wrapper correction, labels, and added process test.",
+      "log": {
+        "path": "/tmp/omui-pixel-integration-release.log",
+        "bytes": 75750,
+        "sha256": "2b63081b0dc2c4b229aad2ccf0ec3f8247d39001eac759620dc61a514e64fe67"
+      },
+      "programs": 49,
+      "cases_passed": 340,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.render.vector",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "render.graph",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "render.effect_output_bounds",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix-gpu",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "render.gpu",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.damage",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.effects",
+          "passed": 11,
+          "failed": 0
+        },
+        {
+          "suite": "theme",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "suite": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-wasm-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.render.vector -p hanim.effect -p hanim.render.vector -p openmui.view --target wasm32-emscripten --profile wasm-test",
+      "scope": "Actual Node-executed Wasm after canonical display hash fix; before final UI identity wrapper and added process test.",
+      "log": {
+        "path": "/tmp/omui-pixel-wasm-final.log",
+        "bytes": 40132,
+        "sha256": "e53cdd6c51f11fab8bc52a44e47aecf4bdecadb9ebfb86872bed20cd48b014e3"
+      },
+      "programs": 25,
+      "cases_passed": 191,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "hanim.effect",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "hanim.render.vector",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "render.blank-glyph",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.cpu",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "render.damage",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.display",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.effect_output_bounds",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix-cpu",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.paint-mix",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.path-recording",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "render.pixelate",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "render.effects",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "render.shape-morph",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test view_test --locked -p openmui.view --profile dev",
+      "scope": "Pinned native display hash and actual pixels retained after canonical hash fix.",
+      "log": {
+        "path": "/tmp/omui-pixel-native-hash-final.log",
+        "bytes": 7013,
+        "sha256": "bdabf32d88b77e1c05936204f5796abccad2fd3a4afe69ad2d6a6d2b3e1c78aa"
+      },
+      "programs": 1,
+      "cases_passed": 52,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.view --profile dev",
+      "scope": "All UI programs after final production runtime correction; before added 61-frame test.",
+      "log": {
+        "path": "/tmp/omui-pixel-ui-final.log",
+        "bytes": 20686,
+        "sha256": "5679452b890d4e51ef53dfadd098d412359c1a5ef5d1b113222d49108a73b00d"
+      },
+      "programs": 12,
+      "cases_passed": 122,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-wasm-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.view --target wasm32-emscripten --profile wasm-test",
+      "scope": "All UI programs after final runtime correction; before added process test.",
+      "log": {
+        "path": "/tmp/omui-pixel-wasm-ui-final.log",
+        "bytes": 26050,
+        "sha256": "141838891769ca5f629154aa0750a8e11dde7221b7f48f12e34440cc55bef867"
+      },
+      "programs": 12,
+      "cases_passed": 122,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-release-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test --locked -p openmui.view -p openmui.site --profile release",
+      "scope": "All UI/site after final runtime correction; before visible-label adjustment and added process test.",
+      "log": {
+        "path": "/tmp/omui-pixel-ui-site-release-final.log",
+        "bytes": 53041,
+        "sha256": "2d61d864fd056739dcfab351508f792d95a8973741e6a20bb4b9b1a7e74c2825"
+      },
+      "programs": 31,
+      "cases_passed": 249,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "view.agent_context",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "view.adapt",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.constraint_placement",
+          "passed": 13,
+          "failed": 0
+        },
+        {
+          "suite": "view.agent_policy",
+          "passed": 4,
+          "failed": 0
+        },
+        {
+          "suite": "view.input_attribution",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "view.motion",
+          "passed": 10,
+          "failed": 0
+        },
+        {
+          "suite": "view.effect-animation",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "view.presentation_geometry",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "view.text-policy",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "view.path-policy",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "view.theme_motion",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "view",
+          "passed": 52,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent_guard",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-preview",
+          "passed": 9,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-contrast",
+          "passed": 1,
+          "failed": 0
+        },
+        {
+          "suite": "site.agent-transition-layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.brand",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.basic_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.first_frame",
+          "passed": 7,
+          "failed": 0
+        },
+        {
+          "suite": "site.frames",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.gallery",
+          "passed": 8,
+          "failed": 0
+        },
+        {
+          "suite": "site.guide_access",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site.home_landing",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.motion_gallery",
+          "passed": 12,
+          "failed": 0
+        },
+        {
+          "suite": "site.navigation_redesign",
+          "passed": 6,
+          "failed": 0
+        },
+        {
+          "suite": "site.p0_layout",
+          "passed": 3,
+          "failed": 0
+        },
+        {
+          "suite": "site.creative_motion",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.static_gallery",
+          "passed": 5,
+          "failed": 0
+        },
+        {
+          "suite": "site.text-motion-quality",
+          "passed": 2,
+          "failed": 0
+        },
+        {
+          "suite": "site",
+          "passed": 37,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test feature_examples --locked -p openmui.site --profile dev",
+      "scope": "Final visible labels and actual Agent capture.",
+      "log": {
+        "path": "/tmp/omui-pixel-site-labels-dev.log",
+        "bytes": 2804,
+        "sha256": "c51089ed052393c71efe48f9b7455b988ba8f04be3cc1fb230bcacc7b81de550"
+      },
+      "programs": 1,
+      "cases_passed": 7,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        }
+      ]
+    },
+    {
+      "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-release-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test feature_examples --locked -p openmui.site --profile release",
+      "scope": "Final visible labels and actual Agent capture.",
+      "log": {
+        "path": "/tmp/omui-pixel-site-labels-release.log",
+        "bytes": 4594,
+        "sha256": "49017d6ca5d198afc94d5cb84ba9b070d2ecf52d879993088910932477f2aeb5"
+      },
+      "programs": 1,
+      "cases_passed": 7,
+      "cases_failed": 0,
+      "suites": [
+        {
+          "suite": "site.feature_examples",
+          "passed": 7,
+          "failed": 0
+        }
+      ]
+    }
+  ],
+  "public_api": {
+    "command": "python3 tools/ci/hanim-api-probe/run.py --mcpp /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp --output /tmp/omui-pixel-public-api.report.omui.json",
+    "report": {
+      "path": "/tmp/omui-pixel-public-api.report.omui.json",
+      "bytes": 44555,
+      "sha256": "f596b789ac33170637f132e03021e618d3b2d6077fba02623f2cde1afac5456e"
+    },
+    "source_lock_before": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "source_lock_after": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks_passed": 104,
+        "checks_failed": 0,
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "new_pixel_checks": [
+          {
+            "name": "public_pixelate_recipe_plays_without_renderer",
+            "ok": true
+          },
+          {
+            "name": "pixelate_parameters_seek_on_engine_clock",
+            "ok": true
+          },
+          {
+            "name": "pixelate_samples_strength_size_and_fixed_grid",
+            "ok": true
+          },
+          {
+            "name": "pixelate_resources_released",
+            "ok": true
+          }
+        ]
+      },
+      {
+        "profile": "release",
+        "checks_passed": 104,
+        "checks_failed": 0,
+        "packages": [
+          "hanim.core",
+          "hanim.effect",
+          "hanim.engine",
+          "hanim.library",
+          "hanim.object",
+          "hanim.program",
+          "hanim.validation.api_probe",
+          "mcpplibs.hanim",
+          "openmui.log",
+          "openmui.math",
+          "openmui.memory",
+          "openmui.trace"
+        ],
+        "new_pixel_checks": [
+          {
+            "name": "public_pixelate_recipe_plays_without_renderer",
+            "ok": true
+          },
+          {
+            "name": "pixelate_parameters_seek_on_engine_clock",
+            "ok": true
+          },
+          {
+            "name": "pixelate_samples_strength_size_and_fixed_grid",
+            "ok": true
+          },
+          {
+            "name": "pixelate_resources_released",
+            "ok": true
+          }
+        ]
+      }
+    ],
+    "commands": [
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 11.951591214979999,
+        "stdout": "/tmp/omui-pixel-public-api.report.omui-artifacts/bootstrap.stdout.log",
+        "stderr": "/tmp/omui-pixel-public-api.report.omui-artifacts/bootstrap.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "dev"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1488585890037939,
+        "stdout": "/tmp/omui-pixel-public-api.report.omui-artifacts/dev.stdout.log",
+        "stderr": "/tmp/omui-pixel-public-api.report.omui-artifacts/dev.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "dev",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1450726359616965,
+        "stdout": "/tmp/omui-pixel-public-api.report.omui-artifacts/dev-metadata.stdout.log",
+        "stderr": "/tmp/omui-pixel-public-api.report.omui-artifacts/dev-metadata.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "run",
+          "--locked",
+          "--profile",
+          "release"
+        ],
+        "exit_code": 0,
+        "seconds": 16.23285885399673,
+        "stdout": "/tmp/omui-pixel-public-api.report.omui-artifacts/release.stdout.log",
+        "stderr": "/tmp/omui-pixel-public-api.report.omui-artifacts/release.stderr.log"
+      },
+      {
+        "argv": [
+          "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+          "build",
+          "--locked",
+          "--profile",
+          "release",
+          "--configure-only"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1519348230212927,
+        "stdout": "/tmp/omui-pixel-public-api.report.omui-artifacts/release-metadata.stdout.log",
+        "stderr": "/tmp/omui-pixel-public-api.report.omui-artifacts/release-metadata.stderr.log"
+      }
+    ],
+    "dependency_boundary": "11 libraries plus standalone consumer; no UI/spec/renderer/RHI."
+  },
+  "gpu": {
+    "environment": {
+      "OMUI_GPU_VIDEO_DRIVER": "offscreen",
+      "OMUI_REQUIRE_GPU": "1",
+      "VK_DRIVER_FILES": "/home/speak/.xlings/data/xpkgs/xim-x-mesa-lavapipe/26.2.1/share/vulkan/icd.d/lvp_icd.x86_64.json",
+      "OMUI_VULKAN_LIBRARY": "/usr/lib/x86_64-linux-gnu/libvulkan.so.1"
+    },
+    "log": {
+      "path": "/tmp/omui-pixel-integration-release.log",
+      "bytes": 75750,
+      "sha256": "2b63081b0dc2c4b229aad2ccf0ec3f8247d39001eac759620dc61a514e64fe67"
+    },
+    "pixelate_scenarios": [
+      {
+        "dpi": 1.0,
+        "device_pixels": 0,
+        "amount": 0.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.0,
+        "device_pixels": 0,
+        "amount": 0.5,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.0,
+        "device_pixels": 0,
+        "amount": 1.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.0,
+        "device_pixels": 1,
+        "amount": 0.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.0,
+        "device_pixels": 1,
+        "amount": 0.5,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.0,
+        "device_pixels": 1,
+        "amount": 1.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 0,
+        "amount": 0.0,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 0,
+        "amount": 0.5,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 0,
+        "amount": 1.0,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 1,
+        "amount": 0.0,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 1,
+        "amount": 0.5,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 1.25,
+        "device_pixels": 1,
+        "amount": 1.0,
+        "maximum_byte_error": 1,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 0,
+        "amount": 0.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 0,
+        "amount": 0.5,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 0,
+        "amount": 1.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 1,
+        "amount": 0.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 1,
+        "amount": 0.5,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      },
+      {
+        "dpi": 2.0,
+        "device_pixels": 1,
+        "amount": 1.0,
+        "maximum_byte_error": 0,
+        "pixels_beyond_one_byte": 0
+      }
+    ],
+    "limits": "Actual required Vulkan dispatch/readback on software lavapipe. No physical GPU throughput or browser GPU acceptance."
+  },
+  "animation_process": {
+    "source": "modules/ui/view/tests/effect_animation_test.cpp",
+    "configuration": {
+      "effect": "pixelate",
+      "size": 8,
+      "duration_seconds": 1,
+      "ease": "linear",
+      "animate": {
+        "amount": [
+          0,
+          1
+        ],
+        "origin_x": [
+          0,
+          3
+        ]
+      },
+      "logical_viewport": [
+        120,
+        80
+      ],
+      "rendered_pixels": [
+        240,
+        160
+      ],
+      "clip_radius": 9,
+      "renderer": "cpu",
+      "dpi": 2,
+      "background": "#f8fafc",
+      "alpha": "actual premultiplied renderer output composited over opaque background",
+      "random_seed": null
+    },
+    "observations": {
+      "renderer": "cpu",
+      "dpi": 2,
+      "fps": 60,
+      "background": "#f8fafc",
+      "duration_seconds": 1,
+      "samples": [
+        {
+          "seconds": 0,
+          "hash": "f0c92d82b2c8728a"
+        },
+        {
+          "seconds": 0.016666666666666666,
+          "hash": "9c718c5e25978d42"
+        },
+        {
+          "seconds": 0.03333333333333333,
+          "hash": "a14363c86fc3d0c1"
+        },
+        {
+          "seconds": 0.05,
+          "hash": "c223835c106ec2d0"
+        },
+        {
+          "seconds": 0.06666666666666667,
+          "hash": "8d2601ecab58c08f"
+        },
+        {
+          "seconds": 0.08333333333333333,
+          "hash": "af14782e59052fa9"
+        },
+        {
+          "seconds": 0.1,
+          "hash": "2cc46989ce97d743"
+        },
+        {
+          "seconds": 0.11666666666666667,
+          "hash": "a00ea21db389b02d"
+        },
+        {
+          "seconds": 0.13333333333333333,
+          "hash": "4d4c1a9ad97670fe"
+        },
+        {
+          "seconds": 0.15,
+          "hash": "9b7c97e9861c871f"
+        },
+        {
+          "seconds": 0.16666666666666666,
+          "hash": "046d91aa5e73241a"
+        },
+        {
+          "seconds": 0.18333333333333332,
+          "hash": "905d70b1b498af0c"
+        },
+        {
+          "seconds": 0.2,
+          "hash": "e846100c1347e373"
+        },
+        {
+          "seconds": 0.21666666666666667,
+          "hash": "6c20a9f080266d32"
+        },
+        {
+          "seconds": 0.23333333333333334,
+          "hash": "755ab8fce5bfca92"
+        },
+        {
+          "seconds": 0.25,
+          "hash": "231db39e6dd242ab"
+        },
+        {
+          "seconds": 0.26666666666666666,
+          "hash": "4880db21feef01a5"
+        },
+        {
+          "seconds": 0.2833333333333333,
+          "hash": "1fb41482989d3006"
+        },
+        {
+          "seconds": 0.3,
+          "hash": "4bbe5622c9ed6667"
+        },
+        {
+          "seconds": 0.31666666666666665,
+          "hash": "be90a46057adfaa5"
+        },
+        {
+          "seconds": 0.3333333333333333,
+          "hash": "5e5c6b8297a492da"
+        },
+        {
+          "seconds": 0.35,
+          "hash": "16d640aacf95ac58"
+        },
+        {
+          "seconds": 0.36666666666666664,
+          "hash": "22dae9859e5a193e"
+        },
+        {
+          "seconds": 0.38333333333333336,
+          "hash": "fd5e96a05d6a40d3"
+        },
+        {
+          "seconds": 0.4,
+          "hash": "8a0d278e8c9bf19c"
+        },
+        {
+          "seconds": 0.4166666666666667,
+          "hash": "34a6acecd5a0a46f"
+        },
+        {
+          "seconds": 0.43333333333333335,
+          "hash": "24b32aca0f193747"
+        },
+        {
+          "seconds": 0.45,
+          "hash": "e653ecbe7d71d1fc"
+        },
+        {
+          "seconds": 0.4666666666666667,
+          "hash": "b08cb082ead1ee1f"
+        },
+        {
+          "seconds": 0.48333333333333334,
+          "hash": "1a30db3b1d141dfc"
+        },
+        {
+          "seconds": 0.5,
+          "hash": "8d15b5eda14283e7"
+        },
+        {
+          "seconds": 0.5166666666666667,
+          "hash": "ee2831e66047dfba"
+        },
+        {
+          "seconds": 0.5333333333333333,
+          "hash": "467086560ca6437f"
+        },
+        {
+          "seconds": 0.55,
+          "hash": "5bc775f9871422dd"
+        },
+        {
+          "seconds": 0.5666666666666667,
+          "hash": "f34339bc2c562a0a"
+        },
+        {
+          "seconds": 0.5833333333333334,
+          "hash": "b4f5e5e7c8b1469d"
+        },
+        {
+          "seconds": 0.6,
+          "hash": "34ec898a32b2735e"
+        },
+        {
+          "seconds": 0.6166666666666667,
+          "hash": "6867a6dde7824db9"
+        },
+        {
+          "seconds": 0.6333333333333333,
+          "hash": "27473d194f610c3c"
+        },
+        {
+          "seconds": 0.65,
+          "hash": "48858a53f2bc3d1b"
+        },
+        {
+          "seconds": 0.6666666666666666,
+          "hash": "66d0cfb3b4de4263"
+        },
+        {
+          "seconds": 0.6833333333333333,
+          "hash": "0d015d1e065d9ebe"
+        },
+        {
+          "seconds": 0.7,
+          "hash": "23e1b4983d6007f5"
+        },
+        {
+          "seconds": 0.7166666666666667,
+          "hash": "8117e4abcc7e1d40"
+        },
+        {
+          "seconds": 0.7333333333333333,
+          "hash": "1a6f31c68f2c4250"
+        },
+        {
+          "seconds": 0.75,
+          "hash": "e25a4b7637771369"
+        },
+        {
+          "seconds": 0.7666666666666667,
+          "hash": "d27ff6c0ed86c7cb"
+        },
+        {
+          "seconds": 0.7833333333333333,
+          "hash": "f4770e3157955181"
+        },
+        {
+          "seconds": 0.8,
+          "hash": "b299a598194d7bef"
+        },
+        {
+          "seconds": 0.8166666666666667,
+          "hash": "730b398600eec8db"
+        },
+        {
+          "seconds": 0.8333333333333334,
+          "hash": "887b10c3d1c0b072"
+        },
+        {
+          "seconds": 0.85,
+          "hash": "253680300c3c4856"
+        },
+        {
+          "seconds": 0.8666666666666667,
+          "hash": "12e1a56b74066ab5"
+        },
+        {
+          "seconds": 0.8833333333333333,
+          "hash": "dc97690eb7902b80"
+        },
+        {
+          "seconds": 0.9,
+          "hash": "43573e96d84e3ef9"
+        },
+        {
+          "seconds": 0.9166666666666666,
+          "hash": "746c9b5c1093bdc6"
+        },
+        {
+          "seconds": 0.9333333333333333,
+          "hash": "99ab3e32e342befa"
+        },
+        {
+          "seconds": 0.95,
+          "hash": "238845070a7f5e18"
+        },
+        {
+          "seconds": 0.9666666666666667,
+          "hash": "e3a51a06edeecc73"
+        },
+        {
+          "seconds": 0.9833333333333333,
+          "hash": "b961b3b4dec74201"
+        },
+        {
+          "seconds": 1,
+          "hash": "fa758a2012e1c292"
+        }
+      ]
+    },
+    "profiles": [
+      {
+        "profile": "dev",
+        "command": "MCPP_JOBS=2 /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test effect_animation --locked -p openmui.view --profile dev",
+        "log": {
+          "path": "/tmp/omui-animation-process-dev-final.log",
+          "bytes": 6678,
+          "sha256": "cc95e5c4bb98541d4c72e468ec4fbd9f480d62b46f2b5f28f949a21eaf0c8e47"
+        },
+        "cases_passed": 6,
+        "cases_failed": 0,
+        "artifact_directory": "/tmp/openmui-tests/effect-animation",
+        "artifacts_identical_to_dev": true
+      },
+      {
+        "profile": "release",
+        "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-release-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test effect_animation --locked -p openmui.view --profile release",
+        "log": {
+          "path": "/tmp/omui-animation-process-release-final.log",
+          "bytes": 6715,
+          "sha256": "c4ddb4879d129501f07c3ab1fdb227855c8cd43b28e8d1a9cc218b78a89028c7"
+        },
+        "cases_passed": 6,
+        "cases_failed": 0,
+        "artifact_directory": "/tmp/omui-pixel-release-scratch/openmui-tests/effect-animation",
+        "artifacts_identical_to_dev": true
+      },
+      {
+        "profile": "wasm",
+        "command": "MCPP_JOBS=2 TMPDIR=/tmp/omui-pixel-wasm-scratch /home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp test effect_animation --locked -p openmui.view --target wasm32-emscripten --profile wasm-test",
+        "log": {
+          "path": "/tmp/omui-animation-process-wasm-final.log",
+          "bytes": 11915,
+          "sha256": "dba6102d492a3b96b6af765988a050217ddb90cdef19c6840863ddb5a13c7067"
+        },
+        "cases_passed": 6,
+        "cases_failed": 0,
+        "artifact_directory": "/tmp/omui-pixel-wasm-scratch/openmui-tests/effect-animation",
+        "artifacts_identical_to_dev": true
+      }
+    ],
+    "export_sha256": {
+      "frame-00.png": "72af8c5aa048c8ff32657edd936244e56bee1a3630be914fa45f2a8df9bcbd55",
+      "frame-01.png": "51461f20f736b82a59777d4e8cb954055b84adebf7366021556826f6bd528135",
+      "frame-02.png": "d520acbee77dd64199f52d4d7a2424f810608d58301860af91318985a3a5c7a5",
+      "frame-03.png": "fe9fc38c6c700d6a491477eb21a890a6b676dea4bbdcfb86a3f3ea7510277893",
+      "frame-04.png": "00769d94f039952347e7613e1c89bafa37c45c0bff267378f61d4190055c9ba1",
+      "frame-05.png": "8bdaccc99240a348fbc31fadc704767795589ecdaf02a0f4eac3d0f117b45027",
+      "frame-06.png": "55d0fae3ad67ced2c1950495c273a53631a13afc3e8d949430bf652e4fea3a61",
+      "frame-07.png": "7a788f813ff5257d0b13ca56d88ebde79e119ecba0bdde54d04b42e9a0205149",
+      "frame-08.png": "076ca8d4f7ecccd7f63edc59ccb6a70ea83fbebc5e13236cf97e196da3de046e",
+      "frame-09.png": "7b0c1c4260b2da62c2048fd913eb3660c948dd1aac3eae5913fedf7e6983d4f3",
+      "frame-10.png": "73dd116ee03b6ba1d87cfd16d5b50a1fbff90385974d9dc647f568092b7d6c4b",
+      "frame-11.png": "3ed0127c38caa1b63a6e6590421185f872a82a7734b7a7d4793f2500bfde62ba",
+      "frame-12.png": "7c01501d3f8818ba90a925b299a931d79dce8bb9802e34d7975848912de7b6b0",
+      "frame-13.png": "043a7cf86a37d6b7391e6d1d3f2caea5699a1e2ede1708b8a27b47074c0320df",
+      "frame-14.png": "272f3c26ba94618700f2422627a5556cb88895a107f13587fe82a6c253f33612",
+      "frame-15.png": "92f7f88105ca2d1c37d241463fe925c16649f4811d0a1b118f96207e517a3729",
+      "frame-16.png": "cc89209f6cc178b66ee350328209d8332471a06f22fe48222022d0cd758e86d1",
+      "frame-17.png": "36d46639c124a298049502aada2974147dff865f22033e3575e1c1a4140e1ccd",
+      "frame-18.png": "a62c13bb3e5335702995fe2be99f2b583b8a31bbfaadb8a15048fb5979e98573",
+      "frame-19.png": "07ef438e5a217439983bc6f4704babfadfd30697df7c8aafeff0acca05f352f1",
+      "frame-20.png": "160db1a6bc8f83e541a05302e3403475fa70cc62621379de4f61c4785cfb3c24",
+      "frame-21.png": "b41d8279ac982e64a33af1b521289c2796b043afc117ebab07365c834aaed38c",
+      "frame-22.png": "9e1beb9813724e37c89fd8f0039c05dfdf1e7cf775b9edd480f3f5133dadc129",
+      "frame-23.png": "d7a43e5bb57a9bc33eb1af5bfc4ca59a63423eb934803623e2fea7e090ec44f2",
+      "frame-24.png": "81b51fbacd86d96238fa7e14183977eb89e9b99031b825f670b983dcd80821f2",
+      "frame-25.png": "a56ca5ac5db6faca4b8ccb43e0935bbebdcd9fb6cb34c16b78c1238a43a7e91f",
+      "frame-26.png": "6a33b3c871c8d3b61077f82ea8787e7001848f49bd97f50531c305037c8b6b17",
+      "frame-27.png": "6ba1a9011e87cced9288a59d019d40af580fcf1d77b52a36388961551a6b06df",
+      "frame-28.png": "df7d2817619517083fbe0e6d756f9c531aa8cb0694e82cd419bfed4ec82a6104",
+      "frame-29.png": "2919fc2aefeaf903715e1acdef429f8e639f8f8aca4cbb9e1cb9b2af7271c05f",
+      "frame-30.png": "4f4d06be7264f45f3c443573db9d66e5df242b2441c6f0c2ed32acafc49fccfd",
+      "frame-31.png": "7b724fb70908440e5cce6642a5853a76fa48ebceea981a100e9fc8d5b42abda7",
+      "frame-32.png": "ea95b1ecf3896d8965ba1095527b5cc1ff17c0141fc3a53b4dc59708d3f4cab1",
+      "frame-33.png": "f217298e66017fa82b04bd2b8aeb370e27e0260829bae24c21ebf585ccb870db",
+      "frame-34.png": "60de7bdc6d1b7f121836a194782a089c7f5d0387f47de85262cc41b0a51a7bdc",
+      "frame-35.png": "dc5ba3829c09e852d644735d7cbcbdb7928488057c4901128ecae47bdee3627e",
+      "frame-36.png": "232c20486d9e7cf420f5035d1a55b72fc5a19dd433d47b734f9775993ae99aa9",
+      "frame-37.png": "1b13689875d460ef15a41258229358539c522903b2e6653020594ec2fe6f3e0d",
+      "frame-38.png": "00295cee17f537b5e458863ce28c121a35d13e9c4bb4bf83648b11d21e7204cd",
+      "frame-39.png": "f38dc674be5de35361720f5c6d488a95be274cdc255321b0fce833872743ca53",
+      "frame-40.png": "4aefeee73ab5b305849838d6de83246b4c10f61e47d36ea39609e72ab3e9f794",
+      "frame-41.png": "cb1864ef5fe0a3712f6e09384b7ad31e8ea079fb854bdc5fa5afa913acdde43b",
+      "frame-42.png": "5f081503d72fea44603977e805c2ef382a2cefa69e93e1b34860b71e6d7d4bd6",
+      "frame-43.png": "5e7a6cee59e88a39a38c80262dccdda9cf82de239f1479de336da343bf278366",
+      "frame-44.png": "060efdd4ccedc3091cd4cbaed7f3fec09726e2497bd600961dcc9e6d88af77b8",
+      "frame-45.png": "b2b68563e9e0b3f519ceea8cdce41c94374750f052c0f0ba83e27acf2ca276b1",
+      "frame-46.png": "2e84047513a70cd3a269a94cd07f3264ed164cc851887782ed00072a8a53f0c2",
+      "frame-47.png": "be9c45cf1dd0d8f0253e36473ea9e1cdf7a0e61e1f5638462d7d19fe97fa357d",
+      "frame-48.png": "a474567610c3f1a2988aaaa4202b95ed531535c411067a2e075bd4762e9a1372",
+      "frame-49.png": "78126ba2860964f7f182858b25eb3f396a9c48818f2ed3ce4501a6c23bf4005a",
+      "frame-50.png": "e6219f8553251d4062cc5fd524082abff0059342587765ed3d6e3453d716310e",
+      "frame-51.png": "65b36b7f942cccdd4597ae82673fb1391edf0eecf6238778de6b1ab654ca49ff",
+      "frame-52.png": "d8d3b135a47c34f0d88b8a07da11a626a114e7151ad9f47e1c988dea7e6b8f1d",
+      "frame-53.png": "38135d3b893cb6d7e9010e13396016f50a3622740daea6665e3763ac0960f043",
+      "frame-54.png": "acf99b278351e1501317d34018efcdcc3d9fbfa719e818903cab36a8685d951b",
+      "frame-55.png": "d494e2e49262019a76965606687923c5dd312f2ce97102e50e85c10cb6ddf2ca",
+      "frame-56.png": "d74d7b57c02a1fd93b4f1d8d9ac732d4a4f88f8e441a64e43cf9cc893410604f",
+      "frame-57.png": "0d199641adf79498926bfdc4982db2d60739bf436c272d944c3e90e89fad20ea",
+      "frame-58.png": "f71897e5659d2dc76f70dce2451a2de6b90c535bfcb698152271a25f79f09f9d",
+      "frame-59.png": "e1d2673c4acd18c5061680915ac149b9a453d59c30d0ead8f1d2dfd79cd7ae87",
+      "frame-60.png": "839f449982eebef7fb49be1a96b9afe0e268031f5223cb4c0635a8223aad2b2e",
+      "process-sheet.png": "e224df3fdf6a10312124b53b6d4b2ae2251d4003d0f9123184af28f0d32165d0",
+      "process.webp": "7f8c8eea33d3300bd2e9cad2774507dea7c038d07f1e37e0c69e6ad1382bfa8d"
+    },
+    "review_artifacts": [
+      {
+        "path": ".agents/docs/media/2026-11-05-effect-parameter-process.png",
+        "bytes": 6392,
+        "sha256": "e224df3fdf6a10312124b53b6d4b2ae2251d4003d0f9123184af28f0d32165d0"
+      },
+      {
+        "path": ".agents/docs/media/2026-11-05-effect-parameter-process.webp",
+        "bytes": 20858,
+        "sha256": "7f8c8eea33d3300bd2e9cad2774507dea7c038d07f1e37e0c69e6ad1382bfa8d"
+      }
+    ],
+    "sheet_seconds": [
+      0,
+      0.05,
+      0.15,
+      0.3,
+      0.5,
+      0.7,
+      0.9,
+      1
+    ],
+    "playback": {
+      "file": "process.webp",
+      "lossless": true,
+      "loops": 1,
+      "frames": 61,
+      "delay_rational": [
+        1,
+        60
+      ],
+      "note": "Includes one terminal-frame interval; encoder timestamps are integer milliseconds. Original rational sample times remain in observations."
+    },
+    "assertions": [
+      "Exact no-filter baseline under rounded ancestor clip at t=0.",
+      "Every sampled adjacent pair changes actual pixels; expected parameter values at each timestamp.",
+      "All checked outside pixels remain unchanged at every timestamp.",
+      "Stable NodeId, real hit test, and focus at every timestamp.",
+      "Reverse seek reproduces all 61 frame hashes.",
+      "All 61 PNG files, WebP replay, and contact sheet are byte-identical across native dev, native release, and Wasm."
+    ],
+    "review": "Actual contact sheet inspected. The grid intentionally quantizes origin to pixels and amount to 1/255. This functional fixture does not establish art quality, continuous-time correctness or real-time frame pacing.",
+    "ci": "Existing workspace test discovery runs this test. Existing .github/workflows/ci.yml collects PNGs from /tmp/openmui-tests into test-pictures on failure only; it does not upload every successful replay. This checkpoint commits the actual contact sheet and WebP; the test regenerates all 61 PNGs and replay locally."
+  },
+  "site": {
+    "build": {
+      "command": "MCPP=/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp MCPP_JOBS=2 MCPP_LOCKED=1 bash tools/ci/site.sh",
+      "log": {
+        "path": "/tmp/omui-pixel-site-pack-final.log",
+        "bytes": 13935,
+        "sha256": "77157b6a75b246de8d9255ce3f5e9a1db546aa8968fded5e308727635af497e6"
+      },
+      "opening_pngs": 56,
+      "full_references": 8,
+      "programs": [
+        {
+          "path": "target/site/omui-site-ed2c9133665f.wasm",
+          "bytes": 6979014,
+          "sha256": "dfa2668dcf7a61ae79695fdfa4a4131cfc3532027c8f670fbd73bc8b38b008b6"
+        }
+      ]
+    },
+    "presentation": {
+      "command": "CHROME=/home/speak/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell node tools/ci/site-presentation.mjs target/site target/site-presentation-pixel-final",
+      "log": {
+        "path": "/tmp/omui-pixel-browser-presentation-final.log",
+        "bytes": 19138,
+        "sha256": "91aa9eec42532af161d965f9f73d11974662222ca988c0f2482efbd2a31bb4a8"
+      },
+      "checks": [
+        {
+          "ok": true,
+          "what": "NoScript has one readable selected specimen: motion"
+        },
+        {
+          "ok": true,
+          "what": "NoScript catalogue starts folded with every design link retained",
+          "detail": [
+            {
+              "open": false,
+              "links": 41,
+              "summary": "Choose another design · 41"
+            }
+          ]
+        },
+        {
+          "ok": true,
+          "what": "native catalogue links open the requested detail without JavaScript"
+        },
+        {
+          "ok": true,
+          "what": "NoScript navigation displays the selected design rather than the overview default"
+        },
+        {
+          "ok": true,
+          "what": "NoScript detail metadata remains progressively disclosed"
+        },
+        {
+          "ok": true,
+          "what": "NoScript has one readable selected specimen: zh/demos"
+        },
+        {
+          "ok": true,
+          "what": "NoScript catalogue starts folded with every design link retained",
+          "detail": [
+            {
+              "open": false,
+              "links": 20,
+              "summary": "选择其他设计 · 20"
+            }
+          ]
+        },
+        {
+          "ok": true,
+          "what": "native catalogue links open the requested detail without JavaScript"
+        },
+        {
+          "ok": true,
+          "what": "NoScript navigation displays the selected design rather than the overview default"
+        },
+        {
+          "ok": true,
+          "what": "NoScript detail metadata remains progressively disclosed"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: "
+        },
+        {
+          "ok": true,
+          "what": "en 360: primary destination is visible in the initial viewport",
+          "detail": [
+            20,
+            290.5,
+            170,
+            36
+          ]
+        },
+        {
+          "ok": true,
+          "what": "en 360: destination precedes the full mobile scene"
+        },
+        {
+          "ok": true,
+          "what": "the visible home CTA opens the real component page"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: styles"
+        },
+        {
+          "ok": true,
+          "what": "en 360: extra specimens and parameters start unmounted"
+        },
+        {
+          "ok": true,
+          "what": "en 360: phone starts with the styled specimen"
+        },
+        {
+          "ok": true,
+          "what": "en 360: exactly one full-width comparison mounts"
+        },
+        {
+          "ok": true,
+          "what": "en 360: the selected specimen uses the full available width",
+          "detail": {
+            "stage": [
+              20,
+              460.1999816894531,
+              320,
+              279.9999694824219
+            ],
+            "container": [
+              20,
+              84,
+              320,
+              712.199951171875
+            ]
+          }
+        },
+        {
+          "ok": true,
+          "what": "the visible styled control changes the shared model"
+        },
+        {
+          "ok": true,
+          "what": "a real comparison selection mounts the default view"
+        },
+        {
+          "ok": true,
+          "what": "switching material view preserves the edited model"
+        },
+        {
+          "ok": true,
+          "what": "the other comparison is unmounted on phone"
+        },
+        {
+          "ok": true,
+          "what": "the styled view can be revisited"
+        },
+        {
+          "ok": true,
+          "what": "local effect controls appear only after Details"
+        },
+        {
+          "ok": true,
+          "what": "real pointer changes the chart pixelation strength"
+        },
+        {
+          "ok": true,
+          "what": "device-pixel units can be selected by a person"
+        },
+        {
+          "ok": true,
+          "what": "displayed configuration follows the actual local effect"
+        },
+        {
+          "ok": true,
+          "what": "people see the parameter names and current values as rendered text"
+        },
+        {
+          "ok": true,
+          "what": "Agent obtains actual region PNG pixels from the Web renderer"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: agent/use"
+        },
+        {
+          "ok": true,
+          "what": "the real editor has browser focus"
+        },
+        {
+          "ok": true,
+          "what": "trusted input reaches the current editor"
+        },
+        {
+          "ok": true,
+          "what": "en 360: entering and typing cancels pending automatic task steps"
+        },
+        {
+          "ok": true,
+          "what": "the Develop path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Develop uses its own stable Verify action identity"
+        },
+        {
+          "ok": true,
+          "what": "development protocol parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts development controls"
+        },
+        {
+          "ok": true,
+          "what": "the Design path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Design uses its own stable Arrange action identity"
+        },
+        {
+          "ok": true,
+          "what": "design parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts design parameters"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: "
+        },
+        {
+          "ok": true,
+          "what": "en 390: primary destination is visible in the initial viewport",
+          "detail": [
+            20,
+            290.5,
+            170,
+            36
+          ]
+        },
+        {
+          "ok": true,
+          "what": "en 390: destination precedes the full mobile scene"
+        },
+        {
+          "ok": true,
+          "what": "the visible home CTA opens the real component page"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: styles"
+        },
+        {
+          "ok": true,
+          "what": "en 390: extra specimens and parameters start unmounted"
+        },
+        {
+          "ok": true,
+          "what": "en 390: phone starts with the styled specimen"
+        },
+        {
+          "ok": true,
+          "what": "en 390: exactly one full-width comparison mounts"
+        },
+        {
+          "ok": true,
+          "what": "en 390: the selected specimen uses the full available width",
+          "detail": {
+            "stage": [
+              20,
+              460.1999816894531,
+              350,
+              279.9999694824219
+            ],
+            "container": [
+              20,
+              84,
+              350,
+              712.199951171875
+            ]
+          }
+        },
+        {
+          "ok": true,
+          "what": "the visible styled control changes the shared model"
+        },
+        {
+          "ok": true,
+          "what": "a real comparison selection mounts the default view"
+        },
+        {
+          "ok": true,
+          "what": "switching material view preserves the edited model"
+        },
+        {
+          "ok": true,
+          "what": "the other comparison is unmounted on phone"
+        },
+        {
+          "ok": true,
+          "what": "the styled view can be revisited"
+        },
+        {
+          "ok": true,
+          "what": "local effect controls appear only after Details"
+        },
+        {
+          "ok": true,
+          "what": "real pointer changes the chart pixelation strength"
+        },
+        {
+          "ok": true,
+          "what": "device-pixel units can be selected by a person"
+        },
+        {
+          "ok": true,
+          "what": "displayed configuration follows the actual local effect"
+        },
+        {
+          "ok": true,
+          "what": "people see the parameter names and current values as rendered text"
+        },
+        {
+          "ok": true,
+          "what": "Agent obtains actual region PNG pixels from the Web renderer"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: agent/use"
+        },
+        {
+          "ok": true,
+          "what": "the real editor has browser focus"
+        },
+        {
+          "ok": true,
+          "what": "trusted input reaches the current editor"
+        },
+        {
+          "ok": true,
+          "what": "en 390: entering and typing cancels pending automatic task steps"
+        },
+        {
+          "ok": true,
+          "what": "the Develop path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Develop uses its own stable Verify action identity"
+        },
+        {
+          "ok": true,
+          "what": "development protocol parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts development controls"
+        },
+        {
+          "ok": true,
+          "what": "the Design path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Design uses its own stable Arrange action identity"
+        },
+        {
+          "ok": true,
+          "what": "design parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts design parameters"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: primary destination is visible in the initial viewport",
+          "detail": [
+            20,
+            266.0556640625,
+            88,
+            36
+          ]
+        },
+        {
+          "ok": true,
+          "what": "zh 390: destination precedes the full mobile scene"
+        },
+        {
+          "ok": true,
+          "what": "the visible home CTA opens the real component page"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/styles"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: extra specimens and parameters start unmounted"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: phone starts with the styled specimen"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: exactly one full-width comparison mounts"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: the selected specimen uses the full available width",
+          "detail": {
+            "stage": [
+              20,
+              409.5,
+              350,
+              280
+            ],
+            "container": [
+              20,
+              84,
+              350,
+              661.5
+            ]
+          }
+        },
+        {
+          "ok": true,
+          "what": "the visible styled control changes the shared model"
+        },
+        {
+          "ok": true,
+          "what": "a real comparison selection mounts the default view"
+        },
+        {
+          "ok": true,
+          "what": "switching material view preserves the edited model"
+        },
+        {
+          "ok": true,
+          "what": "the other comparison is unmounted on phone"
+        },
+        {
+          "ok": true,
+          "what": "the styled view can be revisited"
+        },
+        {
+          "ok": true,
+          "what": "local effect controls appear only after Details"
+        },
+        {
+          "ok": true,
+          "what": "real pointer changes the chart pixelation strength"
+        },
+        {
+          "ok": true,
+          "what": "device-pixel units can be selected by a person"
+        },
+        {
+          "ok": true,
+          "what": "displayed configuration follows the actual local effect"
+        },
+        {
+          "ok": true,
+          "what": "people see the parameter names and current values as rendered text"
+        },
+        {
+          "ok": true,
+          "what": "Agent obtains actual region PNG pixels from the Web renderer"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/agent/use"
+        },
+        {
+          "ok": true,
+          "what": "the real editor has browser focus"
+        },
+        {
+          "ok": true,
+          "what": "trusted input reaches the current editor"
+        },
+        {
+          "ok": true,
+          "what": "zh 390: entering and typing cancels pending automatic task steps"
+        },
+        {
+          "ok": true,
+          "what": "the Develop path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Develop uses its own stable Verify action identity"
+        },
+        {
+          "ok": true,
+          "what": "development protocol parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts development controls"
+        },
+        {
+          "ok": true,
+          "what": "the Design path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Design uses its own stable Arrange action identity"
+        },
+        {
+          "ok": true,
+          "what": "design parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts design parameters"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: "
+        },
+        {
+          "ok": true,
+          "what": "en 1280: primary destination is visible in the initial viewport",
+          "detail": [
+            80,
+            498.6499938964844,
+            170,
+            36.000030517578125
+          ]
+        },
+        {
+          "ok": true,
+          "what": "the visible home CTA opens the real component page"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: styles"
+        },
+        {
+          "ok": true,
+          "what": "en 1280: extra specimens and parameters start unmounted"
+        },
+        {
+          "ok": true,
+          "what": "en 1280: desktop retains the real side-by-side comparison"
+        },
+        {
+          "ok": true,
+          "what": "local effect controls appear only after Details"
+        },
+        {
+          "ok": true,
+          "what": "real pointer changes the chart pixelation strength"
+        },
+        {
+          "ok": true,
+          "what": "device-pixel units can be selected by a person"
+        },
+        {
+          "ok": true,
+          "what": "displayed configuration follows the actual local effect"
+        },
+        {
+          "ok": true,
+          "what": "people see the parameter names and current values as rendered text"
+        },
+        {
+          "ok": true,
+          "what": "Agent obtains actual region PNG pixels from the Web renderer"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: agent/use"
+        },
+        {
+          "ok": true,
+          "what": "the real editor has browser focus"
+        },
+        {
+          "ok": true,
+          "what": "trusted input reaches the current editor"
+        },
+        {
+          "ok": true,
+          "what": "en 1280: entering and typing cancels pending automatic task steps"
+        },
+        {
+          "ok": true,
+          "what": "the Develop path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Develop uses its own stable Verify action identity"
+        },
+        {
+          "ok": true,
+          "what": "development protocol parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts development controls"
+        },
+        {
+          "ok": true,
+          "what": "the Design path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Design uses its own stable Arrange action identity"
+        },
+        {
+          "ok": true,
+          "what": "design parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts design parameters"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/"
+        },
+        {
+          "ok": true,
+          "what": "zh 1280: primary destination is visible in the initial viewport",
+          "detail": [
+            80,
+            499.22784423828125,
+            88,
+            36
+          ]
+        },
+        {
+          "ok": true,
+          "what": "the visible home CTA opens the real component page"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/styles"
+        },
+        {
+          "ok": true,
+          "what": "zh 1280: extra specimens and parameters start unmounted"
+        },
+        {
+          "ok": true,
+          "what": "zh 1280: desktop retains the real side-by-side comparison"
+        },
+        {
+          "ok": true,
+          "what": "local effect controls appear only after Details"
+        },
+        {
+          "ok": true,
+          "what": "real pointer changes the chart pixelation strength"
+        },
+        {
+          "ok": true,
+          "what": "device-pixel units can be selected by a person"
+        },
+        {
+          "ok": true,
+          "what": "displayed configuration follows the actual local effect"
+        },
+        {
+          "ok": true,
+          "what": "people see the parameter names and current values as rendered text"
+        },
+        {
+          "ok": true,
+          "what": "Agent obtains actual region PNG pixels from the Web renderer"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: zh/agent/use"
+        },
+        {
+          "ok": true,
+          "what": "the real editor has browser focus"
+        },
+        {
+          "ok": true,
+          "what": "trusted input reaches the current editor"
+        },
+        {
+          "ok": true,
+          "what": "zh 1280: entering and typing cancels pending automatic task steps"
+        },
+        {
+          "ok": true,
+          "what": "the Develop path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Develop uses its own stable Verify action identity"
+        },
+        {
+          "ok": true,
+          "what": "development protocol parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts development controls"
+        },
+        {
+          "ok": true,
+          "what": "the Design path opens through real input"
+        },
+        {
+          "ok": true,
+          "what": "Design uses its own stable Arrange action identity"
+        },
+        {
+          "ok": true,
+          "what": "design parameters are absent from the overview"
+        },
+        {
+          "ok": true,
+          "what": "explicit details mounts design parameters"
+        },
+        {
+          "ok": true,
+          "what": "live page ready: agent/use"
+        },
+        {
+          "ok": true,
+          "what": "system reduced motion does not start an automatic Agent task"
+        },
+        {
+          "ok": true,
+          "what": "explicit Play under reduced motion completes real review and record actions"
+        },
+        {
+          "ok": true,
+          "what": "reduced-motion task completion has real actor records"
+        },
+        {
+          "ok": true,
+          "what": "no browser runtime exceptions",
+          "detail": []
+        }
+      ],
+      "exceptions": [],
+      "review_captures": [
+        {
+          "path": "target/site-presentation-pixel-final/styles-pixel-controls-en-360.png",
+          "bytes": 81289,
+          "sha256": "cf5b1ab7a45be9025ddd34c3251b56364f8e7640d6684fe0c889a7a9f81c0cf3"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-local-pixel-en-360.png",
+          "bytes": 62296,
+          "sha256": "1c86f21683f3790317a6a76d74a9816d43aa85da4116dfe0a2108fbed2fe456b"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-pixel-controls-en-390.png",
+          "bytes": 86743,
+          "sha256": "a863df4bf92ace8dd11cb535e828779842e4c576d70fadf4fb49cb6e7d1f5cd4"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-local-pixel-en-390.png",
+          "bytes": 66338,
+          "sha256": "144cd24d0b6ece0ac1b64970d06bedb80fd8e2d61bd440f236d439858ca47272"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-pixel-controls-zh-390.png",
+          "bytes": 98099,
+          "sha256": "cba6615e12546fe830c97b3a587169ef255e1f2258b01135b6cd824d057d37be"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-local-pixel-zh-390.png",
+          "bytes": 70364,
+          "sha256": "5f821df834034684a8aee5aedb0cda2c092ef791e8b278c977665daf67181f4a"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-pixel-controls-en-1280.png",
+          "bytes": 117411,
+          "sha256": "ec31a2ca602ac03aa6daa2814c0316eb7730284153e0ad680099ec2e6d3734ab"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-local-pixel-en-1280.png",
+          "bytes": 97682,
+          "sha256": "7743bae37f0358bdcfa7a0068e77d98fbed1ddac0b86b93c53e55dd0e5b04781"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-pixel-controls-zh-1280.png",
+          "bytes": 132851,
+          "sha256": "64585b9926698f612d72fbf1032847dbdf45204a4eb5d4ba060cdb21bb76c140"
+        },
+        {
+          "path": "target/site-presentation-pixel-final/styles-local-pixel-zh-1280.png",
+          "bytes": 98595,
+          "sha256": "f32ec51cf3e70fc94fc3f3bccd0718487bdf42313c5add6093779e06f8b8f8d9"
+        }
+      ]
+    },
+    "loading": {
+      "command": "CHROME=/home/speak/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell node tools/ci/site-loading.mjs target/site",
+      "log": {
+        "path": "/tmp/omui-pixel-browser-loading-final.log",
+        "bytes": 15719,
+        "sha256": "9feebc3a7c4154a0e457770e08c721311570b5bed654c458d7090152adf79dba"
+      },
+      "checks_passed": 88,
+      "checks_failed": 0
+    },
+    "delivery": {
+      "command": "CHROME=/home/speak/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell node tools/ci/site-perf.mjs --serve target/site --network 20/40 --budget site/delivery.budget.omui.json --request-log /tmp/omui-pixel-browser-perf-requests.json",
+      "log": {
+        "path": "/tmp/omui-pixel-browser-perf.log",
+        "bytes": 1720,
+        "sha256": "5d5200eed2d5749d4c9a9b0a04da0989cf9b1458987c6e910d75a1959d0a1102"
+      },
+      "request_log": {
+        "path": "/tmp/omui-pixel-browser-perf-requests.json",
+        "bytes": 2753,
+        "sha256": "1cead125d08cd76e8ed57488d1db74d4980d8e51cb39e0248613fbba6b2c45ca"
+      },
+      "measurement": {
+        "url": "http://127.0.0.1:37673/",
+        "size": [
+          1280,
+          800
+        ],
+        "network": "20/40",
+        "cache": "enabled",
+        "browser": "HeadlessChrome/156.0.8078.4",
+        "transfer": {
+          "total": 4740514,
+          "before_first_frame": 2838285,
+          "by_kind": {
+            "document": 59690,
+            "fetch": 4621857,
+            "image": 11922,
+            "script": 47045
+          }
+        },
+        "first_frame_ms": 1584.5,
+        "ready_ms": 1548.699999988079,
+        "frames": {
+          "acted": [
+            {
+              "node": "main/bar/nav/to_docs",
+              "exitCode": 0
+            },
+            {
+              "node": "main/body/view/docs/page/directory/to_features",
+              "exitCode": 0
+            },
+            {
+              "node": "main/bar/mark",
+              "exitCode": 0
+            }
+          ],
+          "frames": 318,
+          "p50": 16.699999999999818,
+          "p95": 16.799999999999272,
+          "p99": 16.800000000000182,
+          "max": 50,
+          "long": 1
+        },
+        "memory": {
+          "heap": 13400000,
+          "wasm": 28639232
+        },
+        "errors": [],
+        "budgets": [
+          {
+            "metric": "transfer.total",
+            "value": 4740514,
+            "max": 5000000,
+            "pass": true
+          },
+          {
+            "metric": "transfer.before_first_frame",
+            "value": 2838285,
+            "max": 3800000,
+            "pass": true
+          },
+          {
+            "metric": "first_frame_ms",
+            "value": 1584.5,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "ready_ms",
+            "value": 1548.699999988079,
+            "max": 4500,
+            "pass": true
+          },
+          {
+            "metric": "frames.p95",
+            "value": 16.799999999999272,
+            "max": 34,
+            "pass": true
+          },
+          {
+            "metric": "frames.long",
+            "value": 1,
+            "max": 15,
+            "pass": true
+          },
+          {
+            "metric": "errors.length",
+            "value": 0,
+            "max": 0,
+            "pass": true
+          }
+        ]
+      },
+      "limits": "Single fresh-profile sample with within-visit cache enabled; semantic first-frame proxy and rAF, not FCP/LCP or direct presentation rate; no stable speed-improvement claim."
+    },
+    "agent_capture": {
+      "path": "site/media/style-local-pixel-chart.png",
+      "bytes": 28042,
+      "sha256": "e76593faa26335b4d7d6dd4fa0aeaa4bf0c3a27a93e490d5d7b74881c71b73da"
+    }
+  },
+  "verification": {
+    "lint": {
+      "command": "LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu /tmp/omui-validation-python/bin/python tools/lint/lint.py",
+      "exit_code": 0,
+      "log": {
+        "path": "/tmp/omui-pixel-lint-final.log",
+        "bytes": 19,
+        "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77"
+      }
+    },
+    "media": {
+      "command": "bash tools/ci/readme-media.sh --check site",
+      "exit_code": 0,
+      "log": {
+        "path": "/tmp/omui-pixel-media-final.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    "javascript_syntax": {
+      "command": "node --check tools/ci/site-presentation.mjs",
+      "exit_code": 0
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "markdown_links": {
+      "files": 9,
+      "local_links": 146,
+      "anchors": 5,
+      "problems": []
+    },
+    "source_lock_after_sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "review_artifact_note": "The PNG and WebP committed under .agents/docs/media are byte copies of the final real test outputs, not retouched illustrations."
+  },
+  "resolved_findings": [
+    "Pixelate size=1 logical is not identity at high DPI. Added independent amount and exact zero bypass. UI drops only its own identity filter wrapper; explicit renderer groups retain opacity/blend semantics.",
+    "Viewport clipping omitted input grid neighbourhood. Shared input_radius is independent of output reach; full-image vs crop equality now passes at 1/1.25/2 DPI.",
+    "Duration-only UI effect silently animated only progress. Named scalar channels now use public hanim PreparedEffects; wrong names/types/ranges are diagnosed.",
+    "Disabled nodes suppressed appearance material together with feedback. Explicit appearance usage retains base material and excludes interactive variants.",
+    "TOML bool conversion accepted integer 1. Strict is_boolean is required for reverse.",
+    "Wasm32/native64 raw size_t display hash differed with equal pixels. Explicit-width little-endian shared hash encoding preserves native golden and now matches Wasm.",
+    "Keeping a zero-strength UI wrapper reapplied antialiased ancestor clips and changed 514 pixels of the existing glass reference. Omitting the redundant wrapper restores the original PNG without changing its golden.",
+    "Browser semantic checks passed while parameter sliders had no visible captions. Real screenshot review led to explicit names/current values/units and five more browser assertions.",
+    "Transparent test exports could be misread by viewers. The real test renderer now uses a declared opaque background, recorded in sampling provenance.",
+    "An initial generated host-build cache lock lacked entries. Bootstrapped only generated workspace metadata; parent final build uses --locked and source lock bytes stay unchanged.",
+    "Default headless GPU discovery lacked a device. Required SDL offscreen Vulkan lavapipe verifies real execution instead of accepting skipped GPU tests."
+  ],
+  "not_completed": [
+    "Full pixel style package with palette/dither/font/default motions.",
+    "General paint-domain/part/portal isolation and full effect hit-inverse mapping.",
+    "Rotated/sheared local-grid policy.",
+    "General typed channels/mixing/retarget and GPU resource IR.",
+    "Feature dependency/binary trimming proof.",
+    "All animations audited by process sampling and real-time human review.",
+    "Hardware GPU performance, native macOS/Windows/mobile acceptance.",
+    "Complete public 40 recipes / 20 creative works and overall S1-S10."
+  ]
+}

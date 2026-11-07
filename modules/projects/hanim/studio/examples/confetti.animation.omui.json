@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "size": [480, 300],
+  "background": "#0f172a",
+  "objects": [
+    { "id": "c1", "shape": { "rect": [10, 16] }, "fill": "#f43f5e", "at": [80, 250] },
+    { "id": "c2", "shape": { "rect": [10, 16] }, "fill": "#f59e0b", "at": [150, 262] },
+    { "id": "c3", "shape": { "rect": [10, 16] }, "fill": "#22c55e", "at": [220, 248] },
+    { "id": "c4", "shape": { "rect": [10, 16] }, "fill": "#3b82f6", "at": [290, 258] },
+    { "id": "c5", "shape": { "rect": [10, 16] }, "fill": "#a855f7", "at": [360, 252] },
+    { "id": "c6", "shape": { "rect": [10, 16] }, "fill": "#14b8a6", "at": [420, 262] }
+  ],
+  "program": {
+    "do": "stagger", "step": 0.09,
+    "items": [
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c1", "height": 200, "duration": 1 }, { "do": "spin", "object": "c1", "period": 0.8, "count": 1 }] },
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c2", "height": 220, "duration": 1 }, { "do": "spin", "object": "c2", "period": 0.6, "count": 1 }] },
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c3", "height": 190, "duration": 1 }, { "do": "spin", "object": "c3", "period": 0.9, "count": 1 }] },
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c4", "height": 230, "duration": 1 }, { "do": "spin", "object": "c4", "period": 0.7, "count": 1 }] },
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c5", "height": 210, "duration": 1 }, { "do": "spin", "object": "c5", "period": 0.8, "count": 1 }] },
+      { "do": "parallel", "items": [{ "do": "drop_in", "object": "c6", "height": 200, "duration": 1 }, { "do": "spin", "object": "c6", "period": 0.6, "count": 1 }] }
+    ]
+  }
+}

@@ -1,0 +1,2256 @@
+{
+  "format": "omui.ui-playback-checkpoint@0.1",
+  "date": "2026-11-05T18:39:23.653078+00:00",
+  "ok": true,
+  "base_commit": "97db51ceaf32216defddd32df98f2f6238ef0c75",
+  "scope": [
+    "Optional owning UI host adapter; public Hanim Engine and TimeMap remain the single execution/time owners.",
+    "Native pre-bounds stage, typed selection, controls, visibility/input/preferences and demand leases; full geometry/image scopes/3D/budget policy remain open.",
+    "One real editable/copyable site note, whole/parts/title recipes and progressive details, real browser input and public recipe copy."
+  ],
+  "source_files_sha256": {
+    "modules/base/hanim/core/src/timeline.cpp": "aaff951f24b8c87662b7c217c7249bb509c09ef4fc56ea457c6b42135d6d3029",
+    "modules/base/hanim/core/src/timeline.cppm": "7fd2745dac1bbb1b40da4ac8007a045432072ceaf90b0fe8f5534ea9203bf13b",
+    "modules/base/hanim/core/tests/timeline_test.cpp": "9fee122ec4cc3f982a819bb62287c683b404ed1eb32d33ec64b930588152921b",
+    "modules/ui/view/src/hanim/api.cppm": "21186922dcfb90786220fb0f8bc52fd2060387c18f9a876b805692c9f1445610",
+    "modules/ui/view/src/hanim/bridge.cppm": "7bfd4c75effd5cf30b80b0b706f74e67275bf8577d62c330e61a44f74a464abd",
+    "modules/ui/view/src/hanim/playback.cpp": "d365523cd396f4951de72958a41a280d72159e5c4d78899800047720767d3cc7",
+    "modules/ui/view/src/hanim/playback.cppm": "c4aebcb2f7c8d58cb027b7dc9bd7d09c83d8db535169710afa6cc7b58f7fa513",
+    "site/mcpp.toml": "814f1564bd452e6dcd6bb32e119ae0f7e83792053c3ca07a686d50049ff18e88",
+    "site/src/app.cpp": "f8fa505a038500243ae14f07da5be04081491b28e6677e747c2e8877da21be3f",
+    "site/src/basic_motion.cpp": "a20b62fabe56723004f4b76801b7748dab53300c12d16b787227465facc965ed",
+    "site/src/component_motion.cpp": "953350d6c2c154261a86d8911f91a4d85e5ee88de5d5d30c979d3e6aee3e174c",
+    "site/src/component_motion.cppm": "caa87e9b792731b26af63119ef916c35237ea0c6f7974f99ef2d10d66bdd78e2",
+    "site/src/motion_catalog.cppm": "2d1d1c1f4d5e79c09dd3d5eb99a3e3287815cc1e51c8294567a7b1bc7a569cdd",
+    "site/src/motion_gallery.cpp": "75ed622510720c2e5d0d22bc516906e7f53cd6062e2751f9eebced86a8271628",
+    "site/src/motion_gallery.cppm": "f6f2dd7a3a58a58a5e1e776296720a1aaa61582f416875f8a088791ed9b3d66f",
+    "site/tests/basic_motion_test.cpp": "155f1bfda1011b1d0ae8eb649d9135804943537437d851eaaa794badd802bc23",
+    "site/tests/component_motion_test.cpp": "ff7d99324e47a82eae2c89967979033c6972b2117d405d25279a833706321114",
+    "site/tests/motion_gallery_test.cpp": "29345e3a0100f948645083339fbbf5e9d72c4640ffc6cd5aa1b1181a9a630aeb",
+    "tests/bench/budgets.bench.omui.json": "751bf227cf604dce45f8d18b3ae20488213e2331a5d83b237fc0703353303e44",
+    "tests/bench/mcpp.toml": "1ec556c63340bba9537bc29335ac14dbea9090d16627475304823076e0793343",
+    "tests/bench/src/scenes.cpp": "6feacc48e4b6501daa40659997e22af120fa71d24d28e957474b9e1a0d21444a",
+    "tools/ci/omui-hanim-consumer/run.py": "a8c46467ff186a5b0e17e27453ee99af99fd488e5bb7d54669b1c7a77963a116",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "17cba10f95f5243a248e30da2fa75add171f200567e931cef26554fb49436709",
+    "tools/ci/site-motion.mjs": "e59bc35810e567f1ebf6cbc72f589f4689fdadd715f03a269c7f63f460ddd448"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "commands": [
+    {
+      "label": "site",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.site",
+        "--locked"
+      ],
+      "exit": 1,
+      "seconds": 324.9937591870548,
+      "log": "/tmp/omui-playback-site.log",
+      "attempt": 0
+    },
+    {
+      "label": "site-component-recheck",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.site",
+        "component_motion_test",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 44.151021903031506,
+      "log": "/tmp/omui-playback-site-component-recheck.log",
+      "attempt": 0
+    },
+    {
+      "label": "bench",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "ui/presentation",
+        "--json",
+        "target/omui-playback/playback.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 101,
+      "seconds": 6.514746305998415,
+      "log": "/tmp/omui-playback-bench.log",
+      "attempt": 0
+    },
+    {
+      "label": "bench",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "ui/presentation",
+        "--json",
+        "target/omui-playback/playback.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 0,
+      "seconds": 285.75255767500494,
+      "log": "/tmp/omui-playback-bench.log",
+      "attempt": 1
+    },
+    {
+      "label": "native-dev",
+      "argv": [
+        "test",
+        "-p",
+        "hanim.core",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "-p",
+        "openmui.ui.base",
+        "-p",
+        "openmui.host.headless",
+        "--locked"
+      ],
+      "exit": 2,
+      "seconds": 10.270525344996713,
+      "log": "/tmp/omui-playback-native-dev.log",
+      "attempt": 0
+    },
+    {
+      "label": "native-dev",
+      "argv": [
+        "test",
+        "-p",
+        "hanim.core",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "-p",
+        "openmui.ui.base",
+        "-p",
+        "openmui.host.headless",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 238.0831840550527,
+      "log": "/tmp/omui-playback-native-dev.log",
+      "attempt": 1
+    },
+    {
+      "label": "native-release",
+      "argv": [
+        "test",
+        "-p",
+        "hanim.core",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "-p",
+        "openmui.ui.base",
+        "-p",
+        "openmui.host.headless",
+        "--profile",
+        "release",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 206.1675741750514,
+      "log": "/tmp/omui-playback-native-release.log",
+      "attempt": 0
+    },
+    {
+      "label": "web",
+      "argv": [
+        "test",
+        "-p",
+        "hanim.core",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "-p",
+        "openmui.ui.base",
+        "-p",
+        "openmui.host.headless",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 128.03114175109658,
+      "log": "/tmp/omui-playback-web.log",
+      "attempt": 0
+    },
+    {
+      "label": "site-release",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.site",
+        "component_motion_test",
+        "--profile",
+        "release",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 565.8234029739397,
+      "log": "/tmp/omui-playback-site-release.log",
+      "attempt": 0
+    }
+  ],
+  "test_suites": {
+    "site": {
+      "log": "/tmp/omui-playback-site.log",
+      "sha256": "b22efd7a67012d11e7b0d751c6b52f559dada4d7ca59703b6cf3eafca3e5b119",
+      "program_suites": 20,
+      "passed_cases": 129,
+      "failed_cases": 0
+    },
+    "site-component-recheck": {
+      "log": "/tmp/omui-playback-site-component-recheck.log",
+      "sha256": "2e8504ce21e4e896d37c3deead717548ab7483b8c142237af47d7c7d979b4055",
+      "program_suites": 1,
+      "passed_cases": 6,
+      "failed_cases": 0
+    },
+    "native-dev": {
+      "log": "/tmp/omui-playback-native-dev.log",
+      "sha256": "e0cf7dd9166a10a4127be5b180686f4a73955102606d4abe1a8de052489c3a5b",
+      "program_suites": 47,
+      "passed_cases": 395,
+      "failed_cases": 0
+    },
+    "native-release": {
+      "log": "/tmp/omui-playback-native-release.log",
+      "sha256": "79245b6334ca062ec30fc4772d7c52ae184bbd21d75e86823b902b31ab90135d",
+      "program_suites": 47,
+      "passed_cases": 395,
+      "failed_cases": 0
+    },
+    "web": {
+      "log": "/tmp/omui-playback-web.log",
+      "sha256": "4306197e6897736d53ff9f55b2acc1d64d39904267a9a753bc2b89b92a80df31",
+      "program_suites": 46,
+      "passed_cases": 391,
+      "failed_cases": 0
+    },
+    "site-release": {
+      "log": "/tmp/omui-playback-site-release.log",
+      "sha256": "63e820c1a2983f6954b1518091ccad2fc064320bda64117be9135eead5161052",
+      "program_suites": 1,
+      "passed_cases": 6,
+      "failed_cases": 0
+    }
+  },
+  "site_verification": {
+    "programs_covered": 21,
+    "cases_passed": 135,
+    "method": "The full run passed 20 programs/129 cases; the added program had a test-only C++ designated-initializer ordering compile error, fixed and re-run separately (6 cases). No failing product test is waived.",
+    "reference_pixels_unchanged": true,
+    "aggregate_reference": "3027fb6720e6078d",
+    "reference_table": "site/reference/ci.frames.omui.json",
+    "reference_sha256": "4ffdb868e0e8352a79c1ef3782bb2632c066e74569dd1941c8613ae33ff8b053",
+    "process_frames": [
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-000.png",
+        "sha256": "4e25b002f54a59f64dd4a497169f881d4d8340c66639d64ed52899dd1126a9d4",
+        "bytes": 17983
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-001.png",
+        "sha256": "c3470526f15a1db0b65bcbc6ddd0446f4787f1f152a41f5bf2f124f07bf4fdcc",
+        "bytes": 18572
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-002.png",
+        "sha256": "9fd1033ce90661f90a5eb21f5a12ab3fac673a609610165b132c3327073a348c",
+        "bytes": 18765
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-003.png",
+        "sha256": "f764411469978d72512e9fb5f9fb084ef0dc1549b2c234a3591c80b4a484a29a",
+        "bytes": 18785
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-004.png",
+        "sha256": "bb712cb306e1129703eca3747043f29cc71da6b51a52263e3f01e9168163cfe8",
+        "bytes": 18966
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-005.png",
+        "sha256": "da731e7dd51a130c2c877e675bb5331f23cc04c6742290051bfaacbe71ed8a1d",
+        "bytes": 19051
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-006.png",
+        "sha256": "f56dac99957b43374c03af26f645a83e9f2f9d39b0db958e821f2ae654262dab",
+        "bytes": 19009
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-007.png",
+        "sha256": "9219ad3d04be85a2ebd1a288e5d0c46f325197d8e00f38f1080f2bbe2da6155c",
+        "bytes": 18959
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-008.png",
+        "sha256": "006928701f5e9ac8e4f64763dda3e3cb4d1fc75cbaa5e74a9101b16da167e2db",
+        "bytes": 18957
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-009.png",
+        "sha256": "ca0587df20e8ecafc81d150db0f6b9f533911d205f4d78fd050d4864c1a8aa7c",
+        "bytes": 19106
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-010.png",
+        "sha256": "09ccc28f33eaa9df9832f53fab27d530e1a4ed6744b36ff7d992907b4589606f",
+        "bytes": 19075
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-011.png",
+        "sha256": "ad9c6c2b97dbbd54cac86422284000a6bf3752ed55e86481596ee5adc0e58f9b",
+        "bytes": 19005
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-012.png",
+        "sha256": "636df2478fbb3b9f87418786edd20f694f751aeed1c15e02430a300ceaf9590e",
+        "bytes": 18908
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-013.png",
+        "sha256": "5ff6bf81af097b38c81485457882add365e3219063b6aea65f101b09ddccce7d",
+        "bytes": 18971
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-014.png",
+        "sha256": "6345d5e9e4883bdfcb93dbec96b22f3af6b9f26fa3a06810e7aaa637d26179a9",
+        "bytes": 19005
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-015.png",
+        "sha256": "57d88cedce02f3dc5480c3f5fc5d7a473f79262fadba5986b80360165eb58f4f",
+        "bytes": 19033
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-016.png",
+        "sha256": "2a69adb81a7169865c914f0177b849a363ba330fbba94d773f0d7dcf9cf0c24c",
+        "bytes": 18943
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-017.png",
+        "sha256": "d8fa1fea172910a9e66b41d68018056e4eab6831e4877f315af3a876dbfc0f5a",
+        "bytes": 18949
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-018.png",
+        "sha256": "bf8409a580fe484a5fbd117723d37a0e3f58ab95c8fba3734933766fb4450c94",
+        "bytes": 19213
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-019.png",
+        "sha256": "f8301ef21f4f6f05b9801ebf0c5c298ef7112ada50596d02fb4c8295a83a3694",
+        "bytes": 19096
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-020.png",
+        "sha256": "6b2d688ae3bd1e18344dd1e046d155616c0faa2013a8e480d4ebcef641156a6d",
+        "bytes": 19202
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-021.png",
+        "sha256": "c4f2a6e22043c3ebcc4c2026f9c2068af44c7c8514103270b1b4e78052854035",
+        "bytes": 19231
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-022.png",
+        "sha256": "4dd4e0708d23e755faf405bbe37dd00efcb4cd25ecf8e565e6bb3bc08ddadcc4",
+        "bytes": 19228
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-023.png",
+        "sha256": "68f0ebe4193f22e1b0a1bb889d2299617f0177f805cdff3e0fa0bf99da5099a6",
+        "bytes": 19345
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-024.png",
+        "sha256": "61a7985789d272d881f0b0c616d1a3390c7d52fe07c7bd316c2fda0b4e6f1392",
+        "bytes": 19110
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-025.png",
+        "sha256": "982e9aed42d12b455dec01f7890e25919cb681ab96500df2860a189fc2575a81",
+        "bytes": 19056
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-026.png",
+        "sha256": "3ac5db27cca19e2088a9b2f4969f60d39365b3ede4aaeb4a698c21897f34568d",
+        "bytes": 19058
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-027.png",
+        "sha256": "b3c548a39e8d051f09d8940973f7139fa1b811dc7d1965eecfa785c8497b92a5",
+        "bytes": 19029
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-028.png",
+        "sha256": "86fb74da0f9b5fb49e1953c26d228b373ced6fc31ba73758ecf8a82088b56c3a",
+        "bytes": 19420
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-029.png",
+        "sha256": "ac7d7bea886ef3e25a6e6aab27a64e76c6fe8e44078ec057db1d657b6a115e4e",
+        "bytes": 19391
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-030.png",
+        "sha256": "f32d7b276b4979cac787d21691e9cf014128e021799ad03ecd539c80c36a32c4",
+        "bytes": 19470
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-031.png",
+        "sha256": "9840c9e4639423384f06967e292a2fcc49df991d7c22a192e46ff07ef1d55ffe",
+        "bytes": 19458
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-032.png",
+        "sha256": "5de57ca98e0e933c66436563471e5c06d4ae9d9dc9f53b299830f5531fcdb9dc",
+        "bytes": 19576
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-033.png",
+        "sha256": "363a9625f84014b523976b7df6c4ccfc99647c402d7cd4b165ff322fa12545a5",
+        "bytes": 19496
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-034.png",
+        "sha256": "2d9699635b3012f15333fe99ef778bc2d33b5345a0bfb79fe16fcc6431975bc7",
+        "bytes": 19425
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-035.png",
+        "sha256": "a1922889387e1f0ecf88d5fe4f71d7b52b51702e52aaeec5c5f0dce94dfc5fe5",
+        "bytes": 19359
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-036.png",
+        "sha256": "d18720177ae9de20145a3f0554d5328a6a47965ae5e7e41f6cf1e1823473ee12",
+        "bytes": 19362
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-037.png",
+        "sha256": "78b5a1693b9a44f69e8683d7d8606ad7d0dedce3d0fedb5aa0c3a3759c8cbf03",
+        "bytes": 19305
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-038.png",
+        "sha256": "372a514b95c2f5ce4b1c8dda581d9f0ddac29ebea9dc1d5e7d440bcfa876126c",
+        "bytes": 19382
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-039.png",
+        "sha256": "caec9166d37081dd875b85131a27336f9953ae1e1240499f8506e1b996d8ef9d",
+        "bytes": 19120
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-040.png",
+        "sha256": "2d2d6ab43717c221eb471fed029232d3dac86a70086cb69ba40fe4ca65cd7456",
+        "bytes": 19274
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-041.png",
+        "sha256": "01c2357c4d3b48fb42371f8102a2fcd57736fcbbcb1a9a61297d0572341125bf",
+        "bytes": 19293
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-042.png",
+        "sha256": "cded9045673096217ea779c31c13df5b861cb26cff57507d9b8f82461eca3dcc",
+        "bytes": 19282
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-043.png",
+        "sha256": "bd003026e82025d197996f75559c774653a0f5f61e8aa4a1b24cc06ee007a44b",
+        "bytes": 19329
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-044.png",
+        "sha256": "5838038b1fa9884fe4ce8029f5587f1dbbfc3e43e7b5372e10c4b5e15b21b84e",
+        "bytes": 19340
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-045.png",
+        "sha256": "196f0479333b246f1a0f7c983e4c12cb60d33f16cb7693fe31e1589fc6582877",
+        "bytes": 19375
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-046.png",
+        "sha256": "f9ad2c68078782748751a561cc2ed31e8182a7d5cd15212dd74ee342d5f1705f",
+        "bytes": 19295
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-047.png",
+        "sha256": "3230c89e8041eda361727dbbc0bdc8e7e618ccd630d1cc4db8e164be672f5f7e",
+        "bytes": 19326
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-048.png",
+        "sha256": "f32db52afe2801c9acac04e660ff82aae8d6b536f3003b24adedeadd86409796",
+        "bytes": 19444
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-049.png",
+        "sha256": "e40253c68f66b156848be2872ed425f1a4260e4cc7447df6a571f784425795a4",
+        "bytes": 19397
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-050.png",
+        "sha256": "43c490b5d1a446981f19593d61fe5357bf294e1f07ae1bdedbcf1078c5dddbac",
+        "bytes": 19334
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-051.png",
+        "sha256": "e24c52c56bea4eb7782c7ccfb304ac30ea02d93dea9ccb1629f9ce57217ef01e",
+        "bytes": 19313
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-052.png",
+        "sha256": "5aa8e130a3ee4a3e2b7e77763ea940d1e08c443aa96e292960b36658817ccdcd",
+        "bytes": 19315
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-053.png",
+        "sha256": "107834b97f9873fe461b8b5e12e1990b9a345b824aec26ffceae945fb3492d15",
+        "bytes": 19445
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-054.png",
+        "sha256": "83d3e83c894e009e620998aa04db0ebaf59ca8cca956e63c5f5c17000c84cdc1",
+        "bytes": 19410
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-055.png",
+        "sha256": "43363d2b7405b811ed36444ad982b33f90416b7f66e154484ee37a6272dfe585",
+        "bytes": 19438
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-056.png",
+        "sha256": "284be171c6742e9c6a56719515fe8f99dbb0f4e17b1c8d8273351e1e2fb4de0b",
+        "bytes": 19460
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-057.png",
+        "sha256": "0bcdab77fefad24d7d0021ab8adbc00a06d3ba8e4f5cb57682058665f16614be",
+        "bytes": 19371
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-058.png",
+        "sha256": "f6b98aec2b0c6a35937417a2a244ac48d85a58bbaab614d65812b787d460bc8c",
+        "bytes": 19448
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-059.png",
+        "sha256": "e88d0bcab85e4f62fcb0d59a712e74b0241ab3d6f51ac10f9c6da4cea2275c35",
+        "bytes": 19408
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/parts-060.png",
+        "sha256": "d67b9eaaa6f6ab261a9df8059ceb9ff1fe47905ab8dbc130b5b826ac440f2ff1",
+        "bytes": 19483
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/phone-en.png",
+        "sha256": "a862a9601f7221b1fe35fe2d79180cd37853b6a8fbc8b79681694f23b5095d88",
+        "bytes": 66159
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/phone-zh.png",
+        "sha256": "4c415e50b161d5252ec935ced99ee39415edef2566d3a8d1a0941de90611c2e0",
+        "bytes": 74358
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/real-note-and-receipt.png",
+        "sha256": "4dcea398ec9b1a671c735384478d6f2be856b05511ed39a927e4e8a8ad8786be",
+        "bytes": 100503
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-000.png",
+        "sha256": "4e25b002f54a59f64dd4a497169f881d4d8340c66639d64ed52899dd1126a9d4",
+        "bytes": 17983
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-001.png",
+        "sha256": "02483e9b98e7d8ba325634285277ccc5a1ac090addb48d4f1e5c4725910bc754",
+        "bytes": 18557
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-002.png",
+        "sha256": "0579cb2912d5c45eab6f2f3f7725719fc676fff0cad591c04bbdf8aa03430b3b",
+        "bytes": 18537
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-003.png",
+        "sha256": "0ab9f9a4ca61a7898a5dbe64eedea5b8d33f48db017ea2e1387833ceffb105cf",
+        "bytes": 18586
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-004.png",
+        "sha256": "133b0c31edfd66ca15069b2d48a1a10bd8e291ed20a530d2efced61dc8cf8d3f",
+        "bytes": 18660
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-005.png",
+        "sha256": "2ad70207e34846690854ee44eb840643c16ac22ec794645f6f85edd438a2587f",
+        "bytes": 18763
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-006.png",
+        "sha256": "cb65e7aba144f705e800d3a07fa5291c5a8c4d3ac154c49acc9f8ccf74dde44b",
+        "bytes": 18803
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-007.png",
+        "sha256": "280d9c24b59903df1c6db7a27d55c937292e984abf8061796ca6d66295d0a767",
+        "bytes": 18786
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-008.png",
+        "sha256": "2e5e4c7d9b22f4b0289f33b530cf94540a025fc089bb9234d0bea0e3aa7c6bce",
+        "bytes": 18788
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-009.png",
+        "sha256": "b902c753edd7b6dbfb4c10dd2f6d142eaa78013e2f157b487a6d75943dc83a3b",
+        "bytes": 18918
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-010.png",
+        "sha256": "e37d2ac87d95902d1d0261bfb808a5511bc1bf6e0e38ba93c7ebb84247ee3327",
+        "bytes": 19051
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-011.png",
+        "sha256": "712c660dca2b1f914b61cc5dbdfcf141476725b55c6527a386902f7600b9ab49",
+        "bytes": 18948
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-012.png",
+        "sha256": "a715a8078c8287aa388c861f0630a13e1aa506e3a95d00e7d34d6d39ef2634b3",
+        "bytes": 18831
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-013.png",
+        "sha256": "b4a22e179b227f46700f655e18d49753159e53fe4f5699548827b398b5ab7686",
+        "bytes": 18933
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-014.png",
+        "sha256": "00fe615bdff61562514686d04bbd84a7cbdf848d699b8ca46feb13506d7f86bc",
+        "bytes": 18980
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-015.png",
+        "sha256": "da489a54656bb6ac334bc48a0cf3da57283569156e69d7709b80bdcd06cd9cc6",
+        "bytes": 19031
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-016.png",
+        "sha256": "a32d5d261e17e60ecf021e4d5d7599ac4cd2948962d7c81f9c1ae889bba9510f",
+        "bytes": 18902
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-017.png",
+        "sha256": "ff780cef46427dce6b987d435cc48c07c83b7482fc740446d0895d57709baa72",
+        "bytes": 18931
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-018.png",
+        "sha256": "026b316c8436ae87ff2a3b74f92d3d9628f834f64dbee325f33fb0cfcef0df99",
+        "bytes": 18965
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-019.png",
+        "sha256": "1e5a5a9826f91051f78db222fb1df5f881df9e265ecb6a1bef402ebe6d6cc7c5",
+        "bytes": 18845
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-020.png",
+        "sha256": "f8eac5e4a1f404c7d17e5da9e2270e1a8c2ce8064379a4287e96b4e807585362",
+        "bytes": 18949
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-021.png",
+        "sha256": "15d73347fb351e9ba7b73c21a309513392d82d6a9fe701365732de2e147e5cbe",
+        "bytes": 18968
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-022.png",
+        "sha256": "024551a38e316ba8e2e2e56abaddd3af28d6d4106c3c6bd0e8f457342fad65bf",
+        "bytes": 18953
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-023.png",
+        "sha256": "580ab844c0e895c30bcf46addb7274aa2368bdb27ef52c44269f4731d81c4a92",
+        "bytes": 19024
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-024.png",
+        "sha256": "1cbac6d90b33d769a5d0ca13d85c709c6124b1b27448232c5a24dcff9c07dcbf",
+        "bytes": 19015
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-025.png",
+        "sha256": "6c424b4530e1461bbaa2047db20c90f49dbf14c6d6755c8f252581c2687f45d0",
+        "bytes": 19035
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-026.png",
+        "sha256": "c7205e67f5fe034ee3314de3992d19f2b84a490fb249274e151f2cf41b5f270f",
+        "bytes": 19047
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-027.png",
+        "sha256": "b6cff559cced50d9abcec5fecfa2c2fccb4d8b3fb80657bf50f1b2a86c1c9fcd",
+        "bytes": 18980
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-028.png",
+        "sha256": "41447c52bff9bab1f9161b64f83ef5a2e8387f56fd5b003ef8ca2882c3d5cba3",
+        "bytes": 19065
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-029.png",
+        "sha256": "c99eddb19f7163b761c14a801097507c284b714b7d57e9022941343ac7ebc40b",
+        "bytes": 19064
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-030.png",
+        "sha256": "895e24f22f4138e0ddae0555413f863964098df761b02589396024debe7989f9",
+        "bytes": 19078
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-031.png",
+        "sha256": "375b7470674a028f9783227047393ca2ff0cd3232abfc546f8609df081aa9adc",
+        "bytes": 19024
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-032.png",
+        "sha256": "13426126d08f4005088a27f8bd54524aa88adea244371c81565103958bc9b379",
+        "bytes": 19143
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-033.png",
+        "sha256": "68d616599ef8a4a7af45eb06ca368cccfaa282c77bb0aad2c5225c2a25d6781a",
+        "bytes": 19048
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-034.png",
+        "sha256": "1b2af5fefc66e6a17a157f004862300b7f98c9c609693feeed83034cbdc41a21",
+        "bytes": 19085
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-035.png",
+        "sha256": "1d0ec3ceff643e5950ec3ec6b35a5c3336961ed6cc41d3b8016856d11e8dde65",
+        "bytes": 19029
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-036.png",
+        "sha256": "1ac7fda9760cab05472a2492201b6709128277cb97d9c7b2ac2e0a8d9ed7b8c1",
+        "bytes": 19007
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-037.png",
+        "sha256": "bff0eb7cb7673766fc536bb0f942c62dfcbbb602fb2d04d2dec708b419d46c9a",
+        "bytes": 18942
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-038.png",
+        "sha256": "5b7a67b8b23dd60861049eddca45a0c9b10b721ff3201af5586db06c28b7a765",
+        "bytes": 19031
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-039.png",
+        "sha256": "0528f4b4c08a4afe20aafe4b274778638da72c265da31b0903f90558acee5b78",
+        "bytes": 18925
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-040.png",
+        "sha256": "5a7bda821e94dbc136c0c2eace16b58a2ff477f5c3eab2da815a1b762075f553",
+        "bytes": 19020
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-041.png",
+        "sha256": "e128ec3f5beaaf475c1cb269246f73c4f10ea59ba02ec2d11a6e4dc0b9d3e9e1",
+        "bytes": 19042
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-042.png",
+        "sha256": "537aa94902d8e0a75591257fd5ccd9b33a5f5cc1d494c7d19fdbc8118ec2c356",
+        "bytes": 19038
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-043.png",
+        "sha256": "c9dbd887c737384f1186b695cd3008544f887af65e2bee98c480f7006db8f64f",
+        "bytes": 19087
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-044.png",
+        "sha256": "fd8c4cc85b14502fe7afd65eaed2c40758788a8f029a1ddfcedd70a4589a8c28",
+        "bytes": 19085
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-045.png",
+        "sha256": "47217687dfe2d94f10259d09881daf52e45261ef51819dbd239e93158951ce22",
+        "bytes": 19123
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-046.png",
+        "sha256": "d54a5972ff1bd37b56f7f2ed94746148778de8bfc08d426f69f714d18301c470",
+        "bytes": 19045
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-047.png",
+        "sha256": "82c2a9b107ef8041b22d6c836d86ffcde784b28eb7a74c0f32f9856fff8fb2c7",
+        "bytes": 19077
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-048.png",
+        "sha256": "1ba88ad165fbfbb8569d61814e15beadba9c9c7c9fea6c03b2236db5155b9e18",
+        "bytes": 19193
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-049.png",
+        "sha256": "f9d8b7eb77724f4a63e7dbfc64fe7694e10a411e0ccf0cc1faee67a27988a732",
+        "bytes": 19148
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-050.png",
+        "sha256": "eeeb23a4672e70525cc263e87d27af08633be9b6a17b216d64d9edfc669da9b8",
+        "bytes": 19087
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-051.png",
+        "sha256": "5b17e1a84b190a08cb024e9db3921c3b7f051d459c9bb24f96c02bf41ede8821",
+        "bytes": 19063
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-052.png",
+        "sha256": "2311297cf74edaec7fde78c6d181b5716f441a6e66c38a2d559f4fb160debb84",
+        "bytes": 19066
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-053.png",
+        "sha256": "3dd8e16d0e09ea57520bde87c9763eb1099046d9eba8aa070d13be0f56b54e19",
+        "bytes": 19192
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-054.png",
+        "sha256": "8f6f875273e9cbdc07b8c18619ab42d262f9c147cad429f50665f5d517d8a983",
+        "bytes": 19161
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-055.png",
+        "sha256": "ebf5c8e83117b7f94858dcaa3e00ce43076d30aeda35a4711595709a94ba350c",
+        "bytes": 19185
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-056.png",
+        "sha256": "62c3e5a37667ed7de5aaf1a9c6e592760a8f4a93f8b6b73c70cc29d7e665eb0e",
+        "bytes": 19208
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-057.png",
+        "sha256": "b7d908c9b48aeedb126c5fbb807feb64b69d70ea1f7b7f6c6c9aab800e0c2ab5",
+        "bytes": 19121
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-058.png",
+        "sha256": "969904eb3b95b6470301ab868bc3290f915c35dd37f0bc9f378734134c8ba5ba",
+        "bytes": 19197
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-059.png",
+        "sha256": "382a99d6dd87f54d6d2cbdbea59f325323df2add70608a2be02e4544c07c1e25",
+        "bytes": 19157
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/title-060.png",
+        "sha256": "9c41efdf5d89aeedacef8374a867c1c9b552414200ed42b39bc545245bb9ab29",
+        "bytes": 19228
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-000.png",
+        "sha256": "4e25b002f54a59f64dd4a497169f881d4d8340c66639d64ed52899dd1126a9d4",
+        "bytes": 17983
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-001.png",
+        "sha256": "2a1163f091c4d5ae81efbf0c051137533f613ff501efbbfedfdde6bcfb113239",
+        "bytes": 18029
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-002.png",
+        "sha256": "8a0480b325d774a3b6ebbfef7554352c49ca77192d731807c611cc196cf5ad7d",
+        "bytes": 17921
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-003.png",
+        "sha256": "b523b6290c0fe3ac411cd0b20dce2ef19c764d613445ce04bc2c783de2820a0b",
+        "bytes": 17877
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-004.png",
+        "sha256": "a6abca9d5f3d6c6f381825de5bafbf6aa861a2e36fceda353a967c734476c412",
+        "bytes": 18385
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-005.png",
+        "sha256": "e35291b62eec21f57f5991099064425cb29caef2fa5eb25bd5e07d0aa1e700eb",
+        "bytes": 17960
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-006.png",
+        "sha256": "6358355f153ec06854b63a9ab36ad93028a7b2f3dd72a2f16f82fdd044909848",
+        "bytes": 18461
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-007.png",
+        "sha256": "87780d026a2c027a125e066f0fd3357200d840b96a89c56a7ff7d1e05d8bee54",
+        "bytes": 17947
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-008.png",
+        "sha256": "5b1316d5f28a8d5c37afc6f4e98effcea7628d6f11d11690a8e06e3362df057c",
+        "bytes": 17897
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-009.png",
+        "sha256": "4c5d9c2ac33e44456e4eb62d10ef2135cd1fb4b30f2d9e5fae074ecc502d2c3c",
+        "bytes": 18028
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-010.png",
+        "sha256": "49f537c7e141457e41d9e1483fd09301b3a4f22000b4a8b138f51e59643afbda",
+        "bytes": 18013
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-011.png",
+        "sha256": "539e3a4c053c8c41acb4cc47a140263e83387a8aecebe06aed9c37da82edabc1",
+        "bytes": 18457
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-012.png",
+        "sha256": "0c2bfadec1b5fd4a7663836a83f00fb1da1b7a731d886422ede9e42416f7b6ac",
+        "bytes": 17979
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-013.png",
+        "sha256": "4799c2d906b600e21fc23872cff1c65d998c2042395ed64c5da460f956f1931e",
+        "bytes": 17891
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-014.png",
+        "sha256": "c7765bbe89fe51b9fbd708411064180d30a7e1d01d6b3a772a12e9599d22a5ec",
+        "bytes": 18054
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-015.png",
+        "sha256": "6e00f2343545a35ead7e79b8c6fac5293eebf4fc85da28b2a96c98f92a102046",
+        "bytes": 17983
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-016.png",
+        "sha256": "9f8ff9f699cc51a05127e1e54a322f86a46510f10c1845142fdffac563ece850",
+        "bytes": 18030
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-017.png",
+        "sha256": "69e684e516f7ac31368ec649465d340277a0871b8f78fffeb60256c189537291",
+        "bytes": 17924
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-018.png",
+        "sha256": "f4039a9aa3a6b6f3cf0173cfb54d8f2b50a04b3c748dab869618e84ef556c6fa",
+        "bytes": 17886
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-019.png",
+        "sha256": "008c93d914d5bd64f459760f63c287423d08df75dba1d55849c5b1f262226b6c",
+        "bytes": 18389
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-020.png",
+        "sha256": "b507a092ec2910a748a27f0f32c0cfc618a89d3088ea68a30e64b26ee4a5b847",
+        "bytes": 17960
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-021.png",
+        "sha256": "0dd58dc78be4a315299a4aa0e6c9ecf53e0c858209011b68b1d65a9d83716758",
+        "bytes": 18470
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-022.png",
+        "sha256": "6f66a5989721c4663b9eb779fa5893067ec90b5c26320470a24cd61b15bf9507",
+        "bytes": 17964
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-023.png",
+        "sha256": "cc4ae3445819ead3c5d1b8e641b849dadd5910ac9af6949e986c001d949f0a41",
+        "bytes": 17908
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-024.png",
+        "sha256": "6dea57854135117cb971af557c796b783fbfd4debe833f4019e4a91710d11931",
+        "bytes": 18027
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-025.png",
+        "sha256": "1d24ceef3587d02577ed1104908e7bcf7daa7974a1caa64569b73a4a009e842d",
+        "bytes": 18024
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-026.png",
+        "sha256": "9d34d61e213d673de8fd7d52a0bde2f57754b48411e7004603a4b86dee65442e",
+        "bytes": 18461
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-027.png",
+        "sha256": "ba888a6ab7c08a5bd05eed04263101445c938e4b4f6388d5ba4cc4beae4905e5",
+        "bytes": 17982
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-028.png",
+        "sha256": "bb93dff6df2245f4d804823f1a6e8fc27ef9cb8d0d630f548fcaee4028760bf1",
+        "bytes": 17889
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-029.png",
+        "sha256": "a9dd30a3a376c773eca913665ee581740f29ebf82da6ff0cac1a1c1cd25481ee",
+        "bytes": 18053
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-030.png",
+        "sha256": "4a8d29de60090cc4cdfdf59ccdea115d9cf5d7b6e08d52dfb922bfc206e55b8e",
+        "bytes": 17985
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-031.png",
+        "sha256": "4a241e79e6b45eb84b60839026d9d6282adf0663399da61db706ccd9e83ca721",
+        "bytes": 18043
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-032.png",
+        "sha256": "3db1859ad71db55be6c4cc460a3433cc597c9a0ed77bc1affc35d11c7f73e166",
+        "bytes": 17931
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-033.png",
+        "sha256": "c7fd0e68708db128e6ca570ef680c8d68c73f0439526f112eee2b273f6dda0f6",
+        "bytes": 17889
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-034.png",
+        "sha256": "720d8297a267bd9883defc6a297aa5d79e0adbef9fa15bebb05012ec791e6a66",
+        "bytes": 18391
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-035.png",
+        "sha256": "621c9a795eaa83ac2c6cc11efc72888197a2ecec74f81fcc82b7662b55317d89",
+        "bytes": 17962
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-036.png",
+        "sha256": "dc5fb98c3ef12f22c3ae0f709e58c72a3e0b0db1c3e59e014354a6206efbd8c4",
+        "bytes": 18468
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-037.png",
+        "sha256": "aae57d4b33c041563cf21ba698f70aa031ebf0845ffa244c854593c6c470ee4a",
+        "bytes": 17953
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-038.png",
+        "sha256": "b4911b1203508d0b5d83c7757378ccce7610b2dc74bf4541ac5a4e1383c60551",
+        "bytes": 17896
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-039.png",
+        "sha256": "b8beffc20200dc1f106565b86bf29f5ba517b1cf38273db4cc86ffb327a82b34",
+        "bytes": 18024
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-040.png",
+        "sha256": "d660e236dbfa2cc98e921dba6c67c0dcd4e69d66d887333a8dd3ee1cf5a15030",
+        "bytes": 17998
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-041.png",
+        "sha256": "acd25ebdc8ac3946fe0e76abf6a01d56b11a3a0131200f8c7d0cfa79e7f37654",
+        "bytes": 18448
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-042.png",
+        "sha256": "604d3c40c701f16fb42db4185ea5ae6d5e102bef2c85d635bbca3b884e4b396d",
+        "bytes": 17973
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-043.png",
+        "sha256": "5b6c96fa67fba1b8022f528b229e3fad5368b1e2bfaff7537d1e683864862675",
+        "bytes": 17920
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-044.png",
+        "sha256": "1d101eea2282170568c581a118171ca80b4b379dcf3ff69c7f45ab72c3a69568",
+        "bytes": 18077
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-045.png",
+        "sha256": "66e7033cd55be695626e9121fd3130f610ad66a7d6ea2ce707df3f4eec3bdaef",
+        "bytes": 17974
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-046.png",
+        "sha256": "3d1d587366eeb23d4af348bba8592062adeb7f350788e870f5cd0aed97c27201",
+        "bytes": 18026
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-047.png",
+        "sha256": "36a56fa0b453e2f191cfc4ac1dec0f85746b71236d89ae2fc3df75057d847338",
+        "bytes": 17916
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-048.png",
+        "sha256": "80d63d2bb64b98e1b15fea9250ac82caaadf02c248e3fd6551554ff32f3d17f9",
+        "bytes": 17892
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-049.png",
+        "sha256": "1e5df6986174892f792950edd5a7f442ffafcdb66f328cac278b4797badedc9b",
+        "bytes": 18397
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-050.png",
+        "sha256": "31c6e3d752d249b96eda032fa7d7ad9e25ba302175f3e4a22dbade13cf46d0f1",
+        "bytes": 17973
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-051.png",
+        "sha256": "83c4f62fb5d3dba64f76a5bd7be6129e0394da9a90f3c2e142c0487e43eb0e36",
+        "bytes": 18479
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-052.png",
+        "sha256": "95e17f369673bf69ee8c64a5bc221fdfe06452af068d6ad2f122625668e977f2",
+        "bytes": 17965
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-053.png",
+        "sha256": "6ef7458083fda4afef9878cb619940d4b7107e2fffcd0d66ebc68f95277428f2",
+        "bytes": 17910
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-054.png",
+        "sha256": "79b5a2a00a2d5f0ff1468fb8430b7c9f98858231d575053648d6400c4b70261f",
+        "bytes": 18038
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-055.png",
+        "sha256": "b5c3f08ff1e9ea88ccaaf8c729e7905eb262a19f5414c1dabd0296d7ae474242",
+        "bytes": 18025
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-056.png",
+        "sha256": "15d4edf9a24ebec14fd280928cbb0a941d99d9f45e82315cfbb0acce5b8cdd2b",
+        "bytes": 18462
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-057.png",
+        "sha256": "7bf25c89d3b6ddbbd3d29d1675d6d2e77437cfa1e2ad6dc8d7f864db2d22bd05",
+        "bytes": 17990
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-058.png",
+        "sha256": "4aead893e8779ff0e5bbd4c593a83fbdb066395cfe53e3a37b4fc6f1c300bcf8",
+        "bytes": 17905
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-059.png",
+        "sha256": "e47a7b1220d1641389f80b3c7ec4551224d2458f83dc82b5ffa3aaa0de7811b1",
+        "bytes": 18070
+      },
+      {
+        "path": "/tmp/openmui-tests/site-component-motion/together-060.png",
+        "sha256": "7079432dbd5660b52f65fb9c97a1d079e8870351f6bacfc9a86168ed3a5df19c",
+        "bytes": 17999
+      }
+    ],
+    "artifact_profile": "native release (the later explicit component test writes these images)"
+  },
+  "consumer": {
+    "report": "/home/speak/workspace/mui/target/omui-playback/consumer.report.omui.json",
+    "sha256": "ed9560fe6963911ebc4fde6af36bc7e940d9c7b37fd959912b5983c3b1f66d8d",
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 51,
+        "explicit_frames": 61,
+        "host_frames": 61,
+        "all_checks_passed": true
+      },
+      {
+        "profile": "release",
+        "checks": 51,
+        "explicit_frames": 61,
+        "host_frames": 61,
+        "all_checks_passed": true
+      },
+      {
+        "profile": "wasm-test",
+        "checks": 51,
+        "explicit_frames": 61,
+        "host_frames": 61,
+        "all_checks_passed": true
+      }
+    ],
+    "cross_profile_pixels_and_pngs_equal": true,
+    "all_process_frames_replay_in_reverse": true,
+    "feature_off": {
+      "ok": true,
+      "compiled_units": 702,
+      "adapter_and_engine_absent": true,
+      "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+    },
+    "missing_fonts_refused": true
+  },
+  "benchmark": {
+    "format": "openmui.bench@0.1",
+    "label": "linux-release",
+    "platform": "linux",
+    "hardware_threads": 32,
+    "started": "2026-11-05T18:11:41Z",
+    "machine": {
+      "cpu": "13th Gen Intel(R) Core(TM) i9-13900K",
+      "arch": "x86_64",
+      "system": "Ubuntu 24.04.1 LTS, kernel 6.8.0-147-generic",
+      "memory": 67147726848
+    },
+    "results": [
+      {
+        "name": "ui/presentation/publish-100",
+        "description": "100 group offsets published through typed channel leases",
+        "iterations": 100000,
+        "notes": {
+          "scope": "100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness."
+        },
+        "min_ms": 0.002486,
+        "mean_ms": 0.002601080489999165,
+        "p50_ms": 0.002559,
+        "p95_ms": 0.002762,
+        "p99_ms": 0.003357,
+        "max_ms": 0.195168,
+        "items": 100,
+        "ns_per_item": 26.010804899991648,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {}
+      },
+      {
+        "name": "ui/presentation/frame-100",
+        "description": "100 live component groups projected into current paint and input geometry",
+        "iterations": 2737,
+        "notes": {
+          "scope": "100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+        },
+        "min_ms": 0.14165,
+        "mean_ms": 0.14617605991961982,
+        "p50_ms": 0.145068,
+        "p95_ms": 0.150512,
+        "p99_ms": 0.167314,
+        "max_ms": 0.194956,
+        "items": 100,
+        "ns_per_item": 1461.7605991961982,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 2.695396419437294e-05,
+          "paint_ms": 0.12829177530142483,
+          "runtime_ms": 0.14291040299598107,
+          "declared_cost": 0.007546575017730859,
+          "display_commands": 2206.7219583485567
+        }
+      },
+      {
+        "name": "ui/presentation/hanim-frame-100",
+        "description": "100 component parts animated by the public native Hanim host",
+        "iterations": 2591,
+        "notes": {
+          "scope": "100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
+        },
+        "min_ms": 0.129102,
+        "mean_ms": 0.15442247008876892,
+        "p50_ms": 0.153396,
+        "p95_ms": 0.158739,
+        "p99_ms": 0.174673,
+        "max_ms": 0.184469,
+        "items": 100,
+        "ns_per_item": 1544.2247008876893,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 2.563296024700924e-05,
+          "paint_ms": 0.13154283095329988,
+          "runtime_ms": 0.1541461208027788,
+          "declared_cost": 0.007737813585488228,
+          "display_commands": 2209.1509069857198
+        }
+      }
+    ]
+  },
+  "browser": {
+    "checks": [
+      {
+        "ok": true,
+        "what": "the real site hands off to the new live navigation"
+      },
+      {
+        "ok": true,
+        "what": "the delivered Web build selects its own published profile",
+        "detail": {
+          "mode": "dual-user",
+          "source": "profile:site-web",
+          "cap": "external",
+          "enabled": true,
+          "input": true,
+          "session_valid": true,
+          "development_grant": false,
+          "layers": {
+            "developer": null,
+            "user": null,
+            "session": null
+          },
+          "binding": "instance",
+          "transport_input": true,
+          "development_controls": false,
+          "development_controls_meaning": "At least one mutable control is preauthorized by this development session; not all controls. Published or explicitly granted configurations use per-operation decisions.",
+          "session_owner": "service:agent-session-1",
+          "operations": [
+            {
+              "operation": "describe",
+              "allowed": true
+            },
+            {
+              "operation": "snapshot",
+              "allowed": true
+            },
+            {
+              "operation": "changes",
+              "allowed": true
+            },
+            {
+              "operation": "find",
+              "allowed": true
+            },
+            {
+              "operation": "act",
+              "allowed": true
+            },
+            {
+              "operation": "invoke",
+              "allowed": true
+            },
+            {
+              "operation": "undo",
+              "allowed": true
+            },
+            {
+              "operation": "redo",
+              "allowed": true
+            },
+            {
+              "operation": "transaction",
+              "allowed": true
+            },
+            {
+              "operation": "history",
+              "allowed": true
+            },
+            {
+              "operation": "wait",
+              "allowed": true
+            },
+            {
+              "operation": "capture",
+              "allowed": true
+            },
+            {
+              "operation": "input",
+              "allowed": true
+            },
+            {
+              "operation": "inspect",
+              "allowed": true
+            },
+            {
+              "operation": "stats",
+              "allowed": true
+            },
+            {
+              "operation": "profile",
+              "allowed": true
+            },
+            {
+              "operation": "logs",
+              "allowed": true
+            },
+            {
+              "operation": "debug",
+              "allowed": true
+            },
+            {
+              "operation": "pipeline",
+              "allowed": true
+            },
+            {
+              "operation": "clock",
+              "allowed": true
+            }
+          ]
+        }
+      },
+      {
+        "ok": true,
+        "what": "published applications retain an instance-bound Agent endpoint and input"
+      },
+      {
+        "ok": true,
+        "what": "the Web artifact does not inherit the native generator development session"
+      },
+      {
+        "ok": true,
+        "what": "remote actor and development claims do not upgrade the published policy"
+      },
+      {
+        "ok": true,
+        "what": "native Agent input completes through the delivered Wasm frame loop",
+        "detail": {
+          "exitCode": 0,
+          "data": {
+            "frames": 2,
+            "pressed": [
+              {
+                "at": [
+                  199,
+                  30
+                ],
+                "node": "main/bar/nav/core/open",
+                "semantic": "main/bar/nav/core/open",
+                "role": "button",
+                "name": "Core features"
+              }
+            ],
+            "actions": [
+              {
+                "node": "main/bar/nav/core/open",
+                "action": "activate",
+                "actor": "agent:deployment-check;via=service:input",
+                "exitCode": 0
+              }
+            ],
+            "focused": "main/bar/nav/core/open"
+          },
+          "errors": [],
+          "records": [
+            {
+              "kind": "data",
+              "data": {
+                "frames": 2,
+                "pressed": [
+                  {
+                    "at": [
+                      199,
+                      30
+                    ],
+                    "node": "main/bar/nav/core/open",
+                    "semantic": "main/bar/nav/core/open",
+                    "role": "button",
+                    "name": "Core features"
+                  }
+                ],
+                "actions": [
+                  {
+                    "node": "main/bar/nav/core/open",
+                    "action": "activate",
+                    "actor": "agent:deployment-check;via=service:input",
+                    "exitCode": 0
+                  }
+                ],
+                "focused": "main/bar/nav/core/open"
+              },
+              "re": 3
+            },
+            {
+              "kind": "result",
+              "exitCode": 0,
+              "re": 3
+            }
+          ]
+        }
+      },
+      {
+        "ok": true,
+        "what": "the real input action records its Agent provenance",
+        "detail": [
+          {
+            "node": "main/bar/nav/core/open",
+            "action": "activate",
+            "actor": "agent:deployment-check;via=service:input",
+            "exitCode": 0
+          }
+        ]
+      },
+      {
+        "ok": true,
+        "what": "Agent input opens the same visible Core menu"
+      },
+      {
+        "ok": true,
+        "what": "a real person pointer closes that same menu without replacing the runtime"
+      },
+      {
+        "ok": true,
+        "what": "Core menu exposes motion"
+      },
+      {
+        "ok": true,
+        "what": "Core menu opens motion"
+      },
+      {
+        "ok": true,
+        "what": "basic catalog contains at least forty designs"
+      },
+      {
+        "ok": true,
+        "what": "motion configuration starts unmounted"
+      },
+      {
+        "ok": true,
+        "what": "default basic motion: compact semantics expose exactly three toolbar buttons and no advanced controls"
+      },
+      {
+        "ok": true,
+        "what": "default basic motion: catalog starts unmounted"
+      },
+      {
+        "ok": true,
+        "what": "the opening is the public triangle-to-circle path morph"
+      },
+      {
+        "ok": true,
+        "what": "the default morph stays within a compact stage"
+      },
+      {
+        "ok": true,
+        "what": "pointer controls the actual morph endpoint"
+      },
+      {
+        "ok": true,
+        "what": "keyboard controls that same morph endpoint"
+      },
+      {
+        "ok": true,
+        "what": "Details exposes the reusable path control"
+      },
+      {
+        "ok": true,
+        "what": "keyboard sets a negative path bend"
+      },
+      {
+        "ok": true,
+        "what": "copied public motion configuration contains the real path parameter"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "catalog mounts eight choices per page"
+      },
+      {
+        "ok": true,
+        "what": "a real Next click advances the catalog page"
+      },
+      {
+        "ok": true,
+        "what": "second page settles to eight different designs"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/motion/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/motion/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "search locates design: toggle-thumb"
+      },
+      {
+        "ok": true,
+        "what": "the selected scene has the chosen design semantic label: toggle-thumb"
+      },
+      {
+        "ok": true,
+        "what": "choosing a design closes the catalog and returns to its working stage"
+      },
+      {
+        "ok": true,
+        "what": "player exposes its paused state"
+      },
+      {
+        "ok": true,
+        "what": "explicit Details mounts playback parameters"
+      },
+      {
+        "ok": true,
+        "what": "Details exposes seek, reverse, reset and both endpoint controls"
+      },
+      {
+        "ok": true,
+        "what": "keyboard changes the real playback speed"
+      },
+      {
+        "ok": true,
+        "what": "A selects the real initial scene state"
+      },
+      {
+        "ok": true,
+        "what": "B selects the real final scene state"
+      },
+      {
+        "ok": true,
+        "what": "Reset restores the real initial state and player position"
+      },
+      {
+        "ok": true,
+        "what": "pointer seeking selects an intermediate frame"
+      },
+      {
+        "ok": true,
+        "what": "the sought frame remains paused"
+      },
+      {
+        "ok": true,
+        "what": "Reverse and Play move toward the previous frame"
+      },
+      {
+        "ok": true,
+        "what": "player exposes its paused state"
+      },
+      {
+        "ok": true,
+        "what": "Pause stops the actual player clock"
+      },
+      {
+        "ok": true,
+        "what": "closing Details removes configuration"
+      },
+      {
+        "ok": true,
+        "what": "closed motion details: compact semantics expose exactly three toolbar buttons and no advanced controls"
+      },
+      {
+        "ok": true,
+        "what": "closed motion details: catalog starts unmounted"
+      },
+      {
+        "ok": true,
+        "what": "moving the pointer into the canvas enters real interaction"
+      },
+      {
+        "ok": true,
+        "what": "the basic scene toggle changes real semantic state"
+      },
+      {
+        "ok": true,
+        "what": "keyboard Space operates that same scene control"
+      },
+      {
+        "ok": true,
+        "what": "Core menu exposes motion"
+      },
+      {
+        "ok": true,
+        "what": "Core menu opens motion"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/motion/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/motion/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "search locates design: component-motion"
+      },
+      {
+        "ok": true,
+        "what": "the selected scene has the chosen design semantic label: component-motion"
+      },
+      {
+        "ok": true,
+        "what": "choosing a design closes the catalog and returns to its working stage"
+      },
+      {
+        "ok": true,
+        "what": "component motion opens with one stage and collapsed details"
+      },
+      {
+        "ok": true,
+        "what": "Details reveals reusable component animation selection"
+      },
+      {
+        "ok": true,
+        "what": "the actual component group translates by the public recipe"
+      },
+      {
+        "ok": true,
+        "what": "the native Hanim host advances intermediate frames in the actual browser"
+      },
+      {
+        "ok": true,
+        "what": "player exposes its paused state"
+      },
+      {
+        "ok": true,
+        "what": "keyboard selects independently animated parts"
+      },
+      {
+        "ok": true,
+        "what": "part animation preserves the card layout while moving its selected title"
+      },
+      {
+        "ok": true,
+        "what": "the browser clipboard receives the public C++ component recipe fragment"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/motion/page/motion_gallery/stage/scene/composition/card/editor"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/motion/page/motion_gallery/stage/scene/composition/card/editor"
+      },
+      {
+        "ok": true,
+        "what": "real component input copies the edited note JSON to the browser clipboard"
+      },
+      {
+        "ok": true,
+        "what": "focus in the animated note keeps the stage in real interaction mode"
+      },
+      {
+        "ok": true,
+        "what": "closing Details removes the component recipe controls"
+      },
+      {
+        "ok": true,
+        "what": "top navigation opens explore"
+      },
+      {
+        "ok": true,
+        "what": "creative catalog contains at least twenty designs"
+      },
+      {
+        "ok": true,
+        "what": "default creative demo: compact semantics expose exactly three toolbar buttons and no advanced controls"
+      },
+      {
+        "ok": true,
+        "what": "default creative demo: catalog starts unmounted"
+      },
+      {
+        "ok": true,
+        "what": "creative demos open the useful palette first"
+      },
+      {
+        "ok": true,
+        "what": "the default palette stage stays within 300 pixels"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "creative catalog also limits mounted choices to eight"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/explore/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/explore/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "search locates design: packing-board"
+      },
+      {
+        "ok": true,
+        "what": "the selected scene has the chosen design semantic label: packing-board"
+      },
+      {
+        "ok": true,
+        "what": "choosing a design closes the catalog and returns to its working stage"
+      },
+      {
+        "ok": true,
+        "what": "packing-board really packs all three stable items"
+      },
+      {
+        "ok": true,
+        "what": "explicit Choose mounts the searchable catalog"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/explore/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/explore/page/motion_gallery/browse/filters/search"
+      },
+      {
+        "ok": true,
+        "what": "search locates design: palette-studio"
+      },
+      {
+        "ok": true,
+        "what": "the selected scene has the chosen design semantic label: palette-studio"
+      },
+      {
+        "ok": true,
+        "what": "choosing a design closes the catalog and returns to its working stage"
+      },
+      {
+        "ok": true,
+        "what": "palette-studio accepts a real slider keyboard adjustment"
+      },
+      {
+        "ok": true,
+        "what": "the palette shows its current real balance"
+      },
+      {
+        "ok": true,
+        "what": "contrast changes all four readable, distinct colour outputs"
+      },
+      {
+        "ok": true,
+        "what": "Copy palette puts usable CSS with the current four colours on the actual browser clipboard"
+      },
+      {
+        "ok": true,
+        "what": "top navigation opens agent"
+      },
+      {
+        "ok": true,
+        "what": "agent opens the Use path"
+      },
+      {
+        "ok": true,
+        "what": "the demonstration is explicitly identified as simulated"
+      },
+      {
+        "ok": true,
+        "what": "the simulation offers a real Stop control"
+      },
+      {
+        "ok": true,
+        "what": "Stop cancels the pending local record"
+      },
+      {
+        "ok": true,
+        "what": "the explicitly started agent completes real task actions"
+      },
+      {
+        "ok": true,
+        "what": "the agent action log contains the actual task records"
+      },
+      {
+        "ok": true,
+        "what": "the real task action can be undone"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects develop"
+      },
+      {
+        "ok": true,
+        "what": "Develop exposes its stable Verify action"
+      },
+      {
+        "ok": true,
+        "what": "different task meanings do not share the legacy Run identity"
+      },
+      {
+        "ok": true,
+        "what": "the real Verify primary runs read, change and check"
+      },
+      {
+        "ok": true,
+        "what": "development parameters start unmounted"
+      },
+      {
+        "ok": true,
+        "what": "explicit Agent details mounts protocol controls"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/agent/page/agent_feature/develop/expected"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/agent/page/agent_feature/develop/expected"
+      },
+      {
+        "ok": true,
+        "what": "Assert genuinely fails before the requested change"
+      },
+      {
+        "ok": true,
+        "what": "Read reports the actual runtime snapshot"
+      },
+      {
+        "ok": true,
+        "what": "Change then Assert passes on the actual current value"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects design"
+      },
+      {
+        "ok": true,
+        "what": "Design exposes its distinct Arrange action"
+      },
+      {
+        "ok": true,
+        "what": "the real Arrange primary changes this task grouping"
+      },
+      {
+        "ok": true,
+        "what": "design parameters start unmounted"
+      },
+      {
+        "ok": true,
+        "what": "explicit Agent details mounts design parameters"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects cards"
+      },
+      {
+        "ok": true,
+        "what": "Design changes the live specimen spacing"
+      },
+      {
+        "ok": true,
+        "what": "design layout preserves its action address"
+      },
+      {
+        "ok": true,
+        "what": "the real clipboard receives the design prompt with current constraints and quoted user data"
+      },
+      {
+        "ok": true,
+        "what": "Core menu exposes interface"
+      },
+      {
+        "ok": true,
+        "what": "Core menu opens interface"
+      },
+      {
+        "ok": true,
+        "what": "interface languages and source start unmounted"
+      },
+      {
+        "ok": true,
+        "what": "real input receives browser focus: main/body/view/interface/page/interface_feature/workspace/object/title"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input reaches the actual field: main/body/view/interface/page/interface_feature/workspace/object/title"
+      },
+      {
+        "ok": true,
+        "what": "the live semantic view reads back the edited object"
+      },
+      {
+        "ok": true,
+        "what": "explicit Details mounts the language picker"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects cpp"
+      },
+      {
+        "ok": true,
+        "what": "cpp displays its existing builder API expression with the current value"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects ts"
+      },
+      {
+        "ok": true,
+        "what": "ts displays its existing builder API expression with the current value"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects python"
+      },
+      {
+        "ok": true,
+        "what": "python displays its existing builder API expression with the current value"
+      },
+      {
+        "ok": true,
+        "what": "pointer selects lua"
+      },
+      {
+        "ok": true,
+        "what": "lua displays its existing builder API expression with the current value"
+      },
+      {
+        "ok": true,
+        "what": "changing source language preserves the same object IDs and model"
+      },
+      {
+        "ok": true,
+        "what": "the browser clipboard receives the displayed current API expressions"
+      },
+      {
+        "ok": true,
+        "what": "Core menu exposes styles"
+      },
+      {
+        "ok": true,
+        "what": "Core menu opens styles"
+      },
+      {
+        "ok": true,
+        "what": "style parameters and source start unmounted"
+      },
+      {
+        "ok": true,
+        "what": "the actual preview Pause control pauses automatic changes"
+      },
+      {
+        "ok": true,
+        "what": "the default and scoped styles operate the same real model"
+      },
+      {
+        "ok": true,
+        "what": "the scoped glass controls sit over a real session data chart"
+      },
+      {
+        "ok": true,
+        "what": "the glass notification tabs operate that same quiet setting"
+      },
+      {
+        "ok": true,
+        "what": "explicit Details mounts style parameters"
+      },
+      {
+        "ok": true,
+        "what": "keyboard input changes the real sample corner parameter"
+      },
+      {
+        "ok": true,
+        "what": "no browser runtime exceptions occurred",
+        "detail": []
+      }
+    ],
+    "screenshots": [
+      "target/site-motion/shape-morph-opening.png",
+      "target/site-motion/basic-motion-interactive.png",
+      "target/site-motion/component-motion-live-note.png",
+      "target/site-motion/creative-packing.png",
+      "target/site-motion/creative-palette.png",
+      "target/site-motion/agent-design.png",
+      "target/site-motion/interface-language-details.png",
+      "target/site-motion/scoped-styles-details.png"
+    ],
+    "exceptions": [],
+    "url": "http://127.0.0.1:32843/",
+    "browser": "HeadlessChrome/156.0.8078.4",
+    "ok": true
+  },
+  "delivery": {
+    "url": "http://127.0.0.1:43821/",
+    "size": [
+      1280,
+      800
+    ],
+    "network": "20/40",
+    "cache": "enabled",
+    "browser": "HeadlessChrome/156.0.8078.4",
+    "transfer": {
+      "total": 4858067,
+      "before_first_frame": 2955838,
+      "by_kind": {
+        "document": 61030,
+        "fetch": 4738038,
+        "image": 11922,
+        "script": 47077
+      }
+    },
+    "first_frame_ms": 1759.3999999761581,
+    "ready_ms": 1722.6000000238419,
+    "frames": {
+      "acted": [
+        {
+          "node": "main/bar/nav/to_docs",
+          "exitCode": 0
+        },
+        {
+          "node": "main/body/view/docs/page/directory/to_features",
+          "exitCode": 0
+        },
+        {
+          "node": "main/bar/mark",
+          "exitCode": 0
+        }
+      ],
+      "frames": 319,
+      "p50": 16.699999999999818,
+      "p95": 16.799999999999272,
+      "p99": 16.800000000000182,
+      "max": 66.69999999999982,
+      "long": 1
+    },
+    "memory": {
+      "heap": 13400000,
+      "wasm": 28704768
+    },
+    "errors": [],
+    "budgets": [
+      {
+        "metric": "transfer.total",
+        "value": 4858067,
+        "max": 5000000,
+        "pass": true
+      },
+      {
+        "metric": "transfer.before_first_frame",
+        "value": 2955838,
+        "max": 3800000,
+        "pass": true
+      },
+      {
+        "metric": "first_frame_ms",
+        "value": 1759.3999999761581,
+        "max": 4500,
+        "pass": true
+      },
+      {
+        "metric": "ready_ms",
+        "value": 1722.6000000238419,
+        "max": 4500,
+        "pass": true
+      },
+      {
+        "metric": "frames.p95",
+        "value": 16.799999999999272,
+        "max": 34,
+        "pass": true
+      },
+      {
+        "metric": "frames.long",
+        "value": 1,
+        "max": 15,
+        "pass": true
+      },
+      {
+        "metric": "errors.length",
+        "value": 0,
+        "max": 0,
+        "pass": true
+      }
+    ]
+  },
+  "web_package": {
+    "command": "MCPP_LOCKED=1 MCPP_JOBS=4 MCPP=<pinned> bash tools/ci/site.sh",
+    "profile": "site-web (LLVM -Oz)",
+    "log": "/tmp/omui-playback-site-pack.log",
+    "log_sha256": "a9f5f216af6bf49c1bfb0fd4363eb485887be3bf8e25399259bb51217127ca6c",
+    "envelope": "target/site.pack.json",
+    "envelope_sha256": "35b572e7c4d0e880643090b6991f0c04822475895eae8e4308378c8b7e773c97",
+    "index_sha256": "0a2c948810bbe6546acf3cf8d25b906e708468a7ab8f70418a918b14fbe2673e"
+  },
+  "checks": {
+    "lint": {
+      "log": "/tmp/omui-playback-lint.log",
+      "sha256": "b4824ada9a3b226dd0374ce17b0a73d59d52424ef1b6dd6e76da9547b8365a77",
+      "problems": 0
+    },
+    "diff_check": true
+  },
+  "limitations": [
+    "CPU process images are not a physical GPU throughput or arbitrary device pacing claim.",
+    "The 302-node benchmark includes engine sample/publication/Runtime paint; raster, GPU and setup are excluded; allocations count ordinary C++ new/new[].",
+    "42 basic site scenes and 20 creative scenes do not prove 40 public animation recipes and 20 complete reusable projects.",
+    "Windows/macOS CI is asynchronous; local native dev/release, Wasm/Node and Chromium evidence is recorded here."
+  ]
+}

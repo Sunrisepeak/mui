@@ -1,0 +1,853 @@
+{
+  "format": "omui.ui-image-scopes-checkpoint@0.1",
+  "date": "2026-11-05T22:08:09.415553+00:00",
+  "ok": true,
+  "base_commit": "ab4d823699562d19f93518af083c12028a658d34",
+  "scope": [
+    "Public shared renderer-schema binding of sampled Hanim image effects, without another clock or filter implementation.",
+    "One UI HObject leaf/ancestor image path, native image channel leases and atomic pose/effect publication over live component/glyph content.",
+    "Shared renderer content bounds for CPU/GPU/damage and motion snapshots; independent output filter DPI and explicit hit-geometry capability.",
+    "Real editable site note with independent motion/effect/style selection and copied public recipes; shared Select Home/End navigation."
+  ],
+  "source_files_sha256": {
+    ".agents/docs/2026-11-05-system-implementation-checkpoints-design.md": "60ac9f44e7bb68bb166857e549c16b134f5063e36451502705a3ced493658410",
+    ".agents/docs/2026-11-05-system-subsystem-architecture-and-api-design.md": "24c6bd2f4c2bbb4360d6412ee9d228bd5a5e77894ad7a8cae7c69bc6bee45046",
+    ".agents/docs/2026-11-06-hanim-ui-image-scope-design.md": "2cf062aa4d34006a2b1bafc84a14d1e0f74998152944b6d67e5be40d85d74a55",
+    ".agents/docs/README.md": "f67438bdf070badd1634e3f94b111162534a2cc2ce7914c1fa1506049b6bbdc0",
+    "components/base/src/select.cpp": "f727eadd1403011bb1d92ca137ce85be742edc1a721a9df486a9a0e08d90945f",
+    "components/base/tests/base_test.cpp": "3717008926aafd650baa52eec272cf7ea52db48956a67e9d741ae426429bf195",
+    "modules/gfx/hanim/src/render/vector/README.md": "daf422fb2653a201a3183d47114a790d3b5d76d0d3dbb2780eeccca20f817b94",
+    "modules/gfx/hanim/src/render/vector/vector.cpp": "3834f0e04ff9bf3091d3eb3f89f238cb861fc8b9e631c152c8c1b1f771d64588",
+    "modules/gfx/hanim/src/render/vector/vector.cppm": "10ded2ccceb4d9f4fd53ca43c18fbbdc2497b10a08f74d7378e7fb256a1ed2a4",
+    "modules/gfx/render/cts/tests/effect_output_bounds_gpu_test.cpp": "fd4417f9a852e54e7f40c682cff6810287de6a24777f1b3812e53505be2c627f",
+    "modules/gfx/render/vector/README.md": "f295048f95ac2889563e7d9b36e7e294774a07dde5d62f63856b0202c1dd5176",
+    "modules/gfx/render/vector/mcpp.toml": "e41428097e0e48e22ea60aa5d3ccbeed2ba957cd03bdfc11839099a78bce8486",
+    "modules/gfx/render/vector/src/cpu.cpp": "a4cfb4519d64930a5d1ebb73a948f3d42b3c4819ee9438ec3b042a8118ca16f0",
+    "modules/gfx/render/vector/src/cpu.cppm": "34305252c47903ff46bd477e00df0c8f0d403b92b9ab90cff7fadabc50c29478",
+    "modules/gfx/render/vector/src/damage.cpp": "96a93314c712207aff4f2eab2f6d6ece91cbf90685b7d263716f22b02cd0d77e",
+    "modules/gfx/render/vector/src/damage.cppm": "38e8c33bec0da437cfbc9a72978a5ad55b9af50a731b36f6f9de0968bfad3390",
+    "modules/gfx/render/vector/src/display.cpp": "999572926f1d6111a2bbc7bde41e445a0de04b3931d6792fb89050f6daaf5d20",
+    "modules/gfx/render/vector/src/display.cppm": "20074fa1b63277a7e173f30c7957a5dc476d0873bb1a29e86ebba99b5c814879",
+    "modules/gfx/render/vector/src/effects.cpp": "c299ba44b975a9d61c1febbfedd217b9b3bb9ebb257258ead82b2514218fe8c3",
+    "modules/gfx/render/vector/src/effects.cppm": "8a6610fbb9a6e575317cfe48b63d8dfac2442ff36c337bd5b0164cf64dcd6c07",
+    "modules/gfx/render/vector/src/gpu.cpp": "23c8d4a0edd83c1212b7bbf838b6990bf9aef4a8c7adfd3dc7a7d3c32064da51",
+    "modules/gfx/render/vector/src/layer_bounds.cpp": "a100d79607842c431b60347c497d2684792636b73b46bfadccf5aed4a5bc22cd",
+    "modules/gfx/render/vector/tests/layer_content_test.cpp": "0c4ed77023cb608de56acd9a86d8c00aba20f533d209dd6584d8cdcca7149800",
+    "modules/ui/motion/src/matter.cpp": "f4b30a7f0e29ed9b27a5be7ae7afbfb38ddbd57949192cbbcf5935e79ba71b9f",
+    "modules/ui/motion/src/morph.cpp": "acc18ea80d7bae44156489228fa35f98de3e70909a085d4b4166a698da9edf92",
+    "modules/ui/motion/tests/motion_test.cpp": "eb6d629954d75bf111d2bc26f83d8f23dd35702b4b0b8ac0c71dd57a90a717bb",
+    "modules/ui/view/README.md": "320f785f20442a67f8318177b5022eccdcb47e748164a7c3fb3fe1c290a725be",
+    "modules/ui/view/mcpp.toml": "a922130a52cec839756c86922ceccf8b751dbd6a1f83f2e01293b71383f1ff1b",
+    "modules/ui/view/src/debug.cpp": "64cec8a98ea0740b1d60b3b6c50feadc872a85ef8e112c87db9a538b82388644",
+    "modules/ui/view/src/hanim/bridge.cpp": "02e7b7a9cbe0876a6d4d11912654dfbcd3ee0a703eb83b255588b972f02e96ef",
+    "modules/ui/view/src/hanim/bridge.cppm": "ea3e11bc37a3bb6b8f08260fc5d7d28ffc06ef9e3d15009e2d28de106e4a4e58",
+    "modules/ui/view/src/hanim/playback.cpp": "42b9aab7bc5454e4c92a7340202504f4162a42d71129300f421d0aecbbcde612",
+    "modules/ui/view/src/impl.cppm": "2b4e602fef67358bafe420e009e06668dac174bd02217a7a2d8e088141bb981d",
+    "modules/ui/view/src/presentation.cpp": "d65f5b454b13b3c487f31007cf3460a6b99550fc50f3909f3c83d9622672bf83",
+    "modules/ui/view/src/runtime.cppm": "259835b198077882a2a6d39676c3974608d3e5541d21af6c0482dac2d895ad46",
+    "modules/ui/view/tests/presentation_binding_test.cpp": "71a53403e6ff69bd4a41584ad90d65f5c3caafb919309cd8bb6c83354c51f6d1",
+    "site/src/component_motion.cpp": "01be5040d52f2bd9f80b0ffbcbb57cd47b2ccad2112ed49f573d1b42b3724952",
+    "site/src/component_motion.cppm": "013fde5517d6e2399adf033f92705dba9c261a5188d13163c5363f45669f1d27",
+    "site/src/motion_gallery.cpp": "92a91f93588409e62ec2997f2bf8b989bc09bc298bc4a62c2a15c45e89b6828e",
+    "site/tests/component_motion_test.cpp": "bc359942b81d8f7fe38fb8d889125c45926944d6eef22504564f644e2ccf70de",
+    "tests/bench/budgets.bench.omui.json": "4f3a8da5257f44280ae90abc645e35b2b46a4048912afbd4fb19fd433eb2b5a9",
+    "tests/bench/mcpp.toml": "baec2782ed1e8ecd6cf941f7b8ac76aa0ff2ad91c65eca1421f9acb40a5db81b",
+    "tests/bench/src/public_motion.cpp": "1adaa40a722cb8951256bbe9620ec28cad4fc7c527ef4271c3dd020b8002c3e5",
+    "tests/bench/src/scenes.cpp": "a3bc09b91227482593fb26ab4ababba11c69a47c418a305fd9eba2775c3578b8",
+    "tools/ci/hanim-play-consumer/tests/vector_test.cpp": "7eab7df3511fd235938b51462006b3f715c3eeb52af23d7db3d13c9a9992e662",
+    "tools/ci/omui-hanim-consumer/run.py": "7039e515b2f5856a7188abaeb91cb748b4d1eeeac11d950db3554561307b33df",
+    "tools/ci/omui-hanim-consumer/src/main.cpp": "d3c5647c5064acd73fc3e14d33bcc3369aa80421ef6a2735b84deb87905742f7",
+    "tools/ci/site-motion.mjs": "66b51620db2fc989dcf3f7b07c9bed7ee193403d9e521b552c03d432d1114b4d"
+  },
+  "source_lock": {
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "preexisting_user_change_preserved": true,
+    "staged": false
+  },
+  "validation": {
+    "native-dev": {
+      "programs": 32,
+      "cases": 257,
+      "failed": 0,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/native-dev.log",
+      "sha256": "745b9362b7fdfa7ea1fb6c8ecd98d54ba96d9d43061b722e483a12b352889811"
+    },
+    "native-release": {
+      "programs": 32,
+      "cases": 257,
+      "failed": 0,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/native-release.log",
+      "sha256": "9bcf8d920cf362d8bad177aa47f02702c3332f47da7709fdca65913ede4f83a9"
+    },
+    "web": {
+      "programs": 32,
+      "cases": 254,
+      "failed": 0,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/web.log",
+      "sha256": "df50c4ad7314cc4ee908e45fcd452624003998f57bffd7bb9e0e3901346dac22"
+    },
+    "gpu": {
+      "programs": 1,
+      "cases": 2,
+      "failed": 0,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/gpu.log",
+      "sha256": "cd2834bfee608d88f405a918229fcc4de23108f8726d6e287851308a904db029"
+    }
+  },
+  "standalone_vector": {
+    "programs": 1,
+    "cases": 10,
+    "failed": 0,
+    "log": "/tmp/omui-ui-effects-vector-final.log",
+    "sha256": "6972aa7c0a3e913416df193947ef80b033e7fe6b0dcfeb2779c1ac5edf7fbe81"
+  },
+  "site_native": {
+    "programs": 21,
+    "cases": 136,
+    "failed": 0,
+    "log": "/tmp/omui-ui-effects-site-final.log",
+    "sha256": "5bf66a4f59f8f32cf6c362dd8f70150fe1da422b224befcd517040abdb41892f"
+  },
+  "site_final_recipe": {
+    "programs": 1,
+    "cases": 7,
+    "failed": 0,
+    "log": "/home/speak/workspace/mui/target/omui-ui-effects/site-component-final.log",
+    "sha256": "d62daf50cfc8f64f14068c03679f7eb26cbbdaf7a479e42dda9204dfa6372d73"
+  },
+  "select_final": {
+    "programs": 1,
+    "cases": 2,
+    "failed": 0,
+    "log": "/home/speak/workspace/mui/target/omui-ui-effects/select-keys-final.log",
+    "sha256": "4a2578c61df6a3d281aaad56a9b1a33af020a8c589527e1b8e765d883d9dab58"
+  },
+  "consumer": {
+    "report": "/home/speak/workspace/mui/target/omui-ui-effects/consumer.report.omui.json",
+    "sha256": "f980f1b10accdb72f8d384ee4bc950e7b4a5e15d94aa269b6dcce0ddde7455e0",
+    "profiles": [
+      {
+        "profile": "dev",
+        "checks": 76,
+        "frames": {
+          "frames": 61,
+          "driver_frames": 61,
+          "effect_frames": 61
+        }
+      },
+      {
+        "profile": "release",
+        "checks": 76,
+        "frames": {
+          "frames": 61,
+          "driver_frames": 61,
+          "effect_frames": 61
+        }
+      },
+      {
+        "profile": "wasm-test",
+        "checks": 76,
+        "frames": {
+          "frames": 61,
+          "driver_frames": 61,
+          "effect_frames": 61
+        }
+      }
+    ],
+    "all_profile_pixels_and_pngs_identical": true,
+    "missing_fonts_refused": true,
+    "feature_off": {
+      "ok": true,
+      "compiled_units": 704,
+      "adapter_and_engine_absent": true,
+      "source_sha256": "331faa035bb0cac51739e871b24d18ebe8a4b4158edd99813a414cce1bf5f9ae"
+    },
+    "later_transitive_source_changes": [
+      "components/base/src/select.cpp"
+    ],
+    "later_change_validation": "The separate shared Select keyboard fix is covered by the final focused native test and actual delivered-browser actions; animation/render/view implementation sources retain their validated hashes."
+  },
+  "browser": {
+    "report": "/home/speak/workspace/mui/target/omui-ui-effects/browser/report.json",
+    "checks": 153,
+    "screenshots": [
+      "target/omui-ui-effects/browser/shape-morph-opening.png",
+      "target/omui-ui-effects/browser/basic-motion-interactive.png",
+      "target/omui-ui-effects/browser/component-motion-nested-effects.png",
+      "target/omui-ui-effects/browser/component-motion-live-note.png",
+      "target/omui-ui-effects/browser/creative-packing.png",
+      "target/omui-ui-effects/browser/creative-palette.png",
+      "target/omui-ui-effects/browser/agent-design.png",
+      "target/omui-ui-effects/browser/interface-language-details.png",
+      "target/omui-ui-effects/browser/scoped-styles-details.png"
+    ],
+    "exceptions": [],
+    "browser": "HeadlessChrome/156.0.8078.4"
+  },
+  "delivery": {
+    "url": "http://127.0.0.1:34375/",
+    "size": [
+      1280,
+      800
+    ],
+    "network": "20/40",
+    "cache": "enabled",
+    "browser": "HeadlessChrome/156.0.8078.4",
+    "transfer": {
+      "total": 4869605,
+      "before_first_frame": 2967376,
+      "by_kind": {
+        "document": 61030,
+        "fetch": 4749552,
+        "image": 11922,
+        "script": 47101
+      }
+    },
+    "first_frame_ms": 1622.6999999284744,
+    "ready_ms": 1583.2999999523163,
+    "frames": {
+      "acted": [
+        {
+          "node": "main/bar/nav/to_docs",
+          "exitCode": 0
+        },
+        {
+          "node": "main/body/view/docs/page/directory/to_features",
+          "exitCode": 0
+        },
+        {
+          "node": "main/bar/mark",
+          "exitCode": 0
+        }
+      ],
+      "frames": 317,
+      "p50": 16.699999999999818,
+      "p95": 16.700000000000728,
+      "p99": 16.800000000000182,
+      "max": 66.69999999999982,
+      "long": 1
+    },
+    "memory": {
+      "heap": 13400000,
+      "wasm": 28704768
+    },
+    "errors": [],
+    "budgets": [
+      {
+        "metric": "transfer.total",
+        "value": 4869605,
+        "max": 5000000,
+        "pass": true
+      },
+      {
+        "metric": "transfer.before_first_frame",
+        "value": 2967376,
+        "max": 3800000,
+        "pass": true
+      },
+      {
+        "metric": "first_frame_ms",
+        "value": 1622.6999999284744,
+        "max": 4500,
+        "pass": true
+      },
+      {
+        "metric": "ready_ms",
+        "value": 1583.2999999523163,
+        "max": 4500,
+        "pass": true
+      },
+      {
+        "metric": "frames.p95",
+        "value": 16.700000000000728,
+        "max": 34,
+        "pass": true
+      },
+      {
+        "metric": "frames.long",
+        "value": 1,
+        "max": 15,
+        "pass": true
+      },
+      {
+        "metric": "errors.length",
+        "value": 0,
+        "max": 0,
+        "pass": true
+      }
+    ]
+  },
+  "delivery_total_delta_from_previous_checkpoint": 11538,
+  "delivery_total_headroom_bytes": 130395,
+  "performance": {
+    "ui.bench.omui.json": [
+      {
+        "name": "ui/presentation/publish-100",
+        "description": "100 group offsets published through typed channel leases",
+        "iterations": 100000,
+        "notes": {
+          "scope": "100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness."
+        },
+        "min_ms": 0.002541,
+        "mean_ms": 0.002831355120000142,
+        "p50_ms": 0.002789,
+        "p95_ms": 0.002921,
+        "p99_ms": 0.004593,
+        "max_ms": 0.040991,
+        "items": 100,
+        "ns_per_item": 28.31355120000142,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {}
+      },
+      {
+        "name": "ui/presentation/frame-100",
+        "description": "100 live component groups projected into current paint and input geometry",
+        "iterations": 2647,
+        "notes": {
+          "scope": "100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+        },
+        "min_ms": 0.144607,
+        "mean_ms": 0.15116527087268652,
+        "p50_ms": 0.150543,
+        "p95_ms": 0.156835,
+        "p99_ms": 0.172028,
+        "max_ms": 0.178688,
+        "items": 100,
+        "ns_per_item": 1511.6527087268653,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 2.403777861730296e-05,
+          "paint_ms": 0.13286065885908557,
+          "runtime_ms": 0.14779620324896112,
+          "declared_cost": 0.007815332874063866,
+          "display_commands": 2206.7298828862863
+        }
+      },
+      {
+        "name": "ui/presentation/hanim-frame-100",
+        "description": "100 component parts animated by the public native Hanim host",
+        "iterations": 2491,
+        "notes": {
+          "scope": "100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
+        },
+        "min_ms": 0.13253,
+        "mean_ms": 0.16058579967884345,
+        "p50_ms": 0.159705,
+        "p95_ms": 0.166428,
+        "p99_ms": 0.183687,
+        "max_ms": 0.190836,
+        "items": 100,
+        "ns_per_item": 1605.8579967884348,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 3.1815335206744706e-05,
+          "paint_ms": 0.13669049498193486,
+          "runtime_ms": 0.16021204656764357,
+          "declared_cost": 0.008040617351878528,
+          "display_commands": 2209.1971095945405
+        }
+      },
+      {
+        "name": "ui/presentation/hanim-effects-frame-100",
+        "description": "100 animated component parts with two native image scopes and measured glyph content",
+        "iterations": 2069,
+        "notes": {
+          "glyph_resources": "Fixed glyphs/sizes at DPI 1: all public GlyphCache subpixel phases prepared before timing. Cold mask generation, changing text and new sizes are outside this steady-state budget.",
+          "scope": "100 translated card parts, two nested image scopes, public Hanim sampling/binding, atomic publication, 302-node Runtime paint and shared content bounds with prepared real glyph masks. Cold glyph generation, raster/filter/GPU execution and setup excluded."
+        },
+        "min_ms": 0.135423,
+        "mean_ms": 0.19339943354277447,
+        "p50_ms": 0.192472,
+        "p95_ms": 0.201042,
+        "p99_ms": 0.214004,
+        "max_ms": 0.229182,
+        "items": 100,
+        "ns_per_item": 1933.9943354277448,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 3.296616723054596e-05,
+          "paint_ms": 0.13728852054132415,
+          "runtime_ms": 0.1615727955534072,
+          "declared_cost": 0.00807579532596026,
+          "display_commands": 2213.1126147897535
+        }
+      }
+    ],
+    "bindings.bench.omui.json": [
+      {
+        "name": "public-motion/image-bindings-resolve-64",
+        "description": "64 ordered public image-effect bindings resolve caller-owned samples; no renderer execution",
+        "iterations": 100000,
+        "notes": {
+          "timing": "CPU wall-clock only; no GPU submission, device execution or physical-GPU performance measured",
+          "work": "64 effect sample blocks and renderer default/range/generation resolution into preallocated output; no geometry, renderer execution or GPU timing."
+        },
+        "min_ms": 0.001009,
+        "mean_ms": 0.001058183020000034,
+        "p50_ms": 0.001042,
+        "p95_ms": 0.001141,
+        "p99_ms": 0.001413,
+        "max_ms": 0.130246,
+        "items": 64,
+        "ns_per_item": 16.534109687500532,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "backend_parameters": 160
+        }
+      }
+    ],
+    "ui-cold-glyphs.bench.omui.json": [
+      {
+        "name": "ui/presentation/publish-100",
+        "description": "100 group offsets published through typed channel leases",
+        "iterations": 100000,
+        "notes": {
+          "scope": "100 changing group offsets and atomic Runtime publication. Setup, Engine sampling, frame painting and renderer excluded; ordinary C++ new calls counted by the harness."
+        },
+        "min_ms": 0.002495,
+        "mean_ms": 0.0026311410999999485,
+        "p50_ms": 0.00261,
+        "p95_ms": 0.002776,
+        "p99_ms": 0.002879,
+        "max_ms": 0.03653,
+        "items": 100,
+        "ns_per_item": 26.311410999999485,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {}
+      },
+      {
+        "name": "ui/presentation/frame-100",
+        "description": "100 live component groups projected into current paint and input geometry",
+        "iterations": 2332,
+        "notes": {
+          "scope": "100 changing group offsets, atomic publication and a real Runtime paint frame, including text, controls, current hit metadata and clips. No raster, Engine sampling or GPU timing."
+        },
+        "min_ms": 0.147518,
+        "mean_ms": 0.17159890094339633,
+        "p50_ms": 0.173795,
+        "p95_ms": 0.189672,
+        "p99_ms": 0.203376,
+        "max_ms": 0.223326,
+        "items": 100,
+        "ns_per_item": 1715.9890094339632,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 2.1568610634648468e-05,
+          "paint_ms": 0.15004491080617516,
+          "runtime_ms": 0.16788371012006859,
+          "declared_cost": 0.008826171223892636,
+          "display_commands": 2206.728987993139
+        }
+      },
+      {
+        "name": "ui/presentation/hanim-frame-100",
+        "description": "100 component parts animated by the public native Hanim host",
+        "iterations": 2129,
+        "notes": {
+          "scope": "100 independently animated card parts under one selected root: public Hanim program sampling, host time mapping, atomic publication and a 302-node Runtime paint frame. Text, controls, bounds and clips included; raster/GPU/setup excluded."
+        },
+        "min_ms": 0.145445,
+        "mean_ms": 0.18791083654297758,
+        "p50_ms": 0.188114,
+        "p95_ms": 0.201691,
+        "p99_ms": 0.21619,
+        "max_ms": 0.286076,
+        "items": 100,
+        "ns_per_item": 1879.1083654297756,
+        "allocations": 0,
+        "max_allocations": 0,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 3.319539689995289e-05,
+          "paint_ms": 0.15930676186002815,
+          "runtime_ms": 0.18753027853452342,
+          "declared_cost": 0.009370985991766364,
+          "display_commands": 2209.154532644434
+        }
+      },
+      {
+        "name": "ui/presentation/hanim-effects-frame-100",
+        "description": "100 animated component parts with two native image scopes and measured glyph content",
+        "iterations": 1684,
+        "notes": {
+          "scope": "100 animated card parts, two nested image scopes, public Hanim sampling/binding, atomic publication, 302-node Runtime paint and shared content bounds with real glyph masks. Raster/filter/GPU execution and setup excluded."
+        },
+        "min_ms": 0.138767,
+        "mean_ms": 0.2375891027315917,
+        "p50_ms": 0.195147,
+        "p95_ms": 0.33129,
+        "p99_ms": 1.338803,
+        "max_ms": 1.445609,
+        "items": 100,
+        "ns_per_item": 2375.891027315917,
+        "allocations": 0.04275534441805225,
+        "max_allocations": 72,
+        "counters": {
+          "nodes": 302,
+          "laid_out": 0,
+          "painted": 302,
+          "layout_ms": 2.8788004750593903e-05,
+          "paint_ms": 0.16901615676959592,
+          "runtime_ms": 0.19990817755344428,
+          "declared_cost": 0.00994212686879978,
+          "display_commands": 2213.1520190023753
+        }
+      }
+    ]
+  },
+  "performance_limits": [
+    "100-card steady fixture primes all public subpixel phases for its fixed glyphs/sizes at DPI 1; cold/new glyph and size creation is excluded.",
+    "Original unprimed measurement retained: max 72 C++ allocations. No claim of universal allocation-free text/renderer execution.",
+    "UI benchmark includes sampling/binding, publication, Runtime paint and content bounds; excludes raster/filter execution and GPU.",
+    "Required GPU CTS executes real graphics commands/readback on software Vulkan. Physical-GPU throughput is unmeasured.",
+    "Delivery is one cache-enabled cold-profile sample; first-frame proxy is not FCP/LCP and rAF gaps are not actual GPU frame cost."
+  ],
+  "commands": [
+    {
+      "label": "native-dev",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 126.91635125200264,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/native-dev.log"
+    },
+    {
+      "label": "native-release",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "--profile",
+        "release",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 115.30590910301544,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/native-release.log"
+    },
+    {
+      "label": "web",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test",
+        "--locked"
+      ],
+      "exit": 1,
+      "seconds": 475.2624640039867,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/web.log"
+    },
+    {
+      "label": "web",
+      "argv": [
+        "test",
+        "-p",
+        "openmui.view",
+        "-p",
+        "openmui.motion",
+        "-p",
+        "xengine.render.vector",
+        "--target",
+        "wasm32-emscripten",
+        "--profile",
+        "wasm-test",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 38.96667489304673,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/web.log"
+    },
+    {
+      "label": "gpu",
+      "argv": [
+        "test",
+        "-p",
+        "xengine.render.cts",
+        "effect_output_bounds_gpu_test",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 17.26263926003594,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/gpu.log"
+    },
+    {
+      "label": "bench-ui",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "ui/presentation",
+        "--json",
+        "target/omui-ui-effects/ui.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 101,
+      "seconds": 7.960326767992228,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/bench-ui.log"
+    },
+    {
+      "label": "bench-ui",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "ui/presentation",
+        "--json",
+        "target/omui-ui-effects/ui.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 1,
+      "seconds": 181.15041791892145,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/bench-ui.log"
+    },
+    {
+      "label": "bench-ui",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "ui/presentation",
+        "--json",
+        "target/omui-ui-effects/ui.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 0,
+      "seconds": 18.928975656977855,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/bench-ui.log"
+    },
+    {
+      "label": "bench-bindings",
+      "argv": [
+        "run",
+        "-p",
+        "openmui.bench",
+        "--profile",
+        "release",
+        "--locked",
+        "--",
+        "--filter",
+        "image-bindings-resolve",
+        "--json",
+        "target/omui-ui-effects/bindings.bench.omui.json",
+        "--check",
+        "tests/bench/budgets.bench.omui.json",
+        "--label",
+        "linux-release"
+      ],
+      "exit": 0,
+      "seconds": 9.97925806895364,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/bench-bindings.log"
+    }
+  ],
+  "site_commands": [
+    {
+      "label": "site-component-final",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "-p",
+        "openmui.site",
+        "component_motion_test",
+        "--locked"
+      ],
+      "exit": 2,
+      "seconds": 3.785132543067448,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/site-component-final.log"
+    },
+    {
+      "label": "site-component-final",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "-p",
+        "openmui.site",
+        "component_motion_test",
+        "--locked"
+      ],
+      "exit": 2,
+      "seconds": 3.4208905010018498,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/site-component-final.log"
+    },
+    {
+      "label": "site-component-final",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "-p",
+        "openmui.site",
+        "component_motion_test",
+        "--locked"
+      ],
+      "exit": 0,
+      "seconds": 201.7820161280688,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/site-component-final.log"
+    },
+    {
+      "label": "browser",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+        "tools/ci/site-motion.mjs",
+        "target/site"
+      ],
+      "exit": 1,
+      "seconds": 40.78956012101844,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/browser.log"
+    },
+    {
+      "label": "select-keys",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-mcpp/2026.11.2.2/bin/mcpp",
+        "test",
+        "-p",
+        "openmui.ui.base",
+        "base_test",
+        "--locked",
+        "--",
+        "select:"
+      ],
+      "exit": 0,
+      "seconds": 84.32663535198662,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/select-keys.log"
+    },
+    {
+      "label": "site-pack",
+      "argv": [
+        "bash",
+        "tools/ci/site.sh"
+      ],
+      "exit": 0,
+      "seconds": 200.22516701405402,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/site-pack.log"
+    },
+    {
+      "label": "browser",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+        "tools/ci/site-motion.mjs",
+        "target/site"
+      ],
+      "exit": 0,
+      "seconds": 31.203142950078472,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/browser.log"
+    },
+    {
+      "label": "delivery",
+      "argv": [
+        "/home/speak/.xlings/data/xpkgs/xim-x-node/24.15.0/bin/node",
+        "tools/ci/site-perf.mjs",
+        "--serve",
+        "target/site",
+        "--network",
+        "20/40",
+        "--budget",
+        "site/delivery.budget.omui.json",
+        "--request-log",
+        "target/omui-ui-effects/delivery-requests.json"
+      ],
+      "exit": 0,
+      "seconds": 8.908274461049587,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/delivery.log"
+    }
+  ],
+  "quality_checks": {
+    "lint": {
+      "exit": 0,
+      "log": "/home/speak/workspace/mui/target/omui-ui-effects/lint-final.log"
+    },
+    "syntax_and_local_links": true,
+    "diff_check": true
+  },
+  "workspace_probe": {
+    "exit": 2,
+    "kind": "configure-only",
+    "failed_members": [
+      "showcase/fighting"
+    ],
+    "reason": "Generated build-program host lock differs between consumer closures; no source lock mutation.",
+    "log": "/home/speak/workspace/mui/target/omui-ui-effects/workspace-configure.log",
+    "final_site_active_optional_rules": 16,
+    "full_workspace_pass_claimed": false
+  },
+  "tooling_limits": [
+    "Selecting view/motion/vector/site together exposed an mcpp transitive-feature closure omission; public consumers and site are validated independently.",
+    "Generated build-program host locks needed reconfiguration when switching consumer closures; source workspace commands stayed locked and its user-owned lock unchanged."
+  ],
+  "cleanup": {
+    "report": "/home/speak/workspace/mui/target/omui-ui-effects/cleanup.report.omui.json",
+    "directories": 38,
+    "allocated_bytes_removed": 847003648,
+    "filesystem_free_delta_bytes": 832798720,
+    "sources_unchanged": true
+  },
+  "open_scope": [
+    "Full UI geometry/vertices/3D/rig capture; arbitrary cross-object/cross-tree/per-part image scope IR.",
+    "Image-space input mapping, backdrop/GPU-only interactive paths, immutable concurrent effect-resource leases.",
+    "World holds, channel mixing, dynamic layout constraints, automatic budgets/downgrades and continuous high-quality blur kernels.",
+    "Default component migration, reusable 40/20 library/project acceptance, remaining engines/AI/PPet/tools/backends and overall product/design acceptance."
+  ]
+}

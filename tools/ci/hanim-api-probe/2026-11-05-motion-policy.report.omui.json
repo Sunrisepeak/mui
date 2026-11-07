@@ -1,0 +1,705 @@
+{
+  "version": 1,
+  "recorded_utc": "2026-11-04T20:20:57.340444+00:00",
+  "scope": "S2 second slice: public vertex_path configuration, runtime policy and one shared website morph stage; S2 remains incomplete",
+  "baseline_commit": "fd606af21d9b9a9dd518c5551b274126693a0774",
+  "source_sha256": {
+    "docs/en/features.md": "98ad8e52c396f50ca86fa091baeee525d45451530bc2651d550751d3daec78ed",
+    "docs/zh/features.md": "39293653e33e84318514d7e1b2b1ea300d86fd344e4e352b009e00637fa8796b",
+    "modules/base/hanim/core/src/path.cppm": "d1ea8d75068e036b6f9f93e7e75a05dbd2c27d25a68bed13c1b1caff27edac56",
+    "modules/ui/view/src/motion.cpp": "65ab0084fe46b16d05cf6aa3397760e2557e4187a810dad0ab2b0c4b7679b7ce",
+    "modules/ui/view/src/theme.cpp": "c396448b74dab49948c5ef22a6b43fa6766d4611b1d3bae6256f7ecedf8cffd2",
+    "modules/ui/view/src/theme.cppm": "92f5d61054beb8e98ba324df9a20e0e5bf2f3e4b88827c55e4ddb3d093863262",
+    "modules/ui/view/tests/path_policy_test.cpp": "164fb8af3a9c2b7c21dba74e701599c097b6e811b8aaf7b0154160e5bd8d9e12",
+    "site/reference/ci.frames.omui.json": "c3f9f9277eec6929c860c288247683f14f489640ff0b6cec0fd6f45922b71919",
+    "site/src/basic_motion.cpp": "08ca75739163959a58bafd5d09502781b59eb2e0e00211cf8b777cd2e27a1313",
+    "site/src/motion_catalog.cppm": "ad0c164931bfbef5b87fa63b500883edb8ceff11f79fa1a41978cdbc387b1958",
+    "site/src/motion_gallery.cpp": "c527131fea7d037b1bc22a07dc87cbe8b19fa7d64bb83e1ec63f18cf4568957b",
+    "site/src/motion_gallery.cppm": "402503b657a0a47c9a87110bf7c19dd330bc95f22b2f202ad5e9edcb54a7eefb",
+    "site/tests/basic_motion_test.cpp": "3a08c69e70959bb337154b31aab9904b6c47b64a8a28ce7443fb5706d407e7eb",
+    "site/tests/motion_gallery_test.cpp": "1228afaa898c4c8a552ec63decefb4f32db67cdad59dbe51040c7492260c8a9f",
+    "site/tests/static_gallery_test.cpp": "15f533b26bfdb08f36b55c6e9b11659868bceda028a3b3d4b07983d47f2535ed",
+    "tools/ci/readme-media.sh": "23ad82889391d5bd72eeb976cca974d4b31799b77149e0200ad388c19893b4b3",
+    "tools/ci/site-motion.mjs": "e1d9449dd68079dc57fd16afa6e0f92e18dc1b50027428f30dac936ef449adf9",
+    "tools/ci/site-presentation.mjs": "445b07523ca408e8741a71b201ef216508464ddf27a21bcd5496f2ef27ccb64e"
+  },
+  "user_lock": {
+    "path": "mcpp.lock",
+    "sha256": "a0c876eb7b2a798d5f3c00b2d832c6549dee07df39fff31a62ef9a78f9833186",
+    "included_in_checkpoint": false
+  },
+  "toolchain": {
+    "mcpp": "2026.11.2.2",
+    "native": "gcc 16.1.0 / x86_64-linux-gnu",
+    "web_target": "wasm32-emscripten",
+    "web_profile": "site-web"
+  },
+  "native_runs": {
+    "view_dev": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.view --profile dev --timeout 120",
+      "log": "/tmp/omui-motion-view-dev.log",
+      "log_sha256": "855e353afabba09d53a012b4981329a2aa9171c7625cfbdc406ba862a14f4977",
+      "status": "passed",
+      "suites": {
+        "view.agent_context": {
+          "passed": 1,
+          "failed": 0
+        },
+        "view.adapt": {
+          "passed": 4,
+          "failed": 0
+        },
+        "view.constraint_placement": {
+          "passed": 13,
+          "failed": 0
+        },
+        "view.agent_policy": {
+          "passed": 4,
+          "failed": 0
+        },
+        "view.motion": {
+          "passed": 10,
+          "failed": 0
+        },
+        "view.input_attribution": {
+          "passed": 6,
+          "failed": 0
+        },
+        "view.presentation_geometry": {
+          "passed": 8,
+          "failed": 0
+        },
+        "view.text-policy": {
+          "passed": 9,
+          "failed": 0
+        },
+        "view.theme_motion": {
+          "passed": 7,
+          "failed": 0
+        },
+        "view": {
+          "passed": 52,
+          "failed": 0
+        },
+        "view.path-policy": {
+          "passed": 3,
+          "failed": 0
+        }
+      },
+      "passed_cases": 117,
+      "failed_cases": 0
+    },
+    "view_release": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.view --profile release --timeout 120",
+      "log": "/tmp/omui-motion-view-release.log",
+      "log_sha256": "9b4a4b3e702765d73ff90e03ecf6a2ce5c47de0df9a51bb9ffc320da758ee4ab",
+      "status": "passed",
+      "suites": {
+        "view.agent_context": {
+          "passed": 1,
+          "failed": 0
+        },
+        "view.adapt": {
+          "passed": 4,
+          "failed": 0
+        },
+        "view.constraint_placement": {
+          "passed": 13,
+          "failed": 0
+        },
+        "view.agent_policy": {
+          "passed": 4,
+          "failed": 0
+        },
+        "view.motion": {
+          "passed": 10,
+          "failed": 0
+        },
+        "view.input_attribution": {
+          "passed": 6,
+          "failed": 0
+        },
+        "view.presentation_geometry": {
+          "passed": 8,
+          "failed": 0
+        },
+        "view.text-policy": {
+          "passed": 9,
+          "failed": 0
+        },
+        "view.theme_motion": {
+          "passed": 7,
+          "failed": 0
+        },
+        "view.path-policy": {
+          "passed": 3,
+          "failed": 0
+        },
+        "view": {
+          "passed": 52,
+          "failed": 0
+        }
+      },
+      "passed_cases": 117,
+      "failed_cases": 0
+    },
+    "components_release": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.ui.base default_motion --profile release --timeout 120",
+      "log": "/tmp/omui-motion-components-release.log",
+      "log_sha256": "a09da82fe4dd9abc47ed55183a82d5a562b8d352a59fa2b649dc0fcefff11627",
+      "status": "passed",
+      "suites": {
+        "ui.base.default-motion": {
+          "passed": 6,
+          "failed": 0
+        }
+      },
+      "passed_cases": 6,
+      "failed_cases": 0
+    },
+    "site_dev_initial": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site --profile dev --timeout 180",
+      "log": "/tmp/omui-motion-site-dev.log",
+      "log_sha256": "f8d45fa988c170d9747856d794568266e7c078543fc5d523c493378187166e5d",
+      "status": "failed",
+      "suites": {
+        "site.agent_guard": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.agent-preview": {
+          "passed": 9,
+          "failed": 0
+        },
+        "site.agent-contrast": {
+          "passed": 1,
+          "failed": 0
+        },
+        "site.agent-transition-layout": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.brand": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.basic_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.feature_examples": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.first_frame": {
+          "passed": 7,
+          "failed": 0
+        },
+        "site.creative_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.frames": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.guide_access": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site.home_landing": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.gallery": {
+          "passed": 8,
+          "failed": 0
+        },
+        "site.navigation_redesign": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.motion_gallery": {
+          "passed": 11,
+          "failed": 1
+        },
+        "site.p0_layout": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.static_gallery": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.text-motion-quality": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site": {
+          "passed": 36,
+          "failed": 1
+        }
+      },
+      "passed_cases": 124,
+      "failed_cases": 2
+    },
+    "site_dev_reference": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site site_test --profile dev --timeout 180",
+      "log": "/tmp/omui-motion-site-reference-dev.log",
+      "log_sha256": "13d38ffa3501ed04b9333de78e7893298da37eb2437332649484d994c76e48ef",
+      "status": "passed",
+      "suites": {
+        "site": {
+          "passed": 37,
+          "failed": 0
+        }
+      },
+      "passed_cases": 37,
+      "failed_cases": 0
+    },
+    "site_dev_motion_final": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site motion --profile dev --timeout 180",
+      "log": "/tmp/omui-motion-site-final-dev.log",
+      "log_sha256": "b727587a1c37daedc6867b854233cfcb4912fb78897e01fa63a9db398e625c93",
+      "status": "passed",
+      "suites": {
+        "site.creative_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.basic_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.text-motion-quality": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site.motion_gallery": {
+          "passed": 12,
+          "failed": 0
+        }
+      },
+      "passed_cases": 24,
+      "failed_cases": 0
+    },
+    "site_release_full": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site --profile release --timeout 180",
+      "log": "/tmp/omui-motion-site-release.log",
+      "log_sha256": "215feb6ac249d206399657834d37d48b28e9856bc00a3effa5ac6cba84a96926",
+      "status": "passed",
+      "suites": {
+        "site.agent_guard": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.agent-preview": {
+          "passed": 9,
+          "failed": 0
+        },
+        "site.agent-contrast": {
+          "passed": 1,
+          "failed": 0
+        },
+        "site.agent-transition-layout": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.basic_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.brand": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.feature_examples": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.first_frame": {
+          "passed": 7,
+          "failed": 0
+        },
+        "site.frames": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.gallery": {
+          "passed": 8,
+          "failed": 0
+        },
+        "site.guide_access": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site.home_landing": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.motion_gallery": {
+          "passed": 12,
+          "failed": 0
+        },
+        "site.navigation_redesign": {
+          "passed": 6,
+          "failed": 0
+        },
+        "site.p0_layout": {
+          "passed": 3,
+          "failed": 0
+        },
+        "site.creative_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.static_gallery": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.text-motion-quality": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site": {
+          "passed": 37,
+          "failed": 0
+        }
+      },
+      "passed_cases": 126,
+      "failed_cases": 0
+    },
+    "site_release_motion_final": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site motion --profile release --timeout 180",
+      "log": "/tmp/omui-motion-site-final-release.log",
+      "log_sha256": "eaa74906704f04989859b93d15ef202e8ce63c974ea1fc5c50a046bf7a0ab688",
+      "status": "passed",
+      "suites": {
+        "site.basic_motion": {
+          "passed": 5,
+          "failed": 0
+        },
+        "site.motion_gallery": {
+          "passed": 12,
+          "failed": 0
+        },
+        "site.text-motion-quality": {
+          "passed": 2,
+          "failed": 0
+        },
+        "site.creative_motion": {
+          "passed": 5,
+          "failed": 0
+        }
+      },
+      "passed_cases": 24,
+      "failed_cases": 0
+    },
+    "site_media_dev": {
+      "command": "MCPP_JOBS=2 mcpp test --locked -p openmui.site motion_gallery --profile dev --timeout 180",
+      "log": "/tmp/omui-motion-media-dev.log",
+      "log_sha256": "54aac3414ff5561b6cc10338dd71618a4d8c7ba98da9d87b8076634a7b4a8d47",
+      "status": "passed",
+      "suites": {
+        "site.motion_gallery": {
+          "passed": 12,
+          "failed": 0
+        }
+      },
+      "passed_cases": 12,
+      "failed_cases": 0
+    }
+  },
+  "effective_site_dev": {
+    "suites": {
+      "site.agent_guard": {
+        "passed": 3,
+        "failed": 0
+      },
+      "site.agent-preview": {
+        "passed": 9,
+        "failed": 0
+      },
+      "site.agent-contrast": {
+        "passed": 1,
+        "failed": 0
+      },
+      "site.agent-transition-layout": {
+        "passed": 3,
+        "failed": 0
+      },
+      "site.brand": {
+        "passed": 3,
+        "failed": 0
+      },
+      "site.basic_motion": {
+        "passed": 5,
+        "failed": 0
+      },
+      "site.feature_examples": {
+        "passed": 6,
+        "failed": 0
+      },
+      "site.first_frame": {
+        "passed": 7,
+        "failed": 0
+      },
+      "site.creative_motion": {
+        "passed": 5,
+        "failed": 0
+      },
+      "site.frames": {
+        "passed": 3,
+        "failed": 0
+      },
+      "site.guide_access": {
+        "passed": 2,
+        "failed": 0
+      },
+      "site.home_landing": {
+        "passed": 6,
+        "failed": 0
+      },
+      "site.gallery": {
+        "passed": 8,
+        "failed": 0
+      },
+      "site.navigation_redesign": {
+        "passed": 6,
+        "failed": 0
+      },
+      "site.motion_gallery": {
+        "passed": 12,
+        "failed": 0
+      },
+      "site.p0_layout": {
+        "passed": 3,
+        "failed": 0
+      },
+      "site.static_gallery": {
+        "passed": 5,
+        "failed": 0
+      },
+      "site.text-motion-quality": {
+        "passed": 2,
+        "failed": 0
+      },
+      "site": {
+        "passed": 37,
+        "failed": 0
+      }
+    },
+    "passed_cases": 126,
+    "failed_cases": 0,
+    "method": "Initial 19-program run; replace the two failures and affected motion suites with successful recorded reruns. This is not reported as one initially green invocation."
+  },
+  "browser": {
+    "browser": {
+      "report": "target/site-motion-policy-browser.report.omui.json",
+      "sha256": "471605f03eca0c81569bbe009bbdd5505d9d4c1df2f7833f01f26733fd8eae57",
+      "checks": 130,
+      "failed": [],
+      "exceptions": [],
+      "browser": "HeadlessChrome/156.0.8078.4",
+      "screenshots": [
+        "target/site-motion/shape-morph-opening.png",
+        "target/site-motion/basic-motion-interactive.png",
+        "target/site-motion/creative-packing.png",
+        "target/site-motion/creative-palette.png",
+        "target/site-motion/agent-design.png",
+        "target/site-motion/interface-language-details.png",
+        "target/site-motion/scoped-styles-details.png"
+      ]
+    },
+    "presentation": {
+      "report": "target/site-motion-policy-presentation.report.omui.json",
+      "sha256": "83f78723154a9fa994466b29d1b04ab11ae75269a14016883cfe0fe560c0dd91",
+      "checks": 129,
+      "failed": [],
+      "exceptions": [],
+      "browser": null,
+      "screenshots": [
+        "target/site-motion-policy-presentation/home-en-360.png",
+        "target/site-motion-policy-presentation/styles-initial-en-360.png",
+        "target/site-motion-policy-presentation/styles-default-en-360.png",
+        "target/site-motion-policy-presentation/styles-en-360.png",
+        "target/site-motion-policy-presentation/agent-design-en-360.png",
+        "target/site-motion-policy-presentation/home-en-390.png",
+        "target/site-motion-policy-presentation/styles-initial-en-390.png",
+        "target/site-motion-policy-presentation/styles-default-en-390.png",
+        "target/site-motion-policy-presentation/styles-en-390.png",
+        "target/site-motion-policy-presentation/agent-design-en-390.png",
+        "target/site-motion-policy-presentation/home-zh-390.png",
+        "target/site-motion-policy-presentation/styles-initial-zh-390.png",
+        "target/site-motion-policy-presentation/styles-default-zh-390.png",
+        "target/site-motion-policy-presentation/styles-zh-390.png",
+        "target/site-motion-policy-presentation/agent-design-zh-390.png",
+        "target/site-motion-policy-presentation/home-en-1280.png",
+        "target/site-motion-policy-presentation/styles-initial-en-1280.png",
+        "target/site-motion-policy-presentation/styles-en-1280.png",
+        "target/site-motion-policy-presentation/agent-design-en-1280.png",
+        "target/site-motion-policy-presentation/home-zh-1280.png",
+        "target/site-motion-policy-presentation/styles-initial-zh-1280.png",
+        "target/site-motion-policy-presentation/styles-zh-1280.png",
+        "target/site-motion-policy-presentation/agent-design-zh-1280.png",
+        "target/site-motion-policy-presentation/agent-use-reduced-en-390.png"
+      ]
+    },
+    "loading": {
+      "report": "target/site-motion-policy-loading.report.omui.json",
+      "sha256": "c727695e59022c951a5f44da7ca82dd6be5ba977d993630d73580742b9f1afe4",
+      "checks": 88,
+      "failed": [],
+      "exceptions": [],
+      "browser": null,
+      "screenshots": []
+    }
+  },
+  "browser_checks_total": 347,
+  "package_artifacts": [
+    {
+      "path": "target/site-motion-policy-final/index.html",
+      "sha256": "aa700ef96155162c644c9022df4841b8aa6d4d3d62c4f0e7e49dac9062d5aa4f",
+      "bytes": 274859
+    },
+    {
+      "path": "target/site-motion-policy-final/first-frames.assets.omui.json",
+      "sha256": "ecf2617b54766f0f6c57e7a8dae8f7ebfc8eb142b7dd2b055ce060f53febd4d2",
+      "bytes": 12173
+    },
+    {
+      "path": "target/site-motion-policy-final/agent.md",
+      "sha256": "19a079b62c6c3ce76b190a590d3382976e834d3724739a916165ce1258e70e20",
+      "bytes": 6824
+    },
+    {
+      "path": "target/site-motion-policy-final/omui-site-1c14140cd765.wasm",
+      "sha256": "6be7459b516b5239391d4d354cf8d91711c88acf53753d53d8d1c0b65982e728",
+      "bytes": 6948388
+    }
+  ],
+  "opening_assets": {
+    "page_pictures": 56,
+    "full_frame_references": 8,
+    "log": "/tmp/omui-motion-site-frames-final.log"
+  },
+  "media": [
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/basic-gallery-700.png",
+      "published": "site/media/motion-basic-gallery-700.png",
+      "sha256": "a3400a9a925494a8968faf98690da76f588a758f91899b89c5c17ff644dbdc02",
+      "bytes": 41034,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/shape-path-middle.png",
+      "published": "site/media/motion-shape-path-middle.png",
+      "sha256": "3b909f998ba28e58f158a3137661765fb6064e83fa79eadf44f70edaafe4970f",
+      "bytes": 6293,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/basic-gallery-300.png",
+      "published": "site/media/motion-basic-gallery-300.png",
+      "sha256": "abda91f669ad79ec03fcde20a3efa3e5529da1f1ac44b8ffe6de2154a971c4ba",
+      "bytes": 39477,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/creative-gallery-700.png",
+      "published": "site/media/motion-creative-gallery-700.png",
+      "sha256": "ad4b2826ff721256b66bda12c16f1bce99ac0b22a98395b904f5ff7c15c4b764",
+      "bytes": 57117,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/creative-gallery-300.png",
+      "published": "site/media/motion-creative-gallery-300.png",
+      "sha256": "2697fbcb973a7e4743b9e757cd911e06ced98c8f65b61de6a5168ada5491cb74",
+      "bytes": 53671,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/basic-player-700.webp",
+      "published": "site/media/motion-basic-player-700.webp",
+      "sha256": "384f42829e9c598558727a176f7f954da9eee67d980c9368056e4f26605b4fa7",
+      "bytes": 40246,
+      "dev_release_identical": true
+    },
+    {
+      "source": "/tmp/openmui-tests/motion-gallery/creative-player-300.webp",
+      "published": "site/media/motion-creative-player-300.webp",
+      "sha256": "c7dd4f7eb325ad2ae1de7620d01600c3efd6771082df822d028a28fbbfc2a191",
+      "bytes": 28238,
+      "dev_release_identical": true
+    }
+  ],
+  "additional_media_refresh": [
+    {
+      "path": "site/media/structure-home-en-desktop.png",
+      "difference_bounds": [
+        781,
+        574,
+        1032,
+        610
+      ],
+      "observation": "Active preview button captions; inspected current native image.",
+      "sha256": "814df419d659c8ac2e13e881ce7efde58a16873cd6afcfd6f479701b88afdbb8"
+    },
+    {
+      "path": "site/media/structure-features-zh-phone.png",
+      "difference_bounds": [
+        382,
+        153,
+        388,
+        168
+      ],
+      "observation": "Scrollbar extent changes with the documented public configuration example.",
+      "sha256": "22929503d54a62bc17ba48974409ea82fcc0338414a4181c11eadea335dbeb15"
+    },
+    {
+      "path": "site/media/workspace-motion-between.png",
+      "difference_bounds": [
+        97,
+        388,
+        331,
+        425
+      ],
+      "observation": "Intermediate button caption; current native image is legible and reviewed.",
+      "sha256": "27968069f9a769de91bf993e5065c1497147405b3ba1f2c739c8334ea83f3321"
+    }
+  ],
+  "catalogue": {
+    "basic_scenes": 41,
+    "creative_scenes": 20,
+    "counts_are_public_engine_recipes": false
+  },
+  "resolved_findings": [
+    "GCC importer ICE: synthesize defaulted MotionSpec equality in its implementation module.",
+    "Off/system-reduced must retire unchanged paused/held morphs independently of the drawing-hash fast path.",
+    "Slider values are quantized: validate copied control values with a numerical tolerance.",
+    "Feature documentation changes reference frames 20–58; frames 0–19 are unchanged. Updated reviewed pins and reran the full replay.",
+    "Fixed opening button wording keeps visual attention on the shape; the recorded pose is at 25% of the actual timing curve."
+  ],
+  "not_claimed": [
+    "full typed-channel IR or mixing",
+    "group effect/resource scopes",
+    "GPU path-process execution or performance",
+    "pixel/vertex hit contours",
+    "full-to-reduced in-flight replanning",
+    "40 public engine recipes or 20 exported complete projects",
+    "all component defaults migrated to the public hanim product",
+    "cross-platform CI completion"
+  ],
+  "quality_checks": {
+    "lint_log": "/tmp/omui-motion-policy-lint.log",
+    "lint_problems": 0,
+    "media_gate": "bash tools/ci/readme-media.sh --check site",
+    "media_gate_exit": 0,
+    "link_check": {
+      "markdown_files": 7,
+      "local_links": 125,
+      "missing": []
+    }
+  }
+}

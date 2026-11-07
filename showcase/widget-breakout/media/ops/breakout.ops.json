@@ -1,0 +1,28 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "breakout",
+  "doc": "Play the component breakout as an agent: at the human tier as a person plays, or assisted with the field's direct actions.",
+  "tools": [
+    {"name": "field.observe", "description": "What an agent player is shown at its tier: the step, the paddle, the balls, score, lives and bricks; assist also the rules and the hidden bricks", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "field.play", "description": "A person's actions: the arrows held, Space, Z — taking effect the tier's reaction after the step it saw", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "play again: actions hold only until the next", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"seen": {"type": "integer", "description": "the step it decided on (observe's step)"}, "axis": {"type": "number", "description": "−1 … 1: the arrows held (0 neither)"}, "launch": {"type": "boolean", "description": "Space held"}, "look": {"type": "boolean", "description": "Z held: the whole of a tall room"}}, "required": ["seen", "axis", "launch", "look"]}},
+    {"name": "field.intend", "description": "The intent the next play carries, never played: where it means the paddle to be and why — kept in the record, drawn with agent_overlay", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "another field.intend", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"target": {"type": "number", "description": "0 … 1 (below 0: nowhere in particular)"}, "note": {"type": "string", "description": "why, 80 characters"}}, "required": ["target", "note"]}},
+    {"name": "field.move_to", "description": "Moves the paddle toward x (0 … 1) at once, as a pointer does", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "field.release gives the paddle back", "undoable": false, "cancellable": false, "result": "",
+     "inputSchema": {"type": "object", "properties": {"x": {"type": "number"}}, "required": ["x"]}},
+    {"name": "field.aim", "description": "Holds the launch's aim until the launch", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "the aim sweeps again after the launch", "undoable": false, "cancellable": false, "result": "",
+     "inputSchema": {"type": "object", "properties": {"across": {"type": "number", "description": "−1.2 … 1.2 per up"}}, "required": ["across"]}},
+    {"name": "field.launch", "description": "Sends the ball on the paddle up, along the aim", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "field.rewind (100 sparks) takes it back", "undoable": false, "cancellable": false, "result": "",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "field.rewind", "description": "Back that many frames for 100 sparks; playing on from there is a new branch", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none: the sparks are spent (the branch it left is gone)", "undoable": false, "cancellable": false, "result": "",
+     "inputSchema": {"type": "object", "properties": {"frames": {"type": "integer", "description": "at most 240 (2 s)"}}, "required": ["frames"]}},
+    {"name": "field.next", "description": "On from a room over", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "field.restart plays the room again", "undoable": false, "cancellable": false, "result": "",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}}
+  ],
+  "tiers": [
+    {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: what is drawn, a tenth of a second to react, ten actions a second", "operations": ["field.observe", "field.intend", "field.play", "field.next"]},
+    {"name": "assist", "view": "full", "reaction_ms": 0, "actions_per_second": 0, "doc": "Privileged: everything shown, no delay, no limit, the field's direct actions", "operations": ["field.observe", "field.intend", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"]}
+  ]
+}

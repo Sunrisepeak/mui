@@ -1,0 +1,33 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "inspector",
+  "doc": "Read, edit, step and replay the Inspector's cellular material field.",
+  "tools": [
+    {"name": "cellular.describe", "description": "Discover the integer rule project format, budgets and editing SOP.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.snapshot", "description": "Read revision, simulation tick, replay frame, brushes and current state hash.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.project", "description": "Export the current state as a reloadable cellular project; history is not serialized.", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.config", "description": "Read editable rules, palette, brushes, rate and boundary.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.inspect", "description": "Read all channels of one cell at x/y.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}, "required": ["x", "y"]}},
+    {"name": "cellular.load", "description": "Validate and load a project atomically; starts a new replay history.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo restores the field before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"project": {"description": "a *.cellular.omui.json project"}, "revision": {"type": "integer", "description": "the revision it was read at (stale ones are refused)"}}, "required": ["project"]}},
+    {"name": "cellular.configure", "description": "Validate an edited rule/palette configuration over the current field.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo restores the configuration before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"config": {"description": "name, rate, boundary, rules, palette and/or brushes"}, "revision": {"type": "integer"}}, "required": ["config"]}},
+    {"name": "cellular.paint", "description": "Paint an integer-radius brush at x/y; records an input without advancing simulation time.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo restores the cells before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "radius": {"type": "integer", "description": "0 to 8"}, "brush": {"type": "string", "description": "a brush ID cellular.config lists"}, "revision": {"type": "integer"}}, "required": ["x", "y", "radius", "brush"]}},
+    {"name": "cellular.advance", "description": "Advance 1..120 fixed simulation steps; retained history can be sought.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "cellular.seek to the frame cellular.snapshot read before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"count": {"type": "integer", "description": "1 to 120"}, "revision": {"type": "integer"}}, "required": ["count"]}},
+    {"name": "cellular.seek", "description": "Restore a retained replay frame exactly, including paint inputs.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "cellular.seek to the frame before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "within the retained history"}, "revision": {"type": "integer"}}, "required": ["frame"]}},
+    {"name": "cellular.reset", "description": "Restore this project's initial state; starts a new replay history.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo restores the field before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"revision": {"type": "integer"}}, "required": []}},
+    {"name": "cellular.play", "description": "Start or stop live playback; continuation rechecks the initiating Agent authority.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "cellular.play with the other enabled", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "revision": {"type": "integer"}}, "required": ["enabled"]}}
+  ],
+  "tiers": []
+}

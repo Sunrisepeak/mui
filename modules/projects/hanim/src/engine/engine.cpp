@@ -77,6 +77,7 @@ struct EngineData {
         xengine::simulation::BodyInput input;
         double owed = 0;  // engine seconds not yet stepped
         std::vector<Rider> riders;
+        std::vector<double> made_x, made_y;  // the ring it was made as: what riders' weights are of
         std::uint32_t generation = 1;
         bool live = false;
     };
@@ -368,6 +369,28 @@ std::optional<std::size_t> part_index(const Shown& place, std::string_view id) n
     for (std::size_t index = 0; index < place.parts.size(); ++index)
         if (place.parts[index].info.id == id) return index;
     return std::nullopt;
+}
+void mean_value_weights(std::span<const double> ring_x, std::span<const double> ring_y, double x, double y, double* out) noexcept;
+// Every point of a part (in its parent's space) as weights of each point of
+// the ring a body was made as: what the body's ring now carries it by.
+std::optional<detail::EngineData::Rider> rider_from(const FramePart& part, std::span<const MorphContourInfo> contours, std::span<const ShapeCubic> cubics,
+                                                    std::span<const double> ring_x, std::span<const double> ring_y) {
+    const auto& info = part.info;
+    if (!info.contour_count) return std::nullopt;
+    const auto& first = contours[info.first_contour];
+    const auto& last = contours[info.first_contour + info.contour_count - 1];
+    const auto own = cubics.subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
+    detail::EngineData::Rider rider{std::string(info.id), own.size(), {}};
+    rider.weights.resize(rider.cubics * 4 * ring_x.size());
+    const auto to_parent = mlibs::geom::AffineD::from(part.local.matrix());
+    double* weight = rider.weights.data();
+    for (const auto& cubic : own)
+        for (const auto point : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
+            const auto at = to_parent.apply(point.x, point.y);
+            mean_value_weights(ring_x, ring_y, at[0], at[1], weight);
+            weight += ring_x.size();
+        }
+    return rider;
 }
 void apply_bodies(detail::EngineData& data) noexcept {
     for (const auto& slot : data.bodies) {
@@ -1014,22 +1037,14 @@ std::expected<BodyRef, EngineFailure> Engine::simulate(PartAddress address, Body
     if (!body) return std::unexpected(fail(EngineError::invalid_argument));
     detail::EngineData::BodySlot slot;
     slot.part = address;
-    // Every point of each part it moves, as a weight of each ring point (frozen now).
-    const auto rider_of = [&](std::size_t index) -> std::optional<detail::EngineData::Rider> {
-        const auto cubics = part_cubics(*data_, *place, index);
-        if (!cubics) return std::nullopt;
-        detail::EngineData::Rider rider{std::string(place->parts[index].info.id), cubics->size(), {}};
-        rider.weights.resize(rider.cubics * 4 * ring.size());
-        const auto to_parent = mlibs::geom::AffineD::from(place->parts[index].local.matrix());
-        double* weight = rider.weights.data();
-        for (const auto& cubic : *cubics)
-            for (const auto point : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
-                const auto at = to_parent.apply(point.x, point.y);
-                mean_value_weights(body->x, body->y, at[0], at[1], weight);
-                weight += ring.size();
-            }
-        return rider;
-    };
+    slot.made_x = body->x;
+    slot.made_y = body->y;
+    std::span<const ShapeCubic> all_cubics;
+    data_->playbacks.for_each([&](auto, detail::Playback& playback) {
+        for (auto& track : playback.tracks)
+            if (track.current.parts.data() == place->parts.data()) all_cubics = track.current.cubics;
+    });
+    const auto rider_of = [&](std::size_t index) { return rider_from(place->parts[index], contours, all_cubics, slot.made_x, slot.made_y); };
     auto first = rider_of(place->index);
     if (!first) return std::unexpected(fail(EngineError::invalid_argument));
     slot.riders.push_back(std::move(*first));
@@ -1077,6 +1092,46 @@ std::expected<void, EngineFailure> Engine::pull(BodyRef ref, std::optional<Vec2>
     slot->input.pin.x = hand->x;
     slot->input.pin.y = hand->y;
     slot->input.pin.active = true;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::carry(BodyRef ref, std::span<const std::string> parts) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope scope(writing_);
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    auto place = shown(*data_, slot->part);
+    if (!place) return std::unexpected(fail(EngineError::invalid_argument));
+    // The figure as its playback has it, undeformed: sampled afresh.
+    detail::FrameStorage fresh;
+    std::optional<FrameView> view;
+    data_->playbacks.for_each([&](auto, detail::Playback& playback) {
+        if (view) return;
+        for (auto& track : playback.tracks)
+            if (track.current.parts.data() == place->parts.data()) {
+                const auto& animation = playback.program.segments()[track.segment].animation;
+                fresh.resize(animation.requirements());
+                if (auto sampled = animation.sample(track.progress, fresh.output())) view = *sampled;
+                return;
+            }
+    });
+    if (!view) return std::unexpected(fail(EngineError::invalid_argument));
+    const std::string_view own = slot->part.part;
+    const auto parent = place->parts[place->index].info.parent;
+    std::vector<detail::EngineData::Rider> riders;
+    riders.reserve(parts.size() + 1);
+    std::vector<std::string_view> ids{own};
+    for (const auto& part : parts) ids.emplace_back(part);
+    for (const std::string_view id : ids) {
+        std::optional<std::size_t> index;
+        for (std::size_t i = 0; i < view->parts.size(); ++i)
+            if (view->parts[i].info.id == id) index = i;
+        if (!index || (id != own && view->parts[*index].info.parent != parent)) return std::unexpected(fail(EngineError::invalid_argument));
+        auto rider = rider_from(view->parts[*index], view->contours, view->cubics, slot->made_x, slot->made_y);
+        if (!rider) return std::unexpected(fail(EngineError::invalid_argument));
+        riders.push_back(std::move(*rider));
+    }
+    slot->riders = std::move(riders);
+    apply_bodies(*data_);
     return {};
 }
 std::expected<void, EngineFailure> Engine::surfaces(BodyRef ref, std::span<const xengine::simulation::Ledge> ledges) {

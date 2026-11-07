@@ -190,10 +190,10 @@ int main(int argc, char** argv) {
         auto description = take(pixel_object("face", face));
         description.parts[0].local = {.tx = 80, .ty = 40};
         const auto object = take(engine.create_object(description));
-        const auto shown = take(engine.play(anim::morph(object, object)));
+        auto showing = take(engine.play(anim::morph(object, object)));
         // The box of a part where it is drawn (its parent's space: the root's).
         const auto box_of = [&](std::string_view id) {
-            const auto frame = take(engine.frame(shown)).geometry;
+            const auto frame = take(engine.frame(showing)).geometry;
             Drawn out{1e9, -1e9, 1e9, -1e9, {}};
             for (const auto& part : frame.parts) {
                 if (part.info.id != id) continue;
@@ -215,6 +215,31 @@ int main(int argc, char** argv) {
         check(std::abs(silhouette.bottom - 200) < 1, std::format("on the ledge, not the ground: {}", silhouette.bottom));
         check(eye.top > silhouette.top && eye.bottom < silhouette.bottom && eye.left > silhouette.left && eye.right < silhouette.right,
               "the eye rode the body down, inside it");
+        // Another expression on the same body: the eye moves to the left, the body stays where it stands.
+        PixelGrid looking = face;
+        looking.rows = {"oooo", "obbo", "owbo", "oooo"};
+        auto changed = take(pixel_object("face", looking));
+        changed.parts[0].local = {.tx = 80, .ty = 40};
+        take(engine.update_object(object, changed));
+        take(engine.release(showing));
+        showing = take(engine.play(anim::morph(object, object)));
+        const auto again = showing;
+        const std::array carried{ink_id('b'), ink_id('w')};
+        take(engine.carry(body, carried));
+        const auto box_again = [&](std::string_view id) {
+            const auto frame = take(engine.frame(again)).geometry;
+            double left = 1e9, bottom = -1e9;
+            for (const auto& part : frame.parts) {
+                if (part.info.id != id) continue;
+                for (std::size_t c = part.info.first_contour; c < part.info.first_contour + part.info.contour_count; ++c)
+                    for (std::size_t k = frame.contours[c].first_cubic; k < frame.contours[c].first_cubic + frame.contours[c].cubic_count; ++k)
+                        left = std::min(left, frame.cubics[k].start.x), bottom = std::max(bottom, frame.cubics[k].start.y);
+            }
+            return std::pair{left, bottom};
+        };
+        check(std::abs(box_again(ink_id('o')).second - 200) < 1, std::format("the new figure where the body stands: {}", box_again(ink_id('o')).second));
+        check(box_again(ink_id('w')).first < eye.left - 5, std::format("the eye moved left: {} → {}", eye.left, box_again(ink_id('w')).first));
+        check(!engine.carry(body, std::array{std::string("nope")}), "only parts beside it");
         // Pushed: it walks off the ledge's end and drops to the ground.
         take(engine.push(body, {600, 0}));
         for (int step = 0; step < 120 * 3; ++step) take(engine.advance(seconds(1.0 / 120)));

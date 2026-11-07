@@ -36,8 +36,8 @@ if m.exists():
     for pkg, rel in paths.items():
         t = re.sub(r'^"?' + re.escape(pkg) + r'"?\s*=\s*"0\.1\.0"$', f'{pkg} = {{ path = "{root}/{rel}" }}', t, flags=re.M)
     for plugin in ("contracts", "embed", "toy"):
-        t = t.replace(f'openmui.build.{plugin} = {{ version = "0.1.0", host-module = true }}',
-                      f'openmui.build.{plugin} = {{ path = "{root}/mcpp/{plugin}", host-module = true }}')
+        t = t.replace(f'omui.build.{plugin} = {{ version = "0.1.0", host-module = true }}',
+                      f'omui.build.{plugin} = {{ path = "{root}/mcpp/{plugin}", host-module = true }}')
     m.write_text(t)
 PY
 }

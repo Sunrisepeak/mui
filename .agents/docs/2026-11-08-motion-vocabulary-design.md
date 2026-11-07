@@ -17,9 +17,9 @@
 ## 2. 归属：一份“出现／消失／强调”的课程，归 hanim
 
 - **课程（course）**：一个配方相对静止姿态的姿态随进度的变化，即 0→1 的进度上的关键帧：位移、缩放（可带锚点）、旋转、不透明度、描边裁剪（书写）、压扁（落地），每段一条曲线。它只描述“怎么动”，不关心动的是对象还是 UI 的一块绘制。
-- **hanim 拥有课程**：`hanim::anim::course(name, params)` 给出课程，名字和参数就是 L6 配方的名字和参数。L6 的对象配方改为由课程生成（`rise_in(object, …)` = 对象上播放 `course("rise_in", …)`），保证两边是同一份定义。
+- **hanim 拥有课程**：`hanim::presence(name, options)`（hanim.core 的 `:presence` 分区；类型名 `Presence`，避免与已有的 `Course` 冲突） 给出课程，名字和参数就是 L6 配方的名字和参数。L6 的对象配方改为由课程生成（`rise_in(object, …)` = 对象上播放 `course("rise_in", …)`），保证两边是同一份定义。
 - **hanim.visual 采样课程**：UI 过渡中出现或消失的每一块绘制，由 `hanim.visual` 按它自己的进度采样它的课程，代替 `Options` 里分散的 `rise`／`grow`／`fade_in`／`fade_out` 等参数；omui 只负责把规范 ID 和参数翻译成课程引用，代替 `add_primitive` 里的常数。
-- **规范登记 ID**：课程的名字作为规范级的 ID 登记进 `registry/motion.toml`（新的 `[[course]]` 表，参数与默认值写明），风格包和数据文件就能引用。UI 过渡的 `[[recipe]]` 保留，但它的出现／消失／强调部分改为引用课程，而不是原语常数。
+- **规范登记 ID**：课程的名字作为规范级的 ID 登记进 `registry/motion.toml`（新的 `[[presence]]` 表，参数与默认值写明），风格包和数据文件就能引用。UI 过渡的 `[[recipe]]` 保留，但它的出现／消失／强调部分改为引用课程，而不是原语常数。
 
 ## 3. 映射
 
@@ -47,11 +47,11 @@
 # 出现、消失、强调各引用一个课程及其参数；匹配部分不变
 [motion.rule.toast]
 update = "default.notice"
-enter  = { course = "rise_in", distance = 8, also = "settle_in" }
-exit   = { course = "fade_out" }
+enter  = { presence = "rise_in", distance = 8, also = "settle_in" }
+exit   = { presence = "fade_out" }
 
 [motion.rule."role:switch"]
-state  = { course = "press", depth = 0.06 }
+state  = { presence = "press", depth = 0.06 }
 ```
 
 - `also`：同时叠加第二个课程（升起＋缩放）；更多组合仍在 hanim 一侧用 `parallel` 组合。
@@ -75,8 +75,8 @@ state  = { course = "press", depth = 0.06 }
 
 | 步 | 内容 | 验收 |
 |---|---|---|
-| 1 | hanim：`course` 与课程数据；L6 的出现／消失配方改由课程生成；新课程 `settle_in/out`、`press` | 对象配方的过程采样与改前**逐位一致**；新课程的过程帧 |
-| 2 | 规范：`[[course]]` 表与参数；`[[recipe]]` 的出现／消失部分可以引用课程；令牌表新增 §4 的令牌 | openmui 规范仓 PR（`openmui-design` 分支）；生成的注册表文档 |
+| 1 | hanim：`presence` 与课程数据；L6 的出现／消失配方改由课程生成；新课程 `settle_in/out`、`press` | 对象配方的过程采样与改前**逐位一致**；新课程的过程帧 |
+| 2 | 规范：`[[presence]]` 表与参数；`[[recipe]]` 的出现／消失部分可以引用课程；令牌表新增 §4 的令牌 | openmui 规范仓 PR（`openmui-design` 分支）；生成的注册表文档 |
 | 3 | hanim.visual：`Options` 的 `rise`/`grow`/`fade_in`/`fade_out`/`drop`/`write` 合并为出现、消失两个课程（`press` 为强调课程）；omui：`MotionSpec` 相应合并，`add_primitive` 的这些原语改为生成课程引用（参数取现在的常数）；解析新的槽写法 | **这一步不改任何像素**：常数和数学与现在相同，所有钉住值不变（与描边、宣传片两次迁移的做法相同） |
 | 4 | 删除被取代的字段和常数，不留兼容层；`motion` lint 检查 UI 代码不再自写出现／消失的常数 | lint 通过 |
 | 5 | 之后的质感调整（B4–B6）只改令牌和课程参数 | 改动可追溯到具体令牌 |

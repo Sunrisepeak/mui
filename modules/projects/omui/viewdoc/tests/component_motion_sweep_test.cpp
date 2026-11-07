@@ -126,5 +126,63 @@ int main(int argc, char** argv) {
         check_eq(moved.size() + still.size() + continuous.size(), std::size_t{37});
     });
 
+    s.test("every moving kind, mid-motion: hit where it is drawn, interrupted without a jump, focus free", [] {
+        std::size_t judged = 0;
+        for (const auto& recipe : default_component_motion_recipes()) {
+            const std::string type(recipe.component);
+            if (recipe.update == "none") continue;
+            Sample full(type, MotionLevel::full);
+            const auto subject = full.h.runtime().find("main/subject");
+            const auto before = pixels(full.h);
+            full.change();
+            full.h.advance(seconds(0.03));
+            if (full.h.runtime().motions().empty() || pixels(full.h) == before) continue;  // still, or drawn as a function of time
+            ++judged;
+            auto& rt = full.h.runtime();
+            // Hit: the middle of what it draws now is it (or a part of it).
+            const Rect drawn = rt.drawn_bounds(subject);
+            const NodeId hit = rt.hit_test(drawn.center());
+            const auto inside = [&](NodeId node) {
+                for (; rt.valid(node); node = rt.parent(node))
+                    if (node == subject) return true;
+                return false;
+            };
+            check(!drawn.empty() && inside(hit),
+                  std::format("{}: mid-motion, the middle of its drawing hits it (hit {})", type, rt.valid(hit) ? rt.path(hit) : std::string("nothing")));
+            // Interrupted: the change undone mid-way goes on from what is on screen. Its step
+            // across the interruption is no larger than an uninterrupted run's same step.
+            Sample steady(type, MotionLevel::full);
+            steady.change();
+            steady.h.advance(seconds(0.03));
+            const auto largest_step = [](const auto& a, const auto& b) {
+                int largest = 0;
+                for (int y = 0; y < a.height(); ++y)
+                    for (int x = 0; x < a.width(); ++x) {
+                        const auto p = a.at(x, y), q = b.at(x, y);
+                        largest = std::max({largest, std::abs(p.r - q.r), std::abs(p.g - q.g), std::abs(p.b - q.b), std::abs(p.a - q.a)});
+                    }
+                return largest;
+            };
+            const auto steady_before = steady.h.pixels();
+            steady.h.advance(seconds(1.0 / 60));
+            const int steady_step = largest_step(steady_before, steady.h.pixels());
+            const auto shown = full.h.pixels();
+            full.flag.set(false);
+            full.h.advance(seconds(1.0 / 60));
+            const int interrupted_step = largest_step(shown, full.h.pixels());
+            check(interrupted_step <= steady_step + 24,
+                  std::format("{}: interrupted, one frame moves it by {} (uninterrupted {}): no jump", type, interrupted_step, steady_step));
+            // Focus goes where it is asked while it moves.
+            if (rt.semantic_node(subject).states.has(spec::State::focusable)) {
+                rt.focus(subject);
+                full.h.step();
+                check(rt.focused() == subject, type + ": focus reaches it mid-motion");
+            }
+            full.h.settle();
+            check(rt.motions().empty(), type + ": and then it rests");
+        }
+        check(judged >= 10, std::format("{} kinds judged mid-motion", judged));
+    });
+
     return s.run(argc, argv);
 }

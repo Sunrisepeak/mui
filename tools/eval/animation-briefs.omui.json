@@ -22,6 +22,18 @@
     {
       "id": "fade",
       "text": "On a 480 × 320 stage, a title bar with id `bar` (a 300 × 40 rectangle, colour #4a90e2) starts invisible at (240, 200). Over 0.5 s it fades in to fully opaque while rising to (240, 160), both together."
+    },
+    {
+      "id": "fan",
+      "text": "On a 480 × 320 stage, six cards with ids `card1` … `card6` (60 × 90 rectangles, corner radius 8, any colours) all start stacked at the centre (240, 160), invisible (opacity 0) and at scale 0.6. They appear one after another, 0.12 s apart: each fades to fully opaque and grows to scale 1 over 0.3 s, and at the same time moves to its place on a row: x = 65, 135, 205, 275, 345, 415 (card1 leftmost), y = 160. Then, after all have arrived, every card turns 8 degrees together in 0.4 s."
+    },
+    {
+      "id": "marker",
+      "text": "On a 480 × 320 stage, a ball with id `ball` (a circle of radius 16) at (60, 160) rolls to (420, 160) in exactly 2 s at constant speed (linear). Put a marker named `halfway` at the exact moment the ball passes x = 240, and a marker named `end` when it arrives. The program is 2 s long."
+    },
+    {
+      "id": "inside",
+      "text": "On a 480 × 320 stage, a star with id `star` (5 points, outer radius 40, inner radius 18) starts at (80, 160) and moves to (400, 160) in 0.8 s with an overshooting ease (it passes its target and comes back, like out_back or a spring), then grows to scale 1.5. At every moment every part of the star stays inside the stage (0 … 480 across, 0 … 320 down) — choose the motion so that the overshoot and the growth never take it outside. It ends at (400, 160) at scale 1.5."
     }
   ]
 }

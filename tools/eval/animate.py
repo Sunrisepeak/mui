@@ -176,6 +176,47 @@ def grade(course, brief):
         middle = [i for i, a in enumerate(alphas) if 40 < a < 215]
         check("it fades and rises at the same time", any(170 < ys[i] < 195 for i in middle), f"{len(middle)} half-faded samples")
         check("the fade takes about 0.5 s", near(sum(1 for a in alphas if 0 < a < 255) * course.duration / (len(alphas) - 1), 0.5, 0.12), "")
+    elif kind == "fan":
+        xs = [65, 135, 205, 275, 345, 415]
+        appear = []
+        for n in range(1, 7):
+            name = f"card{n}"
+            start, end = course.at("start", name), course.at("end", name)
+            check(f"{name} starts invisible at the centre, scale 0.6",
+                  rgba(start.get("fill"))[3] == 0 and near((start.get("position") or [0, 0])[0], 240, 1) and near((start.get("scale") or [0])[0], 0.6, 0.01), start)
+            check(f"{name} ends opaque on its place at scale 1",
+                  rgba(end.get("fill"))[3] == 255 and near((end.get("position") or [0, 0])[0], xs[n - 1], 1.5) and near((end.get("position") or [0, 0])[1], 160, 1.5)
+                  and near((end.get("scale") or [0])[0], 1, 0.01), end)
+            alphas = [(t, rgba(f)[3]) for t, f in course.series(name, "fill")]
+            appear.append(next((t for t, a in alphas if a > 0), None))
+            rotations = [r for _, r in course.series(name, "rotation_degrees") if r is not None]
+            check(f"{name} turns 8 degrees at the end", near(rotations[-1], 8, 0.3) or near(rotations[-1], -8, 0.3), rotations[-1])
+        check("they appear one after another, about 0.12 s apart",
+              all(a is not None for a in appear) and all(near(b - a, 0.12, 0.04) for a, b in zip(appear, appear[1:])), appear)
+        last_arrival = max(next((t for t, p in course.series(f"card{n}", "position") if p and near(p[0], xs[n - 1], 0.5)), 99) for n in range(1, 7))
+        first_turn = min(next((t for t, r in course.series(f"card{n}", "rotation_degrees") if r is not None and abs(r) > 0.2), 99) for n in range(1, 7))
+        check("the turn begins after every card has arrived", first_turn >= last_arrival - 0.02, (last_arrival, first_turn))
+    elif kind == "marker":
+        markers = {m["name"]: m["time"] for m in course.plan.get("markers", [])}
+        check("the program is 2 s long", near(course.duration, 2, 0.01), course.duration)
+        check("a marker `halfway` at 1 s", near(markers.get("halfway"), 1.0, 0.01), markers)
+        check("a marker `end` at 2 s", near(markers.get("end"), 2.0, 0.01), markers)
+        halfway = course.at(markers.get("halfway", 0), "ball")
+        check("the ball is at x = 240 at `halfway`", near((halfway.get("position") or [None])[0], 240, 2), halfway.get("position"))
+        xs = [p[0] for _, p in course.series("ball", "position") if p]
+        speeds = [b - a for a, b in zip(xs, xs[1:])]
+        check("it rolls at constant speed", max(speeds) - min(speeds) < 0.05 * max(speeds), (min(speeds), max(speeds)))
+        check("from (60, 160) to (420, 160)", near(xs[0], 60, 1) and near(xs[-1], 420, 1), (xs[0], xs[-1]))
+    elif kind == "inside":
+        positions = [p for _, p in course.series("star", "position") if p]
+        bounds = [b for _, b in course.series("star", "bounds") if b]
+        check("it overshoots its target", max(p[0] for p in positions) > 401, max(p[0] for p in positions))
+        worst = max(max(-b[0], -b[1], b[2] - 480, b[3] - 320) for b in bounds)
+        check("every part stays inside the stage at every moment", worst <= 0.5, f"{worst:.1f} px outside at worst")
+        end = course.at("end", "star")
+        check("it ends at (400, 160) at scale 1.5", near(end["position"][0], 400, 1) and near(end["position"][1], 160, 1) and near(end["scale"][0], 1.5, 0.01), end)
+        moved = next((i for i, p in enumerate(positions) if near(p[0], 400, 0.5)), None)
+        check("it starts at (80, 160)", near(positions[0][0], 80, 1), positions[0])
     else:
         check("a known brief", False, kind)
     return results

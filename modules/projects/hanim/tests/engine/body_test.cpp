@@ -240,10 +240,10 @@ int main(int argc, char** argv) {
         check(std::abs(box_again(ink_id('o')).second - 200) < 1, std::format("the new figure where the body stands: {}", box_again(ink_id('o')).second));
         check(box_again(ink_id('w')).first < eye.left - 5, std::format("the eye moved left: {} → {}", eye.left, box_again(ink_id('w')).first));
         check(!engine.carry(body, std::array{std::string("nope")}), "only parts beside it");
-        // Pushed: it walks off the ledge's end and drops to the ground.
-        take(engine.push(body, {600, 0}));
+        // Walking: off the ledge's end it drops to the ground (a push alone does not slide it: its feet hold).
+        take(engine.walk(body, 200));
         for (int step = 0; step < 120 * 3; ++step) take(engine.advance(seconds(1.0 / 120)));
-        take(engine.push(body, {0, 0}));
+        take(engine.walk(body, 0));
         for (int step = 0; step < 120 * 2; ++step) take(engine.advance(seconds(1.0 / 120)));
         check(std::abs(box_of(ink_id('o')).bottom - 300) < 1, std::format("walked off, on the ground: {}", box_of(ink_id('o')).bottom));
         // A hop: up, then down again.

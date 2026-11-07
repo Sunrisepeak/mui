@@ -70,6 +70,8 @@ public:
     ActResult next(ActContext& ctx);
     ActResult observe(ActContext& ctx);
     ActResult play(ActContext& ctx, const PlayArgs& args);
+    ActResult record(ActContext& ctx);
+    ActResult replay(ActContext& ctx, const Value& plays);
 
     // What it sounds like (tests render it offline).
     [[nodiscard]] Sounds& sounds() noexcept { return *sounds_; }
@@ -118,6 +120,13 @@ private:
     std::int32_t                         pending_pay_ = 0;      // a rewind's cost, on the next step
     std::optional<double>                agent_x_, agent_aim_;  // an agent's paddle (0 … 1) while it holds it; its aim, once
     std::optional<xengine::AgentLane>    player_lane_;          // an agent player's actions, held to its tier (agent_player)
+    struct PlayRecord {
+        std::int64_t now = 0, seen = 0, at = 0;
+        double       axis = 0;
+        bool         launch = false, look = false;
+    };
+    std::vector<PlayRecord>              player_record_;        // the plays accepted since the room began (record)
+    std::vector<PlayRecord>              replaying_;            // a record being played again, by `now`
     bool                                 agent_launch_ = false;
     bool                                 rewinding_ = false;    // R held: back two frames a step
     std::int64_t                         rewind_from_ = 0, landing_ = 0;  // where it began; the last one's landing (none goes before it)

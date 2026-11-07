@@ -18,7 +18,8 @@ namespace {
 struct Session {
     Headless h{HeadlessOptions{.level = HeadlessLevel::pixels, .size = {1280, 720}}};
     std::optional<agent::Protocol> protocol;
-    explicit Session(std::string_view tier, bool allowed = true) {
+    Value said;  // the last error record
+    explicit Session(std::string_view tier, bool allowed = true, std::int32_t room = 1) {
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development, .source = "agent-player-test"});
         h.runtime().set_agent_access(std::move(access));
@@ -30,6 +31,11 @@ struct Session {
         spec.setup(h.runtime());
         h.mount("main", spec.view());
         h.step();
+        if (room != 1) {
+            h.runtime().set(h.runtime().find("main/field"), "room",
+                            Value(static_cast<std::int64_t>(room)));
+            h.step();
+        }
         if (!tier.empty())
             h.runtime().set(h.runtime().find("main/field"), "agent_player",
                             Value(std::string(tier)));
@@ -150,6 +156,73 @@ int main(int argc, char** argv) {
                             again.log == first.log,
                         "the same agent plays the same game to the same bytes (its inputs replay)");
               });
+
+    suite.test("the record of a game, exported headless, replays alone to the same bytes", [] {
+        Session session("human");
+        Player player;
+        while (!session.state().over && session.state().frame < 120 * 90) {
+            player.turn(session);
+            session.h.advance(seconds(6.0 / 120));
+        }
+        const Value record = session.data("record");
+        check(record.get("kind") && record.get("kind")->as_string() == "breakout.agent-record" &&
+                  record.get("tier")->as_string() == "human",
+              "the record names its tier");
+        const auto plays = record.get("plays") && record.get("plays")->list()
+                               ? record.get("plays")->list()->size()
+                               : 0;
+        check(plays > 50, std::format("{} plays recorded", plays));
+        std::ofstream(scratch_dir("breakout-agent") / "record.omui.json")
+            << record.json();  // the export, for a reviewer
+        // A fresh run, no agent thinking: the record alone.
+        Session replayed("human");
+        const Value taken = replayed.ask("replay", Value{}.set("plays", *record.get("plays")));
+        check(taken.get("exitCode")->as_int() == 0,
+              std::format("the record is taken: {}", replayed.said.json().substr(0, 300)));
+        const std::int64_t end = record.get("step")->as_int();
+        while (replayed.state().frame < end)
+            replayed.h.advance(seconds(6.0 / 120));
+        check(std::format("{:016x}", bo::checksum(replayed.state())) ==
+                      record.get("checksum")->as_string() &&
+                  replayed.state().frame == end,
+              "replayed from the record: the same checksum at the same step");
+        const Value again = replayed.data("record");
+        check(again.get("plays")->list()->size() == plays, "and the same plays recorded");
+    });
+
+    suite.test("the matrix: the human-tier agent plays every room, and plays each the same way "
+               "twice",
+               [] {
+                   Value::List rows;
+                   for (std::int32_t room = 1; room <= 5; ++room) {
+                       const auto play = [room] {
+                           Session session("human", true, room);
+                           Player player;
+                           while (!session.state().over && session.state().frame < 120 * 60) {
+                               player.turn(session);
+                               session.h.advance(seconds(6.0 / 120));
+                           }
+                           return std::tuple{session.state().frame, session.state().score,
+                                             session.state().over != 0,
+                                             bo::checksum(session.state())};
+                       };
+                       const auto [frames, score, over, checksum] = play();
+                       const auto again = play();
+                       check(score > 0, std::format("room {}: the agent scores ({})", room, score));
+                       check(std::get<3>(again) == checksum,
+                             std::format("room {}: the same play-through twice", room));
+                       rows.push_back(Value{}
+                                          .set("room", room)
+                                          .set("steps", frames)
+                                          .set("score", score)
+                                          .set("over", over)
+                                          .set("checksum", std::format("{:016x}", checksum)));
+                       std::println("    room {}: {} steps, score {}, {}", room, frames, score,
+                                    over ? "over" : "playing at the minute");
+                   }
+                   std::ofstream(scratch_dir("breakout-agent") / "matrix.omui.json")
+                       << Value(Value::List(rows)).json();
+               });
 
     suite.test("the tiers differ where they say: what it is shown, how soon it acts, how often",
                [] {

@@ -138,6 +138,10 @@ void Field::new_run() {
 
 void Field::restart_room() {
     timeline_.reset();
+    // An agent player's lane and record start again with the room.
+    player_record_.clear();
+    replaying_.clear();
+    if (player_lane_) player_lane_.emplace(player_lane_->tier(), steps_per_second);
     log_.clear();
     guard_x_.reset();
     agent_log_.clear();
@@ -233,7 +237,20 @@ Input Field::input() {
     Input in;
     in.player = sampler_.sample();
     // An agent player plays the paddle as a person would, its actions due at this step.
-    if (player_lane_ && timeline_ && services().agent_players()) in.player = player_lane_->take(timeline_->state().frame);
+    if (player_lane_ && timeline_ && services().agent_players()) {
+        // A record played again: each play given at the step it was, then the lane as ever.
+        const std::int64_t now = timeline_->state().frame;
+        while (!replaying_.empty() && replaying_.front().now <= now) {
+            const PlayRecord play = replaying_.front();
+            replaying_.erase(replaying_.begin());
+            xengine::Actions actions;
+            actions.axes[0] = static_cast<std::int16_t>(std::lround(play.axis * 32767));
+            if (play.launch) actions.held |= 1u << launch_button;
+            if (play.look) actions.held |= 1u << look_button;
+            if (player_lane_->submit(play.now, play.seen, actions)) player_record_.push_back(play);
+        }
+        in.player = player_lane_->take(now);
+    }
     if (timeline_ && in.player.pointer_x >= 0 && timeline_->state().zoom != 1) {
         // The pointer across the screen, to across the field: zoomed out, the field is the screen's middle.
         const double z = timeline_->state().zoom, across = 0.5 + (in.player.pointer_x / 32767.0 - 0.5) / z;
@@ -834,7 +851,43 @@ ActResult Field::play(ActContext&, const PlayArgs& args) {
     if (args.look.as_bool()) actions.held |= 1u << look_button;
     const auto due = player_lane_->submit(timeline_->state().frame, args.seen.as_int(), actions);
     if (!due) return ActResult::fail(due.error() == xengine::AgentLane::Refusal::too_often ? "more often than the tier allows" : "a step not yet played");
+    player_record_.push_back({timeline_->state().frame, args.seen.as_int(), *due, axis, args.launch.as_bool(), args.look.as_bool()});
     return ActResult::done(Value{}.set("at", *due));
+}
+
+ActResult Field::record(ActContext&) {
+    if (!player_lane_) return ActResult::fail("agent players are off (agent_player)");
+    if (!timeline_) return ActResult::fail("the room has not begun");
+    Value::List plays;
+    for (const auto& play : player_record_)
+        plays.push_back(Value{}.set("now", play.now).set("seen", play.seen).set("at", play.at).set("axis", play.axis).set("launch", play.launch).set("look", play.look));
+    const State& s = timeline_->state();
+    return ActResult::done(Value{}
+                               .set("kind", "breakout.agent-record")
+                               .set("tier", std::string(player_lane_->tier().name))
+                               .set("room", props.room)
+                               .set("step", s.frame)
+                               .set("checksum", std::format("{:016x}", checksum(s)))
+                               .set("plays", Value(std::move(plays))));
+}
+
+ActResult Field::replay(ActContext&, const Value& plays) {
+    if (!services().agent_players() || !player_lane_) return ActResult::fail("agent players are off");
+    const auto* list = plays.list();
+    if (!list) return ActResult::fail("plays is a record's list of plays");
+    std::vector<PlayRecord> loaded;
+    for (const Value& play : *list) {
+        const PlayRecord one{play.get("now") ? play.get("now")->as_int() : -1, play.get("seen") ? play.get("seen")->as_int() : -1,
+                             play.get("at") ? play.get("at")->as_int() : -1, play.get("axis") ? play.get("axis")->as_double() : 0,
+                             play.get("launch") && play.get("launch")->as_bool(), play.get("look") && play.get("look")->as_bool()};
+        if (one.now < 0 || one.seen < 0 || one.seen > one.now || !std::isfinite(one.axis) || one.axis < -1 || one.axis > 1)
+            return ActResult::fail("a play is { now, seen ≤ now, at, axis −1 … 1, launch, look }");
+        if (!loaded.empty() && one.now < loaded.back().now) return ActResult::fail("plays are in the order they were given");
+        loaded.push_back(one);
+    }
+    restart_room();
+    replaying_ = std::move(loaded);
+    return ActResult::done(Value{}.set("plays", static_cast<std::int64_t>(replaying_.size())));
 }
 
 }  // namespace omui::breakout

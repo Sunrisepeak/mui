@@ -1,8 +1,9 @@
 // hanim.rhi.cts — the shape batch's conformance on a device (mlibs.cts):
 // every control point of a thousand morphs, sampled at once at several
 // progresses, equals the CPU sampler's within float error (1e-4 on
-// coordinates up to 40), straight and on a curved point path; noise, mixed
-// paths, empty batches and bad records are refused, appending nothing. Each
+// coordinates up to 40), straight, on a curved point path and with path
+// noise (gradient and curl, mlibs.math's 32-bit lattice); mixed paths,
+// empty batches and bad records are refused, appending nothing. Each
 // case needs compute and readback: without them it is unsupported, never
 // passed. The backends' own tests run it on their devices.
 export module hanim.rhi.cts;

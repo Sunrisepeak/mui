@@ -122,12 +122,18 @@ mlibs::cts::Report run(rhi::Device& device, mlibs::cts::Environment environment,
         ++bench.totals.scenarios;
         return compare(bench, plans(200, PointPath::bend(.4)), .5);
     });
+    // Path noise on the device: mlibs.math's 32-bit lattice in a shader, the same field as the CPU's.
+    scenario("shape.batch.noise", [=](Bench& bench) -> std::string {
+        ++bench.totals.scenarios;
+        for (const auto& path : {PointPath::jitter(2, 10, 7), PointPath::swirl(3, 6, 2026, 1.5), PointPath::jitter(1.5, 4, 11).added(PointPath::bend(.3))})
+            for (const double progress : {.2, .5, .77})
+                if (auto failure = compare(bench, plans(150, path), progress); !failure.empty())
+                    return failure;
+        return {};
+    });
     scenario("shape.batch.refusals", [](Bench& bench) -> std::string {
         ++bench.totals.scenarios;
         auto& device = bench.device;
-        const auto refused = ShapeBatch::prepare(device, plans(2, PointPath::jitter(2, 10)));
-        if (refused || refused.error().code != rhi::Errc::unsupported)
-            return "noise was not refused as unsupported";
         auto mixed = plans(1);
         mixed.push_back(plans(1, PointPath::bend(.2)).front());
         if (ShapeBatch::prepare(device, mixed))

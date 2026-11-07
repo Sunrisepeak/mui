@@ -72,9 +72,12 @@ int main(int argc, char** argv) {
     });
 
     s.test("noise is the same bits on every platform", [] {
-        // Pinned on x86-64 Linux; every CI platform must reproduce them.
-        check(mlibs::math::gradient_noise(.37, 1.91, 2026).value == -0x1.e0f11f2e3f4b7p-4, std::format("{:a}", mlibs::math::gradient_noise(.37, 1.91, 2026).value));
-        check(mlibs::math::curl_noise(-8.125, 3.5, 11)[0] == -0x1.9dc4bb5631ef3p-2, std::format("{:a}", mlibs::math::curl_noise(-8.125, 3.5, 11)[0]));
+        // Pinned on x86-64 Linux; every CI platform must reproduce them. Re-pinned when the
+        // lattice hash became 32-bit (noise_key, so shaders compute the same lattice).
+        check(mlibs::math::noise_key(-3, 7, 2026) == mlibs::math::noise_key(-3, 7, 2026) && mlibs::math::noise_key(0, 0, 0) == 0xa0117be9u,
+              std::format("{:#010x}", mlibs::math::noise_key(0, 0, 0)));
+        check(mlibs::math::gradient_noise(.37, 1.91, 2026).value == -0x1.d59320dd4e38p-2, std::format("{:a}", mlibs::math::gradient_noise(.37, 1.91, 2026).value));
+        check(mlibs::math::curl_noise(-8.125, 3.5, 11)[0] == -0x1.caba83bcb592bp-1, std::format("{:a}", mlibs::math::curl_noise(-8.125, 3.5, 11)[0]));
     });
     return s.run(argc, argv);
 }

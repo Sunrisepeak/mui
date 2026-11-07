@@ -26,6 +26,7 @@ mlibs.shader.rules = { path = "../../../gfx/shader/rules", host-module = true }
 
 [dependencies]
 hanim.core  = { path = "../core" }
+mlibs.math  = { path = "../../../base/math" }
 mlibs.rhi   = { path = "../../../gfx/rhi" }
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.cts   = { path = "../../../base/cts" }

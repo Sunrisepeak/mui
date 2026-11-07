@@ -25,6 +25,18 @@ inline constexpr std::uint64_t golden = 0x9e3779b97f4a7c15ull;
 // splitmix64's output for state x: a number from a key, without a stream.
 [[nodiscard]] constexpr std::uint64_t mix64(std::uint64_t x) noexcept { return finalize(x + golden); }
 
+// The same in 32 bits, for what a shader must compute alike (a GPU has no
+// 64-bit integers everywhere: WebGPU): Wellons' lowbias32 finaliser, the
+// golden ratio's 32-bit fraction as the step, and a 64-bit key folded.
+inline constexpr std::uint32_t golden32 = 0x9e3779b9u;
+[[nodiscard]] constexpr std::uint32_t finalize32(std::uint32_t z) noexcept {
+    z = (z ^ (z >> 16)) * 0x7feb352du;
+    z = (z ^ (z >> 15)) * 0x846ca68bu;
+    return z ^ (z >> 16);
+}
+[[nodiscard]] constexpr std::uint32_t mix32(std::uint32_t x) noexcept { return finalize32(x + golden32); }
+[[nodiscard]] constexpr std::uint32_t fold32(std::uint64_t x) noexcept { return static_cast<std::uint32_t>(x ^ (x >> 32)); }
+
 // A stream: next() is mix64 of the state before, the state advanced by golden.
 struct SplitMix64 {
     std::uint64_t state = 0;

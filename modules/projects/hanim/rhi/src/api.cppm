@@ -3,8 +3,8 @@
 // ends' cubics uploaded once, every control point interpolated by one compute
 // dispatch per sample. The same semantics as PreparedShapeMorph::sample in
 // 32-bit floats (error: about 1e-6 of the coordinates' magnitude, CPU reference
-// in double); path noise is refused, not approximated (its lattice hash needs
-// 64-bit integers, which WebGPU lacks): such a plan is sampled on the CPU.
+// in double), path noise included: mlibs.math's noise lattice is 32-bit
+// integer arithmetic (noise_key), so the shader computes the same field.
 //
 //     auto batch = hanim::gpu::ShapeBatch::prepare(device, plans);
 //     (*batch)->record(commands, 0.5, output);   // output: (*batch)->floats() floats, x then y per

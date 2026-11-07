@@ -2,6 +2,7 @@ module hanim.rhi.api;
 
 import std;
 import mlibs.trace;
+import mlibs.math;
 import :shape_shaders;
 
 namespace hanim::gpu {
@@ -31,9 +32,6 @@ ShapeBatch::prepare(rhi::Device& device, std::span<const PreparedShapeMorph> pla
     if (!device.caps().compute)
         return refuse(rhi::Errc::unsupported, "shape batches need compute");
     const auto path = plans.front().point_path();
-    if (path.noise.amplitude != 0)
-        return refuse(rhi::Errc::unsupported,
-                      "path noise is evaluated on the CPU (its hash needs 64-bit integers)");
     std::vector<float> from, to;
     auto batch = std::unique_ptr<ShapeBatch>(new ShapeBatch(device));
     batch->path_ = path;
@@ -97,16 +95,26 @@ rhi::Result<void> ShapeBatch::record(rhi::CommandList& commands, double progress
     struct Params {
         std::uint32_t points;
         float progress, control1_x, control1_y, control2_x, control2_y;
-        std::uint32_t curved, pad;
+        std::uint32_t curved, field;
+        float noise_amplitude, noise_scale, noise_speed;
+        std::uint32_t seed_a, seed_b, pad0, pad1, pad2;
     };
+    const auto& noise = path_.noise;
+    const bool noisy = noise.amplitude != 0;
     const Params params{static_cast<std::uint32_t>(segments_ * 4),
                         static_cast<float>(std::clamp(progress, 0.0, 1.0)),
                         static_cast<float>(path_.control1.x),
                         static_cast<float>(path_.control1.y),
                         static_cast<float>(path_.control2.x),
                         static_cast<float>(path_.control2.y),
-                        path_.linear() ? 0u : 1u,
-                        0u};
+                        path_.control1 == Vec2{} && path_.control2 == Vec2{} ? 0u : 1u,
+                        !noisy ? 0u : noise.field == PathNoise::Field::curl ? 2u : 1u,
+                        static_cast<float>(noise.amplitude),
+                        static_cast<float>(noise.scale),
+                        static_cast<float>(noise.speed),
+                        mlibs::math::fold32(noise.seed),
+                        mlibs::math::fold32(noise.seed ^ mlibs::math::golden),
+                        0u, 0u, 0u};
     const std::array writes{output};
     commands.begin_compute({}, writes);
     commands.set_pipeline(pipeline_);

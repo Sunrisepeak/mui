@@ -1,7 +1,8 @@
 // mlibs.math.api:noise — coherent noise that is the same everywhere: 2D
 // gradient noise (Perlin's, with his quintic fade) and its curl, a swirling
-// field without sources or sinks. Lattice gradients come from mix64 of the
-// cell and a seed, one of sixteen exact directions; the arithmetic is the
+// field without sources or sinks. Lattice gradients come from mix32 of the
+// cell and the seed folded to 32 bits — integer arithmetic a shader does
+// alike (noise_key) — one of sixteen exact directions; the arithmetic is the
 // five correctly rounded operations and floor, so every platform gives the
 // same bits. Animation (path noise), simulation (force fields) and
 // materials share it (convergence plan §6.9).
@@ -40,11 +41,19 @@ inline constexpr std::array<std::array<double, 2>, 16> noise_directions{{
     {0.7071067811865476, -0.7071067811865476},
     {0.9238795325112867, -0.3826834323650898},
 }};
+}  // namespace detail
+
+// The lattice's key for a cell (its coordinates' low 32 bits) and a seed
+// folded to 32 bits: its top four bits choose the cell's gradient direction.
+// Unsigned 32-bit arithmetic, wrapping, so a shader mirrors it exactly.
+[[nodiscard]] constexpr std::uint32_t noise_key(std::int64_t cell_x, std::int64_t cell_y, std::uint32_t seed) noexcept {
+    return mix32(static_cast<std::uint32_t>(cell_x) * 0x9e3779b1u ^ mix32(static_cast<std::uint32_t>(cell_y) ^ seed));
+}
+
+namespace detail {
 inline const std::array<double, 2>& lattice_direction(std::int64_t cell_x, std::int64_t cell_y,
                                                       std::uint64_t seed) noexcept {
-    const auto key = mix64(static_cast<std::uint64_t>(cell_x) * 0xd6e8feb86659fd93ull ^
-                           mix64(static_cast<std::uint64_t>(cell_y) ^ seed));
-    return noise_directions[key >> 60];
+    return noise_directions[noise_key(cell_x, cell_y, fold32(seed)) >> 28];
 }
 }  // namespace detail
 

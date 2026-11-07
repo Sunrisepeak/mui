@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
         const auto report = hanim::gpu::cts::run(*d, {.subject = d->caps().device, .platform = "sdl"}, {.required = {"compute"}}, &totals);
         std::print("{}", report.text());
         check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size(), report.text());
-        check_eq(totals.scenarios, 3u);
+        check_eq(totals.scenarios, 4u);
         std::println("shape batches: {} samples, {} points, largest difference {}", totals.samples, totals.compared_points, totals.largest_difference);
         std::ofstream(scratch_dir("rhi") / "sdl-shape.cts.omui.json") << report.json();
     });

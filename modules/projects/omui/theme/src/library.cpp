@@ -313,7 +313,8 @@ std::string write_style(const Style& st) {
         std::string ambient;
         if (const auto& a = sh.ambient)
             ambient = std::format(", ambient = {{ x = {}, y = {}, blur = {}, spread = {}, color = {} }}", a->offset.x, a->offset.y, a->blur, a->spread, colour(a->color));
-        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {}{} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color), ambient);
+        const std::string tint = sh.tint != 0 ? std::format(", tint = {}", sh.tint) : std::string{};
+        return std::format("{{ x = {}, y = {}, blur = {}, spread = {}, color = {}{}{} }}", sh.offset.x, sh.offset.y, sh.blur, sh.spread, colour(sh.color), tint, ambient);
     });
     section("motion", t.motion, [](const Transition& m) {
         std::string f = m.kind == Transition::Kind::spring

@@ -57,6 +57,21 @@ void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const Co
         paint_shadow(ctx.list, box, r, it->second);
 }
 
+void depth(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& radii, bool hovered, bool pressed,
+           std::optional<ShadowToken> fallback, Color object) {
+    const auto& shadows = ctx.theme.shadows;
+    const auto named = [&](std::string_view state) -> const ShadowToken* {
+        const auto it = shadows.find(state.empty() ? std::string(token) : std::format("{}:{}", token, state));
+        return it == shadows.end() ? nullptr : &it->second;
+    };
+    const ShadowToken* shown = pressed ? named("pressed") : nullptr;
+    if (!shown && (hovered || pressed)) shown = named("hovered");
+    if (!shown) shown = named("");
+    if (!shown && fallback) shown = &*fallback;
+    const auto seen = [](const ShadowToken& s) { return s.color.a > 0 || (s.ambient && s.ambient->color.a > 0); };
+    if (shown && seen(*shown)) paint_shadow(ctx.list, box, radii, *shown, 1, object);
+}
+
 void Label::set_text(std::string text) {
     if (text == text_) return;
     text_ = std::move(text);

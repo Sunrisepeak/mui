@@ -382,6 +382,19 @@ void DisplayList::mesh(const Paint& base, std::span<const Point> positions, std:
     }
 }
 
+void DisplayList::smooth_corners(std::size_t from, std::size_t to, float smoothing) {
+    if (!(smoothing > 0)) return;
+    for (std::size_t i = from; i < std::min(to, commands_.size()); ++i)
+        std::visit(
+            [&](auto& c) {
+                using T = std::decay_t<decltype(c)>;
+                if constexpr (std::same_as<T, FillRoundRect> || std::same_as<T, StrokeRoundRect> || std::same_as<T, BoxShadow> ||
+                              std::same_as<T, PushClipRect>)
+                    if (c.radii.smoothing == 0 && !c.radii.zero()) c.radii.smoothing = smoothing;
+            },
+            commands_[i]);
+}
+
 void DisplayList::push_clip(const Rect& r, const CornerRadii& radii) { commands_.emplace_back(PushClipRect{r, radii}); }
 void DisplayList::push_clip(const Path& path, FillRule rule) { commands_.emplace_back(PushClipPath{own(path), rule}); }
 void DisplayList::pop_clip() { commands_.emplace_back(PopClip{}); }

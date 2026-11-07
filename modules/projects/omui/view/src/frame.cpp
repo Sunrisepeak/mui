@@ -764,6 +764,8 @@ void Runtime::Impl::paint_node(NodeId id) {
             const Rect f = k.frame;
             shapes[count++] = {{f.x + k.visual[Field::translate_x], f.y + k.visual[Field::translate_y], f.width, f.height}, k.visual.corners(f.size())};
         }
+        for (std::size_t i = 0; i < count; ++i)  // the shapes an effect reads, with the corners drawn
+            if (shapes[i].radii.smoothing == 0 && !shapes[i].radii.zero()) shapes[i].radii.smoothing = theme.corner_smoothing;
         // The last of the list outermost: pushed first.
         for (auto it = n.more_effects.rbegin(); it != n.more_effects.rend(); ++it) {
             const xrender::EffectInfo* info = xrender::effects().info(it->effect);
@@ -812,7 +814,9 @@ void Runtime::Impl::paint_node(NodeId id) {
     const std::size_t first_glyphs = list.commands().size();
     if (type.paint) {
         PaintContext ctx{self, list, id, size, content, n.state, theme};
+        const std::size_t before = list.size();
         type.paint(n.instance, ctx);
+        list.smooth_corners(before, list.size(), theme.corner_smoothing);  // the theme's corners over what it drew
     }
     const Point off = n.content_offset;
     const bool shifted = off.x != 0 || off.y != 0;
@@ -826,7 +830,9 @@ void Runtime::Impl::paint_node(NodeId id) {
     Node& again = at(id);
     if (type.paint_over) {
         PaintContext ctx{self, list, id, size, content, again.state, theme};
+        const std::size_t before = list.size();
         type.paint_over(again.instance, ctx);
+        list.smooth_corners(before, list.size(), theme.corner_smoothing);
     }
     // The node's glyph motion takes the text of its whole drawing (D-68): its
     // own, and its descendants' that have none of their own.

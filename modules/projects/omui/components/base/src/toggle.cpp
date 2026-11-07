@@ -87,7 +87,7 @@ void Toggle::paint(PaintContext& ctx) const {
     const float d = track_h - 2 * thumb_inset;
     const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
     const Rect thumb{x, y + thumb_inset, d, d};
-    ctx.list.box_shadow(thumb, CornerRadii::all(d / 2), {0, 1}, 2, 0, th.color("scrim").with_alpha(0.25f));
+    parts::depth(ctx, "switch_thumb", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, ShadowToken{{0, 1}, 2, 0, th.color("scrim").with_alpha(0.25f)});
     ctx.list.fill_round_rect(thumb, CornerRadii::all(d / 2), xrender::Paint::solid(th.color("thumb")));
 
     if (!label_.text().empty()) {

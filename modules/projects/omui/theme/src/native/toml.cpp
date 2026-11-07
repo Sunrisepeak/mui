@@ -16,7 +16,7 @@ namespace {
 constexpr std::array<std::string_view, 12> theme_keys{"doc",     "dark",   "extends", "overlay", "density", "colors",
                                                       "text",    "spacing", "radius", "shadows", "motion", "corner_smoothing"};
 constexpr std::array<std::string_view, 5> text_keys{"size", "weight", "line_height", "letter_spacing", "families"};
-constexpr std::array<std::string_view, 6> shadow_keys{"x", "y", "blur", "spread", "color", "ambient"};
+constexpr std::array<std::string_view, 7> shadow_keys{"x", "y", "blur", "spread", "color", "ambient", "tint"};
 constexpr std::array<std::string_view, 5> shadow_layer_keys{"x", "y", "blur", "spread", "color"};
 constexpr std::array<std::string_view, 12> style_keys{"doc",    "theme",   "crossfade", "effects", "motions", "colors",
                                                       "text",   "spacing", "radius",    "shadows", "motion", "corner_smoothing"};
@@ -153,6 +153,11 @@ struct Reader {
             if (auto* x = from.get("color")) into.color = color(*x, "a shadow's colour").value_or(into.color);
         };
         layer(*t, s);
+        if (auto* x = t->get("tint")) {
+            const auto tint = number(*x, "tint", 0).value_or(0);
+            if (tint > 1) error(x, "a shadow's tint is 0 … 1: how much of the colour of what casts it the shadow takes");
+            else s.tint = tint;
+        }
         // Under the key light's shadow, the ambient one: wide, soft, faint.
         if (const toml::node* a = t->get("ambient")) {
             if (const toml::table* at = a->as_table()) {

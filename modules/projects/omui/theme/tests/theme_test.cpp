@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
     s.test("the default theme file is the runtime's built-in tokens, light and dark", [&] {
         auto added = lib.add_file(default_file);
         check(added.has_value(), added ? "" : all(added.error()));
-        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
+        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion", "refined"}));
         auto light = lib.compose(L({"light"}));
         check(light.has_value(), light ? "" : light.error());
         if (light) check_eq(difference(*light, Theme::light()), std::string());
@@ -315,6 +315,7 @@ theme = "light"
 corner_smoothing = 0.6
 [style.smooth.shadows]
 lg = { x = 0, y = 12, blur = 24, spread = -6, color = "#0f172a2e", ambient = { x = 0, y = 2, blur = 48, spread = 0, color = "#0f172a14" } }
+control_accent = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a38", tint = 0.6 }
 )toml";
         auto added = lib.add_styles(smooth, "smooth.style.omui.toml");
         check(added.has_value(), added ? "" : all(added.error()));
@@ -322,15 +323,40 @@ lg = { x = 0, y = 12, blur = 24, spread = -6, color = "#0f172a2e", ambient = { x
         check(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f), "the theme's corners are smoothed");
         if (const auto st = lib.find_style("smooth")) {
             const std::string text = theme::write_style(*st);
-            check(text.contains("corner_smoothing = 0.6") && text.contains("ambient = { x = 0, y = 2, blur = 48"), text);
+            check(text.contains("corner_smoothing = 0.6") && text.contains("ambient = { x = 0, y = 2, blur = 48") && text.contains("tint = 0.6"), text);
         }
         // Shadows in layers: the key light's, and under it the ambient one.
         if (t) {
             const auto lg = t->shadows.find("lg");
             check(lg != t->shadows.end() && lg->second.blur == 24 && lg->second.ambient && lg->second.ambient->blur == 48, "the lg shadow has its ambient layer");
         }
+        // A shadow that takes the colour of what casts it.
+        if (t) {
+            const auto accent = t->shadows.find("control_accent");
+            check(accent != t->shadows.end() && accent->second.tint == 0.6f, "the accent shadow is tinted");
+        }
         auto bad = lib.add_styles("[style.rough]\ntheme = \"light\"\ncorner_smoothing = 2\n", "rough.style.omui.toml");
         check(!bad.has_value(), "2 is out of range");
+        auto overtinted = lib.add_styles("[style.ink2]\ntheme = \"light\"\n[style.ink2.shadows]\nsm = { tint = 1.5 }\n", "ink2.style.omui.toml");
+        check(!overtinted.has_value(), "a tint over 1 is refused");
+    });
+
+    s.test("the refined overlay (B4, staged): continuous corners, layered shadows, controls' depth by state", [&] {
+        auto t = lib.compose(L({"light", "refined"}));
+        check(t.has_value(), t ? "" : t.error());
+        if (!t) return;
+        check(t->corner_smoothing == 0.6f);
+        for (const char* name : {"sm", "md", "lg", "control", "control:hovered", "control:pressed", "control_accent", "thumb", "thumb:pressed", "switch_thumb"}) {
+            const auto it = t->shadows.find(name);
+            check(it != t->shadows.end() && it->second.ambient.has_value(), name);
+        }
+        check(t->shadows.at("control:hovered").offset.y > t->shadows.at("control").offset.y &&
+                  t->shadows.at("control:pressed").offset.y < t->shadows.at("control").offset.y,
+              "lifted under the pointer, tighter pressed");
+        check(t->shadows.at("control_accent").tint > 0, "an accent control's shadow takes its colour");
+        auto plain = lib.compose(L({"light"}));
+        check(plain && plain->corner_smoothing == 0 && plain->shadows.at("control").color.a == 0 && !plain->shadows.at("lg").ambient,
+              "without it, the defaults as they are: flat buttons, one-layer shadows");
     });
 
     s.test("a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused", [&] {

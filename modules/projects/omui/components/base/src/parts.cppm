@@ -35,6 +35,14 @@ void check_mark(PaintContext& ctx, Point c, float size, Color color, float width
 // The theme's shadow `token` (sm, md, lg) under a box.
 void shadow(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& r);
 
+// A control's depth, from the theme: its shadow `token` ("control",
+// "thumb"), as the state it is in has it — "<token>:pressed" tighter,
+// "<token>:hovered" lifted — when the theme names that; `fallback` (the
+// control's own) when the theme names none; tinted by `object`, the colour
+// of what casts it.
+void depth(PaintContext& ctx, std::string_view token, const Rect& box, const CornerRadii& radii, bool hovered, bool pressed,
+           std::optional<ShadowToken> fallback = std::nullopt, Color object = Color::transparent());
+
 // One line (or a wrapped block) of text in a theme text style, shaped when
 // its text, style, colour or width changes and not otherwise.
 class Label {

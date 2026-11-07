@@ -455,6 +455,11 @@ public:
                 commands_[i]);
     }
 
+    // Gives every rounded shape of the commands [from, to) — rounded fills,
+    // rounded strokes, shadows, rounded clips — `smoothing` where it has none
+    // of its own: a theme's corners over whatever a component drew.
+    void smooth_corners(std::size_t from, std::size_t to, float smoothing);
+
 private:
     Path mesh_scratch_;  // draw_mesh's triangle, reused
     // The material copied last into the arena: the triangles of a mesh (and a

@@ -95,6 +95,9 @@ void Button::paint(PaintContext& ctx) const {
 
     Color fill = mix(c.base, c.hover, h);
     fill = mix(fill, c.pressed, std::clamp(p, 0.0f, 1.0f));
+    // Its depth, the theme's: resting, lifted under the pointer, tighter pressed.
+    if (!off && c.base.a > 0)
+        parts::depth(ctx, props.variant == ButtonVariant::secondary ? "control" : "control_accent", box, radii, h > 0, p > 0, std::nullopt, c.base);
     if (fill.a > 0) ctx.list.fill_round_rect(box, radii, xrender::Paint::solid(fill));
     if (c.border) {
         CornerRadii inner = radii;

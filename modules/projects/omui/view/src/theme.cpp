@@ -99,6 +99,16 @@ Theme Theme::light() {
     t.shadows["sm"] = {{0, 1}, 2, 0, Color::hex(0x0f172a, 0.08f)};
     t.shadows["md"] = {{0, 4}, 12, -2, Color::hex(0x0f172a, 0.12f)};
     t.shadows["lg"] = {{0, 12}, 32, -4, Color::hex(0x0f172a, 0.18f)};
+    // Controls' depth (parts::depth), by state: buttons flat, thumbs raised a
+    // little and the same under the pointer and pressed.
+    const ShadowToken flat{{0, 0}, 0, 0, Color::transparent()};
+    const ShadowToken thumb{{0, 1}, 3, 0, Color::hex(0x0f172a, 0.3f)}, switch_thumb{{0, 1}, 2, 0, Color::hex(0x0f172a, 0.25f)};
+    for (const std::string state : {"", ":hovered", ":pressed"}) {
+        t.shadows["control" + state] = flat;
+        t.shadows["control_accent" + state] = flat;
+        t.shadows["thumb" + state] = thumb;
+        t.shadows["switch_thumb" + state] = switch_thumb;
+    }
     common(t);
     return t;
 }
@@ -520,10 +530,18 @@ std::optional<std::vector<MotionSpec>> parse_motions(const Value& v, const Theme
     return out;
 }
 
-void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity) {
-    if (const auto& a = shadow.ambient)
-        list.box_shadow(box, radii, a->offset, a->blur, a->spread, opacity == 1 ? a->color : a->color.with_alpha(a->color.a * opacity));
-    list.box_shadow(box, radii, shadow.offset, shadow.blur, shadow.spread, opacity == 1 ? shadow.color : shadow.color.with_alpha(shadow.color.a * opacity));
+void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity,
+                  Color object) {
+    const float tint = object.a > 0 ? std::clamp(shadow.tint, 0.0f, 1.0f) : 0.0f;
+    const auto shade = [&](Color color) {
+        if (tint > 0) {
+            const float keep = 1 - tint;
+            color = {color.r * keep + object.r * tint, color.g * keep + object.g * tint, color.b * keep + object.b * tint, color.a};
+        }
+        return opacity == 1 ? color : color.with_alpha(color.a * opacity);
+    };
+    if (const auto& a = shadow.ambient) list.box_shadow(box, radii, a->offset, a->blur, a->spread, shade(a->color));
+    list.box_shadow(box, radii, shadow.offset, shadow.blur, shadow.spread, shade(shadow.color));
 }
 
 }  // namespace omui

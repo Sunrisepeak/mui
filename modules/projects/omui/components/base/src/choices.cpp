@@ -349,7 +349,8 @@ void RangeSlider::paint(PaintContext& ctx) const {
             ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r), xrender::Paint::solid(th.color("accent").with_alpha(0.18f)));
         }
         const Rect thumb{c.x - range_thumb / 2, c.y - range_thumb / 2, range_thumb, range_thumb};
-        ctx.list.box_shadow(thumb, CornerRadii::all(range_thumb / 2), {0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f));
+        parts::depth(ctx, "thumb", thumb, CornerRadii::all(range_thumb / 2), false, !off && dragging_ == i,
+              ShadowToken{{0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f)});
         ctx.list.fill_round_rect(thumb, CornerRadii::all(range_thumb / 2), xrender::Paint::solid(th.color("thumb")));
         ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, range_thumb - 2, range_thumb - 2}, CornerRadii::all(range_thumb / 2 - 1), 2,
                                    xrender::Paint::solid(th.color("accent")));

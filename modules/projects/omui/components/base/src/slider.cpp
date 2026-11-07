@@ -103,7 +103,7 @@ void Slider::paint(PaintContext& ctx) const {
                                  xrender::Paint::solid(th.color("accent").with_alpha(0.18f * std::min(1.0f, halo))));
     }
     const Rect thumb{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d};
-    ctx.list.box_shadow(thumb, CornerRadii::all(thumb_d / 2), {0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f));
+    parts::depth(ctx, "thumb", thumb, CornerRadii::all(thumb_d / 2), hover_ > 0, dragging_ && !off, ShadowToken{{0, 1}, 3, 0, th.color("scrim").with_alpha(0.3f)});
     ctx.list.fill_round_rect(thumb, CornerRadii::all(thumb_d / 2), xrender::Paint::solid(th.color("thumb")));
     ctx.list.stroke_round_rect({thumb.x + 1, thumb.y + 1, thumb_d - 2, thumb_d - 2}, CornerRadii::all(thumb_d / 2 - 1), 2,
                                xrender::Paint::solid(th.color("accent")));

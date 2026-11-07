@@ -39,6 +39,9 @@ struct ShadowToken {
     float spread = 0;
     Color color{0, 0, 0, 0.15f};
     std::optional<ShadowLayer> ambient;
+    // How much of the colour of what casts it the shadow takes, 0 … 1: an
+    // indigo button's shadow a little indigo, not grey.
+    float tint = 0;
 };
 
 // Reusable operations compiled into one seekable motion. They share a
@@ -213,6 +216,8 @@ public:
 
 // A shadow token under a rounded box: its ambient layer first, then its key
 // light's — every box, menu and dialog paints its shadow so. `opacity`
-// scales both (a menu fading in).
-void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1);
+// scales both (a menu fading in); `object`, the colour of what casts it,
+// tints both by the token's tint.
+void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii& radii, const ShadowToken& shadow, float opacity = 1,
+                  Color object = Color::transparent());
 }  // namespace omui

@@ -10,6 +10,8 @@ gongfu-studio sheet showcase/fighting/fighters mo --out mo.png   # every clip wi
 gongfu-studio versus showcase/fighting/fighters --rounds 200     # bots play every pair: the balance report
 ```
 
+Its operations, for agents and bindings, are a catalog ([`gongfu.ops.omui.toml`](gongfu.ops.omui.toml), listed in [`media/ops`](media/ops)); how an Agent makes and checks fighters with them is [`skill.omui.md`](skill.omui.md).
+
 - **Baking hurtboxes (G-5).**
   - Every frame of every move is posed by the look's clip for it.
   - Where a limb (a bone marked `limb = true` and its children) reaches out of the stance's box, past where it lies in the stance's resting pose, by 12 pixels or more, that frame gets the box and the limb's box.

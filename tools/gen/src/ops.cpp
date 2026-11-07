@@ -74,6 +74,8 @@ std::string schema_type(std::string_view type, std::string_view doc) {
         kind = "\"number\"";
     else if (type == "json")
         kind.clear();
+    else if (type == "path")
+        description = std::format("a file or directory path{}{}", doc.empty() ? "" : ": ", doc);
     else if (type != "string")
         description = std::format("a {} (its id){}{}", type, doc.empty() ? "" : ": ", doc);
     if (type == "seconds")

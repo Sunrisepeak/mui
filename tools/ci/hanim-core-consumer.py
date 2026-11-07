@@ -81,7 +81,8 @@ def main() -> int:
         # subsequent invocation; an absent lock must remain absent.
         report["temporary_lock_required"] = temporary_lock is not None
         expected_paths = {"hanim.validation.core_consumer": project, "hanim.core": repo / "modules/projects/hanim/core",
-                          "mlibs.math": repo / "modules/base/math", "mlibs.utils": repo / "modules/base/utils"}
+                          "mlibs.math": repo / "modules/base/math", "mlibs.utils": repo / "modules/base/utils",
+                          "mlibs.memory": repo / "modules/base/memory"}
         expected = set(expected_paths)
         for profile in ("dev", "release"):
             run = command(profile, [args.mcpp, "run", "--locked", "--profile", profile])
@@ -124,7 +125,7 @@ def main() -> int:
                 raise RuntimeError(f"{profile}: unexpected actual closure {sorted(identities)}")
             cdb = resolution.parent / "compile_commands.json"
             entries = json.loads(cdb.read_text(encoding="utf-8"))
-            allowed_sources = [project, repo / "modules/projects/hanim/core", repo / "modules/base/math", repo / "modules/base/utils"]
+            allowed_sources = [project, repo / "modules/projects/hanim/core", repo / "modules/base/math", repo / "modules/base/utils", repo / "modules/base/memory"]
             sources = []
             for entry in entries:
                 source = Path(entry["file"])

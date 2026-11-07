@@ -10,7 +10,7 @@ void sink(void* pointer, const mlibs::log::LogRecord& record) {
     auto& state = *static_cast<Logs*>(pointer);
     const auto latest = mlibs::log::recent_logs(1);
     state.history_visible &= latest.size() == 1 && latest.back().message == record.message && latest.back().category == record.category;
-    if (!latest.empty()) std::println("{}", omui::to_json(latest.back()));
+    if (!latest.empty()) std::println("{}", mlibs::log::to_json(latest.back()));
     ++state.count;
 }
 bool same(hanim::Vec2 a, hanim::Vec2 b) {

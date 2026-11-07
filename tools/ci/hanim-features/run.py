@@ -42,7 +42,7 @@ OBJECT = '''
     require(from.parts()[0].local.tx == 0 && to.parts()[0].local.tx == 40);
 '''
 LIBRARY = '''
-    auto morph = take(PreparedObjectMorph::prepare(from,to));
+    auto morph = take(PreparedObjectAnimation::prepare(from,to));
     std::vector<FramePart> parts(morph.requirements().parts);
     std::vector<ShapeCubic> cubics(morph.requirements().cubics);
     auto frame = take(morph.sample(.5,{parts,cubics}));
@@ -167,7 +167,7 @@ int main() {
                 raise RuntimeError('renderer enabled without opt-in')
             if (name == 'control') != ('mlibs.control' in packages):
                 raise RuntimeError('control dependency did not follow the selected feature')
-            if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math'}:
+            if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math','mlibs.utils','mlibs.memory'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))
             if ('object' in roles) != ('mlibs.geom' in packages):
                 raise RuntimeError('shared geometry must follow the object feature')
@@ -229,8 +229,8 @@ threads=false
         manifest = ('[package]\nnamespace="hanim.validation"\nname="packed_consumer"\nversion="0.1.0"\n'
                     '[targets.consumer]\nkind="bin"\nmain="src/main.cpp"\n[build]\nsources=["src/*.cpp"]\n'
                     '[dependencies]\n"hanim" = { path = '+json.dumps(str(installed))+' }\n')
-        for identity, relative in {'hanim.core':'hanim/core', 'mlibs.geom':'geom', 'mlibs.memory':'memory', 'mlibs.utils':'utils'}.items():
-            manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules/base'/relative))+' }\n'
+        for identity, relative in {'hanim.core':'projects/hanim/core', 'mlibs.geom':'base/geom', 'mlibs.memory':'base/memory', 'mlibs.utils':'base/utils'}.items():
+            manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules'/relative))+' }\n'
         (project/'mcpp.toml').write_text(manifest)
         shutil.copyfile(repo/'tools/ci/hanim-api-probe/src/main.cpp',project/'src/main.cpp')
         text = run(project, 'bootstrap', ['run','--profile','release'], True)
@@ -246,7 +246,8 @@ threads=false
             path=Path(entry['file']); directory=Path(entry['directory'])
             if not directory.is_absolute(): directory=project/directory
             path=(path if path.is_absolute() else directory/path).resolve()
-            if path.is_relative_to(product): raise RuntimeError('packed consumer compiled original product sources')
+            # hanim.core lives inside the product's directory as a package of its own.
+            if path.is_relative_to(product) and not path.is_relative_to(product/'core'): raise RuntimeError('packed consumer compiled original product sources')
         shutil.copyfile(resolution,artifacts/'packed.resolution.json')
         shutil.copyfile(cdb,artifacts/'packed.compile_commands.json')
         report['packed']={'archive':str(archive),'sha256':sha(archive),'bytes':archive.stat().st_size,

@@ -189,6 +189,7 @@ struct CatalogEntry {
     Cost cost = Cost::instant;    // instant: no work; frame: a frame's; bounded: bounded by its inputs; heavy: may take long
     std::string_view undo;        // how its effect is undone (empty for a read)
     bool cancellable = false;     // it can be cancelled while it runs
+    bool delegated = false;       // its effect is what it runs (an action, a verb), decided there; `operation.effect` is the most
 };
 // Cold synchronous admission. Bind authority before authorization callbacks;
 // keep this scope alive through domain execution and dependent output.

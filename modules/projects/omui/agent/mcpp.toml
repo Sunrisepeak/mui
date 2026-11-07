@@ -18,13 +18,14 @@ kind = "runtime"
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
 omui.core     = { path = "../core" }
 omui.view     = { path = "../view" }
 omui.semantic = { path = "../semantic" }
 mlibs.utils    = { path = "../../../base/utils" }
+mlibs.control  = { path = "../../../base/control" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
 mcpplibs.os      = "0.2.2"
 

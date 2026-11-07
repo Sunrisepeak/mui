@@ -137,6 +137,7 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
             operation.undo = (*entry)["undo"].value_or(std::string());
             operation.person = (*entry)["person"].value_or(false);
             operation.cancellable = (*entry)["cancellable"].value_or(false);
+            operation.delegated = (*entry)["delegated"].value_or(false);
             if (!dotted_name(operation.name))
                 problem(line, std::format("`{}` is not a dotted lowercase name (domain.verb)",
                                           operation.name));
@@ -151,6 +152,10 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
                                           operation.name, operation.cost));
             if (operation.summary.empty())
                 problem(line, std::format("`{}` says what it does (summary)", operation.name));
+            if (operation.delegated && operation.effect == "read")
+                problem(line, std::format("`{}` runs what it names: its effect is the most that "
+                                          "can be (not read)",
+                                          operation.name));
             if (operation.effect == "read" && !operation.undo.empty())
                 problem(line, std::format("`{}` reads: nothing to undo", operation.name));
             if (operation.effect != "read" && operation.undo.empty())
@@ -248,13 +253,14 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                        catalog.doc, catalog.operations.size());
     for (const auto& operation : catalog.operations)
         out +=
-            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}}},\n",
+            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}}},\n",
                         cpp_string(operation.name), effect_enum(operation.effect),
                         operation.person ? "true" : "false", cpp_string(operation.summary),
                         operation.parameters.empty() ? std::string("{}")
                                                      : "parameters_" + identifier(operation.name),
                         cpp_string(operation.result), operation.cost, cpp_string(operation.undo),
-                        operation.cancellable ? "true" : "false");
+                        operation.cancellable ? "true" : "false",
+                        operation.delegated ? "true" : "false");
     out += std::format("}}}};\n\n}}  // namespace {}\n", catalog.ns);
     return out;
 }
@@ -275,12 +281,12 @@ std::string emit_catalog_json(const Catalog& catalog) {
                     std::format("{}{}", required.empty() ? "" : ", ", json_string(parameter.name));
         }
         out += std::format("    {{\"name\": {}, \"description\": {}, \"effect\": {}, \"person\": "
-                           "{}, \"cost\": {}, \"undo\": {}, \"cancellable\": {}, "
-                           "\"result\": {},\n     \"inputSchema\": {{\"type\": \"object\", "
+                           "{}, \"delegated\": {}, \"cost\": {}, \"undo\": {}, "
+                           "\"cancellable\": {}, \"result\": {},\n     \"inputSchema\": {{\"type\": \"object\", "
                            "\"properties\": {{{}}}, \"required\": [{}]}}}}{}\n",
                            json_string(operation.name), json_string(operation.summary),
                            json_string(operation.effect), operation.person ? "true" : "false",
-                           json_string(operation.cost), json_string(operation.undo),
+                           operation.delegated ? "true" : "false", json_string(operation.cost), json_string(operation.undo),
                            operation.cancellable ? "true" : "false", json_string(operation.result),
                            properties, required, index + 1 < catalog.operations.size() ? "," : "");
     }
@@ -313,7 +319,10 @@ std::string emit_catalog_markdown(const Catalog& catalog) {
                             parameter.type, parameter.optional ? " (optional)" : "");
         out +=
             std::format("| `{}` — {} | {}{} | {} | {} | {} | {} | {} |\n", operation.name,
-                        operation.summary, operation.effect, operation.person ? " (a person)" : "",
+                        operation.summary,
+                        operation.delegated ? "at most " + operation.effect + ", as what it runs"
+                                            : operation.effect,
+                        operation.person ? " (a person)" : "",
                         parameters.empty() ? "—" : parameters,
                         operation.result.empty() ? "—" : operation.result, operation.cost,
                         operation.undo.empty() ? "—" : operation.undo,

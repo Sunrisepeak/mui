@@ -50,19 +50,19 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_animation_r
 
 // Prepare, play, inspect and steer animations on a host's one Engine.
 inline constexpr std::array<mlibs::control::CatalogEntry, 13> catalog{{
-    {{"animation.prepare", openas::Effect::read, false}, "Prepare an immutable animation plan", parameters_animation_prepare, "plan", mlibs::control::Cost::bounded, "", false},
-    {{"animation.play", openas::Effect::reversible, false}, "Start an authored or prepared animation", parameters_animation_play, "playback", mlibs::control::Cost::bounded, "animation.cancel with restore puts its objects back", false},
-    {{"animation.list", openas::Effect::read, false}, "List owned playback identities and transport state", {}, "json", mlibs::control::Cost::instant, "", false},
-    {{"animation.inspect", openas::Effect::read, false}, "Read one playback's transport state", parameters_animation_inspect, "json", mlibs::control::Cost::instant, "", false},
-    {{"animation.plan", openas::Effect::read, false}, "Read its immutable plan and channels", parameters_animation_plan, "plan", mlibs::control::Cost::instant, "", false},
-    {{"animation.seek", openas::Effect::reversible, false}, "Sample absolute seconds", parameters_animation_seek, "", mlibs::control::Cost::frame, "seek back to the position animation.inspect read", false},
-    {{"animation.seek-progress", openas::Effect::reversible, false}, "Sample normalized progress", parameters_animation_seek_progress, "", mlibs::control::Cost::frame, "seek back to the progress animation.inspect read", false},
-    {{"animation.pause", openas::Effect::reversible, false}, "Pause transport", parameters_animation_pause, "", mlibs::control::Cost::instant, "animation.resume", false},
-    {{"animation.resume", openas::Effect::reversible, false}, "Resume transport", parameters_animation_resume, "", mlibs::control::Cost::instant, "animation.pause", false},
-    {{"animation.reverse", openas::Effect::reversible, false}, "Reverse transport direction", parameters_animation_reverse, "", mlibs::control::Cost::instant, "animation.reverse again", false},
-    {{"animation.rate", openas::Effect::reversible, false}, "Set a nonzero signed rate", parameters_animation_rate, "", mlibs::control::Cost::instant, "animation.rate with the rate animation.inspect read", false},
-    {{"animation.cancel", openas::Effect::irreversible, false}, "Cancel a playback; optionally restore its initial pose", parameters_animation_cancel, "", mlibs::control::Cost::instant, "none: a cancelled playback stays cancelled (play its program again)", false},
-    {{"animation.release", openas::Effect::irreversible, false}, "Release a playback and invalidate its handle", parameters_animation_release, "", mlibs::control::Cost::instant, "none: the handle is gone (play its program again for a new one)", false},
+    {{"animation.prepare", openas::Effect::read, false}, "Prepare an immutable animation plan", parameters_animation_prepare, "plan", mlibs::control::Cost::bounded, "", false, false},
+    {{"animation.play", openas::Effect::reversible, false}, "Start an authored or prepared animation", parameters_animation_play, "playback", mlibs::control::Cost::bounded, "animation.cancel with restore puts its objects back", false, false},
+    {{"animation.list", openas::Effect::read, false}, "List owned playback identities and transport state", {}, "json", mlibs::control::Cost::instant, "", false, false},
+    {{"animation.inspect", openas::Effect::read, false}, "Read one playback's transport state", parameters_animation_inspect, "json", mlibs::control::Cost::instant, "", false, false},
+    {{"animation.plan", openas::Effect::read, false}, "Read its immutable plan and channels", parameters_animation_plan, "plan", mlibs::control::Cost::instant, "", false, false},
+    {{"animation.seek", openas::Effect::reversible, false}, "Sample absolute seconds", parameters_animation_seek, "", mlibs::control::Cost::frame, "seek back to the position animation.inspect read", false, false},
+    {{"animation.seek-progress", openas::Effect::reversible, false}, "Sample normalized progress", parameters_animation_seek_progress, "", mlibs::control::Cost::frame, "seek back to the progress animation.inspect read", false, false},
+    {{"animation.pause", openas::Effect::reversible, false}, "Pause transport", parameters_animation_pause, "", mlibs::control::Cost::instant, "animation.resume", false, false},
+    {{"animation.resume", openas::Effect::reversible, false}, "Resume transport", parameters_animation_resume, "", mlibs::control::Cost::instant, "animation.pause", false, false},
+    {{"animation.reverse", openas::Effect::reversible, false}, "Reverse transport direction", parameters_animation_reverse, "", mlibs::control::Cost::instant, "animation.reverse again", false, false},
+    {{"animation.rate", openas::Effect::reversible, false}, "Set a nonzero signed rate", parameters_animation_rate, "", mlibs::control::Cost::instant, "animation.rate with the rate animation.inspect read", false, false},
+    {{"animation.cancel", openas::Effect::irreversible, false}, "Cancel a playback; optionally restore its initial pose", parameters_animation_cancel, "", mlibs::control::Cost::instant, "none: a cancelled playback stays cancelled (play its program again)", false, false},
+    {{"animation.release", openas::Effect::irreversible, false}, "Release a playback and invalidate its handle", parameters_animation_release, "", mlibs::control::Cost::instant, "none: the handle is gone (play its program again for a new one)", false, false},
 }};
 
 }  // namespace hanim::control

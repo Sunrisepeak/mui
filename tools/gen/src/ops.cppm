@@ -23,6 +23,9 @@ struct OpParameter {
 struct Operation {
     std::string name, effect, summary, result, cost = "instant", undo;
     bool person = false, cancellable = false;
+    // Its effect is that of what it runs (a node's action, an application's verb),
+    // decided where that runs; `effect` is the most it can be.
+    bool delegated = false;
     std::vector<OpParameter> parameters;
     int line = 0;
 };

@@ -6,6 +6,7 @@ import omui.view;
 import omui.semantic;
 import mlibs.trace;
 import mlibs.pipeline;
+import mlibs.control;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -23,20 +24,34 @@ constexpr std::size_t default_children_limit = 256;
 constexpr Log protocol_log{"agent"};
 
 
-constexpr std::array<std::string_view, 20> operations{"describe", "snapshot", "changes", "find",     "act",   "invoke",  "undo",
-                                                       "redo",     "transaction", "history", "wait", "capture", "input", "inspect",
-                                                       "stats",    "profile",  "logs",     "debug",   "pipeline", "clock"};
+// The protocol's operations are its catalog's (omui.ops.omui.toml), named on the
+// wire without their `ui.` domain.
+constexpr std::string_view wire_domain = "ui.";
+constexpr std::string_view wire_name(const mlibs::control::CatalogEntry& entry) { return entry.operation.name.substr(wire_domain.size()); }
+static_assert(std::ranges::all_of(catalog, [](const auto& entry) { return entry.operation.name.starts_with(wire_domain); }),
+              "every operation of the protocol is in the ui domain");
+const mlibs::control::CatalogEntry* entry_of(std::string_view op) {
+    const auto it = std::ranges::find(catalog, op, wire_name);
+    return it == catalog.end() ? nullptr : &*it;
+}
 
-// Policy classifies protocol controls too; an act/invoke is checked again
-// against the actual action/verb effect by the Runtime. No caller-supplied
-// mode, cap, grant or presence field participates in authorization.
-Effect operation_effect(std::string_view op, const Value& req) {
-    if (op == "input" || op == "undo" || op == "redo" || op == "transaction" || op == "profile" || op == "debug")
-        return Effect::reversible;
+// Policy classifies protocol controls too: an operation that runs what it names
+// (act, invoke) is admitted as a read here and checked again by the Runtime
+// against the action's or verb's declared effect; showing the clock or the
+// pipeline reads. No caller-supplied mode, cap, grant or presence field
+// participates in authorization.
+Effect operation_effect(const mlibs::control::CatalogEntry& entry, const Value& req) {
+    if (entry.delegated) return Effect::read;
+    const auto op = wire_name(entry);
     const auto* action = req.get("action");
-    if ((op == "clock" || op == "pipeline") && action && !action->as_string().empty() && action->as_string() != "show")
-        return Effect::reversible;
-    return Effect::read;
+    if ((op == "clock" || op == "pipeline") && (!action || action->as_string().empty() || action->as_string() == "show"))
+        return Effect::read;
+    switch (entry.operation.effect) {
+    case openas::Effect::read: return Effect::read;
+    case openas::Effect::reversible: return Effect::reversible;
+    case openas::Effect::irreversible: return Effect::irreversible;
+    default: return Effect::external;
+    }
 }
 
 // A stage's configuration from a request's JSON object.
@@ -410,11 +425,11 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
     };
     auto current = invocation(req);
     if (!current) return current.error();
-    if (op != "describe" && std::ranges::find(operations, op) != operations.end())
-        if (auto stopped = denied(*current, operation_effect(op, req))) return std::move(*stopped);
+    if (const auto* entry = entry_of(op); entry && op != "describe")
+        if (auto stopped = denied(*current, operation_effect(*entry, req))) return std::move(*stopped);
     if (op == "describe") {
         Value::List ops;
-        for (std::string_view o : operations) ops.emplace_back(o);
+        for (const auto& entry : catalog) ops.emplace_back(wire_name(entry));
         Value d;
         d.set("interface", interface_name).set("spec", spec::version).set("app", options_.app).set("operations", Value(std::move(ops)));
         d.set("revision", static_cast<std::int64_t>(runtime_.semantic_revision()));
@@ -432,11 +447,12 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                 "Published or explicitly granted configurations use per-operation decisions.");
         if (session_) policy.set("session_owner", session_->owner());
         Value::List permissions;
-        for (std::string_view name : operations) {
+        for (const auto& entry : catalog) {
+            const std::string_view name = wire_name(entry);
             Value permission;
             const bool allowed = name == "describe" || (!denied(Invocation{.actor = current->actor, .remote = options_.remote,
                 .access = current->access, .session = session_, .operation = std::string(name)},
-                operation_effect(name, Value{})) && (name != "input" || options_.input));
+                operation_effect(entry, Value{})) && (name != "input" || options_.input));
             permission.set("operation", name).set("allowed", allowed);
             if (!allowed) permission.set("reason", !state.session_valid ? "session-invalid" :
                 !state.enabled ? "disabled" : name == "input" && !options_.input ? "host-input-disabled" :
@@ -806,7 +822,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     std::string known;
-    for (std::string_view o : operations) known += known.empty() ? std::string(o) : std::format(", {}", o);
+    for (const auto& entry : catalog) known += std::format("{}{}", known.empty() ? "" : ", ", wire_name(entry));
     return invalid(op.empty() ? std::string("a request names its operation in `op`") : std::format("no operation `{}`", op),
                    std::format("operations: {}", known));
 }

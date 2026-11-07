@@ -5,5 +5,6 @@ export module omui.agent;
 export import omui.core;
 export import omui.view;
 export import omui.semantic;
+export import :catalog;
 export import :protocol;
 export import :endpoint;

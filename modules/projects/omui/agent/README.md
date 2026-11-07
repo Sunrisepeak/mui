@@ -3,6 +3,12 @@
 The agent endpoint of an openmui application (spec §9, plan §11):
 `openmui.tree@0.1` as JSON lines.
 
+Its operations are its catalog's, [`omui.ops.omui.toml`](omui.ops.omui.toml)
+(convergence plan §10.3): `omui-gen ops` makes the protocol's table
+(`omui::agent::catalog`, effects and admission from it), the CLI/MCP listing
+and the reference in `src/catalog/`; how an Agent works with it is
+[`skill.omui.md`](skill.omui.md).
+
 - `Protocol` — one request per line (`describe`, `snapshot`, `changes`,
   `find`, `act`, `invoke`, `undo`, `redo`, `history`, `transaction`, `wait`,
   `capture`), answered by envelope records ending in a

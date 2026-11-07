@@ -272,6 +272,12 @@ summary = "something"
 name = "x.change"
 effect = "reversible"
 summary = "changes"
+
+[[operation]]
+name = "x.run"
+effect = "read"
+delegated = true
+summary = "runs what it names"
 )", "x.ops.omui.toml");
         check(!broken, "refused");
         if (broken) return;
@@ -280,6 +286,7 @@ summary = "changes"
         check(says("x.ops.omui.toml:6") && says("dotted lowercase"), "the bad name at its line");
         check(says("not read, reversible or irreversible"), "the bad effect");
         check(says("say how it is undone"), "a change without its undo");
+        check(says("the most that can be"), "a delegated operation's bound is above read");
     });
 
     return s.run(argc, argv);

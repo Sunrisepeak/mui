@@ -26,4 +26,11 @@ tools/eval/duel.sh kata mo
 DUEL_TURN=6 DUEL_TURNS=300 tools/eval/duel.sh kun ni
 ```
 
+`animate.py` is the animation task without a GUI (convergence plan §10.3): a real LLM agent — Claude Code (`claude -p`, the default) or codex — gets only hanim's skill, the document reference and the `hanim` command, and writes an animation document for each brief in [`animation-briefs.omui.json`](animation-briefs.omui.json) in an empty directory of its own. The grader checks each document through `hanim check` and `hanim sample` (the numbers at 600 moments, never the agent's word): where things start and end, bounces counted, overshoot, order and timing. Every trial and each run's success rate go to [`animation.eval.omui.jsonl`](../../.agents/docs/evaluation/animation.eval.omui.jsonl); an agent that cannot run (a quota, a login) is recorded as unavailable — neither a failure of the work nor a pass. `--grade DIR` grades one kept trial; each brief has a reference document that passes every check.
+
+```text
+tools/eval/animate.py --trials 3            # every brief, three times each
+tools/eval/animate.py --agent codex --only bounce,spring
+```
+
 An evaluation is one source among others. What was taken from it and what was not is written at the end of its report ("维护方的处理"), and in the round's summary (`reports/<date>-round-<n>.md`).

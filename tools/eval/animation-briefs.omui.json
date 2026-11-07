@@ -1,0 +1,27 @@
+{
+  "kind": "hanim.animation-briefs",
+  "version": 1,
+  "doc": "Briefs a real LLM animates without a GUI (convergence plan §10.3); tools/eval/animate.py grades each by sampling the document it wrote.",
+  "briefs": [
+    {
+      "id": "bounce",
+      "text": "On a 480 × 320 stage, an orange ball with id `ball` (a circle of radius 24) starts at (100, 60). It drops onto the ground — at the end of its fall its bottom edge is at y = 280 — bouncing at least twice, and only after it has landed for good it rolls right to x = 380 in 0.8 s, ending at rest there. Draw a ground line too if you like."
+    },
+    {
+      "id": "morph",
+      "text": "On a 480 × 320 stage, a blue 80 × 80 square with id `square` stands at the centre (240, 160). Over 1 s it morphs into a yellow circle of radius 40 at the same place (the circle is only the target shape: it is not drawn by itself). Then it pulses once (briefly grows a little and returns to its size)."
+    },
+    {
+      "id": "stagger",
+      "text": "On a 480 × 320 stage, five dots with ids `dot1` … `dot5` (circles of radius 10) stand in a row at y = 160, at x = 80, 160, 240, 320 and 400. They rise 60 px (to y = 100) one after another, each starting 0.1 s after the previous one, each rise taking 0.4 s; once all have risen, they all come back down to y = 160 together."
+    },
+    {
+      "id": "spring",
+      "text": "On a 480 × 320 stage, a white card with id `card` (a 160 × 100 rectangle with corners of radius 12) at (240, 160) starts at half its size and grows to full size on a spring that visibly overshoots before settling. After it has settled it turns 10 degrees clockwise and back to 0."
+    },
+    {
+      "id": "fade",
+      "text": "On a 480 × 320 stage, a title bar with id `bar` (a 300 × 40 rectangle, colour #4a90e2) starts invisible at (240, 200). Over 0.5 s it fades in to fully opaque while rising to (240, 160), both together."
+    }
+  ]
+}

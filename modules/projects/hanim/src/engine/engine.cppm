@@ -248,12 +248,17 @@ public:
     // acceleration that lasts (walking); a velocity added once, at its next
     // step (a hop). Each step's input is kept: replays are the same.
     [[nodiscard]] std::expected<void, EngineFailure> surfaces(BodyRef body, std::span<const xengine::simulation::Ledge> ledges);
+    // The bodies alone on by `elapsed` (their figures carried), for a host
+    // whose playbacks are sampled at positions of their own (the UI's).
+    [[nodiscard]] std::expected<void, EngineFailure> advance_bodies(seconds elapsed);
     // Another figure on the same body (an expression, a pose: the object
     // updated and shown by a new playback): its parts, beside the body's own,
     // carried from now on as the body is now — its squash, its lean — by the
     // ring it was made as. The body keeps its motion.
     [[nodiscard]] std::expected<void, EngineFailure> carry(BodyRef body, std::span<const std::string> parts);
     [[nodiscard]] std::expected<void, EngineFailure> push(BodyRef body, Vec2 acceleration);
+    // The speed its feet go at along what it stands on (0: standing).
+    [[nodiscard]] std::expected<void, EngineFailure> walk(BodyRef body, double speed);
     [[nodiscard]] std::expected<void, EngineFailure> hop(BodyRef body, Vec2 velocity);
     [[nodiscard]] std::expected<void, EngineFailure> unsimulate(BodyRef body);
     // The body's state (its particles, velocities), for tools and Agents.

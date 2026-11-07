@@ -417,6 +417,21 @@ void apply_bodies(detail::EngineData& data) noexcept {
         }
     }
 }
+// The bodies on by `elapsed` seconds, each at its fixed step.
+void step_bodies(detail::EngineData& data, double elapsed) noexcept {
+    for (auto& slot : data.bodies) {
+        if (!slot.live || !slot.history) continue;
+        slot.owed += elapsed;
+        const double step = slot.history->state().params.step;
+        // At most a second's steps at once: a stall is not owed afterwards.
+        for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
+            slot.history->step(slot.input);
+            slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
+            slot.owed -= step;
+        }
+        slot.owed = std::min(slot.owed, step);
+    }
+}
 void apply_constraints(detail::EngineData& data) noexcept {
     for (const auto index : data.constraint_order)
         if (data.constraints[index].live) apply(data, data.constraints[index].value);
@@ -716,18 +731,7 @@ Status Engine::advance(seconds elapsed) {
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
     if (elapsed.count() == 0) return {};
     data_->now += elapsed.count();
-    for (auto& slot : data_->bodies) {
-        if (!slot.live || !slot.history) continue;
-        slot.owed += elapsed.count();
-        const double step = slot.history->state().params.step;
-        // At most a second's steps at once: a stall is not owed afterwards.
-        for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
-            slot.history->step(slot.input);
-            slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
-            slot.owed -= step;
-        }
-        slot.owed = std::min(slot.owed, step);
-    }
+    step_bodies(*data_, elapsed.count());
     std::optional<EngineFailure> error;
     data_->playbacks.for_each([&](auto, detail::Playback& playback) {
         if (error || state(playback) != PlaybackState::playing) return;
@@ -1094,6 +1098,15 @@ std::expected<void, EngineFailure> Engine::pull(BodyRef ref, std::optional<Vec2>
     slot->input.pin.active = true;
     return {};
 }
+std::expected<void, EngineFailure> Engine::advance_bodies(seconds elapsed) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope scope(writing_);
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
+    step_bodies(*data_, elapsed.count());
+    apply_bodies(*data_);
+    return {};
+}
 std::expected<void, EngineFailure> Engine::carry(BodyRef ref, std::span<const std::string> parts) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     WriteScope scope(writing_);
@@ -1153,6 +1166,14 @@ std::expected<void, EngineFailure> Engine::push(BodyRef ref, Vec2 acceleration) 
     if (!std::isfinite(acceleration.x) || !std::isfinite(acceleration.y)) return std::unexpected(fail(EngineError::invalid_argument));
     slot->input.push_x = acceleration.x;
     slot->input.push_y = acceleration.y;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::walk(BodyRef ref, double speed) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!std::isfinite(speed)) return std::unexpected(fail(EngineError::invalid_argument));
+    slot->input.walk = speed;
     return {};
 }
 std::expected<void, EngineFailure> Engine::hop(BodyRef ref, Vec2 velocity) {

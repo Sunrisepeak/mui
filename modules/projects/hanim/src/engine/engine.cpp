@@ -128,7 +128,10 @@ Status sample_next(detail::Playback& playback, double position, bool exact_sourc
     }
     playback.pending_position = position;
     const auto duration = playback.program.duration().count();
-    playback.pending_linear_progress = exact_source ? 0 : duration == 0 ? 1 : position / duration;
+    // Forever: the fraction of the current course.
+    const auto natural = playback.program.natural_duration().count();
+    playback.pending_linear_progress = exact_source ? 0 : duration == 0 ? 1 :
+        std::isfinite(duration) ? position / duration : natural > 0 ? std::fmod(position, natural) / natural : 1;
     return {};
 }
 void publish(detail::Playback& playback) noexcept {
@@ -393,6 +396,8 @@ Status Engine::seek_progress(PlaybackRef ref, double progress) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     const auto playback = resolve(data_.get(), ref); if (!playback) return std::unexpected(playback.error());
     if (!std::isfinite(progress)) return std::unexpected(fail(EngineError::invalid_time));
+    // A program that loops forever has no fraction of its length: seek a time.
+    if (!std::isfinite((*playback)->program.duration().count())) return std::unexpected(fail(EngineError::unsupported_operation));
     return seek(ref, (*playback)->program.duration() * std::clamp(progress, 0.0, 1.0));
 }
 Status Engine::cancel(PlaybackRef ref, CancelMode mode) {

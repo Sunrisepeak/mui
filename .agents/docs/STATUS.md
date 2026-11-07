@@ -91,7 +91,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | lint `owner` | this checkpoint (D-113): `tools/lint/capabilities.owners.omui.toml`, six capabilities (fnv1a, splitmix64/fdlibm, flicks, OKLab, the handle's shape, a component animating itself); three private handles and example 05's OKLab moved onto their owners; the `motion` rule had been dead since M1 (it looked for `components/` at the root) |
 | hanim L2: typed channels | this checkpoint (D-114): `hanim::ch`, `anim::to/by(target, ch::x = v, …)`, `part(object, id)`, application channels as part values in `FrameView::values` |
 | hanim L1 in programs: springs | this checkpoint (D-115): `EaseKind::spring`, `.spring(params)`, `anim::spring`; overshooting curves overshoot properties |
-| hanim L4 time-mapping nodes; L5 interactive mode (`drive`, replacing `Set`, velocity carry-over); `visual` representation; v1 API; render (xrender) CTS on mlibs.cts | next |
+| hanim L4: time mapping, first step | this checkpoint (D-116): `timed`, `loop` (forever too), markers; whole programs only |
+| hanim L4 nested time maps (per-track spans); L5 interactive mode (`drive`, replacing `Set`, velocity carry-over); `visual` representation; v1 API; render (xrender) CTS on mlibs.cts | next |
 
 ## Next
 

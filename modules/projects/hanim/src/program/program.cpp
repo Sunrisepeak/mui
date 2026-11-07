@@ -13,6 +13,8 @@ struct ProgramNode {
     seconds step{0};
     seconds wait_duration{0};
     std::size_t repeat_count=0;
+    TimeMap map;
+    std::string marker;
     std::unique_ptr<const ProgramFailure> failure;
 };
 struct ProgramData {
@@ -23,7 +25,9 @@ struct ProgramData {
     std::size_t scope_parameters = 0;
     std::size_t property_channels = 0;
     std::size_t route_segments = 0;
-    seconds duration{0};
+    seconds duration{0}, natural{0};
+    std::optional<TimeMap> map;
+    std::vector<ProgramMarker> markers;
 };
 }
 namespace hanim {
@@ -71,6 +75,9 @@ struct Collect {
     std::size_t nodes=0;
     std::vector<ProgramNodeInfo> hierarchy;
     std::vector<ScopeInput> scopes;
+    std::vector<ProgramMarker> markers;
+    std::optional<TimeMap> map;
+    seconds natural{0};
     std::expected<Snapshot,ProgramFailure> capture(const ObjectInput& input,std::size_t node) const {
         if(const auto* snapshot=std::get_if<Snapshot>(&input))return *snapshot;
         if(!registry)return std::unexpected(failure(ProgramError::unresolved_object,node));
@@ -104,6 +111,26 @@ struct Collect {
             scopes.push_back({spec,{.node=node,.parent=scope,.depth=scope==invalid_program_index?1:scopes[scope].prepared.depth+1,
                 .start=seconds(start),.effect_easing=spec->options.effect_easing}});
             scope=next;hierarchy[node].scope=scope;
+        }
+        if(value.kind()==ProgramKind::marker) {
+            markers.push_back({std::string(value.marker_name()),seconds(start),node});
+            return start;
+        }
+        if(value.kind()==ProgramKind::timed) {
+            // One course, prepared once, then mapped; a map anywhere but the root waits for nested mapping.
+            if(node!=0)return std::unexpected(failure(ProgramError::nested_time_map,node));
+            const auto& m=*value.time_map();
+            if(!std::isfinite(m.rate) || m.rate<=0 || !std::isfinite(m.trim.count()) || m.trim.count()<0 || std::isnan(m.repeat) || m.repeat<=0 ||
+               (m.length && (!std::isfinite(m.length->count()) || m.length->count()<=0)) || m.fill>Fill::both)
+                return std::unexpected(failure(ProgramError::invalid_time,node));
+            branches.push_back({node,0,value.kind()});
+            auto child_end=visit(value.children()[0],start,depth+1,path+"/0",branches,node,scope);
+            branches.pop_back();if(!child_end)return std::unexpected(child_end.error());
+            natural=seconds(*child_end-start);map=m;
+            const auto mapped=mapped_length(m,natural);
+            if(std::isnan(mapped.count()))return std::unexpected(failure(ProgramError::invalid_time,node));
+            hierarchy[node].duration=mapped;hierarchy[node].subtree_end=nodes;
+            return start+mapped.count();
         }
         if(value.kind()==ProgramKind::wait) {
             const auto length=value.wait_duration();
@@ -421,6 +448,16 @@ Program bind(ProgramInputs inputs,Effects effects,SegmentOptions options,MorphOp
 }
 seconds Program::wait_duration() const noexcept {return node_ && node_->kind==ProgramKind::wait?node_->wait_duration:seconds(0);}
 std::size_t Program::repeat_count() const noexcept {return node_ && node_->kind==ProgramKind::repeat?node_->repeat_count:0;}
+Program timed(Program child,TimeMap map) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::timed;
+    node->children.push_back(std::move(child));node->map=map;return Program(std::move(node));
+}
+Program marker(std::string name) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::marker;
+    node->marker=std::move(name);return Program(std::move(node));
+}
+const TimeMap* Program::time_map() const & noexcept {return node_ && node_->kind==ProgramKind::timed?&node_->map:nullptr;}
+std::string_view Program::marker_name() const & noexcept {return node_ && node_->kind==ProgramKind::marker?std::string_view(node_->marker):std::string_view{};}
 Program repeat(std::size_t count,Program child) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::repeat;
     node->repeat_count=count;node->children.push_back(std::move(child));return Program(std::move(node));
@@ -466,6 +503,7 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::prepare_with(cons
     Collect collect{limits,registry};std::vector<Branch> branches;
     const auto duration=collect.visit(program,0,1,"0",branches);if(!duration)return refuse(duration.error());
     auto data=std::make_shared<detail::ProgramData>();data->duration=seconds(*duration);
+    data->map=collect.map;data->natural=collect.map?collect.natural:data->duration;data->markers=std::move(collect.markers);
     data->nodes=std::move(collect.hierarchy);
     for(auto& input:collect.scopes) {
         auto& scope=input.prepared;const auto index=data->scopes.size();
@@ -567,6 +605,11 @@ std::expected<PreparedProgram,ProgramFailure> PreparedProgram::single(PreparedOb
 }
 std::size_t PreparedProgram::route_segment_count() const noexcept {return data_?data_->route_segments:0;}
 seconds PreparedProgram::duration() const noexcept {return data_?data_->duration:seconds(0);}
+seconds PreparedProgram::natural_duration() const noexcept {return data_?data_->natural:seconds(0);}
+const TimeMap* PreparedProgram::time_map() const & noexcept {return data_ && data_->map?&*data_->map:nullptr;}
+std::span<const ProgramMarker> PreparedProgram::markers() const & noexcept {
+    return data_?std::span<const ProgramMarker>(data_->markers):std::span<const ProgramMarker>{};
+}
 std::span<const ProgramTrack> PreparedProgram::tracks() const & noexcept {return data_?std::span<const ProgramTrack>(data_->tracks):std::span<const ProgramTrack>{};}
 std::span<const PreparedSegment> PreparedProgram::segments() const & noexcept {return data_?std::span<const PreparedSegment>(data_->segments):std::span<const PreparedSegment>{};}
 std::span<const ProgramNodeInfo> PreparedProgram::nodes() const & noexcept {return data_?std::span<const ProgramNodeInfo>(data_->nodes):std::span<const ProgramNodeInfo>{};}
@@ -577,6 +620,10 @@ std::expected<void,ProgramFailure> PreparedProgram::sample_scopes(seconds time,s
     if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time));
     if(output.size()<data_->scope_parameters)return std::unexpected(failure(ProgramError::output_too_small));
     if(data_->scopes.empty())return {};
+    if(data_->map) {
+        const auto mapped=sample_time(*data_->map,seconds(0),data_->natural,time);
+        if(mapped)time=mapped->position;else exact_source=true;
+    }
     mlibs::trace::Span span("sample-scopes","hanim.program");
     auto progress=[&](std::size_t i) {
         const auto& scope=data_->scopes[i];auto error=failure(ProgramError::invalid_ease,scope.node);error.where.scope=i;
@@ -600,6 +647,12 @@ std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t 
     if(!data_)return std::unexpected(failure(ProgramError::unprepared));
     if(track_index>=data_->tracks.size())return std::unexpected(failure(ProgramError::invalid_track,invalid_program_index,track_index));
     if(!std::isfinite(time.count()))return std::unexpected(failure(ProgramError::invalid_time,invalid_program_index,track_index));
+    // A time-mapped program samples its one course at the mapped time; where
+    // its fill does not reach, the source shows.
+    if(data_->map) {
+        const auto mapped=sample_time(*data_->map,seconds(0),data_->natural,time);
+        if(mapped)time=mapped->position;else exact_source=true;
+    }
     const auto& track=data_->tracks[track_index];auto index=track.first_segment;
     if(!exact_source) {
         const auto begin=data_->segments.begin()+static_cast<std::ptrdiff_t>(track.first_segment);

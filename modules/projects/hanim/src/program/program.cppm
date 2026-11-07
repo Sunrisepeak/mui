@@ -13,7 +13,7 @@ struct SegmentOptions { seconds duration{1}; Ease easing = ease::linear; };
 // The first binding always uses its frozen source. Subsequent default bindings
 // of that logical ObjectRef use the preceding segment's actual boundary pose.
 enum class ProgramSource : std::uint8_t { previous_endpoint, snapshot };
-enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid, wait, repeat };
+enum class ProgramKind : std::uint8_t { empty, binding, sequence, parallel, stagger, composite, invalid, wait, repeat, timed, marker };
 struct CompositeOptions { Ease effect_easing = ease::linear; };
 struct CompositeSpec { Effects effects; CompositeOptions options; };
 struct ProgramBinding {
@@ -35,7 +35,7 @@ enum class ProgramError : std::uint8_t {
     segment_budget, part_budget, cubic_budget, effect_parameter_budget,
     source_version_mismatch, binding_conflict, animation, effect,
     invalid_track, output_too_small, unresolved_object, object, scope_budget,
-    channel_budget, scope_conflict, invalid_repeat, route_budget
+    channel_budget, scope_conflict, invalid_repeat, route_budget, nested_time_map
 };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(ProgramError e) noexcept {
@@ -68,6 +68,7 @@ enum class ProgramError : std::uint8_t {
         case ProgramError::scope_conflict: return {"hanim.program.scope-conflict", Kind::refused};
         case ProgramError::invalid_repeat: return {"hanim.program.invalid-repeat", Kind::invalid_argument};
         case ProgramError::route_budget: return {"hanim.program.route-budget", Kind::refused};
+        case ProgramError::nested_time_map: return {"hanim.program.nested-time-map", Kind::refused, "a time map maps a whole program, for now"};
     }
     return {"hanim.program.?", Kind::internal};
 }
@@ -99,6 +100,12 @@ public:
     // Nonzero only for an explicit wait node; never a blocking host sleep.
     [[nodiscard]] seconds wait_duration() const noexcept;
     [[nodiscard]] std::size_t repeat_count() const noexcept;
+    // Non-null for a time-mapped node (timed, loop).
+    [[nodiscard]] const TimeMap* time_map() const & noexcept;
+    const TimeMap* time_map() const && = delete;
+    // A marker node's name (empty for every other kind).
+    [[nodiscard]] std::string_view marker_name() const & noexcept;
+    std::string_view marker_name() const && = delete;
     // Non-null only for an explicitly rejected authoring expression. Its
     // domain cause survives composition; preparation supplies the node index.
     [[nodiscard]] const ProgramFailure* failure() const & noexcept;
@@ -109,6 +116,8 @@ private:
     friend Program bind(ProgramInputs, Effects, SegmentOptions, MorphOptions, ProgramSource, std::optional<PropertyTargets>, PropertySet);
     friend Program wait(seconds);
     friend Program repeat(std::size_t, Program);
+    friend Program timed(Program, TimeMap);
+    friend Program marker(std::string);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -125,7 +134,19 @@ private:
 // A pure timeline interval: no object, channel, callback or host clock.
 [[nodiscard]] Program wait(seconds duration);
 // Finite serial repetitions. The immutable descriptor retains only one child.
+// Each is prepared from where the last ended (a relative move goes on).
 [[nodiscard]] Program repeat(std::size_t count, Program child);
+// Time mapping (L4): the child prepared once and played through hanim.core's
+// TimeMap — rate, trim, repeats (fractional or forever), alternate, reverse,
+// fill. A repeat here replays the same course (a relative move starts over).
+// For now a time map maps a whole program (ProgramError::nested_time_map).
+[[nodiscard]] Program timed(Program child, TimeMap map);
+// `times` plays (forever by default), every other one backwards when `alternate`.
+[[nodiscard]] inline Program loop(Program child, double times = std::numeric_limits<double>::infinity(), bool alternate = false) {
+    return timed(std::move(child), TimeMap{.repeat = times, .alternate = alternate});
+}
+// A named instant (a beat, a cue): no object, no duration; PreparedProgram::markers().
+[[nodiscard]] Program marker(std::string name);
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
 [[nodiscard]] inline Program delay(seconds duration, Program child) {
@@ -346,6 +367,12 @@ struct ProgramLimits {
     std::size_t max_total_property_channels = 65536;
     std::size_t max_total_route_segments = 65536;
 };
+// A marker's place in the program (for a time-mapped program, in its course's own time).
+struct ProgramMarker {
+    std::string name;
+    seconds     time{0};
+    std::size_t node = 0;
+};
 struct ProgramContribution {
     std::size_t node = 0;
     std::string path;
@@ -422,7 +449,14 @@ public:
     [[nodiscard]] static std::expected<PreparedProgram, ProgramFailure> single(
         PreparedObjectMorph, PreparedEffects, SegmentOptions options = {}, bool anchor_source = false, ProgramLimits limits = {});
     [[nodiscard]] explicit operator bool() const noexcept { return bool(data_); }
+    // Its whole length in time: for a time-mapped program the mapped length
+    // (infinite when it loops forever); natural_duration() is one course.
     [[nodiscard]] seconds duration() const noexcept;
+    [[nodiscard]] seconds natural_duration() const noexcept;
+    [[nodiscard]] const TimeMap* time_map() const & noexcept;
+    const TimeMap* time_map() const && = delete;
+    [[nodiscard]] std::span<const ProgramMarker> markers() const & noexcept;
+    std::span<const ProgramMarker> markers() const && = delete;
     [[nodiscard]] std::size_t route_segment_count() const noexcept;
     [[nodiscard]] std::span<const ProgramTrack> tracks() const & noexcept;
     std::span<const ProgramTrack> tracks() const && = delete;

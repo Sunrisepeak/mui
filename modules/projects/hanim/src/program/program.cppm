@@ -395,10 +395,13 @@ struct DropOptions {
 
 // Entrances: from a pose of its own to where it is (it ends as it was).
 // Each fades in with the group opacity effect but write_in and drop_in.
+// Entrances and exits are hanim.core's courses (`hanim::course`), played
+// on the object: their poses, paces and fades are defined there once.
 [[nodiscard]] Program fade_in(ObjectInput object, RecipeOptions = {});
 [[nodiscard]] Program rise_in(ObjectInput object, double distance = 24, RecipeOptions = {});   // from below
 [[nodiscard]] Program sink_in(ObjectInput object, double distance = 24, RecipeOptions = {});   // from above
 [[nodiscard]] Program slide_in(ObjectInput object, Vec2 from = {-40, 0}, RecipeOptions = {});  // from that offset
+[[nodiscard]] Program settle_in(ObjectInput object, double scale = .96, RecipeOptions = {}); // from a little smaller, no overshoot (a UI's quiet entrance)
 [[nodiscard]] Program pop_in(ObjectInput object, RecipeOptions = {});    // from small, overshooting
 [[nodiscard]] Program zoom_in(ObjectInput object, RecipeOptions = {});   // from large
 [[nodiscard]] Program spin_in(ObjectInput object, double radians = -1.2, RecipeOptions = {});
@@ -412,6 +415,7 @@ struct DropOptions {
 [[nodiscard]] Program rise_out(ObjectInput object, double distance = 24, RecipeOptions = {});
 [[nodiscard]] Program sink_out(ObjectInput object, double distance = 24, RecipeOptions = {});
 [[nodiscard]] Program slide_out(ObjectInput object, Vec2 to = {40, 0}, RecipeOptions = {});
+[[nodiscard]] Program settle_out(ObjectInput object, double scale = .96, RecipeOptions = {});
 [[nodiscard]] Program pop_out(ObjectInput object, RecipeOptions = {});
 [[nodiscard]] Program zoom_out(ObjectInput object, RecipeOptions = {});
 [[nodiscard]] Program spin_out(ObjectInput object, double radians = 1.2, RecipeOptions = {});

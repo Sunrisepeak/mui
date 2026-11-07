@@ -14,6 +14,7 @@
 //   :shape     renderer-independent prepared closed-contour morphs
 //   :timeline  clips placed in time, nested, with markers
 //   :set       the batch of a running UI, evaluated in one pass
+//   :presence  entrances and exits defined once: a pose at the far end, a pace, a fade
 export module hanim.core;
 
 export import :math;
@@ -26,6 +27,7 @@ export import :shape;
 export import :timeline;
 export import :set;
 export import :choreography;
+export import :presence;
 
 export namespace hanim {
 

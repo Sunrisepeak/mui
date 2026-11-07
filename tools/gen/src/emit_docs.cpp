@@ -74,6 +74,15 @@ std::string emit_docs(const Registry& reg) {
         out += std::format("| `{}` | {} | {} | {} |\n", m.name, m.duration_ms ? format_double(*m.duration_ms) : "—",
                            m.easing.empty() ? "—" : cell(m.easing),
                            m.stiffness ? std::format("{}, {}, {}", *m.stiffness, m.damping.value_or(0), m.mass.value_or(1)) : "—");
+    if (!reg.motion_presences.empty()) {
+        out += "\n### Presences\n\nHow something comes in or goes out (spec M-10): a slot's enter or exit may name one, with these options over its defaults.\n\n"
+               "| Presence | Kind | Options | Meaning |\n|---|---|---|---|\n";
+        for (const MotionPresence& m : reg.motion_presences) {
+            std::string options;
+            for (const auto& o : m.options) options += (options.empty() ? "" : ", ") + std::format("`{}`", o);
+            out += std::format("| `{}` | {} | {} | {} |\n", m.name, m.kind, options.empty() ? "—" : options, cell(m.doc));
+        }
+    }
 
     out += "\n## Expressions\n\n### Operators\n\n| Operator | Text | C++ | TS | Python | Lua |\n|---|---|---|---|---|---|\n";
     auto get = [](const std::map<std::string, std::string>& m, const char* k) {

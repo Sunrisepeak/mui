@@ -416,6 +416,19 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
                             "a motion token's name, \"tween(ms)\" or \"spring(k, c[, m])\"");
             reg.motion_recipes.push_back(std::move(x));
         });
+        constexpr std::array<std::string_view, 8> presence_options{"distance", "offset", "scale", "radians", "height", "fade", "duration", "ease"};
+        r.each(*t, "presence", [&](const toml::table& e) {
+            MotionPresence x;
+            r.named(x, e);
+            x.kind = r.str(e, "kind");
+            x.options = r.strings(e, "options");
+            if (x.kind != "enter" && x.kind != "exit") diags.error(x.loc, std::format("presence `{}` has kind `{}`", x.name, x.kind), "enter or exit");
+            for (const auto& o : x.options)
+                if (std::ranges::find(presence_options, o) == presence_options.end())
+                    diags.error(x.loc, std::format("presence `{}` names unknown option `{}`", x.name, o),
+                                "distance, offset, scale, radians, height, fade, duration, ease");
+            reg.motion_presences.push_back(std::move(x));
+        });
     }
     if (auto t = load("expr.toml")) {
         Reader r{file_of("expr.toml"), diags};

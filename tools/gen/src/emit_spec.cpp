@@ -171,6 +171,17 @@ export namespace omui::spec {
     }
     out += "}};\n\n[[nodiscard]] constexpr const MotionRecipe* find_motion_recipe(std::string_view name) noexcept {\n"
            "    for (const auto& m : motion_recipes)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
+    out += "// How something comes in or goes out (motion.toml [[presence]], spec M-10): hanim.core's\n"
+           "// presences, by name; options space-separated.\n"
+           "struct MotionPresence {\n    std::string_view name;\n    std::string_view kind;\n    std::string_view options;\n    std::string_view doc;\n};\n\n";
+    out += std::format("inline constexpr std::array<MotionPresence, {}> motion_presences{{{{\n", reg.motion_presences.size());
+    for (const MotionPresence& m : reg.motion_presences) {
+        std::string options;
+        for (const auto& o : m.options) options += (options.empty() ? "" : " ") + o;
+        out += std::format("    {{{}, {}, {}, {}}},\n", q(m.name), q(m.kind), q(options), q(m.doc));
+    }
+    out += "}};\n\n[[nodiscard]] constexpr const MotionPresence* find_motion_presence(std::string_view name) noexcept {\n"
+           "    for (const auto& m : motion_presences)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
 
     // expression language
     out += "// The expression language (expr.toml): operators and built-in functions, with\n"

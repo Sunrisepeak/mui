@@ -55,121 +55,85 @@ PropertyTargets scaled(Vec2 by) { return {.scale_factor = by}; }
 PropertyTargets turned(double by) { return {.rotation_offset = by}; }
 PropertyTargets still() { return {.offset = Vec2{0, 0}}; }
 
+// A pose relative to rest as the relative writes that reach it: only what
+// the pose changes (nothing: the still pose, an opacity-only course).
+PropertyTargets targets_of(const PresencePose& pose) {
+    PropertyTargets out;
+    if (pose.offset != Vec2{0, 0}) out.offset = pose.offset;
+    if (pose.scale != Vec2{1, 1}) out.scale_factor = pose.scale;
+    if (pose.rotation != 0) out.rotation_offset = pose.rotation;
+    if (!out.offset && !out.scale_factor && !out.rotation_offset) out.offset = Vec2{0, 0};
+    return out;
+}
+// The writes that come back from it.
+PropertyTargets back_of(const PresencePose& pose) {
+    PropertyTargets out;
+    if (pose.offset != Vec2{0, 0}) out.offset = Vec2{-pose.offset.x, -pose.offset.y};
+    if (pose.scale != Vec2{1, 1}) out.scale_factor = Vec2{1 / pose.scale.x, 1 / pose.scale.y};
+    if (pose.rotation != 0) out.rotation_offset = -pose.rotation;
+    if (!out.offset && !out.scale_factor && !out.rotation_offset) out.offset = Vec2{0, 0};
+    return out;
+}
+
+// A course of hanim.core's played on an object: the one definition of every
+// entrance and exit (the UI's transitions play the same courses).
+Program play_presence(const ObjectInput& object, std::string_view name, const PresenceOptions& values, const RecipeOptions& options) {
+    PresenceOptions chosen = values;
+    chosen.duration = options.duration;
+    chosen.ease = options.easing;
+    const auto made = presence(name, chosen);
+    if (!made) {
+        switch (made.error()) {
+        case PresenceError::invalid_time: return invalid_program(ProgramFailure{ProgramError::invalid_time});
+        case PresenceError::invalid_ease: return invalid_program(ProgramFailure{ProgramError::invalid_ease});
+        default: return bad_value();
+        }
+    }
+    const Presence& c = *made;
+    const Timing t{c.duration, c.ease, options.part};
+    if (c.writes) {
+        const PartTarget target = part(object, t.part);
+        if (c.kind == PresenceKind::exit) return to(target, ch::trim_start = 1.0).duration(t.duration).easing(t.easing);
+        return sequence({Program(to(target, ch::trim_end = 0.0).duration(seconds(0))),
+                         Program(to(target, ch::trim_end = 1.0).duration(t.duration).easing(t.easing))});
+    }
+    if (c.drop > 0) {
+        PropertyTargets above = offset({0, -c.drop});
+        above.part = t.part;
+        return sequence({Program(at_once(object, std::move(above))), drop(part(object, t.part), {0, c.drop}, {.duration = t.duration})});
+    }
+    if (c.kind == PresenceKind::enter) return enter(object, t, targets_of(c.away), back_of(c.away));
+    return leave(object, t, targets_of(c.away));
+}
+
 }  // namespace
 
-// ── Entrances ──
+// ── Entrances ── (hanim.core's courses: their poses, paces and fades are defined there)
 
-Program fade_in(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .3, ease::out_quad);
-    if (!t) return invalid_program(t.error());
-    return enter(object, *t, still(), still());
-}
-Program rise_in(ObjectInput object, double distance, RecipeOptions options) {
-    auto t = timing(options, .4, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(distance)) return bad_value();
-    return enter(object, *t, offset({0, distance}), offset({0, -distance}));
-}
-Program sink_in(ObjectInput object, double distance, RecipeOptions options) {
-    auto t = timing(options, .4, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(distance)) return bad_value();
-    return enter(object, *t, offset({0, -distance}), offset({0, distance}));
-}
-Program slide_in(ObjectInput object, Vec2 from, RecipeOptions options) {
-    auto t = timing(options, .45, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(from)) return bad_value();
-    return enter(object, *t, offset(from), offset({-from.x, -from.y}));
-}
-Program pop_in(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .45, ease::out_back);
-    if (!t) return invalid_program(t.error());
-    return enter(object, *t, scaled({.3, .3}), scaled({1 / .3, 1 / .3}));
-}
-Program zoom_in(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .4, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    return enter(object, *t, scaled({1.4, 1.4}), scaled({1 / 1.4, 1 / 1.4}));
-}
-Program spin_in(ObjectInput object, double radians, RecipeOptions options) {
-    auto t = timing(options, .5, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(radians)) return bad_value();
-    return enter(object, *t, {.rotation_offset = radians, .scale_factor = Vec2{.6, .6}}, {.rotation_offset = -radians, .scale_factor = Vec2{1 / .6, 1 / .6}});
-}
-Program unfold_in(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .4, ease::out_cubic);
-    if (!t) return invalid_program(t.error());
-    return enter(object, *t, scaled({1, .05}), scaled({1, 1 / .05}));
-}
-Program write_in(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .6, ease::in_out_cubic);
-    if (!t) return invalid_program(t.error());
-    const PartTarget target = part(object, t->part);
-    return sequence({Program(to(target, ch::trim_end = 0.0).duration(seconds(0))),
-                     Program(to(target, ch::trim_end = 1.0).duration(t->duration).easing(t->easing))});
-}
-Program drop_in(ObjectInput object, double height, RecipeOptions options) {
-    auto t = timing(options, 1, ease::linear);
-    if (!t) return invalid_program(t.error());
-    if (!finite(height) || height <= 0) return bad_value();
-    PropertyTargets above = offset({0, -height});
-    above.part = t->part;
-    return sequence({Program(at_once(object, std::move(above))), drop(part(object, t->part), {0, height}, {.duration = t->duration})});
-}
+Program fade_in(ObjectInput object, RecipeOptions options) { return play_presence(object, "fade_in", {}, options); }
+Program rise_in(ObjectInput object, double distance, RecipeOptions options) { return play_presence(object, "rise_in", {.distance = distance}, options); }
+Program sink_in(ObjectInput object, double distance, RecipeOptions options) { return play_presence(object, "sink_in", {.distance = distance}, options); }
+Program slide_in(ObjectInput object, Vec2 from, RecipeOptions options) { return play_presence(object, "slide_in", {.offset = from}, options); }
+Program settle_in(ObjectInput object, double scale, RecipeOptions options) { return play_presence(object, "settle_in", {.scale = scale}, options); }
+Program pop_in(ObjectInput object, RecipeOptions options) { return play_presence(object, "pop_in", {}, options); }
+Program zoom_in(ObjectInput object, RecipeOptions options) { return play_presence(object, "zoom_in", {}, options); }
+Program spin_in(ObjectInput object, double radians, RecipeOptions options) { return play_presence(object, "spin_in", {.radians = radians}, options); }
+Program unfold_in(ObjectInput object, RecipeOptions options) { return play_presence(object, "unfold_in", {}, options); }
+Program write_in(ObjectInput object, RecipeOptions options) { return play_presence(object, "write_in", {}, options); }
+Program drop_in(ObjectInput object, double height, RecipeOptions options) { return play_presence(object, "drop_in", {.height = height}, options); }
 
 // ── Exits ──
 
-Program fade_out(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .25, ease::in_quad);
-    if (!t) return invalid_program(t.error());
-    return leave(object, *t, still());
-}
-Program rise_out(ObjectInput object, double distance, RecipeOptions options) {
-    auto t = timing(options, .35, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(distance)) return bad_value();
-    return leave(object, *t, offset({0, -distance}));
-}
-Program sink_out(ObjectInput object, double distance, RecipeOptions options) {
-    auto t = timing(options, .35, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(distance)) return bad_value();
-    return leave(object, *t, offset({0, distance}));
-}
-Program slide_out(ObjectInput object, Vec2 to_offset, RecipeOptions options) {
-    auto t = timing(options, .4, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(to_offset)) return bad_value();
-    return leave(object, *t, offset(to_offset));
-}
-Program pop_out(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .35, ease::in_back);
-    if (!t) return invalid_program(t.error());
-    return leave(object, *t, scaled({.3, .3}));
-}
-Program zoom_out(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .35, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    return leave(object, *t, scaled({1.4, 1.4}));
-}
-Program spin_out(ObjectInput object, double radians, RecipeOptions options) {
-    auto t = timing(options, .45, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    if (!finite(radians)) return bad_value();
-    return leave(object, *t, {.rotation_offset = radians, .scale_factor = Vec2{.6, .6}});
-}
-Program fold_out(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .35, ease::in_cubic);
-    if (!t) return invalid_program(t.error());
-    return leave(object, *t, scaled({1, .05}));
-}
-Program unwrite(ObjectInput object, RecipeOptions options) {
-    auto t = timing(options, .5, ease::in_out_cubic);
-    if (!t) return invalid_program(t.error());
-    return to(part(object, t->part), ch::trim_start = 1.0).duration(t->duration).easing(t->easing);
-}
+Program fade_out(ObjectInput object, RecipeOptions options) { return play_presence(object, "fade_out", {}, options); }
+Program rise_out(ObjectInput object, double distance, RecipeOptions options) { return play_presence(object, "rise_out", {.distance = distance}, options); }
+Program sink_out(ObjectInput object, double distance, RecipeOptions options) { return play_presence(object, "sink_out", {.distance = distance}, options); }
+Program slide_out(ObjectInput object, Vec2 to_offset, RecipeOptions options) { return play_presence(object, "slide_out", {.offset = to_offset}, options); }
+Program settle_out(ObjectInput object, double scale, RecipeOptions options) { return play_presence(object, "settle_out", {.scale = scale}, options); }
+Program pop_out(ObjectInput object, RecipeOptions options) { return play_presence(object, "pop_out", {}, options); }
+Program zoom_out(ObjectInput object, RecipeOptions options) { return play_presence(object, "zoom_out", {}, options); }
+Program spin_out(ObjectInput object, double radians, RecipeOptions options) { return play_presence(object, "spin_out", {.radians = radians}, options); }
+Program fold_out(ObjectInput object, RecipeOptions options) { return play_presence(object, "fold_out", {}, options); }
+Program unwrite(ObjectInput object, RecipeOptions options) { return play_presence(object, "unwrite", {}, options); }
 
 // ── Attention ──
 

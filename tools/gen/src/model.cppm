@@ -92,6 +92,13 @@ struct MotionRecipe : Named {
     std::string              effect;   // an image effect while it moves, or empty
 };
 
+// How something comes in or goes out (motion.toml [[presence]], spec M-10):
+// hanim.core's presences, named by a slot's enter or exit.
+struct MotionPresence : Named {
+    std::string              kind;     // enter or exit
+    std::vector<std::string> options;  // what a slot may set over its defaults
+};
+
 struct ExprOperator : Named {
     std::string                        text;
     int                                arity = 0;
@@ -241,6 +248,7 @@ struct Registry {
     std::map<std::string, std::string> spring;   // clause -> formula
     std::vector<MotionSlot>    motion_slots;     // in registry order (spec M-7)
     std::vector<MotionRecipe>  motion_recipes;
+    std::vector<MotionPresence> motion_presences;
     std::vector<ExprOperator>  operators;
     std::vector<ExprFunction>  functions;
     std::vector<std::string>   expr_types;

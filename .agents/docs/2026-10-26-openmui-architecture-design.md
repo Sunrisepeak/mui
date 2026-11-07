@@ -516,6 +516,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-124 | hanim v1 的值类型：唯一的动画值类型是 `Program`（不可变表达式）；`anim::BoundAnimation`（叶子）与 `anim::Composite`（图像作用域）只是构造它的生成器，隐式转为 Program，`Animation` 概念即“能成为 Program 的东西”。时间写在表达式上：`p.loop(n)`、`.alternate()`、`.reverse()`、`.rate(r)` 产生或修改同一个时间映射节点（`sequence(a, wait(100ms), b).loop(3).alternate()`）；`repeat(n, p)` 仍是“每次从上次终点继续”的累加重复，`delay(d, p)` 先等待。至此 v1 的公开形状确定，之后只做加法；Wasm 体积由 Web 行的体积预算持续检查 |
 | D-125 | interactive 模式补齐宿主所需（M3 的前提）：`Drive<T>` 的动词可带时间 `at`（宿主自己的时钟、延迟开始的过渡），值、速度、是否静止可按任意时间读取（`Set` 的历史覆盖的范围）；新增 `glide(velocity, DecayParams, at)`（甩动后的惯性，hanim.core `Set::glide` 从当前位置继续、保留历史）、`target()`（滑行的终点也可预知）与 `settle_time()`。这正是视图运行时现在用私有 `Set` 做的全部事情 |
 | D-126 | M3 第一步，视图运行时的动画值改由宿主唯一的 hanim Engine 求值：运行时不再持有私有的 `hanim::Set`，节点字段、属性的每条 lane、滚动偏移都是 Engine interactive 模式的驱动通道（`DrivenLanes`：键由节点、名称和 lane 组成，按运行时自己的时钟传入时间），逐位等于原先 `Set` 的结果（所有像素基线不变）。组件服务的 `animations()`（返回 `Set&`）改为 `engine()`；lint `owner` 的 motion 特征同时识别 `engine().drive/play`（组件只画状态）。因此每个视图的依赖闭包都含 hanim 的 engine feature（原来只有 effect），消费者探针相应更新；播放器适配器、矢量渲染与 control 仍是可选。下一步：Playback 改为同一个 Engine 上的轻量句柄、motion 槽语义进规范 |
+| D-127 | M3：`omui::animation::Playback` 改为轻量句柄——不再各自持有一个 Engine，而是把对象和播放放在运行时唯一的 Engine 上（`Runtime::engine()`，与运行时自己的动画值同一个）；析构时释放播放、解除绑定、销毁对象（仅在运行时仍活着时；`status()` 同样只在运行时活着时读取原生状态）。移动语义显式定义，被移走的句柄不再触碰 Engine。消费者探针在 release 下发现了一处运行时已销毁后读取状态的悬空访问，已在同一检查点修正 |
 
 ---
 

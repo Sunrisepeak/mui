@@ -27,16 +27,19 @@ struct PlaybackStatus {
     bool clock_paused = false;
 };
 
-// An owning UI host adapter for one selected HObject. Hanim's Engine remains
-// the only player; hanim::TimeMap maps the caller's absolute clock, including
-// repeats and backward seeks. No event loop, timer, window or script is owned.
+// A light handle (D-127): one selected HObject and its playback on the host's
+// one hanim Engine (Runtime::engine()), the same Engine the runtime's own
+// values move on; hanim::TimeMap maps the caller's absolute clock, including
+// repeats and backward seeks. No event loop, timer, window, script or engine
+// is owned; dropping it releases the playback and the object.
 // Call update() after input/regions and before bounds/paint. Controls publish
 // immediately; the Runtime's next paint commits pixels and input geometry.
 class Playback {
 public:
     Playback() noexcept = default;
-    Playback(Playback&&) noexcept = default;
-    Playback& operator=(Playback&&) noexcept = default;
+    ~Playback();
+    Playback(Playback&& other) noexcept;
+    Playback& operator=(Playback&& other) noexcept;
     Playback(const Playback&)=delete;
     Playback& operator=(const Playback&)=delete;
     [[nodiscard]] static std::expected<Playback,PlaybackFailure>
@@ -65,7 +68,7 @@ public:
     [[nodiscard]] PlaybackStatus status() const noexcept;
     [[nodiscard]] std::expected<hanim::PreparedProgram,PlaybackFailure> plan() const;
 private:
-    hanim::Engine engine_;
+    hanim::Engine* engine_ = nullptr;  // the runtime's; dereference only while binding_.attached()
     Binding binding_;
     FrameDemandLease demand_;
     Runtime* runtime_ = nullptr; // dereference only while binding_.attached()

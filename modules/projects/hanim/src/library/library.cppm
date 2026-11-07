@@ -21,13 +21,13 @@ enum class ContourPairing : std::uint8_t { align, strict };
 // over the part's size, the log of the area ratio — and pairs pinned before
 // any is weighed: part `part`'s source contour `from` with target contour
 // `to` (ordinals; both outlines or both holes).
-struct ContourPin {
+struct PartContourPin {
     std::string part;
     std::size_t from = 0, to = 0;
 };
 struct MatchRules {
     double distance = 1, size = .5;  // finite, ≥ 0
-    std::vector<ContourPin> pins;
+    std::vector<PartContourPin> pins;
 };
 struct MorphOptions {
     std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;

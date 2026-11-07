@@ -225,6 +225,8 @@ struct Emitter {
     Affine            base;  // from the range's space to where the morph draws (inside its wrapper)
     const NestedDraw* nested = nullptr;
     DrawProof*        proof = nullptr;
+    // Strokes drawn from trim start to trim end (a written stroke), when set.
+    std::optional<std::array<float, 2>> trim;
 
     // The piece's clips (as `m` holds them) and then its transform.
     Pushes enter(const Matter& m, int clip, const Affine& t, bool transient = true) {
@@ -283,7 +285,13 @@ struct Emitter {
                     if (auto p = faded(cmd.paint, opacity)) out.fill_round_rect(cmd.rect, cmd.radii, *p);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
-                    if (auto p = faded(cmd.paint, opacity)) out.stroke_round_rect(cmd.rect, cmd.radii, cmd.width, *p);
+                    if (trim) {  // written: its outline as a path, trimmed (a rounded rectangle starts at its top-left)
+                        Path outline;
+                        outline.add_rounded_rect(cmd.rect, cmd.radii);
+                        const StrokeStyle style{.width = cmd.width, .trim_start = (*trim)[0], .trim_end = (*trim)[1]};
+                        if (auto p = faded(cmd.paint, opacity)) out.stroke_path(outline, style, *p);
+                        else layered([&] { out.stroke_path(outline, style, cmd.paint); });
+                    } else if (auto p = faded(cmd.paint, opacity)) out.stroke_round_rect(cmd.rect, cmd.radii, cmd.width, *p);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, BoxShadow>) {
                     out.box_shadow(cmd.rect, cmd.radii, cmd.offset, cmd.blur, cmd.spread, cmd.color.with_alpha(cmd.color.a * opacity), cmd.inset);
@@ -294,12 +302,20 @@ struct Emitter {
                 } else if constexpr (std::same_as<T, DrawGlyphs>) {
                     if (auto p = faded(cmd.paint, opacity)) out.draw_glyphs(cmd.font, cmd.size, cmd.origin, cmd.glyphs, *p, cmd.styles);
                     else layered([&] { out.append_command(c); });
-                } else if constexpr (std::same_as<T, FillPath> || std::same_as<T, StrokePath>) {
+                } else if constexpr (std::same_as<T, StrokePath>) {
+                    if (trim) {
+                        auto style = cmd.style;
+                        style.trim_start = (*trim)[0];
+                        style.trim_end = (*trim)[1];
+                        if (auto p = faded(cmd.paint, opacity)) out.stroke_path(path_of(cmd.path), style, *p);
+                        else layered([&] { out.stroke_path(path_of(cmd.path), style, cmd.paint); });
+                    } else if (opacity >= 1) out.append_command(c);
+                    else if (auto p = faded(cmd.paint, opacity)) out.stroke_path(path_of(cmd.path), cmd.style, *p);
+                    else layered([&] { out.append_command(c); });
+                } else if constexpr (std::same_as<T, FillPath>) {
                     if (opacity >= 1) out.append_command(c);
-                    else if (auto p = faded(cmd.paint, opacity)) {
-                        if constexpr (std::same_as<T, FillPath>) out.fill_path(path_of(cmd.path), cmd.rule, *p);
-                        else out.stroke_path(path_of(cmd.path), cmd.style, *p);
-                    } else layered([&] { out.append_command(c); });
+                    else if (auto p = faded(cmd.paint, opacity)) out.fill_path(path_of(cmd.path), cmd.rule, *p);
+                    else layered([&] { out.append_command(c); });
                 } else {
                     out.append_command(c);
                 }
@@ -1319,6 +1335,26 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         const Point origin = options_.local_presence ? bounds.center() : middle;
         return Affine::translate(origin.x, origin.y + mixf(0, options_.rise, away)) * Affine::scale(g, g) * Affine::translate(-origin.x, -origin.y);
     };
+    // Dropping in: from above along the fall, pressed flat about the bottom of what appears as it lands.
+    const float landing = (to_.empty() ? from_.bounds() : to_.bounds()).bottom();
+    auto dropped = [&](double k) -> Affine {
+        const float lift = static_cast<float>(-options_.drop * (1 - options_.drop_curve(k)));
+        const float press = static_cast<float>(options_.squash * options_.drop_curve.contact(k));
+        return Affine::translate(middle.x, landing + lift) * Affine::scale(1 + press, 1 - press) * Affine::translate(-middle.x, -landing);
+    };
+    auto stroked = [](const Matter& matter, const Piece& piece) {
+        if (piece.cls == PieceClass::group) return false;
+        const auto& command = matter.list().commands()[piece.command];
+        return std::holds_alternative<StrokePath>(command) || std::holds_alternative<StrokeRoundRect>(command);
+    };
+    // A moving piece's translation along the translation path (the morph's own curve otherwise).
+    auto travelled = [&](Affine moving, const Affine& from, const Affine& to, double k) {
+        if (options_.translation_path.linear()) return moving;
+        const auto at = options_.translation_path.interpolate({from.e, from.f}, {to.e, to.f}, std::clamp(k, 0.0, 1.0));
+        moving.e = static_cast<float>(at.x);
+        moving.f = static_cast<float>(at.y);
+        return moving;
+    };
     const auto A = from_.pieces();
     const auto B = to_.pieces();
     // The second drawing's wrapper (a style's effect on the node) around everything, its numbers between the two.
@@ -1384,14 +1420,14 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             const Frame& source = af[static_cast<std::size_t>(pair.a)];
             rect = mixr(source.rect, target.rect, u);
             if (pair.stretch) rect = stretched(rect, source.rect, target.rect, u, options_.stretch);
-            transform = mix(source.transform, target.transform, u);
+            transform = travelled(mix(source.transform, target.transform, u), source.transform, target.transform, k);
             opacity = mixf(source.opacity, target.opacity, k);
             placement_origin = {mixf(source.sampled_placement_origin.x, target.sampled_placement_origin.x, u),
                                 mixf(source.sampled_placement_origin.y, target.sampled_placement_origin.y, u)};
             if (u <= 0) { clipping = &from_; clip = source.clip; }
         } else if (pair.b >= 0) {
-            const double present = fade_in(u, options_.fade_in);
-            transform = shaped(1 - k, target.transform.map(rect)) * transform;
+            const double present = options_.drop > 0 ? 1 : fade_in(u, options_.fade_in);
+            transform = (options_.drop > 0 ? dropped(k) : shaped(1 - k, target.transform.map(rect))) * transform;
             opacity *= static_cast<float>(present);
         } else {
             const double present = fade_out(u, options_.fade_out);
@@ -1419,10 +1455,13 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         if (p.b < 0) {  // only in the first: fading away where it was (vanishing, when it is asked to)
             const Piece& pa = A[static_cast<std::size_t>(p.a)];
             const double gone = fade_out(u, options_.fade_out);
-            const float o = static_cast<float>(pa.opacity * gone);
+            const bool unwritten = options_.write && gone < 1 && stroked(from_, pa);
+            const float o = static_cast<float>(unwritten ? (gone > 0 ? pa.opacity : 0) : pa.opacity * gone);
             if (o <= 0) continue;
             e.begin(marker_a(pa));
+            if (unwritten) e.trim = std::array<float, 2>{0, static_cast<float>(gone)};
             e.piece(from_, pa, shaped(1 - gone, pa.bounds) * pa.transform, o, false);
+            e.trim.reset();
             e.end();
             continue;
         }
@@ -1430,7 +1469,13 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // A group of a nested root is inside its own marker already.
         e.begin(pb.cls == PieceClass::group && pb.nested ? 0 : marker_b(pb));
         if (p.a < 0) {  // only in the second: appearing where it is (from below, smaller, when it is asked to)
-            e.piece(to_, pb, shaped(1 - clamp01(u), pb.bounds) * pb.transform, static_cast<float>(pb.opacity * fade_in(u, options_.fade_in)), true, !(k >= 1 && u == 1));
+            const bool written = options_.write && k < 1 && stroked(to_, pb);  // settled: the stroke itself
+            const bool falling = options_.drop > 0;
+            const Affine arrival = falling ? dropped(k) : shaped(1 - clamp01(u), pb.bounds);
+            const double present = written || falling ? (k > 0 ? 1 : 0) : fade_in(u, options_.fade_in);
+            if (written) e.trim = std::array<float, 2>{0, static_cast<float>(k)};
+            e.piece(to_, pb, arrival * pb.transform, static_cast<float>(pb.opacity * present), true, !(k >= 1 && u == 1));
+            e.trim.reset();
             e.end();
             continue;
         }
@@ -1445,7 +1490,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             e.end();
             continue;
         }
-        const Affine tf = mix(pa.transform, pb.transform, u);
+        const Affine tf = travelled(mix(pa.transform, pb.transform, u), pa.transform, pb.transform, k);
         const float  op = mixf(pa.opacity, pb.opacity, k);
         const Command& ca = from_.list().commands()[pa.command];
         const Command& cb = to_.list().commands()[pb.command];

@@ -138,7 +138,8 @@ constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"readable-text", MotionPrimitive::readable_text},
     {"fade", MotionPrimitive::fade}, {"lift", MotionPrimitive::lift}, {"panel-lift", MotionPrimitive::panel_lift},
     {"grow", MotionPrimitive::grow}, {"check-grow", MotionPrimitive::check_grow},
-    {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance}
+    {"stretch", MotionPrimitive::stretch}, {"stagger", MotionPrimitive::stagger}, {"distance", MotionPrimitive::distance},
+    {"write", MotionPrimitive::write}, {"drop", MotionPrimitive::drop}, {"noise", MotionPrimitive::noise}
 };
 
 void add_primitive(MotionSpec& m, MotionPrimitive part) {
@@ -155,6 +156,9 @@ void add_primitive(MotionSpec& m, MotionPrimitive part) {
         case MotionPrimitive::stretch: m.stretch = 0.35f; break;
         case MotionPrimitive::stagger: m.order = MotionSpec::Order::document; m.stagger = 0.018; break;
         case MotionPrimitive::distance: m.order = MotionSpec::Order::distance; m.stagger = 0.012; break;
+        case MotionPrimitive::write: m.write = true; break;
+        case MotionPrimitive::drop: m.drop = 24; break;
+        case MotionPrimitive::noise: m.translation_path = hanim::PointPath::jitter(3, 40, 7); break;
     }
 }
 
@@ -291,6 +295,11 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     add("default.panel", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::panel_lift, P::grow}, gentle));
     add("default.notice", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::lift, P::grow}, quick));
     add("default.steps", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::stretch}, quick));
+    // The representations' recipes (convergence plan §6.8; universal motion §13.1).
+    add("trace.focus", compose_motion({P::match_drawing, P::fade, P::write}, Transition::tween(hanim::seconds(0.32))));
+    add("write.check", compose_motion({P::match_drawing, P::match_glyphs, P::write}, Transition::tween(hanim::seconds(0.26))));
+    add("enter.drop", compose_motion({P::match_drawing, P::drop}, Transition::tween(hanim::seconds(0.7), hanim::ease::linear)));
+    add("travel.noise", compose_motion({P::match_drawing, P::match_glyphs, P::fade, P::noise}, gentle));
     return lib;
 }
 

@@ -337,75 +337,21 @@ std::expected<std::vector<ContourPlan>,MorphFailure> pair_contours(const PartInp
         for (std::size_t index=0;index<source.contours.size();++index) plans.push_back({index,index});
         return plans;
     }
-    struct Measured { std::size_t index; ShapeMeasure measure; bool outline; };
-    const auto measure_all=[&](const PartInput& input) -> std::expected<std::vector<Measured>,MorphFailure> {
-        std::vector<Measured> measured;
-        for (std::size_t index=0;index<input.contours.size();++index) {
-            const auto& view=input.contours[index].view;
-            if (!view.closed) return std::unexpected(failure(MorphError::open_contour,part,index));
-            // A contour that is one point (a grown contour's first frame) is no contour.
-            if (std::ranges::all_of(view.segments,[&](const ShapeSegment& segment){
-                    return segment.end==view.start && (segment.verb==ShapeVerb::line || segment.control1==view.start) &&
-                           (segment.verb!=ShapeVerb::cubic || segment.control2==view.start);}))
-                continue;
-            // The input budget is the shape plans' to enforce, with their options.
-            const auto value=measure(view);
-            if (!value) return std::unexpected(failure(MorphError::shape_failure,part,index,value.error()));
-            measured.push_back({index,*value,true});
+    // hanim.core's pairing (shared with drawings' glyphs), with this part's pins.
+    std::vector<ShapeContour> from, to;
+    for (const auto& contour:source.contours) from.push_back(contour.view);
+    for (const auto& contour:target.contours) to.push_back(contour.view);
+    std::vector<ContourPin> pins;
+    for (const auto& pin:rules.pins) if (pin.part==source.id) pins.push_back({pin.from,pin.to});
+    const auto pairs=hanim::pair_contours(from,to,{.distance=rules.distance,.size=rules.size,.pins=pins});
+    if (!pairs) {
+        switch (pairs.error().code) {
+            case ContourPairError::open_contour: return std::unexpected(failure(MorphError::open_contour,part,pairs.error().contour));
+            case ContourPairError::measure: return std::unexpected(failure(MorphError::shape_failure,part,pairs.error().contour,pairs.error().cause));
+            case ContourPairError::invalid_pin: return std::unexpected(failure(MorphError::invalid_options,part));
         }
-        double largest=0, sign=1;
-        for (const auto& item:measured) if (std::abs(item.measure.area)>largest) { largest=std::abs(item.measure.area); sign=item.measure.area<0?-1:1; }
-        for (auto& item:measured) item.outline=item.measure.area*sign>=0;
-        return measured;
-    };
-    const auto sources=measure_all(source); if (!sources) return std::unexpected(sources.error());
-    const auto targets=measure_all(target); if (!targets) return std::unexpected(targets.error());
-    double extent=0;
-    for (const auto* side:{&*sources,&*targets}) for (const auto& item:*side) extent=std::max(extent,std::abs(item.measure.area));
-    extent=extent>0?std::sqrt(extent):1;
-    const auto distance=[](Vec2 left, Vec2 right){return std::sqrt((left.x-right.x)*(left.x-right.x)+(left.y-right.y)*(left.y-right.y));};
-    struct Candidate { double cost; std::size_t from, to; };
-    std::vector<Candidate> candidates;
-    for (std::size_t from_index=0;from_index<sources->size();++from_index)
-        for (std::size_t to_index=0;to_index<targets->size();++to_index) {
-            const auto& left=(*sources)[from_index]; const auto& right=(*targets)[to_index];
-            if (left.outline!=right.outline) continue;
-            const double sizes=std::abs(mlibs::math::det::log(std::abs(left.measure.area)/std::abs(right.measure.area)));
-            candidates.push_back({rules.distance*distance(left.measure.centroid,right.measure.centroid)/extent+rules.size*sizes,from_index,to_index});
-        }
-    std::ranges::sort(candidates,[](const Candidate& left, const Candidate& right){
-        return std::tie(left.cost,left.from,left.to)<std::tie(right.cost,right.from,right.to);});
-    std::vector<std::size_t> paired_to(sources->size(),none), paired_from(targets->size(),none);
-    for (const auto& pin:rules.pins) {
-        if (pin.part!=source.id) continue;
-        const auto found_from=std::ranges::find(*sources,pin.from,&Measured::index);
-        const auto found_to=std::ranges::find(*targets,pin.to,&Measured::index);
-        if (found_from==sources->end() || found_to==targets->end() || found_from->outline!=found_to->outline)
-            return std::unexpected(failure(MorphError::invalid_options,part));
-        const auto from_index=static_cast<std::size_t>(found_from-sources->begin()), to_index=static_cast<std::size_t>(found_to-targets->begin());
-        if (paired_to[from_index]!=none || paired_from[to_index]!=none) return std::unexpected(failure(MorphError::invalid_options,part));
-        paired_to[from_index]=to_index; paired_from[to_index]=from_index;
     }
-    for (const auto& candidate:candidates)
-        if (paired_to[candidate.from]==none && paired_from[candidate.to]==none) {
-            paired_to[candidate.from]=candidate.to; paired_from[candidate.to]=candidate.from;
-        }
-    // Where a contour alone begins or ends: an outline at the nearest outline
-    // of the other end (it splits off or merges in), a hole at its own centre.
-    const auto meeting=[&](const Measured& alone, const std::vector<Measured>& other) {
-        if (!alone.outline) return alone.measure.centroid;
-        std::optional<Vec2> nearest;
-        for (const auto& item:other)
-            if (item.outline && (!nearest || distance(item.measure.centroid,alone.measure.centroid)<distance(*nearest,alone.measure.centroid)))
-                nearest=item.measure.centroid;
-        return nearest.value_or(alone.measure.centroid);
-    };
-    for (std::size_t from_index=0;from_index<sources->size();++from_index)
-        if (paired_to[from_index]!=none) plans.push_back({(*sources)[from_index].index,(*targets)[paired_to[from_index]].index});
-    for (std::size_t from_index=0;from_index<sources->size();++from_index)
-        if (paired_to[from_index]==none) plans.push_back({(*sources)[from_index].index,none,meeting((*sources)[from_index],*targets)});
-    for (std::size_t to_index=0;to_index<targets->size();++to_index)
-        if (paired_from[to_index]==none) plans.push_back({none,(*targets)[to_index].index,meeting((*targets)[to_index],*sources)});
+    for (const auto& pair:*pairs) plans.push_back({pair.from==ContourPair::none?none:pair.from,pair.to==ContourPair::none?none:pair.to,pair.point});
     return plans;
 }
 

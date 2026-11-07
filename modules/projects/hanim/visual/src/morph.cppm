@@ -103,6 +103,19 @@ struct Options {
     // Uses the public hanim operator; text/layout/rectangles keep their own
     // channels. Invalid requests are exposed in path_morphs(), not ignored.
     hanim::PointPath vertex_path;
+    // The same operator on a moving piece's translation (a selection
+    // indicator travelling with a little noise, plan §6.8 ⑤).
+    hanim::PointPath translation_path;
+    // Strokes that appear are written along their length (trim end 0 → 1) and
+    // strokes that go are unwritten, instead of fading (plan §6.8 ②: a focus
+    // ring traced round, a check mark drawn).
+    bool   write = false;
+    // What appears drops in from `drop` above along `drop_curve` (Ease::fall:
+    // it lands, bounces, settles) and squashes by `squash` about the bottom of
+    // what appears as it presses into the ground (plan §6.8 ⑨).
+    float  drop = 0;
+    hanim::Ease drop_curve = hanim::Ease::fall(0.45, 2);
+    float  squash = 0.2f;
 };
 
 struct MorphStats {

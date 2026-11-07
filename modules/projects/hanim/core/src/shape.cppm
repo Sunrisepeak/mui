@@ -81,6 +81,36 @@ struct ShapeMeasure {
 };
 [[nodiscard]] std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::size_t max_segments = 4096);
 
+// How two sets of contours correspond (convergence plan §6.8 ③ ⑤), the one
+// rule shape morphs of objects and of drawings (glyphs) share: outlines pair
+// with outlines and holes with holes (winding against the largest), pinned
+// pairs first, then cheapest first — `distance` × centroid distance over the
+// size plus `size` × |log of the area ratio| (ties by ordinal). A contour
+// left over grows from a point or closes into one: an outline at the nearest
+// outline of the other end, a hole at its own centre. A contour that is a
+// single point is no contour. Pairs come first, then closing, then growing.
+struct ContourPin {
+    std::size_t from = 0, to = 0;
+};
+struct ContourRules {
+    double                  distance = 1, size = 0.5;
+    std::span<const ContourPin> pins;
+};
+struct ContourPair {
+    static constexpr std::size_t none = std::numeric_limits<std::size_t>::max();
+    std::size_t from = none, to = none;
+    Vec2        point{};  // where a contour alone grows from or closes into
+};
+enum class ContourPairError : std::uint8_t { open_contour, measure, invalid_pin };
+struct ContourPairFailure {
+    ContourPairError code = ContourPairError::open_contour;
+    bool             from_end = true;  // which end's contour
+    std::size_t      contour = 0;
+    ShapeMorphError  cause = ShapeMorphError::invalid_options;  // a measure's
+};
+[[nodiscard]] std::expected<std::vector<ContourPair>, ContourPairFailure>
+pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> to, const ContourRules& rules = {});
+
 // Single closed contour only. Callers supply simple nonzero-area contours;
 // this first checkpoint does not certify simplicity, holes or topology changes.
 // Preparation may allocate. It elevates degrees and SUBDIVIDES the original

@@ -64,6 +64,9 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
     o.fade_in = spec.fade_in;
     o.local_presence = spec.local_presence;
     o.vertex_path = spec.vertex_path;
+    o.translation_path = spec.translation_path;
+    o.write = spec.write;
+    o.drop = spec.drop;
     if (spec.travel)
         if (const auto ref = xrender::effects().find(spec.travel->effect)) {
             hanim::visual::Options::Travel t{.effect = *ref};

@@ -216,6 +216,20 @@ Ease Ease::spring(double stiffness, double damping, double mass) noexcept {
     return e;
 }
 
+double Ease::contact(double t) const noexcept {
+    if (kind != EaseKind::fall || !valid() || p[3] <= 0) return 0.0;
+    double time = std::clamp(t, 0.0, 1.0) * p[2] - 1.0;
+    double speed = 1.0;
+    for (int bounce = 0; bounce < static_cast<int>(p[1]); ++bounce) {
+        if (time < 0) return 0.0;
+        if (time < p[3] * speed) return speed * dm::sin(std::numbers::pi * time / (p[3] * speed));
+        time -= p[3] * speed;
+        speed *= p[0];
+        time -= 2.0 * speed;
+    }
+    return 0.0;
+}
+
 Ease Ease::fall(double restitution, int bounces, double contact) noexcept {
     Ease e{EaseKind::fall, {restitution, static_cast<double>(bounces), 0.0, contact}};
     if (!(restitution >= 0) || !(restitution < 1) || bounces < 0 || bounces > 64 || !(contact >= 0) || !(contact <= 1))

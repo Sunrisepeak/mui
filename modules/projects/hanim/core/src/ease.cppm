@@ -61,6 +61,10 @@ struct Ease {
     // plays it at the pace gravity g gives a drop from h.
     [[nodiscard]] static Ease fall(double restitution = 0.5, int bounces = 3, double contact = 0.1) noexcept;
     [[nodiscard]] double falls() const noexcept { return kind == EaseKind::fall ? p[2] : 0.0; }
+    // How hard a fall presses into the ground at t: 0 in the air, rising to
+    // the landing's speed (1 for the first) half-way through each time on
+    // the ground and back; a squash or a thud follows it. 0 for other curves.
+    [[nodiscard]] double contact(double t) const noexcept;
 
     // The eased progress for linear progress t; t outside [0, 1] is clamped.
     [[nodiscard]] double operator()(double t) const noexcept;

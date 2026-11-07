@@ -243,6 +243,8 @@ C1 落地的形状（`openmui.view`）：
 
 验收与 §12 相同：过程帧（端点、中间态、打断、反向）、reduced／off、命中与焦点一致；新配方进入规范的 `[[recipe]]`（M-8）。
 
+进度（2026-11-07）：规范 f41bc8f 加入 `fall` 曲线和 `write`／`drop`／`noise` 三个原语，配方 `trace.focus`、`write.check`、`enter.drop`、`travel.noise` 已内置（hanim.visual 的 `write`、`drop`、`translation_path`；reduced 时关闭）。`write.progress`、`press.elastic`、`press.squash`（需要按下位置进入运动槽）和 `text.reshape`（需要字形轮廓进入画面形变）随后。
+
 ## 14. 待决
 
 - Q-32（已定）：默认要求 CPU 参考实现；只有 GPU 版本的允许，声明 `deterministic = false`、不参与像素固定。

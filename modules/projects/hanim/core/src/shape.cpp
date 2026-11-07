@@ -259,6 +259,91 @@ std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::
     return ShapeMeasure{measured.area, {measured.centroid_x, measured.centroid_y}};
 }
 
+std::expected<std::vector<ContourPair>, ContourPairFailure>
+pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> to, const ContourRules& rules) {
+    constexpr auto none = ContourPair::none;
+    struct Measured { std::size_t index; ShapeMeasure measure; bool outline; };
+    const auto measure_all = [](std::span<const ShapeContour> contours, bool from_end) -> std::expected<std::vector<Measured>, ContourPairFailure> {
+        std::vector<Measured> measured;
+        for (std::size_t index = 0; index < contours.size(); ++index) {
+            const auto& view = contours[index];
+            if (!view.closed) return std::unexpected(ContourPairFailure{ContourPairError::open_contour, from_end, index});
+            // A contour that is one point (a grown contour's first frame) is no contour.
+            if (std::ranges::all_of(view.segments, [&](const ShapeSegment& segment) {
+                    return segment.end == view.start && (segment.verb == ShapeVerb::line || segment.control1 == view.start) &&
+                        (segment.verb != ShapeVerb::cubic || segment.control2 == view.start);
+                }))
+                continue;
+            const auto value = measure(view);
+            if (!value) return std::unexpected(ContourPairFailure{ContourPairError::measure, from_end, index, value.error()});
+            measured.push_back({index, *value, true});
+        }
+        double largest = 0, sign = 1;
+        for (const auto& item : measured)
+            if (std::abs(item.measure.area) > largest) { largest = std::abs(item.measure.area); sign = item.measure.area < 0 ? -1 : 1; }
+        for (auto& item : measured) item.outline = item.measure.area * sign >= 0;
+        return measured;
+    };
+    const auto sources = measure_all(from, true);
+    if (!sources) return std::unexpected(sources.error());
+    const auto targets = measure_all(to, false);
+    if (!targets) return std::unexpected(targets.error());
+    double extent = 0;
+    for (const auto* side : {&*sources, &*targets})
+        for (const auto& item : *side) extent = std::max(extent, std::abs(item.measure.area));
+    extent = extent > 0 ? std::sqrt(extent) : 1;
+    const auto distance = [](Vec2 left, Vec2 right) { return std::sqrt((left.x - right.x) * (left.x - right.x) + (left.y - right.y) * (left.y - right.y)); };
+    struct Candidate { double cost; std::size_t from, to; };
+    std::vector<Candidate> candidates;
+    for (std::size_t from_index = 0; from_index < sources->size(); ++from_index)
+        for (std::size_t to_index = 0; to_index < targets->size(); ++to_index) {
+            const auto& left = (*sources)[from_index];
+            const auto& right = (*targets)[to_index];
+            if (left.outline != right.outline) continue;
+            const double sizes = std::abs(dm::log(std::abs(left.measure.area) / std::abs(right.measure.area)));
+            candidates.push_back({rules.distance * distance(left.measure.centroid, right.measure.centroid) / extent + rules.size * sizes, from_index, to_index});
+        }
+    std::ranges::sort(candidates, [](const Candidate& left, const Candidate& right) {
+        return std::tie(left.cost, left.from, left.to) < std::tie(right.cost, right.from, right.to);
+    });
+    std::vector<std::size_t> paired_to(sources->size(), none), paired_from(targets->size(), none);
+    for (const auto& pin : rules.pins) {
+        const auto found_from = std::ranges::find(*sources, pin.from, &Measured::index);
+        const auto found_to = std::ranges::find(*targets, pin.to, &Measured::index);
+        if (found_from == sources->end() || found_to == targets->end() || found_from->outline != found_to->outline)
+            return std::unexpected(ContourPairFailure{ContourPairError::invalid_pin, true, pin.from});
+        const auto from_index = static_cast<std::size_t>(found_from - sources->begin());
+        const auto to_index = static_cast<std::size_t>(found_to - targets->begin());
+        if (paired_to[from_index] != none || paired_from[to_index] != none)
+            return std::unexpected(ContourPairFailure{ContourPairError::invalid_pin, true, pin.from});
+        paired_to[from_index] = to_index;
+        paired_from[to_index] = from_index;
+    }
+    for (const auto& candidate : candidates)
+        if (paired_to[candidate.from] == none && paired_from[candidate.to] == none) {
+            paired_to[candidate.from] = candidate.to;
+            paired_from[candidate.to] = candidate.from;
+        }
+    // Where a contour alone begins or ends: an outline at the nearest outline
+    // of the other end (it splits off or merges in), a hole at its own centre.
+    const auto meeting = [&](const Measured& alone, const std::vector<Measured>& other) {
+        if (!alone.outline) return alone.measure.centroid;
+        std::optional<Vec2> nearest;
+        for (const auto& item : other)
+            if (item.outline && (!nearest || distance(item.measure.centroid, alone.measure.centroid) < distance(*nearest, alone.measure.centroid)))
+                nearest = item.measure.centroid;
+        return nearest.value_or(alone.measure.centroid);
+    };
+    std::vector<ContourPair> pairs;
+    for (std::size_t from_index = 0; from_index < sources->size(); ++from_index)
+        if (paired_to[from_index] != none) pairs.push_back({(*sources)[from_index].index, (*targets)[paired_to[from_index]].index});
+    for (std::size_t from_index = 0; from_index < sources->size(); ++from_index)
+        if (paired_to[from_index] == none) pairs.push_back({(*sources)[from_index].index, none, meeting((*sources)[from_index], *targets)});
+    for (std::size_t to_index = 0; to_index < targets->size(); ++to_index)
+        if (paired_from[to_index] == none) pairs.push_back({none, (*targets)[to_index].index, meeting((*targets)[to_index], *sources)});
+    return pairs;
+}
+
 std::expected<PreparedShapeMorph, ShapeMorphError>
 PreparedShapeMorph::grow(Vec2 point, ShapeContour to, ShapeMorphOptions options, bool reverse) {
     auto grown = shrink(to, point, options);

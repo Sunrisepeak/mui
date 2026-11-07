@@ -138,6 +138,13 @@ int main(int argc, char** argv) {
             if (!recipe->effect.empty()) check(motion.travel && motion.travel->effect == recipe->effect, std::format("`{}` travels through {}", name, recipe->effect));
         }
     });
+    suite.test("the representations' recipes carry their operations to the morph", [] {
+        const auto library = default_motion_library();
+        check(library.at("trace.focus").write && library.at("write.check").write, "strokes written");
+        check(library.at("enter.drop").drop > 0 && library.at("enter.drop").curve.kind == Transition::Kind::tween, "a drop on a linear course");
+        check(!library.at("travel.noise").translation_path.linear(), "a wandering way");
+        check(!library.at("default.focus").write && library.at("default.focus").drop == 0, "the defaults unchanged");
+    });
     suite.test("a scoped theme crossfade cannot replace a running morph's marker ranges with historical ones", [] {
         Probe fading, reference; fading.begin(); reference.begin();
         const auto before = fading.pixels();

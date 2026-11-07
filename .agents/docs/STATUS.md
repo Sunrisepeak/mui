@@ -72,37 +72,40 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | Project | One-sentence definition | Evidence state |
 |---|---|---|
 | omui | One semantic tree drives pixels, strong motion, accessibility, agents and tests | UI eval 63 (2026-11-01); motion not yet on hanim |
-| hanim | Composable, agent-native animation engine for UI, video and game animation | eval 62; strict 2D object model, 4 channels |
+| hanim | Composable, agent-native animation engine for UI, video and game animation | eval 62 (before M2); M2: typed channels, springs in programs, time maps, interactive mode with takeover, the visual representation, v1 shape |
 | xrender | CPU/GPU same-source, Web-first renderer with agent-reviewable pixels | eval 65; GPU only on lavapipe |
 | xengine | Game engine system where people and agents develop and play as equals | eval 62 (game engine) |
 | gongfu | Deterministic, rollback-ready, data-driven fighting framework | 10,000-rollback determinism test |
 
-## M2 — global contracts and the hanim kernel (started)
+## M2 — global contracts and the hanim kernel (exit review)
 
 | Item | State |
 |---|---|
-| `mlibs.cts` framework (§5.5) | this checkpoint (D-108) |
-| RHI conformance on mlibs.cts | this checkpoint: 19 cases, the same results; backends keep the JSON report |
+| `mlibs.cts` framework (§5.5) | done (D-108) |
+| RHI conformance on mlibs.cts | done: 19 cases, the same results; backends keep the JSON report |
 | simulation GPU conformance on mlibs.cts | done: 17 cases (16 scenarios and the refusal) needing `compute`; the same totals and process hash as before (`0769cee00d2cbf3a`); backends require compute |
 | spec level S on mlibs.cts | done: the harness is `modules/projects/omui/cts` (was `tests/cts`); `conform()` gives one case a scenario; JavaScript, Lua and embedded Python 7/7 each |
-| error contract `mlibs.error` | this checkpoint (D-109): `Error<Code, Where>{code, message, where, causes}`, kinds = openas error codes; `mlibs.rhi` and the cellular simulation on it |
-| handle contract | this checkpoint: `mlibs::memory::OwnedHandle<Tag>{owner, slot, generation}` beside `Handle<Tag>`; hanim's `ObjectRef` and `PlaybackRef` are it, tagged |
-| time contract `mlibs.time` | this checkpoint (D-110): `seconds`, `Flicks`, `Rate`, exact conversions; `xengine.timeline`'s copies and `hanim::FrameRate` removed, their users on it; lint `time` |
-| hanim's Failure family on mlibs.error | this checkpoint (D-111): five hanim failures and mlibs.geom's `PathFailure` are `Error<Code, Where>`; nested causes are `causes`; wrapping codes take their cause's kind; `*_error_name` removed |
-| prepare/execute and budget conventions, contract CTS | this checkpoint (D-112): core design §10; `mlibs.cts:prepare` cases on hanim (program preparation 7 cases, engine publication 3) and the cellular simulation (10); the suite found two wrong refusal kinds in the cellular simulation, fixed |
-| lint `owner` | this checkpoint (D-113): `tools/lint/capabilities.owners.omui.toml`, six capabilities (fnv1a, splitmix64/fdlibm, flicks, OKLab, the handle's shape, a component animating itself); three private handles and example 05's OKLab moved onto their owners; the `motion` rule had been dead since M1 (it looked for `components/` at the root) |
-| hanim L2: typed channels | this checkpoint (D-114): `hanim::ch`, `anim::to/by(target, ch::x = v, …)`, `part(object, id)`, application channels as part values in `FrameView::values` |
-| hanim L1 in programs: springs | this checkpoint (D-115): `EaseKind::spring`, `.spring(params)`, `anim::spring`; overshooting curves overshoot properties |
-| hanim L4: time mapping, first step | this checkpoint (D-116): `timed`, `loop` (forever too), markers; whole programs only |
-| hanim L5: interactive mode, first step | this checkpoint (D-117): `engine.drive(key, channel)` → `Drive<T>`, the engine's one Set; as fast as Set (bench `motion/drive-1000`) |
-| render (xrender) suite on mlibs.cts | this checkpoint (D-118): `xrender.cts` is the owner's suite library, 47 cases; `xrender.rhi.sdl` runs it (lavapipe 47/47 locally) |
-| hanim v1 API: compatibility names removed | this checkpoint (D-119) |
-| hanim `visual` representation | this checkpoint (D-120): `omui.motion` is `hanim.visual` (its own package in the hanim project: its tests need it; mcpp has no per-package test features) |
-| hanim L5: timeline takeover of driven channels | this checkpoint (D-122): `drive.follow(playback)`; handed back with momentum (`Set::carry`) |
-| hanim L4: time maps inside programs | this checkpoint (D-123): whole courses (integral repeat, alternate, reverse) unrolled into replicas; rate/trim/endless stay root-only |
-| hanim v1: one value type | this checkpoint (D-124): `Program`; time on the expression (`loop`, `alternate`, `reverse`, `rate`) |
-| M2 exit review: consumers, Set/Morph benchmarks, pixel baselines; the all-green CI run | next |
+| error contract `mlibs.error` | done (D-109): `Error<Code, Where>{code, message, where, causes}`, kinds = openas error codes; `mlibs.rhi` and the cellular simulation on it |
+| handle contract | done: `mlibs::memory::OwnedHandle<Tag>{owner, slot, generation}` beside `Handle<Tag>`; hanim's `ObjectRef` and `PlaybackRef` are it, tagged |
+| time contract `mlibs.time` | done (D-110): `seconds`, `Flicks`, `Rate`, exact conversions; `xengine.timeline`'s copies and `hanim::FrameRate` removed, their users on it; lint `time` |
+| hanim's Failure family on mlibs.error | done (D-111): five hanim failures and mlibs.geom's `PathFailure` are `Error<Code, Where>`; nested causes are `causes`; wrapping codes take their cause's kind; `*_error_name` removed |
+| prepare/execute and budget conventions, contract CTS | done (D-112): core design §10; `mlibs.cts:prepare` cases on hanim (program preparation 7 cases, engine publication 3) and the cellular simulation (10); the suite found two wrong refusal kinds in the cellular simulation, fixed |
+| lint `owner` | done (D-113): `tools/lint/capabilities.owners.omui.toml`, six capabilities (fnv1a, splitmix64/fdlibm, flicks, OKLab, the handle's shape, a component animating itself); three private handles and example 05's OKLab moved onto their owners; the `motion` rule had been dead since M1 (it looked for `components/` at the root) |
+| hanim L2: typed channels | done (D-114): `hanim::ch`, `anim::to/by(target, ch::x = v, …)`, `part(object, id)`, application channels as part values in `FrameView::values` |
+| hanim L1 in programs: springs | done (D-115): `EaseKind::spring`, `.spring(params)`, `anim::spring`; overshooting curves overshoot properties |
+| hanim L4: time mapping, first step | done (D-116): `timed`, `loop` (forever too), markers; whole programs only |
+| hanim L5: interactive mode, first step | done (D-117): `engine.drive(key, channel)` → `Drive<T>`, the engine's one Set; as fast as Set (bench `motion/drive-1000`) |
+| render (xrender) suite on mlibs.cts | done (D-118): `xrender.cts` is the owner's suite library, 47 cases; `xrender.rhi.sdl` runs it (lavapipe 47/47 locally) |
+| hanim v1 API: compatibility names removed | done (D-119) |
+| hanim `visual` representation | done (D-120): `omui.motion` is `hanim.visual` (its own package in the hanim project: its tests need it; mcpp has no per-package test features) |
+| hanim L5: timeline takeover of driven channels | done (D-122): `drive.follow(playback)`; handed back with momentum (`Set::carry`) |
+| hanim L4: time maps inside programs | done (D-123): whole courses (integral repeat, alternate, reverse) unrolled into replicas; rate/trim/endless stay root-only |
+| hanim v1: one value type | done (D-124): `Program`; time on the expression (`loop`, `alternate`, `reverse`, `rate`) |
+| exit: independent consumers | all six probes ok locally (hanim-api-probe, hanim-play-consumer, omui-hanim-consumer, hanim-features 8 cases, hanim-core-consumer, the templates) |
+| exit: Set and Morph benchmarks | release, locally: `motion/drive-1000` p95 0.011 ms beside `motion/set-1000` 0.021 ms; `motion/switches-100` 1.59 ms (budget 5.5), `-liquid` 13.4 ms (45), `-ink` 33.9 ms (90) |
+| exit: pixel baselines | unchanged: the site (22), the promo, the style gallery, widget-breakout and the markdown wall pass their pins after every M2 checkpoint |
+| exit: CI | pending: one all-green run on an M2 commit (cb26e381: every row green but the templates step, fixed in 7283d34a) |
 
 ## Next
 
-M0's exit (the whole matrix green once, the GCC rows in the nightly lane) as CI reports on this checkpoint. Then M2 (plan §11): the global contracts of §5.2 (handle, error, time, budget, prepare/execute), lint `owner`, `mlibs.cts` and the four CTS migrated (§5.5), and hanim's L2–L5 with the `visual` representation (§6.2). mcpp is pinned to the latest release, 2026.11.5.1 (`.xlings.json`): the workspace builds and its 119 members pass with it locally.
+M0 and M2 exit on one all-green CI run of an M2 commit (the matrix rows; the GCC rows and their gated steps in the nightly lane). Then M3 (plan §6.4): the UI runtime's motion stage on the one Engine — node slots declare motion intent, style packs give recipe ids and parameters, the UI gives representations and identity, hanim evaluates; `Set` users move to `drive`; Playback becomes a light handle; the 37 component kinds; old paths deleted; intermediate states, interruption, reduced/off, hit/focus/IME consistency, frame time and Wasm compared. mcpp is pinned to the latest release, 2026.11.5.1 (`.xlings.json`).

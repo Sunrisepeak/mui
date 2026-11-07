@@ -67,7 +67,16 @@ struct Execution {
     Shape tile{32,32};
     Boundary boundary;
     bool reverse_tiles = false;
+    // Optional: one byte a tile, row by row (tiles(shape, tile) of them), set
+    // to 1 where a cell of the tile changed this step and 0 where none did —
+    // what a presenter re-uploads and a renderer redraws (D-132).
+    std::span<std::uint8_t> changed_tiles = {};
 };
+// How many tiles of `tile` cover `shape`: columns, rows.
+[[nodiscard]] constexpr Shape tiles(Shape shape, Shape tile) noexcept {
+    if (!tile.width || !tile.height || !shape.width || !shape.height) return {};
+    return {1 + (shape.width - 1) / tile.width, 1 + (shape.height - 1) / tile.height};
+}
 struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0; };
 
 class Program {

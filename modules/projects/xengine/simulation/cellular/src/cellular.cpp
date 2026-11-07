@@ -139,11 +139,13 @@ std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std
     if(!execution.tile.width || !execution.tile.height)return std::unexpected(Failure{Errc::tile});
     const auto columns=1+(shape.width-1)/execution.tile.width,rows=1+(shape.height-1)/execution.tile.height;
     const auto total=columns*rows;Statistics stats;
+    if(!execution.changed_tiles.empty() && execution.changed_tiles.size()!=total)return std::unexpected(Failure{Errc::tile});
     for(std::uint32_t i=0;i<total;++i) {
         const auto k=execution.reverse_tiles ? total-1-i : i;
         const auto x=(k%columns)*execution.tile.width,y=(k/columns)*execution.tile.height;
         const auto s=run_tile(shape,{x,y,std::min(execution.tile.width,shape.width-x),std::min(execution.tile.height,shape.height-y)},in,out,execution.boundary);
         stats.cells+=s.cells;stats.matched+=s.matched;stats.changed+=s.changed;
+        if(!execution.changed_tiles.empty())execution.changed_tiles[k]=s.changed?1:0;
     }
     mlibs::trace::count("simulation.cellular.changed",static_cast<double>(stats.changed),"simulation");
     return stats;

@@ -256,7 +256,10 @@ struct GpuRenderer::Impl {
     struct Stored {
         mlibs::rhi::Texture           texture;
         const xrender::raster::Surface* surface = nullptr;
+        std::uint64_t                 revision = 0;  // the store's revision of it uploaded
     };
+    const ImageStore* store = nullptr;               // this frame's (Resources::images)
+    std::vector<mlibs::geom::PixelRect> changed;     // an updated image's rectangles (reused)
     std::unordered_map<std::uint32_t, Stored> stored;
     // Textures of images the store let go, kept by size for the next image
     // of that size (a canvas's tiers come and go every frame of a zoom: no
@@ -442,8 +445,30 @@ struct GpuRenderer::Impl {
 
     // An ImageStore image: uploaded the first time it is drawn.
     mlibs::rhi::Result<mlibs::rhi::Texture> stored_texture(std::uint32_t id, const xrender::raster::Surface& s) {
-        if (auto it = stored.find(id); it != stored.end() && it->second.surface == &s) return it->second.texture;
+        const std::uint64_t revision = store ? store->revision(ImageRef{id}) : 0;
+        // The same pixels: the same surface at the same revision (an updated
+        // image's new surface may reuse the old one's address).
+        if (auto it = stored.find(id); it != stored.end() && it->second.surface == &s && it->second.revision == revision) return it->second.texture;
         if (auto it = stored.find(id); it != stored.end()) {
+            // Updated in place (ImageStore::update): only what changed since the revision uploaded.
+            changed.clear();
+            const auto desc = d.describe(it->second.texture);
+            if (revision > it->second.revision && desc && desc->width == static_cast<std::uint32_t>(s.width()) &&
+                desc->height == static_cast<std::uint32_t>(s.height()) && store->changed_since(ImageRef{id}, it->second.revision, changed)) {
+                const auto row_bytes = static_cast<std::uint32_t>(s.width()) * 4;
+                const auto bytes = std::as_bytes(s.pixels());
+                for (const auto& r : changed) {
+                    const auto offset = (static_cast<std::size_t>(r.y) * static_cast<std::size_t>(s.width()) + static_cast<std::size_t>(r.x)) * 4;
+                    const auto length = static_cast<std::size_t>(r.height - 1) * row_bytes + static_cast<std::size_t>(r.width) * 4;
+                    list.upload_borrowed(it->second.texture,
+                                         mlibs::rhi::Region{static_cast<std::uint32_t>(r.x), static_cast<std::uint32_t>(r.y),
+                                                            static_cast<std::uint32_t>(r.width), static_cast<std::uint32_t>(r.height)},
+                                         bytes.subspan(offset, length), row_bytes);
+                }
+                it->second.surface = &s;
+                it->second.revision = revision;
+                return it->second.texture;
+            }
             spare(it->second);
             stored.erase(it);
         }
@@ -459,7 +484,7 @@ struct GpuRenderer::Impl {
             t = *made;
         }
         upload_surface(t, s, true);
-        stored.emplace(id, Stored{t, &s});
+        stored.emplace(id, Stored{t, &s, revision});
         return t;
     }
 
@@ -472,7 +497,10 @@ struct GpuRenderer::Impl {
     // The stored images the store no longer holds go (their textures spare).
     void release_stored(const ImageStore* store) {
         std::erase_if(stored, [&](auto& kv) {
-            if (store && store->get(ImageRef{kv.first}) == kv.second.surface) return false;
+            // Still held: the same surface, or the same image updated in place since (uploaded in part when drawn).
+            if (const auto* now = store ? store->get(ImageRef{kv.first}) : nullptr;
+                now && (now == kv.second.surface || store->revision(ImageRef{kv.first}) > kv.second.revision))
+                return false;
             spare(kv.second);
             return true;
         });
@@ -710,6 +738,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
     RenderReport report;
     g.pool_frame();
     g.release_stored(res.images);
+    g.store = res.images;
     g.images_used.clear();
     g.list.clear();
     if (auto a = g.ensure_atlas(); !a) return std::unexpected(a.error());

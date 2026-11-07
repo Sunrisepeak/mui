@@ -176,6 +176,65 @@ int main(int argc, char** argv) {
         check(p.rows > 0 && p.rows < static_cast<std::size_t>(H), std::format("{} rows", p.rows));
     });
 
+    s.test("an image updated in place: its revisions, and only what changed redrawn — exactly", [] {
+        render::ImageStore store;
+        constexpr int side = 64;
+        auto pixels = std::make_shared<raster::Surface>(side, side);
+        for (int y = 0; y < side; ++y)
+            for (int x = 0; x < side; ++x) pixels->at(x, y) = raster::Rgba8{static_cast<std::uint8_t>(x * 4), static_cast<std::uint8_t>(y * 4), 90, 255};
+        const auto image = store.add(std::shared_ptr<const raster::Surface>(pixels));
+        check_eq(store.revision(image), std::uint64_t{0});
+        check(!store.update(image, std::make_shared<raster::Surface>(side, side + 1)), "another size is refused");
+        check(!store.update(render::ImageRef{999}, std::make_shared<raster::Surface>(side, side)), "an image not in the store");
+        const render::Resources resources{&store, nullptr};
+        const auto draw = [&](render::DisplayList& list, render::Sampling sampling) {
+            list.clear();
+            list.fill_rect({0, 0, W, H}, geom::Color::hex(0x101820));
+            list.begin_node(1);
+            list.draw_image(image, {0, 0, side, side}, {20, 20, side * 3, side * 3}, sampling);
+            list.end_node();
+        };
+        for (const auto sampling : {render::Sampling::nearest, render::Sampling::linear}) {
+            raster::Surface incremental(W, H);
+            render::CpuRenderer renderer;
+            render::DamageTracker tracker;
+            render::DisplayList list;
+            draw(list, sampling);
+            (void)renderer.render(list, incremental, resources, {.rows = tracker.update(list, W, H, 1, resources)});
+            // Four texels change at (30, 40): drawn ×3 from (20, 20), rows 140 … 152 and their neighbours.
+            auto next = std::make_shared<raster::Surface>(*store.get(image));
+            for (int y = 40; y < 44; ++y)
+                for (int x = 30; x < 34; ++x) next->at(x, y) = raster::Rgba8{255, 255, 255, 255};
+            const std::array changed{geom::PixelRect{30, 40, 4, 4}};
+            check(store.update(image, std::shared_ptr<const raster::Surface>(next), changed), "updated");
+            draw(list, sampling);
+            const auto spans = tracker.update(list, W, H, 1, resources);
+            std::size_t rows = 0;
+            for (auto r : spans) rows += static_cast<std::size_t>(r.bottom - r.top);
+            check(rows > 0 && rows <= 24 && spans.front().top >= 130 && spans.back().bottom <= 162, std::format("{} rows from {}", rows, spans.empty() ? -1 : spans.front().top));
+            (void)renderer.render(list, incremental, resources, {.rows = spans});
+            raster::Surface full(W, H);
+            render::CpuRenderer fresh;
+            (void)fresh.render(list, full, resources);
+            check(std::ranges::equal(incremental.bytes(), full.bytes()), "the incremental frame is the full one");
+            // Unchanged since: nothing redrawn.
+            draw(list, sampling);
+            check(tracker.update(list, W, H, 1, resources).empty(), "nothing changed, nothing redrawn");
+        }
+        // Updates beyond what the store remembers: all of it, once.
+        std::vector<geom::PixelRect> out;
+        const auto revision = store.revision(image);
+        check(store.changed_since(image, revision - 1, out) && out.size() == 1 && out[0] == geom::PixelRect{30, 40, 4, 4}, "the last update's rectangle");
+        for (std::size_t k = 0; k < render::ImageStore::remembered + 1; ++k) check(store.update(image, store.shared(image), std::array{geom::PixelRect{0, 0, 1, 1}}));
+        out.clear();
+        check(!store.changed_since(image, revision, out), "forgotten: treat all of it as changed");
+        check(store.changed_since(image, store.revision(image), out), "up to date");
+        // A snapshot store keeps the revision (canvas textures on another thread).
+        render::ImageStore snapshot;
+        snapshot.put(image, store.shared(image), store.revision(image));
+        check_eq(snapshot.revision(image), store.revision(image));
+    });
+
     s.test("a new size, a new scale, or invalidate() damage every row", [] {
         Knobs k;
         render::DisplayList dl;

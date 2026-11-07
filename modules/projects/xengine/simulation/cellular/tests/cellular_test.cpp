@@ -65,6 +65,31 @@ int main(int argc,char** argv) {
             for(std::uint32_t y=0;y<shape.height;++y)for(std::uint32_t x=10;x<shape.width;++x)check(state[209+y*shape.width+x]==0);
         }
     });
+    s.test("the changed-tile mask marks exactly the tiles where a cell changed; a mask of the wrong size is refused", [] {
+        const ca::Shape shape{19,11};const auto rules=reaction_rules();const auto prepared=ca::Program::prepare(3,rules);
+        check(prepared.has_value());if(!prepared)return;
+        for(const auto tile:std::array<ca::Shape,3>{{{4,4},{7,3},{19,11}}}) {
+            const auto grid=ca::tiles(shape,tile);
+            auto state=initial(shape),next=state;
+            std::vector<std::uint8_t> mask(grid.width*grid.height,7);
+            for(int frame=0;frame<16;++frame) {
+                check(prepared->step(shape,state,next,{.tile=tile,.changed_tiles=mask}).has_value());
+                for(std::uint32_t ty=0;ty<grid.height;++ty)for(std::uint32_t tx=0;tx<grid.width;++tx) {
+                    bool differs=false;
+                    for(std::uint32_t c=0;c<3;++c)for(std::uint32_t y=ty*tile.height;y<std::min(shape.height,(ty+1)*tile.height);++y)
+                        for(std::uint32_t x=tx*tile.width;x<std::min(shape.width,(tx+1)*tile.width);++x) {
+                            const auto i=c*209+y*shape.width+x;differs|=state[i]!=next[i];
+                        }
+                    check(mask[ty*grid.width+tx]==(differs?1:0),std::format("tile {},{} of {}x{} at frame {}",tx,ty,tile.width,tile.height,frame));
+                }
+                state.swap(next);
+            }
+            std::vector<std::uint8_t> wrong(grid.width*grid.height+1);
+            const auto refused=prepared->step(shape,state,next,{.tile=tile,.changed_tiles=wrong});
+            check(!refused && refused.error().code==ca::Errc::tile);
+        }
+        check(ca::tiles({1024,1024},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).height==1);
+    });
     s.test("partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo", [] {
         using C=ca::Condition;const std::array<ca::Offset,1> left{{{-1,0}}};
         const std::array rules{ca::Rule{{C::neighbors({0,{9,9}},left,{1,1})},{{0,ca::WriteKind::set,1}}}};

@@ -681,6 +681,39 @@ void add(mlibs::cts::Suite<Bench>& suite) {
         });
     }
 
+    add_case(suite, "render.vector.image-update", mlibs::cts::Level::tolerance, [](Bench& bench) {  // an image updated in place (D-132): the same pixels as the CPU every frame, and only the changed rectangles uploaded
+        rhi::Device* device = &bench.device;
+        auto gpu = render::GpuRenderer::create(*device);
+        check(gpu.has_value(), gpu ? "" : gpu.error().message);
+        if (!gpu) return;
+        auto target = device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "test.target"});
+        check(target.has_value());
+        if (!target) return;
+        Rig rig{*device, std::move(*gpu), {}, *target, {}, {}, {}};
+        constexpr int side = 48;
+        auto first = std::make_shared<raster::Surface>(side, side);
+        for (int y = 0; y < side; ++y)
+            for (int x = 0; x < side; ++x) first->at(x, y) = raster::Rgba8{static_cast<std::uint8_t>(x * 5), static_cast<std::uint8_t>(y * 5), 120, 255};
+        const auto image = rig.images.add(std::shared_ptr<const raster::Surface>(first));
+        render::DisplayList dl;
+        dl.draw_image(image, {0, 0, side, side}, {8, 8, side * 2, side * 2}, render::Sampling::nearest);
+        check(rig.compare(dl, "image-update first", {1, 0}).empty(), "the first frame");
+        const auto whole = rig.last.uploaded;
+        for (int frame = 0; frame < 3; ++frame) {
+            auto next = std::make_shared<raster::Surface>(*rig.images.get(image));
+            const geom::PixelRect changed{5 + frame * 10, 7 + frame * 9, 6, 4};
+            for (int y = changed.y; y < changed.y + changed.height; ++y)
+                for (int x = changed.x; x < changed.x + changed.width; ++x) next->at(x, y) = raster::Rgba8{250, static_cast<std::uint8_t>(60 * frame), 20, 255};
+            check(rig.images.update(image, std::shared_ptr<const raster::Surface>(next), std::array{changed}), "updated");
+            const std::string problem = rig.compare(dl, std::format("image-update frame {}", frame), {1, 0});
+            check(problem.empty(), problem);
+            // The image's bytes this frame: its changed rectangle's, not the whole image's again.
+            check(rig.last.uploaded < whole && rig.last.uploaded >= static_cast<std::size_t>(changed.width * changed.height * 4),
+                  std::format("frame {}: {} bytes uploaded (the whole image took {})", frame, rig.last.uploaded, whole));
+        }
+        device->destroy(*target);
+    });
+
     add_case(suite, "render.vector.mask-atlas", mlibs::cts::Level::tolerance, [](Bench& bench) {  // masks are kept from frame to frame; the atlas grows, and past its size is emptied — every frame the CPU's pixels
         rhi::Device* device = &bench.device;
         auto gpu = render::GpuRenderer::create(*device);

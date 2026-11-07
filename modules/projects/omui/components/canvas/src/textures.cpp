@@ -220,7 +220,7 @@ void Textures::issue(const Scene& scene, const xrender::ImageStore& images, mlib
             k.content(scene, c.node, *dl);
             std::vector<xrender::ImageRef> used;
             images_of(*dl, used);
-            for (xrender::ImageRef i : used) snapshot->put(i, images.shared(i));
+            for (xrender::ImageRef i : used) snapshot->put(i, images.shared(i), images.revision(i));
         } else {
             view = std::make_shared<const Element>(k.view(scene, c.node));
         }

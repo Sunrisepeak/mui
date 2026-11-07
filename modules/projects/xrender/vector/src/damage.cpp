@@ -191,6 +191,32 @@ void DamageTracker::build(const DisplayList& list, float scale, std::int32_t wid
         } else if (auto b = device_bounds(command, m, resources.glyphs)) {
             const Rect visible = b->intersection(clips_.back());
             if (!visible.empty()) out[at].own = out[at].own.united(visible);
+            // An image updated in place since the last list: its command is the same, its pixels are not —
+            // what changed of it, mapped from its source to where it is drawn.
+            if (const auto* image = std::get_if<DrawImage>(&command); image && resources.images && !visible.empty()) {
+                const std::uint64_t revision = resources.images->revision(image->image);
+                next_image_revisions_[image->image.id] = revision;
+                const auto seen = image_revisions_.find(image->image.id);
+                if (seen != image_revisions_.end() && seen->second != revision) {
+                    image_changes_.clear();
+                    if (revision < seen->second || !resources.images->changed_since(image->image, seen->second, image_changes_)) {
+                        image_damage_.push_back(visible);
+                    } else if (image->source.width > 0 && image->source.height > 0) {
+                        const float sx = image->dest.width / image->source.width, sy = image->dest.height / image->source.height;
+                        for (const auto& r : image_changes_) {
+                            const Rect texels = Rect{static_cast<float>(r.x), static_cast<float>(r.y), static_cast<float>(r.width),
+                                                     static_cast<float>(r.height)}.intersection(image->source);
+                            if (texels.empty()) continue;
+                            // A texel's neighbours are sampled with it (linear filtering): one more on each side.
+                            const Rect drawn = grow(Rect{image->dest.x + (texels.x - image->source.x) * sx, image->dest.y + (texels.y - image->source.y) * sy,
+                                                         texels.width * sx, texels.height * sy},
+                                                    std::max(sx, sy));
+                            const Rect device = grow(mapped(m, drawn.intersection(image->dest)), 1).intersection(clips_.back());
+                            if (!device.empty()) image_damage_.push_back(device);
+                        }
+                    }
+                }
+            }
         }
     }
     // Close what the list left open, the root last.
@@ -221,7 +247,11 @@ std::span<const RowSpan> DamageTracker::update(const DisplayList& list, std::int
     rects_.clear();
     rows_.clear();
     backdrops_.clear();
+    image_damage_.clear();
+    next_image_revisions_.clear();
     build(list, scale, width, height, resources, current_);
+    for (const Rect& r : image_damage_) add(r);
+    image_revisions_.swap(next_image_revisions_);
     full_ = !valid_ || width != width_ || height != height_ || scale != scale_;
     if (full_) {
         add({0, 0, static_cast<float>(width), static_cast<float>(height)});

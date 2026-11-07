@@ -3,12 +3,12 @@ import std;
 import hanim.core;
 import mlibs.geom;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import mlibs.testing;
 
-using namespace omui;
+using namespace hanim;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 namespace { std::atomic<std::size_t> allocations{0}; }
 void* operator new(std::size_t size) {
     allocations.fetch_add(1, std::memory_order_relaxed);

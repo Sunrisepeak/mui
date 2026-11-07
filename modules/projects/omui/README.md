@@ -26,7 +26,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [core](core) | Signals, verbs, input events, JSON, diagnostics, tasks; who may do what (openas) |
 | [expr](expr) | Expressions: a CEL-compatible parser, printer and evaluator for bindings |
 | [view](view) | The retained view runtime: elements, components, theme tokens, frames, input, actions, windows |
-| [motion](motion) | Universal motion: matter from what a node drew, matched and morphed between two drawings (D-93) |
+| [hanim.visual](../hanim/visual) | Universal motion is hanim's visual representation now (D-120): matter from what a node drew, matched and morphed between two drawings (D-93) |
 | [semantic](semantic) | The semantic tree: snapshots, deltas, queries, actions, waits, checks, recording |
 | [accessibility](accessibility) | The tree served to the platform's assistive technology: UIA, NSAccessibility, AT-SPI (AccessKit) |
 | [agent](agent) | The agent endpoint: `openmui.tree` over local IPC, JSON lines, envelopes |

@@ -61,7 +61,7 @@ members = [
     "modules/projects/omui/player",
     "modules/projects/omui/reflect",
     "modules/projects/omui/semantic",
-    "modules/projects/omui/motion",
+    "modules/projects/hanim/visual",
     "modules/projects/omui/theme",
     "modules/projects/omui/theme/compact",
     "modules/projects/omui/theme/default",

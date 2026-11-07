@@ -2,12 +2,12 @@
 // a selection's internal progress when current allocations change.
 import std;
 import hanim.core;
-import omui.motion;
+import hanim.visual;
 import xrender.vector;
 import xrender.raster;
 import mlibs.testing;
 
-using namespace omui::motion;
+using namespace hanim::visual;
 using namespace mlibs::testing;
 namespace rv=xrender;
 namespace ra=xrender::raster;

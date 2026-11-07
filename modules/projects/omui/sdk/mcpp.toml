@@ -23,7 +23,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 omui.core          = { path = "../core" }
 omui.view          = { path = "../view" }
 omui.semantic      = { path = "../semantic" }
-omui.motion        = { path = "../motion" }
+"hanim.visual"      = { path = "../../hanim/visual" }
 omui.agent         = { path = "../agent" }
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }

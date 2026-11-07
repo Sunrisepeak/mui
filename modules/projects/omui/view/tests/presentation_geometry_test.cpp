@@ -2,14 +2,14 @@
 // NodeFrame is metadata only; it cannot become another visible staggered piece.
 import std;
 import omui.view;
-import omui.motion;
+import hanim.visual;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 
 namespace {
 Theme theme() {

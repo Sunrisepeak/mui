@@ -2,14 +2,14 @@
 // controls through their siblings. Ordinary model layout remains seekable.
 import std;
 import omui.view;
-import omui.motion;
+import hanim.visual;
 import xrender.raster;
 import mlibs.testing;
 import xrender.text;
 
 using namespace omui;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 namespace {
 bool near(Rect a, Rect b, float epsilon = 0.03f) {
     return std::abs(a.x-b.x)<epsilon && std::abs(a.y-b.y)<epsilon && std::abs(a.width-b.width)<epsilon && std::abs(a.height-b.height)<epsilon;

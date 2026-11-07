@@ -6,8 +6,9 @@ The one owner of general animation in the repository (AGENTS.md §2.3): values, 
 
 | Package | Layer | |
 |---|---|---|
-| [hanim.core](core) | base | Deterministic time, values, curves, springs, paths, prepared contour morphs, timelines; the standard library and `mlibs.math` only |
-| `hanim` (this directory) | gfx | Objects, recipes, effects, nested programs and the explicit-clock Engine, by feature; rendering is opt-in (`render-vector`) |
+| [hanim.core](core) | base | Deterministic time, values, curves, springs, paths, prepared contour morphs, timelines; the standard library and `mlibs` (math, utils, memory) only |
+| `hanim` (this directory) | gfx | Objects, typed channels, recipes, effects, nested and time-mapped programs, the explicit-clock Engine and its interactive mode (`drive`), by feature; rendering is opt-in (`render-vector`) |
+| [hanim.visual](visual) | gfx | The visual representation (L3): matter taken from display lists, two drawings matched (by node, by meaning, glyph by glyph) and drawn between as a pure function of time; its own package because it reaches xrender's display lists and carries its own tests (D-120) |
 
 **Signature features — candidates** (plan §9.5; none is claimed outside the repository before its evidence exists):
 

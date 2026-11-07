@@ -4,12 +4,12 @@ import std;
 import hanim.core;
 import mlibs.geom;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import mlibs.testing;
 
-using namespace omui;
+using namespace hanim;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 
 namespace {
 mo::Resolver resolver() {

@@ -5,11 +5,11 @@ import hanim.core;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import mlibs.testing;
 
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;

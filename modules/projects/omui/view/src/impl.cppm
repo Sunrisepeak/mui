@@ -11,7 +11,7 @@ import mlibs.pipeline;
 import xrender.vector;
 import xrender.raster;
 import mlibs.text;
-import omui.motion;
+import hanim.visual;
 import :element;
 import :glyphs;
 import :theme;
@@ -256,7 +256,7 @@ struct Node {
     std::uint64_t                         drawn_hash = 0;
     double                                changed_at = -1e9;  // when its drawing last changed (runtime seconds)
     bool                                  drawn = false;
-    std::shared_ptr<const motion::Morph>  morph;
+    std::shared_ptr<const hanim::visual::Morph>  morph;
 };
 
 // A change a node asks for, in the order the frame handles them.

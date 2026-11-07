@@ -1,4 +1,4 @@
-// openmui.motion: matter taken from display lists, and morphs between two
+// hanim.visual: matter taken from display lists, and morphs between two
 // drawings — matched by node, by meaning and glyph by glyph; pure functions
 // of time; settled, the second drawing's pixels exactly.
 import std;
@@ -6,12 +6,12 @@ import hanim.core;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import mlibs.testing;
 
-using namespace omui;
+using namespace hanim;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 using mlibs::geom::Affine;
 using mlibs::geom::Color;
 using mlibs::geom::Rect;

@@ -18,7 +18,7 @@ import std;
 import omui.core;
 import mlibs.hash;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import :impl;
 import xrender.text;
 
@@ -32,30 +32,30 @@ namespace {
 
 constexpr std::size_t none = static_cast<std::size_t>(-1);
 
-motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Theme& theme) {
-    motion::Options o;
+hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, const Theme& theme) {
+    hanim::visual::Options o;
     o.glyphs = spec.glyphs;
-    o.text = spec.text == MotionSpec::TextTransition::automatic ? motion::TextTransition::automatic
-           : spec.text == MotionSpec::TextTransition::replace ? motion::TextTransition::replace
-                                                           : motion::TextTransition::glyphs;
+    o.text = spec.text == MotionSpec::TextTransition::automatic ? hanim::visual::TextTransition::automatic
+           : spec.text == MotionSpec::TextTransition::replace ? hanim::visual::TextTransition::replace
+                                                           : hanim::visual::TextTransition::glyphs;
     o.text_rise = level == MotionLevel::reduced ? 0 : spec.text_rise;
     o.semantic = spec.meaning;
     o.minimum_text_contrast = spec.minimum_text_contrast;
     if (level == MotionLevel::reduced) {
-        o.curve.kind = motion::Curve::Kind::tween;
+        o.curve.kind = hanim::visual::Curve::Kind::tween;
         o.curve.duration = 0.12;
         o.curve.ease = hanim::ease::standard;
         o.rise = spec.rise * 0.25f;
         o.grow = 1 - (1 - spec.grow) * 0.25f;
         return o;
     }
-    o.curve.kind = spec.curve.kind == Transition::Kind::spring ? motion::Curve::Kind::spring : motion::Curve::Kind::tween;
+    o.curve.kind = spec.curve.kind == Transition::Kind::spring ? hanim::visual::Curve::Kind::spring : hanim::visual::Curve::Kind::tween;
     o.curve.duration = spec.curve.duration.count();
     o.curve.ease = spec.curve.ease;
     o.curve.spring = spec.curve.spring;
-    o.order = spec.order == MotionSpec::Order::document   ? motion::Order::document
-              : spec.order == MotionSpec::Order::distance ? motion::Order::distance
-                                                          : motion::Order::together;
+    o.order = spec.order == MotionSpec::Order::document   ? hanim::visual::Order::document
+              : spec.order == MotionSpec::Order::distance ? hanim::visual::Order::distance
+                                                          : hanim::visual::Order::together;
     o.stagger = spec.stagger;
     o.rise = spec.rise;
     o.grow = spec.grow;
@@ -66,7 +66,7 @@ motion::Options options_of(const MotionSpec& spec, MotionLevel level, const Them
     o.vertex_path = spec.vertex_path;
     if (spec.travel)
         if (const auto ref = xrender::effects().find(spec.travel->effect)) {
-            motion::Options::Travel t{.effect = *ref};
+            hanim::visual::Options::Travel t{.effect = *ref};
             t.params = xrender::effects().params(*ref, {});
             if (const xrender::EffectInfo* info = xrender::effects().info(*ref)) {
                 for (const auto& [k, x] : spec.travel->params)
@@ -224,13 +224,13 @@ void Runtime::Impl::run_motion() {
             // Current overlays follow history in paint order. Searching only
             // the first prefix would lose those current ranges; searching the
             // entire list would instead find their historical copies first.
-            if (auto range = motion::find_range(before.first(previous_history_range.first), marker)) return range;
-            return motion::find_range(before, marker, previous_history_range.second);
+            if (auto range = hanim::visual::find_range(before.first(previous_history_range.first), marker)) return range;
+            return hanim::visual::find_range(before, marker, previous_history_range.second);
         }
-        return motion::find_range(before, marker);
+        return hanim::visual::find_range(before, marker);
     };
     auto snapshot_context = [&](std::uint32_t marker) {
-        motion::SnapshotContext context;
+        hanim::visual::SnapshotContext context;
         if (const auto range = previous_range(marker)) context.prefix = previous_list.commands().first(range->first);
         return context;
     };
@@ -331,7 +331,7 @@ void Runtime::Impl::run_motion() {
         }
         // The resolver gives each marker its node's keys; a nested root's range is drawn whole.
         const std::size_t root_marker = m;
-        motion::Resolver resolver{
+        hanim::visual::Resolver resolver{
             .keys = [this](std::uint32_t marker, std::string& key, std::string& meaning) {
                 const NodeId who = marker < by_index.size() ? by_index[marker] : NodeId{};
                 if (!alive(who)) return;
@@ -357,7 +357,7 @@ void Runtime::Impl::run_motion() {
         });
         const bool rebase_existing = external_layout && n.constraint_epoch != constraint_epoch && n.morph;
         n.constraint_epoch = constraint_epoch;
-        auto start = [&](std::optional<motion::Matter> from, motion::Matter to, const MotionSpec& spec, double velocity) {
+        auto start = [&](std::optional<hanim::visual::Matter> from, hanim::visual::Matter to, const MotionSpec& spec, double velocity) {
             // More pieces than the device's tier moves in a frame (performance tiers §3): shown as it is.
             const std::size_t pieces = (from ? from->pieces().size() : 0) + to.pieces().size();
             constexpr std::array<std::size_t, 5> most{0, 300, 3000, 20000, 60000};
@@ -365,14 +365,14 @@ void Runtime::Impl::run_motion() {
                 n.morph.reset();
                 return;
             }
-            motion::Options options = options_of(spec, level, theme_of(id));
+            hanim::visual::Options options = options_of(spec, level, theme_of(id));
             options.proof_scale = scale;
             options.current_proof_scale = [this] { return scale; };
             if (options.minimum_text_contrast > 0) {
                 if (!motion_glyphs) motion_glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
                 options.glyph_bounds = [cache = motion_glyphs.get(), lock = &motion_glyph_mutex](const xrender::DrawGlyphs& run, const Affine& transform) {
                     const std::scoped_lock guard(*lock);
-                    return motion::glyph_ink_bounds(run, transform, *cache);
+                    return hanim::visual::glyph_ink_bounds(run, transform, *cache);
                 };
             }
             options.curve.velocity = velocity;
@@ -384,7 +384,7 @@ void Runtime::Impl::run_motion() {
                     if (alive(boundary) && (contains(boundary, id) || contains(id, boundary))) options.layout_scopes.push_back(self.path(boundary));
             const auto previous_clock = n.clock;
             const bool keep_control = external_layout && n.morph && n.clock.held;
-            n.morph = std::make_shared<const motion::Morph>(std::move(*from), std::move(to), std::move(options), t);
+            n.morph = std::make_shared<const hanim::visual::Morph>(std::move(*from), std::move(to), std::move(options), t);
             n.clock = {};  // a new content change follows runtime time again
             if (keep_control) {
                 n.clock = previous_clock;
@@ -400,7 +400,7 @@ void Runtime::Impl::run_motion() {
                 n.exit_begun = true;
                 const MotionSpec* exit = slot_motion(id, 2);
                 const auto was = previous_range(static_cast<std::uint32_t>(m));
-                if (exit && was && !off) start(motion::Matter::extract(previous_list, was->first, was->second, resolver), motion::Matter{}, *exit, 0);
+                if (exit && was && !off) start(hanim::visual::Matter::extract(previous_list, was->first, was->second, resolver), hanim::visual::Matter{}, *exit, 0);
             }
             continue;
         }
@@ -415,11 +415,11 @@ void Runtime::Impl::run_motion() {
             const NodeId parent = n.parent;
             const bool into_drawn = n.type->overlay || (alive(parent) && at(parent).index < drawn_by.size() && drawn_by[at(parent).index] == parent);
             // Hidden, then drawn again before its ghost had vanished: from where the ghost is.
-            std::optional<motion::Matter> from;
+            std::optional<hanim::visual::Matter> from;
             if (n.ghost && n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
-            else from = motion::Matter{};
+            else from = hanim::visual::Matter{};
             n.ghost = false;
-            if (spec && into_drawn && !off) start(std::move(from), motion::Matter::extract(list, b, e, resolver), *spec, 0);
+            if (spec && into_drawn && !off) start(std::move(from), hanim::visual::Matter::extract(list, b, e, resolver), *spec, 0);
             else n.morph.reset();
             continue;
         }
@@ -464,7 +464,7 @@ void Runtime::Impl::run_motion() {
         }
         // From what was on screen: the morph under way where it is, else the last frame's drawing of it.
         // The last frame's markers drawn by nodes that are gone: theirs, not whoever took the marker since.
-        motion::Resolver before = resolver;
+        hanim::visual::Resolver before = resolver;
         before.keys = [this, keys = resolver.keys](std::uint32_t marker, std::string& key, std::string& meaning) {
             const NodeId now_by = marker < by_index.size() ? by_index[marker] : NodeId{};
             const NodeId then_by = marker < drawn_by.size() ? drawn_by[marker] : NodeId{};
@@ -474,7 +474,7 @@ void Runtime::Impl::run_motion() {
             }
             keys(marker, key, meaning);
         };
-        std::optional<motion::Matter> from;
+        std::optional<hanim::visual::Matter> from;
         double velocity = 0;
         if (n.morph) {
             velocity = std::clamp(n.morph->rate(n.clock.local(t)), 0.0, 20.0);
@@ -483,10 +483,10 @@ void Runtime::Impl::run_motion() {
                     emit_motion_range(marker_ranges[marker].first, marker_ranges[marker].second, into, t);
             }, snapshot_context(static_cast<std::uint32_t>(m)));
         } else if (const auto was = previous_range(static_cast<std::uint32_t>(m))) {
-            from = motion::Matter::extract(previous_list, was->first, was->second, before);
+            from = hanim::visual::Matter::extract(previous_list, was->first, was->second, before);
         }
         if (!from) continue;
-        start(std::move(from), motion::Matter::extract(list, b, e, resolver), *spec, velocity);
+        start(std::move(from), hanim::visual::Matter::extract(list, b, e, resolver), *spec, velocity);
     }
 
     // Roots drawn the last frame, alive, not drawn now (hidden): their last drawing vanishes as a ghost.
@@ -500,15 +500,15 @@ void Runtime::Impl::run_motion() {
         if (!n.type->overlay && !(alive(parent) && at(parent).index < markers && marker_ranges[at(parent).index].first != none)) continue;
         const auto was = previous_range(static_cast<std::uint32_t>(m));
         if (!was) continue;
-        motion::Resolver keys{.keys = [this](std::uint32_t marker, std::string& key, std::string&) {
+        hanim::visual::Resolver keys{.keys = [this](std::uint32_t marker, std::string& key, std::string&) {
                                   const NodeId who = marker < by_index.size() ? by_index[marker] : NodeId{};
                                   if (alive(who)) key = self.path(who);
                               }};
-        std::optional<motion::Matter> from;
+        std::optional<hanim::visual::Matter> from;
         if (n.morph) from = n.morph->snapshot(n.clock.local(t), {}, snapshot_context(static_cast<std::uint32_t>(m)));
-        else from = motion::Matter::extract(previous_list, was->first, was->second, keys);
-        motion::Options options = options_of(*update_motion(id), level, theme_of(id));
-        n.morph = std::make_shared<const motion::Morph>(std::move(*from), motion::Matter{}, std::move(options), t);
+        else from = hanim::visual::Matter::extract(previous_list, was->first, was->second, keys);
+        hanim::visual::Options options = options_of(*update_motion(id), level, theme_of(id));
+        n.morph = std::make_shared<const hanim::visual::Morph>(std::move(*from), hanim::visual::Matter{}, std::move(options), t);
         n.clock = {};
         n.ghost = true;
         n.drawn = false;  // drawn again later: from nothing
@@ -539,7 +539,7 @@ void Runtime::Impl::run_motion() {
         for (const NodeId id : morphing)
             if (alive(id) && at(id).index < markers && marker_ranges[at(id).index].first != none) {
                 const auto [rb, re] = marker_ranges[at(id).index];
-                if (const auto w = motion::wrapper_of(cmds, rb, re)) marker_wrapper[at(id).index] = *w;
+                if (const auto w = hanim::visual::wrapper_of(cmds, rb, re)) marker_wrapper[at(id).index] = *w;
             }
         emitted_history_range = {};
         morph_scratch.clear();
@@ -654,7 +654,7 @@ std::vector<MotionState> Runtime::motions() const {
     const double t = d.now().count();
     for (const NodeId id : d.morphing) {
         if (!d.alive(id) || !d.at(id).morph) continue;
-        const motion::Morph& m = *d.at(id).morph;
+        const hanim::visual::Morph& m = *d.at(id).morph;
         const auto& st = m.stats();
         out.push_back({id, path(id), m.progress(d.at(id).clock.local(t)), m.start(), m.end(), st.matched, st.from_only, st.to_only, st.glyphs_kept});
     }

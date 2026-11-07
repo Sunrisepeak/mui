@@ -1,11 +1,11 @@
 // Matter taken from a display list's range.
-module omui.motion;
+module hanim.visual;
 
 import std;
 import mlibs.geom;
 import xrender.vector;
 
-namespace omui::motion {
+namespace hanim::visual {
 
 namespace {
 
@@ -542,4 +542,4 @@ Rect Matter::bounds() const noexcept {
     return out;
 }
 
-}  // namespace omui::motion
+}  // namespace hanim::visual

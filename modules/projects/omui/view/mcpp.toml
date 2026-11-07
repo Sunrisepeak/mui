@@ -33,7 +33,7 @@ mlibs.memory   = { path = "../../../base/memory" }
 mlibs.layout   = { path = "../../../content/layout" }
 xrender.raster   = { path = "../../xrender/raster" }
 xrender.vector   = { path = "../../xrender/vector" }
-omui.motion   = { path = "../motion" }
+"hanim.visual" = { path = "../../hanim/visual" }
 mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }

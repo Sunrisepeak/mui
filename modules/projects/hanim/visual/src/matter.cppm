@@ -1,4 +1,4 @@
-// openmui.motion:matter — what a node drew, as matter a motion moves
+// hanim.visual:matter — what a node drew, as matter a motion moves
 // (universal motion §4). A range of a display list (a node's: its BeginNode
 // to its EndNode) is copied and taken apart into pieces: each drawable
 // command, or a group drawn whole (an effect's layer inside it, a nested
@@ -8,13 +8,13 @@
 // marker, stable from frame to frame) and its place among that node's
 // pieces of its class. Two matters of the same node are what a morph moves
 // between (:morph).
-export module omui.motion:matter;
+export module hanim.visual:matter;
 
 import std;
 import mlibs.geom;
 import xrender.vector;
 
-export namespace omui::motion {
+export namespace hanim::visual {
 
 using mlibs::geom::Affine;
 using mlibs::geom::Color;
@@ -170,4 +170,4 @@ private:
 [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> find_range(std::span<const xrender::Command> commands, std::uint32_t marker,
                                                                              std::size_t from = 0);
 
-}  // namespace omui::motion
+}  // namespace hanim::visual

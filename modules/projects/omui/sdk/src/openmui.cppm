@@ -15,7 +15,7 @@ export module omui;
 export import omui.core;
 export import omui.view;
 export import omui.semantic;
-export import omui.motion;
+export import hanim.visual;
 export import omui.agent;
 export import omui.expr;
 export import omui.viewdoc;

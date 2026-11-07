@@ -96,7 +96,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | hanim L5: interactive mode, first step | this checkpoint (D-117): `engine.drive(key, channel)` → `Drive<T>`, the engine's one Set; as fast as Set (bench `motion/drive-1000`) |
 | render (xrender) suite on mlibs.cts | this checkpoint (D-118): `xrender.cts` is the owner's suite library, 47 cases; `xrender.rhi.sdl` runs it (lavapipe 47/47 locally) |
 | hanim v1 API: compatibility names removed | this checkpoint (D-119) |
-| hanim L4 nested time maps (per-track spans); L5 timeline takeover of driven channels; `visual` representation; v1 freeze (one Animation value type, compile/BMI/Wasm cost measured) | next |
+| hanim `visual` representation | this checkpoint (D-120): `omui.motion` is `hanim.visual` (its own package in the hanim project: its tests need it; mcpp has no per-package test features) |
+| hanim L4 nested time maps (per-track spans); L5 timeline takeover of driven channels; v1 freeze (one Animation value type, compile/BMI/Wasm cost measured) | next |
 
 ## Next
 

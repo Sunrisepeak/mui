@@ -1,4 +1,4 @@
-// openmui.motion:morph — a drawing moving to another (universal motion §6).
+// hanim.visual:morph — a drawing moving to another (universal motion §6).
 //
 // Two matters of the same node — what it drew before a change and what it
 // draws after — are matched piece to piece: by node and place (the same key,
@@ -12,7 +12,7 @@
 // fades in. Before its start it draws the first drawing; once settled, the
 // second exactly. Nothing in it is a component's: a toggle's thumb, a list's
 // order, a label's text and a button's colour move by the same rules.
-export module omui.motion:morph;
+export module hanim.visual:morph;
 
 import std;
 import hanim.core;
@@ -20,7 +20,7 @@ import mlibs.geom;
 import xrender.vector;
 import :matter;
 
-export namespace omui::motion {
+export namespace hanim::visual {
 
 // How a morph's progress goes from 0 to 1 over time (seconds since its start).
 struct Curve {
@@ -208,4 +208,4 @@ private:
 // scale, shear) and eased by `u` — what a moving piece is drawn under.
 [[nodiscard]] Affine mix(const Affine& a, const Affine& b, double u) noexcept;
 
-}  // namespace omui::motion
+}  // namespace hanim::visual

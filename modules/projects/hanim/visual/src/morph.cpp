@@ -1,5 +1,5 @@
 // A morph: two drawings matched, and drawn between them.
-module omui.motion;
+module hanim.visual;
 
 import std;
 import hanim.core;
@@ -8,7 +8,7 @@ import mlibs.math;
 import mlibs.geom;
 import xrender.vector;
 
-namespace omui::motion {
+namespace hanim::visual {
 
 namespace {
 
@@ -1707,4 +1707,4 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
     }
 }
 
-}  // namespace omui::motion
+}  // namespace hanim::visual

@@ -1,4 +1,5 @@
-# omui.motion — universal motion (D-93): what a node drew, taken apart into
+# hanim.visual — the visual representation (L3, D-120; universal motion,
+# D-93): what a node drew, taken apart into
 # matter (pieces of its display list, each with whose it is and what it is
 # drawn under), two drawings of it matched (by node, by meaning, glyph by
 # glyph) and drawn between them as a pure function of time. Knows display
@@ -6,17 +7,17 @@
 # decides when a drawing changed; anything that draws a display list can
 # move between two of its drawings.
 [package]
-namespace   = "omui"
-name        = "motion"
+namespace   = "hanim"
+name        = "visual"
 version     = "0.1.0"
-description = "openmui universal motion: matter from display lists, matching and morphs between two drawings, deterministic and seekable"
+description = "Hanim's visual representation: matter from display lists, matching and morphs between two drawings, deterministic and seekable"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
 [package.metadata.openmui]
 kind = "runtime"
 
-[targets.openmui-motion]
+[targets.hanim-visual]
 kind = "lib"
 
 [build]
@@ -28,8 +29,8 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 mlibs.math          = { path = "../../../base/math" }
 mlibs.utils          = { path = "../../../base/utils" }
 mlibs.geom          = { path = "../../../base/geom" }
-"hanim.core" = { path = "../../hanim/core" }
-"hanim" = { path = "../../hanim", default-features = false, features = ["object"] }
+"hanim.core" = { path = "../core" }
+"hanim" = { path = "..", default-features = false, features = ["object"] }
 xrender.vector = { path = "../../xrender/vector" }
 
 [dev-dependencies]

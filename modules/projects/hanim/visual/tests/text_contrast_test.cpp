@@ -6,12 +6,12 @@ import mlibs.geom;
 import xrender.raster;
 import mlibs.math;
 import xrender.vector;
-import omui.motion;
+import hanim.visual;
 import mlibs.testing;
 
-using namespace omui;
+using namespace hanim;
 using namespace mlibs::testing;
-namespace mo = omui::motion;
+namespace mo = hanim::visual;
 
 namespace {
 // Count ordinary scalar allocations in this one executable. The regression

@@ -5,7 +5,7 @@
 //     motion::Matter b = motion::Matter::extract(after, begin2, end2, resolver);
 //     motion::Morph   m(std::move(a), std::move(b), {.curve = {.spring = hanim::springs::standard}}, now);
 //     m.draw(t, list);   // any t: before its start the first drawing, settled the second
-export module omui.motion;
+export module hanim.visual;
 
 export import :matter;
 export import :morph;

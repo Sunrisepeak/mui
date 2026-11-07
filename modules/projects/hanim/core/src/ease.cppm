@@ -26,6 +26,7 @@ enum class EaseKind : std::uint8_t {
     cubic_bezier,  // p = x1, y1, x2, y2 (CSS)
     steps,         // p[0] = count, p[1] = StepPosition
     spring,        // p = stiffness, damping, mass, settle (s): a spring's unit response over the curve
+    fall,          // p = restitution, bounces, length (in falls), contact: a dropped body's height, bouncing
 };
 
 // Where the jumps of a `steps` curve fall (CSS Easing Functions Level 1).
@@ -49,6 +50,17 @@ struct Ease {
     // spring's own pace: a duration of settle() plays it as the spring would.
     [[nodiscard]] static Ease spring(double stiffness, double damping, double mass = 1.0) noexcept;
     [[nodiscard]] double settle() const noexcept { return kind == EaseKind::spring ? p[3] : 0.0; }
+
+    // A body dropped onto the ground (convergence plan §6.8 ⑨ ④): it falls
+    // under gravity (t² over the first fall), stays on the ground `contact`
+    // first falls times its landing speed (the time it squashes in), bounces
+    // `bounces` times, each leaving at `restitution` of the speed it landed
+    // with (so rising to restitution² of the height before), and lands for
+    // good at 1. Exact: ballistic arcs end to end, no simulation. falls() is
+    // the course's length in first falls: a duration of falls() × √(2h/g)
+    // plays it at the pace gravity g gives a drop from h.
+    [[nodiscard]] static Ease fall(double restitution = 0.5, int bounces = 3, double contact = 0.1) noexcept;
+    [[nodiscard]] double falls() const noexcept { return kind == EaseKind::fall ? p[2] : 0.0; }
 
     // The eased progress for linear progress t; t outside [0, 1] is clamped.
     [[nodiscard]] double operator()(double t) const noexcept;

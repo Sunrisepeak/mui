@@ -175,5 +175,55 @@ int main(int argc, char** argv) {
         check(!lit_below_bar(1), "let back: below the bar is empty again");
     });
 
+    suite.test("a dropped ball drawn: round in the air, wide and flat on the ground, never through "
+               "it",
+               [] {
+                   Engine engine = take(Engine::make());
+                   constexpr double k = 10 * .5522847498307936;
+                   const std::array arcs{ShapeSegment::cubic({k, -10}, {10, -k}, {10, 0}),
+                                         ShapeSegment::cubic({10, k}, {k, 10}, {0, 10}),
+                                         ShapeSegment::cubic({-k, 10}, {-10, k}, {-10, 0}),
+                                         ShapeSegment::cubic({-10, -k}, {-k, -10}, {0, -10})};
+                   const auto ball = take(engine.create_object(
+                       {{{.id = "ball",
+                          .local = {.tx = 32, .ty = 12},
+                          .contours = {take(Contour::copy({{0, -10}, arcs, true}))},
+                          .fill = Rgba{1, 1, 1, 1},
+                          .deformers = {deform::squash({0, 10})}}}}));
+                   const auto plan = take(
+                       engine.prepare(anim::drop(part(ball, "ball"), {0, 40}, {.squash = .3})));
+                   const auto playback = take(engine.play(plan));
+                   const auto renderer = take(PreparedVectorProgram::bind(plan));
+                   Storage storage(renderer.requirements());
+                   // The lit span of each row: the ball's width there, and its lowest lit row.
+                   const auto drawn = [&](double time) {
+                       take(engine.seek(playback, seconds(time)));
+                       render::DisplayList output;
+                       take(renderer.record(take(engine.program_frame(playback)).scene, output,
+                                            storage.get()));
+                       raster::Surface pixels(64, 72);
+                       render::CpuRenderer cpu;
+                       (void)cpu.render(output, pixels, {});
+                       int widest = 0, lowest = 0;
+                       for (int y = 0; y < pixels.height(); ++y) {
+                           int lit = 0;
+                           for (int x = 0; x < pixels.width(); ++x)
+                               lit += pixels.at(x, y).r > 128;
+                           widest = std::max(widest, lit);
+                           if (lit)
+                               lowest = y;
+                       }
+                       return std::pair{widest, lowest};
+                   };
+                   const auto [air_width, air_low] = drawn(.1 / 2.45);
+                   const auto [ground_width, ground_low] = drawn(1.05 / 2.45);
+                   check(air_width <= 20 && air_low < 61,
+                         std::format("round in the air: {} wide", air_width));
+                   check(ground_width >= 24,
+                         std::format("flattened on the ground: {} wide", ground_width));
+                   check(ground_low <= 61,
+                         std::format("its lowest row {} on the ground at 62", ground_low));
+               });
+
     return suite.run(argc, argv);
 }

@@ -372,6 +372,22 @@ private:
 }
 [[nodiscard]] inline anim::Composite composite(Program child) { return anim::Composite{std::move(child)}; }
 [[nodiscard]] inline anim::PartTarget part(ObjectInput object, std::string id) { return {std::move(object), std::move(id)}; }
+namespace anim {
+// A drop (plan §6.8 ⑨): the part falls by `offset` under gravity and bounces
+// (Ease::fall), squashing as it lands and stretching as it speeds towards the
+// ground, the less each bounce — written to its ch::squash, which a
+// deform::squash deformer turns into geometry about its contact point. Any
+// part of any object: made of the curve, a channel and its layers.
+struct DropOptions {
+    double  restitution = 0.45;
+    int     bounces = 2;
+    seconds duration{1};   // the whole course, landing for good at its end
+    double  squash = 0.2;   // the first landing's flattening, a fraction
+    double  stretch = 0.08; // the lengthening just before it
+    double  contact = 0.1;  // time on the ground per landing, in first falls at the first's speed
+};
+[[nodiscard]] Program drop(PartTarget target, Vec2 offset, DropOptions options = {});
+}  // namespace anim
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::BoundAnimation> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::Composite>;

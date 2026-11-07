@@ -753,3 +753,38 @@ std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t 
     return ProgramSample{*geometry,index,progress->linear,progress->sampled,segment.effects.parameter_count()};
 }
 } // namespace hanim
+
+namespace hanim::anim {
+Program drop(PartTarget target, Vec2 offset, DropOptions options) {
+    const auto curve = Ease::fall(options.restitution, options.bounces, options.contact);
+    const double length = std::sqrt(offset.x * offset.x + offset.y * offset.y);
+    const auto fall = to(target, ch::position = offset).duration(options.duration).easing(curve).blend(Blend::add);
+    if (!curve.valid() || !(options.duration.count() > 0) || !(length > 0)) return fall;  // preparation reports what is wrong
+    // Flattened across the fall and lengthened along it, by `amount`.
+    const double across_x = offset.y * offset.y / (length * length), across_y = offset.x * offset.x / (length * length);
+    const auto shaped = [&](double amount) {
+        return Vec2{1 + amount * (across_x - across_y), 1 + amount * (across_y - across_x)};
+    };
+    const double first_fall = options.duration.count() / curve.falls();
+    std::vector<Program> shape;
+    // Each landing: lengthening on the way down, flattening on the ground and
+    // springing back as it leaves, round again at the top; the last settles.
+    double speed = 1, descent = first_fall;  // the landing's speed (of the first), the descent before it
+    for (int landing = 0; landing <= options.bounces; ++landing) {
+        shape.push_back(to(target, ch::squash = shaped(-options.stretch * speed)).duration(seconds(descent)).easing(ease::in_quad));
+        if (landing == options.bounces) {
+            shape.push_back(to(target, ch::squash = shaped(options.squash * speed)).duration(seconds(.04 * options.duration.count())).easing(ease::out_quad));
+            shape.push_back(to(target, ch::squash = Vec2{1, 1}).spring(springs::wobbly));
+            break;
+        }
+        const double on_ground = options.contact * speed * first_fall;
+        const double rising = options.restitution * speed;
+        shape.push_back(to(target, ch::squash = shaped(options.squash * speed)).duration(seconds(on_ground / 2)).easing(ease::out_quad));
+        shape.push_back(to(target, ch::squash = shaped(-options.stretch * rising)).duration(seconds(on_ground / 2)).easing(ease::in_out_quad));
+        shape.push_back(to(target, ch::squash = Vec2{1, 1}).duration(seconds(first_fall * rising)).easing(ease::out_quad));
+        speed = rising;
+        descent = first_fall * speed;
+    }
+    return parallel(Program(fall), sequence(std::span<const Program>(shape)));
+}
+}  // namespace hanim::anim

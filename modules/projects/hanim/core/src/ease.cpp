@@ -185,6 +185,25 @@ double Ease::operator()(double t) const noexcept {
             const Oscillator o(0.0, 0.0, 1.0, {p[0], p[1], p[2]}, unit_rest);
             return t * p[3] >= o.settle_time() ? 1.0 : o.position(t * p[3]);
         }
+        case EaseKind::fall: {
+            if (t >= 1.0) return 1.0;
+            // In first falls: the drop takes 1; bounce k flies 2·eᵏ, rising eᵏ high in time.
+            double time = t * p[2];
+            if (time < 1.0) return time * time;
+            time -= 1.0;
+            double speed = 1.0;
+            for (int bounce = 0; bounce < static_cast<int>(p[1]); ++bounce) {
+                if (time < p[3] * speed) return 1.0;  // on the ground
+                time -= p[3] * speed;
+                speed *= p[0];
+                if (time < 2.0 * speed) {
+                    const double from_top = time - speed;
+                    return 1.0 - speed * speed + from_top * from_top;
+                }
+                time -= 2.0 * speed;
+            }
+            return 1.0;
+        }
     }
     return t;
 }
@@ -197,8 +216,25 @@ Ease Ease::spring(double stiffness, double damping, double mass) noexcept {
     return e;
 }
 
+Ease Ease::fall(double restitution, int bounces, double contact) noexcept {
+    Ease e{EaseKind::fall, {restitution, static_cast<double>(bounces), 0.0, contact}};
+    if (!(restitution >= 0) || !(restitution < 1) || bounces < 0 || bounces > 64 || !(contact >= 0) || !(contact <= 1))
+        return e;  // length 0: not valid()
+    double length = 1.0, speed = 1.0;
+    for (int bounce = 0; bounce < bounces; ++bounce) {
+        length += contact * speed;
+        speed *= restitution;
+        length += 2.0 * speed;
+    }
+    e.p[2] = length;
+    return e;
+}
+
 bool Ease::valid() const noexcept {
-    if (kind > EaseKind::spring) return false;
+    if (kind > EaseKind::fall) return false;
+    if (kind == EaseKind::fall)
+        return std::isfinite(p[0]) && p[0] >= 0 && p[0] < 1 && p[1] >= 0 && p[1] <= 64 && p[1] == std::floor(p[1]) && p[2] >= 1 &&
+            std::isfinite(p[2]) && p[3] >= 0 && p[3] <= 1;
     if (kind == EaseKind::spring)
         return std::ranges::all_of(p, [](double v) { return std::isfinite(v); }) && p[0] > 0 && p[1] >= 0 && p[2] > 0 && p[3] > 0;
     for (double value : p) if (!std::isfinite(value)) return false;
@@ -274,6 +310,7 @@ std::string to_string(const Ease& e) {
     if (e.kind == EaseKind::steps)
         return std::format("steps({}, {})", static_cast<int>(e.p[0]), step_names[static_cast<int>(e.p[1]) & 3]);
     if (e.kind == EaseKind::spring) return std::format("spring({}, {}, {})", e.p[0], e.p[1], e.p[2]);
+    if (e.kind == EaseKind::fall) return std::format("fall({}, {}, {})", e.p[0], static_cast<int>(e.p[1]), e.p[3]);
     for (auto& [k, n] : names)
         if (k == e.kind) return std::string(n);
     return "linear";
@@ -306,6 +343,15 @@ std::optional<Ease> parse_ease(std::string_view text) {
         auto m = args->size() == 3 ? number((*args)[2]) : std::optional<double>(1.0);
         if (!k || !c || !m) return std::nullopt;
         const Ease e = Ease::spring(*k, *c, *m);
+        if (!e.valid()) return std::nullopt;
+        return e;
+    }
+    if (auto args = arguments(text, "fall"); args && !args->empty() && args->size() <= 3) {
+        auto restitution = number((*args)[0]);
+        auto bounces = args->size() >= 2 ? number((*args)[1]) : std::optional<double>(3.0);
+        auto contact = args->size() == 3 ? number((*args)[2]) : std::optional<double>(0.1);
+        if (!restitution || !bounces || !contact || *bounces != std::floor(*bounces) || *bounces < 0 || *bounces > 64) return std::nullopt;
+        const Ease e = Ease::fall(*restitution, static_cast<int>(*bounces), *contact);
         if (!e.valid()) return std::nullopt;
         return e;
     }

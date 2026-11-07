@@ -105,6 +105,9 @@ inline constexpr Channel<Rgba>   fill     = define<Rgba>("fill");
 inline constexpr Channel<double> trim_start  = define<double>("trim.start");
 inline constexpr Channel<double> trim_end    = define<double>("trim.end", 1);
 inline constexpr Channel<double> trim_offset = define<double>("trim.offset");
+// A part's squash and stretch, as scale factors about its contact point
+// (deform::squash turns it into geometry; anim::drop writes it).
+inline constexpr Channel<Vec2> squash = define<Vec2>("squash", {1, 1});
 // The channels a part's own fields carry: no Value may name them.
 [[nodiscard]] constexpr bool builtin(std::string_view name) noexcept {
     return name == "position" || name == "rotation" || name == "scale" || name == "fill";
@@ -130,6 +133,11 @@ namespace deform {
 }
 [[nodiscard]] inline PartDeformer rotate(Selector select, const ch::Channel<double>& radians, Vec2 anchor) {
     return {std::string(radians.id.name), DeformKind::rotate, select, anchor};
+}
+// Squash and stretch about `contact` (the point that meets the ground: a
+// ball's bottom), by the part's ch::squash.
+[[nodiscard]] inline PartDeformer squash(Vec2 contact, Selector select = Selector::everything()) {
+    return scale(select, ch::squash, contact);
 }
 }  // namespace deform
 

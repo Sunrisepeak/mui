@@ -100,7 +100,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | hanim `visual` representation | this checkpoint (D-120): `omui.motion` is `hanim.visual` (its own package in the hanim project: its tests need it; mcpp has no per-package test features) |
 | hanim L5: timeline takeover of driven channels | this checkpoint (D-122): `drive.follow(playback)`; handed back with momentum (`Set::carry`) |
 | hanim L4: time maps inside programs | this checkpoint (D-123): whole courses (integral repeat, alternate, reverse) unrolled into replicas; rate/trim/endless stay root-only |
-| hanim v1 freeze (one Animation value type; Wasm size); M2 exit review | next |
+| hanim v1: one value type | this checkpoint (D-124): `Program`; time on the expression (`loop`, `alternate`, `reverse`, `rate`) |
+| M2 exit review: consumers, Set/Morph benchmarks, pixel baselines; the all-green CI run | next |
 
 ## Next
 

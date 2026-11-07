@@ -513,6 +513,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-121 | v1 语法的编译成本（收敛方案 §6.6“先测编译、BMI 和 Wasm 成本”）：同一 TU 里 40 个三通道写入，类型化写法 `anim::to(part(o, id), ch::position = …, ch::rotation = …, ch::fill = …)` 与 `PropertyTargets{…}` 相比，GCC 16.1 在 -O0 下编译 0.76 s 对 0.61 s、目标文件 473 KB 对 401 KB；-O2 下 1.07 s 对 1.03 s（+3%）、代码段 50.4 KB 对 49.0 KB（+2.9%，每次调用约 36 字节）。`hanim.program` 的 BMI 为 1.0 MB。成本可接受，类型化写法保留为首选；冻结前还剩“一个 Animation 值类型”的取舍和 Wasm 体积对照 |
 | D-122 | hanim L5，时间线接管驱动通道：`drive.follow(playback, track, part)` 让播放在播放期间决定该通道的值（取该轨道对应部件上同一通道的值，每次 `advance` 后写入）；播放结束、取消或释放时把通道交还，从时间线留下的位置、以它最后的速度继续（hanim.core `Set::carry`：从该位置、带该速度、停在该位置的弹簧），下一次 `spring_to` 沿用这一速度。速度取相邻两帧的差分，不额外采样、不分配 |
 | D-123 | hanim L4 第二步，程序内部的时间映射：整数次重复、交替、反向可以出现在程序任意位置（含嵌套）；准备时展开为副本，后续各次重放第一次的已准备计划（`PreparedSegment::reversed` 镜像其进度），不重新准备，因此引擎、渲染与检查工具都无需改动；映射之后的叶子从最后一次留下的姿态继续。速率、裁剪、长度、小数或无限次重复、其他填充方式仍只能映射整个程序（内部出现时拒绝为 `hanim.program.nested-time-map`）。在分界时刻，后一次已经开始（与“后开始者胜”一致） |
+| D-124 | hanim v1 的值类型：唯一的动画值类型是 `Program`（不可变表达式）；`anim::BoundAnimation`（叶子）与 `anim::Composite`（图像作用域）只是构造它的生成器，隐式转为 Program，`Animation` 概念即“能成为 Program 的东西”。时间写在表达式上：`p.loop(n)`、`.alternate()`、`.reverse()`、`.rate(r)` 产生或修改同一个时间映射节点（`sequence(a, wait(100ms), b).loop(3).alternate()`）；`repeat(n, p)` 仍是“每次从上次终点继续”的累加重复，`delay(d, p)` 先等待。至此 v1 的公开形状确定，之后只做加法；Wasm 体积由 Web 行的体积预算持续检查 |
 
 ---
 

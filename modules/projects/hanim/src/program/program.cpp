@@ -493,6 +493,21 @@ Program timed(Program child,TimeMap map) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::timed;
     node->children.push_back(std::move(child));node->map=map;return Program(std::move(node));
 }
+// A time map of this program: this one's own when it is one, else a new one around it.
+namespace {
+template <class F>
+Program mapped(const Program& self, F change) {
+    TimeMap map;
+    Program child = self;
+    if (const auto* own = self.time_map()) { map = *own; child = self.children()[0]; }
+    change(map);
+    return timed(std::move(child), map);
+}
+}  // namespace
+Program Program::loop(double times) const { return mapped(*this, [&](TimeMap& m) { m.repeat = times; }); }
+Program Program::alternate() const { return mapped(*this, [](TimeMap& m) { m.alternate = true; }); }
+Program Program::reverse() const { return mapped(*this, [](TimeMap& m) { m.reverse = !m.reverse; }); }
+Program Program::rate(double value) const { return mapped(*this, [&](TimeMap& m) { m.rate *= value; }); }
 Program marker(std::string name) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::marker;
     node->marker=std::move(name);return Program(std::move(node));

@@ -110,6 +110,15 @@ public:
     // domain cause survives composition; preparation supplies the node index.
     [[nodiscard]] const ProgramFailure* failure() const & noexcept;
     const ProgramFailure* failure() const && = delete;
+
+    // Time, on the expression itself (L4): `sequence(a, wait(100ms), b).loop(3).alternate()`.
+    // loop replays the course (forever by default); alternate and reverse
+    // turn a loop's courses (or this one) backwards; rate scales its time.
+    // Each gives a new program; this one is unchanged (delay(d, p) waits first).
+    [[nodiscard]] Program loop(double times = std::numeric_limits<double>::infinity()) const;
+    [[nodiscard]] Program alternate() const;
+    [[nodiscard]] Program reverse() const;
+    [[nodiscard]] Program rate(double rate) const;
 private:
     friend Program invalid_program(ProgramFailure);
     friend Program bind(Snapshot, Snapshot, Effects, SegmentOptions, MorphOptions, ProgramSource);

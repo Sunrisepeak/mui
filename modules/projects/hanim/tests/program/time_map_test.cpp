@@ -104,6 +104,20 @@ int main(int argc, char** argv) {
         check_eq(x_at(nested, 3.5), .5);  // the outer loop replays from its own start
     });
 
+    s.test("time on the expression: loop, alternate, reverse and rate are the same time maps", [] {
+        Fixture f;
+        const Program move = anim::move_by(f.a, {10, 0}).duration(seconds(1));
+        const auto ping = f.prepare(move.loop(2).alternate());
+        check(ping.time_map() && ping.time_map()->repeat == 2 && ping.time_map()->alternate, "one map, both settings");
+        check_eq(x_at(ping, 1.25), 7.5);
+        const auto fast = f.prepare(move.rate(2).rate(2));
+        check_eq(fast.duration().count(), .25);
+        const auto back = f.prepare(move.reverse());
+        check_eq(x_at(back, .25), 7.5);
+        const auto inner = f.prepare(sequence(move, move.loop(2).alternate()));
+        check_eq(x_at(inner, 2.5), 15.0);  // the second course backwards: from 20 toward 10
+    });
+
     s.test("rates, trims and endless loops map a whole program only; markers name instants", [] {
         Fixture f;
         const auto move = anim::move_by(f.a, {10, 0}).duration(seconds(1));

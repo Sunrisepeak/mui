@@ -29,7 +29,7 @@ omui.core     = { path = "../core" }
 mlibs.geom     = { path = "../../../base/geom" }
 mlibs.memory   = { path = "../../../base/memory" }
 "hanim.core"          = { path = "../../hanim/core" }
-"hanim"               = { path = "../../hanim", default-features = false, features = ["effect"] }
+"hanim"               = { path = "../../hanim", default-features = false, features = ["engine"] }
 mlibs.layout   = { path = "../../../content/layout" }
 xrender.raster   = { path = "../../xrender/raster" }
 xrender.vector   = { path = "../../xrender/vector" }

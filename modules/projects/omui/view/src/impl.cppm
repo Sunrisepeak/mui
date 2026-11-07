@@ -7,6 +7,8 @@ import omui.core;
 import mlibs.layout;
 import hanim.core;
 import hanim.effect;
+import hanim.engine;
+import mlibs.hash;
 import mlibs.pipeline;
 import xrender.vector;
 import xrender.raster;
@@ -93,6 +95,51 @@ struct Visual {
     }
 };
 
+// The runtime's animated values (D-126): each a lane of the host's one hanim
+// Engine in its interactive mode — a node's field, a property's lane, a
+// scroll offset — named by the node it belongs to, what it is and its lane,
+// and moved on the runtime's own clock (the verbs and reads say when).
+class DrivenLanes {
+public:
+    using Lane = std::optional<hanim::Drive<double>>;
+    static constexpr auto channel = hanim::ch::define<double>("ui.lane");
+
+    DrivenLanes() : engine_(*hanim::Engine::make()) {}
+    DrivenLanes(const DrivenLanes&) = delete;
+    DrivenLanes& operator=(const DrivenLanes&) = delete;
+
+    [[nodiscard]] hanim::Engine& engine() noexcept { return engine_; }
+    [[nodiscard]] static hanim::DriveKey key(NodeId node, std::string_view what, unsigned lane) noexcept {
+        return mlibs::hash::Fnv1a{}.u64(node.index).u64(node.generation).str(what).u64(lane).value();
+    }
+    [[nodiscard]] Lane hold(hanim::DriveKey key, double value) {
+        auto d = engine_.drive(key, channel);
+        if (!d) return std::nullopt;
+        static_cast<void>(d->jump(value));
+        return *d;
+    }
+    [[nodiscard]] bool valid(const Lane& c) const noexcept { return c && c->settled().has_value(); }
+    // Its value at `t` (its target when motion is reduced).
+    [[nodiscard]] double value(const Lane& c, seconds t, const hanim::Policy& policy = {}) const noexcept {
+        if (!c) return 0;
+        if (policy.reduce_motion) return target(c);
+        return c->value(t).value_or(0);
+    }
+    [[nodiscard]] double target(const Lane& c) const noexcept { return c ? c->target().value_or(0) : 0; }
+    [[nodiscard]] bool settled(const Lane& c, seconds t) const noexcept { return !c || c->settled(t).value_or(true); }
+    void tween_to(Lane& c, seconds start, double to, seconds duration, hanim::Ease ease) { if (c) static_cast<void>(c->tween_to(to, duration, ease, start)); }
+    void spring_to(Lane& c, seconds start, double to, hanim::SpringParams params) { if (c) static_cast<void>(c->spring_to(to, params, start)); }
+    void glide(Lane& c, seconds start, double velocity) { if (c) static_cast<void>(c->glide(velocity, {}, start)); }
+    void jump(Lane& c, double value) { if (c) static_cast<void>(c->jump(value)); }
+    void remove(Lane& c) {
+        if (c) static_cast<void>(c->release());
+        c.reset();
+    }
+
+private:
+    hanim::Engine engine_;
+};
+
 struct Node {
     // Move-only, and said so: its watches cannot be copied. Without this a
     // standard library whose std::map move may throw (MSVC's) makes
@@ -128,7 +175,7 @@ struct Node {
     std::map<std::string, Transition, std::less<>> transitions;
 
     Visual               visual;
-    std::array<hanim::Set::Channel, field_count> channels{};
+    std::array<DrivenLanes::Lane, field_count> channels{};
     std::uint32_t        moving = 0;    // bit per field: its channel is still moving
     // Any other property in transition (D-60): layout properties, a
     // component's numbers and colours. Each frame applies its value.
@@ -137,7 +184,7 @@ struct Node {
         std::string                       name;
         Kind                              kind = Kind::number;
         std::uint8_t                      lanes = 1;
-        std::array<hanim::Set::Channel, 4> channels{};
+        std::array<DrivenLanes::Lane, 4> channels{};
         Value                             target;
         bool                              resting = false;  // settled: kept, so seeking back in time replays it
     };
@@ -292,7 +339,7 @@ struct Runtime::Impl {
     xrender::ImageStore                    images;
     hanim::Clock                           clock;
     bool                                   complete_frames = false;
-    hanim::Set                             anims;
+    DrivenLanes                            anims;
     mlibs::layout::Engine                        layout;
     Verbs                                 verbs;
     std::shared_ptr<AgentAccess>           access;

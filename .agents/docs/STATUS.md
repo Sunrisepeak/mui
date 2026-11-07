@@ -106,6 +106,14 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | exit: pixel baselines | unchanged: the site (22), the promo, the style gallery, widget-breakout and the markdown wall pass their pins after every M2 checkpoint |
 | exit: CI | pending: one all-green run on an M2 commit (cb26e381: every row green but the templates step, fixed in 7283d34a) |
 
+## M3 — UI animation on the one Engine (started)
+
+| Item | State |
+|---|---|
+| interactive mode has what a host needs (clocked verbs, glides, targets) | done (D-125) |
+| the view runtime's values on the host's Engine (no private `Set`) | done (D-126): pins unchanged; `services.engine()` |
+| Playback as a light handle on the same Engine; motion slots in the spec; recipe ids from style packs; the 37 component kinds; old paths deleted | next |
+
 ## Next
 
 M0 and M2 exit on one all-green CI run of an M2 commit (the matrix rows; the GCC rows and their gated steps in the nightly lane). Then M3 (plan §6.4): the UI runtime's motion stage on the one Engine — node slots declare motion intent, style packs give recipe ids and parameters, the UI gives representations and identity, hanim evaluates; `Set` users move to `drive`; Playback becomes a light handle; the 37 component kinds; old paths deleted; intermediate states, interruption, reduced/off, hit/focus/IME consistency, frame time and Wasm compared. mcpp is pinned to the latest release, 2026.11.5.1 (`.xlings.json`).

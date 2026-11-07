@@ -140,9 +140,9 @@ void Runtime::Impl::destroy(NodeId id) {
     if (m.type->destroy) m.type->destroy(m.instance);
     if (pointed_by == id) pointed_out.clear(), pointed_by = {};  // what it pointed out goes with it
     std::erase(action_followers, id);
-    for (hanim::Set::Channel c : m.channels)
+    for (auto& c : m.channels)
         if (anims.valid(c)) anims.remove(c);
-    for (const Node::PropAnimation& a : m.prop_animations)
+    for (Node::PropAnimation& a : m.prop_animations)
         for (std::uint8_t i = 0; i < a.lanes; ++i)
             if (anims.valid(a.channels[i])) anims.remove(a.channels[i]);
     layout.destroy(m.layout);

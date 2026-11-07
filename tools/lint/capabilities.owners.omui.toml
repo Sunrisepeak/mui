@@ -71,5 +71,5 @@ within  = ["modules/projects/omui/components/"]
 skip    = ["tests", "generated"]
 marker  = "MOTION-OK:"
 # A component animating itself.
-pattern = '\banimations\(\)|\bspring_to\s*\(|\btween_to\s*\(|\.transition\("motion\.|\bTransition::(tween|spring_with)\b|\bhanim::(Spring|Tween|Track|Set|Oscillator)\b|\bGlyphMotion::|\bparts::Motion\b'
+pattern = '\banimations\(\)|\bengine\(\)\s*\.\s*(drive|play)\b|\bspring_to\s*\(|\btween_to\s*\(|\.transition\("motion\.|\bTransition::(tween|spring_with)\b|\bhanim::(Spring|Tween|Track|Set|Oscillator)\b|\bGlyphMotion::|\bparts::Motion\b'
 sample  = { path = "modules/projects/omui/components/base/src/t.cpp", text = "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }" }

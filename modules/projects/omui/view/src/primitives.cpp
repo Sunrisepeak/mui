@@ -401,7 +401,7 @@ struct ScrollNode {
     Point     target;  // where the offset is going
     Services* services = nullptr;
     NodeId    node;
-    hanim::Set::Channel cx, cy;
+    std::optional<hanim::Drive<double>> cx, cy;  // the offset's lanes on the host's Engine
     // touch drags
     bool      dragging = false;
     Point     last;
@@ -411,8 +411,10 @@ struct ScrollNode {
     void mount(Services& s, NodeId n) {
         services = &s;
         node = n;
-        cx = s.animations().hold(0);
-        cy = s.animations().hold(0);
+        static constexpr auto offset_x = hanim::ch::define<double>("ui.scroll.x"), offset_y = hanim::ch::define<double>("ui.scroll.y");
+        const hanim::DriveKey key = n.bits();
+        if (auto x = s.engine().drive(key, offset_x)) cx = *x;
+        if (auto y = s.engine().drive(key, offset_y)) cy = *y;
     }
     ~ScrollNode() = default;
 
@@ -448,14 +450,15 @@ struct ScrollNode {
         to = clamp(to);
         if (to.x == target.x && to.y == target.y) return false;
         target = to;
-        hanim::Set& a = services->animations();
         const seconds now = services->now();
-        if (smooth) {
-            a.tween_to(cx, now, to.x, seconds(0.14), hanim::ease::out_cubic);
-            a.tween_to(cy, now, to.y, seconds(0.14), hanim::ease::out_cubic);
-        } else {
-            a.jump(cx, to.x);
-            a.jump(cy, to.y);
+        if (cx && cy) {
+            if (smooth) {
+                static_cast<void>(cx->tween_to(to.x, seconds(0.14), hanim::ease::out_cubic, now));
+                static_cast<void>(cy->tween_to(to.y, seconds(0.14), hanim::ease::out_cubic, now));
+            } else {
+                static_cast<void>(cx->jump(to.x));
+                static_cast<void>(cy->jump(to.y));
+            }
         }
         services->write_back(node, "x", Value(static_cast<double>(to.x)));
         services->write_back(node, "y", Value(static_cast<double>(to.y)));
@@ -474,7 +477,7 @@ struct ScrollNode {
             Point to = k == "x" ? Point{value, target.y} : Point{target.x, value};
             if (services) {
                 target = to;
-                services->animations().jump(k == "x" ? cx : cy, k == "x" ? to.x : to.y);
+                if (auto& c = k == "x" ? cx : cy) static_cast<void>(c->jump(k == "x" ? to.x : to.y));
             } else {
                 target = to;
             }
@@ -486,8 +489,8 @@ struct ScrollNode {
     [[nodiscard]] Point scroll_offset() const {
         if (!services) return target;
         const seconds now = services->now();
-        const hanim::Set& a = services->animations();
-        Point p{static_cast<float>(a.value(cx, now)), static_cast<float>(a.value(cy, now))};
+        if (!cx || !cy) return target;
+        Point p{static_cast<float>(cx->value(now).value_or(target.x)), static_cast<float>(cy->value(now).value_or(target.y))};
         return clamp(p);
     }
 
@@ -530,15 +533,15 @@ struct ScrollNode {
                     dragging = false;
                     {
                         // Momentum: the offset decays from the release velocity.
-                        hanim::Set& a = services->animations();
-                        auto glide = [&](hanim::Set::Channel& c, float from, float v) {
-                            if (v == 0) return;
-                            a.remove(c);
-                            c = a.decay(from, v, now);
+                        auto glide = [&](std::optional<hanim::Drive<double>>& c, float from, float v) {
+                            if (v == 0 || !c) return;
+                            static_cast<void>(c->jump(from));
+                            static_cast<void>(c->glide(v, {}, now));
                         };
                         glide(cx, target.x, horizontal ? velocity.x : 0);
                         glide(cy, target.y, vertical ? velocity.y : 0);
-                        target = clamp({static_cast<float>(a.target(cx)), static_cast<float>(a.target(cy))});
+                        target = clamp({cx ? static_cast<float>(cx->target().value_or(target.x)) : target.x,
+                                        cy ? static_cast<float>(cy->target().value_or(target.y)) : target.y});
                         services->write_back(node, "x", Value(static_cast<double>(target.x)));
                         services->write_back(node, "y", Value(static_cast<double>(target.y)));
                         services->invalidate_paint(node);
@@ -591,8 +594,7 @@ struct ScrollNode {
 
     void paint_over(PaintContext& ctx) const {
         const seconds now = services->now();
-        const hanim::Set& a = services->animations();
-        if (!a.settled(cx, now) || !a.settled(cy, now)) {
+        if ((cx && !cx->settled(now).value_or(true)) || (cy && !cy->settled(now).value_or(true))) {
             services->invalidate_paint(node);
             services->request_frame();
             services->moving(node);

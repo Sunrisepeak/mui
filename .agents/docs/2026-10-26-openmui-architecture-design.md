@@ -515,6 +515,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-123 | hanim L4 第二步，程序内部的时间映射：整数次重复、交替、反向可以出现在程序任意位置（含嵌套）；准备时展开为副本，后续各次重放第一次的已准备计划（`PreparedSegment::reversed` 镜像其进度），不重新准备，因此引擎、渲染与检查工具都无需改动；映射之后的叶子从最后一次留下的姿态继续。速率、裁剪、长度、小数或无限次重复、其他填充方式仍只能映射整个程序（内部出现时拒绝为 `hanim.program.nested-time-map`）。在分界时刻，后一次已经开始（与“后开始者胜”一致） |
 | D-124 | hanim v1 的值类型：唯一的动画值类型是 `Program`（不可变表达式）；`anim::BoundAnimation`（叶子）与 `anim::Composite`（图像作用域）只是构造它的生成器，隐式转为 Program，`Animation` 概念即“能成为 Program 的东西”。时间写在表达式上：`p.loop(n)`、`.alternate()`、`.reverse()`、`.rate(r)` 产生或修改同一个时间映射节点（`sequence(a, wait(100ms), b).loop(3).alternate()`）；`repeat(n, p)` 仍是“每次从上次终点继续”的累加重复，`delay(d, p)` 先等待。至此 v1 的公开形状确定，之后只做加法；Wasm 体积由 Web 行的体积预算持续检查 |
 | D-125 | interactive 模式补齐宿主所需（M3 的前提）：`Drive<T>` 的动词可带时间 `at`（宿主自己的时钟、延迟开始的过渡），值、速度、是否静止可按任意时间读取（`Set` 的历史覆盖的范围）；新增 `glide(velocity, DecayParams, at)`（甩动后的惯性，hanim.core `Set::glide` 从当前位置继续、保留历史）、`target()`（滑行的终点也可预知）与 `settle_time()`。这正是视图运行时现在用私有 `Set` 做的全部事情 |
+| D-126 | M3 第一步，视图运行时的动画值改由宿主唯一的 hanim Engine 求值：运行时不再持有私有的 `hanim::Set`，节点字段、属性的每条 lane、滚动偏移都是 Engine interactive 模式的驱动通道（`DrivenLanes`：键由节点、名称和 lane 组成，按运行时自己的时钟传入时间），逐位等于原先 `Set` 的结果（所有像素基线不变）。组件服务的 `animations()`（返回 `Set&`）改为 `engine()`；lint `owner` 的 motion 特征同时识别 `engine().drive/play`（组件只画状态）。因此每个视图的依赖闭包都含 hanim 的 engine feature（原来只有 effect），消费者探针相应更新；播放器适配器、矢量渲染与 control 仍是可选。下一步：Playback 改为同一个 Engine 上的轻量句柄、motion 槽语义进规范 |
 
 ---
 

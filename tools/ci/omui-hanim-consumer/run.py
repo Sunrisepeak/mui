@@ -154,7 +154,10 @@ int main() {
         if 'omui.view-without-player: ok' not in stdout:raise RuntimeError('feature-off application did not run')
         run('without-player-metadata',['build','--locked','--profile','dev','--configure-only'])
         resolution,data,cdb,commands,ninja=metadata('dev')
-        if any('/view/src/hanim/' in c['file'] or '/hanim/src/engine/' in c['file'] or '/hanim/src/render/vector/' in c['file'] or '/hanim/src/control/' in c['file'] for c in commands):
+        # Every view has the host's one Engine (D-126: its interactive mode
+        # animates the runtime's values); the player adapter, vector rendering
+        # and control stay optional.
+        if any('/view/src/hanim/' in c['file'] or '/hanim/src/render/vector/' in c['file'] or '/hanim/src/control/' in c['file'] for c in commands):
             raise RuntimeError('optional adapter/player leaked into ordinary view build')
         shutil.copyfile(resolution,artifacts/'without-player.resolution.json')
         shutil.copyfile(cdb,artifacts/'without-player.compile_commands.json')

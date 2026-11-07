@@ -396,7 +396,7 @@ bool Runtime::Impl::animate_prop(NodeId id, std::string_view name, const Value& 
         a.name = std::string(name);
         a.kind = to->kind;
         a.lanes = to->count;
-        for (std::uint8_t i = 0; i < to->count; ++i) a.channels[i] = anims.hold(from[i]);
+        for (std::uint8_t i = 0; i < to->count; ++i) a.channels[i] = anims.hold(DrivenLanes::key(id, name, i), from[i]);
         n.prop_animations.push_back(std::move(a));
         running = n.prop_animations.end() - 1;
     }
@@ -764,7 +764,7 @@ void Runtime::Impl::animate_field(NodeId id, std::string_view prop, Field field,
     Node& n = at(id);
     const auto i = static_cast<std::size_t>(field);
     const std::uint32_t bit = 1u << i;
-    hanim::Set::Channel& c = n.channels[i];
+    DrivenLanes::Lane& c = n.channels[i];
     const Transition* t = nullptr;
     if (n.shown) {
         if (auto it = n.transitions.find(prop); it != n.transitions.end()) t = &it->second;
@@ -780,7 +780,7 @@ void Runtime::Impl::animate_field(NodeId id, std::string_view prop, Field field,
     }
     if ((n.moving & bit) && anims.valid(c) && anims.target(c) == static_cast<double>(target)) return;
     if (!(n.moving & bit) && n.visual.f[i] == target) return;
-    if (!anims.valid(c)) c = anims.hold(n.visual.f[i]);
+    if (!anims.valid(c)) c = anims.hold(DrivenLanes::key(id, "field", static_cast<unsigned>(i)), n.visual.f[i]);
     const seconds start = now() + t->delay;
     if (t->kind == Transition::Kind::tween) anims.tween_to(c, start, target, t->duration, t->ease);
     else anims.spring_to(c, start, target, t->spring);

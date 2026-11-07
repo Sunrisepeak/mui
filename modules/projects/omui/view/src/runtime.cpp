@@ -906,7 +906,7 @@ std::string_view Runtime::cursor() const {
     }
     return "default";
 }
-hanim::Set& Runtime::animations() { return impl_->anims; }
+hanim::Engine& Runtime::engine() { return impl_->anims.engine(); }
 std::optional<Rect> Runtime::text_input_rect() const noexcept {
     const auto& d=*impl_;
     if(!d.text_input || !d.alive(d.text_input_node))return std::nullopt;

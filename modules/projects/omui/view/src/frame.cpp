@@ -184,7 +184,7 @@ void Runtime::Impl::retime() {
         Node& n = at(id);
         bool any = false;
         for (std::size_t i = 0; i < field_count; ++i) {
-            const hanim::Set::Channel c = n.channels[i];
+            const auto& c = n.channels[i];
             if (!anims.valid(c)) continue;
             const std::uint32_t bit = 1u << i;
             n.visual.f[i] = static_cast<float>(anims.value(c, t, policy));
@@ -332,7 +332,7 @@ void Runtime::Impl::run_animations() {
         for (std::size_t i = 0; i < field_count; ++i) {
             const std::uint32_t bit = 1u << i;
             if (!(n.moving & bit)) continue;
-            const hanim::Set::Channel c = n.channels[i];
+            const auto& c = n.channels[i];
             if (!anims.valid(c)) {
                 n.moving &= ~bit;
                 continue;

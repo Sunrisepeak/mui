@@ -637,7 +637,7 @@ public:
     void text_input(NodeId node, std::optional<Rect> caret) override;
     [[nodiscard]] std::string clipboard_text() override;
     void set_clipboard_text(std::string_view text) override;
-    hanim::Set& animations() override;
+    hanim::Engine& engine() override;
     std::uint64_t after(seconds delay, std::function<void()> fn) override;
     void cancel(std::uint64_t timer) override;
 

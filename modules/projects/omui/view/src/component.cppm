@@ -11,6 +11,7 @@ export module omui.view:component;
 
 import std;
 import omui.core;
+import hanim.engine;
 import mlibs.layout;
 import xrender.vector;
 import mlibs.text;
@@ -302,8 +303,10 @@ public:
     // (empty: none), or `by` goes. Not a cursor: the pixels show it, the
     // tree does not change.
     virtual void point_out(NodeId by, std::string_view path) { (void)by, (void)path; }
-    // A spring or tween on one scalar of the node (scroll offsets, thumbs).
-    virtual hanim::Set& animations() = 0;
+    // The host's one hanim Engine: its interactive mode drives a scalar of the
+    // node toward a target (scroll offsets, thumbs), on the runtime's clock.
+    // For the runtime's own primitives: components draw their state (D-93).
+    virtual hanim::Engine& engine() = 0;
     // Runs `fn` at the first frame at or after now + delay, on the clock of
     // the runtime (virtual and render clocks make timers deterministic).
     virtual std::uint64_t after(seconds delay, std::function<void()> fn) = 0;

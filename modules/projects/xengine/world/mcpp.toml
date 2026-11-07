@@ -23,4 +23,5 @@ sources = ["src/*.cppm"]
 [dev-dependencies]
 
 [dependencies]
-mlibs.utils = { path = "../../../base/utils" }
+mlibs.utils  = { path = "../../../base/utils" }
+mlibs.memory = { path = "../../../base/memory" }

@@ -1,10 +1,11 @@
 // Colour science for the contrast checker: WCAG 2.2's relative luminance and
 // contrast ratio, the colour-vision deficiencies of Machado, Oliveira and
-// Fernandes (2009) at full severity, and OKLab (Ottosson 2020) for the
-// nearest passing colour.
+// Fernandes (2009) at full severity, and OKLab (Ottosson 2020, hanim.core's)
+// for the nearest passing colour.
 module colors;
 
 import std;
+import hanim.core;
 
 namespace colors::contrast {
 
@@ -36,8 +37,8 @@ int byte(double c) { return static_cast<int>(std::lround(std::clamp(c, 0.0, 1.0)
 std::string hex(Rgb c) { return std::format("#{:02x}{:02x}{:02x}", byte(c.r), byte(c.g), byte(c.b)); }
 Rgb quantised(Rgb c) { return {byte(c.r) / 255.0, byte(c.g) / 255.0, byte(c.b) / 255.0}; }
 
-double linear(double c) { return c <= 0.04045 ? c / 12.92 : std::pow((c + 0.055) / 1.055, 2.4); }
-double gamma(double c) { return c <= 0.0031308 ? 12.92 * c : 1.055 * std::pow(c, 1.0 / 2.4) - 0.055; }
+double linear(double c) { return hanim::srgb_to_linear(c); }
+double gamma(double c) { return hanim::linear_to_srgb(c); }
 
 double luminance(Rgb c) { return 0.2126 * linear(c.r) + 0.7152 * linear(c.g) + 0.0722 * linear(c.b); }
 
@@ -77,28 +78,13 @@ Rgb grey(Rgb c) {
 
 // ── OKLab ──
 
-struct Lab {
-    double l = 0, a = 0, b = 0;
-};
+using Lab = hanim::OkLab;
 
-Lab oklab(Rgb c) {
-    const double r = linear(c.r), g = linear(c.g), b = linear(c.b);
-    const double l = std::cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
-    const double m = std::cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
-    const double s = std::cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
-    return {0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s,
-            0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s};
-}
+Lab oklab(Rgb c) { return hanim::linear_to_oklab({linear(c.r), linear(c.g), linear(c.b)}); }
 
 Rgb srgb(Lab c) {
-    const double l = c.l + 0.3963377774 * c.a + 0.2158037573 * c.b;
-    const double m = c.l - 0.1055613458 * c.a - 0.0638541728 * c.b;
-    const double s = c.l - 0.0894841775 * c.a - 1.2914855480 * c.b;
-    const double L = l * l * l, M = m * m * m, S = s * s * s;
-    const double r = 4.0767416621 * L - 3.3077115913 * M + 0.2309699292 * S;
-    const double g = -1.2684380046 * L + 2.6097574011 * M - 0.3413193965 * S;
-    const double b = -0.0041960863 * L - 0.7034186147 * M + 1.7076147010 * S;
-    return {gamma(std::clamp(r, 0.0, 1.0)), gamma(std::clamp(g, 0.0, 1.0)), gamma(std::clamp(b, 0.0, 1.0))};
+    const auto l = hanim::oklab_to_linear(c);
+    return {gamma(std::clamp(l.r, 0.0, 1.0)), gamma(std::clamp(l.g, 0.0, 1.0)), gamma(std::clamp(l.b, 0.0, 1.0))};
 }
 
 // The lightness between `from` and `to` (one of them meeting the target)

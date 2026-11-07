@@ -17,6 +17,7 @@
 export module omui.ui.canvas:scene;
 
 import std;
+import mlibs.memory;
 import omui.core;
 import omui.view;
 import xrender.vector;
@@ -24,12 +25,9 @@ import mlibs.text;
 
 export namespace omui::world {
 
-struct NodeRef {
-    std::uint32_t index = std::numeric_limits<std::uint32_t>::max();
-    std::uint32_t generation = 0;
-    [[nodiscard]] constexpr bool valid() const noexcept { return index != std::numeric_limits<std::uint32_t>::max(); }
-    friend constexpr bool operator==(NodeRef a, NodeRef b) noexcept { return a.index == b.index && a.generation == b.generation; }
-};
+// A node of a scene (mlibs.memory's Handle, tagged).
+struct NodeTag;
+using NodeRef = mlibs::memory::Handle<NodeTag>;
 
 // A rectangle in world space.
 struct WorldRect {

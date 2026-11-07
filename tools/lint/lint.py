@@ -40,12 +40,10 @@ Rules:
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
-  hash          no private FNV-1a (its offset bases and primes) outside mlibs.utils' hash: one
-                implementation, mlibs.hash, so a pinned hash means the same thing everywhere
-  time          no private flick (1/705,600,000 s) outside mlibs.utils' time: one set of time
-                types and exact conversions, mlibs.time (convergence plan §5.2)
-  math          no private splitmix64 (its finaliser's constants) or fdlibm (its constants)
-                outside modules/base/math: one implementation, mlibs.math (D-87)
+  owner         each capability has one owner (tools/lint/capabilities.owners.omui.toml, plan
+                §5.3 ①): its signature — FNV-1a, splitmix64/fdlibm, flicks, OKLab, the handle's
+                shape, a component animating itself — appears nowhere else; the owner implements
+                it, everyone else imports it
   members       every directory listed as a workspace member has an mcpp.toml, and every
                 mcpp.toml under the tree is listed
   documents     every view document (*.view.omui.json) is valid against the committed schema,
@@ -162,26 +160,20 @@ LEGACY_ALIASES = re.compile(r"(?<![\w])omui::(cellular|effect|geom|hash|i18n|ima
 OS_HEADERS = re.compile(
     r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
-# FNV-1a's offset bases and primes, 64- and 32-bit, in hex and in decimal
-# (and the 64-bit basis with its last digit lost, as copies had it): only
-# mlibs.hash has them.
-FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665603[0-9]?|\b1099511628211\b|\b16777619u?\b|\b2166136261u?\b",
-                           re.IGNORECASE)
-# What may keep its own: gongfu's core takes the standard library alone (D-82),
-# so its world checksum is written there.
-FNV_OWN = ("modules/base/utils/src/hash/", "modules/base/utils/tests/hash/", "modules/projects/gongfu/src/", "modules/projects/gongfu/src/")
+# Each capability's one owner, and the signature of a re-implementation.
+OWNERS_FILE = Path(__file__).resolve().parent / "capabilities.owners.omui.toml"
 
-# A flick's count a second: only mlibs.time has it.
-FLICKS_CONSTANT = re.compile(r"\b705'?600'?000\b")
-FLICKS_OWN = ("modules/base/utils/src/time/", "modules/base/utils/tests/time/")
 
-# splitmix64's finaliser and fdlibm's exp/log constants: only mlibs.math has them.
-MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
+def load_owners() -> list[dict]:
+    rows = tomllib.loads(OWNERS_FILE.read_text(encoding="utf-8"))["capability"]
+    for row in rows:
+        flags = re.IGNORECASE if row.get("ignore_case") else 0
+        row["compiled"] = [re.compile(x, flags) for x in ([row["pattern"]] if "pattern" in row else row["together"])]
+        row["mine"] = tuple(row.get("paths", [])) + tuple(a["path"] for a in row.get("allow", []))
+    return rows
 
-# A component animating itself (universal motion, D-93): it draws its state;
-# how a change moves is its slots' (the runtime's, one rule for every component).
-MOTION_CODE = re.compile(r"\banimations\(\)|\bspring_to\s*\(|\btween_to\s*\(|\.transition\(\"motion\.|\bTransition::(tween|spring_with)\b"
-                         r"|\bhanim::(Spring|Tween|Track|Set|Oscillator)\b|\bGlyphMotion::|\bparts::Motion\b")
+
+OWNERS = load_owners()
 TRANSCENDENTAL = re.compile(
     r"\bstd::(exp|exp2|expm1|log|log2|log10|log1p|pow|sin|cos|tan|asin|acos|atan|atan2|sinh|cosh|tanh|cbrt|hypot|lerp)\s*\(")
 
@@ -330,32 +322,24 @@ def check_sources(root: Path) -> list[Problem]:
                     problems.append(Problem("paths", f"{rel_s}:{no}",
                                             "path::string() narrows through the code page on Windows; use utf8() / generic_utf8()"))
 
-        # Components draw their state; how a change moves is their slots' (D-93).
-        if top == "components" and "src" in rel.parts and not is_test and "generated" not in rel.parts:
-            raw = text.splitlines()
-            for no, line in enumerate(lines, 1):
-                if MOTION_CODE.search(line) and "MOTION-OK:" not in raw[no - 1]:
-                    problems.append(Problem("motion", f"{rel_s}:{no}",
-                                            "a component animating itself; draw the state and let its slots move it "
-                                            "(universal motion, D-93: the `motion` property, a style's motion rules)"))
-
-        # One FNV-1a: mlibs.hash.
-        if not rel_s.startswith(FNV_OWN):
-            for no, line in enumerate(lines, 1):
-                if FNV_CONSTANTS.search(line):
-                    problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use mlibs.hash (mlibs::hash::Fnv1a, fnv1a, fnv1a32)"))
-
-        # One time: mlibs.time.
-        if not rel_s.startswith(FLICKS_OWN):
-            for no, line in enumerate(lines, 1):
-                if FLICKS_CONSTANT.search(line):
-                    problems.append(Problem("time", f"{rel_s}:{no}", "a private flick; use mlibs.time (Flicks, flicks_per_second, Rate)"))
-
-        # One splitmix64, one fdlibm: mlibs.math.
-        if not rel_s.startswith("modules/base/math/"):
-            for no, line in enumerate(lines, 1):
-                if MATH_CONSTANTS.search(line):
-                    problems.append(Problem("math", f"{rel_s}:{no}", "a private splitmix64 or fdlibm; use mlibs.math (math::mix64, SplitMix64, det::)"))
+        # One owner a capability: its signature nowhere else (plan §5.3 ①).
+        raw = text.splitlines()
+        for cap in OWNERS:
+            if rel_s.startswith(cap["mine"]) or ("within" in cap and not rel_s.startswith(tuple(cap["within"]))):
+                continue
+            if any(part in rel.parts for part in cap.get("skip", [])):
+                continue
+            exprs, window = cap["compiled"], cap.get("window", 1)
+            for no in range(1, len(lines) + 1):
+                if "marker" in cap and cap["marker"] in raw[no - 1]:
+                    continue
+                if len(exprs) == 1:
+                    hit = bool(exprs[0].search(lines[no - 1]))
+                else:
+                    span = lines[no - 1:no - 1 + window]
+                    hit = bool(exprs[0].search(lines[no - 1])) and all(any(x.search(l) for l in span) for x in exprs[1:])
+                if hit:
+                    problems.append(Problem("owner", f"{rel_s}:{no}", f"{cap['name']}: {cap['owner']} has it; use {cap['use']}"))
 
         for member in DETERMINISTIC:
             if rel_s.startswith(member + "/src/"):
@@ -827,9 +811,6 @@ def self_test() -> int:
         "exceptions": ("modules/base/hanim/core/src/e.cpp", "void f() { throw 1; }\n"),
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
         "determinism": ("modules/base/math/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
-        "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
-        "time": ("modules/ui/core/src/f.cpp", "using Flicks = std::int64_t; inline constexpr Flicks per_second = 705'600'000;\n"),
-        "math": ("modules/ui/core/src/m.cpp", "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,
         "modules": None,
@@ -840,7 +821,6 @@ def self_test() -> int:
         "legacy-import": ("modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"),
         "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),
-        "motion": ("components/base/src/t.cpp", "void Thumb::paint() { services().animations().spring_to(c_, now, 1, s); }\n"),
         "manifest": None,
         "pins": None,
         "closure": None,
@@ -851,6 +831,8 @@ def self_test() -> int:
     except ImportError:
         del cases["documents"]
         print("  skip  documents: pip install jsonschema")
+    for cap in OWNERS:
+        cases[f"owner:{cap['name']}"] = (cap["sample"]["path"], cap["sample"]["text"] + "\n")
     failures = 0
     for rule, planted in cases.items():
         with tempfile.TemporaryDirectory() as tmp:
@@ -909,8 +891,9 @@ def self_test() -> int:
             saved = CLOSURES
             if rule == "closure":
                 CLOSURES = {"hanim": {"not": {"hanim.core"}}}  # planted: hanim may not reach its core
-            found = [p for p in run(root) if p.rule == rule]
-            clean = [p for p in run(root) if p.rule != rule]
+            kind, _, capability = rule.partition(":")
+            found = [p for p in run(root) if p.rule == kind and (not capability or p.message.startswith(capability + ":"))]
+            clean = [p for p in run(root) if p.rule != kind]
             CLOSURES = saved
             ok = bool(found) and not clean
             print(f"  {'ok  ' if ok else 'FAIL'}  {rule}: {found[0] if found else 'not caught'}")

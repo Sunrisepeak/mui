@@ -11,6 +11,7 @@
 export module hanim.core:set;
 
 import std;
+import mlibs.memory;
 import :math;
 import :time;
 import :ease;
@@ -25,12 +26,9 @@ struct Policy {
 
 class Set {
 public:
-    struct Channel {
-        std::uint32_t index      = std::numeric_limits<std::uint32_t>::max();
-        std::uint32_t generation = 0;
-        // Written out: GCC 16.1 crashes on a defaulted comparison here once an importer uses it.
-        friend constexpr bool operator==(const Channel& a, const Channel& b) noexcept { return a.index == b.index && a.generation == b.generation; }
-    };
+    // A channel of the set (mlibs.memory's Handle, tagged).
+    struct ChannelTag;
+    using Channel = mlibs::memory::Handle<ChannelTag>;
 
     [[nodiscard]] Channel hold(double value);
     [[nodiscard]] Channel tween(double from, double to, seconds start, seconds duration, Ease e = ease::out_cubic);

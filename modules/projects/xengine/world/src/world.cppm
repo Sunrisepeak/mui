@@ -19,15 +19,13 @@ export module xengine.world;
 
 import std;
 import mlibs.hash;
+import mlibs.memory;
 
 export namespace xengine {
 
-struct Entity {
-    std::uint32_t index = 0xffffffffu;
-    std::uint32_t generation = 0;
-    [[nodiscard]] constexpr bool valid() const noexcept { return index != 0xffffffffu; }
-    friend constexpr bool operator==(Entity a, Entity b) noexcept { return a.index == b.index && a.generation == b.generation; }
-};
+// An entity of a world (mlibs.memory's Handle, tagged).
+struct EntityTag;
+using Entity = mlibs::memory::Handle<EntityTag>;
 
 // Plain data with no padding: its bytes are its value, so a checksum of them
 // is the same for the same value. A type with doubles (whose representations

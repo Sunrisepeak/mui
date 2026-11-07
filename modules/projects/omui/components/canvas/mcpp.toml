@@ -29,6 +29,7 @@ xrender.text = { path = "../../../xrender/text" }
 omui.core   = { path = "../../core" }
 omui.view   = { path = "../../view" }
 xrender.vector = { path = "../../../xrender/vector" }
+mlibs.memory = { path = "../../../../base/memory" }
 xrender.raster = { path = "../../../xrender/raster" }
 mlibs.geom   = { path = "../../../../base/geom" }
 mlibs.text   = { path = "../../../../content/text" }

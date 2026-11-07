@@ -143,6 +143,13 @@ struct OkLab {
 [[nodiscard]] OkLab to_oklab(const Rgba& c) noexcept;
 // Out-of-gamut results are clipped to [0, 1] per channel.
 [[nodiscard]] Rgba from_oklab(const OkLab& lab, float alpha) noexcept;
+// The same conversions on linear sRGB in double precision, unclipped: what a
+// colour tool computes with (a contrast checker's search along lightness).
+struct LinearRgb {
+    double r = 0, g = 0, b = 0;
+};
+[[nodiscard]] OkLab linear_to_oklab(const LinearRgb& c) noexcept;
+[[nodiscard]] LinearRgb oklab_to_linear(const OkLab& lab) noexcept;
 
 // Lanes: OKLab premultiplied by alpha, then alpha — so a fade to transparent
 // does not pass through the transparent colour's hue.

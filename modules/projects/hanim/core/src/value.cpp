@@ -15,29 +15,32 @@ double linear_to_srgb(double c) noexcept {
 }
 
 // Björn Ottosson's OKLab (2020), from linear sRGB through LMS.
-OkLab to_oklab(const Rgba& c) noexcept {
-    double r = srgb_to_linear(c.r);
-    double g = srgb_to_linear(c.g);
-    double b = srgb_to_linear(c.b);
-    double l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
-    double m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
-    double s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b;
+OkLab linear_to_oklab(const LinearRgb& c) noexcept {
+    double l = 0.4122214708 * c.r + 0.5363325363 * c.g + 0.0514459929 * c.b;
+    double m = 0.2119034982 * c.r + 0.6806995451 * c.g + 0.1073969566 * c.b;
+    double s = 0.0883024619 * c.r + 0.2817188376 * c.g + 0.6299787005 * c.b;
     double l_ = dm::cbrt(l), m_ = dm::cbrt(m), s_ = dm::cbrt(s);
     return {0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
             1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
             0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_};
 }
 
-Rgba from_oklab(const OkLab& lab, float alpha) noexcept {
+LinearRgb oklab_to_linear(const OkLab& lab) noexcept {
     double l_ = lab.l + 0.3963377774 * lab.a + 0.2158037573 * lab.b;
     double m_ = lab.l - 0.1055613458 * lab.a - 0.0638541728 * lab.b;
     double s_ = lab.l - 0.0894841775 * lab.a - 1.2914855480 * lab.b;
     double l = l_ * l_ * l_, m = m_ * m_ * m_, s = s_ * s_ * s_;
-    double r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
-    double g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-    double b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+    return {4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+            -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+            -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s};
+}
+
+OkLab to_oklab(const Rgba& c) noexcept { return linear_to_oklab({srgb_to_linear(c.r), srgb_to_linear(c.g), srgb_to_linear(c.b)}); }
+
+Rgba from_oklab(const OkLab& lab, float alpha) noexcept {
+    const LinearRgb c = oklab_to_linear(lab);
     auto out = [](double v) { return static_cast<float>(dm::clamp(linear_to_srgb(dm::clamp(v, 0.0, 1.0)), 0.0, 1.0)); };
-    return {out(r), out(g), out(b), alpha};
+    return {out(c.r), out(c.g), out(c.b), alpha};
 }
 
 std::optional<Rgba> Rgba::parse_hex(std::string_view hex) noexcept {

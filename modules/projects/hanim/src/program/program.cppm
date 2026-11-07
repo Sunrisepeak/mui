@@ -195,6 +195,13 @@ public:
     [[nodiscard]] BoundAnimation easing(Ease value) const {
         auto result = *this; result.binding_.options.easing = value; return result;
     }
+    // A layer over its channels' base (Blend): `breathe.blend(Blend::add)`.
+    [[nodiscard]] BoundAnimation blend(Blend mode, double weight = 1) const {
+        auto result = *this;
+        if (result.binding_.properties) { result.binding_.properties->blend = mode; result.binding_.properties->weight = weight; }
+        for (auto& targets : result.binding_.additional_properties) { targets.blend = mode; targets.weight = weight; }
+        return result;
+    }
     // A spring's course (L1): its curve, for as long as it takes to settle.
     [[nodiscard]] BoundAnimation spring(SpringParams params) const {
         auto result = *this;

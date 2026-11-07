@@ -73,7 +73,10 @@ or closes into one (`shrink`): an outline at the nearest outline of the other
 end, a hole at its own centre; a grown contour runs the way the part's paired
 targets were turned. A contour that is a single point (a grown contour's first
 frame, continued) is no contour. A part's frame contours are its pairs, then
-its closing contours, then its growing ones. `strict` pairs by ordinal and
+its closing contours, then its growing ones. `MorphOptions::match` modifies the matching: the two cost weights (finite, ≥ 0)
+and pins, a part's source and target contour ordinals paired before any is
+weighed (both outlines or both holes, each contour once; otherwise
+`invalid_options`). `strict` pairs by ordinal and
 refuses differing counts with `contour_count_mismatch`. Both endpoints must
 be closed and usable by the public `PreparedShapeMorph`; the original curves
 are elevated/subdivided, not replaced with sampled polygons or two drawings.
@@ -97,6 +100,16 @@ creation (`invalid_part`). A deformed part's frame info carries its geometry
 before the deformers (`MorphPartInfo::base`, borrowed from the plan), and an
 animation continued from that frame starts from it, so nothing is deformed
 twice. Morph plans carry no values, so their geometry is not deformed.
+
+A property write's `blend` makes it the channel's base (`replace`: one writer
+at a time, refused when two overlap) or a layer over it: `add` (weight × its
+value), `multiply` (scale and value channels: × (1 + weight × (value − 1))) or
+`mix` (towards its value by weight). An add or multiply layer runs from its
+identity (zero, one), a mix layer from where the base is when it starts; each
+layer holds its end after its clip and combines over the base in author
+(clip) order. Colours only mix; positions and turns do not multiply; routes
+do not layer; a nonfinite weight is refused (`invalid_property`). A layered
+write always takes the timeline path, even alone.
 
 The positive preparation budgets have hard maxima: 65,536 parts, 65,536
 contours and 1,048,576 output cubics. Defaults are 4,096 / 4,096 / 65,536.

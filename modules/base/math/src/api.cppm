@@ -12,4 +12,5 @@ export module mlibs.math.api;
 
 export import :det;
 export import :random;
+export import :noise;
 export import :color;

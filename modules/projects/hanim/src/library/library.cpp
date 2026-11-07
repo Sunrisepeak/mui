@@ -61,7 +61,8 @@ bool valid(MorphOptions options) noexcept {
     return options.max_parts && options.max_parts <= (1u<<16) &&
         options.max_contours && options.max_contours <= (1u<<16) &&
         options.max_cubics && options.max_cubics <= (1u<<20) &&
-        options.shape.point_path.valid() && options.translation_path.valid() && options.max_route_segments<=(1u<<20);
+        options.shape.point_path.valid() && options.translation_path.valid() && options.max_route_segments<=(1u<<20) &&
+        std::isfinite(options.match.distance) && options.match.distance>=0 && std::isfinite(options.match.size) && options.match.size>=0;
 }
 struct CurveInput { ShapeContour view; std::vector<ShapeSegment> owned; };
 struct PartInput {
@@ -115,6 +116,11 @@ std::expected<std::vector<PropertyWrite>,MorphFailure> resolve_properties(
         }
         const auto part=index.find(values.part);
         if(part==none)return std::unexpected(failure(MorphError::unknown_part));
+        // A layer adds or scales positions, turns, sizes and values; a colour only mixes.
+        if(!std::isfinite(values.weight) || values.blend>Blend::mix || (values.blend!=Blend::replace && values.route) ||
+           ((values.blend==Blend::add || values.blend==Blend::multiply) && values.fill) ||
+           (values.blend==Blend::multiply && (values.position || values.offset || values.rotation || values.rotation_offset)))
+            return std::unexpected(failure(MorphError::invalid_property,part));
         for(const auto& v:values.values) {
             // The built-in channels are the part's fields, written as such; a
             // value has its lanes, all finite; one write a channel a part.
@@ -324,7 +330,7 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
 struct ContourPlan { std::size_t from = none, to = none; Vec2 point{}; };
 
 std::expected<std::vector<ContourPlan>,MorphFailure> pair_contours(const PartInput& source, const PartInput& target,
-    std::size_t part, ContourPairing pairing) {
+    std::size_t part, ContourPairing pairing, const MatchRules& rules) {
     std::vector<ContourPlan> plans;
     if (pairing==ContourPairing::strict) {
         if (source.contours.size()!=target.contours.size()) return std::unexpected(failure(MorphError::contour_count_mismatch,part));
@@ -365,11 +371,21 @@ std::expected<std::vector<ContourPlan>,MorphFailure> pair_contours(const PartInp
             const auto& left=(*sources)[from_index]; const auto& right=(*targets)[to_index];
             if (left.outline!=right.outline) continue;
             const double sizes=std::abs(mlibs::math::det::log(std::abs(left.measure.area)/std::abs(right.measure.area)));
-            candidates.push_back({distance(left.measure.centroid,right.measure.centroid)/extent+.5*sizes,from_index,to_index});
+            candidates.push_back({rules.distance*distance(left.measure.centroid,right.measure.centroid)/extent+rules.size*sizes,from_index,to_index});
         }
     std::ranges::sort(candidates,[](const Candidate& left, const Candidate& right){
         return std::tie(left.cost,left.from,left.to)<std::tie(right.cost,right.from,right.to);});
     std::vector<std::size_t> paired_to(sources->size(),none), paired_from(targets->size(),none);
+    for (const auto& pin:rules.pins) {
+        if (pin.part!=source.id) continue;
+        const auto found_from=std::ranges::find(*sources,pin.from,&Measured::index);
+        const auto found_to=std::ranges::find(*targets,pin.to,&Measured::index);
+        if (found_from==sources->end() || found_to==targets->end() || found_from->outline!=found_to->outline)
+            return std::unexpected(failure(MorphError::invalid_options,part));
+        const auto from_index=static_cast<std::size_t>(found_from-sources->begin()), to_index=static_cast<std::size_t>(found_to-targets->begin());
+        if (paired_to[from_index]!=none || paired_from[to_index]!=none) return std::unexpected(failure(MorphError::invalid_options,part));
+        paired_to[from_index]=to_index; paired_from[to_index]=from_index;
+    }
     for (const auto& candidate:candidates)
         if (paired_to[candidate.from]==none && paired_from[candidate.to]==none) {
             paired_to[candidate.from]=candidate.to; paired_from[candidate.to]=candidate.from;
@@ -428,7 +444,7 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
             return std::unexpected(failure(MorphError::missing_fill,i));
         if (x.stroke.has_value()!=y.stroke.has_value()) return std::unexpected(failure(MorphError::missing_stroke,i));
         // A property plan keeps its one geometry contour for contour.
-        const auto plans=pair_contours(x,y,i,property_only?ContourPairing::strict:options.contours);
+        const auto plans=pair_contours(x,y,i,property_only?ContourPairing::strict:options.contours,options.match);
         if (!plans) return std::unexpected(plans.error());
         if (plans->size()>options.max_contours-std::min(options.max_contours,result->contours.size()))
             return std::unexpected(failure(MorphError::contour_budget,i));
@@ -518,7 +534,7 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure>
 compile_properties(Input from, std::span<const PropertyTargets> targets, MorphOptions options) {
     const PropertyIndex index(from);const auto writes=resolve_properties(index,targets,options.max_route_segments);
     if(!writes)return std::unexpected(writes.error());
-    if(std::ranges::any_of(targets,[](const auto& value){return value.route.has_value() || !value.values.empty();})) {
+    if(std::ranges::any_of(targets,[](const auto& value){return value.route.has_value() || !value.values.empty() || value.blend!=Blend::replace;})) {
         if(!options.shape.point_path.linear())return std::unexpected(failure(MorphError::unsupported_property_effect));
         PropertyClip clip;clip.targets.assign(targets.begin(),targets.end());clip.options=options;
         return compile_timeline(std::move(from),std::span(&clip,1),options,{});
@@ -576,6 +592,7 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
         if(!writes){auto e=writes.error();e.where.clip=clip_index;return std::unexpected(e);}
         for(const auto& write:*writes) {
             const auto& part=source.parts[write.part];PartPose from{part.local,part.fill};
+            const auto blend=write.target->blend;const bool layered=blend!=Blend::replace;
             if(clip.source) {
                 const auto ref=clip.source->find(part.id);
                 if(!ref){auto e=failure(MorphError::unknown_part,write.part);e.where.clip=clip_index;return std::unexpected(e);}
@@ -585,11 +602,20 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
             }
             for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
                 const auto previous=last[write.part*4+c];
+                // A layer of add or multiply runs from the identity; one of mix
+                // from where the base is when it starts.
+                if(layered && blend!=Blend::mix) {
+                    const auto channel=static_cast<PropertyChannel>(c);
+                    if(channel==PropertyChannel::translation){from.local.tx=0;from.local.ty=0;}
+                    if(channel==PropertyChannel::rotation)from.local.rotate=0;
+                    if(channel==PropertyChannel::scale){from.local.sx=blend==Blend::add?0:1;from.local.sy=blend==Blend::add?0:1;}
+                    continue;
+                }
                 PropertyChannelInfo info{write.part,clip_index,static_cast<PropertyChannel>(c),clip.start,clip.duration};
                 if(c==3 && (!from.fill || !part.fill))return std::unexpected(channel_failure(MorphError::missing_fill,info));
                 if(previous==none)continue;
                 const auto& old=data->channels[previous];
-                if(clip.start<old.start+old.duration)return std::unexpected(channel_failure(MorphError::property_conflict,info));
+                if(!layered && clip.start<old.start+old.duration)return std::unexpected(channel_failure(MorphError::property_conflict,info));
                 if(!clip.source) {
                     const auto value=sample_channel(old,data->channel_values[previous],clip.start);
                     if(!value)return std::unexpected(value.error());
@@ -602,8 +628,9 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
             for(std::size_t c=0;c<4;++c)if(write.mask&(1u<<c)) {
                 const auto key=write.part*4+c;const auto channel=static_cast<PropertyChannel>(c);
                 PropertyChannelInfo info{write.part,clip_index,channel,clip.start,clip.duration,
-                    clip.anchor_source || (!clip.source && last[key]!=none)};
+                    !layered && (clip.anchor_source || (!clip.source && last[key]!=none))};
                 info.easing=clip.easing;
+                if(layered){info.layer=1+clip_index;info.blend=blend;info.weight=write.target->weight;}
                 if(channel==PropertyChannel::translation) {
                     info.translation_path=clip.options.translation_path;
                     info.route=write.target->route;
@@ -611,7 +638,8 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
                 }
                 info.source_snapshot=clip.source.has_value();
                 if(data->channels.size()>=limits.max_channels)return std::unexpected(channel_failure(MorphError::channel_budget,info));
-                last[key]=data->channels.size();data->channels.push_back(info);
+                if(!layered)last[key]=data->channels.size();
+                data->channels.push_back(info);
                 data->channel_values.push_back({property_value(from,channel),property_value(*to,channel)});
             }
             // The part's value channels: one slot a part and channel; each write
@@ -632,12 +660,14 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
                     data->value_slots.push_back(added);data->value_count+=v.id.lanes;value_last.push_back(none);
                 }else if(!(data->value_slots[slot].id==v.id)){auto e=failure(MorphError::invalid_property,write.part);e.where.clip=clip_index;return std::unexpected(e);}
                 PropertyChannelInfo info{write.part,clip_index,PropertyChannel::value,clip.start,clip.duration,
-                    clip.anchor_source || (!clip.source && value_last[slot]!=none)};
+                    !layered && (clip.anchor_source || (!clip.source && value_last[slot]!=none))};
                 info.easing=clip.easing;info.value_slot=slot;info.source_snapshot=clip.source.has_value();
+                if(layered){info.layer=1+clip_index;info.blend=blend;info.weight=write.target->weight;}
                 detail::PropertyValue from_value;from_value.lanes=data->value_slots[slot].rest;
-                if(value_last[slot]!=none) {
+                if(layered && blend!=Blend::mix)from_value.lanes.fill(blend==Blend::add?0:1);
+                if(value_last[slot]!=none && (!layered || blend==Blend::mix)) {
                     const auto& old=data->channels[value_last[slot]];
-                    if(clip.start<old.start+old.duration)return std::unexpected(channel_failure(MorphError::property_conflict,info));
+                    if(!layered && clip.start<old.start+old.duration)return std::unexpected(channel_failure(MorphError::property_conflict,info));
                     if(!clip.source) {
                         const auto value=sample_channel(old,data->channel_values[value_last[slot]],clip.start);
                         if(!value)return std::unexpected(value.error());
@@ -649,7 +679,8 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
                 if(!std::ranges::all_of(to_value.lanes,[](double x){return std::isfinite(x);}))
                     return std::unexpected(channel_failure(MorphError::nonfinite_transform,info));
                 if(data->channels.size()>=limits.max_channels)return std::unexpected(channel_failure(MorphError::channel_budget,info));
-                value_last[slot]=data->channels.size();data->channels.push_back(info);
+                if(!layered)value_last[slot]=data->channels.size();
+                data->channels.push_back(info);
                 data->channel_values.push_back({from_value,to_value});
             }
         }
@@ -668,13 +699,15 @@ std::expected<std::shared_ptr<const detail::ObjectMorphData>,MorphFailure> compi
     std::vector<std::size_t> sorted(data->channels.size());std::iota(sorted.begin(),sorted.end(),std::size_t{0});
     std::ranges::stable_sort(sorted,[&](auto a,auto b){
         const auto& x=data->channels[a];const auto& y=data->channels[b];
-        return x.part!=y.part?x.part<y.part:x.channel!=y.channel?x.channel<y.channel:x.value_slot!=y.value_slot?x.value_slot<y.value_slot:x.start<y.start;
+        return x.part!=y.part?x.part<y.part:x.channel!=y.channel?x.channel<y.channel:x.value_slot!=y.value_slot?x.value_slot<y.value_slot:
+               x.layer!=y.layer?x.layer<y.layer:x.start<y.start;
     });
     std::vector<PropertyChannelInfo> infos;std::vector<detail::PropertyEndpoints> values;
     infos.reserve(sorted.size());values.reserve(sorted.size());
     for(auto i:sorted) {
         const auto& info=data->channels[i];
-        if(infos.empty() || infos.back().part!=info.part || infos.back().channel!=info.channel || infos.back().value_slot!=info.value_slot)
+        if(infos.empty() || infos.back().part!=info.part || infos.back().channel!=info.channel || infos.back().value_slot!=info.value_slot ||
+           infos.back().layer!=info.layer)
             data->channel_runs.push_back({infos.size(),0});
         ++data->channel_runs.back().count;infos.push_back(info);values.push_back(data->channel_values[i]);
     }
@@ -717,6 +750,30 @@ void apply_deformers(const detail::ObjectMorphData& data, std::span<ShapeCubic> 
             }
         // A contour's seams stay shared: each start is the previous end, moved alike.
     }
+}
+// A layer's value over the channel's current one; a nonfinite result leaves it.
+detail::PropertyValue combine(const PropertyChannelInfo& info,const detail::PropertyValue& current,const detail::PropertyValue& layer) noexcept {
+    const double weight=info.weight;
+    const auto mixed=[&](double base,double value){
+        switch(info.blend) {
+            case Blend::add:return base+weight*value;
+            case Blend::multiply:return base*(1+weight*(value-1));
+            case Blend::mix:return base+weight*(value-base);
+            case Blend::replace:break;
+        }
+        return value;
+    };
+    detail::PropertyValue result=current;
+    switch(info.channel) {
+        case PropertyChannel::translation:case PropertyChannel::scale:
+            result.vector={mixed(current.vector.x,layer.vector.x),mixed(current.vector.y,layer.vector.y)};break;
+        case PropertyChannel::rotation:result.scalar=mixed(current.scalar,layer.scalar);break;
+        case PropertyChannel::fill:result.color=lerp(current.color,layer.color,std::clamp(weight,0.,1.));break;
+        case PropertyChannel::value:for(std::size_t lane=0;lane<ch::max_lanes;++lane)result.lanes[lane]=mixed(current.lanes[lane],layer.lanes[lane]);break;
+    }
+    const bool finite_result=std::isfinite(result.vector.x) && std::isfinite(result.vector.y) && std::isfinite(result.scalar) &&
+        std::ranges::all_of(result.lanes,[](double lane){return std::isfinite(lane);});
+    return finite_result?result:current;
 }
 std::size_t current_channel(const detail::ObjectMorphData& data,detail::ChannelRun run,seconds time) {
     const auto begin=data.channels.begin()+static_cast<std::ptrdiff_t>(run.first);
@@ -851,13 +908,20 @@ std::expected<FrameView,MorphFailure> PreparedObjectAnimation::sample_at(double 
             std::copy_n(slot.rest.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
         if(!exact_source)for(const auto run:data_->channel_runs) {
             const auto i=current_channel(*data_,run,time);if(i==none)continue;
-            const auto& info=data_->channels[i];const auto value=sample_channel(info,data_->channel_values[i],time,beyond(info));
+            const auto& info=data_->channels[i];auto value=sample_channel(info,data_->channel_values[i],time,beyond(info));
             if(info.channel==PropertyChannel::value) {
                 const auto& slot=data_->value_slots[info.value_slot];
-                std::copy_n(value->lanes.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
+                const auto lanes=output.values.subspan(slot.offset,slot.id.lanes);
+                if(info.layer) {
+                    detail::PropertyValue current;std::ranges::copy(lanes,current.lanes.begin());
+                    value=combine(info,current,*value);
+                }
+                std::copy_n(value->lanes.begin(),slot.id.lanes,lanes.begin());
                 continue;
             }
-            auto& part=output.parts[info.part];assign_property(part.local,part.fill,info.channel,*value);
+            auto& part=output.parts[info.part];
+            if(info.layer)value=combine(info,property_value({part.local,part.fill},info.channel),*value);
+            assign_property(part.local,part.fill,info.channel,*value);
         }
         std::ranges::copy(data_->static_cubics,output.cubics.begin());
         apply_deformers(*data_,output.cubics,output.values);

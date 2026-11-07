@@ -8,7 +8,9 @@ and solid sRGB fills use the core `lerp` and its premultiplied OKLab lanes.
 
 `MorphOptions::shape.point_path` applies the public `PointPath` operator to
 matched geometry. `translation_path` applies it to each part's local tx/ty.
-Both default to the original linear interpolation. These process effects
+Both default to the original linear interpolation. `PointPath::jitter` and
+`swirl` add mlibs.math's gradient or curl noise along the way, sampled where each
+point starts and enveloped by 16s²(1−s)². These process effects
 retain correspondence and exact endpoints; invalid controls fail preparation,
 and an overflowing translated frame fails before writing any output. The
 authoring layer exposes these options as typed effects without a renderer

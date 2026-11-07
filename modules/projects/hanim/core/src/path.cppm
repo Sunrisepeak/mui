@@ -11,6 +11,22 @@ import :value;
 
 export namespace hanim {
 
+// A displacement along the way by a coherent noise field (convergence plan
+// §6.8 ⑤), in the points' own units: each point samples the field where it
+// starts (so a contour's shared vertices move alike), the field drifts
+// `speed` features over the course, and an envelope 16s²(1−s)² holds both
+// ends and their speeds exactly. Pure in (point, progress, seed): any seek
+// order gives the same frame. mlibs.math's gradient or curl noise.
+struct PathNoise {
+    enum class Field : std::uint8_t { gradient, curl };
+    Field         field = Field::gradient;
+    double        amplitude = 0;  // the largest displacement, halfway
+    double        scale = 1;      // the field's feature size
+    double        speed = 1;      // features drifted over the whole course
+    std::uint64_t seed = 0;
+    friend constexpr bool operator==(const PathNoise&, const PathNoise&) noexcept = default;
+};
+
 // A point-to-point interpolation modifier, not a route in world space.
 // Each control is an offset from the straight cubic's control in the
 // endpoint chord frame: x along (to-from), y along its left normal (-dy,dx).
@@ -18,13 +34,21 @@ export namespace hanim {
 // channel, independent of position, orientation and scale. Zero is linear.
 struct PointPath {
     Vec2 control1{}, control2{};
+    PathNoise noise{};  // added to the curve; absolute, not in the chord frame
     friend constexpr bool operator==(const PointPath& a, const PointPath& b) noexcept {
-        return a.control1 == b.control1 && a.control2 == b.control2;
+        return a.control1 == b.control1 && a.control2 == b.control2 && a.noise == b.noise;
     }
     // Bounded dimensionless controls; consumers validate once at prepare.
     [[nodiscard]] bool valid() const noexcept;
     [[nodiscard]] constexpr bool linear() const noexcept {
-        return control1 == Vec2{} && control2 == Vec2{};
+        return control1 == Vec2{} && control2 == Vec2{} && noise.amplitude == 0;
+    }
+    // Jitter (gradient noise) and swirl (curl noise) along the way.
+    [[nodiscard]] static constexpr PointPath jitter(double amplitude, double scale, std::uint64_t seed = 0, double speed = 1) noexcept {
+        return {{}, {}, {PathNoise::Field::gradient, amplitude, scale, speed, seed}};
+    }
+    [[nodiscard]] static constexpr PointPath swirl(double amplitude, double scale, std::uint64_t seed = 0, double speed = 1) noexcept {
+        return {{}, {}, {PathNoise::Field::curl, amplitude, scale, speed, seed}};
     }
     // Midpoint displacement as a signed fraction of chord length. Positive
     // follows (-dy,dx); with screen coordinates positive y points down.
@@ -33,9 +57,11 @@ struct PointPath {
     }
     // Additive displacement in the SAME endpoint frame. This is not ordered
     // function composition; render effects have their separate ordered chain.
+    // A path has one noise: the other's, when it has one.
     [[nodiscard]] constexpr PointPath added(PointPath other) const noexcept {
         return {{control1.x + other.control1.x, control1.y + other.control1.y},
-                {control2.x + other.control2.x, control2.y + other.control2.y}};
+                {control2.x + other.control2.x, control2.y + other.control2.y},
+                other.noise.amplitude != 0 ? other.noise : noise};
     }
     // Pure, allocation-free point evaluation. Requires valid controls and
     // finite inputs. Like lerp, the baseline extrapolates outside [0,1]; the

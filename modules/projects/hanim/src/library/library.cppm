@@ -17,9 +17,22 @@ export namespace hanim {
 // into "二", a hole from (into) its own centre. strict pairs them in order
 // and refuses differing counts.
 enum class ContourPairing : std::uint8_t { align, strict };
+// Match modifiers (plan §6.8 ⑤): how align weighs a pair — centroid distance
+// over the part's size, the log of the area ratio — and pairs pinned before
+// any is weighed: part `part`'s source contour `from` with target contour
+// `to` (ordinals; both outlines or both holes).
+struct ContourPin {
+    std::string part;
+    std::size_t from = 0, to = 0;
+};
+struct MatchRules {
+    double distance = 1, size = .5;  // finite, ≥ 0
+    std::vector<ContourPin> pins;
+};
 struct MorphOptions {
     std::size_t max_parts = 4096, max_contours = 4096, max_cubics = 65536;
     ContourPairing contours = ContourPairing::align;
+    MatchRules match;
     ShapeMorphOptions shape;
     PointPath translation_path; // each part's local tx/ty, not its geometry or parent
     std::size_t max_route_segments = 4096;
@@ -128,6 +141,14 @@ public:
 private:
     std::shared_ptr<const MotionPath> path_;
 };
+// How a write meets the others on its channel (plan §6.8 ⑥, layers). replace
+// is the base: one writer at a time, each going on from the last. The others
+// are layers over it, in author order, each its own course from an identity
+// (add: zero; multiply: one; mix: where the channel is when it starts):
+// add adds weight × its value, multiply scales by 1 + weight × (value − 1)
+// (scale and value channels), mix moves the channel towards its value by
+// weight. A breath (scale added) goes on over a drag (position replaced).
+enum class Blend : std::uint8_t { replace, add, multiply, mix };
 struct PropertyTargets {
     std::optional<Vec2> position, offset;
     std::optional<double> rotation;
@@ -142,6 +163,8 @@ struct PropertyTargets {
     std::optional<TranslationRoute> route;
     // The part's other channels (an application's): one write a channel.
     std::vector<ch::Value> values;
+    Blend blend = Blend::replace;
+    double weight = 1;  // a layer's, finite
 };
 // One atomic animation may target several parts and independent properties.
 // Duplicate writes to a part/channel are errors, never implicit last-wins.
@@ -171,6 +194,10 @@ struct PropertyChannelInfo {
     Vec2 route_origin;
     // A value channel's slot (PreparedObjectAnimation::value_slots()).
     std::size_t value_slot = std::numeric_limits<std::size_t>::max();
+    // 0: the base; a layer's is 1 + its clip, combined in that order.
+    std::size_t layer = 0;
+    Blend blend = Blend::replace;
+    double weight = 1;
 };
 // Where a part's value channel lands in FrameView::values: [offset, offset + lanes);
 // rest is its value before this animation writes it (its channel's rest, or

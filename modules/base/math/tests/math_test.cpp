@@ -43,5 +43,38 @@ int main(int argc, char** argv) {
         check(math::det::mix(1.0, 3.0, 1.0) == 3.0, "mix at 1 is its end exactly");
     });
 
+    s.test("gradient noise: zero on the lattice, smooth between, its slope exact, its range about ±1", [] {
+        using mlibs::math::gradient_noise;
+        for (const auto [x, y] : std::array<std::array<double, 2>, 4>{{{0, 0}, {3, -7}, {-12, 5}, {1000, 1000}}})
+            check(gradient_noise(x, y, 7).value == 0, "zero at a lattice point");
+        double lowest = 0, highest = 0;
+        for (int row = 0; row < 64; ++row)
+            for (int column = 0; column < 64; ++column) {
+                const double x = column * 0.173 - 5, y = row * 0.211 + 2;
+                const auto sample = gradient_noise(x, y, 42);
+                lowest = std::min(lowest, sample.value), highest = std::max(highest, sample.value);
+                constexpr double step = 1e-6;
+                const double slope_x = (gradient_noise(x + step, y, 42).value - gradient_noise(x - step, y, 42).value) / (2 * step);
+                const double slope_y = (gradient_noise(x, y + step, 42).value - gradient_noise(x, y - step, 42).value) / (2 * step);
+                check(std::abs(slope_x - sample.dx) < 1e-6 && std::abs(slope_y - sample.dy) < 1e-6, "the slope is the derivative");
+            }
+        check(lowest > -1.1 && highest < 1.1 && highest - lowest > 1, std::format("range {} to {}", lowest, highest));
+        check(gradient_noise(.5, .5, 1).value != gradient_noise(.5, .5, 2).value, "another seed, another field");
+    });
+
+    s.test("curl noise neither gathers nor spreads: its divergence is zero", [] {
+        for (const auto [x, y] : std::array<std::array<double, 2>, 3>{{{.3, .7}, {-4.2, 9.9}, {17.5, -3.25}}}) {
+            constexpr double step = 1e-5;
+            const double spread = (mlibs::math::curl_noise(x + step, y, 9)[0] - mlibs::math::curl_noise(x - step, y, 9)[0]) / (2 * step) +
+                (mlibs::math::curl_noise(x, y + step, 9)[1] - mlibs::math::curl_noise(x, y - step, 9)[1]) / (2 * step);
+            check(std::abs(spread) < 1e-5, std::format("divergence {} at ({}, {})", spread, x, y));
+        }
+    });
+
+    s.test("noise is the same bits on every platform", [] {
+        // Pinned on x86-64 Linux; every CI platform must reproduce them.
+        check(mlibs::math::gradient_noise(.37, 1.91, 2026).value == -0x1.e0f11f2e3f4b7p-4, std::format("{:a}", mlibs::math::gradient_noise(.37, 1.91, 2026).value));
+        check(mlibs::math::curl_noise(-8.125, 3.5, 11)[0] == -0x1.9dc4bb5631ef3p-2, std::format("{:a}", mlibs::math::curl_noise(-8.125, 3.5, 11)[0]));
+    });
     return s.run(argc, argv);
 }

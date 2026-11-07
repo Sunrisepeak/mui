@@ -395,8 +395,9 @@ std::expected<PreparedSegment,ProgramFailure> compile_property_group(std::span<c
     std::optional<ProgramFailure> absolute_conflict;
     struct Write { std::string_view part; std::size_t channel,leaf; };
     std::vector<Write> writes;
+    // Layers (Blend other than replace) meet the base by their blend, not as rivals.
     for(std::size_t i=0;i<leaves.size();++i)for(const auto& target:clips[i].targets)for(std::size_t c=0;c<4;++c)
-        if(property_mask(target)&(1u<<c)) {
+        if(target.blend==Blend::replace && (property_mask(target)&(1u<<c))) {
             if(writes.size()>=channel_budget)return std::unexpected(failure(ProgramError::channel_budget,leaves[i].node,first.track,index));
             writes.push_back({part_name(leaves[i],target),c,i});
         }

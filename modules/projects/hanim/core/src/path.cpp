@@ -29,12 +29,29 @@ double distance(const Vec2& a, const Vec2& b) noexcept {
 bool PointPath::valid() const noexcept {
     for (double value : {control1.x, control1.y, control2.x, control2.y})
         if (!std::isfinite(value) || std::abs(value) > 1e6) return false;
-    return true;
+    return std::isfinite(noise.amplitude) && noise.amplitude >= 0 && noise.amplitude <= 1e6 && std::isfinite(noise.scale) &&
+        noise.scale > 0 && noise.scale <= 1e12 && std::isfinite(noise.speed) && std::abs(noise.speed) <= 1e6 &&
+        noise.field <= PathNoise::Field::curl;
 }
 
 Vec2 PointPath::interpolate(Vec2 from, Vec2 to, double progress) const noexcept {
-    const auto base = lerp(from, to, progress);
-    if (linear() || progress <= 0 || progress >= 1 || from == to) return base;
+    auto base = lerp(from, to, progress);
+    if (linear() || progress <= 0 || progress >= 1) return base;
+    if (noise.amplitude != 0) {
+        const double envelope = 16 * progress * progress * (1 - progress) * (1 - progress);
+        const double drift = noise.speed * progress;
+        const double x = from.x / noise.scale + drift, y = from.y / noise.scale + drift * 0.6180339887498949;
+        if (noise.field == PathNoise::Field::curl) {
+            // Curl noise reaches about ±2.5; halve it towards ±amplitude.
+            const auto flow = mlibs::math::curl_noise(x, y, noise.seed);
+            base.x += noise.amplitude * envelope * 0.5 * flow[0];
+            base.y += noise.amplitude * envelope * 0.5 * flow[1];
+        } else {
+            base.x += noise.amplitude * envelope * mlibs::math::gradient_noise(x, y, noise.seed).value;
+            base.y += noise.amplitude * envelope * mlibs::math::gradient_noise(x, y, noise.seed ^ mlibs::math::golden).value;
+        }
+    }
+    if (from == to || (control1 == Vec2{} && control2 == Vec2{})) return base;
     const double a = 3 * (1 - progress) * (1 - progress) * progress;
     const double b = 3 * (1 - progress) * progress * progress;
     const double along = a * control1.x + b * control2.x;

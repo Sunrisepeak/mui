@@ -21,3 +21,4 @@ mlibs.utils = { path = "../../../../base/utils" }
 
 [dev-dependencies]
 xengine.simulation = { path = ".." }
+mlibs.cts          = { path = "../../../../base/cts" }

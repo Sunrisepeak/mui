@@ -6,15 +6,16 @@ import mlibs.log;
 namespace xengine::simulation::cellular {
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
     mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
-    if (!channels || channels > limits.max_channels || channels > limits.max_values) return std::unexpected(Failure{Errc::channels});
-    if (rules.size()>limits.max_rules || limits.max_words<4 || limits.max_values==0 ||
-        limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
-        limits.max_words>std::numeric_limits<std::uint32_t>::max()/4) return std::unexpected(Failure{Errc::limit});
+    // Limits that cannot hold a program are the caller's error; a program beyond sound limits is refused.
+    if (limits.max_words<4 || limits.max_values==0 || limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
+        limits.max_words>std::numeric_limits<std::uint32_t>::max()/4) return std::unexpected(Failure{Errc::invalid_limits});
+    if (!channels) return std::unexpected(Failure{Errc::channels});
+    if (channels > limits.max_channels || channels > limits.max_values || rules.size()>limits.max_rules) return std::unexpected(Failure{Errc::limit});
     std::uint64_t size=4+static_cast<std::uint64_t>(rules.size());
     std::uint32_t halo=0;
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];
-        if(rule.when.size()>limits.max_words || rule.writes.size()>channels) return std::unexpected(Failure{Errc::limit, {}, {r}});
+        if(rule.when.size()>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
         size+=4+rule.writes.size()*3;
         for(std::size_t c=0;c<rule.when.size();++c) {
             const auto& test=rule.when[c];

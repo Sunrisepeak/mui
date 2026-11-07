@@ -4,6 +4,7 @@
 import std;
 import nlohmann.json;
 import mlibs.cts;
+import mlibs.error;
 import mlibs.testing;
 
 using namespace mlibs::testing;
@@ -28,6 +29,33 @@ cts::Suite<Toy> suite() {
            .body = [](Toy& t, cts::Check&) { ++t.runs; }});
     return s;
 }
+
+// A toy engine for the preparation contract: a description is a count; a
+// negative one is invalid, one above the budget is refused. `leaky` publishes
+// what it can before it refuses a budget — the cases must catch it.
+enum class ToyErrc : std::uint8_t { negative, budget };
+constexpr mlibs::error::Description describe(ToyErrc e) noexcept {
+    return e == ToyErrc::negative ? mlibs::error::Description{"toy.negative", mlibs::error::Kind::invalid_argument}
+                                  : mlibs::error::Description{"toy.budget", mlibs::error::Kind::refused};
+}
+struct Counts {
+    using Description = int;
+    bool             leaky = false;
+    std::vector<int> published;
+    std::expected<std::vector<int>, mlibs::error::Error<ToyErrc>> prepare(int n) {
+        if (n < 0) return std::unexpected(mlibs::error::Error<ToyErrc>{ToyErrc::negative});
+        if (n > 10) {
+            if (leaky) published.push_back(10);
+            return std::unexpected(mlibs::error::Error<ToyErrc>{ToyErrc::budget, std::format("{} > 10", n)});
+        }
+        std::vector<int> out(static_cast<std::size_t>(n));
+        std::iota(out.begin(), out.end(), 0);
+        return out;
+    }
+    std::string fingerprint(const std::vector<int>& v) { return std::format("{}", v.size()); }
+    std::string state() { return std::format("{}", published.size()); }
+    std::string execute(const std::vector<int>& v) noexcept { return std::format("{}", std::accumulate(v.begin(), v.end(), 0)); }
+};
 
 }  // namespace
 
@@ -106,6 +134,21 @@ int main(int argc, char** argv) {
         check(cts::sampled(p, times, frame, views, "fade") && !p.failed(), "every sample as pinned");
         check_eq(p.evidence().size(), std::size_t{3});
         check(p.evidence()[1].first == "fade at 0.5 s", p.evidence()[1].first);
+    });
+
+    s.test("the preparation contract: accepted twice alike, refused by kind, nothing partly published", [] {
+        cts::Suite<Counts> suite{"toy.prepare", "1"};
+        cts::prepare::add(suite, "toy@1", {.valid = {{"three", 3}, {"none", 0}}, .invalid = {{"negative", -1}}, .over_budget = {{"eleven", 11}}});
+        check_eq(suite.cases().size(), std::size_t{4});
+        Counts sound;
+        const auto r = suite.run(sound);
+        check(r.ok(), r.text());
+        check_eq(r.outcomes[0].id, std::string("prepare.three.accepted"));
+        check_eq(r.outcomes[3].id, std::string("prepare.eleven.over-budget"));
+        Counts leaky{.leaky = true};
+        const auto l = suite.run(leaky);
+        check(!l.ok() && l.outcomes[3].status == cts::Status::failed, "a refusal that publishes part fails");
+        check(l.outcomes[3].failures[0].why.contains("the state after the refusal"), l.text());
     });
 
     return s.run(argc, argv);

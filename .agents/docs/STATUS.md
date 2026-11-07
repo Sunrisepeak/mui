@@ -88,7 +88,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | handle contract | this checkpoint: `mlibs::memory::OwnedHandle<Tag>{owner, slot, generation}` beside `Handle<Tag>`; hanim's `ObjectRef` and `PlaybackRef` are it, tagged |
 | time contract `mlibs.time` | this checkpoint (D-110): `seconds`, `Flicks`, `Rate`, exact conversions; `xengine.timeline`'s copies and `hanim::FrameRate` removed, their users on it; lint `time` |
 | hanim's Failure family on mlibs.error | this checkpoint (D-111): five hanim failures and mlibs.geom's `PathFailure` are `Error<Code, Where>`; nested causes are `causes`; wrapping codes take their cause's kind; `*_error_name` removed |
-| budget, prepare/execute contracts and their contract CTS; lint `owner` | next |
+| prepare/execute and budget conventions, contract CTS | this checkpoint (D-112): core design §10; `mlibs.cts:prepare` cases on hanim (program preparation 7 cases, engine publication 3) and the cellular simulation (10); the suite found two wrong refusal kinds in the cellular simulation, fixed |
+| lint `owner` (a machine-readable capability → owner table; `math`, `hash`, `motion`, `time` folded in) | next |
 | hanim L2–L5, `visual` representation, v1 API | |
 
 ## Next

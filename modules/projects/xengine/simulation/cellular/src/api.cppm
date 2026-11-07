@@ -34,7 +34,7 @@ struct Limits {
     std::uint32_t max_channels = 16, max_rules = 128, max_words = 65536;
     std::uint32_t max_values = 64 * 1024 * 1024; // per input/output field, uint32 values
 };
-enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile };
+enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile, invalid_limits };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
     using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
@@ -46,6 +46,7 @@ enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset,
         case Errc::offset: return {"cellular.offset", Kind::invalid_argument, "a neighbour offset beyond ±32 or repeated"};
         case Errc::duplicate_write: return {"cellular.duplicate-write", Kind::invalid_argument, "two writes to one channel"};
         case Errc::limit: return {"cellular.limit", Kind::refused, "beyond the program's limits"};
+        case Errc::invalid_limits: return {"cellular.invalid-limits", Kind::invalid_argument, "limits that cannot hold a program"};
         case Errc::shape: return {"cellular.shape", Kind::invalid_argument, "fields that do not match the shape"};
         case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap"};
         case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty"};

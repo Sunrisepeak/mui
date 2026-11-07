@@ -47,4 +47,5 @@ mlibs.control = { path = "../../base/control" }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../base/utils" }
+mlibs.cts   = { path = "../../base/cts" }
 mcpplibs.os = "0.2.2"

@@ -274,6 +274,8 @@ template<Animation... T> requires (sizeof...(T) > 0)
 [[nodiscard]] Program parallel(const T&... values) { return parallel({Program(values)...}); }
 template<Animation... T> requires (sizeof...(T) > 0)
 [[nodiscard]] Program stagger(seconds step, const T&... values) { return stagger(step, {Program(values)...}); }
+// One program's budget (core design §10.2); the totals bound the sum over
+// its segments (an engine bounds the sum over its playbacks besides).
 struct ProgramLimits {
     std::size_t max_nodes = 4096, max_depth = 64, max_tracks = 1024, max_segments = 4096;
     // Retained preparation counts across all segments, not bytes or AST input.

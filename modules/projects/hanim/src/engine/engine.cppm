@@ -49,6 +49,9 @@ enum class EngineError : std::uint8_t {
 // a program) is a cause.
 using EngineFailure = mlibs::error::Error<EngineError>;
 using PlayOptions = SegmentOptions;
+// The engine's budget (core design §10.2): its objects' and effects' limits
+// embedded; the totals bound the sum over every playback it holds (each
+// program is bounded by its own ProgramLimits besides).
 struct EngineLimits {
     ObjectLimits objects;
     std::size_t max_playbacks = 1024;

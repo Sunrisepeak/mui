@@ -53,7 +53,9 @@ export async function browser(chrome, { width = 1280, height = 800, flags = [] }
   let exited = null;
   const gone = new Promise((r) => proc.on('exit', (code, signal) => {
     exited = signal || code;
-    if (!given) rmSync(profile, { recursive: true, force: true });
+    // Its helpers may still be writing as it goes: retry, and leave a profile
+    // that will not go to the system's temporary directory rather than fail.
+    if (!given) try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }); } catch { /* left in tmp */ }
     r();
   }));
   const active = join(profile, 'DevToolsActivePort');

@@ -114,6 +114,26 @@ int main(int argc, char** argv) {
         check(!nan && nan.error().kind() == mlibs::error::Kind::invalid_argument, "a non-finite value is refused");
     });
 
+    s.test("a spring leaf plays a spring's course: for as long as it settles, each lane its oscillator", [] {
+        Fixture f;
+        const auto p = take(f.engine.prepare(anim::spring(f.a, springs::wobbly, ch::position = {10, 0}, glow = 2.0)));
+        const Oscillator o(0, 0, 1, springs::wobbly, {1e-4, 1e-3});
+        check_eq(p.duration().count(), o.settle_time());
+        Frames x(p);
+        bool over = false;
+        for (const double t : {.05, .1, .2, .4}) {
+            const auto frame = x.at(p, t);
+            check_eq(frame.parts[0].local.tx, 10 * o.position(t));
+            check_eq(*frame.value(0, glow), 2 * o.position(t));
+            over = over || frame.parts[0].local.tx > 10;
+        }
+        check(over, "the wobbly spring overshoots its target");
+        const auto end = x.at(p, p.duration().count());
+        check(end.parts[0].local.tx == 10 && *end.value(0, glow) == 2, "settled: exactly at the targets");
+        const auto timed = take(f.engine.prepare(anim::to(f.a, ch::position = {10, 0}).spring(springs::snappy)));
+        check_eq(timed.duration().count(), spring_ease(springs::snappy).settle());
+    });
+
     s.test("the engine publishes a playback's values with its frame", [] {
         Fixture f;
         const auto ref = f.engine.play(anim::to(f.a, glow = 1.0).duration(seconds(1)));

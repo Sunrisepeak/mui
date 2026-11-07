@@ -8,6 +8,9 @@ namespace {
 
 constexpr double pow2(double x) noexcept { return x * x; }
 
+// A spring's unit response is settled within 1e-4 of its end, slower than 1e-3 a second.
+constexpr Rest unit_rest{1e-4, 1e-3};
+
 // 2^x through the deterministic exp.
 double exp2(double x) noexcept { return dm::exp(x * dm::ln2); }
 
@@ -177,12 +180,27 @@ double Ease::operator()(double t) const noexcept {
             if (t == 0.0 || t == 1.0) return t;
             return solve_bezier(t, p);
         case EaseKind::steps: return solve_steps(t, p);
+        case EaseKind::spring: {
+            if (t >= 1.0) return 1.0;
+            const Oscillator o(0.0, 0.0, 1.0, {p[0], p[1], p[2]}, unit_rest);
+            return t * p[3] >= o.settle_time() ? 1.0 : o.position(t * p[3]);
+        }
     }
     return t;
 }
 
+Ease Ease::spring(double stiffness, double damping, double mass) noexcept {
+    Ease e{EaseKind::spring, {stiffness, damping, mass, 0.0}};
+    if (!(stiffness > 0) || !(damping >= 0) || !(mass > 0) || !std::isfinite(stiffness) || !std::isfinite(damping) || !std::isfinite(mass))
+        return e;  // settle 0: not valid()
+    e.p[3] = Oscillator(0.0, 0.0, 1.0, {stiffness, damping, mass}, unit_rest).settle_time();
+    return e;
+}
+
 bool Ease::valid() const noexcept {
-    if (kind > EaseKind::steps) return false;
+    if (kind > EaseKind::spring) return false;
+    if (kind == EaseKind::spring)
+        return std::ranges::all_of(p, [](double v) { return std::isfinite(v); }) && p[0] > 0 && p[1] >= 0 && p[2] > 0 && p[3] > 0;
     for (double value : p) if (!std::isfinite(value)) return false;
     if (kind == EaseKind::cubic_bezier && (p[0] < 0 || p[0] > 1 || p[2] < 0 || p[2] > 1)) return false;
     if (kind == EaseKind::steps && (p[0] < 1 || p[0] > 1000000 ||
@@ -255,6 +273,7 @@ std::string to_string(const Ease& e) {
         return std::format("cubic-bezier({}, {}, {}, {})", e.p[0], e.p[1], e.p[2], e.p[3]);
     if (e.kind == EaseKind::steps)
         return std::format("steps({}, {})", static_cast<int>(e.p[0]), step_names[static_cast<int>(e.p[1]) & 3]);
+    if (e.kind == EaseKind::spring) return std::format("spring({}, {}, {})", e.p[0], e.p[1], e.p[2]);
     for (auto& [k, n] : names)
         if (k == e.kind) return std::string(n);
     return "linear";
@@ -281,6 +300,14 @@ std::optional<Ease> parse_ease(std::string_view text) {
         }
         if (v[0] < 0 || v[0] > 1 || v[2] < 0 || v[2] > 1) return std::nullopt;
         return Ease::bezier(v[0], v[1], v[2], v[3]);
+    }
+    if (auto args = arguments(text, "spring"); args && (args->size() == 2 || args->size() == 3)) {
+        auto k = number((*args)[0]), c = number((*args)[1]);
+        auto m = args->size() == 3 ? number((*args)[2]) : std::optional<double>(1.0);
+        if (!k || !c || !m) return std::nullopt;
+        const Ease e = Ease::spring(*k, *c, *m);
+        if (!e.valid()) return std::nullopt;
+        return e;
     }
     if (auto args = arguments(text, "steps"); args && (args->size() == 1 || args->size() == 2)) {
         auto n = number((*args)[0]);

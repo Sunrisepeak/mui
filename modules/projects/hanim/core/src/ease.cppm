@@ -25,6 +25,7 @@ enum class EaseKind : std::uint8_t {
     in_bounce, out_bounce, in_out_bounce,
     cubic_bezier,  // p = x1, y1, x2, y2 (CSS)
     steps,         // p[0] = count, p[1] = StepPosition
+    spring,        // p = stiffness, damping, mass, settle (s): a spring's unit response over the curve
 };
 
 // Where the jumps of a `steps` curve fall (CSS Easing Functions Level 1).
@@ -41,6 +42,13 @@ struct Ease {
     [[nodiscard]] static constexpr Ease stepped(int count, StepPosition at = StepPosition::jump_end) noexcept {
         return {EaseKind::steps, {static_cast<double>(count < 1 ? 1 : count), static_cast<double>(at), 0, 0}};
     }
+
+    // A spring from rest to 1 (hanim.core's Oscillator), the curve its whole
+    // course until it settles (within 1e-4 of 1, slower than 1e-3 a second),
+    // where it is exactly 1. settle() is how long that course is at the
+    // spring's own pace: a duration of settle() plays it as the spring would.
+    [[nodiscard]] static Ease spring(double stiffness, double damping, double mass = 1.0) noexcept;
+    [[nodiscard]] double settle() const noexcept { return kind == EaseKind::spring ? p[3] : 0.0; }
 
     // The eased progress for linear progress t; t outside [0, 1] is clamped.
     [[nodiscard]] double operator()(double t) const noexcept;
@@ -103,7 +111,7 @@ inline constexpr Ease emphasized = Ease::bezier(0.3, 0.0, 0.0, 1.0);
 }  // namespace ease
 
 // The canonical text of an ease: "out_cubic", "cubic-bezier(0.2, 0, 0, 1)",
-// "steps(4, jump-end)". `parse_ease` reads the same forms plus the CSS keywords
+// "steps(4, jump-end)", "spring(170, 26, 1)". `parse_ease` reads the same forms plus the CSS keywords
 // ("ease", "ease-in" …); it answers nullopt for anything else.
 [[nodiscard]] std::string to_string(const Ease& e);
 [[nodiscard]] std::optional<Ease> parse_ease(std::string_view text);

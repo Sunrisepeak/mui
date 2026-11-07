@@ -162,21 +162,28 @@ void assign_property(Transform2D& local,std::optional<Rgba>& fill,PropertyChanne
 MorphFailure channel_failure(MorphError code,const PropertyChannelInfo& info) {
     auto error=failure(code,info.part);error.where.clip=info.clip;error.where.channel=info.channel;return error;
 }
+// `beyond`: a plan's progress past its ends (an overshooting curve the
+// program applied, PreparedObjectMorph::sample), taken by a clip spanning the
+// whole plan as its own linear progress.
 std::expected<detail::PropertyValue,MorphFailure> sample_channel(
-    const PropertyChannelInfo& info,const detail::PropertyEndpoints& values,seconds time) {
-    if(time<info.start || (info.anchor_source && info.duration.count()>0 && time==info.start))return values.from;
-    const auto linear=info.duration.count()==0?1:Tween<double>{.from=0,.to=1,.duration=info.duration,
+    const PropertyChannelInfo& info,const detail::PropertyEndpoints& values,seconds time,std::optional<double> beyond = {}) {
+    if(time<info.start || (info.anchor_source && info.duration.count()>0 && time==info.start))
+        if(!beyond || *beyond<=0)return values.from;
+    const auto linear=beyond?*beyond:info.duration.count()==0?1:Tween<double>{.from=0,.to=1,.duration=info.duration,
         .ease=ease::linear,.delay=info.start}.value(time);
-    const auto eased=info.easing(linear);
+    const auto eased=beyond && info.easing==ease::linear?linear:info.easing(linear);
     if(!std::isfinite(eased))return std::unexpected(channel_failure(MorphError::invalid_ease,info));
-    const double u=std::clamp(eased,0.,1.);detail::PropertyValue result;
+    // Overshooting curves (back, elastic, a spring) overshoot a position, a
+    // turn, a scale and a value; a route's arc and a colour stay within their
+    // ends.
+    const double u=eased,within=std::clamp(eased,0.,1.);detail::PropertyValue result;
     switch(info.channel) {
         case PropertyChannel::translation: {
             const auto straight=lerp(values.from.vector,values.to.vector,u);
-            const auto modified=info.translation_path.linear()?straight:info.translation_path.interpolate(values.from.vector,values.to.vector,u);
+            const auto modified=info.translation_path.linear()?straight:info.translation_path.interpolate(values.from.vector,values.to.vector,within);
             result.vector=modified;
-            if(info.route && u>0 && u<1) {
-                const auto point=info.route->path()->point(u);
+            if(info.route && within>0 && within<1) {
+                const auto point=info.route->path()->point(within);
                 result.vector={values.from.vector.x+(point.x-info.route_origin.x)+(modified.x-straight.x),
                     values.from.vector.y+(point.y-info.route_origin.y)+(modified.y-straight.y)};
             }
@@ -184,7 +191,7 @@ std::expected<detail::PropertyValue,MorphFailure> sample_channel(
         }
         case PropertyChannel::rotation:result.scalar=lerp(values.from.scalar,values.to.scalar,u);break;
         case PropertyChannel::scale:result.vector=lerp(values.from.vector,values.to.vector,u);break;
-        case PropertyChannel::fill:result.color=lerp(values.from.color,values.to.color,u);break;
+        case PropertyChannel::fill:result.color=lerp(values.from.color,values.to.color,within);break;
         case PropertyChannel::value:
             for(std::size_t i=0;i<ch::max_lanes;++i)result.lanes[i]=values.from.lanes[i]+(values.to.lanes[i]-values.from.lanes[i])*u;
             if(!std::ranges::all_of(result.lanes,[](double x){return std::isfinite(x);}))
@@ -642,9 +649,15 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double prog
     const double u=std::clamp(progress,0.0,1.0);
     if(!data_->channels.empty()) {
         const auto time=seconds(u==1?data_->timeline_duration.count():u*data_->timeline_duration.count());
+        // Progress past an end (an overshooting curve) reaches the clips that
+        // span the whole plan; the others hold at their ends.
+        const auto beyond=[&](const PropertyChannelInfo& info)->std::optional<double> {
+            if(progress==u || info.start.count()!=0 || info.duration!=data_->timeline_duration)return std::nullopt;
+            return progress;
+        };
         if(!exact_source)for(const auto run:data_->channel_runs) {
             const auto i=current_channel(*data_,run,time);if(i==none)continue;
-            const auto value=sample_channel(data_->channels[i],data_->channel_values[i],time);
+            const auto value=sample_channel(data_->channels[i],data_->channel_values[i],time,beyond(data_->channels[i]));
             if(!value)return std::unexpected(value.error());
         }
         for(std::size_t i=0;i<needed.parts;++i)
@@ -653,7 +666,7 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double prog
             std::copy_n(slot.rest.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
         if(!exact_source)for(const auto run:data_->channel_runs) {
             const auto i=current_channel(*data_,run,time);if(i==none)continue;
-            const auto& info=data_->channels[i];const auto value=sample_channel(info,data_->channel_values[i],time);
+            const auto& info=data_->channels[i];const auto value=sample_channel(info,data_->channel_values[i],time,beyond(info));
             if(info.channel==PropertyChannel::value) {
                 const auto& slot=data_->value_slots[info.value_slot];
                 std::copy_n(value->lanes.begin(),slot.id.lanes,output.values.begin()+static_cast<std::ptrdiff_t>(slot.offset));
@@ -665,8 +678,11 @@ std::expected<FrameView,MorphFailure> PreparedObjectMorph::sample_at(double prog
         return FrameView{output.parts.first(needed.parts),data_->contours,output.cubics.first(needed.cubics),u,source_,revision_,identity(),
                          output.values.first(needed.values),data_->value_slots};
     }
+    // A property plan's transforms overshoot with the curve; a morph's geometry
+    // and every fill stay within the ends.
+    const double moved=data_->static_cubics.empty()?u:progress;
     auto transform = [&](const detail::MorphEndpoints& state) {
-        auto value=lerp(state.from,state.to,u);
+        auto value=lerp(state.from,state.to,moved);
         if (!data_->translation_path.linear()) {
             const auto position=data_->translation_path.interpolate({state.from.tx,state.from.ty},{state.to.tx,state.to.ty},u);
             value.tx=position.x; value.ty=position.y;

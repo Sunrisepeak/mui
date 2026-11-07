@@ -132,7 +132,13 @@ inline constexpr SpringParams wobbly{180, 12, 1};
 inline constexpr SpringParams stiff{210, 20, 1};
 inline constexpr SpringParams slow{280, 60, 1};
 inline constexpr SpringParams molasses{280, 120, 1};
+// A quick, barely bouncing spring: a 0.3 s response, bounce 0.15.
+inline constexpr SpringParams snappy{438.65, 35.6, 1};
 }  // namespace springs
+
+// A spring as a curve (Ease::spring): its unit response, at its own pace over
+// a duration of `.settle()` seconds.
+[[nodiscard]] inline Ease spring_ease(const SpringParams& p) noexcept { return Ease::spring(p.stiffness, p.damping, p.mass); }
 
 // When a motion counts as finished: every lane within `delta` of its target
 // and slower than `speed` (units per second). From that instant on it is

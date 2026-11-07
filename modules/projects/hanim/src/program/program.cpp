@@ -189,7 +189,9 @@ std::expected<Progress,ProgramFailure> progress_at(seconds start,SegmentOptions 
     if(anchor_source && duration>0 && linear==0)return Progress{linear,0};
     const auto eased=options.easing(linear);
     if(!std::isfinite(eased))return std::unexpected(error);
-    return Progress{linear,std::clamp(eased,0.0,1.0)};
+    // An overshooting curve's progress leaves [0, 1]: a property overshoots
+    // with it; geometry and effects take it within (PreparedObjectMorph::sample).
+    return Progress{linear,eased};
 }
 std::expected<Progress,ProgramFailure> progress_at(const PreparedSegment& segment,seconds time,bool exact_source,
                                                 std::size_t index) noexcept {
@@ -616,7 +618,7 @@ std::expected<ProgramSample,ProgramFailure> PreparedProgram::sample(std::size_t 
     if(!geometry)return std::unexpected(animation_failure(geometry.error(),segment.node,track_index,index));
     // Bounds and finite progress were checked before geometry was written;
     // this immutable effect plan has no remaining sample failure condition.
-    const auto effects=segment.effects.sample(progress->sampled,values);
+    const auto effects=segment.effects.sample(std::clamp(progress->sampled,0.0,1.0),values);
     if(!effects)return std::unexpected(effect_failure(effects.error(),segment.node,track_index,index));
     return ProgramSample{*geometry,index,progress->linear,progress->sampled,segment.effects.parameter_count()};
 }

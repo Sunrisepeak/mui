@@ -95,6 +95,25 @@ int main(int argc, char** argv) {
         check(!hanim::parse_ease("steps(0)").has_value());
     });
 
+    s.test("a spring is a curve: its unit response, at its own pace, exactly 1 once settled", [] {
+        using namespace hanim;
+        for (const SpringParams params : {springs::standard, springs::wobbly, springs::snappy, springs::molasses}) {
+            const Ease e = spring_ease(params);
+            check(e.valid() && e.settle() > 0, to_string(e));
+            const Oscillator o(0, 0, 1, params, {1e-4, 1e-3});
+            check_eq(e.settle(), o.settle_time());
+            check_eq(e(0.0), 0.0);
+            check_eq(e(1.0), 1.0);
+            for (const double t : {.1, .25, .5, .9}) check_eq(e(t), o.position(t * e.settle()));
+            check(parse_ease(to_string(e)) == e, to_string(e));
+        }
+        bool over = false;
+        for (int i = 1; i < 100; ++i) over = over || spring_ease(springs::wobbly)(i / 100.0) > 1.0;
+        check(over, "a wobbly spring overshoots");
+        check(!Ease::spring(0, 26).valid() && !Ease::spring(170, -1).valid() && !parse_ease("spring(170)").has_value(), "a spring needs stiffness, damping");
+        check(parse_ease("spring(170, 26)") == spring_ease(springs::standard), "mass 1 by default");
+    });
+
     s.test("slope approximates the derivative", [] {
         check_near(hanim::ease::linear.slope(0.5), 1.0, 1e-12);
         check_near(hanim::ease::in_quad.slope(0.5), 1.0, 1e-6);

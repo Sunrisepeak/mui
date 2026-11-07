@@ -162,6 +162,13 @@ public:
     [[nodiscard]] BoundAnimation easing(Ease value) const {
         auto result = *this; result.binding_.options.easing = value; return result;
     }
+    // A spring's course (L1): its curve, for as long as it takes to settle.
+    [[nodiscard]] BoundAnimation spring(SpringParams params) const {
+        auto result = *this;
+        result.binding_.options.easing = spring_ease(params);
+        result.binding_.options.duration = seconds(result.binding_.options.easing.settle());
+        return result;
+    }
     [[nodiscard]] BoundAnimation with_effect(EffectSpec value) const {
         auto result = *this; result.binding_.effects.push_back(std::move(value)); return result;
     }
@@ -261,6 +268,15 @@ template <class... T> requires (sizeof...(T) > 0)
 template <class... T> requires (sizeof...(T) > 0)
 [[nodiscard]] BoundAnimation by(PartTarget target, const ch::Write<T>&... w) {
     return BoundAnimation{std::move(target.object), writes::targets(std::move(target.part), true, w...)};
+}
+// `spring(card, springs::snappy, ch::position = {0, 0})`: to(…), at a spring's pace.
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation spring(ObjectInput object, SpringParams params, const ch::Write<T>&... w) {
+    return to(std::move(object), w...).spring(params);
+}
+template <class... T> requires (sizeof...(T) > 0)
+[[nodiscard]] BoundAnimation spring(PartTarget target, SpringParams params, const ch::Write<T>&... w) {
+    return to(std::move(target), w...).spring(params);
 }
 struct FollowPathOptions { std::string part; };
 [[nodiscard]] inline BoundAnimation follow_path(ObjectInput object, TranslationRoute route, FollowPathOptions options = {}) {

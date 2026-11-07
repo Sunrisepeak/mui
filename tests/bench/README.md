@@ -10,10 +10,10 @@ mcpp run -p omui.bench --profile release -- --filter ui/frame     # some of them
 mcpp run -p omui.bench -- --list                                  # what there is
 ```
 
-Against the competitors: [competitors](competitors) holds their side of a
-benchmark (pinned, with the method and the numbers), and [web](web) is
-motion/drive-1000's loop as a program that also runs as WebAssembly, so the
-Web's comparison is in the same JavaScript engine.
+Against the competitors: [competitors](competitors) (`omui.bench.competitors`)
+does the same work in our engines and in the best of each field — hanim
+beside GSAP, xrender's CPU renderer beside Skia and resvg — natively and as
+WebAssembly, with the method and the numbers.
 
 | Benchmark | What it measures |
 |---|---|

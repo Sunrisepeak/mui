@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
         std::println("example.theming brand {}", brand_pixels);
         check(h.save_png(shots / "brand.png").has_value());
         check(light_pixels != dense_pixels && light_pixels != brand_pixels);
-        check_eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("8604a0b0f719aeaf 35b3d462c98c5e8f f726a6ed90dc3fde"));
+        check_eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("9337bd4a068aa529 57c514bb49d32442 cac1b43ca59c4b44"));
     });
 
     s.test("a saved edit of the application's theme file shows at once; a broken one says where and changes nothing", [] {

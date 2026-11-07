@@ -90,6 +90,12 @@ int main(int argc, char** argv) {
         check_eq(at(c, 29, 15), 255);
         check_eq(at(c, 30, 15), 0);
         check_eq(c.bounds.x, 0);
+        // A fractional edge left of the clip still covers the first column whole.
+        raster::PathBuilder off_left;
+        off_left.rect({-10.5f, 10, 13, 10});
+        auto cut = fill(off_left, raster::FillRule::nonzero, {0, 0, 64, 64});
+        check_eq(at(cut, 0, 15), 255);
+        check_eq(at(cut, 2, 15), 128);
     });
 
     s.test("a slanted edge running out of the clip, either side, is the same edge inside it", [] {
@@ -161,6 +167,22 @@ int main(int argc, char** argv) {
         raster::stroke_outline(sq.data(), {}, {.width = 2, .join = raster::Join::miter}, polys);
         r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
         check_eq(total(c), std::uint64_t{(22 * 22 - 18 * 18) * 255});
+        // A path turning back on itself: the round join is the half disc
+        // beyond the turn, on whichever side the offsets meet.
+        raster::PathBuilder back;
+        back.move_to({10, 10}).line_to({30, 10}).line_to({20, 10});
+        polys.clear();
+        raster::stroke_outline(back.data(), {}, {.width = 4, .cap = raster::Cap::butt, .join = raster::Join::round}, polys);
+        r.rasterize(polys, raster::FillRule::nonzero, {0, 0, 64, 64}, c);
+        check_eq(at(c, 30, 9), 255);
+        check_eq(at(c, 30, 10), 255);
+        check_eq(at(c, 32, 10), 0);
+        // One outline a contour: a long curve is a loop, not a piece a segment.
+        raster::PathBuilder curve;
+        curve.move_to({4, 40}).cubic_to({20, 0}, {44, 80}, {60, 40});
+        polys.clear();
+        raster::stroke_outline(curve.data(), {}, {.width = 6, .cap = raster::Cap::round, .join = raster::Join::round}, polys);
+        check_eq(polys.count(), std::size_t{1});
         // Dashes: on 4, off 4 along 20 points: three dashes.
         raster::PathBuilder dl;
         dl.move_to({0, 5}).line_to({20, 5});
@@ -315,7 +337,7 @@ int main(int argc, char** argv) {
                          mlibs::geom::Affine::translate(-4, 2));
         canvas.pop_layer();
         std::println("    scene {:016x}", surf.hash());
-        check_eq(std::format("{:016x}", surf.hash()), std::string("b42ebce16bf6eccf"));
+        check_eq(std::format("{:016x}", surf.hash()), std::string("b6ad1b1c31b3c68d"));
     });
 
     return s.run(argc, argv);

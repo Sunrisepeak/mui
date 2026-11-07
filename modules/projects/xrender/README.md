@@ -6,7 +6,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 
 | Feature | Kind | Evidence needed |
 |---|---|---|
-| CPU and GPU backends whose pixels are compared, with a deterministic CPU reference | leading | CPU/GPU difference reports; quality and throughput against Skia, Vello, ThorVG |
+| CPU and GPU backends whose pixels are compared, with a deterministic CPU reference | leading | CPU/GPU difference reports; quality and throughput against Skia, Vello, ThorVG. First measured (2026-11-07, [tests/bench/competitors](../../../tests/bench/competitors)): the CPU reference is as close to Skia as resvg is, faster than Skia only on many small draws and 1.6–2.9× slower on large fills, gradients and strokes — quality holds, throughput does not lead yet |
 | Web first: a submission crosses the Wasm boundary as one compact byte stream (one call a submission, not one a draw) | leading | CPU overhead against comparable Web renderers |
 | Region pixels with their provenance, for agents to review | for what comes next | an agent review task |
 

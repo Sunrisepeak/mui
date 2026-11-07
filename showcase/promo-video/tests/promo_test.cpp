@@ -130,15 +130,15 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("6bc56e6e1d69df00"));
+        check_eq(all.hex(), std::string("9f8b75e4f1e82787"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");
-        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("395b594b547adbc9"));
+        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("584caa191491673c"));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         check(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160, "4K");
-        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("533c1e7b062c8236"));
+        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("b8b068e5fab1d829"));
     });
 
     s.test("seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind", [] {

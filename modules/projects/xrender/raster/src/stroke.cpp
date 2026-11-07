@@ -35,6 +35,14 @@ void emit(Polygons& out, std::vector<Point>& poly) {
     out.closed.back() = true;
 }
 
+// A loop as it was walked: its orientation is what makes a band (stroke_outline).
+void close_into(Polygons& out, const std::vector<Point>& poly) {
+    if (poly.size() < 3) return;
+    out.begin();
+    out.points.insert(out.points.end(), poly.begin(), poly.end());
+    out.closed.back() = true;
+}
+
 // Points of an arc of radius h around c from angle a0 sweeping `sweep`.
 void arc(std::vector<Point>& out, Point c, float h, double a0, double sweep, float tolerance) {
     double ratio = std::clamp(1.0 - tolerance / std::max(h, 1e-3f), -1.0, 1.0);
@@ -187,6 +195,8 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
 
     Polygons local;
     std::vector<Point> poly;
+    std::vector<Point> scratch_normals;
+    std::vector<float> scratch_lengths;
     for (const Polyline& pl : lines) {
         const auto& p = pl.points;
         if (p.empty()) continue;
@@ -198,71 +208,135 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
             emit(local, poly);
             continue;
         }
-        std::size_t n = p.size();
-        std::size_t segs = pl.closed ? n : n - 1;
-        auto normal = [&](std::size_t i) {
-            Point a = p[i], b = p[(i + 1) % n];
-            float len = dist(a, b);
-            return Point{-(b.y - a.y) / len * h, (b.x - a.x) / len * h};
-        };
-        for (std::size_t i = 0; i < segs; ++i) {
-            Point a = p[i], b = p[(i + 1) % n], nm = normal(i);
-            poly = {{a.x + nm.x, a.y + nm.y}, {b.x + nm.x, b.y + nm.y}, {b.x - nm.x, b.y - nm.y}, {a.x - nm.x, a.y - nm.y}};
-            emit(local, poly);
+        const std::size_t n = p.size();
+        const std::size_t segments = pl.closed ? n : n - 1;
+        // The left normal of each segment, h long.
+        std::vector<Point>& normals = scratch_normals;
+        normals.clear();
+        std::vector<float>& lengths = scratch_lengths;
+        lengths.clear();
+        for (std::size_t i = 0; i < segments; ++i) {
+            const Point a = p[i], b = p[(i + 1) % n];
+            const float length = dist(a, b);
+            lengths.push_back(length);
+            normals.push_back({-(b.y - a.y) / length * h, (b.x - a.x) / length * h});
         }
-        // Joins at every vertex between two segments.
-        std::size_t first_join = pl.closed ? 0 : 1, last_join = pl.closed ? n : n - 1;
-        for (std::size_t v = first_join; v < last_join; ++v) {
-            std::size_t in = (v + n - 1) % n, out_seg = v;
-            Point c = p[v];
-            Point n0 = normal(in), n1 = normal(out_seg);
-            float cross = n0.x * n1.y - n0.y * n1.x;
-            if (std::abs(cross) < 1e-9f && n0.x * n1.x + n0.y * n1.y > 0) continue;  // straight on
-            // The outer side is where the offsets separate.
-            float sgn = cross > 0 ? -1.0f : 1.0f;
-            Point a{c.x + sgn * n0.x, c.y + sgn * n0.y}, b{c.x + sgn * n1.x, c.y + sgn * n1.y};
-            poly.clear();
-            if (stroke.join == Join::round) {
-                double a0 = dm::atan2(a.y - c.y, a.x - c.x), a1 = dm::atan2(b.y - c.y, b.x - c.x);
+        // One side's offset at the vertex between segments `in` and `out`
+        // (side +1: the left normals', −1: the right), in the order the
+        // side is walked: the outer side of a turn gets the join, the inner
+        // side the point where its offset lines meet — or, where the
+        // segments are too short for that, the vertex itself between them
+        // (a pivot, as Skia's stroker does), which keeps the winding whole.
+        const auto corner = [&](std::vector<Point>& side, std::size_t vertex, std::size_t in, std::size_t out_segment, float sign) {
+            const Point c = p[vertex];
+            const Point n0{sign * normals[in].x, sign * normals[in].y}, n1{sign * normals[out_segment].x, sign * normals[out_segment].y};
+            const Point a{c.x + n0.x, c.y + n0.y}, b{c.x + n1.x, c.y + n1.y};
+            const float cross = normals[in].x * normals[out_segment].y - normals[in].y * normals[out_segment].x;
+            const float dot = n0.x * n1.x + n0.y * n1.y;
+            if (std::abs(cross) <= 1e-6f * h * h && dot > 0) {  // straight on
+                side.push_back(a);
+                return;
+            }
+            // The left side is outer where the path turns right (cross < 0);
+            // where it turns back on itself, the left side takes the join.
+            const bool reversal = std::abs(cross) <= 1e-6f * h * h;
+            const bool outer = reversal ? sign > 0 : sign * cross < 0;
+            const float k = h * h + dot;
+            if (!outer) {
+                // The inner offset lines meet h·tan(θ/2) along both segments
+                // from the vertex; within half of each, no two corners cross.
+                const float along = k > 1e-6f ? h * std::abs(cross) / k : std::numeric_limits<float>::infinity();
+                if (along <= 0.5f * std::min(lengths[in], lengths[out_segment])) {
+                    side.push_back({c.x + (n0.x + n1.x) * h * h / k, c.y + (n0.y + n1.y) * h * h / k});
+                } else {
+                    side.push_back(a);
+                    side.push_back(c);
+                    side.push_back(b);
+                }
+                return;
+            }
+            switch (stroke.join) {
+            case Join::round: {
+                const double a0 = dm::atan2(n0.y, n0.x), a1 = dm::atan2(n1.y, n1.x);
                 double sweep = a1 - a0;
                 while (sweep > dm::pi) sweep -= dm::two_pi;
                 while (sweep < -dm::pi) sweep += dm::two_pi;
-                poly.push_back(c);
-                arc(poly, c, h, a0, sweep, tolerance);
-            } else {
-                poly = {c, a, b};
-                if (stroke.join == Join::miter) {
-                    // Miter point: c + sgn·(n0 + n1)·h²/(h² + n0·n1)
-                    float dot = n0.x * n1.x + n0.y * n1.y;
-                    float k = h * h + dot;
-                    if (k > 1e-6f) {
-                        Point mp{c.x + sgn * (n0.x + n1.x) * h * h / k, c.y + sgn * (n0.y + n1.y) * h * h / k};
-                        float miter_len = dist(c, mp);
-                        if (miter_len <= stroke.miter_limit * h) poly = {c, a, mp, b};
+                if (reversal) {  // half a turn, round the far side of the vertex
+                    const Point travel{normals[in].y, -normals[in].x};
+                    sweep = n0.x * travel.y - n0.y * travel.x > 0 ? dm::pi : -dm::pi;
+                }
+                arc(side, c, h, a0, sweep, tolerance);
+                break;
+            }
+            case Join::miter:
+                if (k > 1e-6f) {
+                    const Point miter{c.x + (n0.x + n1.x) * h * h / k, c.y + (n0.y + n1.y) * h * h / k};
+                    if (dist(c, miter) <= stroke.miter_limit * h) {
+                        side.push_back(miter);
+                        break;
                     }
                 }
+                [[fallthrough]];
+            case Join::bevel:
+                side.push_back(a);
+                side.push_back(b);
+                break;
             }
-            emit(local, poly);
-        }
-        if (!pl.closed && stroke.cap != Cap::butt) {
-            for (int end = 0; end < 2; ++end) {
-                Point c = end == 0 ? p.front() : p.back();
-                Point other = end == 0 ? p[1] : p[n - 2];
-                float len = dist(other, c);
-                Point d{(c.x - other.x) / len * h, (c.y - other.y) / len * h};  // outward along the line
-                Point nm{-d.y, d.x};
-                poly.clear();
-                if (stroke.cap == Cap::square) {
-                    poly = {{c.x + nm.x, c.y + nm.y}, {c.x + nm.x + d.x, c.y + nm.y + d.y},
-                            {c.x - nm.x + d.x, c.y - nm.y + d.y}, {c.x - nm.x, c.y - nm.y}};
-                } else {
-                    double a0 = dm::atan2(nm.y, nm.x);
-                    poly.push_back(c);
-                    arc(poly, c, h, a0, -dm::pi, tolerance);
-                }
-                emit(local, poly);
+        };
+        if (pl.closed) {
+            // Two loops: the left side forward and the right side back, so
+            // the band between them winds once and the inside not at all.
+            poly.clear();
+            for (std::size_t v = 0; v < n; ++v) corner(poly, v, (v + n - 1) % n, v, 1);
+            close_into(local, poly);
+            poly.clear();
+            for (std::size_t v = n; v-- > 0;) {
+                const std::size_t before = poly.size();
+                corner(poly, v, (v + n - 1) % n, v, -1);
+                std::reverse(poly.begin() + static_cast<std::ptrdiff_t>(before), poly.end());
             }
+            close_into(local, poly);
+            continue;
         }
+        // One loop: the left side forward, the end cap, the right side back,
+        // the start cap.
+        const auto cap = [&](Point c, Point normal, Point outward) {
+            switch (stroke.cap) {
+            case Cap::butt:
+                poly.push_back({c.x + normal.x, c.y + normal.y});
+                poly.push_back({c.x - normal.x, c.y - normal.y});
+                break;
+            case Cap::square:
+                poly.push_back({c.x + normal.x, c.y + normal.y});
+                poly.push_back({c.x + normal.x + outward.x, c.y + normal.y + outward.y});
+                poly.push_back({c.x - normal.x + outward.x, c.y - normal.y + outward.y});
+                poly.push_back({c.x - normal.x, c.y - normal.y});
+                break;
+            case Cap::round: {
+                // From +normal to −normal through the outward direction.
+                const double a0 = dm::atan2(normal.y, normal.x);
+                const float turn = normal.x * outward.y - normal.y * outward.x;
+                arc(poly, c, h, a0, turn > 0 ? dm::pi : -dm::pi, tolerance);
+                break;
+            }
+            }
+        };
+        const auto direction = [&](std::size_t segment) {  // h long, along the segment
+            return Point{normals[segment].y, -normals[segment].x};
+        };
+        poly.clear();
+        poly.push_back({p[0].x + normals[0].x, p[0].y + normals[0].y});
+        for (std::size_t v = 1; v + 1 < n; ++v) corner(poly, v, v - 1, v, 1);
+        const Point forward = direction(segments - 1);
+        cap(p[n - 1], normals[segments - 1], forward);
+        for (std::size_t v = n - 1; v-- > 1;) {
+            const std::size_t before = poly.size();
+            corner(poly, v, v - 1, v, -1);
+            std::reverse(poly.begin() + static_cast<std::ptrdiff_t>(before), poly.end());
+        }
+        const Point backward = direction(0);
+        cap(p[0], Point{-normals[0].x, -normals[0].y}, Point{-backward.x, -backward.y});
+        close_into(local, poly);
     }
     for (std::size_t i = 0; i < local.count(); ++i) {
         out.begin();

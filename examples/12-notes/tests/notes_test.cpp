@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
         check(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")"), title.ndjson());
         check_eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1);
 
-        check_eq(first, std::string("10994fc62b920972"));
+        check_eq(first, std::string("7417091eed254806"));
     });
 
     return s.run(argc, argv);

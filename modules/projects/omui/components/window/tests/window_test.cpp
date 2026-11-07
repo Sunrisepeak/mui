@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
         std::println("ui.window standard {:016x} traffic {:016x}", got[0], got[1]);
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         check(got[0] == 0xd03ebc1817c96128ULL, std::format("standard {:016x}", got[0]));
-        check(got[1] == 0xe6844d6d294dd936ULL, std::format("traffic {:016x}", got[1]));
+        check(got[1] == 0x581329314a48b0deULL, std::format("traffic {:016x}", got[1]));
     });
 
     return s.run(argc, argv);

@@ -2040,7 +2040,7 @@ spark = { style = "rays", colour = "#ffd166" }
         xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
         save(px, "kata-clips");
         std::println("    kata clips {:016x}", picture(px));
-        check_eq(picture(px), std::uint64_t{0x9bf4573b547b73eaULL});
+        check_eq(picture(px), std::uint64_t{0xbe828cd8a3d52feeULL});
     });
 
     return s.run(argc, argv);

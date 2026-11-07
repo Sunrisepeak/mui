@@ -1,8 +1,12 @@
 // openmui.raster:stroke — the outline of a stroked path.
 //
-// A stroke becomes polygons — one per segment, join and cap — each oriented
-// positively, so filling them under the non-zero rule gives their union:
-// overlaps never double the coverage, and no seam appears between pieces.
+// A stroke becomes one loop per open contour (the left side, the end cap,
+// the right side back, the start cap) and two per closed one (the left side,
+// the right side back): a band that winds the same way all along, so filling
+// under the non-zero rule covers it once where it crosses itself, and the
+// inside of a closed contour not at all. Joins go on the outer side of a
+// turn; the inner side takes the point where its offsets meet, or the vertex
+// between them where the segments are too short (Skia's pivot).
 export module xrender.raster.api:stroke;
 
 import std;

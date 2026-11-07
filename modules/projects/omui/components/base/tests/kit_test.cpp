@@ -360,7 +360,7 @@ int main(int argc, char** argv) {
         std::println("ui.base kit gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-kit") / "kit@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(hash.value() == 0x73ad247abe7f2745ULL, std::format("kit gallery {:016x}", hash.value()));
+        check(hash.value() == 0x23c31c5d66c90bddULL, std::format("kit gallery {:016x}", hash.value()));
     });
 
     return s.run(argc, argv);

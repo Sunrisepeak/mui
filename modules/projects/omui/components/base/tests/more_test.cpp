@@ -293,7 +293,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base pickers {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-pickers") / "pickers@2x.png").has_value());
-        check(hash.value() == 0x746751dd38b85266ULL, std::format("pickers {:016x}", hash.value()));
+        check(hash.value() == 0x972f8fd6eb4e490eULL, std::format("pickers {:016x}", hash.value()));
     });
 
     s.test("split view: two panes sharing their room as the handle says; the handle a splitter of its own; dragged and taken back whole; kept within min", [] {
@@ -367,7 +367,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base containers {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-containers") / "containers@2x.png").has_value());
-        check(hash.value() == 0x31a066ff3681ddfcULL, std::format("containers {:016x}", hash.value()));
+        check(hash.value() == 0xa270461f27038704ULL, std::format("containers {:016x}", hash.value()));
     });
 
     s.test("tree view: a model's rows as a hierarchy; each a tree item opened, closed, chosen by the arrows, a press or an agent; closed ones' rows not stated; taken back", [] {
@@ -476,7 +476,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base collections {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-collections") / "collections@2x.png").has_value());
-        check(hash.value() == 0xe9349773377f6b15ULL, std::format("collections {:016x}", hash.value()));
+        check(hash.value() == 0xfeb1213b18f4b3a1ULL, std::format("collections {:016x}", hash.value()));
     });
 
     s.test("combobox: typing filters the options; arrows and Enter choose; each option an item an agent chooses; free text only when free; taken back", [] {
@@ -620,7 +620,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base second batch gallery {:016x}", hash.value());
         check(h.save_png(scratch_dir("ui-base-more") / "more@2x.png").has_value());
-        check(hash.value() == 0xbfa71ef84c6042fbULL, std::format("gallery {:016x}", hash.value()));
+        check(hash.value() == 0x39118c141892a5a7ULL, std::format("gallery {:016x}", hash.value()));
     });
 
     return s.run(argc, argv);

@@ -1,7 +1,7 @@
-// motion/drive-1000's work, timed a frame at a time: 1000 driven channels of
-// an Engine, every one retargeted every 30th frame, advanced a 60 Hz frame,
-// every value read. 300 frames to warm up, 3000 measured; the same shape of
-// report as tests/bench/competitors/gsap-1000.mjs.
+// hanim's side of js/gsap-1000.mjs: motion/drive-1000's work (tests/bench),
+// timed a frame at a time — 1000 driven channels of an Engine, every one
+// retargeted every 30th frame, advanced a 60 Hz frame, every value read.
+// 300 frames to warm up, 3000 measured; the same report as GSAP's side.
 import std;
 import hanim.core;
 import hanim.engine;

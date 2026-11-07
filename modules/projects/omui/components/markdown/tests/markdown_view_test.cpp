@@ -291,7 +291,7 @@ int main(int argc, char** argv) {
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         // Re-pinned with M1 ⑤b: the sample's code block reads `import omui;` (was `import openmui;`).
-        check_eq(hash.hex(), std::string("83120b1cdb17d441"));
+        check_eq(hash.hex(), std::string("1e9a1126f682f927"));
     });
 
     return s.run(argc, argv);

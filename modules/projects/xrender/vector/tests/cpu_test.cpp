@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
         check(mlibs::image::save_png(dir / "card@1x.png", v1).has_value());
         check(mlibs::image::save_png(dir / "card@2x.png", v2).has_value());
         std::println("    {:016x} {:016x}  ({})", one.hash(), two.hash(), (dir / "card@2x.png").generic_string());
-        check_eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("76f0acb68946e096/09f8ffc1b651f38d"));
+        check_eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("5eda17b635d9aa7c/35ae4c67bbb07df1"));
     });
 
     s.test("images by reference; missing ones are reported", [] {

@@ -1,0 +1,7 @@
+{
+  "name": "omui-bench-competitors",
+  "private": true,
+  "description": "The competitors' side of tests/bench's comparisons, pinned (README.md)",
+  "type": "module",
+  "dependencies": { "gsap": "3.15.1" }
+}

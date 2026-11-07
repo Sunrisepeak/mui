@@ -62,7 +62,13 @@ struct ObjectSpec {
 enum class StepKind : std::uint8_t {
     sequence, parallel, stagger, wait, loop, marker,
     move_to, move_by, rotate_to, rotate_by, scale_to, scale_by, fill_to, fade_to,
-    morph, drop, pulse, shake, wobble
+    morph, drop, pulse, shake, wobble,
+    // hanim's recipe library (anim::): entrances, exits, cues, idle loops, moves
+    fade_in, rise_in, sink_in, slide_in, pop_in, zoom_in, spin_in, unfold_in, write_in, drop_in,
+    fade_out, rise_out, sink_out, slide_out, pop_out, zoom_out, spin_out, fold_out, unwrite,
+    bounce, flash, heartbeat, rubber_band, swing, tada, nudge,
+    bob, breathe, spin, sway, orbit, blink,
+    arc_to, swap, reorder
 };
 [[nodiscard]] std::string_view step_name(StepKind kind) noexcept;
 struct StepSpec {
@@ -78,8 +84,12 @@ struct StepSpec {
     std::vector<StepSpec> items;       // sequence, parallel, stagger; loop's one
     double count = std::numeric_limits<double>::infinity();  // loop
     bool alternate = false;            // loop
-    seconds step{0.1};                 // stagger
+    seconds step{0.1};                 // stagger, reorder
     anim::DropOptions drop;
+    seconds period{1};                 // an idle loop's course
+    std::string with;                  // swap's other object
+    std::vector<std::string> objects;  // reorder's
+    std::vector<Vec2> offsets;         // reorder's, one an object
 };
 struct Document {
     int version = 1;
@@ -99,6 +109,7 @@ struct ObjectState {
     bool drawn = false;
     Vec2 position{}, scale{1, 1};
     double rotation = 0;
+    double opacity = 1;  // its group opacity (a recipe's fade), apart from its fill's alpha
     std::optional<Rgba> fill;
     Vec2 low{}, high{};  // the bounds (empty when not drawn)
 };

@@ -331,17 +331,22 @@ struct FollowPathOptions { std::string part; };
 [[nodiscard]] inline BoundAnimation follow_path(ObjectInput object, MotionPath path, FollowPathOptions options = {}) {
     return follow_path(std::move(object),TranslationRoute(std::move(path)),std::move(options));
 }
-// Reusable feedback recipes lower to ordinary property sequences. No clock,
-// callback or separate runtime is introduced. Effects can wrap the returned
-// Program with composite(...).with_effect(...).
-struct FeedbackOptions {
-    seconds duration{.4};
-    Ease easing = ease::in_out_sine;
+// The recipe library (L6, plan §6.2): reusable animations that lower to
+// ordinary programs — relative property writes from the actual pose, the
+// group opacity effect, the stroke's trim and the squash channels — so any
+// object (or one part of it) takes them from wherever it is, in any
+// composition. No clock, callback or separate runtime. Every recipe takes
+// the same options: its duration and ease (each recipe's own when unset)
+// and the part it moves (the whole object when empty).
+struct RecipeOptions {
+    std::optional<seconds> duration;
+    std::optional<Ease> easing;
     std::string part;
 };
-[[nodiscard]] Program pulse(ObjectInput object, Vec2 factor = {1.08,1.08}, FeedbackOptions = {});
-[[nodiscard]] Program shake(ObjectInput object, Vec2 amplitude = {8,0}, FeedbackOptions = {});
-[[nodiscard]] Program wobble(ObjectInput object, double radians = .12, FeedbackOptions = {});
+// Attention: a short cue that ends where it began.
+[[nodiscard]] Program pulse(ObjectInput object, Vec2 factor = {1.08,1.08}, RecipeOptions = {});
+[[nodiscard]] Program shake(ObjectInput object, Vec2 amplitude = {8,0}, RecipeOptions = {});
+[[nodiscard]] Program wobble(ObjectInput object, double radians = .12, RecipeOptions = {});
 // Timed translation waypoints, relative to the actual pose at this recipe's
 // start. Each point's easing/path describes the incoming leg. The first leg
 // starts at offset zero/time zero; times must be finite and strictly increase.
@@ -387,6 +392,59 @@ struct DropOptions {
     double  contact = 0.1;  // time on the ground per landing, in first falls at the first's speed
 };
 [[nodiscard]] Program drop(PartTarget target, Vec2 offset, DropOptions options = {});
+
+// Entrances: from a pose of its own to where it is (it ends as it was).
+// Each fades in with the group opacity effect but write_in and drop_in.
+[[nodiscard]] Program fade_in(ObjectInput object, RecipeOptions = {});
+[[nodiscard]] Program rise_in(ObjectInput object, double distance = 24, RecipeOptions = {});   // from below
+[[nodiscard]] Program sink_in(ObjectInput object, double distance = 24, RecipeOptions = {});   // from above
+[[nodiscard]] Program slide_in(ObjectInput object, Vec2 from = {-40, 0}, RecipeOptions = {});  // from that offset
+[[nodiscard]] Program pop_in(ObjectInput object, RecipeOptions = {});    // from small, overshooting
+[[nodiscard]] Program zoom_in(ObjectInput object, RecipeOptions = {});   // from large
+[[nodiscard]] Program spin_in(ObjectInput object, double radians = -1.2, RecipeOptions = {});
+[[nodiscard]] Program unfold_in(ObjectInput object, RecipeOptions = {}); // its height from nothing
+// Its strokes drawn along their length (the part's trim_end from 0): a part with a stroke.
+[[nodiscard]] Program write_in(ObjectInput object, RecipeOptions = {});
+// Dropped from `height` above onto where it is, bouncing (drop): a part with deform::squash for the squash.
+[[nodiscard]] Program drop_in(ObjectInput object, double height = 160, RecipeOptions = {});
+// Exits: from where it is to a pose of its own, faded out (it is left there, hidden).
+[[nodiscard]] Program fade_out(ObjectInput object, RecipeOptions = {});
+[[nodiscard]] Program rise_out(ObjectInput object, double distance = 24, RecipeOptions = {});
+[[nodiscard]] Program sink_out(ObjectInput object, double distance = 24, RecipeOptions = {});
+[[nodiscard]] Program slide_out(ObjectInput object, Vec2 to = {40, 0}, RecipeOptions = {});
+[[nodiscard]] Program pop_out(ObjectInput object, RecipeOptions = {});
+[[nodiscard]] Program zoom_out(ObjectInput object, RecipeOptions = {});
+[[nodiscard]] Program spin_out(ObjectInput object, double radians = 1.2, RecipeOptions = {});
+[[nodiscard]] Program fold_out(ObjectInput object, RecipeOptions = {});
+// Its strokes undrawn from their start (the part's trim_start to 1).
+[[nodiscard]] Program unwrite(ObjectInput object, RecipeOptions = {});
+// More attention cues.
+[[nodiscard]] Program bounce(ObjectInput object, double height = 28, RecipeOptions = {});  // two hops, the second lower
+[[nodiscard]] Program flash(ObjectInput object, int times = 2, RecipeOptions = {});         // gone and back, `times`
+[[nodiscard]] Program heartbeat(ObjectInput object, double factor = 1.15, RecipeOptions = {});
+[[nodiscard]] Program rubber_band(ObjectInput object, RecipeOptions = {});                 // squashed one way, the other, settling
+[[nodiscard]] Program swing(ObjectInput object, double radians = .26, RecipeOptions = {}); // swinging, each way less
+[[nodiscard]] Program tada(ObjectInput object, RecipeOptions = {});                        // shrinks, grows shaking, back
+[[nodiscard]] Program nudge(ObjectInput object, Vec2 by = {8, 0}, RecipeOptions = {});     // a push and back
+// Idle loops: `count` courses (forever when infinite), each one `period` long, ending where they began.
+[[nodiscard]] Program bob(ObjectInput object, double amplitude = 6, seconds period = seconds(2.4),
+                          double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+[[nodiscard]] Program breathe(ObjectInput object, double factor = 1.04, seconds period = seconds(3),
+                              double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+[[nodiscard]] Program spin(ObjectInput object, seconds period = seconds(1.2),
+                           double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+[[nodiscard]] Program sway(ObjectInput object, double radians = .08, seconds period = seconds(2.4),
+                           double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+[[nodiscard]] Program orbit(ObjectInput object, double radius = 16, seconds period = seconds(2),
+                            double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+[[nodiscard]] Program blink(ObjectInput object, seconds period = seconds(1),
+                            double count = std::numeric_limits<double>::infinity(), RecipeOptions = {});
+// Moves: along an arc (`bend` of the way's length to its side), two objects
+// exchanging places, several moving to new places one after another.
+[[nodiscard]] Program arc_to(ObjectInput object, Vec2 to, double bend = .3, RecipeOptions = {});
+[[nodiscard]] Program swap(ObjectInput a, ObjectInput b, Vec2 a_to_b, double bend = .4, RecipeOptions = {});
+[[nodiscard]] Program reorder(std::span<const ObjectInput> objects, std::span<const Vec2> offsets,
+                              seconds step = seconds(.05), RecipeOptions = {});
 }  // namespace anim
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::BoundAnimation> ||

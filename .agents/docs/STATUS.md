@@ -130,6 +130,12 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | frame time and Wasm against M2 | measured (local Linux, release): `ui/frame/animate-all` p95 3.22 ms, `ui/frame/all-labels` 3.05 ms (16.67 ms budgets), `motion/switches-100` 1.65 ms (5.5), `motion/drive-1000` 0.013 ms the same as `motion/set-1000`'s (interactive mode costs no more than the old `Set`), `ui/presentation/hanim-frame-100` 0.159 ms and zero allocations; every CPU budget met (the GPU scenes need a device). The site's Wasm against Nov 1 (before M2): shipped 10.99 MB, −1102 KiB (total −2167 KiB, 3818 functions fewer) with hanim's packages in it (~0.6 MiB of code) — the deleted paths paid for it |
 | old paths deleted | done: no component animates itself (lint `motion`; the canvas camera's flight is the one marked navigation exception), `Set` users, `openmui.motion` and the heavy Playback were gone (D-125–D-127); the last private animation arithmetic in the UI — glyph motion's stagger orders and repeated cycles — moved to `hanim.core:choreography` (`stagger_slots`, `repeated`), the same bits (promo video, site, markdown, bench pins hold) |
 
+## M5 — the public library and the site (started)
+
+| Item | State |
+|---|---|
+| L6 recipe library: 40 public animations (§6.2) | done in hanim: 35 new (`fade_in`, `rise_in`, `sink_in`, `slide_in`, `pop_in`, `zoom_in`, `spin_in`, `unfold_in`, `write_in`, `drop_in`; `fade_out` … `fold_out`, `unwrite`; `bounce`, `flash`, `heartbeat`, `rubber_band`, `swing`, `tada`, `nudge`; idle `bob`, `breathe`, `spin`, `sway`, `orbit`, `blink`; `arc_to`, `swap`, `reorder`) beside `pulse`, `shake`, `wobble`, `drop`, `move_through`; relative writes, the group opacity effect, trim and squash; one `RecipeOptions` (no FeedbackOptions alias). `recipes_test` samples every course. All of them are hanim.studio document steps (a sample says each object's opacity). Next: the site's 40/20 composed of them |
+
 ## M4 — Agent catalog, the first tool, the first Agent player (started)
 
 | Item | State |

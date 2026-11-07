@@ -19,9 +19,10 @@ Every answer is one JSON object; exit 0 done, 1 the document or the work failed 
   - `sequence`, `parallel` (`items`), `stagger` (`items`, `step` seconds), `wait` (`duration`), `loop` (`item`, `count`, `alternate`), `marker` (`name`);
   - `move_to` / `move_by` (`to` / `by` `[x, y]`), `rotate_to` / `rotate_by` (`degrees`), `scale_to` / `scale_by` (`to` / `by`), `fill_to` (`color`), `fade_to` (`opacity`), `morph` (`into` another object's shape) — each with `duration` (default 0.5 s) and `ease` (`"in_out_cubic"` default, `"out_back"`, `"cubic-bezier(.2, 0, 0, 1)"`, `"steps(4, jump-end)"` …) or a `spring` (`stiffness`, `damping`, `mass`: as long as it takes to settle);
   - `drop` (`by` `[x, y]`, `duration`, `bounces`, `restitution`, `squash`, `stretch`): falls, bounces lower each time, squashes as it lands;
-  - `pulse` (`scale`), `shake` (`amplitude` `[x, y]`), `wobble` (`degrees`).
+  - `pulse` (`scale`), `shake` (`amplitude` `[x, y]`), `wobble` (`degrees`);
+  - hanim's recipe library, each with `object`, `duration`, `ease` and its one parameter: entrances `fade_in`, `rise_in` / `sink_in` (`distance`), `slide_in` (`from` `[x, y]`), `pop_in`, `zoom_in`, `spin_in` (`degrees`), `unfold_in`, `write_in` (a stroked object drawn along), `drop_in` (`height`); exits `fade_out`, `rise_out` / `sink_out` (`distance`), `slide_out` (`to`), `pop_out`, `zoom_out`, `spin_out` (`degrees`), `fold_out`, `unwrite`; cues `bounce` (`height`), `flash` (`times`), `heartbeat` (`scale`), `rubber_band`, `swing` (`degrees`), `tada`, `nudge` (`by`); idle loops `bob` (`amplitude`), `breathe` (`scale`), `spin`, `sway` (`degrees`), `orbit` (`radius`), `blink` — each with `period` and `count` (1 by default); moves `arc_to` (`to`, `bend`), `swap` (`with` another object, `by` the way from one to the other, `bend`), `reorder` (`objects`, `by` an offset each, `step`).
 
-`read` checks the whole document and reports every problem at its JSON pointer (`/program/items/2/ease: …`), or a syntax error at its line and column. Objects that do not move stand still behind those that do.
+A sample says each object's `opacity` (a recipe's fade) beside its fill. `read` checks the whole document and reports every problem at its JSON pointer (`/program/items/2/ease: …`), or a syntax error at its line and column. Objects that do not move stand still behind those that do.
 
 ## How it runs
 

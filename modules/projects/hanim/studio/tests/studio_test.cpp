@@ -95,6 +95,48 @@ int main(int argc, char** argv) {
         check(pixel.r > 200 && pixel.g < 140 && pixel.b < 100, std::format("orange under the ball: {} {} {}", pixel.r, pixel.g, pixel.b));
     });
 
+    s.test("hanim's recipes as steps: entrances fade in, exits fade out, cues return, loops count, moves arrive", [] {
+        const auto document = studio::read(R"({"version": 1, "size": [480, 320], "objects": [
+            {"id": "a", "shape": {"rect": [40, 40]}, "fill": "#e4572e", "at": [100, 100]},
+            {"id": "b", "shape": {"circle": 20}, "fill": "#29335c", "at": [300, 100]},
+            {"id": "c", "shape": {"star": {"points": 5, "outer": 24, "inner": 10}}, "stroke": {"color": "#ffffff", "width": 2}, "at": [200, 220]},
+            {"id": "d", "shape": {"circle": 10}, "fill": "#2a9d8f", "at": [400, 250]}
+        ], "program": {"do": "sequence", "items": [
+            {"do": "parallel", "items": [{"do": "pop_in", "object": "a"}, {"do": "rise_in", "object": "b", "distance": 30}, {"do": "write_in", "object": "c"}]},
+            {"do": "marker", "name": "in"},
+            {"do": "heartbeat", "object": "a", "scale": 1.2},
+            {"do": "swap", "object": "a", "with": "b", "by": [200, 0]},
+            {"do": "marker", "name": "swapped"},
+            {"do": "bob", "object": "d", "amplitude": 8, "period": 1, "count": 2},
+            {"do": "fade_out", "object": "c"}
+        ]}})");
+        check(document.has_value(), document ? "" : studio::to_text(document.error()));
+        if (!document) return;
+        auto opened = studio::Studio::open(*document);
+        check(opened.has_value(), opened ? "" : studio::to_text(opened.error()));
+        if (!opened) return;
+        const auto start = *opened->state(hanim::seconds(0));
+        check(find(start, "a").opacity < .01 && std::abs(find(start, "a").scale.x - .3) < 1e-6, "a pops in from small and unseen");
+        check(std::abs(find(start, "b").position.y - 130) < 1e-6, "b rises from 30 below");
+        const double in = opened->markers()[0].time.count(), swapped = opened->markers()[1].time.count();
+        const auto shown = *opened->state(hanim::seconds(in));
+        check(std::abs(find(shown, "a").opacity - 1) < 1e-6 && std::abs(find(shown, "a").scale.x - 1) < 1e-6 && std::abs(find(shown, "b").position.y - 100) < 1e-6,
+              "both in place, seen");
+        const auto after = *opened->state(hanim::seconds(swapped));
+        check(std::abs(find(after, "a").position.x - 300) < 1e-6 && std::abs(find(after, "b").position.x - 100) < 1e-6, "a and b exchanged places");
+        double highest = 1e9;
+        for (int k = 0; k <= 40; ++k) highest = std::min(highest, find(*opened->state(hanim::seconds(swapped + 2.0 * k / 40)), "d").position.y);
+        check(std::abs(highest - 242) < .01, std::format("d bobs 8 up: {}", highest));
+        const auto end = *opened->state(opened->duration());
+        check(find(end, "c").opacity < .01 && std::abs(find(end, "d").position.y - 250) < 1e-6, "c faded out; d back where it was");
+        xrender::raster::Surface surface(480, 320);
+        for (const double t : {0.1, in, swapped, opened->duration().count()}) check(opened->render(hanim::seconds(t), surface).has_value(), "drawn");
+        // A recipe's fields are its own.
+        const auto wrong = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}],
+            "program": {"do": "rise_in", "object": "a", "distnace": 10}})");
+        check(!wrong && says(wrong.error(), "/program/distnace", "not a field of `rise_in`"), wrong ? "accepted" : studio::to_text(wrong.error()));
+    });
+
     s.test("every problem, where it is", [] {
         const auto broken = studio::read(R"({"version": 1, "objects": [
             {"id": "a", "shape": {"circle": 10}, "fill": "#ff0000"},
@@ -102,7 +144,7 @@ int main(int argc, char** argv) {
             {"id": "b", "shape": {"rect": [10, 10]}, "fill": "red", "colour": "#fff"}
         ], "program": {"do": "sequence", "items": [
             {"do": "move_to", "object": "c", "to": [1, 2]},
-            {"do": "spin", "object": "a"},
+            {"do": "twirl", "object": "a"},
             {"do": "move_by", "object": "a", "by": [1, 2], "ease": "wobbly"}
         ]}})");
         check(!broken, "refused");

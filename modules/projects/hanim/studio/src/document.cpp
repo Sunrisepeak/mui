@@ -58,6 +58,51 @@ constexpr std::array step_names{
     std::pair{StepKind::morph, std::string_view("morph")},       std::pair{StepKind::drop, std::string_view("drop")},
     std::pair{StepKind::pulse, std::string_view("pulse")},       std::pair{StepKind::shake, std::string_view("shake")},
     std::pair{StepKind::wobble, std::string_view("wobble")},
+    std::pair{StepKind::fade_in, std::string_view("fade_in")},   std::pair{StepKind::rise_in, std::string_view("rise_in")},
+    std::pair{StepKind::sink_in, std::string_view("sink_in")},   std::pair{StepKind::slide_in, std::string_view("slide_in")},
+    std::pair{StepKind::pop_in, std::string_view("pop_in")},     std::pair{StepKind::zoom_in, std::string_view("zoom_in")},
+    std::pair{StepKind::spin_in, std::string_view("spin_in")},   std::pair{StepKind::unfold_in, std::string_view("unfold_in")},
+    std::pair{StepKind::write_in, std::string_view("write_in")}, std::pair{StepKind::drop_in, std::string_view("drop_in")},
+    std::pair{StepKind::fade_out, std::string_view("fade_out")}, std::pair{StepKind::rise_out, std::string_view("rise_out")},
+    std::pair{StepKind::sink_out, std::string_view("sink_out")}, std::pair{StepKind::slide_out, std::string_view("slide_out")},
+    std::pair{StepKind::pop_out, std::string_view("pop_out")},   std::pair{StepKind::zoom_out, std::string_view("zoom_out")},
+    std::pair{StepKind::spin_out, std::string_view("spin_out")}, std::pair{StepKind::fold_out, std::string_view("fold_out")},
+    std::pair{StepKind::unwrite, std::string_view("unwrite")},   std::pair{StepKind::bounce, std::string_view("bounce")},
+    std::pair{StepKind::flash, std::string_view("flash")},       std::pair{StepKind::heartbeat, std::string_view("heartbeat")},
+    std::pair{StepKind::rubber_band, std::string_view("rubber_band")}, std::pair{StepKind::swing, std::string_view("swing")},
+    std::pair{StepKind::tada, std::string_view("tada")},         std::pair{StepKind::nudge, std::string_view("nudge")},
+    std::pair{StepKind::bob, std::string_view("bob")},           std::pair{StepKind::breathe, std::string_view("breathe")},
+    std::pair{StepKind::spin, std::string_view("spin")},         std::pair{StepKind::sway, std::string_view("sway")},
+    std::pair{StepKind::orbit, std::string_view("orbit")},       std::pair{StepKind::blink, std::string_view("blink")},
+    std::pair{StepKind::arc_to, std::string_view("arc_to")},     std::pair{StepKind::swap, std::string_view("swap")},
+    std::pair{StepKind::reorder, std::string_view("reorder")},
+};
+
+// The recipes' one parameter each (besides object, duration and ease): its
+// name, what it is, its default; and for idle loops their period's default.
+enum class Form : std::uint8_t { none, number, pair, degrees, times };
+struct Recipe {
+    StepKind kind;
+    Form form = Form::none;
+    std::string_view param;
+    double number = 0;
+    Vec2 vector{};
+    double period = 0;  // an idle loop's default course (0: not a loop)
+};
+constexpr std::array recipes{
+    Recipe{StepKind::fade_in},  Recipe{StepKind::rise_in, Form::number, "distance", 24},  Recipe{StepKind::sink_in, Form::number, "distance", 24},
+    Recipe{StepKind::slide_in, Form::pair, "from", 0, {-40, 0}}, Recipe{StepKind::pop_in}, Recipe{StepKind::zoom_in},
+    Recipe{StepKind::spin_in, Form::degrees, "degrees", -69},  Recipe{StepKind::unfold_in}, Recipe{StepKind::write_in},
+    Recipe{StepKind::drop_in, Form::number, "height", 160},
+    Recipe{StepKind::fade_out}, Recipe{StepKind::rise_out, Form::number, "distance", 24}, Recipe{StepKind::sink_out, Form::number, "distance", 24},
+    Recipe{StepKind::slide_out, Form::pair, "to", 0, {40, 0}}, Recipe{StepKind::pop_out}, Recipe{StepKind::zoom_out},
+    Recipe{StepKind::spin_out, Form::degrees, "degrees", 69}, Recipe{StepKind::fold_out}, Recipe{StepKind::unwrite},
+    Recipe{StepKind::bounce, Form::number, "height", 28},     Recipe{StepKind::flash, Form::times, "times", 2},
+    Recipe{StepKind::heartbeat, Form::number, "scale", 1.15}, Recipe{StepKind::rubber_band}, Recipe{StepKind::swing, Form::degrees, "degrees", 15},
+    Recipe{StepKind::tada}, Recipe{StepKind::nudge, Form::pair, "by", 0, {8, 0}},
+    Recipe{StepKind::bob, Form::number, "amplitude", 6, {}, 2.4},  Recipe{StepKind::breathe, Form::number, "scale", 1.04, {}, 3},
+    Recipe{StepKind::spin, Form::none, {}, 0, {}, 1.2},             Recipe{StepKind::sway, Form::degrees, "degrees", 5, {}, 2.4},
+    Recipe{StepKind::orbit, Form::number, "radius", 16, {}, 2},     Recipe{StepKind::blink, Form::none, {}, 0, {}, 1},
 };
 
 constexpr double degrees = std::numbers::pi / 180;
@@ -389,6 +434,73 @@ public:
             result.number = (value.contains("degrees") ? number(value["degrees"], where + "/degrees", -360, 360).value_or(7) : 7) * degrees;
             timing();
             break;
+        case StepKind::arc_to:
+            keys(value, where, {"do", "object", "to", "bend", "duration", "ease"});
+            result.object = object_of("object");
+            if (!value.contains("to")) problem(where, "`arc_to` says to [x, y]");
+            else result.vector = pair(value["to"], where + "/to", -1e5, 1e5).value_or(Vec2{});
+            result.number = value.contains("bend") ? number(value["bend"], where + "/bend", -2, 2).value_or(.3) : .3;
+            timing();
+            break;
+        case StepKind::swap:
+            keys(value, where, {"do", "object", "with", "by", "bend", "duration", "ease"});
+            result.object = object_of("object");
+            result.with = object_of("with");
+            if (!result.with.empty() && result.with == result.object) problem(where + "/with", "an object swaps with another");
+            if (!value.contains("by")) problem(where, "`swap` says by [x, y]: from the object to the other");
+            else result.vector = pair(value["by"], where + "/by", -1e5, 1e5).value_or(Vec2{});
+            result.number = value.contains("bend") ? number(value["bend"], where + "/bend", -2, 2).value_or(.4) : .4;
+            timing();
+            break;
+        case StepKind::reorder:
+            keys(value, where, {"do", "objects", "by", "step", "duration", "ease"});
+            if (!value.contains("objects") || !value["objects"].is_array() || value["objects"].empty() || !value.contains("by") || !value["by"].is_array() ||
+                value["by"].size() != value["objects"].size()) {
+                problem(where, "`reorder` has `objects` and as many offsets `by`: [[dx, dy], …]");
+            } else {
+                for (std::size_t index = 0; index < value["objects"].size(); ++index) {
+                    auto id = text(value["objects"][index], std::format("{}/objects/{}", where, index)).value_or("");
+                    if (!id.empty() && !objects.contains(id)) problem(std::format("{}/objects/{}", where, index), std::format("no object `{}`", id));
+                    result.objects.push_back(id);
+                    result.offsets.push_back(pair(value["by"][index], std::format("{}/by/{}", where, index), -1e5, 1e5).value_or(Vec2{}));
+                }
+            }
+            if (value.contains("step")) result.step = seconds(number(value["step"], where + "/step", 0, 60).value_or(.05));
+            else result.step = seconds(.05);
+            timing();
+            break;
+        default: {
+            // A recipe of hanim's library: its object, its one parameter, its timing (and a loop's period and count).
+            const auto recipe = std::ranges::find(recipes, result.kind, &Recipe::kind);
+            if (recipe == recipes.end()) break;
+            const bool looping = recipe->period > 0;
+            std::vector<std::string_view> allowed{"do", "object", "duration", "ease"};
+            if (!recipe->param.empty()) allowed.push_back(recipe->param);
+            if (looping) allowed.insert(allowed.end(), {"period", "count"});
+            for (auto item = value.begin(); item != value.end(); ++item)
+                if (std::ranges::find(allowed, std::string_view(item.key())) == allowed.end()) {
+                    std::string names;
+                    for (const auto field : allowed) names += std::format("{}{}", names.empty() ? "" : ", ", field);
+                    problem(where + "/" + item.key(), std::format("`{}` is not a field of `{}` (fields: {})", item.key(), name, names));
+                }
+            result.object = object_of("object");
+            const std::string at = std::format("{}/{}", where, recipe->param);
+            const bool given = !recipe->param.empty() && value.contains(recipe->param);
+            switch (recipe->form) {
+            case Form::none: break;
+            case Form::number: result.number = given ? number(value[recipe->param], at, -1e5, 1e5).value_or(recipe->number) : recipe->number; break;
+            case Form::degrees: result.number = (given ? number(value[recipe->param], at, -36000, 36000).value_or(recipe->number) : recipe->number) * degrees; break;
+            case Form::times: result.number = given ? number(value[recipe->param], at, 1, 100).value_or(recipe->number) : recipe->number; break;
+            case Form::pair: result.vector = given ? pair(value[recipe->param], at, -1e5, 1e5).value_or(recipe->vector) : recipe->vector; break;
+            }
+            if (looping) {
+                result.period = seconds(value.contains("period") ? number(value["period"], where + "/period", 0.01, 600).value_or(recipe->period) : recipe->period);
+                result.count = value.contains("count") ? number(value["count"], where + "/count", 1, 1e6).value_or(1) : 1;
+            }
+            timing();
+            if (result.spring) problem(where + "/spring", "a recipe takes a duration and an ease, not a spring");
+            break;
+        }
         }
         return result;
     }

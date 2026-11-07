@@ -50,6 +50,7 @@ Json states(const std::vector<studio::ObjectState>& objects) {
             one["scale"] = {round3(object.scale.x), round3(object.scale.y)};
             one["rotation_degrees"] = round3(object.rotation * 180 / std::numbers::pi);
             one["fill"] = color(object.fill);
+            one["opacity"] = round3(object.opacity);
             one["bounds"] = {round3(object.low.x), round3(object.low.y), round3(object.high.x), round3(object.high.y)};
         }
         list.push_back(std::move(one));

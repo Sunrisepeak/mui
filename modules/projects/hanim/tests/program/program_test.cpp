@@ -385,7 +385,7 @@ int main(int argc,char** argv) {
         Fixture f;auto description=shape(4);description.parts[0].local.rotate=.5;
         description.parts[0].local.sx=2;description.parts[0].local.sy=-3;
         const auto source=take(f.registry.capture(take(f.registry.create(description))));
-        const anim::FeedbackOptions options{.duration=seconds(1),.easing=ease::linear};
+        const anim::RecipeOptions options{.duration=seconds(1),.easing=ease::linear};
         const auto recipe=parallel(anim::shake(source,{8,4},options),anim::wobble(source,.4,options),anim::pulse(source,{2,.5},options));
         const auto plan=take(PreparedProgram::prepare(recipe));
         check(plan.duration()==seconds(1) && plan.scopes().empty());

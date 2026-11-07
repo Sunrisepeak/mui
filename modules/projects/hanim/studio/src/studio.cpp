@@ -73,10 +73,12 @@ std::expected<std::pair<Contour, double>, std::string> contour_of(const ShapeSpe
 // The objects a step animates (a morph's target is not one).
 void animated(const StepSpec& step, std::set<std::string>& out) {
     if (!step.object.empty()) out.insert(step.object);
+    if (!step.with.empty()) out.insert(step.with);
+    for (const auto& id : step.objects) out.insert(id);
     for (const auto& item : step.items) animated(item, out);
 }
 void dropped(const StepSpec& step, std::set<std::string>& out) {
-    if (step.kind == StepKind::drop) out.insert(step.object);
+    if (step.kind == StepKind::drop || step.kind == StepKind::drop_in) out.insert(step.object);
     for (const auto& item : step.items) dropped(item, out);
 }
 
@@ -92,8 +94,10 @@ struct Builder {
         if (step.spring) return animation.spring(*step.spring);
         return animation.duration(step.duration.value_or(seconds(0.5))).easing(step.ease.value_or(ease::in_out_cubic));
     }
-    anim::FeedbackOptions feedback(const StepSpec& step) const {
-        anim::FeedbackOptions options;
+    // A recipe's options: the step's timing where it says, the recipe's own otherwise; the object's one part.
+    anim::RecipeOptions recipe(const StepSpec& step) const { return {.duration = step.duration, .easing = step.ease, .part = "shape"}; }
+    anim::RecipeOptions feedback(const StepSpec& step) const {
+        anim::RecipeOptions options;
         if (step.duration) options.duration = *step.duration;
         if (step.ease) options.easing = *step.ease;
         return options;
@@ -131,6 +135,45 @@ struct Builder {
         case StepKind::pulse: return anim::pulse(ref(step.object), step.vector, feedback(step));
         case StepKind::shake: return anim::shake(ref(step.object), step.vector, feedback(step));
         case StepKind::wobble: return anim::wobble(ref(step.object), step.number, feedback(step));
+        case StepKind::fade_in: return anim::fade_in(ref(step.object), recipe(step));
+        case StepKind::rise_in: return anim::rise_in(ref(step.object), step.number, recipe(step));
+        case StepKind::sink_in: return anim::sink_in(ref(step.object), step.number, recipe(step));
+        case StepKind::slide_in: return anim::slide_in(ref(step.object), step.vector, recipe(step));
+        case StepKind::pop_in: return anim::pop_in(ref(step.object), recipe(step));
+        case StepKind::zoom_in: return anim::zoom_in(ref(step.object), recipe(step));
+        case StepKind::spin_in: return anim::spin_in(ref(step.object), step.number, recipe(step));
+        case StepKind::unfold_in: return anim::unfold_in(ref(step.object), recipe(step));
+        case StepKind::write_in: return anim::write_in(ref(step.object), recipe(step));
+        case StepKind::drop_in: return anim::drop_in(ref(step.object), step.number, recipe(step));
+        case StepKind::fade_out: return anim::fade_out(ref(step.object), recipe(step));
+        case StepKind::rise_out: return anim::rise_out(ref(step.object), step.number, recipe(step));
+        case StepKind::sink_out: return anim::sink_out(ref(step.object), step.number, recipe(step));
+        case StepKind::slide_out: return anim::slide_out(ref(step.object), step.vector, recipe(step));
+        case StepKind::pop_out: return anim::pop_out(ref(step.object), recipe(step));
+        case StepKind::zoom_out: return anim::zoom_out(ref(step.object), recipe(step));
+        case StepKind::spin_out: return anim::spin_out(ref(step.object), step.number, recipe(step));
+        case StepKind::fold_out: return anim::fold_out(ref(step.object), recipe(step));
+        case StepKind::unwrite: return anim::unwrite(ref(step.object), recipe(step));
+        case StepKind::bounce: return anim::bounce(ref(step.object), step.number, recipe(step));
+        case StepKind::flash: return anim::flash(ref(step.object), static_cast<int>(step.number), recipe(step));
+        case StepKind::heartbeat: return anim::heartbeat(ref(step.object), step.number, recipe(step));
+        case StepKind::rubber_band: return anim::rubber_band(ref(step.object), recipe(step));
+        case StepKind::swing: return anim::swing(ref(step.object), step.number, recipe(step));
+        case StepKind::tada: return anim::tada(ref(step.object), recipe(step));
+        case StepKind::nudge: return anim::nudge(ref(step.object), step.vector, recipe(step));
+        case StepKind::bob: return anim::bob(ref(step.object), step.number, step.period, step.count, recipe(step));
+        case StepKind::breathe: return anim::breathe(ref(step.object), step.number, step.period, step.count, recipe(step));
+        case StepKind::spin: return anim::spin(ref(step.object), step.period, step.count, recipe(step));
+        case StepKind::sway: return anim::sway(ref(step.object), step.number, step.period, step.count, recipe(step));
+        case StepKind::orbit: return anim::orbit(ref(step.object), step.number, step.period, step.count, recipe(step));
+        case StepKind::blink: return anim::blink(ref(step.object), step.period, step.count, recipe(step));
+        case StepKind::arc_to: return anim::arc_to(ref(step.object), step.vector, step.number, recipe(step));
+        case StepKind::swap: return anim::swap(ref(step.object), ref(step.with), step.vector, step.number, recipe(step));
+        case StepKind::reorder: {
+            std::vector<ObjectInput> moving;
+            for (const auto& id : step.objects) moving.emplace_back(ref(id));
+            return anim::reorder(moving, step.offsets, step.step, recipe(step));
+        }
         }
         return wait(seconds(0));
     }
@@ -293,6 +336,11 @@ std::expected<std::vector<ObjectState>, Problems> Studio::state(seconds time) {
             state.rotation = local.rotate;
             state.fill = view.parts[0].fill;
             std::tie(state.low, state.high) = bounds_of(view, 0);
+            // Its group opacity: the opacity effect's amount, when the segment it is in has one.
+            const auto& track_view = frame->scene.tracks[track];
+            if (track_view.segment_index < data_->plan.segments().size())
+                for (const auto& effect : data_->plan.segments()[track_view.segment_index].effects.effects())
+                    if (effect.id == "opacity" && effect.offset < track_view.effect_values.size()) state.opacity = track_view.effect_values[effect.offset];
         }
         states.push_back(std::move(state));
     }

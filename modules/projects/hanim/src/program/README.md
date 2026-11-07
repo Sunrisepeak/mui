@@ -65,11 +65,14 @@ Effects retain explicitly authored per-stage endpoints; geometry continuity does
 not imply automatic effect/material history matching. This internal module owns no
 clock or mutable playback lifecycle: the engine consumes its prepared data.
 
-`anim::pulse`, `anim::shake` and `anim::wobble` are reusable public Program
-factories in `feedback.cpp`. They lower to the ordinary relative property
-sequences, so the same preparation limits, part/channel conflict detection,
-source chaining, scoped image effects, arbitrary-time samples and Engine apply.
-`FeedbackOptions` shares duration, per-leg ease and named-part selection.
+The recipe library — `anim::pulse`, `shake`, `wobble` in `feedback.cpp`, the
+entrances, exits, cues, loops and moves in `recipes.cpp` (forty with `drop`
+and `move_through`) — are reusable public Program factories. They lower to
+the ordinary relative property sequences, the group opacity effect and the
+trim and squash channels, so the same preparation limits, part/channel
+conflict detection, source chaining, scoped image effects, arbitrary-time
+samples and Engine apply. `RecipeOptions` shares duration, ease and
+named-part selection, each recipe's own defaults where unset.
 They add no scope when unadorned and no special sampling branch. See the
 [product guide](../../README.md) for parameters, phase landmarks and headless SOP.
 

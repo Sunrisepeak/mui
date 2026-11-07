@@ -28,7 +28,7 @@ expect 0 "$hanim" sample "$doc" --at 0 --at 1.0
 grep -q '"id":"ball"' <<< "$last"
 expect 0 "$hanim" render "$doc" --out "$dir/bounce" --frames 4
 [ -s "$dir/bounce-003.png" ] && [ -s "$dir/bounce.strip.png" ] && [ -s "$dir/bounce.report.omui.json" ]
-echo '{"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}], "program": {"do": "spin", "object": "a"}}' > "$dir/bad.animation.omui.json"
+echo '{"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}], "program": {"do": "twirl", "object": "a"}}' > "$dir/bad.animation.omui.json"
 expect 1 "$hanim" check "$dir/bad.animation.omui.json"
 grep -q '"where":"/program/do"' <<< "$last"
 expect 2 "$hanim" render "$doc"

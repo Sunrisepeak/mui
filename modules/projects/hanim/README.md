@@ -247,19 +247,18 @@ channel mixing and catalog, GPU resource scheduling and the complete UI adapter 
 implementation work. CPU/GPU renderer support is evaluated by its own adapter
 tests, not inferred from effect-parameter interpolation.
 
-Three reusable feedback designs are public ordinary `Program` factories:
+**The recipe library (L6).** Forty reusable animations are public ordinary `Program` factories in `hanim::anim` — what a site, a video or a game composes with sequences and parallels. Each lowers at authoring time to relative property writes from the actual pose (so any object, or one part of it, takes it from wherever it is), the group opacity effect, the stroke's trim or the squash channel; no hidden state, clock or runtime.
 
-| Recipe | Default | Motion over normalized time |
-|---|---|---|
-| `anim::pulse(object, factor, options)` | scale factor `{1.08, 1.08}` | source → scaled peak at 1/2 → source |
-| `anim::shake(object, amplitude, options)` | parent-space offset `{8, 0}` | source → +offset at 1/4 → −offset at 3/4 → source |
-| `anim::wobble(object, radians, options)` | angular amplitude `0.12` radians | source → +angle at 1/4 → −angle at 3/4 → source |
+| Kind | Recipes (defaults) |
+|---|---|
+| Entrances — from a pose of their own to where it stands, faded in | `fade_in` (0.3 s), `rise_in(distance 24)`, `sink_in(24)`, `slide_in(from {−40, 0})`, `pop_in` (from 0.3 of its size, `out_back`), `zoom_in` (from 1.4), `spin_in(−1.2 rad)`, `unfold_in` (its height from nothing), `write_in` (its stroke drawn along, `trim_end` 0 → 1), `drop_in(height 160)` (dropped onto its place, bouncing) |
+| Exits — from where it stands to a pose of their own, faded out | `fade_out` (0.25 s), `rise_out(24)`, `sink_out(24)`, `slide_out(to {40, 0})`, `pop_out` (`in_back`), `zoom_out`, `spin_out(1.2 rad)`, `fold_out`, `unwrite` (its stroke undrawn, `trim_start` → 1) |
+| Attention — ends where it began | `pulse(factor 1.08)`, `shake(amplitude {8, 0})`, `wobble(0.12 rad)`, `bounce(height 28)` (two hops, the second a third as high), `flash(times 2)`, `heartbeat(1.15)`, `rubber_band`, `swing(0.26 rad)` (each swing less), `tada`, `nudge(by {8, 0})` |
+| Idle loops — `count` courses of `period` (forever by default) | `bob(amplitude 6, 2.4 s)`, `breathe(1.04, 3 s)`, `spin(1.2 s)`, `sway(0.08 rad, 2.4 s)`, `orbit(radius 16, 2 s)`, `blink(1 s)` |
+| Moves | `arc_to(position, bend 0.3)`, `swap(a, b, a_to_b, bend 0.4)` (passing each other on either side), `reorder(objects, offsets, step 0.05 s)` (one after another), `move_through(waypoints)` |
+| Bodies | `drop(part, offset)` (falls, squashes on landing, bounces lower each time) |
 
-All arguments after `object` are optional. `anim::FeedbackOptions` supplies
-`duration` (400 ms by default), per-leg `easing` (`in_out_sine` by default), and
-an optional stable `part` id (empty selects the root). Rotation and scale use
-that part's local origin; these recipes do not introduce a different pivot or
-world-space constraint. No UI, renderer, event loop or script is needed.
+Every recipe takes `anim::RecipeOptions`: `duration` and `easing` (each recipe's own when unset) and an optional stable `part` id (empty: the whole object; `write_in`, `unwrite` and `drop_in` name the part with the stroke or the squash). Rotation and scale use the part's local origin. Bad values (infinite distances, a zero factor, a non-positive period) are refused at preparation with the usual typed errors. `tests/program/recipes_test.cpp` samples every recipe's whole course: where it starts, its middle, where it ends; loops by count; moves by track.
 
 ```cpp
 auto response = hanim::parallel(
@@ -272,7 +271,7 @@ auto playback = hengine.play(animation); // Check the normal typed result.
 
 The factories lower into the existing property sequences at authoring time.
 They have no hidden state or per-frame arithmetic beyond the shared sampler.
-The high-level definitions live in `src/program/feedback.cpp` because they
+The definitions live in `src/program/feedback.cpp` and `src/program/recipes.cpp` because they
 compose Programs; `hanim.library` still owns prepared property/geometry plans
 and never depends upwards on the compiler. No new package or runtime is added.
 

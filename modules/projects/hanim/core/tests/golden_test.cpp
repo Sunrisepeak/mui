@@ -58,7 +58,7 @@ int main(int argc, char** argv) {
             .tween_to(seconds(0.4), {-100, 50}, seconds(0.5), hanim::ease::in_out_cubic)
             .decay(seconds(1.1), {800, -300})
             .spring_to(seconds(2.0), {0, 0}, hanim::springs::gentle);
-        hanim::FrameRate rate{60, 1};
+        mlibs::time::Rate rate{60, 1};
         for (std::int64_t f = 0; f < 360; ++f) {
             auto v = m.value(rate.time_of(f));
             h.f64(v.x);

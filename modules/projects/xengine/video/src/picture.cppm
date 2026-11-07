@@ -46,14 +46,14 @@ struct Psnr {
 // the Y4M encoder writes is read (4:2:0, 8 bits, progressive).
 struct Y4m {
     std::int32_t        width = 0, height = 0;
-    hanim::FrameRate    fps{30, 1};
+    mlibs::time::Rate    fps{30, 1};
     std::string         colour;  // its C tag ("420jpeg")
     std::vector<Yuv420> frames;
 };
 [[nodiscard]] std::expected<Y4m, std::string> read_y4m(std::span<const std::byte> file);
 // Its header line, as the encoder writes it (BT.709 limited range is said in
 // the X tags ffmpeg and others read).
-[[nodiscard]] std::string y4m_header(std::int32_t width, std::int32_t height, hanim::FrameRate fps);
+[[nodiscard]] std::string y4m_header(std::int32_t width, std::int32_t height, mlibs::time::Rate fps);
 
 // FNV-1a 64 over bytes: what the tools report and the tests pin.
 [[nodiscard]] std::uint64_t hash(std::span<const std::byte> bytes) noexcept;

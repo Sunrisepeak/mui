@@ -90,8 +90,8 @@ int main(int argc, char** argv) {
         check_eq(t.frames_in(3.0), std::int64_t{90});  // the 90th starts at 2.97 s
         check_eq(t.time_of(1, 1'000'000'000), std::int64_t{33'366'666});
         check_eq(t.time_of(30000, 1000), std::int64_t{1'001'000});
-        check(video::parse_rate("29.97") == hanim::FrameRate{30000, 1001});
-        check(video::parse_rate("24000/1001") == hanim::FrameRate{24000, 1001});
+        check(video::parse_rate("29.97") == mlibs::time::Rate{30000, 1001});
+        check(video::parse_rate("24000/1001") == mlibs::time::Rate{24000, 1001});
         check(!video::parse_rate("0/1") && !video::parse_rate("x"));
         check_eq(video::rate_text({60000, 1001}), std::string("60000/1001"));
     });
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the card: the flash and the beep on the frame each second begins in, to the sample", [] {
-        for (const hanim::FrameRate fps : {hanim::FrameRate{24, 1}, hanim::FrameRate{30, 1}, hanim::FrameRate{60, 1}, hanim::FrameRate{30000, 1001}}) {
+        for (const mlibs::time::Rate fps : {mlibs::time::Rate{24, 1}, mlibs::time::Rate{30, 1}, mlibs::time::Rate{60, 1}, mlibs::time::Rate{30000, 1001}}) {
             const video::Format f{.width = 96, .height = 54, .timing = {fps, 48000}, .frames = video::Timing{fps, 48000}.frames_in(4.0)};
             const auto track = video::card_track(f);
             check_eq(track.size(), static_cast<std::size_t>(f.samples() * 2));
@@ -181,7 +181,7 @@ int main(int argc, char** argv) {
         const auto back = video::read_y4m(bytes);
         check(back.has_value());
         if (!back) return;
-        check(back->width == 64 && back->height == 36 && back->fps == hanim::FrameRate{30, 1} && back->frames.size() == 45);
+        check(back->width == 64 && back->height == 36 && back->fps == mlibs::time::Rate{30, 1} && back->frames.size() == 45);
         video::Card again(f);
         bool same = true;
         for (std::int64_t i = 0; i < 45; ++i) same = same && back->frames[static_cast<std::size_t>(i)] == video::to_yuv420(*again.frame(i));
@@ -264,7 +264,7 @@ beeps = true
             for (const auto& p : d.error()) std::println("    {}", p.text());
             return;
         }
-        check(d->fps == hanim::FrameRate{30000, 1001} && d->frames == 90 && d->from == video::FramesFrom::png && d->cues.size() == 2 && d->intensity.size() == 2);
+        check(d->fps == mlibs::time::Rate{30000, 1001} && d->frames == 90 && d->from == video::FramesFrom::png && d->cues.size() == 2 && d->intensity.size() == 2);
         check(d->format().samples() == video::Timing{{30000, 1001}, 48000}.sample_of(90) && d->format().channels == 2);
         const std::string written = video::write_description(*d);
         check_eq(written, std::string(text));

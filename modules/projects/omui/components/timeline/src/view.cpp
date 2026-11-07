@@ -62,16 +62,16 @@ Size TimelineEditor::measure(MeasureContext&, std::optional<float> width, std::o
     return size_;
 }
 
-float TimelineEditor::x_of(tl::Flicks t) const noexcept {
-    return header + static_cast<float>((tl::to_seconds(t) - scroll_) * props.zoom);
+float TimelineEditor::x_of(mlibs::time::Flicks t) const noexcept {
+    return header + static_cast<float>((mlibs::time::to_seconds(t) - scroll_) * props.zoom);
 }
 
-tl::Flicks TimelineEditor::time_at(float x) const noexcept {
-    return tl::from_seconds(static_cast<double>(x - header) / std::max(1e-6, props.zoom) + scroll_);
+mlibs::time::Flicks TimelineEditor::time_at(float x) const noexcept {
+    return mlibs::time::from_seconds(static_cast<double>(x - header) / std::max(1e-6, props.zoom) + scroll_);
 }
 
-tl::Flicks TimelineEditor::snapped(tl::Flicks t) const noexcept {
-    const tl::Flicks f = tl::frame_length(model_.rate);
+mlibs::time::Flicks TimelineEditor::snapped(mlibs::time::Flicks t) const noexcept {
+    const mlibs::time::Flicks f = model_.rate.frame_length();
     return (t >= 0 ? (t + f / 2) / f : -((-t + f / 2) / f)) * f;
 }
 
@@ -128,10 +128,10 @@ ActResult TimelineEditor::move(ActContext&, const MoveArgs& args) {
     const auto track = static_cast<std::size_t>(std::max<std::int64_t>(0, args.track.as_int(0)));
     const auto clip = static_cast<std::size_t>(std::max<std::int64_t>(0, args.clip.as_int(0)));
     const auto to = static_cast<std::size_t>(std::max<std::int64_t>(0, args.to_track.as_int(static_cast<std::int64_t>(track))));
-    ActResult r = edit(tl::move(model_, track, clip, to, tl::frame_time(model_.rate, args.frame.as_int(0))));
+    ActResult r = edit(tl::move(model_, track, clip, to, model_.rate.frame_time(args.frame.as_int(0))));
     if (r.ok) {
         // The moved clip stays selected where it landed.
-        const tl::Flicks at = tl::frame_time(model_.rate, args.frame.as_int(0));
+        const mlibs::time::Flicks at = model_.rate.frame_time(args.frame.as_int(0));
         const auto& clips = model_.tracks[to].clips;
         const auto it = std::ranges::find(clips, at, &tl::Clip::at);
         if (it != clips.end()) selected_ = {to, static_cast<std::size_t>(it - clips.begin())};
@@ -141,12 +141,12 @@ ActResult TimelineEditor::move(ActContext&, const MoveArgs& args) {
 
 ActResult TimelineEditor::trim(ActContext&, const TrimArgs& args) {
     return edit(tl::trim(model_, static_cast<std::size_t>(std::max<std::int64_t>(0, args.track.as_int(0))), static_cast<std::size_t>(std::max<std::int64_t>(0, args.clip.as_int(0))),
-                         tl::frame_time(model_.rate, args.frame.as_int(0)), tl::frame_time(model_.rate, args.frames.as_int(0))));
+                         model_.rate.frame_time(args.frame.as_int(0)), model_.rate.frame_time(args.frames.as_int(0))));
 }
 
 ActResult TimelineEditor::split(ActContext&) {
     if (!selected_) return ActResult::fail("no clip is selected");
-    return edit(tl::split(model_, selected_->first, selected_->second, tl::frame_time(model_.rate, props.frame)));
+    return edit(tl::split(model_, selected_->first, selected_->second, model_.rate.frame_time(props.frame)));
 }
 
 ActResult TimelineEditor::remove(ActContext&, const Value& ripple) {
@@ -170,11 +170,11 @@ ActResult TimelineEditor::revert(ActContext&, const Value& change) {
 
 bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
     if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down) {
-        const std::int64_t step = k->mods.has(Modifier::shift) ? model_.rate.num / std::max(1, model_.rate.den) : 1;  // a second with Shift
+        const std::int64_t step = k->mods.has(Modifier::shift) ? model_.rate.num / std::max<std::int64_t>(1, model_.rate.den) : 1;  // a second with Shift
         if (k->key == Key::left) set_frame(props.frame - step);
         else if (k->key == Key::right) set_frame(props.frame + step);
         else if (k->key == Key::home) set_frame(0);
-        else if (k->key == Key::end) set_frame(tl::frame_at(model_.rate, model_.duration()));
+        else if (k->key == Key::end) set_frame(model_.rate.frame_at(model_.duration()));
         else if (k->key == Key::delete_ || k->key == Key::backspace) {
             (void)services().perform(node(), "remove", Value{}.set("ripple", k->mods.has(Modifier::shift)));  // as the person: into the history
         } else {
@@ -185,11 +185,11 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
     }
     if (const auto* w = std::get_if<WheelEvent>(&e)) {
         if (w->mods.has(Modifier::ctrl)) {  // zoom about the pointer
-            const tl::Flicks under = time_at(ctx.local.x);
+            const mlibs::time::Flicks under = time_at(ctx.local.x);
             const double zoom = std::clamp(props.zoom * std::pow(1.0015, static_cast<double>(w->delta.y)), 4.0, 4000.0);
             props.zoom = zoom;
             if (attached()) services().write_back(node(), "zoom", Value(zoom));
-            scroll_ = static_cast<float>(tl::to_seconds(under) - static_cast<double>(ctx.local.x - header) / zoom);
+            scroll_ = static_cast<float>(mlibs::time::to_seconds(under) - static_cast<double>(ctx.local.x - header) / zoom);
         } else {
             scroll_ = std::max(0.0f, scroll_ - static_cast<float>((w->delta.x != 0 ? w->delta.x : w->delta.y) / props.zoom));
         }
@@ -206,7 +206,7 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
         if (at.y < ruler || at.x < header) {  // the ruler (or the headers): the playhead
             if (at.x >= header) {
                 drag_.grip = Grip::playhead;
-                set_frame(tl::frame_at(model_.rate, snapped(time_at(at.x))));
+                set_frame(model_.rate.frame_at(snapped(time_at(at.x))));
                 services().capture_pointer(node());
             }
             ctx.handled = true;
@@ -235,9 +235,9 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
     }
     if (p->kind == PointerKind::move && drag_.grip != Grip::none) {
         if (drag_.grip == Grip::playhead) {
-            set_frame(tl::frame_at(model_.rate, snapped(time_at(at.x))));
+            set_frame(model_.rate.frame_at(snapped(time_at(at.x))));
         } else {
-            drag_.shift = snapped(tl::from_seconds(static_cast<double>(at.x - drag_.from_x) / props.zoom));
+            drag_.shift = snapped(mlibs::time::from_seconds(static_cast<double>(at.x - drag_.from_x) / props.zoom));
             if (drag_.grip == Grip::clip)
                 if (const auto t = track_at(at.y); t && model_.tracks[*t].kind == model_.tracks[drag_.track].kind) drag_.to_track = *t;
         }
@@ -251,7 +251,7 @@ bool TimelineEditor::on_event(EventContext& ctx, const InputEvent& e) {
         if (p->kind == PointerKind::up && d.grip != Grip::playhead && (d.shift != 0 || d.to_track != d.track)) {
             // The gesture's edit made as the person's action, so it joins the history (S-12) as a key's or an agent's would.
             const tl::Clip& c = model_.tracks[d.track].clips[d.clip];
-            const auto frame = [&](tl::Flicks t) { return static_cast<std::int64_t>(tl::frame_at(model_.rate, t)); };
+            const auto frame = [&](mlibs::time::Flicks t) { return static_cast<std::int64_t>(model_.rate.frame_at(t)); };
             const auto track = static_cast<std::int64_t>(d.track), clip = static_cast<std::int64_t>(d.clip);
             if (d.grip == Grip::clip)
                 (void)services().perform(node(), "move", Value{}.set("track", track).set("clip", clip).set("to_track", static_cast<std::int64_t>(d.to_track)).set("frame", frame(c.at + d.shift)));
@@ -280,20 +280,20 @@ void TimelineEditor::paint(PaintContext& ctx) const {
         tracks_[0].paint(ctx, {8, ruler + 8}, theme.color("#dc2626"));
         return;
     }
-    const tl::Rate rate = model_.rate;
+    const mlibs::time::Rate rate = model_.rate;
     const Color line = theme.color(theme.dark ? "#2a3240" : "#d8dde5"), text = theme.color(theme.dark ? "#cbd5e1" : "#334155");
     out.push_clip({header, 0, std::max(0.0f, w - header), h});
     // The ruler: a tick every frame when frames are far enough apart, every second always, labelled.
     out.fill_rect({header, 0, w - header, ruler}, theme.color(theme.dark ? "#161c26" : "#eceff3"));
     const double frame_px = props.zoom / (static_cast<double>(rate.num) / rate.den);
-    const tl::Flicks from = std::max<tl::Flicks>(0, time_at(header)), to = time_at(w);
+    const mlibs::time::Flicks from = std::max<mlibs::time::Flicks>(0, time_at(header)), to = time_at(w);
     if (frame_px >= 5)
-        for (std::int64_t f = tl::frame_at(rate, from); tl::frame_time(rate, f) <= to; ++f)
-            out.fill_rect({x_of(tl::frame_time(rate, f)), ruler - 5, 1, 5}, line);
+        for (std::int64_t f = rate.frame_at(from); rate.frame_time(f) <= to; ++f)
+            out.fill_rect({x_of(rate.frame_time(f)), ruler - 5, 1, 5}, line);
     const std::int64_t every = props.zoom >= 40 ? 1 : props.zoom >= 8 ? 5 : 30;  // seconds between labels
     std::size_t numbers = 0;
-    for (std::int64_t s = static_cast<std::int64_t>(tl::to_seconds(from)) / every * every; s * tl::flicks_per_second <= to; s += every) {
-        const float x = x_of(s * tl::flicks_per_second);
+    for (std::int64_t s = static_cast<std::int64_t>(mlibs::time::to_seconds(from)) / every * every; s * mlibs::time::flicks_per_second <= to; s += every) {
+        const float x = x_of(s * mlibs::time::flicks_per_second);
         out.fill_rect({x, 0, 1, ruler}, line);
         if (numbers >= seconds_.size()) seconds_.emplace_back(), seconds_.back().set_style("caption");
         seconds_[numbers].set_text(std::format("{}s", s));
@@ -310,20 +310,20 @@ void TimelineEditor::paint(PaintContext& ctx) const {
             const tl::Clip& c = track.clips[i];
             const bool picked = selected_ && selected_->first == k && selected_->second == i;
             const bool dragged = drag_.grip != Grip::none && drag_.grip != Grip::playhead && drag_.track == k && drag_.clip == i;
-            tl::Flicks at = c.at, length = c.length;
+            mlibs::time::Flicks at = c.at, length = c.length;
             float row = y;
             if (dragged) {
                 if (drag_.grip == Grip::clip) at += drag_.shift, row = ruler + static_cast<float>(drag_.to_track) * track_height;
                 else if (drag_.grip == Grip::start) at += drag_.shift, length -= drag_.shift;
                 else length += drag_.shift;
             }
-            const Rect box{x_of(at), row + 4, std::max(2.0f, static_cast<float>(tl::to_seconds(length) * props.zoom)), track_height - 9};
+            const Rect box{x_of(at), row + 4, std::max(2.0f, static_cast<float>(mlibs::time::to_seconds(length) * props.zoom)), track_height - 9};
             out.fill_round_rect(box, CornerRadii::all(4), xrender::Paint::solid(colour.with_alpha(track.muted ? 0.35f : picked ? 1.0f : 0.78f)));
             if (picked) out.stroke_round_rect(box, CornerRadii::all(4), 2, xrender::Paint::solid(theme.color(theme.dark ? "#ffffff" : "#0f172a")));
             // Its fades: the level's ramps drawn as shade across its corners.
-            auto ramp = [&](tl::Flicks span, bool start) {
+            auto ramp = [&](mlibs::time::Flicks span, bool start) {
                 if (span <= 0) return;
-                const float fw = static_cast<float>(tl::to_seconds(span) * props.zoom);
+                const float fw = static_cast<float>(mlibs::time::to_seconds(span) * props.zoom);
                 xrender::Path tri;
                 if (start) tri.move_to({box.x, box.y}).line_to({box.x + fw, box.y}).line_to({box.x, box.y + box.height}).close();
                 else tri.move_to({box.x + box.width, box.y}).line_to({box.x + box.width - fw, box.y}).line_to({box.x + box.width, box.y + box.height}).close();
@@ -334,7 +334,7 @@ void TimelineEditor::paint(PaintContext& ctx) const {
             // Its keyed properties: a small diamond at each key.
             for (const tl::Property& p : c.properties)
                 for (const auto& key : p.keys.keys()) {
-                    const float kx = x_of(at + tl::from_seconds(key.time.count())), ky = box.y + box.height - 6;
+                    const float kx = x_of(at + mlibs::time::from_seconds(key.time.count())), ky = box.y + box.height - 6;
                     if (kx < box.x || kx > box.x + box.width) continue;
                     xrender::Path d;
                     d.move_to({kx, ky - 3.5f}).line_to({kx + 3.5f, ky}).line_to({kx, ky + 3.5f}).line_to({kx - 3.5f, ky}).close();
@@ -360,7 +360,7 @@ void TimelineEditor::paint(PaintContext& ctx) const {
         out.fill_path(flag, xrender::FillRule::nonzero, xrender::Paint::solid(theme.color("#a855f7")));
     }
     // The playhead.
-    const float px = x_of(tl::frame_time(rate, props.frame));
+    const float px = x_of(rate.frame_time(props.frame));
     out.fill_rect({px - 1, 0, 2, h}, theme.color("#ef4444"));
     xrender::Path head;
     head.move_to({px - 6, 0}).line_to({px + 6, 0}).line_to({px, 8}).close();
@@ -381,15 +381,15 @@ void TimelineEditor::paint(PaintContext& ctx) const {
 void TimelineEditor::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.name = model_.name;
     Value v;
-    const tl::Rate rate = model_.rate;
-    v.set("frame", props.frame).set("rate", std::format("{}/{}", rate.num, rate.den)).set("frames", tl::frame_at(rate, model_.duration()));
+    const mlibs::time::Rate rate = model_.rate;
+    v.set("frame", props.frame).set("rate", std::format("{}/{}", rate.num, rate.den)).set("frames", rate.frame_at(model_.duration()));
     if (selected_) v.set("selected", Value{}.set("track", static_cast<std::int64_t>(selected_->first)).set("clip", static_cast<std::int64_t>(selected_->second)));
     if (!last_.empty()) v.set("last", last_);
     Value::List tracks;
     for (const tl::Track& track : model_.tracks) {
         Value::List clips;
         for (const tl::Clip& c : track.clips)
-            clips.push_back(Value{}.set("name", c.name).set("source", c.source).set("frame", tl::frame_at(rate, c.at)).set("frames", tl::frame_at(rate, c.length)));
+            clips.push_back(Value{}.set("name", c.name).set("source", c.source).set("frame", rate.frame_at(c.at)).set("frames", rate.frame_at(c.length)));
         tracks.push_back(Value{}.set("name", track.name).set("kind", std::string(kind_names[static_cast<std::size_t>(track.kind)])).set("clips", Value(std::move(clips))));
     }
     v.set("tracks", Value(std::move(tracks)));

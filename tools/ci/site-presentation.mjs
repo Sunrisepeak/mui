@@ -96,7 +96,7 @@ try {
             await b.value(`({hash: location.hash, current: Array.from(document.querySelectorAll('[data-gallery-current]')).filter(n=>n.getBoundingClientRect().width>0).map(n=>n.dataset.galleryCurrent)})`));
       check(await b.value(`(() => {const details=Array.from(document.querySelectorAll('[data-gallery-details]')).filter(n=>n.getBoundingClientRect().width>0);return details.length===1 && !details[0].open;})()`), 'NoScript detail metadata remains progressively disclosed');
     } catch (error) { check(false, 'NoScript presentation ' + route, String(error.stack || error)); }
-    finally { b.close(); b = null; }
+    finally { await b.close(); b = null; }
   }
   for (const [w, lang] of [[360, 'en'], [390, 'en'], [390, 'zh'], [1280, 'en'], [1280, 'zh']]) {
     width = w; height = w < 900 ? 844 : 800;
@@ -183,7 +183,7 @@ try {
     } catch (error) {
       check(false, `presentation scenario ${lang} ${w} completed`, String(error.stack || error));
       try { await screenshot(`failure-${lang}-${w}`); } catch { /* Keep original failure. */ }
-    } finally { b.close(); b = null; }
+    } finally { await b.close(); b = null; }
   }
   width = 390; height = 844;
   b = await browser(process.env.CHROME, { width, height });
@@ -199,9 +199,9 @@ try {
     check((await nodes(agent + '/use/log'))?.length > 2, 'reduced-motion task completion has real actor records');
     await screenshot('agent-use-reduced-en-390');
   } catch (error) { check(false, 'reduced-motion manual task completed', String(error.stack || error)); }
-  finally { b.close(); b = null; }
+  finally { await b.close(); b = null; }
   check(report.exceptions.length === 0, 'no browser runtime exceptions', report.exceptions);
-} finally { if (b) b.close(); server.close(); }
+} finally { if (b) await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);
 console.log(JSON.stringify(report, null, 2));
 process.exitCode = report.ok ? 0 : 1;

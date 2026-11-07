@@ -3,45 +3,22 @@ export module xengine.timeline:model;
 
 import std;
 import hanim.core;
+export import mlibs.time;
+
+// Time is mlibs.time's (flicks, rates, exact conversions); the package says it
+// unqualified.
+namespace xengine::timeline {
+using mlibs::time::Flicks;
+using mlibs::time::flicks_per_second;
+using mlibs::time::Rate;
+using mlibs::time::to_seconds;
+using mlibs::time::from_seconds;
+using mlibs::time::exact_samples;
+using mlibs::time::sample_time;
+using mlibs::time::sample_at;
+}  // namespace xengine::timeline
 
 export namespace xengine::timeline {
-
-// ── Time ────────────────────────────────────────────────────────────────
-
-// A flick: 1/705,600,000 of a second. Every common frame rate and sample
-// rate divides a second into a whole number of them.
-using Flicks = std::int64_t;
-inline constexpr Flicks flicks_per_second = 705'600'000;
-
-// Frames a second, as a fraction (30000/1001 for NTSC's 29.97).
-struct Rate {
-    std::int32_t num = 60, den = 1;
-    friend constexpr bool operator==(const Rate&, const Rate&) noexcept = default;
-};
-
-// Whether a frame of this rate is a whole number of flicks (every rate a
-// timeline may have is).
-[[nodiscard]] constexpr bool exact(Rate r) noexcept {
-    return r.num > 0 && r.den > 0 && (flicks_per_second * r.den) % r.num == 0;
-}
-// A frame's length, and frame n's start.
-[[nodiscard]] constexpr Flicks frame_length(Rate r) noexcept { return flicks_per_second * r.den / r.num; }
-[[nodiscard]] constexpr Flicks frame_time(Rate r, std::int64_t n) noexcept { return n * frame_length(r); }
-// The frame a time falls in (a time before zero falls in a negative frame).
-[[nodiscard]] constexpr std::int64_t frame_at(Rate r, Flicks t) noexcept {
-    const Flicks f = frame_length(r);
-    return t >= 0 ? t / f : -((-t + f - 1) / f);
-}
-// A sample's start at a sample rate that divides a second exactly (44100, 48000, 96000 …).
-[[nodiscard]] constexpr bool exact_samples(std::int32_t rate) noexcept { return rate > 0 && flicks_per_second % rate == 0; }
-[[nodiscard]] constexpr Flicks sample_time(std::int32_t rate, std::int64_t n) noexcept { return n * (flicks_per_second / rate); }
-[[nodiscard]] constexpr std::int64_t sample_at(std::int32_t rate, Flicks t) noexcept {
-    const Flicks f = flicks_per_second / rate;
-    return t >= 0 ? t / f : -((-t + f - 1) / f);
-}
-[[nodiscard]] constexpr double to_seconds(Flicks t) noexcept { return static_cast<double>(t) / static_cast<double>(flicks_per_second); }
-// The nearest flick to a time in seconds.
-[[nodiscard]] Flicks from_seconds(double s) noexcept;
 
 // ── What a timeline holds ───────────────────────────────────────────────
 

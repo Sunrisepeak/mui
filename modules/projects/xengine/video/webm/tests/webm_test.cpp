@@ -155,7 +155,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("with sound: exactly the samples that went in, each second's beep still on its flash frame", [] {
-        for (const hanim::FrameRate fps : {hanim::FrameRate{30, 1}, hanim::FrameRate{30000, 1001}}) {
+        for (const mlibs::time::Rate fps : {mlibs::time::Rate{30, 1}, mlibs::time::Rate{30000, 1001}}) {
             const video::Timing t{fps, 48000};
             const video::Format f{.width = 96, .height = 54, .timing = t, .frames = t.frames_in(2.0), .channels = 2};
             const Encoded e = encode(f);

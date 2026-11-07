@@ -45,7 +45,7 @@
 
 ## 3. 架构与依赖
 
-- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs.math`）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层 ← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55）。
+- **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库、`mlibs.math` 和 `mlibs.utils`）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层 ← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55）。
 - **名字表示归属，目录表示分组，层级由 lint 的“路径 → 层”映射表判定**：一个项目的包可以跨层（例如 `hanim.core` 在 base 层，`hanim` 在 gfx 层）。
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
 - **渲染器只写一次**：xrender 的渲染图承载所有渲染特性（vector、effect，以后的 mesh、particle）；GPU 路径只依赖 `mlibs.rhi` 接口，后端（SDL_GPU、WebGPU、WebGL）是 xrender 的实现，由宿主注入；模拟等计算只依赖接口，不依赖 xrender。

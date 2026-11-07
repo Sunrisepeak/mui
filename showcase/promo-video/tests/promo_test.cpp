@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
     s.test("the film rewinds itself, and plays again: the rewind is its own frames backwards; the replay, the first play's very frames", [] {
         const promo::Cut c = cut("promo");
         const auto r = promo::shown(c, 3020);
-        check(r && r->film && tl::frame_at(c.timeline.rate, r->source) == 2999 - 5 * 20, "frame 3020 plays back frame 2899");
+        check(r && r->film && c.timeline.rate.frame_at(r->source) == 2999 - 5 * 20, "frame 3020 plays back frame 2899");
         // Without the lines and the timeline (they say where in the film it is), the replay is the first play, byte for byte.
         promo::Player p(film(), c, {.scale = 0.25f, .subtitles = false, .timebar = false, .chapters = false, .fonts = &fonts(), .parallel_raster = false});
         std::vector<std::uint64_t> first, again;

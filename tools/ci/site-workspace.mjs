@@ -111,6 +111,6 @@ try {
   await click(board + '/history/undo');
   check(await until(`${name(board + '/items/task-1/done')}==='Review keyboard and focus'`), 'reset itself is reversible');
 } catch(error) { check(false,'browser workspace scenario completed',String(error.stack||error)); }
-finally { b.close(); server.close(); }
+finally { await b.close(); server.close(); }
 report.ok=report.checks.every(c=>c.ok);
 console.log(JSON.stringify(report,null,2)); process.exit(report.ok?0:1);

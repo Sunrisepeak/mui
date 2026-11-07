@@ -46,7 +46,7 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
         if(const auto text=a.value(key)) {const auto [end,error]=std::from_chars(text->data(),text->data()+text->size(),value);return error==std::errc{} && end==text->data()+text->size();}
         return true;
     };
-    if(!integer("seconds",duration) || duration<1 || duration>10 || !integer("fps",fps) || fps<1 || fps>120 || !tl::exact({fps,1}))
+    if(!integer("seconds",duration) || duration<1 || duration>10 || !integer("fps",fps) || fps<1 || fps>120 || !mlibs::time::Rate{fps,1}.exact())
         return fail("seconds must be an integer in 1..10; fps must be an exact timeline rate in 1..120",2);
     const auto file=mcpplibs::os::fs::from_utf8(a.positional(0));
     const auto source=mcpplibs::os::fs::read(file);if(!source)return fail(source.error().message());
@@ -77,15 +77,15 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
     std::array<float,inside> curve{};
     float plot_max=1;
     for(int x=0;x<inside;++x) {
-        curve[static_cast<std::size_t>(x)]=(*gain)->at(tl::from_seconds(static_cast<double>(x)*duration/(inside-1)));
+        curve[static_cast<std::size_t>(x)]=(*gain)->at(mlibs::time::from_seconds(static_cast<double>(x)*duration/(inside-1)));
         plot_max=std::max(plot_max,curve[static_cast<std::size_t>(x)]);
     }
     Headless host({.size={width,height},.fps={fps,1},.background=Color::hex(0x101827),
         .theme=Theme::dark_theme(),.reduce_motion=true,.parallel_raster=false,.complete_frames=true});
     const float end=static_cast<float>(duration);
     for(int index=0;index<=duration*fps;++index) {
-        const auto time=tl::frame_time({fps,1},index);
-        const float seconds=static_cast<float>(tl::to_seconds(time));
+        const auto time=mlibs::time::Rate{fps,1}.frame_time(index);
+        const float seconds=static_cast<float>(mlibs::time::to_seconds(time));
         const float level=(*gain)->at(time);
         auto drawing=painter({.id="curve",.width=inside,.height=128,.paint=[&curve,plot_max,seconds,end,level](PaintContext& ctx) {
             auto& list=ctx.list;
@@ -105,7 +105,7 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
             text({.id="scale",.text=std::format("0–{:.1f}× gain · 220 Hz reference tone",plot_max),.style="caption",.size=11.0f})}));
         if(!host.step().failure.empty())return fail("visual render failed");
         const auto& pixels=host.pixels();
-        observations.push_back(Value{}.set("flicks",time).set("seconds",tl::to_seconds(time)).set("gain",static_cast<double>(level))
+        observations.push_back(Value{}.set("flicks",time).set("seconds",mlibs::time::to_seconds(time)).set("gain",static_cast<double>(level))
             .set("pixel_hash",std::format("{:016x}",pixels.hash())));
         frames.push_back(pixels);
     }

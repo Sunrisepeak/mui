@@ -123,7 +123,7 @@ try {
   step(false, 'the path ran to its end', String(e));
 } finally {
   if (bridge) bridge.kill();
-  b.close();
+  await b.close();
   server.close();
   rmSync(bridgeDir, { recursive: true, force: true });
 }

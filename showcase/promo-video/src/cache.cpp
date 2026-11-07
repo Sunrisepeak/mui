@@ -53,7 +53,7 @@ std::uint64_t Digests::frame(std::int64_t i) {
     if (const auto s = shown(*cut_, i)) {
         d.u64(s->index).str(clip_text(cut_->timeline, *s->clip)).u64(static_cast<std::uint64_t>(s->source)).f32(s->level).u64(s->film);
         // A frame played back: what that frame depends on.
-        if (s->film) d.u64(frame(tl::frame_at(cut_->timeline.rate, s->source)));
+        if (s->film) d.u64(frame(cut_->timeline.rate.frame_at(s->source)));
     } else d.str("nothing shown");
     if (film_)
         for (const Showing& l : lines_at(*cut_, film_->subtitles, i)) {

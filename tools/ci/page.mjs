@@ -3,8 +3,9 @@
 // over the DevTools protocol — no dependencies, node's own fetch and
 // WebSocket (node 22, or 20 with --experimental-websocket).
 import { spawn } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
@@ -39,14 +40,33 @@ export async function serve(dir) {
 // Chromium, headless, on about:blank: `call` sends a DevTools method, `on`
 // hears its events, `value` evaluates an expression (awaited) to its value.
 export async function browser(chrome, { width = 1280, height = 800, flags = [] } = {}) {
-  const port = 9300 + Math.floor(Math.random() * 500);
-  const proc = spawn(chrome, ['--headless=new', '--no-sandbox', '--enable-unsafe-swiftshader', `--remote-debugging-port=${port}`,
+  // Chromium picks its own free port and writes it to DevToolsActivePort in
+  // its profile: no guessed port to collide with, and a cold start may take as
+  // long as it takes (up to a minute) while the process lives.
+  // A caller's own profile (`flags`) is kept; else a fresh one, removed on close.
+  const given = flags.find((f) => f.startsWith('--user-data-dir='))?.slice('--user-data-dir='.length);
+  const profile = given ?? mkdtempSync(join(tmpdir(), 'omui-chrome-'));
+  if (given) rmSync(join(profile, 'DevToolsActivePort'), { force: true });
+  const proc = spawn(chrome, ['--headless=new', '--no-sandbox', '--enable-unsafe-swiftshader', '--remote-debugging-port=0',
+                              ...(given ? [] : [`--user-data-dir=${profile}`]), '--no-first-run', '--no-default-browser-check',
                               `--window-size=${width},${height}`, ...flags, 'about:blank'], { stdio: 'ignore' });
-  let targets;
-  for (let i = 0; i < 50 && !targets; i++) {
-    try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch { await sleep(200); }
+  let exited = null;
+  const gone = new Promise((r) => proc.on('exit', (code, signal) => {
+    exited = signal || code;
+    if (!given) rmSync(profile, { recursive: true, force: true });
+    r();
+  }));
+  const active = join(profile, 'DevToolsActivePort');
+  let targets, port = 0;
+  for (let i = 0; i < 300 && !targets && exited === null; i++) {
+    port = existsSync(active) ? Number(readFileSync(active, 'utf8').split('\n')[0]) : 0;
+    if (port) try { targets = await (await fetch(`http://127.0.0.1:${port}/json`)).json(); } catch { /* not yet */ }
+    if (!targets) await sleep(200);
   }
-  if (!targets) throw new Error(`${chrome} did not open its DevTools port`);
+  if (!targets) {
+    proc.kill();
+    throw new Error(`${chrome} did not open its DevTools port${exited === null ? ' in 60 s' : ` (it exited: ${exited})`}`);
+  }
   const ws = new WebSocket(targets.find((t) => t.type === 'page').webSocketDebuggerUrl);
   await new Promise((r) => ws.addEventListener('open', r));
   let id = 0;
@@ -62,7 +82,13 @@ export async function browser(chrome, { width = 1280, height = 800, flags = [] }
   await call('Page.enable');
   await call('Runtime.enable');
   await call('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
-  return { call, value, version, on: (f) => listeners.push(f), close: () => { ws.close(); proc.kill(); } };
+  return { call, value, version, on: (f) => listeners.push(f), // `close` ends the browser; awaited, it is gone (and its profile with it).
+    close: () => {
+      ws.close();
+      proc.kill();
+      const hard = setTimeout(() => proc.kill('SIGKILL'), 5000);
+      return gone.then(() => clearTimeout(hard));
+    } };
 }
 
 // The browser and node to run these with, as tools/ci/browser.sh finds them.

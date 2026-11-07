@@ -125,7 +125,7 @@ try {
   check(await until(`location.hash==='#/zh/components/text-box' && ${node(detail('text_box') + '/panes/code')}`), 'the phone explicitly opens the same addressable detail');
   await shot('text-box-zh-phone-detail');
 } catch (error) { check(false, 'browser catalog scenario completed', String(error.stack || error)); }
-finally { b.close(); server.close(); }
+finally { await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);
 console.log(JSON.stringify(report, null, 2));
 process.exit(report.ok ? 0 : 1);

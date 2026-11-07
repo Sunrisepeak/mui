@@ -19,7 +19,7 @@ void prepare() {
 
 double ShotContext::value(std::string_view property, double t, double otherwise) const {
     if (!clip) return otherwise;
-    return clip->value(property, clip->at + tl::from_seconds(t) - clip->in, otherwise);
+    return clip->value(property, clip->at + mlibs::time::from_seconds(t) - clip->in, otherwise);
 }
 
 std::vector<std::pair<double, double>> ShotContext::steps(std::string_view property) const {
@@ -27,7 +27,7 @@ std::vector<std::pair<double, double>> ShotContext::steps(std::string_view prope
     if (!clip) return out;
     for (const tl::Property& p : clip->properties)
         if (p.name == property)
-            for (const auto& k : p.keys.keys()) out.emplace_back(k.time.count() + tl::to_seconds(clip->in), k.value);
+            for (const auto& k : p.keys.keys()) out.emplace_back(k.time.count() + mlibs::time::to_seconds(clip->in), k.value);
     return out;
 }
 

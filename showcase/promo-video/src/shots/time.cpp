@@ -196,7 +196,7 @@ public:
         start(rt, game_);
         sim_ = rt.find("main/type/hud/sim");
         // Played again: the first play's checksums, from a run of its own, to set beside these.
-        if (c_.value("compare", 0, 0) > 0.5) first_ = first_play(static_cast<std::int64_t>(std::llround(tl::to_seconds(c_.clip->length) * c_.rate())));
+        if (c_.value("compare", 0, 0) > 0.5) first_ = first_play(static_cast<std::int64_t>(std::llround(mlibs::time::to_seconds(c_.clip->length) * c_.rate())));
     }
 
     bool simulates() const override { return true; }

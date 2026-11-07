@@ -63,7 +63,7 @@ struct Cut {
     int picture = -1, subtitles = -1, sfx = -1;
     [[nodiscard]] std::int64_t frames() const noexcept;
     [[nodiscard]] double seconds_of(std::int64_t frame) const noexcept;
-    [[nodiscard]] tl::Flicks time_of(std::int64_t frame) const noexcept { return tl::frame_time(timeline.rate, frame); }
+    [[nodiscard]] mlibs::time::Flicks time_of(std::int64_t frame) const noexcept { return timeline.rate.frame_time(frame); }
 };
 
 // A cut by name (`promo` reads promo.timeline.omui.toml), checked: the
@@ -79,11 +79,11 @@ inline constexpr std::array<std::string_view, 2> cut_names{"promo", "short"};
 struct Shown {
     const tl::Clip* clip = nullptr;
     std::size_t     index = 0;     // in the picture track
-    tl::Flicks      source = 0;
+    mlibs::time::Flicks      source = 0;
     float           level = 1;     // its fades
     bool            film = false;
     [[nodiscard]] std::string_view shot() const noexcept;  // "origin" for shot:origin
-    [[nodiscard]] double seconds() const noexcept { return tl::to_seconds(source); }
+    [[nodiscard]] double seconds() const noexcept { return mlibs::time::to_seconds(source); }
 };
 [[nodiscard]] std::optional<Shown> shown(const Cut& cut, std::int64_t frame);
 

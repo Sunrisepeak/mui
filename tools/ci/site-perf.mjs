@@ -115,7 +115,7 @@ if (budgetFile) {
   }
 }
 console.log(JSON.stringify(report, null, 2));
-b.close();
+await b.close();
 // Chrome may still be writing its profile as it exits: a leftover temporary
 // directory is not a result, so cleaning up never decides the verdict.
 try { rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); } catch {}

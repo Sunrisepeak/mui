@@ -201,7 +201,7 @@ for (const scenario of scenarios) {
         check(!log.requests.some(r=>r.cache||r.service_worker),scenario.name+': HTTP or service-worker caches do not hide repeated consumers');
         if(scenario.route.startsWith('zh/'))check(count(fonts.find(f=>f[0]==='NotoSansSC.ttf')[3])===0,scenario.name+': direct Chinese startup skips the initial Chinese subset');
       }
-      b.close();
+      await b.close();
     }
     await rm(profile,{recursive:true,force:true,maxRetries:3,retryDelay:100});
   }

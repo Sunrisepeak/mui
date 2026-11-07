@@ -1,6 +1,6 @@
-// openmui.hash against FNV's own reference vectors, and each way a value goes
+// mlibs.hash against FNV's own reference vectors, and each way a value goes
 // in written out by hand: what every pinned hash in the repository relies on.
-// (openmui.testing hashes with this package, so these checks are plain.)
+// (mlibs.testing hashes with this package, so these checks are plain.)
 import std;
 import mlibs.hash;
 

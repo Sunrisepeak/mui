@@ -7,6 +7,14 @@ import std;
 import xengine.timeline;
 import xengine.audio;
 import hanim.core;
+import mlibs.time;
+
+namespace xengine::timeline {
+using mlibs::time::Flicks;
+using mlibs::time::flicks_per_second;
+using mlibs::time::to_seconds;
+using mlibs::time::exact_samples;
+}  // namespace xengine::timeline
 
 export namespace xengine::timeline {
 

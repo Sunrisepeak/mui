@@ -42,7 +42,7 @@ struct HeadlessOptions {
     HeadlessLevel           level = HeadlessLevel::pixels;
     Size                    size{800, 600};
     float                   scale = 1;
-    hanim::FrameRate         fps{60, 1};
+    mlibs::time::Rate         fps{60, 1};
     Color                   background = Color::white();
     Theme                   theme = Theme::light();
     mlibs::text::FontCollection* fonts = nullptr;  // nullptr: the default fonts

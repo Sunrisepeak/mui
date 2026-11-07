@@ -118,6 +118,6 @@ check(await b.value(`document.querySelector('[data-omui-id="main/body/view/home/
 
 report.ok = report.checks.every((c) => c.ok);
 console.log(JSON.stringify(report, null, 2));
-b.close();
+await b.close();
 if (server) server.close();
 process.exit(report.ok ? 0 : 1);

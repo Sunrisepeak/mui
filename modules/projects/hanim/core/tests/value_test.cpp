@@ -72,9 +72,9 @@ int main(int argc, char** argv) {
     });
 
     s.test("frame rates: frame times are exact and map back", [] {
-        hanim::FrameRate r{30000, 1001};
+        mlibs::time::Rate r{30000, 1001};
         for (std::int64_t f : {0LL, 1LL, 29LL, 30LL, 1799LL, 107892LL}) check_eq(r.frame_at(r.time_of(f)), f);
-        hanim::FrameRate sixty{60, 1};
+        mlibs::time::Rate sixty{60, 1};
         check_bits(sixty.time_of(30).count(), 0.5);
         check_eq(sixty.frame_at(seconds(0.5 - 1e-12)), std::int64_t{29});
     });

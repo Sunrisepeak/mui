@@ -1,6 +1,6 @@
 // xengine.video:timing — when each frame starts, in samples, exactly.
 //
-// A frame rate is a fraction (hanim::FrameRate: 24/1, 30000/1001), a sample
+// A frame rate is a fraction (mlibs::time::Rate: 24/1, 30000/1001), a sample
 // rate a whole number, so frame i starts on sample ⌊i · rate · den / num⌋:
 // integers only, never a float accumulating. At 48 kHz a 24, 30 or 60 fps
 // frame is 2000, 1600 or 800 samples; at 30000/1001 frames are 1601 or 1602
@@ -20,7 +20,7 @@ export namespace xengine::video {
 }
 
 struct Timing {
-    hanim::FrameRate fps{30, 1};
+    mlibs::time::Rate fps{30, 1};
     std::int32_t     rate = 48000;  // samples a second, each channel
 
     [[nodiscard]] constexpr bool valid() const noexcept { return fps.num > 0 && fps.den > 0 && rate > 0; }
@@ -58,8 +58,8 @@ struct Timing {
 };
 
 // "30", "30000/1001", "29.97" (taken as 30000/1001; likewise 23.976 and 59.94).
-[[nodiscard]] std::optional<hanim::FrameRate> parse_rate(std::string_view text) noexcept;
+[[nodiscard]] std::optional<mlibs::time::Rate> parse_rate(std::string_view text) noexcept;
 // The shortest text of a rate: "30", "30000/1001".
-[[nodiscard]] std::string rate_text(hanim::FrameRate rate);
+[[nodiscard]] std::string rate_text(mlibs::time::Rate rate);
 
 }  // namespace xengine::video

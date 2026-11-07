@@ -67,7 +67,7 @@ View Overlay::view() {
     std::vector<Element> lines;
     for (std::size_t i = 0; i < lines_.size(); ++i) {
         const Showing& s = lines_[i];
-        const double from = tl::to_seconds(s.clip->at);
+        const double from = mlibs::time::to_seconds(s.clip->at);
         // Each line rises whole, to be read at once, the English a moment after.
         GlyphMotion rise = GlyphMotion::rise(hanim::seconds(0));
         rise.domain = GlyphDomain::line;
@@ -116,20 +116,20 @@ View Overlay::view() {
                            .label = "The cut's timeline",
                            .paint = [cut, state](PaintContext& p) {
                                const float w = p.size.width, h = p.size.height;
-                               const double total = tl::to_seconds(cut->timeline.duration());
+                               const double total = mlibs::time::to_seconds(cut->timeline.duration());
                                if (total <= 0 || w <= 0) return;
                                const auto x_of = [&](double s) { return static_cast<float>(s / total) * w; };
                                p.list.fill_rect({0, h / 2, w, 1}, hex(ink::line, 0.7f));
                                const tl::Track& pic = cut->timeline.tracks[static_cast<std::size_t>(cut->picture)];
                                for (std::size_t i = 0; i < pic.clips.size(); ++i) {
                                    const tl::Clip& c = pic.clips[i];
-                                   const float x0 = x_of(tl::to_seconds(c.at)) + 1, x1 = x_of(tl::to_seconds(c.end())) - 1;
+                                   const float x0 = x_of(mlibs::time::to_seconds(c.at)) + 1, x1 = x_of(mlibs::time::to_seconds(c.end())) - 1;
                                    const bool film = c.source == "film";
                                    const Color col = film ? hex(ink::amber, 0.85f) : hex(i % 2 ? ink::line : 0x3b82c4, 0.9f);
                                    p.list.fill_round_rect({x0, h / 2 - 3, std::max(1.0f, x1 - x0), 6}, CornerRadii::all(2), xrender::Paint::solid(col));
                                }
                                for (const tl::Marker& m : cut->timeline.markers)
-                                   if (m.name.starts_with("hit:")) p.list.fill_rect({std::round(x_of(tl::to_seconds(m.at))), 0, 1, 3}, hex(ink::cyan, 0.8f));
+                                   if (m.name.starts_with("hit:")) p.list.fill_rect({std::round(x_of(mlibs::time::to_seconds(m.at))), 0, 1, 3}, hex(ink::cyan, 0.8f));
                                const float x = x_of(state->seconds);
                                p.list.fill_rect({0, h / 2 - 1, x, 2}, hex(ink::cyan, 0.85f));
                                p.list.fill_round_rect({x - 1.5f, 0, 3, h}, CornerRadii::all(1.5f), xrender::Paint::solid(hex(ink::ice)));
@@ -202,7 +202,7 @@ void Overlay::at(Runtime& rt, std::int64_t frame, const std::optional<Shown>& sh
     // own frames none: those frames carry their own.
     for (std::size_t i = 0; i < lines_.size(); ++i) {
         const tl::Clip& c = *lines_[i].clip;
-        const double from = tl::to_seconds(c.at), to = tl::to_seconds(c.end());
+        const double from = mlibs::time::to_seconds(c.at), to = mlibs::time::to_seconds(c.end());
         const bool up = options_.subtitles && !film && t >= from && t < to;
         const double fade = std::min(ramp(t, from, from + 0.16), 1 - ramp(t, to - 0.2, to));
         rt.set(line_nodes_[i], "visible", Value(up));

@@ -4,16 +4,6 @@ import std;
 
 namespace hanim {
 
-std::int64_t FrameRate::frame_at(seconds t) const noexcept {
-    // t·num/den, then the floor. A frame's own start (computed by time_of, one
-    // rounding) must map back to that frame after two more roundings here, so
-    // the product is nudged up by a few ulps of itself — far less than the
-    // distance to any earlier instant a caller can mean.
-    double f = t.count() * static_cast<double>(num) / static_cast<double>(den);
-    double n = std::floor(f + 4e-15 * (1.0 + (f < 0 ? -f : f)));
-    return static_cast<std::int64_t>(n);
-}
-
 Clock Clock::interactive() {
     Clock c;
     c.kind_ = ClockKind::interactive;
@@ -27,7 +17,7 @@ Clock Clock::virtual_time(seconds start) {
     return c;
 }
 
-Clock Clock::render(FrameRate rate) {
+Clock Clock::render(mlibs::time::Rate rate) {
     Clock c;
     c.kind_           = ClockKind::render;
     c.rate_of_frames_ = rate;

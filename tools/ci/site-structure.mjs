@@ -68,7 +68,7 @@ try {
   const restored = await b.value(`window.omui.snapshot({root:'main/body/view/features',depth:0}).then(r => (r.data?.nodes ?? [])[0]?.value?.y)`);
   check(scrolled > 100 && Math.abs(restored - scrolled) < 1, 'a reader scrolling during loading keeps the scroll offset on handoff', { scrolled, restored });
 } catch (error) { check(false, 'browser scenario completed', String(error.stack || error)); }
-finally { b.close(); server.close(); }
+finally { await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);
 console.log(JSON.stringify(report, null, 2));
 process.exit(report.ok ? 0 : 1);

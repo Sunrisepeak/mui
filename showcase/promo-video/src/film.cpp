@@ -64,9 +64,9 @@ const Line* Subtitles::find(std::string_view id) const noexcept {
 
 // ── cuts ────────────────────────────────────────────────────────────────
 
-std::int64_t Cut::frames() const noexcept { return tl::frame_at(timeline.rate, timeline.duration() + tl::frame_length(timeline.rate) - 1); }
+std::int64_t Cut::frames() const noexcept { return timeline.rate.frame_at(timeline.duration() + timeline.rate.frame_length() - 1); }
 
-double Cut::seconds_of(std::int64_t frame) const noexcept { return tl::to_seconds(tl::frame_time(timeline.rate, frame)); }
+double Cut::seconds_of(std::int64_t frame) const noexcept { return mlibs::time::to_seconds(timeline.rate.frame_time(frame)); }
 
 std::string_view Shown::shot() const noexcept {
     if (!clip) return {};
@@ -97,7 +97,7 @@ std::expected<Cut, std::vector<Problem>> load_cut(const Files& files, std::strin
         if (tr.kind == tl::Kind::events && tr.name == "sfx") c.sfx = static_cast<int>(i);
     }
     if (c.picture < 0) out.push_back({file, 0, 0, "the cut has no picture track (a track of kind `video`)"});
-    const tl::Flicks frame = tl::frame_length(c.timeline.rate);
+    const mlibs::time::Flicks frame = c.timeline.rate.frame_length();
     for (const tl::Track& tr : c.timeline.tracks)
         for (const tl::Clip& clip : tr.clips) {
             const std::string where = std::format("track `{}`, clip `{}`", tr.name, clip.name);
@@ -108,7 +108,7 @@ std::expected<Cut, std::vector<Problem>> load_cut(const Files& files, std::strin
                     if (clip.speed != std::round(clip.speed))
                         out.push_back({file, 0, 0, std::format("{}: the film plays back at a whole number of frames a frame (speed {})", where, clip.speed)});
                     // Every frame it plays back lies before it, so drawing it never comes round to itself.
-                    const tl::Flicks first = clip.source_at(clip.at), last = clip.source_at(clip.end() - frame);
+                    const mlibs::time::Flicks first = clip.source_at(clip.at), last = clip.source_at(clip.end() - frame);
                     if (std::max(first, last) >= clip.at || std::min(first, last) < 0)
                         out.push_back({file, 0, 0, std::format("{}: plays back frames before itself, from the cut's start", where)});
                 } else if (clip.source.starts_with("shot:")) {
@@ -134,7 +134,7 @@ std::expected<Cut, std::vector<Problem>> load_cut(const Files& files, std::strin
 
 std::optional<Shown> shown(const Cut& cut, std::int64_t frame) {
     if (cut.picture < 0) return std::nullopt;
-    const tl::Flicks t = cut.time_of(frame);
+    const mlibs::time::Flicks t = cut.time_of(frame);
     const tl::Track& tr = cut.timeline.tracks[static_cast<std::size_t>(cut.picture)];
     for (std::size_t i = 0; i < tr.clips.size(); ++i) {
         const tl::Clip& c = tr.clips[i];
@@ -153,7 +153,7 @@ std::optional<Shown> shown(const Cut& cut, std::int64_t frame) {
 std::vector<Showing> lines_at(const Cut& cut, const Subtitles& subtitles, std::int64_t frame) {
     std::vector<Showing> out;
     if (cut.subtitles < 0) return out;
-    const tl::Flicks t = cut.time_of(frame);
+    const mlibs::time::Flicks t = cut.time_of(frame);
     for (const tl::Clip& c : cut.timeline.tracks[static_cast<std::size_t>(cut.subtitles)].clips)
         if (c.covers(t) && c.source.starts_with("line:"))
             if (const Line* l = subtitles.find(std::string_view(c.source).substr(5))) out.push_back({l, &c});
@@ -163,7 +163,7 @@ std::vector<Showing> lines_at(const Cut& cut, const Subtitles& subtitles, std::i
 std::vector<Chapter> chapters(const Cut& cut) {
     std::vector<Chapter> out;
     for (const tl::Marker& m : cut.timeline.markers)
-        if (m.name.starts_with("chapter:")) out.push_back({m.name.substr(8), tl::frame_at(cut.timeline.rate, m.at)});
+        if (m.name.starts_with("chapter:")) out.push_back({m.name.substr(8), cut.timeline.rate.frame_at(m.at)});
     return out;
 }
 

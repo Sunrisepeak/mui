@@ -61,7 +61,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
     // The spec: 60 frames a second; 1920 × 1080 written (4K: the same at scale 2); a short 16:9 as written and 9:16 laid out for.
     const bool landscape = t.width * 9 == t.height * 16;
     const bool sized = size.width > 0 ? (size.width * 9 == size.height * 16 || size.width * 16 == size.height * 9) : landscape;
-    a.add({"spec", t.rate == tl::Rate{60, 1} && t.width == 1920 && t.height == 1080 && sized,
+    a.add({"spec", t.rate == mlibs::time::Rate{60, 1} && t.width == 1920 && t.height == 1080 && sized,
            std::format("{} fps, {} × {} written, drawn at {} × {}{}", fps, t.width, t.height, size.width > 0 ? size.width : static_cast<float>(t.width),
                        size.height > 0 ? size.height : static_cast<float>(t.height), main ? "; 4K60 at scale 2" : "; 9:16 at 1080 × 1920")});
     // The lines: both languages, each up long enough to read.
@@ -76,14 +76,14 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
                 ++n;
                 if (!l || l->zh.empty() || l->en.empty()) {
                     ok = false;
-                    a.findings.push_back({"lines", std::format("`{}` is not in both languages", c.source), tl::frame_at(t.rate, c.at)});
+                    a.findings.push_back({"lines", std::format("`{}` is not in both languages", c.source), t.rate.frame_at(c.at)});
                     continue;
                 }
-                const double up = tl::to_seconds(c.length), need = reading_seconds(*l);
+                const double up = mlibs::time::to_seconds(c.length), need = reading_seconds(*l);
                 if (up - need < tightest) tightest = up - need, worst = l->id;
                 if (up + 1e-9 < need) {
                     ok = false;
-                    a.findings.push_back({"lines", std::format("`{}` is up {:.2f} s, and takes {:.2f} s to read", l->id, up, need), tl::frame_at(t.rate, c.at)});
+                    a.findings.push_back({"lines", std::format("`{}` is up {:.2f} s, and takes {:.2f} s to read", l->id, up, need), t.rate.frame_at(c.at)});
                 }
             }
         a.add({"lines", ok && n > 0, std::format("{} lines in Chinese and English; the tightest, `{}`, up {:.2f} s longer than it takes to read", n, worst, tightest)});
@@ -94,15 +94,15 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
         double worst = 0;
         std::size_t points = 0;
         bool ok = true;
-        auto music_at = [&](tl::Flicks x) -> std::optional<double> {
+        auto music_at = [&](mlibs::time::Flicks x) -> std::optional<double> {
             for (const tl::Track& tr : t.tracks) {
                 if (tr.kind != tl::Kind::audio) continue;
                 for (const tl::Clip& c : tr.clips)
-                    if (x >= c.at && x <= c.end()) return tl::to_seconds(c.in + (x - c.at));
+                    if (x >= c.at && x <= c.end()) return mlibs::time::to_seconds(c.in + (x - c.at));
             }
             return std::nullopt;
         };
-        auto on_beat = [&](tl::Flicks x, std::string what) {
+        auto on_beat = [&](mlibs::time::Flicks x, std::string what) {
             const auto m = music_at(x);
             if (!m) return;
             ++points;
@@ -110,7 +110,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
             worst = std::max(worst, off);
             if (off > 1 + 1e-9) {
                 ok = false;
-                a.findings.push_back({"beats", std::format("{} is {:.2f} frames off the beat", what, off), tl::frame_at(t.rate, x)});
+                a.findings.push_back({"beats", std::format("{} is {:.2f} frames off the beat", what, off), t.rate.frame_at(x)});
             }
         };
         for (const tl::Clip& c : t.tracks[static_cast<std::size_t>(cut.picture)].clips)
@@ -144,7 +144,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
         bool ok = true;
         for (const tl::Marker& m : t.markers) {
             if (!m.name.starts_with("hit:")) continue;
-            const std::int64_t at = tl::sample_at(t.sample_rate, m.at);
+            const std::int64_t at = mlibs::time::sample_at(t.sample_rate, m.at);
             // The strongest rise in energy within three frames of the hit.
             std::int64_t best = at;
             double rise = -1;
@@ -158,7 +158,7 @@ Acceptance check_data(const Film& film, const Cut& cut, const Soundtrack& track,
             worst = std::max(worst, off);
             if (off > 1) {
                 ok = false;
-                a.findings.push_back({"onsets", std::format("the hit `{}`: the sound rises {:.2f} frames from it", m.name.substr(4), off), tl::frame_at(t.rate, m.at)});
+                a.findings.push_back({"onsets", std::format("the hit `{}`: the sound rises {:.2f} frames from it", m.name.substr(4), off), t.rate.frame_at(m.at)});
             }
         }
         a.add({"onsets", ok && hits > 0, std::format("{} hits heard in the sound track, the furthest onset {:.2f} frames off", hits, worst)});
@@ -253,8 +253,8 @@ std::vector<std::int64_t> sampled_frames(const Cut& cut, std::int64_t step) {
     const std::int64_t n = cut.frames();
     for (std::int64_t f = 0; f < n; f += std::max<std::int64_t>(1, step)) out.insert(f);
     for (const tl::Clip& c : cut.timeline.tracks[static_cast<std::size_t>(cut.picture)].clips) {
-        out.insert(tl::frame_at(cut.timeline.rate, c.at));
-        out.insert(tl::frame_at(cut.timeline.rate, c.end()) - 1);
+        out.insert(cut.timeline.rate.frame_at(c.at));
+        out.insert(cut.timeline.rate.frame_at(c.end()) - 1);
     }
     out.insert(n - 1);
     return {out.begin(), out.end()};

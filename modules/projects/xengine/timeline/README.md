@@ -8,8 +8,8 @@ namespace tl = xengine::timeline;
 
 auto t = tl::read_timeline(text, "promo.timeline.omui.toml");   // every problem at its line and column
 std::vector<tl::Playing> now;
-tl::playing(*t, tl::frame_time(t->rate, 90), now);              // which clips, where in their sources, at what level
-auto undo = tl::apply(*t, *tl::split(*t, 0, 0, tl::flicks_per_second));   // a change gives back its inverse
+tl::playing(*t, t->rate.frame_time(90), now);              // which clips, where in their sources, at what level
+auto undo = tl::apply(*t, *tl::split(*t, 0, 0, mlibs::time::flicks_per_second));   // a change gives back its inverse
 tl::apply(*t, *undo);                                            // and the timeline is exactly as it was
 ```
 

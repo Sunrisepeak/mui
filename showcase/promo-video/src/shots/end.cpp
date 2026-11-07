@@ -59,11 +59,11 @@ public:
         rise2.transition.delay = hanim::seconds(close_from + 0.15);
         GlyphMotion gather = GlyphMotion::gather(5);
         gather.transition.delay = hanim::seconds(close_from - 0.1);
-        const std::int32_t frame0 = static_cast<std::int32_t>(tl::frame_at(c_.cut->timeline.rate, c_.clip->at));
+        const std::int32_t frame0 = static_cast<std::int32_t>(c_.cut->timeline.rate.frame_at(c_.clip->at));
         Element editor = timeline_editor({.id = "film",
                                           .document = c_.cut->text,
                                           .frame = frame,
-                                          .zoom = (portrait ? 960.0 - 112 : 1500.0 - 112) / std::max(1.0, tl::to_seconds(c_.cut->timeline.duration())),
+                                          .zoom = (portrait ? 960.0 - 112 : 1500.0 - 112) / std::max(1.0, mlibs::time::to_seconds(c_.cut->timeline.duration())),
                                           .width = Dim(portrait ? 960.0f : 1500.0f),
                                           .height = 210,
                                           .label = "This cut's timeline"});
@@ -127,7 +127,7 @@ public:
         const double close_from = closing.empty() ? 3.2 : closing.front().first;
         rt.set(data_, "opacity", Value(smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)));
         rt.set(data_, "translate_y", Value((1 - smooth(t, typed_from_ + 0.5, typed_from_ + 0.9)) * 18));
-        frame.set(static_cast<std::int32_t>(tl::frame_at(c_.cut->timeline.rate, c_.clip->at) + std::llround((t - tl::to_seconds(c_.clip->in)) * c_.rate())));
+        frame.set(static_cast<std::int32_t>(c_.cut->timeline.rate.frame_at(c_.clip->at) + std::llround((t - mlibs::time::to_seconds(c_.clip->in)) * c_.rate())));
         // The command and the editor give way as the card comes.
         const double away = smooth(t, close_from - 0.2, close_from + 0.15);
         rt.set(first_, "opacity", Value(1 - away));

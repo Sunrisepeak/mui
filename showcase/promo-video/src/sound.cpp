@@ -30,7 +30,7 @@ public:
             const std::int64_t from = std::max(clock, p.at), to = std::min(clock + frames, p.at + p.length);
             if (from >= to) continue;
             // The clip's level through its fades, at the block's middle (a fade is far longer than a block).
-            const tl::Flicks mid = tl::sample_time(rate_, (from + to) / 2);
+            const mlibs::time::Flicks mid = mlibs::time::sample_time(rate_, (from + to) / 2);
             const float level = p.clip->level_at(mid);
             for (std::int64_t s = from; s < to; ++s) {
                 const std::int64_t src = p.in + (s - p.at);
@@ -56,7 +56,7 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     const xengine::video::Timing timing{{t.rate.num, t.rate.den}, t.sample_rate};
     const std::int64_t frames = cut.frames();
     const std::int64_t total = timing.sample_of(frames);
-    const auto sample_at = [&](tl::Flicks f) { return tl::sample_at(t.sample_rate, f); };
+    const auto sample_at = [&](mlibs::time::Flicks f) { return mlibs::time::sample_at(t.sample_rate, f); };
     // What may sound: the film's sounds.
     auto sound_text = film.files.read("sounds/promo.sound.omui.toml");
     if (!sound_text) return std::unexpected(sound_text.error());
@@ -65,17 +65,17 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
     // The cues: the sfx track's, and each shot's of what it does.
     if (cut.sfx >= 0)
         for (const tl::Clip& c : t.tracks[static_cast<std::size_t>(cut.sfx)].clips)
-            out.cues.push_back({c.source.substr(6), tl::frame_at(t.rate, c.at), c.level, 0, 1, c.name});
+            out.cues.push_back({c.source.substr(6), t.rate.frame_at(c.at), c.level, 0, 1, c.name});
     const tl::Track& pic = t.tracks[static_cast<std::size_t>(cut.picture)];
     for (std::size_t i = 0; i < pic.clips.size(); ++i) {
         const tl::Clip& c = pic.clips[i];
         if (!c.source.starts_with("shot:")) continue;
         auto shot = player.make(i);
         if (!shot) return std::unexpected(shot.error());
-        const double in = tl::to_seconds(c.in), length = tl::to_seconds(c.length);
+        const double in = mlibs::time::to_seconds(c.in), length = mlibs::time::to_seconds(c.length);
         for (const Cue& q : (*shot)->cues(in + length)) {
             if (q.at < in || q.at >= in + length) continue;
-            const std::int64_t f = tl::frame_at(t.rate, c.at + tl::from_seconds(q.at - in));
+            const std::int64_t f = t.rate.frame_at(c.at + mlibs::time::from_seconds(q.at - in));
             out.cues.push_back({q.sound, f, q.gain, q.pan, q.pitch, c.name});
         }
     }
@@ -94,7 +94,7 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
             if (!pieces.contains(c.source)) {
                 double need = 0;
                 for (const tl::Clip& d : tr.clips)
-                    if (d.source == c.source) need = std::max(need, tl::to_seconds(d.in + d.length));
+                    if (d.source == c.source) need = std::max(need, mlibs::time::to_seconds(d.in + d.length));
                 auto text = film.files.read(c.source);
                 if (!text) return std::unexpected(text.error());
                 auto music = xengine::audio::read_music(*text, c.source);
@@ -107,8 +107,8 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
             parts.push_back({pieces[c.source], sample_at(c.at), sample_at(c.in), sample_at(c.length), &c});
             // Its bars, where they fall on the cut.
             const double bar = 60.0 / out.tempo * 4;
-            for (double m = std::ceil(tl::to_seconds(c.in) / bar - 1e-9) * bar; m < tl::to_seconds(c.in + c.length) - 1e-9; m += bar)
-                out.bars.push_back(sample_at(c.at + tl::from_seconds(m) - c.in));
+            for (double m = std::ceil(mlibs::time::to_seconds(c.in) / bar - 1e-9) * bar; m < mlibs::time::to_seconds(c.in + c.length) - 1e-9; m += bar)
+                out.bars.push_back(sample_at(c.at + mlibs::time::from_seconds(m) - c.in));
         }
     }
     mixer.add_source(std::make_shared<Score>(std::move(parts), mixer.bus("music"), t.sample_rate));
@@ -127,7 +127,7 @@ std::expected<Soundtrack, std::string> soundtrack(const Film& film, const Cut& c
         const std::int64_t from = sample_at(c.at), to = std::min(total, sample_at(c.end()));
         const std::int64_t fade = t.sample_rate / 100;  // 10 ms in and out
         for (std::int64_t s = from; s < to; ++s) {
-            const std::int64_t src = sample_at(c.source_at(tl::sample_time(t.sample_rate, s)));
+            const std::int64_t src = sample_at(c.source_at(mlibs::time::sample_time(t.sample_rate, s)));
             if (src < 0 || src >= from) continue;
             const float edge = static_cast<float>(std::min<std::int64_t>({s - from, to - 1 - s, fade})) / static_cast<float>(fade);
             const float k = 0.62f * std::clamp(edge, 0.0f, 1.0f);

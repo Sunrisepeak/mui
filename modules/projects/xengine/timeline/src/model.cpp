@@ -5,8 +5,6 @@ import hanim.core;
 
 namespace xengine::timeline {
 
-Flicks from_seconds(double s) noexcept { return static_cast<Flicks>(std::llround(s * static_cast<double>(flicks_per_second))); }
-
 Flicks Clip::source_at(Flicks t) const noexcept {
     const Flicks local = t - at;
     if (speed == 1) return in + local;  // the usual case, exact in integers
@@ -43,7 +41,7 @@ std::optional<Flicks> Timeline::marker(std::string_view name) const noexcept {
 
 std::vector<std::string> check(const Timeline& timeline) {
     std::vector<std::string> out;
-    if (!exact(timeline.rate))
+    if (!timeline.rate.exact())
         out.push_back(std::format("the rate {}/{} is not a whole number of flicks a frame", timeline.rate.num, timeline.rate.den));
     if (!exact_samples(timeline.sample_rate)) out.push_back(std::format("the sample rate {} is not a whole number of flicks a sample", timeline.sample_rate));
     for (const Track& track : timeline.tracks)

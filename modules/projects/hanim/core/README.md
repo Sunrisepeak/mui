@@ -7,7 +7,7 @@ The renderer-independent deterministic core of the hanim animation product, in C
 | Partition | Contents |
 |---|---|
 | `:math` | `dm::exp/log/sin/cos/atan/atan2/cbrt/pow` with identical bits everywhere |
-| `:time` | `Clock` (interactive, virtual, render), `FrameRate` with exact frame times, motion-blur sub-frames |
+| `:time` | `Clock` (interactive, virtual, render), `mlibs::time::Rate` with exact frame times, motion-blur sub-frames |
 | `:ease` | `Ease` as data: the standard curves, CSS `cubic-bezier` and `steps`, text form and parser |
 | `:value` | `lanes<T>` / `Animatable`; `Vec2..4`, `Rgba` interpolated in premultiplied OKLab, `Transform2D` |
 | `:motion` | `Tween`, `Track` (keyframes, holds, cuts), analytic `Spring` / `Oscillator`, `Decay` / `Glide`, interruptible and seekable `Motion`, `interpolate` |

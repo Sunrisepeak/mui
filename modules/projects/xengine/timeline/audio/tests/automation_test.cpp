@@ -12,8 +12,8 @@ namespace audio = xengine::audio;
 
 namespace {
 tl::Clip fixture() {
-    tl::Clip clip{.name="mix", .at=tl::from_seconds(.25), .length=tl::from_seconds(1.5), .level=.75f,
-        .fade={.in=tl::from_seconds(.1), .out=tl::from_seconds(.2), .ease=hanim::ease::in_out_cubic}};
+    tl::Clip clip{.name="mix", .at=mlibs::time::from_seconds(.25), .length=mlibs::time::from_seconds(1.5), .level=.75f,
+        .fade={.in=mlibs::time::from_seconds(.1), .out=mlibs::time::from_seconds(.2), .ease=hanim::ease::in_out_cubic}};
     tl::Property gain{.name="gain"};
     gain.keys.key(hanim::seconds(0), .2, hanim::ease::in_out_cubic)
         .key(hanim::seconds(.5), .9).hold(hanim::seconds(.8), .4).key(hanim::seconds(1.1), .7).key(hanim::seconds(1.5), .1);
@@ -37,13 +37,13 @@ int main(int argc, char** argv) {
         const auto& gain=**made;
         check(gain.rate()==48000 && gain.begin()==clip.at && gain.end()==clip.end());
         for (std::int64_t sample=0; sample<96000; ++sample) {
-            const auto t=tl::sample_time(gain.rate(), sample);
+            const auto t=mlibs::time::sample_time(gain.rate(), sample);
             const double expected=clip.covers(t) ? clip.value("gain",t) * clip.level_at(t) : 0;
             check(gain.at_sample(sample)==static_cast<float>(expected));
         }
-        const auto value=gain.at(tl::from_seconds(.6));
+        const auto value=gain.at(mlibs::time::from_seconds(.6));
         clip.level=0; clip.properties.clear();
-        check(gain.at(tl::from_seconds(.6))==value, "later edits do not change the prepared DSP plan");
+        check(gain.at(mlibs::time::from_seconds(.6))==value, "later edits do not change the prepared DSP plan");
         check(gain.at_sample(-1)==0 && gain.at_sample(std::numeric_limits<std::int64_t>::max())==0);
         std::array<float,9> over{}; gain.sample(std::numeric_limits<std::int64_t>::max()-2,over);
         check(std::ranges::all_of(over, [](float v) { return v==0; }));
@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
             gain.sample(first,values);
             for(std::size_t i=0;i<values.size();++i)check(values[i]==gain.at_sample(first+static_cast<std::int64_t>(i)));
         }
-        const auto cut=tl::from_seconds(1.35);
+        const auto cut=mlibs::time::from_seconds(1.35);
         check_near(gain.at(cut-1), .4*.75, 1e-7);check_near(gain.at(cut), .7*.75, 1e-7);
         check(gain.at(gain.end())==.3f && gain.at(gain.begin()-1)==.3f);
     });
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         expect(fixture(),{.sample_rate=12345},tl::GainError::sample_rate);
         expect(fixture(),{.property="missing"},tl::GainError::property);
         auto c=fixture(); c.length=0;expect(c,{},tl::GainError::clip_time);
-        c=fixture(); c.at=std::numeric_limits<tl::Flicks>::max();expect(c,{},tl::GainError::clip_time);
+        c=fixture(); c.at=std::numeric_limits<mlibs::time::Flicks>::max();expect(c,{},tl::GainError::clip_time);
         c=fixture(); c.fade.in=c.length;c.fade.out=1;expect(c,{},tl::GainError::clip_time);
         c=fixture();c.properties.push_back(c.properties[0]);expect(c,{},tl::GainError::property);
         c=fixture();c.properties[0].keys.key(hanim::seconds(-1),1);expect(c,{},tl::GainError::keys);
@@ -84,13 +84,13 @@ int main(int argc, char** argv) {
             audio::Mixer mixer;setup(mixer,*made);
             std::vector<float> output(expected.size());
             for(std::int64_t frame=0;frame<2*fps;++frame) {
-                const auto time=tl::frame_time({fps,1},frame);
+                const auto time=mlibs::time::Rate{fps,1}.frame_time(frame);
                 const auto clock=mixer.clock(), begun=mixer.begun();
                 const auto forward=(*made)->at(time);
-                (void)(*made)->at(tl::from_seconds(2)-time);
+                (void)(*made)->at(mlibs::time::from_seconds(2)-time);
                 check(forward==(*made)->at(time));
                 check(clock==mixer.clock() && begun==mixer.begun(), "observation never advances live audio");
-                const auto next=tl::sample_at(mixer.rate(),tl::frame_time({fps,1},frame+1));
+                const auto next=mlibs::time::sample_at(mixer.rate(),mlibs::time::Rate{fps,1}.frame_time(frame+1));
                 mixer.render(std::span(output).subspan(static_cast<std::size_t>(2*clock),static_cast<std::size_t>(2*(next-clock))));
             }
             check(output==expected && mixer.clock()==96000 && mixer.begun()==1);

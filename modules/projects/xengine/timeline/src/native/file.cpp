@@ -198,7 +198,7 @@ std::expected<Timeline, std::vector<Problem>> read_timeline(std::string_view tex
                 } else {
                     r.error(rn, "a rate is frames a second", "rate = 60, or rate = \"30000/1001\"");
                 }
-                if (!exact(tl.rate)) r.error(rn, std::format("a frame at {}/{} is not a whole number of flicks", tl.rate.num, tl.rate.den), "24, 25, 30, 48, 50, 60, 120, \"30000/1001\" …");
+                if (!tl.rate.exact()) r.error(rn, std::format("a frame at {}/{} is not a whole number of flicks", tl.rate.num, tl.rate.den), "24, 25, 30, 48, 50, 60, 120, \"30000/1001\" …");
             }
             if (auto v = r.number(t->get("sample_rate"), "the `sample_rate`")) {
                 tl.sample_rate = static_cast<std::int32_t>(*v);

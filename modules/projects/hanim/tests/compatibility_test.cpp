@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
         check(movement.value(hanim::seconds(1)) == hanim::Vec2{80, 40});
         check(movement.value(hanim::seconds(0)) == hanim::Vec2{0, 0});
         check(movement.value(hanim::seconds(0.5)) == hanim::Vec2{40, 20});
-        const hanim::FrameRate fps{60, 1};
+        const mlibs::time::Rate fps{60, 1};
         check_bits(fps.time_of(60).count(), hanim::seconds(1).count());
     });
     suite.test("legacy facade retains renderer-independent prepared geometry without another implementation", [] {

@@ -115,7 +115,7 @@ Psnr psnr(const Yuv420& a, const Yuv420& b) {
     return {psnr_of(y, a.y.size()), psnr_of(all, a.bytes())};
 }
 
-std::string y4m_header(std::int32_t width, std::int32_t height, hanim::FrameRate fps) {
+std::string y4m_header(std::int32_t width, std::int32_t height, mlibs::time::Rate fps) {
     return std::format("YUV4MPEG2 W{} H{} F{}:{} Ip A1:1 C420jpeg XYSCSS=420JPEG XCOLORRANGE=LIMITED\n", width, height, fps.num, fps.den);
 }
 
@@ -189,7 +189,7 @@ std::uint64_t hash(std::span<const std::byte> bytes) noexcept {
 
 std::uint64_t hash(std::span<const std::uint8_t> bytes) noexcept { return hash(std::as_bytes(bytes)); }
 
-std::optional<hanim::FrameRate> parse_rate(std::string_view text) noexcept {
+std::optional<mlibs::time::Rate> parse_rate(std::string_view text) noexcept {
     auto whole = [](std::string_view s) -> std::optional<std::int64_t> {
         std::int64_t v = 0;
         const auto [p, e] = std::from_chars(s.data(), s.data() + s.size(), v);
@@ -199,16 +199,16 @@ std::optional<hanim::FrameRate> parse_rate(std::string_view text) noexcept {
     if (const auto slash = text.find('/'); slash != std::string_view::npos) {
         const auto n = whole(text.substr(0, slash)), d = whole(text.substr(slash + 1));
         if (!n || !d) return std::nullopt;
-        return hanim::FrameRate{*n, *d};
+        return mlibs::time::Rate{*n, *d};
     }
-    if (const auto n = whole(text)) return hanim::FrameRate{*n, 1};
+    if (const auto n = whole(text)) return mlibs::time::Rate{*n, 1};
     // The NTSC rates by their usual names.
-    if (text == "23.976" || text == "23.98") return hanim::FrameRate{24000, 1001};
-    if (text == "29.97") return hanim::FrameRate{30000, 1001};
-    if (text == "59.94") return hanim::FrameRate{60000, 1001};
+    if (text == "23.976" || text == "23.98") return mlibs::time::Rate{24000, 1001};
+    if (text == "29.97") return mlibs::time::Rate{30000, 1001};
+    if (text == "59.94") return mlibs::time::Rate{60000, 1001};
     return std::nullopt;
 }
 
-std::string rate_text(hanim::FrameRate rate) { return rate.den == 1 ? std::format("{}", rate.num) : std::format("{}/{}", rate.num, rate.den); }
+std::string rate_text(mlibs::time::Rate rate) { return rate.den == 1 ? std::format("{}", rate.num) : std::format("{}/{}", rate.num, rate.den); }
 
 }  // namespace xengine::video

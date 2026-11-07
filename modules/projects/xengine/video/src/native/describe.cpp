@@ -151,8 +151,8 @@ std::expected<Description, std::vector<Problem>> read_description(std::string_vi
         if (auto w = r.whole(v->get("width"), "`width`", 2, 16384)) d.width = static_cast<std::int32_t>(*w);
         if (auto h = r.whole(v->get("height"), "`height`", 2, 16384)) d.height = static_cast<std::int32_t>(*h);
         if (const toml::node* f = v->get("fps")) {
-            std::optional<hanim::FrameRate> rate;
-            if (auto i = f->value_exact<std::int64_t>(); i && *i > 0 && *i <= 1000) rate = hanim::FrameRate{*i, 1};
+            std::optional<mlibs::time::Rate> rate;
+            if (auto i = f->value_exact<std::int64_t>(); i && *i > 0 && *i <= 1000) rate = mlibs::time::Rate{*i, 1};
             else if (auto s = f->value_exact<std::string>()) rate = parse_rate(*s);
             if (rate && rate->num > 0 && rate->den > 0 && rate->num <= 1000 * rate->den) d.fps = *rate;
             else r.error(f, "`fps` is a whole number of frames a second or a fraction", "fps = 30, or fps = \"30000/1001\"");

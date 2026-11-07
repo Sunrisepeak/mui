@@ -13,36 +13,13 @@
 export module hanim.core:time;
 
 import std;
+export import mlibs.time;
 
 export namespace hanim {
 
-using seconds = std::chrono::duration<double>;
-
-// A frame rate as a ratio (60/1, 30000/1001 …). Frame n starts at n·den/num
-// seconds: an integer product and one correctly rounded division, so the time
-// of a frame is the same double on every platform.
-struct FrameRate {
-    std::int64_t num = 60;
-    std::int64_t den = 1;
-
-    [[nodiscard]] constexpr seconds time_of(std::int64_t frame) const noexcept {
-        return seconds(static_cast<double>(frame * den) / static_cast<double>(num));
-    }
-
-    // The frame shown at time t: the last frame that starts at or before t.
-    [[nodiscard]] std::int64_t frame_at(seconds t) const noexcept;
-
-    [[nodiscard]] constexpr seconds frame_duration() const noexcept {
-        return seconds(static_cast<double>(den) / static_cast<double>(num));
-    }
-
-    [[nodiscard]] constexpr double fps() const noexcept {
-        return static_cast<double>(num) / static_cast<double>(den);
-    }
-
-    // Written out: GCC 16.1 crashes on a defaulted comparison here once an importer uses it.
-    friend constexpr bool operator==(const FrameRate& a, const FrameRate& b) noexcept { return a.num == b.num && a.den == b.den; }
-};
+// Time and frame rates are mlibs.time's; `seconds` is hanim's word for its
+// continuous time.
+using seconds = mlibs::time::seconds;
 
 enum class ClockKind : std::uint8_t { interactive, virtual_time, render };
 
@@ -53,7 +30,7 @@ public:
     // Time that moves only when the owner says so.
     [[nodiscard]] static Clock virtual_time(seconds start = seconds{0});
     // Frame numbers of a video at `rate`, starting at frame 0.
-    [[nodiscard]] static Clock render(FrameRate rate);
+    [[nodiscard]] static Clock render(mlibs::time::Rate rate);
 
     [[nodiscard]] ClockKind kind() const noexcept { return kind_; }
 
@@ -81,7 +58,7 @@ public:
     // Render: go to a frame. Any frame, in any order.
     void seek(std::int64_t frame) noexcept;
     [[nodiscard]] std::int64_t frame() const noexcept { return frame_; }
-    [[nodiscard]] FrameRate frame_rate() const noexcept { return rate_of_frames_; }
+    [[nodiscard]] mlibs::time::Rate frame_rate() const noexcept { return rate_of_frames_; }
 
     // Render: the instant of sub-sample `i` of `n` within the current frame,
     // for motion blur. `shutter` is the open fraction of the frame (0.5 is a
@@ -101,7 +78,7 @@ private:
 
     // render
     std::int64_t frame_ = 0;
-    FrameRate    rate_of_frames_{};
+    mlibs::time::Rate    rate_of_frames_{};
 };
 
 }  // namespace hanim

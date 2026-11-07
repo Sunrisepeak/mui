@@ -63,54 +63,54 @@ int main(int argc, char** argv) {
     Suite s{"timeline"};
 
     s.test("time is exact: every common frame rate and sample rate is a whole number of flicks; frames and samples found from a time", [] {
-        for (const tl::Rate r : {tl::Rate{24, 1}, {25, 1}, {30, 1}, {48, 1}, {50, 1}, {60, 1}, {90, 1}, {120, 1}, {24000, 1001}, {30000, 1001}, {60000, 1001}})
-            check(tl::exact(r), std::format("{}/{}", r.num, r.den));
-        for (const std::int32_t hz : {44100, 48000, 88200, 96000, 22050}) check(tl::exact_samples(hz), std::format("{} Hz", hz));
-        check(!tl::exact(tl::Rate{7, 3}) || tl::flicks_per_second * 3 % 7 == 0, "a rate that does not divide is said to");
-        const tl::Rate ntsc{30000, 1001};
-        check_eq(tl::frame_time(ntsc, 30000), tl::Flicks{1001} * tl::flicks_per_second);  // 30000 frames are exactly 1001 seconds
-        check_eq(tl::frame_at(tl::Rate{60, 1}, tl::frame_time(tl::Rate{60, 1}, 37) + 1), std::int64_t{37});
-        check_eq(tl::frame_at(tl::Rate{60, 1}, -1), std::int64_t{-1});
-        check_eq(tl::sample_at(48000, tl::frame_time(tl::Rate{60, 1}, 1)), std::int64_t{800});
+        for (const mlibs::time::Rate r : {mlibs::time::Rate{24, 1}, {25, 1}, {30, 1}, {48, 1}, {50, 1}, {60, 1}, {90, 1}, {120, 1}, {24000, 1001}, {30000, 1001}, {60000, 1001}})
+            check(r.exact(), std::format("{}/{}", r.num, r.den));
+        for (const std::int32_t hz : {44100, 48000, 88200, 96000, 22050}) check(mlibs::time::exact_samples(hz), std::format("{} Hz", hz));
+        check(!mlibs::time::Rate{7, 3}.exact() || mlibs::time::flicks_per_second * 3 % 7 == 0, "a rate that does not divide is said to");
+        const mlibs::time::Rate ntsc{30000, 1001};
+        check_eq(ntsc.frame_time(30000), mlibs::time::Flicks{1001} * mlibs::time::flicks_per_second);  // 30000 frames are exactly 1001 seconds
+        check_eq(mlibs::time::Rate{60, 1}.frame_at(mlibs::time::Rate{60, 1}.frame_time(37) + 1), std::int64_t{37});
+        check_eq(mlibs::time::Rate{60, 1}.frame_at(-1), std::int64_t{-1});
+        check_eq(mlibs::time::sample_at(48000, mlibs::time::Rate{60, 1}.frame_time(1)), std::int64_t{800});
     });
 
     s.test("times as text: frames, seconds, milliseconds and flicks, exactly — and written back the shortest exact way", [] {
-        const tl::Rate r{60, 1};
-        check_eq(tl::parse_time("90f", r), std::optional<tl::Flicks>(tl::frame_time(r, 90)));
-        check_eq(tl::parse_time("1.5s", r), std::optional<tl::Flicks>(tl::flicks_per_second * 3 / 2));
-        check_eq(tl::parse_time("250ms", r), std::optional<tl::Flicks>(tl::flicks_per_second / 4));
-        check_eq(tl::parse_time("-2s", r), std::optional<tl::Flicks>(-2 * tl::flicks_per_second));
-        check_eq(tl::parse_time("17fl", r), std::optional<tl::Flicks>(17));
+        const mlibs::time::Rate r{60, 1};
+        check_eq(tl::parse_time("90f", r), std::optional<mlibs::time::Flicks>(r.frame_time(90)));
+        check_eq(tl::parse_time("1.5s", r), std::optional<mlibs::time::Flicks>(mlibs::time::flicks_per_second * 3 / 2));
+        check_eq(tl::parse_time("250ms", r), std::optional<mlibs::time::Flicks>(mlibs::time::flicks_per_second / 4));
+        check_eq(tl::parse_time("-2s", r), std::optional<mlibs::time::Flicks>(-2 * mlibs::time::flicks_per_second));
+        check_eq(tl::parse_time("17fl", r), std::optional<mlibs::time::Flicks>(17));
         check(!tl::parse_time("0.0000000001s", r), "between flicks: not a time");
         check(!tl::parse_time("1.5f", r) && !tl::parse_time("s", r) && !tl::parse_time("ten", r), "not times");
-        check_eq(tl::time_text(tl::frame_time(r, 90), r), std::string("90f"));
-        check_eq(tl::time_text(tl::flicks_per_second / 4 + tl::frame_time(r, 0) + 1, r), std::string("176400001fl"));
-        check_eq(tl::time_text(tl::flicks_per_second / 1000, r), std::string("0.001s"));
-        for (const tl::Flicks t : {tl::Flicks{0}, tl::Flicks{1}, tl::flicks_per_second / 7, tl::flicks_per_second * 61 / 60, -tl::flicks_per_second / 3})
-            check_eq(tl::parse_time(tl::time_text(t, r), r), std::optional<tl::Flicks>(t));
+        check_eq(tl::time_text(r.frame_time(90), r), std::string("90f"));
+        check_eq(tl::time_text(mlibs::time::flicks_per_second / 4 + r.frame_time(0) + 1, r), std::string("176400001fl"));
+        check_eq(tl::time_text(mlibs::time::flicks_per_second / 1000, r), std::string("0.001s"));
+        for (const mlibs::time::Flicks t : {mlibs::time::Flicks{0}, mlibs::time::Flicks{1}, mlibs::time::flicks_per_second / 7, mlibs::time::flicks_per_second * 61 / 60, -mlibs::time::flicks_per_second / 3})
+            check_eq(tl::parse_time(tl::time_text(t, r), r), std::optional<mlibs::time::Flicks>(t));
     });
 
     s.test("a timeline file reads; what plays at a moment — which clips, where in their sources, at what level and with which values", [] {
         auto t = tl::read_timeline(promo, "promo.timeline.omui.toml");
         check(t.has_value(), t ? "" : t.error().front().text());
         if (!t) return;
-        check(t->tracks.size() == 2 && t->tracks[0].clips.size() == 2 && t->marker("beat") == std::optional<tl::Flicks>(2 * tl::flicks_per_second), "read");
-        check_eq(t->duration(), tl::Flicks{5} * tl::flicks_per_second);
+        check(t->tracks.size() == 2 && t->tracks[0].clips.size() == 2 && t->marker("beat") == std::optional<mlibs::time::Flicks>(2 * mlibs::time::flicks_per_second), "read");
+        check_eq(t->duration(), mlibs::time::Flicks{5} * mlibs::time::flicks_per_second);
         std::vector<tl::Playing> now;
-        const tl::Rate r = t->rate;
-        tl::playing(*t, tl::frame_time(r, 0), now);
+        const mlibs::time::Rate r = t->rate;
+        tl::playing(*t, r.frame_time(0), now);
         check(now.size() == 2 && now[0].level == 0 && now[1].level == 0.8f, "the title fading in from 0 at its first frame, the theme at its level");
-        tl::playing(*t, tl::frame_time(r, 30), now);
+        tl::playing(*t, r.frame_time(30), now);
         check(now.size() == 2 && now[0].level == 1, "faded in by 15f");
         const tl::Clip& title = t->tracks[0].clips[0];
-        check_eq(title.value("y", tl::frame_time(r, 0)), 40.0);
-        check_eq(title.value("y", tl::frame_time(r, 30)), 0.0);
-        check(title.value("y", tl::frame_time(r, 15)) < 10, "eased out: most of the way by half the time");
+        check_eq(title.value("y", r.frame_time(0)), 40.0);
+        check_eq(title.value("y", r.frame_time(30)), 0.0);
+        check(title.value("y", r.frame_time(15)) < 10, "eased out: most of the way by half the time");
         check_eq(title.value("missing", 0, -1.0), -1.0);
         // The fight at half speed from 10s into its source: one second in, half a second further.
-        tl::playing(*t, tl::Flicks{4} * tl::flicks_per_second, now);
-        check(now.size() == 2 && now[0].clip == 1 && now[0].source == tl::flicks_per_second * 21 / 2, "half speed from 10s");
-        tl::playing(*t, tl::Flicks{6} * tl::flicks_per_second, now);
+        tl::playing(*t, mlibs::time::Flicks{4} * mlibs::time::flicks_per_second, now);
+        check(now.size() == 2 && now[0].clip == 1 && now[0].source == mlibs::time::flicks_per_second * 21 / 2, "half speed from 10s");
+        tl::playing(*t, mlibs::time::Flicks{6} * mlibs::time::flicks_per_second, now);
         check(now.empty(), "after everything: nothing");
         // Written, read back, written again: the same text.
         const std::string written = all(*t);
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
     s.test("edits: insert, move, trim, split, ripple — each applied gives back its inverse, which restores the timeline exactly; a change that cannot be made is not made at all", [] {
         auto t = tl::read_timeline(promo, "promo.timeline.omui.toml");
         if (!t) return;
-        const tl::Rate r = t->rate;
+        const mlibs::time::Rate r = t->rate;
         const std::string original = all(*t);
         auto round_trip = [&](std::expected<tl::Change, std::string> change, std::string_view what) {
             check(change.has_value(), change ? "" : change.error());
@@ -153,15 +153,15 @@ int main(int argc, char** argv) {
             if (redo) check(tl::apply(*t, *redo) && all(*t) == after, std::format("{}: redone exactly", what));
             if (auto back = tl::apply(*t, *undo)) check(all(*t) == before, "and undone again");  // leave it as it was
         };
-        round_trip(tl::insert(*t, 0, tl::Clip{.name = "logo", .at = 6 * tl::flicks_per_second, .length = tl::frame_time(r, 30)}), "insert");
-        round_trip(tl::move(*t, 0, 0, 0, 5 * tl::flicks_per_second), "move later on its track");
-        round_trip(tl::trim(*t, 0, 1, 4 * tl::flicks_per_second, tl::frame_time(r, 60)), "trim the fight's start");
-        round_trip(tl::split(*t, 0, 0, tl::flicks_per_second), "split the title");
+        round_trip(tl::insert(*t, 0, tl::Clip{.name = "logo", .at = 6 * mlibs::time::flicks_per_second, .length = r.frame_time(30)}), "insert");
+        round_trip(tl::move(*t, 0, 0, 0, 5 * mlibs::time::flicks_per_second), "move later on its track");
+        round_trip(tl::trim(*t, 0, 1, 4 * mlibs::time::flicks_per_second, r.frame_time(60)), "trim the fight's start");
+        round_trip(tl::split(*t, 0, 0, mlibs::time::flicks_per_second), "split the title");
         round_trip(tl::ripple_remove(*t, 0, 0), "ripple remove the title");
         check_eq(all(*t), original);
         // Split: the second half goes on where the first stopped (its source, its keys).
         {
-            auto change = tl::split(*t, 0, 1, 4 * tl::flicks_per_second);
+            auto change = tl::split(*t, 0, 1, 4 * mlibs::time::flicks_per_second);
             auto undo = change ? tl::apply(*t, *change) : std::unexpected(change.error());
             check(undo.has_value(), undo ? "" : undo.error());
             const tl::Clip& a = t->tracks[0].clips[1];
@@ -170,15 +170,15 @@ int main(int argc, char** argv) {
             if (undo) (void)tl::apply(*t, *undo);
         }
         {
-            auto change = tl::split(*t, 0, 0, tl::frame_time(r, 20));
+            auto change = tl::split(*t, 0, 0, r.frame_time(20));
             auto undo = change ? tl::apply(*t, *change) : std::unexpected(change.error());
             const tl::Clip& b = t->tracks[0].clips[1];
-            check_eq(b.value("y", b.at + tl::frame_time(r, 10)), t->tracks[0].clips[0].value("y", tl::frame_time(r, 30)));  // the keys go on
+            check_eq(b.value("y", b.at + r.frame_time(10)), t->tracks[0].clips[0].value("y", r.frame_time(30)));  // the keys go on
             if (undo) (void)tl::apply(*t, *undo);
         }
         // Not made at all: moved onto the fight, or onto a track of another kind; the timeline as it was.
         const std::string before = all(*t);
-        auto onto = tl::move(*t, 0, 0, 0, 3 * tl::flicks_per_second + 1);
+        auto onto = tl::move(*t, 0, 0, 0, 3 * mlibs::time::flicks_per_second + 1);
         check(onto && !tl::apply(*t, *onto) && all(*t) == before, "a move onto another clip refused, nothing changed");
         check(!tl::move(*t, 0, 0, 1, 0), "a picture onto the music track refused");
         check(!tl::split(*t, 0, 0, 0), "a split at a clip's start refused");
@@ -192,7 +192,7 @@ int main(int argc, char** argv) {
         Hash f;
         auto mix = [&](std::uint64_t v) { f.word(v); };
         for (std::int64_t f = 0; f < 3600; ++f) {
-            const tl::Flicks at = tl::frame_time(t->rate, f);
+            const mlibs::time::Flicks at = t->rate.frame_time(f);
             tl::playing(*t, at, now);
             for (const tl::Playing& p : now) {
                 mix(p.track), mix(p.clip), mix(static_cast<std::uint64_t>(p.source)), mix(std::bit_cast<std::uint32_t>(p.level));

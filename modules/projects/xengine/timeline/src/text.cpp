@@ -55,7 +55,7 @@ std::optional<Flicks> parse_time(std::string_view text, Rate rate) {
     } else if (ends("ms")) {
         if (auto d = decimal(text.substr(0, text.size() - 2))) t = exactly(*d, flicks_per_second / 1000);
     } else if (ends("f")) {
-        if (auto d = decimal(text.substr(0, text.size() - 1)); d && d->scale == 1 && exact(rate)) t = d->whole * frame_length(rate);
+        if (auto d = decimal(text.substr(0, text.size() - 1)); d && d->scale == 1 && rate.exact()) t = d->whole * rate.frame_length();
     } else if (ends("s")) {
         if (auto d = decimal(text.substr(0, text.size() - 1))) t = exactly(*d, flicks_per_second);
     }
@@ -66,7 +66,7 @@ std::optional<Flicks> parse_time(std::string_view text, Rate rate) {
 std::string time_text(Flicks t, Rate rate) {
     const std::string sign = t < 0 ? "-" : "";
     const Flicks a = t < 0 ? -t : t;
-    if (exact(rate) && a % frame_length(rate) == 0) return std::format("{}{}f", sign, a / frame_length(rate));
+    if (rate.exact() && a % rate.frame_length() == 0) return std::format("{}{}f", sign, a / rate.frame_length());
     // Seconds, when a few decimal places say it exactly.
     const Flicks whole = a / flicks_per_second, rest = a % flicks_per_second;
     std::int64_t scale = 1, fraction = 0;

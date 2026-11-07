@@ -153,7 +153,7 @@ struct Site {
         (void)runtime->after(seconds(1.0 / 30), [this] {
             if (!timeline_playing.peek()) return;
             const xengine::timeline::Timeline* t = timeline_now(timeline.peek());
-            const std::int64_t end = t ? xengine::timeline::frame_at(t->rate, t->duration()) : 270;
+            const std::int64_t end = t ? t->rate.frame_at(t->duration()) : 270;
             const std::int32_t next = timeline_frame.peek() + 1;
             if (next > end) {
                 timeline_frame.set(0);
@@ -169,7 +169,7 @@ struct Site {
         const xengine::timeline::Timeline* t = timeline_now(timeline.get());
         if (!t) return 0;
         std::vector<xengine::timeline::Playing> now;
-        xengine::timeline::playing(*t, xengine::timeline::frame_time(t->rate, frame), now);
+        xengine::timeline::playing(*t, t->rate.frame_time(frame), now);
         for (const auto& p : now)
             if (t->tracks[p.track].clips[p.clip].name == name) return p.level;
         return 0;

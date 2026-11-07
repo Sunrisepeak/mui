@@ -42,9 +42,9 @@ private:
     void read();
     ActResult edit(std::expected<xengine::timeline::Change, std::string> change);
     void changed();
-    [[nodiscard]] float x_of(xengine::timeline::Flicks t) const noexcept;
-    [[nodiscard]] xengine::timeline::Flicks time_at(float x) const noexcept;
-    [[nodiscard]] xengine::timeline::Flicks snapped(xengine::timeline::Flicks t) const noexcept;
+    [[nodiscard]] float x_of(mlibs::time::Flicks t) const noexcept;
+    [[nodiscard]] mlibs::time::Flicks time_at(float x) const noexcept;
+    [[nodiscard]] mlibs::time::Flicks snapped(mlibs::time::Flicks t) const noexcept;
     [[nodiscard]] std::optional<std::size_t> track_at(float y) const noexcept;
     void set_frame(std::int64_t frame);
 
@@ -54,7 +54,7 @@ private:
         Grip              grip = Grip::none;
         std::size_t       track = 0, clip = 0;
         float             from_x = 0, from_y = 0;
-        xengine::timeline::Flicks  shift = 0;       // how far the pointer has moved, in time, snapped to frames
+        mlibs::time::Flicks  shift = 0;       // how far the pointer has moved, in time, snapped to frames
         std::size_t       to_track = 0;
     };
 

@@ -42,6 +42,8 @@ Rules:
                 compile with -ffp-contract=off
   hash          no private FNV-1a (its offset bases and primes) outside mlibs.utils' hash: one
                 implementation, mlibs.hash, so a pinned hash means the same thing everywhere
+  time          no private flick (1/705,600,000 s) outside mlibs.utils' time: one set of time
+                types and exact conversions, mlibs.time (convergence plan §5.2)
   math          no private splitmix64 (its finaliser's constants) or fdlibm (its constants)
                 outside modules/base/math: one implementation, mlibs.math (D-87)
   members       every directory listed as a workspace member has an mcpp.toml, and every
@@ -147,7 +149,7 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
 # The forwarders M1 removed (D-106): the old module names and the omui::
@@ -168,6 +170,10 @@ FNV_CONSTANTS = re.compile(r"0x100000001b3|0xcbf29ce484222325|\b1469598103934665
 # What may keep its own: gongfu's core takes the standard library alone (D-82),
 # so its world checksum is written there.
 FNV_OWN = ("modules/base/utils/src/hash/", "modules/base/utils/tests/hash/", "modules/projects/gongfu/src/", "modules/projects/gongfu/src/")
+
+# A flick's count a second: only mlibs.time has it.
+FLICKS_CONSTANT = re.compile(r"\b705'?600'?000\b")
+FLICKS_OWN = ("modules/base/utils/src/time/", "modules/base/utils/tests/time/")
 
 # splitmix64's finaliser and fdlibm's exp/log constants: only mlibs.math has them.
 MATH_CONSTANTS = re.compile(r"0xbf58476d1ce4e5b9|0x94d049bb133111eb|6\.93147180369123816490e-01|1\.66666666666666019037e-01", re.IGNORECASE)
@@ -338,6 +344,12 @@ def check_sources(root: Path) -> list[Problem]:
             for no, line in enumerate(lines, 1):
                 if FNV_CONSTANTS.search(line):
                     problems.append(Problem("hash", f"{rel_s}:{no}", "a private FNV-1a; use mlibs.hash (mlibs::hash::Fnv1a, fnv1a, fnv1a32)"))
+
+        # One time: mlibs.time.
+        if not rel_s.startswith(FLICKS_OWN):
+            for no, line in enumerate(lines, 1):
+                if FLICKS_CONSTANT.search(line):
+                    problems.append(Problem("time", f"{rel_s}:{no}", "a private flick; use mlibs.time (Flicks, flicks_per_second, Rate)"))
 
         # One splitmix64, one fdlibm: mlibs.math.
         if not rel_s.startswith("modules/base/math/"):
@@ -816,6 +828,7 @@ def self_test() -> int:
         "paths": ("modules/ui/core/src/p.cpp", "std::string f(const std::filesystem::path& p) { return p.string(); }\n"),
         "determinism": ("modules/base/math/src/d.cpp", "double f(double x) { return std::sin(x); }\n"),
         "hash": ("modules/ui/core/src/h.cpp", "std::uint64_t h = 0xcbf29ce484222325ull;\n"),
+        "time": ("modules/ui/core/src/f.cpp", "using Flicks = std::int64_t; inline constexpr Flicks per_second = 705'600'000;\n"),
         "math": ("modules/ui/core/src/m.cpp", "z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;\n"),
         "platform": ("modules/ui/core/src/native/io.cpp", "module;\n#include <unistd.h>\nmodule x;\n"),
         "layering": None,

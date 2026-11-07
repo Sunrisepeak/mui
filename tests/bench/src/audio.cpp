@@ -51,7 +51,7 @@ void add_audio_benchmarks() {
             std::vector<std::int32_t> ids;
             for (const auto& sound : list) ids.push_back(mixer.add(sound));
             mixer.add_effect("sfx", xengine::audio::echo(.09f, .3f, .25f, mixer.rate()));
-            xengine::timeline::Clip clip{.length=xengine::timeline::from_seconds(3600)};
+            xengine::timeline::Clip clip{.length=mlibs::time::from_seconds(3600)};
             xengine::timeline::Property gain{.name="gain"};
             for(int i=0;i<64;++i) gain.keys.key(hanim::seconds(i * 3600. / 63), i%2 ? .9 : .2, hanim::ease::in_out_cubic);
             clip.properties.push_back(std::move(gain));

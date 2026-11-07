@@ -59,7 +59,7 @@ enum class FramesFrom : std::uint8_t { card, png, view };
 struct Description {
     std::string      doc;
     std::int32_t     width = 1280, height = 720;
-    hanim::FrameRate fps{30, 1};
+    mlibs::time::Rate fps{30, 1};
     double           seconds = 0;   // as written (0: `frames` was)
     std::int64_t     frames = 0;    // how many (from `seconds` when it was written)
 

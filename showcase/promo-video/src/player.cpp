@@ -115,10 +115,10 @@ Player::Player(const Film& film, const Cut& cut, PlayerOptions options) : film_(
     out_ = xrender::raster::Surface(width(), height());
     store_ = options_.store ? options_.store : std::make_shared<FrameStore>();
     // The frames the `film` clips play back, kept as they are drawn.
-    const tl::Flicks frame = tl::frame_length(cut.timeline.rate);
+    const mlibs::time::Flicks frame = cut.timeline.rate.frame_length();
     for (const tl::Clip& c : cut.timeline.tracks[static_cast<std::size_t>(cut.picture)].clips)
         if (c.source == "film")
-            for (tl::Flicks t = c.at; t < c.end(); t += frame) wanted_.insert(tl::frame_at(cut.timeline.rate, c.source_at(t)));
+            for (mlibs::time::Flicks t = c.at; t < c.end(); t += frame) wanted_.insert(cut.timeline.rate.frame_at(c.source_at(t)));
 }
 
 Player::~Player() = default;
@@ -142,7 +142,7 @@ std::expected<std::unique_ptr<Shot>, std::string> Player::make(std::size_t index
 
 std::expected<void, std::string> Player::draw_scene(const Shown& s) {
     const double rate = static_cast<double>(cut_->timeline.rate.num) / cut_->timeline.rate.den;
-    const std::int64_t local = tl::frame_at(cut_->timeline.rate, s.source);
+    const std::int64_t local = cut_->timeline.rate.frame_at(s.source);
     if (!scene_ || scene_->index != s.index || scene_->drawn > local) {
         auto shot = make(s.index);
         if (!shot) return std::unexpected(shot.error());
@@ -213,7 +213,7 @@ std::expected<const xrender::raster::Surface*, std::string> Player::frame(std::i
     if (!s) {
         out_.clear(xrender::raster::Rgba8{0, 0, 0, 255});
     } else if (s->film) {
-        auto pic = played_back(tl::frame_at(cut_->timeline.rate, s->source));
+        auto pic = played_back(cut_->timeline.rate.frame_at(s->source));
         if (!pic) return std::unexpected(pic.error());
         shown_image_ = ort.images().add(*pic);
         picture = shown_image_;

@@ -104,7 +104,7 @@ for (const c of [
       switchedBody = await captureHeading('chinese-body');
     }
   } catch (e) { check(false, `${c.name}: scenario completes`, String(e.stack || e)); }
-  finally { b.close(); }
+  finally { await b.close(); }
 }
 server.close();
 report.ok = report.checks.every(c => c.ok);

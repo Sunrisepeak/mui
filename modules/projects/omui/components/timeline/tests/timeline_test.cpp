@@ -156,11 +156,11 @@ int main(int argc, char** argv) {
         check_eq(e.editor().props.frame, 30);
         // The fight (3 s to 6 s) dragged right by half a second: it starts at 3.5 s, frame 105.
         e.h.step({press(at(4, 0), PointerKind::down), press(at(4.5, 0), PointerKind::move), press(at(4.5, 0), PointerKind::up)});
-        check_eq(e.editor().model().tracks[0].clips[1].at, tl::frame_time({30, 1}, 105));
+        check_eq(e.editor().model().tracks[0].clips[1].at, mlibs::time::Rate{30, 1}.frame_time(105));
         // Its right edge dragged back a second: 60 frames long.
         const double end = 3.5 + 3;
         e.h.step({press(at(end - 0.01, 0), PointerKind::down), press(at(end - 1, 0), PointerKind::move), press(at(end - 1, 0), PointerKind::up)});
-        check_eq(e.editor().model().tracks[0].clips[1].length, tl::frame_time({30, 1}, 60));
+        check_eq(e.editor().model().tracks[0].clips[1].length, mlibs::time::Rate{30, 1}.frame_time(60));
         // The playhead into it and S: split; Delete: the selected half gone.
         e.h.step({press(at(4, 0), PointerKind::down), press(at(4, 0), PointerKind::up)});
         check(e.act("seek", Value{}.set("frame", 120)));

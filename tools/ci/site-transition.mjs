@@ -231,10 +231,10 @@ try {
       await phase(scenario, { name: 'restore-width', requireMoving: false,
         trigger: () => dispatch('Emulation.setDeviceMetricsOverride', { width, height: 844, deviceScaleFactor: 1, mobile: false }) });
     } catch (error) { check(false, `${scenario.name}: transition scenario completes`, String(error.stack || error), error.name === 'CoverageGap' ? 'coverage' : 'interaction'); }
-    finally { b.close(); b = null; }
+    finally { await b.close(); b = null; }
   }
   check(report.exceptions.length === 0, 'no unexpected browser runtime exceptions', report.exceptions);
-} finally { if (b) b.close(); server.close(); }
+} finally { if (b) await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);
 await writeFile(output + '/report.motion.omui.json', JSON.stringify(report, null, 2) + '\n');
 console.log(JSON.stringify(report, null, 2)); process.exitCode = report.ok ? 0 : 1;

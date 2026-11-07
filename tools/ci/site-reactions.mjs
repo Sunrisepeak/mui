@@ -115,6 +115,6 @@ try {
   check(phone[0] >= 0 && phone[2] > 0 && phone[0] + phone[2] <= 390.5, 'the real resized phone canvas fits its viewport');
   report.phone = await shot('phone-zh');
 } catch (error) { check(false, 'browser reaction scenario completed', String(error.stack || error)); }
-finally { b.close(); server.close(); }
+finally { await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);
 console.log(JSON.stringify(report, null, 2));process.exit(report.ok ? 0 : 1);

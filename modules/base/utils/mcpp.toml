@@ -1,7 +1,8 @@
 # mlibs.utils — small domain-agnostic tools that are not libraries of their own
 # yet, one directory each (convergence plan §9.3): hash (FNV-1a), log
-# (categories, sinks, invariants), trace (spans, counters, Chrome trace) and
-# testing (the checks every test program shares). A tool keeps its module name
+# (categories, sinks, invariants), trace (spans, counters, Chrome trace),
+# error and time (the global contracts' shapes, §5.2) and testing (the checks
+# every test program shares). A tool keeps its module name
 # (`import mlibs.hash;`): one that grows into its own library moves out with no
 # import changed, only the dependency key.
 #
@@ -29,6 +30,8 @@ kind = "lib"
 
 [build]
 sources = ["src/*/*.cppm", "src/*/*.cpp"]
+# time's conversions are the same bits everywhere (lint `determinism`).
+cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 # What the target can do, as constants (mlibs.testing:target): the Web row runs
 # no threads.

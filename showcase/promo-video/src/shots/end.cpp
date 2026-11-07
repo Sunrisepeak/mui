@@ -33,6 +33,13 @@ public:
     explicit End(const ShotContext& c) : c_(c), s_(std::make_shared<State>()) {
         const auto typed = c.steps("typed");
         typed_from_ = typed.empty() ? 1.6 : typed.front().first;
+        const auto closing = c.steps("close");
+        const double close_from = closing.empty() ? 3.2 : closing.front().first;
+        // The caret before the command is typed; its answer rising under it; the
+        // command and the editor giving way as the card comes.
+        timing_.span("caret.in", typed_from_ - 0.3, typed_from_, hanim::ease::smoothstep)
+            .span("data.in", typed_from_ + 0.5, typed_from_ + 0.9, hanim::ease::smoothstep)
+            .span("first.away", close_from - 0.2, close_from + 0.15, hanim::ease::smoothstep);
     }
 
     View view() override {
@@ -113,23 +120,22 @@ public:
         const PanelPicture& panel = panel_picture();
         const Size screen = c_.size;
         s.t = t;
+        timing_.sample(t);
         const double dive = c_.value("dive", t, 9.6);
         s.zoom = hanim::dm::exp(dive * hanim::dm::ln2);
         const Point pixel{panel.pixel.x + 0.5f, panel.pixel.y + 0.5f}, middle{panel.size.width / 2, panel.size.height / 2};
         const double u = hanim::window(dive, 0.2, 5.5, hanim::ease::smoothstep);
         s.look = {static_cast<float>(hanim::dm::mix(middle.x, pixel.x, u)), static_cast<float>(hanim::dm::mix(middle.y, pixel.y, u))};
         s.at = {screen.width / 2, screen.height / 2};
-        s.caret = hanim::window(t, typed_from_ - 0.3, typed_from_, hanim::ease::smoothstep);
+        s.caret = timing_["caret.in"];
         // The cursor after what is typed.
         const double chars = std::clamp((t - typed_from_) / std::max(1e-6, stagger_), 0.0, static_cast<double>(text_length(command)));
         s.cursor = {s.line.x + static_cast<float>(std::ceil(chars)) * s.advance + 4, s.line.y + s.line_height * 0.12f, s.advance * 0.62f, s.line_height * 0.8f};
-        const auto closing = c_.steps("close");
-        const double close_from = closing.empty() ? 3.2 : closing.front().first;
-        rt.set(data_, "opacity", Value(hanim::window(t, typed_from_ + 0.5, typed_from_ + 0.9, hanim::ease::smoothstep)));
-        rt.set(data_, "translate_y", Value((1 - hanim::window(t, typed_from_ + 0.5, typed_from_ + 0.9, hanim::ease::smoothstep)) * 18));
+        rt.set(data_, "opacity", Value(timing_["data.in"]));
+        rt.set(data_, "translate_y", Value((1 - timing_["data.in"]) * 18));
         frame.set(static_cast<std::int32_t>(c_.cut->timeline.rate.frame_at(c_.clip->at) + std::llround((t - mlibs::time::to_seconds(c_.clip->in)) * c_.rate())));
         // The command and the editor give way as the card comes.
-        const double away = hanim::window(t, close_from - 0.2, close_from + 0.15, hanim::ease::smoothstep);
+        const double away = timing_["first.away"];
         rt.set(first_, "opacity", Value(1 - away));
         s.caret_away = static_cast<float>(away);
         rt.invalidate_paint(back_);
@@ -144,6 +150,8 @@ public:
         return out;
     }
 
+    const Choreography* choreography() const override { return &timing_; }
+
 private:
     static std::size_t text_length(std::string_view s) {
         std::size_t n = 0;
@@ -155,6 +163,7 @@ private:
     ShotContext                  c_;
     std::shared_ptr<State>       s_;
     double                       typed_from_ = 1.6, stagger_ = 0.025;
+    Choreography                 timing_;
     Signal<std::int32_t>         frame = signal(std::int32_t{0});
     NodeId                       back_{}, data_{}, first_{};
 };

@@ -125,12 +125,20 @@ public:
         rt.set(rt.find("main/type/hud/count"), "text", Value(std::format("{} of {} on screen", grouped(windows), grouped(wall_size))));
         rt.set(rt.find("main/type/hud/tiers"), "text", Value(std::format("boxes {} · textures {} · live {}", boxes, textured, live)));
         rt.set(rt.find("main/type/hud/zoom"), "text", Value(std::format("zoom {:.1f}%", c.zoom * 100)));
-        rt.set(hud_, "opacity", Value(hanim::window(t, 0.4, 0.9, hanim::ease::smoothstep)));
+        timing_.sample(t);
+        rt.set(hud_, "opacity", Value(timing_["hud.in"]));
     }
+
+    const Choreography* choreography() const override { return &timing_; }
 
     std::vector<Cue> cues(double) override { return {}; }
 
 private:
+    Choreography timing_ = [] {
+        Choreography c;
+        c.span("hud.in", 0.4, 0.9, hanim::ease::smoothstep);  // the wall's numbers, once it is moving
+        return c;
+    }();
     // The camera at a time: `pan` 0 the first page, 1 the wall's middle, 2 the second page; `out` 0 a page at
     // live size, 1 the whole wall (between, the zoom's logarithm), and the look point eased to match.
     world::Camera camera(double t) const {

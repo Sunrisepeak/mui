@@ -6,6 +6,7 @@
 //     omui-promo still  CUT (--frame N | --at SECONDS) --out x.png [--size WxH] [--scale S]
 //     omui-promo check  CUT [--every N] [--seek N] [--size WxH] [--scale S] [--full]
 //     omui-promo sound  CUT --out x.wav
+//     omui-promo choreography CUT                 every shot's timing: its spans, in its own and the cut's seconds
 //
 // CUT is `promo` (the film, 60 s) or `short` (15 s). FILE's name says the
 // format: x.webm (VP9 and Opus), x.y4m (a WAV beside it), shots/{:05}.png,
@@ -14,6 +15,7 @@
 // stretch of one, from its start: any frame renders on its own), handed to
 // the encoder in order. --dir reads edited copies of the film's files.
 import std;
+import hanim.core;
 import mlibs.hash;
 import mcpplibs.cmdline;
 import mcpplibs.os;
@@ -431,6 +433,39 @@ int sound(const cmd::ParsedArgs& p) {
     return print(report, 0);
 }
 
+// Every shot's timing (its Choreography): each drawn at its last frame, so
+// the spans its moments add are there too.
+int choreography(const cmd::ParsedArgs& p) {
+    Value report;
+    report.set("command", "choreography");
+    auto l = load(p, report);
+    if (!l) return l.error();
+    promo::Player player(l->film, l->cut, l->options);
+    const auto& cut = l->cut;
+    const tl::Track& pictures = cut.timeline.tracks[static_cast<std::size_t>(cut.picture)];
+    Value::List shots;
+    for (const tl::Clip& clip : pictures.clips) {
+        if (!clip.source.starts_with("shot:") || clip.length <= 0) continue;
+        if (auto drawn = player.frame(cut.timeline.rate.frame_at(clip.end()) - 1); !drawn) return failed(report, drawn.error());
+        const promo::Shot* shot = player.scene_shot();
+        const promo::Choreography* timing = shot ? shot->choreography() : nullptr;
+        Value::List spans;
+        const double offset = mlibs::time::to_seconds(clip.at) - mlibs::time::to_seconds(clip.in);
+        if (timing)
+            for (const promo::TimedSpan& span : timing->spans()) {
+                Value one;
+                one.set("target", span.target).set("from", span.from).set("to", span.to).set("ease", hanim::to_string(span.ease));
+                one.set("cut_from", offset + span.from).set("cut_to", offset + span.to);
+                spans.push_back(std::move(one));
+            }
+        Value entry;
+        entry.set("shot", clip.name).set("spans", Value(std::move(spans)));
+        shots.push_back(std::move(entry));
+    }
+    report.set("ok", true).set("shots", Value(std::move(shots)));
+    return print(report, 0);
+}
+
 cmd::App with_cut(std::string_view name, std::string_view what) {
     cmd::App a{name};
     (void)a.description(what);
@@ -452,7 +487,7 @@ int main(int argc, char** argv) {
             if (auto found = mcpplibs::os::env::find_executable(argv[0])) self = *found;
     }
     cmd::App app{"omui-promo"};
-    (void)app.description("openmui's film: render it, draw a frame, hear it, check it");
+    (void)app.description("openmui's film: render it, draw a frame, hear it, check it, read its timing");
     cmd::App r = with_cut("render", "Render a cut: WebM (VP9 and Opus), Y4M and WAV, or PNG files and a WAV");
     r.option("out").takes_value().value_name("FILE").help("x.webm, x.y4m, shots/{:05}.png, or x.txt (each frame's pixel hash)");
     r.option("from").takes_value().value_name("N").help("the first frame");
@@ -479,6 +514,7 @@ int main(int argc, char** argv) {
     cmd::App so = with_cut("sound", "The sound track as a WAV");
     so.option("out").takes_value().value_name("FILE.wav").help("where");
     (void)app.subcommand(std::move(so));
+    (void)app.subcommand(with_cut("choreography", "Every shot's timing, declared: its spans, in its own and the cut's seconds"));
     cmd::Argv args(argv, argv + argc);
     auto parsed = app.parse_from(args);
     if (!parsed) {
@@ -487,7 +523,7 @@ int main(int argc, char** argv) {
         return 2;
     }
     if (!parsed->has_subcommand()) {
-        std::cout << "omui-promo render | still | check | sound CUT …   (omui-promo <command> --help)\n";
+        std::cout << "omui-promo render | still | check | sound | choreography CUT …   (omui-promo <command> --help)\n";
         return 0;
     }
     const cmd::ParsedArgs& sub = parsed->subcommand()->get();
@@ -496,5 +532,6 @@ int main(int argc, char** argv) {
     if (name == "still") return still(sub);
     if (name == "check") return check(sub);
     if (name == "sound") return sound(sub);
+    if (name == "choreography") return choreography(sub);
     return 2;
 }

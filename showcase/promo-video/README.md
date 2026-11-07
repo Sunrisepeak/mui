@@ -16,6 +16,7 @@ $P render promo --out promo.frames.txt                 # every frame's pixel has
 $P still promo --at 6.5 --out wordmark.png             # one frame
 $P sound promo --out promo.wav                         # the sound track
 $P check promo                                         # the acceptance, as JSON
+$P choreography promo                                  # every shot's timing: its spans, in its own and the film's seconds
 $P render promo --dir showcase/promo-video --out x.webm  # an edited copy of the data
 $P render promo --out promo.webm --cache .omui-cache --realtime --speed 8   # again after an edit: only what it changed
 ```
@@ -80,8 +81,8 @@ Not yet: rendering on the GPU and with hardware encoding (the video pipeline dra
 
 ## Tests
 
-`tests/promo_test.cpp`: both cuts read, and mistakes in them are found (an unknown shot, an unknown line, a rewind into the future); the data checks above for both cuts, the sound pinned; a frame of each chapter pinned, one at 1080p, one at 4K; frames drawn directly the frames played to; the rewind plays back the film's own frames and the replay is the first play's very frames; the typography of sampled frames at 16:9 and 9:16; the README's loop; what a frame depends on — the same inputs the same digests, another program every frame another, one line edited exactly the frames it is up on.
+`tests/promo_test.cpp`: both cuts read, and mistakes in them are found (an unknown shot, an unknown line, a rewind into the future); the data checks above for both cuts, the sound pinned; a frame of each chapter pinned, one at 1080p, one at 4K; frames drawn directly the frames played to; the rewind plays back the film's own frames and the replay is the first play's very frames; the typography of sampled frames at 16:9 and 9:16; the README's loop; every shot's timing declared (the events' spans included, none written into the scene code by hand); what a frame depends on — the same inputs the same digests, another program every frame another, one line edited exactly the frames it is up on.
 
 ## Make your own
 
-Copy this package: replace the cuts' clips and keys, the lines, the score; write a shot for each scene of your own (`Shot`: a view, what its time says, its moments, its cues). `omui-promo check` holds yours to the same acceptance.
+Copy this package: replace the cuts' clips and keys, the lines, the score; write a shot for each scene of your own (`Shot`: a view, what its time says, its moments, its cues). Its timing is a `Choreography` — hanim tweens on one `hanim::Timeline`, a named span each (`span("label.in", 0.45, 0.6, ease::smoothstep)`), declared when the shot is made or, for what an event starts, at its moment — read back each frame (`timing["label.in"]`) and listed by `choreography`; the keyed properties of the cut's clips (cameras, reveals) are hanim tracks too. `omui-promo check` holds yours to the same acceptance.

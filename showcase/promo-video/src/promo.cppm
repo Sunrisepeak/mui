@@ -16,6 +16,7 @@ export module omui.showcase.promo_video;
 
 export import :film;
 export import :look;
+export import :choreography;
 export import :shot;
 export import :overlay;
 export import :player;

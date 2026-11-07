@@ -176,6 +176,8 @@ struct State {
     double switched = -1;      // when it last changed (shot seconds)
     double typed_from = 0.3, per_char = 0.003;
     std::map<std::string, double> revealed;  // when each node's line is typed
+    Choreography timing;                      // the shot's spans, sampled at t
+    int switch_index = -1;                    // the version switch last passed
     Rect   device, panel;      // screen
     float  shown_scale = 1.8f;
     std::array<xrender::ImageRef, 4> images{};
@@ -218,7 +220,21 @@ public:
         }
         for (const auto& [t, v] : c.steps("language"))
             if (t > 0) switches_.push_back({static_cast<std::int64_t>(std::llround(t * c.rate())), static_cast<int>(std::lround(v))});
+        // The timing: each node and its frame as its line is typed; the badges
+        // once all of it is; at each version switch, the one before fading and
+        // (at the last) the four spreading out side by side.
+        constexpr auto smooth = hanim::ease::smoothstep;
+        for (const auto& [id, when] : s.revealed)
+            s.timing.span(std::format("node.{}.in", id), when, when + 0.25, smooth).span(std::format("node.{}.settled", id), when + 0.6, when + 1.1, smooth);
+        const double typing = static_cast<double>(typed_chars(code_[0])) * s.per_char;
+        s.timing.span("badges.in", s.typed_from + typing, s.typed_from + 0.3 + typing, smooth);
+        for (std::size_t k = 0; k < switches_.size(); ++k) {
+            const double since = static_cast<double>(switches_[k].first) / c.rate();
+            s.timing.span(std::format("switch.{}.fade", k), since + 0.45, since + 0.6).span(std::format("switch.{}.spread", k), since, since + 0.5, smooth);
+        }
     }
+
+    const Choreography* choreography() const override { return &s_->timing; }
 
     View view() override {
         State& s = *s_;
@@ -295,17 +311,20 @@ public:
     void at(Runtime& rt, double t) override {
         State& s = *s_;
         s.t = t;
+        s.timing.sample(t);
         int lang = 0;
         double since = -1;
-        for (const auto& [f, l] : switches_)
-            if (static_cast<double>(f) / c_.rate() <= t + 1e-9) lang = l, since = static_cast<double>(f) / c_.rate();
+        s.switch_index = -1;
+        for (std::size_t k = 0; k < switches_.size(); ++k)
+            if (static_cast<double>(switches_[k].first) / c_.rate() <= t + 1e-9)
+                lang = switches_[k].second, since = static_cast<double>(switches_[k].first) / c_.rate(), s.switch_index = static_cast<int>(k);
         s.language = lang;
         s.switched = since;
         const int code = std::min(lang, 3);
         for (std::size_t i = 0; i < languages.size(); ++i) {
             double o = 0;
             if (static_cast<int>(i) == code) o = 1;
-            else if (lang <= 3 && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - hanim::window(t, since + 0.45, since + 0.6);
+            else if (lang <= 3 && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - s.timing[std::format("switch.{}.fade", s.switch_index)];
             rt.set(blocks_[i], "opacity", Value(o));
         }
         rt.set(rt.find("main/type/panel/title/file"), "text", Value(std::string(file_names[static_cast<std::size_t>(code)])));
@@ -314,7 +333,7 @@ public:
         const Tally* shown = s.tallies[static_cast<std::size_t>(code)];
         const Tally* first = s.tallies[0];
         const bool done_typing = t >= s.typed_from + 0.2 + static_cast<double>(typed_chars(code_[0])) * s.per_char;
-        const double badge = hanim::window(t, s.typed_from + static_cast<double>(typed_chars(code_[0])) * s.per_char, s.typed_from + 0.3 + static_cast<double>(typed_chars(code_[0])) * s.per_char, hanim::ease::smoothstep);
+        const double badge = s.timing["badges.in"];
         rt.set(rt.find("main/type/badges"), "opacity", Value(badge));
         if (shown) {
             rt.set(rt.find("main/type/badges/tree"), "text", Value(std::format("semantic tree  {:016x}", shown->tree)));
@@ -391,7 +410,7 @@ void Code::paint(PaintContext& p, State& s) {
         if (v && v->pixels) {
             if (lang == 0) {
                 for (const auto& [id, when] : s.revealed) {
-                    const double on = hanim::window(s.t, when, when + 0.25, hanim::ease::smoothstep);
+                    const double on = s.timing[std::format("node.{}.in", id)];
                     const auto it = v->bounds.find(id);
                     if (on <= 0 || it == v->bounds.end()) continue;
                     const Rect b = it->second;
@@ -400,7 +419,7 @@ void Code::paint(PaintContext& p, State& s) {
                     const Rect dst{d.x + b.x * s.shown_scale, d.y + b.y * s.shown_scale, b.width * s.shown_scale, b.height * s.shown_scale};
                     list.draw_image(s.images[i], src, dst, xrender::Sampling::linear, static_cast<float>(on));
                     // Its frame and id, while it is new.
-                    const double fresh = on * (1 - hanim::window(s.t, when + 0.6, when + 1.1, hanim::ease::smoothstep));
+                    const double fresh = on * (1 - s.timing[std::format("node.{}.settled", id)]);
                     if (fresh > 0) {
                         paint_ticks(list, {dst.x - 4, dst.y - 4, dst.width + 8, dst.height + 8}, hex(ink::cyan, static_cast<float>(fresh)), 8, 1.5f, 0.5f);
                         const auto& tag = s.labels.get(p.services.fonts(), std::format("#{}", id.substr(id.rfind('/') == std::string::npos ? 0 : id.rfind('/') + 1)),
@@ -417,7 +436,7 @@ void Code::paint(PaintContext& p, State& s) {
         xrender::text::paint(cap, list, {d.x, d.y - 38});
     } else {
         // All four, side by side: the same pixels.
-        const double u = hanim::window(s.t, s.switched, s.switched + 0.5, hanim::ease::smoothstep);
+        const double u = s.timing[std::format("switch.{}.spread", s.switch_index)];
         // Two rows with room for the names between them, as tall as the one counter was.
         const float h = (d.height - 38) / 2, w = h * tally_size.width / tally_size.height;
         for (std::size_t i = 0; i < 4; ++i) {

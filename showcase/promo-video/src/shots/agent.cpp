@@ -91,6 +91,8 @@ struct State {
     std::vector<std::pair<double, Point>> path;  // where the agent's cursor is at each step
     double asked = -1, answered = -1;
     Labels labels;
+    Choreography timing;          // the shot's spans, sampled at t; the events' added at their moments
+    std::size_t  log_timed = 0;   // the log lines given their typing span so far
 };
 
 class Agent final : public Shot {
@@ -102,6 +104,18 @@ public:
         }
         const Size screen = c.size;
         State& s = *s_;
+        // The camera leans in, slowly, as the stakes rise; the agent's cursor
+        // appears before its first step and glides to each next one, there a
+        // quarter second before it acts.
+        s.timing.span("camera.lean", 0.0, 9.5, hanim::ease::smoothstep);
+        if (!steps_.empty()) {
+            const double first = static_cast<double>(steps_.front().first) / c.rate();
+            s.timing.span("cursor.appear", first - 0.6, first - 0.2, hanim::ease::smoothstep);
+        }
+        for (std::size_t k = 1; k < steps_.size(); ++k) {
+            const double from = static_cast<double>(steps_[k - 1].first) / c.rate(), to = static_cast<double>(steps_[k].first) / c.rate() - 0.25;
+            s.timing.span(std::format("cursor.{}", k), from + 0.1, std::max(from + 0.2, to), hanim::ease::in_out_cubic);
+        }
         if (c.portrait()) {
             s.app_scale = 1.4f;
             s.app_at = {screen.width / 2 - 470 * s.app_scale / 2, 150};
@@ -116,6 +130,8 @@ public:
             s.log_area = {830, 500, screen.width - 96 - 830, 340};
         }
     }
+
+    const Choreography* choreography() const override { return &s_->timing; }
 
     View view() override {
         auto st = s_;
@@ -228,6 +244,7 @@ public:
                     s.log.push_back({at, "→ act main/delete-all activate", ink::cyan});
                     records(rt.act(rt.find("main/app/notes/delete-all"), "activate", agent), ink::amber);
                     s.asked = at;
+                    s.timing.span("card.in", at, at + 0.25, hanim::ease::smoothstep).span("card.rise", at, at + 0.3, hanim::ease::smoothstep);
                     s.focus = "main/app/notes/delete-all";
                     break;
                 }
@@ -238,6 +255,7 @@ public:
                     s.log.push_back({at, "⇢ the person answers: delete", ink::ice});
                     records(rt.act(rt.find("main/app/notes/delete-all"), "activate", person), ink::mint);
                     s.answered = at;
+                    s.timing.span("card.out", at + 0.1, at + 0.35, hanim::ease::smoothstep);
                     break;
                 }
                 case 6: {  // the journal: who did what
@@ -251,22 +269,26 @@ public:
                 default: break;
             }
         }
+        // Each new log line is typed out in a quarter second from its moment.
+        for (; s.log_timed < s.log.size(); ++s.log_timed)
+            s.timing.span(std::format("log.{}", s.log_timed), s.log[s.log_timed].at, s.log[s.log_timed].at + 0.25);
         refresh(rt);
     }
 
     void at(Runtime& rt, double t) override {
         State& s = *s_;
         s.t = t;
+        s.timing.sample(t);
         // The agent's cursor: from step to step, there a quarter second before it acts.
         s.path.clear();
         for (std::size_t k = 0; k < steps_.size() && k < targets_.size(); ++k) s.path.push_back({static_cast<double>(steps_[k].first) / c_.rate(), targets_[k]});
         const NodeId card = rt.find("main/type/card");
         const bool up = s.asked >= 0 && (s.answered < 0 || t < s.answered + 0.35);
         rt.set(card, "visible", Value(up));
-        rt.set(card, "opacity", Value(up ? hanim::window(t, s.asked, s.asked + 0.25, hanim::ease::smoothstep) * (s.answered >= 0 ? 1 - hanim::window(t, s.answered + 0.1, s.answered + 0.35, hanim::ease::smoothstep) : 1.0) : 0.0));
+        rt.set(card, "opacity", Value(up ? s.timing["card.in"] * (1 - s.timing["card.out"]) : 0.0));
         // A modal over the panel, in its middle.
         rt.set(card, "translate_x", Value(static_cast<double>(s.panel.x + (s.panel.width - s.card.width) / 2)));
-        rt.set(card, "translate_y", Value(static_cast<double>(s.panel.y + (s.panel.height - s.card.height) / 2) + (1 - hanim::window(t, s.asked, s.asked + 0.3, hanim::ease::smoothstep)) * 24));
+        rt.set(card, "translate_y", Value(static_cast<double>(s.panel.y + (s.panel.height - s.card.height) / 2) + (1 - s.timing["card.rise"]) * 24));
         // The headline: what the agent's last step means.
         {
             int last = 0;
@@ -285,7 +307,7 @@ public:
             rt.set(status, "color", Value(std::format("#{:06x}", colour)));
         }
         // The camera leans in, slowly, as the stakes rise.
-        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * hanim::window(t, 0.0, 9.5, hanim::ease::smoothstep)));
+        rt.set(rt.find("main"), "scale", Value(1 + 0.025 * s.timing["camera.lean"]));
         rt.invalidate_paint(rt.find("main/front"));
         rt.invalidate_paint(rt.find("main/backdrop"));
     }
@@ -345,7 +367,7 @@ void Agent::paint_front(PaintContext& p, State& s) {
     const float advance = type * 0.6f;      // JetBrains Mono's
     // Behind the person's answer, the panel dims.
     if (s.asked >= 0) {
-        const double up = hanim::window(s.t, s.asked, s.asked + 0.25, hanim::ease::smoothstep) * (s.answered >= 0 ? 1 - hanim::window(s.t, s.answered + 0.1, s.answered + 0.35, hanim::ease::smoothstep) : 1.0);
+        const double up = s.timing["card.in"] * (1 - s.timing["card.out"]);
         if (up > 0) list.fill_round_rect(s.panel, CornerRadii::all(12 * s.app_scale), xrender::Paint::solid(hex(0x020814, 0.55f * static_cast<float>(up))));
     }
     // The tree, as an inspector shows it: the rows about the node the agent is at.
@@ -384,9 +406,10 @@ void Agent::paint_front(PaintContext& p, State& s) {
             std::uint32_t colour;
         };
         std::vector<Shown> lines;
-        for (const LogLine& l : s.log) {
+        for (std::size_t index = 0; index < s.log.size(); ++index) {
+            const LogLine& l = s.log[index];
             if (l.at > s.t) continue;
-            const double typed = hanim::window(s.t, l.at, l.at + 0.25);
+            const double typed = s.timing[std::format("log.{}", index)];
             std::size_t cut = static_cast<std::size_t>(static_cast<double>(l.text.size()) * typed);
             while (cut < l.text.size() && (static_cast<unsigned char>(l.text[cut]) & 0xC0) == 0x80) ++cut;
             // Into lines of `columns` characters (code points), the ones after the first indented under it.
@@ -416,12 +439,11 @@ void Agent::paint_front(PaintContext& p, State& s) {
     if (!s.path.empty() && s.t >= s.path.front().first - 0.6) {
         Point at = s.path.front().second;
         for (std::size_t k = 1; k < s.path.size(); ++k) {
-            const double from = s.path[k - 1].first, to = s.path[k].first - 0.25;
-            if (s.t <= from) break;
-            const double u = hanim::ease::in_out_cubic(hanim::window(s.t, from + 0.1, std::max(from + 0.2, to)));
+            if (s.t <= s.path[k - 1].first) break;
+            const double u = s.timing[std::format("cursor.{}", k)];
             at = {static_cast<float>(hanim::dm::mix(s.path[k - 1].second.x, s.path[k].second.x, u)), static_cast<float>(hanim::dm::mix(s.path[k - 1].second.y, s.path[k].second.y, u))};
         }
-        const float appear = static_cast<float>(hanim::window(s.t, s.path.front().first - 0.6, s.path.front().first - 0.2, hanim::ease::smoothstep));
+        const float appear = static_cast<float>(s.timing["cursor.appear"]);
         const Color c = hex(ink::cyan, appear);
         xrender::Path ring;
         ring.add_ellipse({at.x - 15, at.y - 15, 30, 30});

@@ -112,6 +112,35 @@ int main(int argc, char** argv) {
         }
     });
 
+    s.test("each shot's timing is declared, hanim's tweens on one timeline: the events' spans too, none left in the scene code", [] {
+        const promo::Cut c = cut("promo");
+        promo::Player p(film(), c, {.scale = 0.25f, .fonts = &fonts(), .parallel_raster = false});
+        const tl::Track& pictures = c.timeline.tracks[static_cast<std::size_t>(c.picture)];
+        std::map<std::string, std::vector<std::string>> declared;
+        for (const tl::Clip& clip : pictures.clips) {
+            if (!clip.source.starts_with("shot:") || clip.length <= 0) continue;
+            check(p.frame(c.timeline.rate.frame_at(clip.end()) - 1).has_value(), clip.name);
+            const promo::Shot* shot = p.scene_shot();
+            if (const promo::Choreography* timing = shot ? shot->choreography() : nullptr)
+                for (const promo::TimedSpan& span : timing->spans()) {
+                    check(span.to > span.from, std::format("{}: {} runs forwards", clip.name, span.target));
+                    declared[clip.name].push_back(span.target);
+                }
+        }
+        for (const auto* shot : {"origin", "code", "infinite", "agent", "time", "end"})
+            check(!declared[shot].empty(), std::format("{} declares its timing", shot));
+        // The agent's card comes when it asks and goes when the person answers: spans found at their moments.
+        const auto& agent = declared["agent"];
+        check(std::ranges::contains(agent, std::string("card.in")) && std::ranges::contains(agent, std::string("card.out")), "the card's spans, at its events");
+        // No window over a shot's own time is left in the scene code: the timing is the choreography's.
+        const auto shots = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "src" / "shots";
+        for (const auto& entry : std::filesystem::directory_iterator(shots)) {
+            std::ifstream in(entry.path(), std::ios::binary);
+            const std::string text{std::istreambuf_iterator<char>(in), {}};
+            check(!text.contains("window(t,") && !text.contains("window(s.t,"), std::format("{} times nothing by hand", entry.path().filename().string()));
+        }
+    });
+
     s.test("frames pinned on every platform: a frame of each chapter at half size, one at 1080p, one at 4K", [] {
         const promo::Cut c = cut("promo");
         // Each chapter's signature moment: the pixel, the wordmark, the counter four times, the wall, neon, the needs-answer, the rally, the rewind, the command.

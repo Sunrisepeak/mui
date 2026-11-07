@@ -201,19 +201,22 @@ public:
 
     bool simulates() const override { return true; }
 
+    const Choreography* choreography() const override { return &timing_; }
+
     void moment(Runtime&, std::int64_t) override {
         for (int i = 0; i < steps_per_frame; ++i) game_.step();
     }
 
     void at(Runtime& rt, double t) override {
         s_->t = t;
+        timing_.sample(t);
         if (const bo::State* s = game_.state()) {
             const std::uint64_t now = bo::checksum(*s);
             rt.set(sim_, "text", Value(std::format("room 1 · step {} · checksum {:016x}", s->frame, now)));
             if (!first_.empty()) {
                 const auto f = static_cast<std::size_t>(std::clamp<std::int64_t>(std::llround(t * c_.rate()), 0, static_cast<std::int64_t>(first_.size()) - 1));
                 const bool same = first_[f] == now;
-                const double on = hanim::window(t, 0.8, 1.1, hanim::ease::smoothstep) * (1 - hanim::window(t, 3.4, 3.8, hanim::ease::smoothstep));
+                const double on = timing_["stamp.in"] * (1 - timing_["stamp.out"]);
                 rt.set(rt.find("main/type/stamp"), "opacity", Value(on));
                 rt.set(rt.find("main/type/stamp/match"), "text", Value(std::string(same ? "MATCH ✓" : "DIFFERS ✗")));
                 rt.set(rt.find("main/type/stamp/against"), "text", Value(std::format("first play {:016x} · now {:016x}", first_[f], now)));
@@ -264,6 +267,12 @@ public:
     }
 
 private:
+    Choreography timing_ = [] {
+        Choreography c;
+        // The stamp beside the checksum: the replay against the first play.
+        c.span("stamp.in", 0.8, 1.1, hanim::ease::smoothstep).span("stamp.out", 3.4, 3.8, hanim::ease::smoothstep);
+        return c;
+    }();
     // The game laid out, paused, and played into its rally, all before the shot's first frame.
     void start(Runtime& rt, Game& g) {
         rt.set_theme(spec_.theme);

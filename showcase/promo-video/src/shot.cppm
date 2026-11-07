@@ -13,6 +13,7 @@ export module omui.showcase.promo_video:shot;
 import std;
 import omui;
 import :film;
+import :choreography;
 
 export namespace omui::promo {
 
@@ -51,6 +52,9 @@ public:
     // A simulation: every frame is a moment.
     [[nodiscard]] virtual bool simulates() const { return false; }
     virtual void moment(Runtime& rt, std::int64_t frame) { (void)rt, (void)frame; }
+    // Its timing, declared (the spans over its own time), as sampled at the
+    // last frame drawn; none for a shot whose motion is all keyed properties.
+    [[nodiscard]] virtual const Choreography* choreography() const { return nullptr; }
     // Its sounds, at its own times (from its first to its `seconds`).
     [[nodiscard]] virtual std::vector<Cue> cues(double seconds) { (void)seconds; return {}; }
 };

@@ -45,6 +45,9 @@ public:
     void tween_to(Channel c, seconds now, double target, seconds duration, Ease e = ease::out_cubic);
     // This value at every time: the history is gone.
     void jump(Channel c, double value);
+    // From where the channel is at `now`, coasting at `velocity` to a stop
+    // (a fling's momentum); the history before `now` is kept.
+    void glide(Channel c, seconds now, double velocity, DecayParams p = {});
     // From `position`, moving at `velocity`, as a spring that comes to rest
     // there: what another motion handed over (a timeline that drove the
     // channel and ended), its momentum kept for whatever retarget comes next.

@@ -514,6 +514,7 @@ M1 先做 **SDL3 宿主**（桌面）。opensal 宿主、Web（emscripten，渲�
 | D-122 | hanim L5，时间线接管驱动通道：`drive.follow(playback, track, part)` 让播放在播放期间决定该通道的值（取该轨道对应部件上同一通道的值，每次 `advance` 后写入）；播放结束、取消或释放时把通道交还，从时间线留下的位置、以它最后的速度继续（hanim.core `Set::carry`：从该位置、带该速度、停在该位置的弹簧），下一次 `spring_to` 沿用这一速度。速度取相邻两帧的差分，不额外采样、不分配 |
 | D-123 | hanim L4 第二步，程序内部的时间映射：整数次重复、交替、反向可以出现在程序任意位置（含嵌套）；准备时展开为副本，后续各次重放第一次的已准备计划（`PreparedSegment::reversed` 镜像其进度），不重新准备，因此引擎、渲染与检查工具都无需改动；映射之后的叶子从最后一次留下的姿态继续。速率、裁剪、长度、小数或无限次重复、其他填充方式仍只能映射整个程序（内部出现时拒绝为 `hanim.program.nested-time-map`）。在分界时刻，后一次已经开始（与“后开始者胜”一致） |
 | D-124 | hanim v1 的值类型：唯一的动画值类型是 `Program`（不可变表达式）；`anim::BoundAnimation`（叶子）与 `anim::Composite`（图像作用域）只是构造它的生成器，隐式转为 Program，`Animation` 概念即“能成为 Program 的东西”。时间写在表达式上：`p.loop(n)`、`.alternate()`、`.reverse()`、`.rate(r)` 产生或修改同一个时间映射节点（`sequence(a, wait(100ms), b).loop(3).alternate()`）；`repeat(n, p)` 仍是“每次从上次终点继续”的累加重复，`delay(d, p)` 先等待。至此 v1 的公开形状确定，之后只做加法；Wasm 体积由 Web 行的体积预算持续检查 |
+| D-125 | interactive 模式补齐宿主所需（M3 的前提）：`Drive<T>` 的动词可带时间 `at`（宿主自己的时钟、延迟开始的过渡），值、速度、是否静止可按任意时间读取（`Set` 的历史覆盖的范围）；新增 `glide(velocity, DecayParams, at)`（甩动后的惯性，hanim.core `Set::glide` 从当前位置继续、保留历史）、`target()`（滑行的终点也可预知）与 `settle_time()`。这正是视图运行时现在用私有 `Set` 做的全部事情 |
 
 ---
 

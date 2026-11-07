@@ -506,44 +506,61 @@ std::expected<DriveRef, EngineFailure> Engine::drive_lanes(DriveKey key, ch::Id 
     keyed.push_back(index);
     return DriveRef{index, slot.generation};
 }
-std::expected<void, EngineFailure> Engine::drive_to(DriveRef ref, DriveVerb verb, std::span<const double> target, SpringParams params,
-                                                    seconds duration, Ease easing) {
+std::expected<void, EngineFailure> Engine::drive_to(DriveRef ref, DriveVerb verb, std::span<const double> target, const DriveMotion& motion) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
     if (target.size() != (*slot)->id.lanes || !std::ranges::all_of(target, [](double v) { return std::isfinite(v); }))
         return std::unexpected(fail(EngineError::invalid_argument));
-    if (verb == DriveVerb::spring && !(params.stiffness > 0 && params.mass > 0 && params.damping >= 0 && std::isfinite(params.stiffness) &&
-                                       std::isfinite(params.damping) && std::isfinite(params.mass)))
+    const auto& p = motion.spring;
+    if (verb == DriveVerb::spring && !(p.stiffness > 0 && p.mass > 0 && p.damping >= 0 && std::isfinite(p.stiffness) &&
+                                       std::isfinite(p.damping) && std::isfinite(p.mass)))
         return std::unexpected(fail(EngineError::invalid_argument));
-    if (verb == DriveVerb::tween && (!std::isfinite(duration.count()) || duration.count() < 0)) return std::unexpected(fail(EngineError::invalid_time));
-    if (verb == DriveVerb::tween && !easing.valid()) return std::unexpected(fail(EngineError::invalid_ease));
-    const seconds now(data_->now);
+    if (verb == DriveVerb::tween && (!std::isfinite(motion.duration.count()) || motion.duration.count() < 0)) return std::unexpected(fail(EngineError::invalid_time));
+    if (verb == DriveVerb::tween && !motion.easing.valid()) return std::unexpected(fail(EngineError::invalid_ease));
+    if (verb == DriveVerb::glide && !(motion.decay.rate > 0 && motion.decay.rate < 1)) return std::unexpected(fail(EngineError::invalid_argument));
+    if (motion.at && !std::isfinite(motion.at->count())) return std::unexpected(fail(EngineError::invalid_time));
+    const seconds at = motion.at.value_or(seconds(data_->now));
     for (std::size_t i = 0; i < target.size(); ++i) {
         const auto lane = (*slot)->lanes[i];
         switch (verb) {
-            case DriveVerb::spring: data_->drives.spring_to(lane, now, target[i], params); break;
-            case DriveVerb::tween: data_->drives.tween_to(lane, now, target[i], duration, easing); break;
+            case DriveVerb::spring: data_->drives.spring_to(lane, at, target[i], p); break;
+            case DriveVerb::tween: data_->drives.tween_to(lane, at, target[i], motion.duration, motion.easing); break;
             case DriveVerb::jump: data_->drives.jump(lane, target[i]); break;
+            case DriveVerb::glide: data_->drives.glide(lane, at, target[i], motion.decay); break;
         }
     }
     return {};
 }
-std::expected<void, EngineFailure> Engine::drive_read(DriveRef ref, std::span<double> value, std::span<double> velocity) const noexcept {
+std::expected<void, EngineFailure> Engine::drive_read(DriveRef ref, std::optional<seconds> at, std::span<double> value,
+                                                      std::span<double> velocity) const noexcept {
     const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
     if (value.size() < (*slot)->id.lanes || velocity.size() < (*slot)->id.lanes) return std::unexpected(fail(EngineError::invalid_argument));
-    const seconds now(data_->now);
+    const seconds when = at.value_or(seconds(data_->now));
     for (std::size_t i = 0; i < (*slot)->id.lanes; ++i) {
-        value[i] = data_->drives.value((*slot)->lanes[i], now, data_->policy);
-        velocity[i] = data_->policy.reduce_motion ? 0 : (*slot)->follows ? (*slot)->speed[i] : data_->drives.velocity((*slot)->lanes[i], now);
+        value[i] = data_->drives.value((*slot)->lanes[i], when, data_->policy);
+        velocity[i] = data_->policy.reduce_motion ? 0 : (*slot)->follows ? (*slot)->speed[i] : data_->drives.velocity((*slot)->lanes[i], when);
     }
     return {};
 }
-std::expected<bool, EngineFailure> Engine::drive_settled(DriveRef ref) const noexcept {
+std::expected<bool, EngineFailure> Engine::drive_settled(DriveRef ref, std::optional<seconds> at) const noexcept {
     const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
     if (data_->policy.reduce_motion) return true;
+    const seconds when = at.value_or(seconds(data_->now));
     for (std::size_t i = 0; i < (*slot)->id.lanes; ++i)
-        if (!data_->drives.settled((*slot)->lanes[i], seconds(data_->now))) return false;
+        if (!data_->drives.settled((*slot)->lanes[i], when)) return false;
     return true;
+}
+std::expected<void, EngineFailure> Engine::drive_target(DriveRef ref, std::span<double> target) const noexcept {
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    if (target.size() < (*slot)->id.lanes) return std::unexpected(fail(EngineError::invalid_argument));
+    for (std::size_t i = 0; i < (*slot)->id.lanes; ++i) target[i] = data_->drives.target((*slot)->lanes[i]);
+    return {};
+}
+std::expected<seconds, EngineFailure> Engine::drive_settle_time(DriveRef ref) const noexcept {
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    seconds latest{0};
+    for (std::size_t i = 0; i < (*slot)->id.lanes; ++i) latest = std::max(latest, data_->drives.settle_time((*slot)->lanes[i]));
+    return latest;
 }
 std::expected<std::uint32_t, EngineFailure> Engine::drive_lane(DriveRef ref, std::size_t lane) const noexcept {
     const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());

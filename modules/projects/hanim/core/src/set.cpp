@@ -126,6 +126,20 @@ void Set::tween_to(Channel c, seconds now, double target, seconds duration, Ease
     ease_[i] = e;
 }
 
+void Set::glide(Channel c, seconds now, double velocity, DecayParams p) {
+    if (!valid(c)) return;
+    std::uint32_t i = c.index;
+    double t = now.count();
+    double x = value_at(i, t, {});
+    push_history(i);
+    kind_[i] = Kind::decay;
+    start_[i] = t;
+    from_[i] = x;
+    glide_[i] = Glide(x, velocity, p);
+    target_[i] = glide_[i].destination();
+    end_[i] = t + glide_[i].settle_time();
+}
+
 void Set::carry(Channel c, seconds now, double position, double velocity, std::optional<SpringParams> p) {
     if (!valid(c)) return;
     std::uint32_t i = c.index;

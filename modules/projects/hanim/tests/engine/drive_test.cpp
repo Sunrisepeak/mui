@@ -115,6 +115,26 @@ int main(int argc, char** argv) {
         check_near(*glow.value(), reference.value(lane, seconds(1.0 / 60)), 1e-12);
     });
 
+    s.test("a host's own clock: verbs at a time, values at any time the history reaches, a fling's glide", [] {
+        auto engine = *Engine::make();
+        auto x = *engine.drive(5, opacity);
+        Set set;
+        const auto lane = set.hold(0);
+        // A transition that waits: it starts at 0.5 s of the host's time.
+        check(x.tween_to(1.0, seconds(1), ease::linear, seconds(.5)).has_value());
+        set.tween_to(lane, seconds(.5), 1.0, seconds(1), ease::linear);
+        for (const double t : {0.0, .5, 1.0, 1.5})
+            check_eq(*x.value(seconds(t)), set.value(lane, seconds(t)));
+        check(*x.settled(seconds(1.5)) && !*x.settled(seconds(1)), "settled when the tween ends");
+        check_eq(x.settle_time()->count(), 1.5);
+        // A fling: from where it is, coasting to a stop it can say beforehand.
+        check(x.glide(400.0, {}, seconds(2)).has_value());
+        set.glide(lane, seconds(2), 400.0);
+        check_eq(*x.target(), set.target(lane));
+        check(*x.target() > 1.0 && *x.value(seconds(2.1)) == set.value(lane, seconds(2.1)), "moving on toward where it stops");
+        check(!x.glide(400.0, {.rate = 1.5}), "a decay rate past 1 is refused");
+    });
+
     s.test("under reduced motion a driven channel shows its target", [] {
         auto engine = *Engine::make();
         auto fade = *engine.drive(7, opacity);

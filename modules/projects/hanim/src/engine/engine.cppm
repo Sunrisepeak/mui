@@ -182,10 +182,20 @@ public:
 private:
     template <Animatable T> friend class Drive;
     [[nodiscard]] std::expected<DriveRef, EngineFailure> drive_lanes(DriveKey, ch::Id, std::span<const double> rest);
-    enum class DriveVerb : std::uint8_t { spring, tween, jump };
-    [[nodiscard]] std::expected<void, EngineFailure> drive_to(DriveRef, DriveVerb, std::span<const double> target, SpringParams, seconds, Ease);
-    [[nodiscard]] std::expected<void, EngineFailure> drive_read(DriveRef, std::span<double> value, std::span<double> velocity) const noexcept;
-    [[nodiscard]] std::expected<bool, EngineFailure> drive_settled(DriveRef) const noexcept;
+    enum class DriveVerb : std::uint8_t { spring, tween, jump, glide };
+    struct DriveMotion {
+        SpringParams spring{};
+        seconds      duration{0};
+        Ease         easing{};
+        DecayParams  decay{};
+        std::optional<seconds> at;  // the engine's now() when absent
+    };
+    [[nodiscard]] std::expected<void, EngineFailure> drive_to(DriveRef, DriveVerb, std::span<const double> target, const DriveMotion&);
+    [[nodiscard]] std::expected<void, EngineFailure> drive_read(DriveRef, std::optional<seconds> at, std::span<double> value,
+                                                               std::span<double> velocity) const noexcept;
+    [[nodiscard]] std::expected<bool, EngineFailure> drive_settled(DriveRef, std::optional<seconds> at) const noexcept;
+    [[nodiscard]] std::expected<void, EngineFailure> drive_target(DriveRef, std::span<double> target) const noexcept;
+    [[nodiscard]] std::expected<seconds, EngineFailure> drive_settle_time(DriveRef) const noexcept;
     [[nodiscard]] std::expected<std::uint32_t, EngineFailure> drive_lane(DriveRef, std::size_t lane) const noexcept;
     [[nodiscard]] std::expected<void, EngineFailure> drive_release(DriveRef);
     [[nodiscard]] std::expected<void, EngineFailure> drive_follow(DriveRef, PlaybackRef, std::size_t track, std::size_t part);
@@ -202,31 +212,46 @@ template <Animatable T>
 class Drive {
 public:
     static constexpr std::size_t lane_count = static_cast<std::size_t>(lanes<T>::count);
+    // Each verb starts at `at` (the engine's now() when absent: a host with its
+    // own clock passes its time, a delayed transition a time to come).
     // Toward `target` as a spring, from where the channel is and how fast it moves.
-    std::expected<void, EngineFailure> spring_to(const T& target, SpringParams params = springs::standard) {
-        return engine_->drive_to(ref_, Engine::DriveVerb::spring, lanes_of(target), params, {}, {});
+    std::expected<void, EngineFailure> spring_to(const T& target, SpringParams params = springs::standard, std::optional<seconds> at = {}) {
+        return engine_->drive_to(ref_, Engine::DriveVerb::spring, lanes_of(target), {.spring = params, .at = at});
     }
     // Toward `target` over `duration` along `easing`, from where the channel is.
-    std::expected<void, EngineFailure> tween_to(const T& target, seconds duration, Ease easing = ease::out_cubic) {
-        return engine_->drive_to(ref_, Engine::DriveVerb::tween, lanes_of(target), {}, duration, easing);
+    std::expected<void, EngineFailure> tween_to(const T& target, seconds duration, Ease easing = ease::out_cubic, std::optional<seconds> at = {}) {
+        return engine_->drive_to(ref_, Engine::DriveVerb::tween, lanes_of(target), {.duration = duration, .easing = easing, .at = at});
     }
-    // There, now, at rest.
+    // From where it is, coasting at `velocity` (each lane's, a second) to a stop: a fling.
+    std::expected<void, EngineFailure> glide(const T& velocity, DecayParams params = {}, std::optional<seconds> at = {}) {
+        return engine_->drive_to(ref_, Engine::DriveVerb::glide, lanes_of(velocity), {.decay = params, .at = at});
+    }
+    // There, at every time, at rest.
     std::expected<void, EngineFailure> jump(const T& value) {
-        return engine_->drive_to(ref_, Engine::DriveVerb::jump, lanes_of(value), {}, {}, {});
+        return engine_->drive_to(ref_, Engine::DriveVerb::jump, lanes_of(value), {});
     }
-    // Where it is at the engine's now (its target under reduced motion).
-    [[nodiscard]] std::expected<T, EngineFailure> value() const noexcept {
+    // Where it is at `at` (the engine's now() when absent; its target under
+    // reduced motion). Any time a retarget's history still reaches.
+    [[nodiscard]] std::expected<T, EngineFailure> value(std::optional<seconds> at = {}) const noexcept {
         std::array<double, lanes<T>::count> v{}, d{};
-        if (auto r = engine_->drive_read(ref_, v, d); !r) return std::unexpected(r.error());
+        if (auto r = engine_->drive_read(ref_, at, v, d); !r) return std::unexpected(r.error());
         return lanes<T>::from(v);
     }
     // How fast each lane moves (units a second).
-    [[nodiscard]] std::expected<std::array<double, lanes<T>::count>, EngineFailure> velocity() const noexcept {
+    [[nodiscard]] std::expected<std::array<double, lanes<T>::count>, EngineFailure> velocity(std::optional<seconds> at = {}) const noexcept {
         std::array<double, lanes<T>::count> v{}, d{};
-        if (auto r = engine_->drive_read(ref_, v, d); !r) return std::unexpected(r.error());
+        if (auto r = engine_->drive_read(ref_, at, v, d); !r) return std::unexpected(r.error());
         return d;
     }
-    [[nodiscard]] std::expected<bool, EngineFailure> settled() const noexcept { return engine_->drive_settled(ref_); }
+    // Where it is going (a glide's: where it comes to a stop).
+    [[nodiscard]] std::expected<T, EngineFailure> target() const noexcept {
+        std::array<double, lanes<T>::count> v{};
+        if (auto r = engine_->drive_target(ref_, v); !r) return std::unexpected(r.error());
+        return lanes<T>::from(v);
+    }
+    [[nodiscard]] std::expected<bool, EngineFailure> settled(std::optional<seconds> at = {}) const noexcept { return engine_->drive_settled(ref_, at); }
+    // When it comes to rest (the engine's time).
+    [[nodiscard]] std::expected<seconds, EngineFailure> settle_time() const noexcept { return engine_->drive_settle_time(ref_); }
     // Lane i's place in evaluate_driven()'s output.
     [[nodiscard]] std::expected<std::uint32_t, EngineFailure> lane(std::size_t i) const noexcept { return engine_->drive_lane(ref_, i); }
     std::expected<void, EngineFailure> release() { return engine_->drive_release(ref_); }

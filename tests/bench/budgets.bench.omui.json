@@ -2,6 +2,8 @@
   "format": "openmui.bench.budgets@0.1",
   "about": "Limits for release builds on CI's runners (omui-bench --check). Each says why it is there; raising one needs the same.",
   "budgets": [
+    {"name": "motion/drive-1000", "metric": "p95_ms", "max": 1,
+     "why": "interactive mode is the Set it is built on: 1000 driven springs a frame, measured beside motion/set-1000 (0.046 vs 0.048 ms p95 locally); a frame's share for a thousand UI channels"},
     {"name": "simulation/cellular-256", "metric": "p95_ms", "max": 16,
      "why": "first scalar reference budget: 256x256 cells, 3 channels, 3 rules and cardinal neighbors; no GPU or Noita-scale claim"},
     {"name": "simulation/cellular-256", "metric": "max_allocations", "max": 0,

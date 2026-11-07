@@ -77,6 +77,46 @@ std::expected<xrender::RecordedPath, xrender::PathRecordError> record_shape(
 
 void add_public_motion_benchmarks() {
     static bool added = false; if (added) return; added = true;
+    // Interactive mode (L5) against the set it is built on: the same 1000
+    // springs, retargeted every 30 frames, evaluated every frame.
+    add("motion/set-1000", "1000 spring lanes of hanim.core's Set evaluated a frame, retargeted every 30 frames", [](State& s) {
+        hanim::Set set;
+        std::vector<hanim::Set::Channel> lanes;
+        for (int i = 0; i < 1000; ++i) lanes.push_back(set.hold(0));
+        std::vector<double> out(set.capacity());
+        double now = 0;
+        s.items(1000);
+        s.note("work", "Set::spring_to on every lane every 30th frame, then evaluate(set, now, out); no engine");
+        while (s.next()) {
+            if (s.iteration() % 30 == 0)
+                for (std::size_t i = 0; i < lanes.size(); ++i) set.spring_to(lanes[i], hanim::seconds(now), (s.iteration() / 30) % 2 ? 0.0 : 1.0 + i);
+            now += 1.0 / 60;
+            s.counter("moving", static_cast<double>(hanim::evaluate(set, hanim::seconds(now), out)));
+        }
+    });
+    add("motion/drive-1000", "1000 driven channels of an Engine (interactive mode) evaluated a frame, retargeted every 30 frames", [](State& s) {
+        auto engine = hanim::Engine::make();
+        if (!engine) { s.fail("engine"); return; }
+        static constexpr auto channel = hanim::ch::define<double>("bench.value");
+        std::vector<hanim::Drive<double>> drives;
+        for (std::uint64_t i = 0; i < 1000; ++i) {
+            auto d = engine->drive(i, channel);
+            if (!d) { s.fail("drive"); return; }
+            drives.push_back(*d);
+        }
+        std::vector<double> out(engine->driven_lane_capacity());
+        s.items(1000);
+        s.note("work", "Drive::spring_to on every channel every 30th frame, then Engine::advance and evaluate_driven; the same lanes as motion/set-1000");
+        while (s.next()) {
+            if (s.iteration() % 30 == 0)
+                for (std::size_t i = 0; i < drives.size(); ++i)
+                    if (!drives[i].spring_to((s.iteration() / 30) % 2 ? 0.0 : 1.0 + static_cast<double>(i))) { s.fail("retarget"); return; }
+            if (!engine->advance(hanim::seconds(1.0 / 60))) { s.fail("advance"); return; }
+            const auto moving = engine->evaluate_driven(out);
+            if (!moving) { s.fail("evaluate"); return; }
+            s.counter("moving", static_cast<double>(*moving));
+        }
+    });
     add("public-motion/image-bindings-resolve-64", "64 ordered public image-effect bindings resolve caller-owned samples; no renderer execution", [](State& s) {
         hanim::Effects effects;effects.reserve(64);
         for(int i=0;i<64;++i)effects.push_back(i%2?hanim::fx::blur(0,2):hanim::EffectSpec{"tone",{{"amount",0,.2f}}});

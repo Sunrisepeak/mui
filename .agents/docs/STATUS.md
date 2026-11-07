@@ -92,7 +92,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | hanim L2: typed channels | this checkpoint (D-114): `hanim::ch`, `anim::to/by(target, ch::x = v, …)`, `part(object, id)`, application channels as part values in `FrameView::values` |
 | hanim L1 in programs: springs | this checkpoint (D-115): `EaseKind::spring`, `.spring(params)`, `anim::spring`; overshooting curves overshoot properties |
 | hanim L4: time mapping, first step | this checkpoint (D-116): `timed`, `loop` (forever too), markers; whole programs only |
-| hanim L4 nested time maps (per-track spans); L5 interactive mode (`drive`, replacing `Set`, velocity carry-over); `visual` representation; v1 API; render (xrender) CTS on mlibs.cts | next |
+| hanim L5: interactive mode, first step | this checkpoint (D-117): `engine.drive(key, channel)` → `Drive<T>`, the engine's one Set; as fast as Set (bench `motion/drive-1000`) |
+| hanim L4 nested time maps (per-track spans); L5 timeline takeover of driven channels; `visual` representation; v1 API; render (xrender) CTS on mlibs.cts | next |
 
 ## Next
 

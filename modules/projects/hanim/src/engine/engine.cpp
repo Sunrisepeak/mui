@@ -31,11 +31,26 @@ struct Playback {
     bool paused = false, cancelled = false;
     std::uint64_t revision = 1;
 };
+// A driven channel: its key and channel, and its lanes in the interactive set.
+struct DriveSlot {
+    DriveKey key = 0;
+    ch::Id id;
+    std::array<Set::Channel, ch::max_lanes> lanes{};
+    std::uint32_t generation = 1;
+    bool live = false;
+};
 struct EngineData {
     ObjectRegistry objects;
     EngineLimits limits;
     mlibs::memory::SlotStorage<Playback, PlaybackKey> playbacks;
     std::size_t parts = 0, cubics = 0, parameters = 0, routes = 0;
+    // Interactive mode: one set of lanes for every driven channel, on the engine's time.
+    Set drives;
+    std::vector<DriveSlot> drive_slots;
+    std::vector<std::uint32_t> drive_free;
+    std::unordered_map<DriveKey, std::vector<std::uint32_t>> drive_keys;
+    double now = 0;
+    Policy policy;
     EngineData(ObjectRegistry registry, EngineLimits budget)
         : objects(std::move(registry)), limits(budget), playbacks(budget.max_playbacks) {}
 };
@@ -421,6 +436,7 @@ Status Engine::advance(seconds elapsed) {
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
     if (elapsed.count() == 0) return {};
+    data_->now += elapsed.count();
     std::optional<EngineFailure> error;
     data_->playbacks.for_each([&](auto, detail::Playback& playback) {
         if (error || state(playback) != PlaybackState::playing) return;
@@ -473,5 +489,113 @@ std::expected<std::size_t, EngineFailure> Engine::list(std::span<PlaybackInfo> o
     std::size_t count = 0;
     data_->playbacks.for_each([&](detail::PlaybackKey key, const detail::Playback& playback) { output[count++] = info(*data_, key, playback); });
     return count;
+}
+
+// ── Interactive mode ──
+namespace {
+std::expected<const detail::DriveSlot*, EngineFailure> drive_slot(const detail::EngineData* data, DriveRef ref) noexcept {
+    if (!data) return std::unexpected(fail(EngineError::uninitialized));
+    if (!ref || ref.index >= data->drive_slots.size()) return std::unexpected(fail(EngineError::invalid_handle));
+    const auto& slot = data->drive_slots[ref.index];
+    if (!slot.live || slot.generation != ref.generation) return std::unexpected(fail(EngineError::stale_handle));
+    return &slot;
+}
+}  // namespace
+seconds Engine::now() const noexcept { return seconds(data_ ? data_->now : 0); }
+void Engine::reduce_motion(bool on) noexcept { if (data_) data_->policy.reduce_motion = on; }
+std::size_t Engine::driven_lane_capacity() const noexcept { return data_ ? data_->drives.capacity() : 0; }
+std::expected<DriveRef, EngineFailure> Engine::drive_lanes(DriveKey key, ch::Id id, std::span<const double> rest) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    if (id.name.empty() || !id.lanes || id.lanes > ch::max_lanes || rest.size() != id.lanes ||
+        !std::ranges::all_of(rest, [](double v) { return std::isfinite(v); }))
+        return std::unexpected(fail(EngineError::invalid_argument));
+    auto& keyed = data_->drive_keys[key];
+    for (const auto index : keyed) {
+        const auto& slot = data_->drive_slots[index];
+        if (slot.id.name != id.name) continue;
+        // One key's channel has one lane count.
+        if (!(slot.id == id)) return std::unexpected(fail(EngineError::invalid_argument));
+        return DriveRef{index, slot.generation};
+    }
+    std::uint32_t index;
+    if (!data_->drive_free.empty()) { index = data_->drive_free.back(); data_->drive_free.pop_back(); }
+    else { index = static_cast<std::uint32_t>(data_->drive_slots.size()); data_->drive_slots.emplace_back(); }
+    auto& slot = data_->drive_slots[index];
+    slot.key = key; slot.id = id; slot.live = true;
+    for (std::size_t i = 0; i < id.lanes; ++i) slot.lanes[i] = data_->drives.hold(rest[i]);
+    keyed.push_back(index);
+    return DriveRef{index, slot.generation};
+}
+std::expected<void, EngineFailure> Engine::drive_to(DriveRef ref, DriveVerb verb, std::span<const double> target, SpringParams params,
+                                                    seconds duration, Ease easing) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    if (target.size() != (*slot)->id.lanes || !std::ranges::all_of(target, [](double v) { return std::isfinite(v); }))
+        return std::unexpected(fail(EngineError::invalid_argument));
+    if (verb == DriveVerb::spring && !(params.stiffness > 0 && params.mass > 0 && params.damping >= 0 && std::isfinite(params.stiffness) &&
+                                       std::isfinite(params.damping) && std::isfinite(params.mass)))
+        return std::unexpected(fail(EngineError::invalid_argument));
+    if (verb == DriveVerb::tween && (!std::isfinite(duration.count()) || duration.count() < 0)) return std::unexpected(fail(EngineError::invalid_time));
+    if (verb == DriveVerb::tween && !easing.valid()) return std::unexpected(fail(EngineError::invalid_ease));
+    const seconds now(data_->now);
+    for (std::size_t i = 0; i < target.size(); ++i) {
+        const auto lane = (*slot)->lanes[i];
+        switch (verb) {
+            case DriveVerb::spring: data_->drives.spring_to(lane, now, target[i], params); break;
+            case DriveVerb::tween: data_->drives.tween_to(lane, now, target[i], duration, easing); break;
+            case DriveVerb::jump: data_->drives.jump(lane, target[i]); break;
+        }
+    }
+    return {};
+}
+std::expected<void, EngineFailure> Engine::drive_read(DriveRef ref, std::span<double> value, std::span<double> velocity) const noexcept {
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    if (value.size() < (*slot)->id.lanes || velocity.size() < (*slot)->id.lanes) return std::unexpected(fail(EngineError::invalid_argument));
+    const seconds now(data_->now);
+    for (std::size_t i = 0; i < (*slot)->id.lanes; ++i) {
+        value[i] = data_->drives.value((*slot)->lanes[i], now, data_->policy);
+        velocity[i] = data_->policy.reduce_motion ? 0 : data_->drives.velocity((*slot)->lanes[i], now);
+    }
+    return {};
+}
+std::expected<bool, EngineFailure> Engine::drive_settled(DriveRef ref) const noexcept {
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    if (data_->policy.reduce_motion) return true;
+    for (std::size_t i = 0; i < (*slot)->id.lanes; ++i)
+        if (!data_->drives.settled((*slot)->lanes[i], seconds(data_->now))) return false;
+    return true;
+}
+std::expected<std::uint32_t, EngineFailure> Engine::drive_lane(DriveRef ref, std::size_t lane) const noexcept {
+    const auto slot = drive_slot(data_.get(), ref); if (!slot) return std::unexpected(slot.error());
+    if (lane >= (*slot)->id.lanes) return std::unexpected(fail(EngineError::invalid_argument));
+    return (*slot)->lanes[lane].index;
+}
+std::expected<void, EngineFailure> Engine::drive_release(DriveRef ref) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    const auto found = drive_slot(data_.get(), ref); if (!found) return std::unexpected(found.error());
+    auto& slot = data_->drive_slots[ref.index];
+    for (std::size_t i = 0; i < slot.id.lanes; ++i) data_->drives.remove(slot.lanes[i]);
+    auto& keyed = data_->drive_keys[slot.key];
+    std::erase(keyed, ref.index);
+    if (keyed.empty()) data_->drive_keys.erase(slot.key);
+    slot.live = false; ++slot.generation; if (slot.generation == 0) slot.generation = 1;
+    data_->drive_free.push_back(ref.index);
+    return {};
+}
+std::size_t Engine::moving() const noexcept {
+    if (!data_ || data_->policy.reduce_motion) return 0;
+    std::size_t count = 0;
+    for (const auto& slot : data_->drive_slots) {
+        if (!slot.live) continue;
+        for (std::size_t i = 0; i < slot.id.lanes; ++i)
+            if (!data_->drives.settled(slot.lanes[i], seconds(data_->now))) { ++count; break; }
+    }
+    return count;
+}
+std::expected<std::size_t, EngineFailure> Engine::evaluate_driven(std::span<double> out) const noexcept {
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    if (out.size() < data_->drives.capacity()) return std::unexpected(fail(EngineError::invalid_argument));
+    return evaluate(data_->drives, seconds(data_->now), out, data_->policy);
 }
 } // namespace hanim

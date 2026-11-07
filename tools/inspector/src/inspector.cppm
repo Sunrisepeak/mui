@@ -15,6 +15,7 @@ export module omui.inspector;
 
 export import :connection;
 export import :cellular;
+export import :catalog;
 import std;
 import omui.core;
 import omui.view;

@@ -11,6 +11,23 @@ const Invocation& bind_invocation(const Invocation& given, Invocation& copy,
     return mlibs::control::bind_invocation(given, copy, access, parent, operation);
 }
 
+VerbDesc verb_of(const mlibs::control::CatalogEntry& entry, std::string answer) {
+    VerbDesc desc{.name = std::string(entry.operation.name), .summary = std::string(entry.summary), .answer = std::move(answer),
+                  .person = entry.operation.person, .undoable = entry.undoable};
+    switch (entry.operation.effect) {
+    case openas::Effect::read: desc.effect = Effect::read; break;
+    case openas::Effect::reversible: desc.effect = Effect::reversible; break;
+    case openas::Effect::irreversible: desc.effect = Effect::irreversible; break;
+    default: desc.effect = Effect::external; break;
+    }
+    for (const auto& parameter : entry.parameters) {
+        std::string type(parameter.type == "bool" ? "boolean" : parameter.type == "json" ? "object" : parameter.type);
+        if (parameter.optional) type += '?';
+        desc.args.emplace_back(std::string(parameter.name), std::move(type));
+    }
+    return desc;
+}
+
 bool valid_verb_name(std::string_view name) noexcept {
     if (name.empty() || name.size() > 128) return false;
     bool word_start = true;

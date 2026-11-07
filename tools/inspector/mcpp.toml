@@ -24,10 +24,11 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
+mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }

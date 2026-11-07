@@ -29,33 +29,10 @@ std::string brush_name(std::string_view label,bool zh) {
 }
 }
 void add_verbs(AppSpec& a,const std::shared_ptr<Session>& s) {
-    for (const auto& [op,summary]:std::initializer_list<std::pair<std::string_view,std::string_view>>{
-        {"describe","Discover the integer rule project format, budgets and editing SOP."},
-        {"snapshot","Read revision, simulation tick, replay frame, brushes and current state hash."},
-        {"project","Export the current state as a reloadable cellular project; history is not serialized."},
-        {"config","Read editable rules, palette, brushes, rate and boundary."},
-        {"inspect","Read all channels of one cell at x/y."},
-        {"load","Validate and load a project atomically; starts a new replay history."},
-        {"configure","Validate an edited rule/palette configuration over the current field."},
-        {"paint","Paint an integer-radius brush at x/y; records an input without advancing simulation time."},
-        {"advance","Advance 1..120 fixed simulation steps; retained history can be sought."},
-        {"seek","Restore a retained replay frame exactly, including paint inputs."},
-        {"reset","Restore this project's initial state; starts a new replay history."},
-        {"play","Start or stop live playback; continuation rechecks the initiating Agent authority."}}) {
-        const bool read=op=="describe" || op=="snapshot" || op=="project" || op=="config" || op=="inspect";
-        const bool undo=op=="load" || op=="configure" || op=="paint" || op=="reset";
-        std::vector<std::pair<std::string,std::string>> args;
-        if (op=="load") args={{"project","object"},{"revision","integer?"}};
-        if (op=="configure") args={{"config","object"},{"revision","integer?"}};
-        if (op=="inspect") args={{"x","integer"},{"y","integer"}};
-        if (op=="paint") args={{"x","integer"},{"y","integer"},{"radius","integer"},{"brush","string"},{"revision","integer?"}};
-        if (op=="advance") args={{"count","integer"},{"revision","integer?"}};
-        if (op=="seek") args={{"frame","integer"},{"revision","integer?"}};
-        if (op=="reset") args={{"revision","integer?"}};
-        if (op=="play") args={{"enabled","boolean"},{"revision","integer?"}};
-        a.verbs.push_back({{.name="cellular."+std::string(op),.summary=std::string(summary),
-            .effect=read?Effect::read:Effect::reversible,.args=std::move(args),.undoable=undo},
-            [s,op](const Value& values){return s->perform(op,values);}});
+    // The verbs are the catalog's (inspector.ops.omui.toml).
+    for (const auto& entry:catalog) {
+        const auto op=entry.operation.name.substr(std::string_view("cellular.").size());
+        a.verbs.push_back({verb_of(entry),[s,op](const Value& values){return s->perform(op,values);}});
     }
 }
 

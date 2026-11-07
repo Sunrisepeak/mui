@@ -280,7 +280,11 @@ VerbResult Session::perform(std::string_view op,const Value& args) {
     const auto fail=[&](std::string why)->VerbResult {return std::unexpected(std::move(why));};
     if (op=="describe") {
         return Value{}.set("format","*.cellular.omui.json").set("version",1).set("max_values",max_values)
-            .set("history_frames",240).set("operations","describe snapshot project config inspect load configure paint advance seek reset play")
+            .set("history_frames",240).set("operations",[] {
+                std::string names;
+                for (const auto& entry:catalog) names+=std::format("{}{}",names.empty()?"":" ",entry.operation.name.substr(std::string_view("cellular.").size()));
+                return names;
+            }())
             .set("sop","snapshot; edit project JSON and load or paint; advance; inspect/capture intermediate frames; seek; project to save")
             .set("history","paint counts as a recorded input, not a simulation tick; seek uses frame; save captures current state")
             .set("undo","load, configure, paint and reset restore owned state; undo/redo starts a new local replay history")
@@ -304,7 +308,9 @@ VerbResult Session::perform(std::string_view op,const Value& args) {
     }
     if (const auto* revision=args.get("revision");revision && (!integer(*revision,0,std::numeric_limits<std::int64_t>::max()) || revision->as_int()!=d.revision))
         return fail("stale revision");
-    const bool edit=op=="load" || op=="configure" || op=="paint" || op=="reset";
+    // Edits are the catalog's undoable operations.
+    const auto entry=std::ranges::find(catalog,"cellular."+std::string(op),[](const auto& e){return std::string(e.operation.name);});
+    const bool edit=entry!=catalog.end() && entry->undoable;
     // Only explicit edits retain before/after state. Time controls use the
     // simulation's bounded checkpoint history, never one UI inverse per tick.
     std::optional<Model::State> before;

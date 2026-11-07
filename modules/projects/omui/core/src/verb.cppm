@@ -78,6 +78,11 @@ using VerbResult = std::expected<Value, std::string>;
 using VerbFn     = std::function<VerbResult(const Value& args)>;
 
 [[nodiscard]] bool valid_verb_name(std::string_view name) noexcept;
+// A verb declared by an operation catalog's entry (`<product>.ops.omui.toml`,
+// convergence plan §10.3): its name, summary, effect, arguments (an optional
+// one's type ends in `?`; a json one is an object) and whether it is undoable.
+// An irreversible or external one names the answer that confirms it.
+[[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry, std::string answer = {});
 
 class Verbs {
 public:

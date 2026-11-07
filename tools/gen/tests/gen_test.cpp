@@ -278,6 +278,12 @@ name = "x.run"
 effect = "read"
 delegated = true
 summary = "runs what it names"
+
+[[operation]]
+name = "x.peek"
+effect = "read"
+undoable = true
+summary = "reads"
 )", "x.ops.omui.toml");
         check(!broken, "refused");
         if (broken) return;
@@ -287,6 +293,7 @@ summary = "runs what it names"
         check(says("not read, reversible or irreversible"), "the bad effect");
         check(says("say how it is undone"), "a change without its undo");
         check(says("the most that can be"), "a delegated operation's bound is above read");
+        check(says("only a reversible operation is in the history"), "a read is not undoable");
     });
 
     return s.run(argc, argv);

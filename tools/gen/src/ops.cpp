@@ -138,6 +138,7 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
             operation.person = (*entry)["person"].value_or(false);
             operation.cancellable = (*entry)["cancellable"].value_or(false);
             operation.delegated = (*entry)["delegated"].value_or(false);
+            operation.undoable = (*entry)["undoable"].value_or(false);
             if (!dotted_name(operation.name))
                 problem(line, std::format("`{}` is not a dotted lowercase name (domain.verb)",
                                           operation.name));
@@ -155,6 +156,10 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
             if (operation.delegated && operation.effect == "read")
                 problem(line, std::format("`{}` runs what it names: its effect is the most that "
                                           "can be (not read)",
+                                          operation.name));
+            if (operation.undoable && operation.effect != "reversible")
+                problem(line, std::format("`{}`: only a reversible operation is in the history "
+                                          "(undoable)",
                                           operation.name));
             if (operation.effect == "read" && !operation.undo.empty())
                 problem(line, std::format("`{}` reads: nothing to undo", operation.name));
@@ -253,13 +258,14 @@ std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {
                        catalog.doc, catalog.operations.size());
     for (const auto& operation : catalog.operations)
         out +=
-            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}}},\n",
+            std::format("    {{{{{}, {}, {}}}, {}, {}, {}, mlibs::control::Cost::{}, {}, {}, {}, {}}},\n",
                         cpp_string(operation.name), effect_enum(operation.effect),
                         operation.person ? "true" : "false", cpp_string(operation.summary),
                         operation.parameters.empty() ? std::string("{}")
                                                      : "parameters_" + identifier(operation.name),
                         cpp_string(operation.result), operation.cost, cpp_string(operation.undo),
                         operation.cancellable ? "true" : "false",
+                        operation.undoable ? "true" : "false",
                         operation.delegated ? "true" : "false");
     out += std::format("}}}};\n\n}}  // namespace {}\n", catalog.ns);
     return out;
@@ -282,12 +288,12 @@ std::string emit_catalog_json(const Catalog& catalog) {
         }
         out += std::format("    {{\"name\": {}, \"description\": {}, \"effect\": {}, \"person\": "
                            "{}, \"delegated\": {}, \"cost\": {}, \"undo\": {}, "
-                           "\"cancellable\": {}, \"result\": {},\n     \"inputSchema\": {{\"type\": \"object\", "
+                           "\"undoable\": {}, \"cancellable\": {}, \"result\": {},\n     \"inputSchema\": {{\"type\": \"object\", "
                            "\"properties\": {{{}}}, \"required\": [{}]}}}}{}\n",
                            json_string(operation.name), json_string(operation.summary),
                            json_string(operation.effect), operation.person ? "true" : "false",
                            operation.delegated ? "true" : "false", json_string(operation.cost), json_string(operation.undo),
-                           operation.cancellable ? "true" : "false", json_string(operation.result),
+                           operation.undoable ? "true" : "false", operation.cancellable ? "true" : "false", json_string(operation.result),
                            properties, required, index + 1 < catalog.operations.size() ? "," : "");
     }
     out += "  ],\n  \"tiers\": [";

@@ -1,0 +1,130 @@
+# The Inspector's operations (convergence plan §10.3): its cellular field's,
+# what an Agent does with an integer-rule material field — read it, load or
+# configure a project, paint, step time, seek its replay, save it — as the
+# application's verbs (`invoke` with `cellular.<operation>`). omui-gen ops makes
+# the table (src/catalog/catalog.cppm), the verbs come from it (omui::verb_of),
+# and the listings (src/catalog/inspector.ops.json for CLI and MCP,
+# inspector.ops.md). Effects are openas's, admission is mlibs.control's.
+[catalog]
+product   = "inspector"
+module    = "omui.inspector"
+namespace = "omui::inspector::cellular"
+doc       = "Read, edit, step and replay the Inspector's cellular material field."
+generated = "src/catalog"
+
+[[operation]]
+name    = "cellular.describe"
+effect  = "read"
+summary = "Discover the integer rule project format, budgets and editing SOP."
+result  = "json"
+
+[[operation]]
+name    = "cellular.snapshot"
+effect  = "read"
+summary = "Read revision, simulation tick, replay frame, brushes and current state hash."
+result  = "json"
+
+[[operation]]
+name    = "cellular.project"
+effect  = "read"
+summary = "Export the current state as a reloadable cellular project; history is not serialized."
+result  = "json"
+cost    = "bounded"
+
+[[operation]]
+name    = "cellular.config"
+effect  = "read"
+summary = "Read editable rules, palette, brushes, rate and boundary."
+result  = "json"
+
+[[operation]]
+name    = "cellular.inspect"
+effect  = "read"
+summary = "Read all channels of one cell at x/y."
+params  = [{ name = "x", type = "integer" }, { name = "y", type = "integer" }]
+result  = "json"
+
+[[operation]]
+name     = "cellular.load"
+effect   = "reversible"
+summary  = "Validate and load a project atomically; starts a new replay history."
+params   = [
+    { name = "project", type = "json", doc = "a *.cellular.omui.json project" },
+    { name = "revision", type = "integer", doc = "the revision it was read at (stale ones are refused)", optional = true },
+]
+result   = "json"
+cost     = "bounded"
+undo     = "ui.undo restores the field before it"
+undoable = true
+
+[[operation]]
+name     = "cellular.configure"
+effect   = "reversible"
+summary  = "Validate an edited rule/palette configuration over the current field."
+params   = [
+    { name = "config", type = "json", doc = "name, rate, boundary, rules, palette and/or brushes" },
+    { name = "revision", type = "integer", optional = true },
+]
+result   = "json"
+cost     = "bounded"
+undo     = "ui.undo restores the configuration before it"
+undoable = true
+
+[[operation]]
+name     = "cellular.paint"
+effect   = "reversible"
+summary  = "Paint an integer-radius brush at x/y; records an input without advancing simulation time."
+params   = [
+    { name = "x", type = "integer" },
+    { name = "y", type = "integer" },
+    { name = "radius", type = "integer", doc = "0 to 8" },
+    { name = "brush", type = "string", doc = "a brush ID cellular.config lists" },
+    { name = "revision", type = "integer", optional = true },
+]
+result   = "json"
+undo     = "ui.undo restores the cells before it"
+undoable = true
+
+[[operation]]
+name    = "cellular.advance"
+effect  = "reversible"
+summary = "Advance 1..120 fixed simulation steps; retained history can be sought."
+params  = [
+    { name = "count", type = "integer", doc = "1 to 120" },
+    { name = "revision", type = "integer", optional = true },
+]
+result  = "json"
+cost    = "bounded"
+undo    = "cellular.seek to the frame cellular.snapshot read before"
+
+[[operation]]
+name    = "cellular.seek"
+effect  = "reversible"
+summary = "Restore a retained replay frame exactly, including paint inputs."
+params  = [
+    { name = "frame", type = "integer", doc = "within the retained history" },
+    { name = "revision", type = "integer", optional = true },
+]
+result  = "json"
+cost    = "bounded"
+undo    = "cellular.seek to the frame before"
+
+[[operation]]
+name     = "cellular.reset"
+effect   = "reversible"
+summary  = "Restore this project's initial state; starts a new replay history."
+params   = [{ name = "revision", type = "integer", optional = true }]
+result   = "json"
+undo     = "ui.undo restores the field before it"
+undoable = true
+
+[[operation]]
+name    = "cellular.play"
+effect  = "reversible"
+summary = "Start or stop live playback; continuation rechecks the initiating Agent authority."
+params  = [
+    { name = "enabled", type = "bool" },
+    { name = "revision", type = "integer", optional = true },
+]
+result  = "json"
+undo    = "cellular.play with the other enabled"

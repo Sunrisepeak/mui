@@ -449,6 +449,19 @@ struct DropOptions {
 [[nodiscard]] Program swap(ObjectInput a, ObjectInput b, Vec2 a_to_b, double bend = .4, RecipeOptions = {});
 [[nodiscard]] Program reorder(std::span<const ObjectInput> objects, std::span<const Vec2> offsets,
                               seconds step = seconds(.05), RecipeOptions = {});
+// Pixels (the site plan's C1): a pixel picture's pixels (pixel_object's
+// `pixels` form) flying apart from `from` — each its own way, turning and
+// fading, the nearest first — and coming back together, the farthest first.
+// The same seed, the same flight: a scatter played back is the assembly.
+struct ScatterOptions {
+    std::uint64_t       seed = 1;
+    double              distance = 48;  // how far a pixel flies, about (the object's units)
+    double              spin = 1.6;     // radians a pixel turns, at most
+    std::optional<Vec2> from;           // where they fly from: the picture's centre when unset
+    double              spread = .5;    // of the duration: how much later the last starts than the first
+};
+[[nodiscard]] Program scatter_out(ObjectInput object, const PixelGrid& grid, ScatterOptions = {}, RecipeOptions = {});
+[[nodiscard]] Program assemble_in(ObjectInput object, const PixelGrid& grid, ScatterOptions = {}, RecipeOptions = {});
 }  // namespace anim
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::BoundAnimation> ||

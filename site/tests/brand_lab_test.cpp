@@ -9,6 +9,8 @@
 import std;
 import omui;
 import omui.site;
+import hanim.engine;
+import hanim.render.vector;
 import mlibs.image;
 import mlibs.testing;
 
@@ -93,6 +95,33 @@ void draw_sprite(xrender::DisplayList& list, const Value& sprites, std::string_v
     }
     for (auto& [letter, path] : by_colour)
         list.fill_path(path, xrender::FillRule::nonzero, xrender::Paint::solid(hex_colour(colours.get(std::string_view(&letter, 1))->as_string())));
+}
+
+// A frame of Mui as hanim's pixel picture (C1): its palette's inks, its rows.
+hanim::PixelGrid pixel_grid(const Value& sprites, std::string_view sprite, std::string_view frame, std::string_view palette, double cell) {
+    hanim::PixelGrid grid{.cell = cell};
+    for (const auto& [letter, colour] : *sprites.get("palettes")->get(palette)->map())
+        grid.inks.push_back({letter[0], *hanim::Rgba::parse_hex(colour.as_string())});
+    for (const Value& row : *sprites.get("sprites")->get(sprite)->get("frames")->get(frame)->list()) grid.rows.emplace_back(row.as_string());
+    return grid;
+}
+
+// A playback's frame at `t` drawn into `list` at `at`: hanim's vector binding, the object's own geometry.
+void draw_playback(hanim::Engine& engine, hanim::PlaybackRef playback, double t, xrender::DisplayList& list, Point at) {
+    if (!engine.seek(playback, hanim::seconds(t))) fatal("seek");
+    const auto frame = engine.frame(playback, 0);
+    if (!frame || !frame->animation) fatal("no frame");
+    const auto bound = hanim::vector_render::PreparedVector::bind(*frame->animation, frame->effects ? *frame->effects : hanim::PreparedEffects{});
+    if (!bound) fatal(bound.error().text());
+    const auto needs = bound->requirements();
+    xrender::DisplayList staging;
+    std::vector<mlibs::geom::Affine> world(needs.world_transforms);
+    std::vector<float> parameters(needs.backend_parameters);
+    std::vector<mlibs::geom::Rect> layers(needs.effect_layers);
+    list.push_transform(Affine::translate(at.x, at.y));
+    if (const auto recorded = bound->record(frame->geometry, frame->effect_values, list, {&staging, world, parameters, layers}); !recorded)
+        fatal(recorded.error().text());
+    list.pop_transform();
 }
 
 Element canvas(std::string id, float width, float height, std::function<void(xrender::DisplayList&)> draw) {
@@ -205,6 +234,42 @@ int main(int argc, char** argv) {
         }
         for (const auto* name : {"marks.png", "mui16.png", "mui24.png", "lockups.png"})
             check(std::filesystem::exists(dir / name) && std::filesystem::file_size(dir / name) < 1'000'000, std::format("{} under 1 MB", name));
+    });
+
+    s.test("C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved", [] {
+        const Value sprites = read_json("mui.sprite.omui.json");
+        const auto dir = scratch_dir("brand-lab");
+        const auto grid = pixel_grid(sprites, "body24", "sit", "indigo", 6);
+        hanim::Engine engine = *hanim::Engine::make();
+        const auto sharp = engine.create_object(*hanim::pixel_object("mui", grid));
+        const auto round = engine.create_object(*hanim::pixel_object("mui", grid, {.form = hanim::PixelForm::smooth}));
+        const auto pixels = engine.create_object(*hanim::pixel_object("mui", grid, {.form = hanim::PixelForm::pixels}));
+        check(sharp && round && pixels, "Mui three ways");
+        const auto morph = engine.play(hanim::anim::morph(*sharp, *round).duration(hanim::seconds(1)).easing(hanim::ease::linear));
+        const auto scatter = engine.play(hanim::sequence({hanim::anim::scatter_out(*pixels, grid, {.seed = 11, .distance = 34}),
+                                                          hanim::anim::assemble_in(*pixels, grid, {.seed = 11, .distance = 34})}));
+        check(morph && scatter && engine.pause(*morph) && engine.pause(*scatter), "both played, held");
+        if (!morph || !scatter) return;
+        const double length = engine.inspect(*scatter)->duration.count();
+        const std::array<double, 5> morph_at{0, .25, .5, .75, 1};
+        const std::array<double, 5> scatter_at{0, .2, .45, .9, 1.35};
+        check(std::abs(length - 1.8) < 1e-9, std::format("out and back in 1.8 s: {}", length));
+        const Size size{1080, 520};
+        Headless h(HeadlessOptions{.size = size, .scale = 1});
+        const auto strip = [&](std::string name, hanim::PlaybackRef playback, std::span<const double> times, std::string words) {
+            std::vector<Element> cells;
+            for (std::size_t i = 0; i < times.size(); ++i)
+                cells.push_back(column({.id = std::format("{}{}", name, i), .gap = 4, .align = "center"},
+                                       {canvas(std::format("{}-frame{}", name, i), 190, 170,
+                                               [&engine, playback, t = times[i]](xrender::DisplayList& l) { draw_playback(engine, playback, t, l, {23, 13}); }),
+                                        caption(std::format("{}-t{}", name, i), std::format("{:.2f} s", times[i]), 13)}));
+            return column({.id = name, .gap = 6}, {caption(name + "-words", words), row({.id = name + "-frames", .gap = 14}, std::move(cells))});
+        };
+        h.mount("main", column({.id = "sheet", .width = size.width, .height = size.height, .padding = 24, .gap = 18, .background = Fill(Color::hex(0xfbfbfa))},
+                               {strip("morph", *morph, morph_at, "the staircase into the curve: one path an ink, the same segments"),
+                                strip("scatter", *scatter, scatter_at, "a part a pixel: scattered from the middle out, then back, the farthest first")}));
+        save(h, dir, "mui-pixels", size);
+        check(std::filesystem::file_size(dir / "mui-pixels.png") < 1'000'000, "under 1 MB");
     });
 
     return s.run(argc, argv);

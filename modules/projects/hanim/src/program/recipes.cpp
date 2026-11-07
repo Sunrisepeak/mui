@@ -318,4 +318,94 @@ Program reorder(std::span<const ObjectInput> objects, std::span<const Vec2> offs
     return stagger(step, std::span<const Program>(moves));
 }
 
+// ── Pixels ──
+
+namespace {
+// One pixel's flight: its part, where it goes (relative), how far it turns,
+// when it starts (a fraction of the spread: 0 the nearest, 1 the farthest), its ink.
+struct Flight {
+    std::string id;
+    Vec2        away;
+    double      turn = 0;
+    double      reach = 0;
+    Rgba        color;
+};
+std::expected<std::vector<Flight>, Program> flights(const PixelGrid& grid, const ScatterOptions& options) {
+    if (!finite(options.distance) || options.distance < 0 || !finite(options.spin) || !std::isfinite(options.spread) || options.spread < 0 ||
+        options.spread >= 1 || (options.from && !finite(*options.from)) || !(std::isfinite(grid.cell) && grid.cell > 0))
+        return std::unexpected(bad_value());
+    const auto cells = pixel_cells(grid);
+    if (!cells) return std::unexpected(bad_value());
+    const auto centre_of = [&](const PixelCell& cell) { return Vec2{(cell.x + .5) * grid.cell, (cell.y + .5) * grid.cell}; };
+    Vec2 from{};
+    if (options.from) from = *options.from;
+    else if (!cells->empty()) {
+        Vec2 low{1e300, 1e300}, high{-1e300, -1e300};
+        for (const PixelCell& cell : *cells) {
+            const Vec2 c = centre_of(cell);
+            low = {std::min(low.x, c.x), std::min(low.y, c.y)};
+            high = {std::max(high.x, c.x), std::max(high.y, c.y)};
+        }
+        from = {(low.x + high.x) / 2, (low.y + high.y) / 2};
+    }
+    // The reach: 0 the nearest, 1 the farthest — so the whole flight takes the duration asked for.
+    double nearest = 1e300, farthest = 0;
+    for (const PixelCell& cell : *cells) {
+        const double distance = std::hypot(centre_of(cell).x - from.x, centre_of(cell).y - from.y);
+        nearest = std::min(nearest, distance);
+        farthest = std::max(farthest, distance);
+    }
+    std::vector<Flight> out;
+    out.reserve(cells->size());
+    for (const PixelCell& cell : *cells) {
+        // Three numbers of the pixel's own, from the seed and where it is.
+        const std::uint64_t key = mlibs::math::mix64(options.seed ^ mlibs::math::mix64((static_cast<std::uint64_t>(cell.y) << 32) | static_cast<std::uint32_t>(cell.x)));
+        const double wander = mlibs::math::unit24(key), length = mlibs::math::unit24(mlibs::math::mix64(key)),
+                     twist = mlibs::math::unit24(mlibs::math::mix64(key ^ mlibs::math::golden));
+        const Vec2 c = centre_of(cell);
+        const double dx = c.x - from.x, dy = c.y - from.y, near = std::hypot(dx, dy);
+        const double heading = (near > 1e-9 ? std::atan2(dy, dx) : wander * two_pi) + (wander - .5) * .9;
+        const double far = options.distance * (.6 + .8 * length);
+        out.push_back({pixel_id(cell.x, cell.y), {std::cos(heading) * far, std::sin(heading) * far}, options.spin * (2 * twist - 1),
+                       farthest > nearest ? (near - nearest) / (farthest - nearest) : 0, grid.inks[cell.ink].color});
+    }
+    return out;
+}
+Rgba clear(Rgba color) { return {color.r, color.g, color.b, 0}; }
+}  // namespace
+
+Program scatter_out(ObjectInput object, const PixelGrid& grid, ScatterOptions options, RecipeOptions recipe) {
+    auto t = timing(recipe, .9, ease::out_cubic, 2);
+    if (!t) return invalid_program(t.error());
+    auto made = flights(grid, options);
+    if (!made) return made.error();
+    const seconds flight = t->duration * (1 - options.spread);
+    std::vector<Program> each;
+    each.reserve(made->size());
+    for (const Flight& f : *made)
+        each.push_back(delay(t->duration * (options.spread * f.reach),
+                             to(object, {.offset = f.away, .fill = clear(f.color), .part = f.id, .rotation_offset = f.turn}).duration(flight).easing(t->easing)));
+    return parallel(std::span<const Program>(each));
+}
+
+Program assemble_in(ObjectInput object, const PixelGrid& grid, ScatterOptions options, RecipeOptions recipe) {
+    auto t = timing(recipe, .9, ease::out_cubic, 2);
+    if (!t) return invalid_program(t.error());
+    auto made = flights(grid, options);
+    if (!made) return made.error();
+    const seconds flight = t->duration * (1 - options.spread);
+    PropertySet away;
+    std::vector<Program> back;
+    away.reserve(made->size());
+    back.reserve(made->size());
+    for (const Flight& f : *made) {
+        away.push_back({.offset = f.away, .fill = clear(f.color), .part = f.id, .rotation_offset = f.turn});
+        back.push_back(delay(t->duration * (options.spread * (1 - f.reach)),
+                             to(object, {.offset = Vec2{-f.away.x, -f.away.y}, .fill = f.color, .part = f.id, .rotation_offset = -f.turn})
+                                 .duration(flight)
+                                 .easing(t->easing)));
+    }
+    return sequence({Program(to(object, std::move(away)).duration(seconds(0))), parallel(std::span<const Program>(back))});
+}
+
 }  // namespace hanim::anim

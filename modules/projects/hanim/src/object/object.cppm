@@ -193,6 +193,49 @@ struct PathPart {
 [[nodiscard]] std::expected<ObjectDescription, PathImportFailure>
 object_from_paths(std::string root, std::span<const PathPart> parts, PathImportLimits limits = {});
 
+// A picture of square pixels (the site plan's C1; representations §1, the
+// sampled level): rows of cells, one character a cell — an ink's key, or '.'
+// (or ' ') for none. Mui's sprites are such pictures.
+struct PixelInk {
+    char key = 0;
+    Rgba color;
+};
+struct PixelGrid {
+    std::vector<PixelInk>    inks;  // in drawing order
+    std::vector<std::string> rows;
+    double                   cell = 1;  // a pixel's side, in the object's units
+};
+// One pixel of a picture: where it is and the ink it takes (its index).
+struct PixelCell {
+    int x = 0, y = 0;
+    std::size_t ink = 0;
+};
+// The picture's pixels, row by row; an unknown key is invalid_color.
+[[nodiscard]] std::expected<std::vector<PixelCell>, ObjectError> pixel_cells(const PixelGrid& grid);
+// A pixel's part id: "px_<x>_<y>".
+[[nodiscard]] std::string pixel_id(int x, int y);
+// An ink's part id: "ink_<key>".
+[[nodiscard]] std::string ink_id(char key);
+// The same picture three ways, one identity (its root `root`):
+//   pixels   a part a pixel (pixel_id), standing at its centre: what scatters
+//            and comes together (anim::scatter_out, assemble_in); each square
+//            `bleed` (a fraction of a cell) larger, so that neighbours drawn
+//            apart leave no hairline between them
+//   outline  a part an ink (ink_id), its region's staircase outline: one path
+//            a colour, no seams; each ink's region also covers the inks after
+//            it, which paint over it, so no seam shows between two colours
+//            either
+//   smooth   the same parts and segments, each corner rounded off by
+//            `smoothing` (0: the staircase … 1: a curve through the edges'
+//            middles) — what the outline morphs into (anim::morph)
+enum class PixelForm : std::uint8_t { pixels, outline, smooth };
+struct PixelOptions {
+    PixelForm form = PixelForm::outline;
+    double    bleed = 0.08;
+    double    smoothing = 1;
+};
+[[nodiscard]] std::expected<ObjectDescription, ObjectError> pixel_object(std::string root, const PixelGrid& grid, PixelOptions options = {});
+
 // max_objects bounds registry slots; all other limits apply per object.
 // Referenced contours/segments count per occurrence, including shared assets.
 struct ObjectLimits {

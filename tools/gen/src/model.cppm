@@ -82,6 +82,16 @@ struct MotionToken : Named {
     std::optional<double> stiffness, damping, mass;
 };
 
+// A motion slot (motion.toml [[slot]], spec M-7): its name and what change it moves.
+struct MotionSlot : Named {};
+
+// A built-in motion recipe (motion.toml [[recipe]], spec M-8).
+struct MotionRecipe : Named {
+    std::vector<std::string> primitives;
+    std::string              timing;   // a motion token's name, "tween(ms)" or "spring(k, c[, m])"
+    std::string              effect;   // an image effect while it moves, or empty
+};
+
 struct ExprOperator : Named {
     std::string                        text;
     int                                arity = 0;
@@ -229,6 +239,8 @@ struct Registry {
     std::vector<MotionToken>   motion_tokens;
     std::map<std::string, std::string> easing;   // name -> formula
     std::map<std::string, std::string> spring;   // clause -> formula
+    std::vector<MotionSlot>    motion_slots;     // in registry order (spec M-7)
+    std::vector<MotionRecipe>  motion_recipes;
     std::vector<ExprOperator>  operators;
     std::vector<ExprFunction>  functions;
     std::vector<std::string>   expr_types;

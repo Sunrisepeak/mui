@@ -113,7 +113,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | interactive mode has what a host needs (clocked verbs, glides, targets) | done (D-125) |
 | the view runtime's values on the host's Engine (no private `Set`) | done (D-126): pins unchanged; `services.engine()` |
 | Playback as a light handle on the same Engine | done (D-127) |
-| motion slots in the spec; recipe ids from style packs; the 37 component kinds; old paths deleted | next |
+| motion slots and recipe ids in the specification | done (D-128; openlifa/openmui 18cd62d) |
+| style packs naming recipe ids end to end; the 37 component kinds on slots (already mapped in `default_component_motion_recipes`) verified frame by frame; old paths deleted | next |
 
 ## Next
 

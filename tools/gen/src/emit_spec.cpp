@@ -153,6 +153,25 @@ export namespace omui::spec {
     out += "}};\n\n[[nodiscard]] constexpr const MotionToken* find_motion_token(std::string_view name) noexcept {\n"
            "    for (const auto& m : motion_tokens)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
 
+    // motion slots and recipes (spec M-7, M-8)
+    out += "// The motion slots (motion.toml [[slot]], spec M-7), in order: which change of a node's\n"
+           "// drawing a slot's recipe moves.\nstruct MotionSlot {\n    std::string_view name;\n    std::string_view doc;\n};\n\n";
+    out += std::format("inline constexpr std::array<MotionSlot, {}> motion_slots{{{{\n", reg.motion_slots.size());
+    for (const MotionSlot& m : reg.motion_slots) out += std::format("    {{{}, {}}},\n", q(m.name), q(m.doc));
+    out += "}};\n\n";
+    out += "// The built-in motion recipes (motion.toml [[recipe]], spec M-8): primitives\n"
+           "// space-separated; timing a motion token's name, \"tween(ms)\" or \"spring(k, c[, m])\".\n"
+           "struct MotionRecipe {\n    std::string_view name;\n    std::string_view primitives;\n    std::string_view timing;\n"
+           "    std::string_view effect;\n    std::string_view doc;\n};\n\n";
+    out += std::format("inline constexpr std::array<MotionRecipe, {}> motion_recipes{{{{\n", reg.motion_recipes.size());
+    for (const MotionRecipe& m : reg.motion_recipes) {
+        std::string primitives;
+        for (const auto& p : m.primitives) primitives += (primitives.empty() ? "" : " ") + p;
+        out += std::format("    {{{}, {}, {}, {}, {}}},\n", q(m.name), q(primitives), q(m.timing), q(m.effect), q(m.doc));
+    }
+    out += "}};\n\n[[nodiscard]] constexpr const MotionRecipe* find_motion_recipe(std::string_view name) noexcept {\n"
+           "    for (const auto& m : motion_recipes)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
+
     // expression language
     out += "// The expression language (expr.toml): operators and built-in functions, with\n"
            "// the combinator name each language uses.\n"

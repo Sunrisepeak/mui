@@ -122,6 +122,22 @@ void current_matches(Probe& fading, Probe& reference) {
 
 int main(int argc, char** argv) {
     Suite suite{"view.theme_motion"};
+    suite.test("the motion slots and the built-in recipes are the specification's (M-7, M-8)", [] {
+        check_eq(motion_slots.size(), std::size_t{6});
+        check(motion_slots[0] == "update" && motion_slots[5] == "replace", "the registry's order");
+        const auto library = default_motion_library();
+        for (const auto& recipe : spec::motion_recipes)
+            check(recipe.name == "none" || library.contains(recipe.name), std::format("the spec's recipe `{}` is built in", recipe.name));
+        for (const auto& [name, motion] : library) {
+            const auto* recipe = spec::find_motion_recipe(name);
+            check(recipe != nullptr, std::format("the built-in recipe `{}` is in the specification", name));
+            if (!recipe) continue;
+            for (std::string_view primitive : recipe->primitives | std::views::split(' ') | std::views::transform([](auto r) { return std::string_view(r); }))
+                if (const auto p = motion_primitive(primitive); p && motion.primitives)
+                    check((motion.primitives & static_cast<std::uint16_t>(*p)) != 0, std::format("`{}` composes {}", name, primitive));
+            if (!recipe->effect.empty()) check(motion.travel && motion.travel->effect == recipe->effect, std::format("`{}` travels through {}", name, recipe->effect));
+        }
+    });
     suite.test("a scoped theme crossfade cannot replace a running morph's marker ranges with historical ones", [] {
         Probe fading, reference; fading.begin(); reference.begin();
         const auto before = fading.pixels();

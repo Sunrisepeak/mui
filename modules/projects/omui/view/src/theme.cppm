@@ -117,7 +117,12 @@ struct MotionRule {
     Layer                  layer = Layer::application;
 };
 
-inline constexpr std::array<std::string_view, 6> motion_slots{"update", "enter", "exit", "state", "reorder", "replace"};
+// The slots are the specification's (registry/motion.toml [[slot]], M-7), in its order.
+inline constexpr auto motion_slots = [] {
+    std::array<std::string_view, omui::spec::motion_slots.size()> names{};
+    for (std::size_t i = 0; i < names.size(); ++i) names[i] = omui::spec::motion_slots[i].name;
+    return names;
+}();
 
 // Component-specific defaults compose the shared operations: selection,
 // values, text, surfaces and presence have different recipes. Editing and

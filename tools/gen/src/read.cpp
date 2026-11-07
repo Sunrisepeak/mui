@@ -386,6 +386,34 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
                 diags.error(x.loc, std::format("motion token `{}` has neither a duration nor a spring", x.name));
             reg.motion_tokens.push_back(std::move(x));
         });
+        r.each(*t, "slot", [&](const toml::table& e) {
+            MotionSlot x;
+            r.named(x, e);
+            reg.motion_slots.push_back(std::move(x));
+        });
+        constexpr std::array<std::string_view, 11> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
+                                                             "check_grow", "stretch", "stagger", "distance", "readable_text"};
+        r.each(*t, "recipe", [&](const toml::table& e) {
+            MotionRecipe x;
+            r.named(x, e);
+            x.primitives = r.strings(e, "primitives");
+            x.timing = r.str(e, "timing");
+            x.effect = r.str(e, "effect");
+            for (const auto& p : x.primitives)
+                if (std::ranges::find(primitives, p) == primitives.end())
+                    diags.error(x.loc, std::format("motion recipe `{}` names unknown primitive `{}`", x.name, p),
+                                "match_drawing, match_glyphs, fade, lift, panel_lift, grow, check_grow, stretch, stagger, distance, readable_text");
+            const bool none = x.name == "none";
+            if (none != x.timing.empty())
+                diags.error(x.loc, std::format("motion recipe `{}`: {}", x.name, none ? "`none` has no timing" : "a recipe has a timing"));
+            const auto inside = [](std::string_view text, std::string_view head) {
+                return text.starts_with(head) && text.ends_with(")") && text.size() > head.size() + 1;
+            };
+            if (!x.timing.empty() && !inside(x.timing, "tween(") && !inside(x.timing, "spring(") && !Registry::find(reg.motion_tokens, x.timing))
+                diags.error(x.loc, std::format("motion recipe `{}` has timing `{}`", x.name, x.timing),
+                            "a motion token's name, \"tween(ms)\" or \"spring(k, c[, m])\"");
+            reg.motion_recipes.push_back(std::move(x));
+        });
     }
     if (auto t = load("expr.toml")) {
         Reader r{file_of("expr.toml"), diags};
@@ -418,6 +446,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     unique_names(reg.actions, "action", diags);
     unique_names(reg.extensions, "extension", diags);
     unique_names(reg.motion_tokens, "motion token", diags);
+    unique_names(reg.motion_recipes, "motion recipe", diags);
+    unique_names(reg.motion_slots, "motion slot", diags);
     if (reg.states.size() > 32) diags.error({file_of("states.toml"), 1, 1}, "more than 32 states do not fit the state set");
     for (const Action& a : reg.actions)
         if (!Registry::find(reg.effects, a.effect))

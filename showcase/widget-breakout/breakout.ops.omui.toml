@@ -27,6 +27,15 @@ cost    = "frame"
 undo    = "play again: actions hold only until the next"
 
 [[operation]]
+name    = "field.intend"
+effect  = "reversible"
+summary = "The intent the next play carries, never played: where it means the paddle to be and why — kept in the record, drawn with agent_overlay"
+params  = [{ name = "target", type = "number", doc = "0 … 1 (below 0: nowhere in particular)" },
+           { name = "note", type = "string", doc = "why, 80 characters" }]
+result  = "json"
+undo    = "another field.intend"
+
+[[operation]]
 name    = "field.move_to"
 effect  = "reversible"
 summary = "Moves the paddle toward x (0 … 1) at once, as a pointer does"
@@ -67,7 +76,7 @@ doc                = "As a person plays: what is drawn, a tenth of a second to r
 view               = "drawn"
 reaction_ms        = 100
 actions_per_second = 10
-operations         = ["field.observe", "field.play", "field.next"]
+operations         = ["field.observe", "field.intend", "field.play", "field.next"]
 
 [[tier]]
 name               = "assist"
@@ -75,4 +84,4 @@ doc                = "Privileged: everything shown, no delay, no limit, the fiel
 view               = "full"
 reaction_ms        = 0
 actions_per_second = 0
-operations         = ["field.observe", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"]
+operations         = ["field.observe", "field.intend", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"]

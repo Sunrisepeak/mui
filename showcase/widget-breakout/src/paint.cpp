@@ -559,6 +559,39 @@ void Field::paint_over(PaintContext& ctx) const {
         out.fill_round_rect({bx, by, bw, bh}, CornerRadii::all(bh / 2), solid(hex(ink::live, 0.92f * fade)));
         xrender::text::paint(said, out, {bx + 12, by + 6});
     }
+    // The agent player's intent (agent_overlay): the arrow it holds, where it means the paddle to be, its note,
+    // the step it saw and the step it took effect — what it played, from its record, live or replayed.
+    if (props.agent_overlay && s.paddles[0].active) {
+        const PlayRecord* now = nullptr;
+        for (const PlayRecord& play : player_record_)
+            if (play.at <= s.frame) now = &play;
+        if (now) {
+            const Paddle& p = s.paddles[0];
+            const Point at{static_cast<float>(p.x), static_cast<float>(p.y)};
+            const Color tint = cue(0x5eead4);
+            if (now->target) {  // where it means to be: a dotted line up from the paddle's track, a ring on it
+                const float x = static_cast<float>(*now->target * field_w);
+                for (float y = at.y - 12; y > at.y - 220; y -= 14) out.fill_round_rect({x - 2, y - 3, 4, 6}, CornerRadii::all(2), solid(tint.with_alpha(0.55f * (y - at.y + 220) / 208)));
+                path_.clear();
+                path_.add_circle({x, at.y}, 11);
+                out.stroke_path(path_, {.width = 3}, solid(tint.with_alpha(0.9f)));
+            }
+            if (std::abs(now->axis) > 0.01) {  // the arrow it holds
+                const float len = static_cast<float>(now->axis) * 70, y = at.y - 26;
+                const float dir = len > 0 ? 1.0f : -1.0f;
+                path_.clear();
+                path_.move_to({at.x, y}).line_to({at.x + len, y}).move_to({at.x + len - dir * 10, y - 7}).line_to({at.x + len, y}).line_to({at.x + len - dir * 10, y + 7});
+                out.stroke_path(path_, {.width = 4, .cap = xrender::LineCap::round, .join = xrender::LineJoin::round}, solid(tint));
+            }
+            std::string said = std::format("saw {} · played {}{}", now->seen, now->at, now->launch ? " · launch" : "");
+            if (!now->note.empty()) said += " · " + now->note;
+            const auto& line = label(said, 13, hex(0x0b0e17));
+            const float bw = line.size().width + 20, bh = line.size().height + 10;
+            const float bx = std::clamp(at.x - bw / 2, 8.0f, static_cast<float>(field_w) - bw - 8), by = at.y - 60 - bh;
+            out.fill_round_rect({bx, by, bw, bh}, CornerRadii::all(bh / 2), solid(tint.with_alpha(0.9f)));
+            xrender::text::paint(line, out, {bx + 10, by + 5});
+        }
+    }
     // Rings: the shutdown's wave, a banked chain, a capsule caught.
     for (const Fx::Ring& r : fx_.rings) {
         if (r.life <= 0) continue;

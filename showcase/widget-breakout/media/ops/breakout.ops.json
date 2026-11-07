@@ -8,6 +8,8 @@
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "field.play", "description": "A person's actions: the arrows held, Space, Z — taking effect the tier's reaction after the step it saw", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "play again: actions hold only until the next", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"seen": {"type": "integer", "description": "the step it decided on (observe's step)"}, "axis": {"type": "number", "description": "−1 … 1: the arrows held (0 neither)"}, "launch": {"type": "boolean", "description": "Space held"}, "look": {"type": "boolean", "description": "Z held: the whole of a tall room"}}, "required": ["seen", "axis", "launch", "look"]}},
+    {"name": "field.intend", "description": "The intent the next play carries, never played: where it means the paddle to be and why — kept in the record, drawn with agent_overlay", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "another field.intend", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"target": {"type": "number", "description": "0 … 1 (below 0: nowhere in particular)"}, "note": {"type": "string", "description": "why, 80 characters"}}, "required": ["target", "note"]}},
     {"name": "field.move_to", "description": "Moves the paddle toward x (0 … 1) at once, as a pointer does", "effect": "reversible", "person": false, "delegated": false, "cost": "frame", "undo": "field.release gives the paddle back", "undoable": false, "cancellable": false, "result": "",
      "inputSchema": {"type": "object", "properties": {"x": {"type": "number"}}, "required": ["x"]}},
     {"name": "field.aim", "description": "Holds the launch's aim until the launch", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "the aim sweeps again after the launch", "undoable": false, "cancellable": false, "result": "",
@@ -20,7 +22,7 @@
      "inputSchema": {"type": "object", "properties": {}, "required": []}}
   ],
   "tiers": [
-    {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: what is drawn, a tenth of a second to react, ten actions a second", "operations": ["field.observe", "field.play", "field.next"]},
-    {"name": "assist", "view": "full", "reaction_ms": 0, "actions_per_second": 0, "doc": "Privileged: everything shown, no delay, no limit, the field's direct actions", "operations": ["field.observe", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"]}
+    {"name": "human", "view": "drawn", "reaction_ms": 100, "actions_per_second": 10, "doc": "As a person plays: what is drawn, a tenth of a second to react, ten actions a second", "operations": ["field.observe", "field.intend", "field.play", "field.next"]},
+    {"name": "assist", "view": "full", "reaction_ms": 0, "actions_per_second": 0, "doc": "Privileged: everything shown, no delay, no limit, the field's direct actions", "operations": ["field.observe", "field.intend", "field.play", "field.move_to", "field.aim", "field.launch", "field.rewind", "field.next"]}
   ]
 }

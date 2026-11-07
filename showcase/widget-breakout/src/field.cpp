@@ -141,6 +141,7 @@ void Field::restart_room() {
     // An agent player's lane and record start again with the room.
     player_record_.clear();
     replaying_.clear();
+    intent_next_ = {};
     if (player_lane_) player_lane_.emplace(player_lane_->tier(), steps_per_second);
     log_.clear();
     guard_x_.reset();
@@ -851,8 +852,20 @@ ActResult Field::play(ActContext&, const PlayArgs& args) {
     if (args.look.as_bool()) actions.held |= 1u << look_button;
     const auto due = player_lane_->submit(timeline_->state().frame, args.seen.as_int(), actions);
     if (!due) return ActResult::fail(due.error() == xengine::AgentLane::Refusal::too_often ? "more often than the tier allows" : "a step not yet played");
-    player_record_.push_back({timeline_->state().frame, args.seen.as_int(), *due, axis, args.launch.as_bool(), args.look.as_bool()});
+    PlayRecord kept{timeline_->state().frame, args.seen.as_int(), *due, axis, args.launch.as_bool(), args.look.as_bool()};
+    kept.target = std::exchange(intent_next_.target, std::nullopt);
+    kept.note = std::exchange(intent_next_.note, std::string());
+    player_record_.push_back(std::move(kept));
     return ActResult::done(Value{}.set("at", *due));
+}
+
+ActResult Field::intend(ActContext&, const IntendArgs& args) {
+    if (!services().agent_players() || !player_lane_) return ActResult::fail("agent players are off");
+    const double target = args.target.as_double();
+    if (!std::isfinite(target) || target > 1) return ActResult::fail("target is 0 … 1 (below 0: nowhere in particular)");
+    intent_next_.target = target < 0 ? std::nullopt : std::optional<double>(target);
+    intent_next_.note = std::string(args.note.as_string().substr(0, 80));
+    return ActResult::done(Value{});
 }
 
 ActResult Field::record(ActContext&) {
@@ -860,7 +873,12 @@ ActResult Field::record(ActContext&) {
     if (!timeline_) return ActResult::fail("the room has not begun");
     Value::List plays;
     for (const auto& play : player_record_)
-        plays.push_back(Value{}.set("now", play.now).set("seen", play.seen).set("at", play.at).set("axis", play.axis).set("launch", play.launch).set("look", play.look));
+    {
+        Value one = Value{}.set("now", play.now).set("seen", play.seen).set("at", play.at).set("axis", play.axis).set("launch", play.launch).set("look", play.look);
+        if (play.target) one.set("target", *play.target);
+        if (!play.note.empty()) one.set("note", play.note);
+        plays.push_back(std::move(one));
+    }
     const State& s = timeline_->state();
     return ActResult::done(Value{}
                                .set("kind", "breakout.agent-record")
@@ -877,9 +895,11 @@ ActResult Field::replay(ActContext&, const Value& plays) {
     if (!list) return ActResult::fail("plays is a record's list of plays");
     std::vector<PlayRecord> loaded;
     for (const Value& play : *list) {
-        const PlayRecord one{play.get("now") ? play.get("now")->as_int() : -1, play.get("seen") ? play.get("seen")->as_int() : -1,
-                             play.get("at") ? play.get("at")->as_int() : -1, play.get("axis") ? play.get("axis")->as_double() : 0,
-                             play.get("launch") && play.get("launch")->as_bool(), play.get("look") && play.get("look")->as_bool()};
+        PlayRecord one{play.get("now") ? play.get("now")->as_int() : -1, play.get("seen") ? play.get("seen")->as_int() : -1,
+                       play.get("at") ? play.get("at")->as_int() : -1, play.get("axis") ? play.get("axis")->as_double() : 0,
+                       play.get("launch") && play.get("launch")->as_bool(), play.get("look") && play.get("look")->as_bool()};
+        if (const Value* t = play.get("target"); t && t->is_number() && std::isfinite(t->as_double())) one.target = std::clamp(t->as_double(), 0.0, 1.0);
+        if (const Value* n = play.get("note")) one.note = std::string(n->as_string().substr(0, 80));
         if (one.now < 0 || one.seen < 0 || one.seen > one.now || !std::isfinite(one.axis) || one.axis < -1 || one.axis > 1)
             return ActResult::fail("a play is { now, seen ≤ now, at, axis −1 … 1, launch, look }");
         if (!loaded.empty() && one.now < loaded.back().now) return ActResult::fail("plays are in the order they were given");

@@ -110,6 +110,11 @@ struct Player {
             target = paddle;
         const double gap = target - paddle;
         const double axis = std::abs(gap) < 0.01 ? 0.0 : std::clamp(gap * 12, -1.0, 1.0);
+        // Its intent, beside what it holds: where it means the paddle to be, and why.
+        const std::string why = waiting   ? "serve"
+                                : falling ? std::format("meet the ball at {:.2f}", target)
+                                          : "wait in place";
+        (void)s.ask("intend", Value{}.set("target", target).set("note", why));
         const Value answer = s.ask("play", Value{}
                                                .set("seen", step)
                                                .set("axis", axis)
@@ -189,6 +194,76 @@ int main(int argc, char** argv) {
         const Value again = replayed.data("record");
         check(again.get("plays")->list()->size() == plays, "and the same plays recorded");
     });
+
+    suite.test("the agent's intent drawn over its play and over its replay, exported headless; it "
+               "never changes the play",
+               [] {
+                   // The same agent twice, its intent drawn in one run and not in the other.
+                   const auto run = [](bool overlay) {
+                       auto session = std::make_unique<Session>("human");
+                       session->h.runtime().set(session->h.runtime().find("main/field"),
+                                                "agent_overlay", Value(overlay));
+                       Player player;
+                       while (session->state().frame < 900) {
+                           player.turn(*session);
+                           session->h.advance(seconds(6.0 / 120));
+                       }
+                       return session;
+                   };
+                   auto drawn = run(true), plain = run(false);
+                   check(bo::checksum(drawn->state()) == bo::checksum(plain->state()) &&
+                             drawn->state().frame == plain->state().frame,
+                         "the same play with or without its intent drawn");
+                   const auto with = drawn->h.png(), without = plain->h.png();
+                   check(with && without && *with != *without, "the intent is drawn");
+                   const Value record = drawn->data("record");
+                   const auto& plays = *record.get("plays")->list();
+                   check(std::ranges::any_of(plays,
+                                             [](const Value& p) {
+                                                 return p.get("target") && p.get("note") &&
+                                                        !p.get("note")->as_string().empty();
+                                             }),
+                         "the record keeps the intent");
+                   // The replay, alone, draws the same intent at the same step: the same pixels.
+                   Session replayed("human");
+                   replayed.h.runtime().set(replayed.h.runtime().find("main/field"),
+                                            "agent_overlay", Value(true));
+                   check(replayed.ask("replay", Value{}.set("plays", *record.get("plays")))
+                                 .get("exitCode")
+                                 ->as_int() == 0,
+                         "the record is taken");
+                   const auto dir = scratch_dir("breakout-agent-intent");
+                   std::vector<std::filesystem::path> frames;
+                   const std::int64_t end = drawn->state().frame;
+                   for (int k = 1; end - replayed.state().frame > 6; ++k) {
+                       replayed.h.advance(seconds(6.0 / 120));
+                       if (k % 25 == 0 &&
+                           frames.size() <
+                               6) {  // the process, frame by frame: exported for a reviewer
+                           frames.push_back(
+                               dir / std::format("intent-{:04}.png", replayed.state().frame));
+                           check(replayed.h.save_png(frames.back()).has_value(),
+                                 "a frame exported");
+                       }
+                   }
+                   // The last few steps one at a time: paused, stepped to the very step.
+                   replayed.h.runtime().set(replayed.h.runtime().find("main/field"), "paused",
+                                            Value(true));
+                   while (replayed.state().frame < end) {
+                       (void)replayed.ask("step");
+                       replayed.h.step();
+                   }
+                   check(replayed.state().frame == drawn->state().frame &&
+                             bo::checksum(replayed.state()) == bo::checksum(drawn->state()),
+                         std::format("replayed to the same step: {} vs {}, {:016x} vs {:016x}",
+                                     replayed.state().frame, drawn->state().frame,
+                                     bo::checksum(replayed.state()), bo::checksum(drawn->state())));
+                   const auto again = replayed.h.png();
+                   check(again && with && *again == *with,
+                         "the replay's intent, drawn: the very pixels of the live play's");
+                   std::println("    {} frames of the replay with its intent in {}", frames.size(),
+                                dir.string());
+               });
 
     suite.test("the matrix: the human-tier agent plays every room, and plays each the same way "
                "twice",

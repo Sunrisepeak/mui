@@ -34,6 +34,7 @@ mlibs.memory = { path = "../../../../base/memory" }
 
 [dev-dependencies]
 xengine.simulation.cellular.rhi.cts = { path = "../../../xengine/simulation/cellular/rhi/cts" }
+hanim.rhi = { path = "../../../hanim/rhi" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
 mcpplibs.os     = "0.2.2"

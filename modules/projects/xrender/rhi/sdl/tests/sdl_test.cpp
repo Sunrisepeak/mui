@@ -8,6 +8,7 @@ import mlibs.rhi;
 import xrender.rhi.sdl;
 import mlibs.rhi.cts;
 import xengine.simulation.cellular.rhi.cts;
+import hanim.rhi.cts;
 import mcpplibs.os;
 import mlibs.testing;
 
@@ -125,6 +126,18 @@ int main(int argc, char** argv) {
         std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
             totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
         std::ofstream(scratch_dir("rhi") / "sdl-cellular.cts.omui.json") << report.json();
+    });
+
+    s.test("hanim shape batches: every control point equal to the CPU sampler's within float error", [] {
+        auto d = open_device();
+        if (!d) return;
+        hanim::gpu::cts::Totals totals;
+        const auto report = hanim::gpu::cts::run(*d, {.subject = d->caps().device, .platform = "sdl"}, {.required = {"compute"}}, &totals);
+        std::print("{}", report.text());
+        check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size(), report.text());
+        check_eq(totals.scenarios, 3u);
+        std::println("shape batches: {} samples, {} points, largest difference {}", totals.samples, totals.compared_points, totals.largest_difference);
+        std::ofstream(scratch_dir("rhi") / "sdl-shape.cts.omui.json") << report.json();
     });
 
     return s.run(argc, argv);

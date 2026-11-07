@@ -136,6 +136,10 @@ public:
     // Fraction of the oriented target perimeter used as its new start.
     [[nodiscard]] double target_start_fraction() const noexcept { return phase_; }
     [[nodiscard]] PointPath point_path() const noexcept { return point_path_; }
+    // The two ends' prepared cubics, segment for segment (what a batch
+    // evaluator on a device interpolates; hanim.rhi).
+    [[nodiscard]] std::span<const ShapeCubic> from_cubics() const noexcept { return from_; }
+    [[nodiscard]] std::span<const ShapeCubic> to_cubics() const noexcept { return to_; }
 
     // Arbitrary order / concurrent reads with distinct buffers. Finite progress
     // clamps to [0,1]; NaN/Inf and insufficient buffers fail WITHOUT writing.

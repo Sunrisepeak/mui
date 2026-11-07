@@ -1418,6 +1418,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_base_components();
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
+        register_type(component_type<Mui>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
         s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,

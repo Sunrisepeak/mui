@@ -150,7 +150,39 @@ int main(int argc, char** argv) {
         sim::BodyInput walk;
         walk.push_x = 400;
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(walker, walk);
-        check(walker.centre()[0] > start + 20, std::format("walked: {} → {}", start, walker.centre()[0]));
+        check(walker.centre()[0] > start + 20, std::format("pushed: {} → {}", start, walker.centre()[0]));
+        // Its feet at a speed: friction holds what touches the floor to it.
+        auto strider = ball({.shape_stiffness = 0.3, .friction = 0.5});
+        for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(strider, {});
+        const double from = strider.centre()[0];
+        sim::BodyInput stride;
+        stride.walk = -100;
+        for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(strider, stride);
+        check(strider.centre()[0] < from - 25, std::format("walked left at its feet's speed: {} → {}", from, strider.centre()[0]));
+        // On a ledge too (a box-like body: no rolling, its feet alone carry it).
+        auto on_ledge = ball({.shape_stiffness = 0.5, .friction = 0.5});
+        sim::BodyInput standing;
+        standing.ledges[0] = {0, 400, 200};
+        standing.ledge_count = 1;
+        for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(on_ledge, standing);
+        const double at = on_ledge.centre()[0];
+        sim::BodyInput going = standing;
+        going.walk = 100;
+        for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(on_ledge, going);
+        check(on_ledge.centre()[0] > at + 40, std::format("walked along the ledge: {} → {}", at, on_ledge.centre()[0]));
+        // Upright: kicked off-centre it turns, then comes back unturned; without, it keeps turning.
+        const auto turned = [](const sim::SoftBody& b) {
+            const auto [cx, cy] = b.centre();
+            return std::atan2(b.y[0] - cy, b.x[0] - cx);  // particle 0 started at angle 0
+        };
+        for (const double up : {0.0, 1.0}) {
+            auto spun = ball({.shape_stiffness = 0.3, .upright = up});
+            for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(spun, {});
+            for (std::size_t i = 0; i < spun.size(); ++i) spun.velocity_x[i] += (spun.y[i] - spun.centre()[1]) * 6;  // a spin
+            for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(spun, {});
+            if (up > 0) check(std::abs(turned(spun)) < 0.05, std::format("upright: back unturned ({})", turned(spun)));
+            else check(std::abs(turned(spun)) > 0.1, std::format("free: it stays turned ({})", turned(spun)));
+        }
         // The same inputs, the same bits.
         auto again = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(again, with_ledge(40, 160));

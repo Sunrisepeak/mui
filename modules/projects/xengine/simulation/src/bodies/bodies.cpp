@@ -34,7 +34,7 @@ std::expected<SoftBody, BodyError> SoftBody::ring(std::span<const std::array<dou
     if (!(params.mass > 0) || !finite(params.mass) || !(params.step > 0) || !finite(params.step) ||
         params.substeps < 1 || params.substeps > 64 || !(params.edge_compliance >= 0) ||
         !(params.area_compliance >= 0) || !(params.shape_stiffness >= 0) ||
-        !(params.shape_stiffness <= 1) || !(params.restitution >= 0) ||
+        !(params.shape_stiffness <= 1) || !(params.upright >= 0) || !(params.upright <= 1) || !(params.restitution >= 0) ||
         !(params.restitution <= 1) || !(params.friction >= 0) || !(params.friction <= 1) ||
         !(params.damping >= 0) || !finite(params.gravity_x) || !finite(params.gravity_y))
         return std::unexpected(BodyError::invalid_params);
@@ -103,6 +103,7 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
         for (std::size_t index = 0; index < count; ++index) body.velocity_x[index] += input.kick_x, body.velocity_y[index] += input.kick_y;
     const double push_x = finite(input.push_x) ? input.push_x : 0, push_y = finite(input.push_y) ? input.push_y : 0;
     const std::size_t ledges = std::min<std::size_t>(input.ledge_count, max_ledges);
+    const double walk = finite(input.walk) ? input.walk : 0;
     for (int pass = 0; pass < params.substeps; ++pass) {
         // Predict: gravity and the push, then move.
         for (std::size_t index = 0; index < count; ++index) {
@@ -165,7 +166,14 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
             }
             const double norm = std::sqrt(cosine_part * cosine_part + sine_part * sine_part);
             if (norm > 0) {
-                const double cosine = cosine_part / norm, sine = sine_part / norm;
+                double cosine = cosine_part / norm, sine = sine_part / norm;
+                // Upright: the shape it goes back to turned less (none at 1).
+                if (params.upright > 0) {
+                    const double keep = 1 - std::clamp(params.upright, 0.0, 1.0);
+                    cosine = keep * cosine + (1 - keep), sine = keep * sine;
+                    const double length = std::sqrt(cosine * cosine + sine * sine);
+                    cosine /= length, sine /= length;
+                }
                 for (std::size_t index = 0; index < count; ++index) {
                     const double goal_x =
                         centre_x + cosine * body.rest_x[index] - sine * body.rest_y[index];
@@ -213,11 +221,11 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
             body.velocity_y[index] = (body.y[index] - before_y[index]) / substep * keep;
             if (!touching[index])
                 continue;
-            if (touching[index] == 2 && body.velocity_y[index] > 0) {
-                // On a ledge: as off a floor (normal up), at restitution, with friction.
-                const double normal_in = -incoming_y;
-                body.velocity_x[index] *= 1 - params.friction;
-                body.velocity_y[index] = normal_in < 0 ? -params.restitution * -normal_in : 0;
+            if (touching[index] == 2) {
+                // On a ledge: its feet held toward the walking speed; off it, as
+                // off a floor (normal up), at restitution of the speed it came in with.
+                body.velocity_x[index] = walk + (1 - params.friction) * (body.velocity_x[index] - walk);
+                if (body.velocity_y[index] > 0) body.velocity_y[index] = incoming_y > 0 ? -params.restitution * incoming_y : 0;
             }
             for (const auto& plane : body.planes) {
                 const double gap =
@@ -229,13 +237,15 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
                 const double normal_in = incoming_x * plane.normal_x + incoming_y * plane.normal_y;
                 const double normal_now = body.velocity_x[index] * plane.normal_x +
                                           body.velocity_y[index] * plane.normal_y;
-                const double tangent_x = body.velocity_x[index] - normal_now * plane.normal_x;
-                const double tangent_y = body.velocity_y[index] - normal_now * plane.normal_y;
+                // Along the floor: held toward the walking speed (its feet), not stillness.
+                const double along_x = -plane.normal_y, along_y = plane.normal_x;
+                const double tangent_x = body.velocity_x[index] - normal_now * plane.normal_x - walk * along_x;
+                const double tangent_y = body.velocity_y[index] - normal_now * plane.normal_y - walk * along_y;
                 const double bounce = normal_in < 0 ? -params.restitution * normal_in : normal_now;
                 body.velocity_x[index] =
-                    (1 - params.friction) * tangent_x + bounce * plane.normal_x;
+                    walk * along_x + (1 - params.friction) * tangent_x + bounce * plane.normal_x;
                 body.velocity_y[index] =
-                    (1 - params.friction) * tangent_y + bounce * plane.normal_y;
+                    walk * along_y + (1 - params.friction) * tangent_y + bounce * plane.normal_y;
             }
         }
     }

@@ -31,6 +31,7 @@ struct BodyParams {
     double edge_compliance = 0;     // XPBD compliance (m/N); 0 is rigid
     double area_compliance = 0;     // the enclosed area's (0: incompressible)
     double shape_stiffness = 0.05;  // per substep, 0 to 1: how fast it springs back to its shape
+    double upright = 0;             // 0 to 1: how much the shape it springs back to stays unturned (a creature on its feet)
     double restitution = 0.4;       // of the normal speed, off a collider
     double friction = 0.3;          // of the tangential speed lost on contact
     double damping = 0.2;           // of the velocity a second
@@ -49,13 +50,16 @@ struct Ledge {
 };
 inline constexpr std::size_t max_ledges = 32;
 // A step's input: the hand, the ledges near the body (a page's surfaces, as
-// many as max_ledges, chosen by whoever drives it), an acceleration that
-// lasts (walking: x; 0 standing) and a velocity added once at the step's
-// start (a hop). Fixed size: a history of inputs allocates nothing.
+// many as max_ledges, chosen by whoever drives it), the speed its feet go
+// at along what it stands on (walking: friction holds what touches a floor
+// to that speed, not to stillness; 0 standing), an acceleration that lasts
+// (in the air too) and a velocity added once at the step's start (a hop).
+// Fixed size: a history of inputs allocates nothing.
 struct BodyInput {
     Pin pin;
     std::array<Ledge, max_ledges> ledges{};
     std::uint32_t ledge_count = 0;
+    double walk = 0;
     double push_x = 0, push_y = 0;
     double kick_x = 0, kick_y = 0;
 };

@@ -8,13 +8,15 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 # PROFILE=release uses the release build (CI's release row); the newest binaries are this build's.
-mcpp build -p omui.example.headless-and-agent -p omui.cli ${PROFILE:+--profile "$PROFILE"} > /dev/null
+mcpp build -p omui.example.headless-and-agent -p omui.cli -p omui.inspector ${PROFILE:+--profile "$PROFILE"} > /dev/null
 # By the binary's name: where mcpp puts it under bin/ is its business.
 newest() { find target -path "*/bin/*" -name "$1" -type f -printf '%T@ %p\n' | sort -rn | head -1 | cut -d' ' -f2; }
 app=$(newest notes-agent)
 omui=$(newest omui)
+inspector=$(newest omui-inspector)
 dir=$(mktemp -d)
-trap 'kill "$pid" 2> /dev/null || true; rm -rf "$dir"' EXIT
+lab_pid=
+trap 'kill "$pid" $lab_pid 2> /dev/null || true; rm -rf "$dir"' EXIT
 
 # Dual-user, whatever the build profile: a dev build otherwise starts in
 # development mode, where a trusted session's declared operations run without
@@ -112,4 +114,30 @@ grep -q "\"id\":4.*needs the user's confirmation.*\"isError\":true" <<< "$mcp_ou
 grep -q '"id":5.*done: set_value on main/compose/draft' <<< "$mcp_out"
 grep -q '"id":6.*from MCP' <<< "$mcp_out"
 echo "ok   omui mcp"
+
+# An application's verbs as MCP tools from its generated listing (§10.3): the
+# Inspector's Reaction lab, headless, driven by cellular_* tools over real
+# pipes — paint, advance, read back — with the listing's hints.
+"$inspector" --cellular --headless --serve --agent-dir "$dir" > "$dir/lab.log" 2>&1 &
+lab_pid=$!
+for _ in $(seq 100); do [ -e "$dir/org.openmui.inspector.cellular.endpoint.omui.json" ] && break; sleep 0.1; done
+lab=org.openmui.inspector.cellular
+lab_out=$("$omui" mcp --dir "$dir" --app $lab --ops tools/inspector/src/catalog/inspector.ops.json <<'JSON'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"e2e"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"cellular_snapshot","arguments":{}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"cellular_paint","arguments":{"x":10,"y":10,"radius":1,"brush":"spark"}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"cellular_advance","arguments":{"count":3}}}
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"cellular_paint","arguments":{"x":10,"y":10,"radius":99,"brush":"spark"}}}
+JSON
+)
+echo "$lab_out" | head -c 2000; echo
+[ "$(grep -c '"jsonrpc":"2.0"' <<< "$lab_out")" = 6 ] || { echo "FAIL: six responses from omui mcp --ops"; exit 1; }
+grep -q '"name":"cellular_paint","title":"cellular.paint"' <<< "$lab_out"
+grep -q '"name":"cellular_snapshot"[^}]*"inputSchema".*"readOnlyHint":true' <<< "$lab_out"
+grep -q '"id":3.*"tick":0' <<< "$lab_out"
+grep -q '"id":4.*done: cellular.paint' <<< "$lab_out"
+grep -q '"id":5.*done: cellular.advance.*"tick":3' <<< "$lab_out"
+grep -q '"id":6.*radius 0..8.*"isError":true' <<< "$lab_out"
+echo "ok   omui mcp --ops (the Reaction lab's verbs)"
 echo "agent e2e: ok"

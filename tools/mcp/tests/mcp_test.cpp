@@ -162,6 +162,15 @@ int main(int argc, char** argv) {
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_wait",
                                                   "ui_capture", "ui_input", "ui_clock", "ui_verbs"}));
+            // The hints are the catalog's effects (omui.ops.omui.toml): reads, changes, and what runs what it names.
+            const auto hint = [&](std::string_view tool, std::string_view key) {
+                for (const Value& t : *tools->list())
+                    if (t.get("name")->as_string() == tool) return t.get("annotations")->get(key)->as_bool();
+                return false;
+            };
+            check(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_verbs", "readOnlyHint"), "reads");
+            check(!hint("ui_clock", "readOnlyHint") && !hint("ui_clock", "destructiveHint") && !hint("ui_input", "readOnlyHint"), "reversible");
+            check(!hint("ui_act", "readOnlyHint") && hint("ui_act", "destructiveHint") && hint("ui_invoke", "destructiveHint"), "delegated: at most irreversible");
         }
         check(c.reply(3) && c.reply(3)->get("result"), "ping");
         check(c.reply(4) && c.reply(4)->get("error")->get("code")->as_int() == -32601, "an unknown method");
@@ -315,6 +324,50 @@ int main(int argc, char** argv) {
         check(!pinned.peek() && volume.peek() == 60, std::format("{} {}", pinned.peek(), volume.peek()));
         const History h = notes.h.runtime().history(notes.h.runtime().root());
         check(!h.undo.empty() && h.undo.back().label == "quiet" && h.undo.back().steps == 2);
+    });
+
+    s.test("an application's verbs as tools from its listing (omui-gen ops): schemas, hints, invoked, confirmed by the person", [] {
+        const auto dir = scratch_dir("mcp-listing");
+        // A listing as omui-gen ops writes one for the notes' verbs.
+        const auto file = dir / "notes.ops.json";
+        {
+            std::ofstream out(file, std::ios::binary);
+            out << R"({"kind": "omui.ops", "version": 1, "product": "notes", "doc": "Notes", "tools": [
+  {"name": "notes.pin", "description": "Pin the first note", "effect": "reversible", "person": false, "delegated": false, "cost": "instant",
+   "undo": "notes.unpin", "undoable": false, "cancellable": false, "result": "", "inputSchema": {"type": "object", "properties": {}, "required": []}},
+  {"name": "notes.delete", "description": "Delete every note", "effect": "irreversible", "person": false, "delegated": false, "cost": "instant",
+   "undo": "none: gone", "undoable": false, "cancellable": false, "result": "", "inputSchema": {"type": "object", "properties": {}, "required": []}}
+], "tiers": []})";
+        }
+        auto listing = mcp::read_listing(file);
+        check(listing.has_value(), listing ? "" : listing.error());
+        if (!listing) return;
+        {
+            std::ofstream out(dir / "ui.ops.json", std::ios::binary);
+            out << R"({"kind": "omui.ops", "tools": [{"name": "ui.snapshot"}]})";
+        }
+        const auto own = mcp::read_listing(dir / "ui.ops.json");
+        check(!own && own.error().contains("ui_* tools already"), own ? "accepted" : own.error());
+        check(!mcp::read_listing(dir / "nothing.ops.json"), "a file that is not there");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) return;
+        mcp::Server server({.directory = dir, .listings = {*listing}});
+        Client c;
+        c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
+        serve(notes.h, server, c);
+        const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
+        check(tools && tools->list() && tools->list()->size() == 14, "twelve ui_* tools and the two listed");
+        if (tools && tools->list() && tools->list()->size() == 14) {
+            const Value& pin = (*tools->list())[12];
+            const Value& del = (*tools->list())[13];
+            check(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin", pin.json());
+            check(pin.get("inputSchema")->get("properties")->get("app") != nullptr, "a call may name its application");
+            check(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool(), pin.json());
+            check(del.get("annotations")->get("destructiveHint")->as_bool() && std::string(del.get("description")->as_string()).contains("irreversible"),
+                  del.json());
+        }
+        check(!c.error(3) && notes.pinned, c.text(3));
+        check(c.error(4) && c.text(4).contains("needs the user's confirmation") && notes.deleted == 0, c.text(4));
     });
 
     s.test("the outline: one node a line, children under their parent, states, values, effects and bounds", [] {

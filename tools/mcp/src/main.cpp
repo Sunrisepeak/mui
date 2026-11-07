@@ -4,6 +4,7 @@
 //   claude mcp add openmui -- omui-mcp
 //   omui-mcp --app org.openmui.notes        one application by default
 //   omui-mcp --directory DIR                endpoints in DIR, not the per-user one
+//   omui-mcp --ops inspector.ops.json       an application's verbs as tools, from its listing
 //
 // Diagnostics go to standard error; standard output is the protocol's.
 import std;
@@ -30,8 +31,18 @@ int main(int argc, char** argv) {
             auto v = value();
             if (!v) return 2;
             options.actor = *v;
+        } else if (a == "--ops") {
+            auto v = value();
+            if (!v) return 2;
+            auto listing = omui::mcp::read_listing(mcpplibs::os::fs::from_utf8(*v));
+            if (!listing) {
+                (void)mcpplibs::os::stdio::write_error(std::format("omui-mcp: {}\n", listing.error()));
+                return 2;
+            }
+            options.listings.push_back(std::move(*listing));
         } else {
-            (void)mcpplibs::os::stdio::write_error(std::format("omui-mcp: no option `{}`\nusage: omui-mcp [--app NAME] [--directory DIR] [--actor KIND:NAME]\n", a));
+            (void)mcpplibs::os::stdio::write_error(std::format(
+                "omui-mcp: no option `{}`\nusage: omui-mcp [--app NAME] [--directory DIR] [--actor KIND:NAME] [--ops LISTING.ops.json]…\n", a));
             return 2;
         }
     }

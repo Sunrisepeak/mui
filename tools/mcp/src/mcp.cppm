@@ -39,7 +39,16 @@ struct ServerOptions {
     // Every tool call and its outcome, as the server sees them (a log a
     // cockpit shows, or a test reads); called on the serving thread.
     std::function<void(const Value& entry)> journal;
+    // Operation listings (`<product>.ops.json`, made by omui-gen ops from a
+    // catalog, convergence plan §10.3) whose operations are applications'
+    // verbs: each becomes a tool (cellular.paint → cellular_paint) with the
+    // listing's schema and hints, invoking that verb.
+    std::vector<Value> listings;
 };
+
+// A listing read and checked: an omui.ops listing of an application's verbs
+// (not the protocol's own ui.* operations, which are the ui_* tools).
+[[nodiscard]] std::expected<Value, std::string> read_listing(const std::filesystem::path& file);
 
 // What carries the messages: one JSON-RPC message a line, either way.
 class Transport {
@@ -74,8 +83,9 @@ public:
     // matched to the request the server made.
     void handle(std::string_view line, Transport& transport);
 
-    // tools/list's tools: name, title, description, input schema, hints.
-    [[nodiscard]] static Value::List tools();
+    // tools/list's tools: name, title, description, input schema, hints —
+    // the ui_* tools, then the listed operations'.
+    [[nodiscard]] Value::List tools() const;
 
     struct Impl;
 

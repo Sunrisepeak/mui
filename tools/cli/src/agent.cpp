@@ -373,6 +373,7 @@ cmd::App app() {
     (void)mcp.description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools");
     mcp.option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)");
     mcp.option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name, agent:claude-code)");
+    mcp.option("ops").takes_value().multiple().value_name("LISTING").help("an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops)");
     (void)a.subcommand(std::move(mcp));
     return a;
 }
@@ -511,6 +512,14 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
         if (auto v = m.value("app")) o.app = *v;
         if (auto v = m.value("actor")) o.actor = *v;
         if (auto d = global(*parsed, "dir")) o.directory = mcpplibs::os::fs::from_utf8(*d);
+        for (const std::string& file : m.option_or_empty("ops").values) {
+            auto listing = mcp::read_listing(mcpplibs::os::fs::from_utf8(file));
+            if (!listing) {
+                err << "omui mcp: " << listing.error() << "\n";
+                return 2;
+            }
+            o.listings.push_back(std::move(*listing));
+        }
         mcp::Server server(std::move(o));
         mcp::StdioTransport stdio;
         server.serve(stdio);

@@ -4,6 +4,7 @@ import std;
 import mcpplibs.os;
 import omui.core;
 import omui.agent;
+import openas;
 
 namespace omui::mcp {
 
@@ -69,12 +70,41 @@ Value object_schema(Value::Map properties, std::initializer_list<std::string_vie
 
 const std::pair<std::string, Value> app_prop{"app", prop("string", "The application's endpoint name or app id (ui_apps); none: the one running")};
 
-Value tool(std::string_view name, std::string_view title, std::string_view description, Value schema, bool read_only, bool destructive) {
+// A tool's hints from its operation's effect: a read only reads; what can be
+// irreversible or external — or runs what it names, whose effect may be — is
+// destructive.
+Value hints_of(std::string_view effect, bool delegated) {
+    const bool read_only = effect == "read" && !delegated;
     Value hints;
-    hints.set("readOnlyHint", read_only).set("destructiveHint", destructive).set("idempotentHint", read_only).set("openWorldHint", false);
+    hints.set("readOnlyHint", read_only).set("destructiveHint", effect == "irreversible" || effect == "external");
+    hints.set("idempotentHint", read_only).set("openWorldHint", false);
+    return hints;
+}
+std::string_view effect_name(openas::Effect effect) {
+    switch (effect) {
+    case openas::Effect::read: return "read";
+    case openas::Effect::reversible: return "reversible";
+    case openas::Effect::irreversible: return "irreversible";
+    default: return "external";
+    }
+}
+
+// A ui_* tool is one of the protocol's operations (omui.agent's catalog, ui.*):
+// its hints are that operation's. ui_apps is the server's own, a read.
+Value tool(std::string_view name, std::string_view title, std::string_view description, Value schema, std::string_view operation = {}) {
+    const auto entry = std::ranges::find(agent::catalog, operation, [](const auto& e) { return e.operation.name; });
     Value t;
-    t.set("name", name).set("title", title).set("description", description).set("inputSchema", std::move(schema)).set("annotations", std::move(hints));
+    t.set("name", name).set("title", title).set("description", description).set("inputSchema", std::move(schema));
+    t.set("annotations", entry == agent::catalog.end() ? hints_of("read", false) : hints_of(effect_name(entry->operation.effect), entry->delegated));
     return t;
+}
+
+// An MCP tool's name for a listed operation: cellular.paint → cellular_paint.
+std::string tool_name(std::string_view operation) {
+    std::string out(operation);
+    std::ranges::replace(out, '.', '_');
+    std::ranges::replace(out, '-', '_');
+    return out;
 }
 
 std::string_view str(const Value& args, std::string_view key) {
@@ -160,8 +190,32 @@ struct Server::Impl {
     std::map<std::string, agent::Client>   clients;
     std::int64_t                           next_id = 1;    // the server's own requests
     std::deque<std::string>                later;          // read while waiting for a response
+    // The listed operations' tools, and the verb each invokes.
+    Value::List                            listed;
+    std::map<std::string, std::string>     verbs;
 
-    explicit Impl(ServerOptions o) : options(std::move(o)), actor(options.actor.empty() ? "agent:mcp" : options.actor) {}
+    explicit Impl(ServerOptions o) : options(std::move(o)), actor(options.actor.empty() ? "agent:mcp" : options.actor) {
+        for (const Value& listing : options.listings) {
+            const Value* tools = listing.get("tools");
+            if (!tools || !tools->list()) continue;
+            for (const Value& op : *tools->list()) {
+                const std::string verb(str(op, "name")), name = tool_name(verb);
+                if (verb.empty() || verbs.contains(name)) continue;
+                Value schema = op.get("inputSchema") ? *op.get("inputSchema") : Value{}.set("type", "object");
+                Value properties = schema.get("properties") && schema.get("properties")->map() ? *schema.get("properties") : Value(Value::Map{});
+                properties.set(app_prop.first, app_prop.second);
+                schema.set("properties", std::move(properties)).set("additionalProperties", false);
+                std::string description(str(op, "description"));
+                description += std::format(" ({} {}: the application's verb {}{})", str(listing, "product"), str(op, "effect"), verb,
+                                           str(op, "undo").empty() ? std::string() : std::format("; undo: {}", str(op, "undo")));
+                Value t;
+                t.set("name", name).set("title", verb).set("description", description).set("inputSchema", std::move(schema));
+                t.set("annotations", hints_of(str(op, "effect"), op.get("delegated") && op.get("delegated")->as_bool()));
+                listed.push_back(std::move(t));
+                verbs.emplace(name, verb);
+            }
+        }
+    }
 
     [[nodiscard]] std::filesystem::path directory() const {
         return options.directory.empty() ? agent::default_directory() : options.directory;
@@ -492,6 +546,15 @@ struct Server::Impl {
             if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
             return tool_result(a.data.json(), false, Value{}.set("data", a.data));
         }
+        if (const auto listed_verb = verbs.find(std::string(name)); listed_verb != verbs.end()) {
+            Value given = Value(Value::Map{});
+            if (args.map())
+                for (const auto& [key, value] : *args.map())
+                    if (key != "app") given.set(key, value);
+            Value req;
+            req.set("op", "invoke").set("verb", listed_verb->second).set("args", std::move(given));
+            return perform(t, *app, std::move(req), listed_verb->second);
+        }
         return tool_result(std::format("no tool `{}`", name), true);
     }
 };
@@ -499,14 +562,14 @@ struct Server::Impl {
 Server::Server(ServerOptions options) : impl_(std::make_unique<Impl>(std::move(options))) {}
 Server::~Server() = default;
 
-Value::List Server::tools() {
+Value::List Server::tools() const {
     const auto n = [](std::string_view d) { return prop("integer", d); };
     const auto s = [](std::string_view d) { return prop("string", d); };
     const auto b = [](std::string_view d) { return prop("boolean", d); };
     const auto o = [](std::string_view d) { return prop("object", d); };
-    return {
+    Value::List out{
         tool("ui_apps", "Running applications", "The openmui applications running on this machine, by endpoint name and app id.",
-             object_schema({}), true, false),
+             object_schema({})),
         tool("ui_snapshot", "Semantic tree",
              "An application's semantic tree as an outline: one node a line — id, role, name, value, states and the actions it offers "
              "(with their effect: irreversible and external ones need the user's confirmation; one marked person is the user's own, which "
@@ -517,16 +580,14 @@ Value::List Server::tools() {
                             {"interactive", b("only nodes that can be operated")},
                             {"offset", n("skip this many nodes (paging)")},
                             {"limit", n("at most this many nodes")},
-                            {"children_limit", n("list at most this many child ids per node (children_total says how many)")}}),
-             true, false),
+                            {"children_limit", n("list at most this many child ids per node (children_total says how many)")}}), "ui.snapshot"),
         tool("ui_find", "Find nodes", "Nodes matching a query: a role, a name glob (Save*), a state, or a full query object (spatial: within).",
              object_schema({app_prop,
                             {"role", s("button, text_box, checkbox, link, list_item …")},
                             {"name", s("a name glob: Save*, *TODO*")},
                             {"state", s("a state the nodes have: checked, disabled, focused, selected …")},
                             {"query", o("a whole openmui.tree query, e.g. {\"role\":\"button\",\"within\":{\"id\":\"main/toolbar\"}}")},
-                            {"limit", n("at most this many")}}),
-             true, false),
+                            {"limit", n("at most this many")}}), "ui.find"),
         tool("ui_act", "Act on a node",
              "Performs an action a node offers (activate, toggle, set_value with args {\"value\": …}, focus, scroll …), as a person "
              "would. An irreversible or external action is put to the user first; never pass `answer` unless the user gave it. "
@@ -537,28 +598,25 @@ Value::List Server::tools() {
                             {"args", o("the action's arguments")},
                             {"answer", s("the user's answer to a confirmation they were asked for")},
                             {"dry_run", b("only what would happen; nothing is done")}},
-                           {"node", "action"}),
-             false, true),
+                           {"node", "action"}), "ui.act"),
         tool("ui_verbs", "Application verbs",
              "The application's verbs — what ui_invoke can name: each with its effect, the answer an irreversible or external one asks "
              "for, the arguments it takes, and whether only the user may invoke it.",
-             object_schema({app_prop}), true, false),
+             object_schema({app_prop}), "ui.describe"),
         tool("ui_invoke", "Invoke a verb", "Invokes an application verb (ui_verbs lists them, with their arguments).",
              object_schema({app_prop,
                             {"verb", s("the verb's name")},
                             {"args", o("its arguments")},
                             {"answer", s("the user's answer to a confirmation they were asked for")},
                             {"dry_run", b("only what would happen; nothing is done")}},
-                           {"verb"}),
-             false, true),
+                           {"verb"}), "ui.invoke"),
         tool("ui_undo", "Undo or redo",
              "Takes back the last step of the application's history (the window's, or a scope's), or with redo puts it forward again. "
              "Reversible actions that say how are in the history; an irreversible or external one ends it — undo stops there.",
              object_schema({app_prop,
                             {"redo", b("redo instead of undo")},
                             {"scope", s("a node with its own history (default: the window)")},
-                            {"dry_run", b("only say what it would undo")}}),
-             false, false),
+                            {"dry_run", b("only say what it would undo")}}), "ui.undo"),
         tool("ui_transaction", "Several actions as one",
              "Performs actions in order as one step of history: if one fails, those done are taken back and nothing stays. Only "
              "reversible and read actions may be in it. dry_run checks every step first.",
@@ -566,21 +624,18 @@ Value::List Server::tools() {
                             {"steps", prop("array", "[{\"node\": id, \"action\": name, \"args\": {…}}, …]").set("items", prop("object", "a step"))},
                             {"label", s("what the step is called in the history")},
                             {"dry_run", b("only what each step would do")}},
-                           {"steps"}),
-             false, false),
+                           {"steps"}), "ui.transaction"),
         tool("ui_wait", "Wait for the interface",
              "Waits until nodes matching a query appear (or, absent, are gone) and/or the interface has settled (nothing animating).",
              object_schema({app_prop,
                             {"query", o("a query that must match, e.g. {\"id\":\"main/toast\"}")},
                             {"absent", b("the query must not match")},
                             {"settled", b("nothing animates or is being removed")},
-                            {"timeout", prop("number", "seconds (default 5)")}}),
-             true, false),
+                            {"timeout", prop("number", "seconds (default 5)")}}), "ui.wait"),
         tool("ui_capture", "Capture pixels",
              "The pixels of the window, or of one node, as a PNG image; `region` [x, y, width, height] (logical pixels, from the node's corner "
              "or the window's) takes a part of it, to look closer at a detail.",
-             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")}}),
-             true, false),
+             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")}}), "ui.capture"),
         tool("ui_input", "Input as a person gives it",
              "Pointer, wheel, keys and text, delivered frame by frame through the application's real input path (hit testing, focus, "
              "gestures), as a person's devices would give them — to use the interface as a person does and find what does not work. Only "
@@ -594,16 +649,16 @@ Value::List Server::tools() {
              object_schema({app_prop,
                             {"events", prop("array", "the events, in order").set("items", prop("object", "an event"))},
                             {"capture", b("the window's pixels after the input")}},
-                           {"events"}),
-             false, false),
+                           {"events"}), "ui.input"),
         tool("ui_clock", "The application's time",
              "Shows or controls the application's clock: pause, resume, step {seconds}, seek {seconds}, rate {rate}, release.",
              object_schema({app_prop,
                             {"action", s("show, pause, resume, step, seek, rate, release")},
                             {"seconds", prop("number", "for step and seek")},
-                            {"rate", prop("number", "for rate: 1 is real time")}}),
-             false, false),
+                            {"rate", prop("number", "for rate: 1 is real time")}}), "ui.clock"),
     };
+    out.insert(out.end(), impl_->listed.begin(), impl_->listed.end());
+    return out;
 }
 
 void Server::serve(Transport& transport) {
@@ -682,6 +737,18 @@ void Server::handle(std::string_view line, Transport& t) {
         return;
     }
     t.write(failure(*id, method_not_found, std::format("no method `{}`", method)).json());
+}
+
+std::expected<Value, std::string> read_listing(const std::filesystem::path& file) {
+    auto text = os::fs::read(file);
+    if (!text) return std::unexpected(std::format("cannot read {}: {}", utf8(file), text.error().message()));
+    auto listing = parse_json(*text);
+    if (!listing || str(*listing, "kind") != "omui.ops" || !listing->get("tools") || !listing->get("tools")->list())
+        return std::unexpected(std::format("{} is not an operation listing (omui-gen ops makes <product>.ops.json)", utf8(file)));
+    for (const Value& op : *listing->get("tools")->list())
+        if (str(op, "name").starts_with("ui."))
+            return std::unexpected(std::format("{}: the protocol's ui.* operations are the ui_* tools already", utf8(file)));
+    return std::move(*listing);
 }
 
 // ── the outline ──────────────────────────────────────────────────────────

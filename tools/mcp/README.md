@@ -19,6 +19,14 @@ omui mcp --app org.openmui.notes            # one application when a call names 
 | `ui_wait` | until a query matches (or, `absent`, does not) and/or the interface settles |
 | `ui_capture` | the window's or a node's pixels, as a PNG image |
 
+Each `ui_*` tool is one of the protocol's operations in omui.agent's catalog ([`omui.ops.omui.toml`](../../modules/projects/omui/agent/omui.ops.omui.toml)): its read-only and destructive hints are that operation's effect (`ui_act` and `ui_invoke` run what they name, so they may be destructive).
+
+**An application's verbs as tools, from its listing.** `--ops <product>.ops.json` (repeatable) adds the operations of a listing `omui-gen ops` made from an application's catalog: each verb becomes a tool (`cellular.paint` → `cellular_paint`) with the listing's JSON schema, its effect's hints and its undo in the description, and a call invokes that verb — an irreversible one is put to the person as any is. The Inspector's Reaction lab, for one:
+
+```sh
+omui mcp --app org.openmui.inspector.cellular --ops tools/inspector/src/catalog/inspector.ops.json
+```
+
 `ui_act`, `ui_invoke`, `ui_undo` and `ui_transaction` take `dry_run`: the answer says what would happen — whether it would run, need the person's confirmation or be refused, its effect, whether it could be undone, the value after — and nothing is done or asked (S-13).
 
 A call names its application with `app` (an endpoint name or an app id); without one it is the server's `--app`, or the only one running.

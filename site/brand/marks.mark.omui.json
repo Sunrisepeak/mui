@@ -1,0 +1,31 @@
+{
+ "about": "The mark's O, explored (A1; the site plan §8.1): each an outline in a 100-unit square, stroked 6 wide, round caps and joins, around the inner word's letters (letters: the current mark's, unchanged).",
+ "letters": [
+  "M24 64L24 44M24 50C24 41 35 41 35 50L35 64M35 50C35 41 46 41 46 50L46 64",
+  "M55 44L55 56C55 66 69 66 69 56L69 44",
+  "M78 44L78 64"
+ ],
+ "dot": [
+  78,
+  35,
+  2.5
+ ],
+ "outlines": {
+  "now": {
+   "about": "today's: an ellipse",
+   "d": "M50 5C73.2 5 92 25.1 92 50C92 74.9 73.2 95 50 95C26.8 95 8 74.9 8 50C8 25.1 26.8 5 50 5Z"
+  },
+  "ears": {
+   "about": "A: two ears rise from the O",
+   "d": "M50 96C26 96 8 78 8 55C8 41 12 31 18 24L21 5L36 15C40 13.5 45 13 50 13C55 13 60 13.5 64 15L79 5L82 24C88 31 92 41 92 55C92 78 74 96 50 96Z"
+  },
+  "stroke": {
+   "about": "B: one stroke, ending in a tail (reads close to a Q)",
+   "d": "M64 94C59 95.5 55 96 50 96C26 96 8 76 8 51C8 26 27 6 50 6C73 6 92 26 92 51C92 66 86 79 76 87C82 92 90 93 95 88"
+  },
+  "ears_tail": {
+   "about": "C: ears and a tail",
+   "d": "M64 94C59 95.5 55 96 50 96C26 96 8 78 8 55C8 41 12 31 18 24L21 5L36 15C40 13.5 45 13 50 13C55 13 60 13.5 64 15L79 5L82 24C88 31 92 41 92 55C92 68 87 79 77 87C83 92 91 93 96 88"
+  }
+ }
+}

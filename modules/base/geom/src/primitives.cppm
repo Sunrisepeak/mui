@@ -207,6 +207,29 @@ struct Color {
     }
 };
 
+// The same map in double precision, for animation and simulation composing
+// transforms they compare (D-131): x' = a·x + c·y + e, y' = b·x + d·y + f.
+struct AffineD {
+    double a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;
+
+    [[nodiscard]] static constexpr AffineD from(const std::array<double, 6>& matrix) noexcept {
+        return {matrix[0], matrix[1], matrix[2], matrix[3], matrix[4], matrix[5]};
+    }
+    // This transform after `o`: (this ∘ o)(p) = this(o(p)).
+    [[nodiscard]] constexpr AffineD operator*(const AffineD& o) const noexcept {
+        return {a * o.a + c * o.b, b * o.a + d * o.b, a * o.c + c * o.d, b * o.c + d * o.d, a * o.e + c * o.f + e,
+                b * o.e + d * o.f + f};
+    }
+    [[nodiscard]] constexpr std::array<double, 2> apply(double x, double y) const noexcept { return {a * x + c * y + e, b * x + d * y + f}; }
+    [[nodiscard]] constexpr std::optional<AffineD> inverse() const noexcept {
+        const double determinant = a * d - b * c;
+        if (determinant == 0 || determinant != determinant) return std::nullopt;
+        const double inverse_determinant = 1.0 / determinant;
+        return AffineD{d * inverse_determinant, -b * inverse_determinant, -c * inverse_determinant, a * inverse_determinant,
+                       (c * f - d * e) * inverse_determinant, (b * e - a * f) * inverse_determinant};
+    }
+};
+
 // x' = a·x + c·y + e, y' = b·x + d·y + f
 struct Affine {
     float a = 1, b = 0, c = 0, d = 1, e = 0, f = 0;

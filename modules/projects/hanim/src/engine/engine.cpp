@@ -58,6 +58,10 @@ struct EngineData {
     std::unordered_map<DriveKey, std::vector<std::uint32_t>> drive_keys;
     double now = 0;
     Policy policy;
+    // Constraints, and the order they apply in (each after those it reads).
+    struct ConstraintSlot { Constraint value; std::uint32_t generation = 1; bool live = false; };
+    std::vector<ConstraintSlot> constraints;
+    std::vector<std::uint32_t> constraint_order;
     EngineData(ObjectRegistry registry, EngineLimits budget)
         : objects(std::move(registry)), limits(budget), playbacks(budget.max_playbacks) {}
 };
@@ -206,6 +210,152 @@ void account(detail::EngineData& data, const detail::Playback& playback, bool ad
     if (add) { data.parts += count.parts; data.cubics += count.cubics; data.parameters += count.parameters; data.routes += count.routes; }
     else { data.parts -= count.parts; data.cubics -= count.cubics; data.parameters -= count.parameters; data.routes -= count.routes; }
 }
+// ── Constraints ──
+// Where a part shows: the published frame of the playback showing its object.
+struct Shown {
+    std::span<FramePart> parts;
+    std::span<double> values;
+    std::span<const ValueSlot> slots;
+    std::size_t index = 0;
+};
+std::optional<Shown> shown(detail::EngineData& data, const PartAddress& address) noexcept {
+    std::optional<Shown> found;
+    data.playbacks.for_each([&](auto, detail::Playback& playback) {
+        if (found) return;
+        for (auto& track : playback.tracks) {
+            const auto& animation = playback.program.segments()[track.segment].animation;
+            const auto count = animation.requirements();
+            const auto parts = std::span<FramePart>(track.current.parts).first(count.parts);
+            for (std::size_t index = 0; index < parts.size(); ++index)
+                if (parts[index].info.from_ref.object == address.object && parts[index].info.id == address.part) {
+                    found = Shown{parts, std::span<double>(track.current.values).first(count.values), animation.value_slots(), index};
+                    return;
+                }
+        }
+    });
+    return found;
+}
+mlibs::geom::AffineD world_of(const Shown& place, std::size_t index) noexcept {
+    auto world = mlibs::geom::AffineD::from(place.parts[index].local.matrix());
+    for (auto parent = place.parts[index].info.parent; parent != invalid_object_slot && parent < place.parts.size();
+         parent = place.parts[parent].info.parent)
+        world = mlibs::geom::AffineD::from(place.parts[parent].local.matrix()) * world;
+    return world;
+}
+// A part at rest, as its object describes it: its local transform and world.
+struct Rest { Transform2D local; mlibs::geom::AffineD world; };
+std::optional<Rest> at_rest(const detail::EngineData& data, const PartAddress& address) noexcept {
+    const auto snapshot = data.objects.capture(address.object);
+    if (!snapshot) return std::nullopt;
+    const auto ref = snapshot->find(address.part);
+    if (!ref) return std::nullopt;
+    auto part = snapshot->get(*ref);
+    if (!part) return std::nullopt;
+    Rest rest{(*part)->local, mlibs::geom::AffineD::from((*part)->local.matrix())};
+    for (auto parent = (*part)->parent; parent;) {
+        const auto above = snapshot->get(*parent);
+        if (!above) break;
+        rest.world = mlibs::geom::AffineD::from((*above)->local.matrix()) * rest.world;
+        parent = (*above)->parent;
+    }
+    return rest;
+}
+std::size_t channel_lanes(std::string_view channel) noexcept { return channel == "rotation" ? 1 : 2; }
+// A channel's lanes on a shown part (its value channel's, when it has one).
+std::optional<std::array<double, ch::max_lanes>> read(const Shown& place, std::string_view channel, std::size_t& count) noexcept {
+    std::array<double, ch::max_lanes> lanes{};
+    const auto& local = place.parts[place.index].local;
+    if (channel == "position") { lanes[0] = local.tx; lanes[1] = local.ty; count = 2; return lanes; }
+    if (channel == "rotation") { lanes[0] = local.rotate; count = 1; return lanes; }
+    if (channel == "scale") { lanes[0] = local.sx; lanes[1] = local.sy; count = 2; return lanes; }
+    for (const auto& slot : place.slots)
+        if (slot.part == place.index && slot.id.name == channel) {
+            std::copy_n(place.values.begin() + static_cast<std::ptrdiff_t>(slot.offset), slot.id.lanes, lanes.begin());
+            count = slot.id.lanes; return lanes;
+        }
+    return std::nullopt;
+}
+void write(Shown& place, std::string_view channel, const std::array<double, ch::max_lanes>& lanes, std::size_t count) noexcept {
+    auto& local = place.parts[place.index].local;
+    if (channel == "position") { local.tx = lanes[0]; local.ty = lanes[1]; return; }
+    if (channel == "rotation") { local.rotate = lanes[0]; return; }
+    if (channel == "scale") { local.sx = lanes[0]; local.sy = lanes[1]; return; }
+    for (const auto& slot : place.slots)
+        if (slot.part == place.index && slot.id.name == channel)
+            std::copy_n(lanes.begin(), std::min<std::size_t>(count, slot.id.lanes), place.values.begin() + static_cast<std::ptrdiff_t>(slot.offset));
+}
+void apply(detail::EngineData& data, const Constraint& constraint) noexcept {
+    auto target = shown(data, constraint.target);
+    if (!target) return;  // nothing draws it
+    const auto source = shown(data, constraint.source);
+    const auto rest = source ? std::nullopt : at_rest(data, constraint.source);
+    if (!source && !rest) return;
+    const auto source_world = source ? world_of(*source, source->index) : rest->world;
+    const auto parent = target->parts[target->index].info.parent;
+    const auto parent_world = parent == invalid_object_slot || parent >= target->parts.size() ? mlibs::geom::AffineD{} : world_of(*target, parent);
+    auto& local = target->parts[target->index].local;
+    switch (constraint.kind) {
+        case ConstraintKind::follow: {
+            const auto origin = source_world.apply(0, 0);
+            const auto inverse = parent_world.inverse();
+            if (!inverse) return;
+            const auto placed = inverse->apply(origin[0] + constraint.offset.x, origin[1] + constraint.offset.y);
+            if (std::isfinite(placed[0]) && std::isfinite(placed[1])) { local.tx = placed[0]; local.ty = placed[1]; }
+            return;
+        }
+        case ConstraintKind::aim: {
+            const auto from = (parent_world * mlibs::geom::AffineD::from(local.matrix())).apply(0, 0);
+            const auto to = source_world.apply(0, 0);
+            if (from == to) return;
+            const double facing = mlibs::math::det::atan2(to[1] - from[1], to[0] - from[0]);
+            const double parent_turn = mlibs::math::det::atan2(parent_world.b, parent_world.a);
+            local.rotate = facing - parent_turn + constraint.angle;
+            return;
+        }
+        case ConstraintKind::relate: {
+            std::size_t count = 0;
+            std::optional<std::array<double, ch::max_lanes>> lanes;
+            if (source) lanes = read(*source, constraint.source_channel, count);
+            else if (constraint.source_channel == "position") { lanes = std::array<double, ch::max_lanes>{rest->local.tx, rest->local.ty}; count = 2; }
+            else if (constraint.source_channel == "rotation") { lanes = std::array<double, ch::max_lanes>{rest->local.rotate}; count = 1; }
+            else if (constraint.source_channel == "scale") { lanes = std::array<double, ch::max_lanes>{rest->local.sx, rest->local.sy}; count = 2; }
+            if (!lanes) return;
+            for (std::size_t lane = 0; lane < count; ++lane)
+                (*lanes)[lane] = constraint.scale * (*lanes)[lane] + (lane == 0 ? constraint.offset.x : lane == 1 ? constraint.offset.y : 0);
+            if (std::ranges::all_of(*lanes, [](double lane) { return std::isfinite(lane); })) write(*target, constraint.target_channel, *lanes, count);
+            return;
+        }
+    }
+}
+void apply_constraints(detail::EngineData& data) noexcept {
+    for (const auto index : data.constraint_order)
+        if (data.constraints[index].live) apply(data, data.constraints[index].value);
+}
+std::string_view written(const Constraint& constraint) noexcept {
+    return constraint.kind == ConstraintKind::follow ? "position" : constraint.kind == ConstraintKind::aim ? "rotation" : std::string_view(constraint.target_channel);
+}
+bool same_part(const PartAddress& left, const PartAddress& right) noexcept { return left.object == right.object && left.part == right.part; }
+// The constraints in an order where each comes after those whose target it
+// reads; nothing when they make a cycle.
+std::optional<std::vector<std::uint32_t>> order_constraints(const std::vector<detail::EngineData::ConstraintSlot>& slots) {
+    std::vector<std::uint32_t> live;
+    for (std::uint32_t index = 0; index < slots.size(); ++index) if (slots[index].live) live.push_back(index);
+    std::vector<std::size_t> waiting(slots.size(), 0);
+    for (const auto reader : live)
+        for (const auto writer : live)
+            if (reader != writer && same_part(slots[writer].value.target, slots[reader].value.source)) ++waiting[reader];
+    std::vector<std::uint32_t> order, ready;
+    for (const auto index : live) if (!waiting[index]) ready.push_back(index);
+    while (!ready.empty()) {
+        const auto index = ready.front(); ready.erase(ready.begin());
+        order.push_back(index);
+        for (const auto reader : live)
+            if (reader != index && same_part(slots[index].value.target, slots[reader].value.source) && --waiting[reader] == 0) ready.push_back(reader);
+    }
+    if (order.size() != live.size()) return std::nullopt;
+    return order;
+}
+
 std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* data, PreparedProgram program) {
     if (!data) return std::unexpected(fail(EngineError::uninitialized));
     if (!program) return std::unexpected(program_failure({ProgramError::unprepared}));
@@ -231,6 +381,7 @@ std::expected<PlaybackRef, EngineFailure> insert_playback(detail::EngineData* da
     }, fail(EngineError::capacity));
     if (!inserted) return std::unexpected(inserted.error());
     account(*data, *data->playbacks.get(*inserted), true);
+    apply_constraints(*data);
     engine_log.debug("play owner={} slot={} generation={}", data->objects.owner(), inserted->index, inserted->generation);
     return PlaybackRef{data->objects.owner(), inserted->index, inserted->generation};
 }
@@ -241,6 +392,7 @@ Status mutate(detail::EngineData* data, bool& writing, PlaybackRef ref, const ch
     auto playback = resolve(data, ref);
     if (!playback) return std::unexpected(playback.error());
     const auto result = action(**playback);
+    if (result) apply_constraints(*data);
     if (result) engine_log.debug("{} owner={} slot={} generation={}", operation, ref.owner, ref.slot, ref.generation);
     else engine_log.warn("{} refused: {}", operation, result.error().text());
     return result;
@@ -431,6 +583,7 @@ Status Engine::advance(seconds elapsed) {
     data_->playbacks.for_each([](auto, detail::Playback& playback) {
         if (state(playback) == PlaybackState::playing) publish(playback);
     });
+    apply_constraints(*data_);
     follow_playbacks();
     return {};
 }
@@ -636,3 +789,54 @@ std::expected<std::size_t, EngineFailure> Engine::evaluate_driven(std::span<doub
     return evaluate(data_->drives, seconds(data_->now), out, data_->policy);
 }
 } // namespace hanim
+
+namespace hanim {
+std::expected<ConstraintRef, EngineFailure> Engine::constrain(Constraint constraint) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    WriteScope scope(writing_);
+    for (const auto* address : {&constraint.target, &constraint.source}) {
+        const auto snapshot = data_->objects.capture(address->object);
+        if (!snapshot) return std::unexpected(object_failure(snapshot.error()));
+        if (!snapshot->find(address->part)) return std::unexpected(object_failure(ObjectError::part_not_found));
+    }
+    const auto valid_channel = [](std::string_view channel) { return !channel.empty() && channel.size() <= 128 && channel != "fill"; };
+    if (same_part(constraint.target, constraint.source) || constraint.kind > ConstraintKind::relate || !std::isfinite(constraint.offset.x) ||
+        !std::isfinite(constraint.offset.y) || !std::isfinite(constraint.angle) || !std::isfinite(constraint.scale) ||
+        (constraint.kind == ConstraintKind::relate && (!valid_channel(constraint.target_channel) || !valid_channel(constraint.source_channel) ||
+                                                       (ch::builtin(constraint.target_channel) && ch::builtin(constraint.source_channel) &&
+                                                        channel_lanes(constraint.target_channel) != channel_lanes(constraint.source_channel)))))
+        return std::unexpected(fail(EngineError::invalid_argument));
+    for (const auto& slot : data_->constraints)
+        if (slot.live && same_part(slot.value.target, constraint.target) && written(slot.value) == written(constraint))
+            return std::unexpected(fail(EngineError::binding_conflict));
+    auto slots = data_->constraints;
+    std::uint32_t index = 0;
+    while (index < slots.size() && slots[index].live) ++index;
+    if (index == slots.size()) slots.push_back({});
+    slots[index].value = std::move(constraint);
+    slots[index].live = true;
+    auto order = order_constraints(slots);
+    if (!order) return std::unexpected(fail(EngineError::constraint_cycle));
+    data_->constraints = std::move(slots);
+    data_->constraint_order = std::move(*order);
+    apply_constraints(*data_);
+    return ConstraintRef{index, data_->constraints[index].generation};
+}
+std::expected<void, EngineFailure> Engine::unconstrain(ConstraintRef constraint) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    if (!data_) return std::unexpected(fail(EngineError::uninitialized));
+    if (constraint.index >= data_->constraints.size() || !data_->constraints[constraint.index].live ||
+        data_->constraints[constraint.index].generation != constraint.generation)
+        return std::unexpected(fail(EngineError::stale_handle));
+    auto& slot = data_->constraints[constraint.index];
+    slot.live = false;
+    ++slot.generation;
+    auto order = order_constraints(data_->constraints);
+    data_->constraint_order = order ? std::move(*order) : std::vector<std::uint32_t>{};
+    return {};
+}
+std::size_t Engine::constraint_count() const noexcept {
+    return data_ ? static_cast<std::size_t>(std::ranges::count_if(data_->constraints, [](const auto& slot) { return slot.live; })) : 0;
+}
+}  // namespace hanim

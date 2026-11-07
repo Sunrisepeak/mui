@@ -131,7 +131,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 4 selectors + deformers (overshoot, drag) | done in hanim: `Selector` (everything / around / inside, eased falloff) frozen at preparation; `deform::displace/scale/rotate` follow a part's value channel, so springs overshoot the geometry; continuations start from the undeformed base; the H crossbar pulled and released on a spring sampled at 120 Hz (overshoot, settle, legs exact), interruption without a jump, and drawn pixels in the consumer. Lattice/cage deformers come with item 9 |
 | 5 match modifiers + path noise | done: `MatchRules` (cost weights, pins) on aligned pairing; `PathNoise` in `PointPath` (`jitter`, `swirl`) from mlibs.math's new deterministic gradient/curl noise (bits pinned in CI), for vertices and translations alike; ends bit-exact, seams shared, any seek order the same frames |
 | 6 blending layers | done: `Blend` replace/add/multiply/mix with weight on property and value writes (`BoundAnimation::blend`), layers in author order over the base; replacing rivals still refused |
-| 7 constraints · 9 elastic bodies (cage deformer, soft-body solver in xengine.simulation, motion-derived squash, analytic bounce; any object; ownership split per plan §6.9, D-131) · 8 GPU evaluation | planned |
+| 7 constraints | done in hanim.engine: `Engine::constrain` follow (world space, through parents), aim, relate (linear driver between channels, value channels included) applied after sampling in dependency order; cycles (`constraint_cycle`) and rival targets refused; sources at rest read from their description. `mlibs.geom::AffineD` is the double-precision affine they compose with |
+| 9 elastic bodies (cage deformer, soft-body solver in xengine.simulation, motion-derived squash, analytic bounce; any object; ownership split per plan §6.9, D-131) · 8 GPU evaluation | planned |
 
 ## Next
 

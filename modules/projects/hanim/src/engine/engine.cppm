@@ -17,7 +17,7 @@ enum class EngineError : std::uint8_t {
     uninitialized, invalid_limits, invalid_handle, foreign_engine, stale_handle,
     invalid_time, invalid_ease, invalid_argument, capacity, binding_conflict, cancelled,
     version_exhausted, object, animation, effect, reentrant_mutation,
-    program, ambiguous_frame, unsupported_operation
+    program, ambiguous_frame, unsupported_operation, constraint_cycle
 };
 // The codes as the error contract describes them (mlibs.error).
 [[nodiscard]] constexpr mlibs::error::Description describe(EngineError e) noexcept {
@@ -42,6 +42,7 @@ enum class EngineError : std::uint8_t {
         case EngineError::program: return {"hanim.engine.program", Kind::failed, {}, true};
         case EngineError::ambiguous_frame: return {"hanim.engine.ambiguous-frame", Kind::invalid_argument};
         case EngineError::unsupported_operation: return {"hanim.engine.unsupported-operation", Kind::refused};
+        case EngineError::constraint_cycle: return {"hanim.engine.constraint-cycle", Kind::refused};
     }
     return {"hanim.engine.?", Kind::internal};
 }
@@ -100,6 +101,35 @@ using DriveKey = std::uint64_t;
 struct DriveTag;
 using DriveRef = mlibs::memory::Handle<DriveTag>;
 template <Animatable T> class Drive;
+
+// ── Constraints and drivers (L4, plan §6.8 ⑦) ───────────────────────────
+// A part's channel made from another part's, after every playback is sampled
+// and before anything reads the frames, in dependency order:
+//   follow  the target's origin at the source's, in world space, plus offset;
+//   aim     the target turned so its x axis faces the source's origin, plus angle;
+//   relate  target channel = scale × source channel + offset, lane by lane
+//           ("position", "rotation", "scale" or a value channel of the part).
+// The target is drawn by the playback showing its object (a hold, for one at
+// rest); the source is read from the playback showing it, else from its
+// object as described. A cycle is refused (constraint_cycle), as is a second
+// constraint on the same target channel (binding_conflict).
+//
+//     engine.constrain({.kind = ConstraintKind::follow, .target = {label, "tag"}, .source = {card, "card"}, .offset = {0, -12}});
+struct PartAddress {
+    ObjectRef   object;
+    std::string part;
+};
+enum class ConstraintKind : std::uint8_t { follow, aim, relate };
+struct Constraint {
+    ConstraintKind kind = ConstraintKind::follow;
+    PartAddress    target, source;
+    Vec2           offset{};  // follow: in world space; relate: added to lanes 0 and 1
+    double         angle = 0;  // aim
+    double         scale = 1;  // relate
+    std::string    target_channel = "position", source_channel = "position";  // relate
+};
+struct ConstraintTag;
+using ConstraintRef = mlibs::memory::Handle<ConstraintTag>;
 
 // One owning thread or external synchronization. No event loop, window,
 // renderer, UI, transport or business setter. advance() is the batch boundary.
@@ -178,6 +208,12 @@ public:
     [[nodiscard]] std::size_t driven_lane_capacity() const noexcept;
     // The user asked for reduced motion: a driven channel shows its target.
     void reduce_motion(bool on) noexcept;
+
+    // Constraints (above): applied at once to the published frames, and
+    // after every advance, seek, play, retarget and cancel.
+    [[nodiscard]] std::expected<ConstraintRef, EngineFailure> constrain(Constraint constraint);
+    [[nodiscard]] std::expected<void, EngineFailure> unconstrain(ConstraintRef constraint);
+    [[nodiscard]] std::size_t constraint_count() const noexcept;
 
 private:
     template <Animatable T> friend class Drive;

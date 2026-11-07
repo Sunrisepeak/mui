@@ -51,9 +51,11 @@ portable runtime package. Both this package and its serial tests run on Web.
 |---|---|
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, whose passes are this graph's |
 | [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
-| [cts](cts) | Desktop-only graph/vector device conformance; native workspace CI includes it, Web CI keeps the portable CPU suites |
+| [cts](cts) | The render contract's suite on mlibs.cts (47 cases), run by each backend's tests (D-118) |
 
 Depends on: `mlibs.rhi`, `mlibs.trace`.
+
+Planned with hanim's representations (convergence plan §6.8, M3.5): strokes trimmed by arc length (a start, an end and an offset that animate) as a drawing capability of the vector renderer, CPU and GPU alike; glyph outlines handed to hanim's glyph adapter as `mlibs.geom` paths.
 
 ## Independent boundary
 

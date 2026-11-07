@@ -217,4 +217,6 @@ Inspector／CLI／openas查询同一计划：某对象／顶点的对应、路�
 
 必需验收：无effect默认结果／成本；改匹配规则但对应合法；路径扰动端点／切线／seed及乱序seek；属性细分与质量守恒；区域／事件／阈值／邻域反应、边沿／持续／冷却与冲突；相机pose／镜头／视图作用域；刚体／粒子响应区别；离场后的状态；到达策略；完整输入重放／retarget状态迁移及外部事件幂等；CPU／GPU与实际区域像素；失败／能力不足／预算及纯模块依赖闭包。
 
+阶段对应（2026-11-07）：通用匹配modifier、路径扰动kernel、同通道混合与约束依赖图进入收敛方案M3.5（§6.8，顺序见多表示方案§5.1）；属性／响应／条件与刺激、有状态反应／求解适配及检查点、场与粒子随M6的模拟与游戏层进行；GPU批次在M3.5末尾先覆盖形变与扰动，模拟侧随M6。
+
 当前源码核对：EffectSpec只有id及from/to数值参数链，ProgramKind只有binding／sequence／parallel／stagger等首批形变编排。尚无上述通用匹配modifier、路径kernel、属性schema、FieldSet、状态solver、完整作用域IR及hanim GPU evaluator。本稿为升级基线，不能把现有参数链改名后记作这些能力已交付。

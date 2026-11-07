@@ -241,9 +241,11 @@ xrender、xengine、omui 按同一张表设计各自的 L0–L4，例如渲染�
 L6 配方库      40 个公共动画（pulse/follow/enter/exit/reorder…）
 L5 执行        一个宿主一个 Engine：timeline 模式（可 seek）＋ interactive 模式（替代 Set，SoA、零分配）
                统一通道仲裁、预算、原子发布、观测、control feature
-L4 编排        Program ＋ 时间映射节点（吸收 Timeline 的 clip/TimeMap/Fill/marker）
-L3 表示        property · shape · visual（Matter 的通用部分）· image scope；后置：rig/particles/field
-L2 通道        Channel<T> = 目标 × 通道 ID × lanes<T>，用户可自定义
+L4 编排        Program ＋ 时间映射节点（吸收 Timeline 的 clip/TimeMap/Fill/marker）；约束与驱动（M3.5）
+L3 表示        property · shape · visual（Matter 的通用部分）· image scope；
+               M3.5 补齐：glyph／path adapter · stroke（trim／书写）· 拓扑对齐 morph · 选择器＋形变器
+               · 匹配修饰与路径扰动核；后置（M6）：rig/particles/field
+L2 通道        Channel<T> = 目标 × 通道 ID × lanes<T>，用户可自定义；同通道混合层（M3.5）
 L1 曲线        Ease · Tween · Spring · Decay · Motion<T> · Path（hanim.core，不变）
 L0 数值        lanes<T> · OKLab · Transform2D · mlibs.math（hanim.core，不变）
 ```
@@ -295,6 +297,23 @@ engine.drive(node, ch::opacity).spring_to(1.0);
 - 直接删除 `Morph`、`MorphTo`、`PreparedObjectMorph`、多余的 `play`／`retarget` 重载。
 - v1 冻结后只做加法。
 
+### 6.8 表示与形变能力补齐（M3.5，2026-11-07 维护者确认）
+
+M2 交付了 L2–L5、visual 表示与 v1 形状后复核（D-129）：hanim 是扎实的 2D 矢量对象＋属性＋编排＋播放内核，但“任意可视对象顶点化后做 A→B 变换、用 effect 改变匹配与过程、字体局部动画、轮廓描边动画、跟手的几何物理形变”还做不到。缺口与归属：
+
+| # | 能力 | 现状 | 归属 | 验收例 |
+|---|---|---|---|---|
+| 1 | glyph／path adapter：字形轮廓 → `mlibs.geom` 路径 → hanim 对象（每个字形一个部件，带来源映射） | xrender `GlyphSource::outline()` 有轮廓，hanim 无适配 | 几何归 `mlibs.geom`；字形归 xrender text；对象化归 hanim | 一行文字的每个字形可单独做属性和形变动画 |
+| 2 | stroke 表示：描边的 trim 起点／终点／偏移、宽度、颜色通道；按弧长裁剪 | 渲染层有 `dashes`／`dash_offset`，hanim 无描边表示 | 动画归 hanim，按弧长裁剪与绘制归 xrender | “一”的轮廓上一段红色绕行一圈；焦点环跑圈；书写效果 |
+| 3 | 拓扑对齐 morph：轮廓数／孔数不同时按契约拆分、从点生长、孔的出现与闭合 | 轮廓数不同直接拒绝（`contour_count_mismatch`） | hanim（匹配策略），几何算法归 `mlibs.geom` | A→B、“一”→“二” 连续，无静默跳变 |
+| 4 | 选择器＋形变器：软选择（区域／锚点半径＋衰减）、位移／晶格／弯曲／扭曲，位移是类型化通道；几何允许随弹簧过冲 | 无区域选择；morph 几何限制在两端内 | hanim | A 的横杠被拖下、松手后皮筋式来回弹（`drive` 跟手） |
+| 5 | 匹配修饰与路径扰动核（`MatchModifier`、noise／curl／绕轴／沿法线＋包络） | 只有 `vertex_path`／`translation_path` | hanim（IR 设计 §3） | 同一 A→B 换匹配规则仍合法；扰动端点与切线保持、乱序 seek 一致 |
+| 6 | 同通道混合层（replace／add／multiply／blend，带权重和顺序） | 重叠写入被拒绝 | hanim（L2） | 呼吸动画叠加在拖动上 |
+| 7 | 约束与驱动（跟随、朝向、表达式依赖图，检测环） | 无 | hanim（L4） | 一个对象跟随另一个，环被拒绝 |
+| 8 | GPU 批量求值（形变、匹配、扰动在设备上） | GPU 只用于渲染 | hanim 计划＋`mlibs.rhi` 计算 | 与 CPU 参考同语义，误差声明 |
+
+顺序：1、2 先行（改动最小，组件立即可用：焦点、进度、勾选的描边动画），然后 3、4、5，再 6、7，最后 8；rig、粒子、场仍在 M6。每项验收：按时间采样的过程帧（端点、多个中间态、打断与反向）、CPU／GPU 实际像素、`mlibs.cts` 用例、基准；组件只经运动槽配方使用这些能力（D-93），语义与命中由 UI 保证一致。
+
 ### 6.7 性能约束
 
 - interactive 模式不慢于 `Set`；简单过渡不走 prepare。
@@ -311,7 +330,8 @@ engine.drive(node, ch::opacity).spring_to(1.0);
 | 渲染图、纹理池 | `xrender` | 原 `xengine.render` |
 | vector、effect 特性；以后的 mesh、particle | `xrender.vector`、`xrender.effect`… | |
 | CPU 光栅器 | `xrender.raster` | 原 `mlibs.raster`，是渲染器的 CPU 后端；改为依赖 `mlibs.math`，不再依赖 hanim.core |
-| 渲染 CTS | `xrender.cts` | 补上源码（现在没有） |
+| 渲染 CTS | `xrender.cts` | 已是 owner 的套件库（D-118） |
+| 描边裁剪与字形轮廓供给（M3.5） | `xrender.vector`、`xrender.text` | 按弧长裁剪描边（trim 起点／终点／偏移）作为绘制能力；字形轮廓以 `mlibs.geom` 路径交给 hanim 的 glyph adapter |
 | Slang 着色器工具链 | **`mlibs.shader`（已确认留在 mlibs）** | 渲染和模拟计算共用，不含渲染语义；`shader.rules` 是模拟的整数规则 kernel，并入模拟包 |
 
 - 判定规则：**通用的抽象和工具放 mlibs，具体的渲染实现归 xrender。**
@@ -560,8 +580,9 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 | **M1 结构与命名** | §10.2 全部改名；§9 目录调整（`modules/projects/{hanim,omui,xengine,xrender,gongfu}`、utils，各分组 README）；修复依赖异味；删除转发入口；层级 lint 改为映射表 | lint 为 0；全部成员构建和测试通过 |
 | **M2 全局契约与 hanim 内核** | §5.2 的句柄、错误、时间、预算、准备与执行约定；lint `owner`；`mlibs.cts` 框架与现有四套 CTS 的迁移（§5.5）；契约 CTS；§6.2 的 L2–L5、visual 表示和 v1 API | 独立消费者通过；`Set` 和 Morph 的基准、像素基线不退化 |
 | **M3 UI 动画迁移** | §6.4；37 类组件；删除旧实现 | 中间态、打断、reduced／off、命中、焦点、IME 一致；帧时间和 Wasm 对照 |
+| **M3.5 hanim 表示与形变** | §6.8：glyph／path adapter、stroke（trim／书写）、拓扑对齐 morph、选择器＋形变器（几何过冲）、匹配修饰与路径扰动核、同通道混合层、约束与驱动、GPU 批量求值；组件经配方使用（焦点环跑圈、描边书写、按压局部回弹、文字替换时的字形形变） | 每项的过程帧、打断与反向、CPU／GPU 像素和 CTS 通过；A→B、“一”的描边跑圈、A 横杠皮筋回弹三个招牌镜头可 headless 重现；基准无退化 |
 | **M4 Agent 目录、首个工具与首个 Agent 玩家** | §10.3；动画工具 CLI 完整任务；openas 扩展草案（§8.3）；组件打砖块的 Agent 玩家（§8.4） | 真实 LLM 任务成功率有记录；所有公开产品都有 ops 和 skill；§8.4 的验收通过 |
-| **M5 公共库与官网** | 40 个公共配方、20 个可带走工程；官网与按页交付；作品迁移到统一内核（宣传片、打砖块、timeline）；首批竞品基准；xrender 补齐毕业条件 | UI、动画、渲染、官网复评 ≥85 |
+| **M5 公共库与官网** | 40 个公共配方（依赖 M3.5 的表示）、20 个可带走工程；官网与按页交付；作品迁移到统一内核（宣传片、打砖块、timeline）；首批竞品基准；xrender 补齐毕业条件 | UI、动画、渲染、官网复评 ≥85 |
 | **M6 游戏引擎与 Agent 游玩** | xengine 游戏层；Agent 游玩推广到格斗等实时对战（回滚联机接入）；rig／粒子／场；simulation GPU；audio／MIDI；Toy／TUI／移动端 | 实时对战中的 Agent 玩家可回放；openas 扩展进入规范 |
 | **M7 全面验收** | 恢复作品质量目标；≥90 评审循环 | 每维 ≥90；CI 稳定运行 4 周 |
 

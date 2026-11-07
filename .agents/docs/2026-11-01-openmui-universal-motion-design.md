@@ -227,6 +227,20 @@ C1 落地的形状（`openmui.view`）：
 | C4 | L3 自定义 GPU 过渡；动效工作室 | 8 |
 | C5 | 时间线寻址任意动画对象；影片 = 场景 + 时间线 | — |
 
+## 13.1 组件里的表示能力（2026-11-07，收敛方案 M3.5）
+
+组件仍只画状态、命名部件（D-93）；以下效果都是运动槽里的配方，由 hanim 的新表示求值，组件不写一行动画：
+
+| 配方（拟） | 槽 | 用到的表示 | 组件 |
+|---|---|---|---|
+| `trace.focus`：焦点环沿边框跑一圈后停住 | state | stroke（trim 偏移） | 所有可聚焦控件 |
+| `write.check`、`write.progress`：勾和进度环被“画出来” | update | stroke（trim 终点） | checkbox、progress、stepper |
+| `press.elastic`：按下处局部内陷、松开回弹 | state | 选择器＋形变器（位移通道、弹簧过冲） | button、chip、card |
+| `text.reshape`：替换文字时相同位置的字形轮廓形变，而不是淡入淡出 | replace | glyph adapter＋拓扑对齐 morph | 文本、数字、标签 |
+| `travel.noise`：移动途中沿路径轻微扰动 | update | 路径扰动核 | 选择指示、抽屉、浮层 |
+
+验收与 §12 相同：过程帧（端点、中间态、打断、反向）、reduced／off、命中与焦点一致；新配方进入规范的 `[[recipe]]`（M-8）。
+
 ## 14. 待决
 
 - Q-32（已定）：默认要求 CPU 参考实现；只有 GPU 版本的允许，声明 `deterministic = false`、不参与像素固定。

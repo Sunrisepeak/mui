@@ -117,6 +117,15 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | the 37 component kinds, swept | done: `omui.viewdoc`'s component motion sweep builds every kind generically and changes `disabled`: 15 kinds move (a middle neither endpoint at full and reduced, rest exactly motion off's drawing, nothing left moving); `text_box` is immediate as its recipe says. Findings: 21 kinds draw no disabled state at all (tabs, pagination, combobox, tag_input, tree_view, data_grid … — a UI gap, not motion); `progress`'s indeterminate sweep ignored reduced/off motion — fixed: it holds still (`Services::motion_reduced`) |
 | style packs naming recipe ids end to end; interruption and hit/focus/IME consistency across kinds; old paths deleted | next |
 
+## M3.5 — hanim representations and deformation (planned, D-129)
+
+| Item | State |
+|---|---|
+| 1 glyph/path adapter (glyph outlines → hanim parts) | next |
+| 2 stroke representation (trim start/end/offset, writing; xrender trims by arc length) | next |
+| 3 topology-aligning morph (A→B) · 4 selectors + deformers (overshoot, drag) · 5 match modifiers + path noise | planned |
+| 6 blending layers · 7 constraints · 8 GPU evaluation | planned |
+
 ## Next
 
 M0 and M2 exit on one all-green CI run of an M2 commit (the matrix rows; the GCC rows and their gated steps in the nightly lane). Then M3 (plan §6.4): the UI runtime's motion stage on the one Engine — node slots declare motion intent, style packs give recipe ids and parameters, the UI gives representations and identity, hanim evaluates; `Set` users move to `drive`; Playback becomes a light handle; the 37 component kinds; old paths deleted; intermediate states, interruption, reduced/off, hit/focus/IME consistency, frame time and Wasm compared. mcpp is pinned to the latest release, 2026.11.5.1 (`.xlings.json`).

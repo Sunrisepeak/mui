@@ -162,7 +162,9 @@ std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,F
         frame.cubics.size() != data.geometry.requirements().cubics ||
         frame.source_object != data.geometry.source_object() || frame.source_revision != data.geometry.source_revision())
         return refuse(VectorError::foreign_frame);
-    if (!std::isfinite(frame.progress) || frame.progress < 0 || frame.progress > 1) return refuse(VectorError::invalid_progress);
+    // A spring's or a back ease's progress overshoots: the geometry is already
+    // sampled there, and a material mixes at its clamped end (PreparedPaintMix).
+    if (!std::isfinite(frame.progress)) return refuse(VectorError::invalid_progress);
     for (std::size_t i = 0; i < contours.size(); ++i)
         if (!same(frame.contours[i], contours[i])) return refuse(VectorError::foreign_frame, i);
     bool has_bounds = false;

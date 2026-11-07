@@ -22,6 +22,13 @@ How an Agent (or a person at a terminal) does animation work with hanim without 
 - At the end the objects are where the program says (`animation.inspect`, and a drawn frame).
 - Record what you did: the operations, their arguments and receipts, the frames' hashes.
 
+## Authoring without code: a document and the `hanim` command
+
+1. Write `<name>.animation.omui.json` ([hanim.studio](studio/README.md)): the stage, the objects (shapes, fills, where they stand), and the program as steps (`move_to`, `drop`, `morph`, `scale_to` with a `spring` …) in sequences and parallels. Add `marker`s at the moments you will check.
+2. `hanim check FILE`: the plan (duration, tracks, markers) or every problem at its JSON pointer — fix them all, then check again.
+3. `hanim sample FILE --at T …`: each object's position, scale, rotation, fill and bounds at those moments — the numbers to verify against what was asked (where it lands, that it overshoots, what shape it ends as).
+4. `hanim render FILE --out PREFIX --frames N`: the frames, a strip of them and a report with each frame's pixel hash. Look at the strip: the whole course, not only its ends.
+
 ## Not here
 
-Authoring itself (writing a Program) is hanim's C++/script API; this skill covers operating a host's Engine. Rendering is xrender's. Permission is the person's (mlibs.control and openas).
+Authoring in code (writing a Program) is hanim's C++/script API; documents cover shapes and the common steps. Rendering is xrender's. Permission is the person's (mlibs.control and openas).

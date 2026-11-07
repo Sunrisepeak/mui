@@ -9,7 +9,7 @@ hanim render examples/bounce.animation.omui.json --out /tmp/bounce --frames 16 -
                                                                    # /tmp/bounce-000.png …, .strip.png, .webp, .report.omui.json
 ```
 
-Every answer is one JSON object; exit 0 done, 1 the document or the work failed (its problems listed), 2 the command was wrong.
+Its operations are a catalog ([`studio.ops.omui.toml`](studio.ops.omui.toml), listed in [`media/ops`](media/ops)); how an Agent authors with it is [hanim's skill](../skill.omui.md). Every answer is one JSON object; exit 0 done, 1 the document or the work failed (its problems listed), 2 the command was wrong.
 
 ## The document (`<name>.animation.omui.json`, version 1)
 

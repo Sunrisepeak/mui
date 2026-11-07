@@ -14,10 +14,11 @@ It also holds the domain subsystems that have not graduated into projects of the
 
 | Subsystem | Layer | |
 |---|---|---|
-| [simulation](simulation) | base (its GPU adapter gfx) | The shared fixed-step clock and owned replay (`Timeline`: snapshots and inputs, seek, branches); [cellular](simulation/cellular) integer field rules, with an optional compute kernel on `mlibs.rhi` ([rhi](simulation/cellular/rhi)) |
+| [simulation](simulation) | base (its GPU adapter gfx) | The shared fixed-step clock and owned replay (`Timeline`: snapshots and inputs, seek, branches); [cellular](simulation/cellular) integer field rules, with an optional compute kernel on `mlibs.rhi` ([rhi](simulation/cellular/rhi)), and a field on screen as one image ([present](simulation/cellular/present)) |
 | [audio](audio) | media | Sounds and music as data (`*.sound.omui.toml`, `*.music.omui.toml`), voices mixed into buses a block at a time with nothing allocated; offline renders the same bits everywhere; the `omui-music` tool |
 | [video](video) | media | Frames and a sound track encoded on exact frame and sample counts: sources, encoders as plugins, `*.video.omui.toml`; the same bytes everywhere |
 | [timeline](timeline) | media | Tracks of clips in exact time (flicks), properties keyed with hanim's curves, edits that give back their exact inverse; `*.timeline.omui.toml` |
+| [tool](tool) | game | The `xengine` command: timelines checked, read at a moment, edited and edits taken back, headless (xengine's operations' catalog and skill) |
 | [world](world) | game | Entities and components in fixed columns of plain data: deterministic order, a snapshot is one copy |
 | [input](input) | game | Keys, gamepads and the pointer bound to a game's actions, sampled once a frame as plain data |
 | [physics](physics) | game | Swept circles against boxes: exact times of impact, the same bits everywhere |

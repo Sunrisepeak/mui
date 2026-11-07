@@ -1,0 +1,17 @@
+{
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "xengine",
+  "doc": "Check timelines, read what plays at a moment, make the usual edits and take them back.",
+  "tools": [
+    {"name": "timeline.check", "description": "The timeline (rate, size, tracks and clips, markers, length), or every problem at its line and column", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path: a *.timeline.omui.toml"}}, "required": ["file"]}},
+    {"name": "timeline.at", "description": "What plays at a moment: each clip, where in its source, at what level", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "time": {"type": "string", "description": "90f, 1.5s, 250ms or 123fl"}}, "required": ["file", "time"]}},
+    {"name": "timeline.edit", "description": "Split, trim, move, remove or ripple-remove a clip; the file written as the edit leaves it (or only said, with dry_run)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "timeline.undo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "edit": {"type": "string", "description": "split, trim, move, remove or ripple-remove"}, "track": {"type": "integer", "description": "the track's index (0: the first)"}, "clip": {"type": "integer", "description": "the clip's index on its track"}, "at": {"type": "string", "description": "split: where; trim: the new start; move: the new start"}, "length": {"type": "string", "description": "trim: the new length"}, "to_track": {"type": "integer", "description": "move: another track of its kind"}, "dry_run": {"type": "boolean", "description": "only say what it would leave"}}, "required": ["file", "edit", "track", "clip"]}},
+    {"name": "timeline.undo", "description": "Take back the last edit this command made to the file (its text before it restored exactly; the last 64 kept)", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "make the edit again (timeline.edit)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}}, "required": ["file"]}}
+  ],
+  "tiers": []
+}

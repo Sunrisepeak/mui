@@ -45,6 +45,7 @@ members = [
     "modules/projects/xengine/audio/device",
     "modules/projects/xengine/video",
     "modules/projects/xengine/video/webm",
+    "modules/projects/xengine/tool",
     "modules/projects/xengine/timeline",
     "modules/projects/xengine/timeline/audio",
     "modules/projects/omui/abi",

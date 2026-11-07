@@ -24,6 +24,10 @@ Every answer is one JSON object; exit 0 done, 1 the document or the work failed 
 
 A sample says each object's `opacity` (a recipe's fade) beside its fill. `read` checks the whole document and reports every problem at its JSON pointer (`/program/items/2/ease: …`), or a syntax error at its line and column. Objects that do not move stand still behind those that do.
 
+**Examples to take away**: [twenty documents](examples/README.md) — a loader, a toast, a success check, a like, a badge, an error shake, a card shuffle, a menu, a page transition, confetti, a logo reveal … — each composed from the recipe library, each kept valid and moving by the tests.
+
+An object whose first step is an entrance is not on the stage before that entrance begins; objects are drawn in the document's order (its z order) whatever the program's order.
+
 ## How it runs
 
 `Studio::open` makes the objects in an Engine of its own and the steps a hanim Program, then operates it through `hanim.control` — `animation.prepare`, `animation.play`, `animation.pause`, `animation.seek` — each call admitted by `mlibs.control` and listed in the answer. Any moment can be asked for in any order and gives the same numbers and the same pixels. Frames are drawn by `hanim.render.vector` into xrender's CPU raster.

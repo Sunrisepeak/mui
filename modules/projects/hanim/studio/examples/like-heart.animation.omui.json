@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "size": [200, 200],
+  "background": "#fff1f2",
+  "objects": [
+    { "id": "heart", "shape": { "polygon": [[0, 30], [-34, -2], [-38, -18], [-30, -32], [-14, -36], [0, -24], [14, -36], [30, -32], [38, -18], [34, -2]] }, "fill": "#e11d48", "at": [100, 104], "scale": 0.9 },
+    { "id": "spark1", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [52, 60], "hidden": false },
+    { "id": "spark2", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [148, 60] },
+    { "id": "spark3", "shape": { "circle": 4 }, "fill": "#fb7185", "at": [100, 40] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "pop_in", "object": "heart", "duration": 0.4 },
+      { "do": "parallel", "items": [
+        { "do": "heartbeat", "object": "heart", "scale": 1.2 },
+        { "do": "stagger", "step": 0.06, "items": [
+          { "do": "pop_in", "object": "spark1", "duration": 0.25 },
+          { "do": "pop_in", "object": "spark3", "duration": 0.25 },
+          { "do": "pop_in", "object": "spark2", "duration": 0.25 }
+        ] }
+      ] },
+      { "do": "parallel", "items": [
+        { "do": "rise_out", "object": "spark1", "distance": 18 },
+        { "do": "rise_out", "object": "spark2", "distance": 18 },
+        { "do": "rise_out", "object": "spark3", "distance": 18 }
+      ] }
+    ]
+  }
+}

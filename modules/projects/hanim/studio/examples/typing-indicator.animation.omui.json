@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "size": [240, 120],
+  "background": "#f4f4f5",
+  "objects": [
+    { "id": "bubble", "shape": { "rect": { "size": [96, 48], "radius": 24 } }, "fill": "#e4e4e7", "at": [120, 60] },
+    { "id": "dot1", "shape": { "circle": 6 }, "fill": "#52525b", "at": [96, 60] },
+    { "id": "dot2", "shape": { "circle": 6 }, "fill": "#52525b", "at": [120, 60] },
+    { "id": "dot3", "shape": { "circle": 6 }, "fill": "#52525b", "at": [144, 60] }
+  ],
+  "program": {
+    "do": "sequence",
+    "items": [
+      { "do": "pop_in", "object": "bubble", "duration": 0.35 },
+      { "do": "stagger", "step": 0.2, "items": [
+        { "do": "blink", "object": "dot1", "period": 1.2, "count": 2 },
+        { "do": "blink", "object": "dot2", "period": 1.2, "count": 2 },
+        { "do": "blink", "object": "dot3", "period": 1.2, "count": 2 }
+      ] }
+    ]
+  }
+}

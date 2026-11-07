@@ -195,6 +195,21 @@ std::pair<Vec2, Vec2> bounds_of(const FrameView& frame, std::size_t part) {
     return {low, high};
 }
 
+// The first step each object takes, in the document's order.
+void first_steps(const StepSpec& step, std::map<std::string, StepKind>& out) {
+    if (!step.object.empty()) out.try_emplace(step.object, step.kind);
+    if (!step.with.empty()) out.try_emplace(step.with, step.kind);
+    for (const auto& id : step.objects) out.try_emplace(id, step.kind);
+    for (const auto& item : step.items) first_steps(item, out);
+}
+bool entrance(StepKind kind) {
+    switch (kind) {
+    case StepKind::fade_in: case StepKind::rise_in: case StepKind::sink_in: case StepKind::slide_in: case StepKind::pop_in:
+    case StepKind::zoom_in: case StepKind::spin_in: case StepKind::unfold_in: case StepKind::write_in: case StepKind::drop_in: return true;
+    default: return false;
+    }
+}
+
 }  // namespace
 
 struct Studio::Data {
@@ -208,13 +223,19 @@ struct Studio::Data {
     PreparedProgram plan;
     PlaybackRef playback;
     std::vector<Operation> operations;
-    vector_render::PreparedVectorProgram drawing;
+    // Each object's track (none: it stands still unanimated), and from when it is on the stage:
+    // an object whose first step is an entrance is not there before that entrance begins.
+    std::vector<std::optional<std::size_t>> track_of;
+    std::vector<double> enters_at;
+    // Drawn object by object in the document's order (its z order), each segment bound once.
+    std::map<std::size_t, vector_render::PreparedVector> bindings;
     xrender::CpuRenderer renderer;
     xrender::DisplayList list, recording;
     std::vector<mlibs::geom::Affine> world;
     std::vector<float> parameters;
-    std::vector<mlibs::geom::Rect> layers, bounds;
-    std::vector<std::size_t> members, order, stack;
+    std::vector<mlibs::geom::Rect> layers;
+
+    [[nodiscard]] bool on_stage(std::size_t index, seconds time) const noexcept { return time.count() >= enters_at[index]; }
 
     explicit Data(Engine made) : engine(std::move(made)) {}
 
@@ -297,17 +318,18 @@ std::expected<Studio, Problems> Studio::open(const Document& document) {
     data->playback = *played->value;
     if (!data->admitted("animation.pause", data->controller->pause(data->call, data->playback)))
         return std::unexpected(Problems{{"", "pausing was refused"}});
-    auto drawing = vector_render::PreparedVectorProgram::bind(data->plan);
-    if (!drawing) return std::unexpected(Problems{{"", "it cannot be drawn: " + drawing.error().text()}});
-    data->drawing = std::move(*drawing);
-    const auto sizes = data->drawing.requirements();
-    data->world.resize(sizes.buffers.world_transforms);
-    data->parameters.resize(sizes.buffers.backend_parameters);
-    data->layers.resize(sizes.buffers.effect_layers);
-    data->bounds.resize(sizes.tracks + sizes.scopes);
-    data->members.resize(sizes.tracks + sizes.scopes);
-    data->order.resize(sizes.tracks + sizes.scopes);
-    data->stack.resize(sizes.scope_depth + 1);
+    const auto tracks = data->plan.tracks();
+    data->track_of.assign(document.objects.size(), std::nullopt);
+    data->enters_at.assign(document.objects.size(), -std::numeric_limits<double>::infinity());
+    std::map<std::string, StepKind> first;
+    first_steps(document.program, first);
+    for (std::size_t index = 0; index < document.objects.size(); ++index)
+        for (std::size_t track = 0; track < tracks.size(); ++track)
+            if (tracks[track].object == data->refs[index]) {
+                data->track_of[index] = track;
+                if (const auto found = first.find(document.objects[index].id); found != first.end() && entrance(found->second))
+                    data->enters_at[index] = data->plan.segments()[tracks[track].first_segment].start.count();
+            }
     return Studio(std::move(data));
 }
 
@@ -326,7 +348,7 @@ std::expected<std::vector<ObjectState>, Problems> Studio::state(seconds time) {
         ObjectState state{.id = data_->document.objects[index].id};
         const auto tracks = data_->plan.tracks();
         for (std::size_t track = 0; track < tracks.size(); ++track) {
-            if (tracks[track].object != data_->refs[index]) continue;
+            if (tracks[track].object != data_->refs[index] || !data_->on_stage(index, time)) continue;
             const FrameView& view = frame->scene.tracks[track].geometry;
             if (view.parts.empty()) break;
             const auto& local = view.parts[0].local;
@@ -353,13 +375,23 @@ std::expected<void, Problems> Studio::render(seconds time, xrender::raster::Surf
     if (!frame) return std::unexpected(Problems{{"", frame.error().text()}});
     auto& d = *data_;
     d.list.clear();
-    const auto recorded = d.drawing.record(frame->scene, d.list,
-                                           {.buffers = {&d.recording, d.world, d.parameters, d.layers},
-                                            .bounds = d.bounds,
-                                            .scope_members = d.members,
-                                            .order = d.order,
-                                            .scope_stack = d.stack});
-    if (!recorded) return std::unexpected(Problems{{"", "drawing failed: " + recorded.error().text()}});
+    for (std::size_t index = 0; index < d.document.objects.size(); ++index) {
+        if (!d.track_of[index] || !d.on_stage(index, time)) continue;
+        const auto frame = d.engine.frame(d.playback, *d.track_of[index]);
+        if (!frame || !frame->animation) return std::unexpected(Problems{{"", frame ? "no frame" : frame.error().text()}});
+        auto bound = d.bindings.find(frame->segment_index);
+        if (bound == d.bindings.end()) {
+            auto made = frame->effects ? vector_render::PreparedVector::bind(*frame->animation, *frame->effects) : vector_render::PreparedVector::bind(*frame->animation);
+            if (!made) return std::unexpected(Problems{{"", "it cannot be drawn: " + made.error().text()}});
+            bound = d.bindings.emplace(frame->segment_index, std::move(*made)).first;
+        }
+        const auto needs = bound->second.requirements();
+        d.world.resize(std::max(d.world.size(), needs.world_transforms));
+        d.parameters.resize(std::max(d.parameters.size(), needs.backend_parameters));
+        d.layers.resize(std::max(d.layers.size(), needs.effect_layers));
+        const auto recorded = bound->second.record(frame->geometry, frame->effect_values, d.list, {&d.recording, d.world, d.parameters, d.layers});
+        if (!recorded) return std::unexpected(Problems{{"", "drawing failed: " + recorded.error().text()}});
+    }
     const auto& background = d.document.background;
     const auto report = d.renderer.render(d.list, surface, {}, {.background = mlibs::geom::Color{background.r, background.g, background.b, background.a}});
     if (report.invalid_paints || report.effects_skipped)

@@ -131,10 +131,44 @@ int main(int argc, char** argv) {
         check(find(end, "c").opacity < .01 && std::abs(find(end, "d").position.y - 250) < 1e-6, "c faded out; d back where it was");
         xrender::raster::Surface surface(480, 320);
         for (const double t : {0.1, in, swapped, opened->duration().count()}) check(opened->render(hanim::seconds(t), surface).has_value(), "drawn");
+        // An object whose first step is an entrance is not on the stage before it; one standing still is.
+        const auto later = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff", "at": [10, 10]},
+            {"id": "b", "shape": {"circle": 5}, "fill": "#fff", "at": [30, 10]}],
+            "program": {"do": "sequence", "items": [{"do": "wait", "duration": 0.5}, {"do": "fade_in", "object": "a"}]}})");
+        auto waiting = studio::Studio::open(*later);
+        check(waiting && !find(*waiting->state(hanim::seconds(.2)), "a").drawn && find(*waiting->state(hanim::seconds(.2)), "b").drawn &&
+                  find(*waiting->state(hanim::seconds(.6)), "a").drawn,
+              "on the stage from its entrance");
         // A recipe's fields are its own.
         const auto wrong = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}],
             "program": {"do": "rise_in", "object": "a", "distnace": 10}})");
         check(!wrong && says(wrong.error(), "/program/distnace", "not a field of `rise_in`"), wrong ? "accepted" : studio::to_text(wrong.error()));
+    });
+
+    s.test("the examples: each reads, opens, has an end and moves through it — every object drawn where it should be", [] {
+        const auto dir = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "examples";
+        std::size_t count = 0;
+        for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+            if (!entry.path().string().ends_with(".animation.omui.json")) continue;
+            ++count;
+            const auto name = entry.path().filename().string();
+            std::ifstream in(entry.path(), std::ios::binary);
+            const std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+            const auto document = studio::read(text);
+            check(document.has_value(), std::format("{}: {}", name, document ? "" : studio::to_text(document.error())));
+            if (!document) continue;
+            auto opened = studio::Studio::open(*document);
+            check(opened.has_value(), std::format("{}: {}", name, opened ? "" : studio::to_text(opened.error())));
+            if (!opened) continue;
+            const double length = opened->duration().count();
+            check(std::isfinite(length) && length > .3 && length < 10, std::format("{} lasts {} s", name, length));
+            xrender::raster::Surface a(static_cast<int>(document->width), static_cast<int>(document->height)), b = a, c = a;
+            check(opened->render(hanim::seconds(length * .1), a).has_value() && opened->render(hanim::seconds(length * .5), b).has_value() &&
+                      opened->render(hanim::seconds(length), c).has_value(),
+                  std::format("{} draws", name));
+            check(!std::ranges::equal(a.bytes(), b.bytes()) || !std::ranges::equal(b.bytes(), c.bytes()), std::format("{} moves", name));
+        }
+        check(count >= 20, std::format("{} examples", count));
     });
 
     s.test("every problem, where it is", [] {

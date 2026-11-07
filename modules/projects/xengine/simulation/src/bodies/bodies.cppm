@@ -41,8 +41,23 @@ struct Pin {
     double x = 0, y = 0;
     bool active = false;
 };
+// A floor from above only, between `left` and `right` at `top` (a card's top
+// edge on a y-down page): what comes down onto it from above stands on it;
+// what is below it or beside it passes by.
+struct Ledge {
+    double left = 0, right = 0, top = 0;
+};
+inline constexpr std::size_t max_ledges = 32;
+// A step's input: the hand, the ledges near the body (a page's surfaces, as
+// many as max_ledges, chosen by whoever drives it), an acceleration that
+// lasts (walking: x; 0 standing) and a velocity added once at the step's
+// start (a hop). Fixed size: a history of inputs allocates nothing.
 struct BodyInput {
     Pin pin;
+    std::array<Ledge, max_ledges> ledges{};
+    std::uint32_t ledge_count = 0;
+    double push_x = 0, push_y = 0;
+    double kick_x = 0, kick_y = 0;
 };
 
 enum class BodyError : std::uint8_t {

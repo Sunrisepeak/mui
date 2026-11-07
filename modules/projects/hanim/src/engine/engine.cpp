@@ -65,13 +65,18 @@ struct EngineData {
     std::vector<std::uint32_t> constraint_order;
     // Simulated bodies: the body's history, its pace, and the cage carrying
     // the part's points (each a weight a ring point, frozen when made).
+    // A part the cage moves: the body's own first, then those it carries.
+    struct Rider {
+        std::string part;
+        std::size_t cubics = 0;
+        std::vector<double> weights;  // cubics × 4 points × ring
+    };
     struct BodySlot {
         PartAddress part;
         std::optional<xengine::simulation::Timeline<xengine::simulation::SoftBodyModel>> history;
         xengine::simulation::BodyInput input;
         double owed = 0;  // engine seconds not yet stepped
-        std::size_t cubics = 0;
-        std::vector<double> weights;  // cubics × 4 points × ring
+        std::vector<Rider> riders;
         std::uint32_t generation = 1;
         bool live = false;
     };
@@ -341,40 +346,52 @@ void apply(detail::EngineData& data, const Constraint& constraint) noexcept {
         }
     }
 }
+// A shown part's cubics, in its frame's buffer (the playback's track).
+std::optional<std::span<ShapeCubic>> part_cubics(detail::EngineData& data, const Shown& place, std::size_t index) noexcept {
+    const auto& info = place.parts[index].info;
+    if (!info.contour_count) return std::nullopt;
+    std::optional<std::span<ShapeCubic>> cubics;
+    data.playbacks.for_each([&](auto, detail::Playback& playback) {
+        if (cubics) return;
+        for (auto& track : playback.tracks)
+            if (track.current.parts.data() == place.parts.data()) {
+                const auto& animation = playback.program.segments()[track.segment].animation;
+                const auto contours = animation.contours();
+                const auto& first = contours[info.first_contour];
+                const auto& last = contours[info.first_contour + info.contour_count - 1];
+                cubics = std::span<ShapeCubic>(track.current.cubics).subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
+            }
+    });
+    return cubics;
+}
+std::optional<std::size_t> part_index(const Shown& place, std::string_view id) noexcept {
+    for (std::size_t index = 0; index < place.parts.size(); ++index)
+        if (place.parts[index].info.id == id) return index;
+    return std::nullopt;
+}
 void apply_bodies(detail::EngineData& data) noexcept {
     for (const auto& slot : data.bodies) {
         if (!slot.live || !slot.history) continue;
         auto place = shown(data, slot.part);
         if (!place) continue;
-        auto& part = place->parts[place->index];
-        // The part's cubics, in its frame's buffer (the playback's track).
-        const auto& info = part.info;
-        if (!info.contour_count) continue;
-        std::optional<std::span<ShapeCubic>> cubics;
-        data.playbacks.for_each([&](auto, detail::Playback& playback) {
-            if (cubics) return;
-            for (auto& track : playback.tracks)
-                if (track.current.parts.data() == place->parts.data()) {
-                    const auto& animation = playback.program.segments()[track.segment].animation;
-                    const auto contours = animation.contours();
-                    const auto& first = contours[info.first_contour];
-                    const auto& last = contours[info.first_contour + info.contour_count - 1];
-                    cubics = std::span<ShapeCubic>(track.current.cubics).subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
-                }
-        });
-        if (!cubics || cubics->size() != slot.cubics) continue;
-        const auto inverse = mlibs::geom::AffineD::from(part.local.matrix()).inverse();
-        if (!inverse) continue;
         const auto& body = slot.history->state();
         const auto ring = body.size();
-        const double* weight = slot.weights.data();
-        for (auto& cubic : *cubics)
-            for (auto* point : {&cubic.start, &cubic.control1, &cubic.control2, &cubic.end}) {
-                double across = 0, down = 0;
-                for (std::size_t index = 0; index < ring; ++index, ++weight) across += *weight * body.x[index], down += *weight * body.y[index];
-                const auto local = inverse->apply(across, down);
-                *point = {local[0], local[1]};
-            }
+        for (const auto& rider : slot.riders) {
+            const auto index = part_index(*place, rider.part);
+            if (!index) continue;
+            const auto cubics = part_cubics(data, *place, *index);
+            if (!cubics || cubics->size() != rider.cubics) continue;
+            const auto inverse = mlibs::geom::AffineD::from(place->parts[*index].local.matrix()).inverse();
+            if (!inverse) continue;
+            const double* weight = rider.weights.data();
+            for (auto& cubic : *cubics)
+                for (auto* point : {&cubic.start, &cubic.control1, &cubic.control2, &cubic.end}) {
+                    double across = 0, down = 0;
+                    for (std::size_t particle = 0; particle < ring; ++particle, ++weight) across += *weight * body.x[particle], down += *weight * body.y[particle];
+                    const auto local = inverse->apply(across, down);
+                    *point = {local[0], local[1]};
+                }
+        }
     }
 }
 void apply_constraints(detail::EngineData& data) noexcept {
@@ -683,6 +700,7 @@ Status Engine::advance(seconds elapsed) {
         // At most a second's steps at once: a stall is not owed afterwards.
         for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
             slot.history->step(slot.input);
+            slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
             slot.owed -= step;
         }
         slot.owed = std::min(slot.owed, step);
@@ -973,44 +991,56 @@ std::expected<BodyRef, EngineFailure> Engine::simulate(PartAddress address, Body
     if (!place) return std::unexpected(fail(EngineError::invalid_argument));  // a playback must show it
     // Its geometry where it shows, and its largest contour as the ring.
     const auto& part = place->parts[place->index];
-    std::optional<std::span<const ShapeCubic>> cubics;
+    const auto drawn = part_cubics(*data_, *place, place->index);
+    if (!drawn) return std::unexpected(fail(EngineError::invalid_argument));
+    const std::span<const ShapeCubic> own = *drawn;
     std::span<const MorphContourInfo> contours;
     data_->playbacks.for_each([&](auto, detail::Playback& playback) {
-        if (cubics) return;
         for (auto& track : playback.tracks)
-            if (track.current.parts.data() == place->parts.data()) {
-                const auto& animation = playback.program.segments()[track.segment].animation;
-                contours = animation.contours();
-                const auto& first = contours[part.info.first_contour];
-                const auto& last = contours[part.info.first_contour + part.info.contour_count - 1];
-                cubics = std::span<const ShapeCubic>(track.current.cubics).subspan(first.first_cubic, last.first_cubic + last.cubic_count - first.first_cubic);
-            }
+            if (track.current.parts.data() == place->parts.data()) contours = playback.program.segments()[track.segment].animation.contours();
     });
-    if (!cubics || !part.info.contour_count) return std::unexpected(fail(EngineError::invalid_argument));
     const auto local = mlibs::geom::AffineD::from(part.local.matrix());
     std::size_t largest = 0;
     double largest_area = -1;
     const auto first_cubic = contours[part.info.first_contour].first_cubic;
     for (std::size_t index = 0; index < part.info.contour_count; ++index) {
         const auto& range = contours[part.info.first_contour + index];
-        const auto measured = mlibs::geom::measure(cubics->subspan(range.first_cubic - first_cubic, range.cubic_count));
+        const auto measured = mlibs::geom::measure(own.subspan(range.first_cubic - first_cubic, range.cubic_count));
         if (std::abs(measured.area) > largest_area) { largest_area = std::abs(measured.area); largest = index; }
     }
     const auto& outer = contours[part.info.first_contour + largest];
-    const auto ring = outline_ring(cubics->subspan(outer.first_cubic - first_cubic, outer.cubic_count), local, options.points);
+    const auto ring = outline_ring(own.subspan(outer.first_cubic - first_cubic, outer.cubic_count), local, options.points);
     auto body = xengine::simulation::SoftBody::ring(ring, options.params, options.colliders);
     if (!body) return std::unexpected(fail(EngineError::invalid_argument));
     detail::EngineData::BodySlot slot;
-    slot.part = std::move(address);
-    slot.cubics = cubics->size();
-    slot.weights.resize(slot.cubics * 4 * ring.size());
-    double* weight = slot.weights.data();
-    for (const auto& cubic : *cubics)
-        for (const auto point : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
-            const auto at = local.apply(point.x, point.y);
-            mean_value_weights(body->x, body->y, at[0], at[1], weight);
-            weight += ring.size();
-        }
+    slot.part = address;
+    // Every point of each part it moves, as a weight of each ring point (frozen now).
+    const auto rider_of = [&](std::size_t index) -> std::optional<detail::EngineData::Rider> {
+        const auto cubics = part_cubics(*data_, *place, index);
+        if (!cubics) return std::nullopt;
+        detail::EngineData::Rider rider{std::string(place->parts[index].info.id), cubics->size(), {}};
+        rider.weights.resize(rider.cubics * 4 * ring.size());
+        const auto to_parent = mlibs::geom::AffineD::from(place->parts[index].local.matrix());
+        double* weight = rider.weights.data();
+        for (const auto& cubic : *cubics)
+            for (const auto point : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
+                const auto at = to_parent.apply(point.x, point.y);
+                mean_value_weights(body->x, body->y, at[0], at[1], weight);
+                weight += ring.size();
+            }
+        return rider;
+    };
+    auto first = rider_of(place->index);
+    if (!first) return std::unexpected(fail(EngineError::invalid_argument));
+    slot.riders.push_back(std::move(*first));
+    for (const auto& carried : options.carries) {
+        const auto index = part_index(*place, carried);
+        if (!index || *index == place->index || place->parts[*index].info.parent != part.info.parent)
+            return std::unexpected(fail(EngineError::invalid_argument));  // not beside it
+        auto rider = rider_of(*index);
+        if (!rider) return std::unexpected(fail(EngineError::invalid_argument));
+        slot.riders.push_back(std::move(*rider));
+    }
     slot.history.emplace(*body, 600, 60);
     slot.live = true;
     std::uint32_t index = 0;
@@ -1047,6 +1077,36 @@ std::expected<void, EngineFailure> Engine::pull(BodyRef ref, std::optional<Vec2>
     slot->input.pin.x = hand->x;
     slot->input.pin.y = hand->y;
     slot->input.pin.active = true;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::surfaces(BodyRef ref, std::span<const xengine::simulation::Ledge> ledges) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (ledges.size() > xengine::simulation::max_ledges) return std::unexpected(fail(EngineError::invalid_argument));
+    for (const auto& ledge : ledges)
+        if (!std::isfinite(ledge.left) || !std::isfinite(ledge.right) || !std::isfinite(ledge.top) || ledge.right < ledge.left)
+            return std::unexpected(fail(EngineError::invalid_argument));
+    std::ranges::copy(ledges, slot->input.ledges.begin());
+    slot->input.ledge_count = static_cast<std::uint32_t>(ledges.size());
+    return {};
+}
+std::expected<void, EngineFailure> Engine::push(BodyRef ref, Vec2 acceleration) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!std::isfinite(acceleration.x) || !std::isfinite(acceleration.y)) return std::unexpected(fail(EngineError::invalid_argument));
+    slot->input.push_x = acceleration.x;
+    slot->input.push_y = acceleration.y;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::hop(BodyRef ref, Vec2 velocity) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!std::isfinite(velocity.x) || !std::isfinite(velocity.y)) return std::unexpected(fail(EngineError::invalid_argument));
+    slot->input.kick_x += velocity.x;
+    slot->input.kick_y += velocity.y;
     return {};
 }
 std::expected<void, EngineFailure> Engine::unsimulate(BodyRef ref) {

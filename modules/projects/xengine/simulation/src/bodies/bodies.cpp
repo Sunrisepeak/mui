@@ -98,11 +98,16 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
         return;
     auto& before_x = body.scratch_x;
     auto& before_y = body.scratch_y;
+    // A hop: its velocity, once, to every particle.
+    if (finite(input.kick_x) && finite(input.kick_y))
+        for (std::size_t index = 0; index < count; ++index) body.velocity_x[index] += input.kick_x, body.velocity_y[index] += input.kick_y;
+    const double push_x = finite(input.push_x) ? input.push_x : 0, push_y = finite(input.push_y) ? input.push_y : 0;
+    const std::size_t ledges = std::min<std::size_t>(input.ledge_count, max_ledges);
     for (int pass = 0; pass < params.substeps; ++pass) {
-        // Predict: gravity, then move.
+        // Predict: gravity and the push, then move.
         for (std::size_t index = 0; index < count; ++index) {
-            body.velocity_x[index] += substep * params.gravity_x;
-            body.velocity_y[index] += substep * params.gravity_y;
+            body.velocity_x[index] += substep * (params.gravity_x + push_x);
+            body.velocity_y[index] += substep * (params.gravity_y + push_y);
             before_x[index] = body.x[index];
             before_y[index] = body.y[index];
             body.x[index] += substep * body.velocity_x[index];
@@ -190,6 +195,17 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
                 body.y[index] += depth * plane.normal_y;
                 touching[index] = 1;
             }
+        // Ledges: a particle that came down through one from above stands on it.
+        for (std::size_t which = 0; which < ledges; ++which) {
+            const Ledge& ledge = input.ledges[which];
+            if (!finite(ledge.left) || !finite(ledge.right) || !finite(ledge.top)) continue;
+            for (std::size_t index = 0; index < count; ++index)
+                if (body.x[index] >= ledge.left && body.x[index] <= ledge.right && before_y[index] <= ledge.top + 1e-9 &&
+                    body.y[index] > ledge.top) {
+                    body.y[index] = ledge.top;
+                    touching[index] = 2;
+                }
+        }
         const double keep = std::max(0.0, 1 - params.damping * substep);
         for (std::size_t index = 0; index < count; ++index) {
             const double incoming_x = body.velocity_x[index], incoming_y = body.velocity_y[index];
@@ -197,6 +213,12 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
             body.velocity_y[index] = (body.y[index] - before_y[index]) / substep * keep;
             if (!touching[index])
                 continue;
+            if (touching[index] == 2 && body.velocity_y[index] > 0) {
+                // On a ledge: as off a floor (normal up), at restitution, with friction.
+                const double normal_in = -incoming_y;
+                body.velocity_x[index] *= 1 - params.friction;
+                body.velocity_y[index] = normal_in < 0 ? -params.restitution * -normal_in : 0;
+            }
             for (const auto& plane : body.planes) {
                 const double gap =
                     plane.normal_x * body.x[index] + plane.normal_y * body.y[index] - plane.offset;

@@ -182,5 +182,57 @@ int main(int argc, char** argv) {
                    (void)shown;
                });
 
+    suite.test("a figure of several inks one soft body: it carries its other parts; it stands on a ledge, walks when pushed, hops", [] {
+        // A pixel face (hanim.object's pixel picture): the outline ink's region is the silhouette; body and eye ride it.
+        const PixelGrid face{{{'o', Rgba{.1f, .1f, .3f, 1}}, {'b', Rgba{.3f, .3f, .9f, 1}}, {'w', Rgba{1, 1, 1, 1}}},
+                             {"oooo", "obbo", "obwo", "oooo"}, 10};
+        Engine engine = take(Engine::make());
+        auto description = take(pixel_object("face", face));
+        description.parts[0].local = {.tx = 80, .ty = 40};
+        const auto object = take(engine.create_object(description));
+        const auto shown = take(engine.play(anim::morph(object, object)));
+        // The box of a part where it is drawn (its parent's space: the root's).
+        const auto box_of = [&](std::string_view id) {
+            const auto frame = take(engine.frame(shown)).geometry;
+            Drawn out{1e9, -1e9, 1e9, -1e9, {}};
+            for (const auto& part : frame.parts) {
+                if (part.info.id != id) continue;
+                for (std::size_t c = part.info.first_contour; c < part.info.first_contour + part.info.contour_count; ++c)
+                    for (std::size_t k = frame.contours[c].first_cubic; k < frame.contours[c].first_cubic + frame.contours[c].cubic_count; ++k)
+                        for (const auto point : {frame.cubics[k].start, frame.cubics[k].end}) {
+                            out.left = std::min(out.left, point.x), out.right = std::max(out.right, point.x);
+                            out.top = std::min(out.top, point.y), out.bottom = std::max(out.bottom, point.y);
+                        }
+            }
+            return out;
+        };
+        check(!engine.simulate({object, ink_id('o')}, {.carries = {"nope"}}), "it carries only parts beside it");
+        const auto body = take(engine.simulate({object, ink_id('o')}, {.params = {.shape_stiffness = 0.3}, .colliders = {ground}, .carries = {ink_id('b'), ink_id('w')}}));
+        const std::array ledge{sim::Ledge{.left = -20, .right = 80, .top = 200}};
+        take(engine.surfaces(body, ledge));
+        for (int step = 0; step < 120 * 3; ++step) take(engine.advance(seconds(1.0 / 120)));
+        const auto silhouette = box_of(ink_id('o')), eye = box_of(ink_id('w'));
+        check(std::abs(silhouette.bottom - 200) < 1, std::format("on the ledge, not the ground: {}", silhouette.bottom));
+        check(eye.top > silhouette.top && eye.bottom < silhouette.bottom && eye.left > silhouette.left && eye.right < silhouette.right,
+              "the eye rode the body down, inside it");
+        // Pushed: it walks off the ledge's end and drops to the ground.
+        take(engine.push(body, {600, 0}));
+        for (int step = 0; step < 120 * 3; ++step) take(engine.advance(seconds(1.0 / 120)));
+        take(engine.push(body, {0, 0}));
+        for (int step = 0; step < 120 * 2; ++step) take(engine.advance(seconds(1.0 / 120)));
+        check(std::abs(box_of(ink_id('o')).bottom - 300) < 1, std::format("walked off, on the ground: {}", box_of(ink_id('o')).bottom));
+        // A hop: up, then down again.
+        const double before = box_of(ink_id('o')).top;
+        take(engine.hop(body, {0, -500}));
+        double highest = before;
+        for (int step = 0; step < 120; ++step) {
+            take(engine.advance(seconds(1.0 / 120)));
+            highest = std::min(highest, box_of(ink_id('o')).top);
+        }
+        check(highest < before - 40, std::format("it hopped: {} → {}", before, highest));
+        std::vector<sim::Ledge> too_many(sim::max_ledges + 1, sim::Ledge{0, 1, 0});
+        check(!engine.surfaces(body, too_many), "more ledges than a step holds: refused");
+    });
+
     return suite.run(argc, argv);
 }

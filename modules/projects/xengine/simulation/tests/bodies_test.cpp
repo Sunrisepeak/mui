@@ -115,5 +115,47 @@ int main(int argc, char** argv) {
         check(!sim::SoftBody::ring(triangle, {.mass = -1}));
     });
 
+    suite.test("ledges: what comes down onto one stands on it; beside it or from below it passes; a push walks it, a kick hops it", [] {
+        const auto with_ledge = [](double left, double right) {
+            sim::BodyInput in;
+            in.ledges[0] = {left, right, 200};
+            in.ledge_count = 1;
+            return in;
+        };
+        // Dropped onto a ledge under it: stands on it, above the ground.
+        auto on = ball({.shape_stiffness = 0.3});
+        for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(on, with_ledge(40, 160));
+        check(std::abs(extent(on).lowest - 200) < 0.5, std::format("standing on the ledge: {}", extent(on).lowest));
+        // Beside it: falls past, to the ground.
+        auto beside = ball({.shape_stiffness = 0.3});
+        for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(beside, with_ledge(300, 400));
+        check(std::abs(extent(beside).lowest - 300) < 0.5, std::format("past it, on the ground: {}", extent(beside).lowest));
+        // From below: a body under the ledge rises through it (a kick up) and lands on it.
+        auto under = ball({.shape_stiffness = 0.3});
+        for (int step = 0; step < 120 * 2; ++step) sim::SoftBodyModel::step(under, {});  // on the ground first
+        sim::BodyInput hop = with_ledge(40, 160);
+        hop.kick_y = -700;
+        sim::SoftBodyModel::step(under, hop);
+        double highest = 1e9;
+        for (int step = 0; step < 120 * 3; ++step) {
+            sim::SoftBodyModel::step(under, with_ledge(40, 160));
+            highest = std::min(highest, under.centre()[1]);
+        }
+        check(highest < 180, std::format("through it from below: up to {}", highest));
+        check(std::abs(extent(under).lowest - 200) < 0.5, std::format("and down onto it: {}", extent(under).lowest));
+        // A push walks it along the ground; standing, it stays.
+        auto walker = ball({.shape_stiffness = 0.3});
+        for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(walker, {});
+        const double start = walker.centre()[0];
+        sim::BodyInput walk;
+        walk.push_x = 400;
+        for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(walker, walk);
+        check(walker.centre()[0] > start + 20, std::format("walked: {} → {}", start, walker.centre()[0]));
+        // The same inputs, the same bits.
+        auto again = ball({.shape_stiffness = 0.3});
+        for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(again, with_ledge(40, 160));
+        check(again.x == on.x && again.y == on.y, "deterministic");
+    });
+
     return suite.run(argc, argv);
 }

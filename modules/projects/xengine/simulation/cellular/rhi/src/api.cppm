@@ -37,4 +37,29 @@ private:
     mlibs::rhi::ComputePipeline pipeline_;
     mlibs::rhi::Submission ready_;
 };
+
+// A field's colours on the device (D-132): each cell's pixel by the first
+// swatch it passes (pixel_of), written into an rgba8 texture the renderer
+// draws as an external texture — the field is never read back.
+class Painter {
+public:
+    // Its palette (pixels as cellular.present makes them) uploaded once, for
+    // fields of `channels`. Device must outlive Painter.
+    [[nodiscard]] static mlibs::rhi::Result<std::unique_ptr<Painter>> prepare(mlibs::rhi::Device&, std::span<const PixelSwatch> swatches,
+                                                                               std::uint32_t fallback, std::uint32_t channels);
+    ~Painter();
+    Painter(const Painter&)=delete;
+    Painter& operator=(const Painter&)=delete;
+    [[nodiscard]] mlibs::rhi::Submission ready() const noexcept { return ready_; }
+    // Appends one compute pass writing `cells`' pixels into `image` (rgba8,
+    // the field's size, compute_write). Failed validation appends nothing.
+    [[nodiscard]] mlibs::rhi::Result<void> record(mlibs::rhi::CommandList&, Field cells, mlibs::rhi::Texture image) const;
+private:
+    explicit Painter(mlibs::rhi::Device& d,std::uint32_t channels):device_(d),channels_(channels){}
+    mlibs::rhi::Device& device_;
+    std::uint32_t channels_ = 0;
+    mlibs::rhi::Buffer palette_;
+    mlibs::rhi::ComputePipeline pipeline_;
+    mlibs::rhi::Submission ready_;
+};
 }

@@ -69,6 +69,10 @@ public:
     [[nodiscard]] xrender::ImageRef image() const noexcept;
     [[nodiscard]] Shape shape() const noexcept;
     [[nodiscard]] Shape tiles() const noexcept;
+    // The palette as pixels (premultiplied RGBA8, red lowest): what a device's
+    // painter (cellular.rhi's Painter) is prepared with to draw the same field.
+    [[nodiscard]] std::span<const PixelSwatch> pixels() const noexcept;
+    [[nodiscard]] std::uint32_t fallback_pixel() const noexcept;
     // The colour of one cell of `cells`, by the palette (what the image holds there).
     [[nodiscard]] mlibs::geom::Color color(std::span<const std::uint32_t> cells, std::uint32_t x, std::uint32_t y) const noexcept;
 

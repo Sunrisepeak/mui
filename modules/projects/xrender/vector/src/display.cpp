@@ -406,8 +406,8 @@ void DisplayList::push_layer(float opacity, BlendMode blend, EffectRef effect, s
     commands_.emplace_back(PushLayer{opacity, blend, effect, arena_.copy(params), bounds, arena_.copy(shapes), bounds_mode});
 }
 void DisplayList::pop_layer() { commands_.emplace_back(PopLayer{}); }
-void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, float opacity) {
-    commands_.emplace_back(ExternalTexture{texture, dest, opacity});
+void DisplayList::external_texture(std::uint64_t texture, const Rect& dest, float opacity, Sampling sampling) {
+    commands_.emplace_back(ExternalTexture{texture, dest, opacity, sampling});
 }
 void DisplayList::begin_node(std::uint32_t node) { commands_.emplace_back(BeginNode{node}); }
 void DisplayList::end_node() { commands_.emplace_back(EndNode{}); }
@@ -582,7 +582,10 @@ std::uint64_t hash_command(const Command& c, std::uint64_t seed) noexcept {
                 // Preserve established hashes for the existing declared mode.
                 if(cmd.bounds_mode!=LayerBoundsMode::declared){h.put(std::uint64_t{0x6c61796572626e64});h.put(cmd.bounds_mode);}
             }
-            else if constexpr (std::same_as<T, ExternalTexture>) { h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity); }
+            else if constexpr (std::same_as<T, ExternalTexture>) {
+                h.put(cmd.texture); h.put(cmd.dest); h.put(cmd.opacity);
+                if (cmd.sampling != Sampling::linear) h.put(cmd.sampling);  // the default hashes as it did
+            }
             else if constexpr (std::same_as<T, BeginNode>) { h.put(cmd.node); }
             else if constexpr (std::same_as<T, NodeFrame>) { h.put(cmd.rect); h.put(cmd.opacity); h.put(cmd.placement); h.put(cmd.constraint.width); h.put(cmd.constraint.height); }
         },

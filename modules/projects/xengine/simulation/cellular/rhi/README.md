@@ -38,3 +38,7 @@ Vulkan loader and ICD as `tools/ci/gpu.sh` does before running required-device
 tests. A mixed LLVM 20/22 process was observed to crash during driver JIT;
 using the paired loader/lavapipe ICD avoids mixing those libraries. This is
 validation environment setup, not a skipped GPU test or an engine fallback.
+
+## Painting the field (D-132)
+
+`Painter` writes a field's pixels on the device: each cell's pixel by the first swatch it passes (`pixel_of`, the cellular core's rule, shared with the CPU presenter), into an rgba8 texture with `compute_write` usage — what a renderer draws as an external texture, without the field ever coming back to the CPU. Its palette is uploaded once (`prepare`); `record` appends one compute pass and refuses (appending nothing) a field of another device, the wrong channels, or a texture of the wrong size or usage. The CTS case `cellular.paint` compares every cell's pixel with the CPU's rule over a field stepped on both sides, bit for bit.

@@ -161,8 +161,8 @@ int main(int argc, char** argv) {
         const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
         std::print("{}", report.text());
         check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size(), report.text());
-        check_eq(totals.scenarios, 16u);
-        check_eq(totals.validation_checks, 129u);
+        check_eq(totals.scenarios, 17u);
+        check_eq(totals.validation_checks, 130u);
         std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
             totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
         std::ofstream(scratch_dir("rhi") / "webgpu-cellular.cts.omui.json") << report.json();

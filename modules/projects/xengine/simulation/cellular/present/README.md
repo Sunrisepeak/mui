@@ -17,6 +17,8 @@ view->draw(list, {x, y, width, height});                                // one D
 - **Immutable while drawn.** Two surfaces take turns: the one the store holds is never written. One still held elsewhere (a snapshot on another thread) is left as it is and a new one made.
 - **Lifetimes.** The image stays in the store until `release()`; a presenter that outlives its store never touches it.
 
-The renderer knows no cells and the rules know no drawing: this package is the small adapter between them. Next: the GPU kernel's output (`xengine.simulation.cellular.rhi`) presented as an external texture, without reading it back.
+**On the device.** A field stepped on the GPU (`xengine.simulation.cellular.rhi`'s `Kernel`) is painted there too: `Painter::prepare(device, view->pixels(), view->fallback_pixel(), channels)` takes this presenter's palette as pixels, `record(list, cells, texture)` writes each cell's pixel into an rgba8 texture, and the GPU renderer draws it as one external texture (`list.external_texture(id, dest, 1, Sampling::nearest)`, `GpuOptions::external`) — the field never read back. Both paths keep one rule (`pixel_of` in the cellular core); the backend's test (`xrender.rhi.sdl`'s `field_present_test`) draws a field both ways every ten ticks and finds the same pixels.
+
+The renderer knows no cells and the rules know no drawing: this package is the small adapter between them.
 
 Tests (`mcpp test -p xengine.simulation.cellular.present`): every pixel its cell's colour after 60 steps, only the changed tiles recoloured and named; drawn with damage tracking, the incremental frame equals the full one at every step; a held snapshot unchanged, a new palette, refusals. Benchmarks: `simulation/cellular-1024-present` (12 changed tiles of 1024: 0.044 ms p95), `-present-all` (every cell: 2.7 ms), `-frame` (present, damage and the incremental CPU raster: 0.52 ms) — locally, release.

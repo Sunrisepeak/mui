@@ -125,6 +125,57 @@ mlibs::cts::Report run(r::Device& device, mlibs::cts::Environment environment, c
         scenario(std::format("cellular.wide-halo.{}x{}.{}", shape.width, shape.height, edge_name), [=](Bench& b) {
             return exercise(b.device,"wide-halo",shape,2,varied,state,{edge,7},8,1,b.totals,b.hash); });
     }
+    // The field's pixels on the device (D-132): stepped there, painted there, read back only to compare
+    // with the CPU's rule (pixel_of) over the CPU's field — every cell, every few ticks, bit for bit.
+    scenario("cellular.paint", [reaction](Bench& b) -> r::Result<void> {
+        const Shape shape{37,23};const auto cells=shape.width*shape.height;
+        std::vector<std::uint32_t> state(cells*3);
+        std::fill_n(state.begin(),cells,1u);
+        for(std::uint32_t y=0;y<shape.height;++y)state[y*shape.width+15]=0;
+        state[cells+11*shape.width+2]=1;
+        const std::vector<PixelSwatch> swatches{{{{1,{1,1}}},0xff1a7affu},{{{1,{2,2}}},0xff202a3au},{{{0,{1,1}}},0xffb8a38fu},{{{2,{5,9}}},0x80402010u}};
+        const std::uint32_t fallback=0xff201810u;
+        auto p=Program::prepare(3,reaction);if(!p)return r::fail(r::Errc::invalid,"fixture");
+        auto kernel=Kernel::prepare(b.device,*p);if(!kernel)return std::unexpected(kernel.error());
+        auto painter=Painter::prepare(b.device,swatches,fallback,3);if(!painter)return std::unexpected(painter.error());
+        Buffers buffers{b.device};
+        const r::BufferDesc desc{.size=static_cast<std::uint32_t>(state.size()*4),.usage=r::BufferUsage::compute_read|r::BufferUsage::compute_write};
+        auto a=b.device.create(desc);if(!a)return std::unexpected(a.error());buffers.a=*a;
+        auto c=b.device.create(desc);if(!c)return std::unexpected(c.error());buffers.b=*c;
+        auto image=b.device.create(r::TextureDesc{r::Format::rgba8_unorm,shape.width,shape.height,r::TextureUsage::compute_write|r::TextureUsage::sampled,"cellular.image"});
+        if(!image)return std::unexpected(image.error());
+        Field in{&b.device,*a,shape,3},out{&b.device,*c,shape,3};
+        r::CommandList list;list.upload(*a,0,std::span<const std::uint32_t>(state));
+        auto expected=state,next=state;
+        r::Result<void> result{};
+        for(std::uint32_t t=1;t<=12 && result;++t) {
+            if(!p->step(shape,expected,next))return r::fail(r::Errc::invalid,"CPU step");
+            expected.swap(next);
+            if(auto recorded=(*kernel)->record(list,in,out);!recorded)return recorded;
+            std::swap(in,out);
+            if(t%4)continue;
+            if(auto painted=(*painter)->record(list,in,*image);!painted)return painted;
+            auto submitted=b.device.submit(list);if(!submitted)return std::unexpected(submitted.error());list.clear();
+            auto bytes=b.device.read(*image,r::Region{0,0,shape.width,shape.height});if(!bytes)return std::unexpected(bytes.error());
+            for(std::uint32_t k=0;k<cells;++k) {
+                std::uint32_t got=0;std::memcpy(&got,bytes->data()+k*4,4);
+                const auto want=pixel_of(swatches,fallback,expected,cells,k);
+                if(got!=want){result=r::fail(r::Errc::backend,std::format("tick {} cell {}: GPU {:08x} != CPU {:08x}",t,k,got,want));break;}
+                b.hash.le(got,4);
+            }
+            ++b.totals.comparisons;b.totals.compared_values+=cells;
+        }
+        b.device.destroy(*image);
+        if(!result)return result;
+        // A field of another device's, a texture of the wrong size: refused, nothing appended.
+        auto small=b.device.create(r::TextureDesc{r::Format::rgba8_unorm,4,4,r::TextureUsage::compute_write,"cellular.small"});
+        if(!small)return std::unexpected(small.error());
+        const auto count=list.size();
+        const bool refused=!(*painter)->record(list,in,*small) && !(*painter)->record(list,Field{nullptr,in.buffer,shape,3},*small) && list.size()==count;
+        b.device.destroy(*small);
+        if(!refused)return r::fail(r::Errc::invalid,"an invalid painting was recorded");
+        ++b.totals.validation_checks;++b.totals.scenarios;return {};
+    });
     const std::vector<std::uint32_t> identity{0,1,7,0xffffffffu};
     scenario("cellular.identity", [=](Bench& b) { return exercise(b.device,"identity",{2,2},1,{},identity,{},2,1,b.totals,b.hash); });
     scenario("cellular.unprepared-refused", [](Bench& b) -> r::Result<void> {

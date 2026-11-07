@@ -1468,7 +1468,7 @@ mlibs::rhi::Result<RenderReport> GpuRenderer::render(const DisplayList& dl, mlib
                             return;
                         }
                         const auto w = static_cast<float>(desc->width), h = static_cast<float>(desc->height);
-                        texture_image(*t, desc->width, desc->height, {0, 0, w, h}, c.dest, Sampling::linear, c.opacity, m());
+                        texture_image(*t, desc->width, desc->height, {0, 0, w, h}, c.dest, c.sampling, c.opacity, m());
                     }
                 },
                 all[index]);

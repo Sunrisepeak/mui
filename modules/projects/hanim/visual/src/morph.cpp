@@ -339,7 +339,7 @@ struct Emitter {
                 } else if constexpr (std::same_as<T, DrawImage>) {
                     out.draw_image(cmd.image, cmd.source, cmd.dest, cmd.sampling, cmd.opacity * opacity);
                 } else if constexpr (std::same_as<T, ExternalTexture>) {
-                    out.external_texture(cmd.texture, cmd.dest, cmd.opacity * opacity);
+                    out.external_texture(cmd.texture, cmd.dest, cmd.opacity * opacity, cmd.sampling);
                 } else if constexpr (std::same_as<T, DrawGlyphs>) {
                     if (auto p = faded(cmd.paint, opacity)) out.draw_glyphs(cmd.font, cmd.size, cmd.origin, cmd.glyphs, *p, cmd.styles);
                     else layered([&] { out.append_command(c); });
@@ -1710,7 +1710,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
             case PieceClass::texture: {
                 const auto& ta = std::get<ExternalTexture>(ca);
                 const auto& tb = std::get<ExternalTexture>(cb);
-                if (ta.texture == tb.texture) out.external_texture(tb.texture, mixr(ta.dest, tb.dest, u), mixf(ta.opacity, tb.opacity, k) * op);
+                if (ta.texture == tb.texture) out.external_texture(tb.texture, mixr(ta.dest, tb.dest, u), mixf(ta.opacity, tb.opacity, k) * op, tb.sampling);
                 else drawn = false;
                 break;
             }

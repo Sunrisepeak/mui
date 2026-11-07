@@ -79,6 +79,28 @@ struct Execution {
 }
 struct Statistics { std::uint64_t cells = 0, matched = 0, changed = 0; };
 
+// A field's colours (D-132): the first swatch whose tests a cell passes gives
+// its pixel — 32 bits as a renderer stores them (premultiplied RGBA8, red in
+// the lowest byte); none: the fallback. The one rule every presenter keeps,
+// on the CPU (cellular.present) and on a device (cellular.rhi's Painter).
+struct PixelSwatch {
+    std::vector<Test> when;
+    std::uint32_t pixel = 0;
+};
+// The pixel of cell `index` of `cells` (channel-major, `area` cells a channel).
+[[nodiscard]] inline std::uint32_t pixel_of(std::span<const PixelSwatch> swatches, std::uint32_t fallback,
+                                            std::span<const std::uint32_t> cells, std::size_t area, std::size_t index) noexcept {
+    for (const auto& swatch : swatches) {
+        bool all = true;
+        for (const auto& test : swatch.when) {
+            const auto value = cells[test.channel * area + index];
+            if (value < test.value.low || value > test.value.high) { all = false; break; }
+        }
+        if (all) return swatch.pixel;
+    }
+    return fallback;
+}
+
 class Program {
 public:
     Program() = default;

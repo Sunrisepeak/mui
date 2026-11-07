@@ -19,8 +19,8 @@ struct FieldPresenter::Data {
     Shape shape, tile, grid;
     std::uint32_t channels = 0;
     Palette palette;
-    std::vector<Pixel> colors;                      // the swatches' premultiplied pixels
-    Pixel fallback{};
+    std::vector<PixelSwatch> pixels;                // the palette as pixels (the rule pixel_of keeps)
+    std::uint32_t fallback = 0;
     std::array<std::shared_ptr<Surface>, 2> surfaces;
     int shown = 0;                                  // the one the store holds
     std::vector<std::uint8_t> missed;               // tiles the other surface has not caught up with
@@ -31,16 +31,7 @@ struct FieldPresenter::Data {
 
     [[nodiscard]] std::size_t area() const noexcept { return static_cast<std::size_t>(shape.width) * shape.height; }
     [[nodiscard]] Pixel pixel(std::span<const std::uint32_t> cells, std::size_t index) const noexcept {
-        const std::size_t cells_area = area();
-        for (std::size_t k = 0; k < palette.swatches.size(); ++k) {
-            const auto& when = palette.swatches[k].when;
-            if (std::ranges::all_of(when, [&](const Test& test) {
-                    const auto value = cells[test.channel * cells_area + index];
-                    return value >= test.value.low && value <= test.value.high;
-                }))
-                return colors[k];
-        }
-        return fallback;
+        return std::bit_cast<Pixel>(pixel_of(pixels, fallback, cells, area(), index));
     }
     void paint(Surface& surface, std::span<const std::uint32_t> cells, std::uint32_t tx, std::uint32_t ty) const {
         const std::uint32_t x0 = tx * tile.width, y0 = ty * tile.height;
@@ -55,9 +46,9 @@ struct FieldPresenter::Data {
             for (const auto& test : swatch.when)
                 if (test.channel >= channels) return std::unexpected(std::format("a swatch tests channel {}; the field has {}", test.channel, channels));
         palette = next;
-        colors.clear();
-        for (const auto& swatch : palette.swatches) colors.push_back(xrender::raster::premultiply(swatch.color));
-        fallback = xrender::raster::premultiply(palette.fallback);
+        pixels.clear();
+        for (const auto& swatch : palette.swatches) pixels.push_back({swatch.when, std::bit_cast<std::uint32_t>(xrender::raster::premultiply(swatch.color))});
+        fallback = std::bit_cast<std::uint32_t>(xrender::raster::premultiply(palette.fallback));
         everything = true;
         return {};
     }
@@ -86,7 +77,7 @@ std::expected<FieldPresenter, std::string> FieldPresenter::make(xrender::ImageSt
     if (auto prepared = data->prepare(palette); !prepared) return std::unexpected(prepared.error());
     for (auto& surface : data->surfaces) {
         surface = std::make_shared<Surface>(static_cast<int>(shape.width), static_cast<int>(shape.height));
-        std::ranges::fill(surface->pixels(), data->fallback);
+        std::ranges::fill(surface->pixels(), std::bit_cast<Pixel>(data->fallback));
     }
     const std::size_t count = static_cast<std::size_t>(data->grid.width) * data->grid.height;
     data->missed.assign(count, 1);
@@ -182,6 +173,8 @@ void FieldPresenter::draw(xrender::DisplayList& list, mlibs::geom::Rect dest, fl
 }
 
 xrender::ImageRef FieldPresenter::image() const noexcept { return data_->ref; }
+std::span<const PixelSwatch> FieldPresenter::pixels() const noexcept { return data_->pixels; }
+std::uint32_t FieldPresenter::fallback_pixel() const noexcept { return data_->fallback; }
 Shape FieldPresenter::shape() const noexcept { return data_->shape; }
 Shape FieldPresenter::tiles() const noexcept { return data_->grid; }
 

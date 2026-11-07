@@ -261,7 +261,7 @@ enum class LayerBoundsMode : std::uint8_t { declared, content };
 struct PushLayer     { float opacity; BlendMode blend; EffectRef effect; std::span<const float> params; Rect bounds;
                        std::span<const EffectShape> shapes = {}; LayerBoundsMode bounds_mode = LayerBoundsMode::declared; };
 struct PopLayer      {};
-struct ExternalTexture { std::uint64_t texture; Rect dest; float opacity; };
+struct ExternalTexture { std::uint64_t texture; Rect dest; float opacity; Sampling sampling = Sampling::linear; };
 struct BeginNode     { std::uint32_t node; };
 struct EndNode       {};
 // An explicit owner's border box in the current transform. Non-rendering metadata:
@@ -378,7 +378,8 @@ public:
                     std::span<const float> params = {}, Rect bounds = {}, std::span<const EffectShape> shapes = {},
                     LayerBoundsMode bounds_mode = LayerBoundsMode::declared);
     void pop_layer();
-    void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1);
+    // `sampling`: nearest for a texture of pixels meant to stay pixels (a cellular field, D-132).
+    void external_texture(std::uint64_t texture, const Rect& dest, float opacity = 1, Sampling sampling = Sampling::linear);
     void begin_node(std::uint32_t node);
     void end_node();
     void node_frame(std::uint32_t node, Rect rect, float opacity = 1, Rect placement = {}, Size constraint = {}, Affine visual = {},

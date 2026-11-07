@@ -26,6 +26,10 @@ mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]
 xengine.simulation.cellular.rhi.cts = { path = "../../../xengine/simulation/cellular/rhi/cts" }
+xengine.simulation.cellular.present = { path = "../../../xengine/simulation/cellular/present" }
+xrender.vector = { path = "../../vector" }
+xrender.raster = { path = "../../raster" }
+mlibs.geom = { path = "../../../../base/geom" }
 hanim.rhi = { path = "../../../hanim/rhi" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }

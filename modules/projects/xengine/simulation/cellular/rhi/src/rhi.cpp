@@ -2,6 +2,7 @@ module xengine.simulation.cellular.rhi.api;
 import std;
 import mlibs.trace;
 import :rules_shaders;
+import :paint_shaders;
 
 namespace xengine::simulation::cellular::gpu {
 namespace r=mlibs::rhi;
@@ -40,6 +41,47 @@ r::Result<void> Kernel::record(r::CommandList& list,Field input,Field output,Bou
     list.bind_storage(r::Stage::compute,0,input.buffer);list.bind_storage(r::Stage::compute,1,rules_);
     list.push_uniforms(r::Stage::compute,0,uniforms);
     list.dispatch(1+(input.shape.width-1)/8,1+(input.shape.height-1)/8);
+    list.end_compute();return {};
+}
+
+Painter::~Painter() {if(palette_)device_.destroy(palette_);if(pipeline_)device_.destroy(pipeline_);}
+r::Result<std::unique_ptr<Painter>> Painter::prepare(r::Device& device,std::span<const PixelSwatch> swatches,std::uint32_t fallback,std::uint32_t channels) {
+    mlibs::trace::Span span("simulation.cellular.gpu.painter","simulation");
+    if(!channels)return std::unexpected(r::Error{r::Errc::invalid,"a field has a channel at least"});
+    if(!device.caps().compute)return std::unexpected(r::Error{r::Errc::unsupported,"painting a field requires compute"});
+    std::vector<std::uint32_t> words{static_cast<std::uint32_t>(swatches.size()),fallback};
+    for(const auto& swatch:swatches) {
+        words.push_back(swatch.pixel);words.push_back(static_cast<std::uint32_t>(swatch.when.size()));
+        for(const auto& test:swatch.when) {
+            if(test.channel>=channels)return std::unexpected(r::Error{r::Errc::invalid,std::format("a swatch tests channel {}; the field has {}",test.channel,channels)});
+            words.insert(words.end(),{test.channel,test.value.low,test.value.high});
+        }
+    }
+    auto result=std::unique_ptr<Painter>(new Painter(device,channels));
+    auto pipeline=device.create(r::ComputePipelineDesc{&shaders::paint::paint,"simulation.cellular.paint"});
+    if(!pipeline)return std::unexpected(pipeline.error());result->pipeline_=*pipeline;
+    auto palette=device.create(r::BufferDesc{.size=static_cast<std::uint32_t>(words.size()*4),.usage=r::BufferUsage::compute_read,.label="cellular.palette"});
+    if(!palette)return std::unexpected(palette.error());result->palette_=*palette;
+    r::CommandList upload;upload.upload(*palette,0,std::span<const std::uint32_t>(words));
+    auto submitted=device.submit(upload);if(!submitted)return std::unexpected(submitted.error());
+    result->ready_=*submitted;return result;
+}
+r::Result<void> Painter::record(r::CommandList& list,Field cells,r::Texture image) const {
+    const auto invalid=[](std::string message){return std::unexpected(r::Error{r::Errc::invalid,std::move(message)});};
+    if(cells.owner!=&device_)return invalid("the field belongs to another device");
+    if(cells.channels!=channels_ || !cells.shape.width || !cells.shape.height)return invalid("the field's shape or channels do not match the painter's");
+    const auto buffer=device_.describe(cells.buffer);const auto texture=device_.describe(image);
+    const auto values=static_cast<std::uint64_t>(cells.shape.width)*cells.shape.height*cells.channels;
+    if(!buffer || buffer->size<values*4 || !r::has(buffer->usage,r::BufferUsage::compute_read))return invalid("the field's buffer is too small or not readable by compute");
+    if(!texture || texture->format!=r::Format::rgba8_unorm || texture->width!=cells.shape.width || texture->height!=cells.shape.height ||
+       !r::has(texture->usage,r::TextureUsage::compute_write))
+        return invalid("the image is an rgba8 texture of the field's size that compute writes");
+    const std::array<std::uint32_t,4> uniforms{cells.shape.width,cells.shape.height,0,0};
+    const std::array writes{image};
+    list.begin_compute(writes,{});list.set_pipeline(pipeline_);
+    list.bind_storage(r::Stage::compute,0,cells.buffer);list.bind_storage(r::Stage::compute,1,palette_);
+    list.push_uniforms(r::Stage::compute,0,uniforms);
+    list.dispatch(1+(cells.shape.width-1)/8,1+(cells.shape.height-1)/8);
     list.end_compute();return {};
 }
 }

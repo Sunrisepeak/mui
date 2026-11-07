@@ -1422,10 +1422,10 @@ int main(int argc, char** argv) {
         check(std::abs(y(f, 0) - 5) < 1e-4 && std::abs(y(f, 2) - 5) < 1e-4, "the first word, half way");
         check(std::abs(y(f, 3) - 10) < 1e-4, "the second word, not started");
         check(std::abs(f.ends.count() - 0.3) < 1e-9 && f.moving);
-        m.order = GlyphOrder::reverse;
+        m.order = hanim::StaggerOrder::reverse;
         f = glyph_frame(m, seconds(0.1), one);
         check(std::abs(y(f, 3) - 5) < 1e-4 && std::abs(y(f, 0) - 10) < 1e-4, "reverse: the last word first");
-        m.order = GlyphOrder::forward;
+        m.order = hanim::StaggerOrder::forward;
         m.begin = 3;
         f = glyph_frame(m, seconds(0), one);
         check(f.styles[0][0].plain() && !f.styles[0][3].plain(), "outside the byte range nothing moves");

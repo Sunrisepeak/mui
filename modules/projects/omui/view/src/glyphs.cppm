@@ -30,7 +30,6 @@ import :element;
 export namespace omui {
 
 enum class GlyphDomain : std::uint8_t { glyph, grapheme, word, line };
-enum class GlyphOrder : std::uint8_t { forward, reverse, center, edges, random };
 
 // The state of one element: offsets in logical pixels, a scale and a rotation
 // (radians) about the glyph's origin on the baseline, an opacity, and a tint
@@ -54,7 +53,7 @@ struct GlyphMotion {
     bool          jitter_to = false;                 // the jitter applies to `to` (scattering) rather than `from` (gathering)
     Transition    transition = Transition::tween(hanim::seconds(0.45), hanim::ease::out_cubic);
     hanim::seconds stagger{0.03};
-    GlyphOrder    order = GlyphOrder::forward;
+    hanim::StaggerOrder    order = hanim::StaggerOrder::forward;
     std::uint64_t seed = 0;
     int           repeat = 1;          // cycles; 0: forever
     bool          alternate = false;   // every other cycle runs backwards (a wave)

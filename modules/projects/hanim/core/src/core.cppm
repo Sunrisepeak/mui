@@ -25,6 +25,7 @@ export import :path;
 export import :shape;
 export import :timeline;
 export import :set;
+export import :choreography;
 
 export namespace hanim {
 

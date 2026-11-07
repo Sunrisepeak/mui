@@ -38,7 +38,7 @@ enum class MotionPrimitive : std::uint16_t {
 
 // A motion a node's slot holds (universal motion §5, D-93): none, or a morph
 // between the node's two drawings — what it drew before a change and what
-// it draws after (openmui.motion). Components write no animation; the slot
+// it draws after (hanim.visual). Components write no animation; the slot
 // moves whatever they draw.
 struct MotionSpec {
     enum class Kind : std::uint8_t { none, morph };

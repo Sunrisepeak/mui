@@ -101,7 +101,7 @@ GlyphMotion GlyphMotion::gather(std::uint64_t seed) {
     m.to = {};
     m.transition = Transition::spring_with(hanim::SpringParams::response(0.55, 0.15));
     m.stagger = hanim::seconds(0.012);
-    m.order = GlyphOrder::random;
+    m.order = hanim::StaggerOrder::random;
     m.seed = seed;
     return m;
 }
@@ -183,7 +183,7 @@ std::optional<GlyphMotion> glyph_motion_from(const Value& v) {
     if (const Value* s = v.get("stagger")) m.stagger = hanim::seconds(s->as_double(m.stagger.count()));
     if (const Value* o = v.get("order")) {
         auto it = std::ranges::find(order_names, o->as_string());
-        if (it != order_names.end()) m.order = static_cast<GlyphOrder>(it - order_names.begin());
+        if (it != order_names.end()) m.order = static_cast<hanim::StaggerOrder>(it - order_names.begin());
     }
     if (const Value* s = v.get("seed")) m.seed = static_cast<std::uint64_t>(s->as_int());
     if (const Value* r = v.get("repeat")) m.repeat = static_cast<int>(std::max<std::int64_t>(0, r->as_int(1)));
@@ -217,25 +217,8 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
     keys.erase(std::ranges::unique(keys).begin(), keys.end());
     const std::size_t n = keys.size();
     auto rank = [&](std::uint64_t k) { return static_cast<std::size_t>(std::ranges::lower_bound(keys, k) - keys.begin()); };
-    // Each element's place in time.
-    std::vector<std::size_t> slot(n);
-    for (std::size_t r = 0; r < n; ++r) {
-        switch (m.order) {
-            case GlyphOrder::forward: slot[r] = r; break;
-            case GlyphOrder::reverse: slot[r] = n - 1 - r; break;
-            case GlyphOrder::center: slot[r] = static_cast<std::size_t>(std::abs(2 * static_cast<long long>(r) - static_cast<long long>(n - 1)) / 2); break;
-            case GlyphOrder::edges:
-                slot[r] = (n - 1) / 2 - static_cast<std::size_t>(std::abs(2 * static_cast<long long>(r) - static_cast<long long>(n - 1)) / 2);
-                break;
-            case GlyphOrder::random: break;
-        }
-    }
-    if (m.order == GlyphOrder::random) {
-        std::vector<std::pair<std::uint64_t, std::size_t>> shuffled(n);
-        for (std::size_t r = 0; r < n; ++r) shuffled[r] = {mix(m.seed ^ mix(keys[r])), r};
-        std::ranges::sort(shuffled);
-        for (std::size_t i = 0; i < n; ++i) slot[shuffled[i].second] = i;
-    }
+    // Each element's place in time (hanim's stagger order).
+    const auto slot = hanim::stagger_slots(keys, m.order, m.seed);
     // One cycle's length, and the progress of an element `u` seconds after its start.
     const bool spring = m.transition.kind == Transition::Kind::spring;
     const hanim::Oscillator osc(0, 0, 1, m.transition.spring);
@@ -248,13 +231,10 @@ GlyphFrame glyph_frame(const GlyphMotion& m, hanim::seconds elapsed, std::span<c
     f.moving = !reduce_motion && elapsed < f.ends;
     auto progress = [&](double u) -> float {
         if (reduce_motion) return m.alternate && m.repeat % 2 == 0 && m.repeat > 0 ? 0.0f : 1.0f;
-        if (u <= 0) return 0;
-        double c = std::floor(u / cycle);
-        if (m.repeat > 0 && c >= m.repeat) return m.alternate && m.repeat % 2 == 0 ? 0.0f : 1.0f;
-        double local = u - c * cycle;
-        double p = spring ? osc.position(local) : m.transition.ease(std::clamp(local / cycle, 0.0, 1.0));
-        if (m.alternate && static_cast<long long>(c) % 2 == 1) p = 1 - p;
-        return static_cast<float>(p);
+        // hanim's repeated course: one cycle a spring's or an eased tween's.
+        return static_cast<float>(hanim::repeated(u, cycle, static_cast<std::uint32_t>(std::max(0, m.repeat)), m.alternate, [&](double local) {
+            return spring ? osc.position(local) : m.transition.ease(std::clamp(local / cycle, 0.0, 1.0));
+        }));
     };
     sequence = 0;
     for (std::size_t ci = 0; ci < commands.size(); ++ci) {

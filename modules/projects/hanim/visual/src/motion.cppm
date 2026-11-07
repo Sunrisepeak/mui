@@ -1,4 +1,4 @@
-// openmui.motion — universal motion (D-93; universal motion §4, §6): matter
+// hanim.visual — universal motion (D-93; universal motion §4, §6): matter
 // taken from what a node drew, and morphs between two drawings of it.
 //
 //     motion::Matter a = motion::Matter::extract(before, begin, end, resolver);

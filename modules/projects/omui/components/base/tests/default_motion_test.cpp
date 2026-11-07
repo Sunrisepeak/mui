@@ -150,8 +150,8 @@ int main(int argc, char** argv) {
                       "shared drawing matching underlies the recipe");
                 if (rule != rules.end()) {
                     check(rule->spec.name == name && rule->spec.primitives == found->second.primitives &&
-                          rule->spec.kind == found->second.kind && rule->spec.grow == found->second.grow &&
-                          rule->spec.rise == found->second.rise && rule->spec.stretch == found->second.stretch,
+                          rule->spec.kind == found->second.kind &&
+                          rule->spec.appear == found->second.appear && rule->spec.stretch == found->second.stretch,
                           "installed rule is the documented composition");
                     check(rule->layer == MotionRule::Layer::framework, "styles can override framework defaults");
                 }
@@ -198,7 +198,7 @@ int main(int argc, char** argv) {
             check(recipe != recipes.end());
             if (recipe == recipes.end()) continue;
             MotionSpec without_shape = flat.motion_library.at(std::string(recipe->update));
-            without_shape.grow = 1; without_shape.stretch = 0;
+            without_shape.appear.away.scale = hanim::Vec2{1, 1}; without_shape.stretch = 0;
             flat.motion_library["test.without-shape"] = without_shape;
             Headless typed(options()), plain(options());
             plain.runtime().set_theme(flat);

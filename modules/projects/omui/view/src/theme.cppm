@@ -57,10 +57,13 @@ struct MotionSpec {
     float      text_rise = 0.35f; // whole-run replacement travel, in ems
     double     minimum_text_contrast = 4.5; // opaque unchanged text on a provable solid carrier
     bool       meaning = true;   // a node whose key changed found again by its role and name
-    float      rise = 0;         // what appears (or vanishes) comes from lower by this
-    float      grow = 1;         // … and scaled by this, about the middle of the drawing
+    // What appears and what vanishes (hanim.core's presences, spec M-10):
+    // appearing from `appear`'s pose — lower, a little smaller — and within
+    // its opacity window; vanishing within `vanish`'s; writing its strokes or
+    // dropping in when `appear` does. Played over this motion's curve.
+    hanim::Presence appear = *hanim::presence("fade_in", {.fade = 0.3});
+    hanim::Presence vanish = *hanim::presence("fade_out", {.fade = 0.6});
     float      stretch = 0;      // a moving fill drawn out along its way (a tab's lens)
-    double     fade_out = 0.6, fade_in = 0.3;
     PlacementPolicy placement = PlacementPolicy::automatic;
     bool       local_presence = false;  // appear about each part, rather than the whole control
     std::uint16_t primitives = 0;  // the built-in operations this recipe composes
@@ -81,8 +84,6 @@ struct MotionSpec {
     std::string           name;  // a library's motion ("simple", "liquid", "ink"); empty: written out
     hanim::PointPath      vertex_path; // matched path geometry only; reduced motion uses the linear default
     hanim::PointPath      translation_path; // a moving piece's way (noise); reduced motion goes straight
-    bool                  write = false;  // strokes drawn along their length as they appear (hanim.visual's write)
-    float                 drop = 0;       // what appears falls in from this far above and flattens landing
     bool                  reshape = false; // a replaced glyph's outline morphs into its replacement's
     float                 press = 0;       // a state change under the pointer presses the drawing in by this, ringing out
     friend bool operator==(const MotionSpec&, const MotionSpec&);

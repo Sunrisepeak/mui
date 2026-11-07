@@ -76,13 +76,16 @@ struct Options {
     GlyphBounds glyph_bounds; // actual-font proof for nested drawings and translucent carriers
     float proof_scale = 1;    // renderer's initial logical-to-device scale for clip/effect/AA proof
     std::function<float()> current_proof_scale; // optional live scale, read once per draw; invalid -> no deferred proof
-    double fade_out = 0.6;   // the progress by which what only the first drawing has is gone
-    double fade_in = 0.3;    // the progress at which what only the second has begins to show
-    // What only one drawing has appears from (and vanishes to), about the
-    // middle of all it draws: lower by `rise`, scaled by `grow` — a dialog
-    // opening, a menu dropping, a node entering.
-    float  rise = 0;
-    float  grow = 1;
+    // What only the second drawing has appears by `appear`, what only the
+    // first has vanishes by `vanish` — hanim.core's presences (spec M-10),
+    // played over this transition's curve. `appear`'s pose is the one both
+    // come from and go to, about the middle of all it draws (lower, smaller:
+    // a dialog opening, a menu dropping, a node entering); each presence's
+    // opacity window is its own (appearing from 0.3 of the progress, gone by
+    // 0.6, by default); `appear` writing its strokes or dropping in draws
+    // that instead (and `vanish` unwriting).
+    hanim::Presence appear = *hanim::presence("fade_in", {.fade = 0.3});
+    hanim::Presence vanish = *hanim::presence("fade_out", {.fade = 0.6});
     bool   rebase_layout = false; // external allocation, internal state still morphs
     std::vector<std::string> layout_scopes; // stable owner keys; empty means entire matter
     bool   local_presence = false;  // scale an appearing part about its own bounds
@@ -110,14 +113,13 @@ struct Options {
     // The same operator on a moving piece's translation (a selection
     // indicator travelling with a little noise, plan §6.8 ⑤).
     hanim::PointPath translation_path;
-    // Strokes that appear are written along their length (trim end 0 → 1) and
-    // strokes that go are unwritten, instead of fading (plan §6.8 ②: a focus
-    // ring traced round, a check mark drawn).
-    bool   write = false;
-    // What appears drops in from `drop` above along `drop_curve` (Ease::fall:
-    // it lands, bounces, settles) and squashes by `squash` about the bottom of
-    // what appears as it presses into the ground (plan §6.8 ⑨).
-    float  drop = 0;
+    // With `appear` writing (write_in), strokes that appear are written along
+    // their length (trim end 0 → 1) and strokes that go are unwritten, instead
+    // of fading (plan §6.8 ②: a focus ring traced round, a check mark drawn).
+    // With `appear` dropping (drop_in), what appears drops in from its height
+    // along `drop_curve` (Ease::fall: it lands, bounces, settles) and squashes
+    // by `squash` about the bottom of what appears as it presses into the
+    // ground (plan §6.8 ⑨).
     hanim::Ease drop_curve = hanim::Ease::fall(0.45, 2);
     float  squash = 0.2f;
     // A glyph replaced by another in a matched run (between the same kept

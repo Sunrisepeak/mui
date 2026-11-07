@@ -315,7 +315,7 @@ theme = "light"
 [style.inky.motions]
 update        = ["ink", "simple"]
 state         = "simple"
-"role:dialog" = { enter = { use = "spring", rise = 12 } }
+"role:dialog" = { enter = { use = "spring", appear = { presence = "rise_in", distance = 12, also = "settle_in" } } }
 )toml";
         auto added = lib.add_styles(ink, "inky.style.omui.toml");
         check(added.has_value(), added ? "" : all(added.error()));
@@ -330,8 +330,9 @@ state         = "simple"
             check(state != t->motion_rules.end() && state->spec.name == "simple", "state feedback is the style's own slot");
             check(std::ranges::any_of(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::framework && r.target == "checkbox" && r.spec.name == "default.check"; }), "typed defaults remain available under the style layer");
             const auto dialog = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.target == "role:dialog" && r.slot == "enter"; });
-            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.rise == 12 && dialog->layer == MotionRule::Layer::style_targeted,
-                  dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.rise));
+            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.appear.away.offset.y == 12 && dialog->spec.appear.away.scale.x == .96 &&
+                      dialog->spec.appear.name == "rise_in+settle_in" && dialog->layer == MotionRule::Layer::style_targeted,
+                  dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.appear.name));
         }
         // Written out and read back: the same motions.
         if (st) {

@@ -143,22 +143,39 @@ constexpr std::pair<std::string_view, MotionPrimitive> primitive_names[]{
     {"reshape", MotionPrimitive::reshape}, {"press", MotionPrimitive::press}
 };
 
+// A presence's name says what it became: "rise_in", "rise_in+settle_in".
+void named(hanim::Presence& p, std::string_view part) {
+    if (p.name == "fade_in" || p.name == "fade_out") p.name = std::string(part);
+    else if (!p.name.contains(part)) p.name += "+" + std::string(part);
+}
+// What appears comes from `distance` lower and what vanishes goes there
+// (rise_in, sink_out); about the middle, `scale` smaller (settle_in/out).
+// The values are kept as the floats they always were.
+void rise(MotionSpec& m, float distance) {
+    m.appear.away.offset.y = m.vanish.away.offset.y = distance;
+    named(m.appear, "rise_in"), named(m.vanish, "sink_out");
+}
+void settle(MotionSpec& m, float scale) {
+    m.appear.away.scale = m.vanish.away.scale = hanim::Vec2{scale, scale};
+    named(m.appear, "settle_in"), named(m.vanish, "settle_out");
+}
+
 void add_primitive(MotionSpec& m, MotionPrimitive part) {
     m.primitives |= static_cast<std::uint16_t>(part);
     switch (part) {
         case MotionPrimitive::match_drawing: m.kind = MotionSpec::Kind::morph; break;
         case MotionPrimitive::match_glyphs: m.glyphs = true; m.text = MotionSpec::TextTransition::glyphs; break;
         case MotionPrimitive::readable_text: m.glyphs = true; m.text = MotionSpec::TextTransition::automatic; break;
-        case MotionPrimitive::fade: m.fade_out = 0.6; m.fade_in = 0.3; break;
-        case MotionPrimitive::lift: m.rise = 8; break;
-        case MotionPrimitive::panel_lift: m.rise = 20; break;
-        case MotionPrimitive::grow: m.grow = 0.96f; break;
-        case MotionPrimitive::check_grow: m.grow = 0.72f; m.local_presence = true; break;
+        case MotionPrimitive::fade: m.vanish.fade_to = 0.6; m.appear.fade_from = 0.3; break;
+        case MotionPrimitive::lift: rise(m, 8); break;
+        case MotionPrimitive::panel_lift: rise(m, 20); break;
+        case MotionPrimitive::grow: settle(m, 0.96f); break;
+        case MotionPrimitive::check_grow: settle(m, 0.72f); m.local_presence = true; break;
         case MotionPrimitive::stretch: m.stretch = 0.35f; break;
         case MotionPrimitive::stagger: m.order = MotionSpec::Order::document; m.stagger = 0.018; break;
         case MotionPrimitive::distance: m.order = MotionSpec::Order::distance; m.stagger = 0.012; break;
-        case MotionPrimitive::write: m.write = true; break;
-        case MotionPrimitive::drop: m.drop = 24; break;
+        case MotionPrimitive::write: m.appear.writes = m.vanish.writes = true; named(m.appear, "write_in"), named(m.vanish, "unwrite"); break;
+        case MotionPrimitive::drop: m.appear.drop = 24; named(m.appear, "drop_in"); break;
         case MotionPrimitive::noise: m.translation_path = hanim::PointPath::jitter(3, 40, 7); break;
         case MotionPrimitive::reshape: m.reshape = true; break;
         case MotionPrimitive::press: m.press = 0.06f; break;
@@ -308,6 +325,46 @@ std::map<std::string, MotionSpec, std::less<>> default_motion_library() {
     return lib;
 }
 
+namespace {
+// A presence from a theme or a style pack: its name, or a table of its name
+// and options (and `also`, a second one at the same time).
+std::optional<hanim::Presence> presence_of(const Value& v) {
+    if (v.type() == Value::Type::text) {
+        auto made = hanim::presence(v.as_string());
+        return made ? std::optional(std::move(*made)) : std::nullopt;
+    }
+    if (!v.map()) return std::nullopt;
+    const Value* name = v.get("presence");
+    if (!name || name->type() != Value::Type::text) return std::nullopt;
+    hanim::PresenceOptions options;
+    const auto number = [&](std::string_view key, std::optional<double>& out) {
+        if (const Value* x = v.get(key)) {
+            if (!x->is_number() || !std::isfinite(x->as_double())) return false;
+            out = x->as_double();
+        }
+        return true;
+    };
+    if (!number("distance", options.distance) || !number("scale", options.scale) || !number("radians", options.radians) ||
+        !number("height", options.height) || !number("fade", options.fade))
+        return std::nullopt;
+    if (const Value* o = v.get("offset")) {
+        if (!o->list() || o->list()->size() != 2 || !(*o->list())[0].is_number() || !(*o->list())[1].is_number()) return std::nullopt;
+        options.offset = hanim::Vec2{(*o->list())[0].as_double(), (*o->list())[1].as_double()};
+    }
+    if (options.fade) options.fade = std::clamp(*options.fade, 0.0, 1.0);
+    auto made = hanim::presence(name->as_string(), options);
+    if (!made) return std::nullopt;
+    if (const Value* also = v.get("also")) {
+        const auto second = presence_of(*also);
+        if (!second) return std::nullopt;
+        auto both = hanim::together(*made, *second);
+        if (!both) return std::nullopt;
+        return std::move(*both);
+    }
+    return std::move(*made);
+}
+}  // namespace
+
 std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     MotionSpec m;
     auto curve = [&](std::string_view token) -> bool {
@@ -347,10 +404,13 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
             add_primitive(m, *part);
         }
     }
-    for (const auto& [key, destination] : {std::pair{"fade_out", &m.fade_out}, std::pair{"fade_in", &m.fade_in}})
+    // What appears and what vanishes: a presence by name (spec M-10), or
+    // { presence = "rise_in", distance = 12, fade = 0.3, also = "settle_in" }.
+    for (const auto& [key, destination] : {std::pair{"appear", &m.appear}, std::pair{"vanish", &m.vanish}})
         if (const Value* value = v.get(key)) {
-            if (!value->is_number() || !std::isfinite(value->as_double())) return std::nullopt;
-            *destination = std::clamp(value->as_double(), 0.0, 1.0);
+            auto presence = presence_of(*value);
+            if (!presence) return std::nullopt;
+            *destination = std::move(*presence);
         }
     if (const Value* origin = v.get("origin")) {
         if (origin->as_string() == "piece") m.local_presence = true;
@@ -396,8 +456,6 @@ std::optional<MotionSpec> parse_motion(const Value& v, const Theme& theme) {
     }
     if (const Value* g = v.get("glyphs")) m.glyphs = g->as_bool(true);
     if (const Value* g = v.get("meaning")) m.meaning = g->as_bool(true);
-    if (const Value* r = v.get("rise")) m.rise = static_cast<float>(r->as_double());
-    if (const Value* g = v.get("grow")) m.grow = static_cast<float>(std::clamp(g->as_double(1), 0.0, 4.0));
     if (const Value* st = v.get("stretch")) m.stretch = static_cast<float>(std::clamp(st->as_double(), 0.0, 2.0));
     if (const Value* path = v.get("vertex_path")) {
         hanim::PointPath parsed;

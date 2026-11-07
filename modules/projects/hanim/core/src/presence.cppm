@@ -28,7 +28,10 @@ struct PresencePose {
     Vec2   offset{0, 0};
     Vec2   scale{1, 1};
     double rotation = 0;
-    friend constexpr bool operator==(const PresencePose&, const PresencePose&) = default;
+    // Written out: GCC 16.1 crashes on a defaulted comparison here once an importer uses it.
+    friend constexpr bool operator==(const PresencePose& a, const PresencePose& b) noexcept {
+        return a.offset == b.offset && a.scale == b.scale && a.rotation == b.rotation;
+    }
 };
 
 struct Presence {
@@ -53,6 +56,11 @@ struct Presence {
     [[nodiscard]] PresencePose pose(double progress) const noexcept;
     // The opacity `progress` through it, linear within its window.
     [[nodiscard]] double opacity(double progress) const noexcept;
+
+    friend bool operator==(const Presence& a, const Presence& b) noexcept {
+        return a.name == b.name && a.kind == b.kind && a.away == b.away && a.duration == b.duration && a.ease == b.ease && a.fades == b.fades &&
+               a.fade_from == b.fade_from && a.fade_to == b.fade_to && a.writes == b.writes && a.drop == b.drop && a.anchor == b.anchor;
+    }
 };
 
 // What a course's own values become (none: its defaults).

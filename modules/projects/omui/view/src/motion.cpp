@@ -45,8 +45,11 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
         o.curve.kind = hanim::visual::Curve::Kind::tween;
         o.curve.duration = 0.12;
         o.curve.ease = hanim::ease::standard;
-        o.rise = spec.rise * 0.25f;
-        o.grow = 1 - (1 - spec.grow) * 0.25f;
+        // A quarter of the way: the same floats as ever (rise × 0.25, 1 − (1 − grow) × 0.25).
+        const float rise = static_cast<float>(spec.appear.away.offset.y) * 0.25f;
+        const float grow = 1 - (1 - static_cast<float>(spec.appear.away.scale.x)) * 0.25f;
+        o.appear.away.offset.y = rise;
+        o.appear.away.scale = {grow, grow};
         return o;
     }
     o.curve.kind = spec.curve.kind == Transition::Kind::spring ? hanim::visual::Curve::Kind::spring : hanim::visual::Curve::Kind::tween;
@@ -57,16 +60,12 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
               : spec.order == MotionSpec::Order::distance ? hanim::visual::Order::distance
                                                           : hanim::visual::Order::together;
     o.stagger = spec.stagger;
-    o.rise = spec.rise;
-    o.grow = spec.grow;
+    o.appear = spec.appear;
+    o.vanish = spec.vanish;
     o.stretch = spec.stretch;
-    o.fade_out = spec.fade_out;
-    o.fade_in = spec.fade_in;
     o.local_presence = spec.local_presence;
     o.vertex_path = spec.vertex_path;
     o.translation_path = spec.translation_path;
-    o.write = spec.write;
-    o.drop = spec.drop;
     if (spec.travel)
         if (const auto ref = xrender::effects().find(spec.travel->effect)) {
             hanim::visual::Options::Travel t{.effect = *ref};

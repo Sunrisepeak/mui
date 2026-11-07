@@ -845,6 +845,11 @@ Rect stretched(Rect r, const Rect& a, const Rect& b, double u, float stretch) no
     return r;
 }
 
+// The presence options as the arithmetic has always read them: the pose's
+// rise and grow, and a drop's height, in floats.
+float rise_of(const Options& o) noexcept { return static_cast<float>(o.appear.away.offset.y); }
+float grow_of(const Options& o) noexcept { return static_cast<float>(o.appear.away.scale.x); }
+float drop_of(const Options& o) noexcept { return static_cast<float>(o.appear.drop); }
 double fade_out(double u, double by) noexcept { return 1 - clamp01(by <= 0 ? 1 : u / by); }
 double fade_in(double u, double from) noexcept { return clamp01(from >= 1 ? (u >= 1 ? 1 : 0) : (u - from) / (1 - from)); }
 
@@ -1410,15 +1415,15 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
     // Appearing and vanishing: `away` 1 is all the way (lower by rise, scaled by grow about the middle), 0 in place.
     const Point middle = (to_.empty() ? from_.bounds() : to_.bounds()).center();
     auto shaped = [&](double away, const Rect& bounds) -> Affine {
-        if (away <= 0 || (options_.rise == 0 && options_.grow == 1)) return Affine{};
-        const float g = mixf(1, options_.grow, away);
+        if (away <= 0 || (rise_of(options_) == 0 && grow_of(options_) == 1)) return Affine{};
+        const float g = mixf(1, grow_of(options_), away);
         const Point origin = options_.local_presence ? bounds.center() : middle;
-        return Affine::translate(origin.x, origin.y + mixf(0, options_.rise, away)) * Affine::scale(g, g) * Affine::translate(-origin.x, -origin.y);
+        return Affine::translate(origin.x, origin.y + mixf(0, rise_of(options_), away)) * Affine::scale(g, g) * Affine::translate(-origin.x, -origin.y);
     };
     // Dropping in: from above along the fall, pressed flat about the bottom of what appears as it lands.
     const float landing = (to_.empty() ? from_.bounds() : to_.bounds()).bottom();
     auto dropped = [&](double k) -> Affine {
-        const float lift = static_cast<float>(-options_.drop * (1 - options_.drop_curve(k)));
+        const float lift = static_cast<float>(-drop_of(options_) * (1 - options_.drop_curve(k)));
         const float press = static_cast<float>(options_.squash * options_.drop_curve.contact(k));
         return Affine::translate(middle.x, landing + lift) * Affine::scale(1 + press, 1 - press) * Affine::translate(-middle.x, -landing);
     };
@@ -1517,11 +1522,11 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                                 mixf(source.sampled_placement_origin.y, target.sampled_placement_origin.y, u)};
             if (u <= 0) { clipping = &from_; clip = source.clip; }
         } else if (pair.b >= 0) {
-            const double present = options_.drop > 0 ? 1 : fade_in(u, options_.fade_in);
-            transform = (options_.drop > 0 ? dropped(k) : shaped(1 - k, target.transform.map(rect))) * transform;
+            const double present = drop_of(options_) > 0 ? 1 : fade_in(u, options_.appear.fade_from);
+            transform = (drop_of(options_) > 0 ? dropped(k) : shaped(1 - k, target.transform.map(rect))) * transform;
             opacity *= static_cast<float>(present);
         } else {
-            const double present = fade_out(u, options_.fade_out);
+            const double present = fade_out(u, options_.vanish.fade_to);
             transform = shaped(1 - present, target.transform.map(rect)) * transform;
             opacity *= static_cast<float>(present);
         }
@@ -1545,8 +1550,8 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         e.part_progress = u;
         if (p.b < 0) {  // only in the first: fading away where it was (vanishing, when it is asked to)
             const Piece& pa = A[static_cast<std::size_t>(p.a)];
-            const double gone = fade_out(u, options_.fade_out);
-            const bool unwritten = options_.write && gone < 1 && stroked(from_, pa);
+            const double gone = fade_out(u, options_.vanish.fade_to);
+            const bool unwritten = options_.appear.writes && gone < 1 && stroked(from_, pa);
             const float o = static_cast<float>(unwritten ? (gone > 0 ? pa.opacity : 0) : pa.opacity * gone);
             if (o <= 0) continue;
             e.begin(marker_a(pa));
@@ -1560,10 +1565,10 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // A group of a nested root is inside its own marker already.
         e.begin(pb.cls == PieceClass::group && pb.nested ? 0 : marker_b(pb));
         if (p.a < 0) {  // only in the second: appearing where it is (from below, smaller, when it is asked to)
-            const bool written = options_.write && k < 1 && stroked(to_, pb);  // settled: the stroke itself
-            const bool falling = options_.drop > 0;
+            const bool written = options_.appear.writes && k < 1 && stroked(to_, pb);  // settled: the stroke itself
+            const bool falling = drop_of(options_) > 0;
             const Affine arrival = falling ? dropped(k) : shaped(1 - clamp01(u), pb.bounds);
-            const double present = written || falling ? (k > 0 ? 1 : 0) : fade_in(u, options_.fade_in);
+            const double present = written || falling ? (k > 0 ? 1 : 0) : fade_in(u, options_.appear.fade_from);
             if (written) e.trim = std::array<float, 2>{0, static_cast<float>(k)};
             e.piece(to_, pb, arrival * pb.transform, static_cast<float>(pb.opacity * present), true, !(k >= 1 && u == 1));
             e.trim.reset();
@@ -1794,7 +1799,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                     } else if (std::ranges::any_of(p.reshapes, [&](const auto& reshape) { return reshape.to_glyph == j; })) {
                         s.opacity = 0;  // drawn as the outline it reshapes from
                     } else {
-                        s.opacity *= static_cast<float>(fade_in(u, options_.fade_in));
+                        s.opacity *= static_cast<float>(fade_in(u, options_.appear.fade_from));
                     }
                     styles[j] = s;
                 }
@@ -1819,7 +1824,7 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
                     for (std::size_t i = 0; i < ga.glyphs.size(); ++i) {
                         GlyphStyle s = ga.styles.empty() ? GlyphStyle{} : ga.styles[i];
                         const bool reshaping = std::ranges::any_of(p.reshapes, [&](const auto& reshape) { return reshape.from_glyph == i; });
-                        s.opacity *= p.glyph_kept[i] || reshaping ? 0.0f : static_cast<float>(fade_out(u, options_.fade_out));
+                        s.opacity *= p.glyph_kept[i] || reshaping ? 0.0f : static_cast<float>(fade_out(u, options_.vanish.fade_to));
                         // Drawn under tf: where it was, mapped from the first run's space.
                         const Point at_a{ga.origin.x + ga.glyphs[i].position.x, ga.origin.y + ga.glyphs[i].position.y};
                         const Point here = inv->apply(pa.transform.apply(at_a));

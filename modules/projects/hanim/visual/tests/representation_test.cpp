@@ -73,7 +73,8 @@ int main(int argc, char** argv) {
 
     suite.test("an appearing stroke is written along its length, then is the stroke itself", [] {
         auto options = linear();
-        options.write = true;
+        options.appear = *hanim::presence("write_in", {.fade = 0.3});
+        options.vanish = *hanim::presence("unwrite", {.fade = 0.6});
         const mo::Morph morph(mo::Matter::extract(blank(), resolver()),
                               mo::Matter::extract(ring(), resolver()), options, 0);
         for (const double time : {.25, .5, .75}) {
@@ -107,7 +108,7 @@ int main(int argc, char** argv) {
     suite.test("what appears drops in, flattens about its bottom as it lands, and rests exactly",
                [] {
                    auto options = linear();
-                   options.drop = 24;
+                   options.appear = *hanim::presence("drop_in", {.height = 24, .fade = 0.3});
                    const mo::Morph morph(mo::Matter::extract(blank(), resolver()),
                                          mo::Matter::extract(card(), resolver()), options, 0);
                    const auto early = placed_fill(drawn(morph, .05));

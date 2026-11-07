@@ -400,7 +400,7 @@ int main(int argc, char** argv) {
         using P = MotionPrimitive;
         const auto contains = [&](P part) { return (composed->primitives & static_cast<std::uint16_t>(part)) != 0; };
         check(contains(P::match_drawing) && contains(P::match_glyphs) && contains(P::fade) && contains(P::check_grow) && contains(P::stretch) && contains(P::stagger));
-        check(composed->glyphs && composed->local_presence && composed->grow < 1 && composed->stretch > 0 && composed->stagger > 0);
+        check(composed->glyphs && composed->local_presence && composed->appear.away.scale.x < 1 && composed->stretch > 0 && composed->stagger > 0);
         const auto candidates = parse_motions(Value(Value::List{"liquid", "simple"}), theme);
         check(candidates && candidates->size() == 2 && candidates->front().travel && !candidates->back().travel,
               "a fallback list must not silently compose incompatible strategies");

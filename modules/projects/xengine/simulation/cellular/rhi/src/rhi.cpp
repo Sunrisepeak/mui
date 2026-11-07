@@ -27,7 +27,7 @@ r::Result<void> Kernel::record(r::CommandList& list,Field input,Field output,Bou
     if(input.owner!=&device_ || output.owner!=&device_)return invalid("cellular field belongs to another device");
     if(input.channels!=program_.channels() || output.channels!=input.channels || input.shape.width!=output.shape.width || input.shape.height!=output.shape.height)
         return invalid("cellular field shape/channels do not match");
-    auto count=program_.values(input.shape);if(!count)return invalid(std::string(error_name(count.error().code)));
+    auto count=program_.values(input.shape);if(!count)return invalid(count.error().text());
     if(boundary.edge>Edge::wrap)return invalid("invalid cellular boundary");
     if(input.buffer==output.buffer)return invalid("cellular input/output must be disjoint");
     const auto in=device_.describe(input.buffer),out=device_.describe(output.buffer);

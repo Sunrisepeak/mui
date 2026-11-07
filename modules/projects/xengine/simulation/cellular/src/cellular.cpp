@@ -4,53 +4,43 @@ import mlibs.trace;
 import mlibs.log;
 
 namespace xengine::simulation::cellular {
-std::string_view error_name(Error e) noexcept {
-    switch(e) {
-        case Error::unprepared: return "unprepared"; case Error::channels: return "channels";
-        case Error::condition: return "condition"; case Error::range: return "range";
-        case Error::offset: return "offset"; case Error::duplicate_write: return "duplicate-write";
-        case Error::limit: return "limit"; case Error::shape: return "shape";
-        case Error::alias: return "alias"; case Error::tile: return "tile";
-    }
-    return "unknown";
-}
 std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::span<const Rule> rules, Limits limits) {
     mlibs::trace::Span span("simulation.cellular.prepare", "simulation");
-    if (!channels || channels > limits.max_channels || channels > limits.max_values) return std::unexpected(Failure{Error::channels});
+    if (!channels || channels > limits.max_channels || channels > limits.max_values) return std::unexpected(Failure{Errc::channels});
     if (rules.size()>limits.max_rules || limits.max_words<4 || limits.max_values==0 ||
         limits.max_values>std::numeric_limits<std::uint32_t>::max()/4 ||
-        limits.max_words>std::numeric_limits<std::uint32_t>::max()/4) return std::unexpected(Failure{Error::limit});
+        limits.max_words>std::numeric_limits<std::uint32_t>::max()/4) return std::unexpected(Failure{Errc::limit});
     std::uint64_t size=4+static_cast<std::uint64_t>(rules.size());
     std::uint32_t halo=0;
     for(std::size_t r=0;r<rules.size();++r) {
         const auto& rule=rules[r];
-        if(rule.when.size()>limits.max_words || rule.writes.size()>channels) return std::unexpected(Failure{Error::limit,r});
+        if(rule.when.size()>limits.max_words || rule.writes.size()>channels) return std::unexpected(Failure{Errc::limit, {}, {r}});
         size+=4+rule.writes.size()*3;
         for(std::size_t c=0;c<rule.when.size();++c) {
             const auto& test=rule.when[c];
-            const auto fail=[&](Error e){return std::unexpected(Failure{e,r,c});};
-            if(test.kind>ConditionKind::neighbors || (test.kind==ConditionKind::self && !test.offsets.empty())) return fail(Error::condition);
-            if(test.test.channel>=channels) return fail(Error::channels);
-            if(test.test.value.low>test.test.value.high || test.count.low>test.count.high) return fail(Error::range);
-            if(test.offsets.size()>128) return fail(Error::limit);
+            const auto fail=[&](Errc e){return std::unexpected(Failure{e, {}, {r, c}});};
+            if(test.kind>ConditionKind::neighbors || (test.kind==ConditionKind::self && !test.offsets.empty())) return fail(Errc::condition);
+            if(test.test.channel>=channels) return fail(Errc::channels);
+            if(test.test.value.low>test.test.value.high || test.count.low>test.count.high) return fail(Errc::range);
+            if(test.offsets.size()>128) return fail(Errc::limit);
             for(std::size_t i=0;i<test.offsets.size();++i) {
                 const auto o=test.offsets[i];
-                if(o.x < -32 || o.x>32 || o.y < -32 || o.y>32) return fail(Error::offset);
-                for(std::size_t j=0;j<i;++j)if(test.offsets[j]==o)return fail(Error::offset);
+                if(o.x < -32 || o.x>32 || o.y < -32 || o.y>32) return fail(Errc::offset);
+                for(std::size_t j=0;j<i;++j)if(test.offsets[j]==o)return fail(Errc::offset);
                 halo=std::max(halo,static_cast<std::uint32_t>(std::max(std::abs(o.x),std::abs(o.y))));
             }
             size+=7+test.offsets.size()*2;
-            if(size>limits.max_words) return fail(Error::limit);
+            if(size>limits.max_words) return fail(Errc::limit);
         }
         for(std::size_t w=0;w<rule.writes.size();++w) {
             const auto write=rule.writes[w];
-            if(write.channel>=channels) return std::unexpected(Failure{Error::channels,r,w});
-            if(write.kind>WriteKind::subtract_saturating) return std::unexpected(Failure{Error::condition,r,w});
-            for(std::size_t k=0;k<w;++k)if(rule.writes[k].channel==write.channel) return std::unexpected(Failure{Error::duplicate_write,r,w});
+            if(write.channel>=channels) return std::unexpected(Failure{Errc::channels, {}, {r, w}});
+            if(write.kind>WriteKind::subtract_saturating) return std::unexpected(Failure{Errc::condition, {}, {r, w}});
+            for(std::size_t k=0;k<w;++k)if(rule.writes[k].channel==write.channel) return std::unexpected(Failure{Errc::duplicate_write, {}, {r, w}});
         }
-        if(size>limits.max_words) return std::unexpected(Failure{Error::limit,r});
+        if(size>limits.max_words) return std::unexpected(Failure{Errc::limit, {}, {r}});
     }
-    if(size>limits.max_words) return std::unexpected(Failure{Error::limit});
+    if(size>limits.max_words) return std::unexpected(Failure{Errc::limit});
     Program p;p.channels_=channels;p.rules_=static_cast<std::uint32_t>(rules.size());p.halo_=halo;p.limits_=limits;
     p.words_.reserve(static_cast<std::size_t>(size));p.words_={1,channels,p.rules_,halo};p.words_.resize(4+rules.size());
     for(std::size_t r=0;r<rules.size();++r) {
@@ -70,20 +60,20 @@ std::expected<Program,Failure> Program::prepare(std::uint32_t channels, std::spa
 }
 
 std::expected<std::size_t,Failure> Program::values(Shape shape) const noexcept {
-    if(!channels_)return std::unexpected(Failure{Error::unprepared});
+    if(!channels_)return std::unexpected(Failure{Errc::unprepared});
     // Coordinates plus the declared halo always fit signed 32-bit arithmetic.
     const auto cells=static_cast<std::uint64_t>(shape.width)*shape.height;
     if(!shape.width || !shape.height || shape.width>0x7fffffdfu || shape.height>0x7fffffdfu)
-        return std::unexpected(Failure{Error::shape});
-    if(cells>limits_.max_values/channels_)return std::unexpected(Failure{Error::limit});
+        return std::unexpected(Failure{Errc::shape});
+    if(cells>limits_.max_values/channels_)return std::unexpected(Failure{Errc::limit});
     return static_cast<std::size_t>(cells*channels_);
 }
 std::expected<void,Failure> Program::validate(Shape shape, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Boundary boundary) const noexcept {
     auto n=values(shape);if(!n)return std::unexpected(n.error());
-    if(in.size()!=*n || out.size()!=*n || boundary.edge>Edge::wrap)return std::unexpected(Failure{Error::shape});
+    if(in.size()!=*n || out.size()!=*n || boundary.edge>Edge::wrap)return std::unexpected(Failure{Errc::shape});
     std::less<const std::uint32_t*> less;
-    if(less(in.data(),out.data()+out.size()) && less(out.data(),in.data()+in.size()))return std::unexpected(Failure{Error::alias});
+    if(less(in.data(),out.data()+out.size()) && less(out.data(),in.data()+in.size()))return std::unexpected(Failure{Errc::alias});
     return {};
 }
 Statistics Program::run_tile(Shape shape, Tile tile, std::span<const std::uint32_t> in,
@@ -138,14 +128,14 @@ std::expected<Statistics,Failure> Program::step_tile(Shape shape, Tile tile, std
     mlibs::trace::Span span("simulation.cellular.tile", "simulation");
     auto v=validate(shape,in,out,boundary);if(!v)return std::unexpected(v.error());
     if(!tile.width || !tile.height || tile.x>=shape.width || tile.y>=shape.height ||
-        tile.width>shape.width-tile.x || tile.height>shape.height-tile.y)return std::unexpected(Failure{Error::tile});
+        tile.width>shape.width-tile.x || tile.height>shape.height-tile.y)return std::unexpected(Failure{Errc::tile});
     return run_tile(shape,tile,in,out,boundary);
 }
 std::expected<Statistics,Failure> Program::step(Shape shape, std::span<const std::uint32_t> in,
         std::span<std::uint32_t> out, Execution execution) const noexcept {
     mlibs::trace::Span span("simulation.cellular.step", "simulation");
     auto v=validate(shape,in,out,execution.boundary);if(!v)return std::unexpected(v.error());
-    if(!execution.tile.width || !execution.tile.height)return std::unexpected(Failure{Error::tile});
+    if(!execution.tile.width || !execution.tile.height)return std::unexpected(Failure{Errc::tile});
     const auto columns=1+(shape.width-1)/execution.tile.width,rows=1+(shape.height-1)/execution.tile.height;
     const auto total=columns*rows;Statistics stats;
     for(std::uint32_t i=0;i<total;++i) {

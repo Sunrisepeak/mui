@@ -12,6 +12,7 @@ export module mlibs.rhi.api:types;
 
 import std;
 import mlibs.memory;
+import mlibs.error;
 
 export namespace mlibs::rhi {
 
@@ -24,12 +25,21 @@ enum class Errc : std::uint8_t {
     device_lost,
     backend,        // the backend failed for its own reason (its message says it)
 };
-[[nodiscard]] std::string_view name(Errc code) noexcept;
+// The codes as the error contract describes them (mlibs.error): `rhi.<code>`
+// and the kind a caller takes it as.
+[[nodiscard]] constexpr mlibs::error::Description describe(Errc code) noexcept {
+    using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
+    switch (code) {
+        case Errc::unsupported: return {"rhi.unsupported", Kind::refused, "not what this device can do"};
+        case Errc::invalid: return {"rhi.invalid", Kind::invalid_argument, "a description or a command list that is wrong"};
+        case Errc::out_of_memory: return {"rhi.out-of-memory", Kind::failed, "the device is out of memory"};
+        case Errc::device_lost: return {"rhi.device-lost", Kind::failed, "the device was lost"};
+        case Errc::backend: return {"rhi.backend", Kind::failed, "the backend failed"};
+    }
+    return {"rhi.?", Kind::internal};
+}
 
-struct Error {
-    Errc        code = Errc::backend;
-    std::string message;
-};
+using Error = mlibs::error::Error<Errc>;
 
 template <class T>
 using Result = std::expected<T, Error>;

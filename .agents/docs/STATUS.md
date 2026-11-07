@@ -57,6 +57,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 
 ### Upstream issues (filed; reproduced on the latest mcpp, 2026.11.5.1)
 
+- GCC 16.1 (not filed): a function-local using-declaration of an enum from another module (`using mlibs::error::Kind;` inside a `constexpr` function of an interface) is an internal compiler error in `import_entity_module` (cp/module.cc:4361); an alias declaration works. Minimal reproduction kept in the D-109 note.
+
 - [mcpp#896](https://github.com/mcpp-community/mcpp/issues/896): **two packages with the same short name drop one from links.** A package named `xrender` (no namespace) and `compat.xrender` (SDL3's X11 dependency) in one plan: binaries that reach both link without `xrender`'s objects (undefined references), while `-p` of either side alone links. Worked around by naming the package `xrender.graph`.
 
 - [mcpp#897](https://github.com/mcpp-community/mcpp/issues/897): **`[feature-deps]` not applied when the package is also a selected root.** Workspace `a` (features `f1`, `f2` with sources), `v` (`a` with `f1`; feature `x` whose `[feature-deps.x]` asks `a` for `f2`), `s` (`v` with `x`). `mcpp build -p s` builds; `mcpp build -p s -p v` compiles `v`'s `x` sources but not `a`'s `f2` ("a.f2: failed to read compiled module").
@@ -80,7 +82,8 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | simulation GPU conformance on mlibs.cts | done: 17 cases (16 scenarios and the refusal) needing `compute`; the same totals and process hash as before (`0769cee00d2cbf3a`); backends require compute |
 | spec level S on mlibs.cts | done: the harness is `modules/projects/omui/cts` (was `tests/cts`); `conform()` gives one case a scenario; JavaScript, Lua and embedded Python 7/7 each |
 | render (xrender CPU/GPU) suite onto mlibs.cts, run by the backends | next |
-| handle, error, time, budget, prepare/execute contracts; lint `owner` | |
+| error contract `mlibs.error` | this checkpoint (D-109): `Error<Code, Where>{code, message, where, causes}`, kinds = openas error codes; `mlibs.rhi` and the cellular simulation on it |
+| handle, time, budget, prepare/execute contracts; lint `owner`; hanim's Failure family on mlibs.error | next |
 | hanim L2–L5, `visual` representation, v1 API | |
 
 ## Next

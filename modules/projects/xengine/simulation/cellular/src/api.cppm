@@ -1,5 +1,6 @@
 export module xengine.simulation.cellular.api;
 import std;
+import mlibs.error;
 
 export namespace xengine::simulation::cellular {
 struct Range {
@@ -33,9 +34,30 @@ struct Limits {
     std::uint32_t max_channels = 16, max_rules = 128, max_words = 65536;
     std::uint32_t max_values = 64 * 1024 * 1024; // per input/output field, uint32 values
 };
-enum class Error : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile };
-struct Failure { Error code; std::size_t rule = 0, item = 0; };
-[[nodiscard]] std::string_view error_name(Error) noexcept;
+enum class Errc : std::uint8_t { unprepared, channels, condition, range, offset, duplicate_write, limit, shape, alias, tile };
+// The codes as the error contract describes them (mlibs.error).
+[[nodiscard]] constexpr mlibs::error::Description describe(Errc e) noexcept {
+    using Kind = mlibs::error::Kind;  // not `using mlibs::error::Kind;`: that is an ICE in GCC 16 (import_entity_module)
+    switch (e) {
+        case Errc::unprepared: return {"cellular.unprepared", Kind::invalid_argument, "the program was not prepared"};
+        case Errc::channels: return {"cellular.channels", Kind::invalid_argument, "a channel out of range"};
+        case Errc::condition: return {"cellular.condition", Kind::invalid_argument, "a malformed condition or write"};
+        case Errc::range: return {"cellular.range", Kind::invalid_argument, "a range whose low is above its high"};
+        case Errc::offset: return {"cellular.offset", Kind::invalid_argument, "a neighbour offset beyond ±32 or repeated"};
+        case Errc::duplicate_write: return {"cellular.duplicate-write", Kind::invalid_argument, "two writes to one channel"};
+        case Errc::limit: return {"cellular.limit", Kind::refused, "beyond the program's limits"};
+        case Errc::shape: return {"cellular.shape", Kind::invalid_argument, "fields that do not match the shape"};
+        case Errc::alias: return {"cellular.alias", Kind::invalid_argument, "input and output overlap"};
+        case Errc::tile: return {"cellular.tile", Kind::invalid_argument, "a tile outside the field or empty"};
+    }
+    return {"cellular.?", Kind::internal};
+}
+// Where in a program a failure is: the rule, and the item (a condition or a write) in it.
+struct Location {
+    std::size_t rule = 0, item = 0;
+};
+[[nodiscard]] inline std::string describe_where(const Location& l) { return std::format("rule {}, item {}", l.rule, l.item); }
+using Failure = mlibs::error::Error<Errc, Location>;
 struct Shape { std::uint32_t width = 0, height = 0; };
 struct Tile { std::uint32_t x = 0, y = 0, width = 0, height = 0; };
 enum class Edge : std::uint32_t { constant, clamp, wrap };
@@ -92,3 +114,4 @@ private:
     std::vector<std::uint32_t> words_;
 };
 }
+

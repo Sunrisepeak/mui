@@ -56,11 +56,11 @@ struct Bench {
     template <class R>
     R must(Result<R> r, std::string_view what) {
         if (r) return std::move(*r);
-        fail(std::format("{}: {} ({})", what, r.error().message, name(r.error().code)));
+        fail(std::format("{}: {}", what, r.error().text()));
         return R{};
     }
     void must(Result<void> r, std::string_view what) {
-        if (!r) fail(std::format("{}: {} ({})", what, r.error().message, name(r.error().code)));
+        if (!r) fail(std::format("{}: {}", what, r.error().text()));
     }
 
     std::array<VertexAttribute, 2> fill_vertex{VertexAttribute{0, VertexFormat::float2, 0}, VertexAttribute{1, VertexFormat::float4, 8}};
@@ -406,7 +406,7 @@ void compute(Bench& b) {
             b.d.destroy(*p);
             b.fail("the device says it has no compute (Caps::compute), and made a compute pipeline");
         } else if (p.error().code != Errc::unsupported) {
-            b.fail(std::format("no compute: the pipeline is refused as {}, not unsupported ({})", name(p.error().code), p.error().message));
+            b.fail(std::format("no compute: the pipeline is refused as {}, not rhi.unsupported", p.error().text()));
         } else {
             b.note = "no compute on this device (Caps::compute): its pipeline refused as unsupported";
         }

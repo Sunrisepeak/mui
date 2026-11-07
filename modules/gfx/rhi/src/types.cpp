@@ -4,17 +4,6 @@ import std;
 
 namespace mlibs::rhi {
 
-std::string_view name(Errc code) noexcept {
-    switch (code) {
-        case Errc::unsupported: return "unsupported";
-        case Errc::invalid: return "invalid";
-        case Errc::out_of_memory: return "out-of-memory";
-        case Errc::device_lost: return "device-lost";
-        case Errc::backend: return "backend";
-    }
-    return "?";
-}
-
 std::string_view name(Backend backend) noexcept {
     switch (backend) {
         case Backend::vulkan: return "vulkan";

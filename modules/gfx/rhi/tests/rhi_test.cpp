@@ -116,7 +116,7 @@ struct Scene {
 std::string invalid(Scene& s, const CommandList& l) {
     auto r = s.d.submit(l);
     if (r) return "<accepted>";
-    return std::format("{}: {}", name(r.error().code), r.error().message);
+    return r.error().text();
 }
 
 }  // namespace
@@ -177,13 +177,13 @@ int main(int argc, char** argv) {
             record(l);
             return invalid(sc, l);
         };
-        check_eq(list([&](CommandList& l) { l.draw(3); }), std::string("invalid: command 0 (draw): only inside a render pass"));
+        check_eq(list([&](CommandList& l) { l.draw(3); }), std::string("rhi.invalid (invalid-argument): command 0 (draw): only inside a render pass"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({sc.target});
                      l.draw(3);
                      l.end_render();
                  }),
-                 std::string("invalid: command 1 (draw): no pipeline is set"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (draw): no pipeline is set"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({sc.target});
                      l.set_pipeline(sc.pipeline);
@@ -191,7 +191,7 @@ int main(int argc, char** argv) {
                      l.draw(3);
                      l.end_render();
                  }),
-                 std::string("invalid: command 3 (draw): the pipeline reads vertex buffer 0, and none is bound"));
+                 std::string("rhi.invalid (invalid-argument): command 3 (draw): the pipeline reads vertex buffer 0, and none is bound"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({sc.target});
                      l.set_pipeline(sc.pipeline);
@@ -199,27 +199,27 @@ int main(int argc, char** argv) {
                      l.draw(3);
                      l.end_render();
                  }),
-                 std::string("invalid: command 3 (draw): the fragment shader reads a sampled texture at slot 0, and nothing is bound there"));
+                 std::string("rhi.invalid (invalid-argument): command 3 (draw): the fragment shader reads a sampled texture at slot 0, and nothing is bound there"));
         check_eq(list([&](CommandList& l) { l.begin_render({sc.image}); l.end_render(); }),
-                 std::string("invalid: command 0 (begin_render): the texture was not created for use as a colour target"));
-        check_eq(list([&](CommandList& l) { l.begin_render({sc.target}); }), std::string("invalid: the list ends inside a render pass"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): the texture was not created for use as a colour target"));
+        check_eq(list([&](CommandList& l) { l.begin_render({sc.target}); }), std::string("rhi.invalid (invalid-argument): the list ends inside a render pass"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({sc.target});
                      l.begin_render({sc.target});
                  }),
-                 std::string("invalid: command 1 (begin_render): a render pass inside a pass"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (begin_render): a render pass inside a pass"));
         check_eq(list([&](CommandList& l) {
                      const std::array<std::byte, 100> bytes{};
                      l.upload(sc.quad, 0, bytes);
                  }),
-                 std::string("invalid: command 0 (upload_buffer): bytes 0–100 of a buffer of 64"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_buffer): bytes 0–100 of a buffer of 64"));
         check_eq(list([&](CommandList& l) {
                      const std::array<std::byte, 16> bytes{};
                      l.upload(sc.image, Region{0, 0, 2, 3}, bytes);
                  }),
-                 std::string("invalid: command 0 (upload_texture): 16 bytes for a region that needs 24"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_texture): 16 bytes for a region that needs 24"));
         check_eq(list([&](CommandList& l) { l.push_uniforms(Stage::vertex, 0, std::span<const std::byte>(code.data(), 3)); }),
-                 std::string("invalid: command 0 (push_uniforms): 3 bytes of uniforms (a multiple of 4)"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (push_uniforms): 3 bytes of uniforms (a multiple of 4)"));
         // A stale handle: destroyed, then named.
         const Buffer gone = *sc.d.create(BufferDesc{.size = 16, .usage = BufferUsage::vertex});
         sc.d.destroy(gone);
@@ -227,7 +227,7 @@ int main(int argc, char** argv) {
                      const std::array<std::byte, 4> bytes{};
                      l.upload(gone, 0, bytes);
                  }),
-                 std::string("invalid: command 0 (upload_buffer): a stale buffer handle"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (upload_buffer): a stale buffer handle"));
         // A pipeline for another target format.
         const Texture wide = *sc.d.create(TextureDesc{.format = Format::rgba16_float, .width = 4, .height = 4, .usage = TextureUsage::color_target});
         check_eq(list([&](CommandList& l) {
@@ -235,7 +235,7 @@ int main(int argc, char** argv) {
                      l.set_pipeline(sc.pipeline);
                      l.end_render();
                  }),
-                 std::string("invalid: command 1 (set_pipeline): the pipeline renders rgba8_unorm; the pass's target is rgba16_float"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders rgba8_unorm; the pass's target is rgba16_float"));
         check(sc.d.ran.empty(), "nothing invalid reached the backend");
     });
 
@@ -279,25 +279,25 @@ int main(int argc, char** argv) {
                      l.set_pipeline(sc.pipeline);
                      l.end_render();
                  }),
-                 std::string("invalid: command 1 (set_pipeline): the pipeline renders with no depth; the pass has d32_float"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders with no depth; the pass has d32_float"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({sc.target});
                      l.set_pipeline(deep);
                      l.end_render();
                  }),
-                 std::string("invalid: command 1 (set_pipeline): the pipeline renders with d32_float; the pass has no depth target"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders with d32_float; the pass has no depth target"));
         check_eq(list([&](CommandList& l) {
                      l.begin_render({msaa, LoadOp::clear, {}, sc.target});
                      l.set_pipeline(sc.pipeline);
                      l.end_render();
                  }),
-                 std::string("invalid: command 1 (set_pipeline): the pipeline renders 1 samples a texel; the pass's target has 4"));
+                 std::string("rhi.invalid (invalid-argument): command 1 (set_pipeline): the pipeline renders 1 samples a texel; the pass's target has 4"));
         check_eq(list([&](CommandList& l) { l.begin_render({sc.target, LoadOp::clear, {}, big}); l.end_render(); }),
-                 std::string("invalid: command 0 (begin_render): a resolve target for a target that is not multisampled"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): a resolve target for a target that is not multisampled"));
         check_eq(list([&](CommandList& l) { l.begin_render({msaa, LoadOp::clear, {}, big}); l.end_render(); }),
-                 std::string("invalid: command 0 (begin_render): resolving rgba8_unorm 64×32 into rgba8_unorm 128×64"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): resolving rgba8_unorm 64×32 into rgba8_unorm 128×64"));
         check_eq(list([&](CommandList& l) { l.begin_render({big}, {z}); l.end_render(); }),
-                 std::string("invalid: command 0 (begin_render): a depth target of 64×32 (1 samples) for a colour target of 128×64 (1 samples)"));
+                 std::string("rhi.invalid (invalid-argument): command 0 (begin_render): a depth target of 64×32 (1 samples) for a colour target of 128×64 (1 samples)"));
         CommandList ok;
         ok.begin_render({sc.target}, {z, LoadOp::clear, 1.0f, 0, true});
         ok.set_pipeline(deep);

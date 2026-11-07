@@ -134,7 +134,7 @@ std::expected<std::shared_ptr<const Project>,std::string> read_project(const Val
         compiled.push_back(std::move(r));
     }
     auto program=ca::Program::prepare(count,compiled,{.max_channels=4,.max_rules=32,.max_words=16384,.max_values=max_values});
-    if (!program) return std::unexpected(std::format("rule {} item {}: {}",program.error().rule,program.error().item,ca::error_name(program.error().code)));
+    if (!program) return std::unexpected(program.error().text());
     p->program=std::move(*program);
     const auto* palette=field(v,"palette").list();
     if (!palette || palette->empty() || palette->size()>32) return std::unexpected("palette needs 1..32 ordered swatches");

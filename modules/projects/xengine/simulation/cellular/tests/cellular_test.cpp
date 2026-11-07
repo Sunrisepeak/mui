@@ -88,7 +88,7 @@ int main(int argc,char** argv) {
         check(!p->step({1,1},input,output,{.tile={0,1}}));check(output==std::vector<std::uint32_t>{44,55});
         auto moved=std::move(*p);check(!p->step({1,1},input,output));check(moved.step({1,1},input,output).has_value());
         auto bad=reaction_rules();bad[0].writes.push_back(bad[0].writes[0]);
-        check(ca::Program::prepare(3,bad).error().code==ca::Error::duplicate_write);
+        check(ca::Program::prepare(3,bad).error().code==ca::Errc::duplicate_write);
         bad=reaction_rules();bad[2].when[2].offsets[0].x=33;check(!ca::Program::prepare(3,bad));
         check(!ca::Program::prepare(0,rules));check(!ca::Program::prepare(2,rules,{.max_words=5}));
     });

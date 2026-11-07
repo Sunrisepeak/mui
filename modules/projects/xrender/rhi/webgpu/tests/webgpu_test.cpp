@@ -155,15 +155,16 @@ int main(int argc, char** argv) {
             std::println("cellular CTS not run: this link cannot wait for WebGPU");
             return;
         }
-        auto report = xengine::simulation::cellular::gpu::cts::run(*d);
-        check(report.has_value(), report ? "" : report.error().message);
-        if (report) {
-            check_eq(report->scenarios, 16u);
-            check_eq(report->validation_checks, 129u);
-            std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
-                report->scenarios, report->steps, report->comparisons, report->compared_values,
-                report->validation_checks, report->process_hash);
-        }
+        namespace gpu = xengine::simulation::cellular::gpu;
+        gpu::cts::Totals totals;
+        const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
+        std::print("{}", report.text());
+        check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size(), report.text());
+        check_eq(totals.scenarios, 16u);
+        check_eq(totals.validation_checks, 129u);
+        std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
+            totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
+        std::ofstream(scratch_dir("rhi") / "webgpu-cellular.cts.omui.json") << report.json();
     });
 
     return s.run(static_cast<int>(args.size()), args.data());

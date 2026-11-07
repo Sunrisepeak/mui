@@ -115,15 +115,16 @@ int main(int argc, char** argv) {
     s.test("cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay", [] {
         auto d = open_device();
         if (!d) return;
-        auto report = xengine::simulation::cellular::gpu::cts::run(*d);
-        check(report.has_value(), report ? "" : report.error().message);
-        if (report) {
-            check_eq(report->scenarios, 16u);
-            check_eq(report->validation_checks, 129u);
-            std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
-                report->scenarios, report->steps, report->comparisons, report->compared_values,
-                report->validation_checks, report->process_hash);
-        }
+        namespace gpu = xengine::simulation::cellular::gpu;
+        gpu::cts::Totals totals;
+        const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "sdl"}, {.required = {"compute"}}, &totals);
+        std::print("{}", report.text());
+        check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size(), report.text());
+        check_eq(totals.scenarios, 16u);
+        check_eq(totals.validation_checks, 129u);
+        std::println("cellular: {} scenarios, {} steps, {} comparisons / {} values, {} validation checks, process {:016x}",
+            totals.scenarios, totals.steps, totals.comparisons, totals.compared_values, totals.validation_checks, totals.process_hash);
+        std::ofstream(scratch_dir("rhi") / "sdl-cellular.cts.omui.json") << report.json();
     });
 
     return s.run(argc, argv);

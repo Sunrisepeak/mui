@@ -13,7 +13,7 @@ struct Buffers {
     ~Buffers(){if(a)device.destroy(a);if(b)device.destroy(b);}
 };
 r::Result<void> compare(r::Device& device,r::Buffer buffer,std::span<const std::uint32_t> expected,
-        std::string_view label,std::uint32_t tick,Report& report,mlibs::hash::Fnv1a& hash) {
+        std::string_view label,std::uint32_t tick,Totals& report,mlibs::hash::Fnv1a& hash) {
     std::vector<std::uint32_t> actual(expected.size());
     auto read=device.read(buffer,0,std::as_writable_bytes(std::span(actual)));if(!read)return read;
     for(std::size_t i=0;i<actual.size();++i) {
@@ -24,7 +24,7 @@ r::Result<void> compare(r::Device& device,r::Buffer buffer,std::span<const std::
 }
 r::Result<void> exercise(r::Device& device,std::string_view label,Shape shape,std::uint32_t channels,
         std::span<const Rule> rules,std::vector<std::uint32_t> initial,Boundary boundary,std::uint32_t ticks,
-        std::uint32_t batch,Report& report,mlibs::hash::Fnv1a& hash) {
+        std::uint32_t batch,Totals& report,mlibs::hash::Fnv1a& hash) {
     auto p=Program::prepare(channels,rules);if(!p)return r::fail(r::Errc::invalid,"invalid CTS fixture");
     auto kernel=Kernel::prepare(device,*p);if(!kernel)return std::unexpected(kernel.error());
     Buffers buffers{device};
@@ -80,22 +80,38 @@ r::Result<void> exercise(r::Device& device,std::string_view label,Shape shape,st
     }
     ++report.scenarios;return {};
 }
-}
-r::Result<Report> run(r::Device& device) {
-    Report report;mlibs::hash::Fnv1a hash;
-    if(!device.caps().compute)return r::fail(r::Errc::unsupported,"cellular CTS requires compute and readback");
+struct Bench {
+    r::Device&          device;
+    Totals              totals;
+    mlibs::hash::Fnv1a  hash;
+};
+}  // namespace
+
+mlibs::cts::Report run(r::Device& device, mlibs::cts::Environment environment, const mlibs::cts::Policy& policy, Totals* totals) {
+    if (environment.subject.empty()) environment.subject = device.caps().device;
+    mlibs::cts::Suite<Bench> suite{"xengine.simulation.cellular.gpu", "1"};
+    auto scenario = [&](std::string id, auto body) {
+        suite.add({.id = std::move(id), .contract = "xengine.simulation.cellular.gpu@1", .level = mlibs::cts::Level::exact, .needs = {"compute"},
+                   .body = [body](Bench& b, mlibs::cts::Check& c) {
+                       const r::Result<void> result = body(b);
+                       c.that(result.has_value(), result ? std::string() : result.error().message);
+                   }});
+    };
     const std::vector<Rule> reaction{
         {{C::self({1,{1,1}}),C::self({2,{3,0xffffffffu}})},{{1,W::set,2}}},
         {{C::self({1,{1,1}})},{{2,W::add_saturating,1}}},
         {{C::self({0,{1,1}}),C::self({1,{0,0}}),C::neighbors({1,{1,1}},cardinal,{1,4})},{{1,W::set,1},{2,W::set,0}}}
     };
-    for(const auto edge:{Edge::constant,Edge::clamp,Edge::wrap}) {
+    constexpr std::array<std::pair<Edge, std::string_view>, 3> edges{{{Edge::constant, "constant"}, {Edge::clamp, "clamp"}, {Edge::wrap, "wrap"}}};
+    for (const auto& [edge, edge_name] : edges) {
         const Shape shape{19,11};const auto cells=shape.width*shape.height;std::vector<std::uint32_t> state(cells*3);
         std::fill_n(state.begin(),cells,1u);
         for(std::uint32_t y=0;y<shape.height;++y)state[y*shape.width+9]=0;
         state[cells+5*shape.width+2]=1;
-        auto result=exercise(device,"reaction",shape,3,reaction,state,{edge},24,1,report,hash);if(!result)return std::unexpected(result.error());
-        result=exercise(device,"resident-batch",shape,3,reaction,state,{edge},24,12,report,hash);if(!result)return std::unexpected(result.error());
+        scenario(std::format("cellular.reaction.{}", edge_name), [=](Bench& b) {
+            return exercise(b.device,"reaction",shape,3,reaction,state,{edge},24,1,b.totals,b.hash); });
+        scenario(std::format("cellular.resident-batch.{}", edge_name), [=](Bench& b) {
+            return exercise(b.device,"resident-batch",shape,3,reaction,state,{edge},24,12,b.totals,b.hash); });
     }
     const std::array<Offset,3> offsets{{{-32,0},{0,-32},{32,32}}};
     const std::vector<Rule> varied{
@@ -103,14 +119,24 @@ r::Result<Report> run(r::Device& device) {
         {{C::neighbors({0,{7,7}},offsets,{1,3})},{{0,W::add_saturating,0xfffffff0u},{1,W::subtract_saturating,19}}},
         {{},{{0,W::set,7},{1,W::add_saturating,9}}}
     };
-    for(const auto shape:std::array<Shape,3>{{{1,1},{3,2},{17,9}}})for(const auto edge:{Edge::constant,Edge::clamp,Edge::wrap}) {
+    for(const auto shape:std::array<Shape,3>{{{1,1},{3,2},{17,9}}})for (const auto& [edge, edge_name] : edges) {
         std::vector<std::uint32_t> state(shape.width*shape.height*2,2);
         for(std::size_t i=0;i<state.size();i+=3)state[i]=7;
-        auto result=exercise(device,"wide-halo",shape,2,varied,state,{edge,7},8,1,report,hash);if(!result)return std::unexpected(result.error());
+        scenario(std::format("cellular.wide-halo.{}x{}.{}", shape.width, shape.height, edge_name), [=](Bench& b) {
+            return exercise(b.device,"wide-halo",shape,2,varied,state,{edge,7},8,1,b.totals,b.hash); });
     }
     const std::vector<std::uint32_t> identity{0,1,7,0xffffffffu};
-    auto result=exercise(device,"identity",{2,2},1,{},identity,{},2,1,report,hash);if(!result)return std::unexpected(result.error());
-    if(Kernel::prepare(device,Program{}))return r::fail(r::Errc::invalid,"unprepared plan accepted");
-    ++report.validation_checks;report.process_hash=hash.value();return report;
+    scenario("cellular.identity", [=](Bench& b) { return exercise(b.device,"identity",{2,2},1,{},identity,{},2,1,b.totals,b.hash); });
+    scenario("cellular.unprepared-refused", [](Bench& b) -> r::Result<void> {
+        ++b.totals.validation_checks;
+        if (Kernel::prepare(b.device, Program{})) return r::fail(r::Errc::invalid, "an unprepared plan was accepted");
+        return {};
+    });
+    Bench bench{device, {}, {}};
+    const auto has = [&](std::string_view cap) { return cap == "compute" && device.caps().compute; };
+    auto report = suite.run(bench, has, policy, std::move(environment));
+    bench.totals.process_hash = bench.hash.value();
+    if (totals) *totals = bench.totals;
+    return report;
 }
 }

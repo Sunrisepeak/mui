@@ -2,7 +2,11 @@
 
 The single progress entry (plan §12, at most 200 lines). Updated by every checkpoint commit on PR #1 (`openmui-design`). Decisions and the full roadmap: [top-level convergence plan](2026-11-06-top-level-assessment-convergence-design.md).
 
-## Current milestone: M3 and M3.5 implemented (their exits await CI); M4 started
+## Current milestone: M4 (Agent catalog, the first tools, the first Agent player) — its exit conditions met locally
+
+**CI reconciled (2026-11-07):** run 42363914237 on fd2d41f3 (an M4 checkpoint: the agent player's tiers and the openas real-time draft, on top of every M3/M3.5 change) is green on every row — lint, rows, Linux x64 and arm, macOS, Windows, Web, the site; the M3 and M3.5 implementations are in it. Runs for later checkpoints were superseded by newer pushes (in-progress runs are kept; queued ones are replaced).
+
+**M4 exit, locally:** ① a real LLM's animation task without a GUI has a recorded success rate (24 of 24, Claude Code; `tools/eval/animate.py`); ② every public product has ops and a skill (omui, hanim, gongfu, xrender, xengine); ③ §8.4's acceptance (an external agent at the human tier, byte-exact replay, inspectable tiers, the off switch, no GUI; plus the room matrix and the intent overlay). Awaiting CI on the latest checkpoint.
 
 **M0 and M2 exits met on CI:** run 42336690239 on 46b3cdfd (an M2 checkpoint: the render suite on mlibs.cts) is green on every row — lint, Linux x64 and arm, macOS, Windows (lavapipe), Web, the site; Pages had deployed before (red list 10). The GCC rows and their gated steps run in the nightly lane.
 

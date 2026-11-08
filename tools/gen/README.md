@@ -27,3 +27,6 @@ compares metadata, variable-weight shaping and glyph pixels against the
 original Inter and Mono faces.
 
 The loader keeps `/fonts/.partial` while language fonts are pending. A full font replaces its canonical `/fonts/` source and is exposed to the Web host through a `/later/fonts/` symlink, so independent font collections also see the full source without duplicating the MEMFS data. The site's reference panel waits for the canonical sources before comparing its replay with CI.
+
+`dist-toy-split <package> --primary <wasm> --deferred <wasm> [--lazy <route>,…]` takes a packed page's program cut in two by Binaryen's wasm-split (`tools/ci/site-split.sh` profiles the first screen in headless Chromium and cuts by it): the first half replaces the package's `.wasm`, the second lands beside it as `<target>-<hash>.deferred.wasm`, and the page's `var omuiDeferred` says where it is, its size and the routes whose first screen the first half covers. The loader adds the placeholder imports itself (no `-sSPLIT_MODULE` build): on those routes the second half is compiled after the first frame, elsewhere main waits for it; a placeholder called before it is ready fetches it synchronously, the fallback. `window.omuiDeferredState` says where it is (`none`, `waiting`, `fetching`, `compiled`, `instantiated`, `error`).
+

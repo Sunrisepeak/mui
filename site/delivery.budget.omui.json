@@ -3,9 +3,9 @@
   "network": "20/40",
   "budgets": [
     { "metric": "transfer.total", "max": 4000000, "why": "3.56 MB (2026-11-08): the wasm 2.67 compressed, the Latin fonts; another language's face (the Chinese, 1.45 MB) only when the page needs it — it was fetched after every first frame (5.01 MB, red list 24). Held at 4 MB so it stays won" },
-    { "metric": "transfer.before_first_frame", "max": 3800000, "why": "3.3 MB on the way to the first frame (2026-11-02): the program and the Latin fonts; the Chinese font (1.4 MB) comes just after it unless the page opens in Chinese (dist-toy's font languages). Next (performance tiers §7): the first frame drawn ahead, the program split" },
+    { "metric": "transfer.before_first_frame", "max": 2200000, "why": "1.82 MB on the way to the first frame (2026-11-09, D5): the program split by what its first screen runs (tools/ci/site-split.sh) — its first half 1.29 MB compressed of 2.72 — and the Latin fonts; the second half compiled after the first frame. 3.3 MB before the split" },
     { "metric": "first_contentful_ms", "max": 1000, "why": "D5: the first screen visible within a second — the static page the browser paints before the program (0.10 s locally, 2026-11-08)" },
-    { "metric": "first_frame_ms", "max": 3000, "why": "D5: usable within 3 s — the program's first frame, 1.85 s locally and 1.94 s on CI (2026-11-08; 4.5 s before): the transfer at 20 Mbit/s is most of it" },
+    { "metric": "first_frame_ms", "max": 3000, "why": "D5: usable within 3 s — the program's first frame, 1.24 s locally with the program split (2026-11-09; 1.85 s before it, 4.5 s before the static first screen); tightened once CI has measured the split" },
     { "metric": "ready_ms", "max": 3000, "why": "D5: window.omui answers (an agent can act) within 3 s; 1.80 s locally, 1.85 s on CI (2026-11-08)" },
     { "metric": "frames.p95", "max": 34, "why": "16.7 ms locally; a slower runner's headroom" },
     { "metric": "frames.long", "max": 15, "why": "frames longer than 33 ms during the 5 s of moving between places; 1 locally" },

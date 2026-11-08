@@ -28,6 +28,9 @@
 //   omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all] …
 //       a wasm32-emscripten program packaged for Bilibili Toy (openmui.gen.dist_toy;
 //       what `mcpp pack --pkg-format dist-toy` runs)
+//   omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,…]
+//       a packed page's program cut in two by wasm-split (tools/ci/site-split.sh):
+//       the first screen's half first, the rest compiled after it
 //   omui-gen wasm-size <file.wasm> [--json <out.json>] [--markdown <out.md>] [--top N]
 //       where a WebAssembly program's bytes go: its sections, its code by owner
 //       (module, namespace, C library) and its largest functions (W8;
@@ -489,6 +492,7 @@ int ops_main(int argc, char** argv) {
 int main(int argc, char** argv) {
     if (argc >= 2 && std::string_view(argv[1]) == "ops") return ops_main(argc, argv);
     if (argc >= 2 && std::string_view(argv[1]) == "dist-toy") return dist_toy_main(argc, argv);
+    if (argc >= 2 && std::string_view(argv[1]) == "dist-toy-split") return dist_toy_split_main(argc, argv);
     if (argc >= 2 && std::string_view(argv[1]) == "wasm-size") return wasm_size_main(argc, argv);
     auto options = parse_args(argc, argv);
     if (!options) return usage();

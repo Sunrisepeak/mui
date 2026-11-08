@@ -110,4 +110,23 @@ inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;  // Toy: the entr
 // The command line's `dist-toy` (argv[1]); the exit code.
 int dist_toy_main(int argc, char** argv);
 
+// A package's program cut in two by wasm-split (tools/ci/site-split.sh): the
+// first half (the functions a profiled first screen ran) replaces the
+// package's .wasm, the second half lands beside it as
+// `<target>-<hash>.deferred.wasm`, and the page's `var omuiDeferred` says
+// where it is, its size and the routes (their first part; "" the bare page)
+// whose first screen the first half covers — there the second half is
+// compiled after the first frame, elsewhere main waits for it.
+struct ToySplit {
+    std::filesystem::path    dir;       // the package (its index.html)
+    std::filesystem::path    primary;   // wasm-split's -o1
+    std::filesystem::path    deferred;  // wasm-split's -o2
+    std::vector<std::string> lazy;      // routes; omui-gen's default: "", "home"
+};
+
+[[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
+
+// The command line's `dist-toy-split`; the exit code.
+int dist_toy_split_main(int argc, char** argv);
+
 }  // namespace omui::gen

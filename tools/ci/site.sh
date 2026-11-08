@@ -35,12 +35,15 @@ python3 tools/ci/site-frames.py --launch target/site-native.launch.json --out "$
 # application writes it: agent.md, .well-known/openmui-agent.json, the page's link.
 "$mcpp" run omui-site -p omui.site -- --agent-guide "$out" \
   || { echo "::error::the site's agent guide was not written"; exit 1; }
+# The program cut in two by what its first screen runs (D5): the first half
+# before the first frame, the rest compiled after it (tools/ci/site-split.sh).
+MCPP="$mcpp" tools/ci/site-split.sh "$out"
 
 python3 - "$out" <<'PY'
 import os, sys
 out = sys.argv[1]
 page = open(os.path.join(out, "index.html"), encoding="utf-8").read()
-need = ['<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', 'aria-label="One interface. Every perspective."',
+need = ['var omuiDeferred = {' if os.environ.get("OMUI_REQUIRE_BROWSER") == "1" else 'var omuiDeferred', '<main id="omui-static"', '<section id="/home"', '<section id="/docs/features"', 'aria-label="One interface. Every perspective."',
         "window.omuiHasPresented", "@font-face", '<canvas id="canvas"', '<link rel="openmui-agent" href="agent.md">',
         'id="omui-first-frames"']
 missing = [n for n in need if n not in page]

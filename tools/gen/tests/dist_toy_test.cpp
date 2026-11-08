@@ -102,6 +102,41 @@ int main(int argc, char** argv) {
         check(again && again->files.size() == r->files.size() && again->files[0].path == r->files[0].path);
     });
 
+    s.test("a split program: the first half replaces the .wasm, the second lands beside it, the page says where and for which routes", [] {
+        Tree t;
+        auto p = t.package(); p.sdk = false;
+        auto r = gen::package_for_toy(p);
+        check(r.has_value(), r ? "" : r.error());
+        if (!r) return;
+        const fs::path out = p.out;
+        const std::string before = read(out / "index.html");
+        check(before.contains("var omuiDeferred = null;\n"), "an unsplit page carries the line a split replaces");
+        check(before.contains("omuiSplitImports(imports)") && before.contains("omuiPrimary = result.instance"),
+              "the loader adds the placeholders and keeps the first half's instance");
+        std::string old_wasm;
+        for (const auto& f : r->files) if (f.path.ends_with(".wasm")) old_wasm = f.path;
+        put(t.root / "primary.wasm", std::string("\0asm\1\0\0\0first", 13));
+        put(t.root / "deferred.wasm", std::string("\0asm\1\0\0\0second half", 19));
+        auto split = gen::adopt_split({.dir = out, .primary = t.root / "primary.wasm", .deferred = t.root / "deferred.wasm", .lazy = {"", "home"}});
+        check(split.has_value(), split ? "" : split.error());
+        if (!split) return;
+        const std::string after = read(out / "index.html");
+        std::string primary, deferred;
+        for (const auto& f : split->files) {
+            if (f.path.ends_with(".deferred.wasm")) deferred = f.path;
+            else if (f.path.ends_with(".wasm")) primary = f.path;
+        }
+        check(primary.starts_with("game-") && primary != old_wasm && !fs::exists(out / old_wasm), std::format("{} replaced {}", primary, old_wasm));
+        check(deferred.starts_with("game-") && fs::file_size(out / deferred) == 19, deferred);
+        check(after.contains(std::format("var omuiWasm = \"{}\";", primary)) && after.contains(std::format("\"{}\":13", primary)),
+              "the page loads the first half and checks its decoded size");
+        check(after.contains(std::format("var omuiDeferred = {{\"bytes\":19,\"lazy\":[\"\",\"home\"],\"url\":\"{}\"}};", deferred)), "where the second half is");
+        check(!after.contains(old_wasm), "no trace of the unsplit program");
+        check(read(t.root / "out" / "game.toy.omui.json").contains(deferred), "the list beside the package names both halves");
+        auto twice = gen::adopt_split({.dir = out, .primary = t.root / "primary.wasm", .deferred = t.root / "deferred.wasm", .lazy = {""}});
+        check(!twice.has_value(), "a page is split once");
+    });
+
     s.test("refused: no program, a .data file, a font that is not there", [] {
         Tree t;
         auto p = t.package();
@@ -275,7 +310,7 @@ int main(int argc, char** argv) {
         check(html.contains("basis: 'decoded'") && html.contains("WebAssembly.instantiateStreaming(body.response, imports)"));
         check(html.contains("headers.delete('Content-Length')") && html.contains("headers.delete('Content-Encoding')"));
         check(html.contains("runtimeInitialized: omuiInitialized, presented: omuiPresented") && html.contains("omuiPublish('presented')"));
-        check(html.contains("omuiPlanFonts();\n    var job = omuiJob(omuiWasmAsset") && html.contains("if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;"),
+        check(html.contains("omuiPlanFonts();\n    imports = omuiSplitImports(imports);") && html.contains("var job = omuiJob(omuiWasmAsset") && html.contains("if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;"),
               "font plans follow bootstrap and are rechecked before ordinary startup installation");
         check(html.contains("setTimeout(function () { omuiFetchLater(); }, 4000)") && !html.contains("window.omuiFirstFrame = null;"), "the timer never impersonates a native presentation");
         for (const auto& file : result->files) if (file.path.ends_with(".ttf") || file.path.ends_with(".wasm") || file.path.ends_with(".webp"))

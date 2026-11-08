@@ -81,7 +81,7 @@ better = "lower"
 ours = "hanim-gpu"
 competitors = ["hanim-cpu"]
 status = "pending_hardware"
-needs = "a physical GPU (NVIDIA, AMD or Apple)"
+needs = "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
 
 # --- xrender: the CPU raster, five seeded scenes at 1024², one thread -------
 
@@ -230,7 +230,7 @@ better = "lower"
 ours = "xrender-gpu"
 competitors = ["vello", "graphite"]
 status = "pending_hardware"
-needs = "a physical GPU (NVIDIA, AMD or Apple)"
+needs = "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
 
 # --- omui -------------------------------------------------------------------
 

@@ -74,8 +74,11 @@ jobs:
         run: |
           mcpp toolchain install gcc 16.1.0
           mcpp toolchain default gcc@16.1.0
-      - name: The site, packed for the Web and pre-rendered
+      - name: The site, packed for the Web, pre-rendered, its program split by what its first screen runs
         run: tools/ci/site.sh
+        env:
+          # The runner has Chrome: the first screen is profiled and the program split, never skipped.
+          OMUI_REQUIRE_BROWSER: '1'
       - name: The generated loader handles real streams, failures and retries
         run: |
           mcpp test dist_toy -p omui.gen

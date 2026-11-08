@@ -32,6 +32,10 @@ std::expected<void, std::string> write(const fs::path& file, std::string_view by
     return {};
 }
 
+// The page's line a split replaces (dist-toy-split): the second half's
+// address, size and the routes whose first screen the first half covers.
+constexpr std::string_view deferred_marker = "var omuiDeferred = null;";
+
 // A content hash for file names: FNV-1a, 64 bits, as 12 hex digits.
 std::string content_hash(std::string_view bytes) {
     return std::format("{:012x}", mlibs::hash::fnv1a(bytes) & 0xffffffffffffull);
@@ -121,6 +125,9 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
     html += std::format("var omuiLauncher = {};\n", js_string(js));
     html += std::format("var omuiLater = [{}];\n", later_list);
     html += std::format("var omuiAssetBytes = {};\n", nlohmann::json(decoded_sizes).dump());
+    // The program's second half, when `omui-gen dist-toy-split` cut it in two
+    // (this exact line is what it replaces): {url, bytes, lazy: [routes]}.
+    html += std::string(deferred_marker) + "\n";
     html += "var omuiFontPending = 0;\n";
     html += R"(var omuiStatus = document.getElementById('status');
 // Hash routes are the program's flags; the loader never mutates the route.
@@ -430,12 +437,74 @@ function omuiPlanFonts() {
 }
 function omuiDeferredFont(f) { return f[2].length ? !omuiWants(f[2]) : !!f[3]; }
 var omuiWasmAsset = omuiAsset('wasm', omuiWasm, 'wasm', 'startup');
+// A split program (omui-gen dist-toy-split): the first screen's functions
+// in omuiWasm, the rest in omuiDeferred.url. The primary imports a
+// placeholder for each function it left out; the first call of one
+// instantiates the second half, which fills the primary's table, then the
+// call goes on to the real function. The second half is compiled in the
+// background — after the first frame on a route it was profiled for (lazy),
+// else beside the primary, main waiting for it — so a placeholder normally
+// finds it ready; fetched synchronously only if one is called before.
+var omuiPrimary = null, omuiDeferredModule = null, omuiDeferredPromise = null, omuiDeferredDone = false;
+window.omuiDeferredState = omuiDeferred ? 'waiting' : 'none';
+function omuiDeferredLazy() {
+  var first = (document.URL.split('#')[1] || '').replace(/^\//, '').split('/')[0] || '';
+  return !!omuiDeferred && omuiDeferred.lazy.indexOf(first) >= 0;
+}
+function omuiFetchDeferred() {
+  if (!omuiDeferred || omuiDeferredModule) return Promise.resolve(omuiDeferredModule);
+  if (omuiDeferredPromise) return omuiDeferredPromise;
+  window.omuiDeferredState = 'fetching';
+  omuiDeferredPromise = fetch(omuiDeferred.url, {credentials: 'same-origin'}).then(function (response) {
+    if (!response.ok) throw new Error('HTTP ' + response.status + ' loading ' + omuiDeferred.url);
+    if (typeof WebAssembly.compileStreaming === 'function' && /^application\/wasm(?:;|$)/i.test(response.headers.get('Content-Type') || ''))
+      return WebAssembly.compileStreaming(response);
+    return response.arrayBuffer().then(function (buffer) { return WebAssembly.compile(buffer); });
+  }).then(function (module) {
+    if (!omuiDeferredModule) omuiDeferredModule = module;
+    if (!omuiDeferredDone) window.omuiDeferredState = 'compiled';
+    return omuiDeferredModule;
+  }, function (error) { omuiDeferredPromise = null; window.omuiDeferredState = 'error'; console.warn(String(error)); throw error; });
+  return omuiDeferredPromise;
+}
+function omuiInstantiateDeferred() {
+  if (omuiDeferredDone) return;
+  if (!omuiDeferredModule) {
+    var request = new XMLHttpRequest();
+    request.open('GET', omuiDeferred.url, false);
+    request.overrideMimeType('text/plain; charset=x-user-defined');
+    request.send(null);
+    if (request.status !== 200 && request.status !== 0) throw new Error('HTTP ' + request.status + ' loading ' + omuiDeferred.url);
+    var text = request.responseText, bytes = new Uint8Array(text.length);
+    for (var i = 0; i < text.length; ++i) bytes[i] = text.charCodeAt(i) & 255;
+    omuiDeferredModule = new WebAssembly.Module(bytes);
+    window.omuiDeferredSync = true;
+  }
+  new WebAssembly.Instance(omuiDeferredModule, {primary: omuiPrimary.exports});
+  omuiDeferredDone = true; window.omuiDeferredState = 'instantiated';
+}
+function omuiSplitTable() {
+  // With reference types the placeholders live in a table of their own,
+  // exported under the split's prefix (%); else in the one table.
+  var exports = omuiPrimary.exports, tables = Object.keys(exports).filter(function (n) { return exports[n] instanceof WebAssembly.Table; });
+  var own = tables.filter(function (n) { return n.charAt(0) === '%'; });
+  return exports[(own.length ? own : tables)[0]];
+}
+function omuiSplitImports(imports) {
+  if (!omuiDeferred) return imports;
+  var placeholders = new Proxy({}, {get: function (_, base) {
+    return function () { omuiInstantiateDeferred(); return omuiSplitTable().get(Number(base)).apply(null, arguments); };
+  }});
+  return new Proxy(imports, {get: function (target, name) { return String(name).indexOf('placeholder') === 0 ? placeholders : target[name]; }});
+}
 var Module = {
   canvas: document.getElementById('canvas'), arguments: omuiArguments(),
   locateFile: function (path) { return /\.wasm$/.test(path) ? omuiWasm : path; },
   print: function (text) { console.log(text); }, printErr: function (text) { console.warn(text); },
   instantiateWasm: function (imports, receive) {
     omuiPlanFonts();
+    imports = omuiSplitImports(imports);
+    if (omuiDeferred && !omuiDeferredLazy()) omuiFetchDeferred().catch(function () {});
     var job = omuiJob(omuiWasmAsset, async function (controller) {
       var body = await omuiFetchBody(omuiWasmAsset, controller);
       if (body.response && typeof WebAssembly.instantiateStreaming === 'function' && /^application\/wasm(?:;|$)/i.test(body.response.headers.get('Content-Type') || ''))
@@ -443,12 +512,18 @@ var Module = {
       var buffer = body.buffer || await body.response.arrayBuffer();
       return WebAssembly.instantiate(buffer, imports);
     }, function (result) {
-      if (omuiWasmReceived) return; omuiWasmReceived = true; receive(result.instance, result.module);
+      if (omuiWasmReceived) return; omuiWasmReceived = true; omuiPrimary = result.instance; receive(result.instance, result.module);
     });
     omuiStart(job, false); return {};
   },
   preRun: [function () {
     if (omuiPreRan) return; omuiPlanFonts(); omuiPreRan = true;
+    if (omuiDeferred && !omuiDeferredLazy()) {
+      // Not a route the first half was profiled for: main waits for the second half.
+      Module.addRunDependency('omui-deferred');
+      omuiFetchDeferred().then(function () { Module.removeRunDependency('omui-deferred'); },
+                               function () { Module.removeRunDependency('omui-deferred'); });
+    }
     omuiStartupFonts.forEach(function (j) { j.depend(); });
     Object.values(omuiFontRecords).forEach(omuiReleaseFont);
     try { omuiEnsureFonts(); omuiStartupFonts.forEach(function (j) { omuiStart(j, false); }); }
@@ -470,6 +545,7 @@ function omuiFetchLater() {
   if (window.omuiHasPresented === true && !omuiPresented) { omuiPresented = true; omuiPublish('presented'); }
   if (omuiLaterStarted) { omuiFinished(); return; }
   omuiLaterStarted = true;
+  if (omuiDeferred) omuiFetchDeferred().catch(function () {});
   omuiStartedLater().forEach(function (j) { omuiStart(j, false); }); omuiFinished();
 }
 // A character no face the program has covers (its code point), or every
@@ -512,6 +588,43 @@ bool toy_keeps(std::string_view extension) noexcept {
         ".jpeg", ".gif", ".svg", ".webp", ".ico", ".woff2", ".woff", ".ttf", ".eot", ".mp3", ".wav", ".ogg",
         ".m4a", ".mp4", ".webm", ".atlas", ".ani", ".part", ".nani", ".unityweb"};
     return std::ranges::find(kept, extension) != kept.end();
+}
+
+// The package's report and the list beside it (<out>.toy.omui.json): every
+// file, its size, the total — written after packing and after a split.
+std::expected<ToyReport, std::string> finish_package(const fs::path& out, const std::string& target, const std::string& title, std::uintmax_t index_bytes,
+                                                     bool toy_limit = true) {
+    std::error_code ec;
+    ToyReport report;
+    for (const auto& e : fs::recursive_directory_iterator(out, ec)) {
+        if (!e.is_regular_file()) continue;
+        const std::string rel = utf8(fs::relative(e.path(), out, ec));
+        if (!toy_keeps(utf8(e.path().extension())))
+            return std::unexpected(std::format("{}: a file type Toy does not keep", rel));
+        report.files.push_back({rel, e.file_size()});
+        report.total += e.file_size();
+    }
+    std::ranges::sort(report.files, {}, &ToyFile::path);
+    report.index = index_bytes;
+    if (toy_limit && report.index > toy_index_limit)
+        return std::unexpected(std::format("index.html is {} bytes: Toy takes at most {}", report.index, toy_index_limit));
+
+    // What `toy create` asks, and what is in the package, beside it (Toy has no manifest file).
+    nlohmann::ordered_json about;
+    about["kind"] = "toy-package";
+    about["target"] = target;
+    about["title"] = title;
+    about["entry"] = "index.html";
+    about["index_bytes"] = report.index;
+    about["index_limit"] = toy_index_limit;
+    about["total_bytes"] = report.total;
+    about["publish"] = std::format("toy create --title \"{}\" (the slug, the cover and the category are the maintainer's; see `toy create --help-json`)", title);
+    auto& list = about["files"] = nlohmann::ordered_json::array();
+    for (const ToyFile& f : report.files) list.push_back({{"path", f.path}, {"bytes", f.size}});
+    fs::path side = out;
+    side += ".toy.omui.json";
+    if (auto w = write(side, about.dump(2) + "\n"); !w) return std::unexpected(w.error());
+    return report;
 }
 
 std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
@@ -668,36 +781,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
-    ToyReport report;
-    for (const auto& e : fs::recursive_directory_iterator(p.out, ec)) {
-        if (!e.is_regular_file()) continue;
-        const std::string rel = utf8(fs::relative(e.path(), p.out, ec));
-        if (!toy_keeps(utf8(e.path().extension())))
-            return std::unexpected(std::format("{}: a file type Toy does not keep", rel));
-        report.files.push_back({rel, e.file_size()});
-        report.total += e.file_size();
-    }
-    std::ranges::sort(report.files, {}, &ToyFile::path);
-    report.index = index.size();
-    if (report.index > toy_index_limit)
-        return std::unexpected(std::format("index.html is {} bytes: Toy takes at most {}", report.index, toy_index_limit));
-
-    // What `toy create` asks, and what is in the package, beside it (Toy has no manifest file).
-    nlohmann::ordered_json about;
-    about["kind"] = "toy-package";
-    about["target"] = p.target;
-    about["title"] = p.title;
-    about["entry"] = "index.html";
-    about["index_bytes"] = report.index;
-    about["index_limit"] = toy_index_limit;
-    about["total_bytes"] = report.total;
-    about["publish"] = std::format("toy create --title \"{}\" (the slug, the cover and the category are the maintainer's; see `toy create --help-json`)", p.title);
-    auto& list = about["files"] = nlohmann::ordered_json::array();
-    for (const ToyFile& f : report.files) list.push_back({{"path", f.path}, {"bytes", f.size}});
-    fs::path side = p.out;
-    side += ".toy.omui.json";
-    if (auto w = write(side, about.dump(2) + "\n"); !w) return std::unexpected(w.error());
-    return report;
+    return finish_package(p.out, p.target, p.title, index.size());
 }
 
 int dist_toy_main(int argc, char** argv) {
@@ -774,6 +858,90 @@ int dist_toy_main(int argc, char** argv) {
         return 1;
     }
     std::println("dist-toy: {} — {} files, {} bytes (index.html {} of {})", utf8(p.out), r->files.size(), r->total, r->index, toy_index_limit);
+    return 0;
+}
+
+std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
+    const fs::path index_file = split.dir / "index.html";
+    auto page = read(index_file);
+    if (!page) return std::unexpected(page.error());
+    std::string html = std::move(*page);
+    constexpr std::string_view key = "var omuiWasm = \"";
+    const auto at = html.find(key);
+    const auto close = at == std::string::npos ? std::string::npos : html.find('"', at + key.size());
+    if (close == std::string::npos) return std::unexpected(std::format("{}: no `var omuiWasm` (not a page dist-toy made)", utf8(index_file)));
+    const std::string old_name = html.substr(at + key.size(), close - at - key.size());
+    const auto dash = old_name.rfind('-');
+    if (dash == std::string::npos || !old_name.ends_with(".wasm")) return std::unexpected(std::format("{}: not <target>-<hash>.wasm", old_name));
+    const std::string target = old_name.substr(0, dash);
+    const auto marker = html.find(deferred_marker);
+    if (marker == std::string::npos)
+        return std::unexpected(std::format("{}: no `{}` (split already, or made by an older omui-gen)", utf8(index_file), deferred_marker));
+    auto primary = read(split.primary);
+    if (!primary) return std::unexpected(primary.error());
+    auto deferred = read(split.deferred);
+    if (!deferred) return std::unexpected(deferred.error());
+    const std::string primary_name = std::format("{}-{}.wasm", target, content_hash(*primary));
+    const std::string deferred_name = std::format("{}-{}.deferred.wasm", target, content_hash(*deferred));
+    if (auto w = write(split.dir / primary_name, *primary); !w) return std::unexpected(w.error());
+    if (auto w = write(split.dir / deferred_name, *deferred); !w) return std::unexpected(w.error());
+    std::error_code ec;
+    if (old_name != primary_name) fs::remove(split.dir / old_name, ec);
+
+    // The deferred line first: the replacements after it shift nothing before it.
+    nlohmann::json about = {{"url", deferred_name}, {"bytes", deferred->size()}, {"lazy", split.lazy}};
+    html.replace(marker, deferred_marker.size(), std::format("var omuiDeferred = {};", about.dump()));
+    // The decoded size the loader checks the primary against.
+    const std::string bytes_key = std::format("\"{}\":", old_name);
+    if (const auto b = html.find(bytes_key); b != std::string::npos) {
+        const auto value_end = html.find_first_of(",}", b + bytes_key.size());
+        html.replace(b, value_end - b, std::format("\"{}\":{}", primary_name, primary->size()));
+    } else {
+        return std::unexpected(std::format("{}: no decoded size for {}", utf8(index_file), old_name));
+    }
+    html.replace(at + key.size(), old_name.size(), primary_name);
+    if (auto w = write(index_file, html); !w) return std::unexpected(w.error());
+
+    std::string title = target;
+    fs::path side = split.dir;
+    side += ".toy.omui.json";
+    if (auto listed = read(side)) {
+        const auto json = nlohmann::json::parse(*listed, nullptr, false);
+        if (json.is_object() && json.contains("title") && json["title"].is_string()) title = json["title"].get<std::string>();
+    }
+    return finish_package(split.dir, target, title, html.size(), false);
+}
+
+int dist_toy_split_main(int argc, char** argv) {
+    auto usage = [] {
+        std::println(std::cerr, "usage: omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,<route>...]");
+        return 2;
+    };
+    ToySplit split;
+    bool lazy_given = false;
+    for (int i = 2; i < argc; ++i) {
+        const std::string_view a = argv[i];
+        if (a == "--primary" && i + 1 < argc) split.primary = argv[++i];
+        else if (a == "--deferred" && i + 1 < argc) split.deferred = argv[++i];
+        else if (a == "--lazy" && i + 1 < argc) {
+            lazy_given = true;
+            const std::string list = argv[++i];
+            for (std::size_t from = 0; from <= list.size();) {
+                const std::size_t comma = std::min(list.find(',', from), list.size());
+                split.lazy.push_back(list.substr(from, comma - from));
+                from = comma + 1;
+            }
+        } else if (!a.starts_with("--") && split.dir.empty()) split.dir = a;
+        else return usage();
+    }
+    if (split.dir.empty() || split.primary.empty() || split.deferred.empty()) return usage();
+    if (!lazy_given) split.lazy = {"", "home"};
+    auto r = adopt_split(split);
+    if (!r) {
+        std::println(std::cerr, "omui-gen dist-toy-split: {}", r.error());
+        return 1;
+    }
+    std::println("dist-toy-split: {} files, {} bytes", r->files.size(), r->total);
     return 0;
 }
 

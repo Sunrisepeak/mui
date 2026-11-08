@@ -106,7 +106,7 @@ void add_game_benchmarks() {
         s.counter("balls_per_step", static_cast<double>(balls) / static_cast<double>(std::max<std::int64_t>(steps, 1)));
     });
     add("breakout/seek", "a rewind of the widget breakout: the timeline seeks 0.5–30 s back (the snapshot before, then the steps after it again)", [](State& s) {
-        xengine::simulation::Timeline<bo::Game> t(bo::start(breakout_wall()), 30 * bo::steps_per_second, 60);
+        mlibs::simulation::Timeline<bo::Game> t(bo::start(breakout_wall()), 30 * bo::steps_per_second, 60);
         for (int i = 0; i < 40 * bo::steps_per_second; ++i) t.step(breakout_player(t.state()));
         std::uint64_t r = 7;
         while (s.next()) {

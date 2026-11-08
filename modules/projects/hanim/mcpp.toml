@@ -33,6 +33,7 @@ control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/
 # The engine steps simulated bodies with xengine.simulation's solver (D-131).
 [feature-deps.engine]
 xengine.simulation = { path = "../xengine/simulation" }
+mlibs.simulation = { path = "../../base/simulation" }
 
 [feature-deps.object]
 mlibs.geom = { path = "../../base/geom" }

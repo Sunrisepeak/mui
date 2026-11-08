@@ -2,7 +2,7 @@
 // bounces, keeps its area and comes to rest on top of the ground; a hand
 // drags it; every run and every replay is the same bits.
 import std;
-import xengine.simulation;
+import mlibs.simulation;
 import xengine.simulation.bodies;
 import mlibs.testing;
 
@@ -90,7 +90,7 @@ int main(int argc, char** argv) {
 
     suite.test("the same run twice, and a replay from a checkpoint, are the same bits", [] {
         const auto run = [] {
-            sim::Timeline<sim::SoftBodyModel> history(ball(), 1200, 60);
+            mlibs::simulation::Timeline<sim::SoftBodyModel> history(ball(), 1200, 60);
             for (int step = 0; step < 300; ++step)
                 history.step({.pin = {.particle = 3, .x = 100, .y = 60, .active = step < 40}});
             return history;

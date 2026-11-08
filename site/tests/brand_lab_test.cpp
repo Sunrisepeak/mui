@@ -1,6 +1,6 @@
 // The brand exploration (A1 of the site plan): the mark's O and Mui, drawn by
 // the framework from the site's brand data (brand/marks.mark.omui.json,
-// brand/mui.sprite.omui.json) and saved headless for the maintainer to choose
+// brand/mascot.sprite.omui.json) and saved headless for the maintainer to choose
 // a direction from — each pixel of Mui a vector square, each mark an SVG path.
 //
 // Sheets in scratch "brand-lab": marks (four O treatments, large and at 32 and
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
 
     s.test("A1: the mark's O four ways, Mui at 16 and 24 in three palettes, four directions — drawn by the framework and saved", [] {
         const Value marks = read_json("marks.mark.omui.json");
-        const Value sprites = read_json("mui.sprite.omui.json");
+        const Value sprites = read_json("mascot.sprite.omui.json");
         const auto dir = scratch_dir("brand-lab");
         const Color indigo = Color::hex(0x4f46e5);
         const std::vector<std::pair<std::string, std::string>> outlines{
@@ -258,7 +258,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved", [] {
-        const Value sprites = read_json("mui.sprite.omui.json");
+        const Value sprites = read_json("mascot.sprite.omui.json");
         const auto dir = scratch_dir("brand-pixels");
         const auto grid = pixel_grid(sprites, "body24", "sit", "indigo", 6);
         hanim::Engine engine = *hanim::Engine::make();

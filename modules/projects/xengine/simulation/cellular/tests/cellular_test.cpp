@@ -1,5 +1,5 @@
 import std;
-import xengine.simulation;
+import mlibs.simulation;
 import xengine.simulation.cellular;
 import mlibs.testing;
 
@@ -120,7 +120,7 @@ int main(int argc,char** argv) {
     s.test("the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine", [] {
         const ca::Shape shape{19,11};const auto p=ca::Program::prepare(3,reaction_rules());check(p.has_value());if(!p)return;
         auto state=initial(shape);
-        xengine::simulation::Timeline<Model> history({*p,shape,state,state},30,5);
+        mlibs::simulation::Timeline<Model> history({*p,shape,state,state},30,5);
         std::vector<std::vector<std::uint32_t>> frames{state};
         for(int f=0;f<25;++f) {history.step({f==8,15,5});frames.push_back(history.state().current);}
         for(int f:{25,0,8,15,10,24}) {check(history.seek(f));check(history.state().current==frames[static_cast<std::size_t>(f)]);}

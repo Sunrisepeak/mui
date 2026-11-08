@@ -14,7 +14,7 @@
 import std;
 import xengine.input;
 import xengine.physics;
-import xengine.simulation;
+import mlibs.simulation;
 import omui.showcase.widget_breakout.sim;
 import mlibs.testing;
 
@@ -287,7 +287,7 @@ int main(int argc, char** argv) {
         l.bricks[24].gift = bo::Gift::pierce;  // the lowest row's first
         bo::State st = bo::start(l);
         check_eq(st.rules.wide_half, std::int32_t{300});
-        xengine::simulation::Timeline<bo::Game> t(st, 30 * bo::steps_per_second, 60);
+        mlibs::simulation::Timeline<bo::Game> t(st, 30 * bo::steps_per_second, 60);
         for (int f = 0; f < 200; ++f) t.step({});
         bo::Input in;
         in.rules = st.rules;
@@ -342,7 +342,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("a timeline rewinds five seconds and replays to the same bytes; a new branch goes elsewhere", [] {
-        xengine::simulation::Timeline<bo::Game> t(bo::start(wall_of_bricks(3)), 30 * bo::steps_per_second, 60);
+        mlibs::simulation::Timeline<bo::Game> t(bo::start(wall_of_bricks(3)), 30 * bo::steps_per_second, 60);
         std::vector<std::uint64_t> sums{bo::checksum(t.state())};
         for (std::int64_t f = 0; f < 3000; ++f) {
             t.step(follow(t.state(), f));

@@ -3,7 +3,7 @@ import std;
 import mlibs.memory;
 import mlibs.log;
 import mlibs.trace;
-import xengine.simulation;
+import mlibs.simulation;
 
 namespace hanim::detail {
 struct PlaybackTag;
@@ -73,7 +73,7 @@ struct EngineData {
     };
     struct BodySlot {
         PartAddress part;
-        std::optional<xengine::simulation::Timeline<xengine::simulation::SoftBodyModel>> history;
+        std::optional<mlibs::simulation::Timeline<xengine::simulation::SoftBodyModel>> history;
         xengine::simulation::BodyInput input;
         double owed = 0;  // engine seconds not yet stepped
         std::vector<Rider> riders;

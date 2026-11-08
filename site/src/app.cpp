@@ -1425,7 +1425,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_base_components();
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
-        register_type(component_type<Mui>());
+        register_type(component_type<Mascot>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
         s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,
@@ -1651,7 +1651,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                       [s, key] { return s->lens.get() == key; }));
         }
         // Mui, over the place (not over the documents: they stay plain, §9.4), as the pixels show it.
-        shown.push_back(only_when(mui({.id = "mui", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
+        shown.push_back(only_when(mascot({.id = "mui", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
                                   [s] { return !is_document(s->place.get()) && s->lens.get() == "pixels"; }));
         Element view = stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown));
         view.prop("role", Source(Value("main")));  // a landmark: where a screen reader goes to read

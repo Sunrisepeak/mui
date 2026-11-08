@@ -4,11 +4,12 @@ The lowest layer group: **domain-agnostic foundations** (`mlibs.*`) that know no
 
 Depends on: the standard library and third-party libraries. Used by: every other layer.
 
-What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to [utils](utils) as directories of one package (`mlibs.utils`, module names such as `mlibs.hash` unchanged; every tool is built, see its README), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `hanim.core` and `xengine.simulation` are in their projects ([hanim](../projects/hanim), [xengine](../projects/xengine)).
+What belongs here: general-purpose libraries with no domain semantics. Small tools that are not yet a library of their own go to [utils](utils) as directories of one package (`mlibs.utils`, module names such as `mlibs.hash` unchanged; every tool is built, see its README), and move out into their own library once they grow a cohesive API or need their own third-party dependencies. Domain code does not belong here: it lives in the project that owns it under `modules/projects/` (target layout, see [modules](../README.md)). `hanim.core` and the solvers (`xengine.simulation`, later `xengine.dynamics`) are in their projects ([hanim](../projects/hanim), [xengine](../projects/xengine)).
 
 | Package | |
 |---|---|
 | [cts](cts) | `mlibs.cts`: the conformance framework — suites with stable ids, levels S/A/B, passed/failed/unsupported (from capabilities only), comparisons, `*.cts.omui.json` reports; suites live with their contract's owner |
+| [simulation](simulation) | `mlibs.simulation`: the stepping substrate — fixed-step clocks, timelines of checkpoints and inputs (seek, replay, rollback), simulation tiers; no solver (D-133) |
 | [control](control) | Independent openas policy, trusted sessions and invocation authority; shared by UI and standalone engines |
 | [geom](geom) | 2D geometry: points, rectangles, colours, affine transforms, pixel snapping |
 | [memory](memory) | Frame arena, generational handles, slot maps, `FunctionRef` |

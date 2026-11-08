@@ -16,7 +16,7 @@ import std;
 import omui.core;
 import omui.view;
 import xengine.input;
-import xengine.simulation;
+import mlibs.simulation;
 
 export namespace xengine::ui {
 
@@ -41,12 +41,12 @@ public:
     void stop();
     [[nodiscard]] bool running() const noexcept { return services_ != nullptr; }
     // Its clock: `scale` for slow motion, `alpha` between two steps for drawing.
-    [[nodiscard]] simulation::Clock& clock() noexcept { return clock_; }
+    [[nodiscard]] mlibs::simulation::Clock& clock() noexcept { return clock_; }
 
 private:
     void wake();
     omui::Services*                    services_ = nullptr;
-    simulation::Clock                  clock_;
+    mlibs::simulation::Clock           clock_;
     omui::FrameDemandLease             frames_;
     std::uint64_t                      timer_ = 0;
     std::function<void(std::int32_t)>  run_;

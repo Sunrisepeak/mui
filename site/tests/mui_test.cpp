@@ -20,7 +20,7 @@ struct Page {
     int deleted = 0;
     explicit Page(bool reduced = false) {
         register_base_components();
-        register_type(component_type<site::Mui>());
+        register_type(component_type<site::Mascot>());
         (void)h.runtime().verbs().add({"doc.delete", "Delete", Effect::irreversible, "delete", {}}, [this](const Value&) -> VerbResult {
             ++deleted;
             return Value{};
@@ -32,7 +32,7 @@ struct Page {
                                            {button({.id = "save", .text = "Save", .variant = ButtonVariant::primary}),
                                             button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger, .verb = "doc.delete"})}),
                                        box({.id = "card", .width = 220.0f, .height = 80.0f, .background = Fill(Color::hex(0xffffff)), .radius = 12, .shadow = "md"})}),
-                               site::mui({.id = "mui", .surfaces = Value(Value::List{Value("main/body/card")})})}));
+                               site::mascot({.id = "mui", .surfaces = Value(Value::List{Value("main/body/card")})})}));
         h.settle();
     }
     std::int64_t agent(std::string_view node, std::string_view action, std::string answer = {}) {

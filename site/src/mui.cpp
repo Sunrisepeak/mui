@@ -36,10 +36,10 @@ std::vector<std::string> facing(const std::vector<std::string>& rows, bool right
 
 }  // namespace
 
-const MuiArt& mui_art() {
-    static const MuiArt art = [] {
-        MuiArt out;
-        const auto data = parse_json(files::mui_sprites);
+const MascotArt& mascot_art() {
+    static const MascotArt art = [] {
+        MascotArt out;
+        const auto data = parse_json(files::mascot_sprites);
         if (!data) return out;
         if (const Value* palettes = data->get("palettes"); palettes && palettes->map())
             for (const auto& [name, inks] : *palettes->map()) {
@@ -64,7 +64,7 @@ const MuiArt& mui_art() {
     return art;
 }
 
-Mui::~Mui() {
+Mascot::~Mascot() {
     // The host's engine outlives no runtime: touch it only while attached.
     if (figure_ && figure_->engine && attached()) {
         if (figure_->body) (void)figure_->engine->unsimulate(*figure_->body);
@@ -73,25 +73,25 @@ Mui::~Mui() {
     }
 }
 
-void Mui::mounted() {
+void Mascot::mounted() {
     bubble_.set_style("label");
     bubble_.set_max_lines(1);
     services().set(node(), "pointer_events", Value("none"));  // over the page, it takes no pointer
     services().follow_actions(node(), true);                 // the agent's steps: painted again
 }
 
-void Mui::prop_changed(MuiProp) {
+void Mascot::prop_changed(MascotProp) {
     if (!attached()) return;
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
 
-Size Mui::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah) {
+Size Mascot::measure(MeasureContext&, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah) {
     // As large as it is let be: it lives over the page.
     return {width.value_or(aw.is_definite() ? aw.value : 0), height.value_or(ah.is_definite() ? ah.value : 0)};
 }
 
-std::optional<Rect> Mui::box_of(std::string_view path) const {
+std::optional<Rect> Mascot::box_of(std::string_view path) const {
     if (path.empty() || !attached()) return std::nullopt;
     const NodeId n = services().find(path);
     if (!n) return std::nullopt;
@@ -102,9 +102,9 @@ std::optional<Rect> Mui::box_of(std::string_view path) const {
 
 // The figure made the first time it is painted with room: at the page's
 // bottom right, sitting.
-void Mui::ensure(const PaintContext& ctx) const {
+void Mascot::ensure(const PaintContext& ctx) const {
     if (figure_ && figure_->room == ctx.size) return;
-    const MuiArt& art = mui_art();
+    const MascotArt& art = mascot_art();
     if (art.frames.empty() || ctx.size.width <= 0 || ctx.size.height <= 0) return;
     // A new size (another place, a window resized): the figure made again at
     // its place on the new floor, not falling to it — a page's layout is not an event.
@@ -131,10 +131,10 @@ void Mui::ensure(const PaintContext& ctx) const {
 
 // Shows a frame, in a palette, facing a way: the object updated, shown anew,
 // and carried by the same body (made the first time, under its hull).
-void Mui::show(const std::string& frame, const std::string& palette, bool facing_right) const {
+void Mascot::show(const std::string& frame, const std::string& palette, bool facing_right) const {
     Figure& f = *figure_;
     if (f.object && f.frame == frame && f.palette == palette && f.right == facing_right) return;
-    const MuiArt& art = mui_art();
+    const MascotArt& art = mascot_art();
     const auto rows = art.frames.find(frame);
     const auto inks = art.palettes.find(palette);
     if (rows == art.frames.end() || inks == art.palettes.end()) return;
@@ -199,14 +199,14 @@ void Mui::show(const std::string& frame, const std::string& palette, bool facing
 
 // Where it goes, what it stands on, which frame: from the agent's presence,
 // what it was asked, and the time.
-void Mui::steer(const PaintContext& ctx) const {
+void Mascot::steer(const PaintContext& ctx) const {
     Figure& f = *figure_;
     hanim::Engine& engine = *f.engine;
     const double t = services().now().count();
     const double dt = f.last < 0 ? 0 : std::clamp(t - f.last, 0.0, 0.1);
     f.last = t;
     const bool still = services().motion_reduced();
-    const bool dark = props.palette == MuiPalette::theme ? ctx.theme.dark : props.palette == MuiPalette::night;
+    const bool dark = props.palette == MascotPalette::theme ? ctx.theme.dark : props.palette == MascotPalette::night;
 
     // Whom it embodies, and what it goes to.
     const AgentPresenceState agent = agent_presence_state(services(), props.agents, 0);
@@ -230,7 +230,7 @@ void Mui::steer(const PaintContext& ctx) const {
 
     // Where its body is now (its root's space) and its feet in its box.
     const auto* body = f.body ? engine.body(*f.body).value_or(nullptr) : nullptr;
-    double centre_x = f.spawn.x + props.cell * mui_art().size / 2, bottom = f.spawn.y + props.cell * mui_art().size;
+    double centre_x = f.spawn.x + props.cell * mascot_art().size / 2, bottom = f.spawn.y + props.cell * mascot_art().size;
     double fall = 0;
     if (body) {
         const auto centre = body->centre();
@@ -342,7 +342,7 @@ void Mui::steer(const PaintContext& ctx) const {
     }
 }
 
-void Mui::paint(PaintContext& ctx) const {
+void Mascot::paint(PaintContext& ctx) const {
     ensure(ctx);
     if (!figure_ || !figure_->showing) return;
     steer(ctx);
@@ -370,7 +370,7 @@ void Mui::paint(PaintContext& ctx) const {
         bubble_.set_text(said_);
         const Size t = bubble_.measure(ctx.services, th.color("text"), 280);
         const Now here = now();
-        const float side = static_cast<float>(props.cell) * static_cast<float>(mui_art().size);
+        const float side = static_cast<float>(props.cell) * static_cast<float>(mascot_art().size);
         const Rect bubble{std::clamp(here.feet.x - t.width / 2 - 10, 4.0f, std::max(4.0f, ctx.size.width - t.width - 24)), here.feet.y - side - t.height - 18,
                           t.width + 20, t.height + 10};
         ctx.part({.role = "bubble", .allocation = bubble, .kind = xrender::PartKind::box}, [&] {
@@ -383,7 +383,7 @@ void Mui::paint(PaintContext& ctx) const {
     }
 }
 
-Mui::Now Mui::now() const {
+Mascot::Now Mascot::now() const {
     Now out;
     out.said = services().now().count() < said_until_ ? said_ : std::string();
     if (!figure_) return out;
@@ -400,7 +400,7 @@ Mui::Now Mui::now() const {
     return out;
 }
 
-void Mui::semantics(SemanticsContext&, spec::SemanticNode& node) const {
+void Mascot::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     if (node.name.empty()) node.name = "Mui";
     const Now here = now();
     Value value;
@@ -409,17 +409,17 @@ void Mui::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     node.value = std::move(value);
 }
 
-ActResult Mui::sleep(ActContext&) {
+ActResult Mascot::sleep(ActContext&) {
     write_asleep(true);
     return ActResult::done().undo_by("wake");
 }
 
-ActResult Mui::wake(ActContext&) {
+ActResult Mascot::wake(ActContext&) {
     write_asleep(false);
     return ActResult::done().undo_by("sleep");
 }
 
-ActResult Mui::move_to(ActContext&, const Value& node_path) {
+ActResult Mascot::move_to(ActContext&, const Value& node_path) {
     if (!box_of(node_path.as_string())) return ActResult::fail(std::format("no node '{}' on the page", node_path.as_string()));
     goal_ = std::string(node_path.as_string());
     goal_kind_ = "move";
@@ -427,7 +427,7 @@ ActResult Mui::move_to(ActContext&, const Value& node_path) {
     return ActResult::done();
 }
 
-ActResult Mui::look_at(ActContext&, const Value& node_path) {
+ActResult Mascot::look_at(ActContext&, const Value& node_path) {
     if (!box_of(node_path.as_string())) return ActResult::fail(std::format("no node '{}' on the page", node_path.as_string()));
     goal_ = std::string(node_path.as_string());
     goal_kind_ = "look";
@@ -435,7 +435,7 @@ ActResult Mui::look_at(ActContext&, const Value& node_path) {
     return ActResult::done();
 }
 
-ActResult Mui::point_at(ActContext&, const Value& node_path) {
+ActResult Mascot::point_at(ActContext&, const Value& node_path) {
     if (!box_of(node_path.as_string())) return ActResult::fail(std::format("no node '{}' on the page", node_path.as_string()));
     goal_ = std::string(node_path.as_string());
     goal_kind_ = "point";
@@ -443,7 +443,7 @@ ActResult Mui::point_at(ActContext&, const Value& node_path) {
     return ActResult::done();
 }
 
-ActResult Mui::say(ActContext&, const Value& text) {
+ActResult Mascot::say(ActContext&, const Value& text) {
     std::string line(text.as_string());
     if (const auto end = line.find('\n'); end != std::string::npos) line.resize(end);  // one line (§9.4)
     said_ = std::move(line);

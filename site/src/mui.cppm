@@ -18,24 +18,24 @@ import omui.view;
 import omui.ui.base;
 import hanim.engine;
 import hanim.render.vector;
-import :mui_contract;
+import :mascot_contract;
 
 export namespace omui::site {
 
-// Mui's art (site/brand/mui.sprite.omui.json, embedded): each frame of the
+// Mui's art (site/brand/mascot.sprite.omui.json, embedded): each frame of the
 // body of 24 as rows, each palette as inks.
-struct MuiArt {
+struct MascotArt {
     std::map<std::string, std::vector<std::string>, std::less<>> frames;
     std::map<std::string, std::vector<hanim::PixelInk>, std::less<>> palettes;
     int size = 24;
 };
-[[nodiscard]] const MuiArt& mui_art();
+[[nodiscard]] const MascotArt& mascot_art();
 
-class Mui : public MuiContract<Mui> {
+class Mascot : public MascotContract<Mascot> {
 public:
-    ~Mui();
+    ~Mascot();
     void mounted();
-    void prop_changed(MuiProp p);
+    void prop_changed(MascotProp p);
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;

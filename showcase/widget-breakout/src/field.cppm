@@ -111,7 +111,7 @@ private:
 
     static constexpr std::size_t log_size = 8;
 
-    std::optional<xengine::simulation::Timeline<Game>> timeline_;
+    std::optional<mlibs::simulation::Timeline<Game>> timeline_;
     Level                                level_;
     xengine::Sampler                       sampler_;
     xengine::ui::Pacer                     pacer_;

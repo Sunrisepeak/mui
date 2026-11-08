@@ -14,6 +14,7 @@ members = [
     "modules/base/memory",
     "modules/base/pipeline",
     "modules/base/session",
+    "modules/base/simulation",
     "modules/projects/xengine/simulation",
     "modules/projects/xengine/simulation/cellular",
     "modules/base/unicode",

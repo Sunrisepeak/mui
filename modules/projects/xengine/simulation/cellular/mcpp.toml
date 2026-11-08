@@ -20,5 +20,5 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mlibs.utils = { path = "../../../../base/utils" }
 
 [dev-dependencies]
-xengine.simulation = { path = ".." }
+mlibs.simulation   = { path = "../../../../base/simulation" }
 mlibs.cts          = { path = "../../../../base/cts" }

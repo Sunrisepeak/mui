@@ -669,6 +669,9 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "xrender.vector": {"not": {"xrender.effect", "mlibs.shader"}},
     # text lays out and gives glyphs as geometry; xrender.text draws them
     "mlibs.text": {"not": {"xrender"}},
+    # the stepping substrate: the standard library and the small tools only,
+    # no solver (D-133)
+    "mlibs.simulation": {"only": {"mlibs.simulation", "mlibs.utils"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
     "xengine.simulation": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},

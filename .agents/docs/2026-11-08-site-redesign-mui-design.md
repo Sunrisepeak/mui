@@ -154,7 +154,7 @@
 
 ### 8.3 A1 探索结果（2026-11-08，待维护者挑选）
 
-由官网包的 `tests/brand_lab_test.cpp` 无头绘制（数据在 `site/brand/`：`marks.mark.omui.json`、`mui.sprite.omui.json`），每个像素都是矢量方块，标志是 SVG 路径；标志一张同时导出为 SVG（[marks.svg](media/2026-11-08-brand/marks.svg)，全部是矢量，没有像素岛）。
+由官网包的 `tests/brand_lab_test.cpp` 无头绘制（数据在 `site/brand/`：`marks.mark.omui.json`、`mascot.sprite.omui.json`），每个像素都是矢量方块，标志是 SVG 路径；标志一张同时导出为 SVG（[marks.svg](media/2026-11-08-brand/marks.svg)，全部是矢量，没有像素岛）。
 
 | 图 | 内容 |
 |---|---|

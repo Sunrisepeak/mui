@@ -1,7 +1,7 @@
-module xengine.simulation.api;
+module mlibs.simulation.api;
 import std;
 
-namespace xengine::simulation {
+namespace mlibs::simulation {
 Clock::Clock(double steps_per_second, std::int32_t catch_up) noexcept
     : step_(1.0 / (std::isfinite(steps_per_second) ? std::max(1.0, steps_per_second) : 1.0)),
       catch_up_(std::max(1, catch_up)) {}

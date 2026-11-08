@@ -26,7 +26,7 @@ import std;
 export import xengine.world;    // its state's types are these packages' (worlds, actions, vectors)
 export import xengine.input;
 export import xengine.physics;
-export import xengine.simulation;     // its Game is a timeline's
+export import mlibs.simulation;       // its Game is a timeline's
 
 export namespace omui::breakout {
 
@@ -245,7 +245,7 @@ void step(State& s, const Input& in);
 // `length` pixels of travel or until it leaves the field. How many were written.
 std::size_t trace(const State& s, xengine::V2 at, xengine::V2 velocity, double radius, std::span<xengine::V2> points, double length = 1600);
 
-// For xengine::simulation::Timeline.
+// For mlibs::simulation::Timeline.
 struct Game {
     using State = breakout::State;
     using Input = breakout::Input;

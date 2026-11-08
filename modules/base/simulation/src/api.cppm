@@ -1,6 +1,8 @@
-// xengine.simulation — the fixed-step simulation and its timeline.
+// mlibs.simulation — the fixed-step simulation and its timeline: the stepping
+// substrate every simulation runs on (D-133). It holds no solver: physics is
+// xengine.dynamics, cellular rules xengine.cellular, a game its own model.
 //
-//     xengine::simulation::Clock clock(120);                        // steps a second
+//     mlibs::simulation::Clock clock(120);                        // steps a second
 //     for (int n = clock.advance(now); n > 0; --n) timeline.step(input);
 //     draw(timeline.state(), clock.alpha());          // between the last step and the next
 //
@@ -13,13 +15,13 @@
 // inputs after a snapshot, and the result has the same semantic values.
 // State copies must own their mutable storage. Snapshot banks are populated
 // from the initial state, so fixed-shape containers reuse capacity thereafter.
-export module xengine.simulation.api;
+export module mlibs.simulation.api;
 
 import std;
 import mlibs.trace;
 import mlibs.log;
 
-export namespace xengine::simulation {
+export namespace mlibs::simulation {
 
 // The steps due on a clock of its own. `advance(now)` (seconds, any clock)
 // answers how many steps to take now: at most `catch_up` (a stall longer
@@ -120,4 +122,48 @@ private:
     std::int64_t       frame_ = 0, latest_ = 0, first_ = 0;
 };
 
-}  // namespace xengine::simulation
+// What a simulation promises (D-133 §4, contract 4): four axes, each a
+// simulation, a scene or a solver family declares. Authoritative state — what
+// a rollback or an agent's replay relies on — runs at `cross_platform` or
+// `fixed_point` determinism on `cpu_reference`; a cosmetic effect may take
+// any backend and no determinism.
+enum class Fidelity : std::uint8_t { cosmetic, plausible, accurate };
+enum class Determinism : std::uint8_t {
+    none,            // may differ run to run (unordered GPU reductions)
+    same_binary,     // the same build on the same machine: the same bits
+    cross_platform,  // every platform, compiler and the Web: the same bits
+    fixed_point      // integer arithmetic throughout
+};
+enum class Backend : std::uint8_t { cpu_reference, simd, gpu };
+struct Tier {
+    Fidelity    fidelity = Fidelity::plausible;
+    Determinism determinism = Determinism::cross_platform;
+    Backend     backend = Backend::cpu_reference;
+    std::int32_t substeps = 1;  // within a step
+    friend constexpr bool operator==(const Tier& a, const Tier& b) noexcept {
+        return a.fidelity == b.fidelity && a.determinism == b.determinism && a.backend == b.backend && a.substeps == b.substeps;
+    }
+};
+// A tier whose state a rollback or a replay may rely on.
+[[nodiscard]] constexpr bool authoritative(const Tier& tier) noexcept {
+    return (tier.determinism == Determinism::cross_platform || tier.determinism == Determinism::fixed_point) && tier.backend == Backend::cpu_reference;
+}
+[[nodiscard]] constexpr std::string_view name(Fidelity f) noexcept {
+    switch (f) { case Fidelity::cosmetic: return "cosmetic"; case Fidelity::plausible: return "plausible"; case Fidelity::accurate: return "accurate"; }
+    return "?";
+}
+[[nodiscard]] constexpr std::string_view name(Determinism d) noexcept {
+    switch (d) {
+        case Determinism::none: return "none";
+        case Determinism::same_binary: return "same_binary";
+        case Determinism::cross_platform: return "cross_platform";
+        case Determinism::fixed_point: return "fixed_point";
+    }
+    return "?";
+}
+[[nodiscard]] constexpr std::string_view name(Backend b) noexcept {
+    switch (b) { case Backend::cpu_reference: return "cpu_reference"; case Backend::simd: return "simd"; case Backend::gpu: return "gpu"; }
+    return "?";
+}
+
+}  // namespace mlibs::simulation

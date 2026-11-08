@@ -351,7 +351,7 @@ std::expected<std::vector<Flight>, Program> flights(const PixelGrid& grid, const
     // The reach: 0 the nearest, 1 the farthest — so the whole flight takes the duration asked for.
     double nearest = 1e300, farthest = 0;
     for (const PixelCell& cell : *cells) {
-        const double distance = std::hypot(centre_of(cell).x - from.x, centre_of(cell).y - from.y);
+        const double across = centre_of(cell).x - from.x, down = centre_of(cell).y - from.y, distance = dm::sqrt(across * across + down * down);
         nearest = std::min(nearest, distance);
         farthest = std::max(farthest, distance);
     }
@@ -363,10 +363,10 @@ std::expected<std::vector<Flight>, Program> flights(const PixelGrid& grid, const
         const double wander = mlibs::math::unit24(key), length = mlibs::math::unit24(mlibs::math::mix64(key)),
                      twist = mlibs::math::unit24(mlibs::math::mix64(key ^ mlibs::math::golden));
         const Vec2 c = centre_of(cell);
-        const double dx = c.x - from.x, dy = c.y - from.y, near = std::hypot(dx, dy);
-        const double heading = (near > 1e-9 ? std::atan2(dy, dx) : wander * two_pi) + (wander - .5) * .9;
+        const double dx = c.x - from.x, dy = c.y - from.y, near = dm::sqrt(dx * dx + dy * dy);
+        const double heading = (near > 1e-9 ? dm::atan2(dy, dx) : wander * two_pi) + (wander - .5) * .9;
         const double far = options.distance * (.6 + .8 * length);
-        out.push_back({pixel_id(cell.x, cell.y), {std::cos(heading) * far, std::sin(heading) * far}, options.spin * (2 * twist - 1),
+        out.push_back({pixel_id(cell.x, cell.y), {dm::cos(heading) * far, dm::sin(heading) * far}, options.spin * (2 * twist - 1),
                        farthest > nearest ? (near - nearest) / (farthest - nearest) : 0, grid.inks[cell.ink].color});
     }
     return out;

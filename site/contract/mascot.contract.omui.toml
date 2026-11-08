@@ -1,22 +1,22 @@
-# Mui (喵), the site's figure (the site plan §9): a pixel cat, each pixel a
+# Mui (喵), the site's mascot (the site plan §9): a pixel cat, each pixel a
 # vector square, a little soft — standing on the page's surfaces, walking
 # and hopping to what a visitor's agent works on (its body: the agent's
 # presence, C2), holding up a card while that agent waits for the person,
 # asleep when asked. Over the page it takes no pointer; it shows, and acts
 # only through the page's own actions — it answers nothing for the person.
-[contract.mui]
+[contract.mascot]
 role = "image"
 spec = "0.1"
 doc  = "The site's figure: a soft pixel cat that goes where the visitor's agent works, shows what it waits for, and sleeps when asked."
 
-[contract.mui.props]
+[contract.mascot.props]
 agents   = { type = "string", default = "agent:", doc = "Whose presence it embodies: actors whose names begin with this." }
 surfaces = { type = "any", doc = "The nodes it may stand on, by path (a list); the bottom of the page is always one." }
 asleep   = { type = "bool", default = false, bindable = true, doc = "Curled up: no motion until woken." }
 palette  = { type = "enum", values = ["theme", "indigo", "night"], default = "theme", doc = "Its colours; theme: night on a dark theme." }
 cell     = { type = "f64", default = 3.0, doc = "A pixel's side." }
 
-[contract.mui.actions]
+[contract.mascot.actions]
 sleep    = { effect = "reversible", doc = "Curls up: no motion until woken." }
 wake     = { effect = "reversible", doc = "Wakes." }
 move_to  = { effect = "reversible", args = { node = "string" }, doc = "Walks (and hops) to a node of the page." }
@@ -24,6 +24,6 @@ look_at  = { effect = "reversible", args = { node = "string" }, doc = "Looks at 
 point_at = { effect = "reversible", args = { node = "string" }, doc = "Goes to a node and points at it." }
 say      = { effect = "reversible", args = { text = "string" }, doc = "One line over its head, a few seconds." }
 
-[contract.mui.parts]
+[contract.mascot.parts]
 figure = {}
 bubble = {}

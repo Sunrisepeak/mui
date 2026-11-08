@@ -1,4 +1,4 @@
-# Simulation contract, v0.1
+# mlibs.simulation contract, v0.1
 
 | Operation | Contract |
 |---|---|

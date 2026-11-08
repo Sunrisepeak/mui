@@ -1,6 +1,6 @@
 module omui.bench;
 import std;
-import xengine.simulation;
+import mlibs.simulation;
 import xengine.simulation.cellular;
 import xengine.simulation.cellular.present;
 
@@ -101,7 +101,7 @@ void add_simulation_benchmarks() {
     });
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}
-        xengine::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);
+        mlibs::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);
         while(s.next()) {
             s.pause();if(!history.seek(0)){s.fail("history reset failed");return;}s.resume();
             history.step({});

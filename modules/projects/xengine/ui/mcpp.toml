@@ -21,7 +21,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 omui.core = { path = "../../omui/core" }
 omui.view = { path = "../../omui/view" }
 xengine.input = { path = "../input" }
-xengine.simulation = { path = "../simulation" }
+mlibs.simulation = { path = "../../../base/simulation" }
 
 [dev-dependencies]
 mlibs.utils = { path = "../../../base/utils" }

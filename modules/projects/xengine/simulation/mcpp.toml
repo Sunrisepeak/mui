@@ -2,7 +2,7 @@
 namespace = "xengine"
 name = "simulation"
 version = "0.1.0"
-description = "Independent fixed-step clocks and owned checkpoint/input replay"
+description = "Soft bodies (XPBD) on mlibs.simulation's timeline"
 license = "Apache-2.0"
 platforms = ["linux", "macos", "windows", "emscripten"]
 repo = "https://github.com/Sunrisepeak/mui"
@@ -14,10 +14,11 @@ kind = "module"
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/bodies/*.cppm", "src/bodies/*.cpp"]
+sources = ["src/*.cppm", "src/bodies/*.cppm", "src/bodies/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]
 mlibs.utils = { path = "../../../base/utils" }
 
 [dev-dependencies]
+mlibs.simulation = { path = "../../../base/simulation" }

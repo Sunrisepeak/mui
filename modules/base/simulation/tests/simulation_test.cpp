@@ -1,9 +1,9 @@
 import std;
-import xengine.simulation;
+import mlibs.simulation;
 import mlibs.testing;
 
 using namespace mlibs::testing;
-namespace sim=xengine::simulation;
+namespace sim=mlibs::simulation;
 namespace {
 struct Owned {
     struct State { std::vector<std::int64_t> values; };
@@ -52,6 +52,14 @@ int main(int argc,char** argv) {
             check(!history.seek(oldest-1));check(history.seek(oldest));check_eq(history.state(),oldest*(oldest-1)/2);
             check(history.seek(cut+1));check_eq(history.state(),changed);check_eq(history.input(cut).add,std::int64_t{1000});
         }
+    });
+    s.test("tiers: what a simulation promises; only a deterministic CPU reference is authoritative",[]{
+        using namespace mlibs::simulation;
+        check(authoritative(Tier{}),"the default: plausible, cross-platform, the CPU reference");
+        check(authoritative(Tier{.determinism=Determinism::fixed_point}));
+        check(!authoritative(Tier{.backend=Backend::gpu}),"a GPU tier is an acceleration, never what a rollback relies on");
+        check(!authoritative(Tier{.determinism=Determinism::same_binary}));
+        check(name(Fidelity::cosmetic)=="cosmetic" && name(Determinism::cross_platform)=="cross_platform" && name(Backend::simd)=="simd");
     });
     return s.run(argc,argv);
 }

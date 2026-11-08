@@ -30,7 +30,7 @@ sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp
 mlibs.utils = { path = "../../modules/base/utils" }
 mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
-"xengine.simulation" = { path = "../../modules/projects/xengine/simulation" }
+"mlibs.simulation" = { path = "../../modules/base/simulation" }
 "xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
 "xengine.simulation.cellular.present" = { path = "../../modules/projects/xengine/simulation/cellular/present" }
 mcpplibs.os = "0.2.2"

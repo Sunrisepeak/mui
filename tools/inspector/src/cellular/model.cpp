@@ -2,7 +2,7 @@ module omui.inspector;
 import std;
 import omui;
 import mlibs.hash;
-import xengine.simulation;
+import mlibs.simulation;
 import xengine.simulation.cellular;
 import xengine.simulation.cellular.present;
 
@@ -194,7 +194,7 @@ struct Model {
         }
     }
 };
-using History = xengine::simulation::Timeline<Model>;
+using History = mlibs::simulation::Timeline<Model>;
 Model::State initial(std::shared_ptr<const Project> p) {
     Model::State s{p,p->cells,p->cells,p->tick};return s;
 }
@@ -202,7 +202,7 @@ Model::State initial(std::shared_ptr<const Project> p) {
 
 struct Session::Impl {
     std::unique_ptr<History> history;
-    xengine::simulation::Clock clock{12,4};
+    mlibs::simulation::Clock clock{12,4};
     std::int64_t revision=0;
     bool playing=false;
     std::uint64_t timer=0;
@@ -372,7 +372,7 @@ VerbResult Session::perform(std::string_view op,const Value& args) {
         if (field(args,"enabled").as_bool()) {
             if (!runtime || weak_from_this().expired()) return fail("play needs an attached host; batch clients use advance");
             d.authority=runtime->current_invocation().value_or(Invocation{});
-            d.clock=xengine::simulation::Clock(d.history->state().project->rate,4);d.clock.reset(runtime->now().count());
+            d.clock=mlibs::simulation::Clock(d.history->state().project->rate,4);d.clock.reset(runtime->now().count());
             d.playing=true;schedule();
         } else pause();
     } else return fail("unknown cellular operation");

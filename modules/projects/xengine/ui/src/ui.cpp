@@ -4,7 +4,7 @@ import std;
 import omui.core;
 import omui.view;
 import xengine.input;
-import xengine.simulation;
+import mlibs.simulation;
 
 namespace xengine::ui {
 
@@ -36,7 +36,7 @@ void Pacer::start(omui::Services& services, double hz, std::function<void(std::i
     stop();
     services_ = &services;
     run_ = std::move(run);
-    clock_ = simulation::Clock(hz, catch_up);
+    clock_ = mlibs::simulation::Clock(hz, catch_up);
     clock_.reset(services.now().count());
     frames_ = services.demand_frames({.min_hz = 60, .max_hz = hz, .preferred_hz = hz, .reason = "game"});
     wake();

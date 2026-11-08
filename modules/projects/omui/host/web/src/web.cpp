@@ -349,7 +349,7 @@ struct Web::Impl {
     // until asked (another language's) are asked for when text first has a
     // glyph no face covers, or a reader wants every face.
     std::string later_generation;
-    std::set<std::string> later_added;
+    std::set<std::filesystem::path> later_added;
     std::size_t later_looks = 0;
     std::uint64_t uncovered_seen = 0;
     std::set<char32_t> fonts_asked_for;
@@ -374,7 +374,7 @@ struct Web::Impl {
         later_generation = generation;
         bool any = false;
         for (const auto& e : std::filesystem::directory_iterator("/later/fonts", ec))
-            if (e.path().extension() == ".ttf" && later_added.insert(e.path().filename().string()).second) {
+            if (e.path().extension() == ".ttf" && later_added.insert(e.path().filename()).second) {
                 auto& fonts = runtime->fonts();
                 if (const auto added = fonts.add_file(e.path()); added) {
                     // Keep each family's original fallback priority whatever

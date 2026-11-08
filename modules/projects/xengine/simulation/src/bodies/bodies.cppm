@@ -9,7 +9,7 @@
 // seeking come with it.
 //
 //     auto body = xengine::simulation::SoftBody::ring(outline, {.mass = 1}, {{.normal_y = -1,
-//     .offset = -400}}); xengine::simulation::Timeline<xengine::simulation::SoftBodyModel>
+//     .offset = -400}}); mlibs::simulation::Timeline<xengine::simulation::SoftBodyModel>
 //     history(*body); history.step({});                                         // 1/120 s on
 export module xengine.simulation.bodies;
 

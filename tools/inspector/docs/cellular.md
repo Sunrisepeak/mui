@@ -1,7 +1,7 @@
 # Reaction lab: integer rules, one shared workspace
 
 The Inspector's cellular workspace edits and inspects real projects using
-`xengine.simulation.cellular` and the shared `xengine::simulation::Timeline`.
+`xengine.simulation.cellular` and the shared `mlibs::simulation::Timeline`.
 Its model, view and CLI live in `src/cellular/` under the existing manifest.
 The website embeds this workspace at `#/explore/reactions`. It does not
 implement another simulator, clock, history or renderer.

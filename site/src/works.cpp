@@ -33,6 +33,32 @@ Element transport(const WorksSite& site, Signal<double> at, Signal<double> lengt
                 slider({.id = "time", .label = "Time", .max = length, .step = 0.01, .value = at, .grow = 1})});
 }
 
+// The same three items, a list or cards: one container, each item keeping its
+// identity (its id) and only its place and size changing — so it travels
+// there (universal motion), never cut and drawn anew.
+Element list_and_cards(const WorksSite& site, Signal<bool> cards, float width, float height) {
+    return dynamic([lang = site.lang, cards, width, height] {
+        const bool zh = lang && lang->get() == "zh";
+        const bool as_cards = cards.get();
+        const std::array<std::pair<std::string_view, std::string_view>, 3> items{{{"Passport", "证件"}, {"Tickets", "车票"}, {"Keys", "钥匙"}}};
+        const float card = std::floor((width - 2 * 12) / 3), card_height = std::min(height - 16, 120.0f), row_height = 52;
+        const float list_top = std::max(0.0f, (height - 3 * row_height - 2 * 10) / 2), cards_top = std::max(0.0f, (height - card_height) / 2);
+        std::vector<Element> children;
+        for (std::size_t index = 0; index < items.size(); ++index) {
+            const float x = as_cards ? static_cast<float>(index) * (card + 12) : 0;
+            const float y = as_cards ? cards_top : list_top + static_cast<float>(index) * (row_height + 10);
+            Element item = column({.id = std::format("item{}", index), .width = Dim(as_cards ? card : width), .height = Dim(as_cards ? card_height : row_height),
+                                   .padding = Edges(12.0f), .gap = 4, .justify = "center", .background = "surface_variant", .radius = as_cards ? 16.0f : 10.0f},
+                                  {text({.id = "name", .text = std::string(zh ? items[index].second : items[index].first), .style = "label"}),
+                                   text({.id = "state", .text = std::string(zh ? "已收好" : "Packed"), .style = "caption", .color = "text_muted"})});
+            item.prop("position", Source(Value("absolute"))).prop("left", Source(Value(static_cast<double>(x)))).prop("top", Source(Value(static_cast<double>(y))));
+            item.prop("motion", Source(Value("morph")));  // a change of place and size: travelled
+            children.push_back(std::move(item));
+        }
+        return std::vector<Element>{box({.id = "items", .width = Dim(width), .height = Dim(height)}, std::move(children))};
+    });
+}
+
 }  // namespace
 
 Element signature_works(Works& state, const WorksSite& site, float width) {
@@ -53,6 +79,60 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
              stage("mui-gather", "Mui's pixels, gathering", state.gather_at, state.gather_length, state.gather_playing),
              transport(site, state.gather_at, state.gather_length, state.gather_playing, inner)),
     };
+    // ③ A soft landing, rewound (the soft card: drop it, then drag its time back).
+    {
+        Runtime** runtime = site.runtime;
+        const std::string card_path = site.root + "/grid/soft/stage";
+        works.push_back(work(site, "soft", card, {"A soft landing, rewound", "软着陆，再倒回去"},
+                             {"A card of jelly lands and gives. Drag its time back: every step the same each time.", "果冻做的卡片落地、变形。把时间往回拖：每一步每次都一样。"},
+                             drop_card({.id = "stage", .at = state.card_at, .span = 3.0, .width = Dim(inner), .height = Dim(stage_height)}),
+                             row({.id = "controls", .width = Dim(inner), .gap = 10, .align = "center"},
+                                 {button({.id = "drop", .text = words(site, "Drop", "扔下去"), .variant = ButtonVariant::secondary,
+                                          .on_activated = [runtime, card_path] {
+                                              if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(card_path), "drop");
+                                          }}),
+                                  slider({.id = "time", .label = "Time", .max = 3.0, .step = 0.01, .value = state.card_at, .grow = 1})})));
+    }
+    // ④ A line changing language in place: the letters both share stay, the rest give way.
+    {
+        Signal<bool> other = state.other;
+        Element line = text({.id = "words",
+                             .text = computed([lang = site.lang, other] {
+                                 const bool zh = (lang && lang->get() == "zh") != other.get();
+                                 return std::string(zh ? "omui 绘制每一个字形" : "omui draws every glyph");
+                             }),
+                             .style = "heading",
+                             .align = "center",
+                             .size = 30.0f});
+        line.prop("motion", Source(Value("morph")));
+        works.push_back(work(site, "letters", card, {"Only what changed moves", "只动变了的部分"},
+                             {"Switch the language: the letters both share stay put; the rest give way.", "切换语言：共有的字母不动，其余的让位。"},
+                             column({.id = "stage", .width = Dim(inner), .height = Dim(stage_height), .justify = "center", .align = "center"}, {std::move(line)}),
+                             row({.id = "controls", .width = Dim(inner), .gap = 10, .align = "center"},
+                                 {button({.id = "switch",
+                                          .text = computed([lang = site.lang, other] {
+                                              const bool zh = (lang && lang->get() == "zh") != other.get();
+                                              return std::string(zh ? "English" : "中文");
+                                          }),
+                                          .variant = ButtonVariant::secondary,
+                                          .on_activated = [other] { other.set(!other.peek()); }})})));
+    }
+    // ⑤ The same items, a list and cards.
+    {
+        Signal<bool> cards = state.cards;
+        works.push_back(work(site, "layout", card, {"A list becomes cards", "列表变成卡片"},
+                             {"The same items keep who they are: each travels to its new place.", "同一批事项保持身份：各自走到新位置。"},
+                             column({.id = "stage", .width = Dim(inner), .height = Dim(stage_height), .justify = "center"}, {list_and_cards(site, cards, inner, stage_height)}),
+                             row({.id = "controls", .width = Dim(inner), .gap = 10, .align = "center"},
+                                 {segmented({.id = "as",
+                                             .label = words(site, "Show as", "显示为"),
+                                             .labels = computed([lang = site.lang] {
+                                                 return lang && lang->get() == "zh" ? std::vector<std::string>{"列表", "卡片"} : std::vector<std::string>{"List", "Cards"};
+                                             }),
+                                             .options = std::vector<std::string>{"list", "cards"},
+                                             .value = Source{std::nullopt, [cards] { return Value(std::string(cards.get() ? "cards" : "list")); },
+                                                             [cards](const Value& value) { cards.set(value.as_string() == "cards"); }}})})));
+    }
     Element heading = text({.id = "heading", .text = words(site, "Motion you can hold", "拿在手里的动效"), .style = "title"});
     heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{2})));
     return column({.id = "works", .width = Dim(width), .gap = 16},

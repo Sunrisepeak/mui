@@ -80,5 +80,52 @@ int main(int argc, char** argv) {
         });
     }
 
+    suite.test("a soft landing, rewound: dropped, it rests; its slider follows; dragged back, held", [] {
+        Page page;
+        check(page.act("soft/controls/drop", "activate") == 0);
+        page.h.advance(seconds(4));
+        check_eq(std::string(page.value("soft/stage").get("state")->as_string()), std::string("resting"));
+        const Value slider = page.h.tree().node(path("soft/controls/time"))->value;
+        check(std::abs(slider.get("value")->as_double() - 3.0) < 0.02, "the slider at its end");
+        check(page.act("soft/controls/time", "set_value", Value{}.set("value", 1.0)) == 0);
+        page.h.step();
+        page.h.step();
+        check_eq(std::string(page.value("soft/stage").get("state")->as_string()), std::string("held"));
+    });
+
+    suite.test("only what changed moves: the line in the other language, the shared letters kept", [] {
+        Page page;
+        check(page.act("letters/controls/switch", "activate") == 0);
+        std::size_t kept = 0;
+        for (int frame = 0; frame < 30; ++frame) {
+            page.h.step();
+            for (const auto& motion : page.h.runtime().motions())
+                if (motion.path.ends_with("letters/stage/words")) kept = std::max(kept, motion.glyphs_kept);
+        }
+        check(kept >= 4, std::format("o, m, u, i kept: {}", kept));
+        page.h.settle(seconds(2));
+        check_eq(page.h.tree().node(path("letters/stage/words"))->name, std::string("omui 绘制每一个字形"));
+    });
+
+    suite.test("a list becomes cards: each item travels to its place, through the places between", [] {
+        Page page;
+        // Where it is drawn (a travel is drawn; the layout says where it ends at once).
+        const auto x_of = [&](std::string_view item) { return page.h.runtime().drawn_bounds(page.h.runtime().find(path(std::format("layout/stage/items/{}", item)))).x; };
+        const float list_x = x_of("item2");
+        check(page.act("layout/controls/as", "set_value", Value{}.set("value", "cards")) == 0);
+        std::vector<float> path_x;
+        const auto dir = scratch_dir("works-layout");
+        for (int frame = 0; frame < 24; ++frame) {
+            page.h.step();
+            path_x.push_back(x_of("item2"));
+            if (frame % 4 == 0) (void)page.h.save_png(dir / std::format("{:02}.png", frame / 4), page.h.runtime().screen_bounds(page.h.runtime().find(path("layout/stage"))));
+        }
+        page.h.settle(seconds(2));
+        const float card_x = x_of("item2");
+        check(card_x > list_x + 100, std::format("the third item moved right: {} → {}", list_x, card_x));
+        const auto between = std::ranges::count_if(path_x, [&](float x) { return x > list_x + 5 && x < card_x - 5; });
+        check(between >= 3, std::format("{} frames between its places (travelled, not cut)", between));
+    });
+
     return suite.run(argc, argv);
 }

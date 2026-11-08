@@ -979,7 +979,8 @@ int main(int argc, char** argv) {
         // (the foot says the home tree's hash; the lenses show the tree).
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
-        check_eq(all.hex(), std::string("ccd16564442a5cd5"));
+        // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
+        check_eq(all.hex(), std::string("a7413ac67b0398c5"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

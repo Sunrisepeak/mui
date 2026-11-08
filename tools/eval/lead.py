@@ -22,6 +22,9 @@ competitor, measured on one machine in the same job, judged by ratio.
   lead.py summary [--metrics FILE] [--features FILE] [--ledger FILE]
       the latest verdict of every metric and feature, as Markdown
 
+  lead.py docs [--metrics F] [--features F] [--ledger F]
+      the site's lead page, docs/en/lead.md and docs/zh/lead.md, from the ledger
+
   lead.py check [ROOT]
       the features list against the ledger (lint `lead`); prints problems,
       exits 1 if any
@@ -307,6 +310,76 @@ def cmd_summary(arguments: argparse.Namespace) -> int:
     return 0
 
 
+# --- docs (the site's lead page) -------------------------------------------
+
+DOC_WORDS = {
+    "en": {
+        "title": "Lead: measured against the best",
+        "intro": "Every metric is ours against the strongest competitor, measured on one machine in the same job, the sides taking turns; the verdict is from the ratio's 95 % interval: behind below 0.95×, par to 1.2×, ahead from 1.2×, far ahead from 10× or where the competitor cannot do it. What is behind stays here; a device we do not have is said so. Generated from the lead ledger ({date}).",
+        "metrics": "Metrics", "features": "Signature features", "capabilities": "Capabilities against the field",
+        "head_metric": "| Project | Metric | Ours | Strongest | Ratio [95 %] | Verdict |",
+        "head_feature": "| Project | Feature | Status | Verdict |",
+        "head_capability": "| Capability | Competitors | Verdict |",
+        "planned": "planned", "pending": "needs a device", "unmeasured": "not yet measured",
+    },
+    "zh": {
+        "title": "领先度：和最强的比",
+        "intro": "每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（{date}）。",
+        "metrics": "指标", "features": "标志性特性", "capabilities": "能力对照",
+        "head_metric": "| 项目 | 指标 | 我方 | 最强竞品 | 比值 [95% 区间] | 判定 |",
+        "head_feature": "| 项目 | 特性 | 状态 | 判定 |",
+        "head_capability": "| 能力 | 竞品 | 判定 |",
+        "planned": "计划中", "pending": "待真机验证", "unmeasured": "未测",
+    },
+}
+
+
+def render_docs(metrics_file: Path, features_file: Path, ledger_file: Path) -> dict[str, str]:
+    """The lead page in each language, from the ledger alone (its newest record's date): the same ledger, the same text."""
+    metrics = load_toml(metrics_file)["metric"]
+    features = load_toml(features_file)["feature"]
+    ledger = read_jsonl(ledger_file)
+    measured = latest(ledger, "metric", "metric")
+    newest = max((r.get("date", "") for r in ledger), default="")
+    verdicts: dict[str, set[str]] = {}
+    for record in ledger:
+        if record.get("kind") in ("capability", "task"):
+            verdicts.setdefault(record["feature"], set()).add(record["verdict"])
+    pages = {}
+    for language, w in DOC_WORDS.items():
+        lines = [f"# {w['title']}", "", w["intro"].format(date=newest), "", f"## {w['metrics']}", "", w["head_metric"], "|---|---|---|---|---|---|"]
+        for metric in metrics:
+            record = measured.get(metric["id"])
+            if record and record["verdict"] != "pending_hardware":
+                lines.append(f"| {metric['project']} | `{metric['id']}` | {record['ours']['name']} {record['ours']['median']:g} | {record['best']['name']} {record['best']['median']:g} | "
+                             f"{record['ratio']:.2f}× [{record['ci'][0]:.2f}, {record['ci'][1]:.2f}] | **{record['verdict']}** |")
+            elif metric.get("status") == "measured":
+                continue
+            else:
+                state = w["pending"] if metric.get("status") == "pending_hardware" else w["planned"]
+                lines.append(f"| {metric['project']} | `{metric['id']}` | — | {', '.join(metric['competitors'])} | — | {state} |")
+        lines += ["", f"## {w['features']}", "", w["head_feature"], "|---|---|---|---|"]
+        for feature in features:
+            if feature["line"] == "foundation":
+                continue
+            lines.append(f"| {feature['project']} | {feature['id']}: {feature['title']} | {feature['status']} | {', '.join(sorted(verdicts.get(feature['id'], []))) or '—'} |")
+        lines += ["", f"## {w['capabilities']}", "", w["head_capability"], "|---|---|---|"]
+        for record in ledger:
+            if record.get("kind") == "capability":
+                against = ", ".join(f"{c['name']} ({c['support']})" for c in record["competitors"])
+                lines.append(f"| {record['about']} | {against} | **{record['verdict']}** |")
+        pages[language] = "\n".join(lines) + "\n"
+    return pages
+
+
+def cmd_docs(arguments: argparse.Namespace) -> int:
+    for language, text in render_docs(Path(arguments.metrics), Path(arguments.features), Path(arguments.ledger)).items():
+        out = ROOT / "docs" / language / "lead.md"
+        out.write_text(text, encoding="utf-8")
+        print(f"lead.py docs: {out.relative_to(ROOT)}")
+    return 0
+
+
 # --- check (lint `lead`) ---------------------------------------------------
 
 def problems(root: Path) -> list[tuple[str, str]]:
@@ -355,6 +428,16 @@ def problems(root: Path) -> list[tuple[str, str]]:
         count = headline.get(project, 0)
         if not 2 <= count <= 4:
             out.append((where, f"{project}: {count} headline features (two to four, §1.5; the rest are foundations)"))
+    # The site's lead page is the ledger's: regenerated with it (lead.py docs).
+    ledger_file = root / ".agents/docs/evaluation/lead.ledger.omui.jsonl"
+    if metrics_file.exists() and ledger_file.exists() and (root / "docs" / "en" / "lead.md").exists():
+        try:
+            for language, text in render_docs(metrics_file, features_file, ledger_file).items():
+                page = root / "docs" / language / "lead.md"
+                if not page.exists() or page.read_text(encoding="utf-8") != text:
+                    out.append((page.relative_to(root).as_posix(), "not the ledger's: run tools/eval/lead.py docs"))
+        except (KeyError, tomllib.TOMLDecodeError):
+            pass
     if metrics_file.exists():
         try:
             metric_rows = load_toml(metrics_file).get("metric", [])
@@ -409,12 +492,16 @@ def main() -> int:
     summary.add_argument("--features", default=str(FEATURES))
     summary.add_argument("--ledger", default=str(LEDGER))
     summary.add_argument("--out")
+    docs = commands.add_parser("docs")
+    docs.add_argument("--metrics", default=str(METRICS))
+    docs.add_argument("--features", default=str(FEATURES))
+    docs.add_argument("--ledger", default=str(LEDGER))
     check = commands.add_parser("check")
     check.add_argument("root", nargs="?")
     arguments = parser.parse_args()
     if arguments.name == "sample" and arguments.command and arguments.command[0] == "--":
         arguments.command = arguments.command[1:]
-    return {"sample": cmd_sample, "verdict": cmd_verdict, "capability": cmd_capability, "summary": cmd_summary, "check": cmd_check}[arguments.name](arguments)
+    return {"sample": cmd_sample, "verdict": cmd_verdict, "capability": cmd_capability, "summary": cmd_summary, "docs": cmd_docs, "check": cmd_check}[arguments.name](arguments)
 
 
 if __name__ == "__main__":

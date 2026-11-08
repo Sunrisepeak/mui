@@ -681,7 +681,7 @@ Element retyped(Element e, const std::shared_ptr<Site>& s, Arrival how = Arrival
 
 // Where a document's link goes: another place of the site, or outside.
 void follow(Site& s, std::string_view href) {
-    for (const auto& [file, place] : {std::pair{"features.md", "features"}, std::pair{"best-practices.md", "practices"}})
+    for (const auto& [file, place] : {std::pair{"features.md", "features"}, std::pair{"best-practices.md", "practices"}, std::pair{"lead.md", "lead"}})
         if (href.ends_with(file)) {
             s.go(place);
             return;
@@ -842,6 +842,7 @@ std::string_view document(std::string_view place, std::string_view lang) {
     if (place == "hello") return embedded(files::content_files, zh ? "start.zh.md" : "start.en.md");
     if (place == "features") return embedded(zh ? files::zh_files : files::en_files, "features.md");
     if (place == "practices") return embedded(zh ? files::zh_files : files::en_files, "best-practices.md");
+    if (place == "lead") return embedded(zh ? files::zh_files : files::en_files, "lead.md");
     return {};
 }
 
@@ -1876,7 +1877,7 @@ std::string static_html(std::string_view lang) {
             if (const std::string_view doc = document(p.id, language); !doc.empty()) {
                 if (p.id == "hello") out += std::format("<h1>{}</h1>", chinese ? "开始使用" : "Get started");
                 std::string html = mlibs::markdown::to_html(mlibs::markdown::parse(doc));
-                for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}})
+                for (const auto& [file, place] : {std::pair{"best-practices.md", "practices"}, std::pair{"features.md", "features"}, std::pair{"lead.md", "lead"}})
                     for (std::string from = std::format("href=\"{}", file), to = std::format("href=\"{}", href(place, chinese));;) {
                         const auto at = html.find(from);
                         if (at == std::string::npos) break;

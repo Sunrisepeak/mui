@@ -15,7 +15,7 @@ struct Place {
 };
 
 [[nodiscard]] inline std::span<const Place> places() {
-    static constexpr std::array<Place, 15> all{{
+    static constexpr std::array<Place, 16> all{{
         {"home", "Home", "首页", false, "", "home"},
         // The places (the site plan §4): components, motion, the agent, the docs.
         {"components", "Components", "组件", true, "components", "components"},
@@ -25,6 +25,8 @@ struct Place {
         {"docs", "Docs", "文档", true, "docs", "docs", true},
         {"features", "Core ideas", "核心概念", false, "docs/features", "docs", true},
         {"practices", "Practical guide", "实践指南", false, "docs/practices", "docs", true},
+        // Every metric against the strongest competitor, measured; what is behind too (Part 2 §2.3).
+        {"lead", "Lead", "领先度", false, "docs/lead", "docs", true},
         {"hello", "Get started", "开始使用", false, "docs/start", "docs", true},
         // Reference, under the docs: the motion specimens (once "Basic animation"), styling, one interface in many languages.
         {"motion", "Motion specimens", "动效规格样本", false, "docs/motion", "docs"},

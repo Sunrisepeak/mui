@@ -138,15 +138,35 @@ void Runtime::Impl::input_frame(const FrameInput& input) {
     input_call = previous_call;
 }
 
+std::optional<double> Runtime::Impl::person_operating(NodeId id) const {
+    if (!alive(id)) return std::nullopt;
+    if (held && person_holds == id) return 0.5;  // until they let go: asked again soon
+    const double since = clock.now().count() - person_typed_at;
+    if (person_typed == id && since < 1.0) return 1.0 - since;
+    return std::nullopt;
+}
+
 void Runtime::Impl::dispatch(const InputEvent& e) {
+    // Input an agent gives (set_input_actor) is its own, not the person's (S-14).
+    const bool person = !input_actor;
     std::visit(
         [&](const auto& x) {
             using T = std::remove_cvref_t<decltype(x)>;
-            if constexpr (std::same_as<T, PointerEvent>) pointer_event(x);
-            else if constexpr (std::same_as<T, WheelEvent>) wheel_event(x);
-            else if constexpr (std::same_as<T, KeyEvent>) key_event(x);
-            else if constexpr (std::same_as<T, TextEvent> || std::same_as<T, PreeditEvent> || std::same_as<T, GamepadEvent>)
+            if constexpr (std::same_as<T, PointerEvent>) {
+                pointer_event(x);
+                person_holds = held && person ? (alive(capture) ? capture : pressed) : NodeId{};
+            } else if constexpr (std::same_as<T, WheelEvent>) wheel_event(x);
+            else if constexpr (std::same_as<T, KeyEvent>) {
+                // Typing is text going in: an editing key in a text field — not a key that activates or moves.
+                if (person && alive(focus)) {
+                    const Role role = semantics(focus).role;
+                    if (role == Role::text_box || role == Role::search_box) person_typed = focus, person_typed_at = clock.now().count();
+                }
+                key_event(x);
+            } else if constexpr (std::same_as<T, TextEvent> || std::same_as<T, PreeditEvent> || std::same_as<T, GamepadEvent>) {
+                if (person && alive(focus) && !std::same_as<T, GamepadEvent>) person_typed = focus, person_typed_at = clock.now().count();
                 deliver(alive(focus) ? focus : root, e, pointer, true);  // a gamepad, as the keyboard: to the focus
+            }
             else if constexpr (std::same_as<T, FocusEvent>) {
                 if (!x.gained) {
                     // The window lost focus: nothing stays pressed or captured.

@@ -92,8 +92,7 @@ int main(int argc, char** argv) {
     s.test("the default theme file is the runtime's built-in tokens, light and dark", [&] {
         auto added = lib.add_file(default_file);
         check(added.has_value(), added ? "" : all(added.error()));
-        // `refined` is staged (B4 second pass: the state's halos) until the maintainer approves it.
-        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion", "refined"}));
+        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
         auto light = lib.compose(L({"light"}));
         check(light.has_value(), light ? "" : light.error());
         if (light) check_eq(difference(*light, Theme::light()), std::string());

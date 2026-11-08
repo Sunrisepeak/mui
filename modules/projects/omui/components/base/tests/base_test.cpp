@@ -283,6 +283,7 @@ int main(int argc, char** argv) {
         check(h.click("main/msg"));
         key(h, Key::end);
         h.type("!");
+        (void)h.advance(seconds(1.1));  // the person's typing over (S-14): what follows is the agent's
         check(text() == "hello world!", text());
         check(h.runtime().history(h.runtime().root()).redo.empty(), "no redo over the typing");
         check(undoes("redo") == 1 && text() == "hello world!", "redo has nothing to put back");
@@ -401,6 +402,7 @@ int main(int argc, char** argv) {
         h.type("你");
         check(sem(h, "main/msg").value == Value("你"), "committed by the input method");
         h.type("好👋🏽!");
+        (void)h.advance(seconds(1.1));  // the person's typing over (S-14): the agent's turn
         check(act(h, "main/msg", "set_selection", Value{}.set("anchor", 1).set("focus", 3)) == 0);
         check(act(h, "main/msg", "replace_selection", Value{}.set("text", "们")) == 0);
         check(sem(h, "main/msg").value == Value("你们!"), "grapheme offsets: 👋🏽 is one");

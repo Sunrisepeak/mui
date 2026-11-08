@@ -293,6 +293,14 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
             return stop(std::move(env));
         }
     if (a && a->person && call.remote) return stop(person_only(std::format("{} on '{}'", action, where)));
+    // A person's direct operation wins (S-14): an agent's change waits for them, refused, not queued.
+    if (effect != Effect::read && replaying == 0 && (call.remote || call.actor.kind == "agent"))
+        if (const auto wait = person_operating(id)) {
+            env.error(spec::error_code::conflict, std::format("a person is operating '{}' now: try again in {:.1f} s (S-14)", where, *wait),
+                      Value{}.set("retry_after", *wait))
+                .result(spec::exit_code::failure);
+            return stop(std::move(env));
+        }
     // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
     const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);
     if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect)), call));

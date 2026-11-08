@@ -18,8 +18,7 @@ int main(int argc, char** argv) {
         check(added.has_value(), added ? "" : added.error()[0].text());
         check(themes::add_default().has_value(), "again: the same file, the same themes");
         check(theme::library().themes() == std::vector<std::string>{"dark", "light"});
-        // `refined` is staged (B4 second pass: the state's halos) until the maintainer approves it.
-        check(theme::library().overlays() == std::vector<std::string>{"reduced_motion", "refined"});
+        check(theme::library().overlays() == std::vector<std::string>{"reduced_motion"});
         const std::vector<std::string> dark{"dark"};
         auto t = theme::library().compose(dark);
         check(t && t->dark && t->color("accent").r == Theme::dark_theme().color("accent").r && t->text_style("display").size == 40);

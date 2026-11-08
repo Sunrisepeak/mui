@@ -129,6 +129,11 @@ int main(int argc, char** argv) {
 
     s.test("B4, second pass (staged): the state's halo under refined — the defaults beside it; only the switch, checkbox and slider change", [] {
         check(themes::add_styles().has_value(), "the default themes and the packs");
+        // The staged overlay, from its own file: never in the default library.
+        const auto staged = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() /
+                            "modules/projects/omui/theme/default/staged/refined.theme.omui.toml";
+        const auto added = theme::library().add_file(staged);
+        check(added.has_value(), staged.string());
         const auto list = controls();
         const int cell_w = static_cast<int>(cell.width * scale), cell_h = static_cast<int>(cell.height * scale);
         constexpr int gutter = 24;

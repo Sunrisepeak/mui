@@ -86,7 +86,13 @@ void Toggle::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect({content.x, y, track_w, track_h}, CornerRadii::all(track_h / 2), xrender::Paint::solid(track));
     const float d = track_h - 2 * thumb_inset;
     const float x = content.x + thumb_inset + t * (track_w - 2 * thumb_inset - d);
-    const Rect thumb{x, y + thumb_inset, d, d};
+    // Pressed, the thumb stretches towards where it will go (the theme's
+    // `switch_press_stretch`, 0: it keeps its shape): on, to the left; off, to the right.
+    const float stretch = ctx.state.pressed && !off ? th.space("switch_press_stretch", 0) : 0.0f;
+    const Rect thumb{x - stretch * k, y + thumb_inset, d + stretch, d};
+    // The state's halo round the thumb (the theme's `switch_halo:hovered` /
+    // `:pressed`, in the track's colour; none declared: none drawn).
+    parts::depth(ctx, "switch_halo", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, track);
     parts::depth(ctx, "switch_thumb", thumb, CornerRadii::all(d / 2), hover_ > 0, ctx.state.pressed && !off, ShadowToken{{0, 1}, 2, 0, th.color("scrim").with_alpha(0.25f)});
     ctx.list.fill_round_rect(thumb, CornerRadii::all(d / 2), xrender::Paint::solid(th.color("thumb")));
 
@@ -164,6 +170,8 @@ void Checkbox::paint(PaintContext& ctx) const {
     const CornerRadii r = CornerRadii::all(th.corner("small", 4));
     if (off) ctx.list.push_layer(0.5f, xrender::BlendMode::normal, {}, {}, {0, 0, ctx.size.width, ctx.size.height});
 
+    // The state's halo, a circle round the box (`check_halo:hovered` / `:pressed`, in the accent).
+    parts::depth(ctx, "check_halo", b, CornerRadii::all(box_size / 2), hover_ > 0, ctx.state.pressed && !off, std::nullopt, th.color("accent"));
     const Color empty = mix(th.color("surface"), th.color("surface_variant"), static_cast<float>(hover_));
     ctx.list.fill_round_rect(b, r, xrender::Paint::solid(mix(empty, th.color("accent"), k)));
     if (k < 1) {

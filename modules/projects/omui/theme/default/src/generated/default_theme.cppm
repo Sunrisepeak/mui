@@ -63,6 +63,8 @@ m    = 12
 l    = 16
 xl   = 24
 xxl  = 32
+# A switch's thumb, pressed, stretches by this towards where it will go: 0, it keeps its shape.
+switch_press_stretch = 0
 
 [theme.light.radius]
 none   = 0
@@ -91,6 +93,29 @@ thumb                    = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f1
 switch_thumb             = { x = 0, y = 1.5, blur = 3, spread = 0, color = "#0f172a / 0.16", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
 "switch_thumb:hovered"   = { x = 0, y = 2, blur = 5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
 "switch_thumb:pressed"   = { x = 0, y = 0.5, blur = 1.5, spread = 0, color = "#0f172a / 0.18", ambient = { x = 0, y = 0, blur = 0.5, spread = 0.5, color = "#0f172a / 0.1" } }
+# The state's halo round a switch's thumb, a checkbox, a slider's thumb, in the
+# control's own colour (tint): none yet — the refined overlay stages them.
+"switch_halo:hovered"    = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+"switch_halo:pressed"    = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+"check_halo:hovered"     = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+"check_halo:pressed"     = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+"thumb_halo:hovered"     = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+"thumb_halo:pressed"     = { x = 0, y = 0, blur = 0, spread = 0, color = "#000000 / 0" }
+
+[theme.refined]
+doc     = "Refined (staged, B4 second pass): the state's halo round a switch's thumb, a checkbox and a slider's thumb — under the pointer and pressed — in the control's own colour, as the side-by-side review against Material 3 asked (compare-v1, 2026-11-09). Merged into light and dark once approved."
+overlay = true
+
+[theme.refined.spacing]
+switch_press_stretch = 6
+
+[theme.refined.shadows]
+"switch_halo:hovered" = { x = 0, y = 0, blur = 0, spread = 7, color = "#4f46e5 / 0.08", tint = 1 }
+"switch_halo:pressed" = { x = 0, y = 0, blur = 0, spread = 12, color = "#4f46e5 / 0.24", tint = 1 }
+"check_halo:hovered"  = { x = 0, y = 0, blur = 0, spread = 11, color = "#4f46e5 / 0.08", tint = 1 }
+"check_halo:pressed"  = { x = 0, y = 0, blur = 0, spread = 11, color = "#4f46e5 / 0.16", tint = 1 }
+"thumb_halo:hovered"  = { x = 0, y = 0, blur = 0, spread = 7, color = "#4f46e5 / 0.08", tint = 1 }
+"thumb_halo:pressed"  = { x = 0, y = 0, blur = 0, spread = 12, color = "#4f46e5 / 0.22", tint = 1 }
 
 [theme.dark]
 doc     = "Dark: deep slate surfaces, a lighter indigo accent."

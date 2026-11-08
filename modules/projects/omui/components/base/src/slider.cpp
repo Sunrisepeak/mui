@@ -97,7 +97,18 @@ void Slider::paint(PaintContext& ctx) const {
     ctx.list.fill_round_rect({t.x, t.y, t.width * f, t.height}, round, xrender::Paint::solid(th.color("accent")));
     const Point c{t.x + t.width * f, ctx.size.height / 2};
     const float halo = static_cast<float>(halo_) * 0.5f + static_cast<float>(hover_) * 0.25f;
-    if (halo > 0) {
+    const auto declared = [&](std::string_view state) {
+        const auto it = th.shadows.find(state);
+        return it != th.shadows.end() && it->second.color.a > 0;
+    };
+    if (declared("thumb_halo:hovered") || declared("thumb_halo:pressed")) {
+        // The theme's halo by state (`thumb_halo:hovered` / `:pressed`, in the accent). Until a
+        // theme declares one, the halo below.
+        const Rect thumb{c.x - thumb_d / 2, c.y - thumb_d / 2, thumb_d, thumb_d};
+        parts::depth(ctx, "thumb_halo", thumb, CornerRadii::all(thumb_d / 2), hover_ > 0, dragging_ && !off, std::nullopt, th.color("accent"));
+        // The keyboard's focus is its own sign, not a halo: the theme's focus ring round the thumb.
+        if (!off && !dragging_ && ctx.state.focused && ctx.state.focus_visible) focus_ring(ctx, thumb, CornerRadii::all(thumb_d / 2));
+    } else if (halo > 0) {
         const float r = thumb_d / 2 + 6;
         ctx.list.fill_round_rect({c.x - r, c.y - r, 2 * r, 2 * r}, CornerRadii::all(r),
                                  xrender::Paint::solid(th.color("accent").with_alpha(0.18f * std::min(1.0f, halo))));

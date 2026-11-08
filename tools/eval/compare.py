@@ -13,10 +13,10 @@ material scripts), and the question the pair answers.
       A and B only, which side is ours drawn from a seeded stream; the key
       kept apart (target/compare/<subject>/key.json)
 
-  compare.py judge SUBJECT [--agent claude] [--dry-run]
+  compare.py judge SUBJECT [--agent claude] [--samples 3] [--dry-run]
       each sheet judged by a fresh agent session that has nothing of the
       project — an empty directory, the sheet, the question — answering A, B
-      or even; unblinded into ahead / par / behind; a dimension's verdict is
+      or even, three times a sheet (the majority; a tie is par); unblinded into ahead / par / behind; a dimension's verdict is
       its weakest pair's; one compare-v1 record a dimension in
       ledger.eval.omui.jsonl (evaluator "claude-blind")
 
@@ -151,13 +151,21 @@ def cmd_judge(arguments: argparse.Namespace) -> int:
     key = json.loads(key_file.read_text(encoding="utf-8"))
     by_dimension: dict[str, list[dict]] = {}
     for entry in key:
-        answer = ask(arguments.agent, ROOT / entry["sheet"], entry["question"])
-        if "unavailable" in answer:
-            print(f"{entry['dimension']}#{entry['pair']}: unavailable — {answer['unavailable']}")
+        # Each sheet judged `--samples` times by fresh sessions; its verdict is
+        # the majority (a tie: par) — one session's call varies at low confidence.
+        answers = [a for a in (ask(arguments.agent, ROOT / entry["sheet"], entry["question"]) for _ in range(arguments.samples)) if "unavailable" not in a]
+        if not answers:
+            print(f"{entry['dimension']}#{entry['pair']}: unavailable")
             continue
-        entry = {**entry, "answer": answer, "verdict": unblind(answer, entry["ours"])}
+        verdicts = [unblind(a, entry["ours"]) for a in answers]
+        tally = {v: verdicts.count(v) for v in VERDICTS}
+        top = max(tally.values())
+        winners = [v for v in VERDICTS if tally[v] == top]
+        verdict = winners[0] if len(winners) == 1 else "par"
+        answer = next(a for a, v in zip(answers, verdicts) if v == verdict) if verdict in verdicts else answers[0]
+        entry = {**entry, "answer": answer, "verdict": verdict, "votes": verdicts}
         by_dimension.setdefault(entry["dimension"], []).append(entry)
-        print(f"{entry['dimension']}#{entry['pair']} vs {entry['competitor']}: {entry['verdict']} ({answer.get('confidence')})")
+        print(f"{entry['dimension']}#{entry['pair']} vs {entry['competitor']}: {entry['verdict']} (votes {', '.join(verdicts)})")
     for dimension, entries in by_dimension.items():
         # A dimension is as good as its weakest pair: "every dimension at least
         # par" means every control, not most of them (Part 2 plan §2.4).
@@ -165,7 +173,7 @@ def cmd_judge(arguments: argparse.Namespace) -> int:
         record = {"date": datetime.date.today().isoformat(), "subject": arguments.subject, "evaluator": f"{arguments.agent}-blind", "rubric": "compare-v1",
                   "commit": commit(), "dimension": dimension, "verdict": verdict, "rule": "weakest pair",
                   "pairs": [{"competitor": e["competitor"], "verdict": e["verdict"], "confidence": e["answer"].get("confidence"),
-                             "reasons": e["answer"].get("reasons", [])[:4], "sheet": e["sheet"]} for e in entries]}
+                             "votes": e["votes"], "reasons": e["answer"].get("reasons", [])[:4], "sheet": e["sheet"]} for e in entries]}
         print(f"{arguments.subject}/{dimension}: {verdict}")
         if not arguments.dry_run:
             append(record)
@@ -191,6 +199,7 @@ def main() -> int:
     judge.add_argument("subject")
     judge.add_argument("--agent", default="claude")
     judge.add_argument("--dry-run", action="store_true")
+    judge.add_argument("--samples", type=int, default=3)
     record = commands.add_parser("record")
     record.add_argument("subject")
     record.add_argument("dimension")

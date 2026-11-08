@@ -56,6 +56,7 @@ void common(Theme& t) {
     t.text["code"] = {13, 400, 1.5f, 0, {"JetBrains Mono"}};
     for (auto [k, v] : {std::pair{"none", 0.0f}, {"xs", 4.0f}, {"s", 8.0f}, {"m", 12.0f}, {"l", 16.0f}, {"xl", 24.0f}, {"xxl", 32.0f}})
         t.spacing[k] = v;
+    t.spacing["switch_press_stretch"] = 0;  // a pressed switch's thumb keeps its shape (the refined overlay stages a stretch)
     for (auto [k, v] : {std::pair{"none", 0.0f}, {"small", 4.0f}, {"medium", 8.0f}, {"large", 12.0f}, {"xl", 16.0f}, {"full", 9999.0f}})
         t.radius[k] = v;
     for (const auto& token : spec::motion_tokens)
@@ -122,6 +123,9 @@ Theme Theme::light() {
     t.shadows["switch_thumb"] = shadow(1.5, 3, 0, Color::hex(0x0f172a, 0.16f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
     t.shadows["switch_thumb:hovered"] = shadow(2, 5, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
     t.shadows["switch_thumb:pressed"] = shadow(0.5, 1.5, 0, Color::hex(0x0f172a, 0.18f), 0.0f, {{0, 0}, 0.5, 0.5, Color::hex(0x0f172a, 0.1f)});
+    // The state's halo round a switch's thumb, a checkbox, a slider's thumb: none yet (refined stages them).
+    for (const char* halo : {"switch_halo:hovered", "switch_halo:pressed", "check_halo:hovered", "check_halo:pressed", "thumb_halo:hovered", "thumb_halo:pressed"})
+        t.shadows[halo] = ShadowToken{{0, 0}, 0, 0, Color::hex(0x000000, 0.0f)};
     common(t);
     return t;
 }

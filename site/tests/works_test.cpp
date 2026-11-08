@@ -16,7 +16,7 @@ constexpr std::string_view root = "main/body/view/explore/page/works/grid";
 std::string path(std::string_view tail) { return std::string(root) + "/" + std::string(tail); }
 
 struct Page {
-    Headless h{HeadlessOptions{.size = {1280, 2400}, .scale = 1}};
+    Headless h{HeadlessOptions{.size = {1280, 3600}, .scale = 1}};
     Page() {
         auto app = site::app("explore", "en");
         h.runtime().set_theme(app.theme);
@@ -174,6 +174,55 @@ int main(int argc, char** argv) {
         const auto [still_x, still_y] = offset();
         check(std::abs(still_x - held_x) < 1e-6 && std::abs(still_y - held_y) < 1e-6, "held, it does not move");
         page.h.step({PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left}});
+    });
+
+    suite.test("an agent changes a motion: it reads the cards' plan, asks for 0.3 s later and a little bounce; the plan says so and it plays at once; undone, as it was", [] {
+        Page page;
+        const auto plan = [&] { return std::string(page.value("agent/stage").get("plan")->as_string()); };
+        const auto starts = [&](const std::string& text) {
+            std::vector<double> out;
+            for (std::size_t at = 0; at < text.size();) {
+                const auto dash = text.find("–", at);
+                if (dash == std::string::npos) break;
+                const auto from = text.rfind(' ', dash) == std::string::npos || text.rfind(' ', dash) < at ? at : text.rfind(' ', dash) + 1;
+                out.push_back(std::stod(text.substr(from, dash - from)));
+                const auto next = text.find(" · ", dash);
+                if (next == std::string::npos) break;
+                at = next + 4;
+            }
+            return out;
+        };
+        // The distinct starts: each card's (its place and its colour begin together).
+        const auto distinct = [&](const std::string& text) {
+            auto all = starts(text);
+            std::ranges::sort(all);
+            const auto [first_same, last] = std::ranges::unique(all, [](double a, double b) { return std::abs(a - b) < 1e-9; });
+            all.erase(first_same, last);
+            return all;
+        };
+        const std::string before = plan();
+        const auto first = distinct(before);
+        check(first.size() == 3 && std::abs(first[0]) < 1e-9 && std::abs(first[1] - 0.15) < 1e-9 && std::abs(first[2] - 0.30) < 1e-9, std::format("three cards, 0.15 s apart: {}", before));
+        check(page.act("agent/controls/do/ask", "activate") == 0);
+        page.h.step();
+        page.h.step();
+        const std::string after = plan();
+        const auto later = distinct(after);
+        check(later.size() == 3 && std::abs(later[0] - 0.30) < 1e-9 && std::abs(later[2] - 0.60) < 1e-9, std::format("each 0.3 s later: {}", after));
+        check(page.number("agent/stage", "bounce") == 0.4 && page.value("agent/stage").get("playing")->as_bool(), "a little bounce, and playing again at once");
+        check(page.h.tree().node(path("agent/controls/plan"))->name.contains(after), "the plan shown is hanim's");
+        const auto agents = std::ranges::count_if(page.h.runtime().action_journal(), [](const ActionEntry& e) { return e.actor.starts_with("agent") && e.action == "retime"; });
+        check(agents == 1, "the change is the agent's, in the record");
+        const auto dir = scratch_dir("works-agent");
+        for (int frame = 0; frame < 8; ++frame) {
+            page.h.advance(seconds(0.15));
+            (void)page.h.save_png(dir / std::format("{:02}.png", frame), page.h.runtime().screen_bounds(page.h.runtime().find(path("agent/stage"))));
+        }
+        const auto undone = page.h.runtime().undo({});  // the window's history: the last step taken back
+        check(undone.exit_code() == std::optional<int>(0), "taken back");
+        page.h.step();
+        page.h.step();
+        check(plan() == before && page.number("agent/stage", "delay") == 0, std::format("as it was: {}", plan()));
     });
 
     return suite.run(argc, argv);

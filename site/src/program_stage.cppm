@@ -20,7 +20,12 @@ struct Work {
     hanim::ObjectDescription                         object;
     std::function<hanim::Program(hanim::ObjectRef)> program;
 };
-[[nodiscard]] std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme);
+// A work's timing, where it takes one: seconds before it begins, and how much it overshoots (0 to 1).
+struct WorkTiming {
+    double delay = 0, bounce = 0;
+    friend bool operator==(const WorkTiming&, const WorkTiming&) = default;
+};
+[[nodiscard]] std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTiming timing = {});
 
 class ProgramStage : public ProgramStageContract<ProgramStage> {
 public:
@@ -33,6 +38,7 @@ public:
     ActResult play(ActContext& ctx);
     ActResult pause(ActContext& ctx);
     ActResult seek(ActContext& ctx, const Value& at);
+    ActResult retime(ActContext& ctx, const RetimeArgs& args);
 
     // Its length (seconds): the recipe's duration (0 before it is made).
     [[nodiscard]] double length() const;
@@ -46,7 +52,9 @@ private:
         Size                              room;
         bool                              dark = false;
         std::string                       work;
+        WorkTiming                        timing;
         double                            length = 0;
+        std::string                       plan;  // each piece's start and end, as hanim planned it
     };
     void ensure(const PaintContext& ctx) const;
     void release() const;

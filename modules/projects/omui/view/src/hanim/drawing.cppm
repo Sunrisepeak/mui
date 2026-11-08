@@ -1,7 +1,8 @@
 // omui.hanim:drawing — a hanim object drawn by a node (the vector tier): what
 // a playback shows now, its geometry and effects, recorded into the node's
-// paint. The binding is made once a playback and kept; its buffers are kept
-// too, so a frame drawn again allocates nothing. One owner for every
+// paint. The binding is made once a segment's animation and kept (a program
+// of several segments is bound again as it passes from one to the next); its
+// buffers are kept too, so a frame drawn again allocates nothing. One owner for every
 // component that draws hanim's own geometry (a figure, a written mark, a
 // pixel picture) rather than moving UI nodes (Playback, above).
 //
@@ -29,6 +30,7 @@ public:
 private:
     std::optional<hanim::vector_render::PreparedVector> drawn_;
     std::optional<hanim::PlaybackRef>                   bound_;
+    const void*                                         animation_ = nullptr;  // the segment's animation it is bound to
     xrender::DisplayList                                staging_;
     std::vector<mlibs::geom::Affine>                    world_;
     std::vector<float>                                  parameters_;

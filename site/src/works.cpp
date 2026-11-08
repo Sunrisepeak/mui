@@ -133,6 +133,38 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                                               (void)(*runtime)->act((*runtime)->find(chip_path), "fling", call);
                                           }})})));
     }
+    // ⑦ An agent changes a motion: it reads the cards' choreography and asks for them later and bouncier.
+    {
+        Runtime** runtime = site.runtime;
+        const std::string stage_path = site.root + "/grid/agent/stage";
+        Signal<double> delay = state.rise_delay;
+        const auto retime = [runtime, stage_path](Actor actor, double to_delay, double to_bounce) {
+            if (!runtime || !*runtime) return;
+            Invocation call;
+            call.actor = std::move(actor);
+            call.args = Value{}.set("delay", to_delay).set("bounce", to_bounce);
+            (void)(*runtime)->act((*runtime)->find(stage_path), "retime", call);
+        };
+        works.push_back(work(site, "agent", card, {"An agent changes a motion", "Agent 当场改动画"},
+                             {"It reads the cards' timing — the same plan you see — and asks for 0.3 s later, a little bounce.", "它读到卡片的时间编排（和你看到的是同一份），要求晚 0.3 秒、弹一点。"},
+                             program_stage({.id = "stage", .at = state.rise_at, .bounce = state.rise_bounce, .delay = state.rise_delay, .label = "Three cards, rising",
+                                            .length = state.rise_length, .plan = state.rise_plan, .playing = state.rise_playing, .work = "cards-rise",
+                                            .width = Dim(inner), .height = Dim(stage_height)}),
+                             column({.id = "controls", .width = Dim(inner), .gap = 8},
+                                    {row({.id = "do", .gap = 10, .align = "center", .wrap = "wrap"},
+                                         {button({.id = "ask", .text = words(site, "Ask the agent: 0.3 s later, a little bounce", "让 agent 改：晚 0.3 秒、弹一点"),
+                                                  .variant = ButtonVariant::primary,
+                                                  .on_activated = [retime, delay] { retime(Actor{"agent", "works-demo", {}}, delay.peek() + 0.3, 0.4); }}),
+                                          button({.id = "reset", .text = words(site, "Reset the timing", "恢复原来的时间"), .variant = ButtonVariant::ghost,
+                                                  .on_activated = [retime] { retime(Actor{}, 0, 0); }})}),
+                                     text({.id = "plan",
+                                           .text = computed([lang = site.lang, plan = state.rise_plan, delay = state.rise_delay, bounce = state.rise_bounce] {
+                                               const bool zh = lang && lang->get() == "zh";
+                                               return std::format("{} {:.1f} s · {} {:.1f} · {}", zh ? "延迟" : "delay", delay.get(), zh ? "回弹" : "bounce", bounce.get(), plan.get());
+                                           }),
+                                           .style = "code",
+                                           .color = "text_muted"})})));
+    }
     // ⑤ The same items, a list and cards.
     {
         Signal<bool> cards = state.cards;

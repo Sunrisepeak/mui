@@ -64,7 +64,13 @@ if (network) {
 }
 // From navigation: the first frame the program has drawn (its semantic mirror filled after it), and when it answers as an agent.
 await b.call('Page.addScriptToEvaluateOnNewDocument', { source: `
-  window.__perf = { first: null, ready: null };
+  window.__perf = { first: null, ready: null, contentful: null };
+  // The first screen a visitor sees: the browser's first contentful paint (the static page, before the program).
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) if (e.name === 'first-contentful-paint' && window.__perf.contentful === null) window.__perf.contentful = e.startTime;
+    }).observe({ type: 'paint', buffered: true });
+  } catch (e) {}
   (function watch() {
     const m = document.querySelector('[data-omui=mirror]');
     if (m && m.childElementCount > 0 && window.__perf.first === null) window.__perf.first = performance.now();
@@ -72,12 +78,12 @@ await b.call('Page.addScriptToEvaluateOnNewDocument', { source: `
     if (window.__perf.first === null || window.__perf.ready === null) requestAnimationFrame(watch);
   })();` });
 await b.call('Page.navigate', { url });
-let first = null, ready = null, before_first = null;
+let first = null, ready = null, before_first = null, contentful = null;
 const sum = () => Object.values(bytes).reduce((x, y) => x + y, 0);
 for (let i = 0; i < 300 && (first === null || ready === null); i++) {
   await sleep(100);
   const p = await b.value('window.__perf');
-  if (p) ({ first, ready } = p);
+  if (p) ({ first, ready, contentful } = p);
   if (first !== null && before_first === null) before_first = sum();  // what had arrived when it first drew (to within 100 ms)
 }
 await sleep(1500);  // its fonts arrived, its opening at rest
@@ -101,7 +107,7 @@ const memory = await b.value(`({ heap: performance.memory ? performance.memory.u
   wasm: typeof HEAP8 !== 'undefined' ? HEAP8.length : null })`);
 const total = Object.values(bytes).reduce((x, y) => x + y, 0);
 const report = { url, size: [w, h], network: network || null, cache, browser: b.version,
-  transfer: { total, before_first_frame: before_first, by_kind: bytes }, first_frame_ms: first, ready_ms: ready, frames: tails, memory, errors };
+  transfer: { total, before_first_frame: before_first, by_kind: bytes }, first_contentful_ms: contentful, first_frame_ms: first, ready_ms: ready, frames: tails, memory, errors };
 if (opt('request-log','')) writeFileSync(opt('request-log',''),JSON.stringify(requestLog,null,2));
 let ok = true;
 if (budgetFile) {

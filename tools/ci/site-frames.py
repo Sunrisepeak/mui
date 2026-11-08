@@ -23,7 +23,7 @@ import tempfile
 # without their own capture keep readable HTML rather than show another case.
 OPENINGS = {
     'home': 'main/body/view/home/page/landing/scene/visual',
-    'components': 'main/body/view/components/page/gallery/detail/button/stage/specimen',
+    'components': 'main/body/view/components/page/wall',
     'motion': 'main/body/view/motion/page/motion_gallery/stage/scene',
     'demos': 'main/body/view/explore/page/motion_gallery/stage/scene',
     'styles': 'main/body/view/styles/page/styles_feature/comparison',

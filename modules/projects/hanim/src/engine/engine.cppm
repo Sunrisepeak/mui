@@ -262,6 +262,10 @@ public:
     // One body alone on by `elapsed` (a component stepping its own body on
     // the host's one engine, leaving the others where they are).
     [[nodiscard]] std::expected<void, EngineFailure> advance_body(BodyRef body, seconds elapsed);
+    // Exactly `steps` of its fixed steps on (0 to a second's worth), whatever
+    // time is owed: a host that keeps its own count — a timeline that must end
+    // on its last step whatever the frames' timing — steps it by count.
+    [[nodiscard]] std::expected<void, EngineFailure> step_body(BodyRef body, std::int64_t steps);
     // Its time (above); to a step of its history (its figure carried there;
     // invalid_time outside earliest to latest) — scrubbed, rewound, replayed.
     [[nodiscard]] std::expected<BodyTime, EngineFailure> body_time(BodyRef body) const noexcept;

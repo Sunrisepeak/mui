@@ -63,7 +63,8 @@ private:
     mutable std::unique_ptr<Card> card_;
     mutable std::string           state_ = "waiting";
     mutable bool                  playing_ = false;
-    mutable double                last_ = -1;
+    mutable double                last_ = -1;         // when it started playing (the runtime's seconds)
+    mutable std::int64_t          from_step_ = 0;     // the step it started playing from
     mutable std::optional<double> wanted_;   // a moment asked for, taken at the next paint
     mutable bool                  dropping_ = false;
     mutable bool                  writing_ = false;  // its own `at` written back: not a seek

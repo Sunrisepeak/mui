@@ -96,6 +96,12 @@ int main(int argc, char** argv) {
         check(scene.number("step") == 60 && (!hashes.contains(60) || scene.text("hash") == hashes[60]), std::format("step {}", scene.number("step")));
         check(std::abs(scene.at.peek() - 0.5) < 1e-9, "the slider follows an agent's seek");
         check(scene.act("seek", Value{}.set("at", 9.0)) != 0, "not past what it played");
+        // Its span's end: resting, however it came there (an undo of a seek lands there too).
+        check(scene.act("seek", Value{}.set("at", 3.0)) == 0);
+        scene.h.step();
+        check(scene.text("state") == "resting" && scene.text("hash") == end, std::format("{} {}", scene.text("state"), scene.text("hash")));
+        check(scene.act("seek", Value{}.set("at", 0.5)) == 0);
+        scene.h.step();
         // Played on from there: the same steps, to the same end.
         check(scene.act("play") == 0);
         for (int k = 0; k < 400 && scene.text("state") != "resting"; ++k) {
@@ -106,7 +112,7 @@ int main(int argc, char** argv) {
                 break;
             }
         }
-        check_eq(scene.text("hash"), end);
+        check(scene.number("step") == 360 && scene.text("hash") == end, std::format("ended on step {}: {}", scene.number("step"), scene.text("hash")));
         // At rest, no frames asked for.
         const FrameOutput out = scene.h.step();
         check(!out.animating && out.demand.idle(), std::format("at rest: {} at {} Hz", out.demand.reason, out.demand.max_hz));

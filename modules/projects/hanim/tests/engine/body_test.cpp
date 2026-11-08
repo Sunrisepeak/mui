@@ -313,6 +313,11 @@ int main(int argc, char** argv) {
         }
         time = take(engine.body_time(body));
         check(time.step == 240 && time.latest == 240, std::format("step {} of {}", time.step, time.latest));
+        // By count: back to step 90, then exactly 150 steps (in chunks) — step 240, the same, whatever the frames.
+        take(engine.seek_body(body, 90));
+        for (const std::int64_t chunk : {std::int64_t{7}, std::int64_t{60}, std::int64_t{83}}) take(engine.step_body(body, chunk));
+        check(take(engine.body_time(body)).step == 240 && bits(shown) == played[239], "stepped by count: the same end");
+        check(!engine.step_body(body, -1) && !engine.step_body(body, 121), "a second's steps at most, none negative");
         take(engine.unsimulate(other));
         check(!engine.body_time(other) && !engine.seek_body(other, 0), "stale");
     });

@@ -150,10 +150,16 @@ void DropCard::step() const {
         if (time) (void)engine.seek_body(body, time->earliest);
         playing_ = true;
         last_ = t;
+        from_step_ = time ? time->earliest : 0;
         state_ = "falling";
         // Less motion asked: simply there, at rest (its whole time played at once).
         if (services().motion_reduced()) {
-            for (double left = props.span; left > 0; left -= 1) (void)engine.advance_body(body, hanim::seconds(std::min(1.0, left)));
+            if (const auto now_time = engine.body_time(body); now_time && now_time->step_seconds > 0)
+                for (auto left = static_cast<std::int64_t>(std::llround(props.span / now_time->step_seconds)); left > 0;) {
+                    const auto chunk = std::min<std::int64_t>(left, static_cast<std::int64_t>(1 / now_time->step_seconds));
+                    (void)engine.step_body(body, chunk);
+                    left -= chunk;
+                }
             playing_ = false;
             state_ = "resting";
         }
@@ -164,17 +170,28 @@ void DropCard::step() const {
             const std::int64_t step = std::clamp<std::int64_t>(std::llround(*wanted_ / time->step_seconds), time->earliest, time->latest);
             (void)engine.seek_body(body, step);
             playing_ = false;
-            state_ = step == 0 && time->latest == 0 ? "waiting" : "held";
+            // Named by where it is, however it came there: its span's end is resting.
+            const double at = static_cast<double>(step) * time->step_seconds;
+            state_ = step == 0 && time->latest == 0 ? "waiting" : at >= props.span - 1e-9 ? "resting" : "held";
         }
         wanted_.reset();
     }
     if (playing_) {
-        const double elapsed = std::clamp(t - last_, 0.0, 0.1);
-        last_ = t;
-        (void)engine.advance_body(body, hanim::seconds(elapsed));
-        if (now().at >= props.span - 1e-9) {
-            playing_ = false;
-            state_ = "resting";
+        // By count from where it started playing: each frame the steps its
+        // time asks for, never past its span's last — every play of it ends
+        // on the same step, whatever the frames' timing.
+        if (const auto time = engine.body_time(body); time && time->step_seconds > 0) {
+            const auto last = static_cast<std::int64_t>(std::llround(props.span / time->step_seconds));
+            const auto due = std::min(last, from_step_ + static_cast<std::int64_t>(std::floor((t - last_) / time->step_seconds + 1e-9)));
+            for (std::int64_t left = due - time->step; left > 0;) {
+                const auto chunk = std::min<std::int64_t>(left, static_cast<std::int64_t>(1 / time->step_seconds));
+                (void)engine.step_body(body, chunk);
+                left -= chunk;
+            }
+            if (due >= last) {
+                playing_ = false;
+                state_ = "resting";
+            }
         }
     }
     // Its moment, written (a slider bound to it follows).
@@ -275,6 +292,7 @@ ActResult DropCard::play(ActContext&) {
     } else {
         playing_ = true;
         last_ = services().now().count();
+        from_step_ = here.step;
         state_ = "falling";
     }
     schedule();

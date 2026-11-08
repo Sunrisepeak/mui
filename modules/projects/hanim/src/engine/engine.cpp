@@ -418,7 +418,7 @@ void apply_bodies(detail::EngineData& data) noexcept {
     }
 }
 // A body on by `elapsed` seconds, at its fixed step.
-void step_body(detail::EngineData::BodySlot& slot, double elapsed) noexcept {
+void advance_slot(detail::EngineData::BodySlot& slot, double elapsed) noexcept {
     if (!slot.live || !slot.history) return;
     slot.owed += elapsed;
     const double step = slot.history->state().params.step;
@@ -433,7 +433,7 @@ void step_body(detail::EngineData::BodySlot& slot, double elapsed) noexcept {
 }
 // The bodies on by `elapsed` seconds, each at its fixed step.
 void step_bodies(detail::EngineData& data, double elapsed) noexcept {
-    for (auto& slot : data.bodies) step_body(slot, elapsed);
+    for (auto& slot : data.bodies) advance_slot(slot, elapsed);
 }
 void apply_constraints(detail::EngineData& data) noexcept {
     for (const auto index : data.constraint_order)
@@ -1125,7 +1125,22 @@ std::expected<void, EngineFailure> Engine::advance_body(BodyRef ref, seconds ela
     auto* slot = live_body(data_.get(), ref);
     if (!slot) return std::unexpected(fail(EngineError::stale_handle));
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
-    step_body(*slot, elapsed.count());
+    advance_slot(*slot, elapsed.count());
+    apply_bodies(*data_);
+    return {};
+}
+std::expected<void, EngineFailure> Engine::step_body(BodyRef ref, std::int64_t steps) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope scope(writing_);
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    const double step = slot->history->state().params.step;
+    if (steps < 0 || static_cast<double>(steps) * step > 1.0 + 1e-9) return std::unexpected(fail(EngineError::invalid_argument));
+    for (std::int64_t taken = 0; taken < steps; ++taken) {
+        slot->history->step(slot->input);
+        slot->input.kick_x = slot->input.kick_y = 0;  // a hop is once
+        slot->input.settle = false;                   // and so is settling
+    }
     apply_bodies(*data_);
     return {};
 }

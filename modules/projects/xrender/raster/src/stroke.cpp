@@ -43,10 +43,16 @@ void close_into(Polygons& out, const std::vector<Point>& poly) {
     out.closed.back() = true;
 }
 
-// Points of an arc of radius h around c from angle a0 sweeping `sweep`.
-void arc(std::vector<Point>& out, Point c, float h, double a0, double sweep, float tolerance) {
+// The angle an arc of radius h may turn per chord within `tolerance`:
+// 2·acos(1 − tolerance / h) — the same for every arc of one stroke.
+double arc_step(float h, float tolerance) {
     double ratio = std::clamp(1.0 - tolerance / std::max(h, 1e-3f), -1.0, 1.0);
-    double step = 2.0 * dm::atan2(std::sqrt(1.0 - ratio * ratio), ratio);  // 2·acos(ratio)
+    return 2.0 * dm::atan2(std::sqrt(1.0 - ratio * ratio), ratio);
+}
+
+// Points of an arc of radius h around c from angle a0 sweeping `sweep`, a
+// chord at most `step` (arc_step) of turn.
+void arc(std::vector<Point>& out, Point c, float h, double a0, double sweep, double step) {
     int n = std::max(1, static_cast<int>(std::ceil(std::abs(sweep) / std::max(step, 1e-3))));
     n = std::min(n, 256);
     for (int i = 0; i <= n; ++i) {
@@ -193,16 +199,18 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
         lines = trim(lines, stroke.trim_start, stroke.trim_end, stroke.trim_offset);
     if (!stroke.dashes.empty()) lines = dash(lines, stroke.dashes, stroke.dash_offset);
 
+    const double step = arc_step(h, tolerance);
     Polygons local;
     std::vector<Point> poly;
     std::vector<Point> scratch_normals;
+    std::array<std::vector<double>, 2> angles;
     std::vector<float> scratch_lengths;
     for (const Polyline& pl : lines) {
         const auto& p = pl.points;
         if (p.empty()) continue;
         if (p.size() == 1) {  // a dot: only round and square caps draw it
             poly.clear();
-            if (stroke.cap == Cap::round) arc(poly, p[0], h, 0, dm::two_pi, tolerance);
+            if (stroke.cap == Cap::round) arc(poly, p[0], h, 0, dm::two_pi, step);
             else if (stroke.cap == Cap::square)
                 poly = {{p[0].x - h, p[0].y - h}, {p[0].x + h, p[0].y - h}, {p[0].x + h, p[0].y + h}, {p[0].x - h, p[0].y + h}};
             emit(local, poly);
@@ -221,6 +229,15 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
             lengths.push_back(length);
             normals.push_back({-(b.y - a.y) / length * h, (b.x - a.x) / length * h});
         }
+        // A segment's normal's angle on either side, each found once: a round
+        // join at either end of a segment asks it with the same numbers.
+        angles[0].assign(segments, std::numeric_limits<double>::quiet_NaN());
+        angles[1].assign(segments, std::numeric_limits<double>::quiet_NaN());
+        const auto angle = [&](std::size_t segment, float sign) {
+            double& known = angles[sign > 0 ? 0 : 1][segment];
+            if (known != known) known = dm::atan2(sign * normals[segment].y, sign * normals[segment].x);
+            return known;
+        };
         // One side's offset at the vertex between segments `in` and `out`
         // (side +1: the left normals', −1: the right), in the order the
         // side is walked: the outer side of a turn gets the join, the inner
@@ -257,7 +274,7 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
             }
             switch (stroke.join) {
             case Join::round: {
-                const double a0 = dm::atan2(n0.y, n0.x), a1 = dm::atan2(n1.y, n1.x);
+                const double a0 = angle(in, sign), a1 = angle(out_segment, sign);
                 double sweep = a1 - a0;
                 while (sweep > dm::pi) sweep -= dm::two_pi;
                 while (sweep < -dm::pi) sweep += dm::two_pi;
@@ -265,7 +282,7 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
                     const Point travel{normals[in].y, -normals[in].x};
                     sweep = n0.x * travel.y - n0.y * travel.x > 0 ? dm::pi : -dm::pi;
                 }
-                arc(side, c, h, a0, sweep, tolerance);
+                arc(side, c, h, a0, sweep, step);
                 break;
             }
             case Join::miter:
@@ -316,7 +333,7 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
                 // From +normal to −normal through the outward direction.
                 const double a0 = dm::atan2(normal.y, normal.x);
                 const float turn = normal.x * outward.y - normal.y * outward.x;
-                arc(poly, c, h, a0, turn > 0 ? dm::pi : -dm::pi, tolerance);
+                arc(poly, c, h, a0, turn > 0 ? dm::pi : -dm::pi, step);
                 break;
             }
             }

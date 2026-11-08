@@ -46,7 +46,8 @@ for (const scenario of [
       if (failFont && params.request.url.endsWith('/' + inter)) {
         void b.call('Fetch.fulfillRequest', {requestId:params.requestId,responseCode:404,body:''}); return;
       }
-      if (!scenario.retry && /\.wasm(?:\?|$)/.test(params.request.url)) { held = params.requestId; return; }
+      // The program's first half is held (its progress observed); its second half (.deferred.wasm, D5) is not startup.
+      if (!scenario.retry && /\.wasm(?:\?|$)/.test(params.request.url) && !/\.deferred\.wasm(?:\?|$)/.test(params.request.url)) { held = params.requestId; return; }
       void b.call('Fetch.continueRequest', {requestId:params.requestId});
     });
     await b.call('Network.enable');

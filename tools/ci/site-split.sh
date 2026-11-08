@@ -13,7 +13,9 @@
 #      and says in the page where the second is: there the page compiles it
 #      after the first frame (home), elsewhere before main.
 #
-# The profile is this build's (wasm-split checks it belongs to the module),
+# The bare page and #/zh (the home in each language) are the routes it is
+# lazy on; the language part of a route is not its place (the loader strips
+# it). The profile is this build's (wasm-split checks it belongs to the module),
 # so it is made each time. Without a browser or wasm-split the page stays
 # whole, with a notice — except under OMUI_REQUIRE_BROWSER=1 (CI).
 #
@@ -63,7 +65,12 @@ if count != 1:
     sys.exit(f"site-split: the page states no decoded size for {wasm}")
 open(page, "w", encoding="utf-8").write(text)
 PY
-CHROME="$chrome" node tools/ci/site-profile.mjs "$work/page" "$work/first-screen.profile"
+# The first screen in each language the page speaks (the Chinese home draws
+# with its own face, through code the English one never runs), merged.
+CHROME="$chrome" node tools/ci/site-profile.mjs "$work/page" "$work/en.profile"
+CHROME="$chrome" node tools/ci/site-profile.mjs "$work/page" "$work/zh.profile" --route /zh
+"$split" "${features[@]}" --merge-profiles "$work/en.profile" "$work/zh.profile" -o "$work/first-screen.profile" > "$work/merge.log" 2>&1 \
+  || { tail -5 "$work/merge.log"; echo "::error::site-split: wasm-split could not merge the profiles"; exit 1; }
 
 "$split" "${features[@]}" --split --profile="$work/first-screen.profile" --export-prefix=% --placeholder-namespace=placeholder \
   "$work/whole.wasm" -o1 "$work/first.wasm" -o2 "$work/deferred.wasm" > "$work/split.log" 2>&1 \

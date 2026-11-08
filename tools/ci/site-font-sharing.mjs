@@ -68,6 +68,8 @@ for (const scenario of scenarios) {
       if (row && method === 'Network.loadingFinished') row.encoded_transport_bytes = p.encodedDataLength;
       if (row && method === 'Network.loadingFailed') row.error = p.errorText;
       if (method !== 'Fetch.requestPaused') return;
+      // The program's first half is held; its second half (.deferred.wasm, D5) is not startup and goes on.
+      if (/\.deferred\.wasm(?:\?|$)/.test(p.request.url)) { void b.call('Fetch.continueRequest',{requestId:p.requestId}); return; }
       if (/\.wasm(?:\?|$)/.test(p.request.url)) wasm = p.requestId;
       else if (p.request.url.endsWith('/'+initial)) fontResponse = p.requestId;
       else void b.call('Fetch.continueRequest',{requestId:p.requestId});

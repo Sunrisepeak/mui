@@ -122,14 +122,21 @@ async function reference(destination) {
 }
 const gallery = name => `main/body/view/${name}/page/motion_gallery`;
 const choices = async root => (await snapshot(root + '/browse/choices'))?.filter(n => n.role === 'button' && n.id.startsWith(root + '/browse/choices/')) || [];
-async function compactGallery(root, description) {
+// A case's address is its own page (E2b–E2d): the case with its details open —
+// the whole transport and its configuration; closing them returns to the wall.
+async function casePage(root, description) {
   await requireCheck(async () => {
     const nodes = await snapshot(root + '/transport');
     const buttons = (nodes || []).filter(n => n.role === 'button' && n.id.startsWith(root + '/transport/buttons/')).map(n => n.id.split('/').at(-1)).sort();
-    const advanced = ['reverse', 'reset', 'state-a', 'state-b'].some(id => (nodes || []).some(n => n.id === root + '/transport/buttons/' + id));
-    return JSON.stringify(buttons) === JSON.stringify(['details', 'play', 'try']) && !advanced && !(nodes || []).some(n => n.id === root + '/transport/seek');
-  }, description + ': compact semantics expose exactly three toolbar buttons and no advanced controls');
+    return JSON.stringify(buttons) === JSON.stringify(['details', 'play', 'reset', 'reverse', 'state-a', 'state-b', 'try']) && (nodes || []).some(n => n.id === root + '/transport/seek');
+  }, description + ': its page exposes play, try, details and the whole transport — seek, reverse, reset, both endpoints');
+  check(await exists(root + '/details/config'), description + ': its page shows its configuration');
   check(!await exists(root + '/browse/filters/search') && !await exists(root + '/browse/choices'), description + ': catalog starts unmounted');
+}
+async function closeToWall(root, destination, address) {
+  await pointer(root + '/transport/buttons/details');
+  await requireCheck(async () => await page.value(`location.hash === ${q(address)}`) && await exists(`main/body/view/${destination}/page/wall`) && !await exists(root + '/details/config'),
+    'closing Details returns to the wall of every case: ' + destination);
 }
 async function openPicker(root) {
   if (!await exists(root + '/browse/filters/search')) await pointer(root + '/choose');
@@ -198,8 +205,7 @@ try {
   await scenario('basic-motion', async () => {
     await reference('motion'); await openSpecimen('motion', 'shape-morph'); const root = gallery('motion');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 40, 'basic catalog contains at least forty designs');
-    check(!await exists(root + '/details/config'), 'motion configuration starts unmounted');
-    await compactGallery(root, 'default basic motion');
+    await casePage(root, 'a basic motion case');
     check((await node(root + '/stage/scene'))?.name === 'Shape the journey', 'the opening is the public triangle-to-circle path morph');
     check((await node(root + '/stage/scene'))?.bounds?.[3] <= 300.5, 'the default morph stays within a compact stage');
     const shape = root + '/stage/scene/composition/shape', change = root + '/stage/scene/composition/change';
@@ -209,15 +215,13 @@ try {
     await requireCheck(async () => await label(shape) !== beforeShape, 'pointer controls the actual morph endpoint');
     await key(' ', 'Space', 32);
     await requireCheck(async () => await label(shape) === beforeShape, 'keyboard controls that same morph endpoint');
-    await pointer(root + '/transport/buttons/details');
-    await requireCheck(() => exists(root + '/details/bend'), 'Details exposes the reusable path control');
+    await requireCheck(() => exists(root + '/details/bend'), 'the case page exposes the reusable path control');
     await pointer(root + '/details/bend'); await key('Home', 'Home', 36);
     await requireCheck(async () => Math.abs(await scalar(root + '/details/bend') + .3) < .001, 'keyboard sets a negative path bend');
     await pointer(root + '/details/copy');
     const copied = await clipboardText();
     const decoded = JSON.parse(copied || '{}');
     check(Math.abs(decoded.vertex_path?.bend + .3) < .001, 'copied public motion configuration contains the real path parameter');
-    await pointer(root + '/transport/buttons/details');
     await visibleBounds(root + '/stage'); await shot('shape-morph-opening');
     await openPicker(root);
     await requireCheck(async () => (await choices(root)).length === 8, 'catalog mounts eight choices per page');
@@ -231,8 +235,7 @@ try {
     }, 'second page settles to eight different designs', async () => ({ first, current: (await choices(root)).map(n => n.id) }));
     await pointer(root + '/browse/pagination/previous');
     await findDesign(root, 'toggle-thumb'); await pauseTransport(root);
-    await pointer(root + '/transport/buttons/details');
-    await requireCheck(() => exists(root + '/details/speed'), 'explicit Details mounts playback parameters');
+    await requireCheck(() => exists(root + '/details/speed'), 'the chosen case keeps its playback parameters open');
     await requireCheck(async () => {
       const nodes = await snapshot(root + '/transport');
       return ['/seek', '/buttons/reverse', '/buttons/reset', '/buttons/state-a', '/buttons/state-b'].every(suffix => (nodes || []).some(n => n.id === root + '/transport' + suffix));
@@ -259,9 +262,8 @@ try {
     await pauseTransport(root);
     const stopped = await scalar(root + '/transport/seek'); await sleep(250);
     check(Math.abs(await scalar(root + '/transport/seek') - stopped) < 0.01, 'Pause stops the actual player clock');
-    await pointer(root + '/transport/buttons/details');
-    await requireCheck(async () => !await exists(root + '/details/config'), 'closing Details removes configuration');
-    await compactGallery(root, 'closed motion details');
+    await closeToWall(root, 'motion', '#/docs/motion');
+    await openSpecimen('motion', 'toggle-thumb');
     await pointer(root + '/stage', 0.5, true);
     await requireCheck(async () => (await label(root + '/transport/hint')).includes('real interface'), 'moving the pointer into the canvas enters real interaction');
     const toggle = root + '/stage/scene/composition/setting/quiet', before = await checked(toggle);
@@ -273,9 +275,7 @@ try {
   await scenario('component-motion', async () => {
     await reference('motion'); await openSpecimen('motion', 'shape-morph'); const root = gallery('motion');
     await findDesign(root, 'component-motion');
-    check(!await exists(root + '/details/selection'), 'component motion opens with one stage and collapsed details');
-    await pointer(root + '/transport/buttons/details');
-    await requireCheck(() => exists(root + '/details/selection'), 'Details reveals reusable component animation selection');
+    await requireCheck(() => exists(root + '/details/selection'), 'a component motion case shows its reusable component animation selection');
     await pointer(root + '/transport/buttons/state-a');
     const card = root + '/stage/scene/composition/card';
     const atA = (await node(card)).bounds;
@@ -444,15 +444,18 @@ try {
   await scenario('creative-demos', async () => {
     await top('explore');
     // All the compositions at once on the motion page's canvas, each a stated item.
+    // The studio (E2d): the bar's Motion arrives at the works; the region
+    // chips fly the camera to the compositions, all of them in view.
     const wall = 'main/body/view/explore/page/wall/canvas';
-    await requireCheck(async () => (await snapshot(wall))?.filter(n => n.role === 'article' && n.id.split('/').length === wall.split('/').length + 1).length >= 20,
-      'the motion page shows every composition at once');
+    await pointer('main/body/view/explore/page/wall/tools/region/compositions');
+    await requireCheck(async () => (await snapshot(wall))?.filter(n => n.role === 'article' && n.id.startsWith(wall + '/composition-')).length >= 20,
+      'the compositions region shows every composition at once');
     // One opened (its address), the page is that composition's: its stage, its picker.
     await page.value(`(location.hash = '#/motion/palette-studio', true)`);
     const root = gallery('explore');
     await requireCheck(() => exists(root + '/stage/scene'), 'a composition opened has its own stage');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 20, 'creative catalog contains at least twenty designs');
-    await compactGallery(root, 'default creative demo');
+    await casePage(root, 'a creative composition');
     check(!!await node(root + '/stage/scene/composition/workspace/swatches/swatch-0/hex'), 'creative demos open the useful palette first');
     check((await node(root + '/stage/scene'))?.bounds?.[3] <= 300.5, 'the default palette stage stays within 300 pixels');
     await openPicker(root);

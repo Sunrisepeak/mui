@@ -448,8 +448,10 @@ var omuiWasmAsset = omuiAsset('wasm', omuiWasm, 'wasm', 'startup');
 var omuiPrimary = null, omuiDeferredModule = null, omuiDeferredPromise = null, omuiDeferredDone = false;
 window.omuiDeferredState = omuiDeferred ? 'waiting' : 'none';
 function omuiDeferredLazy() {
-  var first = (document.URL.split('#')[1] || '').replace(/^\//, '').split('/')[0] || '';
-  return !!omuiDeferred && omuiDeferred.lazy.indexOf(first) >= 0;
+  // The route's first part after its language, if it names one (#/zh/components: components).
+  var parts = (document.URL.split('#')[1] || '').replace(/^\//, '').split('/');
+  if (/^[a-z]{2}$/.test(parts[0])) parts.shift();
+  return !!omuiDeferred && omuiDeferred.lazy.indexOf(parts[0] || '') >= 0;
 }
 function omuiFetchDeferred() {
   if (!omuiDeferred || omuiDeferredModule) return Promise.resolve(omuiDeferredModule);

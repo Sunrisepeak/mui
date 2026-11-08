@@ -11,6 +11,11 @@ const node = id => `document.querySelector('[data-omui-id="${id}"]')`;
 const name = id => `(${node(id)}?.getAttribute('aria-label') ?? ${node(id)}?.textContent)`;
 const act = (id, action, args = {}) => b.value(`window.omui.act(${JSON.stringify(id)},${JSON.stringify(action)},{args:${JSON.stringify(args)}})`);
 const intoView = async (id, viewport = 'main/body/view/release') => {
+  // The control's own semantic action first, as a reader's tab or a link does:
+  // over a canvas (the motion page's studio, E2d) the wheel moves the camera,
+  // not the page; the wheel stays the fallback for scroll-linked layouts.
+  await act(id, 'scroll_into_view');
+  await sleep(250);
   for (let i = 0; i < 20; i++) {
     const [bounds, view] = await b.value(`Promise.all([${JSON.stringify(id)},${JSON.stringify(viewport)}].map(root=>window.omui.snapshot({root,depth:0}).then(r=>r.data?.nodes?.[0]?.bounds)))`);
     // A preceding click can mount this control on the next rendered frame.

@@ -112,11 +112,13 @@ try {
   await act(overview + '/filter/search', 'set_value', { value: 'text_box' });
   check(await until(`${name(overview + '/results/count')}==='1 / 36'`), 'the phone searches the full catalog');
   await pointer(overview + '/results/r0/text_box/heading/open');
-  check(await until(`location.hash==='#/zh/components' && ${node(detail('text_box') + '/stage/specimen/variants/name')} && !${node(overview + '/filter/search')}`), 'choosing a phone specimen closes its directory and returns room to the live preview');
-  check(!await b.value(node(detail('text_box') + '/panes/code')), 'phone selection also keeps deeper controls behind View details');
-  await pointer(detail('text_box') + '/stage/actions/details');
-  check(await until(`location.hash==='#/zh/components/text-box' && ${node(detail('text_box') + '/panes/code')}`), 'the phone explicitly opens the same addressable detail');
+  // E2d: the directory chooses a component's own page (the studio shows them
+  // all; the library list under it is gone) — on a phone as on a desktop.
+  check(await until(`location.hash==='#/zh/components/text-box' && ${node(detail('text_box') + '/stage/specimen/variants/name')} && !${node(overview + '/filter/search')}`), 'choosing a phone specimen opens its own page and closes the directory');
+  check(await until(`${node(detail('text_box') + '/panes/code')}`), 'the phone component page carries its code and deeper controls');
   await shot('text-box-zh-phone-detail');
+  await pointer(detail('text_box') + '/stage/actions/details');
+  check(await until(`location.hash==='#/zh/components' && ${node('main/body/view/components/page/wall/input')} && !${node(detail('text_box') + '/panes/code')}`), 'Back to preview returns the phone to the live bands of every component, its deeper controls put away');
 } catch (error) { check(false, 'browser catalog scenario completed', String(error.stack || error)); }
 finally { await b.close(); server.close(); }
 report.ok = report.checks.every(c => c.ok);

@@ -23,7 +23,12 @@ try {
   await b.call('Emulation.setScriptExecutionDisabled', { value: false });
   // Hold wasm itself; the real static links must work throughout this wait.
   let held;
-  b.on((method, params) => { if (method === 'Fetch.requestPaused') held = params.requestId; });
+  b.on((method, params) => {
+    if (method !== 'Fetch.requestPaused') return;
+    // The program's second half (.deferred.wasm, D5) is not what is held.
+    if (/\.deferred\.wasm(?:\?|$)/.test(params.request.url)) { void b.call('Fetch.continueRequest', { requestId: params.requestId }); return; }
+    held = params.requestId;
+  });
   await b.call('Fetch.enable', { patterns: [{ urlPattern: '*.wasm*', requestStage: 'Request' }] });
   await b.call('Page.navigate', { url: server.url });
   for (let i = 0; !held && i < 100; i++) await sleep(100);

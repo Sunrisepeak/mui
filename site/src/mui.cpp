@@ -77,7 +77,6 @@ Mascot::~Mascot() {
 void Mascot::mounted() {
     bubble_.set_style("label");
     bubble_.set_max_lines(1);
-    services().set(node(), "pointer_events", Value("none"));  // over the page, it takes no pointer
     services().follow_actions(node(), true);                 // the agent's steps: painted again
 }
 
@@ -403,6 +402,8 @@ void Mascot::steer(const PaintContext& ctx) const {
         frame = "point", f.state = "pointing";
     } else if (kind == "look" || kind == "move") {
         frame = "look", f.state = kind == "look" ? "looking" : "quiet";
+    } else if (services().agent_link().state == "waiting") {
+        frame = "look", f.state = "listening";  // its ears up: your agent is on its way
     } else {
         f.state = "quiet";
         // A blink now and then while it is awake; asleep in body, its drawing stays exactly as it is.
@@ -500,6 +501,27 @@ void Mascot::semantics(SemanticsContext&, spec::SemanticNode& node) const {
     value.set("state", here.state).set("frame", here.frame).set("palette", here.palette).set("target", here.target).set("said", here.said);
     value.set("feet", Value(Value::List{Value(static_cast<double>(here.feet.x)), Value(static_cast<double>(here.feet.y))}));
     node.value = std::move(value);
+}
+
+bool Mascot::hits(Point local, Size) const {
+    if (!figure_ || !figure_->arrived) return false;
+    const Now here = now();
+    const float side = static_cast<float>(props.cell) * static_cast<float>(mascot_art().size);
+    return Rect{here.feet.x - side / 2, here.feet.y - side, side, side}.contains(local);
+}
+
+bool Mascot::on_event(EventContext& ctx, const InputEvent& e) {
+    const auto* p = std::get_if<PointerEvent>(&e);
+    if (!p || !hits(ctx.local, {})) return false;
+    if (p->kind == PointerKind::down) return true;  // its own press: a click on it, not on the page beneath
+    if (p->kind != PointerKind::up) return false;
+    emit_activated();
+    return true;
+}
+
+ActResult Mascot::activate(ActContext&) {
+    emit_activated();
+    return ActResult::done();
 }
 
 ActResult Mascot::sleep(ActContext&) {

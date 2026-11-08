@@ -1053,7 +1053,7 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
         if (at(n.children[i]).type->overlay) continue;
         if (NodeId h = hit(n.children[i], window, std::nullopt)) return h;
     }
-    if (inside && n.visual.hit_self) return id;
+    if (inside && n.visual.hit_self && (!n.type->hits || n.type->hits(n.instance, p, {n.frame.width, n.frame.height}))) return id;
     return {};
 }
 

@@ -465,6 +465,9 @@ struct ComponentType {
     // A window's frame (D-75): what a point of its box is — its title bar
     // moves the window, its edges resize it — or nothing, for what is beneath.
     std::optional<WindowArea> (*window_area)(const void*, Point local, Size) = nullptr;
+    // Which points of its box take the pointer (a figure over a page: only
+    // where it is drawn, the page beneath elsewhere); none: all of it.
+    bool (*hits)(const void*, Point local, Size) = nullptr;
     bool (*event)(void*, EventContext&, const InputEvent&) = nullptr;
     ActResult (*act)(void*, ActContext&, std::string_view) = nullptr;
     // What an action would do, changing nothing (a dry run, S-13): `data`
@@ -563,6 +566,8 @@ template <class C>
             x.effect_shapes = [](const void* p, Size sz, Rect r, std::span<xrender::EffectShape> o) { return static_cast<const C*>(p)->effect_shapes(sz, r, o); };
         if constexpr (requires(const C& c, Point p, Size sz) { { c.window_area(p, sz) } -> std::same_as<std::optional<WindowArea>>; })
             x.window_area = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->window_area(at, sz); };
+        if constexpr (requires(const C& c, Point p, Size sz) { { c.hits(p, sz) } -> std::same_as<bool>; })
+            x.hits = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->hits(at, sz); };
         if constexpr (requires(const C& c, PaintContext& ctx) { c.paint_over(ctx); })
             x.paint_over = [](const void* p, PaintContext& ctx) { static_cast<const C*>(p)->paint_over(ctx); };
         if constexpr (requires(C& c, EventContext& ctx, const InputEvent& e) { { c.on_event(ctx, e) } -> std::same_as<bool>; })

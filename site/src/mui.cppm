@@ -9,7 +9,9 @@
 // agent_presence_state): it goes where the agent acts, its eyes lit, and
 // holds up a card while the agent waits for the person. Asked, it moves,
 // looks, points, says a line and sleeps — the page's own actions on a node of
-// its own. Less motion asked: it changes frames in place, never walks.
+// its own. It takes the pointer only on itself: a click (or `activate`) asks
+// what it offers; while a link waits for your agent it listens, looking up.
+// Less motion asked: it changes frames in place, never walks.
 export module omui.site:mui;
 
 import std;
@@ -39,6 +41,12 @@ public:
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
+    // Over the page, it takes the pointer only on itself (the page beneath elsewhere).
+    static constexpr std::string_view cursor = "pointer";
+    bool hits(Point local, Size size) const;
+    bool on_event(EventContext& ctx, const InputEvent& e);
+
+    ActResult activate(ActContext& ctx);
 
     ActResult sleep(ActContext& ctx);
     ActResult wake(ActContext& ctx);

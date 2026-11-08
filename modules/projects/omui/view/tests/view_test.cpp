@@ -141,6 +141,12 @@ struct Clocked {
     }
 };
 
+// A figure that takes the pointer only where it is drawn: its left half.
+struct HalfFigure {
+    static constexpr std::string_view name = "half_figure";
+    bool hits(Point local, Size size) const { return local.x < size.width / 2; }
+};
+
 Element tally(std::string id, Handler changed = {}) {
     Element e;
     e.type = &component_type<Tally>();
@@ -153,6 +159,18 @@ Element tally(std::string id, Handler changed = {}) {
 
 int main(int argc, char** argv) {
     Suite s{"view"};
+
+    s.test("a component takes the pointer only where it says (hits): elsewhere, what is beneath it", [] {
+        Runtime rt(options());
+        Element figure;
+        figure.type = &component_type<HalfFigure>();
+        figure.id = "figure";
+        figure.prop("width", Source(Value(200.0))).prop("height", Source(Value(100.0)));
+        rt.mount("main", stack({.id = "page", .width = 200.0f, .height = 100.0f}, {box({.id = "under", .width = 200.0f, .height = 100.0f}).prop("focusable", Source(Value(true))), std::move(figure)}));
+        rt.frame({seconds(0), {}});
+        check(rt.hit_test({50, 50}) == rt.find("main/figure"), "its left half: the figure");
+        check(rt.hit_test({150, 50}) == rt.find("main/under"), "its right half: what is beneath");
+    });
 
     s.test("frame demand (D-70): idle asks for none; animations, input, timers and leases ask, and say why", [] {
         Runtime rt(options());

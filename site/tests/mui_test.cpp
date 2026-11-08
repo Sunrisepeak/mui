@@ -17,7 +17,7 @@ namespace {
 
 struct Page {
     Headless h{HeadlessOptions{.size = {640, 360}, .scale = 1}};
-    int deleted = 0;
+    int deleted = 0, asked = 0;
     explicit Page(bool reduced = false, std::string arrive = {}) {
         register_base_components();
         register_type(component_type<site::Mascot>());
@@ -32,7 +32,8 @@ struct Page {
                                            {button({.id = "save", .text = "Save", .variant = ButtonVariant::primary}),
                                             button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger, .verb = "doc.delete"})}),
                                        box({.id = "card", .width = 220.0f, .height = 80.0f, .background = Fill(Color::hex(0xffffff)), .radius = 12, .shadow = "md"})}),
-                               site::mascot({.id = "mui", .arrive = arrive, .arrive_after = 0.2, .surfaces = Value(Value::List{Value("main/body/card")})})}));
+                               site::mascot({.id = "mui", .arrive = arrive, .arrive_after = 0.2, .surfaces = Value(Value::List{Value("main/body/card")}),
+                                             .on_activated = [this] { ++asked; }})}));
         if (arrive.empty()) h.settle();
         else h.step();  // an arrival is watched from its start
     }
@@ -70,7 +71,7 @@ struct Page {
 int main(int argc, char** argv) {
     Suite s{"site.mui"};
 
-    s.test("it sits at the page's bottom, quiet, taking no pointer; the person's clicks are not its business", [] {
+    s.test("it sits at the page's bottom, quiet; it takes the pointer only on itself, and a click on it asks what it offers", [] {
         Page p;
         p.run(0.5);
         check(p.h.tree().node("main/mui")->role == Role::image && p.h.tree().node("main/mui")->name == "Mui");
@@ -78,7 +79,13 @@ int main(int argc, char** argv) {
         check(p.text("palette") == "indigo" && (p.text("frame") == "sit" || p.text("frame") == "blink"), p.text("frame"));
         check(std::abs(p.feet().y - 356) < 3, std::format("on the page's bottom: {}", p.feet().y));
         const Rect save = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/top/save"));
-        check(p.h.runtime().hit_test(save.center()) == p.h.runtime().find("main/body/top/save"), "it takes no pointer");
+        check(p.h.runtime().hit_test(save.center()) == p.h.runtime().find("main/body/top/save"), "the page beneath it takes the page's clicks");
+        const Point on = {p.feet().x, p.feet().y - 20};
+        check(p.h.runtime().hit_test(on) == p.h.runtime().find("main/mui"), "on itself, it takes the pointer");
+        p.h.click(on);
+        p.h.step();
+        check_eq(p.asked, 1);
+        check(p.person("main/mui", "activate") == 0 && p.asked == 2, "activate: the same, for a reader or an agent");
     });
 
     s.test("the agent acts: Mui walks there, hops up onto the card it goes to, its eyes lit, and points; the strip saved", [] {
@@ -156,6 +163,16 @@ int main(int argc, char** argv) {
         check(std::abs(p.feet().y - 356) < 3, std::format("and landed on the page's bottom: {}", p.feet().y));
         Page still(true, "main/body/card");
         check(still.text("state") != "arriving" && std::abs(still.feet().y - 356) < 3, "less motion: no gathering, already standing");
+    });
+
+    s.test("while a link waits for your agent it listens, looking up; paired, it is quiet again", [] {
+        Page p;
+        p.h.runtime().agent_link_changed({"waiting", "ABCD-1234", {}, {}, 47110, "agent.md"});
+        p.run(0.5);
+        check(p.text("state") == "listening" && p.text("frame") == "look", p.text("state") + " " + p.text("frame"));
+        p.h.runtime().agent_link_changed({"paired", "ABCD-1234", "claude", {}, 47110, "agent.md"});
+        p.run(0.5);
+        check(p.text("state") != "listening", p.text("state"));
     });
 
     s.test("less motion asked: frames change in place; it never walks", [] {

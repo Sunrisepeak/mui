@@ -285,6 +285,18 @@ struct Site {
         missing_route.set(address);
         runtime->set_route(address);
     }
+    // Mui asked (§9.3): the guide open, the prompt given, Mui pointing at it.
+    void link_with_mui() {
+        settings.set(false), checking.set(false), panel.set(true);
+        give_prompt();
+        if (!runtime) return;
+        (void)runtime->after(seconds(0.05), [this] {
+            if (!runtime) return;
+            Invocation call;
+            call.args = Value{}.set("node", "main/body/guide/prompt");
+            (void)runtime->act(runtime->find("main/body/view/mui"), "point_at", call);
+        });
+    }
     // The person's own agent (agent connect §5.1): a pairing code from the
     // host, and the prompt that gives it to their agent — copied, and shown
     // to read. Where the host cannot link one (a window, a test), the prompt
@@ -1664,7 +1676,11 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         }
         // Mui, over the place (not over the documents: they stay plain, §9.4), as the pixels show it.
         // The first time, it comes alive from the home's mark (D3): its pixels gather on the O, it drops to the page.
-        shown.push_back(only_when(mascot({.id = "mui", .arrive = "main/body/view/home/page/landing/scene/visual/mark", .arrive_after = 1.0, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
+        // Clicked (or activated by a reader): it shows how to link your agent — the guide open, a pairing prompt
+        // given — and goes to point at it, listening while the link waits (the site plan §9.3).
+        shown.push_back(only_when(mascot({.id = "mui", .arrive = "main/body/view/home/page/landing/scene/visual/mark", .arrive_after = 1.0,
+                                          .on_activated = [p = s.get()] { p->link_with_mui(); },
+                                          .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
                                   [s] { return !is_document(s->place.get()) && s->lens.get() == "pixels"; }));
         Element view = stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown));
         view.prop("role", Source(Value("main")));  // a landmark: where a screen reader goes to read

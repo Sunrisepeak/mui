@@ -197,6 +197,8 @@ int main(int argc, char** argv) {
     suite.test("autoplay yields to pointer and keyboard, pauses explicitly and stops for reduced motion", [] {
         Run run(1280, "en", true);
         const auto detail = run.detail("button"), primary = detail + "/stage/specimen/variants/primary";
+        // The library under the wall: scrolled to, as a visitor does (an offscreen preview does not play).
+        run.act(detail + "/stage", "scroll_into_view");
         run.headless.advance(seconds(1.8));
         check_eq(run.name(primary), std::string("Saved 1"));
         const auto bounds = run.headless.runtime().screen_bounds(run.headless.runtime().find(primary));

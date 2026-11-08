@@ -184,6 +184,7 @@ struct Site {
     HomeLanding         landing;
     HomeLandingSite     landing_site;
     HomeScenes          scenes;
+    Wall                wall;
     HomeScenesSite      scenes_site;
     MotionGallery       basic, creative;
     MotionGalleryContext basic_site, creative_site;
@@ -1314,6 +1315,13 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(fast_screen(s->screens_site, room));
         content.push_back(home_destinations(s->links, room));
     } else if (id == "components") {
+        // The wall first (every component at once, live up close), the library under it; a
+        // component's detail opened, the page is that component's (back, the wall as it was left).
+        if (room >= 900)
+            content.push_back(dynamic([s, room] {
+                if (!s->gallery.selected.get().empty()) return std::vector<Element>{};
+                return std::vector<Element>{component_wall(s->wall, s->gallery, s->gallery_site, room, 600)};
+            }));
         content.push_back(gallery(s->gallery, s->gallery_site, true, room));
     } else if (id == "motion") {
         content.push_back(motion_gallery(s->basic, s->basic_site, false, room));

@@ -114,6 +114,24 @@ struct Edge {
     std::string label;
 };
 
+// Labels a kind draws (a node's name at a size fixed on screen), shaped once
+// a key and kept — shaping is not per frame — and shaped again when the
+// theme turns dark or light. Keys say what a label is (a node's key, its
+// language); paint() draws one with its top-left at `at`. Shaped with a
+// runtime's fonts, they are that runtime's: keep a Labels no longer than it.
+class Labels {
+public:
+    [[nodiscard]] const mlibs::text::Paragraph& get(const DrawContext& d, const std::string& key, std::string text, float size, float weight, Color colour,
+                                                    std::string_view style = "label");
+    static void paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at);
+    void clear() noexcept { shaped_.clear(); }
+
+private:
+    std::unordered_map<std::string, mlibs::text::Paragraph> shaped_;
+    bool                                                    dark_ = false;
+    const mlibs::text::FontCollection*                      fonts_ = nullptr;  // what they were shaped with
+};
+
 // What a point on the canvas hits.
 struct Hit {
     NodeRef node;

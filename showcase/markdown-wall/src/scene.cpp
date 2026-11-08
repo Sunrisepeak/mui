@@ -50,30 +50,8 @@ omui::Element window(const Document& d, double w, double h, omui::Prop<std::stri
                                                                                        }})})});
 }
 
-// Labels shaped once a node (and theme), drawn at a size fixed on screen.
-struct Labels {
-    std::unordered_map<std::string, mlibs::text::Paragraph> shaped;
-    bool                                                      dark = false;
-    const mlibs::text::Paragraph& get(DrawContext& d, const std::string& key, std::string text, float size, float weight, omui::Color colour) {
-        if (d.theme.dark != dark) {
-            shaped.clear();
-            dark = d.theme.dark;
-        }
-        auto it = shaped.find(key);
-        if (it == shaped.end()) {
-            mlibs::text::ParagraphStyle ps;
-            ps.style.size = size;
-            ps.style.weight = weight;
-            ps.style.color = colour;
-            ps.style.families = d.theme.text_style("label").families;
-            ps.wrap = false;
-            mlibs::text::Paragraph p(*d.fonts, std::move(text), ps);
-            p.layout(std::numeric_limits<float>::infinity());
-            it = shaped.emplace(key, std::move(p)).first;
-        }
-        return it->second;
-    }
-};
+// Labels shaped once a node (and theme), drawn at a size fixed on screen: the canvas's.
+using omui::world::Labels;
 
 // A document's outline: its section headings (## and ###), a line each, the
 // first eight — what a window far enough away to be a summary shows.

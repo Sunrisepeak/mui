@@ -4,6 +4,8 @@ import std;
 import omui.core;
 import omui.view;
 import xrender.vector;
+import xrender.text;
+import mlibs.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::fatal;
@@ -435,5 +437,29 @@ void drop_scene(std::string_view name) {
     auto& r = registry();
     if (auto it = r.find(name); it != r.end()) r.erase(it);
 }
+
+const mlibs::text::Paragraph& Labels::get(const DrawContext& d, const std::string& key, std::string text, float size, float weight, Color colour,
+                                          std::string_view style) {
+    if (d.theme.dark != dark_ || d.fonts != fonts_) {
+        shaped_.clear();
+        dark_ = d.theme.dark;
+        fonts_ = d.fonts;
+    }
+    auto it = shaped_.find(key);
+    if (it == shaped_.end()) {
+        mlibs::text::ParagraphStyle paragraph;
+        paragraph.style.size = size;
+        paragraph.style.weight = weight;
+        paragraph.style.color = colour;
+        paragraph.style.families = d.theme.text_style(style).families;
+        paragraph.wrap = false;
+        mlibs::text::Paragraph shaped(*d.fonts, std::move(text), paragraph);
+        shaped.layout(std::numeric_limits<float>::infinity());
+        it = shaped_.emplace(key, std::move(shaped)).first;
+    }
+    return it->second;
+}
+
+void Labels::paint(const mlibs::text::Paragraph& label, xrender::DisplayList& list, Point at) { xrender::text::paint(label, list, at); }
 
 }  // namespace omui::world

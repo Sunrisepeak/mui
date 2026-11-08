@@ -72,6 +72,13 @@ struct GallerySite {
     Runtime**                         runtime = nullptr;
 };
 
+// One component's live specimen as the gallery shows it (compact: its main
+// variant; its motion, its agent's presence and the gallery's style scope),
+// for another view of the gallery's own (the wall).
+[[nodiscard]] Element gallery_specimen(Gallery& g, const GallerySite& site, std::string_view id, float width);
+// A component chosen and its detail opened (its variants, appearance, motion and code).
+void open_component_detail(Gallery& g, const GallerySite& site, std::string id);
+
 // The page at its available width; selected state chooses overview or detail.
 [[nodiscard]] Element gallery(Gallery& g, const GallerySite& site, bool live, float width);
 

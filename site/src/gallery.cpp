@@ -823,6 +823,17 @@ Element gallery(Gallery& g, const GallerySite& site, bool, float width) {
     });
 }
 
+Element gallery_specimen(Gallery& g, const GallerySite& site, std::string_view id, float width) {
+    for (const auto& entry : entries())
+        if (entry.id == id) return specimen(entry, g, site, width, true, g.motions.try_emplace(std::string(id), signal(std::string("default"))).first->second.peek(), true);
+    return text({.id = "missing", .text = std::string(id)});
+}
+
+void open_component_detail(Gallery& g, const GallerySite& site, std::string id) {
+    choose(g, site, id);
+    if (site.open) site.open(std::move(id));
+}
+
 std::string gallery_html(bool zh, std::string_view component) {
     const std::string prefix = zh ? "zh/" : "";
     if (const auto* c = find_component(component))

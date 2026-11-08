@@ -24,6 +24,7 @@ export import :mui;
 export import :drop_card_contract;
 export import :drop_card;
 export import :home_scenes;
+export import :wall;
 export import :reference;
 export import :first_frame;
 export import :offline;

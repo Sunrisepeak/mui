@@ -74,7 +74,7 @@
 | xrender | B.pixels 为 Agent 审查而生的像素：像素归属到节点，带语义的矢量截图 | build-reliably | evidence | ahead |
 | xrender | xrender.same-source CPU 与 GPU 同源：CPU 参考逐位，GPU 差 ≤ 1/255 | craft | evidence | — |
 | xrender | xrender.web-first Web 优先：每次提交只跨一次 wasm 边界 | craft | planned | — |
-| xengine | G Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | together | planned | — |
+| xengine | G Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩 | together | evidence | ahead |
 | xengine | xengine.equal-play 人与 Agent 平等游玩：同一套感知和反应约束，逐位回放 | together | evidence | ahead |
 | xengine | xengine.native 原生胜过适配：场景是数据、编辑是事务、模拟确定、离屏同源 | build-reliably | planned | — |
 | xengine | xengine.rollback 全游戏可回滚、可分支 | foundation | planned | — |
@@ -100,3 +100,4 @@
 | A: any application's steps previewed before they are allowed: run unseen and taken back (no journal, no history, motion off), the pictures before and after and the semantic changes; a step that asks the person shown, not done | omui | webmcp: none, playwright-mcp: none, mcp-apps: none, app-intents: app-defined | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | B: a pixel to the node that drew it, the nodes it sits in, and the line of the program that built each (ui_drew), headless | omui | react-devtools: partial, flutter-devtools: partial, playwright-mcp: none | ahead | `tools/mcp/tests/mcp_test.cpp` |
 | C: every omui page offers its operations as WebMCP tools where the browser has navigator.modelContext — no application code; what needs the person asked through the browser | omui | webmcp: app-defined, mcp-apps: app-defined, playwright-mcp: partial | ahead | `modules/projects/omui/host/web/tests/js/page.test.mjs` |
+| G: an agent playtests a game headless at a person's tier, at many times real time, and reports where it is hard or tedious, each problem with a record that replays to the same bytes | xengine | godot-mcp: none, unity-ml-agents: partial, modl-ai: partial | ahead | `showcase/widget-breakout/tests/agent_player_test.cpp` |

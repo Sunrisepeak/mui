@@ -299,6 +299,27 @@ int main(int argc, char** argv) {
                        << Value(Value::List(rows)).json();
                });
 
+    suite.test("the agent as playtester (Part 2 G): rooms played at a person's tier, a report; each problem's record "
+               "replays to the same bytes; the same report every run",
+               [] {
+                   const auto dir = scratch_dir("breakout-playtest");
+                   const bo::PlaytestOptions options{.rooms = {1, 4}, .players = 2, .minutes = 1, .out = dir};
+                   const Value report = bo::playtest(options);
+                   check(report.get("kind")->as_string() == "breakout.playtest" && report.get("tier")->as_string() == "human");
+                   const auto& rooms = *report.get("rooms")->list();
+                   check(rooms.size() == 2, "a row a room");
+                   for (const Value& r : rooms)
+                       check(r.get("cleared")->as_int() + r.get("out_of_lives")->as_int() + r.get("unfinished")->as_int() == 2 &&
+                                 r.get("median_s")->as_double() > 0,
+                             r.json());
+                   for (const Value& p : *report.get("problems")->list()) {
+                       check(p.get("replays")->as_bool(), "a problem's record replays: " + p.json());
+                       check(std::filesystem::exists(dir / std::string(p.get("record")->as_string())), "written beside the report");
+                   }
+                   check(std::filesystem::exists(dir / "playtest.omui.json"));
+                   check(bo::playtest({.rooms = {1, 4}, .players = 2, .minutes = 1}).json() == report.json(), "the same report every run");
+               });
+
     suite.test("the tiers differ where they say: what it is shown, how soon it acts, how often",
                [] {
                    Session human("human"), assist("assist");

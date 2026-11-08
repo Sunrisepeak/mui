@@ -20,6 +20,7 @@ export import :magnet_lua;
 export import :workshop;
 export import :field;
 export import :copilot;
+export import :playtest;
 
 export namespace omui::breakout {
 

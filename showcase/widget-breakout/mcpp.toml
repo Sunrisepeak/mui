@@ -23,6 +23,11 @@ kind = "lib"
 kind = "bin"
 main = "src/main.cpp"
 
+# The agent as playtester (Part 2 G): the game played headless at a person's tier, a report.
+[targets.omui-breakout-playtest]
+kind = "bin"
+main = "src/playtest_main.cpp"
+
 [build]
 sources  = ["src/*.cppm", "src/*.cpp"]
 # Its pictures are pinned on every platform: no fused multiply-adds (arm64 would fuse them).

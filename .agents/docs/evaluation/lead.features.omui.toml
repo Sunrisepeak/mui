@@ -183,7 +183,8 @@ id = "G"
 project = "xengine"
 line = "together"
 title = "Agent 是一等执行者：开发引擎、做游戏、试玩与平衡、游玩"
-status = "planned"
+status = "evidence"
+scene = "showcase/widget-breakout/tests/agent_player_test.cpp"
 competitors = ["godot-mcp", "unity-ai"]
 
 [[feature]]

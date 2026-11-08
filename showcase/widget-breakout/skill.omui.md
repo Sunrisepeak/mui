@@ -21,3 +21,8 @@ How an agent plays the component breakout, headless, as a player. The operations
 - What your tier showed is what you decided on: record observe's step with each play.
 - Review: `record` exports the plays with their intent; `replay` plays a record alone from the room's start, and with `agent_overlay` its frames show the intent exactly as the live play did (the same pixels at the same step).
 - Headless tests: `tests/agent_player_test.cpp` — an external agent through the protocol finishes a game at the human tier, twice to the same checksum; the tiers' differences; off refuses.
+
+## Playtest (the agent as playtester)
+
+`omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]` plays every room headless at a person's tier (the field's `human` tier, through the protocol), once per player of four skills (how often it looks, how far its aim is off: seeded), and writes `playtest.omui.json`: per room how often it was cleared, the median time, lives lost, the longest stretch with nothing scored, where the paddle missed (fifths of the width); each problem (out of lives, out of time, quiet over 30 s) with its record, replayed to the same bytes before it is reported. About 60× faster than real time: a whole run of the five rooms takes seconds. Read it as a designer: a room nobody clears, or misses piling up in one fifth, is a place to look — then open the record (`replay`) to see it happen.
+

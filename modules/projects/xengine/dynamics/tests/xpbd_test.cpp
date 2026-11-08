@@ -3,11 +3,11 @@
 // drags it; every run and every replay is the same bits.
 import std;
 import mlibs.simulation;
-import xengine.simulation.bodies;
+import xengine.dynamics;
 import mlibs.testing;
 
 using namespace mlibs::testing;
-namespace sim = xengine::simulation;
+namespace sim = xengine::dynamics;
 
 namespace {
 // A ring of 32 points, radius 20, about (100, 100); the ground at y = 300.
@@ -187,6 +187,21 @@ int main(int argc, char** argv) {
         auto again = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(again, with_ledge(40, 160));
         check(again.x == on.x && again.y == on.y, "deterministic");
+    });
+
+    suite.test("its materials: a table every family reads; a soft body's parameters from one; its stages said in order", [] {
+        auto table = sim::MaterialTable::defaults();
+        const auto* jelly = table.find("jelly");
+        check(jelly != nullptr && jelly->phase == sim::Phase::soft);
+        const auto params = sim::params_of(*jelly, 2.0);
+        check(params.mass == 2.0 && params.friction == jelly->friction && params.restitution == jelly->restitution &&
+              params.shape_stiffness == jelly->shape_stiffness);
+        check(table.add({"jelly"}).error() == sim::MaterialError::duplicate_name, "a name once");
+        check(table.add({"bad", sim::Phase::solid, 1, 1.5}).error() == sim::MaterialError::invalid_value, "friction 0 to 1");
+        const auto added = table.add({"felt", sim::Phase::soft, 0.4, 0.9, 0.1});
+        check(added.has_value() && table.at(*added)->name == "felt" && table.id_of("felt") == *added);
+        const auto stages = sim::stages();
+        check(stages.size() == 7 && stages.front().name == "kick" && stages.back().name == "velocity");
     });
 
     return suite.run(argc, argv);

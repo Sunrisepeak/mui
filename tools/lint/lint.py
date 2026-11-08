@@ -92,7 +92,8 @@ PATH_LAYERS: dict[str, str] = {
     "modules/projects/hanim": "gfx",
     "modules/projects/xrender": "gfx",
     "modules/projects/xrender/text": "content",  # text as the renderer draws it: above mlibs.text
-    "modules/projects/xengine/simulation": "base",  # the CPU part
+    "modules/projects/xengine/dynamics": "base",  # the CPU core (hanim and omui use it, D-133)
+    "modules/projects/xengine/simulation": "base",  # cellular's CPU part
     "modules/projects/xengine/simulation/cellular/rhi": "gfx",
     "modules/projects/xengine/simulation/cellular/present": "gfx",  # cells to an xrender image
     "modules/projects/xengine/audio": "media",
@@ -148,7 +149,7 @@ LAYERS: dict[str, set[str]] = {
 }
 
 # Members whose results are part of A-level conformance (identical bits).
-DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/physics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
+DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/omui/native/fuzzy", "modules/projects/xengine/audio", "modules/projects/xengine/video", "modules/projects/xengine/dynamics", "showcase/widget-breakout/sim", "modules/projects/hanim/core", "modules/projects/hanim", "modules/projects/xrender/raster", "modules/content/layout", "modules/base/geom", "modules/projects/xrender/graph", "modules/projects/xrender/vector", "modules/projects/xrender/text", "modules/content/text",
                  "modules/content/i18n", "modules/projects/omui/view", "showcase/promo-video"]
 
 # The forwarders M1 removed (D-106): the old module names and the omui::
@@ -674,11 +675,12 @@ CLOSURES: dict[str, dict[str, set[str]]] = {
     "mlibs.simulation": {"only": {"mlibs.simulation", "mlibs.utils"}},
     # simulation knows no UI, game or renderer; its CPU packages no GPU or
     # compiler; the cellular rules do not make the clock and history mandatory
-    "xengine.simulation": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
-    "xengine.simulation.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
-    "xengine.simulation.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "xrender"}},
+    # every solved simulation: no UI, game, renderer, GPU or compiler in its CPU core (D-133)
+    "xengine.dynamics": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader", "xengine.simulation.cellular"}},
+    "xengine.simulation.cellular": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender", "mlibs.rhi", "mlibs.shader"}},
+    "xengine.simulation.cellular.rhi": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "xrender"}},
     # the field on screen: the renderer's resources (and what they reach), no UI, game, effect loader or shader compiler
-    "xengine.simulation.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.physics", "xengine.net", "xengine.ui", "mlibs.shader", "xrender.effect"}},
+    "xengine.simulation.cellular.present": {"not": {"omui", "xengine.world", "xengine.input", "xengine.net", "xengine.ui", "mlibs.shader", "xrender.effect"}},
 }
 
 

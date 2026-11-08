@@ -69,7 +69,7 @@ bo::Level breakout_wall() {
     std::uint32_t id = 0;
     for (std::uint32_t row = 0; row < 8; ++row)
         for (int col = 0; col < 12; ++col)
-            l.bricks.push_back({xengine::Box{70.0 + col * 96, 80.0 + row * 36, 88, 28}, row < 2 ? bo::Kind::toggle : bo::Kind::button, row < 2 ? 2 : 1, id++, row});
+            l.bricks.push_back({xengine::dynamics::Box{70.0 + col * 96, 80.0 + row * 36, 88, 28}, row < 2 ? bo::Kind::toggle : bo::Kind::button, row < 2 ? 2 : 1, id++, row});
     l.rules.multi_balls = 4;  // capsules make it busy
     l.rules.drop_one_in = 3;
     return l;

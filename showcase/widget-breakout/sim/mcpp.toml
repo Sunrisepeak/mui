@@ -1,6 +1,6 @@
 # The breakout's simulation (S4, mgame S4 design §5, §8): a pure function of
 # the state and the frame's actions at 120 steps a second — paddles, balls
-# moving from one collision to the next (xengine.physics) with spin, switches
+# moving from one collision to the next (xengine.dynamics) with spin, switches
 # and their circuits, capacitors and their beams, kickers, cores, chains
 # banked as sparks, capsules with gifts, score and lives — in one block of
 # plain data (xengine.world), so a timeline (mlibs.simulation) rewinds and replays it
@@ -27,7 +27,7 @@ mlibs.math = { path = "../../../modules/base/math" }
 mlibs.utils = { path = "../../../modules/base/utils" }
 xengine.world   = { path = "../../../modules/projects/xengine/world" }
 xengine.input   = { path = "../../../modules/projects/xengine/input" }
-xengine.physics = { path = "../../../modules/projects/xengine/physics" }
+xengine.dynamics = { path = "../../../modules/projects/xengine/dynamics" }
 mlibs.simulation = { path = "../../../modules/base/simulation" }
 
 [dev-dependencies]

@@ -25,7 +25,7 @@ export module omui.showcase.widget_breakout.sim;
 import std;
 export import xengine.world;    // its state's types are these packages' (worlds, actions, vectors)
 export import xengine.input;
-export import xengine.physics;
+export import xengine.dynamics;
 export import mlibs.simulation;       // its Game is a timeline's
 
 export namespace omui::breakout {
@@ -54,7 +54,7 @@ inline constexpr std::int32_t classic_gifts = (1 << 1) | (1 << 2) | (1 << 3) | (
 [[nodiscard]] constexpr bool breakable(Kind k) noexcept { return k == Kind::button || k == Kind::card || k == Kind::hidden || k == Kind::core; }
 
 struct Body {
-    xengine::Box box;
+    xengine::dynamics::Box box;
     static constexpr bool no_padding = true;
 };
 struct Brick {
@@ -70,7 +70,7 @@ struct Brick {
     static constexpr bool no_padding = true;
 };
 struct Ball {
-    xengine::V2     at, velocity;  // velocity: pixels a step
+    xengine::dynamics::V2     at, velocity;  // velocity: pixels a step
     double        radius = 8;
     std::uint32_t on = 0;        // on a paddle (its index + 1), waiting to be launched; 0: flying
     std::uint32_t pierce = 0;    // steps left of passing through bricks
@@ -81,7 +81,7 @@ struct Ball {
     static constexpr bool no_padding = true;
 };
 struct Capsule {
-    xengine::V2     at;
+    xengine::dynamics::V2     at;
     Gift          gift = Gift::none;
     std::uint32_t spare = 0;
     static constexpr bool no_padding = true;
@@ -141,7 +141,7 @@ enum class Happened : std::uint32_t {
 struct Event {
     Happened      what = Happened::hit;
     std::uint32_t id = 0;   // the brick's id, the gift, the paddle
-    xengine::V2     at, to;
+    xengine::dynamics::V2     at, to;
     std::int32_t  n = 0;
     std::uint32_t spare = 0;
     static constexpr bool no_padding = true;
@@ -171,7 +171,7 @@ struct State {
     std::int32_t           duet = 0, finisher = 0, last_paddle = -1;
     std::int32_t           idle = 0;          // steps since anything moved (the orbit guard)
     std::int32_t           breached = 0;
-    xengine::V2              core_at;           // where the last core stood
+    xengine::dynamics::V2              core_at;           // where the last core stood
     std::array<Event, 96>  event{};
 };
 static_assert(std::is_trivially_copyable_v<State>, "a state is saved and restored as one block");
@@ -191,7 +191,7 @@ struct Input {
 };
 
 struct BrickSpec {
-    xengine::Box    box;
+    xengine::dynamics::Box    box;
     Kind          kind = Kind::button;
     std::int32_t  durability = 1;
     std::uint32_t id = 0, row = 0;
@@ -230,9 +230,9 @@ struct Level {
 }
 
 // The direction a launch takes now (unit, up the field).
-[[nodiscard]] xengine::V2 aim_direction(const State& s) noexcept;
+[[nodiscard]] xengine::dynamics::V2 aim_direction(const State& s) noexcept;
 // Where a kicker sends a ball (unit).
-[[nodiscard]] xengine::V2 kick_direction(const Brick& b) noexcept;
+[[nodiscard]] xengine::dynamics::V2 kick_direction(const Brick& b) noexcept;
 
 [[nodiscard]] State start(const Level& level);
 void step(State& s, const Input& in);
@@ -243,7 +243,7 @@ void step(State& s, const Input& in);
 // walls and the bricks as they stand (not the paddles, nothing changing):
 // where it starts and each place it turns, up to `points`' size, over
 // `length` pixels of travel or until it leaves the field. How many were written.
-std::size_t trace(const State& s, xengine::V2 at, xengine::V2 velocity, double radius, std::span<xengine::V2> points, double length = 1600);
+std::size_t trace(const State& s, xengine::dynamics::V2 at, xengine::dynamics::V2 velocity, double radius, std::span<xengine::dynamics::V2> points, double length = 1600);
 
 // For mlibs::simulation::Timeline.
 struct Game {

@@ -1,8 +1,8 @@
-module xengine.simulation.bodies;
+module xengine.dynamics.xpbd;
 
 import std;
 
-namespace xengine::simulation {
+namespace xengine::dynamics {
 namespace {
 double signed_area(std::span<const double> x, std::span<const double> y) noexcept {
     double twice = 0;
@@ -195,12 +195,11 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
         std::ranges::fill(touching, std::uint8_t{0});
         for (const auto& plane : body.planes)
             for (std::size_t index = 0; index < count; ++index) {
-                const double depth = plane.offset - (plane.normal_x * body.x[index] +
-                                                     plane.normal_y * body.y[index]);
-                if (depth <= 0)
+                const double inside = depth(plane, body.x[index], body.y[index]);
+                if (inside <= 0)
                     continue;
-                body.x[index] += depth * plane.normal_x;
-                body.y[index] += depth * plane.normal_y;
+                body.x[index] += inside * plane.normal_x;
+                body.y[index] += inside * plane.normal_y;
                 touching[index] = 1;
             }
         // Ledges: a particle that came down through one from above stands on it.
@@ -208,8 +207,7 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
             const Ledge& ledge = input.ledges[which];
             if (!finite(ledge.left) || !finite(ledge.right) || !finite(ledge.top)) continue;
             for (std::size_t index = 0; index < count; ++index)
-                if (body.x[index] >= ledge.left && body.x[index] <= ledge.right && before_y[index] <= ledge.top + 1e-9 &&
-                    body.y[index] > ledge.top) {
+                if (lands(ledge, body.x[index], before_y[index], body.y[index])) {
                     body.y[index] = ledge.top;
                     touching[index] = 2;
                 }
@@ -251,4 +249,26 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
     }
 }
 
-}  // namespace xengine::simulation
+BodyParams params_of(const PhysicalMaterial& material, double area, BodyParams base) noexcept {
+    base.mass = material.density * (std::isfinite(area) && area > 0 ? area : 1);
+    base.friction = material.friction;
+    base.restitution = material.restitution;
+    base.edge_compliance = material.compliance;
+    base.shape_stiffness = material.shape_stiffness;
+    return base;
+}
+
+std::span<const Stage> stages() noexcept {
+    static constexpr std::array<Stage, 7> list{{
+        {"kick", "a hop's velocity, once, to every particle", false},
+        {"predict", "gravity, the push and the walk's acceleration, then move", true},
+        {"edges", "each edge keeps its length (XPBD)", true},
+        {"area", "the enclosed area holds (a pressure along its gradient)", true},
+        {"shape", "shape matching: back toward the shape it was made in (upright: unturned)", true},
+        {"collide", "out of each half-plane; onto each ledge come down through from above", true},
+        {"velocity", "velocities from the moves; restitution and friction (toward the walking speed) on contact", true},
+    }};
+    return list;
+}
+
+}  // namespace xengine::dynamics

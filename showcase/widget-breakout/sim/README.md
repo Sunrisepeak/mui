@@ -15,7 +15,7 @@ xengine::Timeline<omui::breakout::Game> t(s);                 // rewind, replay
   - The paddles move: an axis, or toward the pointer. This frame's input moves them this frame, hit-stop or not.
   - A ball on a paddle rides it. The launch goes along the aim, which sweeps to and fro (±50°) while the ball waits, unless an agent holds it (`Input::aim`).
   - A ball's spin turns it a little each step and dies away. A paddle gives spin by its motion as it returns the ball, and adds that motion across; where on the paddle the ball met still steers it, up to 60°.
-  - Each ball moves from one collision to the next (`xengine.physics`): walls, paddles by their motion relative to it, bricks. At most eight collisions a frame; if they run out, the ball stays put rather than passing through anything. Hits at one instant are ordered by index and their normals combined, so a seam between two bricks bounces like a face.
+  - Each ball moves from one collision to the next (`xengine.dynamics`' swept collision): walls, paddles by their motion relative to it, bricks. At most eight collisions a frame; if they run out, the ball stays put rather than passing through anything. Hits at one instant are ordered by index and their normals combined, so a seam between two bricks bounces like a face.
   - What a ball meets acts as what it is:
     - a brick loses durability and, broken, scores by the chain;
     - a switch flips and moves what is on its circuit (shutters open or close, kickers turn, a charged capacitor discharges);

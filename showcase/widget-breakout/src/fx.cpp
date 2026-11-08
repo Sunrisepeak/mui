@@ -16,7 +16,7 @@ float unit(std::uint64_t& s) noexcept {  // [0, 1)
     s = mix(s);
     return static_cast<float>(s >> 40) / static_cast<float>(1ull << 24);
 }
-Point point(xengine::V2 v) noexcept { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
+Point point(xengine::dynamics::V2 v) noexcept { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
 
 // Unit directions round a circle, sixteen of them (no libm: the same everywhere).
 constexpr std::array<Point, 16> compass{{{1, 0}, {0.92388f, 0.38268f}, {0.70711f, 0.70711f}, {0.38268f, 0.92388f},
@@ -145,7 +145,7 @@ void Fx::react(const State& s, const RoomDef& room) {
         if (!t) return;
         const Point at = point(b.at);
         if (b.on == 0) {
-            const float len = static_cast<float>(xengine::length(b.velocity));
+            const float len = static_cast<float>(xengine::dynamics::length(b.velocity));
             const Point dir = len > 0 ? Point{static_cast<float>(b.velocity.x) / len, static_cast<float>(b.velocity.y) / len} : t->dir;
             if (t->count > 0 && dir.x * t->dir.x + dir.y * t->dir.y < 0.995f) t->squash = 1;
             t->dir = dir;

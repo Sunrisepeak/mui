@@ -36,13 +36,13 @@ Landing landing(const bo::State& s) {
     Landing best;
     s.world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) {
         if (b.on != 0) return;
-        std::array<xengine::V2, 16> pts{};
+        std::array<xengine::dynamics::V2, 16> pts{};
         const std::size_t n = bo::trace(s, b.at, b.velocity, b.radius, pts, 5000);
         double travelled = 0;
-        const double speed = xengine::length(b.velocity);
+        const double speed = xengine::dynamics::length(b.velocity);
         for (std::size_t k = 1; k < n; ++k) {
-            const xengine::V2 a = pts[k - 1], z = pts[k];
-            const double len = xengine::length(z - a);
+            const xengine::dynamics::V2 a = pts[k - 1], z = pts[k];
+            const double len = xengine::dynamics::length(z - a);
             if (a.y <= line && z.y >= line && z.y > a.y) {
                 const double t = (line - a.y) / (z.y - a.y);
                 const double steps = (travelled + len * t) / std::max(speed, 1e-9);

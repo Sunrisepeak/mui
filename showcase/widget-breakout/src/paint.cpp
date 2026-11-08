@@ -22,9 +22,9 @@ namespace {
 Color hex(std::uint32_t c, float a = 1) { return Color::hex(c, a); }
 constexpr std::uint32_t rim = 0x10131c;  // round the ball and the paddles: readable on a light style too
 xrender::Paint solid(Color c) { return xrender::Paint::solid(c); }
-Rect rect(const xengine::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
-Point mid(const xengine::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
-Point point(xengine::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
+Rect rect(const xengine::dynamics::Box& b) { return {static_cast<float>(b.x), static_cast<float>(b.y), static_cast<float>(b.w), static_cast<float>(b.h)}; }
+Point mid(const xengine::dynamics::Box& b) { return {static_cast<float>(b.x + b.w / 2), static_cast<float>(b.y + b.h / 2)}; }
+Point point(xengine::dynamics::V2 v) { return {static_cast<float>(v.x), static_cast<float>(v.y)}; }
 Rect grow(Rect r, float by) { return {r.x - by, r.y - by, r.width + 2 * by, r.height + 2 * by}; }
 // 0 … 1 … 0 over `period` frames: a pulse that is the same every run.
 float pulse(std::int64_t frame, std::int64_t period) {
@@ -309,7 +309,7 @@ void Field::paint_over(PaintContext& ctx) const {
         const float lit = b.id < fx_.flash.size() ? fx_.flash[b.id] : 0;
         switch (b.kind) {
             case Kind::kicker: {  // its arrow: where it sends the ball
-                const xengine::V2 d = kick_direction(b);
+                const xengine::dynamics::V2 d = kick_direction(b);
                 const Point tip{c.x + static_cast<float>(d.x) * 26, c.y + static_cast<float>(d.y) * 26 - 8};
                 const Point base{c.x - static_cast<float>(d.x) * 6, c.y - static_cast<float>(d.y) * 6 - 8};
                 const Point side{static_cast<float>(-d.y) * 8, static_cast<float>(d.x) * 8};
@@ -345,7 +345,7 @@ void Field::paint_over(PaintContext& ctx) const {
             case Kind::hidden: {  // a cache: found (or the X-ray on), outlined; a ball near, it glints first
                 double near = 1e9;
                 s.world.each<Ball>([&](xengine::Entity, const Ball& ball) {
-                    near = std::min(near, xengine::length(ball.at - xengine::V2{body.box.x + body.box.w / 2, body.box.y + body.box.h / 2}));
+                    near = std::min(near, xengine::dynamics::length(ball.at - xengine::dynamics::V2{body.box.x + body.box.w / 2, body.box.y + body.box.h / 2}));
                 });
                 const bool found = b.id < discovered_.size() && discovered_[b.id];
                 const float glint = near < 130 ? static_cast<float>(1 - near / 130) * pulse(s.frame, 16) : 0;
@@ -481,7 +481,7 @@ void Field::paint_over(PaintContext& ctx) const {
     // The aim's forecast: where a launch now goes, to its second turn.
     s.world.each<Ball>([&](xengine::Entity, const Ball& b) {
         if (b.on != 1 || s.over) return;
-        std::array<xengine::V2, 4> turns{};
+        std::array<xengine::dynamics::V2, 4> turns{};
         const std::size_t n = trace(s, b.at, aim_direction(s), b.radius, turns, 900);
         float travelled = 0;
         for (std::size_t k = 1; k < n; ++k) {

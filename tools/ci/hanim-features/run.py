@@ -167,13 +167,13 @@ int main() {
                 raise RuntimeError('renderer enabled without opt-in')
             if (name == 'control') != ('mlibs.control' in packages):
                 raise RuntimeError('control dependency did not follow the selected feature')
-            # hanim.core measures its contours with mlibs.geom; the engine's solver is xengine.simulation (D-131).
+            # hanim.core measures its contours with mlibs.geom; the engine's solver is xengine.dynamics (D-131, D-133).
             if name == 'core' and packages != {'hanim.validation.feature_consumer','mcpplibs.hanim','hanim.core','mlibs.math','mlibs.utils','mlibs.memory','mlibs.geom'}:
                 raise RuntimeError('core feature closure is not minimal: '+str(packages))
             if 'mlibs.geom' not in packages:
                 raise RuntimeError('shared geometry (the measures of hanim.core and the object feature) is missing')
             # The engine's solver and its timeline come with the engine feature alone (D-131, D-133): feature-deps, kept since mcpp 2026.11.7.1 (#897).
-            if ('engine' in roles) != ('xengine.simulation' in packages) or ('engine' in roles) != ('mlibs.simulation' in packages):
+            if ('engine' in roles) != ('xengine.dynamics' in packages) or ('engine' in roles) != ('mlibs.simulation' in packages):
                 raise RuntimeError('the engine solver dependency did not follow the engine feature: '+str(packages))
             cdb = resolution.parent / 'compile_commands.json'; entries = json.loads(cdb.read_text())
             sources = set()
@@ -234,7 +234,7 @@ threads=false
                     '[targets.consumer]\nkind="bin"\nmain="src/main.cpp"\n[build]\nsources=["src/*.cpp"]\n'
                     '[dependencies]\n"hanim" = { path = '+json.dumps(str(installed))+' }\n')
         for identity, relative in {'hanim.core':'projects/hanim/core', 'mlibs.geom':'base/geom', 'mlibs.memory':'base/memory', 'mlibs.utils':'base/utils',
-                                   'xengine.simulation':'projects/xengine/simulation', 'mlibs.simulation':'base/simulation'}.items():
+                                   'xengine.dynamics':'projects/xengine/dynamics', 'mlibs.simulation':'base/simulation'}.items():
             manifest += json.dumps(identity)+' = { path = '+json.dumps(str(repo/'modules'/relative))+' }\n'
         (project/'mcpp.toml').write_text(manifest)
         shutil.copyfile(repo/'tools/ci/hanim-api-probe/src/main.cpp',project/'src/main.cpp')

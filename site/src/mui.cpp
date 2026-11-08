@@ -179,7 +179,7 @@ void Mascot::show(const std::string& frame, const std::string& palette, bool fac
     if (!f.body) {
         // A little soft: it gives on landing and springs back to its shape.
         // The page's sides are walls (its root's space).
-        const std::vector<xengine::simulation::Plane> walls{{.normal_x = 1, .normal_y = 0, .offset = -f.spawn.x},
+        const std::vector<xengine::dynamics::Plane> walls{{.normal_x = 1, .normal_y = 0, .offset = -f.spawn.x},
                                                             {.normal_x = -1, .normal_y = 0, .offset = -(f.room.width - f.spawn.x)}};
         hanim::BodyOptions options{.params = {.mass = 1, .gravity_y = 1800, .area_compliance = 0.0002, .shape_stiffness = 0.12,
                                               .upright = 1, .restitution = 0.15, .friction = 0.4, .damping = 0.6},
@@ -241,9 +241,9 @@ void Mascot::steer(const PaintContext& ctx) const {
     }
 
     // What it may stand on: the page's bottom, the nodes it was given, what it goes to.
-    std::vector<xengine::simulation::Ledge> ledges;
+    std::vector<xengine::dynamics::Ledge> ledges;
     const auto ledge = [&](const Rect& r) {
-        if (ledges.size() < xengine::simulation::max_ledges)
+        if (ledges.size() < xengine::dynamics::max_ledges)
             ledges.push_back({r.x - f.spawn.x, r.right() - f.spawn.x, r.y - f.spawn.y});
     };
     ledge({0, ctx.size.height - 4, ctx.size.width, 0});

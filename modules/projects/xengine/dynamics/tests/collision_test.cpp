@@ -5,58 +5,58 @@
 // bounced around a box of bricks for ten thousand moves gives the same bits
 // everywhere.
 import std;
-import xengine.physics;
+import xengine.dynamics;
 import mlibs.testing;
 
 using namespace mlibs::testing;
-using xengine::Box;
-using xengine::V2;
+using xengine::dynamics::Box;
+using xengine::dynamics::V2;
 
 int main(int argc, char** argv) {
-    Suite s{"xengine.physics"};
+    Suite s{"dynamics.collision"};
 
     s.test("a face: the exact time and the side; a fast circle through a thin box still meets it", [] {
         const Box b{100, 0, 50, 100};
-        auto hit = xengine::sweep({0, 50}, 10, {200, 0}, b);
+        auto hit = xengine::dynamics::sweep({0, 50}, 10, {200, 0}, b);
         check(hit && hit->t == 0.45 && hit->normal == V2{-1, 0}, hit ? std::format("t {}", hit->t) : std::string("none"));
-        auto down = xengine::sweep({125, -100}, 5, {0, 200}, b);
+        auto down = xengine::dynamics::sweep({125, -100}, 5, {0, 200}, b);
         check(down && down->t == 0.475 && down->normal == V2{0, -1});
         // A box 2 wide, a circle moving 1000 in one step: sampled at its ends it would miss.
-        auto thin = xengine::sweep({0, 50}, 3, {1000, 0}, Box{500, 0, 2, 100});
+        auto thin = xengine::dynamics::sweep({0, 50}, 3, {1000, 0}, Box{500, 0, 2, 100});
         check(thin && thin->t == 0.497, "met mid-step");
-        check(!xengine::sweep({0, 200}, 10, {200, 0}, b), "beside it: missed");
-        check(!xengine::sweep({0, 50}, 10, {50, 0}, b), "short of it: missed");
+        check(!xengine::dynamics::sweep({0, 200}, 10, {200, 0}, b), "beside it: missed");
+        check(!xengine::dynamics::sweep({0, 50}, 10, {50, 0}, b), "short of it: missed");
     });
 
     s.test("a corner: met on its curve, the normal from the corner to the centre", [] {
         const Box b{100, 100, 50, 50};
         // Diagonally at the top-left corner.
-        auto hit = xengine::sweep({50, 50}, 10, {50, 50}, b);
+        auto hit = xengine::dynamics::sweep({50, 50}, 10, {50, 50}, b);
         check(hit.has_value(), "met");
         if (!hit) return;
         const V2 at = V2{50, 50} + V2{50, 50} * hit->t;
-        check(std::abs(xengine::length(at - V2{100, 100}) - 10) < 1e-9, "on the corner's circle");
+        check(std::abs(xengine::dynamics::length(at - V2{100, 100}) - 10) < 1e-9, "on the corner's circle");
         check(std::abs(hit->normal.x + std::sqrt(0.5)) < 1e-12 && std::abs(hit->normal.y + std::sqrt(0.5)) < 1e-12, "out of the corner, diagonally");
         // Grazing past the corner's circle: missed.
-        check(!xengine::sweep({50, 80}, 10, {100, -100}, Box{100, 100, 50, 50}), "past the corner");
+        check(!xengine::dynamics::sweep({50, 80}, 10, {100, -100}, Box{100, 100, 50, 50}), "past the corner");
     });
 
     s.test("a graze along a face, or past a corner's tangent, is no hit; a corner met from a hair away keeps its precision", [] {
         const Box b{100, 100, 50, 50};
-        check(!xengine::sweep({50, 90}, 10, {200, 0}, b), "sliding along the top face, touching it: no bounce");
+        check(!xengine::dynamics::sweep({50, 90}, 10, {200, 0}, b), "sliding along the top face, touching it: no bounce");
         // Very near the corner, moving straight at it: the time is tiny and exact, not lost to cancellation.
         const double gap = 1e-9;
         const V2 start = V2{100, 100} - V2{std::sqrt(0.5), std::sqrt(0.5)} * (10 + gap);
-        auto hit = xengine::sweep(start, 10, {1, 1}, b);
+        auto hit = xengine::dynamics::sweep(start, 10, {1, 1}, b);
         check(hit && hit->t > 0 && hit->t < 2e-9, hit ? std::format("t {}", hit->t) : std::string("none"));
     });
 
     s.test("already inside: going in, met at once on the nearest side; going out, let go", [] {
         const Box b{0, 0, 100, 100};
-        auto in = xengine::sweep({105, 50}, 10, {-5, 0}, b);
+        auto in = xengine::dynamics::sweep({105, 50}, 10, {-5, 0}, b);
         check(in && in->t == 0 && in->normal == V2{1, 0});
-        check(!xengine::sweep({105, 50}, 10, {5, 0}, b), "moving out");
-        auto deep = xengine::sweep({90, 50}, 5, {-1, 0}, b);
+        check(!xengine::dynamics::sweep({105, 50}, 10, {5, 0}, b), "moving out");
+        auto deep = xengine::dynamics::sweep({90, 50}, 5, {-1, 0}, b);
         check(deep && deep->t == 0 && deep->normal == V2{1, 0}, "the centre inside: out by the nearest face");
     });
 
@@ -72,20 +72,20 @@ int main(int argc, char** argv) {
         for (int step = 0; step < 10000; ++step) {
             double left = 1;
             for (int k = 0; k < 8 && left > 0; ++k) {
-                std::optional<xengine::Hit> first;
+                std::optional<xengine::dynamics::Hit> first;
                 for (const Box& b : boxes)
-                    if (auto hit = xengine::sweep(at, r, v * left, b); hit && (!first || hit->t < first->t)) first = hit;
+                    if (auto hit = xengine::dynamics::sweep(at, r, v * left, b); hit && (!first || hit->t < first->t)) first = hit;
                 if (!first) {
                     at += v * left;
                     left = 0;
                     break;
                 }
                 at += v * (left * first->t);
-                v = xengine::reflect(v, first->normal);
+                v = xengine::dynamics::reflect(v, first->normal);
                 left *= 1 - first->t;
                 ++bounces;
             }
-            for (const Box& w : walls) check(!xengine::overlaps(at, r - 1e-6, w), "never inside a wall");
+            for (const Box& w : walls) check(!xengine::dynamics::overlaps(at, r - 1e-6, w), "never inside a wall");
             for (const double c : {at.x, at.y}) h = mlibs::hash::Fnv1a(h).f64(c).value();
         }
         std::println("    room {:016x} ({} bounces)", h, bounces);

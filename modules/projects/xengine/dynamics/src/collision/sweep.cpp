@@ -1,8 +1,8 @@
-module xengine.physics;
+module xengine.dynamics.collision;
 
 import std;
 
-namespace xengine {
+namespace xengine::dynamics {
 
 double length(V2 v) noexcept { return std::sqrt(dot(v, v)); }
 
@@ -73,4 +73,4 @@ std::optional<Hit> sweep(V2 p, double r, V2 d, const Box& b) noexcept {
     return best;
 }
 
-}  // namespace xengine
+}  // namespace xengine::dynamics

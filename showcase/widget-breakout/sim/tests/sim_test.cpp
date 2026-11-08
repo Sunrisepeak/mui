@@ -13,15 +13,15 @@
 // chamber; the orbit guard; a forecast that is the path the ball takes.
 import std;
 import xengine.input;
-import xengine.physics;
+import xengine.dynamics;
 import mlibs.simulation;
 import omui.showcase.widget_breakout.sim;
 import mlibs.testing;
 
 using namespace mlibs::testing;
 namespace bo = omui::breakout;
-using xengine::Box;
-using xengine::V2;
+using xengine::dynamics::Box;
+using xengine::dynamics::V2;
 
 namespace {
 
@@ -375,7 +375,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 50; ++f) bo::step(st, {});
         check_eq(st.aim, -0.5);
         bo::step(st, {launch(), {}});
-        check(ball(st).velocity == xengine::normalized(V2{-0.5, -1}) * st.speed, "launched along it");
+        check(ball(st).velocity == xengine::dynamics::normalized(V2{-0.5, -1}) * st.speed, "launched along it");
         check_eq(st.aim_held, std::int32_t{0});
         // The forecast: where a launch along the aim turns, off the walls, is where the ball turns.
         bo::Level open;
@@ -397,7 +397,7 @@ int main(int argc, char** argv) {
         }
         check(walls.size() == 2, "two walls met");
         for (std::size_t k = 0; k < 2 && k < walls.size(); ++k)
-            check(xengine::length(walls[k] - path[k + 1]) < 1e-6, std::format("turn {}: ({}, {}) forecast ({}, {})", k, walls[k].x, walls[k].y, path[k + 1].x, path[k + 1].y));
+            check(xengine::dynamics::length(walls[k] - path[k + 1]) < 1e-6, std::format("turn {}: ({}, {}) forecast ({}, {})", k, walls[k].x, walls[k].y, path[k + 1].x, path[k + 1].y));
     });
 
     s.test("a paddle moving as it returns the ball gives it spin: its path curves the way the paddle went, and the spin dies away", [] {
@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 40; ++f) bo::step(moving, {});
         const V2 v1 = ball(moving).velocity;
         check(v0.x * v1.y - v0.y * v1.x > 0, "turned clockwise: toward the right it was going");
-        check(std::abs(xengine::length(v1) - moving.speed) < 1e-9, "at its speed");
+        check(std::abs(xengine::dynamics::length(v1) - moving.speed) < 1e-9, "at its speed");
         check(ball(moving).spin < 0.6 * 0.005, std::format("dying away: {}", ball(moving).spin));
         // The paddle's motion also sends it further across.
         check(ball(still).velocity.x < v0.x, "further right");
@@ -624,7 +624,7 @@ int main(int argc, char** argv) {
         fling(st, {640, 300}, {6, 0.1});
         check(until(st, bo::Happened::wall, 200), "a wall");
         const V2 v = ball(st).velocity;
-        check(std::abs(v.y) >= 0.28 * xengine::length(v) - 1e-9 && v.x < 0, std::format("({}, {})", v.x, v.y));
+        check(std::abs(v.y) >= 0.28 * xengine::dynamics::length(v) - 1e-9 && v.x < 0, std::format("({}, {})", v.x, v.y));
         bo::State again = bo::start(l);
         fling(again, {640, 300}, {4, -4});
         again.idle = 6 * bo::steps_per_second + 1;

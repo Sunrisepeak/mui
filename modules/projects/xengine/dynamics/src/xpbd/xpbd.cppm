@@ -1,5 +1,5 @@
-// xengine.simulation.bodies — soft bodies in 2D, deterministic (plan §6.9:
-// the particle and constraint solver animation and physics share).
+// xengine.dynamics.xpbd — soft bodies in 2D, deterministic: the xpbd solver
+// family of xengine.dynamics (D-133; animation and physics share it, §6.9).
 //
 // A body is a ring of particles held by its edges' lengths, its enclosed
 // area and the shape it was made in (shape matching), stepped by small-step
@@ -8,21 +8,17 @@
 // a dragging hand), so the body runs in a Timeline: checkpoints, replay and
 // seeking come with it.
 //
-//     auto body = xengine::simulation::SoftBody::ring(outline, {.mass = 1}, {{.normal_y = -1,
-//     .offset = -400}}); mlibs::simulation::Timeline<xengine::simulation::SoftBodyModel>
+//     auto body = xengine::dynamics::SoftBody::ring(outline, {.mass = 1}, {{.normal_y = -1,
+//     .offset = -400}}); mlibs::simulation::Timeline<xengine::dynamics::SoftBodyModel>
 //     history(*body); history.step({});                                         // 1/120 s on
-export module xengine.simulation.bodies;
+export module xengine.dynamics.xpbd;
 
 import std;
+export import xengine.dynamics.collision;
+export import xengine.dynamics.material;
 
-export namespace xengine::simulation {
+export namespace xengine::dynamics {
 
-// The half-plane normal · p ≥ offset (a ground at y = 400 on a y-down
-// screen: normal (0, −1), offset −400).
-struct Plane {
-    double normal_x = 0, normal_y = -1;
-    double offset = 0;
-};
 struct BodyParams {
     double mass = 1;  // the whole body's
     double gravity_x = 0, gravity_y = 980;
@@ -41,12 +37,6 @@ struct Pin {
     std::uint32_t particle = 0;
     double x = 0, y = 0;
     bool active = false;
-};
-// A floor from above only, between `left` and `right` at `top` (a card's top
-// edge on a y-down page): what comes down onto it from above stands on it;
-// what is below it or beside it passes by.
-struct Ledge {
-    double left = 0, right = 0, top = 0;
 };
 inline constexpr std::size_t max_ledges = 32;
 // A step's input: the hand, the ledges near the body (a page's surfaces, as
@@ -103,4 +93,16 @@ struct SoftBodyModel {
     static void step(State& body, const Input& input) noexcept;
 };
 
-}  // namespace xengine::simulation
+// A soft body's parameters from a physical material (its mass from its
+// density over `area`); what the material does not say keeps `base`'s.
+[[nodiscard]] BodyParams params_of(const PhysicalMaterial& material, double area = 1, BodyParams base = {}) noexcept;
+
+// The stages of a step, in order (the pipeline every solver family states:
+// D-133 contract 2): what an agent or a trace reads to say what happened.
+struct Stage {
+    std::string_view name, does;
+    bool per_substep = true;
+};
+[[nodiscard]] std::span<const Stage> stages() noexcept;
+
+}  // namespace xengine::dynamics

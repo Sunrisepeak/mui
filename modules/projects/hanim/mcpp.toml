@@ -30,9 +30,9 @@ engine = { implies = ["program"], sources = ["src/engine/*.cppm", "src/engine/*.
 render-vector = { implies = ["program"], sources = ["src/render/vector/*.cppm", "src/render/vector/*.cpp"] }
 control = { implies = ["engine"], sources = ["src/control/*.cppm", "src/control/*.cpp"] }
 
-# The engine steps simulated bodies with xengine.simulation's solver (D-131).
+# The engine steps simulated bodies with xengine.dynamics' xpbd solver on mlibs.simulation's timeline (D-131, D-133).
 [feature-deps.engine]
-xengine.simulation = { path = "../xengine/simulation" }
+xengine.dynamics = { path = "../xengine/dynamics" }
 mlibs.simulation = { path = "../../base/simulation" }
 
 [feature-deps.object]

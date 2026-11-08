@@ -5,14 +5,14 @@ import mlibs.math;
 import mlibs.hash;
 import xengine.world;
 import xengine.input;
-import xengine.physics;
+import xengine.dynamics;
 
 namespace omui::breakout {
 
 namespace {
 
-using xengine::Box;
-using xengine::V2;
+using xengine::dynamics::Box;
+using xengine::dynamics::V2;
 
 constexpr double sqrt3 = 1.7320508075688772;    // tan 60°: the paddle's steepest bounce
 constexpr double cos20 = 0.93969262078590838;   // a multi-ball's spread
@@ -53,7 +53,7 @@ void add_sparks(State& s, std::int32_t n) { s.sparks = std::min(spark_cap, s.spa
 
 // Up or down at least `steepest` of its speed: a ball never runs along a row for ever.
 V2 steep(V2 v) noexcept {
-    const double len = xengine::length(v), least = steepest * len;
+    const double len = xengine::dynamics::length(v), least = steepest * len;
     if (len == 0 || std::abs(v.y) >= least) return v;
     const double y = v.y < 0 ? -least : least;
     const double x = std::sqrt(len * len - y * y);
@@ -153,7 +153,7 @@ struct Contact {
 Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, bool paddles) {
     Contact c;
     constexpr double same = 1e-12;  // hits within this of each other are one instant
-    auto meet = [&](const xengine::Hit& h, auto&& mark) {
+    auto meet = [&](const xengine::dynamics::Hit& h, auto&& mark) {
         if (h.t < c.t - same) {
             c = {};
             c.t = h.t;
@@ -167,7 +167,7 @@ Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, b
     const std::array<Box, 3> walls{Box{-100, -100, 100, s.height + 200}, Box{field_w, -100, 100, s.height + 200}, Box{-100, -100, field_w + 200, 100}};
     const std::size_t wall_count = s.paddles[1].active ? 2 : 3;
     for (std::size_t w = 0; w < wall_count; ++w)
-        if (auto h = xengine::sweep(at, radius, d, walls[w])) meet(*h, [&] { c.wall = true; });
+        if (auto h = xengine::dynamics::sweep(at, radius, d, walls[w])) meet(*h, [&] { c.wall = true; });
     // Paddles, by the ball's motion relative to each (where the paddle stood before this step's move).
     for (std::size_t i = 0; paddles && i < 2; ++i) {
         if (!s.paddles[i].active) continue;
@@ -177,13 +177,13 @@ Contact first_contact(const State& s, V2 at, double radius, V2 d, double left, b
         // from behind, nor held bouncing inside it (it lodged under the bottom paddle, never moving).
         const double face = i == 0 ? from.y : from.y + from.h;
         if (i == 0 ? at.y > face : at.y < face) continue;
-        if (auto h = xengine::sweep(at, radius, d - V2{s.paddles[i].moved * left, 0}, from)) meet(*h, [&] { c.paddle = static_cast<std::int32_t>(i); });
+        if (auto h = xengine::dynamics::sweep(at, radius, d - V2{s.paddles[i].moved * left, 0}, from)) meet(*h, [&] { c.paddle = static_cast<std::int32_t>(i); });
     }
     // Bricks, by index: all but open shutters and gates.
     const bool open = gates_open(s);
     s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& brick) {
         if ((brick.kind == Kind::gate && open) || (brick.kind == Kind::shutter && brick.on)) return;
-        if (auto h = xengine::sweep(at, radius, d, body.box))
+        if (auto h = xengine::dynamics::sweep(at, radius, d, body.box))
             meet(*h, [&] {
                 if (c.count < c.bricks.size()) c.bricks[c.count++] = e;
             });
@@ -349,7 +349,7 @@ bool hit_brick(State& s, xengine::Entity e, Ball& ball, V2 normal) {
         case Kind::toggle: s.idle = 0; flip(s, e); return false;
         case Kind::slider: s.idle = 0; charge(s, e); return false;
         case Kind::kicker:
-            if (xengine::dot(kick_direction(brick), normal) <= 0) {
+            if (xengine::dynamics::dot(kick_direction(brick), normal) <= 0) {
                 happened(s, Happened::wall, brick.id, at);
                 return false;
             }
@@ -378,7 +378,7 @@ bool hit_paddle(State& s, Ball& b, std::size_t i, double paddle_at) {
     const double offset = std::clamp((b.at.x - px) / p.half, -1.0, 1.0);
     const double motion = std::clamp(p.moved / key_speed, -1.0, 1.0);
     const double up = i == 0 ? -1 : 1;
-    b.velocity = xengine::normalized(V2{offset * sqrt3 + motion * english, up}) * s.speed;
+    b.velocity = xengine::dynamics::normalized(V2{offset * sqrt3 + motion * english, up}) * s.speed;
     b.spin = motion * spin_most * (i == 0 ? 1 : -1);
     s.idle = 0;
     happened(s, Happened::paddle, static_cast<std::uint32_t>(i), b.at, static_cast<std::int32_t>(motion * 100));
@@ -426,8 +426,8 @@ void fly(State& s, xengine::Entity e) {
         // Its spin turns it a little (exact: a step along the perpendicular, back to its speed), dying away.
         Ball& b = s.world.get<Ball>(e);
         if (b.spin != 0) {
-            const double speed = xengine::length(b.velocity);
-            b.velocity = steep(xengine::normalized(b.velocity + V2{-b.velocity.y, b.velocity.x} * b.spin) * speed);
+            const double speed = xengine::dynamics::length(b.velocity);
+            b.velocity = steep(xengine::dynamics::normalized(b.velocity + V2{-b.velocity.y, b.velocity.x} * b.spin) * speed);
             b.spin *= spin_decay;
             if (std::abs(b.spin) < 1e-5) b.spin = 0;
         }
@@ -448,9 +448,9 @@ void fly(State& s, xengine::Entity e) {
         bool through = b.pierce > 0 && c.count > 0 && c.paddle < 0 && !c.wall;
         for (std::size_t i = 0; i < c.count && through; ++i) through = breakable(s.world.get<Brick>(c.bricks[i]).kind);
         if (!through) {
-            V2 n = xengine::normalized(c.normal);
-            if (n == V2{}) n = xengine::normalized(-b.velocity);
-            b.velocity = xengine::reflect(b.velocity, n);
+            V2 n = xengine::dynamics::normalized(c.normal);
+            if (n == V2{}) n = xengine::dynamics::normalized(-b.velocity);
+            b.velocity = xengine::dynamics::reflect(b.velocity, n);
         }
         if (c.paddle >= 0 && hit_paddle(s, b, static_cast<std::size_t>(c.paddle), paddle_at)) {
             for (std::size_t i = 0; i < c.count; ++i) (void)hit_brick(s, c.bricks[i], s.world.get<Ball>(e), c.normal);
@@ -496,7 +496,7 @@ void wave(State& s) {
     s.world.each<Body, Brick>([&](xengine::Entity e, const Body& body, const Brick& b) {
         if (!breakable(b.kind)) return;
         const V2 d = middle(body.box) - s.core_at;
-        if (xengine::dot(d, d) <= r * r && n < reached.size()) reached[n++] = e;
+        if (xengine::dynamics::dot(d, d) <= r * r && n < reached.size()) reached[n++] = e;
     });
     for (std::size_t i = 0; i < n; ++i) {
         const Brick& b = s.world.get<Brick>(reached[i]);
@@ -513,9 +513,9 @@ void wave(State& s) {
 
 }  // namespace
 
-V2 aim_direction(const State& s) noexcept { return xengine::normalized(V2{s.aim, -1}); }
+V2 aim_direction(const State& s) noexcept { return xengine::dynamics::normalized(V2{s.aim, -1}); }
 
-V2 kick_direction(const Brick& b) noexcept { return xengine::normalized(V2{b.on ? kick_across : -kick_across, -1}); }
+V2 kick_direction(const Brick& b) noexcept { return xengine::dynamics::normalized(V2{b.on ? kick_across : -kick_across, -1}); }
 
 Rules bounded(Rules r) noexcept {
     constexpr std::int32_t s = steps_per_second;
@@ -606,7 +606,7 @@ void step(State& s, const Input& in) {
         if (!launch[i]) return;
         b.on = 0;
         b.dx = 0;
-        b.velocity = (i == 0 ? aim_direction(s) : xengine::normalized(V2{0.35, 1.0})) * s.speed;
+        b.velocity = (i == 0 ? aim_direction(s) : xengine::dynamics::normalized(V2{0.35, 1.0})) * s.speed;
         launched = launched || i == 0;
         happened(s, Happened::launched, static_cast<std::uint32_t>(i), b.at);
     });
@@ -657,7 +657,7 @@ void step(State& s, const Input& in) {
     std::size_t c = 0;
     s.world.each<Capsule>([&](xengine::Entity e, Capsule& k) {
         k.at.y += 2.5;
-        if (xengine::overlaps(k.at, 10, paddle_box(s.paddles[0])) || k.at.y > s.height + 20)
+        if (xengine::dynamics::overlaps(k.at, 10, paddle_box(s.paddles[0])) || k.at.y > s.height + 20)
             if (c < caught.size()) caught[c++] = e;
     });
     for (std::size_t i = 0; i < c; ++i) {
@@ -697,7 +697,7 @@ std::size_t trace(const State& s, V2 at, V2 velocity, double radius, std::span<V
     if (points.empty()) return 0;
     std::size_t n = 0;
     points[n++] = at;
-    V2 dir = xengine::normalized(velocity);
+    V2 dir = xengine::dynamics::normalized(velocity);
     if (dir == V2{}) return n;
     double left = length;
     while (n < points.size() && left > 0) {
@@ -713,12 +713,12 @@ std::size_t trace(const State& s, V2 at, V2 velocity, double radius, std::span<V
         if (at.y > s.height) break;
         bool kicked = false;
         for (std::size_t i = 0; i < c.count; ++i)
-            if (const Brick& b = s.world.get<Brick>(c.bricks[i]); b.kind == Kind::kicker && xengine::dot(kick_direction(b), c.normal) > 0)
+            if (const Brick& b = s.world.get<Brick>(c.bricks[i]); b.kind == Kind::kicker && xengine::dynamics::dot(kick_direction(b), c.normal) > 0)
                 dir = kick_direction(b), kicked = true;
         if (!kicked) {
-            V2 nrm = xengine::normalized(c.normal);
+            V2 nrm = xengine::dynamics::normalized(c.normal);
             if (nrm == V2{}) nrm = -dir;
-            dir = xengine::normalized(steep(xengine::reflect(dir, nrm)));
+            dir = xengine::dynamics::normalized(steep(xengine::dynamics::reflect(dir, nrm)));
         }
         if (left < 1) break;
     }

@@ -4,7 +4,7 @@ import std;
 import mlibs.error;
 export import hanim.program;
 import mlibs.memory;
-export import xengine.simulation.bodies;
+export import xengine.dynamics;
 
 namespace hanim::detail { struct EngineData; }
 export namespace hanim {
@@ -146,8 +146,8 @@ using ConstraintRef = mlibs::memory::Handle<ConstraintTag>;
 // `carries`: other parts of the same object, beside it (the same parent),
 // moved by the same cage — a figure of several inks one soft body (Mui).
 struct BodyOptions {
-    xengine::simulation::BodyParams       params;
-    std::vector<xengine::simulation::Plane> colliders;
+    xengine::dynamics::BodyParams       params;
+    std::vector<xengine::dynamics::Plane> colliders;
     std::size_t                           points = 48;  // 8 to 1024
     std::vector<std::string>              carries;
 };
@@ -244,10 +244,10 @@ public:
     // held; nullopt lets go.
     [[nodiscard]] std::expected<void, EngineFailure> pull(BodyRef body, std::optional<Vec2> hand);
     // What it may stand on now (a page's surfaces near it, as many as
-    // xengine::simulation::max_ledges: more is invalid_argument); an
+    // xengine::dynamics::max_ledges: more is invalid_argument); an
     // acceleration that lasts (walking); a velocity added once, at its next
     // step (a hop). Each step's input is kept: replays are the same.
-    [[nodiscard]] std::expected<void, EngineFailure> surfaces(BodyRef body, std::span<const xengine::simulation::Ledge> ledges);
+    [[nodiscard]] std::expected<void, EngineFailure> surfaces(BodyRef body, std::span<const xengine::dynamics::Ledge> ledges);
     // The bodies alone on by `elapsed` (their figures carried), for a host
     // whose playbacks are sampled at positions of their own (the UI's).
     [[nodiscard]] std::expected<void, EngineFailure> advance_bodies(seconds elapsed);
@@ -262,7 +262,7 @@ public:
     [[nodiscard]] std::expected<void, EngineFailure> hop(BodyRef body, Vec2 velocity);
     [[nodiscard]] std::expected<void, EngineFailure> unsimulate(BodyRef body);
     // The body's state (its particles, velocities), for tools and Agents.
-    [[nodiscard]] std::expected<const xengine::simulation::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;
+    [[nodiscard]] std::expected<const xengine::dynamics::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;
 
 private:
     template <Animatable T> friend class Drive;

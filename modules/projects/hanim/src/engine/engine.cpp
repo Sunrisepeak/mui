@@ -73,8 +73,8 @@ struct EngineData {
     };
     struct BodySlot {
         PartAddress part;
-        std::optional<mlibs::simulation::Timeline<xengine::simulation::SoftBodyModel>> history;
-        xengine::simulation::BodyInput input;
+        std::optional<mlibs::simulation::Timeline<xengine::dynamics::SoftBodyModel>> history;
+        xengine::dynamics::BodyInput input;
         double owed = 0;  // engine seconds not yet stepped
         std::vector<Rider> riders;
         std::vector<double> made_x, made_y;  // the ring it was made as: what riders' weights are of
@@ -1037,7 +1037,7 @@ std::expected<BodyRef, EngineFailure> Engine::simulate(PartAddress address, Body
     }
     const auto& outer = contours[part.info.first_contour + largest];
     const auto ring = outline_ring(own.subspan(outer.first_cubic - first_cubic, outer.cubic_count), local, options.points);
-    auto body = xengine::simulation::SoftBody::ring(ring, options.params, options.colliders);
+    auto body = xengine::dynamics::SoftBody::ring(ring, options.params, options.colliders);
     if (!body) return std::unexpected(fail(EngineError::invalid_argument));
     detail::EngineData::BodySlot slot;
     slot.part = address;
@@ -1147,11 +1147,11 @@ std::expected<void, EngineFailure> Engine::carry(BodyRef ref, std::span<const st
     apply_bodies(*data_);
     return {};
 }
-std::expected<void, EngineFailure> Engine::surfaces(BodyRef ref, std::span<const xengine::simulation::Ledge> ledges) {
+std::expected<void, EngineFailure> Engine::surfaces(BodyRef ref, std::span<const xengine::dynamics::Ledge> ledges) {
     if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
     auto* slot = live_body(data_.get(), ref);
     if (!slot) return std::unexpected(fail(EngineError::stale_handle));
-    if (ledges.size() > xengine::simulation::max_ledges) return std::unexpected(fail(EngineError::invalid_argument));
+    if (ledges.size() > xengine::dynamics::max_ledges) return std::unexpected(fail(EngineError::invalid_argument));
     for (const auto& ledge : ledges)
         if (!std::isfinite(ledge.left) || !std::isfinite(ledge.right) || !std::isfinite(ledge.top) || ledge.right < ledge.left)
             return std::unexpected(fail(EngineError::invalid_argument));
@@ -1194,7 +1194,7 @@ std::expected<void, EngineFailure> Engine::unsimulate(BodyRef ref) {
     ++slot->generation;
     return {};
 }
-std::expected<const xengine::simulation::SoftBody*, EngineFailure> Engine::body(BodyRef ref) const noexcept {
+std::expected<const xengine::dynamics::SoftBody*, EngineFailure> Engine::body(BodyRef ref) const noexcept {
     auto* slot = live_body(data_.get(), ref);
     if (!slot) return std::unexpected(fail(EngineError::stale_handle));
     return &slot->history->state();

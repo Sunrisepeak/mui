@@ -18,7 +18,7 @@ The first version was a tour: six levels, one per department of the framework, w
 
 | Layer | Package | What it is |
 |---|---|---|
-| Game engine services | `xengine.world`, `mgame.sim`, `xengine.input`, `xengine.physics`, `xengine.ui` | entities in plain columns; a fixed-step clock and a timeline that seeks any kept frame; input sampled once a step; swept circle-against-box collisions with exactly rounded doubles; a game paced on openmui's clock |
+| Game engine services | `xengine.world`, `mgame.sim`, `xengine.input`, `xengine.dynamics` (collision), `xengine.ui` | entities in plain columns; a fixed-step clock and a timeline that seeks any kept frame; input sampled once a step; swept circle-against-box collisions with exactly rounded doubles; a game paced on openmui's clock |
 | The game's simulation | `showcase/widget-breakout/sim` | the breakout as a pure step over plain data: spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts, the camera |
 | The game | `showcase/widget-breakout` | the field component, the rooms as data, the copilot, the contraptions' scripts, the sounds, the effects, the application |
 | Framework | openmui, `omui.ui.canvas`, `omui.theme.styles`, `omui.lang.{js,lua,python.embedded}`, `xengine.audio` | what the rooms use |

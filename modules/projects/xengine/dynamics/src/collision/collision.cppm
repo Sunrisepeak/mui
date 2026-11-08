@@ -1,8 +1,10 @@
-// xengine.physics — swept collision: when a moving circle first touches a box.
+// xengine.dynamics.collision — the shapes every solver family collides with
+// and the queries on them (D-133): half-planes, one-way ledges, boxes, and
+// swept collision — when a moving circle first touches a box.
 //
-//     if (auto hit = xengine::sweep(ball.at, ball.radius, ball.velocity * left, brick)) {
+//     if (auto hit = xengine::dynamics::sweep(ball.at, ball.radius, ball.velocity * left, brick)) {
 //         ball.at += ball.velocity * (left * hit->t);
-//         ball.velocity = xengine::reflect(ball.velocity, hit->normal);
+//         ball.velocity = xengine::dynamics::reflect(ball.velocity, hit->normal);
 //     }
 //
 // A circle of radius r moving by d meets a box where its centre's path meets
@@ -15,11 +17,11 @@
 //
 // Only + − × ÷ and √ — which IEEE 754 rounds exactly — on doubles, built
 // without contraction or fast math: the same bits everywhere (as hanim's).
-export module xengine.physics;
+export module xengine.dynamics.collision;
 
 import std;
 
-export namespace xengine {
+export namespace xengine::dynamics {
 
 struct V2 {
     double x = 0, y = 0;
@@ -56,4 +58,25 @@ struct Hit {
 // Whether a circle at p of radius r overlaps b.
 [[nodiscard]] bool overlaps(V2 p, double r, const Box& b) noexcept;
 
-}  // namespace xengine
+// The half-plane normal · p ≥ offset (a ground at y = 400 on a y-down
+// screen: normal (0, −1), offset −400).
+struct Plane {
+    double normal_x = 0, normal_y = -1;
+    double offset = 0;
+};
+// A floor from above only, between `left` and `right` at `top` (a card's top
+// edge on a y-down page): what comes down onto it from above stands on it;
+// what is below it or beside it passes by.
+struct Ledge {
+    double left = 0, right = 0, top = 0;
+};
+// How far p is inside the half-plane (negative: outside it, by that much).
+[[nodiscard]] constexpr double depth(const Plane& plane, double x, double y) noexcept {
+    return plane.offset - (plane.normal_x * x + plane.normal_y * y);
+}
+// Whether a point moving from `before_y` to `y` at `x` came down through the ledge from above.
+[[nodiscard]] constexpr bool lands(const Ledge& ledge, double x, double before_y, double y) noexcept {
+    return x >= ledge.left && x <= ledge.right && before_y <= ledge.top + 1e-9 && y > ledge.top;
+}
+
+}  // namespace xengine::dynamics

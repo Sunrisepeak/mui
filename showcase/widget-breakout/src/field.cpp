@@ -216,7 +216,7 @@ bool Field::begin() {
     std::size_t slots = 0;
     for (std::size_t i = 0; i < def.bricks.size(); ++i) {
         const BrickDef& b = def.bricks[i];
-        xengine::Box box{b.x, b.y, b.width, b.height};  // a canvas room: where the room says, in the field's units
+        xengine::dynamics::Box box{b.x, b.y, b.width, b.height};  // a canvas room: where the room says, in the field's units
         if (!def.canvas) {
             const Rect r = services().bounds(nodes[i]);
             if (r.width <= 0 || r.height <= 0) return false;  // not laid out yet

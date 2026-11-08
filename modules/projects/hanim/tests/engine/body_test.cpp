@@ -9,7 +9,7 @@ import mlibs.testing;
 
 using namespace hanim;
 using namespace mlibs::testing;
-namespace sim = xengine::simulation;
+namespace sim = xengine::dynamics;
 
 namespace {
 template <class T, class E>

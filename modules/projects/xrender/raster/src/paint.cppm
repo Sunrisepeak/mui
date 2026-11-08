@@ -108,18 +108,18 @@ struct WeightedPaint { Paint paint; float weight = 0; };
 class Shader {
 public:
     explicit Shader(const Paint& paint);
-    [[nodiscard]] bool opaque_solid() const noexcept { return solid_ && solid_color_.a == 255; }
-    [[nodiscard]] bool solid() const noexcept { return solid_; }
-    [[nodiscard]] Rgba8 solid_color() const noexcept { return solid_color_; }
+    [[nodiscard]] inline bool opaque_solid() const noexcept { return solid_ && solid_color_.a == 255; }
+    [[nodiscard]] inline bool solid() const noexcept { return solid_; }
+    [[nodiscard]] inline Rgba8 solid_color() const noexcept { return solid_color_; }
     // Every colour shade() gives is opaque (a gradient of opaque stops at full
     // opacity): where coverage is full, the shaded colour is the pixel.
-    [[nodiscard]] bool opaque() const noexcept { return opaque_; }
+    [[nodiscard]] inline bool opaque() const noexcept { return opaque_; }
     // The premultiplied colours of `count` pixels of row y from column x.
     void shade(int x, int y, int count, Rgba8* out) const;
     // A gradient's lookup table: entry i is the colour at t = i / 255 (the
     // paint's opacity applied), looked up at int(t × 255 + 0.5) — what a GPU
     // renderer uploads to shade exactly as this one does.
-    [[nodiscard]] std::span<const Rgba8, 256> table() const noexcept { return lut_; }
+    [[nodiscard]] inline std::span<const Rgba8, 256> table() const noexcept { return lut_; }
 
     // A premultiplied colour lit by a normal map's texel (the material's
     // shading, exactly: what the GPU's shader computes the same way).
@@ -149,9 +149,9 @@ private:
 class MixShader {
 public:
     [[nodiscard]] bool reset(const Paint& paint);
-    [[nodiscard]] bool solid() const noexcept { return solid_; }
-    [[nodiscard]] Rgba8 solid_color() const noexcept { return color_; }
-    [[nodiscard]] bool opaque() const noexcept { return false; }
+    [[nodiscard]] inline bool solid() const noexcept { return solid_; }
+    [[nodiscard]] inline Rgba8 solid_color() const noexcept { return color_; }
+    [[nodiscard]] inline bool opaque() const noexcept { return false; }
     void shade(int x, int y, int count, Rgba8* output) const;
 private:
     std::vector<Paint> paints_;

@@ -74,10 +74,10 @@ public:
     // target): canvases drawing disjoint rows of one surface at once share it.
     void use_object_ids(std::span<std::uint32_t> ids) noexcept;
     void clear_object_ids(std::int32_t top, std::int32_t bottom) noexcept;
-    [[nodiscard]] std::span<const std::uint32_t> object_ids() const noexcept { return ids_; }
+    [[nodiscard]] inline std::span<const std::uint32_t> object_ids() const noexcept { return ids_; }
 
-    [[nodiscard]] PixelRect bounds() const noexcept { return {0, 0, base_->width(), base_->height()}; }
-    [[nodiscard]] std::size_t depth() const noexcept { return clips_.size() + layers_.size(); }
+    [[nodiscard]] inline PixelRect bounds() const noexcept { return {0, 0, base_->width(), base_->height()}; }
+    [[nodiscard]] inline std::size_t depth() const noexcept { return clips_.size() + layers_.size(); }
 
 private:
     struct Clip {
@@ -92,8 +92,8 @@ private:
     };
     std::shared_ptr<Mask> take_mask();
 
-    [[nodiscard]] Surface& target() noexcept { return layers_.empty() ? *base_ : *layers_.back().surface; }
-    [[nodiscard]] const Clip& clip() const noexcept { return clips_.back(); }
+    [[nodiscard]] inline Surface& target() noexcept { return layers_.empty() ? *base_ : *layers_.back().surface; }
+    [[nodiscard]] inline const Clip& clip() const noexcept { return clips_.back(); }
     template<class Shading> void composite(const Coverage& coverage, const Shading& shader, int dx = 0, int dy = 0);
     template<class Shading> void composite(const Spans& spans, const Shading& shader);
     void composite(const Coverage& coverage, const Paint& paint, int dx = 0, int dy = 0);

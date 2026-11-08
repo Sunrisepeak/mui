@@ -373,6 +373,14 @@ Rgba8 Shader::lit(Rgba8 c, Rgba8 n, const MaterialSetup& m) noexcept {
     return {channel(c.r, kr, m.rim_r), channel(c.g, kg, m.rim_g), channel(c.b, kb, m.rim_b), c.a};
 }
 
+namespace {
+// Four float lanes (GNU vector types: one SSE or wasm SIMD register, each
+// lane computed as the scalar code computes it).
+using Lanes [[gnu::vector_size(16)]] = float;
+using LaneInts [[gnu::vector_size(16)]] = std::int32_t;
+constexpr LaneInts lane_index{0, 1, 2, 3};
+}  // namespace
+
 void Shader::shade(int x, int y, int count, Rgba8* out) const {
     if (solid_) {
         std::fill_n(out, count, solid_color_);
@@ -405,7 +413,20 @@ void Shader::shade(int x, int y, int count, Rgba8* out) const {
             return;
         }
         const float cy = m.c * py, dyy = m.d * py;
-        for (int i = 0; i < count; ++i) {
+        // Four pixels' table entries at once: the same operations in the
+        // same order a lane each (IEEE, no fusing), so the same bytes; then
+        // the four lookups.
+        int i = 0;
+        for (; i + 4 <= count; i += 4) {
+            Lanes px = __builtin_convertvector(lane_index + (x + i), Lanes) + 0.5f;
+            const Lanes qx = m.a * px + cy + m.e, qy = m.b * px + dyy + m.f;
+            Lanes t = ((qx - p.start.x) * dx + (qy - p.start.y) * dy) / len2;
+            t = t < 0.0f ? Lanes{} : t;          // std::clamp's own tests, in its order
+            t = 1.0f < t ? Lanes{} + 1.0f : t;
+            const LaneInts entry = __builtin_convertvector(t * 255.0f + 0.5f, LaneInts);
+            for (int lane = 0; lane < 4; ++lane) out[i + lane] = lut_[static_cast<std::size_t>(entry[lane])];
+        }
+        for (; i < count; ++i) {
             const float px = static_cast<float>(x + i) + 0.5f;
             const float qx = m.a * px + cy + m.e, qy = m.b * px + dyy + m.f;
             const float t = std::clamp(((qx - p.start.x) * dx + (qy - p.start.y) * dy) / len2, 0.0f, 1.0f);

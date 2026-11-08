@@ -29,8 +29,8 @@ public:
     PathBuilder& cubic_to(Point c1, Point c2, Point p);
     PathBuilder& close();
     PathBuilder& rect(const Rect& r);
-    [[nodiscard]] PathData data() const noexcept { return {verbs_, points_}; }
-    [[nodiscard]] bool empty() const noexcept { return verbs_.empty(); }
+    [[nodiscard]] inline PathData data() const noexcept { return {verbs_, points_}; }
+    [[nodiscard]] inline bool empty() const noexcept { return verbs_.empty(); }
     void clear() noexcept {
         verbs_.clear();
         points_.clear();
@@ -60,7 +60,7 @@ struct Span {
 struct Spans {
     PixelRect         bounds;  // the rectangle the runs lie in
     std::vector<Span> runs;    // by row, then by column
-    [[nodiscard]] bool empty() const noexcept { return runs.empty(); }
+    [[nodiscard]] inline bool empty() const noexcept { return runs.empty(); }
 };
 
 // Coverage of polygons inside `clip` (device pixels).

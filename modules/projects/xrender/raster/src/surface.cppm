@@ -40,7 +40,7 @@ struct ImageView {
     int          height = 0;
     int          stride = 0;  // in pixels
 
-    [[nodiscard]] const Rgba8& at(int x, int y) const noexcept { return pixels[static_cast<std::size_t>(y) * stride + x]; }
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept { return pixels[static_cast<std::size_t>(y) * stride + x]; }
 };
 
 class Surface {
@@ -48,19 +48,19 @@ public:
     Surface() = default;
     Surface(int width, int height);
 
-    [[nodiscard]] int width() const noexcept { return width_; }
-    [[nodiscard]] int height() const noexcept { return height_; }
-    [[nodiscard]] Rgba8* row(int y) noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
-    [[nodiscard]] const Rgba8* row(int y) const noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
-    [[nodiscard]] Rgba8& at(int x, int y) noexcept { return row(y)[x]; }
-    [[nodiscard]] const Rgba8& at(int x, int y) const noexcept { return row(y)[x]; }
-    [[nodiscard]] std::span<Rgba8> pixels() noexcept { return pixels_; }
-    [[nodiscard]] std::span<const Rgba8> pixels() const noexcept { return pixels_; }
+    [[nodiscard]] inline int width() const noexcept { return width_; }
+    [[nodiscard]] inline int height() const noexcept { return height_; }
+    [[nodiscard]] inline Rgba8* row(int y) noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline const Rgba8* row(int y) const noexcept { return pixels_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline Rgba8& at(int x, int y) noexcept { return row(y)[x]; }
+    [[nodiscard]] inline const Rgba8& at(int x, int y) const noexcept { return row(y)[x]; }
+    [[nodiscard]] inline std::span<Rgba8> pixels() noexcept { return pixels_; }
+    [[nodiscard]] inline std::span<const Rgba8> pixels() const noexcept { return pixels_; }
     // The pixels as bytes, R G B A in order.
     [[nodiscard]] std::span<const std::uint8_t> bytes() const noexcept {
         return {reinterpret_cast<const std::uint8_t*>(pixels_.data()), pixels_.size() * 4};
     }
-    [[nodiscard]] ImageView view() const noexcept { return {pixels_.data(), width_, height_, width_}; }
+    [[nodiscard]] inline ImageView view() const noexcept { return {pixels_.data(), width_, height_, width_}; }
 
     void clear(Rgba8 value = {});
     void resize(int width, int height);
@@ -78,13 +78,13 @@ public:
     Mask() = default;
     Mask(int width, int height, std::uint8_t fill = 0);
 
-    [[nodiscard]] int width() const noexcept { return width_; }
-    [[nodiscard]] int height() const noexcept { return height_; }
-    [[nodiscard]] std::uint8_t* row(int y) noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
-    [[nodiscard]] const std::uint8_t* row(int y) const noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
-    [[nodiscard]] std::uint8_t at(int x, int y) const noexcept { return row(y)[x]; }
-    [[nodiscard]] std::span<std::uint8_t> data() noexcept { return data_; }
-    [[nodiscard]] std::span<const std::uint8_t> data() const noexcept { return data_; }
+    [[nodiscard]] inline int width() const noexcept { return width_; }
+    [[nodiscard]] inline int height() const noexcept { return height_; }
+    [[nodiscard]] inline std::uint8_t* row(int y) noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline const std::uint8_t* row(int y) const noexcept { return data_.data() + static_cast<std::size_t>(y) * width_; }
+    [[nodiscard]] inline std::uint8_t at(int x, int y) const noexcept { return row(y)[x]; }
+    [[nodiscard]] inline std::span<std::uint8_t> data() noexcept { return data_; }
+    [[nodiscard]] inline std::span<const std::uint8_t> data() const noexcept { return data_; }
     void fill(std::uint8_t v);
     void resize(int width, int height, std::uint8_t fill = 0);
 
@@ -103,7 +103,7 @@ struct Coverage {
     [[nodiscard]] std::uint8_t at(int x, int y) const noexcept {
         return values[static_cast<std::size_t>(y - bounds.y) * bounds.width + (x - bounds.x)];
     }
-    [[nodiscard]] bool empty() const noexcept { return bounds.empty(); }
+    [[nodiscard]] inline bool empty() const noexcept { return bounds.empty(); }
 };
 
 }  // namespace xrender::raster

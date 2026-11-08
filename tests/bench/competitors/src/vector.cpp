@@ -4,8 +4,10 @@
 // once, from a seed, and written for the others as SVG and as canvas calls,
 // so all three draw the same numbers.
 //
-//   omui-bench-vector --out DIR [--runs N]
+//   omui-bench-vector --out DIR [--runs N] [--only SCENE]
 //   omui-bench-vector --phases [N]    where each scene's time goes (outline, rasterise, composite)
+//
+// --only draws one scene (for a profiler's samples to be of it alone).
 //
 // DIR/<scene>.svg, DIR/<scene>.scene.json (path data and paints, for a
 // canvas), DIR/<scene>.xrender.png and DIR/<scene>.xrender.svg (the display
@@ -339,6 +341,7 @@ bool write(const std::filesystem::path& file, std::string_view text) {
 
 int main(int argc, char** argv) {
     std::filesystem::path out;
+    std::string only;
     int runs = 15;
     if (argc >= 2 && std::string_view(argv[1]) == "--phases") {
         for (const Scene& scene : scenes()) phases(scene, argc >= 3 ? std::max(1, std::atoi(argv[2])) : 9);
@@ -348,19 +351,21 @@ int main(int argc, char** argv) {
         const std::string_view option = argv[index];
         if (option == "--out") out = argv[index + 1];
         else if (option == "--runs") runs = std::max(1, std::atoi(argv[index + 1]));
+        else if (option == "--only") only = argv[index + 1];
         else {
-            std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N]");
+            std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N] [--only SCENE]");
             return 2;
         }
     }
     if (out.empty()) {
-        std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N]");
+        std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N] [--only SCENE]");
         return 2;
     }
     std::filesystem::create_directories(out);
     xrender::CpuRenderer renderer;
     const xrender::Resources resources{};
     for (const Scene& scene : scenes()) {
+        if (!only.empty() && scene.name != only) continue;
         if (!write(out / (scene.name + ".svg"), svg_of(scene)) || !write(out / (scene.name + ".scene.json"), canvas_of(scene))) return 1;
         xrender::DisplayList list;
         std::vector<std::array<xrender::GradientStop, 2>> stops;

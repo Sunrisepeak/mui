@@ -1,2 +1,4 @@
 node_modules/
 controls.bundle.js
+controls.bundle.css
+package-lock.json

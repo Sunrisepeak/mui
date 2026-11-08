@@ -65,8 +65,8 @@ struct Spans {
 
 // Coverage of polygons inside `clip` (device pixels).
 //
-// The cells an edge crosses are kept sparse — only those it touches, sorted
-// by row and column — and a sweep per row turns them into coverage: at a
+// The cells an edge crosses are kept sparse — only those it touches, each
+// row's in column order — and a sweep per row turns them into coverage: at a
 // cell, the winding so far and the cell's area; between two cells, the
 // winding alone, so the run between them is one value. The arithmetic per
 // pixel is the dense sweep's, so both outputs give the same bytes; the cost
@@ -89,7 +89,8 @@ public:
 
 private:
     struct Cell {
-        std::int32_t y, x, cover, area;
+        std::int32_t x, cover, area;
+        std::int32_t next;  // the row's next cell to the right (-1: none)
     };
     // Bounds and cells; false: nothing to cover.
     bool prepare(const Polygons& polygons, PixelRect clip);
@@ -99,9 +100,9 @@ private:
     void scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2);
     void cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area);
 
-    std::vector<Cell> cells_;
-    std::vector<Cell> sorted_;           // prepare's scratch: the cells bucketed by row
-    std::vector<std::uint32_t> rows_;    // prepare's scratch: where each row's cells start
+    std::vector<Cell> cells_;            // every row's cells, linked in column order
+    std::vector<std::int32_t> rows_;     // each row's leftmost cell (-1: none)
+    std::int32_t      last_ = -1, last_row_ = -1;  // the cell made or added to last, and its row
     std::int32_t      min_x_ = 0, min_y_ = 0, width_ = 0, height_ = 0;
 };
 
@@ -118,12 +119,11 @@ void Rasterizer::sweep(FillRule rule, Emit&& emit) const {
         }
         return static_cast<std::uint8_t>(c > 255 ? 255 : c);
     };
-    std::size_t i = 0;
     for (std::int32_t y = 0; y < height_; ++y) {
         std::int64_t acc = 0;
         std::int32_t x = 0;  // the next pixel not emitted
-        for (; i < cells_.size() && cells_[i].y == y; ++i) {
-            const Cell& c = cells_[i];
+        for (std::int32_t at = rows_[static_cast<std::size_t>(y)]; at >= 0; at = cells_[static_cast<std::size_t>(at)].next) {
+            const Cell& c = cells_[static_cast<std::size_t>(at)];
             if (c.x >= width_) {  // the extra column: after every visible pixel
                 if (x < width_) emit(y, x, width_ - x, value(acc << 9));
                 x = width_;

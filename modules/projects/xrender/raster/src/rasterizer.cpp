@@ -64,17 +64,45 @@ std::int64_t floor_div(std::int64_t a, std::int64_t b) {
 
 }  // namespace
 
+// A cell joins its row's list in column order (FreeType's ftgrays keeps
+// its cells so): the sweep reads each row in order without a sort. A row's
+// cells mostly come in rising columns (scanline walks a row left to right),
+// so the search starts at the last cell when it lies to the left.
 void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
     if (ey < 0 || ey >= height_) return;
     if (ex < 0) ex = 0;
     if (ex > width_) ex = width_;  // the extra column: edges right of the clip
     if (cover == 0 && area == 0) return;
-    if (!cells_.empty() && cells_.back().x == ex && cells_.back().y == ey) {
-        cells_.back().cover += cover;
-        cells_.back().area += area;
+    std::int32_t before = -1, at;
+    if (last_row_ == ey) {
+        Cell& last = cells_[static_cast<std::size_t>(last_)];
+        if (last.x == ex) {
+            last.cover += cover;
+            last.area += area;
+            return;
+        }
+        if (last.x < ex) before = last_, at = last.next;
+        else at = rows_[static_cast<std::size_t>(ey)];
+    } else {
+        at = rows_[static_cast<std::size_t>(ey)];
+    }
+    while (at >= 0 && cells_[static_cast<std::size_t>(at)].x < ex) {
+        before = at;
+        at = cells_[static_cast<std::size_t>(at)].next;
+    }
+    last_row_ = ey;
+    if (at >= 0 && cells_[static_cast<std::size_t>(at)].x == ex) {
+        Cell& found = cells_[static_cast<std::size_t>(at)];
+        found.cover += cover;
+        found.area += area;
+        last_ = at;
         return;
     }
-    cells_.push_back({ey, ex, cover, area});
+    const auto made = static_cast<std::int32_t>(cells_.size());
+    cells_.push_back({ex, cover, area, at});
+    if (before < 0) rows_[static_cast<std::size_t>(ey)] = made;
+    else cells_[static_cast<std::size_t>(before)].next = made;
+    last_ = made;
 }
 
 void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2) {
@@ -97,14 +125,17 @@ void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, st
         }
         cell(ex2, ey, fy2 - y, fx2 * (fy2 - y));
     } else {
-        std::int32_t y = y_at(static_cast<std::int64_t>(ex1) * one);
-        cell(ex1, ey, y - fy1, fx1 * (y - fy1));
-        for (std::int32_t ex = ex1 - 1; ex > ex2; --ex) {
-            std::int32_t yn = y_at(static_cast<std::int64_t>(ex) * one);
-            cell(ex, ey, yn - y, one * (yn - y));
-            y = yn;
-        }
+        // Leftwards, its cells given left to right (the row's list grows at
+        // the end): the end's cell, the whole ones, the start's — each with
+        // the crossings at its two sides, as walking from the start gives.
+        std::int32_t y = y_at(static_cast<std::int64_t>(ex2 + 1) * one);  // at the end cell's right side
         cell(ex2, ey, fy2 - y, (fx2 + one) * (fy2 - y));
+        for (std::int32_t ex = ex2 + 1; ex < ex1; ++ex) {
+            const std::int32_t right = y_at(static_cast<std::int64_t>(ex + 1) * one);
+            cell(ex, ey, y - right, one * (y - right));
+            y = right;
+        }
+        cell(ex1, ey, y - fy1, fx1 * (y - fy1));
     }
 }
 
@@ -165,6 +196,7 @@ void Rasterizer::line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::in
 
 bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
     cells_.clear();
+    last_row_ = -1;
     if (polygons.points.empty() || clip.empty()) return false;
     float l = polygons.points[0].x, t = polygons.points[0].y, r = l, b = t;
     for (const Point& p : polygons.points) {
@@ -182,6 +214,7 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
     min_y_ = y0;
     width_ = x1 - x0;
     height_ = y1 - y0;
+    rows_.assign(static_cast<std::size_t>(height_), -1);
 
     // An edge is cut where it crosses the clip's sides: what lies left of the
     // clip runs down its first column (keeping its winding), what lies right
@@ -216,49 +249,6 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
             edge(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
         }
     }
-    // By row, then column; the same cell from several edges adds up. The
-    // rows are counted out (every cell's row lies in [0, height)), then each
-    // row — a few cells, as a row crosses an outline a few times — is put in
-    // column order: the order a full sort gives, in linear time.
-    rows_.assign(static_cast<std::size_t>(height_) + 1, 0);
-    for (const Cell& c : cells_) ++rows_[static_cast<std::size_t>(c.y) + 1];
-    for (std::size_t row = 1; row < rows_.size(); ++row) rows_[row] += rows_[row - 1];
-    sorted_.resize(cells_.size());
-    {
-        std::uint32_t* next = rows_.data();
-        for (const Cell& c : cells_) sorted_[next[c.y]++] = c;
-        // `next` moved each row's start to its end, the next row's start: shift back.
-        for (std::size_t row = rows_.size() - 1; row > 0; --row) rows_[row] = rows_[row - 1];
-        rows_[0] = 0;
-    }
-    for (std::size_t row = 0; row + 1 < rows_.size(); ++row) {
-        Cell* first = sorted_.data() + rows_[row];
-        Cell* last = sorted_.data() + rows_[row + 1];
-        if (last - first > 24) {
-            std::sort(first, last, [](const Cell& a, const Cell& b) { return a.x < b.x; });
-            continue;
-        }
-        for (Cell* at = first + 1; at < last; ++at) {
-            const Cell moving = *at;
-            Cell* to = at;
-            while (to > first && (to - 1)->x > moving.x) {
-                *to = *(to - 1);
-                --to;
-            }
-            *to = moving;
-        }
-    }
-    cells_.swap(sorted_);
-    std::size_t n = 0;
-    for (const Cell& c : cells_) {
-        if (n > 0 && cells_[n - 1].y == c.y && cells_[n - 1].x == c.x) {
-            cells_[n - 1].cover += c.cover;
-            cells_[n - 1].area += c.area;
-        } else {
-            cells_[n++] = c;
-        }
-    }
-    cells_.resize(n);
     return true;
 }
 

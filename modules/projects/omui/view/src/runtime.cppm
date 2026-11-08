@@ -473,6 +473,10 @@ public:
     void take_over();
     void hand_back();
     [[nodiscard]] bool taken_over() const override;
+    // An agent says what it intends, or hands back (AgentNote): the one note
+    // an actor has is replaced (empty text: withdrawn); its presence shows it.
+    void note(AgentNote note);
+    [[nodiscard]] std::span<const AgentNote> agent_notes() const noexcept override;
     // Who performs the action under way (its handlers run inside it): what
     // an action the program performs in turn carries on as its actor
     // (openas: an agent's click that takes a card takes it as the agent).

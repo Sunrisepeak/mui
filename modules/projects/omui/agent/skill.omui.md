@@ -15,6 +15,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 4. **Wait** for the outcome rather than sleeping: `wait` for a node present, absent, or the tree settled.
 5. **Input** (`input`: pointer, keys, text a frame at a time) only when the task is about input itself — where a press lands, how a drag feels; the answer says what each press hit. Acting on nodes is the default.
 6. **Undo** with `undo` / `redo` and read `history`.
+7. **Say what you are about to do** before a run of steps the person watches (`intend`: the steps or a note, the node it is about), and **hand back** when you stop with something left (`intend` with `hands_back`: what you did, what is left, what you were unsure of) — their screen shows it. If an action comes back `conflict` without `retry_after`, the person has taken over: stop, say so, and wait for them to hand back; with `retry_after`, they are operating that node — try it then, not before.
 
 ## Verifying
 

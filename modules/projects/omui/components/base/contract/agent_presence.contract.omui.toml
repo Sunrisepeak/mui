@@ -14,7 +14,7 @@ actors  = { type = "string", default = "agent:", doc = "Whose actions it shows: 
 trail   = { type = "i64", default = 3, doc = "The steps before the current one it shows (0: none)." }
 asking  = { type = "string", default = "", doc = "What the agent asks the person, in the application's words; empty: the card says only that it asks." }
 skin    = { type = "enum", values = ["reticle", "none"], default = "reticle", doc = "none: nothing drawn (another skin draws the same model)." }
-phrases = { type = "any", doc = "Its words in another language: a map from asks and taken_over to text ({agent} filled in)." }
+phrases = { type = "any", doc = "Its words in another language: a map from asks, taken_over, intends and hands_back to text ({agent} and {text} filled in)." }
 
 [contract.agent_presence.parts]
 frame = {}

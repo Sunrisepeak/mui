@@ -389,6 +389,7 @@ struct Runtime::Impl {
     // What a person (not an agent's input) operates now (S-14): the node they
     // hold with the pointer, and the one they last typed into and when.
     bool                 taken_over = false;  // the person has taken over from every agent (S-14)
+    std::vector<AgentNote> agent_notes;      // one an actor (Runtime::note), oldest first
     NodeId               person_holds;
     NodeId               person_typed;
     double               person_typed_at = -1e9;

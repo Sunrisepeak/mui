@@ -512,6 +512,19 @@ struct Server::Impl {
             if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
             return tool_result(text, false, {}, std::move(pictures));
         }
+        if (name == "ui_intend") {
+            const Value* text = args.get("text");
+            if (!text || text->type() != Value::Type::text) return tool_result("ui_intend needs `text` (\"\" withdraws what you said)", true);
+            Value req;
+            req.set("op", "intend").set("text", *text);
+            if (const Value* node = args.get("node")) req.set("node", *node);
+            if (const Value* back = args.get("hands_back")) req.set("hands_back", *back);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            const bool said = a.data.get("said") && a.data.get("said")->as_bool();
+            return tool_result(!said ? "withdrawn" : (a.data.get("hands_back") && a.data.get("hands_back")->as_bool()) ? "handed back: the person sees your summary" : "said: the person sees it",
+                               false, Value{}.set("data", a.data));
+        }
         if (name == "ui_drew") {
             const Value* at = args.get("at");
             if (!at || !at->list() || at->list()->size() != 2) return tool_result("ui_drew needs `at`: [x, y]", true);
@@ -678,6 +691,13 @@ Value::List Server::tools() const {
                             {"absent", b("the query must not match")},
                             {"settled", b("nothing animates or is being removed")},
                             {"timeout", prop("number", "seconds (default 5)")}}), "ui.wait"),
+        tool("ui_intend", "Say what you are about to do",
+             "Tell the person, before you act, what you are about to do — the steps, or a note — or, handing the task back, what you did, "
+             "what is left and what you were unsure of (hands_back). Your presence on their screen shows it until you say another; it "
+             "changes nothing in the application.",
+             object_schema({app_prop, {"text", s("the intent, or the handoff's summary (\"\" withdraws it)")}, {"node", s("the node it is about (optional)")},
+                            {"hands_back", Value{}.set("type", "boolean").set("description", "a handoff to the person, not an intent")}},
+                           {"text"}), "ui.intend"),
         tool("ui_drew", "What drew this pixel",
              "The node whose drawing a pixel shows, the nodes it sits in, and where in the program each was built (file:line:column): "
              "from something wrong in a picture to the line to change.",

@@ -317,6 +317,10 @@ AgentPresenceState agent_presence_state(const Services& services, std::string_vi
     }
     std::ranges::reverse(out.trail);
     out.taken_over = services.taken_over();
+    // Its note: what the agent it shows said; with none acting yet, the newest any of these actors said.
+    for (const AgentNote& note : services.agent_notes())
+        if (out.actor.empty() ? note.actor.starts_with(actors) : note.actor == out.actor) out.note = note;
+    if (out.actor.empty() && out.note) out.actor = out.note->actor;
     return out;
 }
 
@@ -351,23 +355,27 @@ std::string AgentPresence::phrase(std::string_view key) const {
     if (const Value* own = props.phrases.get(key); own && !own->as_string().empty()) return std::string(own->as_string());
     if (key == "asks") return "{agent} asks you";
     if (key == "taken_over") return "You have taken over from {agent}";
+    if (key == "intends") return "{agent}: {text}";
+    if (key == "hands_back") return "{agent} hands back: {text}";
     return std::string(key);
 }
 
 std::string AgentPresence::said() const {
     const AgentPresenceState now = state();
-    if (!now.now) return {};
+    if (!now.now && !now.note) return {};
     const std::string agent(who(now.actor));
-    if (now.taken_over) {
-        std::string text = phrase("taken_over");
+    const auto filled = [&](std::string text, std::string_view say = {}) {
         if (const auto at = text.find("{agent}"); at != std::string::npos) text.replace(at, 7, agent);
+        if (const auto at = text.find("{text}"); at != std::string::npos) text.replace(at, 6, say);
         return text;
-    }
+    };
+    if (now.taken_over) return filled(phrase("taken_over"));
     if (now.asking) {
         std::string text = phrase("asks");
         if (const auto at = text.find("{agent}"); at != std::string::npos) text.replace(at, 7, agent);
         return props.asking.empty() ? text : std::format("{}: {}", text, props.asking);
     }
+    if (now.note) return filled(phrase(now.note->hands_back ? "hands_back" : "intends"), now.note->text);
     return std::format("{} {} {}", agent, now.now->action, short_path(now.now->path));
 }
 
@@ -413,8 +421,8 @@ void AgentPresence::paint(PaintContext& ctx) const {
         tag_.paint(ctx, {pill.x + 6, pill.y + 2}, th.color("on_accent", Color::white()));
     });
 
-    // Waiting for the person, or held by them: a card under the node, saying so. Nothing on it answers (S-10).
-    if (now.asking || now.taken_over) {
+    // Waiting for the person, held by them, or saying what it is about to do: a card beside the node. Nothing on it answers (S-10).
+    if (now.asking || now.taken_over || now.note) {
         card_.set_text(said());
         const Size t = card_.measure(ctx.services, th.color("text"), 260);
         // Beside the node where the page has room, else under it: not over what it acts on.
@@ -436,6 +444,7 @@ void AgentPresence::semantics(SemanticsContext&, spec::SemanticNode& node) const
     node.name = said();
     Value value;
     value.set("actor", now.actor).set("asking", now.asking).set("taken_over", now.taken_over);
+    if (now.note) value.set("says", now.note->text).set("hands_back", now.note->hands_back);
     if (now.now) value.set("node", now.now->path).set("action", now.now->action);
     Value::List steps;
     for (const PresenceStep& step : now.trail) steps.emplace_back(step.path);

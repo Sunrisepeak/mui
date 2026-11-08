@@ -62,6 +62,11 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_capture{
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_input{{
     {"events", "json", "a list of {type: move, click, drag, wheel, key, keys, text, wait, …}", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_intend{{
+    {"text", "string", "the intent or the handoff's summary (\"\" withdraws it)", false},
+    {"node", "string", "the node it is about", true},
+    {"hands_back", "bool", "a handoff to the person, not an intent", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_drew{{
     {"at", "json", "[x, y] in logical pixels", false},
 }};
@@ -102,7 +107,7 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{{
 }};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
-inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{{
     {{"ui.describe", openas::Effect::read, false}, "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.snapshot", openas::Effect::read, false}, "The semantic tree, or a part of it", parameters_ui_snapshot, "tree", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.changes", openas::Effect::read, false}, "What changed in the tree since the last snapshot or changes", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
@@ -117,6 +122,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
     {{"ui.wait", openas::Effect::read, false}, "Answer when a condition holds: a node present or absent, the tree settled", parameters_ui_wait, "json", mlibs::control::Cost::heavy, "", false, false, false},
     {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},
     {{"ui.input", openas::Effect::reversible, false}, "A person's input as their devices give it (pointer, keys, text), delivered a frame at a time; answers what each press hit", parameters_ui_input, "json", mlibs::control::Cost::heavy, "what the input performed is the actions' own (ui.undo for reversible ones)", false, false, false},
+    {{"ui.intend", openas::Effect::read, false}, "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes", parameters_ui_intend, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.drew", openas::Effect::read, false}, "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built", parameters_ui_drew, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.inspect", openas::Effect::read, false}, "A node's layout, style, state, bindings and motion, for development", parameters_ui_inspect, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.stats", openas::Effect::read, false}, "Frame times (mean, percentiles, phases) and the last frame's counts", parameters_ui_stats, "json", mlibs::control::Cost::instant, "", false, false, false},

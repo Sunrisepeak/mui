@@ -159,6 +159,17 @@ cost    = "heavy"
 undo    = "what the input performed is the actions' own (ui.undo for reversible ones)"
 
 [[operation]]
+name    = "ui.intend"
+effect  = "read"
+summary = "Say to the person what you are about to do (the steps, or a note) — or, handing the task back, what you did, what is left, what you were unsure of: shown by your presence until you say another; nothing in the application changes"
+params  = [
+    { name = "text", type = "string", doc = "the intent or the handoff's summary (\"\" withdraws it)" },
+    { name = "node", type = "string", doc = "the node it is about", optional = true },
+    { name = "hands_back", type = "bool", doc = "a handoff to the person, not an intent", optional = true },
+]
+result  = "json"
+
+[[operation]]
 name    = "ui.drew"
 effect  = "read"
 summary = "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built"

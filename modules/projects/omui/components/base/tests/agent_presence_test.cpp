@@ -112,6 +112,19 @@ int main(int argc, char** argv) {
         check(rt.invoke("agents.hand_back").exit_code() == 0);
         h.settle();
         check(!agent_presence_state(rt, "agent:").taken_over && act(h, "main/body/actions/save", "activate") == 0 && saved == 3, "handed back");
+        // What it says it is about to do, then hands back with (openas §4.4, §5.3): shown, as its own; another agent's not.
+        rt.set(presence, "skin", Value("reticle"));
+        rt.note({.actor = "agent:other", .text = "Not mine to show"});
+        rt.note({.actor = "agent:guide", .text = "Save, then close the report", .node = "main/body/actions/save"});
+        h.settle();
+        check_eq(h.tree().node("main/presence")->name, std::string("guide: Save, then close the report"));
+        rt.note({.actor = "agent:guide", .text = "Saved twice; the report is still open: close it?", .hands_back = true});
+        h.settle();
+        check_eq(h.tree().node("main/presence")->name, std::string("guide hands back: Saved twice; the report is still open: close it?"));
+        (void)h.save_png(scratch_dir("agent-presence") / "hands-back.png");
+        rt.note({.actor = "agent:guide"});
+        h.settle();
+        check_eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save"));
     });
 
     return s.run(argc, argv);

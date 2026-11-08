@@ -692,6 +692,18 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         runtime_.request_frame();
         return e;
     }
+    if (op == "intend") {
+        // What the agent is about to do, or hands back with (openas §4.4, §5.3): said to the person —
+        // its presence shows it — before it acts or as it stops; nothing in the application changes.
+        const Value* text = req.get("text");
+        if (!text || text->type() != Value::Type::text)
+            return invalid("`intend` needs `text`: what it is about to do (or, with hands_back, what it did and what is left); \"\" withdraws it",
+                           R"({"op":"intend","text":"Sort the list by date, then remove the duplicates","node":"main/list"})");
+        const bool hands_back = req.get("hands_back") && req.get("hands_back")->as_bool();
+        runtime_.note({.actor = current->actor.text(), .text = std::string(text->as_string()), .node = std::string(text_of(req, "node")),
+                       .hands_back = hands_back});
+        return e.data(Value{}.set("said", !text->as_string().empty()).set("hands_back", hands_back)).result(spec::exit_code::success);
+    }
     // ── development: inspection, statistics, profiling, logs, debug overlays ──
     if (op == "drew") {
         // What drew a pixel (Part 2 §4.1, B): the node its colour came from, the nodes it sits in, and

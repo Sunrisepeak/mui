@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 14, "fourteen tools");
+        check(tools && tools->list() && tools->list()->size() == 15, "fifteen tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -162,14 +162,15 @@ int main(int argc, char** argv) {
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
-                                                  "ui_wait", "ui_capture", "ui_drew", "ui_input", "ui_clock", "ui_verbs"}));
+                                                  "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs"}));
             // The hints are the catalog's effects (omui.ops.omui.toml): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
                     if (t.get("name")->as_string() == tool) return t.get("annotations")->get(key)->as_bool();
                 return false;
             };
-            check(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_verbs", "readOnlyHint"), "reads");
+            check(hint("ui_snapshot", "readOnlyHint") && hint("ui_capture", "readOnlyHint") && hint("ui_verbs", "readOnlyHint") && hint("ui_intend", "readOnlyHint"),
+                  "reads");
             check(!hint("ui_clock", "readOnlyHint") && !hint("ui_clock", "destructiveHint") && !hint("ui_input", "readOnlyHint"), "reversible");
             check(!hint("ui_act", "readOnlyHint") && hint("ui_act", "destructiveHint") && hint("ui_invoke", "destructiveHint"), "delegated: at most irreversible");
         }
@@ -387,6 +388,25 @@ int main(int argc, char** argv) {
         check(!c.error(3) && c.text(3).contains("background"), c.text(3));
     });
 
+    s.test("saying what it is about to do (openas §4.4) and handing back (§5.3): the note the person's screen shows, as the agent's; nothing changes", [] {
+        const auto dir = scratch_dir("mcp-intend");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) return;
+        const auto journaled = notes.h.runtime().action_journal().size();
+        mcp::Server server({.directory = dir, .actor = "agent:guide"});
+        Client c;
+        c.in = {initialize(1, false), call(2, "ui_intend", Value{}.set("text", "Pin the first note, then delete the old ones").set("node", "notes/pin")),
+                call(3, "ui_intend", Value{}), call(4, "ui_intend", Value{}.set("text", "Pinned one; two old notes left: are they yours?").set("hands_back", true)),
+                call(5, "ui_intend", Value{}.set("text", ""))};
+        serve(notes.h, server, c);
+        check(!c.error(2) && c.text(2).contains("said"), c.text(2));
+        check(c.error(3), "text is needed");
+        check(!c.error(4) && c.text(4).contains("handed back"), c.text(4));
+        check(!c.error(5) && c.text(5).contains("withdrawn"), c.text(5));
+        check(notes.h.runtime().agent_notes().empty(), "withdrawn at the end");
+        check_eq(notes.h.runtime().action_journal().size(), journaled);
+    });
+
     s.test("an application's verbs as tools from its listing (omui-gen ops): schemas, hints, invoked, confirmed by the person", [] {
         const auto dir = scratch_dir("mcp-listing");
         // A listing as omui-gen ops writes one for the notes' verbs.
@@ -417,10 +437,10 @@ int main(int argc, char** argv) {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 16, "fourteen ui_* tools and the two listed");
-        if (tools && tools->list() && tools->list()->size() == 16) {
-            const Value& pin = (*tools->list())[14];
-            const Value& del = (*tools->list())[15];
+        check(tools && tools->list() && tools->list()->size() == 17, "fifteen ui_* tools and the two listed");
+        if (tools && tools->list() && tools->list()->size() == 17) {
+            const Value& pin = (*tools->list())[15];
+            const Value& del = (*tools->list())[16];
             check(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin", pin.json());
             check(pin.get("inputSchema")->get("properties")->get("app") != nullptr, "a call may name its application");
             check(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool(), pin.json());

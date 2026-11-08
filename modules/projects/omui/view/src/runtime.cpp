@@ -125,6 +125,16 @@ void Runtime::hand_back() {
 
 bool Runtime::taken_over() const { return impl_->taken_over; }
 
+void Runtime::note(AgentNote note) {
+    Impl& d = *impl_;
+    std::erase_if(d.agent_notes, [&](const AgentNote& each) { return each.actor == note.actor; });
+    note.at = d.now().count();
+    if (!note.text.empty()) d.agent_notes.push_back(std::move(note));
+    d.actions_changed();
+}
+
+std::span<const AgentNote> Runtime::agent_notes() const noexcept { return impl_->agent_notes; }
+
 std::optional<Envelope> Runtime::Impl::held_by_person(const Invocation& call, Effect effect, std::string_view what) const {
     if (!taken_over || effect == Effect::read || replaying != 0 || !(call.remote || call.actor.kind == "agent")) return std::nullopt;
     Envelope env;

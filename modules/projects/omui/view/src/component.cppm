@@ -138,6 +138,18 @@ struct ActionEntry {
     double        at = 0;      // when, in seconds of the runtime's clock
 };
 
+// What an agent says it is about to do, or hands back with (openas §4.4,
+// §5.3): its intent before it acts — the steps, or a note — or, handing a
+// task back to the person, what it did, what is left, what it was unsure of.
+// Shown by its presence; kept until it says another; no action, no history.
+struct AgentNote {
+    std::string actor;               // who says it ("agent:guide")
+    std::string text;                // empty: it withdraws what it said
+    std::string node;                // the node it means, if one
+    bool        hands_back = false;  // a handoff's summary, not an intent
+    double      at = 0;              // when, in seconds of the runtime's clock
+};
+
 // The person's own agent, linked through a bridge on their machine (agent
 // connect, D-95): unavailable (the host cannot: off the Web, or turned off),
 // idle, waiting (for a bridge with `code`), paired (with `agent`), lost (the
@@ -324,6 +336,8 @@ public:
     virtual void unlink_agent() {}
     // Whether the person has taken over from every agent (Runtime::take_over, S-14).
     [[nodiscard]] virtual bool taken_over() const { return false; }
+    // What each agent last said it intends, or handed back with (Runtime::note), oldest first.
+    [[nodiscard]] virtual std::span<const AgentNote> agent_notes() const noexcept { return {}; }
     // While followed, the node is laid out, painted and stated again when an
     // action is journaled or the agent link changes.
     virtual void follow_actions(NodeId node, bool follow) { (void)node, (void)follow; }

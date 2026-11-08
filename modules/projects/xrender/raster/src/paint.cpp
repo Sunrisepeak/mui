@@ -95,6 +95,7 @@ Shader::Shader(const Paint& paint) : paint_(&paint) {
             auto q = [](float v) { return static_cast<std::uint8_t>(static_cast<int>(std::clamp(v, 0.0f, 1.0f) * 255.0f + 0.5f)); };
             lut_[static_cast<std::size_t>(i)] = {q(r * op), q(g * op), q(bl * op), q(al)};
         }
+        opaque_ = inverse_.has_value() && std::ranges::all_of(lut_, [](const Rgba8& c) { return c.a == 255; });
     }
 }
 

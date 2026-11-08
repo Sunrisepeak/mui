@@ -111,6 +111,9 @@ public:
     [[nodiscard]] bool opaque_solid() const noexcept { return solid_ && solid_color_.a == 255; }
     [[nodiscard]] bool solid() const noexcept { return solid_; }
     [[nodiscard]] Rgba8 solid_color() const noexcept { return solid_color_; }
+    // Every colour shade() gives is opaque (a gradient of opaque stops at full
+    // opacity): where coverage is full, the shaded colour is the pixel.
+    [[nodiscard]] bool opaque() const noexcept { return opaque_; }
     // The premultiplied colours of `count` pixels of row y from column x.
     void shade(int x, int y, int count, Rgba8* out) const;
     // A gradient's lookup table: entry i is the colour at t = i / 255 (the
@@ -131,6 +134,7 @@ private:
     const Paint*          paint_;
     std::optional<MaterialSetup> material_;
     bool                  solid_ = false;
+    bool                  opaque_ = false;
     Rgba8                 solid_color_{};
     std::optional<Affine> inverse_;
     std::array<Rgba8, 256> lut_{};
@@ -147,6 +151,7 @@ public:
     [[nodiscard]] bool reset(const Paint& paint);
     [[nodiscard]] bool solid() const noexcept { return solid_; }
     [[nodiscard]] Rgba8 solid_color() const noexcept { return color_; }
+    [[nodiscard]] bool opaque() const noexcept { return false; }
     void shade(int x, int y, int count, Rgba8* output) const;
 private:
     std::vector<Paint> paints_;

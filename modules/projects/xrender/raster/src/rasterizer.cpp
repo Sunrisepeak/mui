@@ -262,40 +262,6 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
     return true;
 }
 
-// emit(row, column, count, value) for every pixel of the bounds, in runs: a
-// cell's pixel alone, and the pixels between cells together.
-template <class Emit>
-void Rasterizer::sweep(FillRule rule, Emit&& emit) const {
-    auto value = [rule](std::int64_t v) -> std::uint8_t {
-        if (v < 0) v = -v;
-        std::int64_t c = v >> 9;
-        if (rule == FillRule::even_odd) {
-            c &= 511;
-            if (c > 256) c = 512 - c;
-        }
-        return static_cast<std::uint8_t>(c > 255 ? 255 : c);
-    };
-    std::size_t i = 0;
-    for (std::int32_t y = 0; y < height_; ++y) {
-        std::int64_t acc = 0;
-        std::int32_t x = 0;  // the next pixel not emitted
-        for (; i < cells_.size() && cells_[i].y == y; ++i) {
-            const Cell& c = cells_[i];
-            if (c.x >= width_) {  // the extra column: after every visible pixel
-                if (x < width_) emit(y, x, width_ - x, value(acc << 9));
-                x = width_;
-                acc += c.cover;
-                continue;
-            }
-            if (c.x > x) emit(y, x, c.x - x, value(acc << 9));
-            acc += c.cover;
-            emit(y, c.x, 1, value((acc << 9) - c.area));
-            x = c.x + 1;
-        }
-        if (x < width_) emit(y, x, width_ - x, value(acc << 9));
-    }
-}
-
 void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out) {
     out.values.clear();
     out.bounds = {};

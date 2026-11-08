@@ -307,18 +307,83 @@ void Canvas::composite(const Spans& spans, const Paint& paint) {
     if (mix_shader_->reset(paint)) composite(spans, *mix_shader_);
 }
 
+template<class Shading>
+void Canvas::composite_runs(FillRule rule, const Shading& shader) {
+    // composite(Spans)'s arithmetic, a run as the rasteriser gives it: nothing
+    // kept between the sweep and the pixels.
+    const Clip& c = clip();
+    const PixelRect box = c.scissor;
+    if (box.empty()) return;
+    Surface& dst = target();
+    const bool ids = !ids_.empty() && object_id_;
+    const bool solid = shader.solid();
+    const Rgba8 sc = shader.solid_color();
+    if (solid && sc == Rgba8{}) return;
+    rasterizer_.rasterize_runs(polygons_, rule, box, [&](std::int32_t y, std::int32_t x, std::int32_t length, std::uint8_t value) {
+        if (y < box.y || y >= box.y + box.height) return;
+        const std::int32_t x0 = std::max(x, box.x), x1 = std::min(x + length, box.x + box.width);
+        if (x1 <= x0) return;
+        const std::int32_t n = x1 - x0;
+        Rgba8* out = dst.row(y) + x0;
+        std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(y) * base_->width() + x0 : nullptr;
+        if (!solid && !c.mask && value == 255 && shader.opaque()) {
+            // Full coverage of an opaque shading: scaled() and over() give the shaded colour itself.
+            shader.shade(x0, y, n, out);
+            if (id) std::fill_n(id, n, object_id_);
+            return;
+        }
+        if (!solid) {
+            row_.resize(static_cast<std::size_t>(n));
+            shader.shade(x0, y, n, row_.data());
+        }
+        if (c.mask) {
+            const std::uint8_t* mk = c.mask->row(y) + x0;
+            for (std::int32_t i = 0; i < n; ++i) {
+                const std::uint32_t k = mul255(value, mk[i]);
+                if (k == 0) continue;
+                const Rgba8 s = scaled(solid ? sc : row_[static_cast<std::size_t>(i)], k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+            return;
+        }
+        const std::uint32_t k = value;
+        if (solid) {
+            const Rgba8 s = scaled(sc, k);
+            if (s == Rgba8{}) return;
+            if (s.a == 255) std::fill_n(out, n, s);
+            else
+                for (std::int32_t i = 0; i < n; ++i) out[i] = over(out[i], s);
+        } else {
+            for (std::int32_t i = 0; i < n; ++i) {
+                const Rgba8 s = scaled(row_[static_cast<std::size_t>(i)], k);
+                if (s == Rgba8{}) continue;
+                out[i] = over(out[i], s);
+                if (id && k >= 128) id[i] = object_id_;
+            }
+            return;
+        }
+        if (id && k >= 128) std::fill_n(id, n, object_id_);
+    });
+}
+
+void Canvas::composite_runs(FillRule rule, const Paint& paint) {
+    if (paint.kind != Paint::Kind::mix) { composite_runs(rule, Shader(paint)); return; }
+    if (!mix_shader_) mix_shader_ = std::make_unique<MixShader>();
+    if (mix_shader_->reset(paint)) composite_runs(rule, *mix_shader_);
+}
+
 void Canvas::fill_path(PathData path, FillRule rule, const Paint& paint, const Affine& m) {
     polygons_.clear();
     flatten(path, m, polygons_);
-    rasterizer_.rasterize(polygons_, rule, clip().scissor, spans_);
-    composite(spans_, paint);
+    composite_runs(rule, paint);
 }
 
 void Canvas::stroke_path(PathData path, const Stroke& stroke, const Paint& paint, const Affine& m) {
     polygons_.clear();
     stroke_outline(path, m, stroke, polygons_);
-    rasterizer_.rasterize(polygons_, FillRule::nonzero, clip().scissor, spans_);
-    composite(spans_, paint);
+    composite_runs(FillRule::nonzero, paint);
 }
 
 void Canvas::fill_rect(const Rect& r, const Paint& paint, const Affine& m) {

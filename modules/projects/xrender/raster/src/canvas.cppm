@@ -98,6 +98,9 @@ private:
     template<class Shading> void composite(const Spans& spans, const Shading& shader);
     void composite(const Coverage& coverage, const Paint& paint, int dx = 0, int dy = 0);
     void composite(const Spans& spans, const Paint& paint);
+    // polygons_ rasterised and composited a run at a time (fill_path, stroke_path).
+    template<class Shading> void composite_runs(FillRule rule, const Shading& shader);
+    void composite_runs(FillRule rule, const Paint& paint);
     void fill_solid_rect(const Rect& device, Rgba8 color);
     void push_mask(const Coverage& coverage);
 

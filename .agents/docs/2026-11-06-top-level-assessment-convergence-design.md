@@ -347,6 +347,9 @@ M2 交付了 L2–L5、visual 表示与 v1 形状后复核（D-129）：hanim �
 
 ### 6.9 动画与物理／模拟的通用基础能力：拆分与归属（D-131）
 
+> **2026-11-08 细化（D-133、D-134）**：见[仿真、动力学与统一计算层](2026-11-08-simulation-dynamics-architecture-design.md)。要点：步进与历史下沉为 `mlibs.simulation`（不含求解器）；所有求解型模拟（XPBD、刚体、碰撞与查询、流体、以后的 FEM／MPM／关节链）收敛到 `xengine.dynamics`（CPU 核心在 base 层）；元胞改名 `xengine.cellular`；`xengine.physics` 并入 dynamics 后删除；统一计算层 `mlibs.compute` 以张量为一等公民（神经图形、小模型、可微分），完整 LLM 运行时不在 P0–P2。下表中“求解核在 `xengine.simulation`”一行按此改为 dynamics。架构按“业界高级功能都接得上”设计，实现分 P0–P3。
+
+
 高级动画引擎（hanim）和物理／模拟引擎（`xengine.simulation`、`xengine.physics`）一般所需的基础能力，按“两边都要的放在两边之下、只有一边要的归那一边”拆到不同模块，在不同阶段实现；上层只组合这些能力，不重复实现（§2 原则 3，lint `owner` 随 owner 落地增加行）。依赖仍只向下：`mlibs.math`、`mlibs.geom`、`mlibs.time`、`xengine.simulation`（CPU 部分在 base 层）← hanim（gfx）← omui ← xengine 游戏层（含 `xengine.physics`）。
 
 | 基础能力 | 归属 | 动画侧消费者 | 物理／模拟侧消费者 | 阶段 |
@@ -354,8 +357,8 @@ M2 交付了 L2–L5、visual 表示与 v1 形状后复核（D-129）：hanim �
 | 确定性数值：det 数学、随机、噪声（value／gradient／curl，带 seed）、求积（Gauss–Legendre）、积分器（半隐式欧拉、Verlet、RK4）、小型线性求解与求根 | `mlibs.math` | 路径扰动核、曲线导数、弹簧 | 求解核、刚体、粒子 | 噪声与求积随 M3.5 第 3、5 项；积分器随第 9 项 |
 | 几何度量与查询：Bezier／路径的弧长、按弧长取点、有符号面积、质心、最近点、包围盒；距离、相交与扫掠（圆、线段、多边形）；空间索引（网格、BVH 宽相）；三角化与布尔（M6） | `mlibs.geom`（补 double 精度；hanim.core 改为可依赖 `mlibs.geom`，形状度量迁入后删除自己的副本） | 拓扑对齐 morph、描边 trim、选择器、命中 | 碰撞检测（`xengine.physics::sweep` 的几何部分迁入，physics 只留响应与规则） | 面积／质心随第 3 项；扫掠迁移随第 9 项；空间索引、三角化随 M6 |
 | 时间与步进：Flicks／Rate；固定步长时钟、checkpoint 与输入重放 | `mlibs.time`；`xengine.simulation` | hanim 的有状态表示（软体，以后的粒子） | 游戏、模拟 | 已有；hanim 首次使用随第 9 项 |
-| 粒子＋约束求解核（XPBD：距离、弯曲、面积／体积保持、形状匹配、碰撞与摩擦；固定步长、确定性、可 checkpoint） | `xengine.simulation`（新 feature，base 层） | 弹性体、绳、布（UI 与动画） | 软体、布娃娃、粒子 | 第 9 项（hanim 是第一个消费者）；physics 在游戏阶段消费 |
-| 刚体动力学（积分、接触求解、关节） | `xengine.physics`（只有游戏需要） | 不用：UI 的掉落用解析曲线或求解核 | 游戏 | 游戏阶段 |
+| 粒子＋约束求解核（XPBD：距离、弯曲、面积／体积保持、形状匹配、碰撞与摩擦；固定步长、确定性、可 checkpoint） | `xengine.dynamics` 的 `xpbd` 族（base 层；D-133，原放在 `xengine.simulation`） | 弹性体、绳、布（UI 与动画） | 软体、布娃娃、粒子 | 第 9 项（hanim 是第一个消费者）；physics 在游戏阶段消费 |
+| 刚体动力学（积分、接触求解、关节） | `xengine.dynamics` 的 `rigid`／`articulation` 族（D-133；P1 起，对标 Box2D v3） | 不用：UI 的掉落用解析曲线或求解核 | 游戏 | 游戏阶段 |
 | 曲线与运动学：缓动、弹簧解析解、解析抛落与弹跳、路径运动、曲线导数（速度） | `hanim.core` | hanim、omui（经 hanim）、时间线 | 镜头、游戏里的补间 | 弹跳随第 9 项 |
 | 表示、形变载体与映射：矢量／字形／描边／笼形与晶格、选择器、位移通道、由运动导出的形变、配方 | `hanim` | 组件经运动槽配方 | 游戏角色的表现层 | M3.5 第 1–7、9 项 |
 | 场（噪声场、流场、力场、SDF） | 采样函数归 `mlibs.math`；网格模拟归 `xengine.simulation`（已有 cellular） | 形变器、粒子的力 | 流体、烟雾 | M6 |
@@ -492,9 +495,9 @@ openas 0.2 面向“一次 verb 执行”，游戏和实时场景需要补：
 ```text
 modules/
   README.md      两类分组与准入规则；层级映射表
-  base/          README：mlibs 基础库（math geom memory unicode image session pipeline control time cts）
+  base/          README：mlibs 基础库（math geom memory unicode image session pipeline control time cts simulation）
     utils/       mlibs.utils：hash log trace testing error …（按目录，feature 选择）
-  gfx/           README：mlibs.rhi（＋cts）、mlibs.shader
+  gfx/           README：mlibs.rhi（＋cts）、mlibs.shader、mlibs.compute（D-134，P1 落地）
   content/       README：mlibs.text layout markdown i18n
   projects/      README：成熟项目的准入、毕业标准和每个项目应具备的内容
     hanim/       core/（原 modules/base/hanim/core）＋ 引擎（原 modules/gfx/hanim）
@@ -505,9 +508,10 @@ modules/
       templates/   原顶层 templates/（应用模板）
       src/cts/     规范一致性的运行适配（原 tests/cts），基于 mlibs.cts
     xengine/     README：Agent 原生游戏引擎系统的定义、子系统与毕业路径
-      simulation/  原 modules/base/simulation（含 cellular）＋ 原 modules/gfx/simulation/cellular/rhi
+      dynamics/    求解型模拟（D-133）：xpbd rigid collision fluid … 按族分目录；rhi/ 为 GPU 部分
+      cellular/    元胞（原 simulation/cellular，含 rhi、present）
       audio/ video/ timeline/   原 modules/media/*
-      world/ input/ physics/ net/ ui/   原 mgame/*
+      world/ input/ net/ ui/   原 mgame/*（physics 并入 dynamics）
     xrender/     渲染图（原 xengine.render）、vector、effect、raster（原 mlibs.raster）、
                  rhi/{sdl,webgpu,webgl}（原 mlibs.rhi.*）、cts
     gongfu/      原 mgame/gongfu：core data rules ai training present2d studio
@@ -521,8 +525,8 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 
 | 层 | 路径 |
 |---|---|
-| base | `modules/base/**`、`projects/hanim/core`、`projects/gongfu`（核心只依赖 std）、`projects/xengine/simulation`（CPU 部分） |
-| gfx | `modules/gfx/**`、`projects/hanim`、`projects/xrender/**`、`projects/gongfu/{present2d,studio}`、`projects/xengine/simulation/cellular/rhi` |
+| base | `modules/base/**`、`projects/hanim/core`、`projects/gongfu`（核心只依赖 std）、`projects/xengine/{dynamics,cellular}`（CPU 部分） |
+| gfx | `modules/gfx/**`、`projects/hanim`、`projects/xrender/**`、`projects/gongfu/{present2d,studio}`、`projects/xengine/{dynamics,cellular}/rhi` |
 | content | `modules/content/**` |
 | media | `projects/xengine/{audio,video,timeline}/**` |
 | spec | `spec/` |
@@ -530,7 +534,7 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 | lang | `projects/omui/lang/**`：只依赖生成的 C ABI（`openmui.h`），规则不变 |
 | components | `projects/omui/components/**` |
 | sdk | `projects/omui/sdk`：依赖组件和宿主 |
-| game | `projects/xengine/{world,input,physics,net,ui}` |
+| game | `projects/xengine/{world,input,net,ui}` 与功能系统（水体、载具等） |
 | app | `site/`、`showcase/`、`examples/`、`tools/`、`src/entry/` |
 
 （gongfu 现有包都不依赖 UI 和 mgame，核实结果：core 无依赖；present2d／studio 依赖 hanim.core、mlibs 和渲染器；ai／data／training／rules 只依赖 gongfu 自身。）
@@ -657,8 +661,8 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 | **M3 UI 动画迁移** | §6.4；37 类组件；删除旧实现 | 中间态、打断、reduced／off、命中、焦点、IME 一致；帧时间和 Wasm 对照 |
 | **M3.5 hanim 表示与形变** | §6.8：glyph／path adapter、stroke（trim／书写）、拓扑对齐 morph、选择器＋形变器（几何过冲）、匹配修饰与路径扰动核、同通道混合层、约束与驱动、弹性体（笼形形变＋软体求解核＋运动导出形变＋解析弹跳）、GPU 批量求值；组件经配方使用（焦点环跑圈、描边书写、按压局部回弹、文字替换时的字形形变） | 每项的过程帧、打断与反向、CPU／GPU 像素和 CTS 通过；A→B、“一”的描边跑圈、A 横杠皮筋回弹、任何对象掉落挤压反弹四个招牌镜头可 headless 重现；基准无退化 |
 | **M4 Agent 目录、首个工具与首个 Agent 玩家** | §10.3；动画工具 CLI 完整任务；openas 扩展草案（§8.3）；组件打砖块的 Agent 玩家（§8.4）；元胞场上屏适配与脏 tile 局部上传（§6.10） | 真实 LLM 任务成功率有记录；所有公开产品都有 ops 和 skill；§8.4 的验收通过 |
-| **M5 公共库与官网**（检查点见官网方案 §11） | 已完成：40 个公共配方、20 个可带走工程（动画文档）、宣传片迁移、首批竞品基准、矢量截图。进行中（第七轮修订）：**质感底座**（官网方案 §3：组件与默认动效逐项推敲、squircle、分层阴影）；**统一动效词汇**（§6.4）；像素网格表示；“Agent 在场”组件；**官网重构**（官网方案 P1–P6：美术探索、首页、组件墙、Mui、动效页、按页交付）；打砖块与 timeline 迁移；xrender 补齐毕业条件 | UI、动画、渲染、官网复评 ≥85，其中“质感／细节”单列一项；官网新的交付预算通过 |
-| **M6 游戏引擎与 Agent 游玩** | xengine 游戏层；Agent 游玩推广到格斗等实时对战（回滚联机接入）；rig／粒子／场；simulation GPU；audio／MIDI；Toy／TUI／移动端 | 实时对战中的 Agent 玩家可回放；openas 扩展进入规范 |
+| **M5 公共库与官网**（检查点见官网方案 §11） | 已完成：40 个公共配方、20 个可带走工程（动画文档）、宣传片迁移、首批竞品基准、矢量截图。进行中（第七轮修订）：**质感底座**（官网方案 §3：组件与默认动效逐项推敲、squircle、分层阴影）；**统一动效词汇**（§6.4）；像素网格表示；“Agent 在场”组件；**官网重构**（官网方案 P1–P6：美术探索、首页、组件墙、Mui、动效页、按页交付）；打砖块与 timeline 迁移；xrender 补齐毕业条件；**仿真与动力学 P0**（D-133：`mlibs.simulation` 下沉、`xengine.dynamics` 核心与 xpbd 迁入、元胞改名、ops 与 CTS 骨架，3 个检查点，行为逐位不变） | UI、动画、渲染、官网复评 ≥85，其中“质感／细节”单列一项；官网新的交付预算通过 |
+| **M6 游戏引擎与 Agent 游玩** | xengine 游戏层；动力学 P1–P2（2D 刚体对标 Box2D v3、角色控制器、破坏、高度场水面、GPU 粒子、`mlibs.compute` 落地；流体、布与绳、元胞耦合、求解图与工作台）；Agent 游玩推广到格斗等实时对战（回滚联机接入）；rig／粒子／场；simulation GPU；audio／MIDI；Toy／TUI／移动端 | 实时对战中的 Agent 玩家可回放；openas 扩展进入规范 |
 | **M7 全面验收** | 恢复作品质量目标；≥90 评审循环 | 每维 ≥90；CI 稳定运行 4 周 |
 
 **旧编号映射：** R0、C1 剩余 → M0；N0–N4 → M1；S1–S3、P1、P2-A、A1–A4 → M2–M3；S6、P3、F1 → M4；C2–C4、R1–R4、S8、P4、F3 → M5；S4、S5、S7、S9、S10、P2-B、P2-C、P5、F2、F4、K0–K5、C5、R5 → M6；C6、R6、P6 → M7。旧编号此后只读。
@@ -688,6 +692,16 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 | 官网重构范围过大，拖住 M5 | 分 P1–P6 独立交付；首页和组件墙优先；按页交付提前到 P4 |
 
 ## 14. 多视角自我 review
+
+### 14.0 第八轮（2026-11-08）：仿真、动力学与统一计算层
+
+维护者三轮讨论后定出 D-133、D-134（[专题方案](2026-11-08-simulation-dynamics-architecture-design.md) §10 有完整的多视角 review）。要点：
+
+- **更正**：此前认为 hanim 向上依赖 xengine，核实映射表后不成立（`xengine/simulation` 的 CPU 部分属 base 层）；真正的问题是基座与求解器混在一个包里。
+- **单一归属**：物理材质表归 dynamics；元胞核心不依赖它，只有元胞的材料预设包读它。
+- **依赖方向**：dynamics 与 cellular 一样分 CPU 核心（base）与 `rhi` 子包（gfx）；`mlibs.compute` 在 gfx 层。
+- **过度设计的防线**：P0 只实现契约 1、2、4、5、8 的最小部分，3、6、7 只定接口；计算层不做图编译与自动调优；完整 LLM 运行时不在 P0–P2。
+- **对主线的影响**：P0 是 M5 内的 3 个检查点（行为逐位不变），之后回到官网主线；P1 起进入 M6。
 
 ### 14.1 第七轮（2026-11-08）：官网重构、质感与统一动效词汇
 
@@ -731,4 +745,6 @@ mcpp.toml        只含 [workspace]（已验证 mcpp 支持没有 package 的根
 1. 官网交付的暂定目标：首屏可见 ≤ 1.0 s、可交互 ≤ 3 s（20 Mbit/s、40 ms），P4 实测后定稿。
 2. Mui 可以由访客的 Agent 控制，官网上凡是能动的都能动；特意的权限演示是唯一例外；只有人能回答确认。
 
-M5 的实施计划（检查点 K0、A1–A2、B1–B6、C1–C3、D1–D6、E1–E2、F1、G1–G2）见[官网方案 §11](2026-11-08-site-redesign-mui-design.md#11-实施计划2026-11-08-综合梳理)。当前没有待确认项。
+M5 的实施计划（检查点 K0、A1–A2、B1–B6、C1–C3、D1–D6、E1–E2、F1、G1–G2）见[官网方案 §11](2026-11-08-site-redesign-mui-design.md#11-实施计划2026-11-08-综合梳理)。
+
+**第八轮待确认**（[仿真与动力学方案](2026-11-08-simulation-dynamics-architecture-design.md)）：分层 L0–L6 与八条契约作为基线；命名 `mlibs.simulation`、`mlibs.compute`、`xengine.dynamics`、`xengine.cellular`；计算层以张量为一等公民、完整 LLM 运行时不在 P0–P2；P0（S1–S3）放在官网 D3、D4 之前还是之后。

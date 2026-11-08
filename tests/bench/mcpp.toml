@@ -28,8 +28,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 xrender.text = { path = "../../modules/projects/xrender/text" }
 "mlibs.simulation" = { path = "../../modules/base/simulation" }
-"xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
-"xengine.simulation.cellular.present" = { path = "../../modules/projects/xengine/simulation/cellular/present" }
+"xengine.dynamics" = { path = "../../modules/projects/xengine/dynamics" }
+"xengine.cellular" = { path = "../../modules/projects/xengine/cellular" }
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
 omui.sdk             = { path = "../../modules/projects/omui/sdk" }

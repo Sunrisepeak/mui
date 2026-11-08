@@ -189,6 +189,27 @@ int main(int argc, char** argv) {
         check(again.x == on.x && again.y == on.y, "deterministic");
     });
 
+    suite.test("looked at between steps: paused, stepped once, read — where it is, what it touches, in words", [] {
+        auto body = ball({.shape_stiffness = 0.3});
+        mlibs::simulation::Timeline<sim::SoftBodyModel> history(body, 1200, 60);
+        sim::BodyInput on_ledge;
+        on_ledge.ledges[0] = {40, 160, 200};
+        on_ledge.ledge_count = 1;
+        for (int step = 0; step < 120 * 5; ++step) history.step(on_ledge);  // landed, bounced, at rest
+        // Paused: back half a second, then one step on — the report is of that step.
+        check(history.seek(history.frame() - 60));
+        history.step(on_ledge);
+        const auto report = sim::report(history.state());
+        check(std::abs(report.bottom - 200) < 0.5 && !report.contacts.empty(), std::format("on the ledge: bottom {}", report.bottom));
+        check(std::ranges::all_of(report.contacts, [](const sim::Contact& c) { return c.kind == sim::ContactKind::ledge; }), "its contacts are the ledge's");
+        check(report.area > 0.9 * report.rest_area && report.fastest < 50, "near its rest shape, nearly still");
+        const std::string words = sim::explain(history.state());
+        check(words.contains("on a ledge") && words.contains("a step: kick predict edges area shape collide velocity"), words);
+        auto flying = ball();
+        sim::SoftBodyModel::step(flying, {});
+        check(sim::report(flying).contacts.empty() && sim::explain(flying).contains("in the air"));
+    });
+
     suite.test("its materials: a table every family reads; a soft body's parameters from one; its stages said in order", [] {
         auto table = sim::MaterialTable::defaults();
         const auto* jelly = table.find("jelly");

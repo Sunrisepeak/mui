@@ -11,7 +11,7 @@ import std;
 import mlibs.rhi;
 import xrender.rhi.webgpu;
 import mlibs.rhi.cts;
-import xengine.simulation.cellular.rhi.cts;
+import xengine.cellular.rhi.cts;
 import hanim.rhi.cts;
 import mcpplibs.os;
 import mlibs.testing;
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
             std::println("cellular CTS not run: this link cannot wait for WebGPU");
             return;
         }
-        namespace gpu = xengine::simulation::cellular::gpu;
+        namespace gpu = xengine::cellular::gpu;
         gpu::cts::Totals totals;
         const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "webgpu"}, {.required = {"compute"}}, &totals);
         std::print("{}", report.text());

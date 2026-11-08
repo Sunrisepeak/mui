@@ -1,0 +1,25 @@
+[package]
+namespace = "xengine.cellular"
+name = "rhi"
+version = "0.1.0"
+description = "Optional RHI compute execution of the prepared integer cellular rule contract"
+license = "Apache-2.0"
+platforms = ["linux", "macos", "windows", "emscripten"]
+repo = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "backend"
+
+[targets.xengine-cellular-rhi]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+[build-dependencies]
+mlibs.shader.rules = { path = "../../../../gfx/shader/rules", host-module = true }
+
+[dependencies]
+xengine.cellular = { path = ".." }
+mlibs.rhi = { path = "../../../../gfx/rhi" }
+mlibs.utils = { path = "../../../../base/utils" }

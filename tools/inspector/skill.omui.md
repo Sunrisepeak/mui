@@ -24,4 +24,4 @@ How an Agent works the Inspector's cellular field (the Reaction lab) without a G
 
 ## Not here
 
-The rules run in `xengine.simulation.cellular`; this workspace is not another simulator. GPU-resident fields, sparse worlds and partial refresh are the field-presentation work (plan §6.10).
+The rules run in `xengine.cellular`; this workspace is not another simulator. GPU-resident fields, sparse worlds and partial refresh are the field-presentation work (plan §6.10).

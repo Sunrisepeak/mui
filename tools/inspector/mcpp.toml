@@ -31,8 +31,8 @@ mlibs.utils = { path = "../../modules/base/utils" }
 mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "mlibs.simulation" = { path = "../../modules/base/simulation" }
-"xengine.simulation.cellular" = { path = "../../modules/projects/xengine/simulation/cellular" }
-"xengine.simulation.cellular.present" = { path = "../../modules/projects/xengine/simulation/cellular/present" }
+"xengine.cellular" = { path = "../../modules/projects/xengine/cellular" }
+"xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]

@@ -6,3 +6,4 @@ export module xengine.dynamics;
 export import xengine.dynamics.collision;
 export import xengine.dynamics.material;
 export import xengine.dynamics.xpbd;
+export import xengine.dynamics.inspect;

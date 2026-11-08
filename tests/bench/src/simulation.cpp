@@ -1,12 +1,13 @@
 module omui.bench;
 import std;
 import mlibs.simulation;
-import xengine.simulation.cellular;
-import xengine.simulation.cellular.present;
+import xengine.cellular;
+import xengine.cellular.present;
+import xengine.dynamics;
 
 namespace omui::bench {
 namespace {
-namespace ca=xengine::simulation::cellular;
+namespace ca=xengine::cellular;
 struct Model {
     struct State {ca::Program program;ca::Shape shape;std::vector<std::uint32_t> current,next;};
     struct Input {bool unused=false;};
@@ -99,6 +100,27 @@ void add_simulation_benchmarks() {
         }
         s.note("scope","one scalar CPU step with immutable reads and wrap boundary; state reset, preparation, upload, rendering and GPU excluded");
     });
+    // D-133: a soft body's step (the Mui-sized ring of 24, a UI's; a ring of 96), standing on a ledge — the solver alone.
+    for (const int points : {24, 96}) {
+        add(std::format("dynamics/softbody-{}", points), std::format("one XPBD step of a {}-particle soft body standing on a ledge: 8 substeps of edges, area, shape matching, collision", points),
+            [points](State& s) {
+                namespace dyn = xengine::dynamics;
+                std::vector<std::array<double, 2>> outline;
+                for (int index = 0; index < points; ++index) {
+                    const double angle = 2 * std::numbers::pi * index / points;
+                    outline.push_back({100 + 30 * std::cos(angle), 100 + 30 * std::sin(angle)});
+                }
+                auto body = dyn::SoftBody::ring(outline, {.shape_stiffness = 0.12, .upright = 1});
+                if (!body) { s.fail("the ring was refused"); return; }
+                dyn::BodyInput input;
+                input.ledges[0] = {0, 400, 200};
+                input.ledge_count = 1;
+                for (int settle = 0; settle < 240; ++settle) dyn::SoftBodyModel::step(*body, input);
+                s.items(static_cast<std::size_t>(points));
+                while (s.next()) dyn::SoftBodyModel::step(*body, input);
+                s.note("scope", "the solver's step alone, at rest on a ledge; the cage carrying a figure (hanim) and drawing excluded");
+            });
+    }
     add("simulation/checkpoint-64","64x64 cells: one reaction step and one deep snapshot in the shared timeline",[](State& s) {
         auto fixture=setup(64);if(!fixture){s.fail("rule preparation failed");return;}
         mlibs::simulation::Timeline<Model> history(*fixture,32,1);s.items(64*64);

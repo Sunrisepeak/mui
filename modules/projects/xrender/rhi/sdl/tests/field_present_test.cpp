@@ -9,14 +9,14 @@ import mlibs.geom;
 import xrender.rhi.sdl;
 import xrender.raster;
 import xrender.vector;
-import xengine.simulation.cellular;
-import xengine.simulation.cellular.present;
-import xengine.simulation.cellular.rhi;
+import xengine.cellular;
+import xengine.cellular.present;
+import xengine.cellular.rhi;
 import mcpplibs.os;
 import mlibs.testing;
 
 using namespace mlibs::testing;
-namespace ca = xengine::simulation::cellular;
+namespace ca = xengine::cellular;
 namespace rhi = mlibs::rhi;
 namespace geom = mlibs::geom;
 

@@ -7,7 +7,7 @@ import std;
 import mlibs.rhi;
 import xrender.rhi.sdl;
 import mlibs.rhi.cts;
-import xengine.simulation.cellular.rhi.cts;
+import xengine.cellular.rhi.cts;
 import hanim.rhi.cts;
 import mcpplibs.os;
 import mlibs.testing;
@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
     s.test("cellular: CPU/GPU equality throughout reactions, resident batches and checkpoint replay", [] {
         auto d = open_device();
         if (!d) return;
-        namespace gpu = xengine::simulation::cellular::gpu;
+        namespace gpu = xengine::cellular::gpu;
         gpu::cts::Totals totals;
         const auto report = gpu::cts::run(*d, {.subject = d->caps().device, .platform = "sdl"}, {.required = {"compute"}}, &totals);
         std::print("{}", report.text());

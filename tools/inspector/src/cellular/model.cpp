@@ -3,11 +3,11 @@ import std;
 import omui;
 import mlibs.hash;
 import mlibs.simulation;
-import xengine.simulation.cellular;
-import xengine.simulation.cellular.present;
+import xengine.cellular;
+import xengine.cellular.present;
 
 namespace omui::inspector::cellular {
-namespace ca = xengine::simulation::cellular;
+namespace ca = xengine::cellular;
 namespace {
 constexpr std::uint32_t max_values = 16384;
 const Value missing;

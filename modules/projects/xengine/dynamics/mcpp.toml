@@ -21,7 +21,7 @@ kind = "module"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp"]
+sources  = ["src/*.cppm", "src/collision/*.cppm", "src/collision/*.cpp", "src/material/*.cppm", "src/material/*.cpp", "src/xpbd/*.cppm", "src/xpbd/*.cpp", "src/inspect/*.cppm", "src/inspect/*.cpp"]
 cxxflags = ["-fno-fast-math", "-ffp-contract=off"]
 
 [dependencies]

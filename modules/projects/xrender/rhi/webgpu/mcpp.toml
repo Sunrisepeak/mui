@@ -33,7 +33,7 @@ mlibs.rhi    = { path = "../../../../gfx/rhi" }
 mlibs.memory = { path = "../../../../base/memory" }
 
 [dev-dependencies]
-xengine.simulation.cellular.rhi.cts = { path = "../../../xengine/simulation/cellular/rhi/cts" }
+xengine.cellular.rhi.cts = { path = "../../../xengine/cellular/rhi/cts" }
 hanim.rhi = { path = "../../../hanim/rhi" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }

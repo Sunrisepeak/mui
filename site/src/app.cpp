@@ -214,6 +214,7 @@ struct Site {
         mlibs::trace::Span span("reference frame", "site");
         if (mcpplibs::os::fs::read(mlibs::text::FontCollection::default_directory() / ".partial")) {
             ref_verdict.set(2);
+            runtime->want_fonts();  // the reference frames are drawn in every face: the deferred ones asked for
             if (!ref_waiting) {
                 ref_waiting = true;
                 (void)runtime->after(seconds(0.1), [this] {

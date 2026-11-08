@@ -33,7 +33,7 @@ int main() {
     initial_latin += " áéíóúàèìòùäëïöüÿÁÉÍÓÚÀÈÌÒÙÄËÏÖÜÑñÆæØøßÇçµαβγΔΣπΩμ°€£¥±·×−–—‘’“”…→←↔↑↓✓✗ﬁﬂﬀﬃﬄﬅﬆ";
     const bool page = omui::build::dist_toy({.target = "omui-site", .title = "omui", .fonts = {"Inter", "JetBrainsMono", "NotoSansSC"}, .background = "#fbfbfa", .sdk = false,
                                                 .subsets = {{.font = "NotoSansSC", .text = std::move(text)}},
-                                                // The Chinese font before the first frame only for a page opened in Chinese; else just after it.
+                                                // The Chinese font before the first frame only for a page opened in Chinese; else when the page first needs it.
                                                 .font_languages = {{"NotoSansSC", {"zh"}}},
                                                 .font_initial = {{"Inter", std::move(initial_latin)}, {"NotoSansSC", "中文"}}});
     return lens && content && en && zh && frames && theme && sprites && bootstrap && page ? 0 : 1;

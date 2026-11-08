@@ -343,18 +343,38 @@ struct Web::Impl {
     // `paced`: the page's call, once a display frame — a frame only when one
     // is wanted; else always one (step(), as the desktop's step without waiting).
     // Fonts the page fetched once the program was drawn (dist-toy's later
-    // fonts, /later/fonts once /later/.ready is there): tried as they come,
-    // every text shaped again with them. Looked for twice a second.
-    bool        later_fonts_taken = false;
+    // fonts, /later/fonts, each batch announced by /later/.ready — its
+    // content counts the batches): tried as they come, every text shaped
+    // again with them. Looked for twice a second. Faces the page holds
+    // until asked (another language's) are asked for when text first has a
+    // glyph no face covers, or a reader wants every face.
+    std::string later_generation;
+    std::set<std::string> later_added;
     std::size_t later_looks = 0;
+    std::uint64_t uncovered_seen = 0;
+    std::set<char32_t> fonts_asked_for;
+    void want_deferred_fonts() {
+        if (!opened) return;
+        if (runtime->take_font_request()) page::want_fonts(std::nullopt);
+        const std::uint64_t uncovered = runtime->fonts().uncovered();
+        // A new character no face covers: the page fetches a face that could
+        // draw it, if it deferred one (an emoji no face has asks nothing).
+        if (uncovered > uncovered_seen)
+            for (const char32_t cp : runtime->fonts().uncovered_points())
+                if (fonts_asked_for.insert(cp).second) page::want_fonts(cp);
+        uncovered_seen = uncovered;
+    }
     void take_later_fonts() {
-        if (later_fonts_taken || !opened || ++later_looks % 30 != 0) return;
+        if (!opened || ++later_looks % 30 != 0) return;
         std::error_code ec;
         if (!std::filesystem::exists("/later/.ready", ec)) return;
-        later_fonts_taken = true;
+        std::string generation;
+        if (std::ifstream in("/later/.ready", std::ios::binary); in) generation.assign(std::istreambuf_iterator<char>(in), {});
+        if (!later_added.empty() && generation == later_generation) return;
+        later_generation = generation;
         bool any = false;
         for (const auto& e : std::filesystem::directory_iterator("/later/fonts", ec))
-            if (e.path().extension() == ".ttf") {
+            if (e.path().extension() == ".ttf" && later_added.insert(e.path().filename().string()).second) {
                 auto& fonts = runtime->fonts();
                 if (const auto added = fonts.add_file(e.path()); added) {
                     // Keep each family's original fallback priority whatever
@@ -377,7 +397,10 @@ struct Web::Impl {
                     any = true;
                 } else warn("a later font: {}", added.error());
             }
-        if (any) runtime->fonts_changed();
+        if (any) {
+            uncovered_seen = runtime->fonts().uncovered();
+            runtime->fonts_changed();
+        }
     }
 
     bool step(bool paced) {
@@ -385,6 +408,7 @@ struct Web::Impl {
         requests.clear();
         follow_canvas();
         take_later_fonts();
+        want_deferred_fonts();
         if (opened) page::take(events, requests);
         events.insert(events.end(), std::make_move_iterator(pending.begin()), std::make_move_iterator(pending.end()));
         pending.clear();

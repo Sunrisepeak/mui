@@ -489,6 +489,49 @@ std::expected<Bytes, std::string> compact_font_post(std::span<const std::uint8_t
     return out;
 }
 
+std::expected<std::vector<std::pair<std::uint32_t, std::uint32_t>>, std::string> font_blocks(std::span<const std::uint8_t> font) {
+    if (font.size() < 12) return std::unexpected("not a font");
+    std::span<const std::uint8_t> cmap;
+    for (std::uint16_t i = 0, count = u16(font, 4); i < count; ++i) {
+        const std::size_t rec = 12 + std::size_t{i} * 16;
+        if (rec + 16 > font.size()) return std::unexpected("truncated font table directory");
+        if (std::string_view(reinterpret_cast<const char*>(font.data() + rec), 4) == "cmap") {
+            const std::size_t at = u32(font, rec + 8), len = u32(font, rec + 12);
+            if (at + len > font.size()) return std::unexpected("cmap lies outside the file");
+            cmap = font.subspan(at, len);
+        }
+    }
+    if (cmap.empty()) return std::unexpected("no cmap");
+    // Each Unicode subtable's ranges, by block.
+    std::set<std::uint32_t> blocks;
+    for (std::uint16_t i = 0, n = u16(cmap, 2); i < n; ++i) {
+        const std::size_t rec = 4 + std::size_t{i} * 8;
+        const std::uint16_t platform = u16(cmap, rec), encoding = u16(cmap, rec + 2);
+        if (!(platform == 0 || (platform == 3 && (encoding == 1 || encoding == 10)))) continue;
+        const std::size_t at = u32(cmap, rec + 4);
+        const std::uint16_t format = u16(cmap, at);
+        if (format == 12) {
+            for (std::uint32_t g = 0, groups = u32(cmap, at + 12); g < groups; ++g) {
+                const std::size_t group = at + 16 + std::size_t{g} * 12;
+                const std::uint32_t last = std::min<std::uint32_t>(u32(cmap, group + 4), 0x10FFFF);
+                for (std::uint32_t block = u32(cmap, group) >> 8; block <= last >> 8; ++block) blocks.insert(block);
+            }
+        } else if (format == 4) {
+            const std::size_t segs = u16(cmap, at + 6) / 2, ends = at + 14, starts = ends + segs * 2 + 2;
+            for (std::size_t seg = 0; seg < segs; ++seg) {
+                const std::uint16_t end = u16(cmap, ends + seg * 2), start = u16(cmap, starts + seg * 2);
+                if (start == 0xFFFF) continue;
+                for (std::uint32_t block = start >> 8; block <= std::uint32_t{end} >> 8; ++block) blocks.insert(block);
+            }
+        }
+    }
+    std::vector<std::pair<std::uint32_t, std::uint32_t>> out;
+    for (const std::uint32_t block : blocks)
+        if (!out.empty() && out.back().second + 1 == block) out.back().second = block;
+        else out.emplace_back(block, block);
+    return out;
+}
+
 std::expected<Bytes, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep, FontSubsetReport* report) {
     if (font.size() < 12 || (u32(font, 0) != 0x00010000 && u32(font, 0) != 0x74727565)) return std::unexpected("not a TrueType font (glyf outlines)");
     const std::uint16_t count = u16(font, 4);

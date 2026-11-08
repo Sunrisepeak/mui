@@ -48,7 +48,9 @@ struct toy_options {
     std::vector<later_files> later;                  // fetched after the program is drawn
     std::vector<font_subset> subsets;                // fonts cut down to the program's characters
     // Fonts for some languages ({"NotoSansSC", {"zh"}}): before the program
-    // starts only when the page opens in one; else once it is drawn.
+    // starts only when the page opens in one; else when the program asks —
+    // text with a glyph no face it has covers (the language switched to, a
+    // word typed), or a reader wanting every face (Runtime::want_fonts).
     std::vector<std::pair<std::string, std::vector<std::string>>> font_languages;
     // Before a deferred font arrives, these literal UTF-8 characters use a tiny
     // subset of that same face. A page opened in its language loads the full face only.

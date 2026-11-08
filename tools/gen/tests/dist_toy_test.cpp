@@ -4,6 +4,7 @@
 // beside it of every file's size; what is not a Toy package is refused.
 import std;
 import omui.gen.dist_toy;
+import omui.gen.font_subset;
 import mlibs.testing;
 import mlibs.text;
 import nlohmann.json;
@@ -159,8 +160,8 @@ int main(int argc, char** argv) {
         const auto a = index.find("[\"/later/fighters-art/a.webp\", \"assets/"), b = index.find("[\"/later/fighters-art/b.webp\", \"assets/");
         check(a != std::string::npos && b != std::string::npos && a < b, "both pictures, in order, each with its asset");
         check(!index.contains("notes.txt"), "only the suffix asked for");
-        check(index.contains("window.omuiFirstFrame = omuiFetchLater;") && index.contains("FS.writeFile('/later/.ready', '')"),
-              "fetched once the program's first frame is shown, .ready last");
+        check(index.contains("window.omuiFirstFrame = omuiFetchLater;") && index.contains("FS.writeFile('/later/.ready', String(++omuiReadyGeneration))"),
+              "fetched once the program's first frame is shown, .ready last (its content the batch)");
         check(std::ranges::count_if(r->files, [](const gen::ToyFile& f) { return f.path.ends_with(".webp"); }) == 2);
         p.later = {{t.root / "art", ".webp", "/elsewhere"}};
         check(!gen::package_for_toy(p).has_value(), "only under /later/");
@@ -176,7 +177,30 @@ int main(int argc, char** argv) {
         const std::string index = read(t.root / "out" / "game" / "index.html");
         check(index.contains("[\"Inter.ttf\", \"assets/") && index.contains("[\"zh\"]]"), "its languages listed with it");
         check(index.contains("omuiWants(f[2])") && index.contains("'/later/fonts/' + f[0]"), "else in /later/fonts");
+        check(index.contains("full.job.demand = full.asset.demand = deferred && f[2].length > 0") && index.contains("window.omuiWantFonts = function"),
+              "another language's face waits until the program asks for it");
         check(index.contains("if (!window.omuiFollowsRoute) location.reload();"), "reloaded on a new hash only when the program does not follow its route");
+    });
+
+    s.test("another language's face says the blocks it covers: Han, not emoji — fetched only for a character it could draw", [] {
+        std::ifstream in(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", std::ios::binary);
+        const std::string bytes{std::istreambuf_iterator<char>(in), {}};
+        const auto blocks = gen::font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes.data()), bytes.size()));
+        check(blocks.has_value(), blocks ? "" : blocks.error());
+        if (!blocks) return;
+        const auto covers = [&](char32_t cp) { return std::ranges::any_of(*blocks, [&](const auto& r) { return (cp >> 8) >= r.first && (cp >> 8) <= r.second; }); };
+        check(covers(U'中') && covers(U'文') && !covers(U'\U00002705') && !covers(U'\U0001F600'), std::format("{} ranges", blocks->size()));
+        check(blocks->size() < 64, "a few ranges: small enough for the page");
+        Tree t;
+        fs::copy_file(mlibs::text::FontCollection::default_directory() / "NotoSansSC.ttf", t.root / "fonts" / "NotoSansSC.ttf", fs::copy_options::overwrite_existing);
+        auto p = t.package();
+        p.fonts = {"Inter", "NotoSansSC"};
+        p.font_languages = {{"NotoSansSC", {"zh"}}};
+        check(gen::package_for_toy(p).has_value());
+        const std::string index = read(p.out / "index.html");
+        const auto entry = index.find("[\"NotoSansSC.ttf\"");
+        check(entry != std::string::npos && index.substr(entry, index.find('\n', entry) - entry).contains("[\"zh\"], null, [["), "its entry: no initial file, then its blocks");
+        check(index.contains("j.blocks.some(function (r) { return block >= r[0] && block <= r[1]; })"), "the page fetches by block");
     });
 
     s.test("the file types Toy keeps", [] {

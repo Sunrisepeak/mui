@@ -136,15 +136,15 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 
 | | omui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
 |---|---|---|---|---|---|---|---|
-| Semantic tree as the primary model | ✅ | partly (a11y) | partly (Semantics) | partly | partly | partly (ARIA) | ✗ |
-| Built-in agent interface / MCP | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Effect tiers, a person's confirmation | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Agent grants under a developer's cap (an open standard) | ✅ (openas) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| Byte-identical pixels across platforms | ✅ | ✗ | close (Skia/Impeller; system fonts) | ✗ | ✗ | ✗ | ✗ |
-| Exact record and replay | ✅ | ✗ | ✗ | ✗ | ✗ | partly (tools) | ✗ |
-| Several languages, one tree | ✅ (4 + documents) | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
-| Custom shader effects | ✅ (Slang, hot reload) | ✅ (QML ShaderEffect) | ✅ (FragmentProgram) | ✅ (Metal) | ✅ (AGSL) | partly (WebGL) | by hand |
-| Performance budgets in CI, a public report | ✅ | ✗ | partly | ✗ | partly (Macrobenchmark) | ✗ | ✗ |
-| Components releasable alone | ✅ | partly | ✗ | ✗ | partly | ✅ (npm) | — |
+| Semantic tree as the primary model | ✓ | partly (a11y) | partly (Semantics) | partly | partly | partly (ARIA) | ✗ |
+| Built-in agent interface / MCP | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Effect tiers, a person's confirmation | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Agent grants under a developer's cap (an open standard) | ✓ (openas) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| Byte-identical pixels across platforms | ✓ | ✗ | close (Skia/Impeller; system fonts) | ✗ | ✗ | ✗ | ✗ |
+| Exact record and replay | ✓ | ✗ | ✗ | ✗ | ✗ | partly (tools) | ✗ |
+| Several languages, one tree | ✓ (4 + documents) | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
+| Custom shader effects | ✓ (Slang, hot reload) | ✓ (QML ShaderEffect) | ✓ (FragmentProgram) | ✓ (Metal) | ✓ (AGSL) | partly (WebGL) | by hand |
+| Performance budgets in CI, a public report | ✓ | ✗ | partly | ✗ | partly (Macrobenchmark) | ✗ | ✗ |
+| Components releasable alone | ✓ | partly | ✗ | ✗ | partly | ✓ (npm) | — |
 
 *"✗" means not built in, not impossible.*

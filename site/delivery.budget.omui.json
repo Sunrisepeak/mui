@@ -2,7 +2,7 @@
   "about": "The site's delivery in a real browser (tools/ci/site-browser.sh, tools/ci/site-perf.mjs): the built page served as Pages serves it (gzip), a cold visit over a 20 Mbit/s, 40 ms connection at 1280×800, then to the features and back. Bytes, milliseconds.",
   "network": "20/40",
   "budgets": [
-    { "metric": "transfer.total", "max": 5000000, "why": "4.4 MB (2026-11-02): the wasm 2.4 compressed, the fonts 2.0; nothing fetched after the first frame. C2's goal is under 5 MB (the master plan, W8)" },
+    { "metric": "transfer.total", "max": 4000000, "why": "3.56 MB (2026-11-08): the wasm 2.67 compressed, the Latin fonts; another language's face (the Chinese, 1.45 MB) only when the page needs it — it was fetched after every first frame (5.01 MB, red list 24). Held at 4 MB so it stays won" },
     { "metric": "transfer.before_first_frame", "max": 3800000, "why": "3.3 MB on the way to the first frame (2026-11-02): the program and the Latin fonts; the Chinese font (1.4 MB) comes just after it unless the page opens in Chinese (dist-toy's font languages). Next (performance tiers §7): the first frame drawn ahead, the program split" },
     { "metric": "first_frame_ms", "max": 4500, "why": "1.8 s locally (2.3 s with the Chinese font before it, 3.1 s before the site's places were pages; 2026-11-02): the transfer at 20 Mbit/s is most of it; a slower runner's headroom" },
     { "metric": "ready_ms", "max": 4500, "why": "window.omui answers before the first frame is drawn" },

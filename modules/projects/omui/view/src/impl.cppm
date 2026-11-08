@@ -365,6 +365,7 @@ struct Runtime::Impl {
 
     std::uint8_t                          dirty = dirty_paint | dirty_layout | dirty_semantics | dirty_tree;
     bool                                  frame_requested = true;
+    bool                                  fonts_wanted = false;  // Runtime::want_fonts, until the host takes it
     std::uint64_t                         constraint_epoch = 0;
     std::vector<NodeId>                   constraint_boundaries;
     std::vector<std::weak_ptr<RegionState>> dirty_regions;

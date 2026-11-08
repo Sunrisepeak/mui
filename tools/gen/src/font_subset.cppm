@@ -35,6 +35,11 @@ struct FontDeliveryReport {
 [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> subset_font(std::span<const std::uint8_t> font, const std::set<char32_t>& keep,
                                                                                FontSubsetReport* report = nullptr);
 
+// What a font covers, coarsely: the 256-code-point blocks its Unicode cmap
+// maps any character of, merged into ranges of blocks [first, last] — what a
+// page needs to know whether a face it deferred could draw a character.
+[[nodiscard]] std::expected<std::vector<std::pair<std::uint32_t, std::uint32_t>>, std::string> font_blocks(std::span<const std::uint8_t> font);
+
 // The characters of UTF-8 text (malformed bytes skipped).
 void characters_of(std::string_view text, std::set<char32_t>& into);
 

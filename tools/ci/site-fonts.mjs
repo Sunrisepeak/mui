@@ -62,8 +62,11 @@ for (const c of [
       check(direct && direct === switchedBody, 'switching to Chinese after the full face arrives matches a direct Chinese visit');
       continue;
     }
-    check(held && timing?.language === 'en' && timing.initial > 0 && timing.initial <= timing.frame && !timing.full,
-      `${c.name}: initial glyphs arrive before the first presentation while the full face is held`, timing);
+    check(timing?.language === 'en' && timing.initial > 0 && timing.initial <= timing.frame && !timing.full,
+      `${c.name}: initial glyphs arrive before the first presentation, the full face not with them`, timing);
+    await sleep(2000);
+    check(!held && !requests.some(r => r.endsWith(chinese[1])), `${c.name}: another language's full face waits until it is wanted`,
+      { wanted: await b.value('window.omuiFontsWanted') });
     await sleep(250);
     const node = await b.value(`window.omui.snapshot({root:'main/bar/lang',depth:0}).then(r=>(r.data?.nodes??[]).find(n=>n.id==='main/bar/lang'))`);
     check(node?.name === '中文' && node.bounds?.[2] > 24, `${c.name}: the Chinese language control is present and measurable`);
@@ -80,6 +83,9 @@ for (const c of [
       const waiting = await reference();
       check(waiting.verdict?.startsWith('Waiting for the reference fonts'), 'reference replay waits for the full font instead of reporting a pixel mismatch', waiting);
     }
+    // Wanted: every face (as a reader drawing in all of them asks); the request held, then let through.
+    await b.value('window.omuiWantFonts && window.omuiWantFonts()');
+    for (let i = 0; i < 100 && !held; i++) await sleep(100);
     if (held) await b.call('Fetch.continueRequest', { requestId: held });
     await b.call('Fetch.disable');
     await until(`performance.getEntriesByType('resource').some(r=>r.name.endsWith(${JSON.stringify(chinese[1])}))`);

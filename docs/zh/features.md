@@ -115,15 +115,15 @@ drawing.prop("motion", Source(motion));
 
 | | omui | Qt | Flutter | SwiftUI | Compose | React / Electron | Dear ImGui |
 |---|---|---|---|---|---|---|---|
-| 语义树是一等公民 | ✅ | 部分（无障碍） | 部分（Semantics） | 部分 | 部分 | 部分（ARIA） | ✗ |
-| 内建 agent 接口 / MCP | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| 动作效果等级、人确认 | ✅ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| 开发者上限下的 agent 分级授权（开放标准） | ✅（openas） | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
-| 跨平台逐字节相同的像素 | ✅ | ✗ | 接近（Skia/Impeller，字体随系统） | ✗ | ✗ | ✗ | ✗ |
-| 精确录制和回放 | ✅ | ✗ | ✗ | ✗ | ✗ | 部分（工具） | ✗ |
-| 多种语言写同一棵树 | ✅（4 种 + 文档） | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
-| 自定义着色器效果 | ✅（Slang，热重载） | ✅（QML ShaderEffect） | ✅（FragmentProgram） | ✅（Metal） | ✅（AGSL） | 部分（WebGL） | 手写 |
-| 性能预算进 CI、公开报告 | ✅ | ✗ | 部分 | ✗ | 部分（Macrobenchmark） | ✗ | ✗ |
-| 组件可单独发布 | ✅ | 部分 | ✗ | ✗ | 部分 | ✅（npm） | — |
+| 语义树是一等公民 | ✓ | 部分（无障碍） | 部分（Semantics） | 部分 | 部分 | 部分（ARIA） | ✗ |
+| 内建 agent 接口 / MCP | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| 动作效果等级、人确认 | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| 开发者上限下的 agent 分级授权（开放标准） | ✓（openas） | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| 跨平台逐字节相同的像素 | ✓ | ✗ | 接近（Skia/Impeller，字体随系统） | ✗ | ✗ | ✗ | ✗ |
+| 精确录制和回放 | ✓ | ✗ | ✗ | ✗ | ✗ | 部分（工具） | ✗ |
+| 多种语言写同一棵树 | ✓（4 种 + 文档） | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
+| 自定义着色器效果 | ✓（Slang，热重载） | ✓（QML ShaderEffect） | ✓（FragmentProgram） | ✓（Metal） | ✓（AGSL） | 部分（WebGL） | 手写 |
+| 性能预算进 CI、公开报告 | ✓ | ✗ | 部分 | ✗ | 部分（Macrobenchmark） | ✗ | ✗ |
+| 组件可单独发布 | ✓ | 部分 | ✗ | ✗ | 部分 | ✓（npm） | — |
 
 *表中“✗”指没有内建的支持，不是做不到。*

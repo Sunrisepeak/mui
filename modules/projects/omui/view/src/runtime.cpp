@@ -461,6 +461,9 @@ void Runtime::set_theme(Theme theme) {
     d.touch(dirty_layout | dirty_paint | dirty_semantics);
 }
 
+void Runtime::want_fonts() noexcept { impl_->fonts_wanted = true; }
+bool Runtime::take_font_request() noexcept { return std::exchange(impl_->fonts_wanted, false); }
+
 void Runtime::fonts_changed() {
     Impl& d = *impl_;
     // Active Morph callbacks retain this exact cache address.

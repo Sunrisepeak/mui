@@ -88,7 +88,7 @@ std::string js_string(std::string_view s) {
 // before main, its .wasm by its hashed name.
 std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm, std::span<const std::pair<std::string, std::string>> fonts,
                  std::span<const std::pair<std::string, std::string>> later, std::span<const std::pair<std::string, std::string>> initial,
-                 const std::map<std::string, std::uintmax_t>& decoded_sizes) {
+                 const std::map<std::string, std::uintmax_t>& decoded_sizes, const std::map<std::string, std::string>& coverage) {
     std::string font_list, later_list;
     for (const auto& [name, file] : fonts) {
         // Its languages, if it is for some: ["zh"].
@@ -97,8 +97,11 @@ std::string page(const ToyPackage& p, std::string_view js, std::string_view wasm
         if (const auto fl = std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first); fl != p.font_languages.end())
             for (const std::string& l : fl->second) langs += std::format("{}{}", langs.empty() ? "" : ", ", js_string(l));
         const auto first = std::ranges::find(initial, stem, &std::pair<std::string, std::string>::first);
-        font_list += std::format("{}[{}, {}, [{}]{}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs,
-                                 first == initial.end() ? "" : ", " + js_string(first->second));
+        // [name, file, [languages], initial file (or null), blocks covered (a language's face)]
+        const auto blocks = coverage.find(stem);
+        const std::string initial_file = first == initial.end() ? std::string(blocks == coverage.end() ? "" : ", null") : ", " + js_string(first->second);
+        font_list += std::format("{}[{}, {}, [{}]{}{}]", font_list.empty() ? "" : ", ", js_string(name), js_string(file), langs, initial_file,
+                                 blocks == coverage.end() ? "" : ", " + blocks->second);
     }
     for (const auto& [path, file] : later) later_list += std::format("{}[{}, {}]", later_list.empty() ? "" : ",\n  ", js_string(path), js_string(file));
     std::string html;
@@ -140,6 +143,10 @@ var omuiAssets = [], omuiJobs = Object.create(null), omuiStartupFonts = [], omui
 var omuiFontRecords = Object.create(null), omuiFontTargets = Object.create(null), omuiFontCanonical = Object.create(null);
 var omuiPhase = 'boot', omuiStatusText = '', omuiFatal = null;
 var omuiInitialized = false, omuiPresented = false, omuiLaterStarted = false, omuiPreRan = false, omuiPartial = false, omuiWasmReceived = false;
+// Another language's faces wait until the program asks (omuiWantFonts): text
+// with a glyph no face covers, a reader that wants every face. Each batch of
+// later files ready is announced by /later/.ready, its content the count.
+var omuiReadyCount = 0, omuiReadyGeneration = 0;
 function omuiAsset(id, url, kind, group, state) {
   var raw = omuiAssetBytes[url];
   var a = {id: id, url: url, kind: kind, group: group, loaded: 0, total: Number.isSafeInteger(raw) && raw >= 0 ? raw : null,
@@ -171,10 +178,13 @@ function omuiFailure(a, error) {
   omuiPublish(a.retired ? null : 'error');
 }
 function omuiError(message, automatic) { var e = new Error(message); e.automatic = !!automatic; return e; }
-function omuiAllReady() { return omuiAssets.every(function (a) { return a.retired || a.state === 'ready' || a.state === 'skipped'; }); }
+function omuiAllReady() { return omuiAssets.every(function (a) { return a.retired || a.state === 'ready' || a.state === 'skipped' || (a.demand && !a.wanted); }); }
+function omuiStartedLater() { return omuiLaterJobs.filter(function (j) { return !j.demand || j.asset.wanted; }); }
 function omuiFinished() {
-  if (omuiLaterStarted && omuiLaterJobs.length && omuiLaterJobs.every(function (j) { return j.asset.state === 'ready'; })) {
-    FS.mkdirTree('/later'); FS.writeFile('/later/.ready', '');
+  var started = omuiStartedLater();
+  if (omuiLaterStarted && started.length && started.every(function (j) { return j.asset.state === 'ready'; }) && started.length !== omuiReadyCount) {
+    omuiReadyCount = started.length;
+    FS.mkdirTree('/later'); FS.writeFile('/later/.ready', String(++omuiReadyGeneration));
   }
   if (omuiPresented && omuiAllReady()) omuiPublish('complete');
 }
@@ -398,6 +408,9 @@ function omuiPlanFonts() {
   omuiFonts.forEach(function (f, index) {
     var deferred = plan[index], full = omuiFontRecord('font:' + f[0], f[1], f[0]);
     full.role = deferred ? 'later' : 'startup';
+    // Another language's face: asked for, not fetched after the first frame.
+    full.job.demand = full.asset.demand = deferred && f[2].length > 0;
+    full.job.blocks = f[4] || null;  // the 256-character blocks it covers
     if (deferred) {
       var queued = ['/later/fonts/' + f[0], f[1]]; omuiLater.push(queued); omuiFontLater.push(queued);
       ++omuiFontPending; omuiLaterJobs.push(full.job);
@@ -457,8 +470,22 @@ function omuiFetchLater() {
   if (window.omuiHasPresented === true && !omuiPresented) { omuiPresented = true; omuiPublish('presented'); }
   if (omuiLaterStarted) { omuiFinished(); return; }
   omuiLaterStarted = true;
-  omuiLaterJobs.forEach(function (j) { omuiStart(j, false); }); omuiFinished();
+  omuiStartedLater().forEach(function (j) { omuiStart(j, false); }); omuiFinished();
 }
+// A character no face the program has covers (its code point), or every
+// face (no argument: a reader drawing in all of them): the deferred faces
+// that could draw it, fetched once each.
+window.omuiWantFonts = function (codePoint) {
+  var every = typeof codePoint !== 'number', block = every ? -1 : codePoint >> 8, any = false;
+  omuiLaterJobs.forEach(function (j) {
+    if (!j.demand || j.asset.wanted) return;
+    if (!every && j.blocks && !j.blocks.some(function (r) { return block >= r[0] && block <= r[1]; })) return;
+    j.asset.wanted = true; any = true;
+    if (omuiLaterStarted) omuiStart(j, false);
+  });
+  window.omuiFontsWanted = (window.omuiFontsWanted || []).concat([{codePoint: every ? null : codePoint, fetched: any}]);
+  if (any) { omuiPublish(); omuiFinished(); }
+};
 if (typeof WebAssembly !== 'object') { omuiFatal = {id: 'wasm', message: 'WebAssembly is needed', retryable: false}; omuiStatus.textContent = omuiFatal.message; }
 omuiPublish('boot');
 window.addEventListener('hashchange', function () { if (!window.omuiFollowsRoute) location.reload(); });
@@ -526,6 +553,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
             return std::unexpected(std::format("--font-initial {} is repeated", font));
     }
     std::vector<std::pair<std::string, std::string>> fonts, initial;
+    std::map<std::string, std::string> coverage;  // a language's face: the blocks it covers, as JSON ranges
     for (const std::string& stem : stems) {
         auto bytes = read(fonts_dir / (stem + ".ttf"));
         if (!bytes) return std::unexpected(std::format("font {}: {}", stem, bytes.error()));
@@ -579,6 +607,16 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
         const std::string asset = std::format("assets/{}.ttf", content_hash(*bytes));
         if (auto w = write(p.out / asset, *bytes); !w) return std::unexpected(w.error());
         fonts.emplace_back(stem + ".ttf", asset);
+        // Another language's face waits until a character it covers is wanted: the page knows which.
+        if (std::ranges::find(p.font_languages, stem, &std::pair<std::string, std::vector<std::string>>::first) != p.font_languages.end()) {
+            // A face whose cmap cannot be read says nothing: fetched for any character no face covers.
+            const auto blocks = font_blocks(std::span(reinterpret_cast<const std::uint8_t*>(bytes->data()), bytes->size()));
+            if (blocks) {
+                std::string json;
+                for (const auto& [from, to] : *blocks) json += std::format("{}[{}, {}]", json.empty() ? "" : ", ", from, to);
+                coverage[stem] = "[" + json + "]";
+            }
+        }
     }
 
     // The licences travel with what they cover: the program's (staged by
@@ -627,7 +665,7 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     for (const auto& [name, file] : initial) record_size(file);
     for (const auto& [name, file] : later) record_size(file);
     if (ec) return std::unexpected(std::format("managed asset size: {}", ec.message()));
-    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes);
+    const std::string index = page(p, js_name, wasm_name, fonts, later, initial, decoded_sizes, coverage);
     if (auto w = write(p.out / "index.html", index); !w) return std::unexpected(w.error());
 
     ToyReport report;

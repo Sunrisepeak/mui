@@ -100,6 +100,11 @@ public:
     // Moves whenever a face is added or the fallback chain changes: text
     // shaped at an older revision shapes again (its glyphs may be others now).
     [[nodiscard]] std::uint64_t revision() const noexcept;
+    // How many clusters select() found no face for so far: a host that
+    // deferred a face (another language's) fetches it once this grows.
+    [[nodiscard]] std::uint64_t uncovered() const noexcept;
+    // The code points it found no face for (each cluster's first; distinct, the first 64).
+    [[nodiscard]] std::vector<char32_t> uncovered_points() const;
 
     [[nodiscard]] std::size_t face_count() const noexcept;
     [[nodiscard]] const FaceInfo& face(FaceId id) const;

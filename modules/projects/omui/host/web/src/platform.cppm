@@ -89,5 +89,9 @@ void set_route(std::string_view route);
 [[nodiscard]] std::string agent_guide();
 // The program's first frame is shown: the page's hook (window.omuiFirstFrame, once).
 void first_frame();
+// The program needs a face the page deferred until asked (another
+// language's): one that draws `code_point`, or every one (none) — the page's
+// hook (window.omuiWantFonts); they arrive as later fonts do.
+void want_fonts(std::optional<char32_t> code_point);
 
 }  // namespace omui::page

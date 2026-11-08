@@ -749,6 +749,11 @@ addToLibrary({
     window.omuiFirstFrame = null;
     if (typeof f === 'function') f();
   },
+  // The program needs the faces the page deferred until asked: the page's hook.
+  omui_web_want_fonts: function (codePoint) {
+    var f = window.omuiWantFonts;
+    if (typeof f === 'function') { if (codePoint >= 0) f(codePoint); else f(); }
+  },
   // Where the application's agent.md is: beside the page.
   omui_web_agent_guide__deps: ['$stringToNewUTF8'],
   omui_web_agent_guide: function () {

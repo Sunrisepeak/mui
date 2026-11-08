@@ -88,6 +88,9 @@ struct FontCollection::Impl {
         return id;
     }();
     std::deque<std::unique_ptr<Face>>  faces;
+    std::atomic<std::uint64_t>         uncovered{0};  // clusters no face covered (select)
+    std::mutex                         uncovered_lock;
+    std::vector<char32_t>              uncovered_points;  // distinct, the first 64
     // Fonts are made while text is shaped (a new weight) and read by glyph
     // caches on other threads (a canvas's textures): the lists change under
     // `lock`, and a deque keeps every entry where it is.
@@ -231,6 +234,11 @@ std::expected<FaceId, std::string> FontCollection::add_fallback(const std::files
 }
 
 std::uint64_t FontCollection::revision() const noexcept { return impl_->revision.load(); }
+std::uint64_t FontCollection::uncovered() const noexcept { return impl_->uncovered.load(std::memory_order_relaxed); }
+std::vector<char32_t> FontCollection::uncovered_points() const {
+    const std::scoped_lock guard(impl_->uncovered_lock);
+    return impl_->uncovered_points;
+}
 
 std::expected<FaceId, std::string> FontCollection::add_file(const std::filesystem::path& file) {
     std::ifstream in(file, std::ios::binary);
@@ -309,7 +317,16 @@ FaceId FontCollection::select(std::span<const std::string> families, std::u32str
     }
     for (FaceId f : impl_->fallback)
         if (ok(f)) return f;
-    // Nothing covers it: the first family's face (which draws .notdef).
+    // Nothing covers it: counted (a host may fetch a face it deferred), and
+    // the first family's face draws .notdef.
+    if (const auto cp = std::ranges::find_if(cluster, [](char32_t c) { return c >= 0x20 && c != 0x7F; }); cp != cluster.end()) {
+        {
+            const std::scoped_lock guard(impl_->uncovered_lock);
+            auto& points = impl_->uncovered_points;
+            if (points.size() < 64 && std::ranges::find(points, *cp) == points.end()) points.push_back(*cp);
+        }
+        impl_->uncovered.fetch_add(1, std::memory_order_relaxed);
+    }
     for (const std::string& fam : families)
         if (auto f = find_family(fam)) return *f;
     return impl_->fallback.empty() ? 0 : impl_->fallback.front();

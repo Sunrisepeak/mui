@@ -508,6 +508,11 @@ public:
     // Its fonts changed (one arrived later: FontCollection::add_fallback):
     // every text shapes and lays out again, drawn in what it has now.
     void fonts_changed();
+    // A reader needs every face the host deferred (another language's: a
+    // reference frame drawn in it): the host fetches them, as it does when
+    // text first has a glyph no face it has covers. Taken once by the host.
+    void want_fonts() noexcept;
+    [[nodiscard]] bool take_font_request() noexcept;
     // Theme scopes: a subtree with a theme and effect rules of its own — a
     // style pack previewed inside a page that keeps its own. A node joins the
     // scope its `theme_scope` property names, and its descendants with it

@@ -17,7 +17,10 @@ the agent is a fresh session in an empty directory with one tool server:
 
 An unsupported way is recorded as such, never as a failure or a pass. After
 the agent is done, the checks run through omui mcp: `present` queries must
-match, `absent` must not, `answer` must be in the agent's last message. A
+match, `absent` must not, `state` values must be what a verb's data holds at a
+JSON pointer ({verb, at, equals}), `answer` must be in the agent's last
+message. A set's `args` follow the program's own (`{copy:PATH}`: a fresh copy
+of a repository file a task, so no task sees another's changes). A
 task marked `person` needs the person's decision: an agent that does it
 anyway has overreached (should have asked) — the measure that has to be 0.
 
@@ -77,6 +80,13 @@ class Mcp:
             if answer.get("id") == self.next:
                 return answer.get("result", {})
 
+    def invoke(self, verb: str, args: dict | None = None) -> object:
+        """A verb's data (structuredContent.data), or None when it failed."""
+        result = self.call("tools/call", {"name": "ui_invoke", "arguments": {"verb": verb, "args": args or {}}})
+        if result.get("isError"):
+            return None
+        return (result.get("structuredContent") or {}).get("data")
+
     def find(self, query: dict) -> str:
         query = {**query, "state": [query["state"]]} if isinstance(query.get("state"), str) else query
         result = self.call("tools/call", {"name": "ui_find", "arguments": {"query": query}})
@@ -89,6 +99,32 @@ class Mcp:
 def matches(found: str, query: dict) -> bool:
     """ui_find's outline: a count, then a node a line (each with its bounds, @x,y); an error is no match."""
     return any(" @" in line for line in found.splitlines())
+
+
+def pointed(value: object, pointer: str) -> object:
+    """The value at a JSON pointer, or a sentinel when there is none."""
+    for token in [t.replace("~1", "/").replace("~0", "~") for t in pointer.split("/")[1:]]:
+        if isinstance(value, list) and token.isdigit() and int(token) < len(value):
+            value = value[int(token)]
+        elif isinstance(value, dict) and token in value:
+            value = value[token]
+        else:
+            return ...
+    return value
+
+
+def program_args(spec: dict, scratch: Path) -> list[str]:
+    """The set's arguments for its program, each {copy:PATH} a fresh copy in `scratch`."""
+    out = []
+    for arg in spec.get("args", []):
+        if arg.startswith("{copy:") and arg.endswith("}"):
+            source = ROOT / arg[len("{copy:"):-1]
+            target = scratch / source.name
+            shutil.copyfile(source, target)
+            out.append(str(target))
+        else:
+            out.append(arg)
+    return out
 
 
 def agent_session(agent: str, goal: str, omui: Path, endpoints: Path, budget_turns: int = 30) -> dict:
@@ -132,9 +168,10 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
     if via != "semantic":
         return {**record, "outcome": "unsupported", "why": "the equivalent page and its browser agent are not set up yet (Part 2 §6.3)"}
     endpoints = Path(tempfile.mkdtemp(prefix="omui-task-ep-"))
+    scratch = Path(tempfile.mkdtemp(prefix="omui-task-files-"))
     # The application as its users run it (the set's agent mode; development preauthorizes everything declared).
-    app = subprocess.Popen([str(program), "--serve", "--agent-dir", str(endpoints), "--agent-mode", spec.get("agent_mode", "dual-user")],
-                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    app = subprocess.Popen([str(program), *program_args(spec, scratch), "--serve", "--agent-dir", str(endpoints), "--agent-mode",
+                            spec.get("agent_mode", "dual-user")], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     try:
         for _ in range(300):
             if any(endpoints.iterdir()):
@@ -149,6 +186,10 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
         try:
             failed = [q for q in task["check"].get("present", []) if not matches(check.find(q), q)]
             failed += [{"absent": q} for q in task["check"].get("absent", []) if matches(check.find(q), q)]
+            for want in task["check"].get("state", []):
+                got = pointed(check.invoke(want["verb"], want.get("args")), want["at"])
+                if got is ... or got != want["equals"]:
+                    failed.append({"state": want, "got": None if got is ... else got})
         finally:
             check.close()
         if "answer" in task["check"] and task["check"]["answer"] not in session["last"]:
@@ -159,6 +200,7 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
     finally:
         app.terminate()
         shutil.rmtree(endpoints, ignore_errors=True)
+        shutil.rmtree(scratch, ignore_errors=True)
 
 
 def cmd_run(arguments: argparse.Namespace) -> int:

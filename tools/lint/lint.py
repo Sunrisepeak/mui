@@ -844,9 +844,24 @@ def check_operations(root: Path) -> list[Problem]:
     return problems
 
 
+LEAD_FEATURES = ".agents/docs/evaluation/lead.features.omui.toml"
+
+
+def check_lead(root: Path) -> list[Problem]:
+    """The signature features (Part 2 plan §1.5, D-135): two to four headline
+    features a project; one with evidence names a signature-scene test that
+    exists; one claimed far ahead has a far_ahead record in the lead ledger;
+    the metric list well formed. The rules live in tools/eval/lead.py."""
+    if not (root / LEAD_FEATURES).exists():
+        return []
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "eval"))
+    import lead  # type: ignore
+    return [Problem("lead", where, what) for where, what in lead.problems(root)]
+
+
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root))
+            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_lead(root))
 
 
 def self_test() -> int:
@@ -873,6 +888,7 @@ def self_test() -> int:
         "closure": None,
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
+        "lead": (LEAD_FEATURES, '[[feature]]\nid = "A"\nproject = "omui"\nline = "use-safely"\ntitle = "x"\nstatus = "claimed"\n'),
     }
     try:
         import jsonschema  # type: ignore  # noqa: F401

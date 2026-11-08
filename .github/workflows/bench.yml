@@ -1,0 +1,89 @@
+name: Bench
+
+# The lead ledger's lane (Part 2 plan §2.2–§2.3, D-135): once a week, our
+# side and each competitor's alternating in this one job
+# (tests/bench/competitors/run.sh --ledger), every metric judged by its ratio
+# a round with a 95 % interval. A shared runner is noisy, so only ratios
+# measured side by side in one job count, never absolute times. The verdicts
+# are this run's summary; the ledger lines and the samples are its artifact,
+# appended to .agents/docs/evaluation/lead.ledger.omui.jsonl by a checkpoint
+# (the lane never pushes). Never part of a pull request's run.
+
+on:
+  schedule:
+    - cron: "0 5 * * 1"  # Mondays, 05:00 UTC
+  workflow_dispatch:
+  pull_request:
+    paths: [".github/workflows/bench.yml"]
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  XLINGS_VERSION: v2026.10.26.1
+  XLINGS_NON_INTERACTIVE: '1'
+
+jobs:
+  lead:
+    name: lead ledger (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+
+      - name: Install xlings
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/openxlings/xlings/main/tools/other/quick_install.sh \
+            | bash -s "$XLINGS_VERSION"
+          echo "$HOME/.xlings/subos/current/bin" >> "$GITHUB_PATH"
+
+      - name: Install mcpp
+        run: |
+          MCPP_VERSION="$(sed -n 's/.*"mcpp": *"\([^"]*\)".*/\1/p' .xlings.json)"
+          for attempt in 1 2 3 4 5 6; do
+            xlings update > /dev/null 2>&1 || true
+            if xlings install "mcpp@$MCPP_VERSION" -y -g; then break; fi
+            [ "$attempt" = 6 ] && { echo "::error::mcpp could not be installed"; exit 1; }
+            sleep 60
+          done
+          version="$(mcpp --version)"
+          echo "$version"
+          case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
+          mcpp self config --mirror GLOBAL
+
+      - name: Select the toolchain
+        run: |
+          mcpp toolchain install llvm 23.1.3
+          mcpp toolchain default llvm@23.1.3
+
+      - name: Measure, interleaved, and judge
+        run: |
+          cp .agents/docs/evaluation/lead.ledger.omui.jsonl target-ledger-before.jsonl 2>/dev/null || touch target-ledger-before.jsonl
+          tests/bench/competitors/run.sh --ledger 15
+          # The lines this run added: the artifact a checkpoint appends.
+          tail -n +"$(( $(wc -l < target-ledger-before.jsonl) + 1 ))" .agents/docs/evaluation/lead.ledger.omui.jsonl > lead.ledger.ci.jsonl
+          {
+            echo "### Lead ledger, $(date -u +%F), $(nproc) threads"
+            echo
+            cat .agents/docs/evaluation/lead.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lead-ledger
+          path: |
+            lead.ledger.ci.jsonl
+            target/bench-competitors/samples.jsonl
+            .agents/docs/evaluation/lead.md
+          if-no-files-found: warn

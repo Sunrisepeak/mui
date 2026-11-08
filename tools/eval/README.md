@@ -34,3 +34,14 @@ tools/eval/animate.py --agent codex --only bounce,spring
 ```
 
 An evaluation is one source among others. What was taken from it and what was not is written at the end of its report ("维护方的处理"), and in the round's summary (`reports/<date>-round-<n>.md`).
+
+`lead.py` keeps the lead ledger (Part 2 plan §2, D-135): `sample` tags a program's JSON lines with a series and a round; `verdict` pairs our series with each competitor's round by round, takes the ratio a round, its median and a seeded 95 % interval, and judges from the interval's lower end (behind < 0.95×, par, ahead ≥ 1.2×, far ahead ≥ 10×); `capability` records a capability against competitors (none, partial, app-defined, full); `summary` writes [`lead.md`](../../.agents/docs/evaluation/lead.md); `check` is lint `lead` (the signature features against the ledger). `tests/bench/competitors/run.sh --ledger` drives it.
+
+```text
+tests/bench/competitors/run.sh --ledger 15
+tools/eval/lead.py capability --project omui --feature C --about "…" --test tools/mcp/tests/mcp_test.cpp --competitor webmcp=app-defined
+tools/eval/lead.py summary --out .agents/docs/evaluation/lead.md
+```
+
+`eval.sh`'s codex scores are history since D-135: reviews compare side by side with similar projects (rubric `compare-v1`).
+

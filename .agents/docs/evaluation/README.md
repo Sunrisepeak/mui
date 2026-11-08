@@ -1,5 +1,19 @@
 # openmui 的评估标准与评分记录
 
+> **2026-11-08 起（D-135，[第二部分方案 §2](../2026-11-08-part2-industry-leading-design.md#2-领先的定义与证据d-135)）：评审不再打分，改为与同类项目并排对照。** 下面 §0 是现行做法；§1 起的 0–100 分标准和 codex 评分保留为历史记录（11-01 之前的分数只作参考，不和新判定比较）。
+
+## 0. 现行做法：并排对照与领先度台账
+
+| 文件 | 内容 |
+|---|---|
+| [`lead.features.omui.toml`](lead.features.omui.toml) | 各项目的标志性特性（A–H 与各项目自己的特性）：主线、状态（planned／evidence／claimed）、招牌镜头的测试、对照的竞品。lint `lead` 检查：每个项目 2–4 项主卖点；evidence 要有存在的测试；claimed 要有台账里的 far_ahead 记录 |
+| [`../../../tests/bench/competitors/lead.metrics.omui.toml`](../../../tests/bench/competitors/lead.metrics.omui.toml) | 各项目的指标清单（先定、先评审，再测量；落后也不删）：measured／planned／pending_hardware |
+| [`lead.ledger.omui.jsonl`](lead.ledger.omui.jsonl) | 领先度台账，只追加：`metric`（同一作业内交替测量，每轮一个比值，取中位数与 95% 区间，按区间下端判定 behind／par／ahead／far_ahead；没有设备的为 pending_hardware）、`capability`（能力对照：竞品 none／partial／app-defined／full）、`task`（Agent 任务集） |
+| [`lead.md`](lead.md) | `tools/eval/lead.py summary` 从台账生成的最新判定，官网“领先度”页读同一份台账 |
+| `ledger.eval.omui.jsonl` 中 `rubric: "compare-v1"` 的记录 | 并排对照评审：每个维度一条判定（behind／par／ahead），附对照材料；评审方是维护者（最终判定）和一个不带实现上下文的新 Claude 会话（盲比，材料只标 A／B） |
+
+命令：`tests/bench/competitors/run.sh --ledger [轮数]`（测量并写台账）；`tools/eval/lead.py capability …`（记一条能力对照）；`tools/eval/lead.py summary --out .agents/docs/evaluation/lead.md`。CI 的 Bench 通道（`.github/workflows/bench.yml`）每周一跑一次，结果是这次运行的摘要和制品，由检查点追加进台账。
+
 维护者的要求（2026-10-31）：评分标准要细化，并保留评估和评分记录。每个评估对象要和它所在领域的顶尖做法比：
 - UI 框架对标主流 UI 框架；
 - 引擎对标主流游戏引擎；

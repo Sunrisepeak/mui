@@ -8,7 +8,7 @@
 import { gsap } from "gsap";
 
 const args = process.argv.slice(2);
-const frames = Number(args[args.indexOf("--frames") + 1] || 3000);
+const frames = args.includes("--frames") ? Number(args[args.indexOf("--frames") + 1]) : 3000;
 const asJson = args.includes("--json");
 
 gsap.ticker.sleep();          // frames are ours, not the ticker's

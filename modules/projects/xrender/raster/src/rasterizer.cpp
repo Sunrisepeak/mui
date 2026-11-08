@@ -64,45 +64,18 @@ std::int64_t floor_div(std::int64_t a, std::int64_t b) {
 
 }  // namespace
 
-// A cell joins its row's list in column order (FreeType's ftgrays keeps
-// its cells so): the sweep reads each row in order without a sort. A row's
-// cells mostly come in rising columns (scanline walks a row left to right),
-// so the search starts at the last cell when it lies to the left.
+// A cell adds into its row's accumulator and marks its column in the row's
+// bits (Blend2D keeps its cells so): no list to walk, no sort; the sweep
+// visits the marked columns alone, a word of 64 at a time, and leaves the
+// cells and bits zero again. What lies right of the clip (the extra column)
+// changes no visible pixel, so it is not kept.
 void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
-    if (ey < 0 || ey >= height_) return;
+    if (ey < 0 || ey >= height_ || ex >= width_) return;
     if (ex < 0) ex = 0;
-    if (ex > width_) ex = width_;  // the extra column: edges right of the clip
-    if (cover == 0 && area == 0) return;
-    std::int32_t before = -1, at;
-    if (last_row_ == ey) {
-        Cell& last = cells_[static_cast<std::size_t>(last_)];
-        if (last.x == ex) {
-            last.cover += cover;
-            last.area += area;
-            return;
-        }
-        if (last.x < ex) before = last_, at = last.next;
-        else at = rows_[static_cast<std::size_t>(ey)];
-    } else {
-        at = rows_[static_cast<std::size_t>(ey)];
-    }
-    while (at >= 0 && cells_[static_cast<std::size_t>(at)].x < ex) {
-        before = at;
-        at = cells_[static_cast<std::size_t>(at)].next;
-    }
-    last_row_ = ey;
-    if (at >= 0 && cells_[static_cast<std::size_t>(at)].x == ex) {
-        Cell& found = cells_[static_cast<std::size_t>(at)];
-        found.cover += cover;
-        found.area += area;
-        last_ = at;
-        return;
-    }
-    const auto made = static_cast<std::int32_t>(cells_.size());
-    cells_.push_back({ex, cover, area, at});
-    if (before < 0) rows_[static_cast<std::size_t>(ey)] = made;
-    else cells_[static_cast<std::size_t>(before)].next = made;
-    last_ = made;
+    Cell& at = cells_[static_cast<std::size_t>(ey) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(ex)];
+    at.cover += cover;
+    at.area += area;
+    marked_[static_cast<std::size_t>(ey) * static_cast<std::size_t>(words_) + static_cast<std::size_t>(ex >> 6)] |= std::uint64_t{1} << (ex & 63);
 }
 
 void Rasterizer::scanline(std::int32_t ey, std::int32_t x1, std::int32_t fy1, std::int32_t x2, std::int32_t fy2) {
@@ -195,8 +168,6 @@ void Rasterizer::line(std::int32_t x1, std::int32_t y1, std::int32_t x2, std::in
 }
 
 bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
-    cells_.clear();
-    last_row_ = -1;
     if (polygons.points.empty() || clip.empty()) return false;
     float l = polygons.points[0].x, t = polygons.points[0].y, r = l, b = t;
     for (const Point& p : polygons.points) {
@@ -211,10 +182,26 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
     std::int32_t x1 = std::min(ceili(r), clip.x + clip.width), y1 = std::min(ceili(b), clip.y + clip.height);
     if (x1 <= x0 || y1 <= y0) return false;
     min_x_ = x0;
-    min_y_ = y0;
+    box_y_ = min_y_ = y0;
     width_ = x1 - x0;
-    height_ = y1 - y0;
-    rows_.assign(static_cast<std::size_t>(height_), -1);
+    box_height_ = height_ = y1 - y0;
+    words_ = (width_ + 63) / 64;
+    return true;
+}
+
+std::int32_t Rasterizer::band_rows() const {
+    constexpr std::int64_t most_cells = std::int64_t{1} << 20;  // 8 MiB of cells a band, whatever the shape's size
+    return static_cast<std::int32_t>(std::clamp<std::int64_t>(most_cells / std::max(width_, 1), 1, std::max(box_height_, 1)));
+}
+
+void Rasterizer::band(const Polygons& polygons, std::int32_t first_row, std::int32_t rows) {
+    min_y_ = box_y_ + first_row;
+    height_ = rows;
+    // Every cell and mark is zero between bands (the sweep leaves them so): only grown.
+    const std::size_t area = static_cast<std::size_t>(width_) * static_cast<std::size_t>(height_);
+    if (cells_.size() < area) cells_.resize(area);
+    if (marked_.size() < static_cast<std::size_t>(words_) * static_cast<std::size_t>(height_))
+        marked_.resize(static_cast<std::size_t>(words_) * static_cast<std::size_t>(height_));
 
     // An edge is cut where it crosses the clip's sides: what lies left of the
     // clip runs down its first column (keeping its winding), what lies right
@@ -253,17 +240,16 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
         }
         edge(from_x, from_y, first_x, first_y);
     }
-    return true;
 }
 
 void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect clip, Coverage& out) {
     out.values.clear();
     out.bounds = {};
     if (!prepare(polygons, clip)) return;
-    out.bounds = {min_x_, min_y_, width_, height_};
-    out.values.resize(static_cast<std::size_t>(width_) * height_);
-    sweep(rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
-        std::fill_n(out.values.data() + static_cast<std::size_t>(y) * width_ + x, count, v);
+    out.bounds = {min_x_, box_y_, width_, box_height_};
+    out.values.resize(static_cast<std::size_t>(width_) * box_height_);
+    sweep_bands(polygons, rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
+        std::fill_n(out.values.data() + static_cast<std::size_t>(y + min_y_ - box_y_) * width_ + x, count, v);
     });
 }
 
@@ -271,8 +257,8 @@ void Rasterizer::rasterize(const Polygons& polygons, FillRule rule, PixelRect cl
     out.runs.clear();
     out.bounds = {};
     if (!prepare(polygons, clip)) return;
-    out.bounds = {min_x_, min_y_, width_, height_};
-    sweep(rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
+    out.bounds = {min_x_, box_y_, width_, box_height_};
+    sweep_bands(polygons, rule, [&](std::int32_t y, std::int32_t x, std::int32_t count, std::uint8_t v) {
         if (v == 0) return;
         const std::int32_t gy = y + min_y_, gx = x + min_x_;
         if (!out.runs.empty()) {

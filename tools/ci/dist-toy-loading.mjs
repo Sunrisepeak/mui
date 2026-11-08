@@ -104,7 +104,9 @@ function harness(options = {}) {
     asset(id) { return env.omuiLoad.assets.find(a => a.id === id); },
     hasTimer(ms) { return [...timers.values()].some(t => t.ms === ms); },
     timer(ms) { const hit = [...timers].find(([, t]) => t.ms === ms); if (!hit) throw new Error('Missing timer: ' + ms); timers.delete(hit[0]); hit[1].fn(); },
-    present() { env.omuiHasPresented = true; const hook = env.omuiFirstFrame; env.omuiFirstFrame = null; if (typeof hook !== 'function') throw new Error('Native presentation hook missing'); hook(); },
+    // Drawn; then, unless told otherwise, the program asks for every face (another
+    // language's faces wait until it does: a reader drawing in all of them).
+    present() { env.omuiHasPresented = true; const hook = env.omuiFirstFrame; env.omuiFirstFrame = null; if (typeof hook !== 'function') throw new Error('Native presentation hook missing'); hook(); if (options.asks !== false) env.omuiWantFonts(); },
     counts() { return { receives, initialized, streamed, buffered }; },
     dispose() { for (const t of timers.values()) if (t.handle) clearTimeout(t.handle); timers.clear(); }
   };
@@ -307,6 +309,19 @@ try {
       h.present(); await h.complete(); check(h.env.omuiFontPending === 0 && !h.files.has('/fonts/.partial') && h.counts().initialized === 1, 'the replanned later chain completes without duplicate initialization');
     }
   });
+  await scenario('another language\'s face waits until the program asks, and loading still completes', async () => {
+    const h = harness({ asks: false }); h.start(); await h.ready(); h.present();
+    await until(() => h.env.omuiLoad.phase === 'complete', 'complete without the face');
+    check(!h.calls.some(c => c.id === 'font:NotoSansSC.ttf') && h.asset('font:NotoSansSC.ttf')?.state === 'deferred',
+          'unasked, another language\'s face is not fetched');
+    const announced = () => new TextDecoder().decode(h.files.get('/later/.ready') || new Uint8Array());
+    const before = announced();
+    h.env.omuiWantFonts(0x1f600);
+    check(!h.calls.some(c => c.id === 'font:NotoSansSC.ttf'), 'a character it cannot draw asks nothing of it');
+    h.env.omuiWantFonts(0x4e2d); await h.complete();
+    check(h.calls.filter(c => c.id === 'font:NotoSansSC.ttf').length === 1 && announced() !== before && h.aliases.get('/later/fonts/NotoSansSC.ttf') === '/fonts/NotoSansSC.ttf',
+          'a character it can draw fetches it once, announced in a new batch');
+  });
   await scenario('streamed gzip package, deferred fonts, and synchronous native presentation', async () => {
     const h = harness(); h.start(); await h.ready();
     check(h.counts().streamed === 1 && h.counts().buffered === 0, 'normal wasm retains native streaming instantiation');
@@ -322,7 +337,7 @@ try {
     check(requests.some(r => r.encoded !== r.raw) && h.asset('wasm').loaded === h.asset('wasm').total, 'real HTTP gzip Content-Length is not confused with decoded progress');
   });
   await scenario('four-second fallback is not a presented frame', async () => {
-    const h = harness(); h.start(); await h.ready(); h.timer(4000); await h.complete();
+    const h = harness(); h.start(); await h.ready(); h.timer(4000); h.env.omuiWantFonts(); await h.complete();
     check(!h.env.omuiLoad.presented && !h.events.some(e => e.phase === 'presented') && typeof h.env.omuiFirstFrame === 'function', 'fallback fetches preserve the real native presentation hook');
     const count = h.calls.length; h.present(); h.env.omuiFetchLater();
     check(h.events.filter(e => e.phase === 'presented').length === 1 && h.calls.length === count, 'a later real presentation is reported once without fetching twice');

@@ -245,6 +245,11 @@ public:
     // its own waits for retimed() rather than asking for frames.
     [[nodiscard]] virtual bool time_paused() const { return false; }
     [[nodiscard]] virtual Rect bounds(NodeId node) const = 0;        // window coordinates
+    // The control at a window point: the nearest node that takes focus (a
+    // button, a field, a slider) — the one the pointer hits or an ancestor of
+    // it; none over plain content. A figure over a page asks what is beneath
+    // it (its own hits() saying false while it asks).
+    [[nodiscard]] virtual NodeId control_at(Point window) const = 0;
     // The extent of the node's children (a scroll view's scroll range).
     [[nodiscard]] virtual Size content_size(NodeId node) const = 0;
     // The node's padding and border: its content box is its bounds inset by these.

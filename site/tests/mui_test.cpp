@@ -88,6 +88,27 @@ int main(int argc, char** argv) {
         check(p.person("main/mui", "activate") == 0 && p.asked == 2, "activate: the same, for a reader or an agent");
     });
 
+    s.test("over a control it yields: a click on Mui where a button lies beneath is the button's (content first)", [] {
+        Headless h{HeadlessOptions{.size = {640, 360}, .scale = 1}};
+        register_base_components();
+        register_type(component_type<site::Mascot>());
+        int pressed = 0, asked = 0;
+        h.mount("main", stack({.id = "page", .width = 640.0f, .height = 360.0f},
+                              {column({.id = "body", .width = 640.0f, .height = 360.0f, .justify = "end"},
+                                      {button({.id = "under", .text = "A button along the bottom", .on_activated = [&] { ++pressed; }, .width = Dim(640.0f),
+                                               .height = Dim(70.0f)})}),
+                               site::mascot({.id = "mui", .on_activated = [&] { ++asked; }})}));
+        h.settle();
+        const Value now = h.tree().node("main/mui")->value;
+        const auto& feet = *now.get("feet")->list();
+        const auto number = [](const Value& v) { return static_cast<float>(v.type() == Value::Type::integer ? static_cast<double>(v.as_int()) : v.as_double()); };
+        const Point on{number(feet[0]), number(feet[1]) - 20};
+        check(h.runtime().hit_test(on) == h.runtime().find("main/body/under"), "the button's, not Mui's");
+        h.click(on);
+        h.step();
+        check(pressed == 1 && asked == 0, std::format("pressed {} asked {}", pressed, asked));
+    });
+
     s.test("the agent acts: Mui walks there, hops up onto the card it goes to, its eyes lit, and points; the strip saved", [] {
         Page p;
         const auto dir = scratch_dir("mui");

@@ -1057,6 +1057,12 @@ NodeId Runtime::Impl::hit(NodeId id, Point window, std::optional<Rect>) const {
     return {};
 }
 
+NodeId Runtime::control_at(Point window) const {
+    for (NodeId node = hit_test(window); valid(node); node = parent(node))
+        if (impl_->is_focusable(node)) return node;
+    return {};
+}
+
 NodeId Runtime::hit_test(Point window) const {
     const Impl& d = *impl_;
     // Overlays first, top to bottom; a modal one hides what is below it.

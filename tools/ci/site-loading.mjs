@@ -114,7 +114,10 @@ for (const scenario of [
         await b.call('Page.navigate', {url:server.url+'?renderer=cpu#/zh/components'});
         check(await until(b, `window.omuiOpeningVisible?.language==='zh'&&!!document.querySelector('.omui-opening[data-nodes]')`), 'a locale change updates a deduplicated picture and its geometry before wasm loads');
         const translated = await b.value('window.omuiOpeningVisible');
-        check(previous.image===translated.image&&previous.geometry!==translated.geometry, 'shared image bytes do not reuse another locale\'s semantic geometry',{previous,translated});
+        // Each locale's picture and geometry its own; where two locales' pictures are the same bytes (one
+        // deduplicated file), still never the other's geometry. (The components opening, the wall, is
+        // translated: its pictures differ — the shared case is exercised where they are the same.)
+        check(previous.geometry!==translated.geometry, 'another locale\'s picture brings its own semantic geometry, shared bytes or not',{previous,translated});
         check(await b.value(`document.querySelector('.omui-opening figcaption').textContent==='界面预览 · 加载完成后即可操作'`), 'the reused picture has the selected language\'s caption');
         await b.call('Emulation.setEmulatedMedia', {features:[{name:'prefers-reduced-motion',value:'reduce'}]});
         check(await until(b, `window.omuiOpeningVisible?.motion==='reduced'&&!!document.querySelector('.omui-opening[data-nodes]')`), 'a motion preference change selects new geometry even when the PNG is identical');

@@ -420,6 +420,7 @@ public:
     // When the earliest timer is due (hosts sleep until then); none when no timer waits.
     [[nodiscard]] std::optional<seconds> next_timer() const noexcept;
     [[nodiscard]] NodeId hit_test(Point window) const;
+    [[nodiscard]] NodeId control_at(Point window) const override;
 
     // ── actions, focus, verbs ──
     // Performs an action of a node (pointers, keys, agents and scripts all

@@ -41,7 +41,8 @@ public:
     Size measure(MeasureContext& m, std::optional<float> width, std::optional<float> height, mlibs::layout::Available aw, mlibs::layout::Available ah);
     void paint(PaintContext& ctx) const;
     void semantics(SemanticsContext& ctx, spec::SemanticNode& node) const;
-    // Over the page, it takes the pointer only on itself (the page beneath elsewhere).
+    // Over the page, it takes the pointer only on itself, and not where a
+    // control is beneath it: content first (the site plan §9.4).
     static constexpr std::string_view cursor = "pointer";
     bool hits(Point local, Size size) const;
     bool on_event(EventContext& ctx, const InputEvent& e);
@@ -105,6 +106,7 @@ private:
     std::string             said_;
     double                  said_until_ = 0;
     mutable parts::Label    bubble_;
+    mutable bool            probing_ = false;  // asking what is beneath it (its own hits say no meanwhile)
 };
 
 }  // namespace omui::site

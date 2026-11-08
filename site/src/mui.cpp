@@ -475,10 +475,16 @@ void Mascot::semantics(SemanticsContext&, spec::SemanticNode& node) const {
 }
 
 bool Mascot::hits(Point local, Size) const {
-    if (!figure_ || !figure_->arrived) return false;
+    if (!figure_ || !figure_->arrived || probing_) return false;
     const Now here = now();
     const float side = static_cast<float>(props.cell) * static_cast<float>(mascot_art().size);
-    return Rect{here.feet.x - side / 2, here.feet.y - side, side, side}.contains(local);
+    if (!Rect{here.feet.x - side / 2, here.feet.y - side, side, side}.contains(local)) return false;
+    // Over a control, the control's: what is beneath it, asked with its own hits saying no.
+    const Rect box = services().bounds(node());
+    probing_ = true;
+    const NodeId control = services().control_at({box.x + local.x, box.y + local.y});
+    probing_ = false;
+    return !control || services().state(control).disabled;
 }
 
 bool Mascot::on_event(EventContext& ctx, const InputEvent& e) {

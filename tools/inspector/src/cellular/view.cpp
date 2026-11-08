@@ -31,6 +31,7 @@ std::string brush_name(std::string_view label,bool zh) {
 void add_verbs(AppSpec& a,const std::shared_ptr<Session>& s) {
     // The verbs are the catalog's (inspector.ops.omui.toml).
     for (const auto& entry:catalog) {
+        if (!entry.operation.name.starts_with("cellular.")) continue;
         const auto op=entry.operation.name.substr(std::string_view("cellular.").size());
         a.verbs.push_back({verb_of(entry),[s,op](const Value& values){return s->perform(op,values);}});
     }

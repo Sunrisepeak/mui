@@ -1,15 +1,18 @@
 # The Inspector's operations (convergence plan §10.3): its cellular field's,
 # what an Agent does with an integer-rule material field — read it, load or
-# configure a project, paint, step time, seek its replay, save it — as the
-# application's verbs (`invoke` with `cellular.<operation>`). omui-gen ops makes
+# configure a project, paint, step time, seek its replay, save it — and its
+# motion workbench's, what it does with a hanim animation document — open it,
+# show a moment, find the steps behind a moment and an object, tune one value,
+# undo, save — as the application's verbs (`invoke` with `cellular.<operation>`
+# or `motion.<operation>`). omui-gen ops makes
 # the table (src/catalog/catalog.cppm), the verbs come from it (omui::verb_of),
 # and the listings (src/catalog/inspector.ops.json for CLI and MCP,
 # inspector.ops.md). Effects are openas's, admission is mlibs.control's.
 [catalog]
 product   = "inspector"
 module    = "omui.inspector"
-namespace = "omui::inspector::cellular"
-doc       = "Read, edit, step and replay the Inspector's cellular material field."
+namespace = "omui::inspector"
+doc       = "Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document."
 generated = "src/catalog"
 
 [[operation]]
@@ -128,3 +131,84 @@ params  = [
 ]
 result  = "json"
 undo    = "cellular.play with the other enabled"
+
+[[operation]]
+name    = "motion.snapshot"
+effect  = "read"
+summary = "The workbench now: the document's file, its length, the moment shown, the step being tuned, how many changes can be undone and redone."
+result  = "json"
+
+[[operation]]
+name    = "motion.document"
+effect  = "read"
+summary = "The animation document as it is now (its JSON)."
+result  = "json"
+
+[[operation]]
+name    = "motion.open"
+effect  = "reversible"
+summary = "Open a hanim animation document from a file or its text; its problems refuse it (what was open stays)."
+params  = [
+    { name = "file", type = "path", optional = true },
+    { name = "text", type = "string", doc = "the document itself, instead of a file", optional = true },
+]
+result  = "json"
+undo    = "motion.open with the document that was open"
+
+[[operation]]
+name    = "motion.seek"
+effect  = "reversible"
+summary = "Show the stage at a moment (seconds, clamped to the animation's length)."
+params  = [{ name = "time", type = "number" }]
+result  = "json"
+undo    = "motion.seek to the moment shown before"
+
+[[operation]]
+name    = "motion.at"
+effect  = "read"
+summary = "The steps that govern a moment (of an object, if given), innermost first: each one's JSON pointer, kind, start, end, how far through, the objects it moves."
+params  = [
+    { name = "time", type = "number", doc = "seconds (default: the moment shown)", optional = true },
+    { name = "object", type = "string", optional = true },
+]
+result  = "json"
+
+[[operation]]
+name    = "motion.knobs"
+effect  = "read"
+summary = "A step's numbers, words and switches — what a person tunes — each with its JSON pointer and value."
+params  = [{ name = "where", type = "string", doc = "the step's JSON pointer (default: the step being tuned)", optional = true }]
+result  = "json"
+
+[[operation]]
+name    = "motion.set"
+effect  = "reversible"
+summary = "One value at a JSON pointer; the document read again whole — refused with its problems, nothing changed, when it does not read. One step of the workbench's history."
+params  = [
+    { name = "where", type = "string", doc = "the value's JSON pointer, e.g. /program/items/0/duration" },
+    { name = "value", type = "json" },
+]
+result  = "json"
+undo    = "motion.undo"
+
+[[operation]]
+name    = "motion.undo"
+effect  = "reversible"
+summary = "Take back the last change."
+result  = "json"
+undo    = "motion.redo"
+
+[[operation]]
+name    = "motion.redo"
+effect  = "reversible"
+summary = "Put back the last change taken back."
+result  = "json"
+undo    = "motion.undo"
+
+[[operation]]
+name    = "motion.save"
+effect  = "irreversible"
+summary = "Write the document as it is now to its file (or the file given)."
+params  = [{ name = "file", type = "path", optional = true }]
+result  = "json"
+undo    = "none: the file is written over (keep a copy, or save elsewhere)"

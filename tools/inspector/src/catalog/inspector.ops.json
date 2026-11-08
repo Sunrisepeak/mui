@@ -2,7 +2,7 @@
   "kind": "omui.ops",
   "version": 1,
   "product": "inspector",
-  "doc": "Read, edit, step and replay the Inspector's cellular material field.",
+  "doc": "Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document.",
   "tools": [
     {"name": "cellular.describe", "description": "Discover the integer rule project format, budgets and editing SOP.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
@@ -27,7 +27,27 @@
     {"name": "cellular.reset", "description": "Restore this project's initial state; starts a new replay history.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo restores the field before it", "undoable": true, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"revision": {"type": "integer"}}, "required": []}},
     {"name": "cellular.play", "description": "Start or stop live playback; continuation rechecks the initiating Agent authority.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "cellular.play with the other enabled", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "revision": {"type": "integer"}}, "required": ["enabled"]}}
+     "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "revision": {"type": "integer"}}, "required": ["enabled"]}},
+    {"name": "motion.snapshot", "description": "The workbench now: the document's file, its length, the moment shown, the step being tuned, how many changes can be undone and redone.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.document", "description": "The animation document as it is now (its JSON).", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.open", "description": "Open a hanim animation document from a file or its text; its problems refuse it (what was open stays).", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.open with the document that was open", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "text": {"type": "string", "description": "the document itself, instead of a file"}}, "required": []}},
+    {"name": "motion.seek", "description": "Show the stage at a moment (seconds, clamped to the animation's length).", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.seek to the moment shown before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"time": {"type": "number"}}, "required": ["time"]}},
+    {"name": "motion.at", "description": "The steps that govern a moment (of an object, if given), innermost first: each one's JSON pointer, kind, start, end, how far through, the objects it moves.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"time": {"type": "number", "description": "seconds (default: the moment shown)"}, "object": {"type": "string"}}, "required": []}},
+    {"name": "motion.knobs", "description": "A step's numbers, words and switches — what a person tunes — each with its JSON pointer and value.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"where": {"type": "string", "description": "the step's JSON pointer (default: the step being tuned)"}}, "required": []}},
+    {"name": "motion.set", "description": "One value at a JSON pointer; the document read again whole — refused with its problems, nothing changed, when it does not read. One step of the workbench's history.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.undo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"where": {"type": "string", "description": "the value's JSON pointer, e.g. /program/items/0/duration"}, "value": {}}, "required": ["where", "value"]}},
+    {"name": "motion.undo", "description": "Take back the last change.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.redo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.redo", "description": "Put back the last change taken back.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.undo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.save", "description": "Write the document as it is now to its file (or the file given).", "effect": "irreversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: the file is written over (keep a copy, or save elsewhere)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}}, "required": []}}
   ],
   "tiers": []
 }

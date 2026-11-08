@@ -1,5 +1,14 @@
 # openmui Inspector
 
+The **motion workbench** (`omui-inspector --motion FILE`) opens a hanim
+animation document (`<name>.animation.omui.json`): the stage drawn at any
+moment by the same renderer, a scrubber, a click on an object to the steps
+that move it then (innermost first, each by its JSON pointer), the chosen
+step's numbers, words and switches as controls — each change read again whole,
+refused with its problems when it does not read, one step of undo — and Save.
+Its `motion.*` verbs are the same operations, so an Agent points and tunes as
+the person does (the skill's steps below).
+
 The [Reaction lab](docs/cellular.md) is an additional workspace for editing
 and inspecting integer cellular projects. It shares one model and operation
 set across its omui view, Agent endpoint, batch CLI and website embedding;

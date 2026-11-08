@@ -12,6 +12,7 @@ import mcpplibs.os;
 int main(int argc, char** argv) {
     omui::inspector::Options options;
     bool cellular=false,chinese=false,batch_requested=false;
+    std::filesystem::path motion_file;
     std::string argument_error;
     std::filesystem::path batch_file,batch_out;
     std::vector<char*> rest{argv[0]};
@@ -20,6 +21,10 @@ int main(int argc, char** argv) {
         if (a == "--app" && i + 1 < argc) options.app = argv[++i];
         else if (a == "--inspect-dir" && i + 1 < argc) options.directory = argv[++i];
         else if (a == "--cellular") cellular=true;
+        else if (a == "--motion") {
+            if (i+1==argc || std::string_view(argv[i+1]).starts_with("--")) argument_error="--motion needs an animation document";
+            else motion_file=mcpplibs::os::fs::from_utf8(argv[++i]);
+        }
         else if (a == "--cellular-zh") {cellular=true;chinese=true;}
         else if (a == "--cellular-batch" || a == "--out") {
             if (a=="--cellular-batch") batch_requested=true;
@@ -35,6 +40,10 @@ int main(int argc, char** argv) {
     if (!batch_requested && !batch_out.empty()) argument_error="--out needs --cellular-batch";
     if (!argument_error.empty()) {std::cout<<omui::Value{}.set("ok",false).set("error",argument_error).json()<<'\n';return 2;}
     if (batch_requested) return omui::inspector::cellular::batch(batch_file,batch_out,std::cout);
+    if (!motion_file.empty()) {
+        const auto session=std::make_shared<omui::inspector::motion::Session>();
+        return omui::run(omui::inspector::motion::app(session,motion_file),static_cast<int>(rest.size()),rest.data());
+    }
     if (cellular) {
         const auto session=std::make_shared<omui::inspector::cellular::Session>();
         return omui::run(omui::inspector::cellular::app(session,chinese),static_cast<int>(rest.size()),rest.data());

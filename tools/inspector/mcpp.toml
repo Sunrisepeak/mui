@@ -24,7 +24,7 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp", "src/catalog/*.cppm"]
+sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp", "src/motion/*.cppm", "src/motion/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
@@ -33,6 +33,8 @@ omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "mlibs.simulation" = { path = "../../modules/base/simulation" }
 "xengine.cellular" = { path = "../../modules/projects/xengine/cellular" }
 "xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
+# The motion workbench reads, draws and tunes hanim's animation documents.
+"hanim.studio" = { path = "../../modules/projects/hanim/studio" }
 mcpplibs.os = "0.2.2"
 
 [dev-dependencies]

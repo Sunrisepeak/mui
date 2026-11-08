@@ -121,7 +121,8 @@ id = "H"
 project = "hanim"
 line = "build-reliably"
 title = "Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调"
-status = "planned"
+status = "evidence"
+scene = "tools/inspector/tests/motion_test.cpp"
 competitors = ["figma", "rive-editor", "after-effects", "jitter"]
 
 [[feature]]

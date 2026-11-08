@@ -5,7 +5,7 @@ export module omui.inspector:catalog;
 import std;
 import mlibs.control;
 
-export namespace omui::inspector::cellular {
+export namespace omui::inspector {
 
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_inspect{{
     {"x", "integer", "", false},
@@ -41,9 +41,30 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_cellular_pl
     {"enabled", "bool", "", false},
     {"revision", "integer", "", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_open{{
+    {"file", "path", "", true},
+    {"text", "string", "the document itself, instead of a file", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_seek{{
+    {"time", "number", "", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_at{{
+    {"time", "number", "seconds (default: the moment shown)", true},
+    {"object", "string", "", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_knobs{{
+    {"where", "string", "the step's JSON pointer (default: the step being tuned)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_motion_set{{
+    {"where", "string", "the value's JSON pointer, e.g. /program/items/0/duration", false},
+    {"value", "json", "", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_motion_save{{
+    {"file", "path", "", true},
+}};
 
-// Read, edit, step and replay the Inspector's cellular material field.
-inline constexpr std::array<mlibs::control::CatalogEntry, 12> catalog{{
+// Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document.
+inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
     {{"cellular.describe", openas::Effect::read, false}, "Discover the integer rule project format, budgets and editing SOP.", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"cellular.snapshot", openas::Effect::read, false}, "Read revision, simulation tick, replay frame, brushes and current state hash.", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"cellular.project", openas::Effect::read, false}, "Export the current state as a reloadable cellular project; history is not serialized.", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
@@ -56,6 +77,16 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 12> catalog{{
     {{"cellular.seek", openas::Effect::reversible, false}, "Restore a retained replay frame exactly, including paint inputs.", parameters_cellular_seek, "json", mlibs::control::Cost::bounded, "cellular.seek to the frame before", false, false, false},
     {{"cellular.reset", openas::Effect::reversible, false}, "Restore this project's initial state; starts a new replay history.", parameters_cellular_reset, "json", mlibs::control::Cost::instant, "ui.undo restores the field before it", false, true, false},
     {{"cellular.play", openas::Effect::reversible, false}, "Start or stop live playback; continuation rechecks the initiating Agent authority.", parameters_cellular_play, "json", mlibs::control::Cost::instant, "cellular.play with the other enabled", false, false, false},
+    {{"motion.snapshot", openas::Effect::read, false}, "The workbench now: the document's file, its length, the moment shown, the step being tuned, how many changes can be undone and redone.", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"motion.document", openas::Effect::read, false}, "The animation document as it is now (its JSON).", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"motion.open", openas::Effect::reversible, false}, "Open a hanim animation document from a file or its text; its problems refuse it (what was open stays).", parameters_motion_open, "json", mlibs::control::Cost::instant, "motion.open with the document that was open", false, false, false},
+    {{"motion.seek", openas::Effect::reversible, false}, "Show the stage at a moment (seconds, clamped to the animation's length).", parameters_motion_seek, "json", mlibs::control::Cost::instant, "motion.seek to the moment shown before", false, false, false},
+    {{"motion.at", openas::Effect::read, false}, "The steps that govern a moment (of an object, if given), innermost first: each one's JSON pointer, kind, start, end, how far through, the objects it moves.", parameters_motion_at, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"motion.knobs", openas::Effect::read, false}, "A step's numbers, words and switches — what a person tunes — each with its JSON pointer and value.", parameters_motion_knobs, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"motion.set", openas::Effect::reversible, false}, "One value at a JSON pointer; the document read again whole — refused with its problems, nothing changed, when it does not read. One step of the workbench's history.", parameters_motion_set, "json", mlibs::control::Cost::instant, "motion.undo", false, false, false},
+    {{"motion.undo", openas::Effect::reversible, false}, "Take back the last change.", {}, "json", mlibs::control::Cost::instant, "motion.redo", false, false, false},
+    {{"motion.redo", openas::Effect::reversible, false}, "Put back the last change taken back.", {}, "json", mlibs::control::Cost::instant, "motion.undo", false, false, false},
+    {{"motion.save", openas::Effect::irreversible, false}, "Write the document as it is now to its file (or the file given).", parameters_motion_save, "json", mlibs::control::Cost::instant, "none: the file is written over (keep a copy, or save elsewhere)", false, false, false},
 }};
 
-}  // namespace omui::inspector::cellular
+}  // namespace omui::inspector

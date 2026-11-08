@@ -568,12 +568,12 @@
 | E 生成式 UI 运行时 | 候选 | 未开始（A2UI 桥接镜头，可选） |
 | F 可编辑的 AI 动画 | planned | hanim.studio 已有读回计划与精确修改的底子 |
 | G Agent 一等参与者 | evidence | 打砖块试玩员：人类档逐房间试玩、报告、问题回放逐字节一致 |
-| H 设计与动效工作台 | 部分 | 画面指认（`hanim at`：时刻 → 步骤的 JSON pointer）、分支方案（`hanim vary`：一个值多种取法并排出图）；参数微调的 GUI 工作台未做 |
+| H 设计与动效工作台 | evidence | 画面指认（`hanim at`：时刻 → 步骤的 JSON pointer）、分支方案（`hanim vary`：一个值多种取法并排出图）、参数微调（Inspector 的动效工作台 `--motion`：点画面上的对象 → 支配它的步骤 → 数值控件，每次修改可撤销；Agent 用同一组 `motion.*` 动词）；motion_test |
 
 - openas：`design/preview-presence-handoff.md`（事务、预演、请人、在场、接管与交接，0.3 草案）与各协议对照矩阵（§6：MCP 2026-07-28、MCP Apps、WebMCP、AG-UI、A2UI 1.0、App Intents 都没有事务与预演，也都没说人和 Agent 同时操作一件东西时怎么办）。
 - openmui 规范：S-14（人的直接操作优先、接管）、S-15（预演）。
 
-**接下来**（按顺序，不等 CI）：H 的参数微调；F 的招牌镜头；比追踪器更强的打砖块 Agent；E 的桥接镜头（可选）；LD2 剩余项等维护者对 AVX2 的决定。
+**接下来**（按顺序，不等 CI）：F 的招牌镜头；比追踪器更强的打砖块 Agent；E 的桥接镜头（可选）；LD2 剩余项等维护者对 AVX2 的决定。
 
 **CI 对账**：红灯 29–32 已修（29 浏览器检查按新结构、30 CDP 调用加时限并报出卡住的调用、31 视图 schema、32 README 媒体）。
 

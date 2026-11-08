@@ -259,5 +259,63 @@ int main(int argc, char** argv) {
         check(!engine.surfaces(body, too_many), "more ledges than a step holds: refused");
     });
 
+    suite.test("a part drawn on its own ring (a card's straight sides) is carried as it is: no point on an edge pulled out", [] {
+        Engine engine = take(Engine::make());
+        const auto card = take(engine.create_object({{{.id = "card", .local = {.tx = 50, .ty = 50}, .contours = {rectangle(0, 0, 120, 70)}, .fill = Rgba{1, 1, 1, 1}}}}));
+        const auto shown = take(engine.play(anim::morph(card, card)));
+        const auto before = drawn(engine, shown);
+        (void)take(engine.simulate({card, "card"}, {.params = {.gravity_y = 0}, .points = 32}));
+        const auto made = drawn(engine, shown);
+        double moved = 0;
+        for (std::size_t index = 0; index < made.cubics.size(); ++index)
+            for (const auto& [from, to] : {std::pair{before.cubics[index].start, made.cubics[index].start}, std::pair{before.cubics[index].control1, made.cubics[index].control1},
+                                           std::pair{before.cubics[index].control2, made.cubics[index].control2}, std::pair{before.cubics[index].end, made.cubics[index].end}})
+                moved = std::max({moved, std::abs(from.x - to.x), std::abs(from.y - to.y)});
+        check(moved < 1e-6, std::format("its outline where it was drawn: moved {}", moved));
+    });
+
+    suite.test("a body's own time: stepped alone, rewound to any step it played and on again the same, bit for bit", [] {
+        Engine engine = take(Engine::make());
+        const auto make = [&](std::string id, double x) {
+            const auto ball = take(engine.create_object({{{.id = id, .local = {.tx = x, .ty = 100}, .contours = {circle(20)}, .fill = Rgba{1, 0, 0, 1}}}}));
+            const auto shown = take(engine.play(anim::morph(ball, ball)));
+            return std::pair{shown, take(engine.simulate({ball, id}, {.colliders = {ground}}))};
+        };
+        const auto [shown, body] = make("ball", 100);
+        const auto [other_shown, other] = make("other", 200);
+        const auto bits = [&](PlaybackRef playback) {
+            std::vector<std::array<std::uint64_t, 8>> out;
+            for (const auto& cubic : drawn(engine, playback).cubics) out.push_back(std::bit_cast<std::array<std::uint64_t, 8>>(cubic));
+            return out;
+        };
+        const auto still = bits(other_shown);
+        std::vector<std::vector<std::array<std::uint64_t, 8>>> played;
+        for (int frame = 0; frame < 240; ++frame) {
+            take(engine.advance_body(body, seconds(1.0 / 120)));
+            played.push_back(bits(shown));
+        }
+        check(bits(other_shown) == still, "the other body was left where it was");
+        auto time = take(engine.body_time(body));
+        check(time.step == 240 && time.latest == 240 && time.earliest == 0 && std::abs(time.step_seconds - 1.0 / 120) < 1e-12,
+              std::format("step {} of {} (from {})", time.step, time.latest, time.earliest));
+        // Back to any step: drawn as it was then.
+        for (const std::int64_t step : {std::int64_t{1}, std::int64_t{60}, std::int64_t{137}, std::int64_t{240}}) {
+            take(engine.seek_body(body, step));
+            check(bits(shown) == played[static_cast<std::size_t>(step - 1)], std::format("step {} as played", step));
+        }
+        check(!engine.seek_body(body, 241) && !engine.seek_body(body, -1), "not past what was played");
+        // On again from step 90: a new branch, the same steps.
+        take(engine.seek_body(body, 90));
+        for (int frame = 90; frame < 240; ++frame) {
+            take(engine.advance_body(body, seconds(1.0 / 120)));
+            check(bits(shown) == played[static_cast<std::size_t>(frame)], std::format("replayed step {}", frame + 1));
+            if (bits(shown) != played[static_cast<std::size_t>(frame)]) break;
+        }
+        time = take(engine.body_time(body));
+        check(time.step == 240 && time.latest == 240, std::format("step {} of {}", time.step, time.latest));
+        take(engine.unsimulate(other));
+        check(!engine.body_time(other) && !engine.seek_body(other, 0), "stale");
+    });
+
     return suite.run(argc, argv);
 }

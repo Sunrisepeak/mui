@@ -153,6 +153,14 @@ struct BodyOptions {
 };
 struct BodyTag;
 using BodyRef = mlibs::memory::Handle<BodyTag>;
+// A body's own time: the step it is at, the steps of its history it can go
+// back to (earliest to latest: what has been played on this branch), a step's
+// seconds. Stepping on from an earlier step is a new branch: the same inputs
+// play the same steps again, bit for bit (D-133 contract 1).
+struct BodyTime {
+    std::int64_t step = 0, earliest = 0, latest = 0;
+    double       step_seconds = 0;
+};
 
 // One owning thread or external synchronization. No event loop, window,
 // renderer, UI, transport or business setter. advance() is the batch boundary.
@@ -251,6 +259,13 @@ public:
     // The bodies alone on by `elapsed` (their figures carried), for a host
     // whose playbacks are sampled at positions of their own (the UI's).
     [[nodiscard]] std::expected<void, EngineFailure> advance_bodies(seconds elapsed);
+    // One body alone on by `elapsed` (a component stepping its own body on
+    // the host's one engine, leaving the others where they are).
+    [[nodiscard]] std::expected<void, EngineFailure> advance_body(BodyRef body, seconds elapsed);
+    // Its time (above); to a step of its history (its figure carried there;
+    // invalid_time outside earliest to latest) — scrubbed, rewound, replayed.
+    [[nodiscard]] std::expected<BodyTime, EngineFailure> body_time(BodyRef body) const noexcept;
+    [[nodiscard]] std::expected<void, EngineFailure> seek_body(BodyRef body, std::int64_t step);
     // Another figure on the same body (an expression, a pose: the object
     // updated and shown by a new playback): its parts, beside the body's own,
     // carried from now on as the body is now — its squash, its lean — by the

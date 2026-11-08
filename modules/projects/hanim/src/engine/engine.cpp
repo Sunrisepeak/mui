@@ -417,21 +417,23 @@ void apply_bodies(detail::EngineData& data) noexcept {
         }
     }
 }
+// A body on by `elapsed` seconds, at its fixed step.
+void step_body(detail::EngineData::BodySlot& slot, double elapsed) noexcept {
+    if (!slot.live || !slot.history) return;
+    slot.owed += elapsed;
+    const double step = slot.history->state().params.step;
+    // At most a second's steps at once: a stall is not owed afterwards.
+    for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
+        slot.history->step(slot.input);
+        slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
+        slot.input.settle = false;                  // and so is settling
+        slot.owed -= step;
+    }
+    slot.owed = std::min(slot.owed, step);
+}
 // The bodies on by `elapsed` seconds, each at its fixed step.
 void step_bodies(detail::EngineData& data, double elapsed) noexcept {
-    for (auto& slot : data.bodies) {
-        if (!slot.live || !slot.history) continue;
-        slot.owed += elapsed;
-        const double step = slot.history->state().params.step;
-        // At most a second's steps at once: a stall is not owed afterwards.
-        for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
-            slot.history->step(slot.input);
-            slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
-            slot.input.settle = false;                  // and so is settling
-            slot.owed -= step;
-        }
-        slot.owed = std::min(slot.owed, step);
-    }
+    for (auto& slot : data.bodies) step_body(slot, elapsed);
 }
 void apply_constraints(detail::EngineData& data) noexcept {
     for (const auto index : data.constraint_order)
@@ -455,7 +457,16 @@ void mean_value_weights(std::span<const double> ring_x, std::span<const double> 
         const auto next = (index + 1) % count;
         const double from_x = ring_x[index] - x, from_y = ring_y[index] - y, to_x = ring_x[next] - x, to_y = ring_y[next] - y;
         const double cross = from_x * to_y - from_y * to_x, dot = from_x * to_x + from_y * to_y;
-        const double lengths = std::sqrt(from_x * from_x + from_y * from_y) * std::sqrt(to_x * to_x + to_y * to_y);
+        const double from_length = std::sqrt(from_x * from_x + from_y * from_y), to_length = std::sqrt(to_x * to_x + to_y * to_y);
+        const double lengths = from_length * to_length;
+        // On the edge itself (a straight side's points): the two ends, by
+        // how near it is to each — the weights there are singular otherwise.
+        if (dot < 0 && std::abs(cross) <= 1e-9 * lengths) {
+            for (std::size_t other = 0; other < count; ++other) out[other] = 0;
+            out[index] = to_length / (from_length + to_length);
+            out[next] = from_length / (from_length + to_length);
+            return;
+        }
         // tan(α/2) = sin α / (1 + cos α), signed with the turn.
         half_tangent[index] = lengths + dot > 1e-300 ? cross / (lengths + dot) : 0;
     }
@@ -1105,6 +1116,32 @@ std::expected<void, EngineFailure> Engine::advance_bodies(seconds elapsed) {
     if (!data_) return std::unexpected(fail(EngineError::uninitialized));
     if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
     step_bodies(*data_, elapsed.count());
+    apply_bodies(*data_);
+    return {};
+}
+std::expected<void, EngineFailure> Engine::advance_body(BodyRef ref, seconds elapsed) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope scope(writing_);
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!std::isfinite(elapsed.count()) || elapsed.count() < 0) return std::unexpected(fail(EngineError::invalid_time));
+    step_body(*slot, elapsed.count());
+    apply_bodies(*data_);
+    return {};
+}
+std::expected<BodyTime, EngineFailure> Engine::body_time(BodyRef ref) const noexcept {
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    const auto& history = *slot->history;
+    return BodyTime{.step = history.frame(), .earliest = history.earliest(), .latest = history.latest(), .step_seconds = history.state().params.step};
+}
+std::expected<void, EngineFailure> Engine::seek_body(BodyRef ref, std::int64_t step) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    WriteScope scope(writing_);
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!slot->history->seek(step)) return std::unexpected(fail(EngineError::invalid_time));
+    slot->owed = 0;  // from the step itself: no part of a step carried over
     apply_bodies(*data_);
     return {};
 }

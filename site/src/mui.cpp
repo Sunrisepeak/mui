@@ -378,7 +378,7 @@ void Mascot::steer(const PaintContext& ctx) const {
             if (f.body && !still) {
                 // On whole pixels of its box (its root stands on whole pixels too: see ensure).
                 (void)engine.settle(*f.body, 1);
-                (void)engine.advance_bodies(hanim::seconds(1.0 / 120));
+                (void)engine.advance_body(*f.body, hanim::seconds(1.0 / 120));
             }
         }
     }
@@ -386,7 +386,7 @@ void Mascot::steer(const PaintContext& ctx) const {
     f.ledges_seen = ledges.size();
     if (f.body) {
         (void)engine.walk(*f.body, push);
-        if (!still && !sleeping && dt > 0) (void)engine.advance_bodies(hanim::seconds(dt));
+        if (!still && !sleeping && dt > 0) (void)engine.advance_body(*f.body, hanim::seconds(dt));
     }
 
     // The frame: asleep, holding the card, striding, pointing, looking, or sitting and now and then blinking.

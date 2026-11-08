@@ -970,7 +970,9 @@ int main(int argc, char** argv) {
         // real input and seek regressions have separate behavioural CTS.
         // Re-pinned with M1 ⑤b: the pages show the packages' new names (omui.*).
         // Re-pinned with D3b: home shows Mui's pixels gathering on the mark.
-        check_eq(all.hex(), std::string("bc312b2276da9280"));
+        // Re-pinned with D3c: Mui's inks on its hull's straight sides carried
+        // by the cage's edge weights (hanim fix), the home's scenes below.
+        check_eq(all.hex(), std::string("b4cf4a06a8637aba"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

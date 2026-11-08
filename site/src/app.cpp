@@ -183,6 +183,8 @@ struct Site {
     GallerySite         gallery_site;
     HomeLanding         landing;
     HomeLandingSite     landing_site;
+    HomeScenes          scenes;
+    HomeScenesSite      scenes_site;
     MotionGallery       basic, creative;
     MotionGalleryContext basic_site, creative_site;
     FeatureExamples     style_examples, interface_examples;
@@ -1302,6 +1304,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     std::vector<Element> content;
     if (id == "home") {
         content.push_back(home_landing(s->landing, s->landing_site, room));
+        content.push_back(home_scenes(s->scenes, s->scenes_site, room));
     } else if (id == "release") {
         content.push_back(hero(s->hero, s->hero_site, true, room));
         // A screen a strength: your agent, time, motion, speed; then what it is, in words.
@@ -1426,6 +1429,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_type(component_type<Timebar>());
         register_type(component_type<FrameMeter>());
         register_type(component_type<Mascot>());
+        register_type(component_type<DropCard>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
         s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,
@@ -1472,6 +1476,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                            }, .runtime = &s->runtime};
         for (const auto scope : {"motion-preview", "creative-preview", "style-feature", "interface-feature", "agent-design"}) rt.set_scope(scope, rt.theme());
         s->landing_site = {.runtime = &s->runtime, .lang = &s->lang, .go = [p = s.get()](std::string id) { p->go(id); }};
+        s->scenes_site = {.runtime = &s->runtime, .lang = &s->lang, .lens = &s->lens, .tools = &s->tools};
         s->basic_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .open_detail = [p = s.get()](std::string id) { p->open_example(false, std::move(id)); },
                          .style = [p = s.get()](std::string pack) { p->apply_scope("motion-preview", std::move(pack)); },

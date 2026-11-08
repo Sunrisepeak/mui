@@ -34,7 +34,7 @@ MaterialTable MaterialTable::defaults() {
              PhysicalMaterial{"rubber", Phase::soft, 1.1, 0.8, 0.75, 0.0001, 0.2},
              PhysicalMaterial{"wood", Phase::solid, 0.6, 0.45, 0.35, 0, 1},
              PhysicalMaterial{"stone", Phase::solid, 2.5, 0.6, 0.15, 0, 1},
-             PhysicalMaterial{"jelly", Phase::soft, 1.0, 0.4, 0.15, 0.0002, 0.12},
+             PhysicalMaterial{"jelly", Phase::soft, 1.0, 0.4, 0.2, 0.0005, 0.012},
              PhysicalMaterial{"cloth", Phase::soft, 0.3, 0.5, 0.05, 0.001, 0},
              PhysicalMaterial{"sand", Phase::granular, 1.6, 0.7, 0.05, 0, 0},
              PhysicalMaterial{"water", Phase::liquid, 1.0, 0.02, 0.0, 0, 0},

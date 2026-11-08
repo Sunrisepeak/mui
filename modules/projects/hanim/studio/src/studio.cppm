@@ -103,6 +103,20 @@ struct Document {
 // The document in `text`, checked whole: every problem, each where it is.
 [[nodiscard]] std::expected<Document, Problems> read(std::string_view text);
 
+// A variant of a document (Part 2 H: alternatives a person picks from by
+// looking): the document with one value changed, read again whole.
+struct Variant {
+    std::string value;  // the value set, as JSON (empty: the document as written)
+    std::string text;   // the variant's document
+    std::expected<Document, Problems> document;
+};
+// `text` as written, then once with each of `values` (JSON text) at `where` —
+// a JSON pointer to a value, or to a key its object does not have yet. A
+// variant the reader refuses carries its problems; a pointer to nowhere or a
+// value that is not JSON refuses them all.
+[[nodiscard]] std::expected<std::vector<Variant>, Problems> vary(std::string_view text, std::string_view where,
+                                                                 std::span<const std::string> values);
+
 // One moment of an object, as drawn: where its origin is, its scale,
 // rotation and fill, and the box its geometry covers on the stage.
 struct ObjectState {

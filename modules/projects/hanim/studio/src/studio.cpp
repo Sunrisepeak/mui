@@ -327,30 +327,32 @@ std::expected<Studio, Problems> Studio::open(const Document& document) {
 
 const Document& Studio::document() const noexcept { return data_->document; }
 std::vector<Governing> Studio::at(seconds time, std::string_view object) const {
-    const Data& d = *data_;
-    const auto nodes = d.plan.nodes();
-    const auto tracks = d.plan.tracks();
+    const Data& data = *data_;
+    const auto nodes = data.plan.nodes();
+    const auto tracks = data.plan.tracks();
     // A track's object, by the document's order (track_of maps the other way).
     std::vector<std::string> track_object(tracks.size());
-    for (std::size_t index = 0; index < d.track_of.size(); ++index)
-        if (d.track_of[index] && *d.track_of[index] < track_object.size()) track_object[*d.track_of[index]] = d.document.objects[index].id;
+    for (std::size_t index = 0; index < data.track_of.size(); ++index)
+        if (data.track_of[index] && *data.track_of[index] < track_object.size())
+            track_object[*data.track_of[index]] = data.document.objects[index].id;
     std::vector<Governing> out;
-    const double t = time.count();
+    const double moment = time.count();
     for (std::size_t node = 0; node < nodes.size(); ++node) {
         const ProgramNodeInfo& info = nodes[node];
         if (info.label.empty()) continue;
         const double start = info.start.count(), end = start + info.duration.count();
-        if (t < start || t > end) continue;
-        Governing g{.where = info.label, .start = start, .end = end, .progress = end > start ? (t - start) / (end - start) : 1.0};
+        if (moment < start || moment > end) continue;
+        Governing governing{.where = info.label, .start = start, .end = end, .progress = end > start ? (moment - start) / (end - start) : 1.0};
         for (std::size_t leaf = node; leaf < info.subtree_end; ++leaf) {
-            const ProgramNodeInfo& l = nodes[leaf];
-            if (l.track == invalid_program_index || l.track >= track_object.size()) continue;
-            const double ls = l.start.count(), le = ls + l.duration.count();
-            if (t < ls || t > le || track_object[l.track].empty()) continue;
-            if (std::ranges::find(g.objects, track_object[l.track]) == g.objects.end()) g.objects.push_back(track_object[l.track]);
+            const ProgramNodeInfo& leaf_info = nodes[leaf];
+            if (leaf_info.track == invalid_program_index || leaf_info.track >= track_object.size()) continue;
+            const double leaf_start = leaf_info.start.count(), leaf_end = leaf_start + leaf_info.duration.count();
+            const std::string& moved = track_object[leaf_info.track];
+            if (moment < leaf_start || moment > leaf_end || moved.empty()) continue;
+            if (std::ranges::find(governing.objects, moved) == governing.objects.end()) governing.objects.push_back(moved);
         }
-        if (!object.empty() && std::ranges::find(g.objects, object) == g.objects.end()) continue;
-        out.push_back(std::move(g));
+        if (!object.empty() && std::ranges::find(governing.objects, object) == governing.objects.end()) continue;
+        out.push_back(std::move(governing));
     }
     // Innermost first: a later node in preorder lies within the earlier ones that hold it.
     std::ranges::reverse(out);

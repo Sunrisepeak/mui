@@ -7,7 +7,7 @@
 # is hanim's own catalog (hanim.ops.omui.toml).
 [catalog]
 product   = "studio"
-doc       = "Check, sample, point into and render hanim animation documents (<name>.animation.omui.json) headless."
+doc       = "Check, sample, point into, vary and render hanim animation documents (<name>.animation.omui.json) headless."
 generated = "media/ops"
 
 [[operation]]
@@ -40,6 +40,22 @@ params  = [
 ]
 result  = "json"
 cost    = "bounded"
+
+[[operation]]
+name    = "document.vary"
+effect  = "reversible"
+summary = "Alternatives a person picks from by looking: one value (at a JSON pointer) set several ways, every variant drawn at the same moments, a row each under the document as written — a sheet, each variant's document, and a report with each one's duration, frame hashes or problems"
+params  = [
+    { name = "file", type = "path" },
+    { name = "set", type = "string", doc = "the JSON pointer of the value to vary (a key the step lacks is added)" },
+    { name = "value", type = "json", doc = "each value, as JSON, one --value each (15 at most)" },
+    { name = "out", type = "path", doc = "the prefix of the files written" },
+    { name = "frames", type = "integer", doc = "evenly spaced over the longest variant (8 by default)", optional = true },
+    { name = "at", type = "json", doc = "given moments instead", optional = true },
+]
+result  = "json"
+cost    = "heavy"
+undo    = "delete the written files"
 
 [[operation]]
 name    = "document.render"

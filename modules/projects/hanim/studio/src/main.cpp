@@ -4,6 +4,11 @@
 //   hanim check  FILE                         the plan: duration, tracks, markers — or every problem
 //   hanim at     FILE --at T [--object ID]    the steps that govern that moment (of that object), innermost
 //                                             first: each one's JSON pointer, timing and JSON — what to change
+//   hanim vary   FILE --set POINTER --value JSON [--value JSON …] --out PREFIX [--frames N | --at T …]
+//                                             alternatives to pick from by looking: the value at POINTER
+//                                             set to each, every variant drawn at the same moments, a row
+//                                             each (the document as written first) — PREFIX.variants.png,
+//                                             PREFIX-v1.animation.omui.json …, PREFIX.variants.omui.json
 //   hanim sample FILE --at T [--at T …]       every object's position, scale, rotation, fill and bounds
 //   hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]
 //                                             PREFIX-000.png …, PREFIX.strip.png, PREFIX.report.omui.json;
@@ -26,7 +31,7 @@ namespace os = mcpplibs::os;
 using Json = nlohmann::json;
 
 constexpr std::string_view usage =
-    "usage: hanim check FILE | hanim at FILE --at T [--object ID] | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]";
+    "usage: hanim check FILE | hanim at FILE --at T [--object ID] | hanim vary FILE --set POINTER --value JSON … --out PREFIX [--frames N | --at T …] | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]";
 
 int answer(const Json& json, int code) {
     std::println("{}", json.dump());
@@ -83,13 +88,14 @@ Json plan(const studio::Studio& opened) {
 int main(int argc, char** argv) {
     if (argc < 3) return wrong("a command and a document");
     const std::string_view command = argv[1];
-    if (command != "check" && command != "sample" && command != "render" && command != "at") return wrong(std::format("no command `{}`", command));
+    if (command != "check" && command != "sample" && command != "render" && command != "at" && command != "vary") return wrong(std::format("no command `{}`", command));
     const std::string file = argv[2];
     std::vector<double> times;
     std::optional<std::string> out;
     int frames = 0, fps = 0;
     bool svg = false;
-    std::string object;
+    std::string object, set;
+    std::vector<std::string> values;
     for (int index = 3; index < argc; ++index) {
         const std::string_view option = argv[index];
         const bool has_value = index + 1 < argc;
@@ -110,6 +116,10 @@ int main(int argc, char** argv) {
             frames = static_cast<int>(count);
         } else if (option == "--object" && has_value && command == "at") {
             object = argv[++index];
+        } else if (option == "--set" && has_value && command == "vary") {
+            set = argv[++index];
+        } else if (option == "--value" && has_value && command == "vary") {
+            values.emplace_back(argv[++index]);
         } else if (option == "--svg") {
             svg = true;
         } else if (option == "--webp" && has_value) {
@@ -147,6 +157,84 @@ int main(int argc, char** argv) {
             steps.push_back(std::move(one));
         }
         return answer(Json{{"ok", true}, {"file", file}, {"at", moment}, {"object", object}, {"steps", std::move(steps)}}, 0);
+    }
+
+    if (command == "vary") {
+        // Alternatives a person picks from by looking (Part 2 H): one value set several ways, every
+        // variant drawn at the same moments — the longest variant's course — a row each.
+        if (set.empty() || values.empty() || !out) return wrong("hanim vary FILE --set POINTER --value JSON [--value JSON …] --out PREFIX");
+        if (values.size() > 15) return wrong("15 values at most");
+        const auto variants = studio::vary(*text, set, values);
+        if (!variants) return failed(variants.error());
+        std::vector<std::optional<studio::Studio>> studios;
+        double longest = 0;
+        for (const auto& variant : *variants) {
+            std::optional<studio::Studio> one;
+            if (variant.document)
+                if (auto made = studio::Studio::open(*variant.document)) one.emplace(std::move(*made));
+            if (one && std::isfinite(one->duration().count())) longest = std::max(longest, one->duration().count());
+            studios.push_back(std::move(one));
+        }
+        if (times.empty()) {
+            const int count = frames ? frames : 8;
+            for (int index = 0; index < count; ++index) times.push_back(count == 1 ? 0 : longest * index / (count - 1));
+        }
+        if (times.size() > 24) return wrong("24 moments at most");
+        const int width = static_cast<int>(document->width), height = static_cast<int>(document->height), gap = 4;
+        const int columns = static_cast<int>(times.size()), rows = static_cast<int>(variants->size());
+        xrender::raster::Surface sheet(columns * width, rows * height + (rows - 1) * gap);
+        sheet.clear(xrender::raster::Rgba8{96, 96, 96, 255});
+        Json list = Json::array();
+        for (std::size_t row = 0; row < variants->size(); ++row) {
+            const auto& variant = (*variants)[row];
+            Json one{{"row", row}, {"value", variant.value.empty() ? Json(nullptr) : Json::parse(variant.value)}};
+            if (row > 0) {
+                const std::string name = std::format("{}-v{}.animation.omui.json", *out, row);
+                if (auto saved = os::fs::write_atomic(os::fs::from_utf8(name), variant.text); !saved)
+                    return failed({{"", std::format("cannot write {}: {}", name, saved.error().message())}});
+                one["file"] = name;
+            } else {
+                one["file"] = file;
+            }
+            const auto problems = !variant.document ? variant.document.error()
+                                  : !studios[row] ? studio::Problems{{set, "the variant reads but does not open"}}
+                                                  : studio::Problems{};
+            if (!problems.empty()) {
+                Json listed = Json::array();
+                for (const auto& [where, what] : problems) listed.push_back({{"where", where}, {"text", what}});
+                one["problems"] = std::move(listed);
+                list.push_back(std::move(one));
+                continue;  // its row stays the sheet's grey
+            }
+            auto& opened_variant = *studios[row];
+            one["duration"] = std::isfinite(opened_variant.duration().count()) ? Json(round3(opened_variant.duration().count())) : Json("forever");
+            Json pixels = Json::array();
+            for (std::size_t column = 0; column < times.size(); ++column) {
+                xrender::raster::Surface surface(width, height);
+                if (auto drawn = opened_variant.render(hanim::seconds(times[column]), surface); !drawn) return failed(drawn.error());
+                pixels.push_back(std::format("{:016x}", surface.hash()));
+                for (int y = 0; y < height; ++y)
+                    std::copy_n(surface.row(y), width, sheet.row(static_cast<int>(row) * (height + gap) + y) + static_cast<int>(column) * width);
+            }
+            one["pixels"] = std::move(pixels);
+            list.push_back(std::move(one));
+        }
+        Json moments = Json::array();
+        for (const double time : times) moments.push_back(round3(time));
+        const std::string sheet_name = *out + ".variants.png";
+        const auto png = mlibs::image::encode_png({reinterpret_cast<const std::uint8_t*>(sheet.pixels().data()), sheet.width(), sheet.height(),
+                                                   sheet.width() * 4, mlibs::image::Alpha::premultiplied});
+        if (!png) return failed({{"", "PNG encoding failed: " + png.error()}});
+        if (auto saved = os::fs::write_atomic(os::fs::from_utf8(sheet_name), std::string_view(reinterpret_cast<const char*>(png->data()), png->size()));
+            !saved)
+            return failed({{"", std::format("cannot write {}: {}", sheet_name, saved.error().message())}});
+        Json report{{"kind", "hanim.variants"}, {"version", 1}, {"ok", true}, {"file", file}, {"set", set}, {"moments", std::move(moments)},
+                    {"sheet", sheet_name}, {"variants", std::move(list)}};
+        const std::string report_name = *out + ".variants.omui.json";
+        if (auto saved = os::fs::write_atomic(os::fs::from_utf8(report_name), report.dump(2) + "\n"); !saved)
+            return failed({{"", std::format("cannot write {}: {}", report_name, saved.error().message())}});
+        report["report"] = report_name;
+        return answer(report, 0);
     }
 
     const double length = opened->duration().count();

@@ -15,6 +15,7 @@ How an Agent (or a person at a terminal) makes an animation without a GUI: write
 4. `document.render --frames 8`: look at the strip. The whole course, not only its ends: entrances appear only when they begin; later objects draw over earlier ones in the document's order. With `--svg` each frame is written as SVG too (`hanim render FILE --out PREFIX --svg`): vectors at any size, to read exact positions, paths and colours rather than estimate them from pixels; a frame's `islands` counts what had to stay pixels (none in the examples).
 
 5. When the person points at a moment (and an object) — "here it is too slow", "this bounce is too high" — `document.at` (`hanim at FILE --at T --object ID`) names the steps that govern it, innermost first: change the innermost one's numbers at its JSON pointer, not a guess at which step it is; check, sample and render again, and show them the same moment before and after.
+6. When the right value is a matter of taste (how high, how long, which ease), do not pick it for them: `document.vary` (`hanim vary FILE --set POINTER --value A --value B --out PREFIX`) draws each beside the document as written, a row each at the same moments; show them the sheet, and apply the row they choose (its document is written beside it).
 
 ## Verifying
 

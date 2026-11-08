@@ -542,4 +542,31 @@ std::expected<Document, Problems> read(std::string_view text) {
     return document;
 }
 
+std::expected<std::vector<Variant>, Problems> vary(std::string_view text, std::string_view where, std::span<const std::string> values) {
+    const Json root = Json::parse(text, nullptr, false);
+    if (root.is_discarded()) return std::unexpected(read(text).error_or(Problems{{"", "the JSON breaks"}}));
+    // A JSON pointer, checked before nlohmann reads it (it would throw): "/a/0/b", `~0` and `~1` the only escapes.
+    bool well_formed = where.starts_with('/');
+    for (std::size_t index = 0; well_formed && index < where.size(); ++index)
+        if (where[index] == '~') well_formed = index + 1 < where.size() && (where[index + 1] == '0' || where[index + 1] == '1');
+    if (!well_formed) return std::unexpected(Problems{{std::string(where), "a JSON pointer to the value to vary: /program/items/0/duration"}});
+    const Json::json_pointer pointer{std::string(where)};
+    const Json::json_pointer parent = pointer.parent_pointer();
+    // The value itself, or a key its object does not have yet (an ease, a duration left to its default).
+    if (!root.contains(pointer) && !(root.contains(parent) && root[parent].is_object()))
+        return std::unexpected(Problems{{std::string(where), "nothing there to vary, and no object to add it to"}});
+    std::vector<Variant> variants;
+    variants.push_back({.value = {}, .text = std::string(text), .document = read(text)});
+    for (const std::string& value : values) {
+        const Json parsed = Json::parse(value, nullptr, false);
+        if (parsed.is_discarded()) return std::unexpected(Problems{{std::string(where), std::format("`{}` is not a JSON value (a string is quoted)", value)}});
+        Json changed = root;
+        changed[pointer] = parsed;
+        std::string changed_text = changed.dump(2) + "\n";
+        auto document = read(changed_text);
+        variants.push_back({.value = parsed.dump(), .text = std::move(changed_text), .document = std::move(document)});
+    }
+    return variants;
+}
+
 }  // namespace hanim::studio

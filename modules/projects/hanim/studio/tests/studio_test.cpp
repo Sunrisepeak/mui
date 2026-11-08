@@ -235,5 +235,29 @@ int main(int argc, char** argv) {
         check(opened->at(hanim::seconds(travel), "nobody").empty(), "an object no step moves: nothing governs it");
     });
 
+    s.test("variants: one value set several ways, each read again; a wrong one carries its problem, a pointer to nowhere refuses all", [] {
+        const std::string text = example();
+        const std::vector<std::string> values{"0", "4", "\"x\""};
+        const auto variants = studio::vary(text, "/program/items/0/bounces", values);
+        check(variants.has_value() && variants->size() == 4, "as written, then three");
+        if (!variants || variants->size() != 4) return;
+        check((*variants)[0].value.empty() && (*variants)[0].text == text && (*variants)[0].document.has_value(), "the first is the document as written");
+        check((*variants)[1].document && (*variants)[2].document, "0 and 4 bounces read");
+        check(!(*variants)[3].document && says((*variants)[3].document.error(), "/program/items/0/bounces", "number"), "\"x\" is not a count");
+        // The variants differ where the value acts: the bounces drawn differ part-way and agree at the start.
+        auto fewer = studio::Studio::open(*(*variants)[1].document);
+        auto more = studio::Studio::open(*(*variants)[2].document);
+        if (!fewer || !more) return;
+        xrender::raster::Surface first(static_cast<int>(fewer->document().width), static_cast<int>(fewer->document().height)), second(first.width(), first.height());
+        check(fewer->render(hanim::seconds(0), first) && more->render(hanim::seconds(0), second) && first.hash() == second.hash(), "the same start");
+        check(fewer->render(hanim::seconds(0.7), first) && more->render(hanim::seconds(0.7), second) && first.hash() != second.hash(), "different bounces");
+        // A key the step does not have yet is added; a pointer to nowhere, or not JSON, refuses them all.
+        const auto eased = studio::vary(text, "/program/items/0/ease", std::vector<std::string>{"\"out_cubic\""});
+        check(eased.has_value() && eased->size() == 2, "a new key of an existing step");
+        check(!studio::vary(text, "/program/items/9/x", values).has_value(), "nowhere");
+        check(!studio::vary(text, "program", values).has_value(), "not a pointer");
+        check(!studio::vary(text, "/program/items/0/bounces", std::vector<std::string>{"four"}).has_value(), "not JSON");
+    });
+
     return s.run(argc, argv);
 }

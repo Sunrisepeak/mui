@@ -7,6 +7,8 @@ hanim check  examples/bounce.animation.omui.json                   # the plan: d
 hanim sample examples/bounce.animation.omui.json --at 0.5 --at 2   # where each object is, its scale, rotation, fill and bounds
 hanim at     examples/bounce.animation.omui.json --at 1.9 --object star
                                                                    # the steps that govern that moment: JSON pointers, timing, JSON
+hanim vary   examples/bounce.animation.omui.json --set /program/items/0/bounces --value 0 --value 4 --out /tmp/bounce
+                                                                   # each variant a row at the same moments: /tmp/bounce.variants.png
 hanim render examples/bounce.animation.omui.json --out /tmp/bounce --frames 16 --webp 30
                                                                    # /tmp/bounce-000.png …, .strip.png, .webp, .report.omui.json
 ```

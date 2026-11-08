@@ -53,6 +53,9 @@ struct ProtocolOptions {
     double      default_timeout = 5.0;               // seconds, for `wait`
     CaptureFn   capture;
     CaptureSvgFn capture_svg;  // `capture` with format "svg"; none: PNG only
+    // The node whose drawing a pixel (logical coordinates) shows, from the
+    // renderer's object ids — `drew` (Part 2 §4.1, B); none: the host cannot say.
+    std::function<NodeId(Point)> pixel_owner;
     // Requests come over the bus (an endpoint, another process): a person's
     // own action is refused to them whatever actor they name (S-10). False
     // only for the program's own requests through this handler (the C ABI

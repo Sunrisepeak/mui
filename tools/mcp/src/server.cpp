@@ -512,6 +512,20 @@ struct Server::Impl {
             if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
             return tool_result(text, false, {}, std::move(pictures));
         }
+        if (name == "ui_drew") {
+            const Value* at = args.get("at");
+            if (!at || !at->list() || at->list()->size() != 2) return tool_result("ui_drew needs `at`: [x, y]", true);
+            Value req;
+            req.set("op", "drew").set("at", *at);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            if (a.data.get("node") && a.data.get("node")->is_null()) return tool_result(std::format("{}: {}", at->json(), str(a.data, "why")), false, Value{}.set("data", a.data));
+            std::string text = std::format("{} drew {}", str(a.data, "node"), at->json());
+            if (const Value* chain = a.data.get("chain"); chain && chain->list())
+                for (const Value& one : *chain->list())
+                    text += std::format("\n  {}  built at {}", str(one, "id"), one.get("source") && !one.get("source")->is_null() ? one.get("source")->as_string() : std::string_view("?"));
+            return tool_result(text, false, Value{}.set("data", a.data));
+        }
         if (name == "ui_capture") {
             Value req;
             req.set("op", "capture");
@@ -664,6 +678,11 @@ Value::List Server::tools() const {
                             {"absent", b("the query must not match")},
                             {"settled", b("nothing animates or is being removed")},
                             {"timeout", prop("number", "seconds (default 5)")}}), "ui.wait"),
+        tool("ui_drew", "What drew this pixel",
+             "The node whose drawing a pixel shows, the nodes it sits in, and where in the program each was built (file:line:column): "
+             "from something wrong in a picture to the line to change.",
+             object_schema({app_prop, {"at", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y] in logical pixels")}},
+                           {"at"}), "ui.drew"),
         tool("ui_capture", "Capture pixels",
              "The pixels of the window, or of one node, as a PNG image; `region` [x, y, width, height] (logical pixels, from the node's corner "
              "or the window's) takes a part of it, to look closer at a detail.",

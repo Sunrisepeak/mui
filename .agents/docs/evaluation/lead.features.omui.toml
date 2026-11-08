@@ -26,7 +26,8 @@ id = "B"
 project = "omui"
 line = "build-reliably"
 title = "用 AI 写 UI 最顺手：确定的像素与语义、像素到源码，写看改闭环"
-status = "planned"
+status = "evidence"
+scene = "tools/mcp/tests/mcp_test.cpp"
 competitors = ["react-vite-playwright", "flutter"]
 
 [[feature]]

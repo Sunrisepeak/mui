@@ -159,6 +159,13 @@ cost    = "heavy"
 undo    = "what the input performed is the actions' own (ui.undo for reversible ones)"
 
 [[operation]]
+name    = "ui.drew"
+effect  = "read"
+summary = "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built"
+params  = [{ name = "at", type = "json", doc = "[x, y] in logical pixels" }]
+result  = "json"
+
+[[operation]]
 name    = "ui.inspect"
 effect  = "read"
 summary = "A node's layout, style, state, bindings and motion, for development"

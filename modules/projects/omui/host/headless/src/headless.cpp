@@ -113,6 +113,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         eo.protocol.app = d.options.app;
         eo.protocol.capture = capture();
         eo.protocol.capture_svg = capture_svg();
+        eo.protocol.pixel_owner = [this](Point at) { return node_at_pixel(at); };
         eo.protocol.input = d.options.agent_input;
         d.endpoint = std::make_unique<agent::Endpoint>(*d.runtime, std::move(eo));
         if (auto r = d.endpoint->start(); !r) {

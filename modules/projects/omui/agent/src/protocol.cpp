@@ -693,6 +693,33 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         return e;
     }
     // ── development: inspection, statistics, profiling, logs, debug overlays ──
+    if (op == "drew") {
+        // What drew a pixel (Part 2 §4.1, B): the node its colour came from, the nodes it sits in, and
+        // where in the program each was built — from the picture to the line to change.
+        const Value* at = req.get("at");
+        constexpr std::string_view example = R"({"op":"drew","at":[120,48]})";
+        if (!at || !at->list() || at->list()->size() != 2 || !(*at->list())[0].is_number() || !(*at->list())[1].is_number())
+            return invalid("`drew` needs `at`: [x, y] in logical pixels", example);
+        if (!options_.pixel_owner) {
+            e.error(spec::error_code::refused, "this host cannot say which node drew a pixel (it keeps no object ids)").result(spec::exit_code::failure);
+            return e;
+        }
+        const Point p{static_cast<float>((*at->list())[0].as_double()), static_cast<float>((*at->list())[1].as_double())};
+        NodeId n = options_.pixel_owner(p);
+        if (!runtime_.valid(n)) {
+            return e.data(Value{}.set("at", *at).set("node", Value{}).set("why", "no node drew it: the background")).result(spec::exit_code::success);
+        }
+        auto source = [&](NodeId node) {
+            const std::source_location where = runtime_.origin(node);
+            return where.line() == 0 ? Value{} : Value(std::format("{}:{}:{}", where.file_name(), where.line(), where.column()));
+        };
+        Value::List chain;
+        for (NodeId up = n; runtime_.valid(up); up = runtime_.parent(up))
+            chain.push_back(Value{}.set("id", runtime_.path(up)).set("source", source(up)));
+        Value d;
+        d.set("at", *at).set("node", runtime_.path(n)).set("source", source(n)).set("chain", Value(std::move(chain)));
+        return e.data(std::move(d)).result(spec::exit_code::success);
+    }
     if (op == "inspect") {
         const std::string_view id = text_of(req, "node");
         const NodeId n = id.empty() ? runtime_.root() : runtime_.reveal(id);

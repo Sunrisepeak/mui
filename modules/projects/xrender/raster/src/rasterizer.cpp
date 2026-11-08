@@ -240,14 +240,18 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
             }
         piece(px, py, cx, cy);
     };
+    // Each point to subpixels once (it ends one edge and starts the next).
     for (std::size_t pg = 0; pg < polygons.count(); ++pg) {
         auto poly = polygons.polygon(pg);
         if (poly.size() < 2) continue;
-        for (std::size_t i = 0; i < poly.size(); ++i) {
-            const Point& a = poly[i];
-            const Point& c = poly[(i + 1) % poly.size()];
-            edge(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
+        const std::int64_t first_x = sx(poly[0].x), first_y = sy(poly[0].y);
+        std::int64_t from_x = first_x, from_y = first_y;
+        for (std::size_t i = 1; i < poly.size(); ++i) {
+            const std::int64_t to_x = sx(poly[i].x), to_y = sy(poly[i].y);
+            edge(from_x, from_y, to_x, to_y);
+            from_x = to_x, from_y = to_y;
         }
+        edge(from_x, from_y, first_x, first_y);
     }
     return true;
 }

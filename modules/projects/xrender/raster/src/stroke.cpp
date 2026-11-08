@@ -272,6 +272,16 @@ void stroke_outline(PathData path, const Affine& m, const Stroke& stroke, Polygo
                 }
                 return;
             }
+            // A turn so slight that the miter point lies within the tolerance
+            // of the arc and of the bevel (a curve's flattened vertices, mostly):
+            // every join draws it as that one point.
+            if (k > 0) {
+                const float cos_half = std::sqrt(k / (2 * h * h));
+                if (h * (1 - cos_half * cos_half) <= tolerance * cos_half) {
+                    side.push_back({c.x + (n0.x + n1.x) * h * h / k, c.y + (n0.y + n1.y) * h * h / k});
+                    return;
+                }
+            }
             switch (stroke.join) {
             case Join::round: {
                 const double a0 = angle(in, sign), a1 = angle(out_segment, sign);

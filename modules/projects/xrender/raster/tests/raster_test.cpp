@@ -337,7 +337,7 @@ int main(int argc, char** argv) {
                          mlibs::geom::Affine::translate(-4, 2));
         canvas.pop_layer();
         std::println("    scene {:016x}", surf.hash());
-        check_eq(std::format("{:016x}", surf.hash()), std::string("b6ad1b1c31b3c68d"));
+        check_eq(std::format("{:016x}", surf.hash()), std::string("ada91a0b498e3390"));
     });
 
     return s.run(argc, argv);

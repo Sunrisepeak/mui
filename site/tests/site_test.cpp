@@ -980,7 +980,7 @@ int main(int argc, char** argv) {
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
-        check_eq(all.hex(), std::string("a7413ac67b0398c5"));
+        check_eq(all.hex(), std::string("796a8c49eb5341c3"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

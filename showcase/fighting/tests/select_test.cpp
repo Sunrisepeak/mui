@@ -324,13 +324,13 @@ int main(int argc, char** argv) {
         check(a.act("main/stage", "demonstrate", Value{}.set("move", "")) && a.stage().props.demo.empty(), "an agent stops it");
         check(!a.act("main/stage", "demonstrate", Value{}.set("move", "nothing")), "no such move");
         std::println("    move list {:016x}", moves);
-        check_eq(moves, std::uint64_t{0xf99601cfd31816cb});  // GCC and LLVM
+        check_eq(moves, std::uint64_t{0x8efb1c9bf350d7ff});  // GCC and LLVM
         // Who fights, by an agent: 坤 for player 1, a new match; an unknown name refused.
         check(a.act("main/stage", "fighters", Value{}.set("player1", "kun").set("player2", "")), "fighters");
         check_eq(a.stage().match().fighter(0).def.name, std::string("Kun"));
         check(!a.act("main/stage", "fighters", Value{}.set("player1", "").set("player2", "nobody")), "no such fighter");
         std::println("    training card {:016x}", card);
-        check_eq(card, std::uint64_t{0xf22e6ad1167828e3});  // GCC and LLVM
+        check_eq(card, std::uint64_t{0x5a92d3d32c58b4f3});  // GCC and LLVM
     });
 
     s.test("the title and the select screen, pinned: the logo over the study, the modes; the roster, both fighters' previews, VS", [] {

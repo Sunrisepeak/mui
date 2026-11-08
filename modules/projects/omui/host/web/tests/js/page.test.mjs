@@ -19,7 +19,7 @@ const library = readFileSync(here('../../src/js/omui_web.js'), 'utf8');
 
 // A page with a canvas at (100, 50), 200×160 CSS pixels, and the library
 // opened on it: what the program was told, in order, in `heard`.
-function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined } = {}) {
+function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined, modelContext = undefined } = {}) {
   const window = new Window();
   const document = window.document;
   const canvas = document.createElement('canvas');
@@ -35,6 +35,7 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
     },
     permissions: permissions ?? { query: () => Promise.resolve({ state: 'granted' }) },
     userActivation: activation,
+    modelContext,
   };
   const context = {
     window, document, navigator, Module: {}, console,
@@ -343,6 +344,51 @@ test('window.omui: requests go to the program, its records settle the promise', 
   assert.equal(a.errors[0].code, 'needs-answer');
   assert.equal(a.records.length, 2);
   assert.equal(P.agents.size, 0);
+});
+
+test('WebMCP: where the browser offers it, the page\'s operations are tools — no application code; what needs the person is asked of them', async () => {
+  let offered = null;
+  const { P, heard, context, window } = page({ modelContext: { provideContext: (c) => { offered = c; } } });
+  assert.ok(offered, 'the tools were offered');
+  const names = offered.tools.map((t) => t.name);
+  for (const n of ['ui_snapshot', 'ui_find', 'ui_act', 'ui_invoke', 'ui_transaction', 'ui_preview', 'ui_undo', 'ui_capture']) assert.ok(names.includes(n), n);
+  assert.deepEqual(plain(P.webMcpTools), plain(names));
+  const act = offered.tools.find((t) => t.name === 'ui_act');
+  assert.deepEqual(plain(act.inputSchema.required), ['node', 'action']);
+  // An action that runs: the request as window.omui makes it, the agent named.
+  const done = act.execute({ node: 'main/title', action: 'set_value', args: { value: 'Plan' } }, {});
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/title', action: 'set_value', args: { value: 'Plan' }, dry_run: false, actor: 'agent:webmcp', re: 1 });
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'data', data: { value: 'Plan' }, re: 1 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 1 }));
+  const first = await done;
+  assert.equal(first.isError, false);
+  assert.equal(first.content[0].text, '{"value":"Plan"}');
+  // One that asks the person: asked through the browser; their yes sends it again as theirs to allow.
+  let asked = 0;
+  window.confirm = () => true;
+  const client = { requestUserInteraction: (fn) => { asked++; return Promise.resolve(fn()); } };
+  const publish = act.execute({ node: 'main/publish', action: 'activate' }, client);
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish to the team?', answer: 'yes', re: 2 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 2 }));
+  await new Promise((r) => setTimeout(r, 0));
+  assert.equal(asked, 1, 'the person was asked once');
+  assert.deepEqual(JSON.parse(heard.at(-1)[3]), { op: 'act', node: 'main/publish', action: 'activate', args: {}, dry_run: false, answer: 'yes', actor: 'agent:webmcp;via=person:user', re: 3 });
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 0, re: 3 }));
+  assert.equal((await publish).isError, false);
+  // Declined: nothing sent again.
+  window.confirm = () => false;
+  const declined = act.execute({ node: 'main/publish', action: 'activate' }, client);
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish?', answer: 'yes', re: 4 }));
+  context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 4 }));
+  const no = await declined;
+  assert.equal(no.isError, true);
+  assert.match(no.content[0].text, /declined/);
+  assert.equal(JSON.parse(heard.at(-1)[3]).re, 4, 'no request after the person said no');
+});
+
+test('WebMCP: a browser without it is offered nothing', () => {
+  const { P } = page();
+  assert.equal(P.webMcpTools, undefined);
 });
 
 // A bridge (omui connect) as the page meets it: hello with the code, the next request, the reply.

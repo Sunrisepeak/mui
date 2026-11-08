@@ -390,6 +390,28 @@ void Shader::shade(int x, int y, int count, Rgba8* out) const {
         shade_image(x, y, count, out);
         return;
     }
+    if (paint_->gradient == GradientKind::linear && paint_->spread == Spread::pad) {
+        // A linear, padded gradient a row at a time: gradient_at's own float
+        // operations in its order (apply(), then the projection, clamp and
+        // table), with what is the same for every pixel computed once — so
+        // the same bytes, in a loop the compiler can keep in vector registers.
+        const Paint& p = *paint_;
+        const Affine& m = *inverse_;
+        const float dx = p.end.x - p.start.x, dy = p.end.y - p.start.y;
+        const float len2 = dx * dx + dy * dy;
+        if (!(len2 > 0)) {
+            std::fill_n(out, count, lut_[0]);
+            return;
+        }
+        const float cy = m.c * py, dyy = m.d * py;
+        for (int i = 0; i < count; ++i) {
+            const float px = static_cast<float>(x + i) + 0.5f;
+            const float qx = m.a * px + cy + m.e, qy = m.b * px + dyy + m.f;
+            const float t = std::clamp(((qx - p.start.x) * dx + (qy - p.start.y) * dy) / len2, 0.0f, 1.0f);
+            out[i] = lut_[static_cast<std::size_t>(static_cast<int>(t * 255.0f + 0.5f))];
+        }
+        return;
+    }
     for (int i = 0; i < count; ++i) out[i] = gradient_at(static_cast<float>(x + i) + 0.5f, py);
 }
 

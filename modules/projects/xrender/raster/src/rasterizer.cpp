@@ -216,8 +216,39 @@ bool Rasterizer::prepare(const Polygons& polygons, PixelRect clip) {
             edge(sx(a.x), sy(a.y), sx(c.x), sy(c.y));
         }
     }
-    // By row, then column; the same cell from several edges adds up.
-    std::ranges::sort(cells_, [](const Cell& a, const Cell& b) { return a.y != b.y ? a.y < b.y : a.x < b.x; });
+    // By row, then column; the same cell from several edges adds up. The
+    // rows are counted out (every cell's row lies in [0, height)), then each
+    // row — a few cells, as a row crosses an outline a few times — is put in
+    // column order: the order a full sort gives, in linear time.
+    rows_.assign(static_cast<std::size_t>(height_) + 1, 0);
+    for (const Cell& c : cells_) ++rows_[static_cast<std::size_t>(c.y) + 1];
+    for (std::size_t row = 1; row < rows_.size(); ++row) rows_[row] += rows_[row - 1];
+    sorted_.resize(cells_.size());
+    {
+        std::uint32_t* next = rows_.data();
+        for (const Cell& c : cells_) sorted_[next[c.y]++] = c;
+        // `next` moved each row's start to its end, the next row's start: shift back.
+        for (std::size_t row = rows_.size() - 1; row > 0; --row) rows_[row] = rows_[row - 1];
+        rows_[0] = 0;
+    }
+    for (std::size_t row = 0; row + 1 < rows_.size(); ++row) {
+        Cell* first = sorted_.data() + rows_[row];
+        Cell* last = sorted_.data() + rows_[row + 1];
+        if (last - first > 24) {
+            std::sort(first, last, [](const Cell& a, const Cell& b) { return a.x < b.x; });
+            continue;
+        }
+        for (Cell* at = first + 1; at < last; ++at) {
+            const Cell moving = *at;
+            Cell* to = at;
+            while (to > first && (to - 1)->x > moving.x) {
+                *to = *(to - 1);
+                --to;
+            }
+            *to = moving;
+        }
+    }
+    cells_.swap(sorted_);
     std::size_t n = 0;
     for (const Cell& c : cells_) {
         if (n > 0 && cells_[n - 1].y == c.y && cells_[n - 1].x == c.x) {

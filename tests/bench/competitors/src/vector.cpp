@@ -5,6 +5,7 @@
 // so all three draw the same numbers.
 //
 //   omui-bench-vector --out DIR [--runs N]
+//   omui-bench-vector --phases [N]    where each scene's time goes (outline, rasterise, composite)
 //
 // DIR/<scene>.svg, DIR/<scene>.scene.json (path data and paints, for a
 // canvas), DIR/<scene>.xrender.png and DIR/<scene>.xrender.svg (the display
@@ -258,6 +259,76 @@ void record(const Scene& scene, xrender::DisplayList& list, std::vector<std::arr
     }
 }
 
+// Where a scene's time goes (`--phases`), drawn straight on the raster
+// canvas: making the outline (curves flattened, or the stroke's outline),
+// rasterising it to runs of coverage, and the rest of the fill — compositing
+// (the whole fill timed, less the two before it, measured again apart).
+void phases(const Scene& scene, int runs) {
+    namespace raster = xrender::raster;
+    raster::Surface surface(side, side);
+    raster::Canvas canvas(surface);
+    raster::Polygons polygons;
+    raster::Rasterizer rasterizer;
+    raster::Spans spans;
+    std::vector<raster::PathBuilder> paths(scene.items.size());
+    std::vector<std::array<raster::Stop, 2>> stops(scene.items.size());
+    std::vector<raster::Paint> paints(scene.items.size());
+    for (std::size_t index = 0; index < scene.items.size(); ++index) {
+        const Item& item = scene.items[index];
+        auto& path = paths[index];
+        path.move_to(item.start);
+        for (const auto& cubic : item.cubics) path.cubic_to(cubic[0], cubic[1], cubic[2]);
+        for (const auto& point : item.lines) path.line_to(point);
+        if (item.closed) path.close();
+        const auto color = [](Rgba c) { return mlibs::geom::Color::rgba8(c.red, c.green, c.blue, c.alpha); };
+        paints[index] = raster::Paint::solid(color(item.color));
+        if (item.kind == Item::Kind::gradient) {
+            stops[index] = {{{0, color(item.color)}, {1, color(item.second)}}};
+            paints[index].kind = raster::Paint::Kind::gradient;
+            paints[index].start = item.from;
+            paints[index].end = item.to;
+            paints[index].stops = stops[index];
+        }
+    }
+    const raster::PixelRect clip{0, 0, side, side};
+    const auto stroke_of = [](const Item& item) {
+        return raster::Stroke{.width = item.width, .cap = static_cast<raster::Cap>(item.cap), .join = static_cast<raster::Join>(item.join)};
+    };
+    std::vector<double> outline_ms, raster_ms, total_ms;
+    std::size_t edges = 0, runs_made = 0;
+    for (int run = 0; run < 3 + runs; ++run) {
+        double outline = 0, rasterise = 0;
+        edges = runs_made = 0;
+        for (std::size_t index = 0; index < scene.items.size(); ++index) {
+            const Item& item = scene.items[index];
+            polygons.clear();
+            const auto start = std::chrono::steady_clock::now();
+            if (item.kind == Item::Kind::stroke) raster::stroke_outline(paths[index].data(), {}, stroke_of(item), polygons);
+            else raster::flatten(paths[index].data(), {}, polygons);
+            const auto made = std::chrono::steady_clock::now();
+            rasterizer.rasterize(polygons, raster::FillRule::nonzero, clip, spans);
+            const auto done = std::chrono::steady_clock::now();
+            outline += std::chrono::duration<double, std::milli>(made - start).count();
+            rasterise += std::chrono::duration<double, std::milli>(done - made).count();
+            edges += polygons.points.size();
+            runs_made += spans.runs.size();
+        }
+        surface.clear(raster::Rgba8{255, 255, 255, 255});
+        const auto start = std::chrono::steady_clock::now();
+        for (std::size_t index = 0; index < scene.items.size(); ++index) {
+            const Item& item = scene.items[index];
+            if (item.kind == Item::Kind::stroke) canvas.stroke_path(paths[index].data(), stroke_of(item), paints[index]);
+            else canvas.fill_path(paths[index].data(), raster::FillRule::nonzero, paints[index]);
+        }
+        const double total = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        if (run >= 3) outline_ms.push_back(outline), raster_ms.push_back(rasterise), total_ms.push_back(total);
+    }
+    const auto median = [](std::vector<double> values) { std::ranges::sort(values); return values[values.size() / 2]; };
+    const double outline = median(outline_ms), rasterise = median(raster_ms), total = median(total_ms);
+    std::println(R"({{"scene":"{}","total_ms":{:.3f},"outline_ms":{:.3f},"rasterise_ms":{:.3f},"composite_ms":{:.3f},"points":{},"runs":{}}})", scene.name, total,
+                 outline, rasterise, std::max(0.0, total - outline - rasterise), edges, runs_made);
+}
+
 bool write(const std::filesystem::path& file, std::string_view text) {
     std::ofstream out(file, std::ios::binary);
     out << text;
@@ -269,6 +340,10 @@ bool write(const std::filesystem::path& file, std::string_view text) {
 int main(int argc, char** argv) {
     std::filesystem::path out;
     int runs = 15;
+    if (argc >= 2 && std::string_view(argv[1]) == "--phases") {
+        for (const Scene& scene : scenes()) phases(scene, argc >= 3 ? std::max(1, std::atoi(argv[2])) : 9);
+        return 0;
+    }
     for (int index = 1; index + 1 < argc; index += 2) {
         const std::string_view option = argv[index];
         if (option == "--out") out = argv[index + 1];

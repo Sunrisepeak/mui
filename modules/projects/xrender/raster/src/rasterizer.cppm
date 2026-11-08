@@ -89,6 +89,8 @@ private:
     void cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area);
 
     std::vector<Cell> cells_;
+    std::vector<Cell> sorted_;           // prepare's scratch: the cells bucketed by row
+    std::vector<std::uint32_t> rows_;    // prepare's scratch: where each row's cells start
     std::int32_t      min_x_ = 0, min_y_ = 0, width_ = 0, height_ = 0;
 };
 

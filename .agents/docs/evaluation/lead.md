@@ -13,11 +13,11 @@
 | hanim | motion.document.bytes | — | lottie, rive | — | planned |
 | hanim | motion.playback.ms | — | rive, lottie-web | — | planned |
 | hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | pending_hardware |
-| xrender | raster.fills-1000.median_ms | xrender 17.721 | skia 11.631 | 0.66× [0.65, 0.66] | behind |
-| xrender | raster.gradients-200.median_ms | xrender 16.991 | skia 7.216 | 0.42× [0.42, 0.43] | behind |
-| xrender | raster.small-5000.median_ms | xrender 3.52 | resvg 7.458 | 2.12× [2.10, 2.15] | ahead |
-| xrender | raster.strokes-500.median_ms | xrender 30.603 | skia 10.318 | 0.34× [0.34, 0.34] | behind |
-| xrender | raster.joins-300.median_ms | xrender 28.48 | skia 10.217 | 0.36× [0.36, 0.36] | behind |
+| xrender | raster.fills-1000.median_ms | xrender 12.6835 | skia 11.6615 | 0.92× [0.90, 0.93] | behind |
+| xrender | raster.gradients-200.median_ms | xrender 13.704 | skia 7.198 | 0.52× [0.52, 0.53] | behind |
+| xrender | raster.small-5000.median_ms | xrender 3.115 | resvg 7.46 | 2.39× [2.37, 2.42] | ahead |
+| xrender | raster.strokes-500.median_ms | xrender 21.665 | skia 10.3775 | 0.48× [0.47, 0.48] | behind |
+| xrender | raster.joins-300.median_ms | xrender 15.8155 | skia 10.1975 | 0.65× [0.64, 0.65] | behind |
 | xrender | raster.fills-1000.error | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | ahead |
 | xrender | raster.gradients-200.error | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | par |
 | xrender | raster.small-5000.error | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | ahead |

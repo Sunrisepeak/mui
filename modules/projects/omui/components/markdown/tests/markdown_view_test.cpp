@@ -149,9 +149,9 @@ int main(int argc, char** argv) {
                  std::int64_t{spec::exit_code::failure});
     });
 
-    s.test("selecting text: pressed and dragged across a paragraph, the text between is selected and on the clipboard; an agent selects too", [] {
+    s.test("selecting text: pressed and dragged across a paragraph and into the next, the text between is selected; Ctrl+C copies it; an agent selects too", [] {
         Headless h({.size = {720, 900}});
-        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string("A paragraph to select some words from.\n")})}));
+        h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string("A paragraph to select some words from.\n\nAnd a second one after it.\n")})}));
         h.settle();
         const auto para = find_role(h, Role::paragraph, "A paragraph to select some words from.");
         check(para.has_value(), "the paragraph");
@@ -162,9 +162,23 @@ int main(int argc, char** argv) {
         h.step({PointerEvent{.kind = PointerKind::move, .position = to, .buttons = 1}});
         h.step({PointerEvent{.kind = PointerKind::up, .position = to, .button = MouseButton::left}});
         h.settle();
+        h.key(Key::c, Modifier::ctrl);
+        h.settle();
         const std::string copied = h.runtime().clipboard_text();
         check(copied.starts_with("A para") && copied.size() < std::string("A paragraph to select some words from.").size(), copied);
         check(h.tree().node(para->id)->states.has(State::selected), "selected");
+        // Into the next paragraph: one selection over both, a line apart.
+        const auto second = find_role(h, Role::paragraph, "And a second one after it.");
+        check(second.has_value(), "the second paragraph");
+        if (second) {
+            const Rect next = h.runtime().screen_bounds(h.runtime().find(second->id));
+            h.step({PointerEvent{.kind = PointerKind::down, .position = from, .button = MouseButton::left, .buttons = 1}});
+            h.step({PointerEvent{.kind = PointerKind::move, .position = {next.x + 40, next.y + next.height / 2}, .buttons = 1}});
+            h.step({PointerEvent{.kind = PointerKind::up, .position = {next.x + 40, next.y + next.height / 2}, .button = MouseButton::left}});
+            h.settle();
+            const std::string both = h.runtime().selected_text();
+            check(both.starts_with("A paragraph to select some words from.\nAnd"), both);
+        }
         check_eq(act(h, para->id, "set_selection", Value{}.set("anchor", 2).set("focus", 11)), std::int64_t{0});
     });
 

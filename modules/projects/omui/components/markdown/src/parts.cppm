@@ -80,11 +80,12 @@ public:
     // The rectangles of the text between two bytes (local coordinates).
     [[nodiscard]] std::vector<Rect> rects(std::uint32_t begin, std::uint32_t end) const;
 
-    // A person's selection: pressed and dragged across its text, the text
-    // between is selected (drawn behind it) and goes to the clipboard when
-    // the pointer lets go; a press is the text's (a canvas around it does
-    // not pan). An agent selects with set_selection.
-    bool on_event(EventContext& ctx, const InputEvent& e);
+    // Its words a person selects as on any page — the window's one selection
+    // (omui.view): dragged from paragraph to paragraph, a double press a word,
+    // Ctrl/⌘+C the clipboard's; drawn behind the text. An agent selects with
+    // set_selection.
+    [[nodiscard]] std::optional<std::size_t> text_offset(Point local) const;
+    [[nodiscard]] std::string_view text_of() const;
     ActResult act(ActContext& ctx, std::string_view action);
     [[nodiscard]] std::string selected() const;
 
@@ -99,8 +100,6 @@ private:
     mutable Point origin_{};                  // where the text starts (the content box)
     std::vector<std::pair<std::uint32_t, std::uint32_t>> link_ranges_;  // of the children, in order
     std::vector<Rect> placed_;                // the children's rectangles as last set
-    std::uint32_t anchor_ = 0, focus_ = 0;    // the selection (bytes; equal: none)
-    bool          selecting_ = false;
 };
 
 // ── an inline link or image of a block of text (positioned over its text) ──

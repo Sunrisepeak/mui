@@ -10,6 +10,30 @@ namespace omui {
 
 namespace {
 
+// The word around a byte offset (a double click's): a run of letters, digits
+// and underscores, or one character of another script (a CJK character is a
+// word of its own); a space or a sign, just itself.
+std::pair<std::size_t, std::size_t> word_at(std::string_view text, std::size_t offset) {
+    if (text.empty()) return {0, 0};
+    offset = std::min(offset, text.size() - 1);
+    while (offset > 0 && (static_cast<unsigned char>(text[offset]) & 0xC0) == 0x80) --offset;  // to a character's start
+    const auto letter = [](unsigned char c) { return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_'; };
+    const unsigned char at = static_cast<unsigned char>(text[offset]);
+    if (letter(at)) {
+        std::size_t begin = offset, end = offset;
+        while (begin > 0 && letter(static_cast<unsigned char>(text[begin - 1]))) --begin;
+        while (end < text.size() && letter(static_cast<unsigned char>(text[end]))) ++end;
+        return {begin, end};
+    }
+    std::size_t end = offset + 1;
+    while (end < text.size() && (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) ++end;
+    return {offset, end};
+}
+
+}  // namespace
+
+namespace {
+
 std::string_view handler_name(const InputEvent& e) {
     return std::visit(
         [](const auto& x) -> std::string_view {
@@ -168,6 +192,10 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
     for (const NodeId watcher : pointer_watchers) self.invalidate_paint(watcher);
     switch (e.kind) {
         case PointerKind::move: {
+            // A selection being dragged reaches the words under the pointer (between them, where it reached).
+            if (selection.dragging && held)
+                if (const NodeId over = self.hit_test(e.position); alive(over))
+                    if (const auto offset = text_offset_at(over, e.position)) select(selection.anchor_node, selection.anchor, over, *offset);
             NodeId target = alive(capture) ? capture : self.hit_test(e.position);
             if (!alive(capture)) set_hover(target);
             deliver(target, e, e.position, true);
@@ -226,10 +254,28 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 }
             }
             capture = target;  // implicit capture: the drag stays with the node it began on
-            deliver(target, e, e.position, true);
+            const bool took = deliver(target, e, e.position, true);
+            // Text a person selects, as on any page: a press on words no control
+            // or handler took begins a selection (a double press a word, a triple
+            // its whole text); a press elsewhere lets it go.
+            if (e.type == PointerType::mouse && e.button == MouseButton::left && !took && !alive(f) && !alive(pressed)) {
+                if (const auto offset = text_offset_at(target, e.position)) {
+                    const Node& n = at(target);
+                    const std::string_view text = n.type->text_of ? n.type->text_of(n.instance) : std::string_view();
+                    if (e.clicks >= 3) select(target, 0, target, text.size());
+                    else if (e.clicks == 2) {
+                        const auto [begin, end] = word_at(text, *offset);
+                        select(target, begin, target, end);
+                    } else select(target, *offset, target, *offset);
+                    selection.dragging = e.clicks == 1;
+                } else {
+                    clear_selection();
+                }
+            }
             break;
         }
         case PointerKind::up: {
+            selection.dragging = false;
             NodeId target = alive(capture) ? capture : self.hit_test(e.position);
             NodeId by{};
             const bool handled = deliver(target, e, e.position, true, &by);
@@ -325,6 +371,8 @@ void Runtime::Impl::key_event(const KeyEvent& e) {
     // Undo and redo of the history around the focus (S-12), when nothing
     // focused took the chord itself (a text field undoes its own typing).
     const bool command = (e.mods.has(Modifier::ctrl) || e.mods.has(Modifier::meta)) && !e.mods.has(Modifier::alt);
+    // Copy: the selected text, when nothing focused took the chord (a field copies its own).
+    if (!handled && e.kind == KeyKind::down && command && e.key == Key::c && !selected.empty()) self.set_clipboard_text(self.selected_text());
     if (!handled && e.kind == KeyKind::down && command && (e.key == Key::z || e.key == Key::y)) {
         Invocation call;
         call.actor = {"person", "user", {}};

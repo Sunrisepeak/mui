@@ -394,6 +394,18 @@ struct Runtime::Impl {
     bool                 focus_visible = false;
     Point                pointer;
     bool                 pointer_inside = false;      // the pointer in the window
+    // The text selection: where it began and where it reaches (a node, a byte
+    // offset in its text), and each node's part of it, in document order.
+    struct TextSelection {
+        NodeId      anchor_node, focus_node;
+        std::size_t anchor = 0, focus = 0;
+        bool        dragging = false;
+    };
+    TextSelection                                            selection;
+    std::vector<std::pair<NodeId, std::pair<std::size_t, std::size_t>>> selected;
+    void                       select(NodeId anchor_node, std::size_t anchor, NodeId focus_node, std::size_t focus);
+    void                       clear_selection();
+    [[nodiscard]] std::optional<std::size_t> text_offset_at(NodeId node, Point window) const;
     std::vector<NodeId>  pointer_watchers;            // drawn again as the pointer moves
     std::optional<Rect>  text_input;
     NodeId               text_input_node;

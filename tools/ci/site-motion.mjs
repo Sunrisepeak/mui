@@ -476,6 +476,27 @@ try {
     await shot('creative-palette');
   });
 
+  await scenario('text-copy', async () => {
+    // Words selected and copied as on any page: dragged from one paragraph of the docs into the next, Ctrl+C.
+    await reference('features');
+    const paragraphs = (await snapshot('main/body/view/features/page'))?.filter(n => n.role === 'paragraph' && n.bounds && n.name?.length > 40) || [];
+    check(paragraphs.length >= 2, 'the docs have paragraphs to select', paragraphs.length);
+    if (paragraphs.length < 2) return;
+    const [first, second] = paragraphs;
+    await visibleBounds(first.id); await visibleBounds(second.id);
+    const a = (await node(first.id)).bounds, b = (await node(second.id)).bounds;
+    const from = { x: a[0] + 2, y: a[1] + Math.min(a[3] / 2, 10) }, to = { x: b[0] + 60, y: b[1] + Math.min(b[3] / 2, 10) };
+    await dispatch('Input.dispatchMouseEvent', { type: 'mouseMoved', ...from });
+    await dispatch('Input.dispatchMouseEvent', { type: 'mousePressed', ...from, button: 'left', clickCount: 1, buttons: 1 });
+    for (let step = 1; step <= 6; ++step)
+      await dispatch('Input.dispatchMouseEvent', { type: 'mouseMoved', x: from.x + (to.x - from.x) * step / 6, y: from.y + (to.y - from.y) * step / 6, button: 'left', buttons: 1 });
+    await dispatch('Input.dispatchMouseEvent', { type: 'mouseReleased', ...to, button: 'left', clickCount: 1 });
+    await sleep(150);
+    await key('c', 'KeyC', 67, process.platform === 'darwin' ? 4 : 2);
+    await requireCheck(async () => { const text = await clipboardText(); return typeof text === 'string' && text.includes('\n') && first.name.includes(text.split('\n')[0].slice(0, 20)); },
+      'Ctrl+C puts the words dragged over, across two paragraphs, on the browser clipboard', clipboardText);
+  });
+
   await scenario('agent-native', async () => {
     await top('agent'); const root = 'main/body/view/agent/page/agent_feature';
     await requireCheck(async () => await scalar(root + '/modes') === 'use', 'agent opens the Use path');

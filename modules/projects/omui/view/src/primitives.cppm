@@ -113,7 +113,9 @@ struct TextOptions {
     std::string       align;           // start center end justify
     bool              wrap = true;
     int               max_lines = 0;
-    bool              selectable = false;
+    // Its words a person selects and copies, as on any page (unset); true also
+    // offers agents its set_selection action; false: never (a label's).
+    std::optional<bool> selectable;
     std::string       origin;          // app user_content remote (S-3)
     Prop<float>       size, weight;
     Prop<Dim>         width, max_width;

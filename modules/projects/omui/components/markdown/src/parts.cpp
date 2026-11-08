@@ -350,55 +350,25 @@ void Text::paint(PaintContext& ctx) const {
             ctx.list.fill_round_rect({origin_.x + rr.x - 2, origin_.y + rr.y + 1, rr.width + 4, rr.height - 2}, CornerRadii::all(4),
                                      xrender::Paint::solid(th.color("surface_variant")));
     }
-    // The selection behind the text.
-    if (anchor_ != focus_)
-        for (const Rect& rr : p.selection(std::min(anchor_, focus_), std::max(anchor_, focus_)))
-            ctx.list.fill_rect({origin_.x + rr.x, origin_.y + rr.y, rr.width, rr.height}, th.color("accent").with_alpha(0.28f));
+    // The selection behind the text (its part of the window's one).
+    if (const auto range = ctx.services.text_selection(node_))
+        for (const Rect& rr : p.selection(range->first, range->second))
+            ctx.list.fill_rect({origin_.x + rr.x, origin_.y + rr.y, rr.width, rr.height}, th.color("selection", th.color("accent").with_alpha(0.28f)));
     xrender::text::paint(p, ctx.list, origin_);
 }
 
 std::string Text::selected() const {
     const std::string& t = data->block.content.text;
-    const std::uint32_t a = std::min(anchor_, focus_), b = std::max(anchor_, focus_);
-    return a < b && b <= t.size() ? t.substr(a, b - a) : std::string();
+    const auto range = services_ ? services_->text_selection(node_) : std::nullopt;
+    return range && range->second <= t.size() ? t.substr(range->first, range->second - range->first) : std::string();
 }
 
-bool Text::on_event(EventContext& ctx, const InputEvent& e) {
-    const auto* p = std::get_if<PointerEvent>(&e);
-    if (!p || !paragraph_ || !services_) return false;
-    const auto at = [&] {
-        return static_cast<std::uint32_t>(paragraph_->offset_at({ctx.local.x - origin_.x, ctx.local.y - origin_.y}));
-    };
-    switch (p->kind) {
-        case PointerKind::down:
-            if (p->button != MouseButton::left) return false;
-            anchor_ = focus_ = at();
-            selecting_ = true;
-            services_->capture_pointer(node_);
-            services_->invalidate_paint(node_);
-            ctx.handled = true;
-            return true;
-        case PointerKind::move:
-            if (!selecting_) return false;
-            if (const std::uint32_t f = at(); f != focus_) {
-                focus_ = f;
-                services_->invalidate_paint(node_);
-            }
-            ctx.handled = true;
-            return true;
-        case PointerKind::up:
-            if (!selecting_) return false;
-            selecting_ = false;
-            services_->release_pointer();
-            if (anchor_ != focus_) services_->set_clipboard_text(selected());  // what was selected, ready to paste
-            services_->invalidate_semantics(node_);
-            // A press that did not travel is not a selection: the click goes on (a window chosen, a link's text).
-            if (anchor_ == focus_) return false;
-            ctx.handled = true;
-            return true;
-        default: return false;
-    }
+std::optional<std::size_t> Text::text_offset(Point local) const {
+    if (!paragraph_ || laid_ < 0) return std::nullopt;
+    return paragraph_->offset_at({local.x - origin_.x, local.y - origin_.y});
 }
+
+std::string_view Text::text_of() const { return data->block.content.text; }
 
 ActResult Text::act(ActContext& ctx, std::string_view action) {
     if (action != "set_selection") return ActResult::fail(std::format("md_text has no action '{}'", action));
@@ -407,10 +377,7 @@ ActResult Text::act(ActContext& ctx, std::string_view action) {
         const Value* v = ctx.args.get(k);
         return std::min<std::uint32_t>(size, static_cast<std::uint32_t>(std::max<std::int64_t>(0, v ? v->as_int() : 0)));
     };
-    anchor_ = byte("anchor");
-    focus_ = byte("focus");
-    services_->invalidate_paint(node_);
-    services_->invalidate_semantics(node_);
+    ctx.services.select_text(node_, byte("anchor"), byte("focus"));
     return ActResult::done(Value(selected()));
 }
 
@@ -419,7 +386,7 @@ void Text::semantics(SemanticsContext&, spec::SemanticNode& n) const {
     n.role = role_of(b);
     if (n.name.empty()) n.name = mlibs::markdown::plain_text(b);
     n.actions.push_back({"set_selection", Effect::read, {}, {}, {{"anchor", "i64"}, {"focus", "i64"}}});
-    if (anchor_ != focus_) n.states.set(State::selected);
+    if (services_ && services_->text_selection(node_)) n.states.set(State::selected);
     if (b.kind == mlibs::markdown::Kind::heading) {
         n.value = Value(static_cast<std::int64_t>(b.level));
         n.description = b.anchor;  // the anchor scroll_to_anchor and links (#anchor) use

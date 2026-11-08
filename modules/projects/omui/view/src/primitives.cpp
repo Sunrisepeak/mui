@@ -195,15 +195,19 @@ struct TextNode {
     std::string          align = "start";
     bool                 wrap = true;
     int                  max_lines = 0;
-    bool                 selectable = false;
+    // A page's words a person can select and copy (as on any web page); a
+    // node that sets it says so to agents too (its set_selection action).
+    bool                 selectable = true, advertised = false;
     std::string          origin;
     std::optional<float> size, weight;
 
     Services* services = nullptr;
+    NodeId    node;
     mutable std::optional<mlibs::text::Paragraph> paragraph;
     mutable float laid = -1;
+    mutable Point drawn_at;  // where its paragraph was drawn in its box
 
-    void mount(Services& s, NodeId) { services = &s; }
+    void mount(Services& s, NodeId id) { services = &s; node = id; }
     void restyle() { paragraph.reset(); }
 
     bool set_prop(std::string_view k, const Value& v) {
@@ -214,7 +218,8 @@ struct TextNode {
         else if (k == "wrap") wrap = v.as_bool(true);
         else if (k == "max_lines") max_lines = static_cast<int>(v.as_int());
         else if (k == "selectable") {
-            selectable = v.as_bool();
+            selectable = v.as_bool(true);
+            advertised = selectable;
             return true;
         } else if (k == "origin") {
             origin = std::string(v.as_string());
@@ -275,13 +280,34 @@ struct TextNode {
     void paint(PaintContext& ctx) const {
         mlibs::text::Paragraph& p = shaped(ctx.services);
         lay(p, (wrap ? ctx.content.width : std::numeric_limits<float>::infinity()) + width_slack);
-        xrender::text::paint(p, ctx.list, ctx.content.origin());
+        drawn_at = ctx.content.origin();
+        // The part of it selected, under its glyphs.
+        if (const auto range = ctx.services.text_selection(node)) {
+            const Color ink = ctx.theme.color("selection", ctx.theme.color("accent").with_alpha(0.28f));
+            for (const Rect& r : p.selection(range->first, range->second))
+                ctx.list.fill_rect({drawn_at.x + r.x, drawn_at.y + r.y, r.width, r.height}, ink);
+        }
+        xrender::text::paint(p, ctx.list, drawn_at);
+    }
+    std::optional<std::size_t> text_offset(Point local) const {
+        if (!selectable || !paragraph || laid < 0) return std::nullopt;
+        return paragraph->offset_at({local.x - drawn_at.x, local.y - drawn_at.y});
+    }
+    std::string_view text_of() const { return text; }
+    ActResult act(ActContext& ctx, std::string_view action) {
+        if (action != "set_selection") return ActResult::fail(std::format("text has no action `{}`", action));
+        const Value* anchor = ctx.args.get("anchor");
+        const Value* focus = ctx.args.get("focus");
+        if (!anchor || !focus || !anchor->is_number() || !focus->is_number() || anchor->as_int() < 0 || focus->as_int() < 0)
+            return ActResult::fail("set_selection takes byte offsets: anchor, focus");
+        ctx.services.select_text(ctx.node, static_cast<std::size_t>(anchor->as_int()), static_cast<std::size_t>(focus->as_int()));
+        return ActResult::done();
     }
     void semantics(SemanticsContext&, spec::SemanticNode& n) const {
         if (n.name.empty()) n.name = text;  // S-6: text is its own name
         if (!origin.empty())
             if (auto o = spec::parse_origin(origin)) n.origin = *o;
-        if (selectable) n.actions.push_back({"set_selection", Effect::read, {}, {}, {{"anchor", "i64"}, {"focus", "i64"}}});
+        if (advertised) n.actions.push_back({"set_selection", Effect::read, {}, {}, {{"anchor", "i64"}, {"focus", "i64"}}});
     }
 };
 
@@ -759,7 +785,7 @@ Element text(TextOptions o, std::source_location where) {
     put(e, "align", o.align);
     if (!o.wrap) e.prop("wrap", Source{Value(false), {}, {}});
     if (o.max_lines) e.prop("max_lines", Source{Value(o.max_lines), {}, {}});
-    if (o.selectable) e.prop("selectable", Source{Value(true), {}, {}});
+    if (o.selectable) e.prop("selectable", Source{Value(*o.selectable), {}, {}});
     put(e, "origin", o.origin);
     e.prop("size", o.size).prop("weight", o.weight);
     e.prop("width", o.width).prop("max_width", o.max_width);

@@ -646,6 +646,72 @@ std::optional<Point> Runtime::pointer() const { return impl_->pointer_inside ? s
 void Runtime::watch_pointer(NodeId node) {
     if (valid(node) && std::ranges::find(impl_->pointer_watchers, node) == impl_->pointer_watchers.end()) impl_->pointer_watchers.push_back(node);
 }
+// ── text selection ──
+
+void Runtime::Impl::select(NodeId anchor_node, std::size_t anchor, NodeId focus_node, std::size_t focus) {
+    selection.anchor_node = anchor_node;
+    selection.anchor = anchor;
+    selection.focus_node = focus_node;
+    selection.focus = focus;
+    selected.clear();
+    touch(dirty_paint | dirty_semantics);
+    if (!alive(anchor_node) || !alive(focus_node) || !alive(root)) return;
+    // The selectable text in document order, from the anchor's node to the focus's (either way round).
+    std::vector<NodeId> order, stack{root};
+    while (!stack.empty()) {
+        const NodeId id = stack.back();
+        stack.pop_back();
+        const Node& n = at(id);
+        if (n.type->text_of) order.push_back(id);
+        for (auto child = n.children.rbegin(); child != n.children.rend(); ++child)
+            if (alive(*child)) stack.push_back(*child);
+    }
+    const auto first = std::ranges::find(order, anchor_node), last = std::ranges::find(order, focus_node);
+    if (first == order.end() || last == order.end()) return;
+    const bool forward = first < last || (first == last && anchor <= focus);
+    const auto from = forward ? first : last, to = forward ? last : first;
+    const std::size_t from_offset = forward ? anchor : focus, to_offset = forward ? focus : anchor;
+    for (auto it = from; it != std::next(to); ++it) {
+        const Node& n = at(*it);
+        const std::size_t length = n.type->text_of(n.instance).size();
+        const std::size_t begin = it == from ? std::min(from_offset, length) : 0;
+        const std::size_t end = it == to ? std::min(to_offset, length) : length;
+        if (end > begin) selected.push_back({*it, {begin, end}});
+    }
+}
+
+void Runtime::Impl::clear_selection() {
+    if (selected.empty() && !alive(selection.anchor_node)) return;
+    selection = {};
+    selected.clear();
+    touch(dirty_paint | dirty_semantics);
+}
+
+std::optional<std::size_t> Runtime::Impl::text_offset_at(NodeId node, Point window) const {
+    if (!alive(node)) return std::nullopt;
+    const Node& n = at(node);
+    if (!n.type->text_offset) return std::nullopt;
+    return n.type->text_offset(n.instance, local_point(n, window));
+}
+
+std::optional<std::pair<std::size_t, std::size_t>> Runtime::text_selection(NodeId node) const {
+    for (const auto& [id, range] : impl_->selected)
+        if (id == node) return range;
+    return std::nullopt;
+}
+void Runtime::select_text(NodeId node, std::size_t anchor, std::size_t focus) { impl_->select(node, anchor, node, focus); }
+std::string Runtime::selected_text() const {
+    std::string out;
+    for (const auto& [id, range] : impl_->selected) {
+        if (!impl_->alive(id)) continue;
+        const Node& n = impl_->at(id);
+        if (!out.empty()) out += '\n';
+        out += n.type->text_of(n.instance).substr(range.first, range.second - range.first);
+    }
+    return out;
+}
+void Runtime::clear_text_selection() { impl_->clear_selection(); }
+
 NodeState Runtime::state(NodeId node) const { return valid(node) ? impl_->at(node).state : NodeState{}; }
 
 void Runtime::emit(NodeId node, std::string_view event, const Value& args) { impl_->call_handlers(node, event, args); }

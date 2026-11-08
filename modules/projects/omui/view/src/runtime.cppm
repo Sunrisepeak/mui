@@ -614,6 +614,11 @@ public:
     [[nodiscard]] Rect drawn_bounds(NodeId node) const override;
     [[nodiscard]] std::optional<Point> pointer() const override;
     void watch_pointer(NodeId node) override;
+    [[nodiscard]] std::optional<std::pair<std::size_t, std::size_t>> text_selection(NodeId node) const override;
+    void select_text(NodeId node, std::size_t anchor, std::size_t focus) override;
+    // The selected text (each node's part, a line apart), and none selected again.
+    [[nodiscard]] std::string selected_text() const;
+    void clear_text_selection();
     // Where it is on the window as set: through its own and its ancestors'
     // transforms as they are set, not part way through their transitions —
     // a canvas's target node where the camera will show it. Kept as a target

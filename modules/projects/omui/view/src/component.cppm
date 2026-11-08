@@ -253,6 +253,11 @@ public:
     // watching the pointer) asks `watch_pointer` to be drawn again as it moves.
     [[nodiscard]] virtual std::optional<Point> pointer() const { return std::nullopt; }
     virtual void watch_pointer(NodeId) {}
+    // The text a person selected (one selection a window, over text nodes in
+    // document order): this node's part of it, bytes [begin, end); none when
+    // none of it is. Selecting from a node (an agent's set_selection, a test).
+    [[nodiscard]] virtual std::optional<std::pair<std::size_t, std::size_t>> text_selection(NodeId) const { return std::nullopt; }
+    virtual void select_text(NodeId, std::size_t /*anchor*/, std::size_t /*focus*/) {}
     // The control at a window point: the nearest node that takes focus (a
     // button, a field, a slider) — the one the pointer hits or an ancestor of
     // it; none over plain content. A figure over a page asks what is beneath
@@ -481,6 +486,10 @@ struct ComponentType {
     // Which points of its box take the pointer (a figure over a page: only
     // where it is drawn, the page beneath elsewhere); none: all of it.
     bool (*hits)(const void*, Point local, Size) = nullptr;
+    // Text a person can select (a page's words, as on any web page): the byte
+    // offset at a local point (none: not selectable now), and its text.
+    std::optional<std::size_t> (*text_offset)(const void*, Point local) = nullptr;
+    std::string_view (*text_of)(const void*) = nullptr;
     bool (*event)(void*, EventContext&, const InputEvent&) = nullptr;
     ActResult (*act)(void*, ActContext&, std::string_view) = nullptr;
     // What an action would do, changing nothing (a dry run, S-13): `data`
@@ -581,6 +590,10 @@ template <class C>
             x.window_area = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->window_area(at, sz); };
         if constexpr (requires(const C& c, Point p, Size sz) { { c.hits(p, sz) } -> std::same_as<bool>; })
             x.hits = [](const void* p, Point at, Size sz) { return static_cast<const C*>(p)->hits(at, sz); };
+        if constexpr (requires(const C& c, Point p) { { c.text_offset(p) } -> std::same_as<std::optional<std::size_t>>; })
+            x.text_offset = [](const void* p, Point at) { return static_cast<const C*>(p)->text_offset(at); };
+        if constexpr (requires(const C& c) { { c.text_of() } -> std::convertible_to<std::string_view>; })
+            x.text_of = [](const void* p) -> std::string_view { return static_cast<const C*>(p)->text_of(); };
         if constexpr (requires(const C& c, PaintContext& ctx) { c.paint_over(ctx); })
             x.paint_over = [](const void* p, PaintContext& ctx) { static_cast<const C*>(p)->paint_over(ctx); };
         if constexpr (requires(C& c, EventContext& ctx, const InputEvent& e) { { c.on_event(ctx, e) } -> std::same_as<bool>; })

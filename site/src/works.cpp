@@ -117,6 +117,22 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                                           .variant = ButtonVariant::secondary,
                                           .on_activated = [other] { other.set(!other.peek()); }})})));
     }
+    // ⑥ A spring you can throw: dragged and let go, it springs home with the speed it had.
+    {
+        Runtime** runtime = site.runtime;
+        const std::string chip_path = site.root + "/grid/spring/stage";
+        works.push_back(work(site, "spring", card, {"A spring you can throw", "能甩的弹簧"},
+                             {"Drag it, fling it, let go: it springs home with the speed it had. Catch it mid-flight.", "拖着它甩出去再松手：它带着当时的速度弹回家。半路还能接住。"},
+                             throw_chip({.id = "stage", .label = words(site, "Throw me", "甩我"), .width = Dim(inner), .height = Dim(stage_height)}),
+                             row({.id = "controls", .width = Dim(inner), .gap = 10, .align = "center"},
+                                 {button({.id = "fling", .text = words(site, "Fling it", "甩一下"), .variant = ButtonVariant::secondary,
+                                          .on_activated = [runtime, chip_path] {
+                                              if (!runtime || !*runtime) return;
+                                              Invocation call;
+                                              call.args = Value{}.set("vx", 1400.0).set("vy", -700.0);
+                                              (void)(*runtime)->act((*runtime)->find(chip_path), "fling", call);
+                                          }})})));
+    }
     // ⑤ The same items, a list and cards.
     {
         Signal<bool> cards = state.cards;

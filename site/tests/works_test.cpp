@@ -127,5 +127,54 @@ int main(int argc, char** argv) {
         check(between >= 3, std::format("{} frames between its places (travelled, not cut)", between));
     });
 
+    suite.test("a spring you can throw: flung, it leaves home smoothly, overshoots and settles; dragged and let go, it carries on the way it was thrown; caught mid-flight, it stays where it is drawn", [] {
+        Page page;
+        const std::string stage = "spring/stage";
+        const auto offset = [&] {
+            const Value v = page.value(stage);
+            const auto number = [](const Value* n) { return n->type() == Value::Type::integer ? static_cast<double>(n->as_int()) : n->as_double(); };
+            return std::pair{number(v.get("x")), number(v.get("y"))};
+        };
+        // Flung: from home, no jump; out, back past home, and to rest.
+        check(page.act(stage, "fling", Value{}.set("vx", 1400.0).set("vy", 0.0)) == 0);
+        std::vector<double> xs;
+        const auto dir = scratch_dir("works-spring");
+        for (int frame = 0; frame < 90; ++frame) {
+            page.h.step();
+            xs.push_back(offset().first);
+            if (frame % 10 == 0) (void)page.h.save_png(dir / std::format("{:02}.png", frame / 10), page.h.runtime().screen_bounds(page.h.runtime().find(path(stage))));
+        }
+        check(xs.front() > 0 && xs.front() < 40, std::format("its first frame a step from home, not a jump: {}", xs.front()));
+        check(std::ranges::max(xs) > 40 && std::ranges::min(xs) < -1, std::format("out to {:.1f}, back past home to {:.1f}", std::ranges::max(xs), std::ranges::min(xs)));
+        page.h.settle(seconds(3));
+        check(std::abs(offset().first) < 0.5 && !page.value(stage).get("moving")->as_bool(), "home, at rest");
+        // Dragged right and let go while moving: it carries on to the right before it springs back.
+        const Rect box = page.h.runtime().screen_bounds(page.h.runtime().find(path(stage)));
+        const Point centre{box.x + box.width / 2, box.y + box.height / 2};
+        page.h.step({PointerEvent{.kind = PointerKind::down, .position = centre, .button = MouseButton::left, .buttons = 1}});
+        for (int k = 1; k <= 6; ++k) page.h.step({PointerEvent{.kind = PointerKind::move, .position = {centre.x + 15.0f * static_cast<float>(k), centre.y}, .buttons = 1}});
+        const double let_go = offset().first;
+        page.h.step({PointerEvent{.kind = PointerKind::up, .position = {centre.x + 90.0f, centre.y}, .button = MouseButton::left}});
+        double furthest = let_go;
+        for (int frame = 0; frame < 20; ++frame) {
+            page.h.step();
+            furthest = std::max(furthest, offset().first);
+        }
+        check(furthest > let_go + 10, std::format("it carried on the way it was thrown: let go at {:.1f}, went to {:.1f}", let_go, furthest));
+        // Caught mid-flight: where it is drawn, it stays.
+        check(page.act(stage, "fling", Value{}.set("vx", 0.0).set("vy", -900.0)) == 0);
+        for (int frame = 0; frame < 6; ++frame) page.h.step();
+        const auto [x, y] = offset();
+        const Point at{centre.x + static_cast<float>(x), centre.y + static_cast<float>(y)};
+        page.h.step({PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1}});
+        const auto [held_x, held_y] = offset();
+        // (Read a frame before the press: it may move that frame's way, no further — no jump to the pointer, no snap home.)
+        check(std::abs(held_x - x) < 6 && std::abs(held_y - y) < 6 && page.value(stage).get("held")->as_bool(), std::format("caught at ({:.1f}, {:.1f}), held at ({:.1f}, {:.1f})", x, y, held_x, held_y));
+        for (int frame = 0; frame < 10; ++frame) page.h.step();
+        const auto [still_x, still_y] = offset();
+        check(std::abs(still_x - held_x) < 1e-6 && std::abs(still_y - held_y) < 1e-6, "held, it does not move");
+        page.h.step({PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left}});
+    });
+
     return suite.run(argc, argv);
 }

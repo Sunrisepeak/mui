@@ -1456,6 +1456,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_type(component_type<Mascot>());
         register_type(component_type<DropCard>());
         register_type(component_type<ProgramStage>());
+        register_type(component_type<ThrowChip>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
         s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,

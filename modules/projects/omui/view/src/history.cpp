@@ -163,6 +163,7 @@ Envelope Runtime::Impl::history_action(NodeId scope, bool redo, const Invocation
     auto stop = [&](Envelope e) { return call.dry_run ? dry_run_of(e, Effect::reversible) : e; };
     if (clearance(name, Effect::reversible, false, call) == openas::Decision::refuse)
         return stop(above_cap(std::format("{} on '{}' (reversible)", name, where), call));
+    if (auto held = held_by_person(call, Effect::reversible, std::format("{} on '{}'", name, where))) return stop(std::move(*held));
     if (transaction && replaying == 0) return stop(refused(std::format("{} inside a transaction: commit or roll it back first (S-13)", name)));
     const ScopeHistory* h = find_history(scope);
     const std::vector<UndoEntry>* from = h ? (redo ? &h->redo : &h->undo) : nullptr;
@@ -228,6 +229,7 @@ Envelope Runtime::invoke(std::string_view verb, const Invocation& given) {
     if (v && d.transaction && d.replaying == 0 && spec::requires_answer(v->effect))
         return not_in_transaction(std::format("`{}`", verb), v->effect);
     const Effect effect = v ? v->effect : Effect::read;
+    if (auto held = d.held_by_person(call, effect, std::format("`{}`", verb))) return std::move(*held);
     std::vector<Inverse> outer = std::exchange(d.program_inverse, {});
     ++d.acting;
     d.actors.push_back(call.actor);

@@ -316,6 +316,7 @@ AgentPresenceState agent_presence_state(const Services& services, std::string_vi
         if (PresenceStep step = step_of(*it); !step.bounds.empty()) out.trail.push_back(std::move(step));
     }
     std::ranges::reverse(out.trail);
+    out.taken_over = services.taken_over();
     return out;
 }
 
@@ -348,13 +349,20 @@ AgentPresenceState AgentPresence::state() const {
 
 std::string AgentPresence::phrase(std::string_view key) const {
     if (const Value* own = props.phrases.get(key); own && !own->as_string().empty()) return std::string(own->as_string());
-    return key == "asks" ? std::string("{agent} asks you") : std::string(key);
+    if (key == "asks") return "{agent} asks you";
+    if (key == "taken_over") return "You have taken over from {agent}";
+    return std::string(key);
 }
 
 std::string AgentPresence::said() const {
     const AgentPresenceState now = state();
     if (!now.now) return {};
     const std::string agent(who(now.actor));
+    if (now.taken_over) {
+        std::string text = phrase("taken_over");
+        if (const auto at = text.find("{agent}"); at != std::string::npos) text.replace(at, 7, agent);
+        return text;
+    }
     if (now.asking) {
         std::string text = phrase("asks");
         if (const auto at = text.find("{agent}"); at != std::string::npos) text.replace(at, 7, agent);
@@ -405,8 +413,8 @@ void AgentPresence::paint(PaintContext& ctx) const {
         tag_.paint(ctx, {pill.x + 6, pill.y + 2}, th.color("on_accent", Color::white()));
     });
 
-    // Waiting for the person: a card under the node, saying so. Nothing on it answers (S-10).
-    if (now.asking) {
+    // Waiting for the person, or held by them: a card under the node, saying so. Nothing on it answers (S-10).
+    if (now.asking || now.taken_over) {
         card_.set_text(said());
         const Size t = card_.measure(ctx.services, th.color("text"), 260);
         // Beside the node where the page has room, else under it: not over what it acts on.
@@ -427,7 +435,7 @@ void AgentPresence::semantics(SemanticsContext&, spec::SemanticNode& node) const
     const AgentPresenceState now = state();
     node.name = said();
     Value value;
-    value.set("actor", now.actor).set("asking", now.asking);
+    value.set("actor", now.actor).set("asking", now.asking).set("taken_over", now.taken_over);
     if (now.now) value.set("node", now.now->path).set("action", now.now->action);
     Value::List steps;
     for (const PresenceStep& step : now.trail) steps.emplace_back(step.path);

@@ -70,6 +70,7 @@ struct AgentPresenceState {
     std::optional<PresenceStep> now;
     std::vector<PresenceStep>   trail;
     bool                        asking = false;  // its last request waits for the person's answer
+    bool                        taken_over = false;  // the person has taken over from every agent (S-14)
 };
 // From the journal: the actors whose names begin with `actors`, the newest
 // action theirs and up to `trail` before it on other nodes; what was done

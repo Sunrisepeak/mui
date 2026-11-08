@@ -95,6 +95,42 @@ Runtime::Runtime(RuntimeOptions options) : impl_(std::make_unique<Impl>(*this)) 
     root.type = &root_type();
     d.root = d.create(root, {});
     d.build_pipeline();
+    // The person's controls over every agent (S-14), theirs alone (S-10).
+    (void)d.verbs.add({.name = "agents.take_over", .summary = "Take over from every agent: their changes refused until you hand back",
+                       .effect = Effect::read, .person = true},
+                      [this](const Value&) -> VerbResult {
+                          take_over();
+                          return Value(true);
+                      });
+    (void)d.verbs.add({.name = "agents.hand_back", .summary = "Hand back to the agents what you took over", .effect = Effect::read, .person = true},
+                      [this](const Value&) -> VerbResult {
+                          hand_back();
+                          return Value(false);
+                      });
+}
+
+void Runtime::take_over() {
+    Impl& d = *impl_;
+    if (d.taken_over) return;
+    d.taken_over = true;
+    d.actions_changed();  // what shows the agents (their presence) shows it
+}
+
+void Runtime::hand_back() {
+    Impl& d = *impl_;
+    if (!d.taken_over) return;
+    d.taken_over = false;
+    d.actions_changed();  // what shows the agents (their presence) shows it
+}
+
+bool Runtime::taken_over() const { return impl_->taken_over; }
+
+std::optional<Envelope> Runtime::Impl::held_by_person(const Invocation& call, Effect effect, std::string_view what) const {
+    if (!taken_over || effect == Effect::read || replaying != 0 || !(call.remote || call.actor.kind == "agent")) return std::nullopt;
+    Envelope env;
+    env.error(spec::error_code::conflict, std::format("the person has taken over: {} waits until they hand back (S-14)", what))
+        .result(spec::exit_code::failure);
+    return env;
 }
 
 Runtime::~Runtime() {

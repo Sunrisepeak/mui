@@ -86,5 +86,77 @@ int main(int argc, char** argv) {
         check(f.rt.act(f.rt.find("main/card"), "activate").exit_code() == spec::exit_code::success, "the person's own");
     });
 
+    s.test("the person takes over: every change an agent asks for is refused (conflict, no retry_after) until they hand back; reading stays open", [] {
+        Fixture f;
+        check(f.agent("main/card").exit_code() == spec::exit_code::success && f.edits == 1, "before: the agent acts");
+        f.rt.take_over();
+        check(f.rt.taken_over(), "taken over");
+        const Envelope held = f.agent("main/other");
+        check_eq(code_of(held), std::string("conflict"));
+        bool says_when = false;
+        for (const spec::Record& r : held.records())
+            if (r.kind == spec::RecordKind::error && r.body.get("retry_after")) says_when = true;
+        check(!says_when && f.edits == 1, "no time to try again — the person decides — and nothing changed");
+        Invocation agent;
+        agent.actor = Actor{"agent", "helper", {}};
+        agent.remote = true;
+        check_eq(code_of(f.rt.invoke("task.edit", agent)), std::string("conflict"));
+        check(f.rt.verbs().add({.name = "task.count", .effect = Effect::read}, [&](const Value&) -> VerbResult { return Value(static_cast<std::int64_t>(f.edits)); })
+                  .has_value());
+        check(f.rt.invoke("task.count", agent).exit_code() == spec::exit_code::success, "reading stays open");
+        // The agent cannot hand itself back (S-10): the person's own verb.
+        check(f.rt.invoke("agents.hand_back", agent).exit_code() != spec::exit_code::success && f.rt.taken_over(), "the person's alone");
+        // The person acts meanwhile; then hands back, and the agent acts again.
+        check(f.rt.act(f.rt.find("main/card"), "activate").exit_code() == spec::exit_code::success && f.edits == 2, "the person's own");
+        check(f.rt.invoke("agents.hand_back").exit_code() == spec::exit_code::success && !f.rt.taken_over(), "handed back by the person's verb");
+        check(f.agent("main/other").exit_code() == spec::exit_code::success && f.edits == 3, "after: the agent acts again");
+    });
+
+    s.test("turn about, a dozen times: the person and an agent alternate on one thing, the person taking over between — nothing lost, every step undone a step at a time", [] {
+        RuntimeOptions options{.size = {240, 200}, .stages = Stages::layout};
+        Runtime rt{options};
+        int value = 0;
+        check(rt.verbs()
+                  .add({.name = "count.add", .effect = Effect::reversible, .undoable = true},
+                       [&](const Value& args) -> VerbResult {
+                           const int by = static_cast<int>(args.get("by") ? args.get("by")->as_int() : 1);
+                           value += by;
+                           rt.taken_back_by([&, by] { value -= by; }, [&, by] { value += by; });
+                           return Value(static_cast<std::int64_t>(value));
+                       })
+                  .has_value());
+        rt.mount("main", column({}, {box({.id = "x", .width = 10, .height = 10})}));
+        (void)rt.frame({seconds(0), {}});
+        Invocation agent;
+        agent.actor = Actor{"agent", "helper", {}};
+        agent.remote = true;
+        int expected = 0, refused = 0;
+        for (int turn = 0; turn < 12; ++turn) {
+            const bool person = turn % 2 == 0;
+            if (person) rt.take_over();
+            // While the person holds it, the agent's try is refused and changes nothing.
+            if (person && rt.invoke("count.add", agent).exit_code() != spec::exit_code::success) ++refused;
+            Value by;
+            by.set("by", static_cast<std::int64_t>(turn + 1));
+            const Envelope done = person ? rt.invoke("count.add", Invocation{.args = by}) : rt.invoke("count.add", [&] {
+                Invocation a = agent;
+                a.args = by;
+                return a;
+            }());
+            check(done.exit_code() == spec::exit_code::success, std::format("turn {}", turn));
+            expected += turn + 1;
+            // Nor can it take the person's step back while they hold it.
+            if (person) check_eq(code_of(rt.undo(rt.root(), agent)), std::string("conflict"));
+            if (person) rt.hand_back();
+        }
+        check_eq(value, expected);
+        check_eq(refused, 6);
+        // Every step, the agent's and the person's, undone one at a time back to the start.
+        int undone = 0;
+        while (rt.undo(rt.root()).exit_code() == spec::exit_code::success && undone < 20) ++undone;
+        check_eq(undone, 12);
+        check_eq(value, 0);
+    });
+
     return s.run(argc, argv);
 }

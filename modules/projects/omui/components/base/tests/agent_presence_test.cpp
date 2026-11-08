@@ -103,6 +103,15 @@ int main(int argc, char** argv) {
         check(h.click("main/body/actions/save") && saved == 2);
         h.settle();
         check(agent_presence_state(rt, "agent:").now->path == "main/body/actions/delete", "the person's click is not shown as the agent's");
+        // The person takes over (S-14): it says so; handed back, it no longer does.
+        check(rt.invoke("agents.take_over").exit_code() == 0);
+        h.settle();
+        check(agent_presence_state(rt, "agent:").taken_over, "taken over");
+        check_eq(h.tree().node("main/presence")->name, std::string("You have taken over from guide"));
+        check(act(h, "main/body/actions/save", "activate") != 0 && saved == 2, "the agent waits");
+        check(rt.invoke("agents.hand_back").exit_code() == 0);
+        h.settle();
+        check(!agent_presence_state(rt, "agent:").taken_over && act(h, "main/body/actions/save", "activate") == 0 && saved == 3, "handed back");
     });
 
     return s.run(argc, argv);

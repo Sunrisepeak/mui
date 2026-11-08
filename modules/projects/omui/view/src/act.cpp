@@ -301,6 +301,7 @@ Envelope Runtime::Impl::perform(NodeId id, std::string_view action, const Invoca
                 .result(spec::exit_code::failure);
             return stop(std::move(env));
         }
+    if (auto held = held_by_person(call, effect, std::format("{} on '{}'", action, where))) return stop(std::move(*held));
     // Over the bus, an action is decided by the verb it invokes, or by its own name (S-11).
     const openas::Decision clear = clearance(a && !a->verb.empty() ? std::string_view(a->verb) : action, effect, a && a->person, call);
     if (clear == openas::Decision::refuse) return stop(above_cap(std::format("{} on '{}' ({})", action, where, spec::name(effect)), call));

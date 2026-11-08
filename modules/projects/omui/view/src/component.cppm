@@ -322,6 +322,8 @@ public:
     }
     virtual std::string link_agent() { return {}; }
     virtual void unlink_agent() {}
+    // Whether the person has taken over from every agent (Runtime::take_over, S-14).
+    [[nodiscard]] virtual bool taken_over() const { return false; }
     // While followed, the node is laid out, painted and stated again when an
     // action is journaled or the agent link changes.
     virtual void follow_actions(NodeId node, bool follow) { (void)node, (void)follow; }

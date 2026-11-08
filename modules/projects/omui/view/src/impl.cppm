@@ -388,11 +388,15 @@ struct Runtime::Impl {
     NodeId               pressed;
     // What a person (not an agent's input) operates now (S-14): the node they
     // hold with the pointer, and the one they last typed into and when.
+    bool                 taken_over = false;  // the person has taken over from every agent (S-14)
     NodeId               person_holds;
     NodeId               person_typed;
     double               person_typed_at = -1e9;
     // Seconds until an agent may act on `id` (S-14), or none: no person operates it.
     [[nodiscard]] std::optional<double> person_operating(NodeId id) const;
+    // While the person has taken over (S-14): an agent's (or any remote)
+    // change refused, `conflict` without retry_after; reading stays open.
+    [[nodiscard]] std::optional<Envelope> held_by_person(const Invocation& call, Effect effect, std::string_view what) const;
     std::uint64_t        presses = 0;  // pointer presses so far (pointer_gesture)
     bool                 held = false;  // a pointer is held
     Point                pressed_at;  // where the press began: moved further than a click's slop, it was a drag

@@ -463,6 +463,16 @@ public:
     // the program's own state says how here, or undo passes over it.
     // Outside an action, nothing.
     void taken_back_by(std::function<void()> undo, std::function<void()> redo);
+    // The person takes over from every agent (spec S-14): until they hand
+    // back, each change an agent asks for — an action, a verb, undo or redo,
+    // a transaction, a preview — is refused with `conflict` (no retry_after:
+    // the person decides when), and nothing it asked for takes effect after;
+    // reading stays open to it, and what it did stays in the history, to be
+    // undone a step at a time. The person's own verbs `agents.take_over` and
+    // `agents.hand_back` do the same from a control (an agent cannot: S-10).
+    void take_over();
+    void hand_back();
+    [[nodiscard]] bool taken_over() const override;
     // Who performs the action under way (its handlers run inside it): what
     // an action the program performs in turn carries on as its actor
     // (openas: an agent's click that takes a card takes it as the agent).

@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
 
     suite.test("the session: a moment and an object to the step that moves it; its knobs; a change that does not read refused, nothing changed; undo, redo", [] {
         bench::Session session;
-        check(session.perform("open", Value{}.set("file", example("bounce.animation.omui.json").generic_string())).has_value(), "opened");
+        check(session.perform("open", Value{}.set("file", generic_utf8(example("bounce.animation.omui.json")))).has_value(), "opened");
         const double length = session.duration();
         check(length > 3 && length < 8, std::format("{} s", length));
         const auto found = session.perform("at", Value{}.set("time", 0.3).set("object", "ball"));

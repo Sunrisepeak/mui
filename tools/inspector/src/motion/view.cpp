@@ -167,7 +167,7 @@ AppSpec app(const std::shared_ptr<Session>& session, std::filesystem::path file)
     spec.setup = [session, file = std::move(file)](Runtime& runtime) {
         session->runtime = &runtime;
         register_base_components();
-        if (!file.empty()) (void)session->perform("open", Value{}.set("file", file.generic_string()));
+        if (!file.empty()) (void)session->perform("open", Value{}.set("file", generic_utf8(file)));
     };
     spec.view = [session] {
         return scroll({.id = "workspace", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(20)},

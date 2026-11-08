@@ -159,7 +159,7 @@ VerbResult Session::perform(std::string_view operation, const Value& args) {
     const auto text_of = [&](std::string_view key) { return args.get(key) ? std::string(args.get(key)->as_string()) : std::string(); };
     if (operation == "snapshot") {
         return Value{}
-            .set("file", d.file.empty() ? Value{} : Value(d.file.generic_string()))
+            .set("file", d.file.empty() ? Value{} : Value(generic_utf8(d.file)))
             .set("open", d.opened.has_value())
             .set("duration", duration())
             .set("time", time.peek())
@@ -175,10 +175,10 @@ VerbResult Session::perform(std::string_view operation, const Value& args) {
         std::string next = text_of("text");
         std::filesystem::path file;
         if (next.empty()) {
-            file = text_of("file");
-            if (file.empty()) return std::unexpected(std::string("open needs `file` or `text`"));
-            auto read = os::fs::read(os::fs::from_utf8(file.generic_string()));
-            if (!read) return std::unexpected(std::format("cannot read {}: {}", file.generic_string(), read.error().message()));
+            if (text_of("file").empty()) return std::unexpected(std::string("open needs `file` or `text`"));
+            file = os::fs::from_utf8(text_of("file"));
+            auto read = os::fs::read(file);
+            if (!read) return std::unexpected(std::format("cannot read {}: {}", text_of("file"), read.error().message()));
             next = std::move(*read);
         }
         if (auto loaded = d.load(std::move(next)); !loaded) {
@@ -256,11 +256,11 @@ VerbResult Session::perform(std::string_view operation, const Value& args) {
         return done(Value{}.set("duration", duration()));
     }
     if (operation == "save") {
-        const std::filesystem::path file = text_of("file").empty() ? d.file : std::filesystem::path(text_of("file"));
+        const std::filesystem::path file = text_of("file").empty() ? d.file : os::fs::from_utf8(text_of("file"));
         if (file.empty()) return std::unexpected(std::string("save needs `file` (the document was not opened from one)"));
-        if (auto saved = os::fs::write_atomic(os::fs::from_utf8(file.generic_string()), d.text); !saved)
-            return std::unexpected(std::format("cannot write {}: {}", file.generic_string(), saved.error().message()));
-        return Value{}.set("file", file.generic_string());
+        if (auto saved = os::fs::write_atomic(file, d.text); !saved)
+            return std::unexpected(std::format("cannot write {}: {}", generic_utf8(file), saved.error().message()));
+        return Value{}.set("file", generic_utf8(file));
     }
     return std::unexpected(std::format("no operation `{}`", operation));
 }

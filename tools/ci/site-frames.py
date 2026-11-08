@@ -24,10 +24,10 @@ import tempfile
 OPENINGS = {
     'home': 'main/body/view/home/page/landing/scene/visual',
     'components': 'main/body/view/components/page/wall',
-    'motion': 'main/body/view/motion/page/motion_gallery/stage/scene',
-    'demos': 'main/body/view/explore/page/motion_gallery/stage/scene',
-    'styles': 'main/body/view/styles/page/styles_feature/comparison',
-    'interface': 'main/body/view/interface/page/interface_feature/workspace/object',
+    'motion': 'main/body/view/explore/page/works/grid/mark',
+    'docs/motion': 'main/body/view/motion/page/motion_gallery/stage/scene',
+    'docs/styles': 'main/body/view/styles/page/styles_feature/comparison',
+    'docs/interface': 'main/body/view/interface/page/interface_feature/workspace/object',
     'agent': 'main/body/view/agent/page/agent_feature/specimen',
 }
 VIEWPORTS = ((390, 844), (1280, 800))

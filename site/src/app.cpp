@@ -116,7 +116,7 @@ struct Site {
     // A narrow window (a phone): the places and the switches in a menu, a panel in the place's place.
     static constexpr float compact_below = 900;
     Signal<bool>        compact = signal(false), menu = signal(false);
-    Signal<bool>        core_menu = signal(false), logo_unfolded = signal(true);
+    Signal<bool>        logo_unfolded = signal(true);
     bool                logo_introduced = false;
     std::uint64_t       logo_timer = 0;
     std::uint64_t       feature_timer = 0;
@@ -274,7 +274,6 @@ struct Site {
         if (next != "agent") cancel_agent_feature(agent_feature_state);
         if (next != "styles") cancel_feature_examples(style_examples);
         if (next != "interface") cancel_feature_examples(interface_examples);
-        core_menu.set(false);
     }
     void show_route() {
         if (!runtime) return;
@@ -1353,10 +1352,17 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
     } else if (id == "brand") {
         content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
     } else if (id == "explore") {
-        content.push_back(motion_gallery(s->creative, s->creative_site, true, room));
-        // The signature works (E1), under the gallery until the page is rebuilt round them (E2).
-        content.push_back(signature_works(s->works, s->works_site, room));
-        content.push_back(recipe_library(s->works, s->works_site, room));
+        // Motion (the site plan §4): the signature works first, the recipe library, then the
+        // compositions; one composition opened, the page is that composition's.
+        content.push_back(dynamic([s, room] {
+            std::vector<Element> parts;
+            if (!s->creative.detail.get()) {
+                parts.push_back(signature_works(s->works, s->works_site, room));
+                parts.push_back(recipe_library(s->works, s->works_site, room));
+            }
+            parts.push_back(motion_gallery(s->creative, s->creative_site, true, room));
+            return parts;
+        }));
         content.push_back(explore_landing(s->links, room));
     } else if (id == "docs") {
         content.push_back(docs_landing(s->docs, s->links, room >= 1000 ? room - 196 : room));
@@ -1587,7 +1593,6 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                 return computed([s, en = std::string(en), zh = std::string(zh)] { return s->lang.get() == "zh" ? zh : en; });
             };
             std::vector<Element> links;
-            std::vector<Element> core_links;
             for (const Place& p : all) {
                 if (!p.navigation) continue;
                 const std::string id(p.id);
@@ -1601,20 +1606,8 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                 b.prop("selected", derive(selected));
                 // Navigation uses the same typed default recipe as other
                 // buttons. Large letter-scatter effects belong in a scene.
-                if (p.section == "core") core_links.push_back(std::move(b));
-                else links.push_back(std::move(b));
+                links.push_back(std::move(b));
             }
-            auto core_open = button({.id = "open", .text = label("Core features", "核心特色"),
-                .variant = computed([s] { const auto* p = find_place(s->place.get()); return s->core_menu.get() || (p && p->section == "core") ? ButtonVariant::secondary : ButtonVariant::ghost; }),
-                .on_activated = [s] { s->core_menu.set(!s->core_menu.peek()); }});
-            core_open.prop("expanded", derive([s] { return s->core_menu.get(); }));
-            PopoverOptions core_options;
-            core_options.id = "menu"; core_options.label = label("Core features", "核心特色");
-            core_options.open = s->core_menu; core_options.side = PopoverSide::below;
-            core_options.width = Dim(std::min(300.0f, s->width.get() - 48));
-            auto core_panel = popover(std::move(core_options), std::move(core_links));
-            core_panel.prop("direction", Source(Value("column"))).prop("gap", Source(Value(4)));
-            links.insert(links.begin(), row({.id = "core", .gap = 0, .align = "center"}, {std::move(core_open), std::move(core_panel)}));
             Element nav = row({.id = "nav", .gap = 4, .align = "center", .wrap = "wrap", .label = "Places"}, std::move(links));
             nav.prop("role", Source(Value("navigation")));
             if (compact) nav.prop("width", Source(Value("100%")));
@@ -1771,7 +1764,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         // Esc puts away what is open over the place: a panel.
         site.on("key_down", [s](const Value& e) {
             if (!e.get("key") || e.get("key")->as_string() != "Escape") return;
-            for (Signal<bool>* open : {&s->menu, &s->core_menu, &s->panel, &s->settings, &s->checking})
+            for (Signal<bool>* open : {&s->menu, &s->panel, &s->settings, &s->checking})
                 if (open->peek()) open->set(false);
         });
         return site;
@@ -1811,12 +1804,8 @@ std::string static_html(std::string_view lang) {
     for (const bool chinese : languages) {
         out += std::format("<nav aria-label=\"{}\" data-locale=\"{}\"{}>", chinese ? "页面" : "Places", chinese ? "zh" : "en", chinese == first_chinese ? " data-default" : "");
         out += std::format("<a class=\"brand\" href=\"{}\" data-omui-target=\"main/bar/mark\" aria-label=\"omui\">{}<b>omui</b></a> ", href("home", chinese), brand_svg(theme.color("accent")));
-        out += std::format("<details class=\"core-navigation\"><summary data-omui-target=\"main/bar/nav/core/open\">{}</summary>", chinese ? "核心特色" : "Core features");
         for (const Place& p : all)
-            if (p.navigation && p.section == "core") out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/core/open\">{}</a> ", href(p.id, chinese), chinese ? p.zh : p.en);
-        out += "</details>";
-        for (const Place& p : all)
-            if (p.navigation && p.section != "core") out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/to_{}\">{}</a> ", href(p.id, chinese), p.id, chinese ? p.zh : p.en);
+            if (p.navigation) out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/nav/to_{}\">{}</a> ", href(p.id, chinese), p.id, chinese ? p.zh : p.en);
         out += std::format("<a href=\"{}\" data-omui-target=\"main/bar/start\">{}</a></nav>\n", href("hello", chinese), chinese ? "开始使用" : "Get started");
     }
     out += "<div class=\"routes\">\n";
@@ -1825,8 +1814,13 @@ std::string static_html(std::string_view lang) {
         for (const Place& p : all) {
             out += std::format("<section id=\"{}\" lang=\"{}\" data-place=\"{}\"{}>\n", href(p.id, chinese).substr(1), chinese ? "zh-CN" : "en", p.id,
                                p.id == "home" && chinese == first_chinese ? " data-default" : "");
-            const std::string alias = std::format("/{}{}", chinese ? "zh/" : "", p.id);
-            if (alias != href(p.id, chinese).substr(1)) out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", alias);
+            // Its other addresses: its id, and where it was before (the motion page was demos); never another place's.
+            for (const std::string_view old : {p.id, p.id == "explore" ? std::string_view("demos") : std::string_view()}) {
+                if (old.empty()) continue;
+                const std::string alias = std::format("/{}{}", chinese ? "zh/" : "", old);
+                const bool taken = std::ranges::any_of(all, [&](const Place& other) { return href(other.id, chinese).substr(1) == alias; });
+                if (!taken) out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", alias);
+            }
             if (p.id == "home") {
                 out += std::format("<span class=\"route-alias\" id=\"{}\"></span>", chinese ? "/zh" : "/");
                 out += "<div class=\"landing-static\"><div>" + home_landing_html(chinese) + "</div><div class=\"landing-mark\">" + brand_svg(theme.color("accent")) + "</div></div>";
@@ -1840,7 +1834,10 @@ std::string static_html(std::string_view lang) {
                 ? "<h1>给火种，留一条路。</h1><p>反应实验室：编辑路径与屏障，逐步观察整数规则的演变，回退并保存工程。交互需要 JavaScript，也可通过 Inspector 的 CLI 与 Agent 操作。</p>"
                 : "<h1>Make room for a spark.</h1><p>Reaction lab: edit paths and barriers, inspect integer rules step by step, rewind and save a project. Interaction needs JavaScript; the Inspector also provides CLI and Agent operations.</p>";
             else if (p.id == "docs") out += docs_html(chinese);
-            else if (p.id == "explore") out += motion_gallery_html(chinese, true);
+            else if (p.id == "explore")
+                out += std::string(chinese ? "<h1>拿在手里的动效</h1><p>每一个都是能拿在手里的能力：标志自己写出来、Mui 的像素聚拢、柔软的落地、可以甩的弹簧、agent 改动画的时机、会流动的玻璃。运行它们需要 JavaScript。</p>"
+                                           : "<h1>Motion you can hold</h1><p>Each a capability you can take in your hands: the mark writing itself, Mui's pixels gathering, a soft landing, a spring you can throw, an agent retiming a motion, glass that flows. Running them needs JavaScript.</p>")
+                     + motion_gallery_html(chinese, true);
             if (const std::string_view doc = document(p.id, language); !doc.empty()) {
                 if (p.id == "hello") out += std::format("<h1>{}</h1>", chinese ? "开始使用" : "Get started");
                 std::string html = mlibs::markdown::to_html(mlibs::markdown::parse(doc));
@@ -1871,6 +1868,7 @@ std::string static_html(std::string_view lang) {
             const auto place = creative ? "explore" : "motion";
             const std::string route = canonical_route(place, language, {}, item.id);
             out += std::format("<section id=\"/{}\" lang=\"{}\" data-place=\"{}\" data-live-root=\"main/body/view/{}/page/motion_gallery/stage/scene\" data-live-name=\"{}\">", route, chinese ? "zh-CN" : "en", place, place, escaped(chinese ? item.zh : item.en));
+            if (creative) out += std::format("<span class=\"route-alias\" id=\"/{}demos/{}\"></span>", chinese ? "zh/" : "", item.id);
             out += motion_gallery_html(chinese, creative, item.id) + "</section>\n";
         }
         for (const auto mode : {"use", "develop", "design"}) {
@@ -1947,8 +1945,6 @@ std::optional<std::string> inject(std::string_view page, std::string_view fragme
                    "padding:1px 4px;border-radius:3px}#omui-static pre{white-space:pre-wrap}#omui-static table{border-collapse:collapse}"
                    "#omui-static td,#omui-static th{border:1px solid #e6e6e3;padding:4px 8px}"
                    "#omui-static .brand{display:inline-flex;align-items:center;gap:8px}#omui-static .brand svg{width:32px;height:32px}"
-                   "#omui-static .core-navigation{display:inline-block;position:relative;vertical-align:middle}"
-                   "#omui-static .core-navigation[open]>a{display:block}#omui-static .core-navigation summary{cursor:pointer;color:#4f46e5}"
                    "#omui-static .static-links{display:flex;gap:24px;align-items:center}"
                    "#omui-static .static-menu{margin-left:auto;border:0;background:transparent;padding:8px;color:#4f46e5;font:inherit;cursor:pointer}"
                    "#omui-static nav[data-compact=true] .static-links{flex-basis:100%;flex-direction:column;align-items:stretch;gap:12px}"

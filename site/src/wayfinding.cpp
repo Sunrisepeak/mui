@@ -15,10 +15,15 @@ auto words(const SiteLinks& links, std::string_view en, std::string_view zh) {
 struct GuideEntry {
     std::string_view id, en, zh, summary_en, summary_zh;
 };
-constexpr std::array<GuideEntry, 3> guides{{
+// The guides, then the reference (each a page to use, read up on here): the motion
+// specimens, styling, one interface in many languages.
+constexpr std::array<GuideEntry, 6> guides{{
     {"hello", "Get started", "开始使用", "Install, make your first interface, and run it beside its source.", "安装、创建第一个界面，对照源码运行。"},
     {"features", "Core ideas", "核心概念", "Understand the semantic tree, agents, time and the framework's architecture.", "理解语义树、agent、时间与框架的结构。"},
     {"practices", "Practical guide", "实践指南", "Choose a language, compose components, and keep behaviour reproducible.", "选择语言、组合组件，让行为可以重现。"},
+    {"motion", "Motion specimens", "动效规格样本", "The specification's motion samples, each live: surfaces, transforms, layout, text, values, presence.", "规范里的动效样本，逐个现场运行：表面、变换、布局、文字、数值、出现与消失。"},
+    {"styles", "Styling", "风格化", "The same live controls in glass, ink, neon, retro and liquid materials.", "同一组真实控件，换上玻璃、墨纸、霓虹、复古与液态材质。"},
+    {"interface", "One interface × languages", "统一接口 × 多语言", "One live workspace, read back as semantics, and its API in C++, TypeScript, Python and Lua.", "一个真实工作台，读回它的语义，对照 C++、TypeScript、Python、Lua 的接口。"},
 }};
 
 std::string folded(std::string_view input) {

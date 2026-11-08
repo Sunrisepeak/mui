@@ -13,7 +13,7 @@ struct Scene {
     std::shared_ptr<const AgentSession> session;
     Scene() {
         host.runtime().set_agent_access(access);session=access->open_session();
-        auto app=site::app("motion/component-motion","en");host.runtime().set_theme(app.theme);app.setup(host.runtime());
+        auto app=site::app("docs/motion/component-motion","en");host.runtime().set_theme(app.theme);app.setup(host.runtime());
         for(auto& v:app.verbs)check(host.runtime().verbs().add(v.desc,v.fn).has_value());
         host.mount("main",app.view());for(int i=0;i<120;++i)step();
     }

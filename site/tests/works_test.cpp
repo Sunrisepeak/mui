@@ -288,5 +288,52 @@ int main(int argc, char** argv) {
         check(loops == static_cast<std::size_t>(std::ranges::count(hanim::anim::recipes(), hanim::anim::RecipeKind::loop, &hanim::anim::RecipeInfo::kind)), std::format("{} loops", loops));
     });
 
+    suite.test("the recipe library's editor: a recipe tuned on its sliders plays as tuned; its call and its step say so; reset, its own again", [] {
+        Page page(7000);
+        const std::string library = "main/body/view/explore/page/recipes", editor = library + "/tune/editor";
+        Invocation call;
+        const auto act = [&](const std::string& id, std::string_view action = "activate", Value args = {}) {
+            Invocation with;
+            with.args = std::move(args);
+            const bool done = page.h.tree().act(id, action, with).exit_code() == std::optional<int>(0);
+            page.h.settle();
+            return done;
+        };
+        const auto stage = [&] { return page.h.tree().node(editor + "/stage")->value; };
+        // From its card into the editor: shake, its amplitude a pair.
+        check(act(library + "/grid/shake/copy/tune"));
+        check_eq(page.h.tree().node(editor + "/controls/name")->name, std::string("shake"));
+        check_eq(page.h.tree().node(editor + "/controls/call")->name, std::string("hanim::anim::shake(card, {8, 0})"));
+        check(act(editor + "/controls/amount_row/amount", "set_value", Value{}.set("value", 20.0)) && act(editor + "/controls/amount_y_row/amount_y", "set_value", Value{}.set("value", 6.0)));
+        check(act(editor + "/controls/duration_row/duration", "set_value", Value{}.set("value", 0.8)));
+        check(std::abs(stage().get("amount")->as_double() - 20) < 1e-9 && std::abs(stage().get("amount_y")->as_double() - 6) < 1e-9 && std::abs(stage().get("duration")->as_double() - 0.8) < 1e-9, stage().json());
+        check(std::abs(stage().get("length")->as_double() - 0.8) < 1e-6, std::format("as long as tuned: {}", stage().get("length")->as_double()));
+        const std::string tuned_call = "hanim::anim::shake(card, {20, 6}, {.duration = seconds(0.8)})";
+        check_eq(page.h.tree().node(editor + "/controls/call")->name, tuned_call);
+        check(act(editor + "/controls/actions/cpp"));
+        check_eq(page.h.runtime().clipboard_text(), tuned_call);
+        check(act(editor + "/controls/actions/json"));
+        check_eq(page.h.runtime().clipboard_text(), std::string(R"({"do": "shake", "object": "card", "amplitude": [20, 6], "duration": 0.8})"));
+        // Played as tuned: the card goes as far as 20 px to the side (drawn, sampled over its time).
+        check(act(editor + "/controls/actions/play"));
+        const auto dir = scratch_dir("works-tune");
+        for (int frame = 0; frame < 6; ++frame) {
+            page.h.advance(seconds(0.8 / 6));
+            (void)page.h.save_png(dir / std::format("shake-{:02}.png", frame), page.h.runtime().screen_bounds(page.h.runtime().find(editor + "/stage")));
+        }
+        page.h.settle(seconds(2));
+        check(!stage().get("playing")->as_bool() && std::abs(stage().get("at")->as_double() - 0.8) < 1e-6, "played through, held at its end");
+        // An angle in degrees on its slider (radians in the recipe), a loop's period.
+        check(act(library + "/grid/sway/copy/tune"));
+        check(act(editor + "/controls/amount_row/amount", "set_value", Value{}.set("value", 10.0)) && act(editor + "/controls/period_row/period", "set_value", Value{}.set("value", 1.5)));
+        check(std::abs(stage().get("amount")->as_double() - 10 * std::numbers::pi / 180) < 1e-9 && std::abs(stage().get("period")->as_double() - 1.5) < 1e-9, stage().json());
+        check(std::abs(stage().get("length")->as_double() - 3.0) < 1e-6, "a loop played twice: twice its period");
+        check(act(editor + "/controls/actions/json"));
+        check_eq(page.h.runtime().clipboard_text(), std::string(R"({"do": "sway", "object": "card", "degrees": 10.0, "period": 1.5})"));
+        check(act(editor + "/controls/actions/reset"));
+        check_eq(page.h.tree().node(editor + "/controls/call")->name, std::string("hanim::anim::sway(card, 0.08, seconds(2.4))"));
+        (void)call;
+    });
+
     return suite.run(argc, argv);
 }

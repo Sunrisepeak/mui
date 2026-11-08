@@ -57,7 +57,8 @@ int main(int argc, char** argv) {
             const auto* current = site::find_motion_case(id, creative);
             check(current != nullptr); if (!current) continue;
             check(occurrences(html, "<article data-gallery-current=") == 1 && html.contains(std::format("data-gallery-current=\"{}\"", id)), "the fallback starts with the same default sample as the live player");
-            check(occurrences(shown, "<h1>") == 1 && occurrences(shown, "<h2>") == 1 && shown.contains(zh ? current->zh : current->en), "one visible primary example precedes the closed catalogue");
+            // The compositions' overview is a section of the motion page (under its works' heading).
+            check(occurrences(shown, "<h1>") == (creative ? 0 : 1) && occurrences(shown, "<h2>") == (creative ? 2 : 1) && shown.contains(zh ? current->zh : current->en), "one visible primary example precedes the closed catalogue");
             check(shown.contains("data-gallery-preview=\"static\"") && shown.contains(zh ? "需要 JavaScript" : "require JavaScript"), "a readable static state is explicitly distinguished from live playback");
             check(closed_disclosures(html) && html.contains("<details data-gallery-details>") && html.contains("<details data-gallery-catalog>"), "neither metadata nor the full directory expands by default");
             check(!shown.contains("<dl>") && !shown.contains("data-gallery-group="), "implementation metadata and all category bodies stay outside the initial reading flow");
@@ -90,7 +91,7 @@ int main(int argc, char** argv) {
                 const auto shown = outside_disclosures(html);
                 check(shown.contains(std::format("data-gallery-current=\"{}\"", entry.id)) && shown.contains(zh ? entry.zh : entry.en) && shown.contains(zh ? entry.purpose_zh : entry.purpose_en), entry.id);
                 check(occurrences(shown, "<h2>") == 1 && !html.contains("data-gallery-catalog"), "a detail renders its own content rather than a second complete directory");
-                check(html.contains(std::format("href=\"#/{}{}\"", zh ? "zh/" : "", creative ? "demos" : "motion")), "the detail can return to the full native directory");
+                check(html.contains(std::format("href=\"#/{}{}\"", zh ? "zh/" : "", creative ? "motion" : "docs/motion")), "the detail can return to the full native directory");
                 check(closed_disclosures(html) && !html.contains(" id="), "the fragment leaves route anchors and live handoff identity to app.cpp");
             }
     });
@@ -115,7 +116,7 @@ int main(int argc, char** argv) {
             for (const auto id : {"missing-example", "<script>bad()</script>", creative ? "list-grid" : "palette-studio"}) {
                 const auto html = site::motion_gallery_html(zh, creative, id);
                 check(html.contains(zh ? "没有找到这个样张" : "This example was not found") && !html.contains("data-gallery-current="), "unknown examples do not pretend to be the default sample");
-                check(html.contains(std::format("href=\"#/{}{}\"", zh ? "zh/" : "", creative ? "demos" : "motion")) && !html.contains("<script>"), "the error stays readable and offers a safe route back to browsing");
+                check(html.contains(std::format("href=\"#/{}{}\"", zh ? "zh/" : "", creative ? "motion" : "docs/motion")) && !html.contains("<script>"), "the error stays readable and offers a safe route back to browsing");
             }
     });
     return suite.run(argc, argv);

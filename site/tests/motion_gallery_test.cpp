@@ -286,10 +286,10 @@ int main(int argc, char** argv) {
     });
 
     suite.test("catalogue links use canonical routes and choosing a design brings its canvas into view", [] {
-        check(site::motion_gallery_html(false, true).find("#/demos/packing-board") != std::string::npos);
-        check(site::motion_gallery_html(true, true).find("#/zh/demos/packing-board") != std::string::npos);
-        check(site::motion_gallery_html(false, false).find("#/motion/list-grid") != std::string::npos);
-        check(site::motion_gallery_html(true, false).find("#/zh/motion/list-grid") != std::string::npos);
+        check(site::motion_gallery_html(false, true).find("#/motion/packing-board") != std::string::npos);
+        check(site::motion_gallery_html(true, true).find("#/zh/motion/packing-board") != std::string::npos);
+        check(site::motion_gallery_html(false, false).find("#/docs/motion/list-grid") != std::string::npos);
+        check(site::motion_gallery_html(true, false).find("#/zh/docs/motion/list-grid") != std::string::npos);
         Probe p("list-grid");
         auto offset = signal(0.0f);
         p.h.mount("main", scroll({.y = offset, .width = 748, .height = 600}, {dynamic([&p] {

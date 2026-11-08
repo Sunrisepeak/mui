@@ -40,10 +40,14 @@ struct Site {
     bool navigate(std::string_view place) {
         if (place == "home") return h.click("main/bar/mark");
         if (place == "hello") return h.click("main/bar/start");
-        if (const auto* destination = site::find_place(place); destination && destination->section == "core") {
-            if (!h.click("main/bar/nav/core/open")) return false;
+        // The reference pages, from the docs' list.
+        if (place == "motion" || place == "styles" || place == "interface") {
+            if (!h.click("main/bar/nav/to_docs")) return false;
+            h.settle();
+            const auto open = std::format("main/body/view/docs/page/read/results/{}/open", place);
+            if (h.tree().act(open, "scroll_into_view").exit_code() != std::optional<int>(0)) return false;
             h.settle(seconds(0.5));
-            return h.click(std::format("main/bar/nav/core/menu/to_{}", place));
+            return h.click(open);
         }
         if (place == "features" || place == "practices") {
             if (!h.click("main/bar/nav/to_docs")) return false;
@@ -612,7 +616,7 @@ int main(int argc, char** argv) {
         narrow.mount("main", spec.view());
         narrow.settle(seconds(0.9));
         check(narrow.tree().node("main/body/view/home/page/landing/intro/title")->name == "One interface. Every perspective.");
-        for (const auto name : {"Explore components", "Creative demos"}) {
+        for (const auto name : {"Explore components", "See the motion"}) {
             const auto buttons = narrow.tree().find({.under = "main/body/view/home/page/landing", .role = Role::button});
             check(std::ranges::any_of(buttons, [name](const auto& node) { return node.name == name; }), name);
         }
@@ -975,7 +979,7 @@ int main(int argc, char** argv) {
         // (the foot says the home tree's hash; the lenses show the tree).
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
-        check_eq(all.hex(), std::string("8c8224a2dd4b8f92"));
+        check_eq(all.hex(), std::string("a971407b09012139"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -1153,6 +1157,10 @@ int main(int argc, char** argv) {
     s.test("the route catalog: canonical addresses, existing links, languages and missing routes", [] {
         for (const auto& p : site::places()) for (std::string_view language : {"en", "zh"}) {
             for (const std::string address : {site::canonical_route(p.id, language), std::string(language) + "/" + std::string(p.id)}) {
+                // A place's id is an address too, unless another place lives there (`motion` is the motion page; its specimens are `docs/motion`).
+                if (address != site::canonical_route(p.id, language) &&
+                    std::ranges::any_of(site::places(), [&](const site::Place& other) { return other.id != p.id && other.route == p.id; }))
+                    continue;
                 const auto parsed = site::parse_site_route("#/" + address + "/");
                 check(parsed && parsed->place == p.id && parsed->language == language, address);
             }
@@ -1250,8 +1258,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("e0c2fad69495426b"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("675bc17eed310c55"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("079033371bb4d55a"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("2da35a9ed4fbf2db"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

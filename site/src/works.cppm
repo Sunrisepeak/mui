@@ -9,20 +9,30 @@ export module omui.site:works;
 
 import std;
 import omui;
+import :program_stage;
 
 export namespace omui::site {
 
 struct Works {
-    // Each work's time and whether it plays (the stages write them; the controls set them).
-    Signal<double> mark_at = signal(0.0), mark_length = signal(0.0), gather_at = signal(0.0), gather_length = signal(0.0), card_at = signal(0.0);
+    // Each work's time and whether it plays (the stages write them; the controls set them). A work
+    // made of nothing at its start (the mark unwritten, the pixels away) rests at its end until played.
+    Signal<double> mark_at = signal(1e6), mark_length = signal(0.0), gather_at = signal(1e6), gather_length = signal(0.0), card_at = signal(0.0);
     Signal<bool>   mark_playing = signal(false), gather_playing = signal(false), other = signal(false), cards = signal(false);
     // The cards an agent retimes: their time, timing and plan (the stage writes the plan, as hanim made it).
-    Signal<double> rise_at = signal(0.0), rise_length = signal(0.0), rise_delay = signal(0.0), rise_bounce = signal(0.0);
+    Signal<double> rise_at = signal(1e6), rise_length = signal(0.0), rise_delay = signal(0.0), rise_bounce = signal(0.0);
     Signal<bool>   rise_playing = signal(false), together = signal(false);
     Signal<std::string> rise_plan = signal(std::string());
     // The recipe library's filter: all, entrance, exit, attention, loop.
     Signal<std::string> recipe_kind = signal(std::string("all"));
+    // The recipe in its editor and its tuning (its own to start: see tune_recipe), its time and whether it plays.
+    Signal<std::string> tune_name = signal(std::string("pulse"));
+    Signal<double>      tune_amount = signal(1.08), tune_amount_y = signal(1.08), tune_duration = signal(0.0), tune_period = signal(0.0);
+    Signal<double>      tune_at = signal(0.0), tune_length = signal(0.0);
+    Signal<bool>        tune_playing = signal(false);
 };
+
+// A recipe into the library's editor, tuned as it comes (its own parameter, duration and period).
+void tune_recipe(Works&, std::string_view name);
 
 struct WorksSite {
     Runtime**            runtime = nullptr;
@@ -35,8 +45,8 @@ struct WorksSite {
 // name (anim::recipes()), each a live thumbnail — played on a card when asked
 // — with its call in C++ and its step in an animation document to copy.
 [[nodiscard]] Element recipe_library(Works&, const WorksSite&, float width);
-// A recipe's call (C++) and its step (an animation document's JSON), with its defaults.
-[[nodiscard]] std::string recipe_cpp(std::string_view name);
-[[nodiscard]] std::string recipe_json(std::string_view name);
+// A recipe's call (C++) and its step (an animation document's JSON): as tuned, or with its defaults.
+[[nodiscard]] std::string recipe_cpp(std::string_view name, const WorkTuning& tuning = {});
+[[nodiscard]] std::string recipe_json(std::string_view name, const WorkTuning& tuning = {});
 
 }  // namespace omui::site

@@ -18,9 +18,13 @@ struct Visitor {
         h.mount("main", app.view()); h.settle(seconds(1));
     }
     void click(std::string_view id) { check(h.click(id), id); h.settle(seconds(0.5)); }
-    void core(std::string_view id) {
-        click("main/bar/nav/core/open");
-        click(std::string("main/bar/nav/core/menu/to_") + std::string(id));
+    // A reference page, from the docs' list.
+    void reference(std::string_view id) {
+        click("main/bar/nav/to_docs");
+        const auto open = std::format("main/body/view/docs/page/read/results/{}/open", id);
+        check(h.tree().act(open, "scroll_into_view").exit_code() == std::optional<int>(0), open);
+        h.settle(seconds(0.3));
+        click(open);
     }
 };
 const std::filesystem::path& media() { static const auto dir = scratch_dir("site-navigation"); return dir; }
@@ -43,37 +47,45 @@ int main(int argc, char** argv) {
         }
         check(!site::parse_site_route("motion/does-not-exist"));
         check(!site::parse_site_route("demos/does-not-exist"));
+        check(!site::parse_site_route("docs/motion/does-not-exist"));
         check(!site::parse_site_route("agent/does-not-exist"));
         check(site::parse_site_route("explore")->place == "explore", "old exploration links remain valid");
+        // The places that moved: their older addresses still find them.
+        check(site::parse_site_route("motion")->place == "explore" && site::parse_site_route("demos")->place == "explore");
+        check(site::parse_site_route("zh/demos/packing-board")->example == "packing-board" && site::parse_site_route("demos/packing-board")->place == "explore");
+        check(site::parse_site_route("motion/list-grid")->place == "motion", "a specimen's older address finds it under the docs");
+        check(site::canonical_route("motion", "en", {}, "list-grid") == "docs/motion/list-grid");
+        check(site::canonical_route("explore", "zh", {}, "packing-board") == "zh/motion/packing-board");
+        for (const auto place : {"styles", "interface"}) check(site::parse_site_route(place)->place == place && site::canonical_route(place) == std::string("docs/") + place);
     });
-    suite.test("one core menu opens real feature pages; Agent and creative demos are top-level", [] {
+    suite.test("four places at the top: components, motion, the agent, the docs; the reference under the docs", [] {
         Visitor v;
-        check(!v.h.tree().node("main/bar/nav/to_components"));
-        for (const auto id : {"components", "motion", "styles", "interface"}) {
-            v.core(id);
-            check(v.h.tree().node(std::string("main/body/view/") + id + "/page").has_value(), id);
-        }
+        const auto nav = v.h.tree().snapshot({.root = "main/bar/nav"});
+        std::vector<std::string> buttons;
+        for (const auto& node : nav.nodes)
+            if (node.role == Role::button) buttons.push_back(node.name);
+        check(buttons == std::vector<std::string>{"Components", "Motion", "Agent native", "Docs"}, "one row of places, no menu");
+        v.click("main/bar/nav/to_components");
+        check(v.h.tree().node("main/body/view/components/page").has_value());
         v.click("main/bar/nav/to_explore");
-        check(v.h.runtime().route() == "demos");
+        check(v.h.runtime().route() == "motion");
+        check(v.h.tree().node("main/body/view/explore/page/works/heading")->name == "Motion you can hold", "the motion page opens on its works");
         v.click("main/bar/nav/to_agent");
         check(v.h.tree().node("main/body/view/agent/page/agent_feature").has_value());
         v.click("main/bar/nav/to_docs");
         check(v.h.tree().node("main/body/view/docs/page/directory").has_value());
-        v.click("main/bar/nav/core/open");
-        const auto open = v.h.tree().node("main/bar/nav/core/open");
-        check(open && open->states.has(State::collapsible) && open->states.has(State::expanded), "the disclosure announces its open state");
-        v.h.key(Key::escape); v.h.settle(seconds(0.3));
-        const auto menu_tree = v.h.tree().snapshot({.root = "main/bar/nav/core"});
-        check(std::ranges::none_of(menu_tree.nodes, [](const auto& node) { return node.id.starts_with("main/bar/nav/core/menu/"); }),
-              "Escape removes closed-menu entries from the accessible snapshot");
-        check(!v.h.runtime().get(v.h.runtime().find("main/bar/nav/core/menu"), "open").as_bool(), "Escape closes the actual popover");
-        const auto closed = v.h.tree().node("main/bar/nav/core/open");
-        check(closed && closed->states.has(State::collapsible) && !closed->states.has(State::expanded), "the disclosure announces its collapsed state");
+        for (const auto id : {"motion", "styles", "interface"}) {
+            v.reference(id);
+            check(v.h.tree().node(std::string("main/body/view/") + id + "/page").has_value(), id);
+            check(v.h.runtime().route() == std::string("docs/") + id);
+            const auto docs = v.h.tree().node("main/bar/nav/to_docs");
+            check(docs && docs->states.has(State::selected), "a reference page is the docs' place");
+        }
     });
     suite.test("history follows example and agent subroutes without losing their meaning", [] {
-        Visitor v("zh/motion/list-grid");
-        check(v.h.runtime().route() == "zh/motion/list-grid");
-        for (const auto route : {"demos/packing-board", "agent/develop", "agent/design", "components/toggle", "motion", "zh/demos"}) {
+        Visitor v("zh/docs/motion/list-grid");
+        check(v.h.runtime().route() == "zh/docs/motion/list-grid");
+        for (const auto route : {"motion/packing-board", "agent/develop", "agent/design", "components/toggle", "docs/motion", "zh/motion"}) {
             v.h.runtime().set_route(route); v.h.settle(seconds(0.6));
             const auto parsed = site::parse_site_route(route);
             check(parsed.has_value());
@@ -84,8 +96,8 @@ int main(int argc, char** argv) {
     suite.test("both languages and mobile menus retain one visible top-level heading", [] {
         for (const auto language : {"en", "zh"}) for (const float width : {360.0f, 390.0f, 768.0f, 1280.0f, 1440.0f}) {
             Visitor v("home", width, language);
-            for (const auto route : {"home", "components", "motion", "styles", "interface", "agent", "demos"}) {
-                v.h.runtime().set_route(site::canonical_route(route == std::string_view("demos") ? "explore" : route, language));
+            for (const auto route : {"home", "components", "motion", "styles", "interface", "agent", "explore"}) {
+                v.h.runtime().set_route(site::canonical_route(route, language));
                 v.h.settle(seconds(0.35));
                 std::size_t headings = 0;
                 const auto tree = v.h.tree().snapshot({.root = "main/body/view"});
@@ -96,13 +108,13 @@ int main(int argc, char** argv) {
                     check(v.h.save_png(media() / std::format("{}-{}-{}.png", route, language, static_cast<int>(width))).has_value());
             }
             if (width < 900) {
-                v.click("main/bar/menu_toggle"); v.core("components");
+                v.click("main/bar/menu_toggle"); v.click("main/bar/nav/to_components");
                 check(v.h.tree().node("main/body/view/components/page/gallery").has_value());
             }
         }
     });
     suite.test("resizing inside one responsive band recomputes the mounted specimen width", [] {
-        for (const auto route : {"home", "components", "motion", "demos", "styles", "interface", "agent"}) {
+        for (const auto route : {"home", "components", "motion", "docs/motion", "docs/styles", "docs/interface", "agent"}) {
             Visitor v(route, 390);
             v.h.runtime().resize({360, 844}, 1); v.h.settle(seconds(0.5));
             const auto place = site::parse_site_route(route)->place;

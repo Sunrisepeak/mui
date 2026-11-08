@@ -428,15 +428,17 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
         }} }}, {std::move(scene)});
     stage.prop("focusable", Source(Value(true)));
     auto title = text({.id = "title", .text = std::string(zh ? info->zh : info->en), .style = "title", .size = width < 520 ? 30 : 38, .max_width = Dim(width)});
-    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
+    // The page's heading where the gallery is the page (the specimens, a composition opened);
+    // on the motion page, under its works, a section's.
+    title.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{creative && !g.detail.peek() ? 2 : 1})));
     std::vector<Element> content{
-        text({.id = "eyebrow", .text = words(c, creative ? "OMUI / CREATIVE DEMOS" : "OMUI / BASIC MOTION", creative ? "OMUI / 创意演示" : "OMUI / 基础动画"), .style = "label", .color = "accent"}),
+        text({.id = "eyebrow", .text = words(c, creative ? "OMUI / COMPOSITIONS" : "OMUI / MOTION SPECIMENS", creative ? "OMUI / 动效组合" : "OMUI / 动效规格样本"), .style = "label", .color = "accent"}),
         row({.id = "heading", .gap = 12, .align = "center", .wrap = "wrap"}, {
             std::move(title),
             badge({.id = "count", .text = std::format("{} {}", entries.size(), words(c, "designs", "项设计"))})}),
         text({.id = "purpose", .text = std::string(zh ? info->purpose_zh : info->purpose_en), .color = "text_muted", .max_width = Dim(width)}),
         button({.id = "choose", .text = g.browser_open.get() ? words(c, "Close picker", "收起目录")
-                    : std::format("{} {}", words(c, creative ? "Choose creative demo" : "Choose animation", creative ? "选择创意" : "选择动画"), entries.size()),
+                    : std::format("{} {}", words(c, creative ? "Choose a composition" : "Choose a specimen", creative ? "选择组合" : "选择样本"), entries.size()),
                 .variant = ButtonVariant::ghost, .on_activated = [&g] { g.browser_open.set(!g.browser_open.peek()); }, .align_self = "start"})};
     if (g.browser_open.get()) {
         std::vector<std::string> groups{"all"}, group_labels{words(c, "All designs", "全部设计")};
@@ -487,14 +489,16 @@ Element motion_gallery(MotionGallery& g, const MotionGalleryContext& c, bool cre
 }
 std::string motion_gallery_html(bool zh, bool creative, std::string_view id) {
     const auto entries = creative ? creative_motions() : basic_motions();
-    const std::string route = std::string(zh ? "zh/" : "") + (creative ? "demos" : "motion");
+    const std::string route = std::string(zh ? "zh/" : "") + (creative ? "motion" : "docs/motion");
     const auto* info = find_motion_case(id.empty() ? (creative ? "palette-studio" : "shape-morph") : id, creative);
     // app.cpp owns each outer route section, its anchor and live handoff root.
     // This fragment must not introduce another route target or hide the selected
     // title inside a catalogue. Keep only the overview's directory in the HTML:
     // repeating all 40/20 links on every detail route inflates the Toy package.
-    std::string out = std::format("<section class=\"static-gallery\"><h1>{}</h1><p>{}</p>",
-        zh ? (creative ? "创意演示" : "基础动画") : (creative ? "Creative demos" : "Basic motion"),
+    // On the motion page the compositions are a section under its works (their heading the page's).
+    const std::string_view level = creative && id.empty() ? "h2" : "h1";
+    std::string out = std::format("<section class=\"static-gallery\"><{}>{}</{}><p>{}</p>", level,
+        zh ? (creative ? "动效组合" : "动效规格样本") : (creative ? "Compositions" : "Motion specimens"), level,
         zh ? "先看一个样张，再按用途选择其他设计。" : "Start with one example, then choose another by its purpose.");
     if (!id.empty()) out += std::format("<p><a href=\"#/{}\">{}</a></p>", route,
         zh ? "返回概览与分类目录" : "Back to the overview and catalogue");

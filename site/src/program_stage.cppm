@@ -20,12 +20,16 @@ struct Work {
     hanim::ObjectDescription                         object;
     std::function<hanim::Program(hanim::ObjectRef)> program;
 };
-// A work's timing, where it takes one: seconds before it begins, and how much it overshoots (0 to 1).
-struct WorkTiming {
+// A work's tuning, where it takes one: seconds before it begins and how much it overshoots (0 to 1);
+// a recipe's parameter (`amount`, a pair's `amount_y`: the recipe's own unless `tuned`), its
+// duration and an idle loop's period (seconds; 0: its own).
+struct WorkTuning {
     double delay = 0, bounce = 0;
-    friend bool operator==(const WorkTiming&, const WorkTiming&) = default;
+    bool   tuned = false;
+    double amount = 0, amount_y = 0, duration = 0, period = 0;
+    friend bool operator==(const WorkTuning&, const WorkTuning&) = default;
 };
-[[nodiscard]] std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTiming timing = {});
+[[nodiscard]] std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTuning tuning = {});
 
 class ProgramStage : public ProgramStageContract<ProgramStage> {
 public:
@@ -52,7 +56,7 @@ private:
         Size                              room;
         bool                              dark = false;
         std::string                       work;
-        WorkTiming                        timing;
+        WorkTuning                        tuning;
         double                            length = 0;
         std::string                       plan;  // each piece's start and end, as hanim planned it
     };
@@ -66,6 +70,7 @@ private:
     mutable double                from_at_ = 0, from_time_ = 0;  // where and when it started playing
     mutable bool                  writing_ = false;
     mutable std::uint64_t         tick_ = 0;
+    [[nodiscard]] WorkTuning tuning() const;
 };
 
 }  // namespace omui::site

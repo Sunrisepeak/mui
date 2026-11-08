@@ -11,7 +11,7 @@ const std::filesystem::path& media(){static const auto path=scratch_dir("site-co
 struct Run {
     Headless h;
     explicit Run(float width=1100,std::string_view lang="en"):h(HeadlessOptions{.size={width,1000},.parallel_raster=false}) {
-        auto app=site::app("motion",lang);h.runtime().set_theme(app.theme);app.setup(h.runtime());
+        auto app=site::app("docs/motion",lang);h.runtime().set_theme(app.theme);app.setup(h.runtime());
         for(auto& verb:app.verbs)(void)h.runtime().verbs().add(verb.desc,verb.fn);
         h.mount("main",app.view());for(int i=0;i<6;++i)step();
         act("choose");act("browse/choices/component-motion");

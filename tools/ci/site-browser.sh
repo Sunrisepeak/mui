@@ -113,7 +113,7 @@ CHROME=$chrome "$node_bin" "${flags[@]}" tools/ci/site-motion.mjs target/site > 
 python3 - target/site-motion.report.omui.json <<'MOTION'
 import json, sys
 r = json.load(open(sys.argv[1]))
-print("site motion, creative demos and Agent native:")
+print("site motion, the reference pages and Agent native:")
 for c in r["checks"]:
     print(f"  {'ok  ' if c['ok'] else 'FAIL'} {c['what']}")
 MOTION

@@ -125,8 +125,8 @@ int main(int argc, char** argv) {
                 check(contains({0, 64, width, 736}, bounds), "the CTA is fully above the fold without scrolling");
                 if (width < 900) check(bounds.bottom() <= scene.y + 0.5f, "phone destinations precede all scene controls");
                 const auto name = runtime.semantic_node(id).name;
-                check(name == (std::string_view(lang) == "zh" ? std::string_view(target) == "explore" ? "探索组件" : "创意演示"
-                                                                         : std::string_view(target) == "explore" ? "Explore components" : "Creative demos"));
+                check(name == (std::string_view(lang) == "zh" ? std::string_view(target) == "explore" ? "探索组件" : "看动效"
+                                                                         : std::string_view(target) == "explore" ? "Explore components" : "See the motion"));
                 readable_label(runtime, id, name);
                 check(hit_reaches(runtime, id, bounds.center()), "the visible CTA can actually receive pointer input");
             }

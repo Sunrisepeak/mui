@@ -103,7 +103,6 @@ for (const scenario of [
       const fontPlan = await b.value(`window.omuiLoad.assets.find(x=>x.id==='font:NotoSansSC.ttf')?.group`);
       check(fontPlan === (scenario.language==='zh'?'startup':'deferred'), scenario.name+': the chosen page overrides browser language for startup fonts',fontPlan);
       if (scenario.navigate) {
-        await click(b,'nav[data-locale="en"] .core-navigation summary');
         await click(b,'nav[data-locale="en"] a[href="#/motion"]');
         check(await until(b, `window.omuiOpeningVisible?.route==='motion'`), 'static navigation selects the new page picture before wasm is available');
         const count = await b.value(`performance.getEntriesByType('resource').map(x=>new URL(x.name).pathname.split('/').pop())`);
@@ -132,7 +131,7 @@ for (const scenario of [
     if (!handed) throw new Error('Runtime did not hand over');
     check(await b.value(`document.getElementById('omui-static').hidden && document.querySelector('[data-omui=mirror]').getAttribute('aria-hidden')!=='true'`), scenario.name+': only the live accessible surface remains');
     if (scenario.navigate) {
-      check(await b.value(`!!document.querySelector('[data-omui-id="main/body/view/motion/page/motion_gallery/stage/scene"]')`), 'the live handoff follows the page chosen during loading');
+      check(await b.value(`!!document.querySelector('[data-omui-id="main/body/view/explore/page/works/grid/mark"]')`), 'the live handoff follows the page chosen during loading');
     } else if (scenario.dedup) {
       const finalLocale = await b.value(`({root:!!document.querySelector('[data-omui-id="main/body/view/components/page/gallery/detail/button/stage/specimen"]'),language:document.documentElement.lang,fontPlan:window.omuiLoad.assets.find(x=>x.id==='font:NotoSansSC.ttf')?.group,fontLanguage:window.omuiFontLanguage})`);
       check(finalLocale?.root&&finalLocale.language==='zh-CN'&&finalLocale.fontPlan==='startup', 'the locale selected while loading reaches the live component and its startup font plan',finalLocale);

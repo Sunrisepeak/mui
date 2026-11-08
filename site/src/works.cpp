@@ -223,7 +223,7 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                                                              [cards](const Value& value) { cards.set(value.as_string() == "cards"); }}})})));
     }
     Element heading = text({.id = "heading", .text = words(site, "Motion you can hold", "拿在手里的动效"), .style = "title"});
-    heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{2})));
+    heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
     return column({.id = "works", .width = Dim(width), .gap = 16},
                   {std::move(heading),
                    text({.id = "line", .text = words(site, "Each a capability you can take in your hands.", "每一个都是能拿在手里的能力。"), .style = "body", .color = "text_muted"}),
@@ -231,35 +231,191 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
 }
 
 
-std::string recipe_cpp(std::string_view name) {
+namespace {
+
+// A number as code writes it: to a thousandth, no trailing zeros.
+std::string short_number(double value) {
+    const double rounded = std::round(value * 1000) / 1000;
+    return std::format("{}", rounded == 0 ? 0.0 : rounded);
+}
+
+// A recipe's parameter and period as tuned (its own where not).
+double tuned_number(const hanim::anim::RecipeInfo& info, const WorkTuning& tuning) { return tuning.tuned ? tuning.amount : info.number; }
+hanim::Vec2 tuned_pair(const hanim::anim::RecipeInfo& info, const WorkTuning& tuning) { return tuning.tuned ? hanim::Vec2{tuning.amount, tuning.amount_y} : info.vector; }
+double tuned_period(const hanim::anim::RecipeInfo& info, const WorkTuning& tuning) { return tuning.period > 0 ? tuning.period : info.period; }
+
+// How far the editor lets a parameter go: about its default, both ways where it signs a direction.
+struct Range {
+    double low, high, step;
+};
+Range parameter_range(const hanim::anim::RecipeInfo& info, double value) {
+    switch (info.param) {
+        case hanim::anim::RecipeParam::times: return {1, 6, 1};
+        case hanim::anim::RecipeParam::angle: {
+            const double reach = std::max(std::abs(value) * 2, 0.5) * 180 / std::numbers::pi;
+            return {-std::round(reach), std::round(reach), 1};
+        }
+        default: break;
+    }
+    // A scale or factor (near 1): from half to half again; a distance: from nothing to three times.
+    if (value > 0.5 && value < 1.5) return value < 1 ? Range{0.5, 1, 0.01} : Range{1, 1.5, 0.01};
+    const double reach = std::max(std::abs(value) * 3, 8.0);
+    return {info.param == hanim::anim::RecipeParam::pair ? -reach : 0, reach, 1};
+}
+
+}  // namespace
+
+std::string recipe_cpp(std::string_view name, const WorkTuning& tuning) {
     const auto* info = hanim::anim::find_recipe(name);
     if (!info) return {};
     std::string args = "card";
     switch (info->param) {
         case hanim::anim::RecipeParam::none: break;
         case hanim::anim::RecipeParam::number:
-        case hanim::anim::RecipeParam::angle: args += std::format(", {}", info->number); break;
-        case hanim::anim::RecipeParam::times: args += std::format(", {}", static_cast<int>(info->number)); break;
-        case hanim::anim::RecipeParam::pair: args += std::format(", {{{}, {}}}", info->vector.x, info->vector.y); break;
+        case hanim::anim::RecipeParam::angle: args += ", " + short_number(tuned_number(*info, tuning)); break;
+        case hanim::anim::RecipeParam::times: args += std::format(", {}", static_cast<int>(std::round(tuned_number(*info, tuning)))); break;
+        case hanim::anim::RecipeParam::pair: {
+            const hanim::Vec2 pair = tuned_pair(*info, tuning);
+            args += std::format(", {{{}, {}}}", short_number(pair.x), short_number(pair.y));
+            break;
+        }
     }
-    if (info->period > 0) args += std::format(", seconds({})", info->period);
+    if (info->period > 0) args += std::format(", seconds({})", short_number(tuned_period(*info, tuning)));
+    if (tuning.duration > 0) args += std::format(", {{.duration = seconds({})}}", short_number(tuning.duration));
     return std::format("hanim::anim::{}({})", name, args);
 }
 
-std::string recipe_json(std::string_view name) {
+std::string recipe_json(std::string_view name, const WorkTuning& tuning) {
     const auto* info = hanim::anim::find_recipe(name);
     if (!info) return {};
     std::string fields = std::format(R"({{"do": "{}", "object": "card")", name);
     switch (info->param) {
         case hanim::anim::RecipeParam::none: break;
-        case hanim::anim::RecipeParam::number: fields += std::format(R"(, "{}": {})", info->param_name, info->number); break;
+        case hanim::anim::RecipeParam::number: fields += std::format(R"(, "{}": {})", info->param_name, short_number(tuned_number(*info, tuning))); break;
         // A document writes an angle in degrees.
-        case hanim::anim::RecipeParam::angle: fields += std::format(R"(, "{}": {:.1f})", info->param_name, info->number * 180 / std::numbers::pi); break;
-        case hanim::anim::RecipeParam::times: fields += std::format(R"(, "{}": {})", info->param_name, static_cast<int>(info->number)); break;
-        case hanim::anim::RecipeParam::pair: fields += std::format(R"(, "{}": [{}, {}])", info->param_name, info->vector.x, info->vector.y); break;
+        case hanim::anim::RecipeParam::angle: fields += std::format(R"(, "{}": {:.1f})", info->param_name, tuned_number(*info, tuning) * 180 / std::numbers::pi); break;
+        case hanim::anim::RecipeParam::times: fields += std::format(R"(, "{}": {})", info->param_name, static_cast<int>(std::round(tuned_number(*info, tuning)))); break;
+        case hanim::anim::RecipeParam::pair: {
+            const hanim::Vec2 pair = tuned_pair(*info, tuning);
+            fields += std::format(R"(, "{}": [{}, {}])", info->param_name, short_number(pair.x), short_number(pair.y));
+            break;
+        }
     }
-    if (info->period > 0) fields += std::format(R"(, "period": {})", info->period);
+    if (tuning.duration > 0) fields += std::format(R"(, "duration": {})", short_number(tuning.duration));
+    if (info->period > 0) fields += std::format(R"(, "period": {})", short_number(tuned_period(*info, tuning)));
     return fields + "}";
+}
+
+void tune_recipe(Works& state, std::string_view name) {
+    const auto* info = hanim::anim::find_recipe(name);
+    if (!info) return;
+    batch([&] {
+        state.tune_name.set(std::string(name));
+        state.tune_amount.set(info->param == hanim::anim::RecipeParam::pair ? info->vector.x : info->number);
+        state.tune_amount_y.set(info->vector.y);
+        state.tune_duration.set(0.0);
+        state.tune_period.set(info->period);
+        state.tune_playing.set(false);
+        // At rest it shows its card: an entrance at its end (it came in), the rest at their start.
+        state.tune_at.set(info->kind == hanim::anim::RecipeKind::entrance ? 1e6 : 0.0);
+    });
+}
+
+// The library's editor: one recipe on a larger stage, its parameter, duration (a loop's period)
+// on sliders — each change made again and played — and its call and step as tuned, to copy:
+// the step shown is the step that plays.
+Element recipe_editor(Works& state, const WorksSite& site, float width) {
+    Works* const model = &state;
+    Runtime** runtime = site.runtime;
+    const bool wide = width >= 760;
+    const float stage_width = wide ? std::floor(width * 0.42f) : width - 32;
+    return column({.id = "tune", .width = Dim(width), .padding = Edges(16.0f), .gap = 12, .background = "surface_variant", .radius = 16},
+                  {dynamic([model, runtime, lang = site.lang, width, wide, stage_width] {
+                      Works& state = *model;
+                      const std::string name = state.tune_name.get();
+                      const auto* info = hanim::anim::find_recipe(name);
+                      if (!info) return std::vector<Element>{};
+                      const bool zh = lang && lang->peek() == "zh";
+                      const auto tuning = [model] {
+                          const Works& state = *model;
+                          return WorkTuning{.tuned = true, .amount = state.tune_amount.get(), .amount_y = state.tune_amount_y.get(),
+                                            .duration = state.tune_duration.get(), .period = state.tune_period.get()};
+                      };
+                      // Each change seen at once: played again from its start.
+                      const auto replay = [model] {
+                          model->tune_at.set(0.0);
+                          model->tune_playing.set(true);
+                      };
+                      std::vector<Element> sliders;
+                      // A row a value: its name, its slider, the value it is at.
+                      const float room = wide ? width - stage_width - 64 : width - 32;
+                      const auto add = [&](std::string id, std::string label, Range range, std::function<double()> shown, Prop<double> value) {
+                          const int places = range.step >= 1 ? 0 : range.step >= 0.1 ? 1 : 2;
+                          sliders.push_back(row({.id = id + "_row", .width = Dim(room), .gap = 10, .align = "center"},
+                                                {text({.id = "name", .text = label, .style = "caption", .color = "text_muted", .width = Dim(wide ? 96.0f : 72.0f)}),
+                                                 slider({.id = id, .label = label, .max = range.high, .min = range.low, .step = range.step, .value = std::move(value),
+                                                         .on_committed = [replay](double) { replay(); }, .min_width = Dim(0.0f), .grow = 1}),
+                                                 text({.id = "value", .text = computed([shown, places] { return std::format("{:.{}f}", shown(), places); }), .style = "code",
+                                                       .width = Dim(52.0f)})}));
+                      };
+                      const std::string parameter(info->param_name);
+                      switch (info->param) {
+                          case hanim::anim::RecipeParam::none: break;
+                          case hanim::anim::RecipeParam::angle: {
+                              // Degrees on the slider, radians in the recipe.
+                              const Range range = parameter_range(*info, info->number);
+                              add("amount", parameter, range, [model] { return std::round(model->tune_amount.get() * 180 / std::numbers::pi); },
+                                  Source{std::nullopt, [model] { return Value(std::round(model->tune_amount.get() * 180 / std::numbers::pi)); },
+                                         [model](const Value& value) { model->tune_amount.set(value.as_double() * std::numbers::pi / 180); }});
+                              break;
+                          }
+                          case hanim::anim::RecipeParam::pair: {
+                              const Range range = parameter_range(*info, std::max(std::abs(info->vector.x), std::abs(info->vector.y)));
+                              add("amount", parameter + " x", range, [model] { return model->tune_amount.get(); }, state.tune_amount);
+                              add("amount_y", parameter + " y", range, [model] { return model->tune_amount_y.get(); }, state.tune_amount_y);
+                              break;
+                          }
+                          default: add("amount", parameter, parameter_range(*info, info->number), [model] { return model->tune_amount.get(); }, state.tune_amount); break;
+                      }
+                      if (info->period > 0) add("period", zh ? "周期（秒）" : "period (s)", {0.3, 6, 0.1}, [model] { return model->tune_period.get(); }, state.tune_period);
+                      else
+                          // Its own duration until set: what the stage says it is.
+                          add("duration", zh ? "时长（秒）" : "duration (s)", {0.1, 2, 0.05}, [model] { return model->tune_duration.get() > 0 ? model->tune_duration.get() : model->tune_length.get(); },
+                              Source{std::nullopt, [model] { return Value(model->tune_duration.get() > 0 ? model->tune_duration.get() : model->tune_length.get()); },
+                                     [model](const Value& value) { model->tune_duration.set(value.as_double()); }});
+                      const auto copy = [runtime](std::string text) {
+                          if (runtime && *runtime) (*runtime)->set_clipboard_text(std::move(text));
+                      };
+                      Element stage = program_stage({.id = "stage",
+                                                     .amount = state.tune_amount,
+                                                     .amount_y = state.tune_amount_y,
+                                                     .at = state.tune_at,
+                                                     .duration = state.tune_duration,
+                                                     .label = name,
+                                                     .length = state.tune_length,
+                                                     .period = state.tune_period,
+                                                     .playing = state.tune_playing,
+                                                     .tuned = true,
+                                                     .work = "recipe:" + name,
+                                                     .width = Dim(stage_width),
+                                                     .height = Dim(std::round(stage_width * 0.56f))});
+                      std::vector<Element> controls{text({.id = "name", .text = name, .style = "heading"})};
+                      for (auto& one : sliders) controls.push_back(std::move(one));
+                      controls.push_back(row({.id = "actions", .gap = 8, .align = "center", .wrap = "wrap"},
+                                             {button({.id = "play", .text = zh ? "播放" : "Play", .variant = ButtonVariant::secondary, .on_activated = replay}),
+                                              button({.id = "reset", .text = zh ? "还原" : "Reset", .variant = ButtonVariant::ghost,
+                                                      .on_activated = [model, name] { tune_recipe(*model, name); }}),
+                                              button({.id = "cpp", .text = zh ? "复制 C++" : "Copy C++", .variant = ButtonVariant::ghost,
+                                                      .on_activated = [copy, name, tuning] { copy(recipe_cpp(name, tuning())); }}),
+                                              button({.id = "json", .text = zh ? "复制 JSON" : "Copy JSON", .variant = ButtonVariant::ghost,
+                                                      .on_activated = [copy, name, tuning] { copy(recipe_json(name, tuning())); }})}));
+                      // The call as it is tuned, read as it changes.
+                      controls.push_back(text({.id = "call", .text = computed([name, tuning] { return recipe_cpp(name, tuning()); }), .style = "code", .color = "text_muted",
+                                               .max_width = Dim(wide ? width - stage_width - 64 : width - 32)}));
+                      Element side = column({.id = "controls", .gap = 10}, std::move(controls));
+                      return std::vector<Element>{wide ? row({.id = "editor", .gap = 24, .align = "start"}, {std::move(stage), std::move(side)})
+                                                       : column({.id = "editor", .gap = 16}, {std::move(stage), std::move(side)})};
+                  })});
 }
 
 Element recipe_library(Works& state, const WorksSite& site, float width) {
@@ -278,7 +434,8 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
                                 }),
                                 .options = std::vector<std::string>{"all", "entrance", "exit", "attention", "loop"},
                                 .value = kind});
-    Element grid = dynamic([kind, runtime, root, thumb, lang = site.lang] {
+    Works* const state_pointer = &state;
+    Element grid = dynamic([kind, runtime, root, thumb, lang = site.lang, state = state_pointer] {
         const std::string shown = kind.get();
         const auto kind_name = [](hanim::anim::RecipeKind k) {
             switch (k) {
@@ -310,15 +467,21 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
                                                  }})}),
                                     row({.id = "copy", .gap = 6},
                                         {button({.id = "cpp", .text = "C++", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_cpp(name)); }}),
-                                         button({.id = "json", .text = "JSON", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_json(name)); }})})}));
+                                         button({.id = "json", .text = "JSON", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_json(name)); }}),
+                                         // Into the editor (above the grid), which comes into view.
+                                         button({.id = "tune", .text = lang && lang->peek() == "zh" ? "调整" : "Tune", .variant = ButtonVariant::ghost,
+                                                 .on_activated = [state, runtime, root, name] {
+                                                     tune_recipe(*state, name);
+                                                     if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(root + "/tune"), "scroll_into_view");
+                                                 }})})}));
         }
         return std::vector<Element>{row({.id = "grid", .gap = 14, .align = "start", .wrap = "wrap"}, std::move(cards))};
     });
     return column({.id = "recipes", .width = Dim(width), .gap = 14},
                   {std::move(heading),
-                   text({.id = "line", .text = words(site, "hanim's library by name: play each on a card, copy its call or its step.", "hanim 的配方，按名字排开：在卡片上播放，复制它的调用或文档步骤。"),
+                   text({.id = "line", .text = words(site, "hanim's library by name: play each on a card, tune it, copy its call or its step.", "hanim 的配方，按名字排开：在卡片上播放，调整参数，复制它的调用或文档步骤。"),
                          .style = "body", .color = "text_muted"}),
-                   std::move(filter), std::move(grid)});
+                   recipe_editor(state, site, width), std::move(filter), std::move(grid)});
 }
 
 }  // namespace omui::site

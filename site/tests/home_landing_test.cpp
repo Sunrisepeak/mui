@@ -45,7 +45,7 @@ int main(int argc, char** argv) {
         check_eq(headings, std::size_t{1}); check_eq(images, std::size_t{4});
         check_eq(site::brand_geometry().size(), std::size_t{5});
         check(home.name("intro/actions/explore") == "Explore components");
-        check(home.name("intro/actions/creative") == "Creative demos");
+        check(home.name("intro/actions/creative") == "See the motion");
         check(home.h.save_png(media() / "home-en-desktop.png").has_value());
     });
 
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
         home.h.runtime().resize({1280, 844}, 1); home.h.step();
         home.act("intro/actions/creative"); home.h.advance(seconds(4));
         check(!home.h.tree().node(std::string(root)).has_value());
-        check(home.h.runtime().route() == "demos");
+        check(home.h.runtime().route() == "motion");
     });
 
     suite.test("the same canonical heading and usable controls fit five widths in both languages", [] {

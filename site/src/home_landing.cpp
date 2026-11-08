@@ -24,7 +24,7 @@ Element landing_actions(const HomeLandingSite& site) {
     return row({.id = "actions", .gap = 12, .align = "center", .wrap = "wrap"}, {
         button({.id = "explore", .text = landing_words(site, "Explore components", "探索组件"), .variant = ButtonVariant::primary,
             .on_activated = [go = site.go] { if (go) go("components"); }}),
-        button({.id = "creative", .text = landing_words(site, "Creative demos", "创意演示"), .variant = ButtonVariant::ghost,
+        button({.id = "creative", .text = landing_words(site, "See the motion", "看动效"), .variant = ButtonVariant::ghost,
             .on_activated = [go = site.go] { if (go) go("explore"); }})});
 }
 
@@ -167,8 +167,8 @@ void tick_home_landing(HomeLanding& state, const HomeLandingSite& site) {
 }
 
 std::string home_landing_html(bool zh) {
-    return zh ? "<p class=\"landing-eyebrow\">omui</p><h1 aria-label=\"一个界面，不止一种可能。\">一个界面，<br>不止一种可能。</h1><p class=\"landing-lead\">一次构建，让人与 agent 操作同一界面。</p><p class=\"landing-actions\"><a href=\"#/zh/components\">探索组件</a><a href=\"#/zh/demos\">创意演示</a></p>"
-              : "<p class=\"landing-eyebrow\">omui</p><h1 aria-label=\"One interface. Every perspective.\">One interface.<br>Every perspective.</h1><p class=\"landing-lead\">Build once. Let people and agents use the same UI.</p><p class=\"landing-actions\"><a href=\"#/components\">Explore components</a><a href=\"#/demos\">Creative demos</a></p>";
+    return zh ? "<p class=\"landing-eyebrow\">omui</p><h1 aria-label=\"一个界面，不止一种可能。\">一个界面，<br>不止一种可能。</h1><p class=\"landing-lead\">一次构建，让人与 agent 操作同一界面。</p><p class=\"landing-actions\"><a href=\"#/zh/components\">探索组件</a><a href=\"#/zh/motion\">看动效</a></p>"
+              : "<p class=\"landing-eyebrow\">omui</p><h1 aria-label=\"One interface. Every perspective.\">One interface.<br>Every perspective.</h1><p class=\"landing-lead\">Build once. Let people and agents use the same UI.</p><p class=\"landing-actions\"><a href=\"#/components\">Explore components</a><a href=\"#/motion\">See the motion</a></p>";
 }
 
 }  // namespace omui::site

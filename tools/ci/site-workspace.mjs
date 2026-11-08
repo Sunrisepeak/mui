@@ -80,11 +80,11 @@ try {
   await act('main/bar/nav/to_docs','activate');
   await until(node('main/body/view/docs/page'));
   // The brand returns to the landing. The release workspace is a separate
-  // working tool under Creative demos; open it without reloading the runtime.
+  // working tool under Motion; open it without reloading the runtime.
   await act('main/bar/nav/to_explore','activate');
   const release = 'main/body/view/explore/page/explore/works/release/open';
   const toolReady = await until(node(release));
-  check(toolReady, 'Creative demos exposes the release workspace');
+  check(toolReady, 'the motion page exposes the release workspace');
   if (!toolReady) throw new Error('The release workspace destination did not appear');
   await click(release, 'main/body/view/explore');
   const restored = await until(`location.hash==='#/scenes/release' && ${name(board + '/items/task-1/done')}==='Review keyboard and focus'`);

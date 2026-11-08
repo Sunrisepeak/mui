@@ -16,6 +16,12 @@ label   = { type = "string", default = "", doc = "What it shows, said (its acces
 delay   = { type = "f64", default = 0.0, bindable = true, doc = "Seconds before it begins (a work that takes timing: cards-rise)." }
 bounce  = { type = "f64", default = 0.0, bindable = true, doc = "How much it overshoots and settles, 0 (none) to 1 (a work that takes timing)." }
 plan    = { type = "string", default = "", bindable = true, doc = "Its choreography as hanim planned it — each piece's start and end, seconds: written once it is made." }
+# A recipe's tuning (a work recipe:<name>): what the recipe library's editor sets.
+tuned    = { type = "bool", default = false, bindable = true, doc = "Its parameter set (`amount`, `amount_y`); otherwise the recipe's own." }
+amount   = { type = "f64", default = 0.0, bindable = true, doc = "A recipe's parameter when tuned: its distance, scale, angle (radians) or times; a pair's x." }
+amount_y = { type = "f64", default = 0.0, bindable = true, doc = "A pair's y when tuned (a recipe whose parameter is a pair)." }
+duration = { type = "f64", default = 0.0, bindable = true, doc = "How long a recipe takes, seconds (0: its own)." }
+period   = { type = "f64", default = 0.0, bindable = true, doc = "An idle loop's course, seconds (0: its own)." }
 
 [contract.program_stage.actions]
 play  = { effect = "reversible", doc = "Plays on from where it is (from its start when at its end)." }

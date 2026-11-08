@@ -1,4 +1,4 @@
-// Real browser input through the site's core, creative and agent paths.
+// Real browser input through the site's places: motion, the reference under the docs, the agent.
 // Gallery changes use real mouse/keyboard input. The deployment-policy case
 // also sends native Agent input through the same delivered Web host.
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -103,16 +103,15 @@ async function segment(id, index, count, expected) {
   await pointer(id, (index + 0.5) / count);
   await requireCheck(async () => await scalar(id) === expected, 'pointer selects ' + expected, () => scalar(id));
 }
-async function core(destination) {
-  const item = `main/bar/nav/core/menu/to_${destination}`;
-  if (!(await node(item)) || (await node(item))?.state?.includes('hidden')) await pointer('main/bar/nav/core/open');
-  await requireCheck(async () => !!await node(item) && !(await node(item))?.state?.includes('hidden'), 'Core menu exposes ' + destination);
-  await pointer(item); place = destination;
-  await requireCheck(() => exists(`main/body/view/${destination}/page`), 'Core menu opens ' + destination);
-}
 async function top(destination) {
   await pointer('main/bar/nav/to_' + destination); place = destination;
   await requireCheck(() => exists(`main/body/view/${destination}/page`), 'top navigation opens ' + destination);
+}
+// A reference page (the motion specimens, styling, the interface), from the docs' list.
+async function reference(destination) {
+  await top('docs');
+  await pointer(`main/body/view/docs/page/read/results/${destination}/open`); place = destination;
+  await requireCheck(() => exists(`main/body/view/${destination}/page`), 'the docs open ' + destination);
 }
 const gallery = name => `main/body/view/${name}/page/motion_gallery`;
 const choices = async root => (await snapshot(root + '/browse/choices'))?.filter(n => n.role === 'button' && n.id.startsWith(root + '/browse/choices/')) || [];
@@ -165,7 +164,7 @@ try {
     window.__omuiClipboardText = () => c.readText().catch(e => typeof window.__omuiCopied === 'string' ? window.__omuiCopied : Promise.reject(e));
   })();` });
   await dispatch('Page.navigate', { url: report.url });
-  const ready = await wait(() => page.value(`window.omuiStaticHandedOff && !!window.omui && !!${mirror('main/bar/nav/core/open')}`), 60000);
+  const ready = await wait(() => page.value(`window.omuiStaticHandedOff && !!window.omui && !!${mirror('main/bar/nav/to_explore')}`), 60000);
   check(ready, 'the real site hands off to the new live navigation'); if (!ready) throw new Error('The new live site did not become ready');
 
   await scenario('published-agent-policy', async () => {
@@ -180,23 +179,17 @@ try {
     const forged = await page.value(`window.omui.request({op:'describe',actor:'person:owner',dev:true,mode:'development'})`);
     check(forged?.exitCode === 0 && forged?.data?.agent_policy?.mode === 'dual-user' && forged?.data?.agent_policy?.development_grant === false,
       'remote actor and development claims do not upgrade the published policy');
-    const input = await page.value(`window.omui.request({op:'input',actor:'agent:deployment-check',events:[{type:'click',node:'main/bar/nav/core/open'}]})`);
+    const input = await page.value(`window.omui.request({op:'input',actor:'agent:deployment-check',events:[{type:'click',node:'main/bar/nav/to_docs'}]})`);
     check(input?.exitCode === 0, 'native Agent input completes through the delivered Wasm frame loop', input);
-    check(input?.data?.actions?.some(a => a.node === 'main/bar/nav/core/open' && a.exitCode === 0 && a.actor === 'agent:deployment-check;via=service:input'),
+    check(input?.data?.actions?.some(a => a.node === 'main/bar/nav/to_docs' && a.exitCode === 0 && a.actor === 'agent:deployment-check;via=service:input'),
       'the real input action records its Agent provenance', input?.data?.actions);
-    await requireCheck(async () => {
-      const item = await node('main/bar/nav/core/menu/to_motion');
-      return !!item && !item.state?.includes('hidden');
-    }, 'Agent input opens the same visible Core menu');
-    await pointer('main/bar/nav/core/open');
-    await requireCheck(async () => {
-      const item = await node('main/bar/nav/core/menu/to_motion');
-      return !item || item.state?.includes('hidden');
-    }, 'a real person pointer closes that same menu without replacing the runtime');
+    await requireCheck(() => exists('main/body/view/docs/page'), 'Agent input opens the same visible docs');
+    await pointer('main/bar/nav/to_explore'); place = 'explore';
+    await requireCheck(() => exists('main/body/view/explore/page'), 'a real person pointer goes on from there without replacing the runtime');
   });
 
   await scenario('basic-motion', async () => {
-    await core('motion'); const root = gallery('motion');
+    await reference('motion'); const root = gallery('motion');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 40, 'basic catalog contains at least forty designs');
     check(!await exists(root + '/details/config'), 'motion configuration starts unmounted');
     await compactGallery(root, 'default basic motion');
@@ -271,7 +264,7 @@ try {
   });
 
   await scenario('component-motion', async () => {
-    await core('motion'); const root = gallery('motion');
+    await reference('motion'); const root = gallery('motion');
     await findDesign(root, 'component-motion');
     check(!await exists(root + '/details/selection'), 'component motion opens with one stage and collapsed details');
     await pointer(root + '/transport/buttons/details');
@@ -516,7 +509,7 @@ try {
   });
 
   await scenario('unified-interface', async () => {
-    await core('interface'); const root = 'main/body/view/interface/page/interface_feature', object = root + '/workspace/object';
+    await reference('interface'); const root = 'main/body/view/interface/page/interface_feature', object = root + '/workspace/object';
     check(!await exists(root + '/details/language') && !await exists(root + '/details/source'), 'interface languages and source start unmounted');
     await type(object + '/title', 'Same object in browser');
     const ids = (await snapshot(object)).map(n => n.id).sort();
@@ -534,7 +527,7 @@ try {
   });
 
   await scenario('scoped-styling', async () => {
-    await core('styles'); const root = 'main/body/view/styles/page/styles_feature';
+    await reference('styles'); const root = 'main/body/view/styles/page/styles_feature';
     check(!await exists(root + '/details/radius') && !await exists(root + '/details/scope'), 'style parameters and source start unmounted');
     await pointer(root + '/preview_controls/preview_pause');
     await requireCheck(async () => (await label(root + '/preview_controls/preview_pause')).includes('Resume'), 'the actual preview Pause control pauses automatic changes');

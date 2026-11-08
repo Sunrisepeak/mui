@@ -34,14 +34,7 @@ struct Run {
         check(h.click("main/foot/tools_toggle"));
         h.settle();
     }
-    bool navigate(const site::Place& place) {
-        if (place.section == "core") {
-            if (!h.click("main/bar/nav/core/open")) return false;
-            h.settle(seconds(0.5));
-            return h.click(std::format("main/bar/nav/core/menu/to_{}", place.id));
-        }
-        return h.click(std::format("main/bar/nav/to_{}", place.id));
-    }
+    bool navigate(const site::Place& place) { return h.click(std::format("main/bar/nav/to_{}", place.id)); }
     // Automatic previews deliberately keep moving while they are visible.
     // Exercise their actual public pause controls before asserting idleness;
     // keep full motion so these tests still measure transitions and language FPS.

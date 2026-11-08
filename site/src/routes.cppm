@@ -11,21 +11,25 @@ struct Place {
     std::string_view id, en, zh;
     bool navigation = true;
     std::string_view route, section;
+    bool document = false;  // read as a document (plain, no figure over it); the rest are places to use
 };
 
 [[nodiscard]] inline std::span<const Place> places() {
     static constexpr std::array<Place, 15> all{{
         {"home", "Home", "首页", false, "", "home"},
-        {"components", "UI components", "UI 组件", true, "components", "core"},
-        {"motion", "Basic animation", "基础动画", true, "motion", "core"},
-        {"styles", "Styling", "风格化", true, "styles", "core"},
-        {"interface", "One interface × languages", "统一接口 × 多语言", true, "interface", "core"},
-        {"explore", "Creative demos", "创意 demos", true, "demos", "explore"},
+        // The places (the site plan §4): components, motion, the agent, the docs.
+        {"components", "Components", "组件", true, "components", "components"},
+        // Motion: the signature works, the recipe library and the compositions (once "Creative demos").
+        {"explore", "Motion", "动效", true, "motion", "explore"},
         {"agent", "Agent native", "Agent 原生", true, "agent", "agent"},
-        {"docs", "Docs", "文档", true, "docs", "docs"},
-        {"features", "Core ideas", "核心概念", false, "docs/features", "docs"},
-        {"practices", "Practical guide", "实践指南", false, "docs/practices", "docs"},
-        {"hello", "Get started", "开始使用", false, "docs/start", "docs"},
+        {"docs", "Docs", "文档", true, "docs", "docs", true},
+        {"features", "Core ideas", "核心概念", false, "docs/features", "docs", true},
+        {"practices", "Practical guide", "实践指南", false, "docs/practices", "docs", true},
+        {"hello", "Get started", "开始使用", false, "docs/start", "docs", true},
+        // Reference, under the docs: the motion specimens (once "Basic animation"), styling, one interface in many languages.
+        {"motion", "Motion specimens", "动效规格样本", false, "docs/motion", "docs"},
+        {"styles", "Styling", "风格化", false, "docs/styles", "docs"},
+        {"interface", "One interface × languages", "统一接口 × 多语言", false, "docs/interface", "docs"},
         {"timeline", "Timeline editor", "时间线编辑器", false, "explore/timeline", "explore"},
         {"reactions", "Reaction lab", "反应实验室", false, "explore/reactions", "explore"},
         {"brand", "The mark", "标志", false, "explore/brand", "explore"},
@@ -60,14 +64,23 @@ struct SiteRoute {
         if (const auto* c = component_at(route.substr(11))) return SiteRoute{"components", std::move(lang), std::string(c->id)};
         return std::nullopt;
     }
-    for (const auto& [prefix, place, creative] : {
-             std::tuple{"motion/", "motion", false}, std::tuple{"demos/", "explore", true}}) {
+    // An example: the motion page's compositions (motion/…; once demos/…), the motion
+    // specimens (docs/motion/…; once motion/… — an older address still finds its specimen).
+    for (const auto& [prefix, sets] : {std::pair{std::string_view("docs/motion/"), std::string_view("basic")}, std::pair{std::string_view("motion/"), std::string_view("both")},
+                                       std::pair{std::string_view("demos/"), std::string_view("creative")}}) {
         if (!route.starts_with(prefix)) continue;
-        const auto id = route.substr(std::string_view(prefix).size());
-        for (const auto& item : creative ? creative_motions() : basic_motions())
-            if (item.id == id) return SiteRoute{place, std::move(lang), {}, std::string(id)};
+        const auto id = route.substr(prefix.size());
+        if (sets != "basic")
+            for (const auto& item : creative_motions())
+                if (item.id == id) return SiteRoute{"explore", std::move(lang), {}, std::string(id)};
+        if (sets != "creative")
+            for (const auto& item : basic_motions())
+                if (item.id == id) return SiteRoute{"motion", std::move(lang), {}, std::string(id)};
         return std::nullopt;
     }
+    // Older addresses of places that moved: the motion page was demos; styling and the interface were at the top.
+    if (route == "demos") return SiteRoute{"explore", std::move(lang)};
+    if (route == "styles" || route == "interface") return SiteRoute{std::string(route), std::move(lang)};
     if (route.starts_with("agent/")) {
         const auto mode = route.substr(6);
         if (mode == "use" || mode == "develop" || mode == "design")
@@ -85,7 +98,7 @@ struct SiteRoute {
     if (!p) return {};
     if (!example.empty()) {
         const std::string candidate = std::string(p->route) + "/" + std::string(example);
-        if (parse_site_route(candidate)) return std::string(language == "zh" ? "zh/" : "") + candidate;
+        if (const auto parsed = parse_site_route(candidate); parsed && parsed->place == place) return std::string(language == "zh" ? "zh/" : "") + candidate;
     }
     if (language != "zh") return std::string(p->route);
     return p->route.empty() ? std::string("zh") : "zh/" + std::string(p->route);
@@ -93,7 +106,7 @@ struct SiteRoute {
 
 [[nodiscard]] inline bool is_document(std::string_view place) {
     const Place* p = find_place(place);
-    return p && p->section == "docs";
+    return p && p->document;
 }
 
 }  // namespace omui::site

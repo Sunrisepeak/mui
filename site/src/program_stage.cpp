@@ -12,12 +12,20 @@ hanim::Rgba rgba(Color colour) { return {colour.r, colour.g, colour.b, colour.a}
 
 }  // namespace
 
-std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTiming timing) {
+std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTuning tuning) {
     if (size.width <= 0 || size.height <= 0) return std::nullopt;
     if (name.starts_with("recipe:")) {
         // A recipe of hanim's library, by name, on a card: what the recipe library shows (a loop played twice).
         const std::string recipe(name.substr(7));
-        if (!hanim::anim::find_recipe(recipe)) return std::nullopt;
+        const auto* info = hanim::anim::find_recipe(recipe);
+        if (!info) return std::nullopt;
+        // As tuned: its parameter, its duration, a loop's period (the rest its own).
+        hanim::anim::RecipeValue value{.count = 2};
+        if (tuning.tuned && info->param == hanim::anim::RecipeParam::pair) value.vector = hanim::Vec2{tuning.amount, tuning.amount_y};
+        else if (tuning.tuned && info->param != hanim::anim::RecipeParam::none) value.number = tuning.amount;
+        if (tuning.period > 0) value.period = hanim::seconds(tuning.period);
+        hanim::anim::RecipeOptions options{.part = "card"};
+        if (tuning.duration > 0) options.duration = hanim::seconds(tuning.duration);
         const float width = std::round(std::min(size.width * 0.42f, size.height * 0.9f)), height = std::round(width * 0.62f);
         xrender::Path card;
         card.add_rounded_rect({-width / 2, -height / 2, width, height}, CornerRadii::all(std::round(height * 0.22f)));
@@ -26,8 +34,8 @@ std::optional<Work> make_work(std::string_view name, Size size, const Theme& the
         part.path = card.view();
         auto description = hanim::object_from_paths("recipe", std::span<const hanim::PathPart>(&part, 1));
         if (!description) return std::nullopt;
-        return Work{std::move(*description), [recipe](hanim::ObjectRef object) {
-                        return hanim::anim::recipe(recipe, object, {.count = 2}, {.part = "card"}).value_or(hanim::wait(hanim::seconds(0)));
+        return Work{std::move(*description), [recipe, value, options](hanim::ObjectRef object) {
+                        return hanim::anim::recipe(recipe, object, value, options).value_or(hanim::wait(hanim::seconds(0)));
                     }};
     }
     if (name == "cards-rise") {
@@ -54,7 +62,7 @@ std::optional<Work> make_work(std::string_view name, Size size, const Theme& the
         for (std::size_t index = 0; index < parts.size(); ++index)
             homes.emplace_back(parts[index].id, hanim::Vec2{parts[index].local.tx, parts[index].local.ty});
         const double rise = size.height * 0.35;
-        return Work{std::move(*description), [homes, rise, timing, theme_inks = std::vector<hanim::Rgba>{parts[0].fill.value(), parts[1].fill.value(), parts[2].fill.value()}](hanim::ObjectRef object) {
+        return Work{std::move(*description), [homes, rise, timing = tuning, theme_inks = std::vector<hanim::Rgba>{parts[0].fill.value(), parts[1].fill.value(), parts[2].fill.value()}](hanim::ObjectRef object) {
                         // Bounce 0: a critically damped spring (no overshoot); 1: much less damped.
                         const double damping = 26.0 * (1.0 - 0.8 * std::clamp(timing.bounce, 0.0, 1.0));
                         const hanim::Ease ease = hanim::spring_ease({170, damping, 1});
@@ -156,7 +164,10 @@ void ProgramStage::prop_changed(ProgramStageProp changed) {
         schedule();
     }
     if (changed == ProgramStageProp::work) release();
-    if (!writing_ && (changed == ProgramStageProp::delay || changed == ProgramStageProp::bounce)) release();  // made again with its new timing
+    // Made again with its new tuning.
+    if (!writing_ && (changed == ProgramStageProp::delay || changed == ProgramStageProp::bounce || changed == ProgramStageProp::tuned || changed == ProgramStageProp::amount ||
+                      changed == ProgramStageProp::amount_y || changed == ProgramStageProp::duration || changed == ProgramStageProp::period))
+        release();
     services().invalidate_paint(node());
     services().invalidate_semantics(node());
 }
@@ -170,18 +181,22 @@ double ProgramStage::length() const { return made_ ? made_->length : 0; }
 
 // Made the first time it is painted with room (again for another room,
 // theme or work): its object, its recipe played and paused at its time.
+WorkTuning ProgramStage::tuning() const {
+    return {.delay = props.delay, .bounce = props.bounce, .tuned = props.tuned, .amount = props.amount, .amount_y = props.amount_y, .duration = props.duration, .period = props.period};
+}
+
 void ProgramStage::ensure(const PaintContext& ctx) const {
-    const WorkTiming timing{props.delay, props.bounce};
-    if (made_ && made_->room == ctx.size && made_->dark == ctx.theme.dark && made_->work == props.work && made_->timing == timing) return;
+    const WorkTuning tuning = this->tuning();
+    if (made_ && made_->room == ctx.size && made_->dark == ctx.theme.dark && made_->work == props.work && made_->tuning == tuning) return;
     release();
-    auto work = make_work(props.work, ctx.size, ctx.theme, timing);
+    auto work = make_work(props.work, ctx.size, ctx.theme, tuning);
     if (!work) return;
     auto made = std::make_unique<Made>();
     made->engine = &services().engine();
     made->room = ctx.size;
     made->dark = ctx.theme.dark;
     made->work = props.work;
-    made->timing = timing;
+    made->tuning = tuning;
     hanim::Engine& engine = *made->engine;
     auto object = engine.create_object(work->object);
     if (!object) return;
@@ -263,6 +278,9 @@ void ProgramStage::semantics(SemanticsContext&, spec::SemanticNode& node) const 
     if (node.name.empty()) node.name = props.label.empty() ? props.work : props.label;
     node.value = Value{}.set("work", props.work).set("at", props.at).set("length", length()).set("playing", props.playing)
                      .set("delay", props.delay).set("bounce", props.bounce).set("plan", made_ ? made_->plan : props.plan);
+    if (props.tuned) node.value.set("amount", props.amount).set("amount_y", props.amount_y);
+    if (props.duration > 0) node.value.set("duration", props.duration);
+    if (props.period > 0) node.value.set("period", props.period);
 }
 
 ActResult ProgramStage::play(ActContext&) {

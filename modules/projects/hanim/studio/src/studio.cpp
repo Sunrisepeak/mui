@@ -147,40 +147,14 @@ struct Builder {
         case StepKind::pulse: return anim::pulse(ref(step.object), step.vector, feedback(step));
         case StepKind::shake: return anim::shake(ref(step.object), step.vector, feedback(step));
         case StepKind::wobble: return anim::wobble(ref(step.object), step.number, feedback(step));
-        case StepKind::fade_in: return anim::fade_in(ref(step.object), recipe(step));
-        case StepKind::rise_in: return anim::rise_in(ref(step.object), step.number, recipe(step));
-        case StepKind::sink_in: return anim::sink_in(ref(step.object), step.number, recipe(step));
-        case StepKind::slide_in: return anim::slide_in(ref(step.object), step.vector, recipe(step));
-        case StepKind::pop_in: return anim::pop_in(ref(step.object), recipe(step));
-        case StepKind::zoom_in: return anim::zoom_in(ref(step.object), recipe(step));
-        case StepKind::spin_in: return anim::spin_in(ref(step.object), step.number, recipe(step));
-        case StepKind::unfold_in: return anim::unfold_in(ref(step.object), recipe(step));
-        case StepKind::write_in: return anim::write_in(ref(step.object), recipe(step));
-        case StepKind::drop_in: return anim::drop_in(ref(step.object), step.number, recipe(step));
-        case StepKind::fade_out: return anim::fade_out(ref(step.object), recipe(step));
-        case StepKind::rise_out: return anim::rise_out(ref(step.object), step.number, recipe(step));
-        case StepKind::sink_out: return anim::sink_out(ref(step.object), step.number, recipe(step));
-        case StepKind::slide_out: return anim::slide_out(ref(step.object), step.vector, recipe(step));
-        case StepKind::pop_out: return anim::pop_out(ref(step.object), recipe(step));
-        case StepKind::zoom_out: return anim::zoom_out(ref(step.object), recipe(step));
-        case StepKind::spin_out: return anim::spin_out(ref(step.object), step.number, recipe(step));
-        case StepKind::fold_out: return anim::fold_out(ref(step.object), recipe(step));
-        case StepKind::unwrite: return anim::unwrite(ref(step.object), recipe(step));
-        case StepKind::bounce: return anim::bounce(ref(step.object), step.number, recipe(step));
-        case StepKind::flash: return anim::flash(ref(step.object), static_cast<int>(step.number), recipe(step));
-        case StepKind::heartbeat: return anim::heartbeat(ref(step.object), step.number, recipe(step));
-        case StepKind::rubber_band: return anim::rubber_band(ref(step.object), recipe(step));
-        case StepKind::swing: return anim::swing(ref(step.object), step.number, recipe(step));
-        case StepKind::tada: return anim::tada(ref(step.object), recipe(step));
-        case StepKind::nudge: return anim::nudge(ref(step.object), step.vector, recipe(step));
-        case StepKind::bob: return anim::bob(ref(step.object), step.number, step.period, step.count, recipe(step));
-        case StepKind::breathe: return anim::breathe(ref(step.object), step.number, step.period, step.count, recipe(step));
-        case StepKind::spin: return anim::spin(ref(step.object), step.period, step.count, recipe(step));
-        case StepKind::sway: return anim::sway(ref(step.object), step.number, step.period, step.count, recipe(step));
-        case StepKind::orbit: return anim::orbit(ref(step.object), step.number, step.period, step.count, recipe(step));
-        case StepKind::blink: return anim::blink(ref(step.object), step.period, step.count, recipe(step));
         case StepKind::arc_to: return anim::arc_to(ref(step.object), step.vector, step.number, recipe(step));
         case StepKind::swap: return anim::swap(ref(step.object), ref(step.with), step.vector, step.number, recipe(step));
+        default:
+            // A recipe of hanim's library, by its name (its parameter and a loop's course as read).
+            if (auto made = anim::recipe(step_name(step.kind), ref(step.object), {.number = step.number, .vector = step.vector, .period = step.period, .count = step.count},
+                                         recipe(step)))
+                return std::move(*made);
+            break;
         case StepKind::reorder: {
             std::vector<ObjectInput> moving;
             for (const auto& id : step.objects) moving.emplace_back(ref(id));

@@ -3,6 +3,7 @@ module omui.site;
 import std;
 import omui;
 import omui.ui.liquid_glass;
+import hanim.engine;
 
 namespace omui::site {
 namespace {
@@ -227,6 +228,97 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                   {std::move(heading),
                    text({.id = "line", .text = words(site, "Each a capability you can take in your hands.", "每一个都是能拿在手里的能力。"), .style = "body", .color = "text_muted"}),
                    row({.id = "grid", .width = Dim(width), .gap = 20, .align = "start", .wrap = "wrap"}, std::move(works))});
+}
+
+
+std::string recipe_cpp(std::string_view name) {
+    const auto* info = hanim::anim::find_recipe(name);
+    if (!info) return {};
+    std::string args = "card";
+    switch (info->param) {
+        case hanim::anim::RecipeParam::none: break;
+        case hanim::anim::RecipeParam::number:
+        case hanim::anim::RecipeParam::angle: args += std::format(", {}", info->number); break;
+        case hanim::anim::RecipeParam::times: args += std::format(", {}", static_cast<int>(info->number)); break;
+        case hanim::anim::RecipeParam::pair: args += std::format(", {{{}, {}}}", info->vector.x, info->vector.y); break;
+    }
+    if (info->period > 0) args += std::format(", seconds({})", info->period);
+    return std::format("hanim::anim::{}({})", name, args);
+}
+
+std::string recipe_json(std::string_view name) {
+    const auto* info = hanim::anim::find_recipe(name);
+    if (!info) return {};
+    std::string fields = std::format(R"({{"do": "{}", "object": "card")", name);
+    switch (info->param) {
+        case hanim::anim::RecipeParam::none: break;
+        case hanim::anim::RecipeParam::number: fields += std::format(R"(, "{}": {})", info->param_name, info->number); break;
+        // A document writes an angle in degrees.
+        case hanim::anim::RecipeParam::angle: fields += std::format(R"(, "{}": {:.1f})", info->param_name, info->number * 180 / std::numbers::pi); break;
+        case hanim::anim::RecipeParam::times: fields += std::format(R"(, "{}": {})", info->param_name, static_cast<int>(info->number)); break;
+        case hanim::anim::RecipeParam::pair: fields += std::format(R"(, "{}": [{}, {}])", info->param_name, info->vector.x, info->vector.y); break;
+    }
+    if (info->period > 0) fields += std::format(R"(, "period": {})", info->period);
+    return fields + "}";
+}
+
+Element recipe_library(Works& state, const WorksSite& site, float width) {
+    const int columns = width >= 1000 ? 4 : width >= 640 ? 3 : 2;
+    const float thumb = std::floor((width - static_cast<float>(columns - 1) * 14.0f) / static_cast<float>(columns));
+    Runtime** runtime = site.runtime;
+    const std::string root = site.root.substr(0, site.root.rfind('/')) + "/recipes";
+    Element heading = text({.id = "heading", .text = words(site, "The recipe library", "配方库"), .style = "title"});
+    heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{2})));
+    Signal<std::string> kind = state.recipe_kind;
+    Element filter = segmented({.id = "kind",
+                                .label = words(site, "Kind", "种类"),
+                                .labels = computed([lang = site.lang] {
+                                    return lang && lang->get() == "zh" ? std::vector<std::string>{"全部", "进场", "离场", "提示", "循环"}
+                                                                       : std::vector<std::string>{"All", "Entrances", "Exits", "Attention", "Loops"};
+                                }),
+                                .options = std::vector<std::string>{"all", "entrance", "exit", "attention", "loop"},
+                                .value = kind});
+    Element grid = dynamic([kind, runtime, root, thumb, lang = site.lang] {
+        const std::string shown = kind.get();
+        const auto kind_name = [](hanim::anim::RecipeKind k) {
+            switch (k) {
+                case hanim::anim::RecipeKind::entrance: return "entrance";
+                case hanim::anim::RecipeKind::exit: return "exit";
+                case hanim::anim::RecipeKind::attention: return "attention";
+                case hanim::anim::RecipeKind::loop: return "loop";
+            }
+            return "";
+        };
+        std::vector<Element> cards;
+        for (const auto& info : hanim::anim::recipes()) {
+            if (shown != "all" && shown != kind_name(info.kind)) continue;
+            const std::string name(info.name);
+            const std::string stage_path = std::format("{}/grid/{}/stage", root, name);
+            const auto copy = [runtime](std::string text) {
+                if (runtime && *runtime) (*runtime)->set_clipboard_text(text);
+            };
+            cards.push_back(column({.id = name, .width = Dim(thumb), .padding = Edges(10.0f), .gap = 6, .background = "surface", .border_color = "border",
+                                    .border_width = 1, .radius = 12},
+                                   // At rest it shows its card: an entrance at its end (it came in), the rest at their start.
+                                   {program_stage({.id = "stage", .at = info.kind == hanim::anim::RecipeKind::entrance ? 1e6 : 0.0, .label = name, .work = "recipe:" + name,
+                                                   .width = Dim(thumb - 20), .height = Dim(std::round((thumb - 20) * 0.56f))}),
+                                    row({.id = "head", .gap = 6, .align = "center"},
+                                        {text({.id = "name", .text = name, .style = "code"}), spacer(),
+                                         button({.id = "play", .text = lang && lang->peek() == "zh" ? "播放" : "Play", .variant = ButtonVariant::ghost,
+                                                 .on_activated = [runtime, stage_path] {
+                                                     if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(stage_path), "play");
+                                                 }})}),
+                                    row({.id = "copy", .gap = 6},
+                                        {button({.id = "cpp", .text = "C++", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_cpp(name)); }}),
+                                         button({.id = "json", .text = "JSON", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_json(name)); }})})}));
+        }
+        return std::vector<Element>{row({.id = "grid", .gap = 14, .align = "start", .wrap = "wrap"}, std::move(cards))};
+    });
+    return column({.id = "recipes", .width = Dim(width), .gap = 14},
+                  {std::move(heading),
+                   text({.id = "line", .text = words(site, "hanim's library by name: play each on a card, copy its call or its step.", "hanim 的配方，按名字排开：在卡片上播放，复制它的调用或文档步骤。"),
+                         .style = "body", .color = "text_muted"}),
+                   std::move(filter), std::move(grid)});
 }
 
 }  // namespace omui::site

@@ -408,4 +408,102 @@ Program assemble_in(ObjectInput object, const PixelGrid& grid, ScatterOptions op
     return sequence({Program(to(object, std::move(away)).duration(seconds(0))), parallel(std::span<const Program>(back))});
 }
 
+namespace {
+using enum RecipeKind;
+constexpr std::array catalogue{
+    RecipeInfo{"fade_in", entrance},
+    RecipeInfo{"rise_in", entrance, RecipeParam::number, "distance", 24},
+    RecipeInfo{"sink_in", entrance, RecipeParam::number, "distance", 24},
+    RecipeInfo{"slide_in", entrance, RecipeParam::pair, "from", 0, {-40, 0}},
+    RecipeInfo{"settle_in", entrance, RecipeParam::number, "scale", .96},
+    RecipeInfo{"pop_in", entrance},
+    RecipeInfo{"zoom_in", entrance},
+    RecipeInfo{"spin_in", entrance, RecipeParam::angle, "degrees", -1.2},
+    RecipeInfo{"unfold_in", entrance},
+    RecipeInfo{"write_in", entrance},
+    RecipeInfo{"drop_in", entrance, RecipeParam::number, "height", 160},
+    RecipeInfo{"fade_out", exit},
+    RecipeInfo{"rise_out", exit, RecipeParam::number, "distance", 24},
+    RecipeInfo{"sink_out", exit, RecipeParam::number, "distance", 24},
+    RecipeInfo{"slide_out", exit, RecipeParam::pair, "to", 0, {40, 0}},
+    RecipeInfo{"settle_out", exit, RecipeParam::number, "scale", .96},
+    RecipeInfo{"pop_out", exit},
+    RecipeInfo{"zoom_out", exit},
+    RecipeInfo{"spin_out", exit, RecipeParam::angle, "degrees", 1.2},
+    RecipeInfo{"fold_out", exit},
+    RecipeInfo{"unwrite", exit},
+    RecipeInfo{"pulse", attention, RecipeParam::pair, "factor", 0, {1.08, 1.08}},
+    RecipeInfo{"shake", attention, RecipeParam::pair, "amplitude", 0, {8, 0}},
+    RecipeInfo{"wobble", attention, RecipeParam::angle, "degrees", .12},
+    RecipeInfo{"bounce", attention, RecipeParam::number, "height", 28},
+    RecipeInfo{"flash", attention, RecipeParam::times, "times", 2},
+    RecipeInfo{"heartbeat", attention, RecipeParam::number, "scale", 1.15},
+    RecipeInfo{"rubber_band", attention},
+    RecipeInfo{"swing", attention, RecipeParam::angle, "degrees", .26},
+    RecipeInfo{"tada", attention},
+    RecipeInfo{"nudge", attention, RecipeParam::pair, "by", 0, {8, 0}},
+    RecipeInfo{"bob", loop, RecipeParam::number, "amplitude", 6, {}, 2.4},
+    RecipeInfo{"breathe", loop, RecipeParam::number, "scale", 1.04, {}, 3},
+    RecipeInfo{"spin", loop, RecipeParam::none, {}, 0, {}, 1.2},
+    RecipeInfo{"sway", loop, RecipeParam::angle, "degrees", .08, {}, 2.4},
+    RecipeInfo{"orbit", loop, RecipeParam::number, "radius", 16, {}, 2},
+    RecipeInfo{"blink", loop, RecipeParam::none, {}, 0, {}, 1},
+};
+}  // namespace
+
+std::span<const RecipeInfo> recipes() noexcept { return catalogue; }
+
+const RecipeInfo* find_recipe(std::string_view name) noexcept {
+    const auto found = std::ranges::find(catalogue, name, &RecipeInfo::name);
+    return found == catalogue.end() ? nullptr : &*found;
+}
+
+std::optional<Program> recipe(std::string_view name, ObjectInput object, RecipeValue value, RecipeOptions options) {
+    const RecipeInfo* info = find_recipe(name);
+    if (!info) return std::nullopt;
+    const double n = value.number.value_or(info->number);
+    const Vec2 v = value.vector.value_or(info->vector);
+    const seconds period = value.period.value_or(seconds(info->period));
+    const double count = value.count;
+    auto o = std::move(object);
+    if (name == "fade_in") return fade_in(std::move(o), options);
+    if (name == "rise_in") return rise_in(std::move(o), n, options);
+    if (name == "sink_in") return sink_in(std::move(o), n, options);
+    if (name == "slide_in") return slide_in(std::move(o), v, options);
+    if (name == "settle_in") return settle_in(std::move(o), n, options);
+    if (name == "pop_in") return pop_in(std::move(o), options);
+    if (name == "zoom_in") return zoom_in(std::move(o), options);
+    if (name == "spin_in") return spin_in(std::move(o), n, options);
+    if (name == "unfold_in") return unfold_in(std::move(o), options);
+    if (name == "write_in") return write_in(std::move(o), options);
+    if (name == "drop_in") return drop_in(std::move(o), n, options);
+    if (name == "fade_out") return fade_out(std::move(o), options);
+    if (name == "rise_out") return rise_out(std::move(o), n, options);
+    if (name == "sink_out") return sink_out(std::move(o), n, options);
+    if (name == "slide_out") return slide_out(std::move(o), v, options);
+    if (name == "settle_out") return settle_out(std::move(o), n, options);
+    if (name == "pop_out") return pop_out(std::move(o), options);
+    if (name == "zoom_out") return zoom_out(std::move(o), options);
+    if (name == "spin_out") return spin_out(std::move(o), n, options);
+    if (name == "fold_out") return fold_out(std::move(o), options);
+    if (name == "unwrite") return unwrite(std::move(o), options);
+    if (name == "pulse") return pulse(std::move(o), v, options);
+    if (name == "shake") return shake(std::move(o), v, options);
+    if (name == "wobble") return wobble(std::move(o), n, options);
+    if (name == "bounce") return bounce(std::move(o), n, options);
+    if (name == "flash") return flash(std::move(o), static_cast<int>(n), options);
+    if (name == "heartbeat") return heartbeat(std::move(o), n, options);
+    if (name == "rubber_band") return rubber_band(std::move(o), options);
+    if (name == "swing") return swing(std::move(o), n, options);
+    if (name == "tada") return tada(std::move(o), options);
+    if (name == "nudge") return nudge(std::move(o), v, options);
+    if (name == "bob") return bob(std::move(o), n, period, count, options);
+    if (name == "breathe") return breathe(std::move(o), n, period, count, options);
+    if (name == "spin") return spin(std::move(o), period, count, options);
+    if (name == "sway") return sway(std::move(o), n, period, count, options);
+    if (name == "orbit") return orbit(std::move(o), n, period, count, options);
+    if (name == "blink") return blink(std::move(o), period, count, options);
+    return std::nullopt;
+}
+
 }  // namespace hanim::anim

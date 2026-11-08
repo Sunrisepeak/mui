@@ -14,6 +14,22 @@ hanim::Rgba rgba(Color colour) { return {colour.r, colour.g, colour.b, colour.a}
 
 std::optional<Work> make_work(std::string_view name, Size size, const Theme& theme, WorkTiming timing) {
     if (size.width <= 0 || size.height <= 0) return std::nullopt;
+    if (name.starts_with("recipe:")) {
+        // A recipe of hanim's library, by name, on a card: what the recipe library shows (a loop played twice).
+        const std::string recipe(name.substr(7));
+        if (!hanim::anim::find_recipe(recipe)) return std::nullopt;
+        const float width = std::round(std::min(size.width * 0.42f, size.height * 0.9f)), height = std::round(width * 0.62f);
+        xrender::Path card;
+        card.add_rounded_rect({-width / 2, -height / 2, width, height}, CornerRadii::all(std::round(height * 0.22f)));
+        hanim::PathPart part{.id = "card", .local = {.tx = std::round(size.width / 2), .ty = std::round(size.height / 2)},
+                             .fill = rgba(theme.color("accent")), .stroke = hanim::PartStroke{rgba(theme.color("accent").with_alpha(0.5f)), 2}};
+        part.path = card.view();
+        auto description = hanim::object_from_paths("recipe", std::span<const hanim::PathPart>(&part, 1));
+        if (!description) return std::nullopt;
+        return Work{std::move(*description), [recipe](hanim::ObjectRef object) {
+                        return hanim::anim::recipe(recipe, object, {.count = 2}, {.part = "card"}).value_or(hanim::wait(hanim::seconds(0)));
+                    }};
+    }
     if (name == "cards-rise") {
         // Three cards rising into place one after another — its timing an agent's to change:
         // later by `delay`, overshooting by `bounce` (a spring less damped).
@@ -200,25 +216,26 @@ void ProgramStage::release() const {
 
 void ProgramStage::schedule() const {
     if (tick_ || !attached()) return;
-    tick_ = services().after(hanim::seconds(0), [this] {
-        tick_ = 0;
-        step();
+    // The step changes its own props (its time, whether it plays): itself, not as painted.
+    tick_ = services().after(hanim::seconds(0), [self = const_cast<ProgramStage*>(this)] {
+        self->tick_ = 0;
+        self->step();
     });
     services().request_frame();
 }
 
-void ProgramStage::write(double at, bool playing) const {
+void ProgramStage::write(double at, bool playing) {
     writing_ = true;
-    if (made_ && std::abs(made_->length - props.length) > 1e-9) services().write_back(node(), "length", Value(made_->length));
-    if (made_ && made_->plan != props.plan) services().write_back(node(), "plan", Value(made_->plan));
-    if (std::abs(at - props.at) > 1e-9) services().write_back(node(), "at", Value(at));
-    if (playing != props.playing) services().write_back(node(), "playing", Value(playing));
+    if (made_ && std::abs(made_->length - props.length) > 1e-9) write_length(made_->length);
+    if (made_ && made_->plan != props.plan) write_plan(made_->plan);
+    if (std::abs(at - props.at) > 1e-9) write_at(at);
+    if (playing != props.playing) write_playing(playing);
     writing_ = false;
 }
 
 // Each frame while it plays, at its start: its time from when it started
 // (by the runtime's clock), to its end, where it holds.
-void ProgramStage::step() const {
+void ProgramStage::step() {
     if (!made_ || !made_->playback) return;
     Made& made = *made_;
     double at = std::clamp(props.at, 0.0, made.length);

@@ -78,33 +78,8 @@ constexpr std::array step_names{
     std::pair{StepKind::reorder, std::string_view("reorder")},
 };
 
-// The recipes' one parameter each (besides object, duration and ease): its
-// name, what it is, its default; and for idle loops their period's default.
-enum class Form : std::uint8_t { none, number, pair, degrees, times };
-struct Recipe {
-    StepKind kind;
-    Form form = Form::none;
-    std::string_view param;
-    double number = 0;
-    Vec2 vector{};
-    double period = 0;  // an idle loop's default course (0: not a loop)
-};
-constexpr std::array recipes{
-    Recipe{StepKind::fade_in},  Recipe{StepKind::rise_in, Form::number, "distance", 24},  Recipe{StepKind::sink_in, Form::number, "distance", 24},
-    Recipe{StepKind::slide_in, Form::pair, "from", 0, {-40, 0}}, Recipe{StepKind::pop_in}, Recipe{StepKind::zoom_in},
-    Recipe{StepKind::spin_in, Form::degrees, "degrees", -69},  Recipe{StepKind::unfold_in}, Recipe{StepKind::write_in},
-    Recipe{StepKind::drop_in, Form::number, "height", 160},
-    Recipe{StepKind::fade_out}, Recipe{StepKind::rise_out, Form::number, "distance", 24}, Recipe{StepKind::sink_out, Form::number, "distance", 24},
-    Recipe{StepKind::slide_out, Form::pair, "to", 0, {40, 0}}, Recipe{StepKind::pop_out}, Recipe{StepKind::zoom_out},
-    Recipe{StepKind::spin_out, Form::degrees, "degrees", 69}, Recipe{StepKind::fold_out}, Recipe{StepKind::unwrite},
-    Recipe{StepKind::bounce, Form::number, "height", 28},     Recipe{StepKind::flash, Form::times, "times", 2},
-    Recipe{StepKind::heartbeat, Form::number, "scale", 1.15}, Recipe{StepKind::rubber_band}, Recipe{StepKind::swing, Form::degrees, "degrees", 15},
-    Recipe{StepKind::tada}, Recipe{StepKind::nudge, Form::pair, "by", 0, {8, 0}},
-    Recipe{StepKind::bob, Form::number, "amplitude", 6, {}, 2.4},  Recipe{StepKind::breathe, Form::number, "scale", 1.04, {}, 3},
-    Recipe{StepKind::spin, Form::none, {}, 0, {}, 1.2},             Recipe{StepKind::sway, Form::degrees, "degrees", 5, {}, 2.4},
-    Recipe{StepKind::orbit, Form::number, "radius", 16, {}, 2},     Recipe{StepKind::blink, Form::none, {}, 0, {}, 1},
-};
-
+// The recipes' one parameter each, their defaults and loops' courses: hanim's
+// library by name (anim::recipes()); a document writes an angle in degrees.
 constexpr double degrees = std::numbers::pi / 180;
 
 // The document's checker: each read notes what is wrong where it is.
@@ -480,11 +455,11 @@ public:
             break;
         default: {
             // A recipe of hanim's library: its object, its one parameter, its timing (and a loop's period and count).
-            const auto recipe = std::ranges::find(recipes, result.kind, &Recipe::kind);
-            if (recipe == recipes.end()) break;
+            const anim::RecipeInfo* recipe = anim::find_recipe(step_name(result.kind));
+            if (!recipe) break;
             const bool looping = recipe->period > 0;
             std::vector<std::string_view> allowed{"do", "object", "duration", "ease"};
-            if (!recipe->param.empty()) allowed.push_back(recipe->param);
+            if (!recipe->param_name.empty()) allowed.push_back(recipe->param_name);
             if (looping) allowed.insert(allowed.end(), {"period", "count"});
             for (auto item = value.begin(); item != value.end(); ++item)
                 if (std::ranges::find(allowed, std::string_view(item.key())) == allowed.end()) {
@@ -493,14 +468,16 @@ public:
                     problem(where + "/" + item.key(), std::format("`{}` is not a field of `{}` (fields: {})", item.key(), name, names));
                 }
             result.object = object_of("object");
-            const std::string at = std::format("{}/{}", where, recipe->param);
-            const bool given = !recipe->param.empty() && value.contains(recipe->param);
-            switch (recipe->form) {
-            case Form::none: break;
-            case Form::number: result.number = given ? number(value[recipe->param], at, -1e5, 1e5).value_or(recipe->number) : recipe->number; break;
-            case Form::degrees: result.number = (given ? number(value[recipe->param], at, -36000, 36000).value_or(recipe->number) : recipe->number) * degrees; break;
-            case Form::times: result.number = given ? number(value[recipe->param], at, 1, 100).value_or(recipe->number) : recipe->number; break;
-            case Form::pair: result.vector = given ? pair(value[recipe->param], at, -1e5, 1e5).value_or(recipe->vector) : recipe->vector; break;
+            const std::string param(recipe->param_name);
+            const std::string at = std::format("{}/{}", where, param);
+            const bool given = !param.empty() && value.contains(param);
+            switch (recipe->param) {
+            case anim::RecipeParam::none: break;
+            case anim::RecipeParam::number: result.number = given ? number(value[param], at, -1e5, 1e5).value_or(recipe->number) : recipe->number; break;
+            // Written in degrees; the library's default (and the step) in radians.
+            case anim::RecipeParam::angle: result.number = given ? number(value[param], at, -36000, 36000).value_or(0) * degrees : recipe->number; break;
+            case anim::RecipeParam::times: result.number = given ? number(value[param], at, 1, 100).value_or(recipe->number) : recipe->number; break;
+            case anim::RecipeParam::pair: result.vector = given ? pair(value[param], at, -1e5, 1e5).value_or(recipe->vector) : recipe->vector; break;
             }
             if (looping) {
                 result.period = seconds(value.contains("period") ? number(value["period"], where + "/period", 0.01, 600).value_or(recipe->period) : recipe->period);

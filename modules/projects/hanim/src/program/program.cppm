@@ -462,6 +462,34 @@ struct ScatterOptions {
 };
 [[nodiscard]] Program scatter_out(ObjectInput object, const PixelGrid& grid, ScatterOptions = {}, RecipeOptions = {});
 [[nodiscard]] Program assemble_in(ObjectInput object, const PixelGrid& grid, ScatterOptions = {}, RecipeOptions = {});
+
+// The recipes by name (L6) — what a document, an agent or a gallery names:
+// each one-object recipe above, its kind, its one parameter if it has one
+// (with the default the function above has, in its units: radians for an
+// angle) and an idle loop's period. One list: a document format reads its
+// parameters from it, a gallery shows it, `recipe` makes any of them.
+enum class RecipeKind : std::uint8_t { entrance, exit, attention, loop };
+enum class RecipeParam : std::uint8_t { none, number, pair, angle, times };
+struct RecipeInfo {
+    std::string_view name;
+    RecipeKind       kind = RecipeKind::entrance;
+    RecipeParam      param = RecipeParam::none;
+    std::string_view param_name;   // as a document writes it
+    double           number = 0;   // its default (number, angle, times)
+    Vec2             vector{};     // its default (pair)
+    double           period = 0;   // an idle loop's course, seconds (0: not a loop)
+};
+[[nodiscard]] std::span<const RecipeInfo> recipes() noexcept;
+[[nodiscard]] const RecipeInfo* find_recipe(std::string_view name) noexcept;
+// Its parameter and, for an idle loop, its course: unset ones are the recipe's defaults.
+struct RecipeValue {
+    std::optional<double>  number;
+    std::optional<Vec2>    vector;
+    std::optional<seconds> period;
+    double                 count = std::numeric_limits<double>::infinity();
+};
+// A recipe by name on an object; none for a name the library has no recipe by.
+[[nodiscard]] std::optional<Program> recipe(std::string_view name, ObjectInput object, RecipeValue value = {}, RecipeOptions options = {});
 }  // namespace anim
 template<class T> concept Animation = std::same_as<std::remove_cvref_t<T>, Program> ||
                                     std::same_as<std::remove_cvref_t<T>, anim::BoundAnimation> ||

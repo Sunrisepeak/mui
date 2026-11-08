@@ -20,6 +20,8 @@ struct Works {
     Signal<double> rise_at = signal(0.0), rise_length = signal(0.0), rise_delay = signal(0.0), rise_bounce = signal(0.0);
     Signal<bool>   rise_playing = signal(false), together = signal(false);
     Signal<std::string> rise_plan = signal(std::string());
+    // The recipe library's filter: all, entrance, exit, attention, loop.
+    Signal<std::string> recipe_kind = signal(std::string("all"));
 };
 
 struct WorksSite {
@@ -29,5 +31,12 @@ struct WorksSite {
 };
 
 [[nodiscard]] Element signature_works(Works&, const WorksSite&, float width);
+// The recipe library (the site plan §7.2): every recipe of hanim's library by
+// name (anim::recipes()), each a live thumbnail — played on a card when asked
+// — with its call in C++ and its step in an animation document to copy.
+[[nodiscard]] Element recipe_library(Works&, const WorksSite&, float width);
+// A recipe's call (C++) and its step (an animation document's JSON), with its defaults.
+[[nodiscard]] std::string recipe_cpp(std::string_view name);
+[[nodiscard]] std::string recipe_json(std::string_view name);
 
 }  // namespace omui::site

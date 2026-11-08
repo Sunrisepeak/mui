@@ -59,8 +59,8 @@ private:
     void ensure(const PaintContext& ctx) const;
     void release() const;
     void schedule() const;  // a step at the next frame's start
-    void step() const;
-    void write(double at, bool playing) const;
+    void step();
+    void write(double at, bool playing);  // its props set and written back (bound or not)
 
     mutable std::unique_ptr<Made> made_;
     mutable double                from_at_ = 0, from_time_ = 0;  // where and when it started playing

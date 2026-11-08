@@ -7,6 +7,7 @@ import omui;
 import omui.site;
 import mlibs.testing;
 import mlibs.hash;
+import hanim.engine;
 
 using namespace omui;
 using namespace mlibs::testing;
@@ -16,8 +17,8 @@ constexpr std::string_view root = "main/body/view/explore/page/works/grid";
 std::string path(std::string_view tail) { return std::string(root) + "/" + std::string(tail); }
 
 struct Page {
-    Headless h{HeadlessOptions{.size = {1280, 3600}, .scale = 1}};
-    Page() {
+    Headless h;
+    explicit Page(float height = 3600) : h{HeadlessOptions{.size = {1280, height}, .scale = 1}} {
         auto app = site::app("explore", "en");
         h.runtime().set_theme(app.theme);
         app.setup(h.runtime());
@@ -255,6 +256,36 @@ int main(int argc, char** argv) {
         check(page.act("glass/controls/drops", "set_value", Value{}.set("value", "apart")) == 0);
         page.h.settle(seconds(2));
         check(std::abs(left_x() - apart) < 1 && middle() == gap_apart, "apart again: parted, the middle as it was");
+    });
+
+    suite.test("the recipe library: every recipe of hanim's by name, each played on a card; a filter by kind; its call and its step to copy", [] {
+        Page page(7000);
+        const std::string library = "main/body/view/explore/page/recipes";
+        std::size_t thumbs = 0;
+        for (const auto& info : hanim::anim::recipes()) thumbs += page.h.tree().node(std::format("{}/grid/{}/stage", library, info.name)).has_value();
+        check(thumbs == hanim::anim::recipes().size(), std::format("{} of {}", thumbs, hanim::anim::recipes().size()));
+        (void)page.h.save_png(scratch_dir("works-library") / "library.png", page.h.runtime().screen_bounds(page.h.runtime().find(library)));
+        for (const std::string_view name : {"rise_in", "tada", "bob"}) {
+            const std::string stage = std::format("{}/grid/{}/stage", library, name);
+            Invocation call;
+            check(page.h.tree().act(std::format("{}/grid/{}/head/play", library, name), "activate", call).exit_code() == std::optional<int>(0));
+            page.h.advance(seconds(0.2));
+            const Value moving = page.h.tree().node(stage)->value;
+            check(moving.get("playing")->as_bool() && moving.get("at")->as_double() > 0, std::format("{} plays", name));
+            page.h.settle(seconds(10));
+            const Value done = page.h.tree().node(stage)->value;
+            check(!done.get("playing")->as_bool() && std::abs(done.get("at")->as_double() - done.get("length")->as_double()) < 1e-6, std::format("{} played through", name));
+        }
+        Invocation call;
+        check(page.h.tree().act(library + "/grid/rise_in/copy/cpp", "activate", call).exit_code() == std::optional<int>(0));
+        check_eq(page.h.runtime().clipboard_text(), std::string("hanim::anim::rise_in(card, 24)"));
+        check(page.h.tree().act(library + "/grid/spin_in/copy/json", "activate", call).exit_code() == std::optional<int>(0));
+        check_eq(page.h.runtime().clipboard_text(), std::string(R"({"do": "spin_in", "object": "card", "degrees": -68.8})"));
+        check(page.h.tree().act(library + "/kind", "set_value", Invocation{.args = Value{}.set("value", "loop")}).exit_code() == std::optional<int>(0));
+        page.h.settle();
+        std::size_t loops = 0;
+        for (const auto& info : hanim::anim::recipes()) loops += page.h.tree().node(std::format("{}/grid/{}/stage", library, info.name)).has_value();
+        check(loops == static_cast<std::size_t>(std::ranges::count(hanim::anim::recipes(), hanim::anim::RecipeKind::loop, &hanim::anim::RecipeInfo::kind)), std::format("{} loops", loops));
     });
 
     return suite.run(argc, argv);

@@ -253,5 +253,24 @@ int main(int argc, char** argv) {
         check(near(previous, 1), "written whole at its end");
     });
 
+    s.test("the library by name: every recipe in the catalogue made by name plays on an object; a loop says its course; an unknown name makes none", [] {
+        std::set<std::string_view> names;
+        for (const auto& info : anim::recipes()) {
+            check(names.insert(info.name).second, std::format("{} once", info.name));
+            check(anim::find_recipe(info.name) == &info, std::string(info.name));
+            check((info.kind == anim::RecipeKind::loop) == (info.period > 0), std::format("{}: a loop has a course, and only a loop", info.name));
+            const auto made = anim::recipe(info.name, ObjectRef{}, {.count = 1});
+            check(made.has_value(), std::string(info.name));
+            if (!made) continue;
+            Run run([&](ObjectRef o) { return *anim::recipe(info.name, o, {.count = 1}, {.part = "box"}); });
+            check(run.length > 0, std::format("{} plays: {} s", info.name, run.length));
+        }
+        check(names.size() >= 36, std::format("{} recipes", names.size()));
+        check(!anim::recipe("no_such_recipe", ObjectRef{}) && !anim::find_recipe("no_such_recipe"), "an unknown name: none");
+        // A value given is used: rise_in from 60 below rather than its 24.
+        Run rise([](ObjectRef o) { return *anim::recipe("rise_in", o, {.number = 60.0}); });
+        check(near(rise.at(0).y, 160), std::format("from 60 below: {}", rise.at(0).y));
+    });
+
     return s.run(argc, argv);
 }

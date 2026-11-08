@@ -1356,6 +1356,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(motion_gallery(s->creative, s->creative_site, true, room));
         // The signature works (E1), under the gallery until the page is rebuilt round them (E2).
         content.push_back(signature_works(s->works, s->works_site, room));
+        content.push_back(recipe_library(s->works, s->works_site, room));
         content.push_back(explore_landing(s->links, room));
     } else if (id == "docs") {
         content.push_back(docs_landing(s->docs, s->links, room >= 1000 ? room - 196 : room));

@@ -7,7 +7,7 @@
 # is hanim's own catalog (hanim.ops.omui.toml).
 [catalog]
 product   = "studio"
-doc       = "Check, sample and render hanim animation documents (<name>.animation.omui.json) headless."
+doc       = "Check, sample, point into and render hanim animation documents (<name>.animation.omui.json) headless."
 generated = "media/ops"
 
 [[operation]]
@@ -25,6 +25,18 @@ summary = "Every object at given moments: drawn or not, position, scale, rotatio
 params  = [
     { name = "file", type = "path" },
     { name = "at", type = "json", doc = "the moments in seconds, one --at each" },
+]
+result  = "json"
+cost    = "bounded"
+
+[[operation]]
+name    = "document.at"
+effect  = "read"
+summary = "What governs a moment someone points at: the steps that run then (of one object, if given), innermost first — each one's JSON pointer, start, end, how far through it is, the objects it moves and its own JSON: what to change to change what is seen"
+params  = [
+    { name = "file", type = "path" },
+    { name = "at", type = "number", doc = "the moment in seconds" },
+    { name = "object", type = "string", doc = "only the steps that move this object", optional = true },
 ]
 result  = "json"
 cost    = "bounded"

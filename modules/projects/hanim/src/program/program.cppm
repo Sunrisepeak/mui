@@ -106,6 +106,10 @@ public:
     // A marker node's name (empty for every other kind).
     [[nodiscard]] std::string_view marker_name() const & noexcept;
     std::string_view marker_name() const && = delete;
+    // The author's name for this node (labelled()): carried into the plan's
+    // node info, so what is read back is said in the author's own terms.
+    [[nodiscard]] std::string_view label() const & noexcept;
+    std::string_view label() const && = delete;
     // Non-null only for an explicitly rejected authoring expression. Its
     // domain cause survives composition; preparation supplies the node index.
     [[nodiscard]] const ProgramFailure* failure() const & noexcept;
@@ -127,6 +131,7 @@ private:
     friend Program repeat(std::size_t, Program);
     friend Program timed(Program, TimeMap);
     friend Program marker(std::string);
+    friend Program labelled(Program, std::string);
     friend Program sequence(std::span<const Program>);
     friend Program parallel(std::span<const Program>);
     friend Program stagger(seconds, std::span<const Program>);
@@ -159,6 +164,9 @@ private:
 }
 // A named instant (a beat, a cue): no object, no duration; PreparedProgram::markers().
 [[nodiscard]] Program marker(std::string name);
+// `program` under a name (a document's JSON pointer, a scene's step): a node
+// of one child, the same timing and frames, whose plan node carries `label`.
+[[nodiscard]] Program labelled(Program program, std::string label);
 [[nodiscard]] Program sequence(std::span<const Program> children);
 [[nodiscard]] Program sequence(std::initializer_list<Program> children);
 [[nodiscard]] inline Program delay(seconds duration, Program child) {
@@ -550,6 +558,7 @@ struct ProgramNodeInfo {
     // Repeat nodes record the authored count; each expanded child root records
     // its zero-based iteration. Descendants use their ordinary parent links.
     std::size_t repeat_count = 0, iteration = invalid_program_index;
+    std::string label;  // Program::label(): the author's name for it (empty: none)
 };
 struct PreparedScope {
     std::size_t node = 0, parent = invalid_program_index, depth = 1, parameter_offset = 0;

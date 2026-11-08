@@ -114,6 +114,15 @@ struct ObjectState {
     std::optional<Rgba> fill;
     Vec2 low{}, high{};  // the bounds (empty when not drawn)
 };
+// A step of the document that governs a moment (Studio::at): its JSON
+// pointer, when it runs, and the objects it moves — what to change to change
+// what is seen then.
+struct Governing {
+    std::string where;                 // the step's JSON pointer
+    double start = 0, end = 0;         // seconds
+    double progress = 0;               // how far through it the moment is (0…1)
+    std::vector<std::string> objects;  // the objects its own leaves move
+};
 // An operation the studio performed through hanim.control, and the decision.
 struct Operation {
     std::string name;
@@ -138,6 +147,10 @@ public:
     // The operations performed so far (prepare, play, pause, seek …), in order.
     [[nodiscard]] std::span<const Operation> operations() const noexcept;
 
+    // The steps that govern `time`, innermost first — those that move `object`
+    // at that moment when one is named (empty: any): from a moment someone
+    // points at to the step, and the pointer to its numbers, to change.
+    [[nodiscard]] std::vector<Governing> at(seconds time, std::string_view object = {}) const;
     // Every object at `time` (clamped to the program), in the document's order.
     [[nodiscard]] std::expected<std::vector<ObjectState>, Problems> state(seconds time);
     // The stage at `time` as the display list `render` draws (the studio's own,

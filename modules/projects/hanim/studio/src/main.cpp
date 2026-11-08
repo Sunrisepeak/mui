@@ -2,6 +2,8 @@
 // its objects are at any moment, render its frames.
 //
 //   hanim check  FILE                         the plan: duration, tracks, markers — or every problem
+//   hanim at     FILE --at T [--object ID]    the steps that govern that moment (of that object), innermost
+//                                             first: each one's JSON pointer, timing and JSON — what to change
 //   hanim sample FILE --at T [--at T …]       every object's position, scale, rotation, fill and bounds
 //   hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]
 //                                             PREFIX-000.png …, PREFIX.strip.png, PREFIX.report.omui.json;
@@ -24,7 +26,7 @@ namespace os = mcpplibs::os;
 using Json = nlohmann::json;
 
 constexpr std::string_view usage =
-    "usage: hanim check FILE | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]";
+    "usage: hanim check FILE | hanim at FILE --at T [--object ID] | hanim sample FILE --at T [--at T …] | hanim render FILE --out PREFIX [--frames N | --at T …] [--webp FPS] [--svg]";
 
 int answer(const Json& json, int code) {
     std::println("{}", json.dump());
@@ -81,12 +83,13 @@ Json plan(const studio::Studio& opened) {
 int main(int argc, char** argv) {
     if (argc < 3) return wrong("a command and a document");
     const std::string_view command = argv[1];
-    if (command != "check" && command != "sample" && command != "render") return wrong(std::format("no command `{}`", command));
+    if (command != "check" && command != "sample" && command != "render" && command != "at") return wrong(std::format("no command `{}`", command));
     const std::string file = argv[2];
     std::vector<double> times;
     std::optional<std::string> out;
     int frames = 0, fps = 0;
     bool svg = false;
+    std::string object;
     for (int index = 3; index < argc; ++index) {
         const std::string_view option = argv[index];
         const bool has_value = index + 1 < argc;
@@ -105,6 +108,8 @@ int main(int argc, char** argv) {
             double count = 0;
             if (!number(count) || count < 1 || count > 240 || count != std::floor(count)) return wrong("--frames takes 1 … 240");
             frames = static_cast<int>(count);
+        } else if (option == "--object" && has_value && command == "at") {
+            object = argv[++index];
         } else if (option == "--svg") {
             svg = true;
         } else if (option == "--webp" && has_value) {
@@ -123,6 +128,26 @@ int main(int argc, char** argv) {
     if (!opened) return failed(opened.error());
 
     if (command == "check") return answer(Json{{"ok", true}, {"file", file}, {"plan", plan(*opened)}, {"operations", operations(*opened)}}, 0);
+    if (command == "at") {
+        // What governs a moment someone points at (Part 2 H): the steps, innermost first, each with its
+        // JSON pointer, its timing and its own JSON — the numbers to change.
+        if (times.size() != 1) return wrong("hanim at FILE --at T [--object ID]");
+        const double moment = times.front();
+        const Json whole = Json::parse(*text, nullptr, false);
+        Json steps = Json::array();
+        for (const auto& governing : opened->at(hanim::seconds(moment), object)) {
+            Json one{{"where", governing.where},
+                     {"start", round3(governing.start)},
+                     {"end", round3(governing.end)},
+                     {"progress", round3(governing.progress)},
+                     {"objects", governing.objects}};
+            // Studio's pointers are well-formed (from its own reading): look the step up without throwing.
+            const Json::json_pointer pointer(governing.where);
+            if (!whole.is_discarded() && whole.contains(pointer)) one["step"] = whole[pointer];
+            steps.push_back(std::move(one));
+        }
+        return answer(Json{{"ok", true}, {"file", file}, {"at", moment}, {"object", object}, {"steps", std::move(steps)}}, 0);
+    }
 
     const double length = opened->duration().count();
     if (command == "sample") {

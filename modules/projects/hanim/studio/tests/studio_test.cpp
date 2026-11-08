@@ -217,5 +217,23 @@ int main(int argc, char** argv) {
         check(!syntax && syntax.error().size() == 1 && syntax.error()[0].where.starts_with("line 3"), syntax ? "" : syntax.error()[0].where);
     });
 
+    s.test("pointing at a moment: the steps that govern it, innermost first, each by its JSON pointer", [] {
+        auto opened = studio::Studio::open(*studio::read(example()));
+        if (!opened) return;
+        // 0.3 s: the ball is dropping (the first step), inside the whole sequence.
+        const auto dropping = opened->at(hanim::seconds(0.3));
+        check(dropping.size() == 2 && dropping[0].where == "/program/items/0" && dropping[1].where == "/program", "the drop, then the sequence");
+        if (dropping.empty()) return;
+        check(dropping[0].start == 0 && dropping[0].progress > 0.1 && dropping[0].progress < 0.3 && dropping[0].objects == std::vector<std::string>{"ball"},
+              std::format("the drop's timing {} → {}, {}", dropping[0].start, dropping[0].end, dropping[0].progress));
+        // While the ball travels the star springs: asking for the star names its step, not the ball's.
+        const double travel = opened->markers()[0].time.count() + 0.2;
+        const auto star = opened->at(hanim::seconds(travel), "star");
+        check(!star.empty() && star[0].where == "/program/items/2/items/1", star.empty() ? "nothing for the star" : star[0].where);
+        const auto ball = opened->at(hanim::seconds(travel), "ball");
+        check(!ball.empty() && ball[0].where == "/program/items/2/items/0", ball.empty() ? "nothing for the ball" : ball[0].where);
+        check(opened->at(hanim::seconds(travel), "nobody").empty(), "an object no step moves: nothing governs it");
+    });
+
     return s.run(argc, argv);
 }

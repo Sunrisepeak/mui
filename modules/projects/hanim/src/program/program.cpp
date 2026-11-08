@@ -15,6 +15,7 @@ struct ProgramNode {
     std::size_t repeat_count=0;
     TimeMap map;
     std::string marker;
+    std::string label;
     std::unique_ptr<const ProgramFailure> failure;
 };
 struct ProgramData {
@@ -105,7 +106,7 @@ struct Collect {
             auto contextual=*authored;contextual.where.node=node;
             return std::unexpected(std::move(contextual));
         }
-        hierarchy.push_back({.kind=value.kind(),.parent=parent,.subtree_end=node+1,.start=seconds(start),.scope=scope});
+        hierarchy.push_back({.kind=value.kind(),.parent=parent,.subtree_end=node+1,.start=seconds(start),.scope=scope,.label=std::string(value.label())});
         if(value.kind()==ProgramKind::composite) {
             const auto* spec=value.scope();
             if(scopes.size()>=limits.max_scopes) {
@@ -514,6 +515,11 @@ Program marker(std::string name) {
     node->marker=std::move(name);return Program(std::move(node));
 }
 const TimeMap* Program::time_map() const & noexcept {return node_ && node_->kind==ProgramKind::timed?&node_->map:nullptr;}
+std::string_view Program::label() const & noexcept {return node_?std::string_view(node_->label):std::string_view{};}
+Program labelled(Program program,std::string label) {
+    auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::sequence;node->children.push_back(std::move(program));
+    node->label=std::move(label);return Program(std::move(node));
+}
 std::string_view Program::marker_name() const & noexcept {return node_ && node_->kind==ProgramKind::marker?std::string_view(node_->marker):std::string_view{};}
 Program repeat(std::size_t count,Program child) {
     auto node=std::make_shared<detail::ProgramNode>();node->kind=ProgramKind::repeat;

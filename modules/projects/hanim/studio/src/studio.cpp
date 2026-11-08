@@ -119,7 +119,13 @@ struct Builder {
         for (const auto& item : items) out.push_back(program(item));
         return out;
     }
+    // Each step under its JSON pointer (hanim::labelled): the plan read back
+    // says which step of the document governs a moment (hanim at).
     Program program(const StepSpec& step) {
+        Program made = unlabelled(step);
+        return step.where.empty() || step.kind == StepKind::marker ? made : labelled(std::move(made), step.where);
+    }
+    Program unlabelled(const StepSpec& step) {
         switch (step.kind) {
         case StepKind::sequence: return sequence(std::span<const Program>(all(step.items)));
         case StepKind::parallel: return parallel(std::span<const Program>(all(step.items)));
@@ -320,6 +326,37 @@ std::expected<Studio, Problems> Studio::open(const Document& document) {
 }
 
 const Document& Studio::document() const noexcept { return data_->document; }
+std::vector<Governing> Studio::at(seconds time, std::string_view object) const {
+    const Data& d = *data_;
+    const auto nodes = d.plan.nodes();
+    const auto tracks = d.plan.tracks();
+    // A track's object, by the document's order (track_of maps the other way).
+    std::vector<std::string> track_object(tracks.size());
+    for (std::size_t index = 0; index < d.track_of.size(); ++index)
+        if (d.track_of[index] && *d.track_of[index] < track_object.size()) track_object[*d.track_of[index]] = d.document.objects[index].id;
+    std::vector<Governing> out;
+    const double t = time.count();
+    for (std::size_t node = 0; node < nodes.size(); ++node) {
+        const ProgramNodeInfo& info = nodes[node];
+        if (info.label.empty()) continue;
+        const double start = info.start.count(), end = start + info.duration.count();
+        if (t < start || t > end) continue;
+        Governing g{.where = info.label, .start = start, .end = end, .progress = end > start ? (t - start) / (end - start) : 1.0};
+        for (std::size_t leaf = node; leaf < info.subtree_end; ++leaf) {
+            const ProgramNodeInfo& l = nodes[leaf];
+            if (l.track == invalid_program_index || l.track >= track_object.size()) continue;
+            const double ls = l.start.count(), le = ls + l.duration.count();
+            if (t < ls || t > le || track_object[l.track].empty()) continue;
+            if (std::ranges::find(g.objects, track_object[l.track]) == g.objects.end()) g.objects.push_back(track_object[l.track]);
+        }
+        if (!object.empty() && std::ranges::find(g.objects, object) == g.objects.end()) continue;
+        out.push_back(std::move(g));
+    }
+    // Innermost first: a later node in preorder lies within the earlier ones that hold it.
+    std::ranges::reverse(out);
+    return out;
+}
+
 seconds Studio::duration() const noexcept { return data_->plan.duration(); }
 const PreparedProgram& Studio::plan() const noexcept { return data_->plan; }
 std::span<const ProgramMarker> Studio::markers() const noexcept { return data_->plan.markers(); }

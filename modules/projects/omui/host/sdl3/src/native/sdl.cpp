@@ -626,6 +626,20 @@ void set_clipboard(std::string_view text) { SDL_SetClipboardText(std::string(tex
 
 bool open_url(std::string_view url) { return SDL_OpenURL(std::string(url).c_str()); }
 
+bool save_download(std::string_view name, std::string_view bytes) {
+    const char* folder = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
+    if (!folder) folder = SDL_GetUserFolder(SDL_FOLDER_HOME);
+    if (!folder) return false;
+    const auto utf8 = [](std::string_view text) { return std::filesystem::path(std::u8string(text.begin(), text.end())); };
+    const std::filesystem::path directory = utf8(folder), wanted = utf8(name);
+    std::filesystem::path target = directory / wanted;
+    for (int number = 2; std::filesystem::exists(target) && number < 1000; ++number)
+        target = directory / (wanted.stem().u8string() + std::u8string(u8" (") + utf8(std::to_string(number)).u8string() + u8")" + wanted.extension().u8string());
+    std::ofstream out(target, std::ios::binary);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+    return static_cast<bool>(out);
+}
+
 void wake() {
     if (!sdl_ready) return;
     SDL_Event e{};

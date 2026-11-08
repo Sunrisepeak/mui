@@ -98,6 +98,14 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
     d.runtime->set_device_tier(d.options.tier, std::format("headless, drawn as on {}", mlibs::pipeline::name(d.options.tier)));
     d.tree = std::make_unique<semantic::Tree>(*d.runtime);
     d.glyphs = std::make_unique<xrender::text::GlyphCache>(*fonts);
+    // A file offered is taken (the runtime keeps it: offered_files); the
+    // drawing in vectors is the agent's capture.
+    d.runtime->set_file_offer([](const Runtime::OfferedFile&) { return true; });
+    d.runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, std::string> {
+        auto capture = svg(region);
+        if (!capture) return std::unexpected(capture.error());
+        return std::move(capture->svg);
+    });
     if (d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;

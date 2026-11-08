@@ -32,6 +32,7 @@ void omui_web_link_stop();
 char* omui_web_clipboard();
 void omui_web_set_clipboard(const char* text);
 int  omui_web_open_url(const char* url);
+int  omui_web_offer_file(const char* name, const char* type, const char* bytes, int size);
 int  omui_web_store();
 char* omui_web_store_get(const char* key);
 int  omui_web_store_set(const char* key, const char* value);
@@ -339,6 +340,9 @@ std::string clipboard() { return taken(omui_web_clipboard()); }
 void set_clipboard(std::string_view text) { omui_web_set_clipboard(std::string(text).c_str()); }
 
 bool open_url(std::string_view url) { return omui_web_open_url(std::string(url).c_str()) != 0; }
+bool offer_file(std::string_view name, std::string_view type, std::string_view bytes) {
+    return omui_web_offer_file(std::string(name).c_str(), std::string(type).c_str(), bytes.data(), static_cast<int>(bytes.size())) != 0;
+}
 
 bool storage() { return omui_web_store() != 0; }
 

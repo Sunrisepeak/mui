@@ -30,7 +30,7 @@ export namespace omui::site {
 // on any machine.
 [[nodiscard]] std::uint64_t tree_hash(const Value& snapshot);
 // The home page's tree hash in English, as CI pins it (tests/site_test.cpp).
-inline constexpr std::uint64_t pinned_home_hash = 0xec26e222c7b43d64;
+inline constexpr std::uint64_t pinned_home_hash = 0x74b99221bbff215f;
 
 // Every place as static HTML (the documents through openmui.markdown's
 // to_html, byte for byte md4c-html's), in a <main id="omui-static"> that a

@@ -2,7 +2,8 @@
 // and one line, then the thing itself — the whole page switched to its
 // structure and back; a line changing language, the letters both share kept
 // where they are; a soft card let go, its time dragged back to a step drawn
-// exactly as it was. Sampled over time and saved.
+// exactly as it was; the page saved as SVG, its shapes named by their nodes.
+// Sampled over time and saved.
 import std;
 import omui;
 import omui.site;
@@ -53,10 +54,10 @@ struct Home {
 int main(int argc, char** argv) {
     Suite suite("site.home_scenes");
 
-    suite.test("three scenes under the opening, each a heading and one line, then the thing itself", [] {
+    suite.test("four scenes under the opening, each a heading and one line, then the thing itself", [] {
         Home home;
         for (const auto& [id, heading] : {std::pair{"views", "One tree, every view"}, std::pair{"glyphs", "Only what changed moves"},
-                                          std::pair{"soft", "Drop it. Then pull time back."}}) {
+                                          std::pair{"soft", "Drop it. Then pull time back."}, std::pair{"vectors", "Any moment, as vectors"}}) {
             const auto title = home.node(std::format("{}/heading", id));
             check(title && title->role == Role::heading && title->name == heading, std::format("{}: {}", id, title ? title->name : "none"));
             std::size_t words = 0;
@@ -125,6 +126,22 @@ int main(int argc, char** argv) {
         check(home.act("soft/shown/controls/play") == 0);
         home.run(3);
         check_eq(home.card_text("hash"), end);
+    });
+
+    suite.test("④ the page saved as SVG: a file given to the person, its shapes named by their nodes", [] {
+        Home home;
+        check(home.act("vectors/shown/save") == 0);
+        home.h.step();
+        const auto& files = home.h.runtime().offered_files();
+        check(files.size() == 1, std::format("{} files offered", files.size()));
+        if (files.empty()) return;
+        const auto& file = files.back();
+        check(file.name == "omui-home.svg" && file.type == "image/svg+xml" && file.bytes.starts_with("<svg"), file.name);
+        check(file.bytes.contains(R"(data-node="main/body/view/home/page/scenes/vectors/shown/save")"), "the button that saved it, named in it");
+        check(file.bytes.contains(R"(data-node="main/body/view/home/page/landing/intro/title")"), "the home's title, named");
+        const std::string said = home.node("vectors/shown/saved")->name;
+        check(said.starts_with("Saved omui-home.svg: ") && said.contains("shapes, each named by the node that drew it"), said);
+        std::ofstream(scratch_dir("home-scenes-svg") / "omui-home.svg", std::ios::binary) << file.bytes;
     });
 
     return suite.run(argc, argv);

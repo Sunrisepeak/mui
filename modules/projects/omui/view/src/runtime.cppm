@@ -666,6 +666,22 @@ public:
     bool open_url(std::string_view url);
     void set_url_opener(std::function<bool(std::string_view)> open);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
+    // A file given to the person (an export: a picture, a document) where
+    // the host can: the Web's download, the desktop's Downloads folder;
+    // false when nothing takes it. The last files offered are kept, in order
+    // (`offered`: what a test reads; at most offered_kept).
+    struct OfferedFile {
+        std::string name, type, bytes;  // its name, its media type, its contents
+    };
+    static constexpr std::size_t offered_kept = 16;
+    bool offer_file(OfferedFile file);
+    void set_file_offer(std::function<bool(const OfferedFile&)> offer);
+    [[nodiscard]] const std::deque<OfferedFile>& offered_files() const noexcept;
+    // What is drawn now as SVG (each node's drawing marked by its path), over
+    // `region` (logical pixels; the window when none), where the host can say
+    // it in vectors (agent::vector_capture); why not, otherwise.
+    [[nodiscard]] std::expected<std::string, std::string> capture_svg(std::optional<Rect> region = {});
+    void set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture);
     // The person's own agent (agent connect, D-95), where the host can link
     // one — the Web, through a bridge on the person's machine: link_agent()
     // starts looking for it and answers the pairing code the person gives

@@ -299,6 +299,18 @@ addToLibrary({
       window.location.assign(url);
       return true;
     },
+    // A file given to the person: downloaded under its name (the bytes
+    // copied out of the program's memory first).
+    offerFile: function (name, type, bytes) {
+      if (typeof document === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) return false;
+      var url = URL.createObjectURL(new Blob([bytes.slice()], { type: type || 'application/octet-stream' }));
+      var a = document.createElement('a');
+      a.href = url; a.download = name; a.style.display = 'none';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      omuiPage.offered = (omuiPage.offered || []).concat([{ name: name, type: type, size: bytes.length }]);
+      return true;
+    },
 
     // ── the semantic DOM mirror ──
 
@@ -594,6 +606,11 @@ addToLibrary({
   omui_web_open_url__deps: ['$omuiPage', '$UTF8ToString'],
   omui_web_open_url: function (url) {
     return omuiPage.openUrl(UTF8ToString(url)) ? 1 : 0;
+  },
+
+  omui_web_offer_file__deps: ['$omuiPage', '$UTF8ToString'],
+  omui_web_offer_file: function (name, type, bytes, size) {
+    return omuiPage.offerFile(UTF8ToString(name), UTF8ToString(type), HEAPU8.subarray(bytes, bytes + size)) ? 1 : 0;
   },
 
   // localStorage, where the page has it (reading it throws where the person

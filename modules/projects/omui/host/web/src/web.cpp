@@ -140,6 +140,13 @@ struct Web::Impl {
         if (!opened) return;
         runtime->set_clipboard([] { return page::clipboard(); }, [](std::string_view t) { page::set_clipboard(t); });
         runtime->set_url_opener([](std::string_view url) { return page::open_url(url); });
+        runtime->set_file_offer([](const Runtime::OfferedFile& file) { return page::offer_file(file.name, file.type, file.bytes); });
+        runtime->set_svg_capture([this](Rect region) -> std::expected<std::string, std::string> {
+            const xrender::Resources resources{&runtime->images(), glyphs.get()};
+            auto capture = agent::vector_capture(*runtime, resources, region, scale, std::nullopt);
+            if (!capture) return std::unexpected(capture.error());
+            return std::move(capture->svg);
+        });
         // The person's own agent, for the application to offer (its actor log, a "copy the prompt").
         if (options.agent_link) {
             runtime->set_agent_linker({[this] { return link_start(); }, [] { page::link_stop(); }});

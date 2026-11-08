@@ -83,11 +83,53 @@ Element soft_scene(HomeScenes& state, const HomeScenesSite& site, float width) {
                         {drop_card({.id = "card", .at = state.at, .span = 3.0, .width = Dim(room), .height = Dim(std::round(room * 0.56f))}), std::move(controls)}));
 }
 
+// ④ The page as vectors: saved as SVG, each shape named by the node that drew it.
+Element vectors_scene(HomeScenes& state, const HomeScenesSite& site) {
+    Runtime** runtime = site.runtime;
+    HomeScenes* model = &state;
+    const auto save = [runtime, model] {
+        if (!runtime || !*runtime) return;
+        Runtime& rt = **runtime;
+        const auto drawn = rt.capture_svg();
+        if (!drawn) {
+            model->saved_error.set(drawn.error());
+            return;
+        }
+        std::int64_t shapes = 0;
+        for (std::size_t at = drawn->find("data-node=\""); at != std::string::npos; at = drawn->find("data-node=\"", at + 1)) ++shapes;
+        const auto bytes = static_cast<std::int64_t>(drawn->size());
+        if (!rt.offer_file({"omui-home.svg", "image/svg+xml", *drawn})) {
+            model->saved_error.set("this host keeps no files");
+            return;
+        }
+        model->saved_error.set(std::string());
+        model->saved_bytes.set(bytes);
+        model->saved_shapes.set(shapes);
+    };
+    Element said = text({.id = "saved",
+                         .text = computed([lang = site.lang, model] {
+                             const bool zh = lang && lang->get() == "zh";
+                             if (const std::string why = model->saved_error.get(); !why.empty()) return std::format("{}{}", zh ? "没有保存：" : "Not saved: ", why);
+                             const auto bytes = model->saved_bytes.get(), shapes = model->saved_shapes.get();
+                             if (bytes == 0) return std::string();
+                             return zh ? std::format("已保存 omui-home.svg：{} KB，{} 个图形各带画出它的节点名", (bytes + 512) / 1024, shapes)
+                                       : std::format("Saved omui-home.svg: {} KB, {} shapes, each named by the node that drew it", (bytes + 512) / 1024, shapes);
+                         }),
+                         .style = "caption",
+                         .color = "text_muted",
+                         .align = "center"});
+    return scene(site, "vectors", {"Any moment, as vectors", "任一刻，都是矢量"},
+                 {"Save this page as SVG: every shape in it named by the node that drew it.", "把这一页存成 SVG：每个图形都带着画出它的节点名。"},
+                 column({.id = "shown", .gap = 12, .align = "center"},
+                        {button({.id = "save", .text = words(site, "Save as SVG", "存成 SVG"), .variant = ButtonVariant::primary, .on_activated = save}),
+                         std::move(said)}));
+}
+
 }  // namespace
 
 Element home_scenes(HomeScenes& state, const HomeScenesSite& site, float width) {
     return column({.id = "scenes", .width = Dim(width), .gap = 0, .align = "center"},
-                  {views_scene(site, width), glyphs_scene(state, site, width), soft_scene(state, site, width)});
+                  {views_scene(site, width), glyphs_scene(state, site, width), soft_scene(state, site, width), vectors_scene(state, site)});
 }
 
 }  // namespace omui::site

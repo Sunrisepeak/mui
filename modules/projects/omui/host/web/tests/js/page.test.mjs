@@ -186,6 +186,26 @@ const first = JSON.stringify({
   revision: 17,
 });
 
+test('a file given to the person: downloaded under its name, its bytes copied out of the program\'s memory', async () => {
+  const p = page();
+  const made = [];
+  p.context.HEAPU8 = new Uint8Array(32);
+  p.context.HEAPU8.set(new TextEncoder().encode('<svg/>'), 4);
+  p.context.Blob = Blob;
+  p.context.URL = { createObjectURL: (blob) => { made.push(blob); return 'blob:1'; }, revokeObjectURL: () => {} };
+  const clicked = [];
+  p.document.body.addEventListener('click', (event) => clicked.push([event.target.getAttribute?.('download') ?? event.target.download, event.target.href]));
+  const anchors = () => p.document.body.children.filter((c) => c.tagName === 'A').length, before = anchors();
+  assert.equal(p.context.omui_web_offer_file('home.svg', 'image/svg+xml', 4, 6), 1);
+  p.context.HEAPU8.fill(0);  // the program's memory reused: the download keeps its own copy
+  assert.equal(made.length, 1);
+  assert.equal(made[0].type, 'image/svg+xml');
+  assert.equal(await made[0].text(), '<svg/>');
+  assert.deepEqual(plain(clicked), [['home.svg', 'blob:1']]);
+  assert.equal(anchors(), before, 'the link is gone again');
+  assert.deepEqual(plain(p.context.omuiPage.offered), [{ name: 'home.svg', type: 'image/svg+xml', size: 6 }]);
+});
+
 test('an address: a new tab inside the person\'s activation, else this tab; never a script', () => {
   const p = page({ activation: { isActive: true } });
   assert.equal(p.context.omui_web_open_url('https://github.com/openlifa/openmui'), 1);

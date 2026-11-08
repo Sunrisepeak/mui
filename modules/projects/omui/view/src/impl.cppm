@@ -400,6 +400,9 @@ struct Runtime::Impl {
     std::function<void(std::string_view)>   clipboard_write;
     std::function<bool(std::string_view)>   url_opener;
     std::vector<std::string>                opened;
+    std::function<bool(const Runtime::OfferedFile&)> file_offer;
+    std::deque<Runtime::OfferedFile>        offered_files;
+    std::function<std::expected<std::string, std::string>(Rect)> svg_capture;
     // The person's own agent (Runtime::link_agent): the host's way to link, what it last heard.
     Runtime::AgentLinker                    agent_linker;
     AgentLink                               agent_link;

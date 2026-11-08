@@ -832,6 +832,25 @@ void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_
 
 const std::vector<std::string>& Runtime::opened() const noexcept { return impl_->opened; }
 
+bool Runtime::offer_file(OfferedFile file) {
+    if (file.name.empty() || file.name.find_first_of("/\\") != std::string::npos) return false;
+    const bool taken = impl_->file_offer && impl_->file_offer(file);
+    impl_->offered_files.push_back(std::move(file));
+    if (impl_->offered_files.size() > offered_kept) impl_->offered_files.pop_front();
+    return taken;
+}
+
+void Runtime::set_file_offer(std::function<bool(const OfferedFile&)> offer) { impl_->file_offer = std::move(offer); }
+
+const std::deque<Runtime::OfferedFile>& Runtime::offered_files() const noexcept { return impl_->offered_files; }
+
+std::expected<std::string, std::string> Runtime::capture_svg(std::optional<Rect> region) {
+    if (!impl_->svg_capture) return std::unexpected("this host does not draw in vectors");
+    return impl_->svg_capture(region.value_or(Rect{0, 0, size().width, size().height}));
+}
+
+void Runtime::set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture) { impl_->svg_capture = std::move(capture); }
+
 // ── what others did here, and the person's own agent ──
 
 void Runtime::Impl::journal_add(std::string where, std::string_view action, const Invocation& call, int exit_code) {

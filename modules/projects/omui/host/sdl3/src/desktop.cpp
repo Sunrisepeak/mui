@@ -339,6 +339,13 @@ std::expected<void, std::string> Desktop::open() {
     d.hit_test();
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
     d.runtime->set_url_opener([](std::string_view url) { return platform::open_url(url); });
+    d.runtime->set_file_offer([](const Runtime::OfferedFile& file) { return platform::save_download(file.name, file.bytes); });
+    d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {
+        const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+        auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);
+        if (!capture) return std::unexpected(capture.error());
+        return std::move(capture->svg);
+    });
     if (d.options.agent) {
         agent::EndpointOptions eo;
         eo.name = d.options.app;

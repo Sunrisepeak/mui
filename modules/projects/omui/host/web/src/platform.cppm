@@ -55,6 +55,8 @@ void set_clipboard(std::string_view text);
 // An address in a new tab (where the person's last input still allows a
 // window), else in this one.
 bool open_url(std::string_view url);
+// A file given to the person: the browser's download of it.
+bool offer_file(std::string_view name, std::string_view type, std::string_view bytes);
 
 // localStorage, where the page has it (keys as given: the caller prefixes them).
 [[nodiscard]] bool storage();

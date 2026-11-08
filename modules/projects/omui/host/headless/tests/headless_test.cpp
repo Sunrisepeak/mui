@@ -269,6 +269,26 @@ int main(int argc, char** argv) {
         check(region && region->svg.contains(R"(viewBox="10 10 100 50")"), "a region is the picture's view");
     });
 
+    s.test("the program's own: the drawing as SVG through the runtime, a file offered and kept; a name with a path refused", [] {
+        HeadlessOptions o;
+        o.size = {240, 120};
+        Headless h(o);
+        Counter c;
+        h.mount("main", c.view());
+        h.step();
+        Runtime& rt = h.runtime();
+        const auto drawn = rt.capture_svg();
+        check(drawn && *drawn == h.svg()->svg, "the same picture an agent captures");
+        if (!drawn) return;
+        check(rt.offer_file({"counter.svg", "image/svg+xml", *drawn}), "taken");
+        check(!rt.offer_file({"../counter.svg", "image/svg+xml", *drawn}), "a name with a path: refused");
+        check(rt.offered_files().size() == 1 && rt.offered_files().front().name == "counter.svg" && rt.offered_files().front().bytes == *drawn, "kept (the refused one not)");
+        for (int k = 0; k < 20; ++k) (void)rt.offer_file({std::format("{}.txt", k), "text/plain", "x"});
+        check(rt.offered_files().size() == Runtime::offered_kept && rt.offered_files().back().name == "19.txt", "only the last ones kept");
+        Runtime bare;
+        check(!bare.capture_svg(), "a runtime without a host: no vectors");
+    });
+
     s.test("every incremental frame is the full render of its list, byte for byte", [] {
         // Text edits, a colour transition, a moving box, hover, a scroll:
         // each frame's pixels (only the damaged rows drawn) against a fresh

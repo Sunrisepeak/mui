@@ -37,6 +37,34 @@ std::string given(const Value& args) {
 }
 
 // Who, as a record says it: the actor's own name (agent:guide → guide).
+// What a card over the page should not cover: the boxes of the page's leaves
+// (window coordinates), but the presence's own and those inside the node acted on.
+std::vector<Rect> page_leaves(const Services& services, NodeId presence, const Rect& acted_on) {
+    NodeId top = presence;
+    while (services.parent(top)) top = services.parent(top);
+    std::vector<Rect> out;
+    std::vector<NodeId> pending{top};
+    for (std::size_t visited = 0; !pending.empty() && visited < 4096; ++visited) {
+        const NodeId node = pending.back();
+        pending.pop_back();
+        if (node == presence) continue;
+        const auto children = services.children(node);
+        if (!children.empty()) {
+            pending.insert(pending.end(), children.begin(), children.end());
+            continue;
+        }
+        const Rect box = services.bounds(node);
+        const bool inside = box.x >= acted_on.x && box.y >= acted_on.y && box.right() <= acted_on.right() && box.bottom() <= acted_on.bottom();
+        if (!box.empty() && !inside) out.push_back(box);
+    }
+    return out;
+}
+
+float overlap(const Rect& a, const Rect& b) {
+    const float width = std::min(a.right(), b.right()) - std::max(a.x, b.x), height = std::min(a.bottom(), b.bottom()) - std::max(a.y, b.y);
+    return width > 0 && height > 0 ? width * height : 0;
+}
+
 std::string_view who(std::string_view actor) {
     const auto colon = actor.find(':');
     return colon == std::string_view::npos ? actor : actor.substr(colon + 1);
@@ -425,11 +453,24 @@ void AgentPresence::paint(PaintContext& ctx) const {
     if (now.asking || now.taken_over || now.note) {
         card_.set_text(said());
         const Size t = card_.measure(ctx.services, th.color("text"), 260);
-        // Beside the node where the page has room, else under it: not over what it acts on.
+        // Beside the node, else under or over it — the first place on the page that hides nothing of it
+        // (what it acts on least of all); where every place hides something, the one that hides least.
         const float width = t.width + 24, height = t.height + 16;
-        const bool beside = box.right() + 12 + width <= ctx.size.width;
-        const Rect card = beside ? Rect{box.right() + 12, box.y + (box.height - height) / 2, width, height}
-                                 : Rect{std::clamp(box.x, 0.0f, std::max(0.0f, ctx.size.width - width)), box.bottom() + 30, width, height};
+        const float across = std::clamp(box.x, 0.0f, std::max(0.0f, ctx.size.width - width));
+        const std::array<Rect, 4> places{Rect{box.right() + 12, box.y + (box.height - height) / 2, width, height},
+                                         Rect{box.x - 12 - width, box.y + (box.height - height) / 2, width, height},
+                                         Rect{across, box.bottom() + 30, width, height}, Rect{across, box.y - 12 - height, width, height}};
+        std::vector<Rect> leaves = page_leaves(services(), node(), now.now->bounds);
+        for (Rect& leaf : leaves) leaf = local(leaf);
+        Rect card = places[2];
+        float least = std::numeric_limits<float>::infinity();
+        for (const Rect& place : places) {
+            if (place.x < 0 || place.y < 0 || place.right() > ctx.size.width || place.bottom() > ctx.size.height) continue;
+            float hidden = overlap(place, box) * 4;
+            for (const Rect& leaf : leaves) hidden += overlap(place, leaf);
+            if (hidden < least) least = hidden, card = place;
+            if (hidden == 0) break;
+        }
         ctx.part({.role = "card", .allocation = card, .kind = xrender::PartKind::box}, [&] {
             if (auto it = th.shadows.find("md"); it != th.shadows.end()) paint_shadow(ctx.list, card, th.radii(10), it->second);
             ctx.list.fill_round_rect(card, th.radii(10), xrender::Paint::solid(th.color("surface")));

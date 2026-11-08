@@ -63,7 +63,7 @@ Every metric is ours against the strongest competitor, measured on one machine i
 | omui.components | omui.canvas-objects: 组件即画布对象：缩小后依然是活的 | planned | — |
 | omui.components | omui.style-packs: 风格包同时改变质感和动效配方 | planned | — |
 | omui.components | H.components: Agent 批量做出带全部状态、动效、无障碍和契约的组件变体，人并排挑选和微调 | planned | — |
-| hanim | F: AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入 | planned | — |
+| hanim | F: AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入 | evidence | — |
 | hanim | H: Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调 | evidence | — |
 | hanim | hanim.one-engine: 一个引擎服务 UI、视频和游戏，三处逐位一致 | planned | — |
 | hanim | hanim.morph: 跨表示、拓扑对齐的形变 | evidence | ahead |

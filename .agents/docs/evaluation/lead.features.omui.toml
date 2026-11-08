@@ -113,7 +113,8 @@ id = "F"
 project = "hanim"
 line = "build-reliably"
 title = "AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入"
-status = "planned"
+status = "evidence"
+scene = "modules/projects/hanim/studio/tests/studio_test.cpp"
 competitors = ["ai-video", "lottie-json-agent", "ae-script-agent"]
 
 [[feature]]

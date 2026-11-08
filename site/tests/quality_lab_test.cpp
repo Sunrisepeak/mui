@@ -4,8 +4,10 @@
 // maintainer and the benchmark review.
 //
 // Sheets in scratch "quality-lab": controls.png (a row per control, the four
-// states in light, then in dark). Checked here: every state of a button is
-// its own picture.
+// states in light, then in dark), and controls/<name>.png — one control's
+// four states in light, the strip the side-by-side review sets beside the
+// same control of Material 3 (tests/bench/competitors/compare, D-135).
+// Checked here: every state of a button is its own picture.
 import std;
 import omui;
 import omui.theme;
@@ -93,19 +95,31 @@ int main(int argc, char** argv) {
         sheet.alpha = mlibs::image::Alpha::premultiplied;
         sheet.rgba.assign(static_cast<std::size_t>(sheet.width) * sheet.height * 4, 128);
         std::set<std::uint64_t> buttons;
-        for (std::size_t r = 0; r < list.size(); ++r)
+        const auto dir = scratch_dir("quality-lab");
+        std::filesystem::create_directories(dir / "controls");
+        for (std::size_t r = 0; r < list.size(); ++r) {
+            mlibs::image::Image strip;
+            strip.width = cell_w * 4;
+            strip.height = cell_h;
+            strip.alpha = mlibs::image::Alpha::premultiplied;
+            strip.rgba.assign(static_cast<std::size_t>(strip.width) * strip.height * 4, 128);
             for (int column = 0; column < 8; ++column) {
                 const bool dark = column >= 4;
                 const auto shown = static_cast<Shown>(column % 4);
                 const auto pixels = shoot(list[r], shown, dark);
                 if (r == 0) buttons.insert(std::hash<std::string_view>{}(std::string_view(reinterpret_cast<const char*>(pixels.bytes().data()), pixels.bytes().size())));
                 const int x0 = column * cell_w + (dark ? gutter : 0), y0 = static_cast<int>(r) * cell_h;
-                for (int y = 0; y < std::min(cell_h, pixels.height()); ++y)
-                    std::memcpy(sheet.rgba.data() + (static_cast<std::size_t>(y0 + y) * sheet.width + x0) * 4, pixels.row(y),
-                                static_cast<std::size_t>(std::min(cell_w, pixels.width())) * 4);
+                for (int y = 0; y < std::min(cell_h, pixels.height()); ++y) {
+                    const auto bytes = static_cast<std::size_t>(std::min(cell_w, pixels.width())) * 4;
+                    std::memcpy(sheet.rgba.data() + (static_cast<std::size_t>(y0 + y) * sheet.width + x0) * 4, pixels.row(y), bytes);
+                    if (!dark) std::memcpy(strip.rgba.data() + (static_cast<std::size_t>(y) * strip.width + column * cell_w) * 4, pixels.row(y), bytes);
+                }
             }
+            std::string file = list[r].name;
+            std::ranges::replace(file, ' ', '-');
+            check(mlibs::image::save_png(dir / "controls" / (file + ".png"), mlibs::image::view(strip)).has_value(), file + ".png saved");
+        }
         check_eq(buttons.size(), std::size_t{8});  // rest, hover, pressed, focus — in light and in dark
-        const auto dir = scratch_dir("quality-lab");
         check(mlibs::image::save_png(dir / "controls.png", mlibs::image::view(sheet)).has_value(), "controls.png saved");
         std::println("quality lab: {} (columns: {} in light, then in dark)", (dir / "controls.png").string(),
                      std::views::join_with(shown_names, std::string_view(", ")) | std::ranges::to<std::string>());

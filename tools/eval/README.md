@@ -45,3 +45,11 @@ tools/eval/lead.py summary --out .agents/docs/evaluation/lead.md
 
 `eval.sh`'s codex scores are history since D-135: reviews compare side by side with similar projects (rubric `compare-v1`).
 
+`compare.py` runs the side-by-side reviews that replaced the scores (D-135, rubric `compare-v1`). A comparison set (`.agents/docs/evaluation/compare/<subject>.compare.omui.toml`) pairs our picture with a similar project's of the same scene, per dimension; `materials/` makes them (`materials/controls.sh`: our controls from the site's quality lab beside Material 3's from Google's @material/web, the same four states and cells). `sheets` blinds each pair (A and B, which is ours drawn from a seeded stream, the key kept apart); `judge` asks a fresh Claude session that has nothing of the project — an empty directory, the sheet, the question — and unblinds its answer into ahead, par or behind, a dimension's verdict its weakest pair's; `record` writes the maintainer's verdict, which decides.
+
+```text
+tools/eval/materials/controls.sh
+tools/eval/compare.py sheets components && tools/eval/compare.py judge components
+tools/eval/compare.py record components controls par --note "…"
+```
+

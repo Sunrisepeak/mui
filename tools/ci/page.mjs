@@ -78,7 +78,24 @@ export async function browser(chrome, { width = 1280, height = 800, flags = [] }
     if (d.id && waiting.has(d.id)) { waiting.get(d.id)(d); waiting.delete(d.id); }
     if (d.method) for (const l of listeners) l(d.method, d.params);
   });
-  const call = (method, params = {}) => new Promise((r) => { const i = ++id; waiting.set(i, r); ws.send(JSON.stringify({ id: i, method, params })); });
+  // Every call has a deadline: a page that stops answering (no frame comes,
+  // a promise never settles) fails the check that asked, saying what it
+  // asked, rather than hold the job until CI cancels it. After one stall
+  // the page is not asked again: each later call fails at once.
+  const deadline = Number(process.env.OMUI_CDP_TIMEOUT_S || 120) * 1000;
+  let stalled = null;
+  const call = (method, params = {}) => new Promise((resolve, reject) => {
+    if (stalled) { reject(new Error(`the page stopped answering earlier (${stalled}); ${method} not sent`)); return; }
+    const i = ++id;
+    const what = method + (params.expression ? ` ${String(params.expression).slice(0, 160)}` : '');
+    const timer = setTimeout(() => {
+      waiting.delete(i);
+      stalled = what;
+      reject(new Error(`${what}: no answer in ${deadline / 1000} s`));
+    }, deadline);
+    waiting.set(i, (d) => { clearTimeout(timer); resolve(d); });
+    ws.send(JSON.stringify({ id: i, method, params }));
+  });
   const value = async (expression) => (await call('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })).result?.result?.value;
   const version = (await (await fetch(`http://127.0.0.1:${port}/json/version`)).json()).Browser;
   await call('Page.enable');

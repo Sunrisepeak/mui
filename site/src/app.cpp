@@ -1418,6 +1418,8 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
     a.renderer = "automatic";
     auto s = std::make_shared<Site>();
     inspector::cellular::add_verbs(a, s->reactions);
+    // The release workspace's Publish (external: an agent's request waits for the person's answer).
+    a.verbs.push_back({release_publish_desc(), [s](const Value&) -> VerbResult { return publish_release(s->hero); }});
     for(const auto& desc:motion_control_verbs())a.verbs.push_back({desc,[s,name=desc.name](const Value& args)->VerbResult {
         const auto place=s->place.peek();
         if(place=="motion")return motion_control(s->basic,s->basic_site,name,args);
@@ -1513,7 +1515,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                              .go = [p = s.get()](std::string id) { p->go(id); },
                              .root = "main/body/view/interface/page/interface_feature", .scope = "interface-feature"};
         s->agent_site = {.runtime = &s->runtime, .lang = &s->lang,
-                         .connect = [p = s.get()] { p->panel.set(true); p->give_prompt(); },
+                         .connect = [p = s.get()] { p->link_with_mui(); },  // Mui shows the way (§9.3)
                          .style = [p = s.get()](std::string pack) { p->apply_scope("agent-design", std::move(pack)); },
                          .open_mode = [p = s.get()](std::string mode) { p->open_agent_mode(std::move(mode)); },
                          .preview_blocked = [p = s.get()] {

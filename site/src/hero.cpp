@@ -100,9 +100,25 @@ void change_tasks(Hero& hero, const HeroSite& site, Value after, bool shipped = 
     const Value before = hero.tasks.peek(); const bool was_shipped = hero.shipped.peek();
     if (before == after && was_shipped == shipped) return;
     hero.tasks.set(after); hero.shipped.set(shipped);
+    if (!shipped) hero.published.set(false);  // a release taken back is not published
     auto restore = [p = &hero](Value tasks, bool sent) { p->tasks.set(std::move(tasks)); p->shipped.set(sent); p->editing.set(""); p->validation.set(""); p->selected.set("ship"); p->exchange.set(""); };
     if (site.runtime && *site.runtime) (*site.runtime)->taken_back_by([restore, before, was_shipped] { restore(before, was_shipped); }, [restore, after, shipped] { restore(after, shipped); });
 }
+}  // namespace
+
+VerbDesc release_publish_desc() {
+    return {.name = std::string(release_publish_verb), .summary = "Publish the recorded release to the team", .effect = Effect::external,
+            .answer = "publish"};
+}
+
+VerbResult publish_release(Hero& hero) {
+    if (!hero.shipped.peek()) return std::unexpected("record the release first");
+    hero.published.set(true);
+    return Value{};
+}
+
+namespace {
+
 void activate_work_action(const HeroSite& site, std::string_view action) {
     if (!site.runtime || !*site.runtime || !site.root) return;
     Runtime& rt = **site.runtime;
@@ -218,6 +234,10 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
     ship.on_activated = [hp, sp] { change_tasks(*hp, *sp, hp->tasks.peek(), true); hp->selected.set("ship"); };
     // The simulated agent must be able to finish its own run.
     ship.disabled = computed([hp, all_checked] { return !all_checked() || hp->shipped.get(); });
+    // Publish: external — an agent asking to press it waits for the person's answer.
+    ButtonOptions publish{.id = "publish", .text = say("Publish to the team", "发布给团队"), .variant = ButtonVariant::secondary};
+    publish.verb = std::string(release_publish_verb);
+    publish.disabled = computed([hp] { return !hp->shipped.get() || hp->published.get(); });
     Element add = row({.id = "add", .gap = 8, .align = "center"}, {
         text_box({.id = "title", .disabled = unavailable, .label = say("New task", "新任务"), .max_length = 96, .placeholder = say("Add a release task…", "添加一项发布任务…"), .text = hp->draft,
                   .on_submitted = [sp](std::string) { activate_work_action(*sp, "add/submit"); }, .width = Dim(std::max(80.0f, inside - 76))}).prop("undo_scope", Source(Value(true))),
@@ -263,11 +283,13 @@ Element hero(Hero& h, const HeroSite& site, bool live, float width) {
         std::move(tasks), std::move(add), std::move(editor),
         dynamic([hp] { if (hp->validation.get().empty()) return std::vector<Element>{}; Element message = text({.id = "validation", .text = hp->validation, .style = "caption", .color = "text_muted"}); message.prop("role", Source(Value("alert"))); return std::vector<Element>{std::move(message)}; }),
         row({.id = "actions", .gap = 8, .align = "center", .wrap = "wrap"}, {
-            button(std::move(ship)), button({.id = "reset", .disabled = computed([hp] { return hp->agent_running.get(); }), .text = say("Reset board", "重置工作台"), .variant = ButtonVariant::ghost,
-                .on_activated = [hp, sp] { change_tasks(*hp, *sp, release_tasks()); hp->draft.set(""); hp->editing.set(""); hp->validation.set(""); hp->selected.set("ship"); hp->exchange.set(""); }})}),
+            button(std::move(ship)), button(std::move(publish)), button({.id = "reset", .disabled = computed([hp] { return hp->agent_running.get(); }), .text = say("Reset board", "重置工作台"), .variant = ButtonVariant::ghost,
+                .on_activated = [hp, sp] { change_tasks(*hp, *sp, release_tasks()); hp->published.set(false); hp->draft.set(""); hp->editing.set(""); hp->validation.set(""); hp->selected.set("ship"); hp->exchange.set(""); }})}),
         row({.id = "history", .gap = 8, .wrap = "wrap"}, std::move(history)),
         text({.id = "shipped", .text = computed([hp, sp] {
-            const bool zh = sp->lang && sp->lang->get() == "zh"; if (hp->shipped.get()) return std::string(zh ? "已记录发布。可以撤销，或重置开始下一轮。" : "Shipped locally. Undo it, or reset for the next release.");
+            const bool zh = sp->lang && sp->lang->get() == "zh";
+            if (hp->shipped.get() && hp->published.get()) return std::string(zh ? "已发布给团队（模拟：什么也没有离开这一页）。" : "Published to your team (simulated: nothing leaves this page).");
+            if (hp->shipped.get()) return std::string(zh ? "已记录发布。可以撤销，或重置开始下一轮。" : "Shipped locally. Undo it, or reset for the next release.");
             const Value tasks = hp->tasks.get(); std::size_t complete = 0, total = tasks.list() ? tasks.list()->size() : 0;
             if (tasks.list()) for (const auto& task : *tasks.list()) if (const auto* done = task.get("done"); done && done->as_bool()) ++complete;
             return zh ? std::format("{} / {} 项已完成 · 数据保留在本次访问中", complete, total) : std::format("{} / {} done · kept for this visit", complete, total);

@@ -20,11 +20,20 @@ struct Hero {
     Signal<bool>                inspect = signal(false);
     std::uint64_t              next_task = 1, generation = 0;
     Signal<bool>                shipped = signal(false);
+    // Published to the team (simulated: nothing leaves the page): external, so
+    // an agent asks the person first (S-11) — the site's permission demonstration.
+    Signal<bool>                published = signal(false);
     Signal<std::string>         selected = signal(std::string("ship"));  // a specimen node's id: tests, docs, notes, ship
     Signal<std::string>         copied_tasks = signal(std::string());
     Signal<std::string>         exchange = signal(std::string());       // the agent's last request and its answer
     Signal<bool>                agent_running = signal(false);
 };
+
+// The verb behind the board's Publish: external (it reaches the team), so an agent's request asks the person.
+inline constexpr std::string_view release_publish_verb = "release.publish";
+[[nodiscard]] VerbDesc release_publish_desc();
+// Publishes the recorded release (simulated); refused before it is recorded.
+[[nodiscard]] VerbResult publish_release(Hero& hero);
 
 [[nodiscard]] Prop<bool> task_binding(Hero& hero, std::string id);
 

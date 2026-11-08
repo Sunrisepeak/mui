@@ -974,7 +974,8 @@ int main(int argc, char** argv) {
         // by the cage's edge weights (hanim fix), the home's scenes below
         // (the foot says the home tree's hash; the lenses show the tree).
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
-        check_eq(all.hex(), std::string("2ec9bf5dbb09f085"));
+        // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
+        check_eq(all.hex(), std::string("8c8224a2dd4b8f92"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

@@ -7,11 +7,12 @@ namespace omui::site {
 
 namespace {
 
-constexpr std::array<GuideTask, 5> tasks{{
+constexpr std::array<GuideTask, 6> tasks{{
     {"read", "Read this page", "读这一页"},
     {"tour", "Switch language, read Core ideas", "切换语言，阅读“核心概念”"},
     {"edit", "Split the title clip, then undo it", "切开 title 片段，再撤销"},
     {"link", "Open the openas standard (external)", "打开 openas 标准（外部）"},
+    {"publish", "Publish the release (it asks you)", "发布这个版本（会先问你）"},
     {"self", "Answer for the person (S-10)", "替人回答（S-10）"},
 }};
 
@@ -89,6 +90,20 @@ std::vector<std::string> Guide::steps(std::string_view task) const {
         visit("docs");
         route.push_back(wait("main/body/view/docs/page/read/resources"));
         route.push_back(act("main/body/view/docs/page/read/resources", "open_link", std::format(R"({{"href":"{}"}})", openas_url)));
+        return route;
+    }
+    if (task == "publish") {
+        // The release workspace: its own scripted agent finishes the checklist and records the
+        // release; then Publish — external, so it asks you (S-11), Mui holding up the card.
+        const std::string release = "main/body/view/release/page/hero";
+        visit("explore");
+        route.push_back(wait("main/body/view/explore/page/explore/works/release/open"));
+        route.push_back(act("main/body/view/explore/page/explore/works/release/open", "activate"));
+        route.push_back(wait(release + "/agent_row/let_agent"));
+        route.push_back(act(release + "/agent_row/let_agent", "activate"));
+        route.push_back(std::format(R"({{"op":"wait","actor":"{}","q":{{"id":"{}","not":["disabled"]}},"timeout":15}})", guide_actor,
+                                    release + "/demo/specimen/actions/publish"));
+        route.push_back(act(release + "/demo/specimen/actions/publish", "activate"));
         return route;
     }
     if (task == "self") return {act("main/body/guide/asking/answer/allow_once", "activate")};

@@ -924,6 +924,7 @@ void Runtime::set_svg_capture(std::function<std::expected<std::string, std::stri
 // ── what others did here, and the person's own agent ──
 
 void Runtime::Impl::journal_add(std::string where, std::string_view action, const Invocation& call, int exit_code) {
+    if (previews > 0) return;  // a preview's steps and its rollback are no one's record
     journal.push_back({std::move(where), std::string(action), call.actor.text(), exit_code, call.args, journal_next(), clock.now().count()});
     actions_changed();
 }

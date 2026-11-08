@@ -488,6 +488,15 @@ public:
     // back), and so are undo and redo. Rolling back takes every step back,
     // last first. Transactions nest: the outermost one decides.
     void begin_transaction(std::string label);
+    // A preview (Part 2 §4.1, A: shown before it is allowed): until
+    // end_preview nothing done is journaled and nothing drawn moves (motion
+    // off: a change shows its end at once), so a transaction run and rolled
+    // back inside one is seen only by whoever looks between — the picture of
+    // what an agent's actions would make, with nothing left of them after.
+    // Previews nest; the outermost ends it.
+    void begin_preview();
+    void end_preview();
+    [[nodiscard]] bool previewing() const noexcept;
     Envelope commit_transaction();
     Envelope rollback_transaction(const Invocation& call = {});
     [[nodiscard]] bool in_transaction() const noexcept;

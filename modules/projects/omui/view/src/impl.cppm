@@ -441,6 +441,8 @@ struct Runtime::Impl {
     };
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
+    int                         previews = 0;        // begin_preview depth: journal off, motion off
+    MotionLevel                 preview_motion = MotionLevel::full;  // the level a preview put aside
     // An action journaled (its id the next one, journal_next): its followers told.
     void journal_add(std::string path, std::string_view action, const Invocation& call, int exit_code);
     [[nodiscard]] std::uint64_t journal_next() const noexcept { return journal.empty() ? 1 : journal.back().id + 1; }

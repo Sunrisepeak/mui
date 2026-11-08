@@ -328,7 +328,7 @@ int main(int argc, char** argv) {
         agent::Protocol p(app.rt);
         auto value = [&](std::string_view id) { return app.rt.semantic_node(app.rt.find(id)).value.as_int(); };
         auto d = talk(p, R"({"op":"describe"})");
-        check(d[0].get("data")->json().contains(R"("undo","redo","transaction","history")"), d[0].json());
+        check(d[0].get("data")->json().contains(R"("undo","redo","transaction","preview","history")"), d[0].json());
         // A dry run: the outcome and the value it would have; nothing else.
         const auto journal = app.rt.action_journal().size();
         auto dry = talk(p, R"({"op":"act","node":"counts/a","action":"increment","dry_run":true})");

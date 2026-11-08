@@ -70,6 +70,17 @@ public:
     // or external step is refused before it runs. A dry run checks each step
     // against the tree as it is now and answers their outcomes.
     Envelope transaction(std::span<const Step> steps, const Invocation& call = {}, std::string label = {});
+    // What the steps would make, shown before anything is allowed (Part 2
+    // §4.1, A): the ones that can be taken back run inside a transaction in
+    // a preview (no journal, no motion), `look` sees the state they make (a
+    // picture), and everything is taken back. A step that asks the person
+    // (irreversible, external) is not done: it is listed, with its effect —
+    // the picture is without it. A step with no known way back cannot be
+    // shown without being done: the preview refuses, nothing done. The
+    // answer: the steps run, those not done, the semantic changes (added,
+    // removed, changed: name, value, state, role, description), what `look`
+    // gave, and whether the tree is, after, as it was before (`restored`).
+    Envelope preview(std::span<const Step> steps, const Invocation& call = {}, const std::function<Value()>& look = {});
     [[nodiscard]] WaitState check(const Condition& condition);
     // Every node against the spec's clauses.
     [[nodiscard]] std::vector<spec::Violation> violations();

@@ -229,6 +229,145 @@ Envelope Tree::act(std::string_view id, std::string_view action, const Invocatio
     return runtime_.act(n, action, call);
 }
 
+namespace {
+
+// A node's semantic face for a preview's changes: what a person or an agent
+// reads, not where it is drawn.
+Value face_of(const spec::SemanticNode& node) {
+    Value all = spec::to_value(node);
+    Value face(Value::Map{});
+    for (std::string_view key : {"role", "name", "description", "value", "state"})
+        if (const Value* v = all.get(key)) face.set(key, *v);
+    return face;
+}
+
+Value changes_between(const Snapshot& before, const Snapshot& after) {
+    std::unordered_map<std::string_view, const spec::SemanticNode*> was;
+    for (const spec::SemanticNode& n : before.nodes) was.emplace(n.id, &n);
+    Value::List added, changed, removed;
+    std::unordered_set<std::string_view> still;
+    for (const spec::SemanticNode& n : after.nodes) {
+        const auto it = was.find(n.id);
+        if (it == was.end()) {
+            added.push_back(Value{}.set("id", n.id).set("now", face_of(n)));
+            continue;
+        }
+        still.insert(n.id);
+        const Value a = face_of(*it->second), b = face_of(n);
+        Value fields(Value::Map{});
+        for (std::string_view key : {"role", "name", "description", "value", "state"}) {
+            const Value* x = a.get(key);
+            const Value* y = b.get(key);
+            const bool same = (!x && !y) || (x && y && *x == *y);
+            if (!same) fields.set(key, Value{}.set("before", x ? *x : Value{}).set("after", y ? *y : Value{}));
+        }
+        if (fields.map() && !fields.map()->empty()) changed.push_back(Value{}.set("id", n.id).set("fields", std::move(fields)));
+    }
+    for (const spec::SemanticNode& n : before.nodes)
+        if (!still.contains(n.id)) removed.push_back(Value{}.set("id", n.id).set("was", face_of(n)));
+    return Value{}.set("added", Value(std::move(added))).set("removed", Value(std::move(removed))).set("changed", Value(std::move(changed)));
+}
+
+}  // namespace
+
+Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, const std::function<Value()>& look) {
+    Envelope e;
+    if (steps.empty()) {
+        e.error(spec::error_code::invalid_argument, "a preview needs steps").result(spec::exit_code::failure);
+        return e;
+    }
+    auto call_of = [&](const Step& s) {
+        Invocation c = call;
+        c.args = s.args;
+        c.dry_run = false;
+        if (!s.answer.empty()) c.answer = s.answer;
+        return c;
+    };
+    // Which steps run and which only would, by each one's own dry run.
+    std::vector<Step> run;
+    Value::List not_done;
+    for (std::size_t i = 0; i < steps.size(); ++i) {
+        Invocation c = call_of(steps[i]);
+        c.dry_run = true;
+        Envelope d = act(steps[i].id, steps[i].action, c);
+        const Value* v = d.data_value();
+        if (d.exit_code() != spec::exit_code::success && (!v || !v->get("outcome"))) {
+            std::string why = "it would fail";
+            for (const spec::Record& r : d.records())
+                if (r.kind == spec::RecordKind::error && r.body.get("text")) why = std::string(r.body.get("text")->as_string());
+            e.error(spec::error_code::refused, std::format("step {} ({} on '{}'): {}; nothing was done", i + 1, steps[i].action, steps[i].id, why))
+                .result(spec::exit_code::failure);
+            return e;
+        }
+        const std::string_view effect = v && v->get("effect") ? v->get("effect")->as_string() : std::string_view{};
+        const Effect fx = spec::parse_effect(effect).value_or(Effect::external);
+        if (spec::requires_answer(fx)) {
+            not_done.push_back(Value{}.set("step", static_cast<std::int64_t>(i)).set("id", steps[i].id).set("action", steps[i].action)
+                                   .set("effect", effect).set("why", "it asks the person first: in a preview it is shown, not done"));
+            continue;
+        }
+        const Value* undoable = v ? v->get("undoable") : nullptr;
+        if (fx != Effect::read && (!undoable || !undoable->as_bool())) {
+            e.error(spec::error_code::refused,
+                    std::format("step {} ({} on '{}') {}: it cannot be shown without being done; nothing was done", i + 1, steps[i].action, steps[i].id,
+                                undoable ? "gives no way back" : "has no known way back"))
+                .result(spec::exit_code::failure);
+            return e;
+        }
+        run.push_back(steps[i]);
+    }
+    const Snapshot before = snapshot({});
+    runtime_.begin_preview();
+    Value::List ran;
+    Value seen;
+    Snapshot after;
+    std::optional<Envelope> failed;
+    if (!run.empty()) {
+        runtime_.begin_transaction("preview");
+        for (const Step& s : run) {
+            Envelope r = act(s.id, s.action, call_of(s));
+            if (r.exit_code() != spec::exit_code::success) {
+                failed = std::move(r);
+                break;
+            }
+            ran.push_back(Value{}.set("id", s.id).set("action", s.action));
+        }
+    }
+    // A frame at this very time (nothing advances; motion is off, so every
+    // change shows its end): what the steps make, laid out and drawn.
+    const auto settle = [&] {
+        FrameInput still;
+        still.time = runtime_.now();
+        (void)runtime_.frame(still);
+    };
+    if (!failed) {
+        settle();
+        if (look) seen = look();
+        after = snapshot({});
+    }
+    if (!run.empty()) (void)runtime_.rollback_transaction(call);
+    settle();  // back as it was, before motion returns
+    runtime_.end_preview();
+    const Snapshot again = snapshot({});
+    const bool restored = again.nodes == before.nodes;
+    if (failed) {
+        std::string why = "it failed";
+        for (const spec::Record& r : failed->records())
+            if (r.kind == spec::RecordKind::error && r.body.get("text")) why = std::string(r.body.get("text")->as_string());
+        e.error(spec::error_code::failed, std::format("a step failed while previewed: {}; taken back{}", why, restored ? "" : " (not all of it)"),
+                Value{}.set("restored", restored))
+            .result(spec::exit_code::failure);
+        return e;
+    }
+    Value data;
+    data.set("ran", Value(std::move(ran))).set("not_done", Value(std::move(not_done))).set("changes", changes_between(before, after));
+    data.set("restored", restored);
+    if (!seen.is_null()) data.set("seen", std::move(seen));
+    if (!restored) e.error(spec::error_code::internal, "the preview did not leave the interface as it was");
+    e.data(std::move(data)).result(restored ? spec::exit_code::success : spec::exit_code::failure);
+    return e;
+}
+
 Envelope Tree::transaction(std::span<const Step> steps, const Invocation& call, std::string label) {
     auto first_error = [](const Envelope& e) -> std::pair<std::string, std::string> {
         for (const spec::Record& r : e.records())

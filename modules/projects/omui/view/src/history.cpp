@@ -282,6 +282,21 @@ void Runtime::begin_transaction(std::string label) {
 
 bool Runtime::in_transaction() const noexcept { return impl_->transaction.has_value(); }
 
+void Runtime::begin_preview() {
+    Impl& d = *impl_;
+    if (d.previews++ > 0) return;
+    d.preview_motion = motion_level();
+    set_motion_level(MotionLevel::off);
+}
+
+void Runtime::end_preview() {
+    Impl& d = *impl_;
+    if (d.previews == 0 || --d.previews > 0) return;
+    set_motion_level(d.preview_motion);
+}
+
+bool Runtime::previewing() const noexcept { return impl_->previews > 0; }
+
 Envelope Runtime::commit_transaction() {
     Impl& d = *impl_;
     if (!d.transaction) return refused("no transaction is open");

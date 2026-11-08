@@ -11,7 +11,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 
 1. **Read** with `snapshot` (the tree, or a part: `root`, `depth`, `interactive`), then `changes` for what moved since.
 2. **Find** by meaning, not by position: `find` with a query (`role`, `name`, `id`, state; wildcards). Interactive nodes have explicit IDs that do not depend on their text — prefer them.
-3. **Act** on a node's action (`act`: `activate`, `toggle`, `set_value`, …) or call a verb (`invoke`); `dry_run` says what would happen first. Several steps that belong together go in one `transaction`.
+3. **Act** on a node's action (`act`: `activate`, `toggle`, `set_value`, …) or call a verb (`invoke`); `dry_run` says what would happen first. Several steps that belong together go in one `transaction`. Before steps the person must decide on, `preview` them: what they would make, as pictures before and after and as the semantic changes, run unseen and taken back — nothing stays, no journal entry, no history; a step that asks the person is shown as such and not done. Show the person the pictures, then act on their word.
 4. **Wait** for the outcome rather than sleeping: `wait` for a node present, absent, or the tree settled.
 5. **Input** (`input`: pointer, keys, text a frame at a time) only when the task is about input itself — where a press lands, how a drag feels; the answer says what each press hit. Acting on nodes is the default.
 6. **Undo** with `undo` / `redo` and read `history`.

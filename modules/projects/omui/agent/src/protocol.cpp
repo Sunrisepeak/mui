@@ -544,6 +544,50 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (!call) return call.error();
         return tree_.transaction(list, *call, std::string(text_of(req, "label")));
     }
+    if (op == "preview") {
+        // What the steps would make, shown before it is allowed (Part 2 §4.1, A): the picture now and the
+        // picture after, the semantic changes, the steps that would ask the person (shown, not done) —
+        // and after it all, the interface as it was.
+        const Value* steps = req.get("steps");
+        constexpr std::string_view example =
+            R"({"op":"preview","steps":[{"node":"main/title","action":"set_value","args":{"value":"Plan"}},{"node":"main/publish","action":"activate"}]})";
+        if (!steps || !steps->list() || steps->list()->empty()) return invalid("`preview` needs `steps`: a list of {node, action, args}", example);
+        std::vector<semantic::Step> list;
+        for (const Value& st : *steps->list()) {
+            if (!st.map() || text_of(st, "node").empty() || text_of(st, "action").empty()) return invalid("each step names its `node` and `action`", example);
+            list.push_back({std::string(text_of(st, "node")), std::string(text_of(st, "action")), st.get("args") ? *st.get("args") : Value{},
+                            std::string(text_of(st, "answer"))});
+        }
+        auto call = invocation(Value{});
+        if (!call) return call.error();
+        const Rect region{0, 0, runtime_.size().width, runtime_.size().height};
+        const bool pictures = static_cast<bool>(options_.capture) && !(req.get("pictures") && !req.get("pictures")->as_bool());
+        auto picture = [&]() -> Value {
+            if (!pictures) return Value{};
+            auto png = options_.capture(region);
+            if (!png) return Value{}.set("error", png.error());
+            return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
+        };
+        Value before = picture();
+        Envelope shown = tree_.preview(list, *call, [&] { return picture(); });
+        if (const Value* d = shown.data_value()) {
+            Value data(Value::Map{});
+            if (d->map())
+                for (const auto& [key, value] : *d->map())
+                    if (key != "seen") data.set(key, value);
+            if (pictures) {
+                data.set("before", std::move(before));
+                if (const Value* seen = d->get("seen")) data.set("after", *seen);
+            }
+            Envelope out;
+            for (const spec::Record& r : shown.records())
+                if (r.kind == spec::RecordKind::error && r.body.get("text"))
+                    out.error(r.body.get("code") ? std::string(r.body.get("code")->as_string()) : std::string(spec::error_code::failed),
+                              std::string(r.body.get("text")->as_string()));
+            return out.data(std::move(data)).result(shown.exit_code().value_or(spec::exit_code::success));
+        }
+        return shown;
+    }
     if (op == "wait") {
         // The condition's fields sit in the request itself: q, absent, settled.
         Value fields = Value(Value::Map{});

@@ -54,7 +54,7 @@
 
 | 项目 | 特性 | 主线 | 状态 | 对照判定 |
 |---|---|---|---|---|
-| omui | A 先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交 | use-safely | planned | — |
+| omui | A 先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交 | use-safely | evidence | ahead |
 | omui | B 用 AI 写 UI 最顺手：确定的像素与语义、像素到源码，写看改闭环 | build-reliably | planned | — |
 | omui | C 零代码的 Agent 接口：语义树自动投影为 MCP、WebMCP 的类型化操作，授权由 openas 判定 | use-safely | evidence | ahead |
 | omui | D 人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则 | together | planned | — |
@@ -96,3 +96,4 @@
 | B.pixels: a frame as SVG, every shape a group named by its node, what SVG cannot say a marked pixel island | xrender | skia: partial, resvg: none | ahead | `modules/projects/xrender/vector/tests/svg_test.cpp` |
 | hanim.morph: topology-aligned morphs between shapes of different contour and hole counts, strokes and fills, CPU and GPU the same frames | hanim | gsap-morphsvg: partial, flubber: partial | ahead | `modules/projects/hanim/studio/tests/signature_test.cpp` |
 | gongfu.rollback-kernel: fixed-point fighting kernel: 10,000 random-depth rollbacks byte-identical, extractable whole | gongfu | ggpo: app-defined, ggrs: app-defined | ahead | `modules/projects/gongfu/tests/gongfu_test.cpp` |
+| A: any application's steps previewed before they are allowed: run unseen and taken back (no journal, no history, motion off), the pictures before and after and the semantic changes; a step that asks the person shown, not done | omui | webmcp: none, playwright-mcp: none, mcp-apps: none, app-intents: app-defined | ahead | `tools/mcp/tests/mcp_test.cpp` |

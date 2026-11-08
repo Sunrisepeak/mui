@@ -9,6 +9,7 @@ import omui.mcp;
 import omui.host.headless;
 import omui.ui.base;
 import mlibs.testing;
+import mlibs.base64;
 
 using namespace mlibs::testing;
 using namespace omui;
@@ -153,15 +154,15 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 12, "twelve tools");
+        check(tools && tools->list() && tools->list()->size() == 13, "thirteen tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
                 names.insert(std::string(t.get("name")->as_string()));
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
-            check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_wait",
-                                                  "ui_capture", "ui_input", "ui_clock", "ui_verbs"}));
+            check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
+                                                  "ui_wait", "ui_capture", "ui_input", "ui_clock", "ui_verbs"}));
             // The hints are the catalog's effects (omui.ops.omui.toml): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
@@ -326,6 +327,49 @@ int main(int argc, char** argv) {
         check(!h.undo.empty() && h.undo.back().label == "quiet" && h.undo.back().steps == 2);
     });
 
+    s.test("shown before it is allowed (Part 2 A): the picture before and after, the changes, the step that asks the person not done — nothing stays", [] {
+        const auto dir = scratch_dir("mcp-preview");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) return;
+        auto pinned = signal(false);
+        auto volume = signal(30.0);
+        notes.h.mount("prefs", column({.gap = 4}, {toggle({.id = "pinned", .checked = pinned, .label = "Pinned"}),
+                                                    slider({.id = "volume", .label = "Volume", .step = 5.0, .value = volume, .width = 120})}));
+        notes.h.step();
+        const std::size_t journaled = notes.h.runtime().action_journal().size();
+        const auto level = notes.h.runtime().motion_level();
+        mcp::Server server({.directory = dir});
+        Client c;
+        const Value steps = Value(Value::List{Value{}.set("node", "prefs/pinned").set("action", "toggle"),
+                                              Value{}.set("node", "prefs/volume").set("action", "set_value").set("args", Value{}.set("value", 60.0)),
+                                              Value{}.set("node", "notes/delete").set("action", "activate")});
+        c.in = {initialize(1, false), call(2, "ui_preview", Value{}.set("steps", steps)),
+                call(3, "ui_preview", Value{}.set("steps", Value(Value::List{Value{}.set("node", "prefs/nothing").set("action", "toggle")})))};
+        serve(notes.h, server, c);
+        const std::string text = c.text(2);
+        check(!c.error(2) && text.contains("the interface is as it was"), text);
+        check(text.contains("changed prefs/pinned") && text.contains("\"checked\"") && text.contains("changed prefs/volume") && text.contains("60"),
+              "the changes the steps make, as a reader reads them: " + text);
+        check(text.contains("not done (asks the person): activate on notes/delete (irreversible)"), text);
+        const Value* r = c.reply(2);
+        const Value* content = r && r->get("result") ? r->get("result")->get("content") : nullptr;
+        check(content && content->list() && content->list()->size() == 3, "the words, then the picture before and the picture after");
+        if (content && content->list() && content->list()->size() == 3) {
+            check((*content->list())[1].get("data")->as_string() != (*content->list())[2].get("data")->as_string(), "the pictures differ: the change is seen");
+            // Kept to look at: what the person is shown.
+            for (std::size_t i : {1u, 2u})
+                if (auto png = mlibs::base64::decode((*content->list())[i].get("data")->as_string()))
+                    std::ofstream(dir / (i == 1 ? "before.png" : "after.png"), std::ios::binary)
+                        .write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+        }
+        // Nothing stays: not the values, not the verb, no journal entry, no history, the motion level as it was.
+        check(!pinned.peek() && volume.peek() == 30 && notes.deleted == 0, std::format("{} {} {}", pinned.peek(), volume.peek(), notes.deleted));
+        check_eq(notes.h.runtime().action_journal().size(), journaled);
+        check(notes.h.runtime().history(notes.h.runtime().root()).undo.empty(), "no step of history");
+        check(notes.h.runtime().motion_level() == level && !notes.h.runtime().previewing());
+        check(c.error(3) && c.text(3).contains("nothing was done"), c.text(3));
+    });
+
     s.test("an application's verbs as tools from its listing (omui-gen ops): schemas, hints, invoked, confirmed by the person", [] {
         const auto dir = scratch_dir("mcp-listing");
         // A listing as omui-gen ops writes one for the notes' verbs.
@@ -356,10 +400,10 @@ int main(int argc, char** argv) {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 14, "twelve ui_* tools and the two listed");
-        if (tools && tools->list() && tools->list()->size() == 14) {
-            const Value& pin = (*tools->list())[12];
-            const Value& del = (*tools->list())[13];
+        check(tools && tools->list() && tools->list()->size() == 15, "thirteen ui_* tools and the two listed");
+        if (tools && tools->list() && tools->list()->size() == 15) {
+            const Value& pin = (*tools->list())[13];
+            const Value& del = (*tools->list())[14];
             check(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin", pin.json());
             check(pin.get("inputSchema")->get("properties")->get("app") != nullptr, "a call may name its application");
             check(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool(), pin.json());

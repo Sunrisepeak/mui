@@ -17,7 +17,8 @@ id = "A"
 project = "omui"
 line = "use-safely"
 title = "先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交"
-status = "planned"
+status = "evidence"
+scene = "tools/mcp/tests/mcp_test.cpp"
 competitors = ["webmcp", "playwright-mcp", "app-intents"]
 
 [[feature]]

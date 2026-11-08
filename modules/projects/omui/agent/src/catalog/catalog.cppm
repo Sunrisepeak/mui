@@ -41,6 +41,10 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_transact
     {"steps", "json", "a list of {node, action, args, answer}", false},
     {"label", "string", "what the history calls it", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_ui_preview{{
+    {"steps", "json", "a list of {node, action, args}", false},
+    {"pictures", "bool", "with the pictures (default: when the host renders)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_history{{
     {"scope", "node", "", true},
 }};
@@ -95,7 +99,7 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{{
 }};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
-inline constexpr std::array<mlibs::control::CatalogEntry, 20> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 21> catalog{{
     {{"ui.describe", openas::Effect::read, false}, "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.snapshot", openas::Effect::read, false}, "The semantic tree, or a part of it", parameters_ui_snapshot, "tree", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.changes", openas::Effect::read, false}, "What changed in the tree since the last snapshot or changes", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
@@ -105,6 +109,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 20> catalog{{
     {{"ui.undo", openas::Effect::reversible, false}, "Take back the last change in a history scope", parameters_ui_undo, "json", mlibs::control::Cost::instant, "ui.redo", false, false, false},
     {{"ui.redo", openas::Effect::reversible, false}, "Do again what ui.undo took back", parameters_ui_redo, "json", mlibs::control::Cost::instant, "ui.undo", false, false, false},
     {{"ui.transaction", openas::Effect::reversible, false}, "Steps performed as one: all done, or all taken back", parameters_ui_transaction, "json", mlibs::control::Cost::bounded, "ui.undo takes the whole transaction back", false, false, false},
+    {{"ui.preview", openas::Effect::read, false}, "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays", parameters_ui_preview, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.history", openas::Effect::read, false}, "A history scope's changes, what can be undone and redone", parameters_ui_history, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.wait", openas::Effect::read, false}, "Answer when a condition holds: a node present or absent, the tree settled", parameters_ui_wait, "json", mlibs::control::Cost::heavy, "", false, false, false},
     {{"ui.capture", openas::Effect::read, false}, "The picture as drawn: the window, a node, or a region of it, as PNG pixels or as SVG with every node's drawing marked", parameters_ui_capture, "image", mlibs::control::Cost::frame, "", false, false, false},

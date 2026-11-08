@@ -487,6 +487,31 @@ struct Server::Impl {
             if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "timeout" : a.code, a.message), true);
             return tool_result("the condition holds", false, a.data);
         }
+        if (name == "ui_preview") {
+            // Shown before it is allowed (Part 2 §4.1, A): what the steps would make, the pictures before and after,
+            // nothing left of it after — for the person to look at before saying yes to ui_act / ui_transaction.
+            const Value* steps = args.get("steps");
+            if (!steps || !steps->list() || steps->list()->empty()) return tool_result("ui_preview needs `steps`: [{node, action, args}]", true);
+            Value req;
+            req.set("op", "preview").set("steps", *steps).set("actor", actor);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            std::string text = "preview (nothing was done";
+            const Value* restored = a.data.get("restored");
+            text += restored && restored->as_bool() ? ", the interface is as it was):" : ", BUT the interface is not as it was):";
+            if (const Value* c = a.data.get("changes"))
+                for (std::string_view kind : {"changed", "added", "removed"})
+                    if (const Value* l = c->get(kind); l && l->list())
+                        for (const Value& one : *l->list()) text += std::format("\n  {} {}: {}", kind, str(one, "id"), (one.get("fields") ? *one.get("fields") : one.get("now") ? *one.get("now") : *one.get("was")).json());
+            if (const Value* n = a.data.get("not_done"); n && n->list())
+                for (const Value& one : *n->list()) text += std::format("\n  not done (asks the person): {} on {} ({})", str(one, "action"), str(one, "id"), str(one, "effect"));
+            Value::List pictures;
+            for (std::string_view when : {"before", "after"})
+                if (const Value* pic = a.data.get(when); pic && pic->get("base64"))
+                    pictures.push_back(Value{}.set("type", "image").set("data", str(*pic, "base64")).set("mimeType", "image/png"));
+            if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
+            return tool_result(text, false, {}, std::move(pictures));
+        }
         if (name == "ui_capture") {
             Value req;
             req.set("op", "capture");
@@ -625,6 +650,13 @@ Value::List Server::tools() const {
                             {"label", s("what the step is called in the history")},
                             {"dry_run", b("only what each step would do")}},
                            {"steps"}), "ui.transaction"),
+        tool("ui_preview", "Preview before allowing",
+             "What steps would make, shown before anything is allowed: the steps that can be taken back run unseen and are taken back; "
+             "the pictures before and after, the semantic changes, and the steps that would ask the user (shown, not done). Nothing stays. "
+             "Show it to the user before an action they must decide on.",
+             object_schema({app_prop,
+                            {"steps", prop("array", "[{\"node\": id, \"action\": name, \"args\": {…}}, …]").set("items", prop("object", "a step"))}},
+                           {"steps"}), "ui.preview"),
         tool("ui_wait", "Wait for the interface",
              "Waits until nodes matching a query appear (or, absent, are gone) and/or the interface has settled (nothing animating).",
              object_schema({app_prop,

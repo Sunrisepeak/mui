@@ -107,6 +107,17 @@ cost    = "bounded"
 undo    = "ui.undo takes the whole transaction back"
 
 [[operation]]
+name    = "ui.preview"
+effect  = "read"
+summary = "What steps would make, shown before it is allowed: pictures before and after, the semantic changes; nothing stays"
+params  = [
+    { name = "steps", type = "json", doc = "a list of {node, action, args}" },
+    { name = "pictures", type = "bool", doc = "with the pictures (default: when the host renders)", optional = true },
+]
+result  = "json"
+cost    = "bounded"
+
+[[operation]]
 name    = "ui.history"
 effect  = "read"
 summary = "A history scope's changes, what can be undone and redone"

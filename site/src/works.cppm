@@ -3,7 +3,8 @@
 // name, one line, its controls (play, pause, a time to drag): the mark
 // writing itself; Mui's pixels gathering; a soft landing rewound; a line
 // changing language in place; the same items as a list and as cards; a
-// spring you can throw; an agent changing a motion's timing.
+// spring you can throw; an agent changing a motion's timing; glass that
+// flows (two drops of liquid glass joining and parting).
 export module omui.site:works;
 
 import std;
@@ -17,7 +18,7 @@ struct Works {
     Signal<bool>   mark_playing = signal(false), gather_playing = signal(false), other = signal(false), cards = signal(false);
     // The cards an agent retimes: their time, timing and plan (the stage writes the plan, as hanim made it).
     Signal<double> rise_at = signal(0.0), rise_length = signal(0.0), rise_delay = signal(0.0), rise_bounce = signal(0.0);
-    Signal<bool>   rise_playing = signal(false);
+    Signal<bool>   rise_playing = signal(false), together = signal(false);
     Signal<std::string> rise_plan = signal(std::string());
 };
 

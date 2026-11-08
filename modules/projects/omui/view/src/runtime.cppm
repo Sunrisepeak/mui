@@ -611,7 +611,7 @@ public:
     // including drawing morphs and ancestor transforms. This is independent
     // of ink (transparent controls still have a frame). Before first paint or
     // in a layout-only pipeline, visual layout transforms are the fallback.
-    [[nodiscard]] Rect drawn_bounds(NodeId node) const;
+    [[nodiscard]] Rect drawn_bounds(NodeId node) const override;
     // Where it is on the window as set: through its own and its ancestors'
     // transforms as they are set, not part way through their transitions —
     // a canvas's target node where the camera will show it. Kept as a target

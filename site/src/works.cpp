@@ -2,6 +2,7 @@ module omui.site;
 
 import std;
 import omui;
+import omui.ui.liquid_glass;
 
 namespace omui::site {
 namespace {
@@ -164,6 +165,45 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                                            }),
                                            .style = "code",
                                            .color = "text_muted"})})));
+    }
+    // ⑧ Glass that flows: two drops of liquid glass over a lively backdrop, sprung together and apart — they merge like drops.
+    {
+        Signal<bool> together = state.together;
+        const float drop = std::round(std::min(inner, stage_height) * 0.42f);
+        const auto sprung = [&](std::string id, float toward) {
+            Element glass = liquid_glass({.id = std::move(id), .radius = drop / 2, .width = Dim(drop), .height = Dim(drop)});
+            glass.prop("translate_x", derive([together, toward] { return together.get() ? toward : 0.0f; }));
+            glass.animate("translate_x", Transition::spring_with());  // the drops' place on a spring
+            return glass;
+        };
+        std::vector<Element> backdrop;
+        const std::array<std::pair<std::string_view, std::uint32_t>, 3> blobs{{{"blob_a", 0x6366f1}, {"blob_b", 0xf59e0b}, {"blob_c", 0x14b8a6}}};
+        for (std::size_t index = 0; index < blobs.size(); ++index) {
+            const float side = std::round(stage_height * 0.42f);
+            Element blob = box({.id = std::string(blobs[index].first), .width = Dim(side), .height = Dim(side), .background = Fill(Color::hex(blobs[index].second)),
+                                .radius = side / 2});
+            blob.prop("position", Source(Value("absolute")))
+                .prop("left", Source(Value(static_cast<double>(inner * (0.12f + 0.3f * static_cast<float>(index))))))
+                .prop("top", Source(Value(static_cast<double>(stage_height * (index % 2 == 0 ? 0.12f : 0.46f)))));
+            backdrop.push_back(std::move(blob));
+        }
+        backdrop.push_back(column({.id = "word", .width = Dim(inner), .height = Dim(stage_height), .justify = "center", .align = "center"},
+                                  {text({.id = "omui", .text = "omui", .style = "display", .size = std::round(stage_height * 0.32f)})}));
+        backdrop.push_back(column({.id = "drops", .width = Dim(inner), .height = Dim(stage_height), .justify = "center", .align = "center"},
+                                  {glass_group({.id = "glass", .gap = 40.0, .label = "Two drops of glass", .smoothness = 26.0, .thickness = 16.0},
+                                               {sprung("left", drop * 0.62f), sprung("right", -drop * 0.62f)})}));
+        works.push_back(work(site, "glass", card, {"Glass that flows", "会流动的玻璃"},
+                             {"Two drops of liquid glass: bring them together and they merge, the backdrop bending through them.", "两滴液态玻璃：靠在一起就融成一滴，背后的画面在里面弯折。"},
+                             stack({.id = "stage", .width = Dim(inner), .height = Dim(stage_height), .clip = true}, std::move(backdrop)),
+                             row({.id = "controls", .width = Dim(inner), .gap = 10, .align = "center"},
+                                 {segmented({.id = "drops",
+                                             .label = words(site, "The drops", "两滴玻璃"),
+                                             .labels = computed([lang = site.lang] {
+                                                 return lang && lang->get() == "zh" ? std::vector<std::string>{"分开", "靠拢"} : std::vector<std::string>{"Apart", "Together"};
+                                             }),
+                                             .options = std::vector<std::string>{"apart", "together"},
+                                             .value = Source{std::nullopt, [together] { return Value(std::string(together.get() ? "together" : "apart")); },
+                                                             [together](const Value& value) { together.set(value.as_string() == "together"); }}})})));
     }
     // ⑤ The same items, a list and cards.
     {

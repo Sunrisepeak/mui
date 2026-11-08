@@ -50,6 +50,7 @@ hanim               = { path = "../modules/projects/hanim", default-features = f
 omui.ui.markdown = { path = "../modules/projects/omui/components/markdown" }
 omui.ui.timeline = { path = "../modules/projects/omui/components/timeline" }
 omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # the components page's wall
+omui.ui.liquid_glass = { path = "../modules/projects/omui/components/liquid-glass" }  # a signature work: glass that flows
 xengine.timeline    = { path = "../modules/projects/xengine/timeline" }  # the monitor: what plays at the playhead
 "omui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
 "omui.theme"      = { path = "../modules/projects/omui/theme" }

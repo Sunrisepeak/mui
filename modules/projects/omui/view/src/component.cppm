@@ -245,6 +245,9 @@ public:
     // its own waits for retimed() rather than asking for frames.
     [[nodiscard]] virtual bool time_paused() const { return false; }
     [[nodiscard]] virtual Rect bounds(NodeId node) const = 0;        // window coordinates
+    // Where it is drawn now (window coordinates): its box under its own
+    // transform — a translate, a scale, a spring moving it — this frame.
+    [[nodiscard]] virtual Rect drawn_bounds(NodeId node) const = 0;
     // The control at a window point: the nearest node that takes focus (a
     // button, a field, a slider) — the one the pointer hits or an ancestor of
     // it; none over plain content. A figure over a page asks what is beneath

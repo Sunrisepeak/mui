@@ -99,11 +99,12 @@ void GlassGroup::prop_changed(GlassGroupProp p) {
 std::vector<xrender::EffectShape> GlassGroup::shapes() const {
     std::vector<xrender::EffectShape> out;
     if (!attached()) return out;
-    const Rect me = services().bounds(node());
+    // Where the members are drawn (a member sprung to a new place: its glass with it, merging as it goes).
+    const Rect me = services().drawn_bounds(node());
     for (const NodeId c : services().children(node())) {
         const Value radius = services().get(c, "radius");
         if (radius.is_null() || services().get(c, "ior").is_null()) continue;  // not a liquid_glass
-        const Rect b = services().bounds(c);
+        const Rect b = services().drawn_bounds(c);
         const Rect local{b.x - me.x, b.y - me.y, b.width, b.height};
         out.push_back({local, fitted(radius.as_double(24), {b.width, b.height})});
         if (out.size() == 8) break;

@@ -225,5 +225,37 @@ int main(int argc, char** argv) {
         check(plan() == before && page.number("agent/stage", "delay") == 0, std::format("as it was: {}", plan()));
     });
 
+    suite.test("glass that flows: brought together the drops travel on a spring and merge, the middle between them glass; apart again they part", [] {
+        Page page;
+        const auto left_x = [&] { return page.h.runtime().drawn_bounds(page.h.runtime().find(path("glass/stage/drops/glass/left"))).x; };
+        const Rect stage = page.h.runtime().screen_bounds(page.h.runtime().find(path("glass/stage")));
+        const auto middle = [&] {
+            mlibs::hash::Fnv1a hash;
+            const auto& px = page.h.pixels();
+            const int y = static_cast<int>(stage.y + stage.height / 2), x = static_cast<int>(stage.x + stage.width / 2);
+            for (int dy = -4; dy <= 4; ++dy) hash.bytes(std::as_bytes(std::span(px.row(y + dy) + x - 4, 9)));
+            return hash.value();
+        };
+        const float apart = left_x();
+        const auto gap_apart = middle();
+        check(page.act("glass/controls/drops", "set_value", Value{}.set("value", "together")) == 0);
+        std::vector<float> xs;
+        const auto dir = scratch_dir("works-glass");
+        for (int frame = 0; frame < 30; ++frame) {
+            page.h.step();
+            xs.push_back(left_x());
+            if (frame % 6 == 0) (void)page.h.save_png(dir / std::format("{:02}.png", frame / 6), stage);
+        }
+        page.h.settle(seconds(2));
+        (void)page.h.save_png(dir / "together.png", stage);
+        const float together = left_x();
+        check(together > apart + 20, std::format("the left drop moved toward the right: {} → {}", apart, together));
+        check(std::ranges::count_if(xs, [&](float x) { return x > apart + 2 && x < together - 2; }) >= 3, "travelled, on a spring");
+        check(middle() != gap_apart, "the middle between them is glass now: merged");
+        check(page.act("glass/controls/drops", "set_value", Value{}.set("value", "apart")) == 0);
+        page.h.settle(seconds(2));
+        check(std::abs(left_x() - apart) < 1 && middle() == gap_apart, "apart again: parted, the middle as it was");
+    });
+
     return suite.run(argc, argv);
 }

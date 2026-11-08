@@ -177,15 +177,17 @@ addToLibrary({
       P.offerWebMcp(window.omui);
     },
 
-    // WebMCP (Part 2 §4.1, C): where the browser lets a page offer tools to
-    // the person's agent (navigator.modelContext), the page offers its
-    // operations — the same ones window.omui and omui connect give, decided
-    // the same way (openas) — with no line of the application's own. What
-    // needs the person's answer is asked of them through the browser
-    // (requestUserInteraction) and, if they say yes, done as theirs to allow.
+    // WebMCP (Part 2 §4.1, C; the W3C WebML community group's draft of
+    // 2 November 2026): where the browser lets a page offer tools to the
+    // person's agent (document.modelContext), the page offers its operations
+    // — the same ones window.omui and omui connect give, decided the same way
+    // (openas) — with no line of the application's own; those that only read
+    // say so (readOnlyHint). What needs the person's answer: the draft gives
+    // the page no way to ask through the browser, so the page asks the person
+    // itself and, if they say yes, sends it again as theirs to allow.
     offerWebMcp: function (omui) {
-      var mc = typeof navigator !== 'undefined' && navigator.modelContext;
-      if (!mc || (typeof mc.provideContext !== 'function' && typeof mc.registerTool !== 'function')) return false;
+      var mc = typeof document !== 'undefined' && document.modelContext;
+      if (!mc || typeof mc.registerTool !== 'function') return false;
       var actor = 'agent:webmcp';
       var words = function (answer) {
         var text = answer.exitCode === 0 ? JSON.stringify(answer.data) : (answer.errors[0] && answer.errors[0].text) || ('exit ' + answer.exitCode);
@@ -199,53 +201,49 @@ addToLibrary({
         });
         return out;
       };
-      // An answer the person must give: asked in the browser, then the request again as theirs to allow.
-      var decided = function (request, answer, client) {
+      // An answer the person must give: asked on the page, then the request again as theirs to allow.
+      var decided = function (request, answer) {
         var asks = answer.errors.filter(function (e) { return e.code === 'needs-answer'; })[0];
-        if (answer.exitCode !== 2 || !asks || !client || typeof client.requestUserInteraction !== 'function') return Promise.resolve(words(answer));
-        return client.requestUserInteraction(function () {
-          return typeof window.confirm === 'function' && window.confirm(asks.text || 'An agent asks to do this. Allow it?');
-        }).then(function (yes) {
-          if (!yes) return { content: [{ type: 'text', text: 'the person declined: nothing was done' }], isError: true };
-          return omui.request(Object.assign({}, request, { answer: asks.answer || 'yes', actor: actor + ';via=person:user' })).then(words);
-        });
+        if (answer.exitCode !== 2 || !asks) return Promise.resolve(words(answer));
+        var yes = typeof window.confirm === 'function' && window.confirm(asks.text || 'An agent asks to do this. Allow it?');
+        if (!yes) return Promise.resolve({ content: [{ type: 'text', text: 'the person declined: nothing was done' }], isError: true });
+        return omui.request(Object.assign({}, request, { answer: asks.answer || 'yes', actor: actor + ';via=person:user' })).then(words);
       };
-      var tool = function (name, description, properties, required, run) {
+      var tool = function (name, description, properties, required, reads, run) {
         return { name: name, description: description,
                  inputSchema: { type: 'object', properties: properties, required: required || [] },
-                 execute: run };
+                 annotations: { readOnlyHint: reads }, execute: run };
       };
       var str = { type: 'string' }, obj = { type: 'object' }, arr = { type: 'array' }, bool = { type: 'boolean' };
       var tools = [
         tool('ui_snapshot', 'The interface as a tree of semantic nodes: role, name, value, state, actions, bounds.',
-             { root: str, depth: { type: 'number' } }, [], function (i) { return omui.snapshot(i || {}).then(words); }),
-        tool('ui_find', 'Nodes matching a query: {role, name (wildcards), id, state}.', { q: obj }, ['q'],
+             { root: str, depth: { type: 'number' } }, [], true, function (i) { return omui.snapshot(i || {}).then(words); }),
+        tool('ui_find', 'Nodes matching a query: {role, name (wildcards), id, state}.', { q: obj }, ['q'], true,
              function (i) { return omui.find(i.q).then(words); }),
         tool('ui_act', 'Performs an action a node offers (activate, toggle, set_value…); dry_run says what it would do.',
-             { node: str, action: str, args: obj, dry_run: bool }, ['node', 'action'], function (i, client) {
+             { node: str, action: str, args: obj, dry_run: bool }, ['node', 'action'], false, function (i) {
                var request = { op: 'act', node: i.node, action: i.action, args: i.args || {}, dry_run: !!i.dry_run, actor: actor };
-               return omui.request(request).then(function (a) { return decided(request, a, client); });
+               return omui.request(request).then(function (a) { return decided(request, a); });
              }),
-        tool('ui_invoke', 'Invokes an application verb (ui_snapshot of the app lists none; describe does).', { verb: str, args: obj }, ['verb'],
-             function (i, client) {
+        tool('ui_invoke', 'Invokes an application verb (ui_snapshot of the app lists none; describe does).', { verb: str, args: obj }, ['verb'], false,
+             function (i) {
                var request = { op: 'invoke', verb: i.verb, args: i.args || {}, actor: actor };
-               return omui.request(request).then(function (a) { return decided(request, a, client); });
+               return omui.request(request).then(function (a) { return decided(request, a); });
              }),
-        tool('ui_transaction', 'Steps performed as one: all done, or all taken back.', { steps: arr, label: str }, ['steps'],
+        tool('ui_transaction', 'Steps performed as one: all done, or all taken back.', { steps: arr, label: str }, ['steps'], false,
              function (i) { return omui.request({ op: 'transaction', steps: i.steps, label: i.label || '', actor: actor }).then(words); }),
         tool('ui_preview', 'What steps would make, shown before anything is allowed: the pictures before and after and the changes; nothing stays.',
-             { steps: arr }, ['steps'], function (i) { return omui.request({ op: 'preview', steps: i.steps, actor: actor }).then(withPictures); }),
-        tool('ui_undo', 'Takes back the last step of the history (redo: puts it forward again).', { redo: bool, scope: str }, [],
+             { steps: arr }, ['steps'], true, function (i) { return omui.request({ op: 'preview', steps: i.steps, actor: actor }).then(withPictures); }),
+        tool('ui_undo', 'Takes back the last step of the history (redo: puts it forward again).', { redo: bool, scope: str }, [], false,
              function (i) { return omui.request({ op: i && i.redo ? 'redo' : 'undo', scope: (i && i.scope) || undefined, actor: actor }).then(words); }),
-        tool('ui_capture', 'The pixels of the page, or of a node, as a PNG.', { node: str }, [], function (i) {
+        tool('ui_capture', 'The pixels of the page, or of a node, as a PNG.', { node: str }, [], true, function (i) {
           return omui.capture(i && i.node ? { node: i.node } : {}).then(function (a) {
             if (a.exitCode !== 0 || !a.data || !a.data.base64) return words(a);
             return { content: [{ type: 'image', data: a.data.base64, mimeType: 'image/png' }] };
           });
         }),
       ];
-      if (typeof mc.provideContext === 'function') mc.provideContext({ tools: tools });
-      else tools.forEach(function (t) { mc.registerTool(t); });
+      tools.forEach(function (t) { mc.registerTool(t); });
       omuiPage.webMcpTools = tools.map(function (t) { return t.name; });
       return true;
     },

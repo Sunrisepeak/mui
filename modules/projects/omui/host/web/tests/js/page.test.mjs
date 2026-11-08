@@ -22,6 +22,7 @@ const library = readFileSync(here('../../src/js/omui_web.js'), 'utf8');
 function page({ storage = new Storage(), clipboard = null, permissions = null, activation = undefined, fetch = undefined, modelContext = undefined } = {}) {
   const window = new Window();
   const document = window.document;
+  if (modelContext) document.modelContext = modelContext;
   const canvas = document.createElement('canvas');
   canvas.setAttribute('id', 'canvas');
   canvas.box = { left: 100, top: 50, width: 200, height: 160 };
@@ -35,7 +36,6 @@ function page({ storage = new Storage(), clipboard = null, permissions = null, a
     },
     permissions: permissions ?? { query: () => Promise.resolve({ state: 'granted' }) },
     userActivation: activation,
-    modelContext,
   };
   const context = {
     window, document, navigator, Module: {}, console,
@@ -347,13 +347,15 @@ test('window.omui: requests go to the program, its records settle the promise', 
 });
 
 test('WebMCP: where the browser offers it, the page\'s operations are tools — no application code; what needs the person is asked of them', async () => {
-  let offered = null;
-  const { P, heard, context, window } = page({ modelContext: { provideContext: (c) => { offered = c; } } });
-  assert.ok(offered, 'the tools were offered');
-  const names = offered.tools.map((t) => t.name);
+  const offered = [];
+  const { P, heard, context, window } = page({ modelContext: { registerTool: (t, options) => { offered.push(t); } } });
+  assert.ok(offered.length, 'the tools were offered');
+  const names = offered.map((t) => t.name);
   for (const n of ['ui_snapshot', 'ui_find', 'ui_act', 'ui_invoke', 'ui_transaction', 'ui_preview', 'ui_undo', 'ui_capture']) assert.ok(names.includes(n), n);
   assert.deepEqual(plain(P.webMcpTools), plain(names));
-  const act = offered.tools.find((t) => t.name === 'ui_act');
+  const reads = offered.filter((t) => t.annotations.readOnlyHint).map((t) => t.name);
+  assert.deepEqual(plain(reads), ['ui_snapshot', 'ui_find', 'ui_preview', 'ui_capture'], 'what only reads says so');
+  const act = offered.find((t) => t.name === 'ui_act');
   assert.deepEqual(plain(act.inputSchema.required), ['node', 'action']);
   // An action that runs: the request as window.omui makes it, the agent named.
   const done = act.execute({ node: 'main/title', action: 'set_value', args: { value: 'Plan' } }, {});
@@ -363,11 +365,10 @@ test('WebMCP: where the browser offers it, the page\'s operations are tools — 
   const first = await done;
   assert.equal(first.isError, false);
   assert.equal(first.content[0].text, '{"value":"Plan"}');
-  // One that asks the person: asked through the browser; their yes sends it again as theirs to allow.
+  // One that asks the person: asked on the page; their yes sends it again as theirs to allow.
   let asked = 0;
-  window.confirm = () => true;
-  const client = { requestUserInteraction: (fn) => { asked++; return Promise.resolve(fn()); } };
-  const publish = act.execute({ node: 'main/publish', action: 'activate' }, client);
+  window.confirm = () => { asked++; return true; };
+  const publish = act.execute({ node: 'main/publish', action: 'activate' }, {});
   context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish to the team?', answer: 'yes', re: 2 }));
   context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 2 }));
   await new Promise((r) => setTimeout(r, 0));
@@ -377,7 +378,7 @@ test('WebMCP: where the browser offers it, the page\'s operations are tools — 
   assert.equal((await publish).isError, false);
   // Declined: nothing sent again.
   window.confirm = () => false;
-  const declined = act.execute({ node: 'main/publish', action: 'activate' }, client);
+  const declined = act.execute({ node: 'main/publish', action: 'activate' }, {});
   context.omui_web_agent_reply(JSON.stringify({ kind: 'error', code: 'needs-answer', text: 'Publish?', answer: 'yes', re: 4 }));
   context.omui_web_agent_reply(JSON.stringify({ kind: 'result', exitCode: 2, re: 4 }));
   const no = await declined;

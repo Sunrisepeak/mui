@@ -88,16 +88,17 @@ struct Builder {
     std::size_t         base = 0;          // the parsed text's offset in the whole source
     std::vector<Block*> open;              // open blocks; only the innermost gains children
     bool                synthetic = false; // the innermost is a paragraph md4c does not report (tight list)
+    bool                hashes = true;     // each block's hash as it closes (to_html's own parse needs none)
     std::vector<std::uint32_t> refs;       // the open spans' link indices
     std::vector<Span>   spans;             // the open spans
 
     Block& top() { return *open.back(); }
 
     Block& push(Kind k) {
-        Block& parent = top();
-        parent.children.push_back(Block{.kind = k});
-        open.push_back(&parent.children.back());
-        return *open.back();
+        Block& made = top().children.emplace_back();  // made in place: no block of fields moved in
+        made.kind = k;
+        open.push_back(&made);
+        return made;
     }
     void pop();
 
@@ -163,7 +164,7 @@ std::uint64_t hash_of(const Block& b, std::span<const Link> links) {
 
 void Builder::pop() {
     Block& b = top();
-    b.hash = hash_of(b, doc->links);
+    if (hashes) b.hash = hash_of(b, doc->links);
     open.pop_back();
 }
 
@@ -352,11 +353,12 @@ void assign_anchors(Block& b, const Anchors& base, Anchors& used) {
 
 // Parses `source` into `doc`, appending top-level blocks and links: the
 // Stream's tail parse and the whole-source parse share this.
-bool parse_into(Document& doc, std::string_view source, std::size_t base) {
+bool parse_into(Document& doc, std::string_view source, std::size_t base, bool hashes) {
     if (source.size() >= 0xffffffffull) return false;
     Builder b;
     b.doc = &doc;
     b.base = base;
+    b.hashes = hashes;
     MD_PARSER p{};
     p.abi_version = 0;
     p.flags = flags_of(doc.extensions);

@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     std::size_t out = 0;
     for (int run = 0; run < 3 + runs; ++run) {
         const auto start = std::chrono::steady_clock::now();
-        const std::string html = mlibs::markdown::to_html(mlibs::markdown::parse(text));
+        const std::string html = mlibs::markdown::to_html(text);  // the one call: source to HTML, as the others
         const double spent = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         out = html.size();
         if (run >= 3) times.push_back(spent);

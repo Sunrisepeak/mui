@@ -160,6 +160,9 @@ struct Document {
 // The HTML md4c-html writes for the same source and extensions (no renderer
 // flags), from the document alone.
 [[nodiscard]] std::string to_html(const Document& doc);
+// The same from the source in one call: parsed as `parse` parses it, without
+// what only a renderer keeps (the blocks' hashes, the headings' anchors).
+[[nodiscard]] std::string to_html(std::string_view source, Extension extensions = gfm);
 
 // The visible text of a block: inline text as it reads, blocks on their own
 // lines, table cells separated by tabs.
@@ -246,8 +249,9 @@ private:
 namespace mlibs::markdown {
 
 // md4c over `source`, appending its top-level blocks and links to `doc`; task
-// offsets are shifted by `base`. False when md4c failed (out of memory).
-bool parse_into(Document& doc, std::string_view source, std::size_t base);
+// offsets are shifted by `base`; without `hashes` the blocks' are left 0 (for
+// a document only written out). False when md4c failed (out of memory).
+bool parse_into(Document& doc, std::string_view source, std::size_t base, bool hashes = true);
 std::uint64_t hash_of(const Block& b, std::span<const Link> links);
 // hash_of in two steps: a block's own fields, then each child's hash folded in.
 std::uint64_t hash_fields(const Block& b, std::span<const Link> links);

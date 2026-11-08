@@ -132,5 +132,26 @@ int main(int argc, char** argv) {
                              "checked><em>a</em> &amp; <b></li>\n</ul>\n"));
     });
 
+    s.test("to_html from the source in one call: the same bytes as from the parsed document, for every page of the repository's docs and site", [] {
+        const auto root = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path().parent_path();
+        std::size_t pages = 0, bytes = 0;
+        bool same = true;
+        std::string first_different;
+        for (const auto& folder : {root / "docs", root / "site" / "content"}) {
+            for (const auto& entry : std::filesystem::recursive_directory_iterator(folder)) {
+                if (entry.path().extension() != ".md") continue;
+                std::ifstream in(entry.path(), std::ios::binary);
+                const std::string text{std::istreambuf_iterator<char>(in), {}};
+                const std::string once = md::to_html(text), twice = md::to_html(md::parse(text));
+                if (once != twice && first_different.empty()) first_different = entry.path().string();
+                same = same && once == twice;
+                ++pages, bytes += once.size();
+            }
+        }
+        check(pages >= 8 && bytes > 100000, std::format("{} pages, {} bytes", pages, bytes));
+        check(same, "differs: " + first_different);
+        check(md::parse("# A\n\ntext\n").root.hash != 0, "parse still hashes its blocks");
+    });
+
     return s.run(argc, argv);
 }

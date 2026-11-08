@@ -10,13 +10,21 @@ namespace mlibs::markdown {
 
 namespace {
 
+// The characters HTML text escapes, by byte: a table read, not a search of a set a character.
+constexpr auto escaped = [] {
+    std::array<bool, 256> table{};
+    for (const unsigned char c : std::string_view("&<>\"")) table[c] = true;
+    return table;
+}();
+
 void escape(std::string& out, std::string_view s) {
     // A run of characters that need nothing goes in whole; each of & < > " as its entity.
     std::size_t from = 0;
     while (from < s.size()) {
-        const std::size_t at = s.find_first_of("&<>\"", from);
-        out.append(s.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from));
-        if (at == std::string_view::npos) return;
+        std::size_t at = from;
+        while (at < s.size() && !escaped[static_cast<unsigned char>(s[at])]) ++at;
+        out.append(s.substr(from, at - from));
+        if (at == s.size()) return;
         switch (s[at]) {
             case '&': out += "&amp;"; break;
             case '<': out += "&lt;"; break;
@@ -178,7 +186,15 @@ void Writer::block(const Block& b, bool tight) {
             out += "</ul>\n";
             break;
         case Kind::ordered_list:
-            out += b.start == 1 ? std::string("<ol>\n") : std::format("<ol start=\"{}\">\n", b.start);
+            if (b.start == 1) {
+                out += "<ol>\n";
+            } else {
+                std::array<char, 24> digits{};
+                const auto written = std::to_chars(digits.data(), digits.data() + digits.size(), b.start);
+                out += "<ol start=\"";
+                out.append(digits.data(), written.ptr);
+                out += "\">\n";
+            }
             children(b.tight);
             out += "</ol>\n";
             break;
@@ -196,9 +212,13 @@ void Writer::block(const Block& b, bool tight) {
             break;
         case Kind::rule: out += "<hr>\n"; break;
         case Kind::heading:
-            out += std::format("<h{}>", b.level);
+            out += "<h";
+            out += static_cast<char>('0' + b.level);
+            out += '>';
             inline_content(b.content);
-            out += std::format("</h{}>\n", b.level);
+            out += "</h";
+            out += static_cast<char>('0' + b.level);
+            out += ">\n";
             break;
         case Kind::code:
             out += "<pre><code";
@@ -244,7 +264,8 @@ void Writer::block(const Block& b, bool tight) {
             break;
         case Kind::table_cell: {
             const std::string_view tag = b.header ? "th" : "td";
-            out += std::format("<{}", tag);
+            out += '<';
+            out += tag;
             switch (b.align) {
                 case Align::left: out += " align=\"left\">"; break;
                 case Align::center: out += " align=\"center\">"; break;
@@ -252,7 +273,9 @@ void Writer::block(const Block& b, bool tight) {
                 default: out += ">"; break;
             }
             inline_content(b.content);
-            out += std::format("</{}>\n", tag);
+            out += "</";
+            out += tag;
+            out += ">\n";
             break;
         }
     }
@@ -262,6 +285,16 @@ void Writer::block(const Block& b, bool tight) {
 
 std::string to_html(const Document& doc) {
     Writer w{doc, {}};
+    w.block(doc.root, false);
+    return std::move(w.out);
+}
+
+std::string to_html(std::string_view source, Extension extensions) {
+    Document doc;
+    doc.extensions = extensions;
+    doc.complete = parse_into(doc, source, 0, false);
+    Writer w{doc, {}};
+    w.out.reserve(source.size() + source.size() / 2);  // HTML is about 1.4 times its source
     w.block(doc.root, false);
     return std::move(w.out);
 }

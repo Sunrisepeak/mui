@@ -226,5 +226,32 @@ int main(int argc, char** argv) {
             check(!engine.prepare(bad), "refused");
     });
 
+    s.test("an open stroke (a letter's line, not an outline) is written along its length; its frames keep it open", [] {
+        Engine engine = take(Engine::make());
+        const std::array hook{ShapeSegment::line({0, 30}), ShapeSegment::cubic({0, 40}, {10, 44}, {20, 40})};
+        const auto stroke = take(engine.create_object({{{.id = "stroke",
+                                                         .local = {.tx = 50, .ty = 50},
+                                                         .contours = {take(Contour::copy({{0, 0}, hook, false}))},
+                                                         .stroke = PartStroke{Rgba{0, 0, 0, 1}, 3}}}}));
+        // Shown as it is (a morph to itself): it prepares, and its contour says it is open.
+        const auto shown = take(engine.play(anim::morph(stroke, stroke)));
+        const auto still = take(engine.frame(shown));
+        check(still.animation && !still.geometry.contours.empty() && !still.geometry.contours[0].closed, "open, as made");
+        take(engine.release(shown));
+        // Written: its trim's end goes from 0 to 1.
+        const auto written = take(engine.play(anim::write_in(stroke, {.part = "stroke"})));
+        take(engine.pause(written));
+        const double length = take(engine.inspect(written)).duration.count();
+        double previous = -1;
+        for (const double fraction : {0.0, 0.25, 0.5, 0.75, 1.0}) {
+            take(engine.seek(written, seconds(length * fraction)));
+            const auto frame = take(engine.frame(written));
+            const double end = frame.geometry.value(0, ch::trim_end).value_or(-1);
+            check(end >= previous && !frame.geometry.contours[0].closed, std::format("at {}: trim end {}", fraction, end));
+            previous = end;
+        }
+        check(near(previous, 1), "written whole at its end");
+    });
+
     return s.run(argc, argv);
 }

@@ -418,5 +418,35 @@ int main(int argc, char** argv) {
         check(output.data() == storage);
     });
 
+    s.test("strokes: two open paths morph end to end (turned round when their ends lie the other way), never closed; a stroke never into an outline; strokes pair with strokes", [] {
+        // A hook and a straight stroke, both open.
+        const std::array hook{ShapeSegment::line({0, 10}), ShapeSegment::cubic({0, 14}, {4, 16}, {8, 14})};
+        const std::array straight{ShapeSegment::line({20, 0})}, leftward{ShapeSegment::line({0, 10})};
+        const ShapeContour a{{0, 0}, hook, false}, b{{20, 10}, leftward, false};  // b runs right to left: its end is near a's start
+        auto morph = PreparedShapeMorph::prepare(a, b);
+        check(morph.has_value(), morph ? "" : "refused");
+        if (!morph) return;
+        check(!morph->closed() && morph->target_reversed(), "open, the target turned round");
+        std::vector<ShapeCubic> out(morph->segment_count());
+        for (const double t : {0.0, 0.5, 1.0}) {
+            check(morph->sample(t, out).has_value());
+            check(!(out.back().end == out.front().start), std::format("at {}: its two ends apart, not closed", t));
+        }
+        check(morph->sample(0, out).has_value() && out.front().start == Vec2{0, 0} && out.back().end == Vec2{8, 14}, "it starts as the hook");
+        check(morph->sample(1, out).has_value() && out.front().start == Vec2{0, 10} && out.back().end == Vec2{20, 10}, "and ends as the stroke, turned round");
+        check(PreparedShapeMorph::prepare(a, disk()).error() == ShapeMorphError::open_contour, "a stroke into an outline: refused");
+        // An object of an outline and two strokes, into one of the same: strokes pair with strokes, the outline with the outline.
+        const std::array from{disk(), a, ShapeContour{{30, 0}, straight, false}};
+        const std::array to{ShapeContour{{0, -1}, circle}, ShapeContour{{30, 1}, straight, false}, ShapeContour{{0, 1}, hook, false}};
+        const auto pairs = pair_contours(from, to);
+        check(pairs.has_value(), "paired");
+        if (!pairs) return;
+        const auto to_of = [&](std::size_t from_index) {
+            for (const auto& pair : *pairs) if (pair.from == from_index) return pair.to;
+            return ContourPair::none;
+        };
+        check(to_of(0) == 0 && to_of(1) == 2 && to_of(2) == 1, std::format("the disk with the circle, each stroke with its nearest stroke: {} {} {}", to_of(0), to_of(1), to_of(2)));
+    });
+
     return s.run(argc, argv);
 }

@@ -197,7 +197,9 @@ std::expected<geom::Rect,VectorFailure> measure(const detail::VectorData& data,F
         const auto cubics = frame.cubics.subspan(contour.first_cubic, contour.cubic_count);
         for (std::size_t j = 0; j < cubics.size(); ++j) {
             const auto& cubic = cubics[j];
-            if (cubic.end != cubics[(j + 1) % cubics.size()].start) return refuse(VectorError::invalid_geometry, i, j);
+            // Connected (round to its first cubic when closed; a stroke has two ends).
+            if ((contour.closed || j + 1 < cubics.size()) && cubic.end != cubics[(j + 1) % cubics.size()].start)
+                return refuse(VectorError::invalid_geometry, i, j);
             for (Vec2 p : {cubic.start, cubic.control1, cubic.control2, cubic.end}) {
                 if (!scalar(p.x) || !scalar(p.y)) return refuse(VectorError::invalid_geometry, i, j);
                 const auto at = scratch.world[contour.part].apply(point(p));
@@ -240,7 +242,7 @@ std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView 
         std::size_t verbs = 0, points = 0;
         for (std::size_t j = 0; j < part.contour_count; ++j) {
             const auto& contour = contours[part.first_contour + j];
-            verbs += contour.cubic_count + 2; points += contour.cubic_count * 3 + 1;
+            verbs += contour.cubic_count + (contour.closed ? 2 : 1); points += contour.cubic_count * 3 + 1;
         }
         const auto path = output.record_path(verbs, points, [&](render::MutablePathView target) {
             std::size_t v = 0, p = 0;
@@ -252,7 +254,7 @@ std::expected<void,VectorFailure> emit(const detail::VectorData& data,FrameView 
                     target.verbs[v++] = render::PathVerb::cubic;
                     target.points[p++] = point(cubic.control1); target.points[p++] = point(cubic.control2); target.points[p++] = point(cubic.end);
                 }
-                target.verbs[v++] = render::PathVerb::close;
+                if (contour.closed) target.verbs[v++] = render::PathVerb::close;  // a stroke stays open
             }
         });
         if (!path || (material && !output.fill_path(*path, render::FillRule::nonzero, *material)))

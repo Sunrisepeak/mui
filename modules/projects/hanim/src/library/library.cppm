@@ -281,6 +281,7 @@ struct MorphPartInfo {
 struct MorphContourInfo {
     std::uint32_t part = 0;
     std::size_t ordinal = 0, first_cubic = 0, cubic_count = 0;
+    bool closed = true;  // false: an open stroke, drawn from its start to its end
 };
 struct FramePart {
     MorphPartInfo info;

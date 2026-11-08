@@ -185,6 +185,8 @@ struct Site {
     HomeLandingSite     landing_site;
     HomeScenes          scenes;
     Wall                wall;
+    Works               works;
+    WorksSite           works_site;
     HomeScenesSite      scenes_site;
     MotionGallery       basic, creative;
     MotionGalleryContext basic_site, creative_site;
@@ -1352,6 +1354,8 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(brand_study(s->brand, s->runtime, s->lang, room));
     } else if (id == "explore") {
         content.push_back(motion_gallery(s->creative, s->creative_site, true, room));
+        // The signature works (E1), under the gallery until the page is rebuilt round them (E2).
+        content.push_back(signature_works(s->works, s->works_site, room));
         content.push_back(explore_landing(s->links, room));
     } else if (id == "docs") {
         content.push_back(docs_landing(s->docs, s->links, room >= 1000 ? room - 196 : room));
@@ -1451,6 +1455,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         register_type(component_type<FrameMeter>());
         register_type(component_type<Mascot>());
         register_type(component_type<DropCard>());
+        register_type(component_type<ProgramStage>());
         fill_gallery_models(rt);  // the components page's tree view and data grid
         s->screens_site = {.runtime = &s->runtime, .tasks = &s->hero,
                            .lang = &s->lang,
@@ -1498,6 +1503,7 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         for (const auto scope : {"motion-preview", "creative-preview", "style-feature", "interface-feature", "agent-design"}) rt.set_scope(scope, rt.theme());
         s->landing_site = {.runtime = &s->runtime, .lang = &s->lang, .go = [p = s.get()](std::string id) { p->go(id); }};
         s->scenes_site = {.runtime = &s->runtime, .lang = &s->lang, .lens = &s->lens, .tools = &s->tools};
+        s->works_site = {.runtime = &s->runtime, .lang = &s->lang};
         s->basic_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .open_detail = [p = s.get()](std::string id) { p->open_example(false, std::move(id)); },
                          .style = [p = s.get()](std::string pack) { p->apply_scope("motion-preview", std::move(pack)); },

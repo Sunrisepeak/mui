@@ -19,7 +19,7 @@ import omui.core;
 import omui.view;
 import omui.ui.base;
 import hanim.engine;
-import hanim.render.vector;
+import omui.hanim;
 import :mascot_contract;
 
 export namespace omui::site {
@@ -74,7 +74,7 @@ private:
         hanim::ObjectRef                                     object;
         std::optional<hanim::PlaybackRef>                    showing;
         std::optional<hanim::BodyRef>                        body;
-        std::optional<hanim::vector_render::PreparedVector>  drawn;
+        omui::animation::Drawing                             drawing;
         Point                                                spawn;  // the root's place in its box
         std::string                                          frame, palette, state = "quiet", target, said_frame;
         bool                                                 right = false;          // its art mirrored
@@ -90,7 +90,7 @@ private:
         double                                               arrive_at = 0, gather_length = 0;
         hanim::ObjectRef                                     pixels;
         std::optional<hanim::PlaybackRef>                    gathering;
-        std::optional<hanim::vector_render::PreparedVector>  gathering_drawn;
+        omui::animation::Drawing                             gathering_drawing;
     };
     void arrive(PaintContext& ctx) const;
     void release_arrival() const;

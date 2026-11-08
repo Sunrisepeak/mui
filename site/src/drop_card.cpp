@@ -3,7 +3,7 @@ module omui.site;
 import std;
 import omui;
 import hanim.engine;
-import hanim.render.vector;
+import omui.hanim;
 import mlibs.hash;
 
 namespace omui::site {
@@ -216,23 +216,7 @@ void DropCard::paint(PaintContext& ctx) const {
     // The floor: a hairline it lands on.
     const float floor = ctx.size.height - readout_height - floor_gap;
     ctx.list.fill_rect({0, floor, ctx.size.width, 1}, theme.color("border"));
-    const auto frame = engine.frame(*card.showing);
-    if (frame && frame->animation) {
-        if (!card.drawn) {
-            auto bound = hanim::vector_render::PreparedVector::bind(*frame->animation, frame->effects ? *frame->effects : hanim::PreparedEffects{});
-            if (bound) card.drawn = std::move(*bound);
-        }
-        if (card.drawn) {
-            const auto needs = card.drawn->requirements();
-            xrender::DisplayList staging;
-            std::vector<mlibs::geom::Affine> world(needs.world_transforms);
-            std::vector<float> parameters(needs.backend_parameters);
-            std::vector<mlibs::geom::Rect> layers(needs.effect_layers);
-            ctx.part({.role = "card", .kind = xrender::PartKind::content}, [&] {
-                (void)card.drawn->record(frame->geometry, frame->effect_values, ctx.list, {&staging, world, parameters, layers});
-            });
-        }
-    }
+    (void)card.drawing.record(ctx, engine, *card.showing, "card");
     // The moment, the step and its state's hash: the same each time it comes back.
     const Now here = now();
     readout_.set_text(std::format("{:.2f} s · step {} · {:08x}", here.at, here.step, here.hash >> 32));

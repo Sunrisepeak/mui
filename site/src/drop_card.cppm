@@ -15,7 +15,7 @@ import omui.core;
 import omui.view;
 import omui.ui.base;
 import hanim.engine;
-import hanim.render.vector;
+import omui.hanim;
 import :drop_card_contract;
 
 export namespace omui::site {
@@ -51,7 +51,7 @@ private:
         hanim::ObjectRef                                    object;
         std::optional<hanim::PlaybackRef>                   showing;
         std::optional<hanim::BodyRef>                       body;
-        std::optional<hanim::vector_render::PreparedVector> drawn;
+        omui::animation::Drawing                            drawing;
         Size                                                room;
         Point                                               origin;  // the card's place in its box, before it falls
     };

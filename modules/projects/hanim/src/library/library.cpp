@@ -286,10 +286,12 @@ std::expected<Input,MorphFailure> frame_input(FrameView frame, MorphOptions opti
             CurveInput curve; curve.owned.reserve(cubics.size());
             for (std::size_t k=0;k<cubics.size();++k) {
                 const auto& cubic=cubics[k];
-                if (cubic.end!=cubics[(k+1)%cubics.size()].start) return std::unexpected(failure(MorphError::invalid_frame,i,j));
+                // Connected: each cubic ends where the next begins (round to the first, when closed).
+                if ((range.closed || k+1<cubics.size()) && cubic.end!=cubics[(k+1)%cubics.size()].start)
+                    return std::unexpected(failure(MorphError::invalid_frame,i,j));
                 curve.owned.push_back(ShapeSegment::cubic(cubic.control1,cubic.control2,cubic.end));
             }
-            curve.view={cubics.front().start,curve.owned,true}; item.contours.push_back(std::move(curve));
+            curve.view={cubics.front().start,curve.owned,range.closed}; item.contours.push_back(std::move(curve));
             first_cubic+=range.cubic_count;
         }
         first_contour+=info.contour_count; raw.push_back(std::move(item));
@@ -401,7 +403,8 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
         // Pairs first: a grown contour runs the way their targets were turned.
         for (std::size_t j=0;j<plans->size();++j) {
             const auto& plan=(*plans)[j];
-            if ((plan.from!=none && !x.contours[plan.from].view.closed) || (plan.to!=none && !y.contours[plan.to].view.closed))
+            // A stroke morphs only into a stroke (prepare says so); one alone grows from or closes into a point.
+            if (plan.from!=none && plan.to!=none && x.contours[plan.from].view.closed!=y.contours[plan.to].view.closed)
                 return std::unexpected(failure(MorphError::open_contour,i,j));
             const auto remaining=options.max_cubics-result->cubic_count;
             if (!remaining) return std::unexpected(failure(MorphError::cubic_budget,i,j));
@@ -418,7 +421,7 @@ compile(Input from, Input to, MorphOptions options, bool property_only = false) 
                     return std::unexpected(failure(MorphError::unsupported_topology,i,j));
                 reversed=shape->target_reversed();
             }
-            result->contours.push_back({static_cast<std::uint32_t>(i),j,result->cubic_count,shape->segment_count()});
+            result->contours.push_back({static_cast<std::uint32_t>(i),j,result->cubic_count,shape->segment_count(),shape->closed()});
             result->cubic_count+=shape->segment_count(); result->shapes.push_back(std::move(*shape));
         }
     }

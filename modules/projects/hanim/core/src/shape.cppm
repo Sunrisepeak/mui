@@ -26,7 +26,7 @@ struct ShapeSegment {
 struct ShapeContour {
     Vec2 start{};
     std::span<const ShapeSegment> segments{};
-    bool closed = true; // false is unsupported; true inserts a closing line if necessary
+    bool closed = true; // true inserts a closing line if necessary; false: an open path (a stroke), its ends kept
 };
 
 // One cubic Bezier, including its starting point. A sampled plan is a connected
@@ -111,7 +111,9 @@ struct ContourPairFailure {
 [[nodiscard]] std::expected<std::vector<ContourPair>, ContourPairFailure>
 pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> to, const ContourRules& rules = {});
 
-// Single closed contour only. Callers supply simple nonzero-area contours;
+// Two closed contours, or two open ones (strokes: their ends aligned end to
+// end, the target reversed when its ends lie the other way round, never
+// rotated). Callers supply simple nonzero-area closed contours;
 // this first checkpoint does not certify simplicity, holes or topology changes.
 // Preparation may allocate. It elevates degrees and SUBDIVIDES the original
 // Beziers: the endpoint shapes are preserved, not replaced by sampled polygons.
@@ -132,6 +134,8 @@ public:
         shrink(ShapeContour from, Vec2 point, ShapeMorphOptions options = {});
 
     [[nodiscard]] std::size_t segment_count() const noexcept { return from_.size(); }
+    // Closed (a cycle of cubics) or open (a stroke from one end to the other).
+    [[nodiscard]] bool closed() const noexcept { return closed_; }
     [[nodiscard]] bool target_reversed() const noexcept { return reversed_; }
     // Fraction of the oriented target perimeter used as its new start.
     [[nodiscard]] double target_start_fraction() const noexcept { return phase_; }
@@ -154,6 +158,7 @@ public:
 private:
     std::vector<ShapeCubic> from_, to_;
     bool reversed_ = false;
+    bool closed_ = true;
     double phase_ = 0;
     PointPath point_path_;
 };

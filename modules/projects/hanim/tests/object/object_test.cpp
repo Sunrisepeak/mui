@@ -209,7 +209,7 @@ int main(int argc, char** argv) {
         check(retained->find("root").has_value() && retained->find("a").has_value() && retained->find("b").has_value());
         check(!changed->contains(retained->root()) && before->find("root").has_value());
     });
-    s.test("capabilities describe actual owned domains and open contours remain open", [] {
+    s.test("capabilities describe actual owned domains and open contours remain open (a stroke morphs as a stroke)", [] {
         auto registry = ObjectRegistry::make(); const auto ref = registry->create(graph());
         const auto snapshot = registry->capture(*ref);
         check(snapshot->capability_version("hanim.parts") == 1 && snapshot->capability_version("hanim.contours") == 1);
@@ -218,8 +218,9 @@ int main(int argc, char** argv) {
         check(snapshot->require_capability("hanim.pixels").error() == ObjectError::unsupported_capability && snapshot->capability_version("hanim.mesh") == 0);
         const auto* part = *snapshot->get(snapshot->root()); const auto contour = part->contours.front().view();
         check(contour && !contour->closed);
-        const auto unsupported = PreparedShapeMorph::prepare(*contour, *contour);
-        check(!unsupported && unsupported.error() == ShapeMorphError::open_contour, "representation capture does not silently convert an open path into a fill");
+        // An open path morphs as a stroke and stays one: never silently converted into a fill (closed).
+        const auto stroke = PreparedShapeMorph::prepare(*contour, *contour);
+        check(stroke.has_value() && !stroke->closed(), "representation capture keeps an open path open");
         auto group = registry->create({{{.id = "group"}}}); const auto grouped = registry->capture(*group);
         check(grouped->capability_version("hanim.contours") == 0 && grouped->capability_version("hanim.solid-fill") == 0);
         Snapshot absent; check(!absent && absent.parts().empty() && absent.find("root").error() == ObjectError::uninitialized);

@@ -25,7 +25,6 @@ ShapeCubic portion(const ShapeCubic& c, double begin, double end) noexcept {
 bool finite(Vec2 p) noexcept { return std::isfinite(p.x) && std::isfinite(p.y); }
 bool in_range(Vec2 p) noexcept { return std::abs(p.x) <= 1e100 && std::abs(p.y) <= 1e100; }
 std::expected<std::vector<ShapeCubic>, ShapeMorphError> cubics(ShapeContour contour, std::size_t budget) {
-    if (!contour.closed) return std::unexpected(ShapeMorphError::open_contour);
     if (contour.segments.empty()) return std::unexpected(ShapeMorphError::empty_contour);
     if (contour.segments.size() > budget) return std::unexpected(ShapeMorphError::segment_budget);
     auto valid = [](Vec2 p) -> std::expected<void, ShapeMorphError> {
@@ -56,7 +55,7 @@ std::expected<std::vector<ShapeCubic>, ShapeMorphError> cubics(ShapeContour cont
             cursor = segment.end;
         } else return std::unexpected(ShapeMorphError::invalid_verb);
     }
-    if (cursor != contour.start) {
+    if (contour.closed && cursor != contour.start) {
         if (result.size() == budget) return std::unexpected(ShapeMorphError::segment_budget);
         append_line(contour.start);
     }
@@ -194,6 +193,9 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
         options.arc_samples < 4 || options.arc_samples > 256 ||
         options.alignment_samples < 4 || options.alignment_samples > 128 || !options.point_path.valid())
         return std::unexpected(ShapeMorphError::invalid_options);
+    // A stroke morphs into a stroke, an outline into an outline.
+    if (from.closed != to.closed) return std::unexpected(ShapeMorphError::open_contour);
+    const bool open = !from.closed;
     auto a = cubics(from, options.max_input_segments), b = cubics(to, options.max_input_segments);
     if (!a) return std::unexpected(a.error());
     if (!b) return std::unexpected(b.error());
@@ -201,10 +203,11 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
     if (a->empty() || b->empty()) return std::unexpected(ShapeMorphError::degenerate_contour);
     const double aa = area(*a), ab = area(*b);
     Measured ma(*a, options.arc_samples), mb(*b, options.arc_samples);
-    auto valid = [](const Measured& m, double signed_area) -> std::expected<void, ShapeMorphError> {
+    auto valid = [open](const Measured& m, double signed_area) -> std::expected<void, ShapeMorphError> {
         if (!std::isfinite(m.length) || !std::isfinite(signed_area))
             return std::unexpected(ShapeMorphError::numerical_range);
-        if (!(m.length > 0) || !(m.scale > 0) || std::abs(signed_area) <= 1e-12)
+        // A stroke has a length, not an area (a straight one has none).
+        if (!(m.length > 0) || !(m.scale > 0) || (!open && std::abs(signed_area) <= 1e-12))
             return std::unexpected(ShapeMorphError::degenerate_contour);
         for (const auto& metric : m.metrics)
             if (!(metric.length > 0) || !(metric.end > metric.start))
@@ -215,13 +218,20 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
     if (auto ok = valid(mb, ab); !ok) return std::unexpected(ok.error());
     PreparedShapeMorph result;
     result.point_path_ = options.point_path;
-    if (options.align_direction && ((aa < 0) != (ab < 0))) {
+    result.closed_ = !open;
+    const auto apart = [](Vec2 left, Vec2 right) { return dm::sqrt((left.x - right.x) * (left.x - right.x) + (left.y - right.y) * (left.y - right.y)); };
+    // Open: end to end — the target turned round when its ends lie the other way.
+    // Closed: the same winding, then the start that fits best.
+    const bool turn = open ? apart(a->front().start, b->back().end) + apart(a->back().end, b->front().start) <
+                                 apart(a->front().start, b->front().start) + apart(a->back().end, b->back().end)
+                           : (aa < 0) != (ab < 0);
+    if (options.align_direction && turn) {
         reverse(*b);
         result.reversed_ = true;
         mb = Measured(*b, options.arc_samples);
     }
     if (auto ok = valid(mb, ab); !ok) return std::unexpected(ok.error());
-    result.phase_ = options.align_start ? phase_for(ma, mb, options.alignment_samples) : 0;
+    result.phase_ = options.align_start && !open ? phase_for(ma, mb, options.alignment_samples) : 0;
     if (result.phase_ != 0) {
         *b = rotate_start(mb, result.phase_);
         mb = Measured(*b, options.arc_samples);
@@ -244,10 +254,11 @@ PreparedShapeMorph::prepare(ShapeContour from, ShapeContour to, ShapeMorphOption
         append(result.from_, ma, boundaries[i - 1], boundaries[i]);
         append(result.to_, mb, boundaries[i - 1], boundaries[i]);
     }
-    // Shared vertices make closure bit-exact, including rounding at split seams.
+    // Shared vertices make closure bit-exact, including rounding at split seams
+    // (an open stroke keeps its own two ends).
     for (auto* curves : {&result.from_, &result.to_}) {
         for (std::size_t i = 1; i < curves->size(); ++i) (*curves)[i].start = (*curves)[i - 1].end;
-        curves->back().end = curves->front().start;
+        if (!open) curves->back().end = curves->front().start;
     }
     return result;
 }
@@ -262,12 +273,20 @@ std::expected<ShapeMeasure, ShapeMorphError> measure(ShapeContour contour, std::
 std::expected<std::vector<ContourPair>, ContourPairFailure>
 pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> to, const ContourRules& rules) {
     constexpr auto none = ContourPair::none;
-    struct Measured { std::size_t index; ShapeMeasure measure; bool outline; };
+    struct Measured { std::size_t index; ShapeMeasure measure; bool outline; bool open = false; };
     const auto measure_all = [](std::span<const ShapeContour> contours, bool from_end) -> std::expected<std::vector<Measured>, ContourPairFailure> {
         std::vector<Measured> measured;
         for (std::size_t index = 0; index < contours.size(); ++index) {
             const auto& view = contours[index];
-            if (!view.closed) return std::unexpected(ContourPairFailure{ContourPairError::open_contour, from_end, index});
+            if (!view.closed) {
+                // A stroke: no area; where it lies, the mean of its points. It pairs only with a stroke.
+                if (view.segments.empty()) return std::unexpected(ContourPairFailure{ContourPairError::open_contour, from_end, index});
+                Vec2 sum = view.start;
+                for (const auto& segment : view.segments) sum = {sum.x + segment.end.x, sum.y + segment.end.y};
+                const double count = static_cast<double>(view.segments.size() + 1);
+                measured.push_back({index, ShapeMeasure{0, {sum.x / count, sum.y / count}}, false, true});
+                continue;
+            }
             // A contour that is one point (a grown contour's first frame) is no contour.
             if (std::ranges::all_of(view.segments, [&](const ShapeSegment& segment) {
                     return segment.end == view.start && (segment.verb == ShapeVerb::line || segment.control1 == view.start) &&
@@ -280,8 +299,8 @@ pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> 
         }
         double largest = 0, sign = 1;
         for (const auto& item : measured)
-            if (std::abs(item.measure.area) > largest) { largest = std::abs(item.measure.area); sign = item.measure.area < 0 ? -1 : 1; }
-        for (auto& item : measured) item.outline = item.measure.area * sign >= 0;
+            if (!item.open && std::abs(item.measure.area) > largest) { largest = std::abs(item.measure.area); sign = item.measure.area < 0 ? -1 : 1; }
+        for (auto& item : measured) item.outline = item.open || item.measure.area * sign >= 0;
         return measured;
     };
     const auto sources = measure_all(from, true);
@@ -299,8 +318,8 @@ pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> 
         for (std::size_t to_index = 0; to_index < targets->size(); ++to_index) {
             const auto& left = (*sources)[from_index];
             const auto& right = (*targets)[to_index];
-            if (left.outline != right.outline) continue;
-            const double sizes = std::abs(dm::log(std::abs(left.measure.area) / std::abs(right.measure.area)));
+            if (left.open != right.open || left.outline != right.outline) continue;
+            const double sizes = left.open ? 0.0 : std::abs(dm::log(std::abs(left.measure.area) / std::abs(right.measure.area)));
             candidates.push_back({rules.distance * distance(left.measure.centroid, right.measure.centroid) / extent + rules.size * sizes, from_index, to_index});
         }
     std::ranges::sort(candidates, [](const Candidate& left, const Candidate& right) {
@@ -310,7 +329,7 @@ pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> 
     for (const auto& pin : rules.pins) {
         const auto found_from = std::ranges::find(*sources, pin.from, &Measured::index);
         const auto found_to = std::ranges::find(*targets, pin.to, &Measured::index);
-        if (found_from == sources->end() || found_to == targets->end() || found_from->outline != found_to->outline)
+        if (found_from == sources->end() || found_to == targets->end() || found_from->outline != found_to->outline || found_from->open != found_to->open)
             return std::unexpected(ContourPairFailure{ContourPairError::invalid_pin, true, pin.from});
         const auto from_index = static_cast<std::size_t>(found_from - sources->begin());
         const auto to_index = static_cast<std::size_t>(found_to - targets->begin());
@@ -327,10 +346,10 @@ pair_contours(std::span<const ShapeContour> from, std::span<const ShapeContour> 
     // Where a contour alone begins or ends: an outline at the nearest outline
     // of the other end (it splits off or merges in), a hole at its own centre.
     const auto meeting = [&](const Measured& alone, const std::vector<Measured>& other) {
-        if (!alone.outline) return alone.measure.centroid;
+        if (!alone.outline || alone.open) return alone.measure.centroid;
         std::optional<Vec2> nearest;
         for (const auto& item : other)
-            if (item.outline && (!nearest || distance(item.measure.centroid, alone.measure.centroid) < distance(*nearest, alone.measure.centroid)))
+            if (item.outline && !item.open && (!nearest || distance(item.measure.centroid, alone.measure.centroid) < distance(*nearest, alone.measure.centroid)))
                 nearest = item.measure.centroid;
         return nearest.value_or(alone.measure.centroid);
     };
@@ -366,10 +385,11 @@ PreparedShapeMorph::shrink(ShapeContour from, Vec2 point, ShapeMorphOptions opti
     auto curves = cubics(from, options.max_input_segments);
     if (!curves) return std::unexpected(curves.error());
     remove_constants(*curves);
-    if (curves->empty() || std::abs(area(*curves)) <= 1e-12) return std::unexpected(ShapeMorphError::degenerate_contour);
+    if (curves->empty() || (from.closed && std::abs(area(*curves)) <= 1e-12)) return std::unexpected(ShapeMorphError::degenerate_contour);
     if (curves->size() > options.max_output_segments) return std::unexpected(ShapeMorphError::segment_budget);
     PreparedShapeMorph result;
     result.point_path_ = options.point_path;
+    result.closed_ = from.closed;
     result.from_ = std::move(*curves);
     result.to_.assign(result.from_.size(), ShapeCubic{point, point, point, point});
     return result;

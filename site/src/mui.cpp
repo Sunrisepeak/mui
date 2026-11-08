@@ -3,7 +3,7 @@ module omui.site;
 import std;
 import omui;
 import hanim.engine;
-import hanim.render.vector;
+import omui.hanim;
 
 namespace omui::site {
 
@@ -144,7 +144,7 @@ void Mascot::release_arrival() const {
     Figure& f = *figure_;
     if (f.gathering) (void)f.engine->release(*f.gathering);
     f.gathering.reset();
-    f.gathering_drawn.reset();
+    f.gathering_drawing.reset();
     if (f.pixels) (void)f.engine->destroy_object(f.pixels);
     f.pixels = {};
 }
@@ -183,22 +183,7 @@ void Mascot::arrive(PaintContext& ctx) const {
     }
     const double elapsed = std::min(t - f.arrive_at, f.gather_length);
     (void)engine.seek(*f.gathering, hanim::seconds(elapsed));
-    const auto frame = engine.frame(*f.gathering, 0);
-    if (frame && frame->animation) {
-        if (!f.gathering_drawn)
-            if (auto bound = hanim::vector_render::PreparedVector::bind(*frame->animation, frame->effects ? *frame->effects : hanim::PreparedEffects{}))
-                f.gathering_drawn = std::move(*bound);
-        if (f.gathering_drawn) {
-            const auto needs = f.gathering_drawn->requirements();
-            xrender::DisplayList staging;
-            std::vector<mlibs::geom::Affine> world(needs.world_transforms);
-            std::vector<float> parameters(needs.backend_parameters);
-            std::vector<mlibs::geom::Rect> layers(needs.effect_layers);
-            ctx.part({.role = "figure", .kind = xrender::PartKind::content}, [&] {
-                (void)f.gathering_drawn->record(frame->geometry, frame->effect_values, ctx.list, {&staging, world, parameters, layers});
-            });
-        }
-    }
+    (void)f.gathering_drawing.record(ctx, engine, *f.gathering, "figure", 0);
     if (t - f.arrive_at < f.gather_length) return;
     // Gathered: its body, there, in the air — awake, so it falls.
     release_arrival();
@@ -252,7 +237,7 @@ void Mascot::show(const std::string& frame, const std::string& palette, bool fac
     }
     if (f.showing) (void)engine.release(*f.showing);
     f.showing.reset();
-    f.drawn.reset();
+    f.drawing.reset();
     auto shown = engine.play(hanim::anim::morph(f.object, f.object));
     if (!shown) return;
     f.showing = *shown;
@@ -442,21 +427,7 @@ void Mascot::paint(PaintContext& ctx) const {
     steer(ctx);
     Figure& f = *figure_;
     hanim::Engine& engine = *f.engine;
-    const auto frame = f.showing ? engine.frame(*f.showing) : std::unexpected(hanim::EngineFailure{hanim::EngineError::stale_handle});
-    if (!frame || !frame->animation) return;
-    if (!f.drawn) {
-        auto bound = hanim::vector_render::PreparedVector::bind(*frame->animation, frame->effects ? *frame->effects : hanim::PreparedEffects{});
-        if (!bound) return;
-        f.drawn = std::move(*bound);
-    }
-    const auto needs = f.drawn->requirements();
-    xrender::DisplayList staging;
-    std::vector<mlibs::geom::Affine> world(needs.world_transforms);
-    std::vector<float> parameters(needs.backend_parameters);
-    std::vector<mlibs::geom::Rect> layers(needs.effect_layers);
-    ctx.part({.role = "figure", .kind = xrender::PartKind::content}, [&] {
-        (void)f.drawn->record(frame->geometry, frame->effect_values, ctx.list, {&staging, world, parameters, layers});
-    });
+    if (!f.drawing.record(ctx, engine, *f.showing, "figure")) return;
 
     // A line said, over its head, for a few seconds.
     if (!said_.empty() && services().now().count() < said_until_) {

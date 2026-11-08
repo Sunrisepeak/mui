@@ -210,8 +210,11 @@ int main(int argc,char** argv) {
         error_is(PreparedObjectAnimation::prepare(f.from,f.add(count),{.contours=ContourPairing::strict}),MorphError::contour_count_mismatch);
         auto fill=description(circle());fill.parts[1].fill.reset();
         error_is(PreparedObjectAnimation::prepare(f.from,f.add(fill)),MorphError::missing_fill);
+        // A stroke never morphs into an outline: refused where the contours are paired by index (strict);
+        // paired automatically, strokes pair with strokes — this one closes into a point, the outline grows.
         auto open=description(triangle(false));
-        error_is(PreparedObjectAnimation::prepare(f.add(open),f.to),MorphError::open_contour);
+        error_is(PreparedObjectAnimation::prepare(f.add(open),f.to,{.contours=ContourPairing::strict}),MorphError::open_contour);
+        check(PreparedObjectAnimation::prepare(f.add(open),f.to).has_value(),"automatic: the stroke closes into a point, the outline grows");
     });
     suite.test("budgets and delegated core errors reject preparation without changing any snapshot",[] {
         Fixture f;const auto revision=take(f.registry.revision(f.a));

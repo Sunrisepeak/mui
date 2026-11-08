@@ -6,18 +6,18 @@
 
 | 项目 | 指标 | 我方 | 最强竞品 | 比值 [95% 区间] | 判定 |
 |---|---|---|---|---|---|
-| hanim | `motion.drive-1000.web.mean_ms` | hanim-wasm 0.0285 | gsap 0.14191 | 4.99× [4.76, 5.11] | **ahead** |
-| hanim | `motion.drive-1000.web.p95_ms` | hanim-wasm 0.0229 | gsap 0.07184 | 3.15× [2.74, 3.39] | **ahead** |
-| hanim | `motion.drive-1000.web.max_ms` | hanim-wasm 1.4261 | gsap 3.81267 | 2.66× [2.60, 2.75] | **ahead** |
+| hanim | `motion.drive-1000.web.mean_ms` | hanim-wasm 0.0285 | gsap 0.14106 | 4.94× [4.85, 4.98] | **ahead** |
+| hanim | `motion.drive-1000.web.p95_ms` | hanim-wasm 0.0236 | gsap 0.06704 | 2.83× [2.48, 3.58] | **ahead** |
+| hanim | `motion.drive-1000.web.max_ms` | hanim-wasm 1.4636 | gsap 3.89762 | 2.72× [2.48, 2.84] | **ahead** |
 | hanim | `motion.drive-10k.web.mean_ms` | — | gsap, motion | — | 计划中 |
 | hanim | `motion.document.bytes` | — | lottie, rive | — | 计划中 |
 | hanim | `motion.playback.ms` | — | rive, lottie-web | — | 计划中 |
 | hanim | `motion.gpu.morph-1m.ms` | — | hanim-cpu | — | 待真机验证 |
-| xrender | `raster.fills-1000.median_ms` | xrender 11.9995 | skia 11.732 | 0.98× [0.96, 0.99] | **par** |
-| xrender | `raster.gradients-200.median_ms` | xrender 10.3605 | skia 7.2125 | 0.70× [0.69, 0.71] | **behind** |
-| xrender | `raster.small-5000.median_ms` | xrender 2.9685 | resvg 7.472 | 2.53× [2.49, 2.58] | **ahead** |
-| xrender | `raster.strokes-500.median_ms` | xrender 19.7405 | skia 10.381 | 0.52× [0.52, 0.53] | **behind** |
-| xrender | `raster.joins-300.median_ms` | xrender 15.329 | skia 10.2375 | 0.66× [0.65, 0.67] | **behind** |
+| xrender | `raster.fills-1000.median_ms` | xrender 10.691 | skia 11.758 | 1.11× [1.08, 1.13] | **par** |
+| xrender | `raster.gradients-200.median_ms` | xrender 5.515 | skia 7.313 | 1.33× [1.30, 1.35] | **ahead** |
+| xrender | `raster.small-5000.median_ms` | xrender 2.297 | resvg 7.464 | 3.27× [3.24, 3.30] | **ahead** |
+| xrender | `raster.strokes-500.median_ms` | xrender 13.595 | skia 10.298 | 0.76× [0.75, 0.77] | **behind** |
+| xrender | `raster.joins-300.median_ms` | xrender 13.821 | skia 10.242 | 0.75× [0.74, 0.76] | **behind** |
 | xrender | `raster.fills-1000.error` | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | **ahead** |
 | xrender | `raster.gradients-200.error` | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | **par** |
 | xrender | `raster.small-5000.error` | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | **ahead** |
@@ -47,7 +47,7 @@
 | gongfu | `rollback.8-frames.ms` | — | ggrs | — | 计划中 |
 | mlibs | `text.paragraph.ms` | — | skparagraph | — | 计划中 |
 | mlibs | `layout.flex-grid-5000.ms` | — | taffy, yoga | — | 计划中 |
-| mlibs | `markdown.html.web.median_ms` | mlibs.markdown-wasm 12.891 | md4w 7.656 | 0.59× [0.59, 0.60] | **behind** |
+| mlibs | `markdown.html.web.median_ms` | mlibs.markdown-wasm 8.151 | md4w 8.211 | 1.01× [0.99, 1.03] | **par** |
 | mlibs | `markdown.commonmark.pass` | — | md4c, cmark-gfm | — | 计划中 |
 | mlibs | `i18n.data.bytes` | — | icu4x | — | 计划中 |
 
@@ -58,7 +58,7 @@
 | omui | A: 先预演，再授权：Agent 的操作先在分支里执行并画出来，人同意才提交 | evidence | ahead |
 | omui | B: 用 AI 写 UI 最顺手：确定的像素与语义、像素到源码，写看改闭环 | evidence | ahead |
 | omui | C: 零代码的 Agent 接口：语义树自动投影为 MCP、WebMCP 的类型化操作，授权由 openas 判定 | evidence | ahead |
-| omui | D: 人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则 | planned | — |
+| omui | D: 人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则 | evidence | — |
 | omui.components | omui.liquid-glass: 真正液态的玻璃，所有平台（含 Web） | planned | — |
 | omui.components | omui.canvas-objects: 组件即画布对象：缩小后依然是活的 | planned | — |
 | omui.components | omui.style-packs: 风格包同时改变质感和动效配方 | planned | — |

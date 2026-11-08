@@ -44,7 +44,8 @@ id = "D"
 project = "omui"
 line = "together"
 title = "人机同屏共在：Agent 的身体与意图可见，人随时接管，冲突有规则"
-status = "planned"
+status = "evidence"
+scene = "modules/projects/omui/view/tests/person_first_test.cpp"
 competitors = ["webmcp", "a2ui"]
 
 [[feature]]

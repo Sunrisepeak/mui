@@ -11,14 +11,19 @@ namespace mlibs::markdown {
 namespace {
 
 void escape(std::string& out, std::string_view s) {
-    for (char c : s) {
-        switch (c) {
+    // A run of characters that need nothing goes in whole; each of & < > " as its entity.
+    std::size_t from = 0;
+    while (from < s.size()) {
+        const std::size_t at = s.find_first_of("&<>\"", from);
+        out.append(s.substr(from, at == std::string_view::npos ? std::string_view::npos : at - from));
+        if (at == std::string_view::npos) return;
+        switch (s[at]) {
             case '&': out += "&amp;"; break;
             case '<': out += "&lt;"; break;
             case '>': out += "&gt;"; break;
-            case '"': out += "&quot;"; break;
-            default: out += c; break;
+            default: out += "&quot;"; break;
         }
+        from = at + 1;
     }
 }
 
@@ -29,16 +34,20 @@ bool url_safe(unsigned char c) {
 
 void escape_url(std::string& out, std::string_view s) {
     constexpr std::string_view hex = "0123456789ABCDEF";
-    for (char ch : s) {
-        const auto c = static_cast<unsigned char>(ch);
-        if (url_safe(c)) out += ch;
-        else if (c == '&') out += "&amp;";
+    std::size_t run = 0;  // where the run of safe characters not yet written begins
+    for (std::size_t i = 0; i < s.size(); ++i) {
+        const auto c = static_cast<unsigned char>(s[i]);
+        if (url_safe(c)) continue;
+        out.append(s.substr(run, i - run));
+        run = i + 1;
+        if (c == '&') out += "&amp;";
         else {
             out += '%';
             out += hex[c >> 4];
             out += hex[c & 15];
         }
     }
+    out.append(s.substr(run));
 }
 
 struct Writer {

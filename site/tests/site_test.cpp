@@ -969,7 +969,8 @@ int main(int argc, char** argv) {
         // and nested default-motion corrections. Intermediate ink, bounds,
         // real input and seek regressions have separate behavioural CTS.
         // Re-pinned with M1 ⑤b: the pages show the packages' new names (omui.*).
-        check_eq(all.hex(), std::string("a1fd1a984e4f61f8"));
+        // Re-pinned with D3b: home shows Mui's pixels gathering on the mark.
+        check_eq(all.hex(), std::string("bc312b2276da9280"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {

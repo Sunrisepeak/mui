@@ -1651,7 +1651,8 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
                                       [s, key] { return s->lens.get() == key; }));
         }
         // Mui, over the place (not over the documents: they stay plain, §9.4), as the pixels show it.
-        shown.push_back(only_when(mascot({.id = "mui", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
+        // The first time, it comes alive from the home's mark (D3): its pixels gather on the O, it drops to the page.
+        shown.push_back(only_when(mascot({.id = "mui", .arrive = "main/body/view/home/page/landing/scene/visual/mark", .arrive_after = 1.0, .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100))}),
                                   [s] { return !is_document(s->place.get()) && s->lens.get() == "pixels"; }));
         Element view = stack({.id = "view", .min_width = Dim(0.0f), .min_height = Dim(0.0f), .grow = 1, .label = "The place"}, std::move(shown));
         view.prop("role", Source(Value("main")));  // a landmark: where a screen reader goes to read

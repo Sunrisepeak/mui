@@ -76,8 +76,16 @@ private:
         std::size_t                                          ledges_seen = 0;
         bool                                                 started = false, asleep = false;  // its body: stepped only while awake
         Size                                                 room;
-        FrameDemandLease                                     frames;  // held while it moves
+        bool                                                 was_moving = false;  // frames asked for last paint
+        // Its arrival (`arrive`): its pixels gathering where it comes from, before it has a body.
+        bool                                                 arrived = true;
+        double                                               arrive_at = 0, gather_length = 0;
+        hanim::ObjectRef                                     pixels;
+        std::optional<hanim::PlaybackRef>                    gathering;
+        std::optional<hanim::vector_render::PreparedVector>  gathering_drawn;
     };
+    void arrive(PaintContext& ctx) const;
+    void release_arrival() const;
     void ensure(const PaintContext& ctx) const;
     void show(const std::string& frame, const std::string& palette, bool facing_right) const;
     void steer(const PaintContext& ctx) const;

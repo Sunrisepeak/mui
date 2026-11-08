@@ -18,7 +18,7 @@ namespace {
 struct Page {
     Headless h{HeadlessOptions{.size = {640, 360}, .scale = 1}};
     int deleted = 0;
-    explicit Page(bool reduced = false) {
+    explicit Page(bool reduced = false, std::string arrive = {}) {
         register_base_components();
         register_type(component_type<site::Mascot>());
         (void)h.runtime().verbs().add({"doc.delete", "Delete", Effect::irreversible, "delete", {}}, [this](const Value&) -> VerbResult {
@@ -32,8 +32,9 @@ struct Page {
                                            {button({.id = "save", .text = "Save", .variant = ButtonVariant::primary}),
                                             button({.id = "delete", .text = "Delete", .variant = ButtonVariant::danger, .verb = "doc.delete"})}),
                                        box({.id = "card", .width = 220.0f, .height = 80.0f, .background = Fill(Color::hex(0xffffff)), .radius = 12, .shadow = "md"})}),
-                               site::mascot({.id = "mui", .surfaces = Value(Value::List{Value("main/body/card")})})}));
-        h.settle();
+                               site::mascot({.id = "mui", .arrive = arrive, .arrive_after = 0.2, .surfaces = Value(Value::List{Value("main/body/card")})})}));
+        if (arrive.empty()) h.settle();
+        else h.step();  // an arrival is watched from its start
     }
     std::int64_t agent(std::string_view node, std::string_view action, std::string answer = {}) {
         Invocation call;
@@ -138,6 +139,23 @@ int main(int argc, char** argv) {
         check(p.person("main/mui", "wake") == 0);
         p.run(0.5);
         check(p.text("state") != "asleep");
+    });
+
+    s.test("it comes alive from where it is told: its pixels gather there, then it drops to the page's bottom; with less motion it is simply there", [] {
+        Page p(false, "main/body/card");
+        check_eq(p.text("state"), std::string("arriving"));
+        const auto dir = scratch_dir("mascot-arrival");
+        for (int k = 0; k < 8; ++k) {
+            p.run(0.15);
+            (void)p.h.save_png(dir / std::format("{:02}.png", k));
+        }
+        p.run(3);
+        check(p.text("state") != "arriving", p.text("state"));
+        const Rect card = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/card"));
+        check(std::abs(p.feet().x - (card.x + card.width / 2)) < 20, std::format("it dropped from the card's middle: feet at {} (card centre {})", p.feet().x, card.x + card.width / 2));
+        check(std::abs(p.feet().y - 356) < 3, std::format("and landed on the page's bottom: {}", p.feet().y));
+        Page still(true, "main/body/card");
+        check(still.text("state") != "arriving" && std::abs(still.feet().y - 356) < 3, "less motion: no gathering, already standing");
     });
 
     s.test("less motion asked: frames change in place; it never walks", [] {

@@ -204,10 +204,40 @@ int main(int argc, char** argv) {
         check(std::ranges::all_of(report.contacts, [](const sim::Contact& c) { return c.kind == sim::ContactKind::ledge; }), "its contacts are the ledge's");
         check(report.area > 0.9 * report.rest_area && report.fastest < 50, "near its rest shape, nearly still");
         const std::string words = sim::explain(history.state());
-        check(words.contains("on a ledge") && words.contains("a step: kick predict edges area shape collide velocity"), words);
+        check(words.contains("on a ledge") && words.contains("a step: settle kick predict edges area shape collide velocity"), words);
         auto flying = ball();
         sim::SoftBodyModel::step(flying, {});
         check(sim::report(flying).contacts.empty() && sim::explain(flying).contains("in the air"));
+    });
+
+    suite.test("settled: in the shape it was made in, upright, standing where it was, still — whatever brought it there", [] {
+        const auto rest_after = [](double push) {
+            auto body = ball({.shape_stiffness = 0.3, .upright = 1});
+            sim::BodyInput in;
+            in.push_x = push;
+            for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(body, in);
+            for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(body, {});
+            const double bottom = *std::ranges::max_element(body.y);
+            sim::BodyInput settle;
+            settle.settle = true;
+            sim::SoftBodyModel::step(body, settle);
+            check(std::abs(*std::ranges::max_element(body.y) - bottom) < 1e-9, "standing where its lowest point was");
+            check(std::ranges::all_of(body.velocity_x, [](double v) { return v == 0; }), "still");
+            return body;
+        };
+        const auto one = rest_after(0), other = rest_after(0.0001);
+        // The same shape relative to its centre, whatever its history (it may stand elsewhere).
+        const auto shape = [](const sim::SoftBody& b) {
+            std::vector<double> out;
+            const auto [cx, cy] = b.centre();
+            for (std::size_t i = 0; i < b.size(); ++i) out.push_back(b.x[i] - cx), out.push_back(b.y[i] - *std::ranges::max_element(b.y));
+            return out;
+        };
+        const auto a = shape(one), b = shape(other);
+        bool same = a.size() == b.size();
+        for (std::size_t i = 0; same && i < a.size(); ++i) same = std::abs(a[i] - b[i]) < 1e-9;
+        check(same, "one resting shape");
+        check(std::abs(one.area() - one.rest_area) < 1e-6, "its rest area");
     });
 
     suite.test("its materials: a table every family reads; a soft body's parameters from one; its stages said in order", [] {
@@ -222,7 +252,7 @@ int main(int argc, char** argv) {
         const auto added = table.add({"felt", sim::Phase::soft, 0.4, 0.9, 0.1});
         check(added.has_value() && table.at(*added)->name == "felt" && table.id_of("felt") == *added);
         const auto stages = sim::stages();
-        check(stages.size() == 7 && stages.front().name == "kick" && stages.back().name == "velocity");
+        check(stages.size() == 8 && stages.front().name == "settle" && stages.back().name == "velocity");
     });
 
     return suite.run(argc, argv);

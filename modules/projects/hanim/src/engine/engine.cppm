@@ -260,6 +260,9 @@ public:
     // The speed its feet go at along what it stands on (0: standing).
     [[nodiscard]] std::expected<void, EngineFailure> walk(BodyRef body, double speed);
     [[nodiscard]] std::expected<void, EngineFailure> hop(BodyRef body, Vec2 velocity);
+    // At its next step: in the shape it was made in, upright, standing where
+    // it is, still (a figure come to rest drawn the same whatever brought it there).
+    [[nodiscard]] std::expected<void, EngineFailure> settle(BodyRef body, double grid = 0);
     [[nodiscard]] std::expected<void, EngineFailure> unsimulate(BodyRef body);
     // The body's state (its particles, velocities), for tools and Agents.
     [[nodiscard]] std::expected<const xengine::dynamics::SoftBody*, EngineFailure> body(BodyRef body) const noexcept;

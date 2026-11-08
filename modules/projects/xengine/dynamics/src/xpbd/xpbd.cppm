@@ -44,6 +44,9 @@ inline constexpr std::size_t max_ledges = 32;
 // at along what it stands on (walking: friction holds what touches a floor
 // to that speed, not to stillness; 0 standing), an acceleration that lasts
 // (in the air too) and a velocity added once at the step's start (a hop).
+// `settle`: this step only puts a body that has come to rest in the shape it
+// was made in — upright, standing where its lowest point is, still — so a
+// figure at rest is drawn the same whatever brought it there.
 // Fixed size: a history of inputs allocates nothing.
 struct BodyInput {
     Pin pin;
@@ -52,6 +55,8 @@ struct BodyInput {
     double walk = 0;
     double push_x = 0, push_y = 0;
     double kick_x = 0, kick_y = 0;
+    bool settle = false;
+    double settle_grid = 0;  // settled on whole multiples of this (a pixel: drawn the same, whatever its history); 0: where it is
 };
 
 enum class BodyError : std::uint8_t {

@@ -427,6 +427,7 @@ void step_bodies(detail::EngineData& data, double elapsed) noexcept {
         for (int taken = 0; slot.owed >= step && taken < static_cast<int>(1 / step) + 1; ++taken) {
             slot.history->step(slot.input);
             slot.input.kick_x = slot.input.kick_y = 0;  // a hop is once
+            slot.input.settle = false;                  // and so is settling
             slot.owed -= step;
         }
         slot.owed = std::min(slot.owed, step);
@@ -1174,6 +1175,15 @@ std::expected<void, EngineFailure> Engine::walk(BodyRef ref, double speed) {
     if (!slot) return std::unexpected(fail(EngineError::stale_handle));
     if (!std::isfinite(speed)) return std::unexpected(fail(EngineError::invalid_argument));
     slot->input.walk = speed;
+    return {};
+}
+std::expected<void, EngineFailure> Engine::settle(BodyRef ref, double grid) {
+    if (writing_) return std::unexpected(fail(EngineError::reentrant_mutation));
+    auto* slot = live_body(data_.get(), ref);
+    if (!slot) return std::unexpected(fail(EngineError::stale_handle));
+    if (!std::isfinite(grid) || grid < 0) return std::unexpected(fail(EngineError::invalid_argument));
+    slot->input.settle = true;
+    slot->input.settle_grid = grid;
     return {};
 }
 std::expected<void, EngineFailure> Engine::hop(BodyRef ref, Vec2 velocity) {

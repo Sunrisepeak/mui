@@ -67,6 +67,7 @@ const MascotArt& mascot_art() {
 Mascot::~Mascot() {
     // The host's engine outlives no runtime: touch it only while attached.
     if (figure_ && figure_->engine && attached()) {
+        release_arrival();
         if (figure_->body) (void)figure_->engine->unsimulate(*figure_->body);
         if (figure_->showing) (void)figure_->engine->release(*figure_->showing);
         if (figure_->object) (void)figure_->engine->destroy_object(figure_->object);
@@ -104,6 +105,7 @@ std::optional<Rect> Mascot::box_of(std::string_view path) const {
 // bottom right, sitting.
 void Mascot::ensure(const PaintContext& ctx) const {
     if (figure_ && figure_->room == ctx.size) return;
+    const bool had_figure = figure_ != nullptr;
     const MascotArt& art = mascot_art();
     if (art.frames.empty() || ctx.size.width <= 0 || ctx.size.height <= 0) return;
     // A new size (another place, a window resized): the figure made again at
@@ -113,6 +115,7 @@ void Mascot::ensure(const PaintContext& ctx) const {
     if (figure_) {
         frame = figure_->frame, palette = figure_->palette, right = figure_->right, facing_right = figure_->facing_right;
         Figure& old = *figure_;
+        release_arrival();
         if (old.body) (void)old.engine->unsimulate(*old.body);
         if (old.showing) (void)old.engine->release(*old.showing);
         if (old.object) (void)old.engine->destroy_object(old.object);
@@ -125,8 +128,86 @@ void Mascot::ensure(const PaintContext& ctx) const {
     // Its hull's bottom (a pixel above the grid's) on the page's bottom: standing, not falling.
     made->spawn = {ctx.size.width - side - 32, ctx.size.height - 4 - (side - static_cast<float>(props.cell))};
     made->facing_right = facing_right;
+    // The first time: from where it was told it comes from, its pixels gathering there (not with less motion).
+    const bool first = !had_figure;
+    if (first && !props.arrive.empty() && !services().motion_reduced())
+        if (const auto from = box_of(props.arrive)) {
+            made->spawn = {std::round(from->x + from->width / 2 - side / 2), std::round(from->y + from->height / 2 - side / 2)};
+            made->arrived = false;
+            made->arrive_at = services().now().count() + std::max(0.0, props.arrive_after);
+        }
     figure_ = std::move(made);
-    show(frame, palette, right);
+    if (figure_->arrived) show(frame, palette, right);
+}
+
+void Mascot::release_arrival() const {
+    if (!figure_) return;
+    Figure& f = *figure_;
+    if (f.gathering) (void)f.engine->release(*f.gathering);
+    f.gathering.reset();
+    f.gathering_drawn.reset();
+    if (f.pixels) (void)f.engine->destroy_object(f.pixels);
+    f.pixels = {};
+}
+
+// Its pixels gathering where it comes from (hanim's assemble_in on its pixel
+// picture), then — gathered — its body made there, in the air: it drops to
+// the page's bottom, landing soft.
+void Mascot::arrive(PaintContext& ctx) const {
+    Figure& f = *figure_;
+    hanim::Engine& engine = *f.engine;
+    const double t = services().now().count();
+    services().moving(node());
+    services().invalidate_paint(node());
+    services().invalidate_semantics(node());
+    f.state = "arriving";
+    if (t < f.arrive_at) return;
+    const MascotArt& art = mascot_art();
+    const std::string palette = ctx.theme.dark ? "night" : "indigo";
+    const auto rows = art.frames.find("sit");
+    const auto inks = art.palettes.find(palette);
+    if (rows == art.frames.end() || inks == art.palettes.end()) { f.arrived = true; return; }
+    const hanim::PixelGrid grid{inks->second, facing(rows->second, true), props.cell};
+    if (!f.gathering) {
+        auto description = hanim::pixel_object("arrival", grid, {.form = hanim::PixelForm::pixels});
+        if (!description) { f.arrived = true; return; }
+        description->parts[0].local = {.tx = f.spawn.x, .ty = f.spawn.y};
+        auto object = engine.create_object(*description);
+        if (!object) { f.arrived = true; return; }
+        f.pixels = *object;
+        const double side = props.cell * art.size;
+        auto played = engine.play(hanim::anim::assemble_in(f.pixels, grid, {.seed = 7, .distance = side * 1.4, .spin = 2.4}));
+        if (!played) { release_arrival(); f.arrived = true; return; }
+        f.gathering = *played;
+        (void)engine.pause(*f.gathering);
+        f.gather_length = engine.inspect(*f.gathering) ? engine.inspect(*f.gathering)->duration.count() : 0;
+    }
+    const double elapsed = std::min(t - f.arrive_at, f.gather_length);
+    (void)engine.seek(*f.gathering, hanim::seconds(elapsed));
+    const auto frame = engine.frame(*f.gathering, 0);
+    if (frame && frame->animation) {
+        if (!f.gathering_drawn)
+            if (auto bound = hanim::vector_render::PreparedVector::bind(*frame->animation, frame->effects ? *frame->effects : hanim::PreparedEffects{}))
+                f.gathering_drawn = std::move(*bound);
+        if (f.gathering_drawn) {
+            const auto needs = f.gathering_drawn->requirements();
+            xrender::DisplayList staging;
+            std::vector<mlibs::geom::Affine> world(needs.world_transforms);
+            std::vector<float> parameters(needs.backend_parameters);
+            std::vector<mlibs::geom::Rect> layers(needs.effect_layers);
+            ctx.part({.role = "figure", .kind = xrender::PartKind::content}, [&] {
+                (void)f.gathering_drawn->record(frame->geometry, frame->effect_values, ctx.list, {&staging, world, parameters, layers});
+            });
+        }
+    }
+    if (t - f.arrive_at < f.gather_length) return;
+    // Gathered: its body, there, in the air — awake, so it falls.
+    release_arrival();
+    f.arrived = true;
+    f.started = true;
+    f.asleep = false;
+    f.last = t;
+    show("sit", palette, true);
 }
 
 // Shows a frame, in a palette, facing a way: the object updated, shown anew,
@@ -291,7 +372,15 @@ void Mascot::steer(const PaintContext& ctx) const {
         f.settled_at = -1;
     } else if (!f.asleep) {
         if (f.settled_at < 0) f.settled_at = t;
-        if (t - f.settled_at > 0.3) f.asleep = true;
+        if (t - f.settled_at > 0.3) {
+            f.asleep = true;
+            // Asleep in its canonical pose: the same pixels whatever brought it here.
+            if (f.body && !still) {
+                // On whole pixels of its box (its root stands on whole pixels too: see ensure).
+                (void)engine.settle(*f.body, 1);
+                (void)engine.advance_bodies(hanim::seconds(1.0 / 120));
+            }
+        }
     }
     const bool sleeping = f.asleep;
     f.ledges_seen = ledges.size();
@@ -330,9 +419,9 @@ void Mascot::steer(const PaintContext& ctx) const {
         services().moving(node());
         services().invalidate_paint(node());  // the next frame draws it again
         services().invalidate_semantics(node());  // and says where it is: an agent reads it there
-        if (!f.frames) f.frames = services().demand_frames(FrameDemand::fastest("mui"));
-    } else if (f.frames) {
-        f.frames.release();
+        f.was_moving = true;
+    } else if (f.was_moving) {
+        f.was_moving = false;
         services().invalidate_semantics(node());  // at rest: said once more
     }
     // A new frame shown (a state changed): said.
@@ -344,6 +433,10 @@ void Mascot::steer(const PaintContext& ctx) const {
 
 void Mascot::paint(PaintContext& ctx) const {
     ensure(ctx);
+    if (figure_ && !figure_->arrived) {
+        arrive(ctx);
+        if (!figure_->arrived) return;
+    }
     if (!figure_ || !figure_->showing) return;
     steer(ctx);
     Figure& f = *figure_;

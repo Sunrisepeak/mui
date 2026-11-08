@@ -15,6 +15,8 @@ surfaces = { type = "any", doc = "The nodes it may stand on, by path (a list); t
 asleep   = { type = "bool", default = false, bindable = true, doc = "Curled up: no motion until woken." }
 palette  = { type = "enum", values = ["theme", "indigo", "night"], default = "theme", doc = "Its colours; theme: night on a dark theme." }
 cell     = { type = "f64", default = 3.0, doc = "A pixel's side." }
+arrive   = { type = "string", default = "", doc = "Where it first comes from (a node's path): its pixels gather there, then it drops to the page's bottom; with less motion it is simply there." }
+arrive_after = { type = "f64", default = 0.8, doc = "Seconds after it is first drawn before its pixels gather." }
 
 [contract.mascot.actions]
 sleep    = { effect = "reversible", doc = "Curls up: no motion until woken." }

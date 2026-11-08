@@ -140,14 +140,29 @@ int main(int argc, char** argv) {
         check(fps > 40 && fps < 60.5, std::format("fps {}", fps));
     });
 
-    s.test("the lenses: each switch comes to rest (what stays is a slow timer, no frame a display frame)", [] {
+    s.test("the lenses: each switch comes to rest: what stays is a slow timer, and a frame displayed only when it runs", [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const std::string_view lens : {"tree", "agent", "test", "pixels"}) {
             check(r.h.click(std::format("main/foot/lens_{}", lens)), std::format("the lens {}", lens));
             const Run::Times t = r.frames(120);
             report(std::format("lens {}", lens), t);
-            const FrameOutput out = r.h.step();
-            check(out.demand.idle() || out.demand.max_hz <= 10, std::format("lens {}: {} at {} Hz", lens, out.demand.reason, out.demand.max_hz));
+            // Then a second of it: nothing but timers asking, and those slow (a
+            // timer's demand is when it is next due — 60 Hz the frame before it —
+            // so its rate is read from its due times); a frame displayed only when
+            // one ran (the foot's strip of the page's time catching up).
+            const std::uint64_t shown = r.h.runtime().display_list().hash();
+            std::set<double> due;
+            int displayed = 0;
+            std::string other;
+            for (int k = 0; k < 60; ++k) {
+                const FrameOutput out = r.h.step();
+                if (out.repainted && r.h.runtime().display_list().hash() != shown) ++displayed;
+                if (!out.demand.idle() && out.demand.reason != "timer") other = out.demand.reason;
+                if (out.next_timer) due.insert(out.next_timer->count());
+            }
+            check(displayed <= std::max<int>(1, static_cast<int>(due.size())), std::format("lens {}: {} display frames at rest, {} timers", lens, displayed, due.size()));
+            check(other.empty(), std::format("lens {}: frames asked for by {}", lens, other));
+            check(due.size() <= 10, std::format("lens {}: {} timers in a second", lens, due.size()));
         }
     });
 

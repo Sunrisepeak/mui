@@ -96,6 +96,22 @@ void SoftBodyModel::step(State& body, const Input& input) noexcept {
     if (body.scratch_x.size() != count || body.moved_x.size() != count ||
         body.touching.size() != count)
         return;
+    if (input.settle) {
+        // At rest in the shape it was made in, upright, its lowest point where it is now, still.
+        const auto [centre_x, centre_y] = body.centre();
+        double lowest = body.y[0], rest_lowest = body.rest_y[0];
+        for (std::size_t index = 1; index < count; ++index) lowest = std::max(lowest, body.y[index]), rest_lowest = std::max(rest_lowest, body.rest_y[index]);
+        (void)centre_y;
+        const double grid = finite(input.settle_grid) && input.settle_grid > 0 ? input.settle_grid : 0;
+        const auto snapped = [grid](double value) { return grid > 0 ? std::round(value / grid) * grid : value; };
+        const double at_x = snapped(centre_x), floor_y = snapped(lowest);
+        for (std::size_t index = 0; index < count; ++index) {
+            body.x[index] = at_x + body.rest_x[index];
+            body.y[index] = floor_y - rest_lowest + body.rest_y[index];
+            body.velocity_x[index] = body.velocity_y[index] = 0;
+        }
+        return;
+    }
     auto& before_x = body.scratch_x;
     auto& before_y = body.scratch_y;
     // A hop: its velocity, once, to every particle.
@@ -259,7 +275,8 @@ BodyParams params_of(const PhysicalMaterial& material, double area, BodyParams b
 }
 
 std::span<const Stage> stages() noexcept {
-    static constexpr std::array<Stage, 7> list{{
+    static constexpr std::array<Stage, 8> list{{
+        {"settle", "asked once: the shape it was made in, upright, standing where it is, still (and nothing else that step)", false},
         {"kick", "a hop's velocity, once, to every particle", false},
         {"predict", "gravity, the push and the walk's acceleration, then move", true},
         {"edges", "each edge keeps its length (XPBD)", true},

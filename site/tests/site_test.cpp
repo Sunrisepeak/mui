@@ -969,7 +969,7 @@ int main(int argc, char** argv) {
         // and nested default-motion corrections. Intermediate ink, bounds,
         // real input and seek regressions have separate behavioural CTS.
         // Re-pinned with M1 ⑤b: the pages show the packages' new names (omui.*).
-        check_eq(all.hex(), std::string("060e8eff4d7f1817"));
+        check_eq(all.hex(), std::string("a1fd1a984e4f61f8"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -1239,8 +1239,8 @@ int main(int argc, char** argv) {
         // The site's own part pinned (the docs change with the framework; they are held to md4c-html's bytes above).
         auto own = [](const std::string& html) { return html.substr(0, html.find("<section id=\"/", html.find("<section id=\"/") + 1)); };
         std::println("    static en {:016x} zh {:016x}", fnv(own(en)), fnv(own(site::static_html("zh"))));
-        check_eq(std::format("{:016x}", fnv(own(en))), std::string("85286cf4ad05c4b5"));
-        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("efc510de8e1f2947"));
+        check_eq(std::format("{:016x}", fnv(own(en))), std::string("e0c2fad69495426b"));
+        check_eq(std::format("{:016x}", fnv(own(site::static_html("zh")))), std::string("675bc17eed310c55"));
 
         const auto out = site::inject(page, en, "zh");
         check(out.has_value(), "dist-toy's page");

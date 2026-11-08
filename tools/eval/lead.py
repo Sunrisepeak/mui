@@ -2,7 +2,7 @@
 """The lead ledger (Part 2 plan §2, D-135): our side against the strongest
 competitor, measured on one machine in the same job, judged by ratio.
 
-  lead.py sample --series NAME --round K --out FILE -- COMMAND...
+  lead.py sample --series NAME [--series-field F] --round K --out FILE -- COMMAND...
       run COMMAND, tag each JSON line it prints with the series and the
       round, append the samples to FILE
 
@@ -142,7 +142,9 @@ def cmd_sample(arguments: argparse.Namespace) -> int:
         text = text.strip()
         if not text.startswith("{"):
             continue
-        for series, sample in series_of(json.loads(text), arguments.series):
+        line = json.loads(text)
+        pairs = [(str(line[arguments.series_field]), line)] if arguments.series_field and arguments.series_field in line else series_of(line, arguments.series)
+        for series, sample in pairs:
             record = {"series": series, "round": arguments.round, "key": sample.get("scene") or arguments.key}
             record.update({name: value for name, value in sample.items() if isinstance(value, (int, float)) and not isinstance(value, bool)})
             records.append(record)
@@ -387,6 +389,7 @@ def main() -> int:
     sample.add_argument("--series", required=True)
     sample.add_argument("--round", type=int, required=True)
     sample.add_argument("--key", default="")
+    sample.add_argument("--series-field", default="", help="each line's series from this field (a program printing several competitors)")
     sample.add_argument("--out", required=True)
     sample.add_argument("command", nargs=argparse.REMAINDER)
     verdict = commands.add_parser("verdict")

@@ -9,7 +9,7 @@
 namespace   = "omui"
 name        = "bench.competitors"
 version     = "0.1.0"
-description = "omui's side of the competitor benchmarks: hanim's motion and xrender's vector raster, native and on the Web"
+description = "omui's side of the competitor benchmarks: hanim's motion, xrender's vector raster and mlibs.markdown, native and on the Web"
 license     = "Apache-2.0"
 platforms   = ["linux", "macos", "windows", "emscripten"]
 
@@ -24,6 +24,10 @@ main = "src/motion.cpp"
 kind = "bin"
 main = "src/vector.cpp"
 
+[targets.omui-bench-markdown]
+kind = "bin"
+main = "src/markdown.cpp"
+
 [dependencies]
 "hanim.core" = { path = "../../../modules/projects/hanim/core" }
 "hanim" = { path = "../../../modules/projects/hanim" }
@@ -32,3 +36,8 @@ xrender.raster = { path = "../../../modules/projects/xrender/raster" }
 mlibs.geom = { path = "../../../modules/base/geom" }
 mlibs.math = { path = "../../../modules/base/math" }
 mlibs.image = { path = "../../../modules/base/image" }
+mlibs.markdown = { path = "../../../modules/content/markdown" }
+
+# The Web's programs read their input (the markdown corpus) from node's file system.
+[target.'cfg(os = "emscripten")'.build]
+ldflags = ["-sNODERAWFS=1"]

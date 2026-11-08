@@ -43,3 +43,17 @@ What it does not say: a browser's frame (node has no page, layout or paint; both
 What it says: in quality xrender's CPU reference is as close to Skia as resvg is (closer on four scenes of five); in throughput it leads only where draws are many and small (2× Skia, whose figure includes a JavaScript call a path), and is 1.6–2.9× slower than Skia on large fills, gradients and strokes — faster than resvg except on curved strokes, where the two are level. No lead in raster throughput is claimed. The stroke rows are after this comparison's first finding: xrender's stroker made a polygon for every flattened segment and every join between them (94 ms for `strokes-500`, 9× Skia); it now makes one loop a contour, joins on the outer side of a turn and the offsets' meeting point (or Skia's pivot) on the inner — 3.2× faster, as close to Skia as before. Where two edges of one shape fall in the same pixel (a contour doubling back on itself) xrender's coverage adds them where Skia's supersampling counts the pixel once: the largest differences left.
 
 Next: where large fills spend their time in xrender's rasterizer (cells sorted per shape, 64-bit divisions per crossing) and its compositing; the same scenes on the GPU renderer beside Vello; the Web, as WebAssembly, beside Skia's CanvasKit.
+
+## Markdown to HTML: 1 MiB of what people wrote here
+
+`src/markdown.cpp` ↔ `js/markdown.mjs`: the repository's own Markdown (docs/, the site's content) repeated to 1 MiB, turned into HTML the whole way, in one node (V8). mlibs.markdown is built on md4c: its time is md4c's parse, the document of blocks and marks, and the HTML written from the document; md4w is md4c's own HTML writer as WebAssembly (with our gfm's flags; it also writes an anchor into each heading), markdown-it the most used JavaScript one.
+
+| 2026-11-09, one machine, 10 interleaved rounds | median | throughput |
+|---|---:|---:|
+| mlibs.markdown, WebAssembly | 12.8 ms | 83 MB/s |
+| md4w 0.2.7 (md4c's own HTML) | 7.6–8.9 ms | 120+ MB/s |
+| markdown-it 15.0.3 | 69.7 ms | 15 MB/s |
+| mlibs.markdown, native | 9.9 ms | 108 MB/s |
+
+What it says: the document model costs: 0.60× md4c's straight-to-HTML (behind, in the ledger), 5.4× markdown-it. What the document buys — a renderer, an accessibility tree and an agent reading the same blocks, streaming append — is not in the number; making it cheaper is LD2's.
+

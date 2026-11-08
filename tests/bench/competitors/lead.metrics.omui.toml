@@ -424,8 +424,19 @@ status = "planned"
 
 [[metric]]
 project = "mlibs"
-id = "markdown.parse.mb_per_s"
-about = "CommonMark parsing throughput"
+id = "markdown.html.web.median_ms"
+about = "Markdown to HTML, the whole way, on 1 MiB of the repository's own docs, in one V8: mlibs.markdown (md4c's parse, the document, its HTML) against md4c's own HTML writer (md4w) and markdown-it"
+better = "lower"
+key = "markdown"
+field = "median_ms"
+ours = "mlibs.markdown-wasm"
+competitors = ["md4w", "markdown-it"]
+status = "measured"
+
+[[metric]]
+project = "mlibs"
+id = "markdown.commonmark.pass"
+about = "CommonMark and GFM spec examples passed"
 better = "higher"
 ours = "mlibs.markdown"
 competitors = ["md4c", "cmark-gfm"]

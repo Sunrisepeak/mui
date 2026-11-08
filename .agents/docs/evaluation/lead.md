@@ -47,7 +47,8 @@
 | gongfu | rollback.8-frames.ms | — | ggrs | — | planned |
 | mlibs | text.paragraph.ms | — | skparagraph | — | planned |
 | mlibs | layout.flex-grid-5000.ms | — | taffy, yoga | — | planned |
-| mlibs | markdown.parse.mb_per_s | — | md4c, cmark-gfm | — | planned |
+| mlibs | markdown.html.web.median_ms | mlibs.markdown-wasm 12.891 | md4w 7.656 | 0.59× [0.59, 0.60] | behind |
+| mlibs | markdown.commonmark.pass | — | md4c, cmark-gfm | — | planned |
 | mlibs | i18n.data.bytes | — | icu4x | — | planned |
 
 ## 标志性特性

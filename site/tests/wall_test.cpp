@@ -100,5 +100,80 @@ int main(int argc, char** argv) {
         check(!out.animating && out.demand.idle(), std::format("at rest: {} at {} Hz", out.demand.reason, out.demand.max_hz));
     });
 
+    suite.test("a search dims the rest and flies to what it found; nothing found says so; cleared, the whole wall again", [] {
+        Page page;
+        const double far = page.zoom();
+        check(site::wall_matches("picker") == std::vector<std::string>{"date_picker", "time_picker", "color_picker"}, "the pickers, in the wall's order");
+        check(site::wall_matches("选择").size() >= 3, "either language");
+        check(page.act(path("tools/search"), "set_value", Value{}.set("value", "picker")) == 0);
+        page.h.settle(seconds(2));
+        check_eq(page.h.tree().node(path("tools/hint"))->name, std::string("3 found."));
+        check(page.zoom() > far * 1.5, std::format("closer, on what it found: {} → {}", far, page.zoom()));
+        (void)page.h.save_png(scratch_dir("wall-search") / "pickers.png");
+        check(page.act(path("tools/search"), "set_value", Value{}.set("value", "no-such-part")) == 0);
+        page.h.settle(seconds(1));
+        check_eq(page.h.tree().node(path("tools/hint"))->name, std::string("Nothing matched. Try another word."));
+        check(page.act(path("tools/search"), "set_value", Value{}.set("value", "")) == 0);
+        page.h.settle(seconds(2));
+        check(std::abs(page.zoom() - far) < far * 0.05, std::format("the whole wall: {} (was {})", page.zoom(), far));
+    });
+
+    suite.test("a style pack reskins the whole wall, drawn and live cards alike", [] {
+        Page page;
+        const auto plain = site::frame_hash(page.h.pixels());
+        check(page.act(path("tools/style"), "set_value", Value{}.set("value", "neon")) == 0);
+        page.h.settle(seconds(2));
+        check(site::frame_hash(page.h.pixels()) != plain, "the wall in another style");
+        (void)page.h.save_png(scratch_dir("wall-style") / "neon.png");
+        check(page.act(path("tools/style"), "set_value", Value{}.set("value", "plain")) == 0);
+        page.h.settle(seconds(2));
+        check(site::frame_hash(page.h.pixels()) == plain, "plain again: as it was");
+    });
+
+    suite.test("the keyboard: Tab from card to card in reading order, the camera following, its ring drawn; Enter flies in", [] {
+        Page page;
+        const double far = page.zoom();
+        page.h.runtime().focus(page.h.runtime().find(path("canvas")));
+        const auto focused_card = [&] {
+            for (const auto& node : page.h.tree().snapshot({.root = path("canvas")}).nodes)
+                if (node.states.has(State::focused) && node.role == Role::article) return node.id.substr(node.id.rfind('/') + 1);
+            return std::string();
+        };
+        page.h.key(Key::tab);
+        page.h.settle(seconds(2));
+        check_eq(focused_card(), std::string("toggle"));
+        page.h.key(Key::tab);
+        page.h.settle(seconds(2));
+        check_eq(focused_card(), std::string("checkbox"));
+        check(page.zoom() > far * 2, std::format("the camera on it: zoom {}", page.zoom()));
+        (void)page.h.save_png(scratch_dir("wall-keyboard") / "checkbox.png");
+        page.h.key(Key::enter);
+        page.h.settle(seconds(2));
+        check_eq(focused_card(), std::string("checkbox"));
+    });
+
+    suite.test("on a phone: a band a category, one above another, each a row of cards swiped sideways; a card tapped opens its detail", [] {
+        Headless h{HeadlessOptions{.size = {390, 844}, .scale = 1}};
+        auto app = site::app("components", "en");
+        h.runtime().set_theme(app.theme);
+        app.setup(h.runtime());
+        h.mount("main", app.view());
+        h.settle(seconds(2));
+        std::size_t cards = 0;
+        for (const auto& group : site::component_groups) {
+            const std::string band = std::format("{}/{}", wall, group.id);
+            check(h.tree().node(band + "/label").has_value(), band);
+            for (const auto& node : h.tree().snapshot({.root = band + "/cards"}).nodes)
+                if (node.role == Role::button && site::find_component(node.id.substr(node.id.rfind('/') + 1))) ++cards;
+        }
+        check(cards == site::component_catalog.size(), std::format("{} cards", cards));
+        check(!h.tree().node(path("canvas")).has_value(), "no canvas on a phone: the page scrolls as a page");
+        (void)h.save_png(scratch_dir("wall-phone") / "phone.png");
+        Invocation call;
+        check(h.tree().act(std::string(wall) + "/input/cards/row/slider", "activate", call).exit_code() == std::optional<int>(0));
+        h.settle(seconds(1));
+        check(h.runtime().route().contains("slider"), h.runtime().route());
+    });
+
     return suite.run(argc, argv);
 }

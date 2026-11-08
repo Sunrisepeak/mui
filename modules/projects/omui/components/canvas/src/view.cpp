@@ -579,8 +579,18 @@ void Canvas::paint(PaintContext& ctx) const {
 }
 
 void Canvas::paint_over(PaintContext& ctx) const {
-    if (!scene()) return;
+    world::Scene* s = scene();
+    if (!s) return;
     for (const auto& b : behaviors_) b->paint_over(host_, ctx.list);
+    // The item the keyboard is on: its ring.
+    if (focused_.empty() || !services().state(node()).focus_visible) return;
+    if (const auto n = s->find(focused_)) {
+        const Rect r = camera_.to_screen(s->rect(*n), ctx.size);
+        constexpr float gap = 3, width = 2;
+        const float radius = static_cast<float>(s->radius(*n) * camera_.zoom) + gap;
+        ctx.list.stroke_round_rect({r.x - gap, r.y - gap, r.width + 2 * gap, r.height + 2 * gap}, CornerRadii::all(radius), width,
+                                   xrender::Paint::solid(ctx.theme.color("focus", Color::hex(0x6366f1, 0.55f))));
+    }
 }
 
 // Edges between their nodes' facing sides: a curve, or a straight line when
@@ -652,6 +662,39 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
     if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down && scene())
         for (const auto& b : behaviors_)
             if (b->key(host_, *k)) return true;
+    // Tab and Shift+Tab: from item to item in reading order, the camera going
+    // to each (its focus ring drawn); past the last, or before the first, the
+    // page's own order goes on. Enter activates the one focused.
+    if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down && scene() && (k->key == Key::tab || k->key == Key::enter)) {
+        world::Scene& s = *scene();
+        if (k->key == Key::enter) {
+            if (focused_.empty() || !s.find(focused_)) return false;
+            emit_activated(focused_);
+            return true;
+        }
+        std::vector<NodeRef> items;
+        s.each([&](NodeRef n) {
+            const Role role = s.kind_of(n).role;
+            if (role != Role::generic && role != Role::group) items.push_back(n);
+        });
+        std::ranges::sort(items, [&](NodeRef a, NodeRef b) {
+            const auto ra = s.rect(a), rb = s.rect(b);
+            return ra.y != rb.y ? ra.y < rb.y : ra.x < rb.x;
+        });
+        const bool back = k->mods.has(Modifier::shift);
+        const auto at = std::ranges::find_if(items, [&](NodeRef n) { return s.key(n) == focused_; });
+        std::ptrdiff_t next = at == items.end() ? (back ? static_cast<std::ptrdiff_t>(items.size()) - 1 : 0) : (at - items.begin()) + (back ? -1 : 1);
+        if (next < 0 || next >= static_cast<std::ptrdiff_t>(items.size())) {
+            focus_only({});
+            return false;
+        }
+        const NodeRef n = items[static_cast<std::size_t>(next)];
+        focused_ = std::string(s.key(n));
+        animate_to(Camera::fit(s.rect(n), vp, 24, props.min_zoom, props.max_zoom));
+        services().invalidate_paint(node());
+        services().invalidate_semantics(node());
+        return true;
+    }
     if (const auto* k = std::get_if<KeyEvent>(&e); k && k->kind == KeyKind::down) {
         const float step = 80;
         switch (k->key) {
@@ -920,11 +963,20 @@ ActResult Canvas::zoom_to(ActContext&, const Value& zoom) {
 ActResult Canvas::fit(ActContext&, const Value& target) {
     world::Scene* s = scene();
     if (!s) return ActResult::fail("the canvas shows no scene");
-    const std::string t = target.is_null() ? std::string("all") : std::string(target.as_string());
     world::WorldRect r;
-    if (t == "all") r = s->bounds();
-    else if (auto n = s->find(t)) r = s->rect(*n);
-    else return ActResult::fail(std::format("no node has the key `{}`", t));
+    if (const auto* keys = target.list()) {
+        // Several: all of them in view (the keys not in the scene left out).
+        std::optional<world::WorldRect> around;
+        for (const Value& key : *keys)
+            if (auto n = s->find(key.as_string())) around = around ? around->united(s->rect(*n)) : s->rect(*n);
+        if (!around) return ActResult::fail("none of these keys is in the scene");
+        r = *around;
+    } else {
+        const std::string t = target.is_null() ? std::string("all") : std::string(target.as_string());
+        if (t == "all") r = s->bounds();
+        else if (auto n = s->find(t)) r = s->rect(*n);
+        else return ActResult::fail(std::format("no node has the key `{}`", t));
+    }
     animate_to(Camera::fit(r, viewport(), 24, props.min_zoom, props.max_zoom));
     return ActResult::done();
 }

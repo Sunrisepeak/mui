@@ -27,6 +27,9 @@ Color group_ink(std::string_view group) {
     return Color::hex(0xf43f5e);
 }
 
+// A colour as part of a label's key: a style pack's other ink shapes it again.
+std::string ink_key(Color ink) { return std::format("{:.3f},{:.3f},{:.3f},{:.3f}", ink.r, ink.g, ink.b, ink.a); }
+
 auto words(const GallerySite& site, std::string_view en, std::string_view zh) {
     return computed([lang = site.lang, en = std::string(en), zh = std::string(zh)] { return lang && lang->get() == "zh" ? zh : en; });
 }
@@ -64,7 +67,7 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                            d.list.fill_round_rect(r, CornerRadii::all(radius), xrender::Paint::solid(ink.with_alpha(0.06f)));
                                            if (!d.fonts) return;
                                            const std::string title(d.scene.text(d.node, "title"));
-                                           const auto& label = labels->get(d, std::string(d.scene.key(d.node)) + "/" + title, title, 16, 650, ink);
+                                           const auto& label = labels->get(d, std::format("{}/{}/{}", d.scene.key(d.node), title, ink_key(ink)), title, 16, 650, ink);
                                            // In its strip where it fits, else just above the band.
                                            const Size size = label.size();
                                            const float strip = static_cast<float>(band_strip * d.zoom), pad = static_cast<float>(band_pad * d.zoom);
@@ -81,6 +84,11 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                [labels](world::DrawContext& d) {
                                    const Rect r = d.screen;
                                    const float radius = static_cast<float>(14 * d.zoom);
+                                   // Not what a search found: a quiet outline, nothing to read.
+                                   if (d.scene.number(d.node, "dim") > 0) {
+                                       d.list.stroke_round_rect(r, CornerRadii::all(radius), 1, xrender::Paint::solid(d.theme.color("border").with_alpha(0.6f)));
+                                       return;
+                                   }
                                    d.list.fill_round_rect(r, CornerRadii::all(radius), xrender::Paint::solid(d.theme.color("surface")));
                                    d.list.stroke_round_rect(r, CornerRadii::all(radius), 1, xrender::Paint::solid(d.theme.color("border")));
                                    d.list.fill_round_rect({r.x, r.y, r.width, std::max(2.0f, static_cast<float>(6 * d.zoom))}, CornerRadii{radius, radius, 0, 0},
@@ -92,7 +100,7 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                    const mlibs::text::Paragraph* fitting = nullptr;
                                    for (const float size : {15.0f, 12.0f, 10.0f}) {
                                        if (size == 15 && r.width < 160) continue;
-                                       const auto& shaped = labels->get(d, std::format("{}/{}/{}", key, title, size), title, size, 650, d.theme.color("text"));
+                                       const auto& shaped = labels->get(d, std::format("{}/{}/{}/{}", key, title, size, ink_key(d.theme.color("text"))), title, size, 650, d.theme.color("text"));
                                        if (shaped.size().width + 2 * pad <= r.width) {
                                            fitting = &shaped;
                                            break;
@@ -102,7 +110,7 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                    const auto& name = *fitting;
                                    world::Labels::paint(name, d.list, {r.x + pad, r.y + pad});
                                    if (r.width < 160) return;
-                                   const auto& line = labels->get(d, key + "/" + purpose, purpose, 12, 400, d.theme.color("text_muted"), "caption");
+                                   const auto& line = labels->get(d, std::format("{}/{}/{}", key, purpose, ink_key(d.theme.color("text_muted"))), purpose, 12, 400, d.theme.color("text_muted"), "caption");
                                    if (line.size().width + 2 * pad <= r.width)
                                        world::Labels::paint(line, d.list, {r.x + pad, r.y + pad + name.size().height + 6});
                                },
@@ -179,7 +187,67 @@ void name(world::Scene& scene, bool zh) {
     });
 }
 
+std::string folded(std::string_view text) {
+    std::string out(text);
+    for (char& c : out)
+        if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+    return out;
+}
+
+// A search: what it does not find dimmed (and, far off, faint), the camera on what it does.
+void search(Wall& wall, const GallerySite& site, const std::string& query) {
+    world::Scene& scene = world::scene(wall_scene);
+    const auto matches = wall_matches(query);
+    scene.each([&](world::NodeRef n) {
+        const auto* info = find_component(scene.key(n));
+        if (!info) return;
+        const bool dim = !query.empty() && std::ranges::find(matches, std::string(info->id)) == matches.end();
+        scene.set(n, "dim", dim ? 1.0 : 0.0);
+        scene.set_fill(n, group_ink(info->group).with_alpha(dim ? 0.18f : 1.0f), 14);
+        scene.touch(n);
+    });
+    wall.found.set(query.empty() ? -1 : static_cast<std::int64_t>(matches.size()));
+    Value::List keys;
+    for (const auto& key : matches) keys.emplace_back(key);
+    if (query.empty()) act_on_wall(site, "fit", Value{}.set("target", "all"));
+    else if (!matches.empty()) act_on_wall(site, "fit", Value{}.set("target", Value(std::move(keys))));
+}
+
 }  // namespace
+
+Element phone_wall(Gallery& g, const GallerySite& site, float width) {
+    Gallery* gallery = &g;
+    std::vector<Element> bands;
+    for (const auto& group : component_groups) {
+        std::vector<Element> cards;
+        for (const auto& info : component_catalog) {
+            if (info.group != group.id) continue;
+            const std::string id(info.id);
+            cards.push_back(card({.id = id,
+                                  .interactive = true,
+                                  .subtitle = words(site, info.purpose_en, info.purpose_zh),
+                                  .title = words(site, info.en, info.zh),
+                                  .variant = CardVariant::outlined,
+                                  .on_activated = [gallery, site, id] { open_component_detail(*gallery, site, id); },
+                                  .width = Dim(236.0f)}));
+        }
+        Element label = text({.id = "label", .text = words(site, group.en, group.zh), .style = "label", .color = Fill(group_ink(group.id))});
+        bands.push_back(column({.id = std::string(group.id), .width = Dim(width), .gap = 8},
+                               {std::move(label), scroll({.id = "cards", .horizontal = true, .vertical = false, .width = Dim(width), .label = std::string(group.en)},
+                                                         {row({.id = "row", .gap = 10, .align = "stretch"}, std::move(cards))})}));
+    }
+    return column({.id = "wall", .width = Dim(width), .gap = 18}, std::move(bands));
+}
+
+std::vector<std::string> wall_matches(std::string_view query) {
+    const std::string wanted = folded(query);
+    std::vector<std::string> out;
+    for (const auto& info : component_catalog)
+        if (wanted.empty() ||
+            folded(std::format("{} {} {} {} {}", info.id, info.en, info.zh, info.purpose_en, info.purpose_zh)).contains(wanted))
+            out.emplace_back(info.id);
+    return out;
+}
 
 Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float width, float height) {
     world::Scene& scene = world::scene(wall_scene);
@@ -195,12 +263,30 @@ Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float wi
         state.lang = lang;
     }
     Wall* model = &wall;
+    Element find = text_box({.id = "search",
+                             .label = words(site, "Search the wall", "在墙上搜索"),
+                             .placeholder = words(site, "Name or purpose…", "名称或用途…"),
+                             .text = wall.query,
+                             .on_changed = [model, site](std::string query) { search(*model, site, query); },
+                             .width = Dim(240.0f)});
+    Element styles = segmented({.id = "style",
+                                .label = words(site, "Style pack", "风格包"),
+                                .labels = std::vector<std::string>{"Plain", "Glass", "Ink", "Liquid", "Neon", "Retro"},
+                                .options = std::vector<std::string>{"plain", "glass", "ink", "liquid", "neon", "retro"},
+                                .value = g.style,
+                                .on_changed = [site](std::string pack) { if (site.style) site.style(std::move(pack)); }});
     Element tools = row({.id = "tools", .width = Dim(width), .gap = 12, .align = "center"},
-                        {text({.id = "hint",
-                               .text = words(site, "Every component, live. Click one to fly to it; up close it works.", "每个组件都是活的。点一个飞过去，近看就能直接用。"),
+                        {std::move(find), std::move(styles), spacer(),
+                         text({.id = "hint",
+                               .text = computed([lang = site.lang, model] {
+                                   const bool zh = lang && lang->get() == "zh";
+                                   const auto found = model->found.get();
+                                   if (found == 0) return std::string(zh ? "没有找到，换个词试试。" : "Nothing matched. Try another word.");
+                                   if (found > 0) return zh ? std::format("找到 {} 个。", found) : std::format("{} found.", found);
+                                   return std::string(zh ? "点一张卡片飞过去，近看就能用。" : "Click a card to fly to it; up close it works.");
+                               }),
                                .style = "caption",
                                .color = "text_muted"}),
-                         spacer(),
                          button({.id = "all",
                                  .text = words(site, "See all", "看全部"),
                                  .variant = ButtonVariant::ghost,
@@ -217,6 +303,8 @@ Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float wi
                            .on_camera_changed = [model](double, double, double) { model->fitted = true; },
                            .width = Dim(width),
                            .height = Dim(height)});
+    // Drawn in the gallery's scope: a style pack chosen reskins every card, drawn or live.
+    view.prop("theme_scope", Source(Value(std::string(gallery_scope))));
     return column({.id = "wall", .width = Dim(width), .gap = 10}, {std::move(tools), std::move(view)});
 }
 

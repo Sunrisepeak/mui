@@ -973,8 +973,8 @@ int main(int argc, char** argv) {
         // Re-pinned with D3c: Mui's inks on its hull's straight sides carried
         // by the cage's edge weights (hanim fix), the home's scenes below
         // (the foot says the home tree's hash; the lenses show the tree).
-        // Re-pinned with D4a: the components page opens on the wall.
-        check_eq(all.hex(), std::string("bc6885dd4b18e352"));
+        // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
+        check_eq(all.hex(), std::string("2ec9bf5dbb09f085"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -1090,8 +1090,13 @@ int main(int argc, char** argv) {
             for (std::string_view component : {"", "button", "text_box", "data_grid", "code_editor"}) {
                 h.runtime().set_route(site::canonical_route("components", language, component)); h.settle(); h.advance(seconds(0.3));
                 const auto nodes = h.tree().snapshot({.root = "main/body/view/components/page"}).nodes;
-                for (const auto& node : nodes) if ((node.role == Role::button || node.role == Role::text_box) && node.bounds &&
-                        !node.states.has(State::hidden) && !node.states.has(State::offscreen))
+                // What a sideways scroll view holds may lie beyond the page (a row swiped sideways): the scroll view fits instead.
+                std::vector<std::string> scrollers;
+                for (const auto& node : nodes)
+                    if (const Value* room = node.value.get("max_x"); node.role == Role::scroll_view && room && room->as_double(0) > 0) scrollers.push_back(node.id + "/");
+                const auto scrolled = [&](const std::string& id) { return std::ranges::any_of(scrollers, [&](const std::string& in) { return id.starts_with(in); }); };
+                for (const auto& node : nodes) if ((node.role == Role::button || node.role == Role::text_box || node.role == Role::scroll_view) && node.bounds &&
+                        !node.states.has(State::hidden) && !node.states.has(State::offscreen) && !scrolled(node.id))
                     check(node.bounds->x >= -0.5f && node.bounds->right() <= width + 0.5f,
                           std::format("{} {} {} at {}: {} + {}", component, language, node.id, width, node.bounds->x, node.bounds->width));
                 if ((width == 390 && language == "zh") || (width == 1280 && language == "en"))

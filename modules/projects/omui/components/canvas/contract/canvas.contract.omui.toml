@@ -40,7 +40,7 @@ deleted           = { args = { keys = "list<string>" } }
 [contract.canvas.actions]
 pan_to        = { effect = "read", args = { x = "f64", y = "f64" }, doc = "Move the view's centre to a world point (animated)." }
 zoom_to       = { effect = "read", args = { zoom = "f64" }, doc = "Zoom about the view's centre (animated)." }
-fit           = { effect = "read", args = { target = "string" }, doc = "Show `all` the scene, or the node with this key, whole (animated)." }
+fit           = { effect = "read", args = { target = "any" }, doc = "Show `all` the scene, the node with this key, or the nodes with these keys (a list: all of them), whole (animated)." }
 focus_node    = { effect = "read", args = { key = "string" }, doc = "Bring the node with this key to the centre at a zoom that shows it whole, and focus it." }
 camera_preset = { effect = "read", args = { name = "string" }, doc = "Go to one of the scene's named views (animated)." }
 move_by       = { effect = "reversible", args = { keys = "list<string>", dx = "f64", dy = "f64" }, doc = "Moves the nodes with these keys by (dx, dy) world units — what a drag of them does; a drag is undone by its opposite." }

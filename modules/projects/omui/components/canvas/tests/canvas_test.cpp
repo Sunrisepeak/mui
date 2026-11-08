@@ -133,6 +133,47 @@ int main(int argc, char** argv) {
         check(std::abs(end.x - 600.0 / 6.0 / 2.0) < 2, std::format("a fling of 600 px/s at zoom 2 glides ~50 world units, not {}", end.x));
     });
 
+    s.test("the keyboard: Tab from item to item in reading order (the camera going to each), Enter activates, past the last the page goes on", [] {
+        auto& sc = world::scene("keys");
+        sc.clear();
+        sc.kind("item", world::Kind{.tiers = {{0, world::Tier::Draw::box}}, .role = Role::article});
+        sc.kind("band", world::Kind{.tiers = {{0, world::Tier::Draw::box}}, .role = Role::group});
+        (void)sc.add({.kind = "band", .x = -50, .y = -50, .width = 1200, .height = 700, .key = "band"});  // not an item: skipped
+        for (const auto& [key, x, y] : {std::tuple{"b", 400.0, 0.0}, std::tuple{"a", 0.0, 0.0}, std::tuple{"c", 0.0, 400.0}})
+            (void)sc.add({.kind = "item", .x = x, .y = y, .width = 200, .height = 150, .key = key, .fill = Color::hex(0x94a3b8), .radius = 8});
+        std::vector<std::string> activated;
+        Headless h({.size = {800, 600}});
+        h.mount("main", column({.width = 800, .height = 600},
+                               {canvas({.id = "board", .scene = "keys", .start = "fit", .on_activated = [&](std::string key) { activated.push_back(key); }, .width = 800, .height = 500}),
+                                box({.id = "after", .width = 80, .height = 30}).prop("focusable", Source(Value(true)))}));
+        h.settle();
+        h.runtime().focus(h.runtime().find("main/board"));
+        const auto focused_item = [&] {
+            for (const auto& node : h.tree().snapshot({.root = "main/board"}).nodes)
+                if (node.states.has(State::focused) && node.id != "main/board") return node.id;
+            return std::string();
+        };
+        h.key(Key::tab);
+        h.settle();
+        check_eq(focused_item(), std::string("main/board/a"));  // top row, left first
+        h.key(Key::tab);
+        h.settle();
+        check_eq(focused_item(), std::string("main/board/b"));
+        h.key(Key::tab, Modifiers{Modifier::shift});
+        h.settle();
+        check_eq(focused_item(), std::string("main/board/a"));
+        h.key(Key::enter);
+        h.step();
+        check(activated == std::vector<std::string>{"a"}, "Enter: the focused item activated");
+        h.key(Key::tab);
+        h.key(Key::tab);
+        h.settle();
+        check_eq(focused_item(), std::string("main/board/c"));
+        h.key(Key::tab);  // past the last: on to the page's next control
+        h.settle();
+        check(h.runtime().focused() == h.runtime().find("main/after"), "the page's order goes on");
+    });
+
     s.test("the component draws what the camera sees, by tier, and makes the largest live", [] {
         auto& sc = world::scene("tiers");
         sc.clear();
@@ -492,6 +533,11 @@ int main(int argc, char** argv) {
         check_eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value("n999")}})), std::int64_t{0});
         h.settle();
         check(h.tree().node("main/board/n999").has_value());
+        // Several keys: all of them in view (one not in the scene left out); none: refused.
+        check_eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("n0"), Value("n999"), Value("nowhere")})}})), std::int64_t{0});
+        h.settle();
+        check(h.tree().node("main/board/n0").has_value() && h.tree().node("main/board/n999").has_value(), "the first and the last, both in view");
+        check(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("nowhere")})}})) != 0, "no key in the scene: refused");
     });
 
     s.test("frame demand (D-70): the fastest while the camera moves on its own, none once it rests", [] {

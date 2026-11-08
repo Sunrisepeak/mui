@@ -106,9 +106,15 @@ int main(int argc, char** argv) {
             Visitor v(route, 390);
             v.h.runtime().resize({360, 844}, 1); v.h.settle(seconds(0.5));
             const auto place = site::parse_site_route(route)->place;
-            for (const auto& node : v.h.tree().snapshot({.root = "main/body/view/" + place + "/page"}).nodes) {
-                if (!node.bounds || node.states.has(State::hidden)) continue;
-                if (node.role == Role::button || node.role == Role::slider || node.role == Role::switch_ || node.role == Role::text_box)
+            const auto nodes = v.h.tree().snapshot({.root = "main/body/view/" + place + "/page"}).nodes;
+            // What a sideways scroll view holds may lie beyond the page (a row swiped sideways): the scroll view fits instead.
+            std::vector<std::string> scrollers;
+            for (const auto& node : nodes)
+                    if (const Value* room = node.value.get("max_x"); node.role == Role::scroll_view && room && room->as_double(0) > 0) scrollers.push_back(node.id + "/");
+            const auto scrolled = [&](const std::string& id) { return std::ranges::any_of(scrollers, [&](const std::string& in) { return id.starts_with(in); }); };
+            for (const auto& node : nodes) {
+                if (!node.bounds || node.states.has(State::hidden) || scrolled(node.id)) continue;
+                if (node.role == Role::button || node.role == Role::slider || node.role == Role::switch_ || node.role == Role::text_box || node.role == Role::scroll_view)
                     check(node.bounds->x >= 19.5f && node.bounds->right() <= 340.5f, std::format("{} resized: {}", route, node.id));
             }
         }

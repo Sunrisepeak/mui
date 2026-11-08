@@ -306,6 +306,23 @@ std::string recipe_json(std::string_view name, const WorkTuning& tuning) {
     return fields + "}";
 }
 
+namespace {
+
+// A card of the library played (from its start when it is at its end).
+LiveWallPlay recipe_play(Runtime** runtime) {
+    return {.play = [runtime](const std::string& card) {
+                if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(card + "/stage"), "play");
+            },
+            .few = 4,
+            .every = 1.6};
+}
+
+}  // namespace
+
+void recipe_library_tick(Works& state, const WorksSite& site) {
+    if (site.runtime && *site.runtime) live_wall_tick(state.recipe_live, **site.runtime, recipe_play(site.runtime));
+}
+
 void tune_recipe(Works& state, std::string_view name) {
     const auto* info = hanim::anim::find_recipe(name);
     if (!info) return;
@@ -436,6 +453,7 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
                                 .value = kind});
     Works* const state_pointer = &state;
     Element grid = dynamic([kind, runtime, root, thumb, lang = site.lang, state = state_pointer] {
+        state->recipe_live.cards.clear();
         const std::string shown = kind.get();
         const auto kind_name = [](hanim::anim::RecipeKind k) {
             switch (k) {
@@ -450,12 +468,17 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
         for (const auto& info : hanim::anim::recipes()) {
             if (shown != "all" && shown != kind_name(info.kind)) continue;
             const std::string name(info.name);
-            const std::string stage_path = std::format("{}/grid/{}/stage", root, name);
+            const std::string card_path = std::format("{}/grid/{}", root, name), stage_path = card_path + "/stage";
+            state->recipe_live.cards.push_back(card_path);
+            const auto hover = [state, runtime, card_path](bool on) {
+                if (runtime && *runtime) live_wall_hover(state->recipe_live, **runtime, recipe_play(runtime), card_path, on);
+            };
             const auto copy = [runtime](std::string text) {
                 if (runtime && *runtime) (*runtime)->set_clipboard_text(text);
             };
             cards.push_back(column({.id = name, .width = Dim(thumb), .padding = Edges(10.0f), .gap = 6, .background = "surface", .border_color = "border",
-                                    .border_width = 1, .radius = 12},
+                                    .border_width = 1, .radius = 12,
+                                    .on = {{"pointer_enter", [hover](const Value&) { hover(true); }}, {"pointer_leave", [hover](const Value&) { hover(false); }}}},
                                    // At rest it shows its card: an entrance at its end (it came in), the rest at their start.
                                    {program_stage({.id = "stage", .at = info.kind == hanim::anim::RecipeKind::entrance ? 1e6 : 0.0, .label = name, .work = "recipe:" + name,
                                                    .width = Dim(thumb - 20), .height = Dim(std::round((thumb - 20) * 0.56f))}),
@@ -481,7 +504,9 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
                   {std::move(heading),
                    text({.id = "line", .text = words(site, "hanim's library by name: play each on a card, tune it, copy its call or its step.", "hanim 的配方，按名字排开：在卡片上播放，调整参数，复制它的调用或文档步骤。"),
                          .style = "body", .color = "text_muted"}),
-                   recipe_editor(state, site, width), std::move(filter), std::move(grid)});
+                   recipe_editor(state, site, width),
+                   row({.id = "tools", .width = Dim(width), .gap = 12, .align = "center", .wrap = "wrap"}, {std::move(filter), spacer(), live_wall_pause(state.recipe_live, site.lang)}),
+                   std::move(grid)});
 }
 
 }  // namespace omui::site

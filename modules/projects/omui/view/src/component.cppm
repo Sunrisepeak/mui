@@ -248,6 +248,11 @@ public:
     // Where it is drawn now (window coordinates): its box under its own
     // transform — a translate, a scale, a spring moving it — this frame.
     [[nodiscard]] virtual Rect drawn_bounds(NodeId node) const = 0;
+    // Where the pointer is (window coordinates): none while it is outside
+    // the window or has not come in. A node that follows it (a figure
+    // watching the pointer) asks `watch_pointer` to be drawn again as it moves.
+    [[nodiscard]] virtual std::optional<Point> pointer() const { return std::nullopt; }
+    virtual void watch_pointer(NodeId) {}
     // The control at a window point: the nearest node that takes focus (a
     // button, a field, a slider) — the one the pointer hits or an ancestor of
     // it; none over plain content. A figure over a page asks what is beneath

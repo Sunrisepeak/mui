@@ -29,6 +29,7 @@ export import :program_stage_contract;
 export import :program_stage;
 export import :throw_chip_contract;
 export import :throw_chip;
+export import :live_wall;
 export import :works;
 export import :reference;
 export import :first_frame;

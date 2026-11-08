@@ -34,6 +34,7 @@ struct Gallery {
     std::uint64_t preview_timer = 0, preview_generation = 0;
     bool preview_changed = false;
     std::shared_ptr<unsigned char> lifetime = std::make_shared<unsigned char>(0);
+    std::set<std::string, std::less<>> demonstrated;  // what a wall changed (its next turn puts it back)
     std::map<std::string, Signal<bool>, std::less<>> disabled;
     std::map<std::string, Signal<std::string>, std::less<>> motions;
     Signal<std::int64_t> saves = signal(std::int64_t{0});
@@ -77,6 +78,9 @@ struct GallerySite {
 // for another view of the gallery's own (the wall).
 [[nodiscard]] Element gallery_specimen(Gallery& g, const GallerySite& site, std::string_view id, float width);
 // A component chosen and its detail opened (its variants, appearance, motion and code).
+// A component's state changed as its demonstration does (a wall bringing it to life), and on its next
+// turn put back as it was: a wall never leaves the library's state elsewhere. Overlays left alone.
+void gallery_demonstrate(Gallery&, const GallerySite&, std::string_view id);
 void open_component_detail(Gallery& g, const GallerySite& site, std::string id);
 
 // The page at its available width; selected state chooses overview or detail.

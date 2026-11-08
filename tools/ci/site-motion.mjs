@@ -107,6 +107,13 @@ async function top(destination) {
   await pointer('main/bar/nav/to_' + destination); place = destination;
   await requireCheck(() => exists(`main/body/view/${destination}/page`), 'top navigation opens ' + destination);
 }
+// One specimen or composition of a wall opened (its address): the page is its own, with its stage and picker.
+async function openSpecimen(destination, id) {
+  const wall = `main/body/view/${destination}/page/wall`;
+  await requireCheck(() => exists(wall), 'the wall shows every case at once: ' + destination);
+  await page.value(`(location.hash = ${q('#/' + (destination === 'motion' ? 'docs/motion/' : 'motion/') + id)}, true)`);
+  await requireCheck(() => exists(`main/body/view/${destination}/page/motion_gallery/stage/scene`), 'the case opened on its own: ' + id);
+}
 // A reference page (the motion specimens, styling, the interface), from the docs' list.
 async function reference(destination) {
   await top('docs');
@@ -189,7 +196,7 @@ try {
   });
 
   await scenario('basic-motion', async () => {
-    await reference('motion'); const root = gallery('motion');
+    await reference('motion'); await openSpecimen('motion', 'shape-morph'); const root = gallery('motion');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 40, 'basic catalog contains at least forty designs');
     check(!await exists(root + '/details/config'), 'motion configuration starts unmounted');
     await compactGallery(root, 'default basic motion');
@@ -264,7 +271,7 @@ try {
   });
 
   await scenario('component-motion', async () => {
-    await reference('motion'); const root = gallery('motion');
+    await reference('motion'); await openSpecimen('motion', 'shape-morph'); const root = gallery('motion');
     await findDesign(root, 'component-motion');
     check(!await exists(root + '/details/selection'), 'component motion opens with one stage and collapsed details');
     await pointer(root + '/transport/buttons/details');
@@ -435,7 +442,15 @@ try {
   });
 
   await scenario('creative-demos', async () => {
-    await top('explore'); const root = gallery('explore');
+    await top('explore');
+    // All the compositions at once on the motion page's canvas, each a stated item.
+    const wall = 'main/body/view/explore/page/wall/canvas';
+    await requireCheck(async () => (await snapshot(wall))?.filter(n => n.role === 'article' && n.id.split('/').length === wall.split('/').length + 1).length >= 20,
+      'the motion page shows every composition at once');
+    // One opened (its address), the page is that composition's: its stage, its picker.
+    await page.value(`(location.hash = '#/motion/palette-studio', true)`);
+    const root = gallery('explore');
+    await requireCheck(() => exists(root + '/stage/scene'), 'a composition opened has its own stage');
     await requireCheck(async () => parseInt(await label(root + '/heading/count'), 10) >= 20, 'creative catalog contains at least twenty designs');
     await compactGallery(root, 'default creative demo');
     check(!!await node(root + '/stage/scene/composition/workspace/swatches/swatch-0/hex'), 'creative demos open the useful palette first');

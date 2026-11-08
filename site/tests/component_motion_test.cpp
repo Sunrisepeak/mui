@@ -11,10 +11,10 @@ const std::filesystem::path& media(){static const auto path=scratch_dir("site-co
 struct Run {
     Headless h;
     explicit Run(float width=1100,std::string_view lang="en"):h(HeadlessOptions{.size={width,1000},.parallel_raster=false}) {
-        auto app=site::app("docs/motion",lang);h.runtime().set_theme(app.theme);app.setup(h.runtime());
+        auto app=site::app("docs/motion/component-motion",lang);h.runtime().set_theme(app.theme);app.setup(h.runtime());
         for(auto& verb:app.verbs)(void)h.runtime().verbs().add(verb.desc,verb.fn);
         h.mount("main",app.view());for(int i=0;i<6;++i)step();
-        act("choose");act("browse/choices/component-motion");
+        
         for(int i=0;i<120 && !bound();++i)step();
         check(bound(),"the real site attaches its public Hanim binding");
     }
@@ -29,7 +29,8 @@ struct Run {
         const auto state=h.runtime().presentation(node("stage/scene/composition/card"));
         return state && state->channels!=PresentationChannel::none && state->applied && !state->error;
     }
-    void details() {act("transport/buttons/details");for(int i=0;i<4;++i)step();}
+    // Its details shown (a case's own page may open with them).
+    void details() {if(!h.runtime().valid(node("details/selection")))act("transport/buttons/details");for(int i=0;i<4;++i)step();}
     void seek(double progress) {
         // Setting an unchanged slider value is intentionally not a transport
         // command. Endpoints use their explicit actions, which always pause.
@@ -76,7 +77,7 @@ int main(int argc,char** argv) {
         }
     });
     suite.test("one live stage exposes three public recipes only after details and samples the whole process",[] {
-        Run r;check(!r.h.tree().node(r.path("details/selection")));r.details();
+        Run r;r.details();
         for(const std::string_view selection:{"together","parts","title"}) {
             r.act("details/selection","set_value",Value{}.set("value",selection));r.seek(0);
             const auto card=r.h.runtime().drawn_bounds(r.node("stage/scene/composition/card"));

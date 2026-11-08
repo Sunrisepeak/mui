@@ -11,6 +11,9 @@
 // looks, points, says a line and sleeps — the page's own actions on a node of
 // its own. It takes the pointer only on itself: a click (or `activate`) asks
 // what it offers; while a link waits for your agent it listens, looking up.
+// The person's pointer is its toy: near, it notices it and turns to it;
+// resting on the page (not on a control), it stalks it — walks under it and
+// pounces when it is just above; on Mui itself, it purrs.
 // Less motion asked: it changes frames in place, never walks.
 export module omui.site:mui;
 
@@ -86,6 +89,10 @@ private:
         bool                                                 started = false, asleep = false;  // its body: stepped only while awake
         Size                                                 room;
         bool                                                 was_moving = false;  // frames asked for last paint
+        // The person's pointer: where it was last seen to rest, since when, and the rest it pounced at.
+        Point                                                pointer_seen{-1e9f, -1e9f};
+        double                                               pointer_still_since = 0, pounced_for = -1;
+        bool                                                 stalking = false;  // on its way to where the pointer rests
         // Its arrival (`arrive`): its pixels gathering where it comes from, before it has a body.
         bool                                                 arrived = true;
         double                                               arrive_at = 0, gather_length = 0;
@@ -107,6 +114,8 @@ private:
     double                  said_until_ = 0;
     mutable parts::Label    bubble_;
     mutable bool            probing_ = false;  // asking what is beneath it (its own hits say no meanwhile)
+    mutable std::uint64_t   stalk_timer_ = 0;  // a frame once the pointer has rested
+    bool                    petted_ = false;   // the pointer on it
 };
 
 }  // namespace omui::site

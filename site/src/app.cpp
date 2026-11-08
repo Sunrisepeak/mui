@@ -190,6 +190,9 @@ struct Site {
     HomeScenesSite      scenes_site;
     MotionGallery       basic, creative;
     MotionGalleryContext basic_site, creative_site;
+    // The specimens and the compositions all at once (a gallery opened for one of them).
+    MotionWall          basic_wall, creative_wall;
+    MotionWallSite      basic_wall_site, creative_wall_site;
     FeatureExamples     style_examples, interface_examples;
     FeatureExamplesContext style_site, interface_site;
     AgentFeature        agent_feature_state;
@@ -263,6 +266,7 @@ struct Site {
     void stop_previews(std::string_view next) {
         if (next != "reactions") reactions->pause();
         if (feature_timer && runtime) runtime->cancel(std::exchange(feature_timer, 0));
+        if (next != "components" && runtime) live_wall_stop(wall.live, *runtime);
         if (next != "components") {
             if (gallery.preview_timer && runtime) runtime->cancel(std::exchange(gallery.preview_timer, 0));
             ++gallery.preview_generation;
@@ -271,6 +275,8 @@ struct Site {
         if (next != "release") { ++hero.generation; hero.agent_running.set(false); }
         if (next != "motion") motion_gallery_cancel(basic, basic_site);
         if (next != "explore") motion_gallery_cancel(creative, creative_site);
+        if (runtime && next != "motion") live_wall_stop(basic_wall.live, *runtime);
+        if (runtime && next != "explore") live_wall_stop(creative_wall.live, *runtime), live_wall_stop(works.recipe_live, *runtime);
         if (next != "agent") cancel_agent_feature(agent_feature_state);
         if (next != "styles") cancel_feature_examples(style_examples);
         if (next != "interface") cancel_feature_examples(interface_examples);
@@ -448,9 +454,15 @@ struct Site {
         if ((runtime->reduce_motion() || runtime->motion_level() != MotionLevel::full)) logo_unfolded.set(false);
         const auto& p = place.peek();
         if (p == "home") tick_home_landing(landing, landing_site);
-        if (p == "components") tick_gallery(gallery, gallery_site);
-        if (p == "motion") motion_gallery_tick(basic, basic_site);
-        if (p == "explore") motion_gallery_tick(creative, creative_site);
+        if (p == "components") {
+            tick_gallery(gallery, gallery_site);
+            if (gallery.selected.peek().empty() && !compact.peek()) component_wall_tick(wall, gallery, gallery_site);
+        }
+        if (p == "motion") basic.detail.peek() ? motion_gallery_tick(basic, basic_site) : motion_wall_tick(basic_wall, basic_wall_site);
+        if (p == "explore") {
+            if (creative.detail.peek()) motion_gallery_tick(creative, creative_site);
+            else motion_wall_tick(creative_wall, creative_wall_site), recipe_library_tick(works, works_site);
+        }
         if (p == "agent") tick_agent_feature(agent_feature_state, agent_site);
         if (p != "styles" && p != "interface") return;
         auto& state = p == "styles" ? style_examples : interface_examples;
@@ -1336,7 +1348,10 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         }));
         content.push_back(gallery(s->gallery, s->gallery_site, true, room));
     } else if (id == "motion") {
-        content.push_back(motion_gallery(s->basic, s->basic_site, false, room));
+        // Every specimen at once; one opened, its own stage and controls.
+        content.push_back(dynamic([s, room] {
+            return std::vector<Element>{s->basic.detail.get() ? motion_gallery(s->basic, s->basic_site, false, room) : motion_wall(s->basic_wall, s->basic_wall_site, false, room)};
+        }));
     } else if (id == "styles") {
         content.push_back(styles_feature(s->style_examples, s->style_site, room));
     } else if (id == "interface") {
@@ -1360,7 +1375,7 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
                 parts.push_back(signature_works(s->works, s->works_site, room));
                 parts.push_back(recipe_library(s->works, s->works_site, room));
             }
-            parts.push_back(motion_gallery(s->creative, s->creative_site, true, room));
+            parts.push_back(s->creative.detail.get() ? motion_gallery(s->creative, s->creative_site, true, room) : motion_wall(s->creative_wall, s->creative_wall_site, true, room));
             return parts;
         }));
         content.push_back(explore_landing(s->links, room));
@@ -1512,6 +1527,14 @@ AppSpec app(std::string_view place, std::string_view lang, std::string_view inco
         s->landing_site = {.runtime = &s->runtime, .lang = &s->lang, .go = [p = s.get()](std::string id) { p->go(id); }};
         s->scenes_site = {.runtime = &s->runtime, .lang = &s->lang, .lens = &s->lens, .tools = &s->tools};
         s->works_site = {.runtime = &s->runtime, .lang = &s->lang};
+        for (const bool creative : {false, true}) {
+            MotionWallSite& wall_site = creative ? s->creative_wall_site : s->basic_wall_site;
+            wall_site.runtime = &s->runtime;
+            wall_site.lang = &s->lang;
+            wall_site.root = creative ? "main/body/view/explore/page/wall" : "main/body/view/motion/page/wall";
+            wall_site.style = [p = s.get()](std::string_view scope, std::string pack) { p->apply_scope(scope, std::move(pack)); };
+            wall_site.open = [p = s.get(), creative](std::string id) { p->open_example(creative, std::move(id)); };
+        }
         s->basic_site = {.runtime = &s->runtime, .lang = &s->lang,
                          .open_detail = [p = s.get()](std::string id) { p->open_example(false, std::move(id)); },
                          .style = [p = s.get()](std::string pack) { p->apply_scope("motion-preview", std::move(pack)); },

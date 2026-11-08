@@ -642,6 +642,10 @@ Rect Runtime::drawn_bounds(NodeId node) const {
     if (impl_->presentation_epoch != 0) return n.presented_epoch == impl_->presentation_epoch ? n.presented_bounds : Rect{};
     return n.world.map({0, 0, n.frame.width, n.frame.height});
 }
+std::optional<Point> Runtime::pointer() const { return impl_->pointer_inside ? std::optional<Point>(impl_->pointer) : std::nullopt; }
+void Runtime::watch_pointer(NodeId node) {
+    if (valid(node) && std::ranges::find(impl_->pointer_watchers, node) == impl_->pointer_watchers.end()) impl_->pointer_watchers.push_back(node);
+}
 NodeState Runtime::state(NodeId node) const { return valid(node) ? impl_->at(node).state : NodeState{}; }
 
 void Runtime::emit(NodeId node, std::string_view event, const Value& args) { impl_->call_handlers(node, event, args); }

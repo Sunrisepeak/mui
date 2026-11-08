@@ -829,6 +829,19 @@ Element gallery_specimen(Gallery& g, const GallerySite& site, std::string_view i
     return text({.id = "missing", .text = std::string(id)});
 }
 
+void gallery_demonstrate(Gallery& g, const GallerySite& site, std::string_view id) {
+    // What opens over the page (an overlay, a tooltip's focus) is left for a person to open.
+    for (const std::string_view overlay : {"popover", "toast", "dialog", "drawer", "tooltip"})
+        if (id == overlay) return;
+    if (const auto found = g.demonstrated.find(id); found != g.demonstrated.end()) {
+        reset(g, id);
+        g.demonstrated.erase(found);
+        return;
+    }
+    change_state(g, site, id, true);
+    g.demonstrated.emplace(id);
+}
+
 void open_component_detail(Gallery& g, const GallerySite& site, std::string id) {
     choose(g, site, id);
     if (site.open) site.open(std::move(id));

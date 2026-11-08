@@ -393,6 +393,8 @@ struct Runtime::Impl {
     NodeId               focus;
     bool                 focus_visible = false;
     Point                pointer;
+    bool                 pointer_inside = false;      // the pointer in the window
+    std::vector<NodeId>  pointer_watchers;            // drawn again as the pointer moves
     std::optional<Rect>  text_input;
     NodeId               text_input_node;
     std::string          clipboard;

@@ -25,7 +25,7 @@ OPENINGS = {
     'home': 'main/body/view/home/page/landing/scene/visual',
     'components': 'main/body/view/components/page/wall',
     'motion': 'main/body/view/explore/page/works/grid/mark',
-    'docs/motion': 'main/body/view/motion/page/motion_gallery/stage/scene',
+    'docs/motion': 'main/body/view/motion/page/wall',
     'docs/styles': 'main/body/view/styles/page/styles_feature/comparison',
     'docs/interface': 'main/body/view/interface/page/interface_feature/workspace/object',
     'agent': 'main/body/view/agent/page/agent_feature/specimen',

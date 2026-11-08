@@ -22,6 +22,9 @@ struct Page {
         h.runtime().set_theme(app.theme);
         app.setup(h.runtime());
         h.mount("main", app.view());
+        h.step();
+        // What the wall plays by itself, paused: these look at it at rest (live_wall_test watches it play).
+        (void)act(path("tools/pause"), "activate");
         h.settle(seconds(2));
     }
     std::int64_t act(std::string_view node, std::string_view action, Value args = {}) {
@@ -41,7 +44,9 @@ int main(int argc, char** argv) {
         const auto dir = scratch_dir("wall");
         (void)page.h.save_png(dir / "all.png");
         std::size_t cards = 0, bands = 0;
+        const auto depth = std::ranges::count(path("canvas"), '/') + 1;
         for (const auto& node : page.h.tree().snapshot({.root = path("canvas")}).nodes) {
+            if (std::ranges::count(node.id, '/') != depth) continue;  // the canvas's items (not what a live card holds)
             if (node.role == Role::article) ++cards;
             if (node.role == Role::group) ++bands;
         }
@@ -94,7 +99,8 @@ int main(int argc, char** argv) {
         page.h.settle(seconds(2));
         check(page.zoom() > far * 2);
         check(page.act(path("tools/all"), "activate") == 0);
-        page.h.settle(seconds(2));
+        // Back out, the cards go live again (each its component appearing): a moment longer.
+        page.h.settle(seconds(3));
         check(std::abs(page.zoom() - far) < far * 0.05, std::format("back out: {} (was {})", page.zoom(), far));
         const FrameOutput out = page.h.step();
         check(!out.animating && out.demand.idle(), std::format("at rest: {} at {} Hz", out.demand.reason, out.demand.max_hz));
@@ -107,12 +113,12 @@ int main(int argc, char** argv) {
         check(site::wall_matches("选择").size() >= 3, "either language");
         check(page.act(path("tools/search"), "set_value", Value{}.set("value", "picker")) == 0);
         page.h.settle(seconds(2));
-        check_eq(page.h.tree().node(path("tools/hint"))->name, std::string("3 found."));
+        check_eq(page.h.tree().node(path("hint"))->name, std::string("3 found."));
         check(page.zoom() > far * 1.5, std::format("closer, on what it found: {} → {}", far, page.zoom()));
         (void)page.h.save_png(scratch_dir("wall-search") / "pickers.png");
         check(page.act(path("tools/search"), "set_value", Value{}.set("value", "no-such-part")) == 0);
         page.h.settle(seconds(1));
-        check_eq(page.h.tree().node(path("tools/hint"))->name, std::string("Nothing matched. Try another word."));
+        check_eq(page.h.tree().node(path("hint"))->name, std::string("Nothing matched. Try another word."));
         check(page.act(path("tools/search"), "set_value", Value{}.set("value", "")) == 0);
         page.h.settle(seconds(2));
         check(std::abs(page.zoom() - far) < far * 0.05, std::format("the whole wall: {} (was {})", page.zoom(), far));

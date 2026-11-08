@@ -979,11 +979,13 @@ int main(int argc, char** argv) {
         // (the foot says the home tree's hash; the lenses show the tree).
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
-        check_eq(all.hex(), std::string("a971407b09012139"));
+        check_eq(all.hex(), std::string("ef15fd6058e725df"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
         Site a("components");
+        // The wall's own motion paused: it plays the library's components by itself (live_wall_test watches it).
+        check(a.h.tree().act("main/body/view/components/page/wall/tools/pause", "activate").exit_code() == std::optional<int>(0));
         a.h.move({4, 796}); a.h.advance(seconds(1));
         const std::string root = "main/body/view/components/page/gallery";
         const std::string overview = root + "/overview";

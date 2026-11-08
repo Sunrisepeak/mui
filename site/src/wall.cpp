@@ -6,6 +6,12 @@ import omui.ui.canvas;
 
 namespace omui::site {
 namespace {
+// A round of the wall: each card a component demonstrating its state.
+LiveWallPlay wall_play(Gallery& g, const GallerySite& site) {
+    return {.play = [gallery = &g, site](const std::string& id) { gallery_demonstrate(*gallery, site, id); }, .few = 3, .every = 1.8};
+}
+}  // namespace
+namespace {
 
 using world::Tier;
 
@@ -54,7 +60,7 @@ WallScene& wall_state() {
 
 // How bands and cards look: registered again with each page's state (the
 // scene outlives a page; a kind holds the page it shows).
-void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
+void kinds(world::Scene& scene, Wall* wall, Gallery& g, const GallerySite& site) {
     // Shaped with this page's fonts: a page's labels, not the process's.
     auto labels = std::make_shared<world::Labels>();
     // A category's band: tinted, its name in its label column at a size fixed on screen.
@@ -79,7 +85,7 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
     // name and purpose; close, the live component.
     Gallery* gallery = &g;
     scene.kind("component",
-               world::Kind{.tiers = {{0, Tier::Draw::box}, {48, Tier::Draw::custom}, {380, Tier::Draw::promote}},
+               world::Kind{.tiers = {{0, Tier::Draw::box}, {48, Tier::Draw::custom}, {100, Tier::Draw::promote}},
                            .draw =
                                [labels](world::DrawContext& d) {
                                    const Rect r = d.screen;
@@ -115,8 +121,11 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                        world::Labels::paint(line, d.list, {r.x + pad, r.y + pad + name.size().height + 6});
                                },
                            .promote =
-                               [gallery, site](const world::Scene& s, world::NodeRef n) -> Element {
+                               [gallery, site, wall](const world::Scene& s, world::NodeRef n) -> Element {
                                    const std::string id(s.key(n));
+                                   const auto hover = [gallery, site, wall, id](bool on) {
+                                       if (site.runtime && *site.runtime) live_wall_hover(wall->live, **site.runtime, wall_play(*gallery, site), id, on);
+                                   };
                                    Element details = button({.id = "details",
                                                              .text = words(site, "Details", "详情"),
                                                              .variant = ButtonVariant::ghost,
@@ -130,7 +139,8 @@ void kinds(world::Scene& scene, Gallery& g, const GallerySite& site) {
                                                   .border_color = "border",
                                                   .border_width = 1,
                                                   .radius = 14,
-                                                  .clip = true},
+                                                  .clip = true,
+                                                  .on = {{"pointer_enter", [hover](const Value&) { hover(true); }}, {"pointer_leave", [hover](const Value&) { hover(false); }}}},
                                                  {row({.id = "head", .gap = 8, .align = "center"},
                                                       {text({.id = "name", .text = std::string(s.text(n, "title")), .style = "label", .wrap = false}), spacer(), std::move(details)}),
                                                   column({.id = "stage", .justify = "center", .align = "center", .grow = 1},
@@ -252,7 +262,10 @@ std::vector<std::string> wall_matches(std::string_view query) {
 Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float width, float height) {
     world::Scene& scene = world::scene(wall_scene);
     WallScene& state = wall_state();
-    kinds(scene, g, site);
+    kinds(scene, &wall, g, site);
+    wall.live.container = std::string(canvas_path);
+    wall.live.cards.clear();
+    for (const auto& info : component_catalog) wall.live.cards.emplace_back(info.id);
     if (!state.built) {
         build(scene);
         state.built = true;
@@ -275,23 +288,25 @@ Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float wi
                                 .options = std::vector<std::string>{"plain", "glass", "ink", "liquid", "neon", "retro"},
                                 .value = g.style,
                                 .on_changed = [site](std::string pack) { if (site.style) site.style(std::move(pack)); }});
-    Element tools = row({.id = "tools", .width = Dim(width), .gap = 12, .align = "center"},
-                        {std::move(find), std::move(styles), spacer(),
-                         text({.id = "hint",
+    Element hint = text({.id = "hint",
                                .text = computed([lang = site.lang, model] {
                                    const bool zh = lang && lang->get() == "zh";
                                    const auto found = model->found.get();
                                    if (found == 0) return std::string(zh ? "没有找到，换个词试试。" : "Nothing matched. Try another word.");
                                    if (found > 0) return zh ? std::format("找到 {} 个。", found) : std::format("{} found.", found);
-                                   return std::string(zh ? "点一张卡片飞过去，近看就能用。" : "Click a card to fly to it; up close it works.");
+                                   return std::string(zh ? "双击一张卡片放大，近看就能用。" : "Double-click a card to zoom in; up close it works.");
                                }),
                                .style = "caption",
-                               .color = "text_muted"}),
+                               .color = "text_muted"});
+    Element tools = row({.id = "tools", .width = Dim(width), .gap = 12, .align = "center"},
+                        {std::move(find), std::move(styles), spacer(),
+                         live_wall_pause(wall.live, site.lang),
                          button({.id = "all",
                                  .text = words(site, "See all", "看全部"),
                                  .variant = ButtonVariant::ghost,
                                  .on_activated = [site] { act_on_wall(site, "fit", Value{}.set("target", "all")); }})});
     Element view = canvas({.id = "canvas",
+                           .bounded = true,
                            .label = "Component wall",
                            .scene = std::string(wall_scene),
                            // Fitted the first time; after, where it was left (back from a detail: by that card).
@@ -305,7 +320,11 @@ Element component_wall(Wall& wall, Gallery& g, const GallerySite& site, float wi
                            .height = Dim(height)});
     // Drawn in the gallery's scope: a style pack chosen reskins every card, drawn or live.
     view.prop("theme_scope", Source(Value(std::string(gallery_scope))));
-    return column({.id = "wall", .width = Dim(width), .gap = 10}, {std::move(tools), std::move(view)});
+    return column({.id = "wall", .width = Dim(width), .gap = 10}, {std::move(tools), std::move(view), std::move(hint)});
+}
+
+void component_wall_tick(Wall& wall, Gallery& g, const GallerySite& site) {
+    if (site.runtime && *site.runtime) live_wall_tick(wall.live, **site.runtime, wall_play(g, site));
 }
 
 }  // namespace omui::site

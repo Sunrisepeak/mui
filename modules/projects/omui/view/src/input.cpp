@@ -162,6 +162,10 @@ bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bo
 
 void Runtime::Impl::pointer_event(const PointerEvent& e) {
     pointer = e.position;
+    pointer_inside = e.kind != PointerKind::leave;
+    // Who follows the pointer is drawn again (gone ones forgotten).
+    std::erase_if(pointer_watchers, [&](NodeId watcher) { return !alive(watcher); });
+    for (const NodeId watcher : pointer_watchers) self.invalidate_paint(watcher);
     switch (e.kind) {
         case PointerKind::move: {
             NodeId target = alive(capture) ? capture : self.hit_test(e.position);

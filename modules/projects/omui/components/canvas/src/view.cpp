@@ -195,7 +195,28 @@ void Canvas::pace() {
     else if (!moving && pace_) pace_.release();
 }
 
+// Bounded: no farther out than the whole scene (with a margin), its centre
+// where the view never shows past the scene's edges (centred on an axis the
+// scene does not fill).
+void Canvas::keep_in(world::Camera& camera) const {
+    world::Scene* s = props.bounded ? scene() : nullptr;
+    if (!s) return;
+    const world::WorldRect bounds = s->bounds();
+    const Size vp = viewport();
+    if (bounds.empty() || vp.width <= 0 || vp.height <= 0) return;
+    constexpr float margin = 24;
+    camera.zoom = std::max(camera.zoom, world::Camera::fit(bounds, vp, margin, props.min_zoom, props.max_zoom).zoom);
+    const auto keep = [&](double& centre, double from, double length, double view) {
+        const double pad = margin / camera.zoom, half = view / 2 / camera.zoom;
+        if (length + 2 * pad <= 2 * half) centre = from + length / 2;
+        else centre = std::clamp(centre, from - pad + half, from + length + pad - half);
+    };
+    keep(camera.x, bounds.x, bounds.width, vp.width);
+    keep(camera.y, bounds.y, bounds.height, vp.height);
+}
+
 void Canvas::changed(bool record) {
+    keep_in(camera_);
     if (record) remember();
     last_motion_ = services().now();
     pace();
@@ -650,12 +671,17 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
                 const auto wp = camera_.to_world(at, vp);
                 if (const auto h = s->hit(wp[0], wp[1]); h && std::ranges::find(promoted_, s->key(h->node)) != promoted_.end()) return true;
             }
-        motion_.reset();
-        glide_.reset();
         // A mouse wheel zooms about the cursor; a trackpad pans, and zooms
         // with ⌃ or ⌘ held (how a pinch reaches a window).
-        if (!w->precise || w->mods.has(Modifier::ctrl) || w->mods.has(Modifier::meta)) camera_.zoom_at(at, std::exp(-static_cast<double>(w->delta.y) * (w->precise ? 0.01 : 0.0025)), vp, props.min_zoom, props.max_zoom);
-        else camera_.pan({-w->delta.x, -w->delta.y});
+        world::Camera next = camera_;
+        if (!w->precise || w->mods.has(Modifier::ctrl) || w->mods.has(Modifier::meta)) next.zoom_at(at, std::exp(-static_cast<double>(w->delta.y) * (w->precise ? 0.01 : 0.0025)), vp, props.min_zoom, props.max_zoom);
+        else next.pan({-w->delta.x, -w->delta.y});
+        keep_in(next);
+        // Bounded and already as far as it goes: the page's to scroll.
+        if (props.bounded && std::abs(next.x - camera_.x) < 1e-6 && std::abs(next.y - camera_.y) < 1e-6 && std::abs(next.zoom - camera_.zoom) < 1e-9) return false;
+        motion_.reset();
+        glide_.reset();
+        camera_ = next;
         changed();
         return true;
     }

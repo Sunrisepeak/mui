@@ -23,6 +23,10 @@ struct Page {
         h.runtime().set_theme(app.theme);
         app.setup(h.runtime());
         h.mount("main", app.view());
+        h.step();
+        // What the page's walls play by themselves, paused (live_wall_test watches them play).
+        for (const std::string_view pause : {"main/body/view/explore/page/recipes/tools/pause", "main/body/view/explore/page/wall/tools/pause"})
+            (void)h.tree().act(pause, "activate", Invocation{});
         h.settle(seconds(2));
     }
     Value value(std::string_view tail) { return h.tree().node(path(tail))->value; }
@@ -281,7 +285,7 @@ int main(int argc, char** argv) {
         check_eq(page.h.runtime().clipboard_text(), std::string("hanim::anim::rise_in(card, 24)"));
         check(page.h.tree().act(library + "/grid/spin_in/copy/json", "activate", call).exit_code() == std::optional<int>(0));
         check_eq(page.h.runtime().clipboard_text(), std::string(R"({"do": "spin_in", "object": "card", "degrees": -68.8})"));
-        check(page.h.tree().act(library + "/kind", "set_value", Invocation{.args = Value{}.set("value", "loop")}).exit_code() == std::optional<int>(0));
+        check(page.h.tree().act(library + "/tools/kind", "set_value", Invocation{.args = Value{}.set("value", "loop")}).exit_code() == std::optional<int>(0));
         page.h.settle();
         std::size_t loops = 0;
         for (const auto& info : hanim::anim::recipes()) loops += page.h.tree().node(std::format("{}/grid/{}/stage", library, info.name)).has_value();

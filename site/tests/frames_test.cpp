@@ -39,6 +39,13 @@ struct Run {
     // Exercise their actual public pause controls before asserting idleness;
     // keep full motion so these tests still measure transitions and language FPS.
     void pause_preview(std::string_view place) {
+        // The walls' own motion (they play a few cards by themselves), paused through their buttons.
+        for (const std::string wall : {std::format("main/body/view/{}/page/wall/tools/pause", place), std::format("main/body/view/{}/page/recipes/tools/pause", place)})
+            if (const auto button = h.tree().node(wall); button && button->name == "Pause motion") {
+                check(h.tree().act(wall, "activate").exit_code() == std::optional<int>(0), wall);
+                h.step();
+            }
+        if (place == "explore" || place == "motion") return;  // their galleries open one case at a time now (the walls above)
         std::string control;
         if (place == "home") control = "main/body/view/home/page/landing/scene/controls/pause";
         else if (place == "components") control = "main/body/view/components/page/gallery/detail/button/stage/actions/pause";

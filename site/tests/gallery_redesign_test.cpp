@@ -21,7 +21,11 @@ struct Run {
         for (auto& verb : app.verbs) (void)headless.runtime().verbs().add(verb.desc, verb.fn);
         headless.mount("main", app.view());
         headless.step();
-        if (!autoplay) act(detail("button") + "/stage/actions/pause", "activate");
+        if (!autoplay) {
+            act(detail("button") + "/stage/actions/pause", "activate");
+            // The wall's own motion paused too (it plays the library's components by itself).
+            if (headless.tree().node("main/body/view/components/page/wall/tools/pause")) act("main/body/view/components/page/wall/tools/pause", "activate");
+        }
         headless.settle(seconds(0.9));
     }
     std::string name(std::string_view id) {

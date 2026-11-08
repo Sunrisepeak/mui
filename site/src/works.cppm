@@ -10,6 +10,7 @@ export module omui.site:works;
 import std;
 import omui;
 import :program_stage;
+import :live_wall;
 
 export namespace omui::site {
 
@@ -29,6 +30,8 @@ struct Works {
     Signal<double>      tune_amount = signal(1.08), tune_amount_y = signal(1.08), tune_duration = signal(0.0), tune_period = signal(0.0);
     Signal<double>      tune_at = signal(0.0), tune_length = signal(0.0);
     Signal<bool>        tune_playing = signal(false);
+    // The library alive: a few cards on screen playing at random, the one under the pointer playing.
+    LiveWall            recipe_live;
 };
 
 // A recipe into the library's editor, tuned as it comes (its own parameter, duration and period).
@@ -45,6 +48,7 @@ struct WorksSite {
 // name (anim::recipes()), each a live thumbnail — played on a card when asked
 // — with its call in C++ and its step in an animation document to copy.
 [[nodiscard]] Element recipe_library(Works&, const WorksSite&, float width);
+void recipe_library_tick(Works&, const WorksSite&);
 // A recipe's call (C++) and its step (an animation document's JSON): as tuned, or with its defaults.
 [[nodiscard]] std::string recipe_cpp(std::string_view name, const WorkTuning& tuning = {});
 [[nodiscard]] std::string recipe_json(std::string_view name, const WorkTuning& tuning = {});

@@ -12,6 +12,9 @@ namespace {
 constexpr double stride_speed = 180;  // px/s: its feet
 constexpr double near_enough = 10;    // px from what it goes to: there
 constexpr double blink_every = 3.7, blink_for = 0.12, stride_frame = 0.14, say_for = 3.0;
+// The pointer: noticed within this (px), stalked once it has rested this long (s) this near
+// across (px), pounced at when this little above its feet (px).
+constexpr double notice_within = 220, stalk_after = 0.9, stalk_across = 480, pounce_reach = 150;
 const std::string hull_id = "hull";
 
 hanim::Rgba rgba_of(std::string_view hex) { return hanim::Rgba::parse_hex(hex).value_or(hanim::Rgba{0, 0, 0, 1}); }
@@ -65,6 +68,7 @@ const MascotArt& mascot_art() {
 }
 
 Mascot::~Mascot() {
+    if (stalk_timer_ && attached()) services().cancel(stalk_timer_);
     // The host's engine outlives no runtime: touch it only while attached.
     if (figure_ && figure_->engine && attached()) {
         release_arrival();
@@ -75,6 +79,7 @@ Mascot::~Mascot() {
 }
 
 void Mascot::mounted() {
+    services().watch_pointer(node());
     bubble_.set_style("label");
     bubble_.set_max_lines(1);
     services().follow_actions(node(), true);                 // the agent's steps: painted again
@@ -293,6 +298,32 @@ void Mascot::steer(const PaintContext& ctx) const {
         f.target.clear();
     }
 
+    // The person's pointer, when nothing else has it: where it is in its box, and whether it has moved.
+    std::optional<Point> pointer_at;
+    bool over_control = false;
+    if (!target && !props.asleep && !agent_here)
+        if (const auto pointer = services().pointer()) {
+            const Rect self = services().bounds(node());
+            const Point at{pointer->x - self.x, pointer->y - self.y};
+            if (at.x >= 0 && at.y >= 0 && at.x <= ctx.size.width && at.y <= ctx.size.height) {
+                pointer_at = at;
+                probing_ = true;
+                over_control = static_cast<bool>(services().control_at(*pointer));
+                probing_ = false;
+                if (std::abs(at.x - f.pointer_seen.x) + std::abs(at.y - f.pointer_seen.y) > 6) {
+                    f.pointer_seen = at;
+                    f.pointer_still_since = t;
+                    f.stalking = false;
+                    // Once it has rested a moment, a frame: then it is stalked.
+                    if (stalk_timer_) services().cancel(stalk_timer_);
+                    stalk_timer_ = services().after(hanim::seconds(stalk_after + 0.05), [this] {
+                        stalk_timer_ = 0;
+                        services().invalidate_paint(node());
+                    });
+                }
+            }
+        }
+
     // Where its body is now (its root's space) and its feet in its box.
     const auto* body = f.body ? engine.body(*f.body).value_or(nullptr) : nullptr;
     double centre_x = f.spawn.x + props.cell * mascot_art().size / 2, bottom = f.spawn.y + props.cell * mascot_art().size;
@@ -303,6 +334,21 @@ void Mascot::steer(const PaintContext& ctx) const {
         bottom = f.spawn.y + *std::ranges::max_element(body->y);
         for (const double v : body->velocity_y) fall += v;
         fall /= static_cast<double>(body->size());
+    }
+
+    // The pointer: turned to when near; stalked once it rests on the page (a control's it leaves to the person).
+    if (pointer_at) {
+        const double dx = pointer_at->x - centre_x, dy = pointer_at->y - (bottom - props.cell * mascot_art().size * 0.6);
+        const bool near = dx * dx + dy * dy < notice_within * notice_within;
+        if (near && std::abs(dx) > 8) f.facing_right = dx > 0;
+        // Teased near it and held still: stalked (a click across the page only turns its head).
+        if (!still && !over_control && t - f.pointer_still_since >= stalk_after && (near || f.stalking) && std::abs(dx) < stalk_across) {
+            target = Rect{pointer_at->x - 1, pointer_at->y - 1, 2, 2};
+            kind = "chase";
+            f.stalking = true;
+        } else if (near) {
+            kind = "notice";
+        }
     }
 
     // What it may stand on: the page's bottom, the nodes it was given, what it goes to.
@@ -332,7 +378,17 @@ void Mascot::steer(const PaintContext& ctx) const {
             for (const Value& path : *list) surface = surface || f.target == path.as_string() || f.target.starts_with(std::string(path.as_string()) + "/");
         const bool above = surface && target->y < bottom - 8;  // its top higher than its feet
         const bool grounded = std::abs(fall) < 25 && t - f.hopped > 0.5;
-        if (goes && above && std::abs(dx) < target->width / 2 + 20) {
+        // The pointer just above it: one pounce a rest.
+        const bool pounce = kind == "chase" && target->y < bottom - 30 && bottom - target->y < pounce_reach && std::abs(dx) < 36 &&
+                            f.pounced_for != f.pointer_still_since;
+        if (goes && pounce) {
+            if (grounded && f.body) {
+                const double rise = bottom - target->y + 8, up = std::sqrt(2 * 1800 * rise);
+                (void)engine.hop(*f.body, {0, -up});
+                f.hopped = t;
+                f.pounced_for = f.pointer_still_since;
+            }
+        } else if (goes && above && std::abs(dx) < target->width / 2 + 20) {
             if (grounded && f.body) {
                 const double rise = bottom - target->y + 16, up = std::sqrt(2 * 1800 * rise), flight = 2 * up / 1800;
                 (void)engine.hop(*f.body, {std::clamp(dx / flight, -220.0, 220.0), -up});
@@ -385,10 +441,14 @@ void Mascot::steer(const PaintContext& ctx) const {
         frame = "hold", f.state = "asking";
     } else if (kind == "point") {
         frame = "point", f.state = "pointing";
+    } else if (kind == "chase" || kind == "notice") {
+        frame = "look", f.state = kind == "chase" ? "stalking" : "noticing";  // its ears up, on the pointer
     } else if (kind == "look" || kind == "move") {
         frame = "look", f.state = kind == "look" ? "looking" : "quiet";
     } else if (services().agent_link().state == "waiting") {
         frame = "look", f.state = "listening";  // its ears up: your agent is on its way
+    } else if (petted_) {
+        frame = "blink", f.state = "purring";  // the pointer on it: its eyes closed
     } else {
         f.state = "quiet";
         // A blink now and then while it is awake; asleep in body, its drawing stays exactly as it is.
@@ -489,6 +549,11 @@ bool Mascot::hits(Point local, Size) const {
 
 bool Mascot::on_event(EventContext& ctx, const InputEvent& e) {
     const auto* p = std::get_if<PointerEvent>(&e);
+    if (p && (p->kind == PointerKind::enter || p->kind == PointerKind::leave)) {
+        petted_ = p->kind == PointerKind::enter;
+        services().invalidate_paint(node());
+        return false;
+    }
     if (!p || !hits(ctx.local, {})) return false;
     if (p->kind == PointerKind::down) return true;  // its own press: a click on it, not on the page beneath
     if (p->kind != PointerKind::up) return false;

@@ -47,7 +47,8 @@ int main(int argc, char** argv) {
         const auto depth = std::ranges::count(path("canvas"), '/') + 1;
         for (const auto& node : page.h.tree().snapshot({.root = path("canvas")}).nodes) {
             if (std::ranges::count(node.id, '/') != depth) continue;  // the canvas's items (not what a live card holds)
-            if (node.role == Role::article) ++cards;
+            const std::string key = node.id.substr(node.id.rfind('/') + 1);
+            if (node.role == Role::article && site::find_component(key)) ++cards;
             if (node.role == Role::group) ++bands;
         }
         check(cards == site::component_catalog.size() && bands == site::component_groups.size(), std::format("{} cards, {} bands", cards, bands));
@@ -92,13 +93,14 @@ int main(int argc, char** argv) {
         check(page.zoom() > far * 2, std::format("where it was left: zoom {}", page.zoom()));
     });
 
-    suite.test("See all flies back out; at rest again nothing is drawn", [] {
+    suite.test("back out to the region; at rest again nothing is drawn", [] {
         Page page;
         const double far = page.zoom();
         check(page.act(path("canvas"), "focus_node", Value{}.set("key", "slider")) == 0);
         page.h.settle(seconds(2));
         check(page.zoom() > far * 2);
-        check(page.act(path("tools/all"), "activate") == 0);
+        // Back to the components' region (its double-click, or its chip): all of them in view again.
+        check(page.act(path("canvas"), "fit", Value{}.set("target", "region-components")) == 0);
         // Back out, the cards go live again (each its component appearing): a moment longer.
         page.h.settle(seconds(3));
         check(std::abs(page.zoom() - far) < far * 0.05, std::format("back out: {} (was {})", page.zoom(), far));

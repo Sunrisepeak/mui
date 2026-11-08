@@ -69,7 +69,7 @@ int main(int argc, char** argv) {
         check(v.h.tree().node("main/body/view/components/page").has_value());
         v.click("main/bar/nav/to_explore");
         check(v.h.runtime().route() == "motion");
-        check(v.h.tree().node("main/body/view/explore/page/works/heading")->name == "Motion you can hold", "the motion page opens on its works");
+        check(v.h.tree().node("main/body/view/explore/page/wall/canvas/work-mark/mark/stage").has_value(), "the motion page opens on its works, live on the studio");
         v.click("main/bar/nav/to_agent");
         check(v.h.tree().node("main/body/view/agent/page/agent_feature").has_value());
         v.click("main/bar/nav/to_docs");
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
             }
             if (width < 900) {
                 v.click("main/bar/menu_toggle"); v.click("main/bar/nav/to_components");
-                check(v.h.tree().node("main/body/view/components/page/gallery").has_value());
+                check(v.h.tree().node("main/body/view/components/page/wall").has_value());
             }
         }
     });
@@ -132,7 +132,7 @@ int main(int argc, char** argv) {
         }
     });
     suite.test("global dark mode updates plain preview scopes while keeping explicit materials", [] {
-        Visitor v("components");
+        Visitor v("components/button");  // the library: a component's page
         v.click("main/bar/settings_toggle");
         Invocation call; call.args = Value{}.set("value", "dark");
         check(v.h.tree().act("main/body/settings/theme_field/theme", "set_value", call).exit_code() == std::optional<int>(0));

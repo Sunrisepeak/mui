@@ -13,6 +13,7 @@ std::vector<std::string> on_screen(const LiveWall& wall, Runtime& runtime) {
     std::vector<std::string> out;
     const Size window = runtime.size();
     const auto shown = [&](const Rect& box) { return box.width > 0 && box.bottom() > 64 && box.y < window.height - 32 && box.right() > 0 && box.x < window.width; };
+    if (wall.visible) return wall.visible();
     if (!wall.container.empty()) {
         const NodeId id = runtime.find(wall.container);
         if (runtime.valid(id) && shown(runtime.screen_bounds(id))) out = wall.cards;
@@ -101,26 +102,25 @@ Value motion_case_config(const MotionCaseInfo& info) {
 namespace {
 
 LiveWallPlay motion_play(MotionWall& wall) {
-    return {.play = [&wall](const std::string& card) {
-                // A round flips the scene between its two states: it moves as its motion says.
-                if (const auto found = wall.states.find(last_segment(card)); found != wall.states.end())
-                    found->second->end.set(!found->second->end.peek());
-            },
+    return {.play = [&wall](const std::string& card) { motion_case_flip(wall, last_segment(card)); },
             .few = 2,
             .every = 2.2};
 }
 
 }  // namespace
 
+// A round flips the scene between its two states: it moves as its motion says.
+void motion_case_flip(MotionWall& wall, std::string_view id) {
+    if (const auto found = wall.states.find(id); found != wall.states.end()) found->second->end.set(!found->second->end.peek());
+}
+
 void motion_wall_tick(MotionWall& wall, const MotionWallSite& site) {
     if (site.runtime && *site.runtime) live_wall_tick(wall.live, **site.runtime, motion_play(wall));
 }
 
-namespace {
-
-// A case's card (live on the canvas, or in the phone's column): its scene in its own state and
+// A case's card (live on a canvas, or in the phone's column): its scene in its own state and
 // scope, its name (opening its page) and its purpose; the pointer on it plays it.
-Element motion_card(MotionWall& wall, const MotionWallSite& site, const MotionCaseInfo& info, bool creative, float card_width, float scene_height,
+Element motion_case_card(MotionWall& wall, const MotionWallSite& site, const MotionCaseInfo& info, bool creative, float card_width, float scene_height,
                     std::function<void(bool)> hover) {
     const bool zh = site.lang && site.lang->peek() == "zh";
     const std::string id(info.id);
@@ -151,6 +151,8 @@ Element motion_card(MotionWall& wall, const MotionWallSite& site, const MotionCa
                          .max_width = Dim(card_width - 24)})});
 }
 
+namespace {
+
 // The canvas's world: a card a case, in rows.
 constexpr double creative_card = 520, basic_card = 400, card_gap = 28;
 constexpr int creative_columns = 5, basic_columns = 7;
@@ -178,7 +180,7 @@ Element motion_wall(MotionWall& wall, const MotionWallSite& site, bool creative,
                                        const auto hover = [model, site, id = std::string(info->id)](bool on) {
                                            if (site.runtime && *site.runtime) live_wall_hover(model->live, **site.runtime, motion_play(*model), id, on);
                                        };
-                                       return motion_card(*model, site, *info, creative, static_cast<float>(card), static_cast<float>(scene_height_on_canvas(creative)), hover);
+                                       return motion_case_card(*model, site, *info, creative, static_cast<float>(card), static_cast<float>(scene_height_on_canvas(creative)), hover);
                                    },
                                .role = Role::article});
         if (scene.bounds().empty()) {
@@ -242,7 +244,7 @@ Element motion_wall(MotionWall& wall, const MotionWallSite& site, bool creative,
         const auto hover = [model, runtime = site.runtime, card_path](bool on) {
             if (runtime && *runtime) live_wall_hover(model->live, **runtime, motion_play(*model), card_path, on);
         };
-        cards.push_back(motion_card(wall, site, info, creative, card_width, scene_height, hover));
+        cards.push_back(motion_case_card(wall, site, info, creative, card_width, scene_height, hover));
     }
     Element heading = text({.id = "heading",
                             .text = creative ? std::string(zh ? "动效组合" : "Compositions") : std::string(zh ? "动效规格样本" : "Motion specimens"),

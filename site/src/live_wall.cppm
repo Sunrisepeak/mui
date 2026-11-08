@@ -21,6 +21,8 @@ struct LiveWall {
     std::vector<std::string> picked;   // what the last round set playing
     // Cards that are not nodes of their own (a canvas's items): eligible while this node is on screen.
     std::string              container;
+    // Or, sharper (a camera's view): the cards on screen now.
+    std::function<std::vector<std::string>()> visible;
     // Its motion paused (a person's choice: what moves by itself can be stopped, WCAG 2.2.2).
     Signal<bool>             paused = signal(false);
 };
@@ -59,6 +61,12 @@ struct MotionWallSite {
 };
 [[nodiscard]] Element motion_wall(MotionWall&, const MotionWallSite&, bool creative, float width);
 void motion_wall_tick(MotionWall&, const MotionWallSite&);
+// One case's card: its live scene (its own state and material scope), its name opening its page,
+// its purpose; the pointer on it calls `hover`.
+[[nodiscard]] Element motion_case_card(MotionWall&, const MotionWallSite&, const MotionCaseInfo&, bool creative, float card_width, float scene_height,
+                                       std::function<void(bool)> hover);
+// A round's play for a wall of cases: its scene flipped between its two states.
+void motion_case_flip(MotionWall&, std::string_view id);
 // A scene's motion (its spec sample's defaults): what the wall's cards and the gallery's stage animate by.
 [[nodiscard]] Value motion_case_config(const MotionCaseInfo&);
 

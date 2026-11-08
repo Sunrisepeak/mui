@@ -18,7 +18,8 @@ std::string path(std::string_view tail) { return std::string(root) + "/" + std::
 
 struct Page {
     Headless h;
-    explicit Page(float height = 3600) : h{HeadlessOptions{.size = {1280, height}, .scale = 1}} {
+    // A narrow window: the works one after another (on a desktop they are the studio's, live_wall_test).
+    explicit Page(float height = 3600) : h{HeadlessOptions{.size = {860, height}, .scale = 1}} {
         auto app = site::app("explore", "en");
         h.runtime().set_theme(app.theme);
         app.setup(h.runtime());
@@ -232,6 +233,8 @@ int main(int argc, char** argv) {
 
     suite.test("glass that flows: brought together the drops travel on a spring and merge, the middle between them glass; apart again they part", [] {
         Page page;
+        check(page.act("glass", "scroll_into_view") == 0, "the glass in view");
+        page.h.settle(seconds(1));
         const auto left_x = [&] { return page.h.runtime().drawn_bounds(page.h.runtime().find(path("glass/stage/drops/glass/left"))).x; };
         const Rect stage = page.h.runtime().screen_bounds(page.h.runtime().find(path("glass/stage")));
         const auto middle = [&] {

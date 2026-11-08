@@ -95,6 +95,7 @@ public:
 private:
     void changed(bool record = true);   // after the camera moved: placed, redrawn, told (and remembered)
     void keep_in(world::Camera& camera) const;  // `bounded`: the camera kept to the scene
+    [[nodiscard]] world::WorldRect start_rect(const world::Scene& s) const;
     // The camera's past (D-60): from when it rested where, or moved how — the
     // last 30 s, so a page whose time is taken back shows it as it was.
     struct Course {

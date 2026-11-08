@@ -65,45 +65,38 @@ try {
   const copied = source && await until(`navigator.clipboard.readText().then(t=>t===${JSON.stringify(source)})`);
   check(copied, 'the permitted browser clipboard contains the displayed expression', copied ? undefined : { source, clipboard: await b.value('navigator.clipboard.readText().catch(e=>String(e))') });
   await act('main/body/view/components', 'scroll_to', { x: 0, y: 0 });
+  // All components: the studio's canvas (every component live on it); Back: this component's page again.
   await act(root + '/detail/directory/all', 'activate');
-  check(await until(`location.hash==='#/components' && ${name(overview + '/results/count')}==='8 / 36'`), 'overview offers eight directory choices beside the live specimen');
-  const preview = await b.value(`window.omui.snapshot({root:${JSON.stringify(root)}}).then(r=>(r.data?.nodes||[]).filter(n=>n.id.endsWith('/stage/specimen')).map(n=>n.id))`);
-  check(preview?.length === 1, 'the bounded directory does not stack complete specimens', preview);
+  check(await until(`location.hash==='#/components' && ${node('main/body/view/components/page/wall/canvas')}`), 'All components returns to the studio canvas');
+  await b.value('history.back(); true');
+  check(await until(`location.hash==='#/components/text-box' && ${node(detail('text_box') + '/stage/specimen')}`), 'Back returns to the component page');
+  // The directory beside it: filtered, searched, recovered; a choice opens that component's page.
+  check(await until(`${name(overview + '/results/count')}==='8 / 36'`), 'the page offers eight directory choices beside its live specimen');
   const results = await b.value(`window.omui.snapshot({root:${JSON.stringify(overview + '/results')},depth:0}).then(r=>r.data?.nodes?.[0]?.bounds)`);
   check(Array.isArray(results) && results[3] <= 331, 'desktop component choices stay inside a bounded scroll region', results);
-  if (preview?.length !== 1) throw new Error('The directory needs one live specimen');
-  const active = preview[0].slice(0, -'/stage/specimen'.length);
-  check(!await b.value(node(active + '/panes/code')), 'the preview starts outside the language and source reference');
-  await pointer(active + '/stage/actions/pause');
-  check(await until(`${name(active + '/stage/actions/pause')}==='Play preview'`), 'the real preview can be paused before inspecting a fixed state');
   await shot('overview-en-desktop');
   await act(overview + '/filter/category', 'set_value', { value: 'editing' });
   check(await until(`${name(overview + '/results/count')}==='2 / 36'`), 'the editing category contains its two components');
   await act(overview + '/filter/search', 'set_value', { value: 'no-such-part' });
   check(await until(`${node(overview + '/results/empty')}`), 'an empty filtered search offers a recovery path');
-  check(preview?.length === 1 && await b.value(node(preview[0])), 'an empty directory preserves the current real specimen');
+  check(await b.value(node(detail('text_box') + '/stage/specimen')), 'an empty directory preserves the current real specimen');
   await act(overview + '/filter/clear', 'activate');
   check(await until(`${name(overview + '/results/count')}==='8 / 36'`), 'reset restores the selected overview');
   await act(overview + '/filter/search', 'set_value', { value: 'button' });
   check(await until(`${name(overview + '/results/count')}==='1 / 36'`), 'search finds a component by name');
   await pointer(overview + '/results/r0/button/heading/open');
-  check(await until(`location.hash==='#/components' && ${node(detail('button') + '/stage/specimen/variants/primary')} && !${node(detail('button') + '/panes/code')}`), 'a real directory click selects the preview without navigating into source');
-  await pointer(detail('button') + '/stage/actions/details');
-  check(await until(`location.hash==='#/components/button' && ${node(detail('button') + '/panes/code')}`), 'only View details opens the addressable component workspace');
-  // A default preview may already have demonstrated a state change. Establish
-  // the actual initial model with its real reset control before testing a click.
+  check(await until(`location.hash==='#/components/button' && ${node(detail('button') + '/stage/specimen/variants/primary')}`), 'a real directory click opens the page of that component');
   await pointer(detail('button') + '/stage/actions/reset');
-  check(await until(`${name(detail('button') + '/stage/specimen/variants/primary')}==='Save'`), 'reset establishes the real initial model after automatic preview');
+  check(await until(`${name(detail('button') + '/stage/specimen/variants/primary')}==='Save'`), 'reset establishes the real initial model');
   await pointer(detail('button') + '/stage/specimen/variants/primary');
   check(await until(`${name(detail('button') + '/stage/specimen/variants/primary')}==='Saved 1'`), 'the sample button performs its own action');
   await pointer(detail('button') + '/stage/actions/reset');
   check(await until(`${name(detail('button') + '/stage/specimen/variants/primary')}==='Save'`), 'a pointer can reset the specimen');
   await shot('button-en-desktop');
   await b.value('history.back(); true');
-  check(await until(`location.hash==='#/components' && ${node(overview)} && ${name(overview + '/filter/search')}==='Search components' && !${node(detail('button') + '/panes/code')}`), 'Back returns to the catalog preview');
-  check(await b.value(`${name(overview + '/results/count')}`) === '1 / 36', 'catalog search survives the detail visit');
+  check(await until(`location.hash==='#/components/text-box' && ${node(detail('text_box') + '/stage/specimen')}`), 'Back returns to the component it came from');
   await b.value('history.forward(); true');
-  check(await until(`location.hash==='#/components/button' && ${node(detail('button') + '/stage/specimen/variants/primary')} && ${node(detail('button') + '/panes/code')}`), 'Forward restores the selected component detail');
+  check(await until(`location.hash==='#/components/button' && ${node(detail('button') + '/stage/specimen/variants/primary')}`), 'Forward restores the chosen component');
   check(await b.value('performance.timeOrigin') === origin, 'component history keeps the runtime alive');
   await b.call('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
   await b.value(`location.hash='/zh/components/text-box'; true`);

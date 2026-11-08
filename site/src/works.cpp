@@ -63,9 +63,7 @@ Element list_and_cards(const WorksSite& site, Signal<bool> cards, float width, f
 
 }  // namespace
 
-Element signature_works(Works& state, const WorksSite& site, float width) {
-    const int columns = width >= 1000 ? 2 : 1;
-    const float card = std::floor((width - (columns - 1) * 20.0f) / static_cast<float>(columns));
+std::vector<Element> work_cards(Works& state, const WorksSite& site, float card, const std::function<std::string(std::string_view)>& path_of) {
     const float inner = card - 32, stage_height = std::round(inner * 0.56f);
     const auto stage = [&](std::string work, std::string label, Signal<double> at, Signal<double> length, Signal<bool> playing) {
         return program_stage({.id = "stage", .at = at, .label = std::move(label), .length = length, .playing = playing, .work = std::move(work),
@@ -84,7 +82,7 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
     // ③ A soft landing, rewound (the soft card: drop it, then drag its time back).
     {
         Runtime** runtime = site.runtime;
-        const std::string card_path = site.root + "/grid/soft/stage";
+        const std::string card_path = path_of("soft") + "/stage";
         works.push_back(work(site, "soft", card, {"A soft landing, rewound", "软着陆，再倒回去"},
                              {"A card of jelly lands and gives. Drag its time back: every step the same each time.", "果冻做的卡片落地、变形。把时间往回拖：每一步每次都一样。"},
                              drop_card({.id = "stage", .at = state.card_at, .span = 3.0, .width = Dim(inner), .height = Dim(stage_height)}),
@@ -122,7 +120,7 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
     // ⑥ A spring you can throw: dragged and let go, it springs home with the speed it had.
     {
         Runtime** runtime = site.runtime;
-        const std::string chip_path = site.root + "/grid/spring/stage";
+        const std::string chip_path = path_of("spring") + "/stage";
         works.push_back(work(site, "spring", card, {"A spring you can throw", "能甩的弹簧"},
                              {"Drag it, fling it, let go: it springs home with the speed it had. Catch it mid-flight.", "拖着它甩出去再松手：它带着当时的速度弹回家。半路还能接住。"},
                              throw_chip({.id = "stage", .label = words(site, "Throw me", "甩我"), .width = Dim(inner), .height = Dim(stage_height)}),
@@ -138,7 +136,7 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
     // ⑦ An agent changes a motion: it reads the cards' choreography and asks for them later and bouncier.
     {
         Runtime** runtime = site.runtime;
-        const std::string stage_path = site.root + "/grid/agent/stage";
+        const std::string stage_path = path_of("agent") + "/stage";
         Signal<double> delay = state.rise_delay;
         const auto retime = [runtime, stage_path](Actor actor, double to_delay, double to_bounce) {
             if (!runtime || !*runtime) return;
@@ -222,6 +220,13 @@ Element signature_works(Works& state, const WorksSite& site, float width) {
                                              .value = Source{std::nullopt, [cards] { return Value(std::string(cards.get() ? "cards" : "list")); },
                                                              [cards](const Value& value) { cards.set(value.as_string() == "cards"); }}})})));
     }
+    return works;
+}
+
+Element signature_works(Works& state, const WorksSite& site, float width) {
+    const int columns = width >= 1000 ? 2 : 1;
+    const float card = std::floor((width - (columns - 1) * 20.0f) / static_cast<float>(columns));
+    std::vector<Element> works = work_cards(state, site, card, [&site](std::string_view id) { return std::format("{}/grid/{}", site.root, id); });
     Element heading = text({.id = "heading", .text = words(site, "Motion you can hold", "拿在手里的动效"), .style = "title"});
     heading.prop("role", Source(Value("heading"))).prop("level", Source(Value(std::int64_t{1})));
     return column({.id = "works", .width = Dim(width), .gap = 16},
@@ -435,6 +440,38 @@ Element recipe_editor(Works& state, const WorksSite& site, float width) {
                   })});
 }
 
+Element recipe_card(Works& state, const WorksSite& site, const hanim::anim::RecipeInfo& info, float width, std::string card_path,
+                    std::function<void(bool)> hover, std::function<void()> tuning) {
+    Runtime** runtime = site.runtime;
+    const bool zh = site.lang && site.lang->peek() == "zh";
+    const std::string name(info.name), stage_path = card_path + "/stage";
+    const auto copy = [runtime](std::string text) {
+        if (runtime && *runtime) (*runtime)->set_clipboard_text(text);
+    };
+    Works* const model = &state;
+    return column({.id = name, .width = Dim(width), .padding = Edges(10.0f), .gap = 6, .background = "surface", .border_color = "border",
+                   .border_width = 1, .radius = 12,
+                   .on = {{"pointer_enter", [hover](const Value&) { if (hover) hover(true); }}, {"pointer_leave", [hover](const Value&) { if (hover) hover(false); }}}},
+                  // At rest it shows its card: an entrance at its end (it came in), the rest at their start.
+                  {program_stage({.id = "stage", .at = info.kind == hanim::anim::RecipeKind::entrance ? 1e6 : 0.0, .label = name, .work = "recipe:" + name,
+                                  .width = Dim(width - 20), .height = Dim(std::round((width - 20) * 0.56f))}),
+                   row({.id = "head", .gap = 6, .align = "center"},
+                       {text({.id = "name", .text = name, .style = "code"}), spacer(),
+                        button({.id = "play", .text = zh ? "播放" : "Play", .variant = ButtonVariant::ghost,
+                                .on_activated = [runtime, stage_path] {
+                                    if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(stage_path), "play");
+                                }})}),
+                   row({.id = "copy", .gap = 6},
+                       {button({.id = "cpp", .text = "C++", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_cpp(name)); }}),
+                        button({.id = "json", .text = "JSON", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_json(name)); }}),
+                        // Into the editor, which comes into view.
+                        button({.id = "tune", .text = zh ? "调整" : "Tune", .variant = ButtonVariant::ghost,
+                                .on_activated = [model, name, tuning] {
+                                    tune_recipe(*model, name);
+                                    if (tuning) tuning();
+                                }})})});
+}
+
 Element recipe_library(Works& state, const WorksSite& site, float width) {
     const int columns = width >= 1000 ? 4 : width >= 640 ? 3 : 2;
     const float thumb = std::floor((width - static_cast<float>(columns - 1) * 14.0f) / static_cast<float>(columns));
@@ -468,35 +505,14 @@ Element recipe_library(Works& state, const WorksSite& site, float width) {
         for (const auto& info : hanim::anim::recipes()) {
             if (shown != "all" && shown != kind_name(info.kind)) continue;
             const std::string name(info.name);
-            const std::string card_path = std::format("{}/grid/{}", root, name), stage_path = card_path + "/stage";
+            const std::string card_path = std::format("{}/grid/{}", root, name);
             state->recipe_live.cards.push_back(card_path);
             const auto hover = [state, runtime, card_path](bool on) {
                 if (runtime && *runtime) live_wall_hover(state->recipe_live, **runtime, recipe_play(runtime), card_path, on);
             };
-            const auto copy = [runtime](std::string text) {
-                if (runtime && *runtime) (*runtime)->set_clipboard_text(text);
-            };
-            cards.push_back(column({.id = name, .width = Dim(thumb), .padding = Edges(10.0f), .gap = 6, .background = "surface", .border_color = "border",
-                                    .border_width = 1, .radius = 12,
-                                    .on = {{"pointer_enter", [hover](const Value&) { hover(true); }}, {"pointer_leave", [hover](const Value&) { hover(false); }}}},
-                                   // At rest it shows its card: an entrance at its end (it came in), the rest at their start.
-                                   {program_stage({.id = "stage", .at = info.kind == hanim::anim::RecipeKind::entrance ? 1e6 : 0.0, .label = name, .work = "recipe:" + name,
-                                                   .width = Dim(thumb - 20), .height = Dim(std::round((thumb - 20) * 0.56f))}),
-                                    row({.id = "head", .gap = 6, .align = "center"},
-                                        {text({.id = "name", .text = name, .style = "code"}), spacer(),
-                                         button({.id = "play", .text = lang && lang->peek() == "zh" ? "播放" : "Play", .variant = ButtonVariant::ghost,
-                                                 .on_activated = [runtime, stage_path] {
-                                                     if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(stage_path), "play");
-                                                 }})}),
-                                    row({.id = "copy", .gap = 6},
-                                        {button({.id = "cpp", .text = "C++", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_cpp(name)); }}),
-                                         button({.id = "json", .text = "JSON", .variant = ButtonVariant::ghost, .on_activated = [copy, name] { copy(recipe_json(name)); }}),
-                                         // Into the editor (above the grid), which comes into view.
-                                         button({.id = "tune", .text = lang && lang->peek() == "zh" ? "调整" : "Tune", .variant = ButtonVariant::ghost,
-                                                 .on_activated = [state, runtime, root, name] {
-                                                     tune_recipe(*state, name);
-                                                     if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(root + "/tune"), "scroll_into_view");
-                                                 }})})}));
+            cards.push_back(recipe_card(*state, WorksSite{.runtime = runtime, .lang = lang}, info, thumb, card_path, hover, [runtime, root] {
+                if (runtime && *runtime) (void)(*runtime)->act((*runtime)->find(root + "/tune"), "scroll_into_view");
+            }));
         }
         return std::vector<Element>{row({.id = "grid", .gap = 14, .align = "start", .wrap = "wrap"}, std::move(cards))};
     });

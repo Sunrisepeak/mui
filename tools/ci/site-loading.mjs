@@ -131,9 +131,9 @@ for (const scenario of [
     if (!handed) throw new Error('Runtime did not hand over');
     check(await b.value(`document.getElementById('omui-static').hidden && document.querySelector('[data-omui=mirror]').getAttribute('aria-hidden')!=='true'`), scenario.name+': only the live accessible surface remains');
     if (scenario.navigate) {
-      check(await b.value(`!!document.querySelector('[data-omui-id="main/body/view/explore/page/works/grid/mark"]')`), 'the live handoff follows the page chosen during loading');
+      check(await b.value(`!!document.querySelector('[data-omui-id^="main/body/view/explore/page/"]')`), 'the live handoff follows the page chosen during loading');
     } else if (scenario.dedup) {
-      const finalLocale = await b.value(`({root:!!document.querySelector('[data-omui-id="main/body/view/components/page/gallery/detail/button/stage/specimen"]'),language:document.documentElement.lang,fontPlan:window.omuiLoad.assets.find(x=>x.id==='font:NotoSansSC.ttf')?.group,fontLanguage:window.omuiFontLanguage})`);
+      const finalLocale = await b.value(`({root:!!document.querySelector('[data-omui-id^="main/body/view/components/page/wall/"]'),language:document.documentElement.lang,fontPlan:window.omuiLoad.assets.find(x=>x.id==='font:NotoSansSC.ttf')?.group,fontLanguage:window.omuiFontLanguage})`);
       check(finalLocale?.root&&finalLocale.language==='zh-CN'&&finalLocale.fontPlan==='startup', 'the locale selected while loading reaches the live component and its startup font plan',finalLocale);
     } else if (!scenario.retry) {
       const reference = catalogue.references.find(x=>x.language===scenario.language&&x.viewport[0]===scenario.width&&x.motion===(scenario.reduced?'reduced':'full'));

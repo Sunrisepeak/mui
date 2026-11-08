@@ -979,13 +979,12 @@ int main(int argc, char** argv) {
         // (the foot says the home tree's hash; the lenses show the tree).
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
-        check_eq(all.hex(), std::string("ef15fd6058e725df"));
+        check_eq(all.hex(), std::string("ccd16564442a5cd5"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
-        Site a("components");
-        // The wall's own motion paused: it plays the library's components by itself (live_wall_test watches it).
-        check(a.h.tree().act("main/body/view/components/page/wall/tools/pause", "activate").exit_code() == std::optional<int>(0));
+        // The library is a component's page (the studio shows the components themselves): opened at the button.
+        Site a("components/button");
         a.h.move({4, 796}); a.h.advance(seconds(1));
         const std::string root = "main/body/view/components/page/gallery";
         const std::string overview = root + "/overview";
@@ -1002,9 +1001,6 @@ int main(int argc, char** argv) {
         check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
         act(overview + "/results/r0/badge/heading/open", "activate");
         const std::string detail = root + "/detail/badge";
-        check_eq(a.h.runtime().route(), std::string("components"));
-        check(!a.h.tree().node(detail + "/panes/code"), "choosing a preview does not open the API reference");
-        act(detail + "/stage/actions/details", "activate");
         check_eq(a.h.runtime().route(), std::string("components/badge"));
         check(a.h.tree().node(detail + "/stage/specimen").has_value());
         check(!a.h.tree().node(detail + "/code"), "source is optional");
@@ -1023,7 +1019,6 @@ int main(int argc, char** argv) {
         act(detail + "/panes/semantics", "activate");
         const std::string semantics = a.text(detail + "/semantics/scroll/json");
         check(semantics.contains("specimen") && semantics.contains("mail"), "the actual specimen's semantic nodes");
-        act(root + "/detail/directory/all", "activate");
         check_eq(a.text(overview + "/results/count"), std::string("1 / 36"));
         act(overview + "/filter/search", "set_value", Value{}.set("value", Value("no-such-component")));
         check(a.h.tree().node(overview + "/results/empty").has_value(), "useful empty search");
@@ -1035,7 +1030,6 @@ int main(int argc, char** argv) {
         check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Saved 1"));
         act(button + "/stage/actions/reset", "activate");
         check_eq(a.text(button + "/stage/specimen/variants/primary"), std::string("Save"));
-        act(button + "/stage/actions/details", "activate");
         act(button + "/stage/actions/variants", "activate");
         auto tree = [&] {
             std::vector<std::string> out;

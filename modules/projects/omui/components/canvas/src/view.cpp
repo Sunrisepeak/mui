@@ -468,14 +468,14 @@ void Canvas::laid_out() {
         placed_for_ = vp;
         // Fitted at the start and not moved since: still the whole scene (the
         // window's first layouts settle its size over a frame or two).
-        if (refit_ && s && vp.width > 0 && vp.height > 0) set_camera(Camera::fit(s->bounds(), vp, 24, props.min_zoom, props.max_zoom));
+        if (refit_ && s && vp.width > 0 && vp.height > 0) set_camera(Camera::fit(start_rect(*s), vp, 24, props.min_zoom, props.max_zoom));
         else place();
     }
     if (started_ || props.start.empty()) return;
     if (!s || s->size() == 0 || vp.width <= 0 || vp.height <= 0) return;
-    if (props.start == "fit") {
+    if (props.start == "fit" || props.start.starts_with("fit:")) {
         started_ = true;
-        set_camera(Camera::fit(s->bounds(), vp, 24, props.min_zoom, props.max_zoom));
+        set_camera(Camera::fit(start_rect(*s), vp, 24, props.min_zoom, props.max_zoom));
         refit_ = true;
     } else if (props.start.starts_with("preset:")) {
         started_ = true;
@@ -483,8 +483,15 @@ void Canvas::laid_out() {
         else warn("canvas: the scene has no view named `{}` to start at", std::string_view(props.start).substr(7));
     } else {
         started_ = true;
-        warn("canvas: start is `fit`, `preset:<name>` or empty, not `{}`", props.start);
+        warn("canvas: start is `fit`, `fit:<key>`, `preset:<name>` or empty, not `{}`", props.start);
     }
+}
+
+// What `start` fits: the node it names (`fit:<key>`), else the whole scene.
+world::WorldRect Canvas::start_rect(const world::Scene& s) const {
+    if (props.start.starts_with("fit:"))
+        if (const auto n = s.find(std::string_view(props.start).substr(4))) return s.rect(*n);
+    return s.bounds();
 }
 
 // The textures were drawn in the old theme: drawn again (the stale ones
@@ -700,10 +707,26 @@ bool Canvas::on_event(EventContext& ctx, const InputEvent& e) {
         }
         std::vector<NodeRef> items;
         s.each([&](NodeRef n) {
+            // Its items, not what holds them (a group, a region: a landmark, not a stop).
             const Role role = s.kind_of(n).role;
-            if (role != Role::generic && role != Role::group) items.push_back(n);
+            if (role != Role::generic && role != Role::group && role != Role::region) items.push_back(n);
         });
+        // Reading order, region by region: the regions (role region) in reading order, each one's
+        // items in reading order within it (what lies in none, after them all).
+        std::vector<world::WorldRect> regions;
+        s.each([&](NodeRef n) {
+            if (s.kind_of(n).role == Role::region) regions.push_back(s.rect(n));
+        });
+        std::ranges::sort(regions, [](const world::WorldRect& a, const world::WorldRect& b) { return a.y != b.y ? a.y < b.y : a.x < b.x; });
+        const auto region_of = [&](NodeRef n) {
+            const auto r = s.rect(n);
+            for (std::size_t index = 0; index < regions.size(); ++index)
+                if (regions[index].contains(r.x + r.width / 2, r.y + r.height / 2)) return index;
+            return regions.size();
+        };
         std::ranges::sort(items, [&](NodeRef a, NodeRef b) {
+            const auto ga = region_of(a), gb = region_of(b);
+            if (ga != gb) return ga < gb;
             const auto ra = s.rect(a), rb = s.rect(b);
             return ra.y != rb.y ? ra.y < rb.y : ra.x < rb.x;
         });

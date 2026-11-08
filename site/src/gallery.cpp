@@ -535,9 +535,9 @@ void choose(Gallery& state, const GallerySite& site, std::string id) {
     state.manual_interaction.set(false);
     state.preview_changed = false;
     const auto actor = site.runtime && *site.runtime ? (*site.runtime)->acting().value_or(Actor{}) : Actor{};
-    // Choosing a part changes the live preview. Only the explicit Details
-    // action opens its language, source and deeper configuration.
-    if (!state.selected.peek().empty() && site.open) site.open("");
+    // Choosing a part changes the live preview: the library is a component's
+    // page (the studio shows them all), so choosing another opens its page.
+    if (!state.selected.peek().empty() && site.open) site.open(id);
     if (site.runtime && *site.runtime)
         (void)(*site.runtime)->after(seconds(0), [site, id, actor] { focus_specimen(site, id, actor, 5, false); });
 }
@@ -756,7 +756,8 @@ Element detail(Gallery& g, const GallerySite& site, const Entry& entry, float wi
 void tick_gallery(Gallery& gallery, const GallerySite& site) {
     if (!site.runtime || !*site.runtime) return;
     auto& runtime = **site.runtime;
-    const auto preview = runtime.find(gallery.preview_path);
+    // Its preview only where the library itself is mounted (a path it has given, still there).
+    const auto preview = gallery.preview_path.empty() ? NodeId{} : runtime.find(gallery.preview_path);
     const auto route = parse_site_route(runtime.route());
     const bool mounted = runtime.valid(preview) && route && route->place == "components" && gallery.selected.peek().empty();
     auto stop = [&] {

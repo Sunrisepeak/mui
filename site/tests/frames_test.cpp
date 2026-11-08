@@ -45,7 +45,7 @@ struct Run {
                 check(h.tree().act(wall, "activate").exit_code() == std::optional<int>(0), wall);
                 h.step();
             }
-        if (place == "explore" || place == "motion") return;  // their galleries open one case at a time now (the walls above)
+        if (place == "explore" || place == "motion" || place == "components") return;  // the studio and the walls (paused above); a gallery opens one case at a time
         std::string control;
         if (place == "home") control = "main/body/view/home/page/landing/scene/controls/pause";
         else if (place == "components") control = "main/body/view/components/page/gallery/detail/button/stage/actions/pause";

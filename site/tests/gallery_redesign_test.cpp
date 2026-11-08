@@ -15,17 +15,14 @@ struct Run {
     Headless headless;
     explicit Run(float width = 1280, std::string_view lang = "en", bool autoplay = false)
         : headless(HeadlessOptions{.size = {width, 844}}) {
-        auto app = site::app("components", lang);
+        // The library is a component's page now (the components themselves are the studio's): opened at the button.
+        auto app = site::app(lang == "zh" ? "zh/components/button" : "components/button", lang);
         headless.runtime().set_theme(app.theme);
         app.setup(headless.runtime());
         for (auto& verb : app.verbs) (void)headless.runtime().verbs().add(verb.desc, verb.fn);
         headless.mount("main", app.view());
         headless.step();
-        if (!autoplay) {
-            act(detail("button") + "/stage/actions/pause", "activate");
-            // The wall's own motion paused too (it plays the library's components by itself).
-            if (headless.tree().node("main/body/view/components/page/wall/tools/pause")) act("main/body/view/components/page/wall/tools/pause", "activate");
-        }
+        (void)autoplay;  // the automatic preview is the studio's now (live_wall_test)
         headless.settle(seconds(0.9));
     }
     std::string name(std::string_view id) {
@@ -109,7 +106,6 @@ int main(int argc, char** argv) {
         const auto button = run.detail("button");
         const auto primary = button + "/stage/specimen/variants/primary";
         check(run.headless.runtime().get(run.headless.runtime().find(primary), "motion").is_null(), "default writes no motion override");
-        run.act(button + "/stage/actions/details", "activate");
         run.act(button + "/stage/actions/variants", "activate");
         check(run.has(button + "/stage/specimen/variants/off"));
         check(run.headless.tree().node(button + "/stage/specimen/variants/off")->states.has(State::disabled));
@@ -189,8 +185,7 @@ int main(int argc, char** argv) {
             const auto detail = run.detail("text_box");
             check(run.has(detail + "/stage/specimen/variants/name"));
             if (width < 1100) check(!run.has(root + "/overview/filter/search"), "choosing returns the room to the specimen");
-            check(!run.has(detail + "/panes/code"), "preview stays outside the language reference");
-            run.act(detail + "/stage/actions/details", "activate");
+            check_eq(run.headless.runtime().route(), std::string(lang == "zh" ? "zh/components/text-box" : "components/text-box"));
             run.act(detail + "/stage/actions/states", "activate"); inside();
             run.act(detail + "/stage/actions/variants", "activate"); inside();
             run.act(detail + "/panes/code", "activate"); inside();
@@ -198,57 +193,13 @@ int main(int argc, char** argv) {
         }
     });
 
-    suite.test("autoplay yields to pointer and keyboard, pauses explicitly and stops for reduced motion", [] {
-        Run run(1280, "en", true);
-        const auto detail = run.detail("button"), primary = detail + "/stage/specimen/variants/primary";
-        // The library under the wall: scrolled to, as a visitor does (an offscreen preview does not play).
-        run.act(detail + "/stage", "scroll_into_view");
-        run.headless.advance(seconds(1.8));
-        check_eq(run.name(primary), std::string("Saved 1"));
-        const auto bounds = run.headless.runtime().screen_bounds(run.headless.runtime().find(primary));
-        run.headless.move(bounds.center()); run.headless.step();
-        run.headless.advance(seconds(2));
-        check_eq(run.name(primary), std::string("Saved 1"));
-        check(run.name(detail + "/stage/hint").contains("Interactive"));
-        run.headless.move({2, 2});
-        run.headless.runtime().focus(run.headless.runtime().find(primary)); run.headless.step();
-        run.headless.advance(seconds(2));
-        check_eq(run.name(primary), std::string("Saved 1"));
-        run.headless.runtime().focus({}); run.headless.step();
-        run.headless.advance(seconds(1.8));
-        check_eq(run.name(primary), std::string("Save"));
-        run.act(detail + "/stage/actions/pause", "activate");
-        run.headless.advance(seconds(2));
-        check_eq(run.name(primary), std::string("Save"));
-        run.act(detail + "/stage/actions/pause", "activate");
-        run.headless.runtime().set_motion_level(MotionLevel::reduced); run.headless.step();
-        run.headless.advance(seconds(2));
-        check_eq(run.name(primary), std::string("Save"));
-        check(run.name(detail + "/stage/hint").contains("reduced-motion"));
-        run.headless.runtime().set_motion_level(MotionLevel::full);
-        run.headless.runtime().resize({1280, 400}, 1); run.headless.step();
-        run.headless.advance(seconds(2));
-        check_eq(run.name(primary), std::string("Save"));
-        check(run.name(detail + "/stage/hint").contains("visible"));
-        run.headless.runtime().resize({1280, 844}, 1); run.headless.step();
-        run.act(detail + "/stage/actions/details", "activate");
-        run.headless.advance(seconds(2));
-        check(run.name(primary) == "Save", "the detail route never runs the automatic preview");
-        run.act(detail + "/stage/actions/details", "activate");
-        Invocation agent; agent.actor = Actor{"agent", "gallery-review", {}};
-        check(run.headless.tree().act(primary, "activate", agent).exit_code() == std::optional<int>(0));
-        run.headless.advance(seconds(2));
-        check(run.name(primary) == "Saved 1", "an agent's real edit stays available for inspection");
-        check(run.name(detail + "/stage/hint").contains("Interactive"));
-    });
-
-    suite.test("tooltip previews use the actual keyboard trigger without taking focus automatically", [] {
+    suite.test("a tooltip is shown through its actual keyboard trigger, never taking focus by itself", [] {
         Run run;
         run.act(std::string(gallery) + "/overview/filter/search", "set_value", Value{}.set("value", "tooltip"));
         run.act(std::string(gallery) + "/overview/results/r0/tooltip/heading/open", "activate");
         const auto detail = run.detail("tooltip"), trigger = detail + "/stage/specimen/variants/save";
         check(run.headless.runtime().focused() != run.headless.runtime().find(trigger));
-        run.act(detail + "/stage/actions/interact", "activate");
+        run.act(detail + "/stage/actions/change", "activate");
         run.headless.advance(seconds(0.6));
         check(run.headless.runtime().focused() == run.headless.runtime().find(trigger));
         bool visible = false;

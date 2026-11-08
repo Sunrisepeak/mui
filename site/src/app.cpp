@@ -277,6 +277,7 @@ struct Site {
         if (next != "explore") motion_gallery_cancel(creative, creative_site);
         if (runtime && next != "motion") live_wall_stop(basic_wall.live, *runtime);
         if (runtime && next != "explore") live_wall_stop(creative_wall.live, *runtime), live_wall_stop(works.recipe_live, *runtime);
+        if (runtime && next != "explore" && next != "components") live_wall_stop(wall.live, *runtime);
         if (next != "agent") cancel_agent_feature(agent_feature_state);
         if (next != "styles") cancel_feature_examples(style_examples);
         if (next != "interface") cancel_feature_examples(interface_examples);
@@ -403,6 +404,17 @@ struct Site {
         soon();
     }
 
+    // The studio as a place shows it: its node path there, and what it shows besides the components.
+    StudioSite studio_site(std::string_view place) {
+        return {.gallery = &gallery, .gallery_site = gallery_site, .works = &works, .works_site = works_site, .compositions_site = creative_wall_site,
+                .root = std::format("main/body/view/{}/page/wall", place)};
+    }
+    // The canvas's height: the window under the bar, the studio's tools and its hint (at least a card's worth).
+    float studio_height() const {
+        const float window = runtime ? runtime->size().height : 900.0f;
+        return std::max(480.0f, window - 64 - 44 - 56 - 64 - 40);
+    }
+
     void open_component(std::string id) {
         if (!id.empty() && !find_component(id)) return;
         stop_previews("components");
@@ -456,11 +468,12 @@ struct Site {
         if (p == "home") tick_home_landing(landing, landing_site);
         if (p == "components") {
             tick_gallery(gallery, gallery_site);
-            if (gallery.selected.peek().empty() && !compact.peek()) component_wall_tick(wall, gallery, gallery_site);
+            if (gallery.selected.peek().empty() && !compact.peek()) studio_tick(wall, studio_site("components"));
         }
         if (p == "motion") basic.detail.peek() ? motion_gallery_tick(basic, basic_site) : motion_wall_tick(basic_wall, basic_wall_site);
         if (p == "explore") {
             if (creative.detail.peek()) motion_gallery_tick(creative, creative_site);
+            else if (room.peek() >= 900) studio_tick(wall, studio_site("explore"));
             else motion_wall_tick(creative_wall, creative_wall_site), recipe_library_tick(works, works_site);
         }
         if (p == "agent") tick_agent_feature(agent_feature_state, agent_site);
@@ -1340,13 +1353,13 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         content.push_back(fast_screen(s->screens_site, room));
         content.push_back(home_destinations(s->links, room));
     } else if (id == "components") {
-        // The wall first (every component at once, live up close), the library under it; a
-        // component's detail opened, the page is that component's (back, the wall as it was left).
+        // The studio at its components (every one live on the canvas); a component's detail
+        // opened, the page is that component's (back, the canvas as it was left). A phone: the bands.
         content.push_back(dynamic([s, room] {
-            if (!s->gallery.selected.get().empty()) return std::vector<Element>{};
-            return std::vector<Element>{room >= 900 ? component_wall(s->wall, s->gallery, s->gallery_site, room, 600) : phone_wall(s->gallery, s->gallery_site, room)};
+            if (!s->gallery.selected.get().empty()) return std::vector<Element>{gallery(s->gallery, s->gallery_site, true, room)};
+            return std::vector<Element>{room >= 900 ? studio(s->wall, s->studio_site("components"), "components", room, s->studio_height())
+                                                    : phone_wall(s->gallery, s->gallery_site, room)};
         }));
-        content.push_back(gallery(s->gallery, s->gallery_site, true, room));
     } else if (id == "motion") {
         // Every specimen at once; one opened, its own stage and controls.
         content.push_back(dynamic([s, room] {
@@ -1370,13 +1383,12 @@ Element place_page(const std::shared_ptr<Site>& s, const std::string& id) {
         // Motion (the site plan §4): the signature works first, the recipe library, then the
         // compositions; one composition opened, the page is that composition's.
         content.push_back(dynamic([s, room] {
-            std::vector<Element> parts;
-            if (!s->creative.detail.get()) {
-                parts.push_back(signature_works(s->works, s->works_site, room));
-                parts.push_back(recipe_library(s->works, s->works_site, room));
-            }
-            parts.push_back(s->creative.detail.get() ? motion_gallery(s->creative, s->creative_site, true, room) : motion_wall(s->creative_wall, s->creative_wall_site, true, room));
-            return parts;
+            // One composition opened: the page is that composition's.
+            if (s->creative.detail.get()) return std::vector<Element>{motion_gallery(s->creative, s->creative_site, true, room)};
+            // The studio at its works (the works, the compositions, the recipes, on the canvas); a phone: one after another.
+            if (room >= 900) return std::vector<Element>{studio(s->wall, s->studio_site("explore"), "works", room, s->studio_height())};
+            return std::vector<Element>{signature_works(s->works, s->works_site, room), recipe_library(s->works, s->works_site, room),
+                                        motion_wall(s->creative_wall, s->creative_wall_site, true, room)};
         }));
         content.push_back(explore_landing(s->links, room));
     } else if (id == "docs") {

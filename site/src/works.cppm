@@ -9,6 +9,7 @@ export module omui.site:works;
 
 import std;
 import omui;
+import hanim.engine;
 import :program_stage;
 import :live_wall;
 
@@ -44,11 +45,22 @@ struct WorksSite {
 };
 
 [[nodiscard]] Element signature_works(Works&, const WorksSite&, float width);
+// The works one by one (ids mark, gather, soft, letters, spring, agent, glass, layout), each
+// `card` wide; `path_of(id)` is where that card's node is (its controls act on its stage there).
+[[nodiscard]] std::vector<Element> work_cards(Works&, const WorksSite&, float card, const std::function<std::string(std::string_view)>& path_of);
+// The ids of the works, in order.
+inline constexpr std::array<std::string_view, 8> work_ids{"mark", "gather", "soft", "letters", "spring", "agent", "glass", "layout"};
 // The recipe library (the site plan §7.2): every recipe of hanim's library by
 // name (anim::recipes()), each a live thumbnail — played on a card when asked
 // — with its call in C++ and its step in an animation document to copy.
 [[nodiscard]] Element recipe_library(Works&, const WorksSite&, float width);
 void recipe_library_tick(Works&, const WorksSite&);
+// A recipe's card: its stage, its name, play, its call and step to copy, Tune (into the editor,
+// then `tuning`). `card_path` is where the card's node is; the pointer on it calls `hover`.
+[[nodiscard]] Element recipe_card(Works&, const WorksSite&, const hanim::anim::RecipeInfo&, float width, std::string card_path,
+                                  std::function<void(bool)> hover, std::function<void()> tuning);
+// The editor: the recipe being tuned on a larger stage, its sliders, its call and step to copy.
+[[nodiscard]] Element recipe_editor(Works&, const WorksSite&, float width);
 // A recipe's call (C++) and its step (an animation document's JSON): as tuned, or with its defaults.
 [[nodiscard]] std::string recipe_cpp(std::string_view name, const WorkTuning& tuning = {});
 [[nodiscard]] std::string recipe_json(std::string_view name, const WorkTuning& tuning = {});

@@ -4,11 +4,11 @@ import std;
 import omui.view;
 import hanim.visual;
 import xrender.raster;
-import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.text;
 
 using namespace omui;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
 namespace {
 bool near(Rect a, Rect b, float epsilon = 0.03f) {
@@ -22,7 +22,7 @@ Theme theme() { auto t = Theme::light(); t.motion["motion.normal"] = Transition:
 RuntimeOptions options(mlibs::text::FontCollection& fonts, Size size = {700, 500}) {
     RuntimeOptions o; o.fonts = &fonts; o.size = size; o.theme = theme(); return o;
 }
-void frame(Runtime& rt, double time) { check(rt.frame({seconds(time), {}}).failure.empty()); }
+void frame(Runtime& rt, double time) { expect(rt.frame({seconds(time), {}}).failure.empty()); }
 Element moving(Element e, std::string_view policy = "automatic") {
     e.prop("motion", Source(Value{}.set("use", "morph").set("curve", "motion.normal").set("placement", std::string(policy)))); return e;
 }
@@ -71,59 +71,54 @@ xrender::DisplayList drawing(bool target, bool resize = true, bool changing_stro
     list.pop_transform(); list.end_node(); return list;
 }
 }
-int main(int argc, char** argv) {
-    Suite suite{"view.constraint_placement"};
-    suite.test("placement is typed policy, never inferred from a recipe name", [] {
+UTest cases{"view.constraint_placement", [] {
+    "placement is typed policy, never inferred from a recipe name"_test = [] {
         const auto t=theme();
-        check(t.motion_library.at("default.action").placement==MotionSpec::PlacementPolicy::follow_layout);
-        check(t.motion_library.at("morph").placement==MotionSpec::PlacementPolicy::automatic);
+        expect(t.motion_library.at("default.action").placement==MotionSpec::PlacementPolicy::follow_layout);
+        expect(t.motion_library.at("morph").placement==MotionSpec::PlacementPolicy::automatic);
         auto copied=t; copied.motion_library["renamed"]=copied.motion_library.at("default.action");
-        const auto renamed=parse_motion(Value("renamed"),copied); check(renamed && renamed->placement==MotionSpec::PlacementPolicy::follow_layout);
+        const auto renamed=parse_motion(Value("renamed"),copied); expect(renamed && renamed->placement==MotionSpec::PlacementPolicy::follow_layout);
         const auto override=parse_motion(Value{}.set("use","default.action").set("placement","animate"),t);
-        check(override && override->placement==MotionSpec::PlacementPolicy::animate);
-        check(!parse_motion(Value{}.set("use","morph").set("placement","guess"),t));
-    });
-    suite.test("allocation projection keeps local shape state, paint and unscaled glyphs", [] {
+        expect(override && override->placement==MotionSpec::PlacementPolicy::animate);
+        expect(!parse_motion(Value{}.set("use","morph").set("placement","guess"),t));
+    };
+    "allocation projection keeps local shape state, paint and unscaled glyphs"_test = [] {
         auto a=drawing(false), b=drawing(true); mo::Options config; config.rebase_layout=true;
         config.curve.kind=mo::Curve::Kind::tween; config.curve.duration=1; config.curve.ease=hanim::ease::linear;
         mo::Morph morph(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
-        const auto& source=morph.from(); check(source.frames().front().rect.width==180);
-        check(std::abs(source.frames().front().transform.e-105)<0.01f,"new external origin 100 retains source visual translation 5");
+        const auto& source=morph.from(); expect(source.frames().front().rect.width==180);
+        expect(std::abs(source.frames().front().transform.e-105)<0.01f) << "new external origin 100 retains source visual translation 5";
         const auto commands=source.list().commands();
-        check(std::get<xrender::FillRoundRect>(commands[source.pieces()[0].command]).rect.width==180,"full border follows allocation immediately");
-        check(std::get<xrender::FillRect>(commands[source.pieces()[1].command]).rect.x==10,"internal state shape keeps source endpoint");
-        check(std::get<xrender::DrawGlyphs>(commands[source.pieces()[2].command]).size==16,"font size is never width-scaled");
+        expect(std::get<xrender::FillRoundRect>(commands[source.pieces()[0].command]).rect.width==180) << "full border follows allocation immediately";
+        expect(std::get<xrender::FillRect>(commands[source.pieces()[1].command]).rect.x==10) << "internal state shape keeps source endpoint";
+        expect(std::get<xrender::DrawGlyphs>(commands[source.pieces()[2].command]).size==16) << "font size is never width-scaled";
         const auto& label=std::get<xrender::DrawGlyphs>(commands[source.pieces()[2].command]);
-        check(label.origin.x==70 && label.styles.front().transform.e==3 && label.styles.front().opacity==0.6f,
-            "centered whole-run alignment adopts current allocation without discarding glyph state");
-        check(std::get<xrender::DrawGlyphs>(commands[source.pieces()[3].command]).origin.x==150,"right aligned run also adopts its current origin");
-        check(std::get<xrender::StrokeRoundRect>(commands[source.pieces()[4].command]).rect.width==179,
-            "half-stroke inset border follows the same allocation as its full fill");
-        xrender::DisplayList middle; morph.draw(0.5,middle); check(middle.balanced());
+        expect(label.origin.x==70 && label.styles.front().transform.e==3 && label.styles.front().opacity==0.6f) << "centered whole-run alignment adopts current allocation without discarding glyph state";
+        expect(std::get<xrender::DrawGlyphs>(commands[source.pieces()[3].command]).origin.x==150) << "right aligned run also adopts its current origin";
+        expect(std::get<xrender::StrokeRoundRect>(commands[source.pieces()[4].command]).rect.width==179) << "half-stroke inset border follows the same allocation as its full fill";
+        xrender::DisplayList middle; morph.draw(0.5,middle); expect(middle.balanced());
         bool thumb=false, glyph=false;
         for(const auto& c:middle.commands()) {
             if(const auto* f=std::get_if<xrender::FillRect>(&c); f && f->rect.width==10) thumb=f->rect.x>10 && f->rect.x<50;
             if(const auto* g=std::get_if<xrender::DrawGlyphs>(&c)) glyph=g->size==16;
         }
-        check(thumb && glyph,"state shape still takes its real intermediate trajectory");
-        xrender::DisplayList endpoint; morph.draw(1,endpoint); check(endpoint.balanced());
-        check(std::ranges::none_of(endpoint.commands(),[](const xrender::Command& c){return std::holds_alternative<xrender::PushClipRect>(c);}),
-            "temporary outgoing text crop cannot clip target ink at an exact held endpoint");
-    });
-    suite.test("allocation and border width can change together without an old inner line or outer overflow", [] {
+        expect(thumb && glyph) << "state shape still takes its real intermediate trajectory";
+        xrender::DisplayList endpoint; morph.draw(1,endpoint); expect(endpoint.balanced());
+        expect(std::ranges::none_of(endpoint.commands(),[](const xrender::Command& c){return std::holds_alternative<xrender::PushClipRect>(c);})) << "temporary outgoing text crop cannot clip target ink at an exact held endpoint";
+    };
+    "allocation and border width can change together without an old inner line or outer overflow"_test = [] {
         auto a=drawing(false,true,true),b=drawing(true,true,true);mo::Options config;config.rebase_layout=true;
         config.curve.kind=mo::Curve::Kind::tween;config.curve.duration=1;config.curve.ease=hanim::ease::linear;
         mo::Morph morph(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
         for(const double time:{0.0,0.3,0.7,1.0}) {
-            xrender::DisplayList out;morph.draw(time,out);check(out.balanced());bool found=false;
+            xrender::DisplayList out;morph.draw(time,out);expect(out.balanced());bool found=false;
             for(const auto& command:out.commands()) if(const auto* border=std::get_if<xrender::StrokeRoundRect>(&command)) {
-                found=true;check(std::abs(border->rect.x-border->width/2)<0.01f && std::abs(border->rect.right()+border->width/2-180)<0.01f,
-                    "source half-width inset and target half-width inset keep the painted outer edge on the current allocation");
+                found=true;expect(std::abs(border->rect.x-border->width/2)<0.01f && std::abs(border->rect.right()+border->width/2-180)<0.01f) << "source half-width inset and target half-width inset keep the painted outer edge on the current allocation";
             }
-            check(found);
+            expect(found);
         }
-    });
-    suite.test("fractional interrupted snapshot preserves ownership of a half-stroke inset border", [] {
+    };
+    "fractional interrupted snapshot preserves ownership of a half-stroke inset border"_test = [] {
         auto make=[](float width) {
             xrender::DisplayList list;list.begin_node(1);list.node_frame(1,{0,0,width,40});
             list.fill_round_rect({0,0,width,40},CornerRadii::all(4),xrender::Paint::solid(Color::white()));
@@ -135,35 +130,32 @@ int main(int argc, char** argv) {
         mo::Morph first(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
         auto snapshot=first.snapshot(0.5336417886554939);
         const auto& old_border=std::get<xrender::StrokeRoundRect>(snapshot.list().commands()[snapshot.pieces()[1].command]);
-        check(old_border.rect.width!=snapshot.frames().front().rect.width-1,
-            "fixture really exercises independently rounded frame and half-stroke interpolation");
+        expect(old_border.rect.width!=snapshot.frames().front().rect.width-1) << "fixture really exercises independently rounded frame and half-stroke interpolation";
         config.rebase_layout=true;
         mo::Morph second(std::move(snapshot),mo::Matter::extract(next,resolver()),config,1);
         const auto& from=second.from();const auto& border=std::get<xrender::StrokeRoundRect>(from.list().commands()[from.pieces()[1].command]);
-        check(std::abs(border.rect.right()+border.width/2-179.3f)<0.01f,
-            "fractional interrupted inset border still belongs to its owner and follows the new allocation");
-    });
-    suite.test("a content/alignment change in an unchanged border retains its glyph trajectory", [] {
+        expect(std::abs(border.rect.right()+border.width/2-179.3f)<0.01f) << "fractional interrupted inset border still belongs to its owner and follows the new allocation";
+    };
+    "a content/alignment change in an unchanged border retains its glyph trajectory"_test = [] {
         auto a=drawing(false,false), b=drawing(true,false);mo::Options config;config.rebase_layout=true;
         mo::Morph morph(mo::Matter::extract(a,resolver()),mo::Matter::extract(b,resolver()),config,0);
         const auto& from=morph.from();const auto& run=std::get<xrender::DrawGlyphs>(from.list().commands()[from.pieces()[2].command]);
-        check(run.origin.x==30 && run.size==16 && run.styles.front().transform.e==3,
-            "unchanged allocation cannot snap text alignment/content motion to its target");
-    });
-    suite.test("default action follows sibling allocation while state colour still morphs", [] {
+        expect(run.origin.x==30 && run.size==16 && run.styles.front().transform.e==3) << "unchanged allocation cannot snap text alignment/content motion to its target";
+    };
+    "default action follows sibling allocation while state colour still morphs"_test = [] {
         mlibs::text::FontCollection fonts; Runtime rt(options(fonts)); auto width=signal(20.0f); auto hot=signal(false);
         auto button=box({.id="button",.width=60,.height=30,.background=derive([hot]{return Fill(hot.get()?"#1d4ed8":"#e11d48");})});
         button.prop("motion",Source(Value("default.action motion.normal")));
         rt.mount("main",row({}, {offset_box("spacer",width),std::move(button)})); frame(rt,0);frame(rt,0.1);
         const auto id=rt.find("main/button"); width.set(200);hot.set(true);frame(rt,1);frame(rt,1.3);
-        check(near(rt.drawn_bounds(id),rt.screen_bounds(id)),"external placement is current allocation, without sibling crossing");
-        check(!rt.motions().empty(),"state feedback remains active");
-    });
-    suite.test("resize transaction spans deferred laid_out reflow and contains parent field caption and status", [] {
-        mlibs::text::FontCollection fonts;check(fonts.add_defaults().has_value()); Runtime rt(options(fonts));
+        expect(near(rt.drawn_bounds(id),rt.screen_bounds(id))) << "external placement is current allocation, without sibling crossing";
+        expect(!rt.motions().empty()) << "state feedback remains active";
+    };
+    "resize transaction spans deferred laid_out reflow and contains parent field caption and status"_test = [] {
+        mlibs::text::FontCollection fonts;expect(fonts.add_defaults().has_value()); Runtime rt(options(fonts));
         Element responsive; responsive.id="responsive";responsive.type=&component_type<Responsive>();responsive.prop("width",Source(Value("100%")));
         rt.mount("main",std::move(responsive));frame(rt,0);frame(rt,0.1);frame(rt,0.2);
-        auto* model=rt.component<Responsive>(rt.find("main"));check(model!=nullptr); if(!model)return;
+        auto* model=rt.component<Responsive>(rt.find("main"));expect(model!=nullptr); if(!model)return;
         model->hot.set(true);frame(rt,1);frame(rt,1.2);
         double begin=2;
         for(const Size size:{Size{320,500},Size{700,500}}) {
@@ -172,16 +164,16 @@ int main(int argc, char** argv) {
             const auto primary=rt.find("main/actions/primary"),replay=rt.find("main/actions/replay"),status=rt.find("main/status"),preview=rt.find("main/preview");
             for(const double sample:{0.016,0.05,0.2,0.6}) {
                 frame(rt,begin+sample);
-                check(contains(rt.drawn_bounds(specimen),rt.drawn_bounds(field)),"actual field stays inside current parent carrier");
-                check(contains(rt.drawn_bounds(specimen),rt.drawn_bounds(caption)),"caption allocation stays inside its current carrier");
-                check(separated(rt.drawn_bounds(specimen),rt.drawn_bounds(preview)),"carrier does not sweep through subsequent preview text");
-                check(separated(rt.drawn_bounds(primary),rt.drawn_bounds(replay)) && separated(rt.drawn_bounds(primary),rt.drawn_bounds(status)),"current actions and status never cross");
-                check(rt.hit_test(rt.drawn_bounds(primary).center())==primary,"presented action center has the same live pointer owner");
+                expect(contains(rt.drawn_bounds(specimen),rt.drawn_bounds(field))) << "actual field stays inside current parent carrier";
+                expect(contains(rt.drawn_bounds(specimen),rt.drawn_bounds(caption))) << "caption allocation stays inside its current carrier";
+                expect(separated(rt.drawn_bounds(specimen),rt.drawn_bounds(preview))) << "carrier does not sweep through subsequent preview text";
+                expect(separated(rt.drawn_bounds(primary),rt.drawn_bounds(replay)) && separated(rt.drawn_bounds(primary),rt.drawn_bounds(status))) << "current actions and status never cross";
+                expect(rt.hit_test(rt.drawn_bounds(primary).center())==primary) << "presented action center has the same live pointer owner";
             }
             frame(rt,begin+1.5); begin+=2;
         }
-    });
-    suite.test("same viewport auto-height list-grid model still has real intermediate allocation", [] {
+    };
+    "same viewport auto-height list-grid model still has real intermediate allocation"_test = [] {
         mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto grid=signal(false);
         rt.mount("main",column({}, {dynamic([grid] {
             std::vector<Element> items;
@@ -191,17 +183,17 @@ int main(int argc, char** argv) {
             // auto height changes solely because the same model changed.
             return std::vector<Element>{moving(stack({.id="owner"}, {std::move(surface)}))};
         })}));frame(rt,0);frame(rt,0.1);
-        const auto initial=rt.find("main/owner"); check(rt.valid(initial),"negative fixture has a real owner below a concrete mounted column");
+        const auto initial=rt.find("main/owner"); expect(rt.valid(initial)) << "negative fixture has a real owner below a concrete mounted column";
         const auto before=rt.drawn_bounds(initial);grid.set(true);frame(rt,1);frame(rt,1.4);
-        const auto id=rt.find("main/owner"); check(rt.valid(id),"model reorder retains the real explicit owner");
+        const auto id=rt.find("main/owner"); expect(rt.valid(id)) << "model reorder retains the real explicit owner";
         const auto now=rt.drawn_bounds(id),target=rt.screen_bounds(id);
         std::println("list-grid owner={} before=[{},{},{},{}] now=[{},{},{},{}] target=[{},{},{},{}] motions={}",
             rt.path(id),before.x,before.y,before.width,before.height,now.x,now.y,now.width,now.height,target.x,target.y,target.width,target.height,rt.motions().size());
         for(const auto& motion:rt.motions()) std::println("  motion {} progress={} start={} end={} matched={} only-a={} only-b={}",motion.path,motion.progress,motion.start,motion.end,motion.matched,motion.from_only,motion.to_only);
-        check(!near(before,target),"fixture must have genuinely different natural-height allocation endpoints");
-        check(!near(now,before)&&!near(now,target),"auto-height change does not masquerade as external constraint change");
-    });
-    suite.test("explicit animate opts out and explicit subtree constraint leaves sibling motion alone", [] {
+        expect(!near(before,target)) << "fixture must have genuinely different natural-height allocation endpoints";
+        expect(!near(now,before)&&!near(now,target)) << "auto-height change does not masquerade as external constraint change";
+    };
+    "explicit animate opts out and explicit subtree constraint leaves sibling motion alone"_test = [] {
         mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(20.0f);
         auto lane=[&](std::string id,std::string policy) {
             return row({.id=std::move(id)}, {offset_box("spacer",width),moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}),policy)});
@@ -209,43 +201,43 @@ int main(int argc, char** argv) {
         rt.mount("main",column({}, {lane("scoped","automatic"),lane("outside","automatic"),lane("optout","animate")}));frame(rt,0);frame(rt,0.1);
         const auto scoped=rt.find("main/scoped/control"),outside=rt.find("main/outside/control"),optout=rt.find("main/optout/control");
         width.set(200);rt.constraints_changed(rt.find("main/scoped"));rt.constraints_changed(rt.find("main/optout"));frame(rt,1);frame(rt,1.4);
-        check(near(rt.drawn_bounds(scoped),rt.screen_bounds(scoped)),"named boundary rebase applies to its descendants");
-        check(!near(rt.drawn_bounds(outside),rt.screen_bounds(outside)),"unrelated sibling retains explicit model animation");
-        check(!near(rt.drawn_bounds(optout),rt.screen_bounds(optout)),"animate is an explicit opt-out even inside transaction");
+        expect(near(rt.drawn_bounds(scoped),rt.screen_bounds(scoped))) << "named boundary rebase applies to its descendants";
+        expect(!near(rt.drawn_bounds(outside),rt.screen_bounds(outside))) << "unrelated sibling retains explicit model animation";
+        expect(!near(rt.drawn_bounds(optout),rt.screen_bounds(optout))) << "animate is an explicit opt-out even inside transaction";
         frame(rt,3);width.set(80);frame(rt,4);frame(rt,4.4);
-        check(!near(rt.drawn_bounds(scoped),rt.screen_bounds(scoped)),"ended transaction cannot leak into future ordinary model changes");
-    });
-    suite.test("natural width driven by model is not an external allocation transaction", [] {
+        expect(!near(rt.drawn_bounds(scoped),rt.screen_bounds(scoped))) << "ended transaction cannot leak into future ordinary model changes";
+    };
+    "natural width driven by model is not an external allocation transaction"_test = [] {
         mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(50.0f);
         auto child=offset_box("child",width);
         auto surface=moving(row({.id="surface",.align_self="start",.background="#e11d48"},{std::move(child)}));
         rt.mount("main",column({}, {std::move(surface)}));frame(rt,0);frame(rt,0.1);
         const auto id=rt.find("main/surface"); const auto before=rt.drawn_bounds(id);width.set(180);frame(rt,1);frame(rt,1.4);
         const auto middle=rt.drawn_bounds(id),target=rt.screen_bounds(id);
-        check(middle.width>before.width && middle.width<target.width,"child-driven natural width keeps its explicit model trajectory");
-    });
-    suite.test("held local motion rebases allocation without losing its pause or internal endpoint", [] {
+        expect(middle.width>before.width && middle.width<target.width) << "child-driven natural width keeps its explicit model trajectory";
+    };
+    "held local motion rebases allocation without losing its pause or internal endpoint"_test = [] {
         mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto prefix=signal(20.0f);auto x=signal(0.0f);
         auto control=moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}));
         control.prop("translate_x",Source(derive([x]{return Value(static_cast<double>(x.get()));})));
         rt.mount("main",row({}, {offset_box("prefix",prefix),std::move(control)}));frame(rt,0);frame(rt,0.1);
-        const auto id=rt.find("main/control");x.set(40);frame(rt,1);frame(rt,1.4);check(rt.hold_motion(id));rt.pause_motion(id);
+        const auto id=rt.find("main/control");x.set(40);frame(rt,1);frame(rt,1.4);expect(rt.hold_motion(id));rt.pause_motion(id);
         const float own=rt.drawn_bounds(id).x-20;
         prefix.set(200);rt.constraints_changed(id);frame(rt,1.5);
-        check(std::abs(rt.drawn_bounds(id).x-(200+own))<0.1f,"paused state is preserved at the new external allocation");
-        const auto held=rt.drawn_bounds(id);frame(rt,1.8);check(near(held,rt.drawn_bounds(id)),"constraint retarget does not resume a paused handle");
+        expect(std::abs(rt.drawn_bounds(id).x-(200+own))<0.1f) << "paused state is preserved at the new external allocation";
+        const auto held=rt.drawn_bounds(id);frame(rt,1.8);expect(near(held,rt.drawn_bounds(id))) << "constraint retarget does not resume a paused handle";
         rt.release_motion(id);frame(rt,3);
-    });
-    suite.test("reduced and off use current allocation and remain within their motion policy", [] {
+    };
+    "reduced and off use current allocation and remain within their motion policy"_test = [] {
         for(const MotionLevel level:{MotionLevel::reduced,MotionLevel::off}) {
             mlibs::text::FontCollection fonts;Runtime rt(options(fonts));auto width=signal(20.0f);
             rt.set_motion_level(level);rt.mount("main",row({}, {offset_box("prefix",width),moving(box({.id="control",.width=60,.height=30,.background="#e11d48"}))}));
             frame(rt,0);frame(rt,0.1);const auto id=rt.find("main/control");width.set(200);rt.constraints_changed(id);frame(rt,1);frame(rt,1.2);
-            check(near(rt.drawn_bounds(id),rt.screen_bounds(id)),"policy never retains old external placement after constraints change");
-            check(rt.motions().empty(),"off/reduced do not acquire a long default duration");
+            expect(near(rt.drawn_bounds(id),rt.screen_bounds(id))) << "policy never retains old external placement after constraints change";
+            expect(rt.motions().empty()) << "off/reduced do not acquire a long default duration";
         }
-    });
-    suite.test("external rebase keeps inherited current rounded clip at exact zero and mid frame", [] {
+    };
+    "external rebase keeps inherited current rounded clip at exact zero and mid frame"_test = [] {
         mlibs::text::FontCollection fonts;Runtime rt(options(fonts,{200,100}));auto prefix=signal(60.0f);
         auto child=box({.id="control",.width=60,.height=30,.background="#e11d48"});child.prop("motion",Source(Value("none")));
         auto row_view=row({.id="lane"},{offset_box("prefix",prefix),std::move(child)});row_view.prop("motion",Source(Value("none")));
@@ -258,10 +250,9 @@ int main(int argc, char** argv) {
             xrender::raster::Surface surface(200,100);xrender::CpuRenderer renderer;xrender::CpuOptions cpu;cpu.object_ids=true;
             (void)renderer.render(rt.display_list(),surface,{&rt.images(),&glyphs},cpu);
             const auto owner=renderer.object_ids()[15*200+75];
-            check(rt.node_at_index(owner)==id,"CPU body pixel is inside the current inherited clip");
-            check(rt.hit_test(painted)==id,"rebasing a child never translates its ancestor clip away from a visible pixel");
-            check(rt.hit_test({105,15})!=id,"current rounded carrier still clips both drawing and input");
+            expect(rt.node_at_index(owner)==id) << "CPU body pixel is inside the current inherited clip";
+            expect(rt.hit_test(painted)==id) << "rebasing a child never translates its ancestor clip away from a visible pixel";
+            expect(rt.hit_test({105,15})!=id) << "current rounded carrier still clips both drawing and input";
         }
-    });
-    return suite.run(argc,argv);
-}
+    };
+}};

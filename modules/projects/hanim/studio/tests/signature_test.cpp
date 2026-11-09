@@ -17,8 +17,10 @@ import hanim.render.vector;
 import mlibs.hash;
 import mcpplibs.os;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace hanim;
 namespace rhi = mlibs::rhi;
 namespace geom = mlibs::geom;
@@ -28,9 +30,9 @@ namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << result ? std::string() : result.error().text();
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result) std::abort();
     if constexpr (!std::is_void_v<T>) return std::move(*result);
 }
@@ -97,22 +99,21 @@ std::unique_ptr<Shot> drop() {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"xrender.sdl.signature"};
-    s.test("the four signature shots: CPU and GPU draw the same frames through each course", [] {
+UTest cases{"xrender.sdl.signature", [] {
+    "the four signature shots: CPU and GPU draw the same frames through each course"_test = [] {
         xrender::rhi::sdl::Options o;
         o.formats = xrender::gpu_shader_formats();
         if (auto lib = mcpplibs::os::env::get("OMUI_VULKAN_LIBRARY")) o.vulkan_library = *lib;
         if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
         auto created = xrender::rhi::sdl::create(o);
         if (!created) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") check(false, std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message));
+            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", created.error().message);
             return;
         }
         rhi::Device& device = **created;
         auto gpu = take(xrender::GpuRenderer::create(device));
         auto target = device.create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target | rhi::TextureUsage::sampled, "signature"});
-        check(target.has_value());
+        expect(target.has_value());
         if (!target) return;
         const auto dir = scratch_dir("hanim-signature");
         const geom::Color ground = geom::Color::hex(0x1b2433);
@@ -142,9 +143,9 @@ int main(int argc, char** argv) {
                 xrender::CpuRenderer reference;
                 (void)reference.render(list, cpu, {}, {.background = ground});
                 const auto report = gpu.render(list, *target, {}, {.background = ground});
-                check(report.has_value(), report ? "" : report.error().message);
+                expect(report.has_value()) << report ? "" : report.error().message;
                 const auto bytes = device.read(*target, rhi::Region{0, 0, W, H});
-                check(bytes.has_value());
+                expect(bytes.has_value());
                 if (!bytes) continue;
                 int worst = 0;
                 std::size_t off = 0;
@@ -155,20 +156,18 @@ int main(int argc, char** argv) {
                     worst = std::max(worst, diff);
                     off += diff > 1;
                 }
-                check(worst <= 2 && off <= cpu.pixels().size() / 500,
-                      std::format("{} at {:.3f} s: the GPU differs by up to {} ({} pixels off by more than 1)", shot->name, shot->moments[k], worst, off));
+                expect(worst <= 2 && off <= cpu.pixels().size() / 500) << std::format("{} at {:.3f} s: the GPU differs by up to {} ({} pixels off by more than 1)", shot->name, shot->moments[k], worst, off);
                 for (int y = 0; y < H; ++y) std::copy_n(cpu.row(y), W, strip.row(y) + static_cast<int>(k) * W);
                 // The frame's own pixels: does the shot move between moments?
                 const std::uint64_t h = mlibs::hash::Fnv1a{}.bytes(std::as_bytes(cpu.pixels())).value();
                 distinct += h != previous;
                 previous = h;
             }
-            check(distinct >= shot->moments.size() - 1, std::format("{}: its frames change through the course ({} of {})", shot->name, distinct, shot->moments.size()));
+            expect(distinct >= shot->moments.size() - 1) << std::format("{}: its frames change through the course ({} of {})", shot->name, distinct, shot->moments.size());
             const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(strip.pixels().data()), strip.width(), H, strip.width() * 4, mlibs::image::Alpha::premultiplied};
-            check(mlibs::image::save_png(dir / (shot->name + ".strip.png"), view).has_value(), "the strip kept");
+            expect(mlibs::image::save_png(dir / (shot->name + ".strip.png"), view).has_value()) << "the strip kept";
         }
         std::println("the four shots' strips in {}", dir.string());
         device.destroy(*target);
-    });
-    return s.run(argc, argv);
-}
+    };
+}};

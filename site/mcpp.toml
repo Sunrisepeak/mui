@@ -58,7 +58,7 @@ omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting st
 omui.semantic    = { path = "../modules/projects/omui/semantic" }
 mlibs.utils       = { path = "../modules/base/utils" }
 omui.inspector   = { path = "../tools/inspector" }
-mcpplibs.os         = "0.2.2"
+mcpplibs.os         = "0.4.1"
 
 [build-dependencies]
 omui.build.contracts = { path = "../mcpp/contracts", host-module = true }

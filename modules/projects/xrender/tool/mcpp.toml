@@ -33,5 +33,5 @@ mlibs.rhi       = { path = "../../../gfx/rhi" }
 mlibs.cts       = { path = "../../../base/cts" }
 mlibs.image     = { path = "../../../base/image" }
 mlibs.geom      = { path = "../../../base/geom" }
-mcpplibs.os     = "0.2.2"
+mcpplibs.os     = "0.4.1"
 nlohmann.json   = "3.12.0"

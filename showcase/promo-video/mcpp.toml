@@ -54,7 +54,7 @@ omui.showcase.style_gallery      = { path = "../style-gallery" }
 "omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
 marzer.tomlplusplus                 = "3.4.0"
 mcpplibs.cmdline                    = "0.0.2"
-mcpplibs.os                         = "0.2.2"
+mcpplibs.os                         = "0.4.1"
 
 [build-dependencies]
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }

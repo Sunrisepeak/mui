@@ -5,11 +5,11 @@ import hanim.core;
 import omui.view;
 import mlibs.math;
 import xrender.raster;
-import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.text;
 
 using namespace omui;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 mlibs::text::FontCollection& fonts() {
@@ -49,7 +49,7 @@ std::optional<Point> first_pen(const Runtime& runtime) {
 std::uint64_t pixels(Runtime& runtime) {
     xrender::raster::Surface surface(400, 240); xrender::text::GlyphCache glyphs(runtime.fonts()); xrender::CpuRenderer renderer;
     const auto report = renderer.render(runtime.display_list(), surface, {&runtime.images(), &glyphs}, {.background = Color::white()});
-    check(report.missing_glyphs == 0);
+    expect(report.missing_glyphs == 0);
     return surface.hash();
 }
 struct LabelPage {
@@ -94,10 +94,10 @@ CaptionShape caption_shape(Runtime& runtime, xrender::text::GlyphCache& source) 
         else if (std::holds_alternative<xrender::PopTransform>(command)) transforms.pop_back();
         else if (!nodes.empty() && nodes.back() == caption)
             if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command)) {
-                check_eq(run->paint.color.a, 1.0f);
+                expect(eq(run->paint.color.a, 1.0f));
                 for (std::size_t i = 0; i < run->glyphs.size(); ++i) {
                     const auto style = run->styles.empty() ? xrender::GlyphStyle{} : run->styles[i];
-                    check_eq(style.opacity, 1.0f); check_eq(style.tint.a, 0.0f);
+                    expect(eq(style.opacity, 1.0f)); expect(eq(style.tint.a, 0.0f));
                     shape.has_nonidentity_style = shape.has_nonidentity_style || !style.transform.identity();
                     const auto& glyph = run->glyphs[i];
                     shape.glyphs.push_back(glyph.id);
@@ -111,48 +111,47 @@ CaptionShape caption_shape(Runtime& runtime, xrender::text::GlyphCache& source) 
     return shape;
 }
 void readable(const Paints& paints) {
-    check(paints.has_paper && paints.has_ink);
+    expect(paints.has_paper && paints.has_ink);
     if (!paints.has_paper || !paints.has_ink) return;
     const auto ink = mlibs::math::color::relative_luminance(paints.ink.r, paints.ink.g, paints.ink.b);
     const auto paper = mlibs::math::color::relative_luminance(paints.paper.r, paints.paper.g, paints.paper.b);
-    check(mlibs::math::color::contrast_ratio(ink, paper) >= 4.5 - 0.00001);
+    expect(mlibs::math::color::contrast_ratio(ink, paper) >= 4.5 - 0.00001);
 }
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"view.text-policy"};
-    suite.test("public text choices compose with drawing and preserve explicit overrides", [] {
+UTest cases{"view.text-policy", [] {
+    "public text choices compose with drawing and preserve explicit overrides"_test = [] {
         const auto theme = Theme::light();
         for (const auto& [name, expected] : std::array{
             std::pair{"auto", MotionSpec::TextTransition::automatic},
             std::pair{"replace", MotionSpec::TextTransition::replace},
             std::pair{"glyphs", MotionSpec::TextTransition::glyphs}}) {
             const auto policy = parse_motion(Value{}.set("use", "default.action").set("text", name), theme);
-            check(policy && policy->glyphs && policy->text == expected, "public field can override a library recipe");
+            expect(policy && policy->glyphs && policy->text == expected) << "public field can override a library recipe";
         }
         const auto policy = parse_motion(Value{}.set("compose", Value(Value::List{"match", "readable-text", "fade"})), theme);
-        check(policy.has_value());
+        expect(policy.has_value());
         if (policy) {
-            check(policy->kind == MotionSpec::Kind::morph && policy->text == MotionSpec::TextTransition::automatic);
-            check((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0);
-            check((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::readable_text)) != 0);
-            check((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::fade)) != 0);
+            expect(policy->kind == MotionSpec::Kind::morph && policy->text == MotionSpec::TextTransition::automatic);
+            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0);
+            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::readable_text)) != 0);
+            expect((policy->primitives & static_cast<std::uint16_t>(MotionPrimitive::fade)) != 0);
         }
         const auto explicit_glyphs = parse_motion(Value{}.set("compose", Value(Value::List{"match", "readable-text"})).set("text", "glyphs"), theme);
-        check(explicit_glyphs && explicit_glyphs->text == MotionSpec::TextTransition::glyphs);
+        expect(explicit_glyphs && explicit_glyphs->text == MotionSpec::TextTransition::glyphs);
         const auto legacy = parse_motion(Value{}.set("use", "default.action").set("glyphs", false), theme);
-        check(legacy && !legacy->glyphs, "legacy explicit whole-run crossfade remains available");
-        check(motion_primitive("readable-text") == MotionPrimitive::readable_text);
-        check_eq(motion_primitive_name(MotionPrimitive::readable_text), std::string_view("readable-text"));
+        expect(legacy && !legacy->glyphs) << "legacy explicit whole-run crossfade remains available";
+        expect(motion_primitive("readable-text") == MotionPrimitive::readable_text);
+        expect(eq(motion_primitive_name(MotionPrimitive::readable_text), std::string_view("readable-text")));
         for (const auto& invalid : std::array{Value("unknown"), Value(2), Value(true), Value{}, Value(Value::List{"auto"})})
-            check(!parse_motion(Value{}.set("text", invalid), theme));
-    });
-    suite.test("ink-only contrast accepts a supported target and rejects impossible or malformed requests", [] {
+            expect(!parse_motion(Value{}.set("text", invalid), theme));
+    };
+    "ink-only contrast accepts a supported target and rejects impossible or malformed requests"_test = [] {
         const auto theme = Theme::light();
         for (const double threshold : {0.0, 1.0, 3.0, 4.5}) {
             const auto policy = parse_motion(Value{}.set("use", "default.action").set("text_contrast", threshold), theme);
-            check(policy.has_value());
-            if (policy) check_eq(policy->minimum_text_contrast, threshold);
+            expect(policy.has_value());
+            if (policy) expect(eq(policy->minimum_text_contrast, threshold));
         }
         const std::array invalid{
             Value(-1.0), Value(0.5), Value(4.5001), Value(7.0),
@@ -160,59 +159,59 @@ int main(int argc, char** argv) {
             Value(-std::numeric_limits<double>::infinity()), Value("4.5"), Value(true), Value{},
             Value(Value::List{4.5}), Value{}.set("ratio", 4.5)};
         for (std::size_t i = 0; i < invalid.size(); ++i)
-            check(!parse_motion(Value{}.set("text_contrast", invalid[i]), theme), std::format("invalid contrast request {} rejected", i));
-    });
-    suite.test("default action is readable automatically while explicit morph keeps glyph choreography", [] {
+            expect(!parse_motion(Value{}.set("text_contrast", invalid[i]), theme)) << std::format("invalid contrast request {} rejected", i);
+    };
+    "default action is readable automatically while explicit morph keeps glyph choreography"_test = [] {
         const auto theme = Theme::light();
         const auto action = parse_motion(Value("default.action"), theme), morph = parse_motion(Value("morph"), theme);
-        check(action && action->glyphs && action->text == MotionSpec::TextTransition::automatic);
-        check(morph && morph->glyphs && morph->text == MotionSpec::TextTransition::glyphs);
-        if (action) check_eq(action->minimum_text_contrast, 4.5);
+        expect(action && action->glyphs && action->text == MotionSpec::TextTransition::automatic);
+        expect(morph && morph->glyphs && morph->text == MotionSpec::TextTransition::glyphs);
+        if (action) expect(eq(action->minimum_text_contrast, 4.5));
         const auto strategies = parse_motions(Value(Value::List{
             Value{}.set("compose", Value(Value::List{"match", "readable-text"})).set("text", "replace"),
             Value{}.set("use", "simple").set("text", "glyphs").set("text_contrast", 0)}), theme);
-        check(strategies && strategies->size() == 2);
+        expect(strategies && strategies->size() == 2);
         if (strategies && strategies->size() == 2) {
-            check((*strategies)[0].text == MotionSpec::TextTransition::replace);
-            check((*strategies)[1].text == MotionSpec::TextTransition::glyphs);
-            check_eq((*strategies)[1].minimum_text_contrast, 0.0);
+            expect((*strategies)[0].text == MotionSpec::TextTransition::replace);
+            expect((*strategies)[1].text == MotionSpec::TextTransition::glyphs);
+            expect(eq((*strategies)[1].minimum_text_contrast, 0.0));
         }
-    });
-    suite.test("off and system reduced preference show the current label without creating a morph", [] {
+    };
+    "off and system reduced preference show the current label without creating a morph"_test = [] {
         for (const bool system : {false, true}) {
             LabelPage page(system ? MotionLevel::full : MotionLevel::off, system);
             page.change();
-            check(page.runtime.motions().empty());
-            check_eq(page.runtime.get(page.runtime.find("main/label"), "text").as_string(), std::string_view("After"));
+            expect(page.runtime.motions().empty());
+            expect(eq(page.runtime.get(page.runtime.find("main/label"), "text").as_string(), std::string_view("After")));
             Runtime expected(runtime_options()); expected.set_motion_level(MotionLevel::off);
             expected.mount("main", column({}, {label_element(signal(std::string("After")))}));
             expected.frame({seconds(0), {}}); expected.frame({seconds(0.016), {}});
-            check_eq(pixels(page.runtime), pixels(expected));
+            expect(eq(pixels(page.runtime), pixels(expected)));
         }
-    });
-    suite.test("reduced replacement really fades whole lines without vertical travel", [] {
+    };
+    "reduced replacement really fades whole lines without vertical travel"_test = [] {
         for (const auto level : {MotionLevel::full, MotionLevel::reduced}) {
-            LabelPage page(level); const auto original = first_pen(page.runtime); check(original.has_value());
+            LabelPage page(level); const auto original = first_pen(page.runtime); expect(original.has_value());
             page.change(); const auto node = page.runtime.find("main/label");
-            check(page.runtime.hold_motion(node)); page.runtime.pause_motion(node);
-            const auto timing = page.runtime.motion_time(node); check(timing.has_value());
+            expect(page.runtime.hold_motion(node)); page.runtime.pause_motion(node);
+            const auto timing = page.runtime.motion_time(node); expect(timing.has_value());
             if (!timing || !original) continue;
-            check(level == MotionLevel::reduced ? timing->first > 0 && timing->first <= 0.13 : timing->first >= 0.99);
+            expect(level == MotionLevel::reduced ? timing->first > 0 && timing->first <= 0.13 : timing->first >= 0.99);
             for (const double fraction : {0.25, 0.75}) {
                 page.runtime.seek_motion(node, timing->first * fraction);
                 page.runtime.frame({seconds(0.3 + fraction), {}});
-                const auto pen = first_pen(page.runtime); check(pen.has_value());
+                const auto pen = first_pen(page.runtime); expect(pen.has_value());
                 if (!pen) continue;
-                if (level == MotionLevel::reduced) check_near(pen->y, original->y, 0.001);
-                else check(std::abs(pen->y - original->y) > 1, "full-motion recipe still has real whole-line travel");
+                if (level == MotionLevel::reduced) expect(near(pen->y, original->y, 0.001));
+                else expect(std::abs(pen->y - original->y) > 1) << "full-motion recipe still has real whole-line travel";
                 bool faded = false;
                 for (const auto& command : page.runtime.display_list().commands())
                     if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command)) faded = faded || (glyphs->paint.color.a > 0 && glyphs->paint.color.a < 1);
-                check(faded, "reduced keeps a real finite transition instead of silently switching animation off");
+                expect(faded) << "reduced keeps a real finite transition instead of silently switching animation off";
             }
         }
-    });
-    suite.test("fonts_changed keeps the active deferred nested proof source alive", [] {
+    };
+    "fonts_changed keeps the active deferred nested proof source alive"_test = [] {
         auto config = runtime_options();
         auto theme = config.theme;
         theme.colors["surface"] = Color::white(); theme.colors["text"] = Color::black();
@@ -230,7 +229,7 @@ int main(int argc, char** argv) {
         theme.colors["surface"] = Color::black(); theme.colors["text"] = Color::white(); runtime.set_theme(theme);
         runtime.frame({seconds(0.2), {}});
         const auto stage_id = runtime.find("main/stage"), child_id = runtime.find("main/stage/control");
-        check(runtime.hold_motion(stage_id) && runtime.hold_motion(child_id), "both outer and nested real motions are active");
+        expect(runtime.hold_motion(stage_id) && runtime.hold_motion(child_id)) << "both outer and nested real motions are active";
         for (const auto& motion : runtime.motions()) {
             runtime.pause_motion(motion.node); runtime.seek_motion(motion.node, (motion.end - motion.start) * 0.5);
         }
@@ -238,18 +237,18 @@ int main(int argc, char** argv) {
         const auto before = caption_paints(runtime); readable(before);
         for (int reload = 0; reload < 3; ++reload) {
             runtime.fonts_changed(); runtime.frame({seconds(0.4 + reload * 0.1), {}});
-            check(runtime.motion_time(stage_id).has_value(), "the deferred callback remains live through invalidation");
+            expect(runtime.motion_time(stage_id).has_value()) << "the deferred callback remains live through invalidation";
             const auto after = caption_paints(runtime); readable(after);
-            check_eq(after.ink, before.ink); check_eq(after.paper, before.paper);
+            expect(eq(after.ink, before.ink)); expect(eq(after.paper, before.paper));
         }
         for (const float dpi : {2.0f, 1.0f}) {
             runtime.resize({400, 240}, dpi); runtime.frame({seconds(dpi == 2 ? 0.8 : 0.9), {}});
-            check_eq(runtime.scale(), dpi);
-            check(runtime.motion_time(stage_id).has_value() && runtime.motion_time(child_id).has_value(), "DPI changes preserve the active held motions");
+            expect(eq(runtime.scale(), dpi));
+            expect(runtime.motion_time(stage_id).has_value() && runtime.motion_time(child_id).has_value()) << "DPI changes preserve the active held motions";
             readable(caption_paints(runtime));
         }
-    });
-    suite.test("real 13 to 12 point captions stay readable on a composited translucent surface", [] {
+    };
+    "real 13 to 12 point captions stay readable on a composited translucent surface"_test = [] {
         auto config = runtime_options();
         auto theme = config.theme;
         theme.colors["background"] = Color::white(); theme.colors["surface"] = Color::white(); theme.colors["text"] = Color::black();
@@ -268,7 +267,7 @@ int main(int argc, char** argv) {
         theme.colors["surface"] = Color::hex(0x2a2763, 0.94f); theme.colors["text"] = Color::hex(0xf8fafc); theme.text["caption"].size = 12;
         runtime.set_theme(theme); runtime.frame({seconds(0.2), {}});
         const auto stage_id = runtime.find("main/stage"), child_id = runtime.find("main/stage/control");
-        check(runtime.hold_motion(stage_id) && runtime.hold_motion(child_id));
+        expect(runtime.hold_motion(stage_id) && runtime.hold_motion(child_id));
         const auto motions = runtime.motions();
         for (const auto& motion : motions) runtime.pause_motion(motion.node);
         for (const double fraction : {0.25, 0.5, 0.75}) {
@@ -283,9 +282,9 @@ int main(int argc, char** argv) {
                             actual.paper.b * actual.paper.a + 1 - actual.paper.a, 1};
             readable(actual);
         }
-        check(runtime.get(runtime.find("main/stage/caption"), "text").as_string() == "Persistent caption");
-    });
-    suite.test("interrupted real caption resizing keeps readable ink and continuous shaped strokes", [] {
+        expect(runtime.get(runtime.find("main/stage/caption"), "text").as_string() == "Persistent caption");
+    };
+    "interrupted real caption resizing keeps readable ink and continuous shaped strokes"_test = [] {
         auto config = runtime_options(); auto theme = config.theme;
         theme.colors["background"] = Color::white(); theme.colors["surface"] = Color::white(); theme.colors["text"] = Color::black();
         theme.text["caption"].size = 13;
@@ -307,9 +306,9 @@ int main(int argc, char** argv) {
             readable(actual);
         };
         auto seek_all = [&](double fraction, double now) {
-            const auto motions = runtime.motions(); check(!motions.empty());
+            const auto motions = runtime.motions(); expect(!motions.empty());
             for (const auto& motion : motions) {
-                check(runtime.hold_motion(motion.node)); runtime.pause_motion(motion.node);
+                expect(runtime.hold_motion(motion.node)); runtime.pause_motion(motion.node);
                 runtime.seek_motion(motion.node, (motion.end - motion.start) * fraction);
             }
             runtime.frame({seconds(now), {}});
@@ -319,8 +318,8 @@ int main(int argc, char** argv) {
         seek_all(0.7, 0.3); readable_composite();
         const auto before = caption_shape(runtime, outlines);
         const auto before_paints = caption_paints(runtime);
-        check(before.glyphs.size() > 10 && before.points.size() > 100, "real shaped Inter glyph outlines are sampled");
-        check(before.has_nonidentity_style, "the retarget source really contains the in-flight size affine");
+        expect(before.glyphs.size() > 10 && before.points.size() > 100) << "real shaped Inter glyph outlines are sampled";
+        expect(before.has_nonidentity_style) << "the retarget source really contains the in-flight size affine";
         theme.colors["surface"] = Color::white(); theme.colors["text"] = Color::black(); theme.text["caption"].size = 14;
         runtime.set_theme(theme); runtime.frame({seconds(0.4), {}});
         seek_all(0.000001, 0.5);
@@ -331,18 +330,18 @@ int main(int argc, char** argv) {
                      resumed_paints.ink.r, resumed_paints.ink.g, resumed_paints.ink.b, resumed_paints.ink.a,
                      before_paints.paper.r, before_paints.paper.g, before_paints.paper.b, before_paints.paper.a,
                      resumed_paints.paper.r, resumed_paints.paper.g, resumed_paints.paper.b, resumed_paints.paper.a);
-        check_near(resumed_paints.ink.r, before_paints.ink.r, 0.0001);
-        check_near(resumed_paints.ink.g, before_paints.ink.g, 0.0001);
-        check_near(resumed_paints.ink.b, before_paints.ink.b, 0.0001);
-        check_near(resumed_paints.ink.a, before_paints.ink.a, 0.0001);
-        check_near(resumed_paints.paper.r, before_paints.paper.r, 0.0001);
-        check_near(resumed_paints.paper.g, before_paints.paper.g, 0.0001);
-        check_near(resumed_paints.paper.b, before_paints.paper.b, 0.0001);
-        check_near(resumed_paints.paper.a, before_paints.paper.a, 0.0001);
-        check_eq(resumed.glyphs, before.glyphs); check_eq(resumed.points.size(), before.points.size());
+        expect(near(resumed_paints.ink.r, before_paints.ink.r, 0.0001));
+        expect(near(resumed_paints.ink.g, before_paints.ink.g, 0.0001));
+        expect(near(resumed_paints.ink.b, before_paints.ink.b, 0.0001));
+        expect(near(resumed_paints.ink.a, before_paints.ink.a, 0.0001));
+        expect(near(resumed_paints.paper.r, before_paints.paper.r, 0.0001));
+        expect(near(resumed_paints.paper.g, before_paints.paper.g, 0.0001));
+        expect(near(resumed_paints.paper.b, before_paints.paper.b, 0.0001));
+        expect(near(resumed_paints.paper.a, before_paints.paper.a, 0.0001));
+        expect(eq(resumed.glyphs, before.glyphs)); expect(eq(resumed.points.size(), before.points.size()));
         for (std::size_t i = 0; i < std::min(resumed.points.size(), before.points.size()); ++i) {
-            check_near(resumed.points[i].x, before.points[i].x, 0.003);
-            check_near(resumed.points[i].y, before.points[i].y, 0.003);
+            expect(near(resumed.points[i].x, before.points[i].x, 0.003));
+            expect(near(resumed.points[i].y, before.points[i].y, 0.003));
         }
         readable_composite();
         double now = 0.6;
@@ -350,11 +349,11 @@ int main(int argc, char** argv) {
             seek_all(fraction, now); now += 0.1;
             readable_composite();
             const auto frame = caption_shape(runtime, outlines);
-            check_eq(frame.glyphs, before.glyphs); check(!frame.points.empty());
-            check(runtime.get(runtime.find("main/stage/caption"), "text").as_string() == "Persistent caption");
+            expect(eq(frame.glyphs, before.glyphs)); expect(!frame.points.empty());
+            expect(runtime.get(runtime.find("main/stage/caption"), "text").as_string() == "Persistent caption");
         }
-    });
-    suite.test("actual mixed-font Chinese receipt runs keep individually readable ink", [] {
+    };
+    "actual mixed-font Chinese receipt runs keep individually readable ink"_test = [] {
         auto config = runtime_options(); auto theme = config.theme;
         theme.colors["background"] = Color::white(); theme.colors["surface"] = Color::white(); theme.colors["text"] = Color::black();
         theme.text["caption"].size = 13;
@@ -382,17 +381,16 @@ int main(int argc, char** argv) {
                         if (contrast_required) readable({paper, run->paint.color, true, true});
                     }
             }
-            check(count >= 2 && faces.size() >= 2, "real shaping split this receipt across fallback fonts");
+            expect(count >= 2 && faces.size() >= 2) << "real shaping split this receipt across fallback fonts";
         };
         check_runs("before", true);
         theme.colors["surface"] = Color::black(); theme.colors["text"] = Color::white(); theme.text["caption"].size = 12;
         runtime.set_theme(theme); runtime.frame({seconds(0.2), {}});
-        const auto stage_id = runtime.find("main/stage"); check(runtime.hold_motion(stage_id)); runtime.pause_motion(stage_id);
-        const auto length = runtime.motion_time(stage_id); check(length.has_value()); if (!length) return;
+        const auto stage_id = runtime.find("main/stage"); expect(runtime.hold_motion(stage_id)); runtime.pause_motion(stage_id);
+        const auto length = runtime.motion_time(stage_id); expect(length.has_value()); if (!length) return;
         for (const double fraction : {0.25, 0.5, 0.75}) {
             runtime.seek_motion(stage_id, length->first * fraction); runtime.frame({seconds(0.3 + fraction), {}});
             check_runs(fraction == 0.5 ? "middle" : "transition", true);
         }
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

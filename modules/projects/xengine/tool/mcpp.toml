@@ -27,5 +27,5 @@ sources = ["src/*.cpp"]
 [dependencies]
 xengine.timeline = { path = "../timeline" }
 mlibs.utils      = { path = "../../../base/utils" }
-mcpplibs.os      = "0.2.2"
+mcpplibs.os      = "0.4.1"
 nlohmann.json    = "3.12.0"

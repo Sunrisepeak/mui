@@ -27,3 +27,5 @@ mlibs.math = { path = "../../../base/math" }
 mlibs.memory = { path = "../../../base/memory" }
 
 [dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.5.0"

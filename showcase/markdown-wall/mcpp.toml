@@ -48,4 +48,4 @@ omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 omui.abi      = { path = "../../modules/projects/omui/abi" }
 omui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
-mcpplibs.os      = "0.2.2"
+mcpplibs.os      = "0.4.1"

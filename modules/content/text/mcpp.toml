@@ -23,7 +23,7 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.geom    = { path = "../../base/geom" }
 mlibs.unicode = { path = "../../base/unicode" }
-mcpplibs.os     = "0.2.2"
+mcpplibs.os     = "0.4.1"
 mcpplibs.mwrap.harfbuzz = "14.3.0"
 mcpplibs.mwrap.sheenbidi = "3.0.0"
 

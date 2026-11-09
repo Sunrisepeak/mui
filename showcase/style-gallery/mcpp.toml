@@ -32,7 +32,7 @@ omui.sdk          = { path = "../../modules/projects/omui/sdk" }
 "omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
 "omui.theme"      = { path = "../../modules/projects/omui/theme" }
 mlibs.math         = { path = "../../modules/base/math" }
-mcpplibs.os          = "0.2.2"
+mcpplibs.os          = "0.4.1"
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }

@@ -31,6 +31,6 @@ mlibs.pipeline = { path = "../../../base/pipeline" }
 # islands' pixels encoded as PNG.
 xrender.vector = { path = "../../xrender/vector" }
 mlibs.image    = { path = "../../../base/image" }
-mcpplibs.os      = "0.2.2"
+mcpplibs.os      = "0.4.1"
 
 [dev-dependencies]

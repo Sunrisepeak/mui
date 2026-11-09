@@ -36,7 +36,7 @@ xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 omui.host.headless = { path = "../../modules/projects/omui/host/headless" }
 mcpplibs.cmdline = "0.0.2"
-mcpplibs.os      = "0.2.2"
+mcpplibs.os      = "0.4.1"
 
 [dev-dependencies]
 mlibs.utils       = { path = "../../modules/base/utils" }

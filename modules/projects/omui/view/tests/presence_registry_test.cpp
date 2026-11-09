@@ -4,22 +4,20 @@
 import std;
 import omui.view;
 import hanim.core;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
-    Suite s{"view.presence_registry"};
-    s.test("the spec's presences are hanim's, one for one, of the same kind", [] {
+UTest cases{"view.presence_registry", [] {
+    "the spec's presences are hanim's, one for one, of the same kind"_test = [] {
         const auto& registered = omui::spec::motion_presences;
-        check_eq(registered.size(), hanim::presence_names().size());
+        expect(eq(registered.size(), hanim::presence_names().size()));
         for (const auto& entry : registered) {
             const auto made = hanim::presence(entry.name);
-            check(made.has_value(), std::format("hanim plays {}", entry.name));
-            if (made) check((made->kind == hanim::PresenceKind::enter) == (entry.kind == "enter"), std::format("{} is an {}", entry.name, entry.kind));
+            expect(made.has_value()) << std::format("hanim plays {}", entry.name);
+            if (made) expect((made->kind == hanim::PresenceKind::enter) == (entry.kind == "enter")) << std::format("{} is an {}", entry.name, entry.kind);
         }
         for (const auto name : hanim::presence_names())
-            check(omui::spec::find_motion_presence(name) != nullptr, std::format("the spec names {}", name));
-    });
-    return s.run(argc, argv);
-}
+            expect(omui::spec::find_motion_presence(name) != nullptr) << std::format("the spec names {}", name);
+    };
+}};

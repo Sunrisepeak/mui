@@ -31,7 +31,7 @@ sources = ["src/native/web/*.cpp"]
 omui.lang   = { path = ".." }
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
-mcpplibs.os       = "0.2.2"
+mcpplibs.os       = "0.4.1"
 nlohmann.json     = "3.12.0"
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]

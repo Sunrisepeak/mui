@@ -4,9 +4,9 @@
 // never starts one; an agent selects through a node that offers it.
 import std;
 import omui.view;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -68,39 +68,38 @@ struct Page {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite("view.text_selection");
+UTest cases{"view.text_selection", [] {
 
-    suite.test("a drag selects words, from one text into the next; Ctrl+C copies them; a press elsewhere lets them go", [] {
+    "a drag selects words, from one text into the next; Ctrl+C copies them; a press elsewhere lets them go"_test = [] {
         Page page;
         const Point from = page.along("main/first", 0.3f), to = page.along("main/second", 0.4f);
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, from), pointer(PointerKind::move, page.along("main/first", 0.8f)), pointer(PointerKind::move, to),
                                       pointer(PointerKind::up, to)}});
         const std::string selected = page.rt.selected_text();
-        check(selected.contains('\n') && selected.ends_with(selected.substr(selected.rfind('\n') + 1)) && selected.size() > 10, std::format("across two texts: {:?}", selected));
-        check(page.rt.text_selection(page.rt.find("main/first")).has_value() && page.rt.text_selection(page.rt.find("main/second")).has_value());
-        check(std::string("Hello brave new world").ends_with(selected.substr(0, selected.find('\n'))), "the first text's part runs to its end");
-        check(std::string("omui draws every glyph").starts_with(selected.substr(selected.find('\n') + 1)), "the second's from its start");
+        expect(selected.contains('\n') && selected.ends_with(selected.substr(selected.rfind('\n') + 1)) && selected.size() > 10) << std::format("across two texts: {:?}", selected);
+        expect(page.rt.text_selection(page.rt.find("main/first")).has_value() && page.rt.text_selection(page.rt.find("main/second")).has_value());
+        expect(std::string("Hello brave new world").ends_with(selected.substr(0, selected.find('\n')))) << "the first text's part runs to its end";
+        expect(std::string("omui draws every glyph").starts_with(selected.substr(selected.find('\n') + 1))) << "the second's from its start";
         page.rt.frame({std::nullopt, {key(Key::c, Modifier::ctrl)}});
-        check_eq(page.rt.clipboard_text(), selected);
+        expect(eq(page.rt.clipboard_text(), selected));
         // Drawn: the first text's pixels change where it is selected.
-        check(!page.rt.display_list().empty());
+        expect(!page.rt.display_list().empty());
         // A press on nothing selectable: none selected.
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, {350, 190}), pointer(PointerKind::up, {350, 190})}});
-        check(page.rt.selected_text().empty(), "a press elsewhere lets it go");
-    });
+        expect(page.rt.selected_text().empty()) << "a press elsewhere lets it go";
+    };
 
-    suite.test("a double press selects a word, a triple the whole text", [] {
+    "a double press selects a word, a triple the whole text"_test = [] {
         Page page;
         const Point on_brave = page.along("main/first", 0.35f);
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, on_brave, 2), pointer(PointerKind::up, on_brave, 2)}});
         const std::string word = page.rt.selected_text();
-        check(word == "Hello" || word == "brave" || word == "new" || word == "world", std::format("a whole word: {:?}", word));
+        expect(word == "Hello" || word == "brave" || word == "new" || word == "world") << std::format("a whole word: {:?}", word);
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, on_brave, 3), pointer(PointerKind::up, on_brave, 3)}});
-        check_eq(page.rt.selected_text(), std::string("Hello brave new world"));
-    });
+        expect(eq(page.rt.selected_text(), std::string("Hello brave new world")));
+    };
 
-    suite.test("a control never starts a selection; text that says no is not selected; an agent selects through a node that offers it", [] {
+    "a control never starts a selection; text that says no is not selected; an agent selects through a node that offers it"_test = [] {
         Page page;
         // Something selected first: a press on the control keeps it (a press on a control is the control's).
         const Point on_first = page.along("main/first", 0.35f);
@@ -108,19 +107,17 @@ int main(int argc, char** argv) {
         page.rt.clear_text_selection();
         const Point on_button = page.box("main/go").center();
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, on_button), pointer(PointerKind::up, on_button)}});
-        check(page.rt.focused() == page.rt.find("main/go") && page.rt.selected_text().empty(), "the control focused, nothing selected");
+        expect(page.rt.focused() == page.rt.find("main/go") && page.rt.selected_text().empty()) << "the control focused, nothing selected";
         const Point on_label = page.along("main/label", 0.5f);
         page.rt.frame({std::nullopt, {pointer(PointerKind::down, on_label, 3), pointer(PointerKind::up, on_label, 3)}});
-        check(page.rt.selected_text().empty(), "a label that says no");
+        expect(page.rt.selected_text().empty()) << "a label that says no";
         const auto offered = page.rt.semantic_node(page.rt.find("main/offered"));
-        check(std::ranges::any_of(offered.actions, [](const auto& action) { return action.name == "set_selection"; }), "the node that offers it says so");
+        expect(std::ranges::any_of(offered.actions, [](const auto& action) { return action.name == "set_selection"; })) << "the node that offers it says so";
         const auto plain = page.rt.semantic_node(page.rt.find("main/first"));
-        check(std::ranges::none_of(plain.actions, [](const auto& action) { return action.name == "set_selection"; }), "a page's words do not crowd an agent's list");
+        expect(std::ranges::none_of(plain.actions, [](const auto& action) { return action.name == "set_selection"; })) << "a page's words do not crowd an agent's list";
         Invocation call;
         call.args = Value{}.set("anchor", 3).set("focus", 8);
-        check(page.rt.act(page.rt.find("main/offered"), "set_selection", call).exit_code() == std::optional<int>(0));
-        check_eq(page.rt.selected_text(), std::string("agent"));
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(page.rt.act(page.rt.find("main/offered"), "set_selection", call).exit_code() == std::optional<int>(0));
+        expect(eq(page.rt.selected_text(), std::string("agent")));
+    };
+}};

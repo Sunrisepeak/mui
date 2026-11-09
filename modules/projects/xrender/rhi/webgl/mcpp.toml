@@ -35,4 +35,4 @@ mlibs.memory = { path = "../../../../base/memory" }
 [dev-dependencies]
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
-mcpplibs.os     = "0.2.2"
+mcpplibs.os     = "0.4.1"

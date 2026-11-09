@@ -38,9 +38,11 @@ mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
 mlibs.i18n     = { path = "../../../content/i18n" }
-mcpplibs.os      = "0.2.2"
+mcpplibs.os      = "0.4.1"
 
 [dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.5.0"
 
 # Optional native adapter. Ordinary views do not force the full Hanim player.
 [features]

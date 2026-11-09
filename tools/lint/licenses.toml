@@ -59,6 +59,7 @@
 "mcpplibs.mwrap.sdl3" = ["Apache-2.0"]
 "mcpplibs.mwrap.sheenbidi" = ["Apache-2.0"]
 "mcpplibs.os" = ["Apache-2.0"]
+"mcpplibs.mtest" = ["Apache-2.0"]
 "nlohmann.json" = ["MIT"]
 "openkal" = ["Apache-2.0"]
 "openkal-emscripten" = ["Apache-2.0"]

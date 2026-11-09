@@ -3,9 +3,9 @@
 import std;
 import mlibs.geom;
 import xrender.raster;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace raster = xrender::raster;
 
 namespace {
@@ -43,46 +43,40 @@ raster::PathBuilder square() {  // perimeter 160, starting at its top-left corne
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"raster.trim"};
+UTest cases{"raster.trim", [] {
     const auto line = segment({2, 8}, {122, 8});  // 120 long
 
-    suite.test("a trimmed open line strokes the stretch between its fractions", [&] {
-        check(same(trimmed(line, .25f, .75f), plain(segment({32, 8}, {92, 8}))));
-        check(same(trimmed(line, .75f, .25f), trimmed(line, .25f, .75f)),
-              "reversed fractions are swapped");
-        check(same(trimmed(line, 0, 1), plain(line)), "the whole length is the plain stroke");
-    });
+    "a trimmed open line strokes the stretch between its fractions"_test = [&] {
+        expect(same(trimmed(line, .25f, .75f), plain(segment({32, 8}, {92, 8}))));
+        expect(same(trimmed(line, .75f, .25f), trimmed(line, .25f, .75f))) << "reversed fractions are swapped";
+        expect(same(trimmed(line, 0, 1), plain(line))) << "the whole length is the plain stroke";
+    };
 
-    suite.test("an offset moves the stretch; past an open line's end it splits in two", [&] {
-        check(same(trimmed(line, 0, .25f, .25f), plain(segment({32, 8}, {62, 8}))));
+    "an offset moves the stretch; past an open line's end it splits in two"_test = [&] {
+        expect(same(trimmed(line, 0, .25f, .25f), plain(segment({32, 8}, {62, 8}))));
         raster::PathBuilder split;
         split.move_to({107, 8}).line_to({122, 8}).move_to({2, 8}).line_to({17, 8});
-        check(same(trimmed(line, 0, .25f, .875f), plain(split)));
-        check(same(trimmed(line, 0, .25f, -.125f), trimmed(line, 0, .25f, .875f)),
-              "offsets wrap by whole lengths");
-    });
+        expect(same(trimmed(line, 0, .25f, .875f), plain(split)));
+        expect(same(trimmed(line, 0, .25f, -.125f), trimmed(line, 0, .25f, .875f))) << "offsets wrap by whole lengths";
+    };
 
-    suite.test("round a closed contour the stretch wraps through its start with its joins", [] {
+    "round a closed contour the stretch wraps through its start with its joins"_test = [] {
         raster::PathBuilder wrapped;
         wrapped.move_to({10, 30}).line_to({10, 10}).line_to({50, 10}).line_to({50, 30});
-        check(same(trimmed(square(), 0, .5f, .875f), plain(wrapped)));
-        check(same(trimmed(square(), 0, 1, .3f), plain(square())),
-              "a whole turn, wherever it begins, draws the closed contour");
-    });
+        expect(same(trimmed(square(), 0, .5f, .875f), plain(wrapped)));
+        expect(same(trimmed(square(), 0, 1, .3f), plain(square()))) << "a whole turn, wherever it begins, draws the closed contour";
+    };
 
-    suite.test("an empty stretch draws nothing; nonfinite trims fall back to the whole", [&] {
-        check(empty(trimmed(line, .5f, .5f)));
+    "an empty stretch draws nothing; nonfinite trims fall back to the whole"_test = [&] {
+        expect(empty(trimmed(line, .5f, .5f)));
         const float nan = std::numeric_limits<float>::quiet_NaN();
-        check(same(trimmed(line, nan, nan, nan), plain(line)));
-    });
+        expect(same(trimmed(line, nan, nan, nan), plain(line)));
+    };
 
-    suite.test("trimming comes before dashing: the dashes run along the trimmed stretch", [&] {
+    "trimming comes before dashing: the dashes run along the trimmed stretch"_test = [&] {
         const std::array pattern{10.0f, 5.0f};
         const auto dashed =
             stroked(line, {.width = 2, .dashes = pattern, .trim_start = .25f, .trim_end = .75f});
-        check(same(dashed, stroked(segment({32, 8}, {92, 8}), {.width = 2, .dashes = pattern})));
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(same(dashed, stroked(segment({32, 8}, {92, 8}), {.width = 2, .dashes = pattern})));
+    };
+}};

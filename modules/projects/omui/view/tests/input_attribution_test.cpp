@@ -1,9 +1,9 @@
 import std;
 import omui.view;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 struct Fixture {
@@ -17,38 +17,38 @@ struct Fixture {
         AgentRestrictions limits;
         limits.cap = openas::Cap{openas::Effect::reversible};
         session = access->open_session(limits);
-        check(rt.verbs()
+        expect(rt.verbs()
                   .add({.name = "task.edit", .effect = Effect::reversible},
                        [&](const Value&) -> VerbResult {
                            edits.set(edits.peek() + 1);
                            return Value{};
                        })
                   .has_value());
-        check(rt.verbs()
+        expect(rt.verbs()
                   .add({.name = "mail.send", .effect = Effect::external, .answer = "send"},
                        [&](const Value&) -> VerbResult {
                            ++sent;
                            return Value{};
                        })
                   .has_value());
-        check(rt.verbs()
+        expect(rt.verbs()
                   .add({.name = "person.confirm", .effect = Effect::read, .person = true},
                        [&](const Value&) -> VerbResult {
                            ++person;
                            return Value{};
                        })
                   .has_value());
-        check(rt.verbs()
+        expect(rt.verbs()
                   .add({.name = "policy.narrow", .effect = Effect::reversible},
                        [&](const Value&) -> VerbResult {
                            access->set_cap(openas::Cap{openas::Effect::read});
                            return Value{};
                        })
                   .has_value());
-        check(rt.verbs()
+        expect(rt.verbs()
                   .add({.name = "policy.revoke", .effect = Effect::reversible},
                        [&](const Value&) -> VerbResult {
-                           check(access->revoke_session(*session));
+                           expect(access->revoke_session(*session));
                            return Value{};
                        })
                   .has_value());
@@ -70,7 +70,7 @@ struct Fixture {
     }
     void click(std::vector<InputEvent>& events, std::string_view id) {
         const auto node = rt.find(std::format("main/{}", id));
-        check(rt.valid(node));
+        expect(rt.valid(node));
         const auto at = rt.drawn_bounds(node).center();
         events.emplace_back(PointerEvent{.position = at});
         events.emplace_back(PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1});
@@ -81,21 +81,18 @@ struct Fixture {
         for (const auto& entry : rt.action_journal()) {
             if (entry.path != std::format("main/{}", node)) continue;
             ++found;
-            check(entry.exit_code == exit, entry.path);
-            check(remote ? entry.actor.starts_with("agent:editor;via=service:development-session-") : entry.actor == "person:user",
-                  entry.actor);
+            expect(entry.exit_code == exit) << entry.path;
+            expect(remote ? entry.actor.starts_with("agent:editor;via=service:development-session-") : entry.actor == "person:user") << entry.actor;
         }
-        check(found == 1, std::format("one actual action at {}", node));
+        expect(found == 1) << std::format("one actual action at {}", node);
     }
 };
 } // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"view.input_attribution"};
+UTest cases{"view.input_attribution", [] {
     for (const bool remote_first : {false, true}) {
-        s.test(remote_first ? "agent then human events keep separate presence cap state and journal in one frame"
-                            : "human then agent events keep separate presence cap state and journal in one frame",
-               [remote_first] {
+        mcpplibs::mtest::test(std::string_view(remote_first ? "agent then human events keep separate presence cap state and journal in one frame"
+                            : "human then agent events keep separate presence cap state and journal in one frame")) = [remote_first] {
                    Fixture f;
                    std::vector<InputEvent> events;
                    const auto remote = [&] {
@@ -119,23 +116,22 @@ int main(int argc, char** argv) {
                        {{remote_first ? 0u : 9u, remote_first ? 9u : 18u, {"agent", "editor", {}}, f.session}}};
                    FrameInput input{.time = seconds(0.1), .events = std::move(events), .attribution = ranges};
                    const auto output = f.rt.frame(input);
-                   check(output.failure.empty(), output.failure);
-                   check(f.edits.peek() == 2 && f.sent == 1 && f.person == 1);
-                   check(f.rt.semantic_node(f.rt.find("main/status")).name == "2 edits");
+                   expect(output.failure.empty()) << output.failure;
+                   expect(f.edits.peek() == 2 && f.sent == 1 && f.person == 1);
+                   expect(f.rt.semantic_node(f.rt.find("main/status")).name == "2 edits");
                    f.actor_entries("agent_edit", true, 0);
                    f.actor_entries("agent_send", true, 1);
                    f.actor_entries("agent_person", true, 1);
                    f.actor_entries("human_edit", false, 0);
                    f.actor_entries("human_send", false, 0);
                    f.actor_entries("human_person", false, 0);
-                   check(f.rt.invoke("person.confirm").exit_code() == 0 && f.person == 2, "the event context is restored after the frame");
-               });
+                   expect(f.rt.invoke("person.confirm").exit_code() == 0 && f.person == 2) << "the event context is restored after the frame";
+               };
     }
 
     for (const bool revoke : {false, true}) {
-        s.test(revoke ? "a human event revokes the session before later remote events in the same frame"
-                      : "a human event narrows the cap before later remote events in the same frame",
-               [revoke] {
+        mcpplibs::mtest::test(std::string_view(revoke ? "a human event revokes the session before later remote events in the same frame"
+                      : "a human event narrows the cap before later remote events in the same frame")) = [revoke] {
                    Fixture f;
                    std::vector<InputEvent> events;
                    f.click(events, revoke ? "revoke" : "narrow");
@@ -143,21 +139,21 @@ int main(int argc, char** argv) {
                    f.click(events, "human_person");
                    const std::array<InputAttribution, 1> ranges{{{3, 6, {"agent", "editor", {}}, f.session}}};
                    const auto output = f.rt.frame({.time = seconds(0.1), .events = std::move(events), .attribution = ranges});
-                   check(output.failure.empty());
-                   check(f.edits.peek() == 0 && f.person == 1 && f.sent == 0);
+                   expect(output.failure.empty());
+                   expect(f.edits.peek() == 0 && f.person == 1 && f.sent == 0);
                    int refused = 0;
                    for (const auto& entry : f.rt.action_journal()) {
                        if (entry.path != "app" || entry.action != "input") continue;
                        ++refused;
-                       check(entry.exit_code == 1);
-                       check(entry.actor.starts_with("agent:editor"), entry.actor);
+                       expect(entry.exit_code == 1);
+                       expect(entry.actor.starts_with("agent:editor")) << entry.actor;
                    }
-                   check(refused == 3, "each refused raw event is observable, and no target component received it");
+                   expect(refused == 3) << "each refused raw event is observable, and no target component received it";
                    f.actor_entries("human_person", false, 0);
-               });
+               };
     }
 
-    s.test("multiple disjoint remote ranges leave the human gap and timers local", [] {
+    "multiple disjoint remote ranges leave the human gap and timers local"_test = [] {
         Fixture f;
         std::vector<InputEvent> events;
         f.click(events, "agent_edit");
@@ -165,14 +161,14 @@ int main(int argc, char** argv) {
         f.click(events, "agent_person");
         const std::array<InputAttribution, 2> ranges{
             {{0, 3, {"agent", "editor", {}}, f.session}, {6, 9, {"agent", "editor", {}}, f.session}}};
-        (void)f.rt.after(seconds(0), [&] { check(f.rt.invoke("person.confirm").exit_code() == 0); });
+        (void)f.rt.after(seconds(0), [&] { expect(f.rt.invoke("person.confirm").exit_code() == 0); });
         const auto output = f.rt.frame({.time = seconds(0.1), .events = std::move(events), .attribution = ranges});
-        check(output.failure.empty() && f.edits.peek() == 1 && f.person == 2);
+        expect(output.failure.empty() && f.edits.peek() == 1 && f.person == 2);
         f.actor_entries("human_person", false, 0);
         f.actor_entries("agent_person", true, 1);
-    });
+    };
 
-    s.test("invalid borrowed intervals reject the whole frame before clocks timers or handlers", [] {
+    "invalid borrowed intervals reject the whole frame before clocks timers or handlers"_test = [] {
         Fixture f;
         std::vector<InputEvent> events;
         f.click(events, "human_edit");
@@ -186,14 +182,13 @@ int main(int argc, char** argv) {
         }};
         for (const auto& ranges : invalid) {
             FrameInput input{.time = seconds(10), .events = events, .attribution = ranges};
-            check(!validate_input_attribution(input));
+            expect(!validate_input_attribution(input));
             const auto output = f.rt.frame(input);
-            check(!output.failure.empty());
-            check(f.edits.peek() == 0 && timer == 0 && f.rt.now() == seconds(0));
+            expect(!output.failure.empty());
+            expect(f.edits.peek() == 0 && timer == 0 && f.rt.now() == seconds(0));
         }
-        check(validate_input_attribution({.events = events}).has_value());
-        check(f.rt.frame({.time = seconds(0.1), .events = events}).failure.empty());
-        check(f.edits.peek() == 1 && timer == 1);
-    });
-    return s.run(argc, argv);
-}
+        expect(validate_input_attribution({.events = events}).has_value());
+        expect(f.rt.frame({.time = seconds(0.1), .events = events}).failure.empty());
+        expect(f.edits.peek() == 1 && timer == 1);
+    };
+}};

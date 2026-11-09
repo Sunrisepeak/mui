@@ -33,4 +33,4 @@ marzer.tomlplusplus = "3.4.0"
 xrender.raster  = { path = "../raster" }
 mlibs.geom    = { path = "../../../base/geom" }
 xrender.rhi.sdl = { path = "../rhi/sdl" }
-mcpplibs.os     = "0.2.2"
+mcpplibs.os     = "0.4.1"

@@ -213,6 +213,20 @@ UTest cases{"gen", [] {
             expect(read(pkg.path() / "src" / "generated" / (name + "_theme.cppm")) == want) << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/{0}.theme.omui.ts --module {1} --namespace omui::themes "
                               "--name {0}_theme --out modules/projects/omui/theme/{0}/src/generated",
                               name, module);
+            // Its staged overlays (staged/*.theme.omui.ts), carried beside it as text, never in its library.
+            for (const auto& staged : std::filesystem::directory_iterator(pkg.path() / "staged", ec)) {
+                const std::string file_name = gen::generic_utf8(staged.path().filename());
+                if (!file_name.ends_with(".theme.omui.ts")) continue;
+                const std::string stage = file_name.substr(0, file_name.size() - std::string_view(".theme.omui.ts").size());
+                const auto staged_snapshot = gen::snapshot(staged.path());
+                expect(staged_snapshot.has_value()) << (staged_snapshot ? "" : staged_snapshot.error());
+                if (!staged_snapshot) continue;
+                expect(read(pkg.path() / "src" / "generated" / (stage + "_theme.cppm")) ==
+                       gen::emit_embed(staged_snapshot->json, staged_snapshot->name, module, "omui::themes", stage + "_theme"))
+                    << std::format("modules/projects/omui/theme/{0}: run omui-gen embed modules/projects/omui/theme/{0}/staged/{2}.theme.omui.ts --module {1} "
+                                   "--namespace omui::themes --name {2}_theme --out modules/projects/omui/theme/{0}/src/generated",
+                                   name, module, stage);
+            }
         }
         expect(seen >= 2) << "default and compact at least";
     };

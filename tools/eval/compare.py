@@ -3,7 +3,7 @@
 `compare-v1`): each review dimension is our side against a similar
 project's on the same scene, judged behind / par / ahead — no scores.
 
-A comparison set (`.agents/docs/evaluation/compare/<subject>.compare.omui.toml`)
+A comparison set (`.agents/docs/evaluation/compare/<subject>.compare.omui.json`)
 lists, per dimension, pairs of material: our picture and the competitor's of
 the same scene (stills, process-frame strips; made by the subject's own
 material scripts), and the question the pair answers.
@@ -35,7 +35,6 @@ import statistics
 import subprocess
 import sys
 import tempfile
-import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -46,10 +45,10 @@ VERDICTS = ("behind", "par", "ahead")
 
 
 def load(subject: str) -> dict:
-    path = SETS / f"{subject}.compare.omui.toml"
+    path = SETS / f"{subject}.compare.omui.json"
     if not path.exists():
         sys.exit(f"compare.py: no comparison set {path.relative_to(ROOT)}")
-    return tomllib.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def commit() -> str:

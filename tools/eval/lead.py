@@ -39,12 +39,11 @@ import socket
 import statistics
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-METRICS = ROOT / "tests/bench/competitors/lead.metrics.omui.toml"
-FEATURES = ROOT / ".agents/docs/evaluation/lead.features.omui.toml"
+METRICS = ROOT / "tests/bench/competitors/lead.metrics.omui.json"
+FEATURES = ROOT / ".agents/docs/evaluation/lead.features.omui.json"
 LEDGER = ROOT / ".agents/docs/evaluation/lead.ledger.omui.jsonl"
 
 # Ratio thresholds (§2.2): r = ours ÷ the strongest competitor, larger better.
@@ -83,8 +82,8 @@ def interval(values: list[float], seed: int = 20261108, resamples: int = 4000) -
     return medians[int(0.025 * resamples)], medians[int(0.975 * resamples) - 1]
 
 
-def load_toml(path: Path) -> dict:
-    return tomllib.loads(path.read_text(encoding="utf-8"))
+def load_data(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -210,7 +209,7 @@ def latest(ledger: list[dict], kind: str, name_field: str) -> dict[str, dict]:
 
 
 def cmd_verdict(arguments: argparse.Namespace) -> int:
-    metrics = load_toml(Path(arguments.metrics))["metric"]
+    metrics = load_data(Path(arguments.metrics))["metric"]
     samples = read_jsonl(Path(arguments.samples))
     ledger_path = Path(arguments.ledger)
     previous = latest(read_jsonl(ledger_path), "metric", "metric")
@@ -273,8 +272,8 @@ def cmd_capability(arguments: argparse.Namespace) -> int:
 # --- summary ---------------------------------------------------------------
 
 def cmd_summary(arguments: argparse.Namespace) -> int:
-    metrics = load_toml(Path(arguments.metrics))["metric"]
-    features = load_toml(Path(arguments.features))["feature"]
+    metrics = load_data(Path(arguments.metrics))["metric"]
+    features = load_data(Path(arguments.features))["feature"]
     ledger = read_jsonl(Path(arguments.ledger))
     measured = latest(ledger, "metric", "metric")
     capabilities: dict[str, list[dict]] = {}
@@ -336,8 +335,8 @@ DOC_WORDS = {
 
 def render_docs(metrics_file: Path, features_file: Path, ledger_file: Path) -> dict[str, str]:
     """The lead page in each language, from the ledger alone (its newest record's date): the same ledger, the same text."""
-    metrics = load_toml(metrics_file)["metric"]
-    features = load_toml(features_file)["feature"]
+    metrics = load_data(metrics_file)["metric"]
+    features = load_data(features_file)["feature"]
     ledger = read_jsonl(ledger_file)
     measured = latest(ledger, "metric", "metric")
     newest = max((r.get("date", "") for r in ledger), default="")
@@ -386,15 +385,15 @@ def problems(root: Path) -> list[tuple[str, str]]:
     """(where, what) for each violation: the features list well formed, every
     project with two to four headline features, a feature with evidence names
     a signature-scene test that exists, a claimed one has a far_ahead record."""
-    features_file = root / ".agents/docs/evaluation/lead.features.omui.toml"
-    metrics_file = root / "tests/bench/competitors/lead.metrics.omui.toml"
+    features_file = root / ".agents/docs/evaluation/lead.features.omui.json"
+    metrics_file = root / "tests/bench/competitors/lead.metrics.omui.json"
     where = features_file.relative_to(root).as_posix()
     if not features_file.exists():
         return [(where, "missing: the signature features (Part 2 plan §1.5, §4)")]
     out = []
     try:
-        features = load_toml(features_file).get("feature", [])
-    except tomllib.TOMLDecodeError as error:
+        features = load_data(features_file).get("feature", [])
+    except json.JSONDecodeError as error:
         return [(where, f"not TOML: {error}")]
     ledger = read_jsonl(root / ".agents/docs/evaluation/lead.ledger.omui.jsonl")
     far = {r["feature"] for r in ledger if r.get("kind") in ("capability", "task") and r.get("verdict") == "far_ahead"}
@@ -436,12 +435,12 @@ def problems(root: Path) -> list[tuple[str, str]]:
                 page = root / "docs" / language / "lead.md"
                 if not page.exists() or page.read_text(encoding="utf-8") != text:
                     out.append((page.relative_to(root).as_posix(), "not the ledger's: run tools/eval/lead.py docs"))
-        except (KeyError, tomllib.TOMLDecodeError):
+        except (KeyError, json.JSONDecodeError):
             pass
     if metrics_file.exists():
         try:
-            metric_rows = load_toml(metrics_file).get("metric", [])
-        except tomllib.TOMLDecodeError as error:
+            metric_rows = load_data(metrics_file).get("metric", [])
+        except json.JSONDecodeError as error:
             return out + [(metrics_file.relative_to(root).as_posix(), f"not TOML: {error}")]
         ids = set()
         for metric in metric_rows:

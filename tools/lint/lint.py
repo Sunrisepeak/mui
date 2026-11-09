@@ -44,7 +44,7 @@ Rules:
   platform      no operating-system header anywhere: platform code goes through mcpplibs.os
   determinism   deterministic members do not call <cmath>'s transcendental functions and
                 compile with -ffp-contract=off
-  owner         each capability has one owner (tools/lint/capabilities.owners.omui.toml, plan
+  owner         each capability has one owner (tools/lint/capabilities.owners.omui.json, plan
                 §5.3 ①): its signature — FNV-1a, splitmix64/fdlibm, flicks, OKLab, the handle's
                 shape, a component animating itself — appears nowhere else; the owner implements
                 it, everyone else imports it
@@ -59,6 +59,7 @@ Rules:
 from __future__ import annotations
 
 import fnmatch
+import json
 import re
 import shutil
 import sys
@@ -171,11 +172,11 @@ OS_HEADERS = re.compile(
     r"#\s*include\s*[<\"](windows\.h|winsock2?\.h|unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|sys/[^>\"]+|mach/[^>\"]+|"
     r"CoreFoundation/[^>\"]+|Cocoa/[^>\"]+|AppKit/[^>\"]+|linux/[^>\"]+)[>\"]")
 # Each capability's one owner, and the signature of a re-implementation.
-OWNERS_FILE = Path(__file__).resolve().parent / "capabilities.owners.omui.toml"
+OWNERS_FILE = Path(__file__).resolve().parent / "capabilities.owners.omui.json"
 
 
 def load_owners() -> list[dict]:
-    rows = tomllib.loads(OWNERS_FILE.read_text(encoding="utf-8"))["capability"]
+    rows = json.loads(OWNERS_FILE.read_text(encoding="utf-8"))["capability"]
     for row in rows:
         flags = re.IGNORECASE if row.get("ignore_case") else 0
         row["compiled"] = [re.compile(x, flags) for x in ([row["pattern"]] if "pattern" in row else row["together"])]
@@ -875,7 +876,7 @@ def check_operations(root: Path) -> list[Problem]:
     return problems
 
 
-LEAD_FEATURES = ".agents/docs/evaluation/lead.features.omui.toml"
+LEAD_FEATURES = ".agents/docs/evaluation/lead.features.omui.json"
 
 
 def check_lead(root: Path) -> list[Problem]:
@@ -939,7 +940,7 @@ def self_test() -> int:
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
-        "lead": (LEAD_FEATURES, '[[feature]]\nid = "A"\nproject = "omui"\nline = "use-safely"\ntitle = "x"\nstatus = "claimed"\n'),
+        "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
     try:
         import jsonschema  # type: ignore  # noqa: F401

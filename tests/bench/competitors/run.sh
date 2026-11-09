@@ -7,7 +7,7 @@
 #   tests/bench/competitors/run.sh --ledger [N]    the lead ledger (Part 2 plan §2.2, D-135): N rounds
 #                                                  (15 by default), our side and theirs alternating in
 #                                                  this one job; tools/eval/lead.py judges each metric of
-#                                                  lead.metrics.omui.toml by the ratio a round and writes
+#                                                  lead.metrics.omui.json by the ratio a round and writes
 #                                                  .agents/docs/evaluation/lead.ledger.omui.jsonl and lead.md
 #   LEAD_DRY_RUN=1 ... --ledger                    the verdicts printed, nothing written
 #

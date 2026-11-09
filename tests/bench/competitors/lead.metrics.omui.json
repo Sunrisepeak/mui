@@ -1,0 +1,549 @@
+{
+  "doc": "The metrics each project is judged by (Part 2 plan §2, §4; D-135): fixed and reviewed before they are measured, never dropped for a bad result. status = \"measured\"           run.sh --ledger measures it (series in key/field) \"planned\"            on the list, its harness not written yet (LD1) \"pending_hardware\"   needs a device neither this machine nor CI has better = \"lower\" | \"higher\"   for our value core   = false                reported, not counted in \"no core metric behind\" A measured metric pairs `ours` with each of `competitors` round by round (series names as run.sh tags them: tools/eval/lead.py sample), on `key`'s `field`; tools/eval/lead.py verdict writes the ledger line.",
+  "metric": [
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.mean_ms",
+      "about": "1000 values retargeted every 30 frames, a 60 Hz frame at a time: mean frame (wasm in node vs GSAP in the same node)",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "mean_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured",
+      "doc": "--- hanim: interactive motion, the Web (the same V8) -----------------------"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.p95_ms",
+      "about": "the same work: the 95th percentile frame",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "p95_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-1000.web.max_ms",
+      "about": "the same work: the worst frame (the one that retargets all 1000)",
+      "better": "lower",
+      "key": "drive-1000",
+      "field": "max_ms",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.drive-10k.web.mean_ms",
+      "about": "10,000 values, otherwise as drive-1000; also against Motion (motion.dev)",
+      "better": "lower",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "gsap",
+        "motion"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.document.bytes",
+      "about": "the same 10 s brand animation: document size (gzip)",
+      "better": "lower",
+      "ours": "hanim",
+      "competitors": [
+        "lottie",
+        "rive"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.playback.ms",
+      "about": "the same 10 s brand animation: playback frame time",
+      "better": "lower",
+      "ours": "hanim-wasm",
+      "competitors": [
+        "rive",
+        "lottie-web"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "hanim",
+      "id": "motion.gpu.morph-1m.ms",
+      "about": "a morph of 1,000,000 control points on a real GPU",
+      "better": "lower",
+      "ours": "hanim-gpu",
+      "competitors": [
+        "hanim-cpu"
+      ],
+      "status": "pending_hardware",
+      "needs": "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.fills-1000.median_ms",
+      "about": "1000 translucent blobs of six cubics",
+      "better": "lower",
+      "key": "fills-1000",
+      "field": "median_ms",
+      "ours": "xrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured",
+      "doc": "--- xrender: the CPU raster, five seeded scenes at 1024², one thread -------"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.gradients-200.median_ms",
+      "about": "200 blobs with two-stop linear gradients",
+      "better": "lower",
+      "key": "gradients-200",
+      "field": "median_ms",
+      "ours": "xrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.small-5000.median_ms",
+      "about": "5000 opaque triangles of 2–8 px",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "median_ms",
+      "ours": "xrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.strokes-500.median_ms",
+      "about": "open cubics 1–12 px wide, round caps and joins",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "median_ms",
+      "ours": "xrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.joins-300.median_ms",
+      "about": "polylines with sharp corners, every join and cap",
+      "better": "lower",
+      "key": "joins-300",
+      "field": "median_ms",
+      "ours": "xrender",
+      "competitors": [
+        "skia",
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.fills-1000.error",
+      "about": "quality: mean channel difference from Skia's picture (resvg's the competitor; Skia is the reference)",
+      "better": "lower",
+      "key": "fills-1000",
+      "field": "error_vs_skia",
+      "ours": "xrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.gradients-200.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "gradients-200",
+      "field": "error_vs_skia",
+      "ours": "xrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.small-5000.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "small-5000",
+      "field": "error_vs_skia",
+      "ours": "xrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.strokes-500.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "strokes-500",
+      "field": "error_vs_skia",
+      "ours": "xrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.joins-300.error",
+      "about": "quality, as fills-1000.error",
+      "better": "lower",
+      "key": "joins-300",
+      "field": "error_vs_skia",
+      "ours": "xrender",
+      "competitors": [
+        "resvg"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.cjk-5000.median_ms",
+      "about": "5000 CJK glyphs",
+      "better": "lower",
+      "ours": "xrender",
+      "competitors": [
+        "skia"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.web.submit-5000.ms",
+      "about": "5000 draws a frame from WebAssembly: boundary crossings and JavaScript time",
+      "better": "lower",
+      "ours": "xrender-wasm",
+      "competitors": [
+        "canvaskit"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "xrender",
+      "id": "raster.wasm.bytes",
+      "about": "the raster core as WebAssembly (gzip)",
+      "better": "lower",
+      "ours": "xrender-wasm",
+      "competitors": [
+        "thorvg"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "xrender",
+      "id": "gpu.fills-1000.ms",
+      "about": "the five scenes on a real GPU",
+      "better": "lower",
+      "ours": "xrender-gpu",
+      "competitors": [
+        "vello",
+        "graphite"
+      ],
+      "status": "pending_hardware",
+      "needs": "a physical GPU SDL_GPU can open: this machine's RTX 4080 has no VK_EXT_headless_surface, so SDL's offscreen driver cannot use it (needs an X/Wayland display)"
+    },
+    {
+      "project": "omui",
+      "id": "ui.cold-start.ms",
+      "about": "a settings page of 40 controls: start to first frame (desktop)",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "slint",
+        "flutter"
+      ],
+      "status": "planned",
+      "doc": "--- omui -------------------------------------------------------------------"
+    },
+    {
+      "project": "omui",
+      "id": "web.first-paint.mobile.ms",
+      "about": "the site's home under Lighthouse mobile (1.6 Mbps, 150 ms RTT, 4× CPU)",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web",
+        "react-ssr"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "web.interactive.mobile.ms",
+      "about": "the same page: interactive",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "web.first-load.bytes",
+      "about": "the home page's first load (compressed, with its font subset)",
+      "better": "lower",
+      "ours": "omui-site",
+      "competitors": [
+        "flutter-web",
+        "react-ssr"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.list-10k.p99_ms",
+      "about": "a 10,000-row virtual list scrolling with 200 animations running: p99 frame",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "compose"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.memory-10k.bytes",
+      "about": "an application of 10,000 nodes: resident memory",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "ui.input-latency.frames",
+      "about": "press to changed pixels at 120 Hz",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "slint"
+      ],
+      "status": "pending_hardware",
+      "needs": "a 120 Hz display and a latency probe"
+    },
+    {
+      "project": "omui",
+      "id": "ui.hot-reload.ms",
+      "about": "a view file or script changed to the frame updated, state kept",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "flutter",
+        "react-vite"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.ui-tasks.success",
+      "about": "100 UI tasks: success rate through the semantic interface",
+      "better": "higher",
+      "ours": "omui-semantic",
+      "competitors": [
+        "a11y-tree-agent",
+        "screenshot-agent"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.ui-tasks.tokens",
+      "about": "the same tasks: tokens a task",
+      "better": "lower",
+      "ours": "omui-semantic",
+      "competitors": [
+        "a11y-tree-agent",
+        "screenshot-agent"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.connect.lines",
+      "about": "lines an application adds to give agents every operation",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "webmcp"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui",
+      "id": "agent.build-ui.success",
+      "about": "a coding agent building or fixing an interface: success rate (B)",
+      "better": "higher",
+      "ours": "omui",
+      "competitors": [
+        "react-vite-playwright",
+        "flutter"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "omui.components",
+      "id": "components.canvas-1000.frame_ms",
+      "about": "1000 live components on a canvas: frame time",
+      "better": "lower",
+      "ours": "omui",
+      "competitors": [
+        "figma-like-dom"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "xengine",
+      "id": "physics.pyramid.step_ms",
+      "about": "Box2D v3's benchmark scenes (pyramid, tumbler, chains): step time",
+      "better": "lower",
+      "ours": "xengine.dynamics",
+      "competitors": [
+        "box2d-v3",
+        "rapier"
+      ],
+      "status": "planned",
+      "doc": "--- xengine ----------------------------------------------------------------"
+    },
+    {
+      "project": "xengine",
+      "id": "world.iterate-100k.ms",
+      "about": "100,000 entities iterated",
+      "better": "lower",
+      "ours": "xengine",
+      "competitors": [
+        "bevy"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "xengine",
+      "id": "cellular.4096.fps",
+      "about": "a 4096² cellular field on a GPU",
+      "better": "higher",
+      "ours": "xengine.cellular",
+      "competitors": [
+        "noita-like"
+      ],
+      "status": "pending_hardware",
+      "needs": "a physical GPU"
+    },
+    {
+      "project": "xengine",
+      "id": "agent.game-tasks.success",
+      "about": "game development tasks: native (xengine) against an adapter (Godot 4 + MCP plug-in)",
+      "better": "higher",
+      "ours": "xengine",
+      "competitors": [
+        "godot-mcp"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "gongfu",
+      "id": "rollback.8-frames.ms",
+      "about": "roll back 8 frames and resimulate (desktop)",
+      "better": "lower",
+      "ours": "gongfu",
+      "competitors": [
+        "ggrs"
+      ],
+      "status": "planned",
+      "doc": "--- gongfu -----------------------------------------------------------------"
+    },
+    {
+      "project": "mlibs",
+      "id": "text.paragraph.ms",
+      "about": "paragraph layout (shaping is HarfBuzz on both sides)",
+      "better": "lower",
+      "ours": "mlibs.text",
+      "competitors": [
+        "skparagraph"
+      ],
+      "status": "planned",
+      "doc": "--- mlibs ------------------------------------------------------------------"
+    },
+    {
+      "project": "mlibs",
+      "id": "layout.flex-grid-5000.ms",
+      "about": "5000 nodes of nested flex and grid, a full layout",
+      "better": "lower",
+      "ours": "mlibs.layout",
+      "competitors": [
+        "taffy",
+        "yoga"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mlibs",
+      "id": "markdown.html.web.median_ms",
+      "about": "Markdown to HTML, the whole way, on 1 MiB of the repository's own docs, in one V8: mlibs.markdown (md4c's parse, the document, its HTML) against md4c's own HTML writer (md4w) and markdown-it",
+      "better": "lower",
+      "key": "markdown",
+      "field": "median_ms",
+      "ours": "mlibs.markdown-wasm",
+      "competitors": [
+        "md4w",
+        "markdown-it"
+      ],
+      "status": "measured"
+    },
+    {
+      "project": "mlibs",
+      "id": "markdown.commonmark.pass",
+      "about": "CommonMark and GFM spec examples passed",
+      "better": "higher",
+      "ours": "mlibs.markdown",
+      "competitors": [
+        "md4c",
+        "cmark-gfm"
+      ],
+      "status": "planned"
+    },
+    {
+      "project": "mlibs",
+      "id": "i18n.data.bytes",
+      "about": "locale data for the same coverage",
+      "better": "lower",
+      "ours": "mlibs.i18n",
+      "competitors": [
+        "icu4x"
+      ],
+      "status": "planned"
+    }
+  ]
+}

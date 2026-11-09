@@ -45,6 +45,7 @@
 | **D-156** | **工程结构语义清晰（待 review）**：根目录只放约定的入口（`mcpp.toml`、`omui.config.ts`、`README.md`，需要时加 `build.mcpp`、`skill.omui.md`）；每类内容只有一个归宿（`app/`、`design/`、`contracts/`、`native/`、`ops/`、`assets/`、`tests/`），`.<种类>.omui.ts` 后缀说明种类；必须提交的生成物只放在 `generated/` 目录，本地状态放在 `.omui/`；纯 TS 应用不带手写 C++。lint `layout` 负责检查（§2.17） | 人和 Agent 都要一眼看懂工程：代码在哪、数据在哪、什么是生成的 |
 | **D-157** | **脚本导入按层面分（已确认，2026-11-09）**：`openmui` 只放规范定义的内容——脚本绑定 API、`openmui:native/*`、`openmui/define` 里规范定义的数据格式（契约、native、视图）；`omui` 放实现层的内容——`omui/define` 的 `defineConfig`、`defineOps`、`defineStyle`、`defineMotion`，以及以后给脚本的开发辅助。组件不按模块拆分（规范规定注册的组件都出现在 `openmui` 里），可移植性由工具按组件来源检查（`omui check --portable`、`.d.ts` 标注来源）；扩展先进入规范再改从 `openmui` 导入，不留别名 | 只依赖 `openmui` 的代码可在任何实现上运行；依赖实现的地方在代码里一眼可见（参照 Vulkan、OpenXR 的核心加扩展） |
 | **D-158** | **TS 接口分两级（人的要求，2026-11-09）**：面向 TS 的接口要优雅、简洁、语义直观、结构清楚；简洁层符合 TS 习惯，覆盖约 80% 的用法，完整层对接 native；两级走同一路径，复杂度逐步展开（见 W1 第 5 步） |
+| **D-159** | **规范的注册表用 JSON 快照（人的决定，2026-11-09）**：openmui 规范的组件契约和注册表以求值后的 JSON 快照为规范形式（D-139）；TS 是实现方便书写的方式，其他实现不需要 TS 求值器。其余 `*.omui.toml` 都迁到 TS，交给 Python 读的台账（对照集、领先度、指标、能力归属）改为 `.omui.json`，注释保留为 `doc`。 | 规范保持与格式无关的数据；与 D-139 一致 |
 
 已同步改动的规则：AGENTS.md §2.4 补充 D-142、D-144、D-145、D-148、D-149；§5 补充 D-150；§4 的数据文件命名改为 `<名字>.<种类>.omui.{ts,json,jsonl}`，“契约优先”改为 TS 契约，脚本语言改为 TS/JS；§5 的测试改为 mtest 和局部测试。顶层方案 §0.1 和核心准则 §9.8、§9.9 也已同步。
 
@@ -692,6 +693,7 @@ my-app/
 - 构建期：一个 mcpp 插件（`omui.build.data`，与 contracts、embed 同一套机制）把包里的 `<名字>.<种类>.omui.ts` 求值成同名的 `.omui.json`，放在构建目录里，嵌入资源时嵌入 JSON。`omui-gen` 已有确定的求值环境（`omui.gen.data`）。
 - 读取器改为读 JSON，问题用 JSON 指针定位（TS 源码的行号本来也没有）。每改完一类，就删掉这一类的 TOML 读取路径（不留兼容层）。
 - 顺序：按类迁移，每一类都满足"文件逐个转写、读取器换成 JSON、像素和音频基线逐字节不变"，各自一个检查点。最后 lint 拦截新出现的 `.omui.toml`。
+- 进度：A 完成，交给 Python 读的 5 个台账（两个对照集、领先度特性、竞品指标、能力归属）改为 `.omui.json`（`tools/dev/toml_to_json.py`）：文件开头的注释成为 `doc`，表和条目前的注释成为它们的 `doc`，键前的注释成为 `<键>_doc`。lint、`lead.py` 和 `compare.py` 改为读 JSON。规范注册表按 D-159 改为 JSON 快照，下一块。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

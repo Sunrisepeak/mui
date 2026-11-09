@@ -7,7 +7,10 @@ import std;
 import mlibs.math;
 import omui.viewdoc;
 import omui.ui.base;
-import omui.host.headless;
+import omui.semantic;
+import xrender.vector;
+import xrender.raster;
+import xrender.text;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -36,33 +39,116 @@ mlibs::text::FontCollection& fonts() {
     return f;
 }
 
-HeadlessOptions options(Size size = {320, 200}) {
-    HeadlessOptions o;
-    o.size = size;
-    o.fonts = &fonts();
-    return o;
-}
+struct HostOptions {
+    Size size{320, 200};
+};
+
+HostOptions options(Size size = {320, 200}) { return {.size = size}; }
+
+// A host of the test's own: the runtime stepped at 60 frames a second, its
+// semantic tree, a person's click on a node, the pixels of the last frame —
+// what omui.host.headless does, without it: that host depends on omui.agent,
+// which depends on this package.
+class Host {
+public:
+    explicit Host(HostOptions given)
+        : size_(given.size),
+          runtime_([&] {
+              RuntimeOptions made;
+              made.fonts = &fonts();
+              made.size = given.size;
+              return made;
+          }()),
+          tree_(runtime_),
+          glyphs_(fonts()) {}
+
+    Runtime& runtime() noexcept { return runtime_; }
+    semantic::Tree& tree() noexcept { return tree_; }
+    FrameOutput step(std::vector<InputEvent> events = {}) {
+        ++frame_;
+        return runtime_.frame({seconds(static_cast<double>(frame_) / 60.0), std::move(events)});
+    }
+    NodeId mount(std::string_view slot, View view) { return runtime_.mount(slot, std::move(view)); }
+    [[nodiscard]] seconds now() const noexcept { return seconds(static_cast<double>(frame_) / 60.0); }
+    // Frames until nothing moves and no timer is due within `limit`.
+    std::size_t settle(seconds limit = seconds(10)) {
+        const seconds end = now() + limit;
+        std::size_t frames = 0;
+        while (true) {
+            const FrameOutput out = step();
+            ++frames;
+            const bool timer_soon = out.next_timer && *out.next_timer <= end;
+            if ((!out.animating && !timer_soon) || now() >= end) return frames;
+        }
+    }
+    void key(Key pressed, Modifiers mods = {}) {
+        KeyEvent down;
+        down.key = pressed;
+        down.mods = mods;
+        KeyEvent up = down;
+        up.kind = KeyKind::up;
+        step({down, up});
+    }
+    void type(std::string_view text) { step({TextEvent{std::string(text)}}); }
+    // A person's click at the middle of a node, as drawn.
+    bool click(std::string_view id) {
+        const NodeId node = runtime_.find(id);
+        if (!runtime_.valid(node)) return false;
+        const Rect drawn = runtime_.drawn_bounds(node);
+        if (drawn.empty()) return false;
+        PointerEvent down;
+        down.kind = PointerKind::down;
+        down.position = drawn.center();
+        down.button = MouseButton::left;
+        down.buttons = 1;
+        PointerEvent up = down;
+        up.kind = PointerKind::up;
+        up.buttons = 0;
+        PointerEvent move = down;
+        move.kind = PointerKind::move;
+        move.button = MouseButton::none;
+        move.buttons = 0;
+        step({move, down, up});
+        return true;
+    }
+    const xrender::raster::Surface& pixels() {
+        surface_ = xrender::raster::Surface(static_cast<int>(size_.width), static_cast<int>(size_.height));
+        xrender::CpuOptions drawing;
+        drawing.background = Color::white();
+        (void)renderer_.render(runtime_.display_list(), surface_, {&runtime_.images(), &glyphs_}, drawing);
+        return surface_;
+    }
+
+private:
+    Size                        size_;
+    Runtime                     runtime_;
+    semantic::Tree              tree_;
+    xrender::text::GlyphCache   glyphs_;
+    xrender::CpuRenderer        renderer_;
+    xrender::raster::Surface    surface_{1, 1};
+    std::int64_t                frame_ = 0;
+};
 
 // Every semantic node under (and including) a node, in tree order.
-void collect(Headless& h, NodeId n, std::vector<spec::SemanticNode>& out) {
+void collect(Host& h, NodeId n, std::vector<spec::SemanticNode>& out) {
     out.push_back(h.runtime().semantic_node(n));
     for (NodeId c : h.runtime().children(n)) collect(h, c, out);
 }
 
-std::vector<spec::SemanticNode> tree_of(Headless& h, std::string_view root = "main") {
+std::vector<spec::SemanticNode> tree_of(Host& h, std::string_view root = "main") {
     std::vector<spec::SemanticNode> out;
     collect(h, h.runtime().find(root), out);
     return out;
 }
 
-std::uint64_t pixels(Headless& h) {
+std::uint64_t pixels(Host& h) {
     Hash hash;
     const auto& px = h.pixels();
     for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
     return hash.value();
 }
 
-std::int64_t act(Headless& h, std::string_view id, std::string_view action, Value args = {}, std::string answer = {}) {
+std::int64_t act(Host& h, std::string_view id, std::string_view action, Value args = {}, std::string answer = {}) {
     Invocation call;
     call.args = std::move(args);
     call.answer = std::move(answer);
@@ -72,12 +158,12 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
     return e.exit_code().value_or(-1);
 }
 
-std::string name_of(Headless& h, std::string_view id) {
+std::string name_of(Host& h, std::string_view id) {
     auto n = h.tree().node(id);
     return n ? n->name : std::string("<none>");
 }
 
-vd::View load(Headless& h, std::string_view text, std::source_location where = std::source_location::current()) {
+vd::View load(Host& h, std::string_view text, std::source_location where = std::source_location::current()) {
     auto v = vd::View::load(h.runtime(), text, {.file = "test.view.omui.json"});
     if (!v) {
         for (const auto& d : v.error()) expect(false, where) << d.text("test.view.omui.json");
@@ -131,7 +217,7 @@ UTest cases{"viewdoc", [] {
     register_base_components();
 
     "a document and its builder make the same tree and the same pixels (CTS S level)"_test = [] {
-        Headless doc(options()), code(options());
+        Host doc(options()), code(options());
         auto view = load(doc, counter);
         view.mount(doc.runtime(), "main");
 
@@ -215,7 +301,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "bindings: expressions follow signals and models; bind is two-way; tr reads the catalogue"_test = [] {
-        Headless h(options());
+        Host h(options());
         (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), R"({"messages": {"search": "Suchen", "found": "{$n :number} gefunden"}})", "de.messages.omui.json");
         languages().request({*mlibs::i18n::Locale::parse("de")});
         auto view = vd::View::load(h.runtime(), view_of(R"j({"type": "column", "children": [
@@ -248,7 +334,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "if and for: regions reconciled by key, rows named by their keys"_test = [] {
-        Headless h(options({320, 400}));
+        Host h(options({320, 400}));
         auto view = load(h, view_of(R"j({"type": "column", "children": [
             {"if": "show", "then": [{"type": "text", "id": "on", "props": {"text": "shown"}}],
                            "else": [{"type": "text", "id": "off", "props": {"text": "hidden"}}]},
@@ -275,7 +361,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "a loop in a list is virtualised; a filtered list gets a model of its own"_test = [] {
-        Headless h(options({320, 200}));
+        Host h(options({320, 200}));
         auto view = load(h, view_of(R"j({"type": "list", "id": "notes", "props": {"height": 120, "estimate": 24},
             "children": [{"for": "note", "in": "notes", "where": "contains(note.title, filter)",
                           "body": [{"type": "text", "props": {"text": {"expr": "note.title"}}}]}]})j",
@@ -297,7 +383,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "a verb on an activation is the node's verb: S-1 and S-2 hold for it"_test = [] {
-        Headless h(options());
+        Host h(options());
         std::vector<std::string> deleted;
         (void)h.runtime().verbs().add({"note.delete", "Delete a note", Effect::irreversible, "delete", {{"id", "string"}}},
                                       [&](const Value& a) -> VerbResult {
@@ -325,7 +411,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "verbs and events from other operations"_test = [] {
-        Headless h(options());
+        Host h(options());
         std::vector<Value> saved;
         (void)h.runtime().verbs().add({"draft.save", "Save", Effect::reversible, "", {{"text", "string"}}}, [&](const Value& a) -> VerbResult {
             saved.push_back(a);
@@ -346,7 +432,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "provided signals are the host's, shared by every view; events forward to the host"_test = [] {
-        Headless h(options());
+        Host h(options());
         auto shared = signal(Value(3));
         const vd::LoadOptions o{.provide = [&](std::string_view n) -> std::optional<Signal<Value>> {
             if (n == "count") return shared;
@@ -376,7 +462,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "slots are filled by code, before or after mounting"_test = [] {
-        Headless h(options());
+        Host h(options());
         auto view = load(h, view_of(R"j({"type": "column", "children": [{"slot": "toolbar"}, {"type": "text", "id": "body", "props": {"text": "Body"}}]})j"));
         view.slot("toolbar", button({.id = "save", .text = "Save"}));
         view.mount(h.runtime(), "main");
@@ -394,7 +480,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "reload: state, nodes and focus stay; errors change nothing"_test = [] {
-        Headless h(options());
+        Host h(options());
         auto view = load(h, counter);
         view.mount(h.runtime(), "main");
         h.step();
@@ -427,7 +513,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "an expression that fails shows the property's default and logs once"_test = [] {
-        Headless h(options());
+        Host h(options());
         auto view = load(h, view_of(R"j({"type": "column", "children": [
             {"type": "text", "id": "t", "props": {"label": "x", "text": {"expr": "format('{}', 10 / zero)"}}},
             {"type": "progress", "id": "p", "props": {"value": {"expr": "10 / zero / 10.0"}}}]})j",
@@ -464,7 +550,7 @@ UTest cases{"viewdoc", [] {
         expect((*type)->contract && (*type)->contract->prop("query") && (*type)->contract->prop("query")->bindable);
         expect((*type)->contract->event("searched") && (*type)->contract->event("searched")->args.size() == 1);
 
-        Headless h(options());
+        Host h(options());
         auto query = signal(std::string("first"));
         std::vector<std::string> searched;
         auto page = load(h, view_of(R"j({"type": "column", "children": [
@@ -576,7 +662,7 @@ UTest cases{"viewdoc", [] {
             const vd::ReadResult r = vd::read(text);
             for (const vd::Diagnostic& d : r.diagnostics) h.str(d.code);
             if (!r.ok()) continue;
-            Headless host(options({160, 120}));
+            Host host(options({160, 120}));
             auto view = vd::View::load(host.runtime(), text);
             if (!view) continue;
             ++loaded;
@@ -592,7 +678,7 @@ UTest cases{"viewdoc", [] {
     };
 
     "a slot no code fills is an outlet: a view mounted under its name shows there, before or after"_test = [] {
-        Headless h(options({320, 240}));
+        Host h(options({320, 240}));
         auto help = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
             {"type": "text", "id": "tip", "props": {"text": "Press F1"}}}})j");
         auto shell = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":

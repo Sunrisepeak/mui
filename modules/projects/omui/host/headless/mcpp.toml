@@ -34,3 +34,6 @@ mlibs.utils    = { path = "../../../../base/utils" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
+# tests/component_motion_sweep_test.cpp: every component from a view document, swept through its motions here.
+omui.ui.base = { path = "../../components/base" }
+omui.viewdoc = { path = "../../viewdoc" }

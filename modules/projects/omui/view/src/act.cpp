@@ -119,12 +119,15 @@ spec::SemanticNode Runtime::Impl::semantics(NodeId id) const {
         if (auto o = spec::parse_origin(v->as_string())) s.origin = *o;
 
     const bool focusable = is_focusable(id);
+    // Removing (S-4): it, or what holds it, is leaving — what a removed view held goes with it.
+    bool removing = n.state.removing;
+    for (NodeId up = n.parent; !removing && alive(up); up = at(up).parent) removing = at(up).state.removing;
     s.states.set(State::disabled, n.state.disabled)
         .set(State::focusable, focusable)
         .set(State::focused, n.state.focused)
         .set(State::hovered, n.state.hovered)
         .set(State::pressed, n.state.pressed)
-        .set(State::removing, n.state.removing)
+        .set(State::removing, removing)
         .set(State::animating, n.state.animating || (id == root && fading.has_value()) || std::ranges::find(moving_flagged, id) != moving_flagged.end() ||
                                    motion_moving(id))  // seekable handles report their own clock, including pause and direction
         .set(State::hidden, !displayed(id));

@@ -50,9 +50,9 @@ struct Page {
         };
     }
 
-    // Whether a node named so is in the semantic tree.
+    // Whether a node named so is in the semantic tree, once what moves has settled.
     bool shows(std::string_view name) {
-        (void)rt.frame({rt.now(), {}});
+        (void)rt.frame({rt.now() + seconds(3), {}});
         const semantic::Snapshot now = semantic::Tree(rt).snapshot({});
         return std::ranges::any_of(now.nodes, [&](const spec::SemanticNode& node) { return node.name == name; });
     }
@@ -126,6 +126,17 @@ UTest cases{"generation", [] {
         // Committed: version 1, shown; a second draft, version 2; undo goes back a version, then to none.
         const Answer committed = invoke(protocol, "generate.commit", Value{}.set("draft", first));
         expect(eq(committed.exit, 0) && eq(committed.data.get("version")->as_int(), std::int64_t{1})) << committed.error;
+        // It comes in as a design step does (written in, settling from 92 %): smaller at first, then whole.
+        {
+            const seconds from = page.rt.now();
+            std::vector<float> widths;
+            for (const double at : {0.05, 0.2, 0.4, 3.0}) {
+                (void)page.rt.frame({from + seconds(at), {}});
+                widths.push_back(page.rt.drawn_bounds(page.rt.find("main/extras")).width);
+            }
+            expect(widths[1] > 0 && widths[1] < widths[3] * 0.99f && widths[2] >= widths[1] && widths[3] > 0)
+                << std::format("{} {} {} {}", widths[0], widths[1], widths[2], widths[3]);
+        }
         expect(page.shows("Pro, 9 a month"));
         const Answer again = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("Team, 29 a month")));
         expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", again.data.get("draft")->as_string())).exit, 0));
@@ -175,6 +186,20 @@ UTest cases{"generation", [] {
         agent::Protocol asking(closed.rt, {});
         const Answer refused = invoke(asking, "generate.draft", Value{}.set("surface", "extras").set("document", card("x")));
         expect(eq(refused.exit, 1) && refused.error.contains("off")) << refused.error;
+    };
+
+    "a version of several nodes undone: each one leaves and is gone (none lingers in the tree)"_test = [] {
+        Page page;
+        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        agent::Protocol protocol(page.rt, {});
+        const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", parse_json(R"({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+            {"type": "text", "id": "pro", "props": {"text": "Pro"}}, {"type": "text", "id": "team", "props": {"text": "Team"}}]}}})").value()));
+        expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", drafted.data.get("draft")->as_string())).exit, 0));
+        for (int frame = 1; frame <= 120; ++frame) (void)page.rt.frame({page.rt.now() + seconds(1.0 / 60), {}});
+        expect(static_cast<bool>(page.rt.find("main/extras/team")));
+        expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0));
+        for (int frame = 1; frame <= 180; ++frame) (void)page.rt.frame({page.rt.now() + seconds(1.0 / 60), {}});
+        expect(!page.rt.find("main/extras/team") && !page.rt.find("main/extras")) << "gone once played back";
     };
 
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {

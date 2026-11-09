@@ -111,11 +111,24 @@ struct Generation::Impl {
         return &found->second;
     }
 
-    // What the surface shows: a version (0: nothing).
-    void show(std::string_view surface, std::size_t version) {
+    using Presented = Runtime::DesignPresentation::Kind;
+
+    // What the surface shows: a version (0: nothing) — presented as Live Design presents a step
+    // (W5 step 4): what it adds grows in, an undo plays back, a version restored is a switch. A
+    // preview shows it still (none).
+    void show(std::string_view surface, std::size_t version, std::optional<Presented> presented = std::nullopt) {
         Shown& shown = surfaces.find(surface)->second;
+        const Runtime::DesignPresentation before = runtime.design_presentation();
+        if (presented) {
+            runtime.set_design_presentation({*presented, before.pace});
+            runtime.present_design();
+        }
         if (version == 0) runtime.unmount(surface);
         else shown.versions[version - 1].view.mount(runtime, surface);
+        if (presented) {
+            settle_effects();  // the slot's region takes it now, while the presentation is this one
+            runtime.set_design_presentation(before);
+        }
         shown.current = version;
     }
 
@@ -123,8 +136,8 @@ struct Generation::Impl {
     void into_history(std::string_view surface, std::size_t from, std::size_t to, const std::shared_ptr<Impl>& self) {
         const std::weak_ptr<Impl> alive = self;
         const std::string name(surface);
-        runtime.taken_back_by([alive, name, from] { if (auto impl = alive.lock()) impl->show(name, from); },
-                              [alive, name, to] { if (auto impl = alive.lock()) impl->show(name, to); });
+        runtime.taken_back_by([alive, name, from] { if (auto impl = alive.lock()) impl->show(name, from, Presented::undo); },
+                              [alive, name, to] { if (auto impl = alive.lock()) impl->show(name, to, Presented::edit); });
     }
 
     // A document, checked: its openness, its limits, then against what is registered.
@@ -240,7 +253,7 @@ struct Generation::Impl {
         shown.versions.push_back({number, draft.document, actor_now(runtime), draft.id, runtime.now().count(), draft.view});
         const std::string surface = draft.surface, id = draft.id;
         drafts.erase(id);
-        show(surface, number);
+        show(surface, number, Presented::edit);
         into_history(surface, before, number, self);
         return Value{}.set("surface", surface).set("version", static_cast<std::int64_t>(number)).set("before", static_cast<std::int64_t>(before)).set("draft", id);
     }
@@ -254,7 +267,7 @@ struct Generation::Impl {
         if (version < 0 || static_cast<std::size_t>(version) > (*known)->versions.size())
             return std::unexpected(std::format("`{}` has versions 1 to {} (0: none)", surface, (*known)->versions.size()));
         const std::size_t before = (*known)->current;
-        show(surface, static_cast<std::size_t>(version));
+        show(surface, static_cast<std::size_t>(version), Presented::switch_to);
         into_history(surface, before, static_cast<std::size_t>(version), self);
         return Value{}.set("surface", surface).set("version", version).set("before", static_cast<std::int64_t>(before));
     }

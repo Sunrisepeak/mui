@@ -66,9 +66,11 @@ grep -q '"after":{"format":"png"' <<< "$last"
 expect 0 '{"op":"find","q":{"name":"*a month"}}'
 grep -q '"nodes":\[\]' <<< "$last"  # the preview left nothing
 expect 0 '{"op":"invoke","verb":"generate.commit","args":{"draft":"d1"}}'
+expect 0 '{"op":"wait","settled":true,"timeout":5}'  # it comes in as a design step does
 expect 0 '{"op":"find","q":{"name":"Team, 29 a month"}}'
 grep -q 'main/extras/team' <<< "$last"
 expect 0 '{"op":"undo"}'
+expect 0 '{"op":"wait","settled":true,"timeout":5}'  # played back
 expect 0 '{"op":"find","q":{"name":"*a month"}}'
 grep -q '"nodes":\[\]' <<< "$last"
 expect 0 '{"op":"redo"}'

@@ -110,7 +110,34 @@ struct FakeBus {
     }
 };
 
+std::string_view code_name(mpal::Error::Code code) {
+    switch (code) {
+        case mpal::Error::Code::unsupported: return "unsupported";
+        case mpal::Error::Code::unavailable: return "unavailable";
+        case mpal::Error::Code::refused: return "refused";
+        default: return "failed";
+    }
+}
+
+// What the system's centre says to a program: opened and shown, or why not.
+std::string probe() {
+    auto notes = mpal::Notifier::open();
+    if (!notes) return std::format("open {}: {}", code_name(notes.error().code), notes.error().text);
+    auto shown = notes->show({.application = "mpal probe", .title = "mpal", .body = "a probe of the system's notifications", .actions = {{"open", "Open"}}});
+    if (!shown) return std::format("show {}: {}", code_name(shown.error().code), shown.error().text);
+    auto answer = notes->next(std::chrono::milliseconds(200));
+    if (!answer) return std::format("next {}: {}", code_name(answer.error().code), answer.error().text);
+    (void)notes->close(*shown);
+    return std::format("shown {}", *shown);
+}
+
 }  // namespace
+
+// A copy of this program (inside an .app on macOS): what the centre said, on its output.
+child notify_probe{"notify-probe", [](std::vector<std::string>) {
+    std::println("{}", probe());
+    return 0;
+}};
 
 UTest cases{"mpal.notify", [] {
     "a call laid out as the specification says: header, fields 8-aligned, strings with their length and nul"_test = [] {
@@ -262,7 +289,53 @@ UTest cases{"mpal.notify", [] {
         const auto other = notes->next(std::chrono::milliseconds(300));
         expect(other && !*other) << "another interface's signal: not asked for, not routed";
         (void)bus_process->kill();
-        std::filesystem::remove_all(dir);
+        (void)bus_process->wait();  // ended, its socket removed by itself: then the directory
+        std::error_code ignored;
+        std::filesystem::remove_all(dir, ignored);
+    };
+
+    "macOS: a bare program told it needs a bundle; inside an .app, the notification centre answers — shown, or refused with its reason"_test = [] {
+        namespace os = mcpplibs::os;
+        if constexpr (os::is_macos) {
+            const auto bare = mpal::Notifier::open();
+            expect(!bare && bare.error().code == mpal::Error::Code::unavailable && bare.error().text.contains("bundle identifier"))
+                << (bare ? std::string("opened") : bare.error().text);
+            const auto app = std::filesystem::temp_directory_path() / std::format("MpalProbe-{}.app", std::random_device{}());
+            std::filesystem::create_directories(app / "Contents" / "MacOS");
+            (void)os::fs::write_atomic(app / "Contents" / "Info.plist", R"(<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>org.openmui.mpal.probe</string>
+<key>CFBundleExecutable</key><string>mpal-probe</string>
+<key>CFBundleName</key><string>MpalProbe</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+</dict></plist>
+)");
+            const auto command = child_command("notify-probe");
+            const auto inside = app / "Contents" / "MacOS" / "mpal-probe";
+            std::filesystem::copy_file(os::fs::from_utf8(command.front()), inside);
+            os::process::spawn_options options;
+            options.program = inside;
+            options.args.assign(command.begin() + 1, command.end());
+            options.out = os::process::stdio::pipe;
+            options.err = os::process::stdio::pipe;
+            const auto ran = os::process::run(options);
+            expect(fatal(ran.has_value()));
+            const std::string said = ran->out;
+            expect(said.starts_with("shown ") || said.starts_with("show refused: ")) << "out: " << said << " err: " << ran->err;
+            std::filesystem::remove_all(app);
+        }
+    };
+
+    "Windows: the application named by its Start menu shortcut; a toast shown, or refused with its reason; no answer without a person"_test = [] {
+        namespace os = mcpplibs::os;
+        if constexpr (os::is_windows) {
+            const std::string said = probe();
+            expect(said.starts_with("shown ") || said.starts_with("show refused: ")) << said;
+            const auto roaming = os::env::get("APPDATA");
+            expect(roaming && std::filesystem::exists(os::fs::from_utf8(*roaming) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "mpal probe.lnk"))
+                << "the shortcut that names it";
+        }
     };
 
     "where there is no session bus: unavailable, said"_test = [] {

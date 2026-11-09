@@ -32,7 +32,7 @@ sources = ["src/native/quickjs/*.cpp"]
 sources = ["src/native/web/*.cpp"]
 
 [dependencies]
-mcpplibs.os = "0.4.2"
+mcpplibs.os = "0.4.4"
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]
 mcpplibs.mwrap.quickjs_ng = "0.17.0"

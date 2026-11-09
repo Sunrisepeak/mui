@@ -39,7 +39,7 @@ omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
 omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }
 omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
 marzer.tomlplusplus = "3.4.0"
-mcpplibs.os = "0.4.2"
+mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
 
 # Live Design's designer (D-149): linked by `omui dev`

@@ -54,4 +54,4 @@ mlibs.control = { path = "../../base/control" }
 mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../base/utils" }
 mlibs.cts   = { path = "../../base/cts" }
-mcpplibs.os = "0.4.2"
+mcpplibs.os = "0.4.4"

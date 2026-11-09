@@ -1,17 +1,25 @@
 // Notifications (mpal:notify): each system's backend, chosen with
 // mcpplibs.os's platform questions — at compile time for a native build, when
 // loaded for an ok image (openkal), which runs on every system — and the
-// freedesktop call itself, which is protocol, not a platform's headers.
+// freedesktop call itself, which is protocol, not a platform's headers. A
+// native build for macOS or Windows speaks to that system's centre
+// (mpal:native), through mcpplibs.os's object models.
 module mpal;
 
 import std;
 import mcpplibs.os;
+import :native;
 
 namespace mpal {
 
 namespace os = mcpplibs::os;
 
 std::expected<std::uint32_t, Error> notify(const Notification& notification) {
+    if constexpr (os::is_macos || os::is_windows) {
+        auto notifier = Notifier::open();
+        if (!notifier) return std::unexpected(notifier.error());
+        return notifier->show(notification);
+    }
     // Linux (a native build, or an image loaded there): the session bus.
     if constexpr (os::can_run_on(os::platform::linux))
         if (os::host() == os::platform::linux) {
@@ -55,6 +63,13 @@ constexpr std::string_view object = "/org/freedesktop/Notifications";
 }  // namespace
 
 std::expected<Notifier, Error> Notifier::open() {
+    if constexpr (os::is_macos || os::is_windows) {
+        auto centre = native::open();
+        if (!centre) return std::unexpected(centre.error());
+        Notifier notifier;
+        notifier.centre_ = std::move(*centre);
+        return notifier;
+    }
     if constexpr (os::can_run_on(os::platform::linux))
         if (os::host() == os::platform::linux) {
             auto bus = dbus::Bus::session();
@@ -86,12 +101,16 @@ std::expected<Notifier, Error> Notifier::on(dbus::Bus bus) {
 }
 
 std::expected<std::uint32_t, Error> Notifier::show(const Notification& notification) {
+    if constexpr (os::is_macos || os::is_windows)
+        if (centre_) return native::show(*centre_, notification);
     auto id = notify_on(*bus_, notification);
     if (id) shown_.insert(*id);
     return id;
 }
 
 std::expected<void, Error> Notifier::close(std::uint32_t id) {
+    if constexpr (os::is_macos || os::is_windows)
+        if (centre_) return native::close(*centre_, id);
     auto closed = bus_->call({.destination = std::string(service), .path = std::string(object), .interface = std::string(service),
                               .member = "CloseNotification", .signature = "u", .arguments = {dbus::Value{id}}});
     if (!closed) return std::unexpected(closed.error());
@@ -99,6 +118,8 @@ std::expected<void, Error> Notifier::close(std::uint32_t id) {
 }
 
 std::expected<std::optional<Answer>, Error> Notifier::next(std::chrono::milliseconds wait) {
+    if constexpr (os::is_macos || os::is_windows)
+        if (centre_) return native::next(*centre_, wait);
     const auto until = std::chrono::steady_clock::now() + wait;
     while (true) {
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(until - std::chrono::steady_clock::now());

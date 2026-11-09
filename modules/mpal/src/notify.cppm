@@ -17,6 +17,11 @@ import std;
 import :error;
 import :dbus;
 
+// A system's notification centre reached through its object model (mpal:native).
+namespace mpal::native {
+class Centre;
+}
+
 export namespace mpal {
 
 struct Notification {
@@ -49,7 +54,9 @@ struct Answer {
 // Only the answers to its own notifications come back.
 class Notifier {
 public:
-    // The system's service (Linux: the session bus); unsupported where its backend is not written.
+    // The system's service: Linux's session bus, macOS's notification centre (a program with a
+    // bundle identifier: an .app), Windows's toasts (the application named in a Start menu
+    // shortcut, made when missing); unsupported where its backend is not written.
     [[nodiscard]] static std::expected<Notifier, Error> open();
     // The freedesktop service on a given bus.
     [[nodiscard]] static std::expected<Notifier, Error> on(dbus::Bus bus);
@@ -65,9 +72,10 @@ public:
     [[nodiscard]] std::expected<std::optional<Answer>, Error> next(std::chrono::milliseconds wait);
 
 private:
-    std::optional<dbus::Bus>     bus_;
-    std::set<std::uint32_t>      shown_;
-    bool                         every_ = false;
+    std::optional<dbus::Bus>         bus_;
+    std::shared_ptr<native::Centre>  centre_;  // macOS, Windows
+    std::set<std::uint32_t>          shown_;
+    bool                             every_ = false;
 };
 
 }  // namespace mpal

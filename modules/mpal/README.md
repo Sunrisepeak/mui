@@ -10,7 +10,7 @@ Each service is a partition with one contract; a platform that does not give it 
 
 | Service | What it is for | Platforms (planned) |
 |---|---|---|
-| `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus, with the answers (an action chosen, dismissed, expired, closed) read back from its signals (done) · Windows: toast · macOS/iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
+| `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus, with the answers (an action chosen, dismissed, expired, closed) read back from its signals (done) · Windows: toasts through the Windows Runtime, the application named by a Start menu shortcut (done) · macOS: UserNotifications, for an .app (done) · iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
 | `pick` | the person choosing files or folders the system holds (storage access) | Linux: the desktop portal · Windows/macOS: the file dialogs · iOS/Android: the document pickers · Web: File System Access |
 | `transfer` | data handed between applications: clipboard, share, drag and drop | |
 | `launch` | how an application is started and found: open a URL, file associations and deep links, single instance, start at login | |
@@ -22,7 +22,7 @@ Input — keys, pointers, touch, gamepads, the IME — is not a service here: it
 
 ## One build for every system, the openkal ecosystem first-class
 
-mpal is one build: a backend is chosen with `mcpplibs.os`'s platform questions — `if constexpr (os::can_run_on(platform))` decides at compile time for a native build, `os::host()` when an ok image (`x86_64-openkal`, `aarch64-openkal`) is loaded, since an image runs on every system. A service spoken as a protocol (D-Bus, later openbus) is ordinary code and works from an image as from a native build; `mcpp test -p mpal --target x86_64-openkal` runs the suite as an image (CI does). A system's own headers, where a service has no protocol (WinRT, Cocoa), go in the smallest native unit, and an image says `unsupported` there until openkal or a system service (Luban's bus) carries it. Platform-only extras, if a program wants them, are thin packages of their own (`mpal.linux`, …) over the same code.
+mpal is one build: a backend is chosen with `mcpplibs.os`'s platform questions — `if constexpr (os::can_run_on(platform))` decides at compile time for a native build, `os::host()` when an ok image (`x86_64-openkal`, `aarch64-openkal`) is loaded, since an image runs on every system. A service spoken as a protocol (D-Bus, later openbus) is ordinary code and works from an image as from a native build; `mcpp test -p mpal --target x86_64-openkal` runs the suite as an image (CI does). A service a system gives as objects rather than a protocol (Windows's toasts, macOS's notification centre) is spoken through `mcpplibs.os`'s object models (`windows::com`, `macos::objc`, os 0.4.4) in that system's own unit (`src/windows`, `src/macos`, built for it alone: `mpal:native`) — no system header anywhere; an image is no native build of either and says `unsupported` there until openkal or a system service (Luban's bus) carries it. Platform-only extras, if a program wants them, are thin packages of their own (`mpal.linux`, …) over the same code.
 
 ## os or mpal
 

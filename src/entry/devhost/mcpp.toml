@@ -22,7 +22,7 @@ main = "src/main.cpp"
 
 [dependencies]
 omui.sdk = { path = "../../../modules/projects/omui/sdk" }
-mcpplibs.os = "0.4.2"
+mcpplibs.os = "0.4.4"
 mcpplibs.cmdline = "0.0.3"
 
 [dev-dependencies]

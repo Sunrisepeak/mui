@@ -2,6 +2,8 @@ module omui.entry.player;
 
 import std;
 import tomlplusplus;
+import mcpplibs.os;
+import mcpplibs.cmdline;
 import omui;
 import omui.player;
 import omui.ui.markdown;
@@ -14,6 +16,7 @@ import omui.theme.compact;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::warn;
+namespace cmdline = mcpplibs::cmdline;
 }
 
 namespace omui {
@@ -136,25 +139,23 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
 }
 
 int player_main(int argc, char** argv) {
-    std::filesystem::path manifest = "mcpp.toml";
-    bool design = false;
-    std::optional<std::filesystem::path> types;  // --types DIR: declarations for a type checker, then exit (omui check)
-    std::vector<char*> rest{argv[0]};
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--manifest" && i + 1 < argc) {
-            const std::string_view f = argv[++i];
-            manifest = std::filesystem::path(std::u8string(f.begin(), f.end()));
-            if (std::filesystem::is_directory(manifest)) manifest /= "mcpp.toml";
-        } else if (a == "--dev") {
-            design = true;  // development mode: the application is its own designer (D-149)
-        } else if (a == "--types" && i + 1 < argc) {
-            const std::string_view d = argv[++i];
-            types = std::filesystem::path(std::u8string(d.begin(), d.end()));
-        } else {
-            rest.push_back(argv[i]);
-        }
-    }
+    // The player's switches beside the application's (RunOptions), on one
+    // command line, parsed once (mcpplibs.cmdline, D-56).
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("player")
+        .description("Runs a script-first openmui application from its mcpp.toml")
+        .option(Option("manifest").takes_value().value_name("FILE").help("the application's mcpp.toml, or its directory (default: ./mcpp.toml)"))
+        .option(Option("dev").help("development mode: the application is its own designer (D-149)"))
+        .option(Option("types").takes_value().value_name("DIR").help("write the TypeScript declarations of what it registers, its API (api.json) and tsc's configuration into DIR, then end (omui check)"));
+    auto command = command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
+    const cmdline::ParsedArgs& parsed = command->args;
+    RunOptions& options = command->options;
+    std::filesystem::path manifest = mcpplibs::os::fs::from_utf8(parsed.value("manifest").value_or("mcpp.toml"));
+    if (std::filesystem::is_directory(manifest)) manifest /= "mcpp.toml";
+    const bool design = parsed.is_flag_set("dev");
+    std::optional<std::filesystem::path> types;
+    if (auto dir = parsed.value("types")) types = mcpplibs::os::fs::from_utf8(*dir);
     auto m = read_manifest(manifest);
     if (!m) {
         std::println(std::cerr, "{}", m.error());
@@ -171,12 +172,8 @@ int player_main(int argc, char** argv) {
         std::println(std::cerr, "{}", config.error());
         return 2;
     }
-    std::vector<std::string> added;  // the switches the configuration adds, kept for argv
     const std::string mode = design ? config->development_agent.value_or("development") : config->release_agent.value_or("");
-    if (!mode.empty() && std::ranges::none_of(rest, [](const char* arg) { return std::string_view(arg) == "--agent-mode"; })) {
-        added = {"--agent-mode", mode};
-    }
-    for (auto& switch_text : added) rest.push_back(switch_text.data());
+    if (!mode.empty() && !options.agent_mode) options.agent_mode = parse_agent_mode(mode);
     const auto record = design ? config->development_record.value_or(RecordLevel::full) : config->release_record;
     register_markdown_component();
     // The official native modules (an application's own are registered by
@@ -202,6 +199,14 @@ int player_main(int argc, char** argv) {
             std::println(std::cerr, "{}", files.error());
             return 1;
         }
+        // Beside them, the same API as data (omui.agent:api): `omui describe --api`, llms.txt and
+        // `omui check --portable` read it.
+        const auto api = *types / "api.json";
+        if (auto written = mcpplibs::os::fs::write_atomic(api, agent::api_of(headless.runtime()).json()); !written) {
+            std::println(std::cerr, "cannot write {}: {}", utf8(api), written.error().message());
+            return 1;
+        }
+        files->push_back(api);
         for (const auto& file : *files) std::println("{}", utf8(file));
         return 0;
     }
@@ -222,7 +227,7 @@ int player_main(int argc, char** argv) {
     };
     app.ready = [&] { return p && p->idle(); };
     app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime
-    return run(std::move(app), static_cast<int>(rest.size()), rest.data());
+    return run(std::move(app), options);
 }
 
 }  // namespace omui

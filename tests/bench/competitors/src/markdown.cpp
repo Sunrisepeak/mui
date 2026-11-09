@@ -8,24 +8,28 @@
 //   omui-bench-markdown CORPUS [--runs N] [--json]
 //   omui-bench-markdown CORPUS --phases     the parse into the document, then the HTML from it
 import std;
+import mcpplibs.cmdline;
 import mlibs.markdown;
 
 int main(int argc, char** argv) {
-    if (argc < 2) {
-        std::println(std::cerr, "usage: omui-bench-markdown CORPUS [--runs N] [--json]");
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    const auto line = App("omui-bench-markdown")
+        .description("md4c's side of the Markdown benchmark: a corpus parsed and written as HTML")
+        .arg(Arg("corpus").required().help("the Markdown file"))
+        .option(Option("runs").value_type<int>().help("measured runs (default 15)"))
+        .option(Option("json").help("the report as JSON"))
+        .option(Option("phases").help("where the time goes: parse, then HTML"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        std::println(std::cerr, "omui-bench-markdown: {}", parsed.error().message);
         return 2;
     }
-    std::ifstream in(argv[1], std::ios::binary);
+    std::ifstream in(std::filesystem::path(parsed->positional(0)), std::ios::binary);
     const std::string text{std::istreambuf_iterator<char>(in), {}};
     if (text.empty()) return 1;
-    int runs = 15;
-    bool json = false, phases = false;
-    for (int index = 2; index < argc; ++index) {
-        const std::string_view option = argv[index];
-        if (option == "--runs" && index + 1 < argc) runs = std::max(1, std::atoi(argv[++index]));
-        else if (option == "--json") json = true;
-        else if (option == "--phases") phases = true;
-    }
+    const int runs = std::max(1, parsed->value_as<int>("runs").value_or(15));
+    const bool json = parsed->is_flag_set("json"), phases = parsed->is_flag_set("phases");
     if (phases) {
         // Where the time goes: md4c's parse into the document, then the HTML from it.
         std::vector<double> parse_ms, html_ms;

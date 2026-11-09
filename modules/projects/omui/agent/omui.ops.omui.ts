@@ -18,6 +18,9 @@ export default defineOps({
       name: "ui.describe",
       effect: "read",
       summary: "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs",
+      params: [
+        { name: "api", type: "bool", doc: "also what writing for it takes: every builder (properties, events, actions; whether the spec's), the native modules, the theme's tokens", optional: true },
+      ],
       result: "json",
     },
     {

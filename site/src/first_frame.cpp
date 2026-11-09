@@ -1,6 +1,7 @@
 module omui.site;
 
 import std;
+import mcpplibs.cmdline;
 import omui;
 import mlibs.hash;
 import mcpplibs.os;
@@ -51,41 +52,55 @@ std::string region_hash(const xrender::raster::Surface& pixels, PixelRect region
 
 }  // namespace
 
-std::expected<FirstFrameOptions, std::string> parse_first_frame_options(std::span<const std::string_view> args) {
+void declare_first_frame(mcpplibs::cmdline::App& line, bool language) {
+    using mcpplibs::cmdline::Option;
+    // multiple(): a repeated option is seen, and refused, rather than the last winning.
+    (void)line
+        .option(Option("first-frame").takes_value().multiple().value_name("PNG").help("export production pixels and their geometry to PNG; no window"))
+        .option(Option("route").takes_value().multiple().value_name("PATH").help("the page or exhibit (#/zh/components/text_box)"))
+        .option(Option("width").value_type<int>().multiple().help("the viewport's width (default 1280)"))
+        .option(Option("height").value_type<int>().multiple().help("the viewport's height (default 800)"))
+        .option(Option("time").value_type<double>().multiple().value_name("SECONDS").help("sampled at this time on a 60 Hz clock (default 0)"))
+        .option(Option("root").takes_value().multiple().value_name("ID").help("crop to this node (default: the viewport)"))
+        .option(Option("reduced-motion").help("as a person who reduces motion sees it"));
+    if (language) (void)line.option(Option("lang").takes_value().multiple().value_name("en|zh").help("the page's language"));
+}
+
+std::expected<FirstFrameOptions, std::string> first_frame_options(const mcpplibs::cmdline::ParsedArgs& args) {
+    constexpr std::array<std::string_view, 8> own{"first-frame", "route", "lang", "width", "height", "time", "root", "reduced-motion"};
+    for (const auto& [name, given] : args.opts) {
+        if (!std::ranges::contains(own, name)) return std::unexpected(std::format("--{} does not go with --first-frame", name));
+        if (given.count > 1 || given.values.size() > 1) return std::unexpected(std::format("duplicate first-frame option: --{}", name));
+    }
+    if (args.positional_count() > 0) return std::unexpected(std::format("unexpected argument for the first-frame export: {}", args.positional(0)));
     FirstFrameOptions options;
-    constexpr std::array<std::string_view, 8> flags{"--first-frame", "--route", "--lang", "--width", "--height", "--time", "--root", "--reduced-motion"};
-    std::array<bool, flags.size()> seen{};
-    for (std::size_t i = 0; i < args.size(); ++i) {
-        const auto position = std::ranges::find(flags, args[i]);
-        if (position == flags.end()) return std::unexpected("unknown first-frame option: " + std::string(args[i]));
-        const auto index = static_cast<std::size_t>(position - flags.begin());
-        if (seen[index]) return std::unexpected("duplicate first-frame option: " + std::string(args[i]));
-        seen[index] = true;
-        if (*position == "--reduced-motion") { options.reduce_motion = true; continue; }
-        if (++i == args.size() || args[i].starts_with("--")) return std::unexpected("missing value for " + std::string(*position));
-        const auto value = args[i];
-        if (*position == "--first-frame") options.png = value;
-        else if (*position == "--route") options.route = value;
-        else if (*position == "--lang") options.lang = value;
-        else if (*position == "--root") {
-            if (value.empty()) return std::unexpected("--root must not be empty");
-            options.root = value;
-        } else if (*position == "--time") {
-            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), options.time);
-            if (error != std::errc{} || end != value.data() + value.size()) return std::unexpected("--time must be a number of seconds");
-            if (options.time == 0) options.time = 0;  // canonicalise negative zero
-        } else {
-            int& dimension = *position == "--width" ? options.width : options.height;
-            const auto [end, error] = std::from_chars(value.data(), value.data() + value.size(), dimension);
-            if (error != std::errc{} || end != value.data() + value.size()) return std::unexpected(std::string(*position) + " must be an integer");
-        }
+    const auto png = args.value("first-frame");
+    if (!png) return std::unexpected("--first-frame <PNG> is required");
+    options.png = *png;
+    options.route = args.value("route").value_or("");
+    options.reduce_motion = args.is_flag_set("reduced-motion");
+    if (auto root = args.value("root")) {
+        if (root->empty()) return std::unexpected("--root must not be empty");
+        options.root = *root;
     }
-    if (!seen[0]) return std::unexpected("--first-frame <PNG> is required");
-    if (!seen[2] && route_has_language(options.route)) {
+    if (auto time = args.value_as<double>("time")) options.time = *time == 0 ? 0 : *time;  // canonicalise negative zero
+    if (auto width = args.value_as<int>("width")) options.width = *width;
+    if (auto height = args.value_as<int>("height")) options.height = *height;
+    if (auto language = args.value("lang")) options.lang = *language;
+    else if (route_has_language(options.route))
         if (const auto route = parse_site_route(options.route)) options.lang = route->language;
-    }
     if (auto result = validated(options); !result) return std::unexpected(result.error());
     return options;
+}
+
+std::expected<FirstFrameOptions, std::string> parse_first_frame_options(std::span<const std::string_view> args) {
+    mcpplibs::cmdline::App line{"first-frame"};
+    declare_first_frame(line, true);
+    std::vector<std::string> words{"first-frame"};
+    for (const std::string_view arg : args) words.emplace_back(arg);
+    auto parsed = line.parse_from(std::span<const std::string>(words));
+    if (!parsed) return std::unexpected(parsed.error().message);
+    return first_frame_options(*parsed);
 }
 
 std::expected<Value, std::string> export_first_frame(const FirstFrameOptions& options) {

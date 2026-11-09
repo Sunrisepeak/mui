@@ -22,3 +22,4 @@ mlibs.control = { path = {{control_path}} }
 openlifa.openas = "0.2.0"
 mcpplibs.os = "0.2.2"
 nlohmann.json = "3.12.0"
+mcpplibs.cmdline = "0.0.3"

@@ -27,6 +27,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp", "src/cellular/*.cppm", "src/cellular/*.cpp", "src/motion/*.cppm", "src/motion/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 mlibs.utils = { path = "../../modules/base/utils" }
 mlibs.control = { path = "../../modules/base/control" }
 omui.sdk = { path = "../../modules/projects/omui/sdk" }

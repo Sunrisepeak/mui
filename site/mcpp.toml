@@ -41,6 +41,7 @@ sources = ["src/targets/native.cppm"]
 sources = ["src/targets/web.cppm"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 omui.sdk         = { path = "../modules/projects/omui/sdk" }
 omui.view        = { path = "../modules/projects/omui/view", features = ["hanim"] }
 # The site also authors Hanim programs directly. Declared here as well because

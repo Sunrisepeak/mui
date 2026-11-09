@@ -5,7 +5,7 @@
 #
 #   tools/eval/duel.sh [P1 P2]      fighters by their files' names (default: kata mo)
 #
-# The game runs headless as `omui-fight --fight P1 P2 --turns N`: the match
+# The game runs headless as `omui-fight --fight P1,P2 --turns N`: the match
 # stands until both players have said what they hold for the next N frames
 # (the stage's `turn` action), then plays them. Each player is a codex with
 # openmui's MCP server (its own actor, agent:codex-p1 / agent:codex-p2): it
@@ -96,7 +96,7 @@ main() {
     omui=$(find "$bin" -name omui -type f -perm -u+x | head -1)
     fight=$(find "$bin" -name omui-fight -type f -perm -u+x | head -1)
     mkdir -p "$work/ep" "$work/turns"
-    "$fight" --fight "$p1" "$p2" --turns "$frames" --quiet --serve --agent-dir "$work/ep" > "$work/game.log" 2>&1 &
+    "$fight" --fight "$p1,$p2" --turns "$frames" --quiet --serve --agent-dir "$work/ep" > "$work/game.log" 2>&1 &
     local game=$!
     local -a pids=("$game")
     trap 'for p in "${pids[@]}"; do kill "$p" 2> /dev/null || true; done' EXIT

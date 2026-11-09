@@ -3,21 +3,19 @@
 // it); the rest of the line is openmui's (--dark, --headless --png out.png,
 // --serve …).
 import std;
+import mcpplibs.cmdline;
 import omui;
 import tally;
 
 int main(int argc, char** argv) {
-    std::vector<char*> rest{argv[0]};
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("tally")
+        .description("A tally counter, its view in C++ or a view document")
+        .option(Option("doc").takes_value().value_name("FILE").help("the view from this document, reloaded as you save it"));
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
     std::optional<std::filesystem::path> doc;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--doc" && i + 1 < argc) {
-            const std::string_view f = argv[++i];
-            doc = std::filesystem::path(std::u8string(f.begin(), f.end()));
-        } else {
-            rest.push_back(argv[i]);
-        }
-    }
+    if (auto file = command->args.value("doc")) doc = std::filesystem::path(std::u8string(file->begin(), file->end()));
     tally::State state;
     std::optional<tally::Document> document;
     omui::AppSpec app{.id = "org.openmui.tally", .title = "Tally", .size = {360, 300}};
@@ -34,5 +32,5 @@ int main(int argc, char** argv) {
     } else {
         app.view = [&] { return tally::view(state); };
     }
-    return omui::run(std::move(app), static_cast<int>(rest.size()), rest.data());
+    return omui::run(std::move(app), command->options);
 }

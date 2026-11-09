@@ -81,7 +81,7 @@ UTest cases{"lang.js declare", [] {
         expect(read(root / ".omui" / "types" / "openmui-define.d.ts").contains("export declare function defineContract("));
         expect(read(root / ".omui" / "types" / "omui-define.d.ts").contains("export declare function defineConfig("));
         const std::string config = read(root / ".omui" / "types" / "tsconfig.json");
-        expect(config.contains(R"("erasableSyntaxOnly": true)") && config.contains(R"("include": ["../../**/*.ts")")) << config;
+        expect(config.contains(R"("erasableSyntaxOnly": true)") && config.contains(R"("../../**/*.ts")") && config.contains(R"("./openmui.d.ts")")) << config;
     };
 
     "tsc: a correct application passes; a misspelt property, a wrong choice, a signal of the wrong type are reported where they are"_test = [] {

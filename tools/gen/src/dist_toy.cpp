@@ -1,6 +1,7 @@
 module omui.gen.dist_toy;
 
 import std;
+import mcpplibs.cmdline;
 import mlibs.hash;
 import nlohmann.json;
 import omui.gen.font_subset;
@@ -786,74 +787,52 @@ std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p) {
     return finish_package(p.out, p.target, p.title, index.size());
 }
 
-int dist_toy_main(int argc, char** argv) {
-    auto usage = [] {
-        std::println(std::cerr, "usage: omui-gen dist-toy <staged tree> --target <name> --out <dir> [--title T] [--fonts a,b|all]\n"
-                                "                         [--fonts-dir <dir>] [--graph <file>] [--background #rrggbb] [--no-sdk]\n"
-                                "                         [--later <dir>|<suffix>|</later/mount>]... [--subset <font>=<path>,<path>...]...\n"
-                                "                         [--font-languages <font>=<lang>,<lang>...]... [--font-initial <font>=<UTF-8 text>]...");
+int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args) {
+    auto usage = [](std::string_view why) {
+        std::println(std::cerr, "omui-gen dist-toy: {} (omui-gen dist-toy --help)", why);
         return 2;
     };
+    // A comma-separated list's items, the empty ones left out.
+    const auto items = [](std::string_view list) {
+        std::vector<std::string> out;
+        for (auto part : list | std::views::split(','))
+            if (!std::ranges::empty(part)) out.emplace_back(part.begin(), part.end());
+        return out;
+    };
     ToyPackage p;
-    for (int i = 2; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        auto value = [&]() -> std::optional<std::string> {
-            if (i + 1 >= argc) return std::nullopt;
-            return std::string(argv[++i]);
-        };
-        std::optional<std::string> v;
-        if (a == "--target" && (v = value())) p.target = *v;
-        else if (a == "--out" && (v = value())) p.out = *v;
-        else if (a == "--title" && (v = value())) p.title = *v;
-        else if (a == "--fonts-dir" && (v = value())) p.fonts_dir = *v;
-        else if (a == "--graph" && (v = value())) p.graph = *v;
-        else if (a == "--background" && (v = value())) p.background = *v;
-        else if (a == "--fonts" && (v = value())) {
-            for (std::size_t from = 0; from <= v->size();) {
-                const std::size_t comma = std::min(v->find(',', from), v->size());
-                if (comma > from) p.fonts.push_back(v->substr(from, comma - from));
-                from = comma + 1;
-            }
-        } else if (a == "--no-sdk") p.sdk = false;
-        else if (a == "--subset" && (v = value())) {  // <font>=<path>,<path>…
-            const auto eq = v->find('=');
-            if (eq == std::string::npos) {
-                std::println(std::cerr, "omui-gen dist-toy: --subset is <font>=<path>,<path>…");
-                return 2;
-            }
-            ToyPackage::Subset s{v->substr(0, eq), {}};
-            for (std::size_t at = eq + 1; at <= v->size();) {
-                const std::size_t end = std::min(v->find(',', at), v->size());
-                if (end > at) s.text.emplace_back(v->substr(at, end - at));
-                at = end + 1;
-            }
-            p.subsets.push_back(std::move(s));
-        }
-        else if (a == "--font-initial" && (v = value())) {
-            const auto eq = v->find('=');
-            if (eq == std::string::npos || eq == 0 || eq + 1 == v->size()) return usage();
-            p.font_initial.emplace_back(v->substr(0, eq), v->substr(eq + 1));
-        }
-        else if (a == "--font-languages" && (v = value())) {  // <font>=<lang>,<lang>…
-            const auto eq = v->find('=');
-            if (eq == std::string::npos) return usage();
-            std::vector<std::string> langs;
-            for (std::size_t at = eq + 1; at <= v->size();) {
-                const std::size_t end = std::min(v->find(',', at), v->size());
-                if (end > at) langs.emplace_back(v->substr(at, end - at));
-                at = end + 1;
-            }
-            p.font_languages.emplace_back(v->substr(0, eq), std::move(langs));
-        }
-        else if (a == "--later" && (v = value())) {  // <dir>|<suffix>|<mount>
-            const auto bar1 = v->find('|'), bar2 = v->find('|', bar1 + 1);
-            if (bar1 == std::string::npos || bar2 == std::string::npos) return usage();
-            p.later.push_back({v->substr(0, bar1), v->substr(bar1 + 1, bar2 - bar1 - 1), v->substr(bar2 + 1)});
-        }
-        else if (!a.starts_with("--") && p.stage.empty()) p.stage = a;
-        else return usage();
+    p.stage = args.positional(0);
+    p.target = args.value("target").value_or("");
+    p.out = args.value("out").value_or("");
+    if (auto title = args.value("title")) p.title = *title;
+    if (auto dir = args.value("fonts-dir")) p.fonts_dir = *dir;
+    if (auto graph = args.value("graph")) p.graph = *graph;
+    if (auto background = args.value("background")) p.background = *background;
+    if (auto fonts = args.value("fonts")) p.fonts = items(*fonts);
+    if (args.is_flag_set("no-sdk")) p.sdk = false;
+    for (const std::string& value : args.option_or_empty("subset").values) {  // <font>=<path>,<path>…
+        const auto eq = value.find('=');
+        if (eq == std::string::npos) return usage("--subset is <font>=<path>,<path>…");
+        ToyPackage::Subset subset{value.substr(0, eq), {}};
+        for (const std::string& file : items(std::string_view(value).substr(eq + 1))) subset.text.emplace_back(file);
+        p.subsets.push_back(std::move(subset));
     }
-    if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage();
+    for (const std::string& value : args.option_or_empty("font-initial").values) {  // <font>=<UTF-8 text>
+        const auto eq = value.find('=');
+        if (eq == std::string::npos || eq == 0 || eq + 1 == value.size()) return usage("--font-initial is <font>=<text>");
+        p.font_initial.emplace_back(value.substr(0, eq), value.substr(eq + 1));
+    }
+    for (const std::string& value : args.option_or_empty("font-languages").values) {  // <font>=<lang>,<lang>…
+        const auto eq = value.find('=');
+        if (eq == std::string::npos) return usage("--font-languages is <font>=<lang>,<lang>…");
+        p.font_languages.emplace_back(value.substr(0, eq), items(std::string_view(value).substr(eq + 1)));
+    }
+    for (const std::string& value : args.option_or_empty("later").values) {  // <dir>|<suffix>|<mount>
+        const auto bar1 = value.find('|'), bar2 = value.find('|', bar1 + 1);
+        if (bar1 == std::string::npos || bar2 == std::string::npos) return usage("--later is <dir>|<suffix>|<mount>");
+        p.later.push_back({value.substr(0, bar1), value.substr(bar1 + 1, bar2 - bar1 - 1), value.substr(bar2 + 1)});
+    }
+    if (p.stage.empty() || p.target.empty() || p.out.empty()) return usage("a staged tree, --target and --out");
+
     auto r = package_for_toy(p);
     if (!r) {
         std::println(std::cerr, "dist-toy: {}", r.error());
@@ -914,30 +893,20 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
     return finish_package(split.dir, target, title, html.size(), false);
 }
 
-int dist_toy_split_main(int argc, char** argv) {
-    auto usage = [] {
-        std::println(std::cerr, "usage: omui-gen dist-toy-split <package dir> --primary <wasm> --deferred <wasm> [--lazy <route>,<route>...]");
-        return 2;
-    };
+int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args) {
     ToySplit split;
-    bool lazy_given = false;
-    for (int i = 2; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--primary" && i + 1 < argc) split.primary = argv[++i];
-        else if (a == "--deferred" && i + 1 < argc) split.deferred = argv[++i];
-        else if (a == "--lazy" && i + 1 < argc) {
-            lazy_given = true;
-            const std::string list = argv[++i];
-            for (std::size_t from = 0; from <= list.size();) {
-                const std::size_t comma = std::min(list.find(',', from), list.size());
-                split.lazy.push_back(list.substr(from, comma - from));
-                from = comma + 1;
-            }
-        } else if (!a.starts_with("--") && split.dir.empty()) split.dir = a;
-        else return usage();
+    split.dir = args.positional(0);
+    split.primary = args.value("primary").value_or("");
+    split.deferred = args.value("deferred").value_or("");
+    if (auto lazy = args.value("lazy"))
+        for (auto part : *lazy | std::views::split(',')) split.lazy.emplace_back(part.begin(), part.end());
+    else
+        split.lazy = {"", "home"};
+    if (split.dir.empty() || split.primary.empty() || split.deferred.empty()) {
+        std::println(std::cerr, "omui-gen dist-toy-split: a package directory, --primary and --deferred (omui-gen dist-toy-split --help)");
+        return 2;
     }
-    if (split.dir.empty() || split.primary.empty() || split.deferred.empty()) return usage();
-    if (!lazy_given) split.lazy = {"", "home"};
+
     auto r = adopt_split(split);
     if (!r) {
         std::println(std::cerr, "omui-gen dist-toy-split: {}", r.error());

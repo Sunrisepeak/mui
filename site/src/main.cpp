@@ -7,15 +7,32 @@
 // --first-frame <PNG> [--route PATH] [--lang en|zh] [--width W --height H]
 // [--root EXPLICIT-ID] [--time SECONDS] [--reduced-motion] exports production pixels
 // and the actual semantic geometry beside them; it does not open a window.
+// `omui-site --help` lists every switch.
 import std;
+import mcpplibs.cmdline;
+import omui;
 import omui.site;
 import mcpplibs.os;
 
 int main(int argc, char** argv) {
-    std::vector<std::string_view> arguments;
-    for (int i = 1; i < argc; ++i) arguments.emplace_back(argv[i]);
-    if constexpr (omui::site::native_build_tools) if (std::ranges::any_of(arguments, [](std::string_view value) { return value.starts_with("--first-frame"); })) {
-        const auto options = omui::site::parse_first_frame_options(arguments);
+    // One command line (mcpplibs.cmdline): the site's switches, the first-frame
+    // export's, and openmui's (RunOptions; its --lang, the person's languages,
+    // picks the page's: zh first, Chinese).
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Option;
+    auto line = App("omui-site")
+        .description("openmui's website: in a window, prerendered into a packed page, or a first frame exported")
+        .option(Option("prerender").takes_value().value_name("INDEX.HTML").help("write the places into this packed page as static HTML"))
+        .option(Option("opening-assets").takes_value().value_name("FILE").help("the opening's asset catalogue, for --prerender"))
+        .option(Option("zh").help("in Chinese"))
+        .option(Option("en").help("in English"));
+    // A switch a place: --features opens at features.
+    for (const omui::site::Place& place : omui::site::places()) (void)line.option(Option(place.id).help(std::format("open at {}", place.id)));
+    omui::site::declare_first_frame(line, false);
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
+    const auto& args = command->args;
+    if constexpr (omui::site::native_build_tools) if (args.value("first-frame")) {
+        const auto options = omui::site::first_frame_options(args);
         if (!options) {
             std::println("{}", omui::Value{}.set("command", "first-frame").set("ok", false).set("error", options.error()).json());
             return 2;
@@ -28,19 +45,15 @@ int main(int argc, char** argv) {
         std::println("{}", report->json());
         return 0;
     }
-    std::vector<char*> rest{argv[0]};
-    std::string prerender, opening_assets, lang = "en", place = "home", route;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--prerender" && i + 1 < argc) prerender = argv[++i];
-        else if (a == "--opening-assets" && i + 1 < argc) opening_assets = argv[++i];
-        else if (a == "--route" && i + 1 < argc) route = argv[++i];
-        else if (a == "--lang" && i + 1 < argc) lang = argv[++i];
-        else if (a == "--zh" || a == "--en") lang = a.substr(2);
-        else if (std::ranges::any_of(omui::site::places(), [&](const omui::site::Place& p) { return a == std::format("--{}", p.id); }))
-            place = a.substr(2);
-        else rest.push_back(argv[i]);
-    }
+    std::string lang = "en", place = "home";
+    if (!command->options.languages.empty() && command->options.languages.front().starts_with("zh")) lang = "zh";
+    if (args.is_flag_set("zh")) lang = "zh";
+    if (args.is_flag_set("en")) lang = "en";
+    for (const omui::site::Place& candidate : omui::site::places())
+        if (args.is_flag_set(candidate.id)) place = std::string(candidate.id);
+    const std::string route = args.value("route").value_or("");
+    const std::string prerender = args.value("prerender").value_or("");
+    const std::string opening_assets = args.value("opening-assets").value_or("");
     if constexpr (omui::site::native_build_tools) if (!prerender.empty()) {
         std::ifstream in(prerender, std::ios::binary);
         const std::string page{std::istreambuf_iterator<char>(in), {}};
@@ -62,5 +75,5 @@ int main(int argc, char** argv) {
         std::println("{{\"command\": \"prerender\", \"ok\": true, \"page\": \"{}\", \"bytes\": {}}}", prerender, out->size());
         return 0;
     }
-    return omui::run(omui::site::app(route.empty() ? place : route, lang, route), static_cast<int>(rest.size()), rest.data());
+    return omui::run(omui::site::app(route.empty() ? place : route, lang, route), command->options);
 }

@@ -340,6 +340,7 @@ cmd::App app() {
     for (const auto name : project_commands) (void)a.subcommand(project_command(name));
     (void)a.subcommand(agent_command());
     (void)a.subcommand(check_command());
+    (void)a.subcommand(describe_command());
     (void)a.subcommand(fmt_command());
     (void)a.subcommand(schema_command());
     (void)a.subcommand(video_command());
@@ -475,10 +476,14 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui new NAME [--template app-ts]   a project from a template (--list)\n"
                "  omui dev [--headless]   the application in development mode: its own designer (person and agent, live)\n"
                "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp\n"
+               "  omui package [--format F]   the application packaged to give away (mcpp pack)\n"
+               "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (--install)\n"
+               "  omui config          omui.config.ts as the player reads it: agents' level, what the recorder keeps\n"
                "  omui doctor          which tools are there, which are missing\n\n"
                "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
-               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents; or the documents given (--json)\n"
+               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents (--portable); or the documents given (--json)\n"
+               "  omui describe --api  what writing for the project takes: builders, natives, tokens, verbs (--json, --llms FILE)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
                "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"
@@ -493,6 +498,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
         return project(parsed->subcommand_name(), parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "agent") return agent(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
+    if (parsed->subcommand_name() == "describe") return describe(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "schema") return schema(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "video") return video(parsed->subcommand()->get(), out, err);

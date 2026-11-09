@@ -26,6 +26,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 omui.sdk         = { path = "../../modules/projects/omui/sdk" }
 omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 mcpplibs.os         = "0.4.1"
+mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }

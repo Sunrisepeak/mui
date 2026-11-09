@@ -17,11 +17,13 @@
 //                       each is like — its length, peak, RMS, pitch, how voiced, how bright —
 //                       to choose by; with --out, each written as <name>-<n>.wav (mono, its rate)
 import std;
+import mcpplibs.cmdline;
 import nlohmann.json;
 import xengine.audio;
 import mlibs.math;
 
 namespace audio = xengine::audio;
+namespace cmdline = mcpplibs::cmdline;
 
 namespace {
 
@@ -168,21 +170,17 @@ struct RenderArgs {
     bool                    float32 = false;
 };
 
-std::optional<RenderArgs> args(int argc, char** argv, int from) {
+std::optional<RenderArgs> render_args(const cmdline::ParsedArgs& args) {
     RenderArgs a;
-    for (int i = from; i < argc; ++i) {
-        const std::string_view s = argv[i];
-        const bool more = i + 1 < argc;
-        if (s == "--out" && more) a.out = path_of(argv[++i]);
-        else if (s == "--seconds" && more) a.seconds = std::clamp(std::atof(argv[++i]), 0.0, 3600.0);
-        else if (s == "--intensity" && more) {
-            auto c = cues(argv[++i]);
-            if (!c) return std::nullopt;
-            a.cues = std::move(*c);
-        } else if (s == "--solo" && more) a.solo = list(argv[++i]);
-        else if (s == "--float") a.float32 = true;
-        else return std::nullopt;
+    if (auto out = args.value("out")) a.out = path_of(*out);
+    a.seconds = std::clamp(args.value_as<double>("seconds").value_or(60.0), 0.0, 3600.0);
+    if (auto intensity = args.value("intensity")) {
+        auto c = cues(*intensity);
+        if (!c) return std::nullopt;
+        a.cues = std::move(*c);
     }
+    if (auto solo = args.value("solo")) a.solo = list(*solo);
+    a.float32 = args.is_flag_set("float");
     return a;
 }
 
@@ -250,20 +248,10 @@ int stats(const std::filesystem::path& file, const RenderArgs& a) {
     return 0;
 }
 
-int takes(const std::filesystem::path& file, int argc, char** argv) {
-    double threshold = -40, gap = 0.12;
-    std::filesystem::path out;
-    std::string name = "take";
-    for (int i = 3; i + 1 < argc; i += 2) {
-        const std::string_view k = argv[i], v = argv[i + 1];
-        auto number = [&](double& to) { return std::from_chars(v.data(), v.data() + v.size(), to).ec == std::errc{}; };
-        if (k == "--threshold" && number(threshold)) continue;
-        if (k == "--gap" && number(gap)) continue;
-        if (k == "--out") { out = path_of(v); continue; }
-        if (k == "--name") { name = std::string(v); continue; }
-        return usage();
-    }
-    if (argc % 2 == 0) return usage();
+int takes(const std::filesystem::path& file, const cmdline::ParsedArgs& args) {
+    const double threshold = args.value_as<double>("threshold").value_or(-40), gap = args.value_as<double>("gap").value_or(0.12);
+    const std::filesystem::path out = path_of(args.value("out").value_or(""));
+    const std::string name = args.value("name").value_or("take");
     nlohmann::ordered_json report;
     report["command"] = "takes";
     report["file"] = utf8(file);
@@ -320,19 +308,47 @@ int fmt(const std::filesystem::path& file) {
     return 0;
 }
 
+// The command line (mcpplibs.cmdline): check, render, stats, fmt, takes.
+cmdline::App command_line() {
+    using cmdline::App, cmdline::Arg, cmdline::Option;
+    const auto file = Arg("file").required().help("the piece (a .music.omui.toml)");
+    const auto seconds = Option("seconds").value_type<double>().help("how long (default 60, at most 3600)");
+    const auto intensity = Option("intensity").takes_value().value_name("0.8 | 0.2@0,0.9@30").help("the intensity, or its cues");
+    return App("omui-music")
+        .description("Pieces of music from the command line: JSON out, exit 0 done / 1 problems / 2 a wrong command")
+        .subcommand(App("check").description("whether it reads and plays: its problems, or its tempo, metre, bars and seconds").arg(file))
+        .subcommand(App("render").description("rendered offline (the same bits everywhere): a WAV, its hash and levels").arg(file)
+                        .option(Option("out").takes_value().value_name("X.WAV").help("the WAV written"))
+                        .option(seconds).option(intensity)
+                        .option(Option("solo").takes_value().value_name("A,B").help("only these instruments"))
+                        .option(Option("float").help("32-bit float samples")))
+        .subcommand(App("stats").description("the mix's levels, and each instrument's alone").arg(file).option(seconds).option(intensity))
+        .subcommand(App("fmt").description("the file as write_music writes it").arg(file))
+        .subcommand(App("takes").description("the takes in a recording and what each is like").arg(Arg("recording").required().help("a WAV"))
+                        .option(Option("threshold").value_type<double>().value_name("DB").help("the level a take starts at (default -40)"))
+                        .option(Option("gap").value_type<double>().value_name("S").help("the silence between takes (default 0.12)"))
+                        .option(Option("out").takes_value().value_name("DIR").help("each take written as <name>-<n>.wav"))
+                        .option(Option("name").takes_value().help("the takes' name (default take)")));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 3) return usage();
-    const std::string_view command = argv[1];
-    const auto file = path_of(argv[2]);
-    if (command == "check" && argc == 3) return check(file);
-    if (command == "fmt" && argc == 3) return fmt(file);
-    if (command == "takes") return takes(file, argc, argv);
-    if (command == "render" || command == "stats") {
-        const auto a = args(argc, argv, 3);
-        if (!a) return usage();
-        return command == "render" ? render(file, *a) : stats(file, *a);
+    const cmdline::App app = command_line();
+    auto parsed = app.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        std::println(std::cerr, "omui-music: {}", parsed.error().message);
+        return usage();
     }
-    return usage();
+    if (!parsed->has_subcommand()) return usage();
+    const std::string command(parsed->subcommand_name());
+    const cmdline::ParsedArgs& args = parsed->subcommand()->get();
+    const auto file = path_of(args.positional(0));
+    if (command == "check") return check(file);
+    if (command == "fmt") return fmt(file);
+    if (command == "takes") return takes(file, args);
+    const auto a = render_args(args);
+    if (!a) return usage();
+    return command == "render" ? render(file, *a) : stats(file, *a);
 }

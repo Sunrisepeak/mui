@@ -24,6 +24,8 @@ sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 omui.core     = { path = "../core" }
 omui.view     = { path = "../view" }
 omui.semantic = { path = "../semantic" }
+# The native modules' catalogue, for the API an application describes (:api).
+omui.native   = { path = "../native" }
 mlibs.utils    = { path = "../../../base/utils" }
 mlibs.control  = { path = "../../../base/control" }
 mlibs.pipeline = { path = "../../../base/pipeline" }

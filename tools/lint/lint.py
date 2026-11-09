@@ -30,6 +30,8 @@ Rules:
                 TypeScript is the one script language (D-138)
   testing       `import mlibs.testing` only in test programs (tests/): mlibs.utils carries it, and
                 no artifact does
+  cmdline       a program's command line is declared with mcpplibs.cmdline, never scanned by hand
+                (`== "--x"`, `argv[i]`): what a library already does is depended on (D-56, AGENTS §5)
   closure       the dependency closures CLOSURES names stay small (the render graph; simulation
                 without UI, game, renderer or, for its CPU packages, GPU)
   thirdparty    a wrapped C library (`import mcpplibs.mwrap.*`) only in a native/ unit (D-83)
@@ -159,6 +161,8 @@ DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/om
 LEGACY_MODULES = {'openmui.raster', 'openmui.simulation.cellular.rhi.cts', 'openmui.rhi.cts', 'openmui.memory', 'openmui.geom', 'openmui.unicode', 'openmui.rhi.webgl', 'openmui.image', 'openmui.testing', 'openmui.render.vector', 'openmui.pipeline', 'openmui.rhi', 'openmui.simulation.cellular', 'openmui.trace', 'openmui.shader', 'openmui.render', 'openmui.shader.rules', 'openmui.rhi.sdl', 'openmui.rhi.webgpu', 'openmui.log', 'openmui.markdown', 'openmui.i18n.cldr', 'openmui.layout', 'openmui.session', 'openmui.text', 'openmui.math', 'openmui.hash', 'openmui.render.effect', 'openmui.i18n', 'openmui.simulation.cellular.rhi', 'openmui.simulation'}
 # The script bindings D-138 removed: TypeScript (omui.lang.js) is the one script language.
 REMOVED_BINDINGS = re.compile(r"^omui\.(lang\.lua|lang\.python|entry\.python)(\.|:|$)")
+# A command line scanned by hand: an argument compared with a `--option`, or argv indexed by a variable.
+HAND_PARSED = re.compile(r'==\s*"--[A-Za-z]|starts_with\("--[A-Za-z]|\bargv\[[a-z_]\w*\]')
 LEGACY_ALIASES = re.compile(r"(?<![\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::")
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -316,6 +320,10 @@ def check_sources(root: Path) -> list[Problem]:
             if (re.match(r"(export\s+)?import\s+(mlibs|openmui)\.testing\b", stripped) and "tests" not in rel.parts
                     and not rel_s.startswith("modules/base/utils/src/testing/")):
                 problems.append(Problem("testing", f"{rel_s}:{no}", "mlibs.testing is for test programs (tests/): no artifact carries it"))
+            # Test programs (a package's tests/) are mtest's; the benchmark runners under tests/bench are programs.
+            if HAND_PARSED.search(line) and ("tests" not in rel.parts or rel_s.startswith("tests/bench/")):
+                problems.append(Problem("cmdline", f"{rel_s}:{no}", "a command line scanned by hand: declare its options with mcpplibs.cmdline "
+                                        "(a program run by omui::run adds them beside RunOptions::declare) (D-56)"))
             if re.search(r"\bmui(::|_[a-z])|\bMUI_|\bnamespace\s+mui\b|\bmodule\s+mui\b|import\s+mui\b", line):
                 problems.append(Problem("naming", f"{rel_s}:{no}", "bare `mui`; use the owner: openmui (spec), omui (UI), a named product, mlibs or xengine"))
 
@@ -917,6 +925,7 @@ def self_test() -> int:
         "licenses": None,
         "platforms": None,
         "testing": ("modules/ui/core/src/t.cpp", "module x;\nimport mlibs.testing;\n"),
+        "cmdline": ("tools/x/src/main.cpp", "int main(int argc, char** argv) {\n    for (int i = 1; i < argc; ++i) if (std::string_view(argv[i]) == \"--json\") return 1;\n}\n"),
         "legacy-import": ("modules/ui/core/src/l.cpp", "module x;\nimport openmui.geom;\n"),
         "thirdparty": ("modules/base/hanim/core/src/w.cpp", "module x;\nimport mcpplibs.mwrap.md4c;\n"),
         "media": ("docs/huge.png", "x" * (1024 * 1024 + 1)),

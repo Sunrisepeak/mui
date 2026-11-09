@@ -678,7 +678,9 @@ my-app/
     - 05 的 `signal(null)` 被推断成 `Signal<null>`，`passes` 写成了 `unknown`，代码已修正；
     - 构造的错误（拼错的属性、非法枚举值、类型不符的 signal）都报在原处。
   - 仓库里 51 个契约、native 和视图数据模块，8 个 ops 目录和配置，全部通过 `openmui/define`、`omui/define` 的检查。
-  - 尚未完成：`--portable`（声明里已有来源标注）、`design.api` 改用这份声明，以及 C++ 应用里数据模块的类型检查（目前只覆盖用 player 运行的应用）。
+  - 尚未完成：`design.api` 改用这份声明，以及 C++ 应用里数据模块的类型检查（目前只覆盖用 player 运行的应用）。
+- 第 5 步第二块（与 W3 第一块同源）：组件目录由 view 的 `component_catalog()` 统一产出，`omui.agent:api` 汇总组件（带 `spec` 标记）、native、主题令牌和动词；协议 `describe` 加 `api: true`、player 入口写出 `api.json`、`omui describe --api`（`--json`、`--llms`）和 `omui check --portable` 都读它。
+- 命令行统一用 `mcpplibs.cmdline`（D-56，AGENTS §5、§4）：为此发布 cmdline 0.0.3（`value_type<T>()` 让解析阶段校验数值，`value_as<T>()` 读回）；SDK 提供 `RunOptions::declare`/`from` 和 `omui::command_line`（程序自己的开关与 openmui 的开关同一棵树、只解析一次）；全仓库的程序都已迁移，lint `cmdline` 拦截手写解析。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。
@@ -724,11 +726,19 @@ my-app/
 - `--json` 时每一步输出一条记录（`{step, command, exit}`），退出码就是工具自己的。
 - `doctor` 报告 mcpp、xlings、tsc、esbuild 是否就位，以及各自的用途。
 - `omui new` 不再提供 `app-lua` 和 `app-py`（D-138）。
-- 尚未完成：`package`、`add`/`deps`、`tools`，以及读取 `omui.config.ts`。
+- 第二块完成：
+  - `omui package`（`mcpp pack`，`--format dist-toy` 打成 Bilibili Toy 页面）、`omui add`/`remove`（`mcpp add`/`remove`）；
+  - `omui deps`：按 mcpp.toml 列出每个依赖的种类、版本或路径，点分命名空间会展开；
+  - `omui tools`：项目为 xlings 声明的工具，以及是否已安装（由 xlings 自己回答），`--install` 一并装上；
+  - `omui config`：`omui.config.ts` 叠加在默认值上，得到 player 实际使用的配置；
+  - 所有命令都声明成链式的命令树（mcpplibs.cmdline），`--json` 输出记录。
+- 尚未完成：经 MCP 调用会写出产物的命令时，先问人（W15 第 2 步）。
 
 **W3 自描述 API（A1、D-145）**
 1. `omui describe --api`：从契约、组件、令牌、操作目录导出写应用所需的 API（JSON），llms.txt 自动导出；运行中的应用通过协议提供同样的内容。**验收**：导出内容和 `.d.ts` 由同一来源生成，lint 检查二者是否一致。
 2. 各产品的 skill 精简为 SOP。
+
+**W3 进度（2026-11-09，第一块）**：`omui describe --api`（JSON、llms.txt）、协议 `describe` 的 `api: true`，与 TS 声明同源（view 的组件目录）。尚未完成：操作目录并入导出、lint 检查二者一致、各产品 skill 精简为 SOP。
 
 **W4 观察三模态与对照实验（A12、D-142）**
 1. MCP `ui_capture` 增加 SVG 格式；skill 写清“先语义、按需截区域、要精确就读 SVG”的次序。

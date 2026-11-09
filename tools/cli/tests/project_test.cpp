@@ -90,4 +90,33 @@ UTest cases{"cli.project", [] {
             << ran.out;
         expect(std::ranges::any_of(found, [](const Value& v) { return v.get("file")->as_string() == "design/main.view.omui.json"; })) << ran.out;
     };
+
+    "deps, tools and config read the project here: each dependency by its kind; a tool not installed is said; the config over the defaults"_test = [] {
+        const auto root = temp_dir() / "manifest";
+        std::filesystem::create_directories(root);
+        std::ofstream(root / "mcpp.toml") << "[package]\nname = \"probe\"\n\n[dependencies]\nmcpplibs.os = \"0.4.1\"\n"
+                                              "\"omui.lang\" = { path = \"../lang\" }\n\n[dev-dependencies]\nmcpplibs.mtest = \"0.5.0\"\n\n"
+                                              "[xlings.workspace]\n\"xim:no-such-tool-for-omui\" = { version = \"1.0.0\", when = \"dev\" }\n";
+        std::ofstream(root / "omui.config.ts") << "import { defineConfig } from \"omui/define\";\nexport default defineConfig({ agent: { release: \"dual-user\" } });\n";
+        const auto here = std::filesystem::current_path();
+        std::filesystem::current_path(root);
+        const auto deps = invoke({"omui", "deps", "--json"});
+        const auto tools = invoke({"omui", "tools", "--json"});
+        const auto config = invoke({"omui", "config", "--json"});
+        std::filesystem::current_path(here);
+        const auto listed = records(deps.out);
+        expect(eq(deps.code, 0) && eq(listed.size(), std::size_t{3})) << deps.out + deps.err;
+        expect(std::ranges::any_of(listed, [](const Value& v) { return v.get("package")->as_string() == "mcpplibs.os" && v.get("version")->as_string() == "0.4.1"; }));
+        expect(std::ranges::any_of(listed, [](const Value& v) { return v.get("package")->as_string() == "omui.lang" && v.get("path")->as_string() == "../lang"; }));
+        expect(std::ranges::any_of(listed, [](const Value& v) { return v.get("package")->as_string() == "mcpplibs.mtest" && v.get("kind")->as_string() == "dev-dependencies"; }));
+        const auto named = records(tools.out);
+        expect(eq(tools.code, 1) && eq(named.size(), std::size_t{1}) && !named.front().get("installed")->as_bool()) << tools.out + tools.err;
+        const auto read = records(config.out);
+        expect(eq(config.code, 0) && !read.empty()) << config.out + config.err;
+        if (!read.empty()) {
+            expect(read.front().get("agent")->get("release")->as_string() == "dual-user") << "omui.config.ts over the default";
+            expect(read.front().get("record")->get("development")->as_string() == "full") << "the default where it says nothing";
+        }
+    };
 }};
+

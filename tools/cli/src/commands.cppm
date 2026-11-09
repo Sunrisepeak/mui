@@ -54,7 +54,10 @@ struct Found {
 // Prints them (text, or a JSON record each), the count to `err`; 1 when one is an error.
 int report(const std::vector<Found>& found, std::size_t files, bool json, std::ostream& out, std::ostream& err);
 // `omui check` with no files: the project here (typecheck.cpp).
-int check_project(bool json, std::ostream& out, std::ostream& err);
+int check_project(bool json, bool portable, std::ostream& out, std::ostream& err);
+// `omui describe --api`: the project's API (typecheck.cpp).
+[[nodiscard]] mcpplibs::cmdline::App describe_command();
+int describe(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // The official components, registered once (documents and views use them).
@@ -79,7 +82,7 @@ int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostrea
 int audio(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
 // omui new, dev, run, build, test, doctor (project.cpp, D-150): a project over mcpp.
-inline constexpr std::array<std::string_view, 6> project_commands{"new", "dev", "run", "build", "test", "doctor"};
+inline constexpr std::array<std::string_view, 12> project_commands{"new", "dev", "run", "build", "test", "package", "add", "remove", "deps", "tools", "config", "doctor"};
 [[nodiscard]] mcpplibs::cmdline::App project_command(std::string_view name);
 int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 

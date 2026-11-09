@@ -16,11 +16,13 @@ import std;
 import xengine.timeline;
 import mlibs.time;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 import nlohmann.json;
 
 namespace {
 
 namespace tl = xengine::timeline;
+namespace cmdline = mcpplibs::cmdline;
 namespace os = mcpplibs::os;
 using Json = nlohmann::json;
 
@@ -95,31 +97,15 @@ struct Options {
     std::optional<std::size_t> track, clip, to_track;
     bool dry_run = false;
 };
-std::expected<Options, std::string> options_of(int first, int argc, char** argv) {
+Options options_of(const cmdline::ParsedArgs& args) {
     Options o;
-    for (int index = first; index < argc; ++index) {
-        const std::string_view option = argv[index];
-        if (option == "--dry-run") {
-            o.dry_run = true;
-            continue;
-        }
-        if (index + 1 >= argc) return std::unexpected(std::format("{} takes a value", option));
-        const std::string_view value = argv[++index];
-        const auto count = [&](std::optional<std::size_t>& out) -> bool {
-            std::size_t n = 0;
-            const auto r = std::from_chars(value.data(), value.data() + value.size(), n);
-            if (r.ec != std::errc{} || r.ptr != value.data() + value.size()) return false;
-            out = n;
-            return true;
-        };
-        if (option == "--time") o.time = std::string(value);
-        else if (option == "--at") o.at = std::string(value);
-        else if (option == "--length") o.length = std::string(value);
-        else if (option == "--track") { if (!count(o.track)) return std::unexpected("--track takes a track's index (0: the first)"); }
-        else if (option == "--clip") { if (!count(o.clip)) return std::unexpected("--clip takes a clip's index on its track (0: the first)"); }
-        else if (option == "--to-track") { if (!count(o.to_track)) return std::unexpected("--to-track takes a track's index"); }
-        else return std::unexpected(std::format("no option `{}` here", option));
-    }
+    o.dry_run = args.is_flag_set("dry-run");
+    o.time = args.value("time");
+    o.at = args.value("at");
+    o.length = args.value("length");
+    o.track = args.value_as<std::size_t>("track");
+    o.clip = args.value_as<std::size_t>("clip");
+    o.to_track = args.value_as<std::size_t>("to-track");
     return o;
 }
 
@@ -230,21 +216,45 @@ int undo(const std::filesystem::path& file) {
     return answer(Json{{"ok", true}, {"undone", last.value("edit", std::string())}, {"left", lines.size()}}, 0);
 }
 
+// The command line (mcpplibs.cmdline): timeline check | at | edit | undo.
+cmdline::App command_line() {
+    using cmdline::App, cmdline::Arg, cmdline::Option;
+    const auto file = Arg("file").required().help("the timeline file");
+    return App("xengine")
+        .description("xengine's shared editing pieces without a GUI: one JSON answer, exit 0 done / 1 refused or failed / 2 a wrong command")
+        .subcommand(App("timeline")
+                        .description("A timeline: checked, sampled, edited, an edit taken back")
+                        .subcommand(App("check").description("the timeline, or every problem at its line and column").arg(file))
+                        .subcommand(App("at")
+                                        .description("what plays at a time: each clip, where in its source, at what level")
+                                        .arg(file)
+                                        .option(Option("time").takes_value().value_name("T").help("90f, 1.5s, 250ms, 123fl")))
+                        .subcommand(App("edit")
+                                        .description("an edit, the file written as it leaves it, the text before kept")
+                                        .arg(file)
+                                        .arg(Arg("edit").required().help("split, trim, move, remove or ripple-remove"))
+                                        .option(Option("track").value_type<std::size_t>().help("a track's index (0: the first)"))
+                                        .option(Option("clip").value_type<std::size_t>().help("a clip's index on its track"))
+                                        .option(Option("at").takes_value().value_name("T").help("where the edit is"))
+                                        .option(Option("length").takes_value().value_name("T").help("a trim's length"))
+                                        .option(Option("to-track").value_type<std::size_t>().help("a move's track"))
+                                        .option(Option("dry-run").help("say what it would do, write nothing")))
+                        .subcommand(App("undo").description("the last edit taken back").arg(file)));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 4 || std::string_view(argv[1]) != "timeline") return wrong("xengine timeline <command> FILE");
-    const std::string_view command = argv[2];
-    const auto file = os::fs::from_utf8(argv[3]);
-    if (command == "check" && argc == 4) return check(file);
-    if (command == "undo" && argc == 4) return undo(file);
-    if (command == "at") {
-        auto o = options_of(4, argc, argv);
-        return o ? at(file, *o) : wrong(o.error());
-    }
-    if (command == "edit" && argc >= 5) {
-        auto o = options_of(5, argc, argv);
-        return o ? edit(file, argv[4], *o) : wrong(o.error());
-    }
-    return wrong(std::format("no command `{}`", command));
+    const cmdline::App app = command_line();
+    auto parsed = app.parse(argc, argv);
+    if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
+    if (!parsed->has_subcommand() || !parsed->subcommand()->get().has_subcommand()) return wrong("xengine timeline <command> FILE");
+    const cmdline::ParsedArgs& timeline = parsed->subcommand()->get();
+    const std::string command(timeline.subcommand_name());
+    const cmdline::ParsedArgs& args = timeline.subcommand()->get();
+    const auto file = os::fs::from_utf8(args.positional(0));
+    if (command == "check") return check(file);
+    if (command == "undo") return undo(file);
+    if (command == "at") return at(file, options_of(args));
+    return edit(file, args.positional(1), options_of(args));
 }

@@ -9,6 +9,7 @@ import mlibs.control;
 import hanim.control;
 import openas.conformance;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 import nlohmann.json;
 
 using namespace hanim;
@@ -51,26 +52,39 @@ template<std::size_t N> bool integers(std::string_view text,std::array<int,N>& v
     }
     return false;
 }
-std::optional<Options> parse(int argc,char** argv) {
+// The command line (mcpplibs.cmdline), one chained tree.
+mcpplibs::cmdline::App command_line() {
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Option;
+    return App("hanim-play-consumer")
+        .description("hanim's public playback API, consumed from outside: a frame rendered, an agent's review")
+        .option(Option("describe-control").help("the control operations it offers, as JSON"))
+        .option(Option("out").takes_value().value_name("FILE.png").help("the frame written"))
+        .option(Option("time").value_type<double>().value_name("SECONDS").help("0 … 1"))
+        .option(Option("bend").value_type<double>().value_name("FRACTION").help("-2 … 2"))
+        .option(Option("viewport").takes_value().value_name("W,H").help("32 … 2048 each"))
+        .option(Option("region").takes_value().value_name("X,Y,W,H").help("the part of the viewport written"))
+        .option(Option("retarget").help("the morph retargeted"))
+        .option(Option("properties").help("properties animated"))
+        .option(Option("parts").help("parts animated"))
+        .option(Option("channels").help("channels animated"))
+        .option(Option("agent-review").help("an agent reviews the playback"))
+        .option(Option("agent-deny-capture").help("the reviewer refused the capture"));
+}
+std::optional<Options> parse(const mcpplibs::cmdline::ParsedArgs& args) {
     Options options;
-    for(int i=1;i<argc;++i) {
-        const std::string_view key=argv[i];
-        if(key=="--retarget") {options.retarget=true;continue;}
-        if(key=="--properties") {options.properties=true;continue;}
-        if(key=="--parts") {options.parts=true;continue;}
-        if(key=="--channels") {options.channels=true;continue;}
-        if(key=="--agent-review") {options.agent_review=true;continue;}
-        if(key=="--agent-deny-capture") {options.deny_capture=true;continue;}
-        if(i+1==argc)return {};
-        const std::string_view value=argv[++i];
-        if(key=="--out") options.output=value;
-        else if(key=="--time") {if(!number(value,options.time))return {};}
-        else if(key=="--bend") {if(!number(value,options.bend))return {};}
-        else if(key=="--region") {if(!integers(value,options.region))return {};options.cropped=true;}
-        else if(key=="--viewport") {
-            std::array<int,2> size{};if(!integers(value,size))return {};
-            options.width=size[0];options.height=size[1];
-        } else return {};
+    options.retarget=args.is_flag_set("retarget");
+    options.properties=args.is_flag_set("properties");
+    options.parts=args.is_flag_set("parts");
+    options.channels=args.is_flag_set("channels");
+    options.agent_review=args.is_flag_set("agent-review");
+    options.deny_capture=args.is_flag_set("agent-deny-capture");
+    if(auto out=args.value("out"))options.output=*out;
+    if(auto time=args.value_as<double>("time"))options.time=*time;
+    if(auto bend=args.value_as<double>("bend"))options.bend=*bend;
+    if(auto region=args.value("region")) {if(!integers(*region,options.region))return {};options.cropped=true;}
+    if(auto viewport=args.value("viewport")) {
+        std::array<int,2> size{};if(!integers(*viewport,size))return {};
+        options.width=size[0];options.height=size[1];
     }
     if(options.deny_capture && !options.agent_review)return {};
     if((options.properties || options.parts || options.channels) && options.retarget)return {}; // separate property retarget contract is tested by the API probe
@@ -227,10 +241,12 @@ int main(int argc,char** argv) {
         const openas::Grant grant{{openas::Kind::agent,"reviewer",{}},item.operation.effect,{std::string(item.operation.name)}};
         if(!openas::conformance::check(grant).ok())return fail("control operation name is not a conforming grant scope");
     }
-    if(argc==2 && std::string_view(argv[1])=="--describe-control") {
+    const auto line=command_line().parse(argc,argv);
+    if(!line)return line.error().is_error()?fail(line.error().message,2):0;
+    if(line->is_flag_set("describe-control")) {
         std::println("{}",Json{{"kind","hanim.control-discovery"},{"operations",control_catalog()}}.dump());return 0;
     }
-    const auto parsed=parse(argc,argv);
+    const auto parsed=parse(*line);
     if(!parsed)return fail("usage: --out FILE.png [--time SECONDS(0..1)] [--bend FRACTION(-2..2)] [--viewport W,H] [--region X,Y,W,H] [--retarget | --properties | --parts | --channels] [--agent-review] [--agent-deny-capture]",2);
     const auto& options=*parsed;
     auto made=Engine::make();if(!made)return fail("Engine::make");

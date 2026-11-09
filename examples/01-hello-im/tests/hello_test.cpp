@@ -74,7 +74,6 @@ int main(int argc, char** argv) {
         std::array<std::string_view, 2> args{"--agent-guide", "out"};
         auto o = omui::RunOptions::parse(args);
         check(o && o->headless && o->agent_guide == "out", "a headless run that writes it");
-        check(omui::RunOptions::takes_value("--agent-guide"));
         std::ofstream(dir / "index.html") << "<html><head><title>hello</title></head><body></body></html>";
         omui::RunOptions run;
         run.headless = true;

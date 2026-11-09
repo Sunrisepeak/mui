@@ -45,12 +45,23 @@ std::vector<std::string> files_of(const cmd::ParsedArgs& p) {
 }  // namespace
 
 cmd::App check_command() {
-    cmd::App a{"check"};
-    (void)a.description("Checks a project as the runtime and tsc read it — every TypeScript file's syntax (erasable only), its view documents, "
-                        "its types against what the application registers — or the view documents given");
-    a.arg("file").help("*.view.omui.json files (component documents are defined first, so views can use them); none: the project here");
-    a.option("json").help("one JSON record per diagnostic");
-    return a;
+    using cmd::App, cmd::Arg, cmd::Option;
+    return App("check")
+        .description("Checks a project as the runtime and tsc read it — every TypeScript file's syntax (erasable only), its view documents, "
+                     "its types against what the application registers — or the view documents given")
+        .arg(Arg("file").help("*.view.omui.json files (component documents are defined first, so views can use them); none: the project here"))
+        .option(Option("json").help("one JSON record per diagnostic"))
+        .option(Option("portable").help("also refuse what ties the scripts to omui: its components that are not the spec's, `omui` imports (D-157)"));
+}
+
+cmd::App describe_command() {
+    using cmd::App, cmd::Option;
+    return App("describe")
+        .description("What writing for the project here takes (W3, D-145): every builder with its properties, events and actions, the native "
+                     "modules, the theme's tokens, the verbs — from what the application registers, the source of its TypeScript declarations too")
+        .option(Option("api").help("the API (the default and, for now, the only thing described)"))
+        .option(Option("json").help("the API as JSON (.omui/types/api.json)"))
+        .option(Option("llms").takes_value().value_name("FILE").help("also write it as llms.txt, for a model's context"));
 }
 
 cmd::App fmt_command() {
@@ -114,7 +125,7 @@ int report(const std::vector<Found>& found, std::size_t files, bool json, std::o
 int check(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
     const bool json = p.is_flag_set("json");
     const auto files = files_of(p);
-    if (files.empty()) return check_project(json, out, err);
+    if (files.empty()) return check_project(json, p.is_flag_set("portable"), out, err);
     auto found = check_documents(files, err);
     if (!found) return 1;
     return report(*found, files.size(), json, out, err);

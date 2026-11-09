@@ -491,6 +491,9 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             verbs.push_back(std::move(one));
         }
         d.set("verbs", Value(std::move(verbs)));
+        // What writing for this application takes (W3, D-145): the builders, natives and tokens, from the
+        // same source as its TypeScript declarations.
+        if (const Value* api = req.get("api"); api && api->as_bool()) d.set("api", api_of(runtime_));
         return e.data(std::move(d)).result(spec::exit_code::success);
     }
     if (op == "snapshot") {

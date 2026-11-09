@@ -2,19 +2,21 @@
 // (index.md or README.md in it); the rest of the line is openmui's (--dark,
 // --headless --png out.png, --serve …).
 import std;
+import mcpplibs.cmdline;
 import omui;
 import viewer;
 
 int main(int argc, char** argv) {
+    // Its document beside openmui's switches, on one command line (mcpplibs.cmdline).
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("md-view")
+        .description("A Markdown viewer: a file, or a folder's index.md or README.md")
+        .arg(Arg("document").help("FILE.md or FOLDER (default: here)"));
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
     viewer::Model model;
-    std::vector<char*> rest{argv[0]};
-    std::optional<std::string> document;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (!a.starts_with("--") && !document && (i == 1 || !omui::RunOptions::takes_value(argv[i - 1]))) document = std::string(a);
-        else rest.push_back(argv[i]);
-    }
-    if (!model.open(document ? std::filesystem::path(std::u8string(document->begin(), document->end())) : std::filesystem::current_path()))
+    const std::string document = command->args.positional(0);
+    if (!model.open(document.empty() ? std::filesystem::current_path() : std::filesystem::path(std::u8string(document.begin(), document.end()))))
         std::println(std::cerr, "{}", model.status.peek());
-    return omui::run(viewer::app(model), static_cast<int>(rest.size()), rest.data());
+    return omui::run(viewer::app(model), command->options);
 }

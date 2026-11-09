@@ -51,7 +51,7 @@ omui.showcase.style_gallery      = { path = "../style-gallery" }
 "omui.showcase.widget_breakout"  = { path = "../widget-breakout" }
 "omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
 marzer.tomlplusplus                 = "3.4.0"
-mcpplibs.cmdline                    = "0.0.2"
+mcpplibs.cmdline                    = "0.0.3"
 mcpplibs.os                         = "0.4.1"
 
 [build-dependencies]

@@ -577,4 +577,23 @@ void paint_shadow(xrender::DisplayList& list, const Rect& box, const CornerRadii
     list.box_shadow(box, radii, shadow.offset, shadow.blur, shadow.spread, shade(shadow.color));
 }
 
+Value Theme::describe() const {
+    const auto channel = [](float value) { return static_cast<unsigned>(std::lround(std::clamp(value, 0.0f, 1.0f) * 255.0f)); };
+    Value colours(Value::Map{}), lengths(Value::Map{}), corners(Value::Map{});
+    for (const auto& [token, colour] : colors)
+        colours.set(token, std::format("#{:02x}{:02x}{:02x}{:02x}", channel(colour.r), channel(colour.g), channel(colour.b), channel(colour.a)));
+    for (const auto& [token, length] : spacing) lengths.set(token, static_cast<double>(length));
+    for (const auto& [token, corner] : radius) corners.set(token, static_cast<double>(corner));
+    const auto names = [](const auto& table) {
+        Value::List out;
+        for (const auto& entry : table) out.emplace_back(entry.first);
+        return Value(std::move(out));
+    };
+    Value out(Value::Map{});
+    out.set("name", name).set("dark", dark).set("density", static_cast<double>(density)).set("colors", std::move(colours));
+    out.set("spacing", std::move(lengths)).set("radius", std::move(corners)).set("text", names(text)).set("shadows", names(shadows));
+    out.set("motion", names(motion)).set("motions", names(motion_library));
+    return out;
+}
+
 }  // namespace omui

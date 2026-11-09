@@ -29,6 +29,7 @@ kind = "bin"
 main = "src/markdown.cpp"
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 "hanim.core" = { path = "../../../modules/projects/hanim/core" }
 "hanim" = { path = "../../../modules/projects/hanim" }
 xrender.vector = { path = "../../../modules/projects/xrender/vector" }

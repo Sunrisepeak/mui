@@ -15,6 +15,7 @@
 // line a scene on standard output
 // (its median, mean and fastest frame over N runs, after three to warm up).
 import std;
+import mcpplibs.cmdline;
 import mlibs.geom;
 import mlibs.math;
 import mlibs.image;
@@ -340,25 +341,31 @@ bool write(const std::filesystem::path& file, std::string_view text) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    std::filesystem::path out;
-    std::string only;
-    int runs = 15;
-    if (argc >= 2 && std::string_view(argv[1]) == "--phases") {
-        for (const Scene& scene : scenes()) phases(scene, argc >= 3 ? std::max(1, std::atoi(argv[2])) : 9);
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    const auto line = App("omui-bench-vector")
+        .description("xrender's CPU raster against the competitors' scenes")
+        .arg(Arg("count").help("with --phases: runs a scene (default 9)"))
+        .option(Option("out").takes_value().value_name("DIR").help("where the pictures and report go"))
+        .option(Option("runs").value_type<int>().help("measured runs (default 15)"))
+        .option(Option("only").takes_value().value_name("SCENE").help("only this scene"))
+        .option(Option("phases").help("where each scene's time goes"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        std::println(std::cerr, "omui-bench-vector: {}", parsed.error().message);
+        return 2;
+    }
+    if (parsed->is_flag_set("phases")) {
+        int runs = 9;
+        if (const std::string count = parsed->positional(0); !count.empty()) std::from_chars(count.data(), count.data() + count.size(), runs);
+        for (const Scene& scene : scenes()) phases(scene, std::max(1, runs));
         return 0;
     }
-    for (int index = 1; index + 1 < argc; index += 2) {
-        const std::string_view option = argv[index];
-        if (option == "--out") out = argv[index + 1];
-        else if (option == "--runs") runs = std::max(1, std::atoi(argv[index + 1]));
-        else if (option == "--only") only = argv[index + 1];
-        else {
-            std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N] [--only SCENE]");
-            return 2;
-        }
-    }
+    const std::filesystem::path out = parsed->value("out").value_or("");
+    const std::string only = parsed->value("only").value_or("");
+    const int runs = std::max(1, parsed->value_as<int>("runs").value_or(15));
     if (out.empty()) {
-        std::println(std::cerr, "usage: omui-bench-vector --out DIR [--runs N] [--only SCENE]");
+        std::println(std::cerr, "omui-bench-vector: --out DIR (omui-bench-vector --help)");
         return 2;
     }
     std::filesystem::create_directories(out);

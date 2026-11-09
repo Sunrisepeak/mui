@@ -168,6 +168,11 @@ struct PaintOptions {
 void register_type(const ComponentType& type);
 // Every registered type (view documents and their schema, `omui check`), by name.
 [[nodiscard]] std::vector<const ComponentType*> registered_types();
+// Them as data (omuiCatalog, the agent protocol's `describe`, an application's
+// TypeScript declarations): each type's role, doc, contract properties, events
+// and actions, and whether its contract is the spec's registry's (`spec`,
+// portable: D-157); then the properties and events every node has.
+[[nodiscard]] Value component_catalog();
 
 // What the runtime itself gives every node, whatever its type: the layout,
 // look, motion and semantic properties, and the events of input and of the

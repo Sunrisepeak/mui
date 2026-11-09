@@ -34,6 +34,7 @@ omui.host.headless = { path = "../host/headless" }
 "mlibs.i18n"        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
 mcpplibs.os           = "0.4.1"
+mcpplibs.cmdline      = "0.0.3"
 
 # Where `omui::run` shows an application (D-84): a desktop window, or on the
 # Web the page's canvas — the host, and the partition (openmui:host) and unit

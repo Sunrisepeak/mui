@@ -28,6 +28,7 @@ main = "src/main.cpp"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 omui.sdk          = { path = "../../modules/projects/omui/sdk" }
 "omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
 "omui.theme"      = { path = "../../modules/projects/omui/theme" }

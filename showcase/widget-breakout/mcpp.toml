@@ -34,6 +34,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.math = { path = "../../modules/base/math" }
 mlibs.utils = { path = "../../modules/base/utils" }

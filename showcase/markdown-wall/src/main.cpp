@@ -2,30 +2,28 @@
 // --synthetic N` (the benchmark's documents); `--stream N` writes into N
 // windows. The rest of the line is openmui's (--dark, --headless --png …).
 import std;
+import mcpplibs.cmdline;
 import omui;
 import omui.showcase.markdown_wall;
 
 int main(int argc, char** argv) {
-    constexpr std::array<std::string_view, 11> valued{"--png", "--size", "--frames", "--level", "--agent-dir", "--agent-name", "--debug", "--log", "--profile", "--lang", "--window"};
-    std::vector<char*> rest{argv[0]};
-    std::optional<std::string> folder;
-    std::size_t synthetic = 0, stream = 0;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        auto number = [&](std::size_t& out) {
-            if (i + 1 < argc) out = static_cast<std::size_t>(std::strtoull(argv[++i], nullptr, 10));
-        };
-        if (a == "--synthetic") number(synthetic);
-        else if (a == "--stream") number(stream);
-        else if (!a.starts_with("--") && !(i > 1 && std::ranges::find(valued, std::string_view(argv[i - 1])) != valued.end()) && !folder) folder = std::string(a);
-        else rest.push_back(argv[i]);
-    }
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("omui-wall")
+        .description("A folder's Markdown as a wall of documents you can zoom")
+        .arg(Arg("folder").help("the folder (default: here)"))
+        .option(Option("synthetic").value_type<std::size_t>().help("the benchmark's N documents instead of a folder"))
+        .option(Option("stream").value_type<std::size_t>().help("write into N windows as a stream"));
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
+    const std::size_t synthetic = command->args.value_as<std::size_t>("synthetic").value_or(0);
+    const std::size_t stream = command->args.value_as<std::size_t>("stream").value_or(0);
+    const std::string folder = command->args.positional(0);
     omui::wall::Model model;
     if (synthetic) {
         model.docs = omui::wall::synthetic(synthetic);
         model.title = std::format("{} documents", synthetic);
     } else {
-        const std::filesystem::path where = folder ? std::filesystem::path(std::u8string(folder->begin(), folder->end())) : std::filesystem::current_path();
+        const std::filesystem::path where = folder.empty() ? std::filesystem::current_path() : std::filesystem::path(std::u8string(folder.begin(), folder.end()));
         auto docs = omui::wall::read_folder(where);
         if (!docs) {
             std::println(std::cerr, "omui-wall: {}", docs.error());
@@ -44,5 +42,5 @@ int main(int argc, char** argv) {
             rt.after(omui::seconds(0.1), [&model, stream] { model.stream(stream); });
         };
     }
-    return omui::run(std::move(spec), static_cast<int>(rest.size()), rest.data());
+    return omui::run(std::move(spec), command->options);
 }

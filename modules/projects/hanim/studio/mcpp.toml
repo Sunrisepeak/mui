@@ -26,6 +26,7 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 hanim          = { path = "..", features = ["render-vector", "control"] }
 # The hanim command writes frames as SVG (xrender.vector.svg).
 xrender.vector = { path = "../../xrender/vector" }

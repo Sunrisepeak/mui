@@ -5,19 +5,20 @@
 // copilot (room 5) or, between rooms, 1 and 2 take a contraption, Tab opens
 // the inspector, Enter goes on from a room over.
 import std;
+import mcpplibs.cmdline;
 import omui;
 import xengine.audio;
 import xengine.audio.device;
 import omui.showcase.widget_breakout;
 
 int main(int argc, char** argv) {
-    std::vector<char*> rest{argv[0]};
-    bool quiet = false;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--quiet") quiet = true;
-        else rest.push_back(argv[i]), quiet = quiet || a == "--headless";
-    }
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("omui-breakout")
+        .description("Breakout in a settings panel's widgets")
+        .option(Option("quiet").help("nothing is heard (so too headless)"));
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
+    const bool quiet = command->args.is_flag_set("quiet") || command->options.headless;
     // The game heard through the system's output (none headless, or with --quiet).
     if (!quiet)
         omui::breakout::hear_with([](omui::breakout::Sounds& s) -> std::shared_ptr<void> {
@@ -29,5 +30,5 @@ int main(int argc, char** argv) {
             s.live(true);
             return std::make_shared<xengine::audio::Device>(std::move(*device));
         });
-    return omui::run(omui::breakout::app(), static_cast<int>(rest.size()), rest.data());
+    return omui::run(omui::breakout::app(), command->options);
 }

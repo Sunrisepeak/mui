@@ -8,3 +8,4 @@ export import omui.semantic;
 export import :catalog;
 export import :protocol;
 export import :endpoint;
+export import :api;

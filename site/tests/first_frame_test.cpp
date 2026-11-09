@@ -36,6 +36,9 @@ int main(int argc, char** argv) {
         }
         const auto reduced = options({"--reduced-motion", "--first-frame", "a.png"});
         check(reduced && reduced->reduce_motion);
+        // The command line is mcpplibs.cmdline's (D-56): `--option=value` is its other spelling of `--option value`.
+        const auto joined = options({"--first-frame=a.png", "--width=390"});
+        check(joined && joined->png == "a.png" && joined->width == 390);
         for (const auto& args : std::vector<std::vector<std::string_view>>{
             {}, {"--first-frame"}, {"--first-frame", "a.jpg"}, {"--first-frame", "a.png", "--lang", "fr"},
             {"--first-frame", "a.png", "--route", "zh/components", "--lang", "en"},
@@ -50,7 +53,7 @@ int main(int argc, char** argv) {
             {"--first-frame", "a.png", "--width", "300", "--width", "400"},
             {"--first-frame", "a.png", "--first-frame", "b.png"}, {"--first-frame", "a.png", "--unknown", "1"},
             {"--first-frame", "a.png", "--reduced-motion", "--reduced-motion"}, {"--first-frame", "a.png", "--reduced-motion", "false"},
-            {"--first-frame", "a.png", "--prerender", "index.html"}, {"--first-frame=a.png"}})
+            {"--first-frame", "a.png", "--prerender", "index.html"}})
             check(!site::parse_first_frame_options(args), "invalid arguments are rejected before rendering or file IO");
     });
 

@@ -1,20 +1,19 @@
 // S2: `omui-styles [--style NAME] [--export-dir DIR]` — the rest of the line
 // is openmui's (--dark, --headless --png …).
 import std;
+import mcpplibs.cmdline;
 import omui;
 import omui.showcase.style_gallery;
 
 int main(int argc, char** argv) {
-    std::vector<char*> rest{argv[0]};
-    std::string first = "glass";
-    std::filesystem::path out;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        if (a == "--style" && i + 1 < argc) first = argv[++i];
-        else if (a == "--export-dir" && i + 1 < argc) out = std::filesystem::path(std::u8string(argv[i + 1], argv[i + 1] + std::strlen(argv[i + 1]))), ++i;
-        else rest.push_back(argv[i]);
-    }
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Arg, mcpplibs::cmdline::Option;
+    auto line = App("omui-styles")
+        .description("A settings panel and a dashboard in five style packs")
+        .option(Option("style").takes_value().value_name("NAME").help("the pack shown first (default: glass)"))
+        .option(Option("export-dir").takes_value().value_name("DIR").help("where the workshop exports a pack"));
+    auto command = omui::command_line(std::move(line), argc, argv);
+    if (!command) return command.error();
     omui::styles::Studio studio;
-    studio.export_dir = out;
-    return omui::run(omui::styles::app(studio, first), static_cast<int>(rest.size()), rest.data());
+    if (auto dir = command->args.value("export-dir")) studio.export_dir = std::filesystem::path(std::u8string(dir->begin(), dir->end()));
+    return omui::run(omui::styles::app(studio, command->args.value("style").value_or("glass")), command->options);
 }

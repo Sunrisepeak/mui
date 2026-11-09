@@ -93,7 +93,6 @@ int main(int argc, char** argv) {
         const std::array<std::string_view, 2> args{"--agent-mode", "dual-user"};
         auto options = RunOptions::parse(args);
         check(options && options->agent_mode == AgentMode::dual_user);
-        check(RunOptions::takes_value("--agent-mode"));
         const std::array<std::string_view, 2> invalid{"--agent-mode", "external"};
         check(!RunOptions::parse(invalid));
         AppSpec app;

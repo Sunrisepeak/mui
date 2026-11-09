@@ -25,6 +25,7 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 xengine.timeline = { path = "../timeline" }
 mlibs.utils      = { path = "../../../base/utils" }
 mcpplibs.os      = "0.4.1"

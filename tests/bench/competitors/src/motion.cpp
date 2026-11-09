@@ -3,11 +3,17 @@
 // retargeted every 30th frame, advanced a 60 Hz frame, every value read.
 // 300 frames to warm up, 3000 measured; the same report as GSAP's side.
 import std;
+import mcpplibs.cmdline;
 import hanim.core;
 import hanim.engine;
 
 int main(int argc, char** argv) {
-    const bool json = argc > 1 && std::string_view(argv[1]) == "--json";
+    const auto line = mcpplibs::cmdline::App("omui-bench-motion")
+        .description("hanim's side of the GSAP comparison: 1000 driven channels a frame")
+        .option(mcpplibs::cmdline::Option("json").help("the report as JSON"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) return parsed.error().is_error() ? 2 : 0;
+    const bool json = parsed->is_flag_set("json");
     auto engine = hanim::Engine::make();
     if (!engine) return 1;
     static constexpr auto channel = hanim::ch::define<double>("bench.value");

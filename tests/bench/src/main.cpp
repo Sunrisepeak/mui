@@ -18,6 +18,7 @@
 import std;
 import omui.bench;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 
 void* operator new(std::size_t size) {
     omui::bench::count_allocation();
@@ -45,63 +46,42 @@ int usage(std::string_view problem) {
 int main(int argc, char** argv) {
     namespace bench = omui::bench;
     bench::add_framework_benchmarks();
+    using mcpplibs::cmdline::App, mcpplibs::cmdline::Option;
+    const auto line = App("omui-bench")
+        .description("Runs openmui's benchmarks, writes the report, checks budgets")
+        .option(Option("filter").takes_value().value_name("TEXT").help("the ones whose name contains it"))
+        .option(Option("json").takes_value().value_name("FILE").help("also the report as JSON"))
+        .option(Option("check").takes_value().value_name("BUDGETS").help("exit 1 when a budget is exceeded"))
+        .option(Option("report").takes_value().value_name("FILE").help("also the report for people, in Markdown"))
+        .option(Option("report-zh").takes_value().value_name("FILE").help("the same in Chinese"))
+        .option(Option("note").takes_value().multiple().value_name("TEXT").help("a note in the report"))
+        .option(Option("note-zh").takes_value().multiple().value_name("TEXT").help("a note in the Chinese report"))
+        .option(Option("min-time").value_type<double>().value_name("MS").help("the least time a benchmark runs"))
+        .option(Option("label").takes_value().help("the run's label"))
+        .option(Option("quick").help("a few iterations each (a smoke run)"))
+        .option(Option("all-budgets").help("every benchmark must have a budget"))
+        .option(Option("list").help("names and descriptions"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) return parsed.error().is_error() ? usage(parsed.error().message) : 0;
+    const auto& args = *parsed;
     bench::Options options;
-    std::optional<std::filesystem::path> json_file, budgets_file, report_file, report_zh;
-    bool list = false, require_all = false;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        auto value = [&]() -> std::optional<std::string_view> {
-            if (i + 1 >= argc) return std::nullopt;
-            return std::string_view(argv[++i]);
-        };
-        if (a == "--filter") {
-            auto v = value();
-            if (!v) return usage("--filter takes a text");
-            options.filter = *v;
-        } else if (a == "--json") {
-            auto v = value();
-            if (!v) return usage("--json takes a file");
-            json_file = std::filesystem::path(*v);
-        } else if (a == "--report") {
-            auto v = value();
-            if (!v) return usage("--report takes a file");
-            report_file = std::filesystem::path(*v);
-        } else if (a == "--note") {
-            auto v = value();
-            if (!v) return usage("--note takes a text");
-            options.notes.emplace_back(*v);
-        } else if (a == "--note-zh") {
-            auto v = value();
-            if (!v) return usage("--note-zh takes a text");
-            options.notes_zh.emplace_back(*v);
-        } else if (a == "--report-zh") {
-            auto v = value();
-            if (!v) return usage("--report-zh takes a file");
-            report_zh = std::filesystem::path(*v);
-        } else if (a == "--check") {
-            auto v = value();
-            if (!v) return usage("--check takes a budgets file");
-            budgets_file = std::filesystem::path(*v);
-        } else if (a == "--min-time") {
-            auto v = value();
-            if (!v || std::from_chars(v->data(), v->data() + v->size(), options.min_time_ms).ec != std::errc{})
-                return usage("--min-time takes milliseconds");
-        } else if (a == "--label") {
-            auto v = value();
-            if (!v) return usage("--label takes a text");
-            options.label = *v;
-        } else if (a == "--quick") {
-            options.warmup = 1;
-            options.min_iterations = 3;
-            options.min_time_ms = 0;
-        } else if (a == "--all-budgets") {
-            require_all = true;
-        } else if (a == "--list") {
-            list = true;
-        } else {
-            return usage(std::format("no option `{}`", a));
-        }
+    const auto path = [&](std::string_view name) -> std::optional<std::filesystem::path> {
+        if (auto value = args.value(name)) return std::filesystem::path(*value);
+        return std::nullopt;
+    };
+    const std::optional<std::filesystem::path> json_file = path("json"), budgets_file = path("check"), report_file = path("report"),
+                                               report_zh = path("report-zh");
+    const bool list = args.is_flag_set("list"), require_all = args.is_flag_set("all-budgets");
+    if (auto filter = args.value("filter")) options.filter = *filter;
+    if (auto label = args.value("label")) options.label = *label;
+    for (const std::string& note : args.option_or_empty("note").values) options.notes.emplace_back(note);
+    for (const std::string& note : args.option_or_empty("note-zh").values) options.notes_zh.emplace_back(note);
+    if (args.is_flag_set("quick")) {
+        options.warmup = 1;
+        options.min_iterations = 3;
+        options.min_time_ms = 0;
     }
+    if (auto min_time = args.value_as<double>("min-time")) options.min_time_ms = *min_time;
     if (list) {
         for (const bench::Case& c : bench::cases()) std::println("{:<26} {}", c.name, c.description);
         return 0;

@@ -24,9 +24,12 @@ import xrender.effect;
 import xrender.cts;
 import xrender.rhi.sdl;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 import nlohmann.json;
 
 namespace {
+
+namespace cmdline = mcpplibs::cmdline;
 
 namespace fx = xrender::effect;
 namespace geom = mlibs::geom;
@@ -74,13 +77,13 @@ Json describe(const xrender::EffectInfo& info) {
     return {{"doc", std::string(info.doc)}, {"params", std::move(params)}};
 }
 
-int effect_check(int argc, char** argv) {
-    if (argc < 4) return wrong("effect check takes one file or more");
+int effect_check(const cmdline::ParsedArgs& args) {
+    if (args.positional_count() == 0) return wrong("effect check takes one file or more");
     fx::Library library({.formats = xrender::gpu_shader_formats()});
     Json effects = Json::array();
     bool ok = true;
-    for (int index = 3; index < argc; ++index) {
-        const auto file = path_of(argv[index]);
+    for (const std::string& name : args.positionals) {
+        const auto file = path_of(name);
         Json one{{"file", utf8(file)}};
         auto loaded = library.load(file);
         if (!loaded) {
@@ -119,33 +122,29 @@ void test_card(xrender::DisplayList& list, float width, float height) {
         list.fill_rect({width * 0.08f, height * 0.5f + height * 0.4f * k / 12, width * 0.36f, 1}, geom::Color{1, 1, 1, 0.5f});
 }
 
-int effect_preview(int argc, char** argv) {
-    if (argc < 4) return wrong("effect preview takes a file");
-    const auto file = path_of(argv[3]);
+int effect_preview(const cmdline::ParsedArgs& args) {
+    const auto file = path_of(args.positional(0));
     std::optional<std::filesystem::path> out, image_file;
+    if (auto value = args.value("out")) out = path_of(*value);
+    if (auto value = args.value("image")) image_file = path_of(*value);
     int width = 320, height = 200;
-    std::vector<std::pair<std::string, float>> given;
-    for (int index = 4; index < argc; ++index) {
-        const std::string_view option = argv[index];
-        if (index + 1 >= argc) return wrong(std::format("{} takes a value", option));
-        const std::string_view value = argv[++index];
-        if (option == "--out") out = path_of(value);
-        else if (option == "--image") image_file = path_of(value);
-        else if (option == "--size") {
+    if (auto size = args.value("size")) {
+        const std::string_view value = *size;
+        {
             const auto x = value.find('x');
             if (x == std::string_view::npos || std::from_chars(value.data(), value.data() + x, width).ec != std::errc{} ||
                 std::from_chars(value.data() + x + 1, value.data() + value.size(), height).ec != std::errc{} || width < 8 || height < 8 ||
                 width > 4096 || height > 4096)
                 return wrong("--size is WxH, 8 … 4096 each");
-        } else if (option == "--param") {
-            const auto eq = value.find('=');
-            float number = 0;
-            if (eq == std::string_view::npos || std::from_chars(value.data() + eq + 1, value.data() + value.size(), number).ec != std::errc{})
-                return wrong("--param is NAME=VALUE");
-            given.emplace_back(std::string(value.substr(0, eq)), number);
-        } else {
-            return wrong(std::format("no option `{}` here", option));
         }
+    }
+    std::vector<std::pair<std::string, float>> given;
+    for (const std::string& value : args.option_or_empty("param").values) {
+        const auto eq = value.find('=');
+        float number = 0;
+        if (eq == std::string::npos || std::from_chars(value.data() + eq + 1, value.data() + value.size(), number).ec != std::errc{})
+            return wrong("--param is NAME=VALUE");
+        given.emplace_back(value.substr(0, eq), number);
     }
     if (!out) return wrong("effect preview takes --out PNG");
     auto device = open_device();
@@ -216,12 +215,9 @@ int effect_preview(int argc, char** argv) {
                   0);
 }
 
-int cts(int argc, char** argv) {
+int cts(const cmdline::ParsedArgs& args) {
     std::optional<std::filesystem::path> report_file;
-    for (int index = 2; index < argc; ++index) {
-        if (std::string_view(argv[index]) == "--report" && index + 1 < argc) report_file = path_of(argv[++index]);
-        else return wrong(std::format("no option `{}` here", argv[index]));
-    }
+    if (auto value = args.value("report")) report_file = path_of(*value);
     auto device = open_device();
     if (!device) return failed(device.error());
     const auto scratch = std::filesystem::temp_directory_path() / "xrender-cts";
@@ -261,14 +257,36 @@ int device_info() {
                   0);
 }
 
+// The command line (mcpplibs.cmdline): effect check | preview, cts, device.
+cmdline::App command_line() {
+    using cmdline::App, cmdline::Arg, cmdline::Option;
+    return App("xrender")
+        .description("The renderer without a GUI, for people, agents and CI: one JSON answer, exit 0 done / 1 failed / 2 a wrong command")
+        .subcommand(App("effect")
+                        .description("Effects: checked, or previewed on the GPU")
+                        .subcommand(App("check").description("each effect read, its shader compiled, registered").arg(Arg("file").required().help("FILE…")))
+                        .subcommand(App("preview")
+                                        .description("the effect drawn over a picture (a test card when none): before | after")
+                                        .arg(Arg("file").required())
+                                        .option(Option("out").takes_value().value_name("PNG").help("the picture written"))
+                                        .option(Option("image").takes_value().value_name("PNG").help("the picture under it"))
+                                        .option(Option("size").takes_value().value_name("WxH").help("8 … 4096 each (default 320x200)"))
+                                        .option(Option("param").takes_value().multiple().value_name("NAME=VALUE").help("a parameter's value"))))
+        .subcommand(App("cts").description("the render contract's conformance suite on this device").option(Option("report").takes_value().value_name("FILE")))
+        .subcommand(App("device").description("the device: backend, name, formats, limits"));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 2) return wrong("a command");
-    const std::string_view command = argv[1];
-    if (command == "effect" && argc >= 3 && std::string_view(argv[2]) == "check") return effect_check(argc, argv);
-    if (command == "effect" && argc >= 3 && std::string_view(argv[2]) == "preview") return effect_preview(argc, argv);
-    if (command == "cts") return cts(argc, argv);
-    if (command == "device" && argc == 2) return device_info();
-    return wrong(std::format("no command `{}`", command));
+    const cmdline::App app = command_line();
+    auto parsed = app.parse(argc, argv);
+    if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
+    if (!parsed->has_subcommand()) return wrong("a command: effect, cts or device");
+    const cmdline::ParsedArgs& args = parsed->subcommand()->get();
+    if (parsed->subcommand_name() == "cts") return cts(args);
+    if (parsed->subcommand_name() == "device") return device_info();
+    if (!args.has_subcommand()) return wrong("effect check or effect preview");
+    if (args.subcommand_name() == "check") return effect_check(args.subcommand()->get());
+    return effect_preview(args.subcommand()->get());
 }

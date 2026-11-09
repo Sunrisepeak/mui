@@ -22,12 +22,14 @@ import xrender.vector.svg;
 import mlibs.image;
 import mlibs.hash;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 import nlohmann.json;
 
 namespace {
 
 namespace studio = hanim::studio;
 namespace os = mcpplibs::os;
+namespace cmdline = mcpplibs::cmdline;
 using Json = nlohmann::json;
 
 constexpr std::string_view usage =
@@ -83,53 +85,58 @@ Json plan(const studio::Studio& opened) {
             {"size", {opened.document().width, opened.document().height}}};
 }
 
+// The command line (mcpplibs.cmdline): check, at, vary, sample, render — each its options.
+cmdline::App command_line() {
+    using cmdline::App, cmdline::Arg, cmdline::Option;
+    const auto document = Arg("file").required().help("the animation document");
+    const auto at = Option("at").value_type<double>().multiple().value_name("T").help("a moment in seconds");
+    const auto out = Option("out").takes_value().value_name("PREFIX").help("where the pictures go");
+    const auto frames = Option("frames").value_type<double>().help("evenly spaced frames, 1 … 240");
+    return App("hanim")
+        .description("The animation tool without a GUI: one JSON answer, exit 0 done / 1 failed / 2 a wrong command")
+        .subcommand(App("check").description("the plan: duration, tracks, markers — or every problem").arg(document))
+        .subcommand(App("at").description("the steps that govern a moment (of an object), innermost first").arg(document).option(at)
+                        .option(Option("object").takes_value().value_name("ID").help("only this object")))
+        .subcommand(App("vary").description("alternatives drawn side by side: the value at POINTER set to each").arg(document)
+                        .option(Option("set").takes_value().value_name("POINTER").help("the JSON pointer varied"))
+                        .option(Option("value").takes_value().multiple().value_name("JSON").help("a value it takes"))
+                        .option(out).option(frames).option(at))
+        .subcommand(App("sample").description("every object's position, scale, rotation, fill and bounds").arg(document).option(at))
+        .subcommand(App("render").description("frames as PNG, a strip and a report").arg(document).option(out).option(frames).option(at)
+                        .option(Option("webp").value_type<double>().value_name("FPS").help("also an animated WebP, 1 … 120 frames a second"))
+                        .option(Option("svg").help("each frame as vectors too")));
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-    if (argc < 3) return wrong("a command and a document");
-    const std::string_view command = argv[1];
-    if (command != "check" && command != "sample" && command != "render" && command != "at" && command != "vary") return wrong(std::format("no command `{}`", command));
-    const std::string file = argv[2];
+    const cmdline::App app = command_line();
+    auto parsed = app.parse(argc, argv);
+    if (!parsed) return parsed.error().is_error() ? wrong(parsed.error().message) : 0;
+    if (!parsed->has_subcommand()) return wrong("a command and a document");
+    const std::string command(parsed->subcommand_name());
+    const cmdline::ParsedArgs& args = parsed->subcommand()->get();
+    const std::string file = args.positional(0);
     std::vector<double> times;
-    std::optional<std::string> out;
-    int frames = 0, fps = 0;
-    bool svg = false;
-    std::string object, set;
-    std::vector<std::string> values;
-    for (int index = 3; index < argc; ++index) {
-        const std::string_view option = argv[index];
-        const bool has_value = index + 1 < argc;
-        const auto number = [&](double& value) {
-            const std::string_view text = argv[++index];
-            const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
-            return parsed.ec == std::errc{} && parsed.ptr == text.data() + text.size() && std::isfinite(value);
-        };
-        if (option == "--at" && has_value) {
-            double time = 0;
-            if (!number(time) || time < 0) return wrong("--at takes a time in seconds, 0 or more");
-            times.push_back(time);
-        } else if (option == "--out" && has_value) {
-            out = argv[++index];
-        } else if (option == "--frames" && has_value) {
-            double count = 0;
-            if (!number(count) || count < 1 || count > 240 || count != std::floor(count)) return wrong("--frames takes 1 … 240");
-            frames = static_cast<int>(count);
-        } else if (option == "--object" && has_value && command == "at") {
-            object = argv[++index];
-        } else if (option == "--set" && has_value && command == "vary") {
-            set = argv[++index];
-        } else if (option == "--value" && has_value && command == "vary") {
-            values.emplace_back(argv[++index]);
-        } else if (option == "--svg") {
-            svg = true;
-        } else if (option == "--webp" && has_value) {
-            double rate = 0;
-            if (!number(rate) || rate < 1 || rate > 120 || rate != std::floor(rate)) return wrong("--webp takes frames a second, 1 … 120");
-            fps = static_cast<int>(rate);
-        } else {
-            return wrong(std::format("no option `{}` here", option));
-        }
+    for (const std::string& value : args.option_or_empty("at").values) {
+        double time = 0;
+        std::from_chars(value.data(), value.data() + value.size(), time);
+        if (!std::isfinite(time) || time < 0) return wrong("--at takes a time in seconds, 0 or more");
+        times.push_back(time);
     }
+    const std::optional<std::string> out = args.value("out");
+    int frames = 0, fps = 0;
+    if (auto count = args.value_as<double>("frames")) {
+        if (*count < 1 || *count > 240 || *count != std::floor(*count)) return wrong("--frames takes 1 … 240");
+        frames = static_cast<int>(*count);
+    }
+    if (auto rate = args.value_as<double>("webp")) {
+        if (*rate < 1 || *rate > 120 || *rate != std::floor(*rate)) return wrong("--webp takes frames a second, 1 … 120");
+        fps = static_cast<int>(*rate);
+    }
+    const bool svg = args.is_flag_set("svg");
+    const std::string object = args.value("object").value_or(""), set = args.value("set").value_or("");
+    const std::vector<std::string> values = args.option_or_empty("value").values;
     const auto text = os::fs::read(os::fs::from_utf8(file));
     if (!text) return answer(Json{{"ok", false}, {"problems", {{{"where", ""}, {"text", std::format("cannot read {}: {}", file, text.error().message())}}}}}, 1);
     const auto document = studio::read(*text);

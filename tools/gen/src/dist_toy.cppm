@@ -48,6 +48,7 @@
 export module omui.gen.dist_toy;
 
 import std;
+import mcpplibs.cmdline;
 
 export namespace omui::gen {
 
@@ -107,8 +108,8 @@ inline constexpr std::uintmax_t toy_index_limit = 1024 * 1024;  // Toy: the entr
 
 [[nodiscard]] std::expected<ToyReport, std::string> package_for_toy(const ToyPackage& p);
 
-// The command line's `dist-toy` (argv[1]); the exit code.
-int dist_toy_main(int argc, char** argv);
+// The command line's `dist-toy`, as omui-gen parsed it; the exit code.
+int dist_toy_main(const mcpplibs::cmdline::ParsedArgs& args);
 
 // A package's program cut in two by wasm-split (tools/ci/site-split.sh): the
 // first half (the functions a profiled first screen ran) replaces the
@@ -126,7 +127,7 @@ struct ToySplit {
 
 [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
 
-// The command line's `dist-toy-split`; the exit code.
-int dist_toy_split_main(int argc, char** argv);
+// The command line's `dist-toy-split`, as omui-gen parsed it; the exit code.
+int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args);
 
 }  // namespace omui::gen

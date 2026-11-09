@@ -24,6 +24,7 @@ main = "src/main.cpp"
 sources = ["src/*.cpp"]
 
 [dependencies]
+mcpplibs.cmdline = "0.0.3"
 xrender.vector  = { path = "../vector" }
 xrender.raster  = { path = "../raster" }
 xrender.effect  = { path = "../effect" }

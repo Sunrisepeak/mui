@@ -191,6 +191,11 @@ public:
     // A control's metric at this density, in whole pixels (exactly v at 1).
     [[nodiscard]] float scaled(float v) const noexcept { return density == 1 ? v : std::round(v * density); }
 
+    // Its tokens as data, what a script, a view document or an agent may name
+    // (the agent protocol's describe, W3): colours as #rrggbbaa, lengths in
+    // logical pixels, the text styles, shadows and motions by name.
+    [[nodiscard]] Value describe() const;
+
     [[nodiscard]] static Theme light();
     [[nodiscard]] static Theme dark_theme();
 };

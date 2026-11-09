@@ -11,8 +11,8 @@ How it was made, layer by layer, and what making it taught: [dev story](dev-stor
 ```sh
 mcpp run -p omui.showcase.fighting
 mcpp run -p omui.showcase.fighting -- --training
-mcpp run -p omui.showcase.fighting -- --fight kun ni --cpu 1 --level 3   # straight into a fight, the computer as 霓
-mcpp run -p omui.showcase.fighting -- --fight kata mo --turns 10 --serve # by turns: agents (tools/eval/duel.sh)
+mcpp run -p omui.showcase.fighting -- --fight kun,ni --computer 1 --computer-level 3   # straight into a fight, the computer as 霓
+mcpp run -p omui.showcase.fighting -- --fight kata,mo --turns 10 --serve # by turns: agents (tools/eval/duel.sh)
 mcpp run -p omui.showcase.fighting -- --headless --png fight.png
 ```
 

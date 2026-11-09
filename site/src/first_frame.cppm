@@ -2,6 +2,7 @@
 export module omui.site:first_frame;
 
 import std;
+import mcpplibs.cmdline;
 import omui;
 
 export namespace omui::site {
@@ -16,9 +17,15 @@ struct FirstFrameOptions {
     bool reduce_motion = false;
 };
 
-// Arguments exclude argv[0] and include --first-frame <PNG>. Export mode
-// accepts only its own options, once each. A route's explicit language must
-// agree with --lang; without --lang the route's prefix determines it.
+// The export's options on a command line (mcpplibs.cmdline): --first-frame
+// PNG, --route, --width, --height, --time, --root, --reduced-motion, and
+// --lang unless the line declares it already (omui-site's is RunOptions's).
+void declare_first_frame(mcpplibs::cmdline::App& line, bool language);
+// What they say. Export mode accepts only its own options (and --lang), once
+// each, and no other argument. A route's explicit language must agree with
+// --lang; without --lang the route's prefix determines it.
+[[nodiscard]] std::expected<FirstFrameOptions, std::string> first_frame_options(const mcpplibs::cmdline::ParsedArgs& args);
+// Both, over arguments that exclude argv[0] and include --first-frame <PNG>.
 [[nodiscard]] std::expected<FirstFrameOptions, std::string> parse_first_frame_options(std::span<const std::string_view> args);
 
 // The output directory must exist. CPU, one raster band, scale 1, fixed T3.

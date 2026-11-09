@@ -15,24 +15,38 @@
 // DIR/playtest.omui.json (the report), DIR/<room>-<player>.record.omui.json
 // (each problem's record); a summary on standard output.
 import std;
+import mcpplibs.cmdline;
 import omui.showcase.widget_breakout;
 
 int main(int argc, char** argv) {
+    auto line = mcpplibs::cmdline::App("omui-breakout-playtest")
+                    .description("The agent as playtester: every room played headless by players of different skill")
+                    .option(mcpplibs::cmdline::Option("rooms").takes_value().value_name("1,2,3").help("the rooms (default: all five)"))
+                    .option(mcpplibs::cmdline::Option("players").value_type<int>().help("players a room (default 4)"))
+                    .option(mcpplibs::cmdline::Option("minutes").value_type<double>().help("the longest a play may take (default 2)"))
+                    .option(mcpplibs::cmdline::Option("out").takes_value().value_name("DIR").help("where the report goes (default target/breakout-playtest)"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        std::println(std::cerr, "omui-breakout-playtest: {}", parsed.error().message);
+        return 2;
+    }
     omui::breakout::PlaytestOptions options{.out = "target/breakout-playtest"};
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        auto next = [&] { return i + 1 < argc ? std::string(argv[++i]) : std::string{}; };
-        if (a == "--rooms") {
-            options.rooms.clear();
-            for (const auto part : std::views::split(next(), ',')) options.rooms.push_back(std::atoi(std::string(std::string_view(part)).c_str()));
-        } else if (a == "--players") options.players = std::max(1, std::atoi(next().c_str()));
-        else if (a == "--minutes") options.minutes = std::max(0.1, std::atof(next().c_str()));
-        else if (a == "--out") options.out = next();
-        else {
-            std::println(std::cerr, "usage: omui-breakout-playtest [--rooms 1,2,3,4,5] [--players 4] [--minutes 2] [--out DIR]");
-            return 2;
+    if (auto rooms = parsed->value("rooms")) {
+        options.rooms.clear();
+        for (const auto part : std::views::split(*rooms, ',')) {
+            int room = 0;
+            const std::string_view text(part.begin(), part.end());
+            if (std::from_chars(text.data(), text.data() + text.size(), room).ec != std::errc{}) {
+                std::println(std::cerr, "omui-breakout-playtest: --rooms takes room numbers, not `{}`", text);
+                return 2;
+            }
+            options.rooms.push_back(room);
         }
     }
+    if (auto players = parsed->value_as<int>("players")) options.players = std::max(1, *players);
+    if (auto minutes = parsed->value_as<double>("minutes")) options.minutes = std::max(0.1, *minutes);
+    if (auto out = parsed->value("out")) options.out = *out;
     const omui::Value report = omui::breakout::playtest(options);
     bool replay = true;
     for (const omui::Value& r : *report.get("rooms")->list())

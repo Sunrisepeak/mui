@@ -29,6 +29,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 
 The application is its own designer (D-149); its `design.*` verbs (`ui_invoke`) are the loop:
 1. `design.sources` — the TypeScript each script and module runs now.
+   Before writing, read what the application offers to write with: `design.api` (each language's API over its components), or `describe` with `api: true` (every builder, native module, theme token and verb, as data — `omui describe --api` and `.omui/types/` give the same from the command line; `omui check` type-checks what you wrote against it).
 2. `design.edit` {path, text} — new text runs at once, state kept; the answer is the semantic changes and the time. A text that does not run is refused with its line, nothing changed. The person sees each edit written in, and your note beside it.
 3. `design.expect` {say, query} — what the person wants, as a query that holds or not; `design.check` reads every expectation against the interface as it is (facts, with what the last press on a node came to).
 4. `design.handover` — the person tries it; when they say they are done, `design.check`, then `design.save_scenario` {name}: their steps and the expectations as a test; `design.replay` {name} plays it again.

@@ -36,8 +36,9 @@ xengine.audio       = { path = "../../modules/projects/xengine/audio" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }
 omui.host.headless = { path = "../../modules/projects/omui/host/headless" }
-mcpplibs.cmdline = "0.0.2"
+mcpplibs.cmdline = "0.0.3"
 mcpplibs.os      = "0.4.1"
+marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).

@@ -749,6 +749,46 @@ std::vector<const ComponentType*> registered_types() {
     return out;
 }
 
+Value component_catalog() {
+    Value components(Value::Map{});
+    for (const ComponentType* t : registered_types()) {
+        if (t->name == "root") continue;
+        Value c(Value::Map{});
+        c.set("role", spec::name(t->contract ? t->contract->role : t->role));
+        Value props(Value::Map{}), events(Value::Map{}), actions(Value::Map{});
+        if (const spec::ContractInfo* k = t->contract) {
+            for (const spec::PropInfo& p : k->props) {
+                Value x(Value::Map{});
+                x.set("type", spec::name(p.type)).set("bindable", p.bindable);
+                if (!p.values.empty()) {
+                    Value::List values;
+                    for (std::string_view v : p.values) values.emplace_back(v);
+                    x.set("values", Value(std::move(values)));
+                }
+                if (!p.doc.empty()) x.set("doc", p.doc);
+                props.set(p.name, std::move(x));
+            }
+            for (const spec::EventInfo& e : k->events) {
+                Value args(Value::Map{});
+                for (const spec::ArgInfo& a : e.args) args.set(a.name, a.type);
+                events.set(e.name, Value(Value::Map{}).set("args", std::move(args)));
+            }
+            for (const spec::ActionSpec& a : k->actions) actions.set(a.name, Value(Value::Map{}).set("effect", spec::name(a.effect)));
+            if (!k->doc.empty()) c.set("doc", k->doc);
+        }
+        // `spec`: its contract is the spec's registry's (a Core component), so a script using it is portable (D-157).
+        const bool core = t->contract && std::ranges::contains(spec::catalog::core, t->contract);
+        c.set("contract", t->contract != nullptr).set("spec", core).set("props", std::move(props)).set("events", std::move(events)).set("actions", std::move(actions));
+        components.set(t->name, std::move(c));
+    }
+    Value common(Value::List{}), common_events(Value::List{});
+    for (std::string_view p : runtime_properties()) common.list()->emplace_back(p);
+    for (std::string_view e : runtime_events()) common_events.list()->emplace_back(e);
+    Value out(Value::Map{});
+    out.set("components", std::move(components)).set("properties", std::move(common)).set("events", std::move(common_events));
+    return out;
+}
+
 Element box(BoxOptions o, std::vector<Element> children, std::source_location where) {
     return boxed(component_type<BoxNode>(), std::move(o), std::move(children), where);
 }

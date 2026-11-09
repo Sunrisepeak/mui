@@ -64,7 +64,7 @@
 ## 4. 代码规范
 
 - **C++23** 是基线；C++26（反射）只在 omui 的 `reflect` 包使用。
-- **格式与命名**：格式按仓库根的 `.clang-format`（与 mcpp 仓库相同：4 空格、100 列、大括号不换行、指针靠类型）；新写和改动的代码遵守，不为格式单独大面积改动未触及的代码。变量、参数用可读的词命名，不用单字母（`s`、`p`、`d`、`r` 之类），只有约定俗成的短循环计数可以例外。
+- **格式与命名**：格式按仓库根的 `.clang-format`（与 mcpp 仓库相同：4 空格、100 列、大括号不换行、指针靠类型）；新写和改动的代码遵守，不为格式单独大面积改动未触及的代码。变量、参数用可读的词命名，不用单字母（`s`、`p`、`d`、`r` 之类），只有约定俗成的短循环计数可以例外。命令行用 `mcpplibs.cmdline` 声明，`App` 写成一条链式表达式，缩进即子命令的层级（同 mcpp 的 `cli.cppm`）。
 - **不用宏**：用模块分区、`inline constexpr`、`if constexpr`、`consteval`、`std::source_location`。全仓库唯一的头文件是生成的 `spec/include/openmui.h`；第三方头文件只出现在 `native/` 实现分区里。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配；动画、布局、光栅模块禁用 fast-math 和浮点收缩。
 - 契约优先：组件与 native 模块先写契约，绑定由生成器产出。契约、操作目录、主题、动画用 TS 声明（`*.<种类>.omui.ts`，构建期由内嵌 QuickJS 确定地求值成 JSON；D-139）；迁移完成前沿用现有的 `.omui.toml`。
@@ -76,7 +76,7 @@
 - **`omui` 命令行是 omui 应用唯一的顶级入口**（D-150、D-153）：new、dev、run、build、test、package、依赖、辅助工具、Agent 接入都经由它，底层是 mcpp 和 mtest；omui 专属的构建步骤都是 mcpp 插件（`mcpp/`），所以直接用 mcpp 构建结果一致。开发模式下由宿主进程持有窗口，应用是渲染输出目标（D-154）。
 - 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]` 和工作区的工具环境 `[xlings.workspace]`（工具按需声明，例如 esbuild 写成 `when = "run"`，CI 不再单独安装），SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
-- **优先用 mcpp 生态**（D-56）。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
+- **库已有的能力就依赖，不重写**（D-56）：先用已发布、有人在用的 `mcpplibs.*` 包（命令行 `mcpplibs.cmdline`、平台 `mcpplibs.os` 等），再用 mcpp-index 里的知名库（nlohmann/json、toml++ 等），两者都没有的才自己实现。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
 - **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
 - **测试**统一用 mtest（D-147，mcpp 2026.11.8.1 起原生支持；`mlibs.testing` 待迁完后删除）。
 - **开发效率**：检查点只跑它触及的用例（`mtest plan --since` 选出，或 `mcpp test -p 包 [测试名]`）；初期不做大范围测试；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等；后台构建未编到的包先不改，以免结果混入新旧两版。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。

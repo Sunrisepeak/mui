@@ -1,6 +1,7 @@
 module omui;
 
 import std;
+import mcpplibs.cmdline;
 import omui.core;
 import omui.view;
 import omui.agent;
@@ -16,7 +17,9 @@ import :build_profile;
 import :agent_guide;
 import :shown;
 
-namespace omui {  // names this file uses unqualified, from their owner
+namespace omui {
+
+namespace cmdline = mcpplibs::cmdline;  // names this file uses unqualified, from their owner
 using mlibs::log::set_log_filter;
 using mlibs::log::error;
 using mlibs::log::warn;
@@ -37,118 +40,116 @@ std::expected<AgentPolicy, std::string> application_agent_policy(const AppSpec& 
     return policy;
 }
 
-bool RunOptions::takes_value(std::string_view option) noexcept {
-    constexpr std::array<std::string_view, 13> with{"--frames", "--png",   "--level", "--agent-dir", "--agent-name", "--agent-guide",
-                                                    "--agent-mode", "--window", "--size",  "--debug", "--log",       "--lang",       "--profile"};
-    return std::ranges::contains(with, option);
+void RunOptions::declare(cmdline::App& app) {
+    using cmdline::Option;
+    (void)app
+        .option(Option("headless").help("no window: drawn offscreen, operated through the agent protocol"))
+        .option(Option("serve").help("headless, and kept running for agents (level h3)"))
+        .option(Option("frames").takes_value().value_name("N").help("run N frames, then end"))
+        .option(Option("png").takes_value().value_name("FILE").help("the last frame as a PNG"))
+        .option(Option("level").takes_value().value_name("hN").help("how much a headless run keeps: h0, h1, h2 or h3"))
+        .option(Option("agent-dir").takes_value().value_name("DIR").help("where the agent endpoint says where it is"))
+        .option(Option("agent-name").takes_value().value_name("NAME").help("the endpoint's name (default: the application's id)"))
+        .option(Option("agent-mode").takes_value().value_name("MODE").help("how far agents may go: automatic, development or dual-user"))
+        .option(Option("agent-guide").takes_value().value_name("DIR").help("write what an agent needs to operate it into DIR, then end"))
+        .option(Option("no-agent").help("no agent endpoint"))
+        .option(Option("agent-input").help("agents may send input events (default: the application's)"))
+        .option(Option("no-agent-input").help("agents may not send input events"))
+        .option(Option("no-agent-player").help("no agent joins as a player"))
+        .option(Option("no-accessibility").help("no accessibility bridge"))
+        .option(Option("dark").help("the dark theme"))
+        .option(Option("gpu").help("draw on the GPU"))
+        .option(Option("cpu").help("draw on the CPU"))
+        .option(Option("reduce-transparency").help("solid surfaces where styles would be translucent"))
+        .option(Option("size").takes_value().value_name("WxH").help("the window's size, e.g. 800x600"))
+        .option(Option("debug").takes_value().value_name("LIST").help("overlays: bounds, repaints, inspector, hud"))
+        .option(Option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info (also OMUI_LOG)"))
+        .option(Option("profile").takes_value().value_name("FILE").help("record a trace of the run (Chrome / Perfetto JSON)"))
+        .option(Option("lang").takes_value().value_name("TAGS").help("the person's languages, best first: zh-CN,en"))
+        .option(Option("window").takes_value().value_name("MODE").help("who draws the window's frame: native, framework or switchable"));
+}
+
+std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArgs& parsed) {
+    RunOptions o;
+    o.headless = parsed.is_flag_set("headless");
+    if (parsed.is_flag_set("serve")) o.serve = o.headless = true;
+    o.agent = !parsed.is_flag_set("no-agent");
+    if (parsed.is_flag_set("agent-input")) o.agent_input = true;
+    if (parsed.is_flag_set("no-agent-input")) o.agent_input = false;
+    o.no_agent_player = parsed.is_flag_set("no-agent-player");
+    o.accessibility = !parsed.is_flag_set("no-accessibility");
+    o.dark = parsed.is_flag_set("dark");
+    if (parsed.is_flag_set("gpu")) o.gpu = true;
+    if (parsed.is_flag_set("cpu")) o.gpu = false;
+    o.reduce_transparency = parsed.is_flag_set("reduce-transparency");
+    if (auto v = parsed.value("agent-mode")) {
+        const auto mode = parse_agent_mode(*v);
+        if (!mode) return std::unexpected("--agent-mode is automatic, development or dual-user");
+        o.agent_mode = *mode;
+    }
+    if (auto v = parsed.value("frames")) {
+        int count = 0;
+        if (std::from_chars(v->data(), v->data() + v->size(), count).ec != std::errc{} || count < 1) return std::unexpected("--frames takes a positive number");
+        o.frames = count;
+    }
+    if (auto v = parsed.value("png")) o.png = std::filesystem::path(*v);
+    if (auto v = parsed.value("level")) {
+        if (v->size() != 2 || (*v)[0] != 'h' || (*v)[1] < '0' || (*v)[1] > '3') return std::unexpected("--level is h0, h1, h2 or h3");
+        o.level = (*v)[1] - '0';
+    }
+    if (auto v = parsed.value("agent-dir")) o.agent_dir = std::filesystem::path(*v);
+    if (auto v = parsed.value("agent-name")) {
+        if (v->empty()) return std::unexpected("--agent-name takes a name");
+        o.agent_name = *v;
+    }
+    if (auto v = parsed.value("window")) {
+        if (*v != "native" && *v != "framework" && *v != "switchable") return std::unexpected("--window is native, framework or switchable");
+        o.window = *v;
+    }
+    if (auto v = parsed.value("size")) {
+        float width = 0, height = 0;
+        const auto by = v->find('x');
+        if (by == std::string::npos || std::from_chars(v->data(), v->data() + by, width).ec != std::errc{} ||
+            std::from_chars(v->data() + by + 1, v->data() + v->size(), height).ec != std::errc{} || width <= 0 || height <= 0)
+            return std::unexpected("--size is WxH, e.g. 800x600");
+        o.size = Size{width, height};
+    }
+    if (auto v = parsed.value("debug")) {
+        for (auto part : *v | std::views::split(',')) {
+            const std::string_view item(part.begin(), part.end());
+            if (item == "bounds") o.debug.bounds = true;
+            else if (item == "repaints") o.debug.repaints = true;
+            else if (item == "inspector") o.debug.inspector = true;
+            else if (item == "hud") o.debug.hud = true;
+            else return std::unexpected(std::format("--debug: no overlay `{}` (bounds, repaints, inspector, hud)", item));
+        }
+        o.debug.slow_frame_ms = 1000.0 / 60.0;
+    }
+    if (auto v = parsed.value("log")) o.log = *v;
+    if (auto v = parsed.value("lang")) {
+        for (auto part : *v | std::views::split(',')) {
+            const std::string_view item(part.begin(), part.end());
+            if (!mlibs::i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
+            o.languages.emplace_back(item);
+        }
+    }
+    if (auto v = parsed.value("agent-guide")) {
+        o.agent_guide = std::filesystem::path(*v);
+        o.headless = true;
+    }
+    if (auto v = parsed.value("profile")) o.profile = std::filesystem::path(*v);
+    if (o.serve) o.level = 3;
+    return o;
 }
 
 std::expected<RunOptions, std::string> RunOptions::parse(std::span<const std::string_view> args) {
-    RunOptions o;
-    for (std::size_t i = 0; i < args.size(); ++i) {
-        const std::string_view a = args[i];
-        auto value = [&]() -> std::optional<std::string_view> {
-            if (i + 1 >= args.size()) return std::nullopt;
-            return args[++i];
-        };
-        if (a == "--headless") o.headless = true;
-        else if (a == "--serve") o.serve = o.headless = true;
-        else if (a == "--no-agent") o.agent = false;
-        else if (a == "--agent-mode") {
-            const auto v = value();
-            const auto mode = v ? parse_agent_mode(*v) : std::nullopt;
-            if (!mode) return std::unexpected("--agent-mode is automatic, development or dual-user");
-            o.agent_mode = *mode;
-        }
-        else if (a == "--agent-input") o.agent_input = true;
-        else if (a == "--no-agent-input") o.agent_input = false;
-        else if (a == "--no-agent-player") o.no_agent_player = true;
-        else if (a == "--no-accessibility") o.accessibility = false;
-        else if (a == "--dark") o.dark = true;
-        else if (a == "--gpu") o.gpu = true;
-        else if (a == "--cpu") o.gpu = false;
-        else if (a == "--reduce-transparency") o.reduce_transparency = true;
-        else if (a == "--frames") {
-            auto v = value();
-            int n = 0;
-            if (!v || std::from_chars(v->data(), v->data() + v->size(), n).ec != std::errc{} || n < 1)
-                return std::unexpected("--frames takes a positive number");
-            o.frames = n;
-        } else if (a == "--png") {
-            auto v = value();
-            if (!v) return std::unexpected("--png takes a file");
-            o.png = std::filesystem::path(*v);
-        } else if (a == "--level") {
-            auto v = value();
-            if (!v || v->size() != 2 || (*v)[0] != 'h' || (*v)[1] < '0' || (*v)[1] > '3') return std::unexpected("--level is h0, h1, h2 or h3");
-            o.level = (*v)[1] - '0';
-        } else if (a == "--agent-dir") {
-            auto v = value();
-            if (!v) return std::unexpected("--agent-dir takes a directory");
-            o.agent_dir = std::filesystem::path(*v);
-        } else if (a == "--agent-name") {
-            auto v = value();
-            if (!v || v->empty()) return std::unexpected("--agent-name takes a name");
-            o.agent_name = std::string(*v);
-        } else if (a == "--window") {
-            auto v = value();
-            if (!v || (*v != "native" && *v != "framework" && *v != "switchable")) return std::unexpected("--window is native, framework or switchable");
-            o.window = std::string(*v);
-        } else if (a == "--size") {
-            auto v = value();
-            float w = 0, h = 0;
-            const auto x = v ? v->find('x') : std::string_view::npos;
-            if (!v || x == std::string_view::npos ||
-                std::from_chars(v->data(), v->data() + x, w).ec != std::errc{} ||
-                std::from_chars(v->data() + x + 1, v->data() + v->size(), h).ec != std::errc{} || w <= 0 || h <= 0)
-                return std::unexpected("--size is WxH, e.g. 800x600");
-            o.size = Size{w, h};
-        } else if (a == "--debug") {
-            auto v = value();
-            if (!v) return std::unexpected("--debug takes a list: bounds,repaints,inspector,hud");
-            std::string_view list = *v;
-            while (!list.empty()) {
-                const auto comma = list.find(',');
-                const std::string_view item = list.substr(0, comma);
-                list = comma == std::string_view::npos ? std::string_view{} : list.substr(comma + 1);
-                if (item == "bounds") o.debug.bounds = true;
-                else if (item == "repaints") o.debug.repaints = true;
-                else if (item == "inspector") o.debug.inspector = true;
-                else if (item == "hud") o.debug.hud = true;
-                else return std::unexpected(std::format("--debug: no overlay `{}` (bounds, repaints, inspector, hud)", item));
-            }
-            o.debug.slow_frame_ms = 1000.0 / 60.0;
-        } else if (a == "--log") {
-            auto v = value();
-            if (!v) return std::unexpected("--log takes a filter: layout=debug,*=info");
-            o.log = std::string(*v);
-        } else if (a == "--lang") {
-            auto v = value();
-            if (!v) return std::unexpected("--lang takes language tags, best first: zh-CN,en");
-            for (std::string_view list = *v; !list.empty();) {
-                const auto comma = list.find(',');
-                const std::string_view item = list.substr(0, comma);
-                list = comma == std::string_view::npos ? std::string_view{} : list.substr(comma + 1);
-                if (!mlibs::i18n::Locale::parse(item)) return std::unexpected(std::format("--lang: `{}` is not a language tag (zh-CN, en)", item));
-                o.languages.emplace_back(item);
-            }
-        } else if (a == "--agent-guide") {
-            auto v = value();
-            if (!v) return std::unexpected("--agent-guide takes a directory");
-            o.agent_guide = std::filesystem::path(*v);
-            o.headless = true;
-        } else if (a == "--profile") {
-            auto v = value();
-            if (!v) return std::unexpected("--profile takes a file");
-            o.profile = std::filesystem::path(*v);
-        } else {
-            return std::unexpected(std::format("unknown option `{}` (--headless, --frames N, --png FILE, --level hN, --serve, "
-                                               "--agent-dir DIR, --agent-name NAME, --agent-guide DIR, --agent-mode MODE, --no-agent, --agent-input, --no-agent-input, --no-agent-player, --no-accessibility, --dark, --gpu, --cpu, --reduce-transparency, --size WxH, --debug LIST, --log FILTER, --profile FILE, --lang TAGS, --window MODE)",
-                                               a));
-        }
-    }
-    if (o.serve) o.level = 3;
-    return o;
+    cmdline::App app{"application"};
+    declare(app);
+    std::vector<std::string> argv{"application"};
+    for (const std::string_view arg : args) argv.emplace_back(arg);
+    auto parsed = app.parse_from(std::span<const std::string>(argv));
+    if (!parsed) return std::unexpected(parsed.error().message);
+    return from(*parsed);
 }
 
 namespace {
@@ -373,15 +374,26 @@ int run(AppSpec app, const RunOptions& o) {
     });
 }
 
-int run(AppSpec app, int argc, char** argv) {
-    std::vector<std::string_view> args;
-    for (int i = 1; i < argc; ++i) args.emplace_back(argv[i]);
-    auto o = RunOptions::parse(args);
-    if (!o) {
-        std::println(std::cerr, "{}", o.error());
-        return 2;
+std::expected<CommandLine, int> command_line(cmdline::App line, int argc, char** argv) {
+    RunOptions::declare(line);
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return std::unexpected(0);  // --help, --version: said
+        std::println(std::cerr, "{}", parsed.error().message);
+        return std::unexpected(2);
     }
-    return run(std::move(app), *o);
+    auto options = RunOptions::from(*parsed);
+    if (!options) {
+        std::println(std::cerr, "{}", options.error());
+        return std::unexpected(2);
+    }
+    return CommandLine{std::move(*parsed), std::move(*options)};
+}
+
+int run(AppSpec app, int argc, char** argv) {
+    auto command = command_line(cmdline::App(app.id.empty() ? std::string("application") : app.id).description(app.title), argc, argv);
+    if (!command) return command.error();
+    return run(std::move(app), command->options);
 }
 
 }  // namespace omui

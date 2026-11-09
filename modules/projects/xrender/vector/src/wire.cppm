@@ -18,8 +18,15 @@ export namespace xrender {
 
 // The list's commands as bytes (a header with the format's version first).
 [[nodiscard]] std::string encode(const DisplayList& list);
+// What a reader's side calls the references the writer's side made: its own
+// font for the writer's (the same face, weight and slant interned again), its
+// own image. None: the same numbers.
+struct Remap {
+    std::function<std::uint32_t(std::uint32_t)> font, image;
+};
+
 // The commands of `bytes` appended to `into`; why not, and nothing appended,
 // when they are not a list this format wrote.
-[[nodiscard]] std::expected<void, std::string> decode(std::string_view bytes, DisplayList& into);
+[[nodiscard]] std::expected<void, std::string> decode(std::string_view bytes, DisplayList& into, const Remap& remap = {});
 
 }  // namespace xrender

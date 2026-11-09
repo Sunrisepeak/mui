@@ -34,6 +34,10 @@ omui.host.headless = { path = "../host/headless" }
 "mlibs.i18n"        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
 mcpplibs.os           = "0.4.1"
+# The development host (:devhost) draws the application's frames itself, glyphs too.
+xrender.vector        = { path = "../../xrender/vector" }
+xrender.raster        = { path = "../../xrender/raster" }
+xrender.text          = { path = "../../xrender/text" }
 mcpplibs.cmdline      = "0.0.3"
 
 # Where `omui::run` shows an application (D-84): a desktop window, or on the

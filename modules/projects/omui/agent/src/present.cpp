@@ -8,13 +8,14 @@ import omui.view;
 import xrender.vector;
 import xrender.raster;
 import omui.semantic;
+import mlibs.text;
 
 namespace omui::agent {
 
 namespace {
 
 // A message: its length (u32, the kind and the bytes), its kind, its bytes.
-enum class Kind : char { frame = 'F', image = 'I', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R' };
+enum class Kind : char { frame = 'F', image = 'I', font = 'T', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R' };
 
 void put32(std::string& out, std::uint32_t value) {
     for (int index = 0; index < 4; ++index) out.push_back(static_cast<char>((value >> (8 * index)) & 0xFF));
@@ -89,6 +90,17 @@ bool Presenter::send(const FrameOutput& frame) {
         out += message(Kind::image, image);
         sent_[id] = revision;
     }
+    // The fonts it names, by what they are (face, weight, slant), once each: references are interned per process.
+    for (const auto& command : frame.list->commands())
+        if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command); glyphs && glyphs->font.id && fonts_sent_.insert(glyphs->font.id).second) {
+            const mlibs::text::FontRef font{glyphs->font.id};
+            std::string described;
+            put32(described, glyphs->font.id);
+            put32(described, runtime_.fonts().face_of(font));
+            put32(described, std::bit_cast<std::uint32_t>(runtime_.fonts().weight_of(font)));
+            described.push_back(static_cast<char>(runtime_.fonts().slant_of(font)));
+            out += message(Kind::font, described);
+        }
     out += message(Kind::frame, xrender::encode(*frame.list));
     return connection_.write(out).has_value();
 }
@@ -131,7 +143,8 @@ std::optional<std::pair<Size, float>> Presenter::resized() {
     return std::exchange(size_, std::nullopt);
 }
 
-Presentation::Presentation(mcpplibs::os::ipc::connection connection) : connection_(std::move(connection)) {}
+Presentation::Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts)
+    : connection_(std::move(connection)), fonts_(fonts) {}
 
 const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait) {
     const auto until = std::chrono::steady_clock::now() + wait;
@@ -146,11 +159,25 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
                 auto surface = std::make_shared<xrender::raster::Surface>(width, height);
                 std::memcpy(surface->pixels().data(), bytes.data() + 20, bytes.size() - 20);
                 images_.put({id}, std::move(surface), revision);
+            } else if (next->first == Kind::font && next->second.size() == 13) {
+                const std::string_view bytes = next->second;
+                if (fonts_) {
+                    const auto face = static_cast<mlibs::text::FaceId>(get(bytes, 4, 4));
+                    const auto weight = std::bit_cast<float>(static_cast<std::uint32_t>(get(bytes, 8, 4)));
+                    const auto slant = static_cast<mlibs::text::Slant>(bytes[12]);
+                    font_map_[static_cast<std::uint32_t>(get(bytes, 0, 4))] = fonts_->font(face, weight, slant).id;
+                }
             } else if (next->first == Kind::state) {
                 if (auto state = parse_json(next->second)) state_ = std::move(*state);
             } else if (next->first == Kind::frame) {
                 xrender::DisplayList list;
-                if (xrender::decode(next->second, list)) {
+                xrender::Remap remap;
+                if (fonts_)
+                    remap.font = [this](std::uint32_t id) {
+                        const auto found = font_map_.find(id);
+                        return found == font_map_.end() ? 0u : found->second;  // a font never described: none drawn
+                    };
+                if (xrender::decode(next->second, list, remap)) {
                     list_ = std::move(list);
                     ++frames_;
                     return &list_;

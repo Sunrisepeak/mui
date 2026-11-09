@@ -25,5 +25,6 @@ export import omui.host.headless;
 export import :host;  // the desktop's window (openmui.host.sdl3), or the page's canvas (openmui.host.web)
 export import mlibs.i18n;
 export import :app;
-export import :system;  // files chosen, notices, a tray, a menu bar: native or drawn (W7)
+export import :system;
+export import :devhost;  // the development host: the application drawn in its window, new builds faded in (W16)  // files chosen, notices, a tray, a menu bar: native or drawn (W7)
 export import :agent_guide;  // agent.md for every application (--agent-guide)

@@ -22,6 +22,7 @@ import mcpplibs.os;
 import omui.core;
 import omui.view;
 import xrender.vector;
+import mlibs.text;
 
 export namespace omui::agent {
 
@@ -40,6 +41,7 @@ private:
     Runtime&                                       runtime_;
     mcpplibs::os::ipc::connection                  connection_;
     std::unordered_map<std::uint32_t, std::uint64_t> sent_;  // image id → revision the host has
+    std::set<std::uint32_t>                        fonts_sent_;  // font references the host knows
     std::string                                    pending_;
     std::vector<InputEvent>                        input_;
     std::optional<std::pair<Size, float>>          size_;
@@ -48,7 +50,10 @@ private:
 
 class Presentation {
 public:
-    explicit Presentation(mcpplibs::os::ipc::connection connection);
+    // `fonts`: where the application's font references are interned again
+    // (the same faces loaded in the same order, as add_defaults does); none:
+    // its numbers taken as they are.
+    explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
     // The next frame's list (the images it refers to stored first); none when
     // nothing came within `wait`, or the application is gone (gone()).
     [[nodiscard]] const xrender::DisplayList* receive(std::chrono::milliseconds wait);
@@ -73,6 +78,8 @@ private:
     bool                          gone_ = false;
     std::uint64_t                 frames_ = 0;
     std::optional<Value>          state_;
+    mlibs::text::FontCollection*  fonts_ = nullptr;
+    std::unordered_map<std::uint32_t, std::uint32_t> font_map_;  // the application's reference → this side's
 };
 
 }  // namespace omui::agent

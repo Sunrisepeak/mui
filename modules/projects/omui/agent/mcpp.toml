@@ -36,6 +36,8 @@ mlibs.pipeline = { path = "../../../base/pipeline" }
 xrender.vector = { path = "../../xrender/vector" }
 # :present sends and keeps images (xrender.raster's surfaces).
 xrender.raster = { path = "../../xrender/raster" }
+# :present carries fonts by what they are (face, weight, slant).
+mlibs.text = { path = "../../../content/text" }
 mlibs.image    = { path = "../../../base/image" }
 mcpplibs.os      = "0.4.1"
 

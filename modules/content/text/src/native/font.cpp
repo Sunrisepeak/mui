@@ -364,6 +364,7 @@ FontRef FontCollection::font(FaceId face, float weight, Slant slant) {
 
 FaceId FontCollection::face_of(FontRef font) const { return impl_->instance(font).face; }
 float FontCollection::weight_of(FontRef font) const { return impl_->instance(font).weight; }
+Slant FontCollection::slant_of(FontRef font) const { return impl_->instance(font).slant; }
 
 void* FontCollection::hb_font(FontRef font) const { return impl_->instance(font).font; }
 

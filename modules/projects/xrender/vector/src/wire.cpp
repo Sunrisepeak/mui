@@ -107,6 +107,9 @@ struct Reader {
     std::size_t      at = 0;
     bool             failed = false;
     Held&            held;
+    const Remap&     remap;
+    std::uint32_t font_id() { const auto id = get<std::uint32_t>(); return remap.font && id ? remap.font(id) : id; }
+    std::uint32_t image_id() { const auto id = get<std::uint32_t>(); return remap.image && id ? remap.image(id) : id; }
 
     bool need(std::size_t size) {
         if (failed || bytes.size() - at < size) {
@@ -178,7 +181,7 @@ struct Reader {
     }
     Material material() {
         Material out;
-        out.normal.id = get<std::uint32_t>(); out.light = point(); out.light_z = get<float>(); out.shadow = color();
+        out.normal.id = image_id(); out.light = point(); out.light_z = get<float>(); out.shadow = color();
         out.shadow_strength = get<float>(); out.bands = get<std::int32_t>(); out.softness = get<float>(); out.rim = color();
         out.rim_strength = get<float>(); out.rim_width = get<float>(); out.key = color();
         return out;
@@ -192,7 +195,7 @@ struct Reader {
         auto& stops = held.stops.emplace_back(count(20));
         for (GradientStop& stop : stops) { stop.offset = get<float>(); stop.color = color(); }
         out.gradient.stops = stops;
-        out.image.id = get<std::uint32_t>();
+        out.image.id = image_id();
         out.image_transform = affine();
         out.sampling = get<Sampling>();
         if (get<bool>()) out.material = &held.materials.emplace_back(material());
@@ -300,10 +303,10 @@ std::optional<Command> get_command(Reader& in, std::size_t index) {
         else if constexpr (std::same_as<T, FillPath>) { c.path = in.path(); c.rule = in.get<FillRule>(); c.paint = in.paint(); }
         else if constexpr (std::same_as<T, StrokePath>) { c.path = in.path(); c.style = in.stroke(); c.paint = in.paint(); }
         else if constexpr (std::same_as<T, DrawImage>) {
-            c.image.id = in.get<std::uint32_t>(); c.source = in.rect(); c.dest = in.rect(); c.sampling = in.get<Sampling>(); c.opacity = in.get<float>();
+            c.image.id = in.image_id(); c.source = in.rect(); c.dest = in.rect(); c.sampling = in.get<Sampling>(); c.opacity = in.get<float>();
         }
         else if constexpr (std::same_as<T, DrawGlyphs>) {
-            c.font.id = in.get<std::uint32_t>(); c.size = in.get<float>(); c.origin = in.point();
+            c.font.id = in.font_id(); c.size = in.get<float>(); c.origin = in.point();
             auto& glyphs = in.held.glyphs.emplace_back(in.count(28));
             for (Glyph& glyph : glyphs) {
                 glyph.id = in.get<std::uint32_t>(); glyph.position = in.point(); glyph.cluster = in.get<std::uint32_t>();
@@ -355,10 +358,10 @@ std::string encode(const DisplayList& list) {
     return std::move(out.bytes);
 }
 
-std::expected<void, std::string> decode(std::string_view bytes, DisplayList& into) {
+std::expected<void, std::string> decode(std::string_view bytes, DisplayList& into, const Remap& remap) {
     if (!bytes.starts_with(magic)) return std::unexpected(std::string("not a display list (no `xrdl`)"));
     Held held;
-    Reader in{bytes, magic.size(), false, held};
+    Reader in{bytes, magic.size(), false, held, remap};
     if (const auto written = in.get<std::uint32_t>(); written != version)
         return std::unexpected(std::format("a display list of version {} (this reads {})", written, version));
     const std::size_t count = in.count();

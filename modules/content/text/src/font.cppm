@@ -124,6 +124,7 @@ public:
     [[nodiscard]] FontRef font(FaceId face, float weight, Slant slant = Slant::normal);
     [[nodiscard]] FaceId face_of(FontRef font) const;
     [[nodiscard]] float weight_of(FontRef font) const;
+    [[nodiscard]] Slant slant_of(FontRef font) const;
     [[nodiscard]] Metrics metrics(FontRef font, float size) const;
 
     // A glyph as geometry, for renderers: its outline, and its colour layers

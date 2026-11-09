@@ -1,4 +1,4 @@
-// The theme preview as its user and an agent use it: the player runs the Lua
+// The theme preview as its user and an agent use it: the player runs the TypeScript
 // script over openmui's themes and the application's brand file; choosing a
 // theme, compact and reduced motion composes them; the gallery's semantics
 // are the same under every composition, its metrics follow the density; a
@@ -8,7 +8,7 @@ import std;
 import omui;
 import omui.player;
 import omui.entry.player;
-import omui.lang.lua;
+import omui.lang.js;
 import omui.theme;
 import omui.theme.default_theme;
 import omui.theme.compact;
@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
         check(m->themes.size() == 1 && m->theme == std::vector<std::string>{"light"}, "the manifest's themes and composition");
         const auto shots = scratch_dir("example-theming");
         Headless h(HeadlessOptions{.size = m->size});
-        player::Player p(h.runtime(), *m, {lang::lua::language()});
+        player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
         check(started.has_value(), started ? "" : started.error());
         settle(h, p);
@@ -120,7 +120,7 @@ int main(int argc, char** argv) {
         if (!m) return;
         m->theme = {"brand"};
         Headless h(HeadlessOptions{.size = m->size});
-        player::Player p(h.runtime(), *m, {lang::lua::language()});
+        player::Player p(h.runtime(), *m, {lang::js::typescript()});
         check(p.start().has_value());
         settle(h, p);
         check(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);

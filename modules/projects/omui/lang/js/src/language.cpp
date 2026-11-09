@@ -68,7 +68,7 @@ namespace {
 constexpr std::string_view module_api = R"(import { … } from "openmui"
   signal(initial, key?) → Signal: .get() .set(value) .update(fn); used in props it is live: text: fmt("{} items", count)
   fmt(pattern, …args), select(cond, a, b), call(name, …args); eq ne lt le gt ge, and or not, add sub mul div mod neg — expressions the runtime evaluates (also as methods: count.add(1), done.not())
-  when(cond, () => element, () => otherwise?), each(model, (row) => element, where?), slot(name) — regions
+  when(cond, element or [elements], otherwise?), each(model, (row) => element, where?), slot(name) — regions
   mount(slot, element) — what a slot shows: mount("main", column({ … }, [ … ]))
   verb(name, { effect: "read" | "reversible" | "irreversible", summary }, (args) => result), invoke(name, args)
   model(name) → .push(rows) .splice(at, remove, rows) .rows() .clear(); tr(key, args); theme(…layers); log(…)

@@ -1,7 +1,7 @@
-# Example 12 — a notes application in four languages (canvas-markdown §5;
+# Example 12 — a notes application of four parts (canvas-markdown §5;
 # component-binding §9): the views and the logic in TypeScript
-# (logic/main.ts), text macros in Lua (plugins/macros.lua, as verbs any
-# language or agent calls), a help panel as a view document
+# (logic/main.ts), text macros in a script of their own (plugins/macros.ts,
+# as verbs any script or agent calls), a help panel as a view document
 # (ui/help.view.omui.json, mounted into the TypeScript view's slot), and the
 # search in C++ (openmui's native module `fuzzy`). They share only what the
 # design allows: signals, models, verbs and events. The tool: notes in
@@ -14,7 +14,7 @@
 namespace   = "omui.example"
 name        = "notes"
 version     = "0.1.0"
-description = "openmui example 12: a Markdown notes application in TypeScript, Lua, a view document and C++"
+description = "openmui example 12: a Markdown notes application in TypeScript, a view document and C++"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
@@ -25,7 +25,7 @@ size  = "960x620"
 views = ["ui/*.view.omui.json"]
 
 [package.metadata.openmui.scripts]
-macros = "plugins/macros.lua"
+macros = "plugins/macros.ts"
 main   = "logic/main.ts"
 
 [targets.notes]
@@ -42,6 +42,5 @@ omui.entry.player = { path = "../../src/entry/player" }
 mlibs.utils      = { path = "../../modules/base/utils" }
 omui.player       = { path = "../../modules/projects/omui/player" }
 omui.lang.js      = { path = "../../modules/projects/omui/lang/js" }
-omui.lang.lua     = { path = "../../modules/projects/omui/lang/lua" }
 omui.ui.markdown  = { path = "../../modules/projects/omui/components/markdown" }
 omui.native.fuzzy = { path = "../../modules/projects/omui/native/fuzzy" }

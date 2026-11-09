@@ -1,5 +1,5 @@
 # Example 06 — theming (canvas-markdown §5; component-binding §11): a theme
-# preview, written in Lua and run by the player. The components and the
+# preview, written in TypeScript and run by the player. The components and the
 # tokens under any composition — light, dark or the application's own brand,
 # compact or not, with reduced motion or not — switched from the script
 # (omui.theme). Themes are data (*.theme.omui.toml): openmui's default and
@@ -12,7 +12,7 @@
 namespace   = "omui.example"
 name        = "theming"
 version     = "0.1.0"
-description = "openmui example 06: a theme preview in Lua — compositions, density, motion, an application's own theme file"
+description = "openmui example 06: a theme preview in TypeScript — compositions, density, motion, an application's own theme file"
 license     = "Apache-2.0"
 
 [package.metadata.openmui]
@@ -24,7 +24,7 @@ themes = ["themes/*.theme.omui.toml"]
 theme  = ["light"]
 
 [package.metadata.openmui.scripts]
-main = "logic/main.lua"
+main = "logic/main.ts"
 
 [targets.theme-preview]
 kind = "bin"
@@ -39,6 +39,6 @@ omui.entry.player = { path = "../../src/entry/player" }
 [dev-dependencies]
 mlibs.utils       = { path = "../../modules/base/utils" }
 omui.player        = { path = "../../modules/projects/omui/player" }
-omui.lang.lua      = { path = "../../modules/projects/omui/lang/lua" }
+omui.lang.js       = { path = "../../modules/projects/omui/lang/js" }
 omui.theme.default = { path = "../../modules/projects/omui/theme/default" }
 omui.theme.compact = { path = "../../modules/projects/omui/theme/compact" }

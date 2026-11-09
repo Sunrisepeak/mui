@@ -1,6 +1,6 @@
 // The notes application's views and logic. What it shares with the other
-// languages is what the design allows: Lua's macros are verbs it invokes
-// (plugins/macros.lua), the help panel is a view document the player mounts
+// parts is what the design allows: the macros are verbs it invokes
+// (plugins/macros.ts, a script of their own), the help panel is a view document the player mounts
 // into this view's slot (ui/help.view.omui.json), the search is openmui's
 // native module in C++ (fuzzy, on a worker as you type).
 import { signal, fmt, model, verb, invoke, column, row, text, textBox, button, markdown, scrollView, each, slot, select, eq, mount } from "openmui";
@@ -37,7 +37,7 @@ async function search(now = false) {
   found.set(ranked.length);
 }
 
-// The open note's text, kept: its title is Lua's to say.
+// The open note's text, kept: its title is the macros' to say.
 function save(text: string) {
   body.set(text);
   const rows = all();

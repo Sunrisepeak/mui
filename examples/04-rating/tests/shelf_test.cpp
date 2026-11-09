@@ -1,6 +1,6 @@
 // The application's own component, from its contract to every language: the
 // generated C++ builder and the behaviour (actions, keys, read-only); the same
-// rating from Lua and from a view document is the same semantic node; the
+// rating from TypeScript and from a view document is the same semantic node; the
 // TypeScript reading list as a person and an agent use it; pinned pixels.
 import std;
 import omui;
@@ -8,7 +8,6 @@ import omui.player;
 import omui.entry.player;
 import omui.lang;
 import omui.lang.js;
-import omui.lang.lua;
 import omui.abi;
 import omui.viewdoc;
 import shelf;
@@ -83,7 +82,7 @@ int main(int argc, char** argv) {
         check(shelf::Rating::contract().name == "rating" && shelf::Rating::contract().action("clear"), "the contract, from the file");
     });
 
-    s.test("the same rating from Lua and from a view document is the same node as the C++ builder's", [] {
+    s.test("the same rating from TypeScript and from a view document is the same node as the C++ builder's", [] {
         Headless h(HeadlessOptions{.size = {300, 200}});
         h.mount("cpp", shelf::rating({.id = "r", .half = true, .label = "Dune", .value = 3.5}));
         const auto doc = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
@@ -96,8 +95,8 @@ int main(int argc, char** argv) {
         {
             lang::Host host(handle);
             lang::Session session(host);
-            lang::lua::Script lua(session);
-            auto ran = lua.run(R"lua(assert(omui.mount("lua", omui.Rating { id = "r", value = 3.5, half = true, label = "Dune" })))lua");
+            lang::js::Script script(session);
+            auto ran = script.run(R"ts(import { mount, rating } from "openmui"; mount("ts", rating({ id: "r", value: 3.5, half: true, label: "Dune" }));)ts");
             for (int i = 0; i < 2000 && ran.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready; ++i) {
                 host.drain();
                 h.step();
@@ -109,7 +108,7 @@ int main(int argc, char** argv) {
                 h.step();
             }
             h.settle();
-            check_eq(meaning(h, "lua/r"), meaning(h, "cpp/r"));
+            check_eq(meaning(h, "ts/r"), meaning(h, "cpp/r"));
             check_eq(meaning(h, "doc/r"), meaning(h, "cpp/r"));
         }
         abi::detach(handle);

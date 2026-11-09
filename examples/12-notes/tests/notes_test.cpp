@@ -1,15 +1,14 @@
 // The notes application as its user and an agent use it: four languages in
-// one program (the TypeScript views and logic, Lua's macros, a view document
+// one program (the TypeScript views and logic, the macros' script, a view document
 // in the TypeScript view's slot, the C++ search), sharing only signals,
 // models, verbs and events. Searching as you type, the toolbar's macros, a
-// title Lua reads from the text, a task ticked in the preview kept in the
+// title the macros read from the text, a task ticked in the preview kept in the
 // note, a new note; an agent's verbs; pinned pixels.
 import std;
 import omui;
 import omui.player;
 import omui.entry.player;
 import omui.lang.js;
-import omui.lang.lua;
 import omui.ui.markdown;
 import omui.native.fuzzy;
 import mlibs.testing;
@@ -92,7 +91,7 @@ int main(int argc, char** argv) {
         if (!m) return;
         check(m->scripts.size() == 2 && m->views.size() == 1, "the scripts and the view document, from the manifest");
         Headless h(HeadlessOptions{.size = m->size});
-        player::Player p(h.runtime(), *m, {lang::js::typescript(), lang::lua::language()});
+        player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
         check(started.has_value(), started ? "" : started.error());
         settle(h, p);
@@ -119,7 +118,7 @@ int main(int argc, char** argv) {
         settle(h, p);
         check_eq(listed(h).size(), std::size_t{3});
 
-        // Opening a note; the toolbar's macros are Lua's.
+        // Opening a note; the toolbar's macros are the macros' script's.
         check_eq(act(h, "main/side/list/n3", "activate"), std::int64_t{0});
         settle(h, p);
         check(editor(h).starts_with("# Ideas"), editor(h));
@@ -132,7 +131,7 @@ int main(int argc, char** argv) {
         static const std::regex day(R"(\n\n## \d{4}-\d{2}-\d{2}\n$)");
         check(std::regex_search(editor(h), day), editor(h));
 
-        // An edit: the title is Lua's to read from the text.
+        // An edit: the title is the macros' to read from the text.
         check_eq(act(h, "main/page/panes/editor", "set_value", Value{}.set("value", "# Plans\n\n- [ ] Write the README")), std::int64_t{0});
         settle(h, p);
         check(listed(h) == std::vector<std::string>{"Groceries", "Reading", "Plans"}, std::format("{}", listed(h)));
@@ -155,7 +154,7 @@ int main(int argc, char** argv) {
         check(h.tree().node("main/side/list/n4").has_value(), "the new note is listed");
         check_eq(editor(h), std::string("# Untitled\n\n"));
 
-        // An agent's verbs: the application's and Lua's.
+        // An agent's verbs: the application's and the macros'.
         const Envelope found = verb(h, "notes.search", Value{}.set("query", "middlemarch"));
         check_eq(found.exit_code().value_or(-1), 0);
         settle(h, p);

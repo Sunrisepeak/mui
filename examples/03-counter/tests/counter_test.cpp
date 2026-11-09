@@ -8,9 +8,7 @@ import tally;
 import mlibs.testing;
 import omui.abi;
 import omui.lang;
-import omui.lang.lua;
 import omui.lang.js;
-import omui.lang.python.embedded;
 
 using namespace mlibs::testing;
 using namespace omui;
@@ -21,7 +19,7 @@ std::filesystem::path document() {
     return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "ui" / "tally.view.omui.json";
 }
 
-// A version of the example: lua/tally.lua, ts/tally.ts, python/tally.py.
+// A version of the example: ts/tally.ts.
 std::filesystem::path script_file(std::string_view relative) {
     return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / relative;
 }
@@ -173,22 +171,11 @@ int main(int argc, char** argv) {
         abi::detach(handle);
     };
 
-    s.test("the Lua version is the same tree and pixels, before and after each operation", [&] {
-        script_version("Lua", [](lang::Session& s) { return std::make_unique<lang::lua::Script>(s); }, text_of(script_file("lua/tally.lua")),
-                       "@lua/tally.lua");
-    });
-
     s.test("the TypeScript version is the same tree and pixels, before and after each operation", [&] {
         auto js = lang::ts::compile(script_file("ts/tally.ts"));
         check(js.has_value(), js ? "" : js.error());
         if (!js) return;
         script_version("TypeScript", [](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *js, "ts/tally.ts");
-    });
-
-    // python/tally.py as written for host mode, embedded (PocketPy) unchanged.
-    s.test("the Python version, embedded, is the same tree and pixels, before and after each operation", [&] {
-        script_version("Python", [](lang::Session& s) { return std::make_unique<lang::python::embedded::Script>(s); },
-                       text_of(script_file("python/tally.py")), "python/tally.py");
     });
 
     s.test("the document passes omui check clean and is in the canonical format", [] {

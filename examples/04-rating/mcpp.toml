@@ -2,9 +2,9 @@
 # the reading list, whose rows are rated with this application's own
 # component, `rating`. Its interface is a contract
 # (contract/rating.contract.omui.ts); omui.build.contracts generates the C++
-# partition, the builder and the TypeScript / Python / Lua stubs when the
+# partition, the builder and the TypeScript stubs when the
 # package builds; src/rating.cpp is its behaviour. Registered once, it is a
-# component like any other: the TypeScript interface (logic/main.ts), Lua,
+# component like any other: the TypeScript interface (logic/main.ts),
 # view documents and agents reach it by name. The tool: books, their ratings
 # in half stars, the average, the ones worth recommending.
 #
@@ -45,6 +45,5 @@ omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 mlibs.utils  = { path = "../../modules/base/utils" }
 omui.player   = { path = "../../modules/projects/omui/player" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }
-omui.lang.lua = { path = "../../modules/projects/omui/lang/lua" }
 omui.abi      = { path = "../../modules/projects/omui/abi" }
 omui.viewdoc  = { path = "../../modules/projects/omui/viewdoc" }

@@ -6,7 +6,7 @@
 - **Compact**: the density overlay;
 - **Reduced motion**: the overlay for people who asked for less motion.
 
-It is written in Lua ([`logic/main.lua`](logic/main.lua)), run by the player. The script calls `omui.theme(...)` to compose and `omui.themes()` to show what is composed.
+It is written in TypeScript ([`logic/main.ts`](logic/main.ts)), run by the player. The script calls `theme(...)` to compose and `themes()` to show what is composed.
 
 Themes are data (omui.theme):
 - openmui's packages give light, dark, compact and reduced_motion;

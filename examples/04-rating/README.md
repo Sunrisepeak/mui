@@ -13,7 +13,7 @@ An agent can rate a book through the `books.rate` verb, or through any rating's 
 The rows are rated with **this application's own component, `rating`**, which goes from contract to every language:
 
 - [`contract/rating.contract.omui.ts`](contract/rating.contract.omui.ts) is its interface: properties (`value`, bindable both ways; `max`; `half`; `readonly` …), the `changed` event, the actions (`set_value`, `increment`, `decrement`, `clear`) with their effects, the keys that perform them, and a part with its motion token.
-- [`build.mcpp`](build.mcpp) runs `omui.build.contracts`' `components()`. When the package builds, it generates the C++ partition `shelf:rating_contract`, the builder `shelf::rating({...})`, and the TypeScript, Python and Lua stubs.
+- [`build.mcpp`](build.mcpp) runs `omui.build.contracts`' `components()`. When the package builds, it generates the C++ partition `shelf:rating_contract`, the builder `shelf::rating({...})`, and the TypeScript stubs.
 - [`src/rating.cpp`](src/rating.cpp) is the behaviour:
   - stars that fill to the rating on the theme's spring;
   - a preview under the pointer;
@@ -23,11 +23,10 @@ The rows are rated with **this application's own component, `rating`**, which go
 
 Once registered, it is a component like any other:
 - the TypeScript interface ([`logic/main.ts`](logic/main.ts)) imports `rating` from `"openmui"`;
-- Lua writes `omui.Rating { … }`;
 - a view document writes `"type": "rating"`;
 - an agent reads a slider with a value and performs its actions.
 
-Nothing between C++ and a script is written by hand. A Python program reaches it in a host that registers the package. The `.pyi` stub is generated, but the `_openmui` wheel carries openmui's own components only.
+Nothing between C++ and a script is written by hand.
 
 ```sh
 mcpp run -p omui.example.rating
@@ -36,6 +35,6 @@ mcpp run -p omui.example.rating -- --headless --png shelf.png
 
 The test (`tests/shelf_test.cpp`) checks:
 - the generated builder and the behaviour: half stars both ways, every action, the contract's keys, read-only refusing;
-- that the same rating from Lua and from a view document is the same semantic node as the C++ builder's;
+- that the same rating from TypeScript and from a view document is the same semantic node as the C++ builder's;
 - the TypeScript reading list as a person and an agent use it (rating, the verb, the filter, adding a book);
 - its pinned pixels.

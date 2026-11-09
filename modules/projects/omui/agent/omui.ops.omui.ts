@@ -24,6 +24,13 @@ export default defineOps({
       result: "json",
     },
     {
+      name: "ui.record",
+      effect: "read",
+      summary: "Development: every frame since the recorder kept everything — its time and input — and what it ended as (the tree's hash, the pixels'), as a scenario a fresh instance replays to the same bytes (`--replay`, `omui replay`); the person's input, outside development, once they say yes (answer)",
+      result: "json",
+      cost: "bounded",
+    },
+    {
       name: "ui.reload",
       effect: "reversible",
       summary: "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time",
@@ -192,7 +199,7 @@ export default defineOps({
     {
       name: "ui.timeline",
       effect: "read",
-      summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level",
+      summary: "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level. The person's own input, outside development, once they say yes (answer)",
       params: [
         { name: "since", type: "integer", doc: "only after this cause (an input event's number)", optional: true },
         { name: "limit", type: "integer", doc: "the last this many records (200)", optional: true },
@@ -202,7 +209,7 @@ export default defineOps({
     {
       name: "ui.explain",
       effect: "read",
-      summary: "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened",
+      summary: "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened. A press of the person's, outside development, once they say yes (answer)",
       params: [
         { name: "at", type: "json", doc: "[x, y]: the last press within a few pixels of it", optional: true },
         { name: "cause", type: "integer", doc: "or the press by its number (timeline)", optional: true },

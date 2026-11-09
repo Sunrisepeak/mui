@@ -248,6 +248,12 @@ cmd::App project_command(std::string_view name) {
             .option(Option("release").help("an optimised build, the designer left out"))
             .option(json);
     if (name == "test") return App("test").description("Runs the project's tests (mtest): mcpp test (after --, which cases)").option(json);
+    if (name == "replay")
+        return App("replay")
+            .description("Plays a recording (the protocol's `record`, development mode) in a fresh instance, headless, and checks it ends "
+                         "as it did — the semantic tree's hash and the pixels' (W12): mcpp run -- --replay FILE")
+            .arg(Arg("file").required().help("the recording (JSON)"))
+            .option(json);
     if (name == "package")
         return App("package")
             .description("Packages the application to give away: mcpp pack (a program's bundle; --format dist-toy: a page for Bilibili Toy)")
@@ -328,6 +334,8 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         std::vector<std::string> args{"test"};
         std::ranges::move(rest_of(p, 0), std::back_inserter(args));
         ran = run_tool("mcpp", std::move(args), err);
+    } else if (name == "replay") {
+        ran = run_tool("mcpp", {"run", "-q", "--", "--replay", p.positional(0)}, err);
     } else if (name == "package") {
         std::vector<std::string> args{"pack"};
         if (auto format = p.value("format")) args.insert(args.end(), {"--pkg-format", *format});

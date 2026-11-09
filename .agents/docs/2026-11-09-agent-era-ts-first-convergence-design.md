@@ -760,7 +760,10 @@ my-app/
 - 等级：off / errors / actions / interactions / full。开发模式（`--dev`）用 full，其余默认 errors。输入的文本只记字节数。
 - `Runtime::explain(at | cause)` 把一次按压从按下到松开合成一条链，并给出一句结论。
 - 协议新增 `timeline` 和 `explain`，目录新增 `ui.timeline` 和 `ui.explain`，MCP 新增 `ui_timeline` 和 `ui_explain`。agent skill 新增一节"人说没反应时"。
-- 尚未完成：读取人的记录前的授权（openas 授予项），导出成场景并回放（W12 第 3 步）。
+- 第二块完成（第 2、3 步）：
+  - 人的输入归人：非开发模式下，`timeline`、`explain`、`record` 里人的那部分先扣下，回复 `needs-answer`；人回答 yes 后，本次会话内都可以读。Agent 自己的输入始终可读，开发模式不必问。
+  - 记录等级为 full（开发模式）时，runtime 按帧记下呈现时间和输入（`input_scenario`，最多 2^20 帧）。协议 `record`（目录 `ui.record`、MCP `ui_record`）导出录制，并附上结束时的语义树哈希和像素哈希（解码后的 RGBA）。
+  - SDK 的 `--replay FILE` 在全新的无窗口实例里按原帧时间喂入输入，脚本跑完后核对两个哈希，输出 JSON 报告，退出码表示是否相同。CLI 加了 `omui replay FILE`。
 
 **W4 进度**：
 - 第 1 步完成：MCP `ui_capture` 支持 `format: svg`；skill 里写明"先读语义，再截区域，要精确就用 SVG"的次序。

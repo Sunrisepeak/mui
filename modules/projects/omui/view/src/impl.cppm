@@ -465,6 +465,12 @@ struct Runtime::Impl {
     std::uint64_t               causes = 0, cause = 0;
     void record(RecordLevel least, std::string_view kind, NodeId node, std::string text, std::optional<Point> position = std::nullopt);
     void record_input(const InputEvent& event);
+    // Every frame at full: its shown time and its input (input_scenario), the last 2^20.
+    struct RecordedFrame {
+        double                  at = 0;
+        std::vector<InputEvent> events;
+    };
+    std::deque<RecordedFrame>   input_log;
     int                         previews = 0;        // begin_preview depth: journal off, motion off
     MotionLevel                 preview_motion = MotionLevel::full;  // the level a preview put aside
     // An action journaled (its id the next one, journal_next): its followers told.

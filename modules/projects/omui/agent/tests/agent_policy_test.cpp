@@ -119,5 +119,30 @@ int main(int argc, char** argv) {
         check(exit_of(reply) == 1, reply.empty() ? "missing refusal" : reply.front().json());
         check(f.sent == 0);
     });
+    s.test("a person's input is theirs (W12): outside development, timeline and explain withhold it until the person says yes", [] {
+        Fixture f(AgentMode::dual_user);
+        f.rt.set_record_level(RecordLevel::full);
+        const Point at = f.rt.screen_bounds(f.rt.find("main/send")).center();
+        (void)f.rt.frame({seconds(0.1), {PointerEvent{.position = at},
+                                        PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1},
+                                        PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left}}});
+        agent::Protocol p(f.rt);
+        const auto withheld = talk(p, R"({"op":"timeline"})");
+        check(exit_of(withheld) == 2, withheld.empty() ? "no answer" : withheld.back().json());
+        check(withheld.front().get("data")->get("withheld")->as_int() > 0, withheld.front().json());
+        const auto press = talk(p, std::format(R"({{"op":"explain","at":[{},{}]}})", at.x, at.y));
+        check(exit_of(press) == 2, press.empty() ? "no answer" : press.back().json());
+        // The person said yes: their records, now and for the rest of the session.
+        const auto shown = talk(p, R"({"op":"timeline","answer":"yes"})");
+        check(exit_of(shown) == 0 && !shown.front().get("data")->get("records")->list()->empty(), shown.empty() ? "no answer" : shown.back().json());
+        check(exit_of(talk(p, std::format(R"({{"op":"explain","at":[{},{}]}})", at.x, at.y))) == 0, "explained once allowed");
+        // In development an agent reads them without asking.
+        Fixture development(AgentMode::development);
+        development.rt.set_record_level(RecordLevel::full);
+        (void)development.rt.frame({seconds(0.1), {PointerEvent{.kind = PointerKind::down, .position = at, .button = MouseButton::left, .buttons = 1},
+                                                  PointerEvent{.kind = PointerKind::up, .position = at, .button = MouseButton::left}}});
+        agent::Protocol q(development.rt);
+        check(exit_of(talk(q, R"({"op":"timeline"})")) == 0, "development: all of it");
+    });
     return s.run(argc, argv);
 }

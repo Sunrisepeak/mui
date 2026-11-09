@@ -77,8 +77,9 @@ public:
     NodeId mount(std::string_view slot, View view);
 
     // ── time ──
-    // One frame, one frame period later (the first frame is at 0).
-    FrameOutput step(std::vector<InputEvent> events = {});
+    // One frame, one frame period later (the first frame is at 0) — or at
+    // `at`, a recorded frame's time (a replay, W12).
+    FrameOutput step(std::vector<InputEvent> events = {}, std::optional<seconds> at = std::nullopt);
     // Frames until `duration` has passed.
     FrameOutput advance(seconds duration);
     // Frames until nothing animates, no timer is due within `limit`, and no

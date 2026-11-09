@@ -66,7 +66,8 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info (also OMUI_LOG)"))
         .option(Option("profile").takes_value().value_name("FILE").help("record a trace of the run (Chrome / Perfetto JSON)"))
         .option(Option("lang").takes_value().value_name("TAGS").help("the person's languages, best first: zh-CN,en"))
-        .option(Option("window").takes_value().value_name("MODE").help("who draws the window's frame: native, framework or switchable"));
+        .option(Option("window").takes_value().value_name("MODE").help("who draws the window's frame: native, framework or switchable"))
+        .option(Option("replay").takes_value().value_name("FILE").help("play a recording (ui.record) headless, then check it ends as it did"));
 }
 
 std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArgs& parsed) {
@@ -138,6 +139,10 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
         o.headless = true;
     }
     if (auto v = parsed.value("profile")) o.profile = std::filesystem::path(*v);
+    if (auto v = parsed.value("replay")) {
+        o.replay = std::filesystem::path(*v);
+        o.headless = true;
+    }
     if (o.serve) o.level = 3;
     return o;
 }
@@ -262,6 +267,61 @@ void prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& acce
     if (app.view) rt.mount("main", app.view());
 }
 
+// A recording (the protocol's `record`, W12) played again: each frame at its
+// time with its input, then — what runs beside the runtime done, at the last
+// frame's time — the tree and the pixels hashed as the recording's were.
+int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file) {
+    std::optional<Value> recording;
+    if (const auto text = mcpplibs::os::fs::read(file))
+        if (auto parsed = parse_json(*text)) recording = std::move(*parsed);
+    // A recording is an answer's data, or the scenario itself.
+    if (recording && recording->get("data")) recording = Value(*recording->get("data"));
+    if (!recording || !recording->get("frames") || !recording->get("frames")->list()) {
+        error("{}: not a recording (omui agent call … '{{\"op\":\"record\"}}')", utf8(file));
+        return 2;
+    }
+    const Value& scenario = *recording;
+    double last = 0;
+    std::size_t frames = 0;
+    for (const Value& frame : *scenario.get("frames")->list()) {
+        std::vector<InputEvent> events;
+        if (const Value* list = frame.get("events"); list && list->list())
+            for (const Value& event : *list->list())
+                if (auto parsed = event_from_value(event)) events.push_back(std::move(*parsed));
+        last = frame.get("t") ? frame.get("t")->as_double() : last;
+        (void)host.step(std::move(events), seconds(last));
+        ++frames;
+    }
+    for (int i = 0; app.ready && !app.ready() && i < 10000; ++i) {
+        (void)host.step({}, seconds(last));  // what runs beside it finishes; the time stays the last frame's
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    Value report;
+    report.set("command", "replay").set("frames", static_cast<double>(frames));
+    const Value* expect = scenario.get("expect");
+    bool same = true;
+    const std::string tree = agent::tree_hash(host.tree());
+    if (const Value* expected = expect ? expect->get("tree") : nullptr) {
+        report.set("tree", Value{}.set("expected", *expected).set("got", tree).set("same", expected->as_string() == tree));
+        same = same && expected->as_string() == tree;
+    }
+    if (const Value* expected = expect ? expect->get("pixels") : nullptr) {
+        std::string got;
+        if (auto png = host.png()) {
+            auto pixels = agent::pixels_hash(*png);
+            got = pixels ? *pixels : pixels.error();
+        } else {
+            got = png.error();
+        }
+        const bool equal = expected->as_string() == got;
+        report.set("pixels", Value{}.set("expected", *expected).set("got", got).set("same", equal));
+        same = same && equal;
+    }
+    report.set("ok", same);
+    std::println(std::cout, "{}", report.json());
+    return same ? 0 : 1;
+}
+
 int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess>& access) {
     HeadlessOptions h;
     h.level = static_cast<HeadlessLevel>(std::clamp(o.level, 0, 3));
@@ -288,6 +348,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
     prepare(host.runtime(), app, access);
     const TearDown teardown(app, host.runtime());
     const auto framed = frame_of(host.runtime(), app, mode);
+    if (!o.replay.empty()) return replay(host, app, o.replay);
     if (o.frames) {
         for (int i = 0; i < *o.frames; ++i) host.step();
     } else {

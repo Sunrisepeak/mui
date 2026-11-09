@@ -47,6 +47,11 @@ FrameOutput Runtime::frame(const FrameInput& input) {
     else if (d.clock.kind() == hanim::ClockKind::interactive) d.clock.begin_frame(input.present_at.value_or(started));
     d.shown.now = d.clock.now();
     d.apply_time_control();
+    // The frame as given, for a replay (W12): kept only at full, the last 2^20.
+    if (d.record_level == RecordLevel::full) {
+        if (d.input_log.size() >= (std::size_t{1} << 20)) d.input_log.pop_front();
+        d.input_log.push_back({d.shown.now.count(), input.events});
+    }
     if (input.display_hz > 0) d.display_hz = input.display_hz;
     if (d.fading) d.touch(dirty_paint);  // the cross-fade moves every frame
     d.reconcile_outlets();  // views move to the slots that claim them (Services::outlet)

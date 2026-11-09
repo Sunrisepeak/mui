@@ -137,7 +137,7 @@ NodeId Headless::mount(std::string_view slot, View view) { return impl_->runtime
 seconds Headless::now() const noexcept { return impl_->options.fps.time_of(std::max<std::int64_t>(0, impl_->frame)); }
 std::int64_t Headless::frame_index() const noexcept { return impl_->frame; }
 
-FrameOutput Headless::step(std::vector<InputEvent> events) {
+FrameOutput Headless::step(std::vector<InputEvent> events, std::optional<seconds> at) {
     Impl& d = *impl_;
     std::optional<agent::AgentInput> given;
     const auto agent_begin = events.size();
@@ -149,7 +149,7 @@ FrameOutput Headless::step(std::vector<InputEvent> events) {
     }
     ++d.frame;
     FrameInput in;
-    in.time = d.options.fps.time_of(d.frame);
+    in.time = at ? *at : d.options.fps.time_of(d.frame);
     in.events = std::move(events);
     std::array<InputAttribution, 1> attribution;
     if (given && in.events.size() > agent_begin) {

@@ -546,6 +546,19 @@ struct Server::Impl {
             if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
             return tool_result(text, false, {}, std::move(pictures));
         }
+        if (name == "ui_record") {
+            // A recording a fresh instance replays to the same bytes (W12): save its JSON, then `omui replay FILE`.
+            Value req;
+            req.set("op", "record").set("actor", actor);
+            if (const Value* answer = args.get("answer")) req.set("answer", *answer);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            const std::size_t frames = a.data.get("frames") && a.data.get("frames")->list() ? a.data.get("frames")->list()->size() : 0;
+            return tool_result(std::format("a recording of {} frames, ending as tree {} and pixels {}; save the JSON below and run `omui replay FILE` "
+                                           "to play it in a fresh instance and check it ends the same\n{}",
+                                           frames, str(*a.data.get("expect"), "tree"), str(*a.data.get("expect"), "pixels"), a.data.json()),
+                               false, Value{}.set("data", a.data));
+        }
         if (name == "ui_reload") {
             // Agent hot reload (W2): what a saved file changed, said without a screenshot to compare — the semantic
             // changes, where the pixels changed (that region before and after) and the motion it started, sampled.
@@ -761,6 +774,10 @@ Value::List Server::tools() const {
         tool("ui_preview", "Preview before allowing",
              "What steps would make — pictures before and after, the semantic changes — with nothing kept. Show it to the user before a decision that is theirs.",
              object_schema({app_prop, {"steps", steps}}, {"steps"}), "ui.preview"),
+        tool("ui_record", "Record what was done, to replay",
+             "Development: every frame since the recorder kept everything — its time and input — and what it ended as; `omui replay FILE` "
+             "plays it in a fresh instance and checks the tree and pixels end the same (a bug report, a test).",
+             object_schema({app_prop, {"answer", s("\"yes\" once the person agreed to share their input (outside development)")}}), "ui.record"),
         tool("ui_reload", "Reload what changed and say what it did",
              "Development: reloads the saved files (or those named), then answers the semantic changes, where the pixels changed (before and "
              "after pictures of that region) and the motion it started, sampled over time — no screenshot to compare.",

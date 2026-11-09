@@ -9,6 +9,7 @@ import mlibs.pipeline;
 import mlibs.control;
 import mlibs.base64;
 import mlibs.image;
+import mlibs.hash;
 import xrender.vector;
 import xrender.vector.svg;
 
@@ -621,6 +622,25 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         return shown;
     }
+    if (op == "record") {
+        // A recording a fresh instance replays to the same bytes (W12): every frame since the recorder kept
+        // everything, its time and its input, and what it ended as — the tree's hash and the pixels'.
+        if (runtime_.record_level() != RecordLevel::full)
+            return e.error(spec::error_code::failed, "the recorder keeps every frame only at full (development mode)").result(spec::exit_code::failure);
+        if (current->answer == "yes") person_records_ = true;
+        if (!person_records_ && !runtime_.agent_access().effective(session_.get()).development_grant)
+            return e.error(spec::error_code::needs_answer, "a recording holds what the person did and typed: ask them, then send answer: \"yes\"")
+                .result(spec::exit_code::needs_answer);
+        Value scenario = runtime_.input_scenario();
+        scenario.set("app", options_.app);
+        Value expect;
+        expect.set("tree", tree_hash(tree_));
+        if (options_.capture)
+            if (auto png = options_.capture(Rect{0, 0, runtime_.size().width, runtime_.size().height}))
+                if (auto hash = pixels_hash(*png)) expect.set("pixels", *hash);
+        scenario.set("expect", std::move(expect));
+        return e.data(std::move(scenario)).result(spec::exit_code::success);
+    }
     if (op == "reload") {
         // Agent hot reload (W2): what a saved file changed, said so that no screenshot need be compared — the
         // semantic changes (the reloader's), where the pixels changed (that region before and after) and the
@@ -775,15 +795,33 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             if (r.position) v.set("position", Value(Value::List{Value(r.position->x), Value(r.position->y)}));
             return v;
         };
+        // A person's input is theirs (D-148, W12): outside development, an agent reads it once the person
+        // has said yes (`answer: "yes"`, then for the rest of the session); its own input it always reads.
+        if (current->answer == "yes") person_records_ = true;
+        const bool may_read_people = person_records_ || runtime_.agent_access().effective(session_.get()).development_grant;
+        const auto a_persons = [](const InteractionRecord& r) { return r.actor.starts_with("person:"); };
+        constexpr std::string_view ask = "the person's input is theirs to show: ask them, then send the request again with answer: \"yes\"";
         if (op == "timeline") {
             const auto since = static_cast<std::uint64_t>(req.get("since") ? std::max<std::int64_t>(0, req.get("since")->as_int()) : 0);
             const auto limit = static_cast<std::size_t>(req.get("limit") ? std::clamp<std::int64_t>(req.get("limit")->as_int(), 1, 4096) : 200);
             auto records = runtime_.interactions(since);
             if (records.size() > limit) records.erase(records.begin(), records.end() - static_cast<std::ptrdiff_t>(limit));
-            Value::List list;
-            for (const auto& r : records) list.push_back(record_value(r));
             const double last = records.empty() ? static_cast<double>(since) : static_cast<double>(records.back().cause);
-            return e.data(Value{}.set("level", level).set("records", Value(std::move(list))).set("last", last)).result(spec::exit_code::success);
+            std::size_t withheld = 0;
+            Value::List list;
+            for (const auto& r : records) {
+                if (!may_read_people && a_persons(r)) {
+                    ++withheld;
+                    continue;
+                }
+                list.push_back(record_value(r));
+            }
+            Value data = Value{}.set("level", level).set("records", Value(std::move(list))).set("last", last);
+            if (!withheld) return e.data(std::move(data)).result(spec::exit_code::success);
+            data.set("withheld", static_cast<double>(withheld));
+            return e.data(std::move(data))
+                .error(spec::error_code::needs_answer, std::format("{} of the person's records withheld: {}", withheld, ask))
+                .result(spec::exit_code::needs_answer);
         }
         constexpr std::string_view example = R"({"op":"explain","at":[120,48]})";
         std::optional<Point> at;
@@ -800,6 +838,10 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                                                                                       ? "no press is recorded there: the recorder keeps " + level + " (development mode keeps everything)"
                                                                                       : std::string("no press is recorded there")))
                 .result(spec::exit_code::success);
+        if (!may_read_people && std::ranges::any_of(found->records, a_persons))
+            return e.data(Value{}.set("found", true).set("cause", static_cast<double>(found->cause)).set("withheld", true))
+                .error(spec::error_code::needs_answer, std::format("a press of the person's: {}", ask))
+                .result(spec::exit_code::needs_answer);
         Value::List records, actions;
         for (const auto& r : found->records) records.push_back(record_value(r));
         for (const auto& a : found->actions)
@@ -1157,6 +1199,18 @@ Value region_png(const mlibs::image::Image& picture, const std::array<int, 4>& r
 }
 
 }  // namespace
+
+std::string tree_hash(semantic::Tree& tree) {
+    return std::format("{:016x}", mlibs::hash::Fnv1a{}.text(tree.snapshot().to_value().json()).value());
+}
+
+std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png) {
+    auto picture = mlibs::image::decode_png(png);
+    if (!picture) return std::unexpected(picture.error());
+    mlibs::hash::Fnv1a hash;
+    hash.bytes(std::span<const std::uint8_t>(picture->rgba)).byte(0).text(std::format("{}x{}", picture->width, picture->height));
+    return std::format("{:016x}", hash.value());
+}
 
 void Protocol::poll_reloads() {
     if (reloads_.empty()) return;

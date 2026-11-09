@@ -48,6 +48,11 @@ using CaptureSvgFn = std::function<std::expected<VectorCapture, std::string>(Rec
 [[nodiscard]] std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region,
                                                                        float scale, std::optional<Color> background);
 
+// What a replay (W12) must end as: the semantic tree's hash (its snapshot,
+// bounds and all) and the pixels' (decoded RGBA: a PNG's encoding aside).
+[[nodiscard]] std::string tree_hash(semantic::Tree& tree);
+[[nodiscard]] std::expected<std::string, std::string> pixels_hash(std::span<const std::uint8_t> png);
+
 struct ProtocolOptions {
     std::string app;              // the application id, for `describe`
     std::string default_actor = "agent:anonymous";  // when a request names none
@@ -151,6 +156,7 @@ private:
     std::vector<Wait> waits_;
     std::deque<Delivery> deliveries_;
     std::vector<Reload> reloads_;
+    bool person_records_ = false;  // the person said yes to reading their input (W12)
 };
 
 // The record lines of an envelope, each with "re" when it is not null.

@@ -450,6 +450,12 @@ public:
     // What was recorded of the input events after `since` (a cause; 0: all
     // that is kept — the last 4096 records), oldest first.
     [[nodiscard]] std::vector<InteractionRecord> interactions(std::uint64_t since = 0) const;
+    // Every frame since the recorder kept everything (full: development
+    // mode) — its time and the input it was given — as a scenario a fresh
+    // instance replays (`--replay`, W12): {"omui", "kind": "input", "size",
+    // "frames": [{"t", "events"?}…]}. What a person typed is in it: it is
+    // kept only at full, and read as the person's records are.
+    [[nodiscard]] Value input_scenario() const;
     // A press and what came of it: from the pointer's press to its release,
     // the records and the actions they led to, and what it comes to in a
     // sentence ("activated main/save", "released outside main/save …").

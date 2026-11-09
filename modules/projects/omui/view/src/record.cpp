@@ -43,6 +43,25 @@ void Runtime::set_record_level(RecordLevel level) { impl_->record_level = level;
 
 RecordLevel Runtime::record_level() const noexcept { return impl_->record_level; }
 
+Value Runtime::input_scenario() const {
+    Value::List frames;
+    for (const Impl::RecordedFrame& frame : impl_->input_log) {
+        Value one;
+        one.set("t", frame.at);
+        if (!frame.events.empty()) {
+            Value::List events;
+            for (const InputEvent& event : frame.events) events.push_back(to_value(event));
+            one.set("events", Value(std::move(events)));
+        }
+        frames.push_back(std::move(one));
+    }
+    return Value{}
+        .set("omui", "0.1")
+        .set("kind", "input")
+        .set("size", Value(Value::List{Value(size().width), Value(size().height)}))
+        .set("frames", Value(std::move(frames)));
+}
+
 std::vector<InteractionRecord> Runtime::interactions(std::uint64_t since) const {
     std::vector<InteractionRecord> out;
     for (const auto& r : impl_->recorded)

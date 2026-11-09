@@ -82,7 +82,7 @@ int video(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostrea
 int audio(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 
 // omui new, dev, run, build, test, doctor (project.cpp, D-150): a project over mcpp.
-inline constexpr std::array<std::string_view, 12> project_commands{"new", "dev", "run", "build", "test", "package", "add", "remove", "deps", "tools", "config", "doctor"};
+inline constexpr std::array<std::string_view, 13> project_commands{"new", "dev", "run", "build", "test", "replay", "package", "add", "remove", "deps", "tools", "config", "doctor"};
 [[nodiscard]] mcpplibs::cmdline::App project_command(std::string_view name);
 int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 

@@ -75,10 +75,21 @@ export default defineContract({
         for (const auto kind : ts::data_kinds) {
             std::string name(kind);
             name[0] = static_cast<char>(name[0] - 'a' + 'A');
-            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"openmui/define\";\nexport default define{0}({{ a: 1 }});\n", name));
+            const bool spec = std::ranges::contains(ts::spec_kinds, kind);  // D-157: the spec's formats, the implementation's
+            write(dir / "kind.ts", std::format("import {{ define{0} }} from \"{1}/define\";\nexport default define{0}({{ a: 1 }});\n", name,
+                                               spec ? "openmui" : "omui"));
             auto data = ts::evaluate(dir / "kind.ts");
             expect(data && data->kind == kind && data->json == R"({"a":1})") << (data ? data->kind : data.error());
         }
+    };
+
+    "the spec's formats from openmui/define, the implementation's from omui/define (D-157)"_test = [] {
+        const auto dir = scratch("layers");
+        const auto config = problem_of(dir, "import { defineConfig } from \"openmui/define\";\nexport default defineConfig({});\n");
+        expect(config.contains("defineConfig")) << "the spec's module has no implementation config: " << config;
+        expect(problem_of(dir, "import { defineConfig } from \"omui/define\";\nexport default defineConfig({ agent: {} });\n").empty());
+        expect(!problem_of(dir, "import { defineContract } from \"omui/define\";\nexport default defineContract({});\n").empty())
+            << "a contract is the spec's format";
     };
 
     "data only: each problem at its JSON pointer"_test = [] {

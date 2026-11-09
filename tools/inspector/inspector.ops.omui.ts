@@ -8,7 +8,7 @@
 // the table (src/catalog/catalog.cppm), the verbs come from it (omui::verb_of),
 // and the listings (src/catalog/inspector.ops.json for CLI and MCP,
 // inspector.ops.md). Effects are openas's, admission is mlibs.control's.
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "inspector",

@@ -5,7 +5,7 @@
 // is its own catalog (breakout's), the cellular workspace the Inspector's.
 // omui-gen ops makes the listing (media/ops/xengine.ops.json) and the
 // reference (media/ops/xengine.ops.md); effects are openas's.
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "xengine",

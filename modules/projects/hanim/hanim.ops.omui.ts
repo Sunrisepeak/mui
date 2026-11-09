@@ -3,7 +3,7 @@
 // Controller's table (src/control/catalog.cppm) and the listings
 // (src/control/hanim.ops.json for CLI and MCP, hanim.ops.md) from it; effects
 // are openas's, admission is mlibs.control's.
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "hanim",

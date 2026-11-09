@@ -3,7 +3,7 @@
 // field's contract (contract/field.contract.omui.toml) defines the actions;
 // this catalog says what each costs, how it is undone and which tier uses it.
 // omui-gen ops writes the listing (media/ops/breakout.ops.json) and its reference.
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "breakout",

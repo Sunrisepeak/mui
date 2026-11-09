@@ -27,10 +27,10 @@ export default defineContract({
 });
 ```
 
-`evaluate(file)` gives `{kind, json}`: the define function's kind (`contract`, `native`, `ops`, `theme`, `style`, `motion`, `view`, `config`) and the value as JSON text, keys in the module's order. That JSON is the canonical form the tools read.
+`evaluate(file)` gives `{kind, json}`: the define function's kind and the value as JSON text, keys in the module's order. That JSON is the canonical form the tools read. The define functions come by layer (D-157): `"openmui/define"` has the spec's formats (`defineContract`, `defineNative`, `defineView`), `"omui/define"` the implementation's (`defineConfig`, `defineOps`, `defineTheme`, `defineStyle`, `defineMotion`).
 
 - **The same answer every time.** The module runs in a QuickJS-ng runtime of its own. It has no `Date`, no `Math.random`, no `WeakRef` and no I/O.
-- **Imports** are `"openmui/define"` and the module's own files by path, inside its directory (or `DataOptions::root`).
+- **Imports** are `"openmui/define"`, `"omui/define"` and the module's own files by path, inside its directory (or `DataOptions::root`).
 - **It stops.** Memory, stack and time are bounded; a loop that does not end runs out of its time.
 - **Data only.** The default export must be a `define…()` result holding objects, arrays, strings, finite numbers, booleans and `null`. A function, `undefined`, `NaN`, a `Map` or a cycle is a problem at its JSON pointer (`/props/kind/default: undefined is not data`).
 - **Not on the Web.** A page reads TypeScript but does not evaluate data modules: they belong to the build, and the page gets their JSON.

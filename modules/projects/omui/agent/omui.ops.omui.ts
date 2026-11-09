@@ -5,7 +5,7 @@
 // (src/catalog/omui.ops.json for CLI and MCP, omui.ops.md) from it; effects are
 // openas's, admission is mlibs.control's. An application's own verbs and its
 // nodes' actions are its contracts' (`describe` lists them), not this catalog's.
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "omui",

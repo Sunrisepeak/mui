@@ -103,7 +103,8 @@ def convert(path: Path) -> tuple[Path, str]:
             raise SystemExit(f"{path}: tables omui.gen.data does not carry: {sorted(extra)}")
     else:
         raise SystemExit(f"{path}: not a contract, native module or operation catalog")
-    lines += [f'import {{ {function} }} from "openmui/define";', "", f"export default {function}({block(value, 0)});"]
+    module = "omui/define" if function == "defineOps" else "openmui/define"  # D-157: the spec's formats, the implementation's
+    lines += [f'import {{ {function} }} from "{module}";', "", f"export default {function}({block(value, 0)});"]
     target = path.with_name(name[: -len(".toml")] + ".ts")
     return target, "\n".join(lines) + "\n"
 

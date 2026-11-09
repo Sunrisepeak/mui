@@ -103,11 +103,11 @@ JSModuleDef* compiled(JSContext* context, const std::string& code, const char* n
 JSModuleDef* load(JSContext* context, const char* name, void* opaque) {
     const auto& evaluation = *static_cast<Evaluation*>(opaque);
     const std::string_view module = name;
-    if (module == "openmui/define") return compiled(context, define_module_source(), name);
+    if (module == "openmui/define" || module == "omui/define") return compiled(context, define_module_source(module == "openmui/define"), name);
     const auto path = mcpplibs::os::fs::from_utf8(module).lexically_normal();
     const auto inside = path.lexically_relative(evaluation.root);
     if (!path.is_absolute() || inside.empty() || *inside.begin() == "..") {
-        JS_ThrowReferenceError(context, "a data module imports \"openmui/define\" and its own files inside its directory, not `%s`", name);
+        JS_ThrowReferenceError(context, "a data module imports \"openmui/define\", \"omui/define\" and its own files inside its directory, not `%s`", name);
         return nullptr;
     }
     for (const std::string_view suffix : {"", ".ts", ".mts", ".js", ".mjs", "/index.ts", "/index.js"}) {

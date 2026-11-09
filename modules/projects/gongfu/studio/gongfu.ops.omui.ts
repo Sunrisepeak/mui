@@ -6,7 +6,7 @@
 // fighters themselves are data (`<name>.fighter.gongfu.toml`, its look and
 // moves) written with any editor; a match is played through a host's stage
 // (the fighting showcase's `press`, `turn` and `inputs` actions).
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "gongfu",

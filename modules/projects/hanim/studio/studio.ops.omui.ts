@@ -5,7 +5,7 @@
 // (media/ops/studio.ops.json for CLI and MCP bindings) and the reference
 // (media/ops/studio.ops.md); effects are openas's. Operating a host's Engine
 // is hanim's own catalog (hanim.ops.omui.ts).
-import { defineOps } from "openmui/define";
+import { defineOps } from "omui/define";
 
 export default defineOps({
   product: "studio",

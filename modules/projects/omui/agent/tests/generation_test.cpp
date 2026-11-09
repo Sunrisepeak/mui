@@ -202,6 +202,43 @@ UTest cases{"generation", [] {
         expect(!page.rt.find("main/extras/team") && !page.rt.find("main/extras")) << "gone once played back";
     };
 
+    "kept on disk: a new start shows the version shown, checked again — one that no longer passes is not shown, and says why"_test = [] {
+        const auto dir = std::filesystem::temp_directory_path() / std::format("omui-generation-{}", std::random_device{}());
+        std::filesystem::remove_all(dir);
+        {
+            Page page;
+            agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
+            agent::Protocol protocol(page.rt, {});
+            for (const std::string_view words : {"Pro", "Team"}) {
+                const Answer drafted = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card(words)));
+                expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", drafted.data.get("draft")->as_string())).exit, 0));
+            }
+            expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0)) << "Pro shown when it ends";
+        }
+        expect(std::filesystem::exists(dir / "index.json") && std::filesystem::exists(dir / "extras-2.view.omui.json"));
+        {
+            Page again;
+            agent::Generation generation(again.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}}, .directory = dir});
+            agent::Protocol protocol(again.rt, {});
+            expect(again.shows("Pro") && !again.shows("Team")) << "the version shown, shown again";
+            const Answer versions = invoke(protocol, "generate.versions", Value{}.set("surface", "extras"));
+            expect(eq(versions.data.get("versions")->list()->size(), std::size_t{2}) && eq(versions.data.get("shown")->as_int(), std::int64_t{1}));
+        }
+        {
+            // Started again more closed: data takes no verbs — and a kept version that invokes one is not shown.
+            std::ofstream(dir / "extras-1.view.omui.json")
+                << R"j({"omui": "0.1", "view": {"root": {"type": "box", "id": "go", "label": "Pro", "on": {"press": [{"verb": "plan.upgrade"}]}}}})j";
+            Page closed;
+            agent::Generation generation(closed.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}, .directory = dir});
+            agent::Protocol protocol(closed.rt, {});
+            expect(!closed.shows("Pro"));
+            const Answer surfaces = invoke(protocol, "generate.surfaces");
+            const Value& extras = surfaces.data.get("surfaces")->list()->front();
+            expect(eq(extras.get("version")->as_int(), std::int64_t{0}) && extras.get("problem")->as_string().contains("data only")) << surfaces.data.json();
+        }
+        std::filesystem::remove_all(dir);
+    };
+
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {
         Page page;
         agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}, {"footer", "not on this page"}}, .max_nodes = 2});

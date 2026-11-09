@@ -68,6 +68,12 @@ struct GenerationOptions {
     EvaluateFn evaluate;
     // The host's signals a document's `"provided": true` ones bind to.
     std::function<std::optional<Signal<Value>>(std::string_view name)> provide;
+    // Where the versions are kept (their documents and an index), to be
+    // shown again when the application starts — each one checked again
+    // first, against what is registered and how open generation is then; one
+    // that no longer passes is not shown, and generate.surfaces says why.
+    // Empty: kept only while it runs.
+    std::filesystem::path directory;
 };
 
 // Registers the generate.* verbs with the runtime for as long as it lives.

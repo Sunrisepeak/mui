@@ -76,6 +76,12 @@ grep -q '"nodes":\[\]' <<< "$last"
 expect 0 '{"op":"redo"}'
 expect 0 '{"op":"invoke","verb":"generate.versions","args":{"surface":"extras"}}'
 grep -q '"shown":1' <<< "$last"
+# Kept: started again, the version shown is shown again.
+kill "$pid"; wait "$pid" 2> /dev/null || true
+"$player" --manifest "$dir/app" --serve --agent-dir "$dir/endpoints" > "$dir/app.log" 2>&1 &
+pid=$!
+for _ in $(seq 100); do [ -e "$dir/endpoints/org.openmui.plan.endpoint.omui.json" ] && break; sleep 0.1; done
+expect 0 '{"op":"wait","q":{"name":"Team, 29 a month"},"timeout":5}'
 expect 1 '{"op":"invoke","verb":"generate.draft","args":{"surface":"extras","document":{"omui":"0.1","view":{"root":{"type":"box"}}}}}'
 grep -q 'not among the components' <<< "$last"
 expect 1 '{"op":"invoke","verb":"generate.draft","args":{"surface":"extras","language":"ts","code":"while (true) {}"}}'

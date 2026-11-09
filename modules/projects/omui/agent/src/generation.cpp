@@ -8,6 +8,7 @@ import omui.semantic;
 import omui.viewdoc;
 import mlibs.base64;
 import mlibs.control;
+import mcpplibs.os;
 
 namespace omui::agent {
 
@@ -75,14 +76,100 @@ struct Generation::Impl {
     struct Shown {
         std::vector<Version> versions;
         std::size_t          current = 0;  // 0: nothing
+        std::string          problem;      // why what was kept is not shown (started again)
     };
     std::map<std::string, Draft, std::less<>> drafts;
     std::map<std::string, Shown, std::less<>> surfaces;
     std::size_t                               next_draft = 1;
     std::vector<std::string>                  added;  // the verbs, removed with it
 
+    std::uint64_t waiting = 0;  // the timer that shows what was kept once its slots are on screen
+
     Impl(Runtime& rt, GenerationOptions given) : runtime(rt), options(std::move(given)) {
         for (const Surface& surface : options.surfaces) surfaces.try_emplace(surface.name);
+    }
+
+    ~Impl() {
+        if (waiting) runtime.cancel(waiting);
+    }
+
+    // ── kept on disk ──
+    std::filesystem::path document_file(std::string_view surface, std::size_t version) const {
+        return options.directory / std::format("{}-{}.view.omui.json", surface, version);
+    }
+
+    void keep() const {
+        if (options.directory.empty()) return;
+        std::error_code error;
+        std::filesystem::create_directories(options.directory, error);
+        Value index(Value::Map{});
+        for (const auto& [name, shown] : surfaces) {
+            Value::List versions;
+            for (const Version& version : shown.versions) {
+                const auto file = document_file(name, version.number);
+                if (!std::filesystem::exists(file)) (void)mcpplibs::os::fs::write_atomic(file, version.document);
+                versions.push_back(Value{}
+                                       .set("version", static_cast<std::int64_t>(version.number))
+                                       .set("actor", version.actor)
+                                       .set("draft", version.draft)
+                                       .set("at", version.at));
+            }
+            index.set(name, Value{}.set("shown", static_cast<std::int64_t>(shown.current)).set("versions", Value(std::move(versions))));
+        }
+        if (auto written = mcpplibs::os::fs::write_atomic(options.directory / "index.json", Value{}.set("surfaces", std::move(index)).json()); !written)
+            mlibs::log::warn("generation: cannot keep the versions in {}: {}", generic_utf8(options.directory), written.error().message());
+    }
+
+    // What was kept, read again: every version checked as a draft is now; the one shown, shown
+    // once its slot is on screen.
+    void restart(const std::shared_ptr<Impl>& self) {
+        if (options.directory.empty()) return;
+        auto text = mcpplibs::os::fs::read(options.directory / "index.json");
+        if (!text) return;
+        const auto index = parse_json(*text);
+        const Value* kept = index ? index->get("surfaces") : nullptr;
+        if (!kept || !kept->map()) return;
+        for (auto& [name, shown] : surfaces) {
+            const Value* surface = kept->get(name);
+            if (!surface || !surface->get("versions") || !surface->get("versions")->list()) continue;
+            for (const Value& entry : *surface->get("versions")->list()) {
+                const std::size_t number = static_cast<std::size_t>(entry.get("version") ? entry.get("version")->as_int() : 0);
+                auto document = mcpplibs::os::fs::read(document_file(name, number));
+                Version version{number, document ? *document : std::string(), text_arg(entry, "actor"), text_arg(entry, "draft"),
+                                entry.get("at") ? entry.get("at")->as_double() : 0, {}};
+                std::string problem = document ? std::string() : std::format("version {}'s document is gone", number);
+                if (problem.empty())
+                    if (auto valid = validate(version.document, std::format("{}-{}", name, number)); !valid) problem = valid.error();
+                if (problem.empty()) {
+                    auto view = viewdoc::View::load(runtime, version.document, {.file = generic_utf8(document_file(name, number)), .provide = options.provide});
+                    if (view) version.view = std::move(*view);
+                    else problem = std::format("version {} could not be prepared again", number);
+                }
+                if (!problem.empty()) version.document.clear();  // kept in the list, never shown
+                if (!problem.empty() && shown.problem.empty()) shown.problem = problem;
+                shown.versions.push_back(std::move(version));
+            }
+            const std::size_t current = static_cast<std::size_t>(surface->get("shown") ? surface->get("shown")->as_int() : 0);
+            if (current > 0 && current <= shown.versions.size() && !shown.versions[current - 1].document.empty()) shown.current = current;
+            else if (current > 0 && shown.problem.empty()) shown.problem = std::format("version {} is not kept", current);
+        }
+        show_when_claimed(self, 0);
+    }
+
+    void show_when_claimed(const std::shared_ptr<Impl>& self, int tries) {
+        bool all = true;
+        for (auto& [name, shown] : surfaces)
+            if (shown.current > 0 && !runtime.claimed(name)) all = false;
+        if (all || tries > 200) {  // ten seconds: a slot not shown by then is shown by the next commit
+            waiting = 0;
+            for (auto& [name, shown] : surfaces)
+                if (shown.current > 0 && runtime.claimed(name)) show(name, shown.current);
+            return;
+        }
+        const std::weak_ptr<Impl> alive = self;
+        waiting = runtime.after(seconds(0.05), [alive, tries] {
+            if (auto impl = alive.lock()) impl->show_when_claimed(impl, tries + 1);
+        });
     }
 
     static std::string_view stage_name(Stage stage) {
@@ -130,6 +217,7 @@ struct Generation::Impl {
             runtime.set_design_presentation(before);
         }
         shown.current = version;
+        if (presented) keep();  // a step (not a preview's showing): what is shown is kept
     }
 
     // The step undo takes back: the surface from one version to another.
@@ -296,7 +384,8 @@ struct Generation::Impl {
                                .set("doc", surface.doc)
                                .set("shown", runtime.claimed(surface.name))
                                .set("version", static_cast<std::int64_t>(shown.current))
-                               .set("versions", static_cast<std::int64_t>(shown.versions.size())));
+                               .set("versions", static_cast<std::int64_t>(shown.versions.size()))
+                               .set("problem", shown.problem.empty() ? Value{} : Value(shown.problem)));
         }
         Value out = Value{}
                         .set("openness", std::string(openness_name(options.openness)))
@@ -321,6 +410,7 @@ struct Generation::Impl {
 };
 
 Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std::make_shared<Impl>(runtime, std::move(options))) {
+    impl_->restart(impl_);
     const auto add = [&](std::string_view name, VerbFn fn) {
         const auto entry = std::ranges::find(generate::catalog, name, [](const auto& op) { return op.operation.name; });
         if (entry == generate::catalog.end()) return;

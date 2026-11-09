@@ -338,7 +338,8 @@ int player_main(int argc, char** argv) {
                                                   .surfaces = config->surfaces,
                                                   .components = config->components,
                                                   .verbs = config->verbs,
-                                                  .evaluate = generated_views(m->base)};
+                                                  .evaluate = generated_views(m->base),
+                                                  .directory = m->base / ".omui" / "generation"};
     }
     app.ready = [&] { return p && p->idle(); };
     app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime

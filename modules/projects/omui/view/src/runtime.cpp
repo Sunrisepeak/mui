@@ -969,6 +969,8 @@ bool Runtime::open_url(std::string_view url) {
     return impl_->url_opener && impl_->url_opener(url);
 }
 
+bool Runtime::focusable(NodeId node) const { return valid(node) && impl_->is_focusable(node); }
+
 void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_->url_opener = std::move(open); }
 
 void Runtime::set_native_surfaces(NativeSurfaces surfaces) { impl_->native_surfaces = std::move(surfaces); }

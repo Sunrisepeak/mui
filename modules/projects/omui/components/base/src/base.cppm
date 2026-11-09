@@ -71,6 +71,11 @@ export import :otp_input_contract;
 export import :form_field_contract;
 export import :search_box_contract;
 export import :toggle_group_contract;
+export import :context_menu_contract;
+export import :hover_card_contract;
+export import :command_palette_contract;
+export import :sidebar_contract;
+export import :toolbar_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -95,6 +100,7 @@ export import :entry;
 export import :code;
 export import :reading;
 export import :inputs;
+export import :navigating;
 
 export namespace omui {
 

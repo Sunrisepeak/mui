@@ -54,6 +54,9 @@ struct Placement {
     bool  scrim = false;        // darkens what is below (theme `scrim`)
     bool  light_dismiss = true; // a press outside performs its `dismiss` action
     bool  match_width = false;  // at least as wide as the anchor (a select's popup)
+    // At a point of the window instead (a context menu at the pointer): its corner there, flipped to the
+    // point's other side where it would not fit, then kept inside as every overlay is.
+    std::optional<Point> point;
 };
 
 // The runtime's services, as components see them.
@@ -318,6 +321,12 @@ public:
     virtual void moving(NodeId) {}
     // Scrolls every scroll view around the node so that it is in view (what
     // the `scroll_into_view` action does): a document's anchors, a list's row.
+    // Whether a node takes focus now (its kind does, it is shown and not disabled): what the
+    // arrows of a toolbar move between.
+    [[nodiscard]] virtual bool focusable(NodeId node) const {
+        (void)node;
+        return false;
+    }
     // An address opened by the system (its browser, its mail): a link's activation. Only
     // http, https and mailto; false where no host opens them.
     virtual bool open_url(std::string_view url) {

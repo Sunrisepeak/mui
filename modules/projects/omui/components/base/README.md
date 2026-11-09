@@ -60,6 +60,11 @@ made into code when the package builds — `build.mcpp`, omui.build.contracts):
 | `form_field` | `group` | a control with its label above (`*` when required), its help under it and an error in the help's place; the group's description is the help or the error, `required` and `invalid` said |
 | `search_box` | `search_box` | a magnifier, a bare text box (its words), a × button of its own while there are words (`<id>/clear`); Enter searches (`submitted`), Escape clears |
 | `toggle_group` | `toolbar` | a few options each on or off on its own, each a toggle button of its own (`<id>/<value>`); pressed, Space, turned by an agent; kept in the options' order |
+| `context_menu` | `menu` | the choices for the element before it (its items menu_items): a secondary press over it opens it at the pointer, the Menu key at the element, `show {x, y}` anywhere; kept inside the window (flipped); a choice, Escape or a press outside closes it, focus given back |
+| `hover_card` | `dialog` | more about the element before it (anything inside): shown after `delay` of pointing or focus, kept while the pointer is on the card, gone `linger` after it leaves both; not modal |
+| `command_palette` | `dialog` | the application's commands (its verbs that take no arguments, or those it is given) found by their words, over the window's middle; arrows choose, Enter runs (as the person's choice: their answer to what reaches outside), Escape closes; each command an option of its own an agent runs |
+| `sidebar` | `navigation` | the places down an application's side, each a link of its own (`<id>/<value>`), the current one marked; pressed, arrowed (each a step taken back), chosen by an agent; collapsed to a rail of first letters |
+| `toolbar` | `toolbar` | a row (or column) of controls; the arrows move the focus between them, Home and End to the ends |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

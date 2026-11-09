@@ -65,6 +65,12 @@ void register_base_components() {
     register_type(component_type<FormField>());
     register_type(component_type<SearchBox>());
     register_type(component_type<ToggleGroup>());
+    // W9: finding one's way — context menu, hover card, command palette, sidebar, toolbar.
+    register_type(component_type<ContextMenu>());
+    register_type(component_type<HoverCard>());
+    register_type(component_type<CommandPalette>());
+    register_type(component_type<Sidebar>());
+    register_type(component_type<Toolbar>());
 }
 
 }  // namespace omui

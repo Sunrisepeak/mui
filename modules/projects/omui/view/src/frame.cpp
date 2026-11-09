@@ -481,7 +481,11 @@ void Runtime::Impl::place_overlays() {
         }
         const float w = frame.width, h = frame.height;
         Point at{};
-        switch (p.side) {
+        if (p.point) {
+            at = *p.point;
+            if (at.x + w > area.right()) at.x -= w;
+            if (at.y + h > area.bottom()) at.y -= h;
+        } else switch (p.side) {
             case Placement::Side::center: at = {area.x + (area.width - w) / 2, area.y + (area.height - h) / 2}; break;
             case Placement::Side::left: at = {area.x + p.offset, area.y}; break;
             case Placement::Side::right: at = {area.right() - w - p.offset, area.y}; break;

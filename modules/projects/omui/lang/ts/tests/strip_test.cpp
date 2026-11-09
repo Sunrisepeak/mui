@@ -276,7 +276,19 @@ UTest cases{"lang.ts strip", [] {
         const auto program = chosen && !chosen->empty() ? std::optional(mcpplibs::os::fs::from_utf8(*chosen)) : mcpplibs::os::env::find_executable("esbuild");
         if (!program) {
             // The workspace declares it ([xlings.workspace], when = "run"): on CI its absence is a failure, not a skip.
-            if (mcpplibs::os::env::get("CI")) fail("no esbuild, though the workspace declares it for test runs ([xlings.workspace])");
+            if (mcpplibs::os::env::get("CI")) {
+                // What the run's PATH holds of esbuild, to see where a provisioned one went (red list 39).
+                const char separator = std::filesystem::path::preferred_separator == '\\' ? ';' : ':';
+                std::string seen;
+                for (const auto part : std::views::split(mcpplibs::os::env::get("PATH").value_or(""), separator)) {
+                    const std::filesystem::path dir = mcpplibs::os::fs::from_utf8(std::string_view(part.begin(), part.end()));
+                    std::error_code error;
+                    for (const auto& entry : std::filesystem::directory_iterator(dir, error))
+                        if (mcpplibs::os::fs::utf8(entry.path().filename()).starts_with("esbuild")) seen += std::format(" {}", mcpplibs::os::fs::generic_utf8(entry.path()));
+                    if (mcpplibs::os::fs::generic_utf8(dir).contains("xlings")) seen += std::format(" [dir {}]", mcpplibs::os::fs::generic_utf8(dir));
+                }
+                fail(std::format("no esbuild, though the workspace declares it for test runs ([xlings.workspace]); on PATH:{}", seen.empty() ? " nothing like it" : seen));
+            }
             skip("no esbuild (the workspace declares it: mcpp test installs it; or OMUI_ESBUILD)");
         }
         std::vector<std::pair<std::string, std::string>> sources;

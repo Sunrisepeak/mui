@@ -170,6 +170,26 @@ params  = [
 result  = "json"
 
 [[operation]]
+name    = "ui.timeline"
+effect  = "read"
+summary = "What input did, oldest first: each input event's records — what it hit, what stopped it (disabled, outside, nothing to press, refused), what it activated — at the recorder's level"
+params  = [
+    { name = "since", type = "integer", doc = "only after this cause (an input event's number)", optional = true },
+    { name = "limit", type = "integer", doc = "the last this many records (200)", optional = true },
+]
+result  = "json"
+
+[[operation]]
+name    = "ui.explain"
+effect  = "read"
+summary = "A press and what came of it, from press to release: what it hit, what stopped it, the actions it led to, and a sentence saying what happened"
+params  = [
+    { name = "at", type = "json", doc = "[x, y]: the last press within a few pixels of it", optional = true },
+    { name = "cause", type = "integer", doc = "or the press by its number (timeline)", optional = true },
+]
+result  = "json"
+
+[[operation]]
 name    = "ui.drew"
 effect  = "read"
 summary = "What drew a pixel: the node its colour came from, the nodes it sits in, and where in the program each was built"

@@ -25,6 +25,10 @@ How an Agent (or a person at a terminal) uses a running omui application without
 - Performance and health when it matters: `stats` (frame times), `profile` (a trace), `logs` (warnings and errors).
 - Record what you did: the requests, their envelopes, the captures' hashes.
 
+## When the person says something did not work
+
+"I clicked and nothing happened" is a report to check, not a fact to repeat. Ask the recorder (D-148) what their input did: `explain` with `at` (where they clicked) gives that press from press to release — what it hit, what stopped it (a disabled control, a release outside it, nothing there to press, outside a modal, refused) and the actions it led to, in one sentence and the records. `timeline` lists the recent input events and what came of each (`since` a cause, `limit`). Then say what you found, fix the cause, and check it the same way. Development mode records everything; elsewhere the recorder keeps what did not happen (errors) unless the application says otherwise, and what a person types is counted, never kept.
+
 ## Not here
 
 An application's own verbs and its nodes' actions are its contracts' — `describe` and `snapshot` list them. Development controls (`inspect`, `debug`, `pipeline`, `clock`, `profile`) change only how the application is shown and measured, never its data.

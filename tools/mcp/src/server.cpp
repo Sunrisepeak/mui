@@ -539,13 +539,49 @@ struct Server::Impl {
                     text += std::format("\n  {}  built at {}", str(one, "id"), one.get("source") && !one.get("source")->is_null() ? one.get("source")->as_string() : std::string_view("?"));
             return tool_result(text, false, Value{}.set("data", a.data));
         }
+        if (name == "ui_timeline") {
+            Value req;
+            req.set("op", "timeline");
+            if (const Value* v = args.get("since")) req.set("since", *v);
+            if (const Value* v = args.get("limit")) req.set("limit", *v);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            std::string text = std::format("recorder: {}", str(a.data, "level"));
+            if (const Value* list = a.data.get("records"); list && list->list())
+                for (const Value& r : *list->list())
+                    text += std::format("\n  #{} {} {}{}", r.get("cause") ? r.get("cause")->as_int() : 0, str(r, "kind"),
+                                        str(r, "node").empty() ? std::string() : std::string(str(r, "node")) + ": ", str(r, "text"));
+            return tool_result(text, false, Value{}.set("data", a.data));
+        }
+        if (name == "ui_explain") {
+            Value req;
+            req.set("op", "explain");
+            if (const Value* v = args.get("at")) req.set("at", *v);
+            if (const Value* v = args.get("cause")) req.set("cause", *v);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            if (a.data.get("found") && !a.data.get("found")->as_bool()) return tool_result(std::string(str(a.data, "why")), false, Value{}.set("data", a.data));
+            std::string text(str(a.data, "summary"));
+            if (const Value* list = a.data.get("records"); list && list->list())
+                for (const Value& r : *list->list())
+                    text += std::format("\n  {} {}{}", str(r, "kind"), str(r, "node").empty() ? std::string() : std::string(str(r, "node")) + ": ", str(r, "text"));
+            return tool_result(text, false, Value{}.set("data", a.data));
+        }
         if (name == "ui_capture") {
             Value req;
             req.set("op", "capture");
             if (auto n = str(args, "node"); !n.empty()) req.set("node", n);
             if (const Value* r = args.get("region")) req.set("region", *r);
+            const bool svg = str(args, "format") == "svg";
+            if (svg) req.set("format", "svg");
             Answer a = call(*app, req, options.timeout);
             if (a.exit != 0) return tool_result(std::format("{}: {}", a.code, a.message), true);
+            if (svg) {
+                // Vectors: exact geometry, colours and text, and which node drew what; what SVG cannot say is an island of pixels.
+                const Value* islands = a.data.get("islands");
+                return tool_result(std::format("{}\n({} island(s) kept as pixels)", str(a.data, "svg"), islands && islands->list() ? islands->list()->size() : 0),
+                                   false, Value{}.set("data", a.data));
+            }
             Value image;
             image.set("type", "image").set("data", str(a.data, "base64")).set("mimeType", "image/png");
             const Value* b = a.data.get("bounds");
@@ -703,10 +739,22 @@ Value::List Server::tools() const {
              "from something wrong in a picture to the line to change.",
              object_schema({app_prop, {"at", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y] in logical pixels")}},
                            {"at"}), "ui.drew"),
-        tool("ui_capture", "Capture pixels",
+        tool("ui_capture", "Capture pixels or vectors",
              "The pixels of the window, or of one node, as a PNG image; `region` [x, y, width, height] (logical pixels, from the node's corner "
-             "or the window's) takes a part of it, to look closer at a detail.",
-             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")}}), "ui.capture"),
+             "or the window's) takes a part of it, to look closer at a detail. `format: svg` gives vectors instead — exact geometry, colours, "
+             "text and which node drew each shape — when a number matters more than a look. Read the semantic tree first; capture what it cannot say.",
+             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")},
+                            {"format", Value{}.set("type", "string").set("enum", Value(Value::List{Value("png"), Value("svg")})).set("description", "png (pixels, the default) or svg (vectors)")}}), "ui.capture"),
+        tool("ui_timeline", "What input did",
+             "The interaction recorder's records, oldest first: each input event (the person's or an agent's), what it hit, what stopped it — "
+             "disabled, released outside, nothing to press, outside a modal, refused — and what it activated. `since` a cause, `limit` how many.",
+             object_schema({app_prop, {"since", Value{}.set("type", "integer").set("description", "only after this cause")},
+                            {"limit", Value{}.set("type", "integer").set("description", "the last this many (200)")}}), "ui.timeline"),
+        tool("ui_explain", "Why a press did what it did",
+             "When the person says a click did nothing, ask the facts: the last press at [x, y] (or by its cause), from press to release — what "
+             "it hit, what stopped it, the actions it led to — and a sentence saying what happened.",
+             object_schema({app_prop, {"at", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y] where the press was")},
+                            {"cause", Value{}.set("type", "integer").set("description", "or the press's number")}}), "ui.explain"),
         tool("ui_input", "Input as a person gives it",
              "Pointer, wheel, keys and text, delivered frame by frame through the application's real input path (hit testing, focus, "
              "gestures), as a person's devices would give them — to use the interface as a person does and find what does not work. Only "

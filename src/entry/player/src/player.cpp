@@ -140,6 +140,7 @@ int player_main(int argc, char** argv) {
     app.size = m->size;
     app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
+        if (design) rt.set_record_level(RecordLevel::full);  // development mode keeps every interaction (D-148)
         p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript(),
                                                        lang::python::embedded::language()},
                   player::PlayerOptions{.design = design});

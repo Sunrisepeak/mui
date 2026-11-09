@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 15, "fifteen tools");
+        check(tools && tools->list() && tools->list()->size() == 17, "seventeen tools");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -162,7 +162,8 @@ int main(int argc, char** argv) {
                 check(t.get("inputSchema") && t.get("inputSchema")->get("type")->as_string() == "object", "an object schema");
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
-                                                  "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs"}));
+                                                  "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
+                                                  "ui_timeline", "ui_explain"}));
             // The hints are the catalog's effects (omui.ops.omui.toml): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
@@ -437,10 +438,10 @@ int main(int argc, char** argv) {
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 17, "fifteen ui_* tools and the two listed");
-        if (tools && tools->list() && tools->list()->size() == 17) {
-            const Value& pin = (*tools->list())[15];
-            const Value& del = (*tools->list())[16];
+        check(tools && tools->list() && tools->list()->size() == 19, "seventeen ui_* tools and the two listed");
+        if (tools && tools->list() && tools->list()->size() == 19) {
+            const Value& pin = (*tools->list())[17];
+            const Value& del = (*tools->list())[18];
             check(pin.get("name")->as_string() == "notes_pin" && pin.get("title")->as_string() == "notes.pin", pin.json());
             check(pin.get("inputSchema")->get("properties")->get("app") != nullptr, "a call may name its application");
             check(!pin.get("annotations")->get("readOnlyHint")->as_bool() && !pin.get("annotations")->get("destructiveHint")->as_bool(), pin.json());

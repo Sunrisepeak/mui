@@ -122,9 +122,12 @@ void Runtime::Impl::input_frame(const FrameInput& input) {
         Invocation given, copy;
         const Invocation& call = attributed(given, copy, "input");
         const auto& event = input.events[index];
+        cause = ++causes;  // the event's chain: what it hits, misses and activates is recorded with it
+        record_input(event);
         const auto* pointer = std::get_if<PointerEvent>(&event);
         const bool cancel = pointer && pointer->kind == PointerKind::cancel;
         if (!cancel && clearance("input", Effect::reversible, false, call) == openas::Decision::refuse) {
+            record(RecordLevel::errors, "refused", {}, "refused: input from this actor is above what agents may do here (the cap)");
             (void)above_cap("input event", call);
             journal_add("app", "input", call, spec::exit_code::failure);
             continue;
@@ -136,6 +139,7 @@ void Runtime::Impl::input_frame(const FrameInput& input) {
     }
     input_actor = previous_actor;
     input_call = previous_call;
+    cause = 0;
 }
 
 std::optional<double> Runtime::Impl::person_operating(NodeId id) const {
@@ -185,7 +189,11 @@ bool Runtime::Impl::deliver(NodeId target, const InputEvent& e, Point window, bo
     bool handled = false;
     for (NodeId cur = target; alive(cur);) {
         Node& n = at(cur);
-        if (n.state.disabled && !is_pointer_kind(e, PointerKind::move)) break;  // a disabled node swallows input
+        if (n.state.disabled && !is_pointer_kind(e, PointerKind::move)) {  // a disabled node swallows input
+            if (is_pointer_kind(e, PointerKind::down) || std::holds_alternative<KeyEvent>(e))
+                record(RecordLevel::errors, "missed", cur, "disabled: a disabled control takes no input");
+            break;
+        }
         EventContext ctx{self, cur, local_point(n, window)};
         if (n.type->event) {
             auto use = use_theme(cur);
@@ -225,6 +233,7 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             ++presses;
             held = true;
             NodeId target = self.hit_test(e.position);
+            record(RecordLevel::interactions, "hit", target, "the press landed on it", e.position);
             // A press outside an overlay dismisses it (light dismiss), top first;
             // outside a modal one it goes no further.
             bool swallowed = false;
@@ -243,6 +252,10 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                         (void)self.act(o, "dismiss", call);
                     }
                     swallowed = outside;
+                    if (outside)
+                        record(RecordLevel::errors, "missed", o,
+                               p.light_dismiss ? "pressed outside a modal overlay: the press dismissed it and went no further"
+                                               : "pressed outside a modal overlay: the press goes no further while it is open");
                     break;
                 }
                 // A press inside what it opened from keeps it: its parent (a select's field and popup), or the
@@ -275,6 +288,8 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
             }
             capture = target;  // implicit capture: the drag stays with the node it began on
             const bool took = deliver(target, e, e.position, true);
+            if ((e.button == MouseButton::left || e.type != PointerType::mouse) && !alive(pressed) && !took && !(alive(target) && at(target).state.disabled))
+                record(RecordLevel::interactions, "missed", target, "nothing here takes a press: no button or other control under the pointer", e.position);
             // Text a person selects, as on any page: a press on words no control
             // or handler took begins a selection (a double press a word, a triple
             // its whole text); a press elsewhere lets it go.
@@ -324,10 +339,20 @@ void Runtime::Impl::pointer_event(const PointerEvent& e) {
                 const bool travelled = dx * dx + dy * dy > slop * slop;  // squared: no libm, the same on every platform
                 const bool ancestor_took = handled && alive(by) && by != p && contains(by, p);
                 if (inside && (!handled || (ancestor_took && !travelled))) {
+                    record(RecordLevel::actions, "activated", p, "the release over what was pressed activates it", e.position);
                     Invocation call;
                     call.actor = {"person", "user", {}};
                     call.answer = own_answer(p, "activate");
                     (void)self.act(p, "activate", call);
+                } else if (!inside) {
+                    record(RecordLevel::errors, "missed", p,
+                           std::format("released outside it (over {}): a press activates what it began on only when released over it",
+                                       alive(over) ? self.path(over) : std::string("nothing")),
+                           e.position);
+                } else if (ancestor_took) {
+                    record(RecordLevel::interactions, "missed", p, std::format("{} took it as a drag: the pointer travelled", self.path(by)), e.position);
+                } else {
+                    record(RecordLevel::interactions, "handled", alive(by) ? by : p, "the release was handled by the control itself", e.position);
                 }
             }
             set_hover(self.hit_test(e.position));

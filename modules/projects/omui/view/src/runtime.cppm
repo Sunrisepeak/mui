@@ -436,6 +436,26 @@ public:
     [[nodiscard]] std::optional<spec::SemanticNode> virtual_item(NodeId holder, std::string_view key) const;
     [[nodiscard]] bool acts_on_items(NodeId holder) const;
     [[nodiscard]] std::span<const ActionEntry> action_journal() const noexcept override;
+
+    // The interaction recorder (D-148): development mode keeps everything
+    // (full); otherwise errors, unless the application says otherwise.
+    void set_record_level(RecordLevel level);
+    [[nodiscard]] RecordLevel record_level() const noexcept;
+    // What was recorded of the input events after `since` (a cause; 0: all
+    // that is kept — the last 4096 records), oldest first.
+    [[nodiscard]] std::vector<InteractionRecord> interactions(std::uint64_t since = 0) const;
+    // A press and what came of it: from the pointer's press to its release,
+    // the records and the actions they led to, and what it comes to in a
+    // sentence ("activated main/save", "released outside main/save …").
+    struct Explanation {
+        std::uint64_t                  cause = 0;  // the press's
+        std::vector<InteractionRecord> records;
+        std::vector<ActionEntry>       actions;
+        std::string                    summary;
+    };
+    // The last press within a few pixels of `at`, or the one numbered
+    // `cause`; nothing when none is recorded.
+    [[nodiscard]] std::optional<Explanation> explain(std::optional<Point> at, std::uint64_t cause = 0) const;
     [[nodiscard]] NodeId undoes(std::uint64_t entry) const override;
     bool undo_entry(std::uint64_t entry, const Actor* actor) override;
     // The actions a node offers now, with their effects.

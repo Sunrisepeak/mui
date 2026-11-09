@@ -136,6 +136,30 @@ struct ActionEntry {
     Value         args;        // what it was given
     std::uint64_t id = 0;      // the journal's own count, from 1 (Services::undoes)
     double        at = 0;      // when, in seconds of the runtime's clock
+    std::uint64_t cause = 0;   // the input event it came of (InteractionRecord::cause); 0: none
+};
+
+// The interaction recorder (D-148): what each input event did — what it hit,
+// why a press did nothing, what it activated — each record with its event's
+// number, its cause, which the actions it led to carry too
+// (ActionEntry::cause): a person's "I clicked and nothing happened" answered
+// with what happened. How much is kept is the level's.
+enum class RecordLevel : std::uint8_t {
+    off,
+    errors,        // what an input did not do: refused, missed, swallowed
+    actions,       // and what it activated
+    interactions,  // and every press, release, key and text, and what each hit
+    full,          // and pointer moves
+};
+
+struct InteractionRecord {
+    std::uint64_t        cause = 0;  // the input event's number, from 1: its chain
+    double               at = 0;     // when, in seconds of the runtime's clock
+    std::string          kind;       // input, hit, missed, refused, activated, handled
+    std::string          node;       // the node concerned (its path), if one
+    std::string          text;       // what: the event, why nothing came of it, what ran
+    std::string          actor;      // whose input ("person:user", "agent:guide")
+    std::optional<Point> position;   // where a pointer event was, in logical pixels
 };
 
 // What an agent says it is about to do, or hands back with (openas §4.4,

@@ -453,6 +453,14 @@ struct Runtime::Impl {
     };
     std::vector<Timer>          timers;
     std::vector<ActionEntry>    journal;
+    // The interaction recorder (D-148): its level, what it keeps (a ring of
+    // `record_capacity`), the input events numbered, the one being dispatched.
+    RecordLevel                 record_level = RecordLevel::errors;
+    std::deque<InteractionRecord> recorded;
+    std::size_t                 record_capacity = 4096;
+    std::uint64_t               causes = 0, cause = 0;
+    void record(RecordLevel least, std::string_view kind, NodeId node, std::string text, std::optional<Point> position = std::nullopt);
+    void record_input(const InputEvent& event);
     int                         previews = 0;        // begin_preview depth: journal off, motion off
     MotionLevel                 preview_motion = MotionLevel::full;  // the level a preview put aside
     // An action journaled (its id the next one, journal_next): its followers told.

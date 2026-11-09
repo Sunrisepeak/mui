@@ -704,6 +704,55 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
                        .hands_back = hands_back});
         return e.data(Value{}.set("said", !text->as_string().empty()).set("hands_back", hands_back)).result(spec::exit_code::success);
     }
+    if (op == "timeline" || op == "explain") {
+        // What input did (D-148): the interaction recorder's records, and a press explained — the facts
+        // of "I clicked and nothing happened", not the person's account of them.
+        constexpr std::array levels{"off", "errors", "actions", "interactions", "full"};
+        const std::string level = levels[static_cast<std::size_t>(runtime_.record_level())];
+        auto record_value = [](const InteractionRecord& r) {
+            Value v;
+            v.set("cause", static_cast<double>(r.cause)).set("at", r.at).set("kind", r.kind).set("text", r.text).set("actor", r.actor);
+            if (!r.node.empty()) v.set("node", r.node);
+            if (r.position) v.set("position", Value(Value::List{Value(r.position->x), Value(r.position->y)}));
+            return v;
+        };
+        if (op == "timeline") {
+            const auto since = static_cast<std::uint64_t>(req.get("since") ? std::max<std::int64_t>(0, req.get("since")->as_int()) : 0);
+            const auto limit = static_cast<std::size_t>(req.get("limit") ? std::clamp<std::int64_t>(req.get("limit")->as_int(), 1, 4096) : 200);
+            auto records = runtime_.interactions(since);
+            if (records.size() > limit) records.erase(records.begin(), records.end() - static_cast<std::ptrdiff_t>(limit));
+            Value::List list;
+            for (const auto& r : records) list.push_back(record_value(r));
+            const double last = records.empty() ? static_cast<double>(since) : static_cast<double>(records.back().cause);
+            return e.data(Value{}.set("level", level).set("records", Value(std::move(list))).set("last", last)).result(spec::exit_code::success);
+        }
+        constexpr std::string_view example = R"({"op":"explain","at":[120,48]})";
+        std::optional<Point> at;
+        if (const Value* p = req.get("at")) {
+            if (!p->list() || p->list()->size() != 2 || !(*p->list())[0].is_number() || !(*p->list())[1].is_number())
+                return invalid("`at` is [x, y] in logical pixels", example);
+            at = Point{static_cast<float>((*p->list())[0].as_double()), static_cast<float>((*p->list())[1].as_double())};
+        }
+        const auto cause = static_cast<std::uint64_t>(req.get("cause") ? std::max<std::int64_t>(0, req.get("cause")->as_int()) : 0);
+        if (!at && !cause) return invalid("`explain` needs `at` (where the press was) or `cause` (its number, from `timeline`)", example);
+        const auto found = runtime_.explain(at, cause);
+        if (!found)
+            return e.data(Value{}.set("found", false).set("level", level).set("why", level == "off" || level == "errors"
+                                                                                      ? "no press is recorded there: the recorder keeps " + level + " (development mode keeps everything)"
+                                                                                      : std::string("no press is recorded there")))
+                .result(spec::exit_code::success);
+        Value::List records, actions;
+        for (const auto& r : found->records) records.push_back(record_value(r));
+        for (const auto& a : found->actions)
+            actions.push_back(Value{}.set("node", a.path).set("action", a.action).set("actor", a.actor).set("exit_code", a.exit_code));
+        return e.data(Value{}
+                          .set("found", true)
+                          .set("cause", static_cast<double>(found->cause))
+                          .set("summary", found->summary)
+                          .set("records", Value(std::move(records)))
+                          .set("actions", Value(std::move(actions))))
+            .result(spec::exit_code::success);
+    }
     // ── development: inspection, statistics, profiling, logs, debug overlays ──
     if (op == "drew") {
         // What drew a pixel (Part 2 §4.1, B): the node its colour came from, the nodes it sits in, and

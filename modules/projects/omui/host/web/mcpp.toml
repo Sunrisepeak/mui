@@ -42,13 +42,13 @@ omui.view     = { path = "../../view" }
 omui.semantic = { path = "../../semantic" }
 omui.agent    = { path = "../../agent" }
 # Quoted: a package and its subpackage in one table (TOML).
-"omui.native"       = { path = "../../native" }
+omui.native       = { path = "../../native" }
 "omui.native.store" = { path = "../../native/store" }
 xrender.raster   = { path = "../../../xrender/raster" }
 xrender.vector = { path = "../../../xrender/vector" }
-"mlibs.rhi"         = { path = "../../../../gfx/rhi" }
-"xrender.rhi.webgpu"  = { path = "../../../xrender/rhi/webgpu" }
-"xrender.rhi.webgl"   = { path = "../../../xrender/rhi/webgl" }
+mlibs.rhi         = { path = "../../../../gfx/rhi" }
+xrender.rhi.webgpu  = { path = "../../../xrender/rhi/webgpu" }
+xrender.rhi.webgl   = { path = "../../../xrender/rhi/webgl" }
 mlibs.text     = { path = "../../../../content/text" }
 mlibs.utils    = { path = "../../../../base/utils" }
 mlibs.image    = { path = "../../../../base/image" }

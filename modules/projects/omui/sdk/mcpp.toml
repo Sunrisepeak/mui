@@ -23,7 +23,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 omui.core          = { path = "../core" }
 omui.view          = { path = "../view" }
 omui.semantic      = { path = "../semantic" }
-"hanim.visual"      = { path = "../../hanim/visual" }
+hanim.visual      = { path = "../../hanim/visual" }
 omui.agent         = { path = "../agent" }
 omui.expr          = { path = "../expr" }
 omui.viewdoc       = { path = "../viewdoc" }
@@ -31,7 +31,7 @@ mlibs.utils         = { path = "../../../base/utils" }
 omui.ui.base       = { path = "../components/base" }
 omui.ui.window     = { path = "../components/window" }
 omui.host.headless = { path = "../host/headless" }
-"mlibs.i18n"        = { path = "../../../content/i18n" }
+mlibs.i18n        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
 mcpplibs.os           = "0.4.4"
 # The development host (:devhost) draws the application's frames itself, glyphs too.

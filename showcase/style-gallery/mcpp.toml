@@ -31,7 +31,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 mcpplibs.cmdline = "0.0.3"
 omui.sdk          = { path = "../../modules/projects/omui/sdk" }
 "omui.theme.styles" = { path = "../../modules/projects/omui/theme/styles" }
-"omui.theme"      = { path = "../../modules/projects/omui/theme" }
+omui.theme      = { path = "../../modules/projects/omui/theme" }
 mlibs.math         = { path = "../../modules/base/math" }
 mcpplibs.os          = "0.4.4"
 

@@ -34,5 +34,5 @@ mlibs.geom = { path = "../../../../base/geom" }
 hanim.rhi = { path = "../../../hanim/rhi" }
 mlibs.utils = { path = "../../../../base/utils" }
 mlibs.rhi.cts = { path = "../../../../gfx/rhi/cts" }
-"xrender.cts" = { path = "../../cts" }
+xrender.cts = { path = "../../cts" }
 mcpplibs.os     = "0.4.4"

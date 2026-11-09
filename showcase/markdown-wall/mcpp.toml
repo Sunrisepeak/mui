@@ -38,7 +38,7 @@ mcpplibs.cmdline = "0.0.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk           = { path = "../../modules/projects/omui/sdk" }
-"omui.ui.canvas"     = { path = "../../modules/projects/omui/components/canvas" }
+omui.ui.canvas     = { path = "../../modules/projects/omui/components/canvas" }
 "omui.ui.canvas.kit" = { path = "../../modules/projects/omui/components/canvas/kit" }
 omui.ui.markdown   = { path = "../../modules/projects/omui/components/markdown" }
 

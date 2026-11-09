@@ -17,7 +17,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"xengine.cellular" = { path = "../.." }
+xengine.cellular = { path = "../.." }
 "xengine.cellular.rhi" = { path = ".." }
 mlibs.rhi = { path = "../../../../../gfx/rhi" }
 mlibs.utils = { path = "../../../../../base/utils" }

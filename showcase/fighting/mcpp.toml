@@ -46,8 +46,8 @@ gongfu.present2d = { path = "../../modules/projects/gongfu/present2d" }
 gongfu.training  = { path = "../../modules/projects/gongfu/training" }
 gongfu.ai        = { path = "../../modules/projects/gongfu/ai" }
 mlibs.image    = { path = "../../modules/base/image" }
-"xrender.raster" = { path = "../../modules/projects/xrender/raster" }
-"xengine.audio"  = { path = "../../modules/projects/xengine/audio" }
+xrender.raster = { path = "../../modules/projects/xrender/raster" }
+xengine.audio  = { path = "../../modules/projects/xengine/audio" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
 
 [build-dependencies]

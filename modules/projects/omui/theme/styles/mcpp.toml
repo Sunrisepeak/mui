@@ -23,7 +23,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"omui.theme"         = { path = ".." }
+omui.theme         = { path = ".." }
 "omui.theme.default" = { path = "../default" }
 
 [build-dependencies]

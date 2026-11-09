@@ -27,12 +27,12 @@ mlibs.shader.rules = { path = "../../../gfx/shader/rules", host-module = true }
 [dependencies]
 mlibs.math = { path = "../../../base/math" }
 mlibs.utils = { path = "../../../base/utils" }
-"xrender.graph" = { path = "../graph" }
+xrender.graph = { path = "../graph" }
 mlibs.rhi    = { path = "../../../gfx/rhi" }
 mlibs.geom   = { path = "../../../base/geom" }
 mlibs.memory = { path = "../../../base/memory" }
 hanim.core          = { path = "../../hanim/core" }
-"xrender.raster" = { path = "../raster" }
+xrender.raster = { path = "../raster" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"

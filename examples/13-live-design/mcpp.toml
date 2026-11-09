@@ -39,4 +39,4 @@ mcpplibs.mtest     = "0.5.2"
 omui.player        = { path = "../../modules/projects/omui/player" }
 omui.designer      = { path = "../../modules/projects/omui/designer" }
 omui.lang.js       = { path = "../../modules/projects/omui/lang/js" }
-"omui.lang.ts"     = { path = "../../modules/projects/omui/lang/ts" }
+omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }

@@ -54,7 +54,7 @@ omui.ui.canvas   = { path = "../modules/projects/omui/components/canvas" }  # th
 omui.ui.liquid_glass = { path = "../modules/projects/omui/components/liquid-glass" }  # a signature work: glass that flows
 xengine.timeline    = { path = "../modules/projects/xengine/timeline" }  # the monitor: what plays at the playhead
 "omui.theme.styles" = { path = "../modules/projects/omui/theme/styles" }
-"omui.theme"      = { path = "../modules/projects/omui/theme" }
+omui.theme      = { path = "../modules/projects/omui/theme" }
 omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting started: example 01, running beside its source
 omui.semantic    = { path = "../modules/projects/omui/semantic" }
 mlibs.utils       = { path = "../modules/base/utils" }
@@ -68,6 +68,6 @@ omui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
-"omui.theme.default" = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)
+omui.theme.default = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)
 xrender.text = { path = "../modules/projects/xrender/text" }
 mlibs.math = { path = "../modules/base/math" }

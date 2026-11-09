@@ -28,7 +28,7 @@ sources = ["src/native/quickjs/*.cpp"]
 sources = ["src/native/web/*.cpp"]
 
 [dependencies]
-"omui.lang"    = { path = ".." }
+omui.lang    = { path = ".." }
 "omui.lang.ts" = { path = "../ts" }
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }

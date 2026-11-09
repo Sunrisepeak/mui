@@ -35,22 +35,22 @@ xrender.text = { path = "../../modules/projects/xrender/text" }
 hanim.core = { path = "../../modules/projects/hanim/core" }
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.sdk                         = { path = "../../modules/projects/omui/sdk" }
-"omui.theme"                     = { path = "../../modules/projects/omui/theme" }
+omui.theme                     = { path = "../../modules/projects/omui/theme" }
 "omui.theme.styles"                = { path = "../../modules/projects/omui/theme/styles" }
 xengine.timeline                    = { path = "../../modules/projects/xengine/timeline" }
-"xengine.video"                     = { path = "../../modules/projects/xengine/video" }
+xengine.video                     = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm"                = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio                       = { path = "../../modules/projects/xengine/audio" }
-"omui.ui.canvas"                 = { path = "../../modules/projects/omui/components/canvas" }
+omui.ui.canvas                 = { path = "../../modules/projects/omui/components/canvas" }
 omui.ui.timeline                 = { path = "../../modules/projects/omui/components/timeline" }
 omui.abi                         = { path = "../../modules/projects/omui/abi" }
-"omui.lang"                      = { path = "../../modules/projects/omui/lang" }
+omui.lang                      = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js"                   = { path = "../../modules/projects/omui/lang/js" }
 "omui.lang.ts"                   = { path = "../../modules/projects/omui/lang/ts" }  # --dir: an edited data module evaluated
 mlibs.json                       = { path = "../../modules/base/json" }
 omui.showcase.markdown_wall      = { path = "../markdown-wall" }
 omui.showcase.style_gallery      = { path = "../style-gallery" }
-"omui.showcase.widget_breakout"  = { path = "../widget-breakout" }
+omui.showcase.widget_breakout  = { path = "../widget-breakout" }
 "omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
 mcpplibs.cmdline                    = "0.0.3"
 mcpplibs.os                         = "0.4.4"

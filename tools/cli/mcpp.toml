@@ -27,13 +27,13 @@ omui.agent       = { path = "../../modules/projects/omui/agent" }
 omui.designer    = { path = "../../modules/projects/omui/designer" }
 omui.mcp         = { path = "../mcp" }
 omui.viewdoc     = { path = "../../modules/projects/omui/viewdoc" }
-"omui.lang.ts"     = { path = "../../modules/projects/omui/lang/ts" }
+omui.lang.ts     = { path = "../../modules/projects/omui/lang/ts" }
 omui.ui.base     = { path = "../../modules/projects/omui/components/base" }
 omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
-"xengine.video"      = { path = "../../modules/projects/xengine/video" }
+xengine.video      = { path = "../../modules/projects/xengine/video" }
 "xengine.video.webm" = { path = "../../modules/projects/xengine/video/webm" }
 xengine.audio       = { path = "../../modules/projects/xengine/audio" }
-"xengine.timeline" = { path = "../../modules/projects/xengine/timeline" }
+xengine.timeline = { path = "../../modules/projects/xengine/timeline" }
 "xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
 xrender.vector = { path = "../../modules/projects/xrender/vector" }
 mlibs.image = { path = "../../modules/base/image" }

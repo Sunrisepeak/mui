@@ -22,7 +22,7 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
-"mlibs.i18n" = { path = ".." }
+mlibs.i18n = { path = ".." }
 
 [build-dependencies]
 omui.build.embed = { path = "../../../../mcpp/embed", host-module = true }

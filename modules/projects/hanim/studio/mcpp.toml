@@ -43,4 +43,4 @@ nlohmann.json  = "3.12.0"
 mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.rhi = { path = "../../../gfx/rhi" }
-"xrender.rhi.sdl" = { path = "../../xrender/rhi/sdl" }
+xrender.rhi.sdl = { path = "../../xrender/rhi/sdl" }

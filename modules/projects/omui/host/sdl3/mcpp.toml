@@ -38,8 +38,8 @@ mlibs.image    = { path = "../../../../base/image" }
 mlibs.utils    = { path = "../../../../base/utils" }
 # Quoted: as dotted keys of one table, `xrender.rhi.sdl` would extend the
 # inline table `mlibs.rhi`, which TOML forbids.
-"mlibs.rhi"         = { path = "../../../../gfx/rhi" }
-"xrender.rhi.sdl"     = { path = "../../../xrender/rhi/sdl" }
+mlibs.rhi         = { path = "../../../../gfx/rhi" }
+xrender.rhi.sdl     = { path = "../../../xrender/rhi/sdl" }
 xrender.effect   = { path = "../../../xrender/effect" }
 mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"

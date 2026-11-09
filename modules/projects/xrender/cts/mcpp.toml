@@ -22,10 +22,10 @@ sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
-"xrender.graph"  = { path = "../graph" }
-"xrender.vector" = { path = "../vector" }
-"xrender.raster" = { path = "../raster" }
-"mlibs.rhi"      = { path = "../../../gfx/rhi" }
+xrender.graph  = { path = "../graph" }
+xrender.vector = { path = "../vector" }
+xrender.raster = { path = "../raster" }
+mlibs.rhi      = { path = "../../../gfx/rhi" }
 mlibs.cts        = { path = "../../../base/cts" }
 mlibs.geom       = { path = "../../../base/geom" }
 mlibs.memory     = { path = "../../../base/memory" }

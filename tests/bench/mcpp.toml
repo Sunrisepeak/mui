@@ -28,9 +28,9 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 mcpplibs.cmdline = "0.0.3"
 xrender.text = { path = "../../modules/projects/xrender/text" }
-"mlibs.simulation" = { path = "../../modules/base/simulation" }
-"xengine.dynamics" = { path = "../../modules/projects/xengine/dynamics" }
-"xengine.cellular" = { path = "../../modules/projects/xengine/cellular" }
+mlibs.simulation = { path = "../../modules/base/simulation" }
+xengine.dynamics = { path = "../../modules/projects/xengine/dynamics" }
+xengine.cellular = { path = "../../modules/projects/xengine/cellular" }
 "xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
 "hanim.core" = { path = "../../modules/projects/hanim/core" }
 "hanim" = { path = "../../modules/projects/hanim", features = ["render-vector"] }
@@ -39,19 +39,19 @@ omui.view            = { path = "../../modules/projects/omui/view", features = [
 mlibs.utils           = { path = "../../modules/base/utils" }
 mlibs.markdown        = { path = "../../modules/content/markdown" }
 xengine.audio           = { path = "../../modules/projects/xengine/audio" }
-"xengine.timeline"       = { path = "../../modules/projects/xengine/timeline" }
+xengine.timeline       = { path = "../../modules/projects/xengine/timeline" }
 "xengine.timeline.audio" = { path = "../../modules/projects/xengine/timeline/audio" }
-"omui.ui.canvas"       = { path = "../../modules/projects/omui/components/canvas" }
+omui.ui.canvas       = { path = "../../modules/projects/omui/components/canvas" }
 "omui.ui.canvas.kit"   = { path = "../../modules/projects/omui/components/canvas/kit" }
 omui.showcase.markdown_wall   = { path = "../../showcase/markdown-wall" }
 omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
-"omui.showcase.fighting" = { path = "../../showcase/fighting" }
-"omui.showcase.widget_breakout.sim" = { path = "../../showcase/widget-breakout/sim" }
+omui.showcase.fighting = { path = "../../showcase/fighting" }
+omui.showcase.widget_breakout.sim = { path = "../../showcase/widget-breakout/sim" }
 "gongfu"                  = { path = "../../modules/projects/gongfu" }
 "gongfu.present2d"      = { path = "../../modules/projects/gongfu/present2d" }
 omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
-"mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
-"xrender.rhi.sdl"       = { path = "../../modules/projects/xrender/rhi/sdl" }
+mlibs.rhi           = { path = "../../modules/gfx/rhi" }
+xrender.rhi.sdl       = { path = "../../modules/projects/xrender/rhi/sdl" }
 mcpplibs.os           = "0.4.4"
 
 [dev-dependencies]

@@ -74,7 +74,7 @@
 ## 5. 工程与包
 
 - **`omui` 命令行是 omui 应用唯一的顶级入口**（D-150、D-153）：new、dev、run、build、test、package、依赖、辅助工具、Agent 接入都经由它，底层是 mcpp 和 mtest；omui 专属的构建步骤都是 mcpp 插件（`mcpp/`），所以直接用 mcpp 构建结果一致。开发模式下由宿主进程持有窗口，应用是渲染输出目标（D-154）。
-- 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]` 和工作区的工具环境 `[xlings.workspace]`（工具按需声明，例如 esbuild 写成 `when = "run"`，CI 不再单独安装），SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
+- 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；只有父包和子包同时出现时，子包的键加引号（不加引号 TOML 会把它读成父包内联表里的键，子包被忽略），其余一律不加（多余的引号 mcpp 2026.11.8.1 起会警告）。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]` 和工作区的工具环境 `[xlings.workspace]`（工具按需声明，例如 esbuild 写成 `when = "run"`，CI 不再单独安装），SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **库已有的能力就依赖，不重写**（D-56）：先用已发布、有人在用的 `mcpplibs.*` 包（命令行 `mcpplibs.cmdline`、平台 `mcpplibs.os` 等），再用 mcpp-index 里的知名库（nlohmann/json、toml++ 等），两者都没有的才自己实现。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
 - **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。

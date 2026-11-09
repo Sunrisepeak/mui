@@ -5,6 +5,7 @@
 import std;
 import omui.agent;
 import omui.viewdoc;
+import omui.ui.base;
 import mcpplibs.mtest;
 
 using namespace mcpplibs::mtest;
@@ -237,6 +238,73 @@ UTest cases{"generation", [] {
             expect(eq(extras.get("version")->as_int(), std::int64_t{0}) && extras.get("problem")->as_string().contains("data only")) << surfaces.data.json();
         }
         std::filesystem::remove_all(dir);
+    };
+
+    "A2UI: a stream's messages kept between calls, each rendering surface drafted and committed as it comes; a button's action handed back; what is not read is named"_test = [] {
+        register_base_components();
+        Page page;
+        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        agent::Protocol protocol(page.rt, {});
+        // The first chunk (JSON lines, a message a line): the components and the data, not yet rendering — nothing drafted.
+        const std::string first = parse_json(
+            R"({"surfaceUpdate": {"surfaceId": "booking", "components": [
+                {"id": "root", "component": {"Card": {"child": "body"}}},
+                {"id": "body", "component": {"Column": {"children": {"explicitList": ["title", "guests", "notes", "book"]}}}},
+                {"id": "title", "component": {"Text": {"text": {"literalString": "Table for two"}, "usageHint": "h2"}}},
+                {"id": "guests", "component": {"Slider": {"value": {"path": "/reservation/guests"}, "minValue": 1, "maxValue": 8}}},
+                {"id": "notes", "component": {"TextField": {"label": {"literalString": "Notes"}, "text": {"path": "/reservation/notes"}}}},
+                {"id": "book", "component": {"Button": {"child": "book_label", "primary": true,
+                    "action": {"name": "book", "context": [{"key": "guests", "value": {"path": "/reservation/guests"}}]}}}},
+                {"id": "book_label", "component": {"Text": {"text": {"literalString": "Book"}}}}]}})").value().json() +
+            "\n" + parse_json(R"({"dataModelUpdate": {"surfaceId": "booking", "path": "/reservation", "contents": [{"key": "guests", "valueNumber": 2}, {"key": "notes", "valueString": ""}]}})").value().json();
+        const Answer kept = invoke(protocol, "generate.a2ui", Value{}.set("messages", first).set("surface", "extras").set("commit", true));
+        expect(eq(kept.exit, 0) && kept.data.get("drafts")->list()->empty()) << kept.error << kept.data.json();
+        // Rendering begins: drafted, committed, shown — the slider at the data's 2.
+        const Answer shown = invoke(protocol, "generate.a2ui",
+                                    Value{}.set("messages", parse_json(R"({"beginRendering": {"surfaceId": "booking", "root": "root"}})").value())
+                                        .set("surface", "extras").set("commit", true));
+        expect(eq(shown.exit, 0) && eq(shown.data.get("drafts")->list()->size(), std::size_t{1})) << shown.error;
+        expect(page.shows("Table for two") && page.shows("Book"));
+        const semantic::Snapshot now = semantic::Tree(page.rt).snapshot({});
+        const auto slider = std::ranges::find_if(now.nodes, [](const spec::SemanticNode& node) { return node.id.ends_with("/guests"); });
+        expect(slider != now.nodes.end() && slider->value.json().contains("2")) << (slider != now.nodes.end() ? slider->value.json() : std::string("no slider"));
+        // The person books: the action, with its context read from the data, handed back.
+        Invocation person;
+        person.actor = {"person", "guest", {}};
+        const auto book = std::ranges::find_if(now.nodes, [](const spec::SemanticNode& node) { return node.id.ends_with("/book"); });
+        expect(book != now.nodes.end());
+        if (book != now.nodes.end()) (void)semantic::Tree(page.rt).act(book->id, "activate", person);
+        const Answer acted = invoke(protocol, "generate.actions");
+        expect(eq(acted.data.get("actions")->list()->size(), std::size_t{1})) << acted.data.json();
+        if (!acted.data.get("actions")->list()->empty()) {
+            const Value& action = acted.data.get("actions")->list()->front();
+            expect(action.get("name")->as_string() == "book" && action.get("sourceComponentId")->as_string() == "book" &&
+                   action.get("surfaceId")->as_string() == "booking")
+                << action.json();
+            expect(action.get("context") && eq(action.get("context")->get("guests")->as_double(), 2.0)) << action.json();
+        }
+        expect(invoke(protocol, "generate.actions", Value{}.set("since", acted.data.get("last")->as_int())).data.get("actions")->list()->empty());
+        // A later update to the same surface: a new version, the rest kept.
+        const Answer changed = invoke(protocol, "generate.a2ui",
+                                      Value{}.set("messages", parse_json(R"({"surfaceUpdate": {"surfaceId": "booking", "components": [
+                                          {"id": "title", "component": {"Text": {"text": {"literalString": "Table for four"}}}}]}})").value())
+                                          .set("surface", "extras").set("commit", true));
+        expect(eq(changed.exit, 0) && eq(changed.data.get("drafts")->list()->front().get("version")->as_int(), std::int64_t{2})) << changed.error;
+        expect(page.shows("Table for four") && page.shows("Book"));
+        // Not read yet, or not sent: named, nothing drafted.
+        const Answer unread = invoke(protocol, "generate.a2ui",
+                                     Value{}.set("messages", parse_json(R"([{"surfaceUpdate": {"surfaceId": "more", "components": [
+                                         {"id": "root", "component": {"Column": {"children": {"explicitList": ["when", "missing"]}}}},
+                                         {"id": "when", "component": {"DateTimeInput": {}}}]}}, {"beginRendering": {"surfaceId": "more", "root": "root"}}])").value())
+                                         .set("surface", "extras"));
+        expect(eq(unread.exit, 1) && unread.error.contains("DateTimeInput is not read yet") && unread.error.contains("`missing` is named but was not sent"))
+            << unread.error;
+        // deleteSurface: the surface goes, a step undo takes back.
+        expect(eq(invoke(protocol, "generate.a2ui", Value{}.set("messages", parse_json(R"({"deleteSurface": {"surfaceId": "booking"}})").value())
+                                                    .set("surface", "extras").set("commit", true)).exit, 0));
+        expect(!page.shows("Table for four"));
+        expect(eq(talk(protocol, Value{}.set("op", "undo")).exit, 0));
+        expect(page.shows("Table for four"));
     };
 
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {

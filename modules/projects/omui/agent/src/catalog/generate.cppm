@@ -26,12 +26,20 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_generate_re
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_versions{{
     {"surface", "string", "a surface generate.surfaces names", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_generate_a2ui{{
+    {"messages", "json", "A2UI messages: one, a list, or a string of JSON lines", false},
+    {"surface", "string", "the surface every A2UI surface goes into (default: the one named as its surfaceId)", true},
+    {"commit", "bool", "commit each draft at once (a stream shown as it comes)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_actions{{
+    {"since", "integer", "the last number already read (0: from the first kept)", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_generate_discard{{
     {"draft", "string", "a draft generate.draft answered", false},
 }};
 
 // Put generated interface into a running application: drafts checked against what it registers and how open it is, prepared, previewed as real pixels, committed as versions of a surface that undo takes back.
-inline constexpr std::array<mlibs::control::CatalogEntry, 8> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 10> catalog{{
     {{"generate.surfaces", openas::Effect::read, false}, "Where generated interface may go and how far: each surface the application declares (its name, what it is for, its version now), how open generation is (off, data, limited, all), the limits a draft is held to, and in limited the components and verbs it may use", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"generate.draft", openas::Effect::reversible, false}, "A draft for a surface, taken through the stages it can reach at once: validated (a view document checked against the registered components, the limits and how open generation is — every problem at its JSON pointer) and prepared (built, nothing shown). Code (limited, all) is first evaluated, sandboxed, into its document", parameters_generate_draft, "json", mlibs::control::Cost::bounded, "generate.discard", false, false, false},
     {{"generate.preview", openas::Effect::read, false}, "A prepared draft shown without being kept: mounted at its surface unseen, the window's picture before and after (PNG) and the semantic changes it would bring, then the surface as it was", parameters_generate_preview, "json", mlibs::control::Cost::bounded, "", false, false, false},
@@ -39,6 +47,8 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 8> catalog{{
     {{"generate.restore", openas::Effect::reversible, false}, "A surface back to a version it had (0: empty), as a new step undo takes back", parameters_generate_restore, "json", mlibs::control::Cost::frame, "ui.undo", false, true, false},
     {{"generate.versions", openas::Effect::read, false}, "A surface's versions: each one's number, who made it, when, its draft and its document; and the one shown", parameters_generate_versions, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"generate.drafts", openas::Effect::read, false}, "The drafts not yet committed or discarded: each one's surface, the stage it reached and its problems", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"generate.a2ui", openas::Effect::reversible, false}, "A2UI messages (v0.8's surfaceUpdate, dataModelUpdate, beginRendering, deleteSurface; one, a list, or JSON lines of a stream): the components kept between calls, each surface that renders drafted as a view document — committed too when asked, so a stream shows as it comes; what is not read yet is named, not guessed", parameters_generate_a2ui, "json", mlibs::control::Cost::bounded, "ui.undo for what it committed; generate.discard for its drafts", false, true, false},
+    {{"generate.actions", openas::Effect::read, false}, "What the person did in generated interface, in order: each event a generated view emitted (an A2UI button's action: its name, surfaceId, sourceComponentId and context) with its number, the surface and the time — after `since`", parameters_generate_actions, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"generate.discard", openas::Effect::reversible, false}, "A draft let go: nothing shown changes", parameters_generate_discard, "json", mlibs::control::Cost::instant, "generate.draft with the same document", false, false, false},
 }};
 
@@ -63,6 +73,10 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"surface": {"type": "string", "description": "a surface generate.surfaces names"}}, "required": ["surface"]}},
     {"name": "generate.drafts", "description": "The drafts not yet committed or discarded: each one's surface, the stage it reached and its problems", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "generate.a2ui", "description": "A2UI messages (v0.8's surfaceUpdate, dataModelUpdate, beginRendering, deleteSurface; one, a list, or JSON lines of a stream): the components kept between calls, each surface that renders drafted as a view document — committed too when asked, so a stream shows as it comes; what is not read yet is named, not guessed", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo for what it committed; generate.discard for its drafts", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"messages": {"description": "A2UI messages: one, a list, or a string of JSON lines"}, "surface": {"type": "string", "description": "the surface every A2UI surface goes into (default: the one named as its surfaceId)"}, "commit": {"type": "boolean", "description": "commit each draft at once (a stream shown as it comes)"}}, "required": ["messages"]}},
+    {"name": "generate.actions", "description": "What the person did in generated interface, in order: each event a generated view emitted (an A2UI button's action: its name, surfaceId, sourceComponentId and context) with its number, the surface and the time — after `since`", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"since": {"type": "integer", "description": "the last number already read (0: from the first kept)"}}, "required": []}},
     {"name": "generate.discard", "description": "A draft let go: nothing shown changes", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "generate.draft with the same document", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"draft": {"type": "string", "description": "a draft generate.draft answered"}}, "required": ["draft"]}}
   ],

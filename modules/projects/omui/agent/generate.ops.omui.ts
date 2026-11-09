@@ -85,6 +85,28 @@ export default defineOps({
       cost: "instant",
     },
     {
+      name: "generate.a2ui",
+      effect: "reversible",
+      summary: "A2UI messages (v0.8's surfaceUpdate, dataModelUpdate, beginRendering, deleteSurface; one, a list, or JSON lines of a stream): the components kept between calls, each surface that renders drafted as a view document — committed too when asked, so a stream shows as it comes; what is not read yet is named, not guessed",
+      params: [
+        { name: "messages", type: "json", doc: "A2UI messages: one, a list, or a string of JSON lines" },
+        { name: "surface", type: "string", doc: "the surface every A2UI surface goes into (default: the one named as its surfaceId)", optional: true },
+        { name: "commit", type: "bool", doc: "commit each draft at once (a stream shown as it comes)", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "ui.undo for what it committed; generate.discard for its drafts",
+      undoable: true,
+    },
+    {
+      name: "generate.actions",
+      effect: "read",
+      summary: "What the person did in generated interface, in order: each event a generated view emitted (an A2UI button's action: its name, surfaceId, sourceComponentId and context) with its number, the surface and the time — after `since`",
+      params: [{ name: "since", type: "integer", doc: "the last number already read (0: from the first kept)", optional: true }],
+      result: "json",
+      cost: "instant",
+    },
+    {
       name: "generate.discard",
       effect: "reversible",
       summary: "A draft let go: nothing shown changes",

@@ -27,6 +27,7 @@ import omui.core;
 import omui.view;
 import omui.viewdoc;
 import :protocol;
+import :a2ui;
 
 export namespace omui::agent {
 
@@ -93,6 +94,8 @@ public:
     VerbResult versions(const Value& args) const;
     VerbResult drafts() const;
     VerbResult discard(const Value& args);
+    VerbResult a2ui(const Value& args);
+    VerbResult actions(const Value& args) const;
 
     struct Impl;
 

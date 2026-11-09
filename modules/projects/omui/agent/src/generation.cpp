@@ -84,6 +84,11 @@ struct Generation::Impl {
     std::vector<std::string>                  added;  // the verbs, removed with it
 
     std::uint64_t waiting = 0;  // the timer that shows what was kept once its slots are on screen
+    // What the person did in generated interface (the events its views emit), the last ones kept.
+    static constexpr std::size_t actions_kept = 256;
+    std::deque<Value>            actions;
+    std::int64_t                 next_action = 1;
+    A2uiReader                   a2ui;  // an A2UI stream's surfaces, between calls
 
     Impl(Runtime& rt, GenerationOptions given) : runtime(rt), options(std::move(given)) {
         for (const Surface& surface : options.surfaces) surfaces.try_emplace(surface.name);
@@ -257,7 +262,22 @@ struct Generation::Impl {
         return document;
     }
 
-    VerbResult draft(const Value& args) {
+    // An event a generated view emitted, kept for the agent (generate.actions): an A2UI button's
+    // action as A2UI has it — its context gathered from the `context.` arguments.
+    void acted(std::string_view surface, std::string_view event, const Value& args) {
+        Value entry = Value{}.set("n", next_action++).set("surface", std::string(surface)).set("event", std::string(event)).set("at", runtime.now().count());
+        Value context(Value::Map{});
+        if (args.map())
+            for (const auto& [key, value] : *args.map()) {
+                if (key.starts_with("context.")) context.set(key.substr(8), value);
+                else entry.set(key, value);
+            }
+        if (context.map() && !context.map()->empty()) entry.set("context", std::move(context));
+        actions.push_back(std::move(entry));
+        if (actions.size() > actions_kept) actions.pop_front();
+    }
+
+    VerbResult draft(const Value& args, const std::shared_ptr<Impl>& self) {
         if (options.openness == Openness::off) return std::unexpected(std::string("generation is off in this application"));
         const std::string surface = text_arg(args, "surface");
         if (auto known = surface_of(surface); !known) return std::unexpected(known.error());
@@ -288,6 +308,10 @@ struct Generation::Impl {
             return std::unexpected(std::format("the draft could not be prepared:{}", problems));
         }
         ++next_draft;
+        const std::weak_ptr<Impl> alive = self;
+        view->on_any([alive, surface](std::string_view event, const Value& emitted) {
+            if (auto impl = alive.lock()) impl->acted(surface, event, emitted);
+        });
         drafts.insert_or_assign(id, Draft{id, surface, document, actor_now(runtime), Stage::prepared, std::move(*view)});
         return Value{}.set("draft", id).set("surface", surface).set("stage", "prepared").set("bytes", static_cast<std::int64_t>(document.size()));
     }
@@ -401,6 +425,53 @@ struct Generation::Impl {
         return out;
     }
 
+    VerbResult read_a2ui(const Value& args, const std::shared_ptr<Impl>& self) {
+        const Value* given = args.get("messages");
+        if (!given) return std::unexpected(std::string("generate.a2ui reads `messages`: A2UI messages, one, a list, or JSON lines"));
+        const A2uiReader::Read read = a2ui.feed(given->type() == Value::Type::text ? std::string(given->as_string()) : given->json());
+        if (!read.problems.empty()) {
+            std::string problems;
+            for (const std::string& problem : read.problems) problems += "\n  " + problem;
+            return std::unexpected(std::format("the A2UI messages were not all read:{}", problems));
+        }
+        const std::string into = text_arg(args, "surface");
+        const bool commit_now = args.get("commit") && args.get("commit")->as_bool();
+        Value::List made;
+        for (const A2uiReader::Rendered& rendered : read.rendered) {
+            const std::string surface = into.empty() ? rendered.surface : into;
+            auto drafted = draft(Value{}.set("surface", surface).set("document", rendered.document), self);
+            if (!drafted) return std::unexpected(std::format("A2UI surface `{}`: {}", rendered.surface, drafted.error()));
+            Value one = Value{}.set("a2ui", rendered.surface).set("surface", surface).set("draft", *drafted->get("draft"));
+            if (commit_now) {
+                auto committed = commit(Value{}.set("draft", *drafted->get("draft")), self);
+                if (!committed) return std::unexpected(std::format("A2UI surface `{}`: {}", rendered.surface, committed.error()));
+                one.set("version", *committed->get("version"));
+            }
+            made.push_back(std::move(one));
+        }
+        Value::List deleted;
+        for (const std::string& gone : read.deleted) {
+            const std::string surface = into.empty() ? gone : into;
+            deleted.push_back(Value(gone));
+            if (commit_now)
+                if (auto known = surface_of(surface); known && (*known)->current != 0) {
+                    const std::size_t before = (*known)->current;
+                    show(surface, 0, Presented::undo);
+                    into_history(surface, before, 0, self);
+                }
+        }
+        return Value{}.set("drafts", Value(std::move(made))).set("deleted", Value(std::move(deleted)));
+    }
+
+    Value actions_value(const Value& args) const {
+        const Value* since = args.get("since");
+        const std::int64_t after = since && since->is_number() ? since->as_int() : 0;
+        Value::List list;
+        for (const Value& entry : actions)
+            if (entry.get("n")->as_int() > after) list.push_back(entry);
+        return Value{}.set("actions", Value(std::move(list))).set("last", next_action - 1);
+    }
+
     Value drafts_value() const {
         Value::List list;
         for (const auto& [id, draft] : drafts)
@@ -424,6 +495,8 @@ Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std:
     add("generate.versions", [this](const Value& args) { return versions(args); });
     add("generate.drafts", [this](const Value&) { return drafts(); });
     add("generate.discard", [this](const Value& args) { return discard(args); });
+    add("generate.a2ui", [this](const Value& args) { return a2ui(args); });
+    add("generate.actions", [this](const Value& args) { return actions(args); });
 }
 
 Generation::~Generation() {
@@ -431,7 +504,9 @@ Generation::~Generation() {
 }
 
 VerbResult Generation::surfaces() const { return impl_->surfaces_value(); }
-VerbResult Generation::draft(const Value& args) { return impl_->draft(args); }
+VerbResult Generation::draft(const Value& args) { return impl_->draft(args, impl_); }
+VerbResult Generation::a2ui(const Value& args) { return impl_->read_a2ui(args, impl_); }
+VerbResult Generation::actions(const Value& args) const { return impl_->actions_value(args); }
 VerbResult Generation::preview(const Value& args) { return impl_->preview(args); }
 VerbResult Generation::commit(const Value& args) { return impl_->commit(args, impl_); }
 VerbResult Generation::restore(const Value& args) { return impl_->restore(args, impl_); }

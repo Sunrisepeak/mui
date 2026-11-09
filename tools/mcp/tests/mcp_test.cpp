@@ -155,7 +155,7 @@ UTest cases{"mcp", [] {
             expect(eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui")));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 59) << "nineteen ui_* tools, Live Design's thirty-two and runtime generation's eight (nothing runs: all listed)";
+        expect(tools && tools->list() && tools->list()->size() == 61) << "nineteen ui_* tools, Live Design's thirty-two and runtime generation's ten (nothing runs: all listed)";
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -170,7 +170,7 @@ UTest cases{"mcp", [] {
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_expect", "design_check", "design_handover", "design_save_scenario",
                                                   "design_replay", "design_discard", "design_commit", "design_pace",
                                                   "generate_surfaces", "generate_draft", "generate_preview", "generate_commit", "generate_restore",
-                                                  "generate_versions", "generate_drafts", "generate_discard"}));
+                                                  "generate_versions", "generate_drafts", "generate_discard", "generate_a2ui", "generate_actions"}));
             // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
@@ -211,7 +211,7 @@ UTest cases{"mcp", [] {
         serve(notes.h, server, c);
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
         expect(tools && tools->list() && tools->list()->size() == 19) << (tools ? tools->json() : std::string("<none>"));
-        expect(eq(server.tools().size(), std::size_t{59})) << "every tool still known";
+        expect(eq(server.tools().size(), std::size_t{61})) << "every tool still known";
         expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
     };
 

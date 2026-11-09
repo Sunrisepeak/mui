@@ -895,7 +895,14 @@ my-app/
   - CI 新增 `tools/ci/generation-e2e.sh`：一个 TS 应用在发布模式下开放 limited，Agent 经 `omui agent call` 用 TS 代码起草两张卡片、预演（有前后 PNG，之后什么都不留）、提交、撤销、重做、查看版本；未允许的组件和不会结束的代码被拒绝。
 - 第三块完成（第 4 步的进场）：生成的内容按 Live Design 呈现设计步骤的方式出现——提交时新内容写入并落定，撤销时倒放，恢复某个版本时按切换呈现；呈现结束后恢复原有的呈现设置。端到端验证时发现：撤销后整个表面在退场，但它的子节点在语义树里没有 `removing` 状态，`wait settled` 因而过早返回。已修正为祖先正在移除时子节点也是 `removing`（S-4）。
 - 第四块完成：版本持久化。`GenerationOptions::directory` 保存每个版本的文档和一个索引（player 用应用旁的 `.omui/generation/`）；应用再次启动时逐个版本按当时的注册内容和开放程度重新校验，之前显示的版本等它的 slot 出现后再显示；不再通过的版本不显示，`generate.surfaces` 说明原因。端到端脚本重启应用后确认版本仍在。
-- 下一块：签名包（第 2 步）；A2UI 适配（第 3 步）；动作提取为技能（第 5 步）；读写集合（第 6 步）。
+- 第五块完成：A2UI 适配（第 3 步，作为输入格式，支持流式）。`omui.agent:a2ui` 读取 A2UI v0.8 的服务端消息（surfaceUpdate、dataModelUpdate、beginRendering、deleteSurface；单条、列表或 JSON lines），组件在多次调用之间保留；每个开始渲染的 A2UI surface 在每次变化后转成视图文档，`generate.a2ui` 把它作为草稿，`commit: true` 时立即提交，流式内容随到随显示。
+  - 读取的组件：Text、Image、Row、Column、List、Card、Button、CheckBox、TextField、Slider、Divider。值是字面量或数据路径，路径变成 signal（可输入的组件用双向绑定）。Agent 发来的文字标为 `remote`（S-3）。
+  - Button 的 action 作为 `action` 事件发出；`generate.actions` 按顺序把人在生成界面里的操作交回 Agent（A2UI 的 name、surfaceId、sourceComponentId 和从数据读出的 context）。
+  - 还没有读取的（Tabs、Modal、MultipleChoice、DateTimeInput、Video、AudioPlayer、Icon、模板）会指名报告，不做猜测；deleteSurface 清空表面，作为一步可以撤销。
+  - 说明：方案里写的是“A2UI 1.0”，目前公开的是 v0.8 的消息格式，这里按 v0.8 实现。
+  - 验收：generation_test 用一段订座流：先发组件和数据（不渲染）；beginRendering 后提交并显示（滑块取数据里的 2）；人按下 Book，`generate.actions` 交回 action 和 context；之后的更新成为版本 2；未读取的组件和缺失的组件被指名；deleteSurface 可以撤销。
+- 第 2 步（签名包）需要一个 Ed25519 实现：mcpp-index 里的 compat.openssl 不支持 Windows 和 Web，compat.mbedtls 没有 EdDSA。可选的做法是把 monocypher（CC0/BSD-2）按 mwrap 包成 mcpplibs 的新仓库并发布到 mcpp-index——这要新建对外仓库，先请维护者确认。
+- 下一块：动作提取为技能（第 5 步）；读写集合（第 6 步）。
 
 **W6 性能证据（E1、E2、E3、D-143）**
 1. AVX2 运行时分派，追平描边和连接。

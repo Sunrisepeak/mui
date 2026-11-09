@@ -14,10 +14,8 @@ int main() {
     const bool music = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "music",
                                               .suffix = ".music.omui.toml", .tag = "music"});
     // The contraptions' scripts, as shipped (their casings edit copies).
-    bool gifts = true;
-    for (const char* language : {"ts", "lua", "py"})
-        gifts = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "gifts",
-                                       .suffix = std::format(".{}", language), .tag = language}) && gifts;
+    const bool gifts = omui::build::embed({.module = "omui.showcase.widget_breakout", .ns = "omui::breakout::files", .dir = "gifts",
+                                           .suffix = ".ts", .tag = "ts"});
     // On the Web, a Bilibili Toy package: mcpp pack --target wasm32-emscripten --pkg-format dist-toy.
     const bool toy = omui::build::dist_toy({.target = "omui-breakout", .title = "组件打砖块",
                                                .fonts = {"Inter", "NotoSansSC", "TwemojiMozilla", "JetBrainsMono"}, .background = "#0b0f1a"});

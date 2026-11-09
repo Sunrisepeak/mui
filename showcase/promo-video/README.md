@@ -2,7 +2,7 @@
 
 *This pixel knows what it is.* Sixty seconds at 60 frames a second, and a fifteen-second cut (16:9 and 9:16), made with openmui: every shot is a live openmui scene drawn on the headless host, the film itself is data, and it checks itself against its acceptance ([promo-video design](../../.agents/docs/2026-10-26-openmui-promo-video-design.md) §5.1).
 
-![A beat of every chapter: the pixel, the wordmark, the counter in four languages, the wall, the styles, the agent, the rewind, the command (drawn headless)](media/film.webp)
+![A beat of every chapter: the pixel, the wordmark, the counter in TypeScript and C++, the wall, the styles, the agent, the rewind, the command (drawn headless)](media/film.webp)
 
 How it was made, and what making it taught: [dev story](dev-story.md).
 
@@ -37,7 +37,7 @@ The WebM is put together from 2-second chunks (`--chunk N` frames), each begun w
 |---|---|---|---|
 | 0:00 | Hook | `origin`: the style workshop's settings panel (S2) in the blueprint style, on a host of its own | A cyan pixel lights in the dark, and the label beside it is read from the renderer's object ids and the semantic tree: `button#save · role=button · effect=reversible` |
 | 0:04 | Title | `origin` | The camera pulls back through the panel's real pixels; its semantic tree grows beside it, the path to the button lit; the tree's lines fly to the wordmark's outline; a band of light (a `wipe` inside a `wipe`) crosses it |
-| 0:08 | Code | `code`: the tally counter in TypeScript, C++, Python and Lua (`code/`) | `tally.ts` typed (glyph motion over a code block), the counter appearing a node at a time as its lines arrive; then C++, Python, Lua on the beat — each **run** in its own runtime (QuickJS-ng, compiled C++, PocketPy, Lua) and its tree and pixel hashes shown: the same four times |
+| 0:08 | Code | `code`: the tally counter in TypeScript and C++ (`code/`) | `tally.ts` typed (glyph motion over a code block), the counter appearing a node at a time as its lines arrive; then C++ on the beat — each **run** in its own runtime (QuickJS-ng, compiled C++) and its tree and pixel hashes shown: the same twice, then side by side |
 | 0:16 | Infinite | `infinite`: the Markdown wall (S1), a thousand documents, the film's own script among them | One shot from a live page out to the whole wall and in to another page; the corner counts what each frame draws, by tier |
 | 0:28 | Styles | `styles`: the style workshop (S2) | Glass, neon, retro, ink, liquid and back to the blueprint, on the beat; the preview's semantic tree hashed each frame: unchanged |
 | 0:36 | Agent | `agent`: a notes panel | An agent stars a note (reversible), undoes it, asks to delete every note — stopped with `needs-answer` until a person answers; a headline says what each step means; the tree as it reads it, the protocol's records, the journal |
@@ -49,7 +49,7 @@ The data, every file carried in the program (`omui.build.embed`) and read from `
 - `promo.timeline.omui.toml`, `short.timeline.omui.toml` — the cuts (`xengine.timeline`): a picture track of `shot:<name>` and `film` clips whose keyed properties are each scene's camera and choreography; the lines' track (`line:<id>`); the music's clips; the sound cues; `chapter:` and `hit:` markers.
 - `promo.subtitles.omui.toml` — every line in Chinese and English.
 - `music/promo.music.omui.toml` — the score (`xengine.audio`), 120 beats a minute, a section a chapter; `sounds/promo.sound.omui.toml` — the picture's sounds.
-- `blueprint.style.omui.toml` — the film's look, a style pack; `script/*.md` — the storyboard, a page a chapter, shown on the wall; `code/tally.*` — the four versions of the counter.
+- `blueprint.style.omui.toml` — the film's look, a style pack; `script/*.md` — the storyboard, a page a chapter, shown on the wall; `code/tally.*` — the counter's two versions.
 
 ## How it works
 

@@ -1,6 +1,6 @@
 # omui.gen (`omui-gen`)
 
-The generator: `spec/registry` and `*.contract.omui.toml` to every derived artifact — `openmui.h`, the `openmui.spec` partitions, reference tables, TS / Python / Lua builders and the view-document schema (implementation plan §4.2).
+The generator: `spec/registry` and `*.contract.omui.toml` to every derived artifact — `openmui.h`, the `openmui.spec` partitions, reference tables, TypeScript builders and the view-document schema (implementation plan §4.2).
 
 ```bash
 omui-gen registry spec/registry --out spec [--check] [--json]

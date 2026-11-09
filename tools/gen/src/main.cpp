@@ -2,7 +2,7 @@
 //
 //   omui-gen registry <spec/registry> --out <spec> [--check] [--json]
 //       openmui.h, the openmui.spec partitions, the reference tables, the Core
-//       builders for TS / Python / Lua and the view-document schema
+//       TypeScript builders and the view-document schema
 //   omui-gen stubs <file.contract.omui.toml>... --registry <dir> --module <m>
 //                  --out <dir> [--check] [--json]
 //       a component package's script builders and view-document schema
@@ -14,7 +14,7 @@
 //   omui-gen native <file.native.omui.toml>... --registry <dir> --module <m>
 //                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
 //       a native module's C++ (records, the functions to implement, define())
-//       and its TS / Python / Lua stubs (component-binding §8)
+//       and its TypeScript stubs (component-binding §8)
 //   omui-gen embed <file> --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
@@ -171,8 +171,6 @@ int run_registry(const Options& o) {
     w.put(o.out / "src" / "generated" / "catalog.cppm", emit_spec_catalog(reg));
     w.put(o.out / "docs" / "registry.md", emit_docs(reg));
     w.put(o.out / "stubs" / "core.d.ts", emit_dts(reg.contracts, "the Core profile"));
-    w.put(o.out / "stubs" / "core.pyi", emit_pyi(reg.contracts, "the Core profile"));
-    w.put(o.out / "stubs" / "core.lua", emit_lua(reg.contracts, "the Core profile"));
     w.put(o.out / "schema" / "core.components.json", emit_view_schema(reg.contracts, "the Core profile"));
     if (o.check) {
         if (w.stale) {
@@ -280,7 +278,7 @@ int run_cpp(const Options& o) {
 bool is_native(const std::filesystem::path& file) { return generic_utf8(file).ends_with(".native.omui.toml"); }
 
 // A native module's C++ (<name>_native.cppm) and the stubs of the files'
-// modules: <module>.natives.d.ts, <name>.pyi, <module>.natives.lua.
+// modules: <module>.natives.d.ts.
 int run_native(const Options& o) {
     if (o.inputs.empty() || o.registry.empty() || o.module.empty() || o.out.empty()) return usage();
     Diagnostics diags;
@@ -301,17 +299,13 @@ int run_native(const Options& o) {
     for (auto& [m, source] : modules) {
         if (!o.native.empty() && m.name != o.native) continue;
         if (o.part != "stubs") w.put(o.out / (m.name + "_native.cppm"), emit_cpp_native(m, cpp, source));
-        if (o.part != "cpp") w.put(o.out / (m.name + ".pyi"), emit_native_pyi(m, o.module));
         selected.push_back(m);
     }
     if (!o.native.empty() && selected.empty()) {
         std::println(std::cerr, "omui-gen: no native module `{}` in the files given", o.native);
         return 1;
     }
-    if (o.part != "cpp") {
-        w.put(o.out / (o.module + ".natives.d.ts"), emit_native_dts(selected, o.module));
-        w.put(o.out / (o.module + ".natives.lua"), emit_native_lua(selected, o.module));
-    }
+    if (o.part != "cpp") w.put(o.out / (o.module + ".natives.d.ts"), emit_native_dts(selected, o.module));
     if (o.check) {
         if (w.stale) return 1;
         std::println("omui-gen: generated files are current");
@@ -391,8 +385,6 @@ int run_contracts(const Options& o, bool emit) {
 
     Writer w{o.check};
     w.put(o.out / (o.module + ".d.ts"), emit_dts(contracts, o.module));
-    w.put(o.out / (o.module + ".pyi"), emit_pyi(contracts, o.module));
-    w.put(o.out / (o.module + ".lua"), emit_lua(contracts, o.module));
     w.put(o.out / (o.module + ".components.json"), emit_view_schema(contracts, o.module));
     if (o.check && w.stale) return 1;
     return 0;

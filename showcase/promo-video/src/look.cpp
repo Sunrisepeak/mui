@@ -47,28 +47,18 @@ std::span<const std::string_view> keywords(std::string_view language) {
     static constexpr std::array<std::string_view, 22> cpp{"return", "auto", "const", "namespace", "import", "module", "export", "static_cast",
                                                           "if", "else", "for", "true", "false", "struct", "class", "using", "int", "double",
                                                           "bool", "void", "std", "inline"};
-    static constexpr std::array<std::string_view, 16> py{"import", "as", "def", "with", "if", "else", "elif", "return", "lambda", "None",
-                                                         "True", "False", "raise", "for", "in", "not"};
-    static constexpr std::array<std::string_view, 13> lua{"local", "function", "return", "end", "if", "then", "else", "nil", "true", "false",
-                                                          "for", "do", "assert"};
-    if (language == "ts") return ts;
-    if (language == "cpp") return cpp;
-    if (language == "py") return py;
-    return lua;
+    return language == "ts" ? std::span<const std::string_view>(ts) : std::span<const std::string_view>(cpp);
 }
 
-std::string_view comment_of(std::string_view language) {
-    if (language == "py") return "#";
-    if (language == "lua") return "--";
-    return "//";
-}
+// Both languages comment a line with `//`.
+constexpr std::string_view line_comment = "//";
 
 }  // namespace
 
 std::vector<std::vector<Span>> highlight(std::string_view code, std::string_view language) {
     std::vector<std::vector<Span>> lines;
     const auto kw = keywords(language);
-    const std::string_view comment = comment_of(language);
+    const std::string_view comment = line_comment;
     std::size_t at = 0;
     while (at <= code.size()) {
         const std::size_t end = std::min(code.find('\n', at), code.size());
@@ -156,8 +146,8 @@ Color token_color(Token t) {
     return hex(ink::ice);
 }
 
-std::string shown_code(std::string_view code, std::string_view language) {
-    const std::string_view comment = comment_of(language);
+std::string shown_code(std::string_view code, std::string_view) {
+    const std::string_view comment = line_comment;
     std::vector<std::string_view> lines;
     std::size_t at = 0;
     while (at < code.size()) {
@@ -166,18 +156,9 @@ std::string shown_code(std::string_view code, std::string_view language) {
         at = end + 1;
     }
     std::size_t first = 0;
-    bool in_doc = false;  // a Python docstring at the head
     for (; first < lines.size(); ++first) {
         std::string_view l = lines[first];
         while (!l.empty() && l.front() == ' ') l.remove_prefix(1);
-        if (language == "py" && l.starts_with("\"\"\"")) {
-            in_doc = !(l.size() > 3 && l.ends_with("\"\"\"")) && !in_doc;
-            continue;
-        }
-        if (in_doc) {
-            if (l.ends_with("\"\"\"")) in_doc = false;
-            continue;
-        }
         if (!l.empty() && !l.starts_with(comment) && !l.starts_with("module ") && !l.starts_with("import std") && !l.starts_with("import omui;") &&
             !l.starts_with("namespace "))
             break;

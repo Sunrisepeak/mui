@@ -1,5 +1,6 @@
-// A tour of the wall through the semantic API — the same in tour.lua and
-// tour.py (the tests check they record the same and leave the same wall).
+// A tour of the wall through the semantic API — the same as tour.py, which
+// drives it as an agent (the tests check they record the same and leave the
+// same wall).
 // Each step's result is recorded with the verb `tour.record`.
 import { act, invoke } from "openmui";
 

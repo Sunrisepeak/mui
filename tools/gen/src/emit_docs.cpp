@@ -84,14 +84,13 @@ std::string emit_docs(const Registry& reg) {
         }
     }
 
-    out += "\n## Expressions\n\n### Operators\n\n| Operator | Text | C++ | TS | Python | Lua |\n|---|---|---|---|---|---|\n";
+    out += "\n## Expressions\n\n### Operators\n\n| Operator | Text | C++ | TS |\n|---|---|---|---|\n";
     auto get = [](const std::map<std::string, std::string>& m, const char* k) {
         auto it = m.find(k);
         return it == m.end() ? std::string("—") : std::format("`{}`", it->second);
     };
     for (const ExprOperator& o : reg.operators)
-        out += std::format("| `{}` | `{}` | {} | {} | {} | {} |\n", o.name, cell(o.text), get(o.combinators, "cpp"),
-                           get(o.combinators, "ts"), get(o.combinators, "python"), get(o.combinators, "lua"));
+        out += std::format("| `{}` | `{}` | {} | {} |\n", o.name, cell(o.text), get(o.combinators, "cpp"), get(o.combinators, "ts"));
     out += "\n### Functions\n\n| Function | Signature | Meaning |\n|---|---|---|\n";
     for (const ExprFunction& f : reg.functions) out += std::format("| `{}` | `{}` | {} |\n", f.name, cell(f.signature), cell(f.doc));
 

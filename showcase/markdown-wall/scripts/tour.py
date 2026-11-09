@@ -1,5 +1,5 @@
-"""A tour of the wall through the semantic API — the same in tour.ts and
-tour.lua (the tests check they record the same and leave the same wall).
+"""A tour of the wall through the semantic API — the same as tour.ts (the
+tests check they record the same and leave the same wall).
 Each step's result is recorded with the verb `tour.record`. Python drives
 the wall as an agent does, through its endpoint:
 

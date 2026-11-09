@@ -1,7 +1,5 @@
 // openmui.showcase.widget_breakout:workshop — the contraptions' scripts
-// (gifts/*), what is inside their casings: wide.ts and pierce.ts in
-// TypeScript, slow.lua and magnet.lua in Lua, multi.py in Python (PocketPy,
-// embedded). Each script registers a verb `gift.<name>` answering its gift's
+// (gifts/*.ts, in TypeScript), what is inside their casings. Each script registers a verb `gift.<name>` answering its gift's
 // rules; the workshop runs them on openmui's script host (openmui.lang), and
 // applying an edited one (a preset, or the player's own edit) reloads it in
 // place (hot), asks its verb again, checks what it answers and hands the
@@ -19,7 +17,7 @@ export namespace omui::breakout {
 // A gift's script.
 struct GiftScript {
     std::string gift;      // "wide": its verb is gift.wide
-    std::string language;  // "ts", "lua", "py"
+    std::string language;  // "ts"
     std::string file;      // "wide.ts"
     std::string shipped;   // its text as the game carries it
     std::string source;    // as last applied

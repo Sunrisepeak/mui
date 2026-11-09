@@ -38,12 +38,8 @@ at = "12s"
 name = "hit:cpp"
 
 [[marker]]
-at = "13s"
-name = "hit:python"
-
-[[marker]]
 at = "14s"
-name = "hit:lua"
+name = "hit:both"
 
 [[marker]]
 at = "16s"
@@ -156,10 +152,10 @@ length = "8s"
 name = "typed"
 keys = [["0.3s", 0, "linear"], ["3.7s", 1]]
 
-# Which version is shown: 0 TypeScript, 1 C++, 2 Python, 3 Lua, 4 all four.
+# Which version is shown: 0 TypeScript, 1 C++, 2 both side by side.
 [[track.clip.property]]
 name = "language"
-keys = [["0s", 0, "hold"], ["4s", 1, "hold"], ["5s", 2, "hold"], ["6s", 3, "hold"], ["7s", 4, "hold"]]
+keys = [["0s", 0, "hold"], ["4s", 1, "hold"], ["6s", 2, "hold"]]
 
 [[track.clip]]
 name = "infinite"

@@ -1,7 +1,7 @@
 # omui.player — the player (component-binding §10.2): what a script-first
 # application runs in. It defines the manifest's component documents, mounts
 # its view documents, runs its scripts in the languages registered with it
-# (modules/projects/omui/lang/lua, modules/projects/omui/lang/js …, plugins over the C ABI), and reloads what changes on
+# (modules/projects/omui/lang/js …, plugins over the C ABI), and reloads what changes on
 # disk in place: a view keeps its nodes, a script its signals.
 [package]
 namespace   = "omui"

@@ -186,12 +186,12 @@ export namespace omui::spec {
     // expression language
     out += "// The expression language (expr.toml): operators and built-in functions, with\n"
            "// the combinator name each language uses.\n"
-           "struct Combinators {\n    std::string_view cpp, ts, python, lua;\n};\n\n"
+           "struct Combinators {\n    std::string_view cpp, ts;\n};\n\n"
            "struct OperatorInfo {\n    std::string_view name;\n    std::string_view text;\n    int              arity;\n    Combinators      combinators;\n};\n\n"
            "struct FunctionInfo {\n    std::string_view name;\n    std::string_view signature;\n    Combinators      combinators;\n    std::string_view doc;\n};\n\n";
     auto combinators = [](const std::map<std::string, std::string>& m) {
         auto get = [&](const char* k) { auto it = m.find(k); return it == m.end() ? std::string("\"\"") : cpp_string(it->second); };
-        return std::format("{{{}, {}, {}, {}}}", get("cpp"), get("ts"), get("python"), get("lua"));
+        return std::format("{{{}, {}}}", get("cpp"), get("ts"));
     };
     out += std::format("inline constexpr std::array<OperatorInfo, {}> operators{{{{\n", reg.operators.size());
     for (const ExprOperator& o : reg.operators)

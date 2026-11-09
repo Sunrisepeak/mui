@@ -2,7 +2,7 @@
 // on; the style pack a room asks for applied to the whole window
 // (cross-faded); room 5's copilot playing along; between rooms, the two
 // contraptions offered as cards over the field — each with its two presets,
-// and its casing to open: the script inside it (TypeScript, Lua or Python)
+// and its casing to open: the script inside it (TypeScript)
 // in a real text box, applied by hot reload; the field registered by name
 // for view documents, scripts and agents.
 module omui.showcase.widget_breakout;
@@ -22,7 +22,7 @@ namespace omui::breakout {
 
 namespace {
 
-const char* language_name(std::string_view l) { return l == "ts" ? "TypeScript" : l == "lua" ? "Lua" : "Python (PocketPy)"; }
+const char* language_name(std::string_view l) { return l == "ts" ? "TypeScript" : "a script"; }
 
 // What the application keeps between its setup and its view.
 struct Bench {

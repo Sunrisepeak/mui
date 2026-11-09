@@ -5,7 +5,7 @@
 // CEL the runtime evaluates synchronously; its signals are runtime signals
 // the document declares as provided, so every view and the script share one
 // state; its handlers are the document's own events, forwarded to the script.
-// So a view written in Lua, TypeScript or Python is the same tree as the C++
+// So a view written in TypeScript is the same tree as the C++
 // builder's (CTS S level), and an agent sees no difference.
 export module omui.lang:view;
 
@@ -67,8 +67,8 @@ struct Element {
     std::shared_ptr<Region>                    region;   // set: this is a region, not a component
 };
 
-// An element tree as the bindings' own layers (the JavaScript prelude, the
-// Python package) send it, as JSON:
+// An element tree as the binding's own layer (the JavaScript prelude)
+// sends it, as JSON:
 //   {"type", "id", "props": {name: {"c": constant} | {"e": cel, "s": [signals]}
 //                                  | {"b": signal} | {"t": key, "a": [{"e", "s"}]}},
 //    "on": {event: handler index}, "animate": {prop: transition}, "children": […]}

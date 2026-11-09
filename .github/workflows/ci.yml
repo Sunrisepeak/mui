@@ -184,11 +184,11 @@ jobs:
         run: tools/ci/gpu.sh
 
       - name: Build every member
-        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect
+        run: mcpp build --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
 
       - name: An unchanged build leaves compilation outputs untouched
         timeout-minutes: 10
-        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect
+        run: python3 tools/ci/incremental.py --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect
 
       - name: Keep the incremental build check
         if: always()
@@ -205,7 +205,7 @@ jobs:
         run: |
           # The site is a validation line with hundreds of rendered frames: it
           # has a job of its own (`site`), so this row stays within its time.
-          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.entry.python --exclude omui.reflect --exclude omui.site 2>&1 | tee tests.log
+          mcpp test --workspace --profile '${{ matrix.profile }}' --exclude omui.reflect --exclude omui.site 2>&1 | tee tests.log
           grep -q "workspace result ok" tests.log || { echo "::error::workspace tests failed"; exit 1; }
 
       # The showcases' README pictures are what their tests draw (deterministic:
@@ -359,25 +359,6 @@ jobs:
             results.bench.omui.json
             bench-report.md
           if-no-files-found: ignore
-
-      # The Python extension (src/entry/python) last: it needs an mcpp that
-      # puts the kernel-abi package into a shared library
-      # (mcpp-community/mcpp#846). The probe builds it; with an older mcpp it
-      # is left out, with a warning, and comes back by itself. Nothing else is
-      # built after it.
-      - name: Whether this mcpp links the Python extension
-        id: python
-        run: tools/ci/python-extension-probe.sh '${{ matrix.profile }}'
-
-      - name: The Python binding's suite (CPython against the extension)
-        if: steps.python.outputs.ok == 'true'
-        run: |
-          mcpp test -p omui.entry.python --profile '${{ matrix.profile }}' 2>&1 | tee python.log
-          grep -q "test result ok" python.log || { echo "::error::the Python binding's suite failed"; exit 1; }
-
-      - name: The Python wheel, pip-installed, runs example 03 (M3 acceptance ⑤)
-        if: runner.os == 'Linux' && matrix.profile == 'dev' && steps.python.outputs.ok == 'true'
-        run: tools/ci/python-wheel.sh
 
   # The site's tests (plan §4.1: a validation line in a lane of its own): its
   # pinned pictures and motion processes, hundreds of frames, in release so a

@@ -1,5 +1,5 @@
 // The tally counter in TypeScript: the same tree as src/tally.cpp,
-// ui/tally.view.omui.json and lua/tally.lua (the tests check it).
+// and ui/tally.view.omui.json (the tests check it).
 import { signal, fmt, call, select, ge, eq, column, row, text, progress, button, slider, mount } from "openmui";
 
 const count = signal(0);

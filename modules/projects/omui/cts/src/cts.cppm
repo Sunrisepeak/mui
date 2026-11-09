@@ -4,7 +4,7 @@
 //
 //     const auto report = cts::conform([&](const cts::Scenario& s) {
 //         return cts::run(s, invoke, settle);   // the language runner's verbs
-//     }, {.subject = "lua"});
+//     }, {.subject = "ts"});
 //     check(report && report->ok(), report ? report->text() : report.error());
 export module omui.cts;
 

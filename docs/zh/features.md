@@ -30,13 +30,13 @@
 
 **证据**：CI 六个平台行上固定的像素哈希（示例、组件、展示都有）；CPU 参考光栅器不用浮点收缩；文本、i18n 都不依赖系统库（不用 ICU）。
 
-## 4. 一棵树，四种语言，外加视图文档
+## 4. 一棵树：C++、TypeScript 和视图文档
 
-**是什么**：C++、TypeScript、Python、Lua 和 `*.view.omui.json` 写出同一棵语义树；组件契约优先，四种语言的绑定由生成器产出。
+**是什么**：C++、TypeScript 和 `*.view.omui.json` 写出同一棵语义树；组件契约优先，TypeScript 绑定由生成器产出。脚本语言只有 TypeScript（D-138）：把一种绑定做完整，而不是把几种都做一部分。
 
 **别的框架**：通常绑定一种语言（Dart、Swift、Kotlin、JS），或者多语言绑定由社区各自维护、能力不一致。
 
-**证据**：CTS 场景在三种脚本语言下记录出逐字节相同的轨迹；`omui-gen` 生成绑定、存根和 schema。
+**证据**：CTS 场景在 TypeScript 下记录出固定的轨迹；C++、TypeScript 和视图文档写出的树在测试里逐一比对；`omui-gen` 生成绑定、存根和 schema。
 
 ## 5. 独立动画引擎，可组合的播放
 
@@ -121,7 +121,7 @@ drawing.prop("motion", Source(motion));
 | 开发者上限下的 agent 分级授权（开放标准） | ✓（openas） | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | 跨平台逐字节相同的像素 | ✓ | ✗ | 接近（Skia/Impeller，字体随系统） | ✗ | ✗ | ✗ | ✗ |
 | 精确录制和回放 | ✓ | ✗ | ✗ | ✗ | ✗ | 部分（工具） | ✗ |
-| 多种语言写同一棵树 | ✓（4 种 + 文档） | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
+| 多种语言写同一棵树 | ✓（C++、TS + 文档） | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
 | 自定义着色器效果 | ✓（Slang，热重载） | ✓（QML ShaderEffect） | ✓（FragmentProgram） | ✓（Metal） | ✓（AGSL） | 部分（WebGL） | 手写 |
 | 性能预算进 CI、公开报告 | ✓ | ✗ | 部分 | ✗ | 部分（Macrobenchmark） | ✗ | ✗ |
 | 组件可单独发布 | ✓ | 部分 | ✗ | ✗ | 部分 | ✓（npm） | — |

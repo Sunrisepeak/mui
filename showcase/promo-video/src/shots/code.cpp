@@ -1,11 +1,11 @@
 // The code (0:08–0:16): tally.ts is typed on the left, and the counter it
 // builds appears on the right as each of its lines arrives. Then the code
-// turns into C++, Python and Lua on the beat, and the counter does not move
-// by a pixel — each version runs, in its own runtime (the script hosts:
-// QuickJS-ng for TypeScript, PocketPy for Python, Lua; C++ compiled into
-// the film), and the hashes of its semantic tree and its pixels are shown
-// under it. They are the same four times (the CTS's S level); the last beat
-// shows the four side by side.
+// turns into C++ on the beat, and the counter does not move by a pixel —
+// each version runs in its own runtime (QuickJS-ng for TypeScript, its types
+// blanked; C++ compiled into the film), and the hashes of its semantic tree
+// and its pixels are shown under it. They are the same (the CTS's S level);
+// the last beat shows the two side by side. (Python and Lua were here too
+// until D-138 made TypeScript the one script language.)
 module omui.showcase.promo_video;
 
 import std;
@@ -13,9 +13,7 @@ import hanim.core;
 import omui;
 import omui.abi;
 import omui.lang;
-import omui.lang.lua;
 import omui.lang.js;
-import omui.lang.python.embedded;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -26,9 +24,10 @@ namespace omui::promo {
 
 namespace {
 
-constexpr std::array<std::string_view, 4> languages{"ts", "cpp", "py", "lua"};
-constexpr std::array<std::string_view, 4> language_names{"TypeScript", "C++", "Python", "Lua"};
-constexpr std::array<std::string_view, 4> file_names{"tally.ts", "tally.cpp", "tally.py", "tally.lua"};
+constexpr std::array<std::string_view, 2> languages{"ts", "cpp"};
+constexpr std::array<std::string_view, 2> language_names{"TypeScript", "C++"};
+constexpr std::array<std::string_view, 2> file_names{"tally.ts", "tally.cpp"};
+constexpr int versions = static_cast<int>(languages.size());  // the timeline's last step past them: all side by side
 constexpr Size tally_size{360, 240};
 constexpr std::array<std::string_view, 6> tally_ids{"count", "progress", "status", "controls/minus", "controls/plus", "controls/reset"};
 
@@ -70,31 +69,19 @@ Tally run_tally(std::string_view language, float scale) {
             lang::Host host(handle);
             lang::Session session(host);
             std::string code(source_of(language)), name(std::format("tally.{}", language));
-            std::unique_ptr<lang::lua::Script> lua;
             std::unique_ptr<lang::js::Script> js;
-            std::unique_ptr<lang::python::embedded::Script> py;
             std::future<lang::Result<void>> ran;
             std::vector<std::string> errors;
             auto keep = [&](std::string_view m) { errors.emplace_back(m); };
-            if (language == "lua") {
-                lua = std::make_unique<lang::lua::Script>(session);
-                lua->on_error(keep);
-                ran = lua->run(std::move(code), "@" + name);
-            } else if (language == "ts") {
-                auto compiled = lang::ts::compile_source(code, name);
-                if (!compiled) {
-                    out.error = compiled.error();
-                    abi::detach(handle);
-                    return out;
-                }
-                js = std::make_unique<lang::js::Script>(session);
-                js->on_error(keep);
-                ran = js->run(std::move(*compiled), name);
-            } else {
-                py = std::make_unique<lang::python::embedded::Script>(session);
-                py->on_error(keep);
-                ran = py->run(std::move(code), name);
+            auto compiled = lang::ts::compile_source(code, name);
+            if (!compiled) {
+                out.error = compiled.error();
+                abi::detach(handle);
+                return out;
             }
+            js = std::make_unique<lang::js::Script>(session);
+            js->on_error(keep);
+            ran = js->run(std::move(*compiled), name);
             while (ran.wait_for(std::chrono::seconds(0)) != std::future_status::ready) {
                 h.step();
                 std::this_thread::sleep_for(std::chrono::microseconds(200));
@@ -119,8 +106,7 @@ Tally run_tally(std::string_view language, float scale) {
     return out;
 }
 
-// Run once a process, one at a time (the script hosts' interpreters are the process's: PocketPy keeps
-// sixteen VMs at most), whichever player asks first; the others wait for it.
+// Run once a process, one at a time, whichever player asks first; the others wait for it.
 const Tally& tally_of(std::string_view language, float scale) {
     static std::mutex m;
     static std::map<std::pair<std::string, float>, std::shared_ptr<const Tally>> cache;
@@ -180,8 +166,8 @@ struct State {
     int switch_index = -1;                    // the version switch last passed
     Rect   device, panel;      // screen
     float  shown_scale = 1.8f;
-    std::array<xrender::ImageRef, 4> images{};
-    std::array<const Tally*, 4> tallies{};
+    std::array<xrender::ImageRef, languages.size()> images{};
+    std::array<const Tally*, languages.size()> tallies{};
     Labels labels;
 };
 
@@ -222,7 +208,7 @@ public:
             if (t > 0) switches_.push_back({static_cast<std::int64_t>(std::llround(t * c.rate())), static_cast<int>(std::lround(v))});
         // The timing: each node and its frame as its line is typed; the badges
         // once all of it is; at each version switch, the one before fading and
-        // (at the last) the four spreading out side by side.
+        // (at the last) both spreading out side by side.
         constexpr auto smooth = hanim::ease::smoothstep;
         for (const auto& [id, when] : s.revealed)
             s.timing.span(std::format("node.{}.in", id), when, when + 0.25, smooth).span(std::format("node.{}.settled", id), when + 0.6, when + 1.1, smooth);
@@ -299,7 +285,7 @@ public:
     // A switch: the code shown scatters, the next gathers.
     void moment(Runtime& rt, std::int64_t frame) override {
         for (const auto& [f, l] : switches_) {
-            if (f != frame || l > 3) continue;
+            if (f != frame || l >= versions) continue;
             const int from = l - 1;
             if (from >= 0) rt.set(blocks_[static_cast<std::size_t>(from)], "glyph_motion", to_value(GlyphMotion::scatter(static_cast<std::uint64_t>(from + 3))));
             GlyphMotion in = GlyphMotion::gather(static_cast<std::uint64_t>(l + 11));
@@ -320,11 +306,11 @@ public:
                 lang = switches_[k].second, since = static_cast<double>(switches_[k].first) / c_.rate(), s.switch_index = static_cast<int>(k);
         s.language = lang;
         s.switched = since;
-        const int code = std::min(lang, 3);
+        const int code = std::min(lang, versions - 1);
         for (std::size_t i = 0; i < languages.size(); ++i) {
             double o = 0;
             if (static_cast<int>(i) == code) o = 1;
-            else if (lang <= 3 && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - s.timing[std::format("switch.{}.fade", s.switch_index)];
+            else if (lang < versions && static_cast<int>(i) == code - 1 && since >= 0) o = 1 - s.timing[std::format("switch.{}.fade", s.switch_index)];
             rt.set(blocks_[i], "opacity", Value(o));
         }
         rt.set(rt.find("main/type/panel/title/file"), "text", Value(std::string(file_names[static_cast<std::size_t>(code)])));
@@ -372,7 +358,7 @@ public:
         }
         for (const auto& [f, l] : switches_) {
             const double at = static_cast<double>(f) / c_.rate();
-            if (at < seconds) out.push_back({at, l > 3 ? "sting" : "morph", l > 3 ? 0.7f : 1.0f, 0, 1});
+            if (at < seconds) out.push_back({at, l >= versions ? "sting" : "morph", l >= versions ? 0.7f : 1.0f, 0, 1});
         }
         return out;
     }
@@ -382,9 +368,9 @@ private:
 
     ShotContext                         c_;
     std::shared_ptr<State>              s_;
-    std::array<std::string, 4>          code_;
+    std::array<std::string, languages.size()> code_;
     std::vector<std::pair<std::int64_t, int>> switches_;  // the frame each version comes in
-    std::array<NodeId, 4>               blocks_{};
+    std::array<NodeId, languages.size()> blocks_{};
     NodeId                              backdrop_{};
     float                               size_ = 15.5f;
 };
@@ -401,7 +387,7 @@ void Code::paint(PaintContext& p, State& s) {
     const Rect d = s.device;
     const int lang = s.language;
     const auto img_rect = [&](std::size_t i) { return Rect{0, 0, static_cast<float>(s.tallies[i]->pixels->width()), static_cast<float>(s.tallies[i]->pixels->height())}; };
-    if (lang <= 3) {
+    if (lang < versions) {
         // The counter the version shown draws; while tally.ts is typed, a node at a time as its line arrives.
         const std::size_t i = static_cast<std::size_t>(lang);
         const Tally* v = s.tallies[i];
@@ -435,12 +421,13 @@ void Code::paint(PaintContext& p, State& s) {
         const auto& cap = s.labels.get(p.services.fonts(), std::format("runs in {} · 360 × 240", language_names[i]), 18, hex(ink::muted), 500, "JetBrains Mono");
         xrender::text::paint(cap, list, {d.x, d.y - 38});
     } else {
-        // All four, side by side: the same pixels.
+        // Both, side by side: the same pixels.
         const double u = s.timing[std::format("switch.{}.spread", s.switch_index)];
-        // Two rows with room for the names between them, as tall as the one counter was.
-        const float h = (d.height - 38) / 2, w = h * tally_size.width / tally_size.height;
-        for (std::size_t i = 0; i < 4; ++i) {
-            const Rect to{d.x + (i % 2) * (d.width - w), d.y + (i / 2) * (h + 38), w, h};
+        // One row, a gap between them, the names above, as wide as the one counter was.
+        constexpr float gap = 24;
+        const float w = (d.width - gap) / 2, h = w * tally_size.height / tally_size.width;
+        for (std::size_t i = 0; i < languages.size(); ++i) {
+            const Rect to{d.x + static_cast<float>(i) * (w + gap), d.y + (d.height - h) / 2, w, h};
             const Rect r{static_cast<float>(hanim::dm::mix(d.x, to.x, u)), static_cast<float>(hanim::dm::mix(d.y, to.y, u)), static_cast<float>(hanim::dm::mix(d.width, to.width, u)),
                          static_cast<float>(hanim::dm::mix(d.height, to.height, u))};
             list.fill_round_rect(r, CornerRadii::all(6), xrender::Paint::solid(hex(ink::paper)));

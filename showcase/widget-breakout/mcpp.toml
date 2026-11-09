@@ -48,8 +48,6 @@ omui.ui.canvas = { path = "../../modules/projects/omui/components/canvas" }
 omui.abi = { path = "../../modules/projects/omui/abi" }
 "omui.lang" = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js" = { path = "../../modules/projects/omui/lang/js" }
-"omui.lang.lua" = { path = "../../modules/projects/omui/lang/lua" }
-"omui.lang.python.embedded" = { path = "../../modules/projects/omui/lang/python/embedded" }
 "xengine.audio.device" = { path = "../../modules/projects/xengine/audio/device" }
 
 [build-dependencies]

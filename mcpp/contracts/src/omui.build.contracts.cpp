@@ -101,14 +101,14 @@ std::vector<edge> plan(const component_options& opt) {
     if (opt.stubs && !files.empty()) {
         edge e;
         e.id = "openmui:stubs";
-        e.description = std::format("contracts → TS / Python / Lua stubs and the view-document schema ({})", opt.module);
+        e.description = std::format("contracts → TypeScript stubs and the view-document schema ({})", opt.module);
         e.command = {gen, "stubs"};
         for (const auto& f : files) e.command.push_back(utf8(f));
         e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs"});
         e.inputs = {gen};
         for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
         e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
-        for (const char* ext : {".d.ts", ".pyi", ".lua", ".components.json"}) e.outputs.push_back(out + "/stubs/" + opt.module + ext);
+        for (const char* ext : {".d.ts", ".components.json"}) e.outputs.push_back(out + "/stubs/" + opt.module + ext);
         edges.push_back(std::move(e));
     }
     return edges;
@@ -162,15 +162,14 @@ std::vector<edge> plan_natives(const native_options& opt) {
     if (opt.stubs && !files.empty()) {
         edge e;
         e.id = "openmui:native-stubs";
-        e.description = std::format("native modules → TS / Python / Lua stubs ({})", opt.module);
+        e.description = std::format("native modules → TypeScript stubs ({})", opt.module);
         e.command = {gen, "native"};
         for (const auto& f : files) e.command.push_back(utf8(f));
         e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs", "--part", "stubs"});
         e.inputs = {gen};
         for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
         e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
-        e.outputs = {out + "/stubs/" + opt.module + ".natives.d.ts", out + "/stubs/" + opt.module + ".natives.lua"};
-        for (const auto& n : names) e.outputs.push_back(out + "/stubs/" + n + ".pyi");
+        e.outputs = {out + "/stubs/" + opt.module + ".natives.d.ts"};
         edges.push_back(std::move(e));
     }
     return edges;

@@ -1,6 +1,6 @@
 # omui.abi
 
-`openmui.h` implemented (spec §8). It is the one boundary every language binding is written against: TypeScript, Python, Lua, and any language that can call C.
+`openmui.h` implemented (spec §8). It is the one boundary every language binding is written against: TypeScript, and any language that can call C.
 
 - **Only handles and values cross it.** No C++ type and no exception crosses (every function is `noexcept`). Every function returns `OmuiResult`. Text and structured results reach a sink the caller supplies, so no memory changes hands.
 - **Views are view documents.**

@@ -28,7 +28,7 @@ omui 是用 C++ Modules 实现 [openmui 开放规范](https://github.com/openlif
 | **[风格工坊](showcase/style-gallery)** | 五种风格包下的设置面板和仪表盘 | 用 Slang 写的着色器效果；切换风格时交叉淡化，语义树不变 |
 | **[Markdown](examples/08-markdown-viewer)** | 阅读文档；把模型的输出[管道进来](examples/09-markdown-stream)，边收边排版 | CommonMark 652/652、增量解析、逐字淡入 |
 | **[空间地图](examples/10-canvas-basics)** | 一个文件夹的空间去了哪里，一张能缩放的地图 | 画布、treemap、agent 按名字查找 |
-| **[笔记](examples/12-notes)** | 用 TypeScript、Lua、视图文档和 C++ 一起写成的笔记 | 一个应用里四种语言，共享状态和命令 |
+| **[笔记](examples/12-notes)** | 用 TypeScript、视图文档和 C++ 一起写成的笔记 | 一个应用里三种写法，共享状态和命令 |
 | **[对比度](examples/05-contrast)** | 检查无障碍颜色对比度的工具 | native 模块的契约和生成的绑定 |
 | **[Inspector](tools/inspector) · [omui](tools/cli) · [MCP](tools/mcp)** | 查看和操作任何运行中的应用 | 命令行和图形界面读同一份记录；agent 只能做人授权的事 |
 
@@ -59,7 +59,7 @@ omui agent act org.example.hello main/click activate     # agent 按下同一个
 |---|---|
 | [spec](spec) | 规范：标准自己的仓库 [openlifa/openmui](https://github.com/openlifa/openmui) 的子模块 |
 | [modules](modules) | 分层的库：base、gfx、content（都能单独使用），以及 ui（omui 本身） |
-| [components](modules/projects/omui/components) · [lang](modules/projects/omui/lang) · [tools](tools) | 组件、TypeScript / Python / Lua 绑定、工具 |
+| [components](modules/projects/omui/components) · [lang](modules/projects/omui/lang) · [tools](tools) | 组件、TypeScript 绑定、工具 |
 | [examples](examples) · [showcase](showcase) | 用它做出来的东西 |
 
 omui 实现两个 OpenLifa 标准：[openmui](https://github.com/openlifa/openmui)（界面）和 [openas](https://github.com/openlifa/openas)（actor、效果、授权）。构建、测试、打包都使用 [mcpp](https://github.com/mcpp-community/mcpp)；需要的工具链版本固定在 [.xlings.json](.xlings.json) 里，由 [xlings](https://github.com/openxlings/xlings) 安装。

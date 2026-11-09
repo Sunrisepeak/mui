@@ -5,8 +5,6 @@ import omui;
 import omui.abi;
 import omui.lang;
 import omui.lang.js;
-import omui.lang.lua;
-import omui.lang.python.embedded;
 import omui.showcase.widget_breakout.sim;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -26,8 +24,8 @@ std::vector<GiftScript> shipped() {
     auto one = [](std::string gift, std::string language, std::string file, std::string_view text) {
         return GiftScript{std::move(gift), std::move(language), std::move(file), std::string(text), std::string(text)};
     };
-    return {one("wide", "ts", "wide.ts", files::wide_ts), one("pierce", "ts", "pierce.ts", files::pierce_ts), one("slow", "lua", "slow.lua", files::slow_lua),
-            one("multi", "py", "multi.py", files::multi_py), one("magnet", "lua", "magnet.lua", files::magnet_lua)};
+    return {one("wide", "ts", "wide.ts", files::wide_ts), one("pierce", "ts", "pierce.ts", files::pierce_ts), one("slow", "ts", "slow.ts", files::slow_ts),
+            one("multi", "ts", "multi.ts", files::multi_ts), one("magnet", "ts", "magnet.ts", files::magnet_ts)};
 }
 
 // A rule a script may answer: its name, where it goes, its bounds.
@@ -77,9 +75,7 @@ struct Workshop::Impl {
     Attached                                       attached;
     lang::Host                                     host;
     lang::Session                                  session;
-    std::vector<std::unique_ptr<lang::js::Script>>  js;   // per script: one of these two
-    std::vector<std::unique_ptr<lang::lua::Script>> lua;
-    std::vector<std::unique_ptr<lang::python::embedded::Script>> py;
+    std::vector<std::unique_ptr<lang::js::Script>>  js;   // per script
     std::vector<std::future<lang::Result<void>>>   loading;
     std::string                                    errors;  // raised in a verb
 
@@ -87,13 +83,9 @@ struct Workshop::Impl {
 
     // Runs a script's text, the first time or again in place.
     std::expected<std::future<lang::Result<void>>, std::string> run(std::size_t i, const GiftScript& g, std::string_view text, bool again) {
-        if (g.language == "ts") {
-            auto code = lang::ts::compile_source(text, g.file);
-            if (!code) return std::unexpected(code.error());
-            return again ? js[i]->reload(std::move(*code), g.file) : js[i]->run(std::move(*code), g.file);
-        }
-        if (g.language == "py") return again ? py[i]->reload(std::string(text), g.file) : py[i]->run(std::string(text), g.file);
-        return again ? lua[i]->reload(std::string(text), "=" + g.file) : lua[i]->run(std::string(text), "=" + g.file);
+        auto code = lang::ts::compile_source(text, g.file);
+        if (!code) return std::unexpected(code.error());
+        return again ? js[i]->reload(std::move(*code), g.file) : js[i]->run(std::move(*code), g.file);
     }
 
     std::expected<Rules, std::string> ask(const GiftScript& g, Rules base) {
@@ -112,12 +104,8 @@ struct Workshop::Impl {
 Workshop::Workshop(Runtime& runtime) : impl_(std::make_unique<Impl>(runtime)), scripts_(shipped()) {
     for (std::size_t i = 0; i < scripts_.size(); ++i) {
         const GiftScript& g = scripts_[i];
-        impl_->js.push_back(g.language == "ts" ? std::make_unique<lang::js::Script>(impl_->session) : nullptr);
-        impl_->lua.push_back(g.language == "lua" ? std::make_unique<lang::lua::Script>(impl_->session) : nullptr);
-        impl_->py.push_back(g.language == "py" ? std::make_unique<lang::python::embedded::Script>(impl_->session) : nullptr);
-        if (impl_->js[i]) impl_->js[i]->on_error([this](std::string_view m) { impl_->errors = std::string(m); });
-        if (impl_->lua[i]) impl_->lua[i]->on_error([this](std::string_view m) { impl_->errors = std::string(m); });
-        if (impl_->py[i]) impl_->py[i]->on_error([this](std::string_view m) { impl_->errors = std::string(m); });
+        impl_->js.push_back(std::make_unique<lang::js::Script>(impl_->session));
+        impl_->js[i]->on_error([this](std::string_view m) { impl_->errors = std::string(m); });
         auto run = impl_->run(i, g, g.shipped, false);
         if (run) impl_->loading.push_back(std::move(*run));
         else warn("breakout: {} did not load: {}", g.file, run.error());

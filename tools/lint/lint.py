@@ -25,7 +25,9 @@ Rules:
   media         a picture in the repository (.png .apng .gif .jpg .webp) is under 1 MB, and every showcase's
                 README shows its signature shot from its media/ (tools/ci/readme-media.sh makes them)
   legacy-import no import of a removed forwarder (openmui.geom, openmui.render…) and no omui::
-                alias of another owner's namespace (omui::geom::…): code names the owner (D-106)
+                alias of another owner's namespace (omui::geom::…): code names the owner (D-106);
+                no import of the removed Lua and Python bindings (omui.lang.lua, omui.lang.python…):
+                TypeScript is the one script language (D-138)
   testing       `import mlibs.testing` only in test programs (tests/): mlibs.utils carries it, and
                 no artifact does
   closure       the dependency closures CLOSURES names stay small (the render graph; simulation
@@ -155,6 +157,8 @@ DETERMINISTIC = ["modules/base/math", "modules/base/utils", "modules/projects/om
 # The forwarders M1 removed (D-106): the old module names and the omui::
 # namespace aliases that pointed at their owners. Code names the owner.
 LEGACY_MODULES = {'openmui.raster', 'openmui.simulation.cellular.rhi.cts', 'openmui.rhi.cts', 'openmui.memory', 'openmui.geom', 'openmui.unicode', 'openmui.rhi.webgl', 'openmui.image', 'openmui.testing', 'openmui.render.vector', 'openmui.pipeline', 'openmui.rhi', 'openmui.simulation.cellular', 'openmui.trace', 'openmui.shader', 'openmui.render', 'openmui.shader.rules', 'openmui.rhi.sdl', 'openmui.rhi.webgpu', 'openmui.log', 'openmui.markdown', 'openmui.i18n.cldr', 'openmui.layout', 'openmui.session', 'openmui.text', 'openmui.math', 'openmui.hash', 'openmui.render.effect', 'openmui.i18n', 'openmui.simulation.cellular.rhi', 'openmui.simulation'}
+# The script bindings D-138 removed: TypeScript (omui.lang.js) is the one script language.
+REMOVED_BINDINGS = re.compile(r"^omui\.(lang\.lua|lang\.python|entry\.python)(\.|:|$)")
 LEGACY_ALIASES = re.compile(r"(?<![\w])omui::(cellular|effect|geom|hash|i18n|imageio|layout|math|md|pipeline|raster|render|rhi|session|shader|testing|trace|typeset|unicode)::")
 
 # Operating-system headers: platform code goes through mcpplibs.os (D-57), so
@@ -305,6 +309,8 @@ def check_sources(root: Path) -> list[Problem]:
                 problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mo.group(2)}`: omui's modules are omui.* (D-107); openmui is the specification's"))
             if mi and mi.group(2) in LEGACY_MODULES:
                 problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}` was a forwarder (D-106): import its owner"))
+            if mi and REMOVED_BINDINGS.match(mi.group(2)):
+                problems.append(Problem("legacy-import", f"{rel_s}:{no}", f"`{mi.group(2)}`: the Lua and Python bindings are gone (D-138); write it in TypeScript"))
             if LEGACY_ALIASES.search(line):
                 problems.append(Problem("legacy-import", f"{rel_s}:{no}", "an omui:: alias of another owner's namespace (D-106): name the owner"))
             if (re.match(r"(export\s+)?import\s+(mlibs|openmui)\.testing\b", stripped) and "tests" not in rel.parts

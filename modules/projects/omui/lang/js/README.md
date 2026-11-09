@@ -32,7 +32,7 @@ For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.
 
 **TypeScript** (D-139) runs as the JavaScript left when its types are blanked, in this process and on the Web, with no tool: [omui.lang.ts](../ts/README.md).
 
-The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario, which Python and Lua record too.
+The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario.
 
 **Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `import { fuzzy } from "openmui:native/fuzzy"`: an `async` function answers a promise, and has a `…Sync` form for where a promise cannot be awaited (a verb).
 

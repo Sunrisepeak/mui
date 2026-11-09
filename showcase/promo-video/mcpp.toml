@@ -46,8 +46,6 @@ omui.ui.timeline                 = { path = "../../modules/projects/omui/compone
 omui.abi                         = { path = "../../modules/projects/omui/abi" }
 "omui.lang"                      = { path = "../../modules/projects/omui/lang" }
 "omui.lang.js"                   = { path = "../../modules/projects/omui/lang/js" }
-"omui.lang.lua"                  = { path = "../../modules/projects/omui/lang/lua" }
-"omui.lang.python.embedded"      = { path = "../../modules/projects/omui/lang/python/embedded" }
 omui.showcase.markdown_wall      = { path = "../markdown-wall" }
 omui.showcase.style_gallery      = { path = "../style-gallery" }
 "omui.showcase.widget_breakout"  = { path = "../widget-breakout" }

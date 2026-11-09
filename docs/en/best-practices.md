@@ -18,7 +18,7 @@ Never bend the architecture for one application's convenience. When something is
 |---|---|---|
 | Simulation, rendering, mixing, layout: anything run every frame | C++ (modules) | no allocation, no virtual calls on the hot path, exact arithmetic |
 | Content tuned again and again: fighters, sounds, themes, levels | data files (`*.<kind>.omui.toml` and the like) with located diagnostics | a reviewer, an agent and a tool can all read and write them; the build checks what is derived from them |
-| Logic tuned live: rules, scene scripts, tours, game modes | TypeScript, Lua or Python, hot-reloaded | a reload under 200 ms; no rebuild |
+| Logic tuned live: rules, scene scripts, tours, game modes | TypeScript, hot-reloaded | a reload under 200 ms; no rebuild |
 
 Scripts never run inside a frame. A script produces data at load or reload: rules, a view document, a verb's answer. That data reaches a per-frame system at a step's boundary (widget breakout, level 6).
 

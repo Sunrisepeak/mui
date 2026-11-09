@@ -11,7 +11,6 @@ import omui.showcase.markdown_wall;
 import mlibs.testing;
 import omui.abi;
 import omui.lang;
-import omui.lang.lua;
 import omui.lang.js;
 import mcpplibs.os;
 
@@ -59,7 +58,7 @@ const omui::wall::Document& by_path(const std::vector<omui::wall::Document>& doc
 }
 
 
-// ── the tour (scripts/tour.{ts,lua,py}): the same records, the same wall ──
+// ── the tour (scripts/tour.ts in the program, tour.py as an agent): the same records, the same wall ──
 
 std::filesystem::path scripts() { return std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() / "scripts"; }
 
@@ -162,7 +161,7 @@ Tour as_agent() {
     run.program = *py;
     run.args = {mcpplibs::os::fs::utf8(scripts() / "tour.py"), "wall-tour", mcpplibs::os::fs::utf8(dir)};
     const auto client = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path().parent_path() / "modules" / "projects" /
-                        "omui" / "lang" / "python" / "python";
+                        "omui" / "agent" / "clients" / "python";
     run.env = {{"PYTHONPATH", mcpplibs::os::fs::utf8(client)}, {"PYTHONIOENCODING", "utf-8"}};
     run.out = mcpplibs::os::process::stdio::inherit;
     run.err = mcpplibs::os::process::stdio::inherit;
@@ -585,19 +584,16 @@ int main(int argc, char** argv) {
         check(grew, "the streamed text kept");
     });
 
-    s.test("the tour in TypeScript, Lua and Python: the same records, the same wall (§3.6)", [] {
+    s.test("the tour in the program (TypeScript) and as an agent (Python): the same records, the same wall (§3.6)", [] {
         auto ts = lang::ts::compile(scripts() / "tour.ts");
         check(ts.has_value(), ts ? std::string{} : ts.error());
         if (!ts) return;
         const Tour t = in_process([](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *ts, "tour.ts");
-        const Tour l = in_process([](lang::Session& s) { return std::make_unique<lang::lua::Script>(s); }, text_of(scripts() / "tour.lua"), "@tour.lua");
         const Tour p = as_agent();
         check_eq(t.records.size(), std::size_t{10});
         for (const auto& r : t.records) std::println("    {}", r);
-        check_eq(l.records, t.records);
         check_eq(p.records, t.records);
         std::println("    {}", t.wall);
-        check_eq(l.wall, t.wall);
         check_eq(p.wall, t.wall);
         check(t.wall.contains("window 4000 3000"), "the window moved where the tour put it");
         check(t.records.size() == 10 && t.records[8] == "refused = \"not-found\"", "the refusal, as a code");

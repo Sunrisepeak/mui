@@ -28,7 +28,7 @@ for f in src.rglob("*"):
     out.write_bytes(text)
 # This checkout instead of the published packages.
 paths = {"omui.sdk": "modules/projects/omui/sdk", "omui.entry.player": "src/entry/player", "omui.player": "modules/projects/omui/player",
-         "omui.lang.js": "modules/projects/omui/lang/js", "omui.lang.lua": "modules/projects/omui/lang/lua", "omui.native": "modules/projects/omui/native",
+         "omui.lang.js": "modules/projects/omui/lang/js", "omui.native": "modules/projects/omui/native",
          "omui.theme.default": "modules/projects/omui/theme/default"}
 m = dst / "mcpp.toml"
 if m.exists():
@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 # A template whose package runs a build rule (component, native, theme) is
 # checked in the workspace; an application out of it, as a user makes one.
-for t in app-cpp:demo app-ts:tsdemo app-lua:luademo component:widgets native:wordkit theme:brandkit; do
+for t in app-cpp:demo app-ts:tsdemo component:widgets native:wordkit theme:brandkit; do
     template=${t%%:*}; name=${t#*:}
     echo "== $template ($name)"
     case "$template" in

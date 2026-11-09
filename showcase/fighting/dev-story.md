@@ -316,7 +316,7 @@ Collected in [best practices](../../docs/en/best-practices.md):
 - Keep assets as data with located diagnostics, and have the build check what was derived from them (bakes, embeds).
 - Give every production step a command line with JSON before its graphical tool: agents and CI can use it the day it exists.
 - Bring art in as pictures and let the framework do the rest; ask the generator for what the rig needs (separate parts, covered joints, one scale).
-- Write performance-critical code (simulation, mixing, rendering) in C++; tunable content in data files that can be reloaded; scripts (TS, Lua) only where logic itself needs tuning live — never in a frame.
+- Write performance-critical code (simulation, mixing, rendering) in C++; tunable content in data files that can be reloaded; scripts (TypeScript) only where logic itself needs tuning live — never in a frame.
 
 ## Playing it
 

@@ -1,4 +1,4 @@
-# Example 12 — notes in four languages
+# Example 12 — notes in TypeScript, a view document and C++
 
 `notes` keeps notes in Markdown:
 

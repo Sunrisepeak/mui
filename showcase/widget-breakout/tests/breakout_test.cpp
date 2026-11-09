@@ -682,7 +682,7 @@ int main(int argc, char** argv) {
         check_eq(choice, std::uint64_t{0x9db0d154abf33d39});  // GCC (LLVM: CI)
     });
 
-    s.test("between rooms, a casing open: its script — TypeScript, Lua, Python — edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
+    s.test("between rooms, a casing open: its TypeScript script edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
         Game g;
         check(g.act("pause"));
         g.play(90 * bo::steps_per_second);
@@ -702,7 +702,7 @@ int main(int argc, char** argv) {
         wait([&] { return status("offer.0").starts_with("set:") || status("offer.0").starts_with("kept"); });
         check_eq(status("offer.0"), std::string("set: Huge · 4 s"));
         g.h.step();
-        // The casing of the magnet (Lua): edited, applied.
+        // The casing of the magnet: edited, applied.
         check(g.h.click("main/between/offers/offer.1/offer.1.tools/offer.1.open"));
         g.h.step();
         const NodeId box = r.find("main/between/casing/casing.script");
@@ -713,12 +713,12 @@ int main(int argc, char** argv) {
         check(r.act(box, "set_value", edit).exit_code() == std::optional<int>(0));
         check(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("reloaded") || casing().starts_with("kept"); });
-        const std::string lua = casing();
-        check(lua.starts_with("reloaded in ") && std::stod(lua.substr(12)) < 200, lua);
+        const std::string magnet = casing();
+        check(magnet.starts_with("reloaded in ") && std::stod(magnet.substr(12)) < 200, magnet);
         check(g.h.save_png(scratch_dir("breakout-casing") / "casing.png").has_value());
         // A bad edit: the rules kept, the reason said.
         Invocation bad;
-        bad.args = Value{}.set("value", std::string("omui.verb(\"gift.magnet\", {effect = \"read\"}, function() return { magnet_catches = } end)"));
+        bad.args = Value{}.set("value", std::string("import { verb } from \"openmui\";\nverb(\"gift.magnet\", { effect: \"read\" }, () => ({ magnet_catches: }));"));
         check(r.act(box, "set_value", bad).exit_code() == std::optional<int>(0));
         check(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("kept") || casing().starts_with("reloaded"); });
@@ -731,7 +731,7 @@ int main(int argc, char** argv) {
         g.h.advance(seconds(0.25));
         check(g.state().rules.wide_half == 260 && g.state().rules.wide_steps == 508, std::format("wide {} for {} steps", g.state().rules.wide_half, g.state().rules.wide_steps));
         check_eq(g.state().rules.magnet_catches, std::int32_t{3});  // as shipped again
-        // After room 2, the splitter (Python): its casing edited to four extra balls.
+        // After room 2, the splitter: its casing edited to four extra balls.
         check(g.act("pause"));
         g.play(90 * bo::steps_per_second);
         check(g.act("next"), "on to the choice");
@@ -742,21 +742,21 @@ int main(int argc, char** argv) {
         check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
         g.h.step();
         g.h.advance(seconds(0.5));  // the casing comes in by the room's style too
-        const std::string py(r.get(box, "text").as_string());
-        check(py.find("import openmui") != std::string::npos && bo::Workshop::tuned(py) == 2.0, py);
+        const std::string splitter(r.get(box, "text").as_string());
+        check(splitter.find("from \"openmui\"") != std::string::npos && bo::Workshop::tuned(splitter) == 2.0, splitter);
         Invocation four;
-        four.args = Value{}.set("value", bo::Workshop::retune(py, 4));
+        four.args = Value{}.set("value", bo::Workshop::retune(splitter, 4));
         check(r.act(box, "set_value", four).exit_code() == std::optional<int>(0));
         check(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("reloaded") || casing().starts_with("kept"); });
-        const std::string python = casing();
-        check(python.starts_with("reloaded in ") && std::stod(python.substr(12)) < 200, python);
+        const std::string split = casing();
+        check(split.starts_with("reloaded in ") && std::stod(split.substr(12)) < 200, split);
         check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.take"), "the splitter taken");
         g.h.step();
         g.h.advance(seconds(0.25));
         check(g.component().props.room == 3 && g.state().rules.multi_balls == 4, std::format("room {}, {} extra balls", g.component().props.room, g.state().rules.multi_balls));
         check_eq(g.state().rules.gift_mask, bo::gift_bit(bo::Gift::wide) | bo::gift_bit(bo::Gift::multi));
-        std::println("    reloads: Lua {}, Python {}", lua.substr(0, lua.find(" ms") + 3), python.substr(0, python.find(" ms") + 3));
+        std::println("    reloads: the magnet {}, the splitter {}", magnet.substr(0, magnet.find(" ms") + 3), split.substr(0, split.find(" ms") + 3));
     });
 
     s.test("heard: each brick as its component, a chain's notes climbing, the paddle, a beam — on its step's sample, the same everywhere; a rewind is silent", [] {

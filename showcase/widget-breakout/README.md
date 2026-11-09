@@ -29,7 +29,7 @@ A run is five short rooms and three balls. Each room has a core (its power butto
   The tests render a run's sound to the sample. The sound of the same run is pinned and is the same everywhere. A rendered copy is written to `breakout-heard/heard.wav` so you can listen to it.
 
   The tests also measure its level and hold it in range: 15 seconds of play peak at −1.0 dBFS and never clip, with an RMS of −16.2 dBFS. The loudest and quietest moments (90th and 10th percentiles, 0.3-second windows) are −11.5 and −30.3 dBFS: loud, but never a wall of sound, and never silent. The two channels correlate at 0.89, so the effects pan without the mix falling apart.
-- **Between rooms**, each contraption has two presets (huge and brief, or modest and long). **Open the casing** to see the script that makes it — TypeScript, Lua or Python — and change it: it reloads at once.
+- **Between rooms**, each contraption has two presets (huge and brief, or modest and long). **Open the casing** to see the TypeScript that makes it, and change it: it reloads at once.
 
 ![A beam along the top row breaks the dam](media/room-2-beam.png) ![Through the cloud: the chamber of files](media/room-3-breakthrough.png)
 

@@ -68,7 +68,7 @@
 - **不用宏**：用模块分区、`inline constexpr`、`if constexpr`、`consteval`、`std::source_location`。全仓库唯一的头文件是生成的 `spec/include/openmui.h`；第三方头文件只出现在 `native/` 实现分区里。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配；动画、布局、光栅模块禁用 fast-math 和浮点收缩。
 - 契约优先：组件与 native 模块先写契约，绑定由生成器产出。契约、操作目录、主题、动画用 TS 声明（`*.<种类>.omui.ts`，构建期由内嵌 QuickJS 确定地求值成 JSON；D-139）；迁移完成前沿用现有的 `.omui.toml`。
-- **上层语言只有 TS/JS**（D-138；Lua 和 Python 的应用绑定已决定删除）：TS 即代码也即数据，求值后的 JSON 快照是规范形式；只允许可擦除语法；TS 层尽量薄，性能敏感的部分用 C++ 实现并暴露给脚本；release 构建时可选原生化成 C++（D-146）。视图代码优先（C++ builder 或 TS）；数据文件命名 `<名字>.<种类>.omui.{ts,json,jsonl}`；着色器用 `.slang`；可交互节点要写显式 ID，ID 不依赖显示文本；脚本不进入每帧路径。
+- **上层语言只有 TS/JS**（D-138；Lua 和 Python 的应用绑定已删除，lint `legacy-import` 拦截重新引入）：TS 即代码也即数据，求值后的 JSON 快照是规范形式；只允许可擦除语法；TS 层尽量薄，性能敏感的部分用 C++ 实现并暴露给脚本；release 构建时可选原生化成 C++（D-146）。视图代码优先（C++ builder 或 TS）；数据文件命名 `<名字>.<种类>.omui.{ts,json,jsonl}`；着色器用 `.slang`；可交互节点要写显式 ID，ID 不依赖显示文本；脚本不进入每帧路径。
 - 平台相关代码经由 `mcpplibs.os`；窗口和输入经由 SDL3。
 
 ## 5. 工程与包

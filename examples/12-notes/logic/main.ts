@@ -13,7 +13,7 @@ const shown = model("shown");  // the list as searched: { key, title }
 notes.push([
   { key: "n1", title: "Groceries", body: "# Groceries\n\n- [ ] Milk\n- [x] Bread\n- [ ] Eggs" },
   { key: "n2", title: "Reading", body: "# Reading\n\n*Middlemarch*, then *The Name of the Rose*." },
-  { key: "n3", title: "Ideas", body: "# Ideas\n\nA notes application in four languages." },
+  { key: "n3", title: "Ideas", body: "# Ideas\n\nA notes application in three ways of writing." },
 ]);
 
 const open = signal("n1");

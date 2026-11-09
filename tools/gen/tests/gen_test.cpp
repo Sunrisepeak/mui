@@ -37,8 +37,6 @@ int main(int argc, char** argv) {
         same(spec_dir() / "src" / "generated" / "catalog.cppm", gen::emit_spec_catalog(reg));
         same(spec_dir() / "docs" / "registry.md", gen::emit_docs(reg));
         same(spec_dir() / "stubs" / "core.d.ts", gen::emit_dts(reg.contracts, "the Core profile"));
-        same(spec_dir() / "stubs" / "core.pyi", gen::emit_pyi(reg.contracts, "the Core profile"));
-        same(spec_dir() / "stubs" / "core.lua", gen::emit_lua(reg.contracts, "the Core profile"));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
         // modules/projects/omui/abi's view of the same ABI.
         const auto abi = spec_dir().parent_path() / "modules" / "projects" / "omui" / "abi" / "src";
@@ -108,17 +106,15 @@ int main(int argc, char** argv) {
             check(cpp.find(expect) != std::string::npos, expect);
     });
 
-    s.test("alternatives typed alike in TypeScript, Python and Lua (`f64 | min | max`)", [] {
+    s.test("alternatives typed in TypeScript (`f64 | min | max`)", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
         auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.toml", reg, diags);
         check(!slider.empty() && !slider.at(0).props.empty());
         if (slider.empty() || slider.at(0).props.empty()) return;
         slider.at(0).props.at(0).type = "f64 | min | max";
-        const std::string ts = gen::emit_dts(slider, "x"), py = gen::emit_pyi(slider, "x"), lua = gen::emit_lua(slider, "x");
+        const std::string ts = gen::emit_dts(slider, "x");
         check(ts.find("number | \"min\" | \"max\"") != std::string::npos, "TypeScript");
-        check(py.find("float | Literal[\"min\", \"max\"]") != std::string::npos, "Python, not Any");
-        check(lua.find("number|\"min\"|\"max\"") != std::string::npos, "Lua, not any");
     });
 
     s.test("a property of any type is data as it is: a Value, read and handed back whole", [] {
@@ -189,10 +185,8 @@ int main(int argc, char** argv) {
                     check(read(pkg.path() / "src" / "generated" / (m.name + "_native.cppm")) == gen::emit_cpp_native(m, o, file),
                           std::format("{}: run omui-gen native {} --registry spec/registry --module {} --namespace omui::natives --out {}/src/generated --part cpp",
                                       m.name, gen::generic_utf8(f.path()), module, gen::generic_utf8(pkg.path())));
-                    check(read(pkg.path() / "stubs" / (m.name + ".pyi")) == gen::emit_native_pyi(m, module), m.name + ".pyi");
                 }
                 check(read(pkg.path() / "stubs" / (module + ".natives.d.ts")) == gen::emit_native_dts(modules, module), module + ".natives.d.ts");
-                check(read(pkg.path() / "stubs" / (module + ".natives.lua")) == gen::emit_native_lua(modules, module), module + ".natives.lua");
             }
         }
         check(seen >= 1, "modules/projects/omui/native/fuzzy at least");

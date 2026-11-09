@@ -21,7 +21,7 @@ The first version was a tour: six levels, one per department of the framework, w
 | Game engine services | `xengine.world`, `mgame.sim`, `xengine.input`, `xengine.dynamics` (collision), `xengine.ui` | entities in plain columns; a fixed-step clock and a timeline that seeks any kept frame; input sampled once a step; swept circle-against-box collisions with exactly rounded doubles; a game paced on openmui's clock |
 | The game's simulation | `showcase/widget-breakout/sim` | the breakout as a pure step over plain data: spin, circuits, capacitors and beams, kickers, cores, chains and sparks, gifts, the camera |
 | The game | `showcase/widget-breakout` | the field component, the rooms as data, the copilot, the contraptions' scripts, the sounds, the effects, the application |
-| Framework | openmui, `omui.ui.canvas`, `omui.theme.styles`, `omui.lang.{js,lua,python.embedded}`, `xengine.audio` | what the rooms use |
+| Framework | openmui, `omui.ui.canvas`, `omui.theme.styles`, `omui.lang.js` (TypeScript; Lua and Python until D-138), `xengine.audio` | what the rooms use |
 
 The simulation knows nothing of openmui. The field knows the simulation only through its events and state, and the copilot knows the field only through the semantic tree and its actions. Each boundary is the one a third party would use.
 
@@ -33,7 +33,7 @@ The simulation knows nothing of openmui. The field knows the simulation only thr
 - **The canvas room** is an `omui.ui.canvas` scene: far, an instanced batch of boxes; near, live components (the Wi-Fi switch is a live toggle). The simulation's camera pulls back to the whole room while a ball is in the upper chamber; the field hands that camera to the canvas each step.
 - **The dark room** is a layer of darkness with the lights cut out of it (an `erase` layer of radial gradients). The hidden caches are buttons with no opacity, so the X-ray shows what the semantic tree always knew.
 - **The copilot is an agent like any other.** Thirty times a second it reads the field's semantic node and the bricks still standing in the semantic tree. Your order (`order`, a value of the field) decides where it aims. It calls `guard_to` as `agent:copilot` with what it saw, a word for you and where it means to send the ball, and the runtime journals it.
-- **The contraptions' casings** are the old workshop, given a purpose. Each contraption is a script (`wide.ts`, `pierce.ts`, `slow.lua`, `magnet.lua`, `multi.py`) run on openmui's script host. A preset retunes the marked value and reloads the script in place; the casing's text box edits it directly. The answer is checked, and the rules reach the simulation as a step's input. Scripts never run in a step.
+- **The contraptions' casings** are the old workshop, given a purpose. Each contraption is a TypeScript script (`wide.ts`, `pierce.ts`, `slow.ts`, `magnet.ts`, `multi.ts`; the last three were Lua and Python until D-138 made TypeScript the one script language) run on openmui's script host. A preset retunes the marked value and reloads the script in place; the casing's text box edits it directly. The answer is checked, and the rules reach the simulation as a step's input. Scripts never run in a step.
 
 ## 3. Assets and how they were made
 

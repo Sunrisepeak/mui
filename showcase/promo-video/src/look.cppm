@@ -42,8 +42,8 @@ struct Span {
     std::string text;
     Token       kind = Token::plain;
 };
-// Each line of `code` as spans by what they are (TypeScript, C++, Python,
-// Lua: their keywords, strings, numbers, comments). Leading comment lines
+// Each line of `code` as spans by what they are (TypeScript, C++: their
+// keywords, strings, numbers, comments). Leading comment lines
 // and blank lines are the caller's to drop.
 [[nodiscard]] std::vector<std::vector<Span>> highlight(std::string_view code, std::string_view language);
 [[nodiscard]] Color token_color(Token t);

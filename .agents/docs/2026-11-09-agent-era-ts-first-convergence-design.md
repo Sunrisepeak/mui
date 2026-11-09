@@ -44,6 +44,7 @@
 | **D-155** | **开发模式下 Agent 默认拥有全部控制权，是否询问人由 Agent 自己判断**：`omui dev` 默认使用 `development` 预设，即对可信会话开放全部已声明的能力，不会因为等待人的回答而拒绝请求；要不要先问人，由 Agent 结合人给它的指示来判断。发布模式按授权管理（默认 `dual-user`：不可逆、外部的操作先问人）。人可以在 `omui.config.ts` 里为两种模式分别设定 Agent 授权（automatic / development / dual-user）和记录等级；启动时给出的 `--agent-mode` 优先于配置。所有请求仍然经由 `mlibs.control` 按 openas 判定 | 开发和设计不应被授权打断；Claude Code 这类宿主本身就有 default / auto / bypass 等模式，由人选择；发布面对终端用户，权限必须可管 |
 | **D-156** | **工程结构语义清晰（待 review）**：根目录只放约定的入口（`mcpp.toml`、`omui.config.ts`、`README.md`，需要时加 `build.mcpp`、`skill.omui.md`）；每类内容只有一个归宿（`app/`、`design/`、`contracts/`、`native/`、`ops/`、`assets/`、`tests/`），`.<种类>.omui.ts` 后缀说明种类；必须提交的生成物只放在 `generated/` 目录，本地状态放在 `.omui/`；纯 TS 应用不带手写 C++。lint `layout` 负责检查（§2.17） | 人和 Agent 都要一眼看懂工程：代码在哪、数据在哪、什么是生成的 |
 | **D-157** | **脚本导入按层面分（已确认，2026-11-09）**：`openmui` 只放规范定义的内容——脚本绑定 API、`openmui:native/*`、`openmui/define` 里规范定义的数据格式（契约、native、视图）；`omui` 放实现层的内容——`omui/define` 的 `defineConfig`、`defineOps`、`defineStyle`、`defineMotion`，以及以后给脚本的开发辅助。组件不按模块拆分（规范规定注册的组件都出现在 `openmui` 里），可移植性由工具按组件来源检查（`omui check --portable`、`.d.ts` 标注来源）；扩展先进入规范再改从 `openmui` 导入，不留别名 | 只依赖 `openmui` 的代码可在任何实现上运行；依赖实现的地方在代码里一眼可见（参照 Vulkan、OpenXR 的核心加扩展） |
+| **D-158** | **TS 接口分两级（人的要求，2026-11-09）**：面向 TS 的接口要优雅、简洁、语义直观、结构清楚；简洁层符合 TS 习惯，覆盖约 80% 的用法，完整层对接 native；两级走同一路径，复杂度逐步展开（见 W1 第 5 步） |
 
 已同步改动的规则：AGENTS.md §2.4 补充 D-142、D-144、D-145、D-148、D-149；§5 补充 D-150；§4 的数据文件命名改为 `<名字>.<种类>.omui.{ts,json,jsonl}`，“契约优先”改为 TS 契约，脚本语言改为 TS/JS；§5 的测试改为 mtest 和局部测试。顶层方案 §0.1 和核心准则 §9.8、§9.9 也已同步。
 
@@ -637,6 +638,35 @@ my-app/
     - 插件同时认 `.toml` 和 `.ts`，TS 文件可能导入的同目录模块也算作输入。
     - 两个 C++ 分区和四个存根（`.d.ts`、`.pyi`、`.lua`、`.components.json`）与 TOML 版逐字节相同，只有头注释里的源文件名不同（本应如此）。
   - **待决**：`spec/registry`（规范的组件注册表，包括 `button`）是否也改成 TS。它属于 openmui 规范，改了就是规定"契约格式是 TS 数据模块"，需要规范仓库的决定。在此之前，注册表保持 TOML，`omui-gen` 两种都读。
+- 第 4 步完成（§2.7 一次删完）：
+  - 示例：06 的主题预览和 12 的宏改成 TS，04 对照 TS 写的评分，03 只留 C++、视图文档和 TS。
+  - 作品：markdown-wall 的导览只留 TS（Python 的 Agent 客户端移到 `agent/clients/python`，它是协议的客户端，不是绑定）；widget-breakout 的五个机关都是 TS；promo-video 的代码章节只剩 TS 和 C++ 两个版本，最后一拍并排，节拍点从三个减为两个，音轨和帧哈希按这个语义变化重新固定。
+  - 框架：删除 `omui.lang.lua`、`omui.lang.python`（含 `embedded`）、`src/entry/python`，以及 `app-lua`、`app-py` 两个模板；player 入口只注册 TS 和 JS；CI 去掉 Python 扩展的探测、套件和 wheel 步骤，以及 `--exclude omui.entry.python`。
+  - 生成器：`omui-gen` 只生成 TS 存根（`.d.ts`、`.natives.d.ts`）和视图文档 schema；contracts 插件的输出也相应减少；`.pyi`、`.lua` 存根删除。
+  - 规范（openmui 仓库）：删除 `stubs/core.{pyi,lua}`；表达式组合子只保留 C++ 和 TS 的写法；各 profile 的脚本语言只有 `ts`；S 级执行器只剩 JS；正文相应修改。
+  - lint `legacy-import` 拦截 `omui.lang.lua`、`omui.lang.python`、`omui.entry.python`；`licenses.toml` 去掉 lua 和 pocketpy。
+  - 验收：CTS S 级 7 个场景全部由 JS 执行，轨迹与原来的固定值一致；规范、gen、lang.js、player、player 入口、CLI、三个作品都已测试。
+  - 尚未完成：官网的“统一接口 × 多语言”页和组件页的四语言写法（像素和动效基线随之变化，单独一个检查点）。
+- 第 5 步的做法（2026-11-09 定）：
+  - **TS 接口分两级（D-158，2026-11-09，人的要求）**：
+    - 每个面向 TS 的接口（绑定 API、`define*`、脚本可用的 API、生成的声明）都要优雅、简洁、表达力强、语义直观、结构清楚。
+    - 分两级设计：
+      - 简洁层：符合 TS 习惯（对象参数、camelCase、重载、必要时用泛型、不暴露句柄），覆盖约 80% 的用法；
+      - 完整层：形状贴近 native，能力完整。
+    - 两级走同一条执行路径（简洁层建在完整层之上），复杂度按需逐步展开（AGENTS §2.2 的 L0–L4）。
+    - 声明文件先写简洁层，完整层另起一节。
+    - 第 5 步写声明时，按这条重新审视现有 API，例如 `verb(name, options, fn)`、`model(name)`、`find`/`act`：简洁层的缺口记下来补，不在声明里掩盖。
+  - **tsc 用 TS 7 原生版**：`tsc` 7.0.2 是静态链接的 Go 程序，标准库声明放在它旁边，不需要 node。已向 xim-pkgindex 提交 `typescript` 包（openxlings/xim-pkgindex#1130）；项目在 mcpp.toml 里写 `"xim:typescript"`，与 esbuild 相同。
+  - **绑定 API 的声明属于规范**：`spec/stubs/openmui.d.ts` 手写，是规范性文件，覆盖 prelude 的每个导出（`signal`、表达式、`when`/`each`/`slot`、`mount`、`verb`、`model`、`find`/`act` 等）和 `NodeProps`（视图 schema 的运行时属性与事件）。
+  - **组件构建函数的声明只有一个生成器**：放在 `omui.lang.ts`（`:declare`），输入是运行时的组件目录（`omuiCatalog` 的 JSON）。omui-gen 把契约转成同一格式后调用它，player 用运行时实际注册的组件调用它。原来 gen 的 `emit_dts` 并入这里。
+  - **应用的类型从运行中的应用来**：`omui check` 让应用写出 `.omui/types/`，内容包括：`openmui.d.ts`（API 加上每个已注册组件的构建函数，注明来源包、是否属于规范注册表）、native 模块、`openmui/define` 和 `omui/define` 的声明，以及 `tsconfig.json`（strict、`erasableSyntaxOnly`、`verbatimModuleSyntax`）。随后运行 tsc，把 `file(line,col): error TSnnnn` 统一成 omui 诊断（JSON 记录，附改法）。不可擦除的语法由 `omui.lang.ts` 先报出。
+  - **试验得出的声明规则**（对示例 12 跑 tsc 7）：
+    - 表达式是动态类型的 CEL，任何表达式都能用在任何属性上；
+    - 行字段是 `Row`（可以继续取字段）；
+    - 事件处理函数的参数另带循环行 `rows`；
+    - 构建函数接受 `(props, children)`，也接受只传 children；
+    - 组件自己的属性和同名的节点属性冲突时，用 `Omit<NodeProps, …>` 去掉节点属性的那个。
+  - `--portable` 按来源标注，列出用到的非规范组件和 `omui` 导入（D-157）。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

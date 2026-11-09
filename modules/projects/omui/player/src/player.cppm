@@ -1,7 +1,7 @@
 // openmui.player — an application's views, components and scripts, run and
 // reloaded in place (component-binding §9, §10.2).
 //
-//     omui::player::Player p(runtime, manifest, {omui::lang::lua::language()});
+//     omui::player::Player p(runtime, manifest, {omui::lang::js::typescript()});
 //     if (auto r = p.start(); !r) …;
 //     p.watch();   // saved files show at once
 //
@@ -21,7 +21,7 @@ import omui.abi;
 export namespace omui::player {
 
 struct Script {
-    std::string           lang;   // a registered Language's name: lua, js, ts …
+    std::string           lang;   // a registered Language's name: ts, js …
     std::filesystem::path entry;
 };
 
@@ -41,7 +41,7 @@ struct Manifest {
 
 using Status = std::expected<void, std::string>;
 
-// One script's machine (a Lua state, a JavaScript context …).
+// One script's machine (a JavaScript context …).
 class Engine {
 public:
     virtual ~Engine() = default;
@@ -70,7 +70,7 @@ public:
 
 struct Language {
     std::string              name;        // as manifests write it
-    std::vector<std::string> extensions;  // .lua, .js, .ts …
+    std::vector<std::string> extensions;  // .ts, .js …
     std::function<std::unique_ptr<Engine>(abi::OmuiRuntime)> make;
     // The source of an entry: the file, or what a compiler makes of it
     // (TypeScript with its types blanked). Empty: the file as it is.

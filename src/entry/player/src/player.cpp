@@ -5,9 +5,7 @@ import tomlplusplus;
 import omui;
 import omui.player;
 import omui.ui.markdown;
-import omui.lang.lua;
 import omui.lang.js;
-import omui.lang.python.embedded;
 import omui.native;
 import omui.native.fuzzy;
 import omui.theme;
@@ -193,8 +191,7 @@ int player_main(int argc, char** argv) {
     app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
         if (record) rt.set_record_level(*record);
-        p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript(),
-                                                       lang::python::embedded::language()},
+        p.emplace(rt, *m, std::vector<player::Language>{lang::js::typescript(), lang::js::javascript()},
                   player::PlayerOptions{.design = design});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
         // A saved file shows within a frame in development mode (W2: save to screen ≤ 100 ms at p95; a

@@ -32,6 +32,4 @@ export import :music_files;
 export import :sound_files;
 export import :page_files;
 export import :ts_files;
-export import :lua_files;
-export import :py_files;
 export import :cpp_files;

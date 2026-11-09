@@ -1,6 +1,6 @@
 # components
 
-openmui's components (`openmui.ui.*`), contract-first: each `*.contract.omui.toml` generates the C++ partition and the TypeScript, Python and Lua bindings; the behaviour is C++ over the runtime's public API.
+openmui's components (`openmui.ui.*`), contract-first: each `*.contract.omui.toml` generates the C++ partition and the TypeScript binding; the behaviour is C++ over the runtime's public API.
 
 | Package | |
 |---|---|

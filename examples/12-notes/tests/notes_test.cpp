@@ -1,5 +1,5 @@
-// The notes application as its user and an agent use it: four languages in
-// one program (the TypeScript views and logic, the macros' script, a view document
+// The notes application as its user and an agent use it: three ways of
+// writing in one program (the TypeScript views and logic, the macros' script, a view document
 // in the TypeScript view's slot, the C++ search), sharing only signals,
 // models, verbs and events. Searching as you type, the toolbar's macros, a
 // title the macros read from the text, a task ticked in the preview kept in the
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     register_markdown_component();
     check(natives::fuzzy::define().has_value(), "the native module fuzzy");
 
-    s.test("four languages, one tool: search, macros, titles, tasks, a new note, an agent's verbs, pixels", [] {
+    s.test("three ways of writing, one tool: search, macros, titles, tasks, a new note, an agent's verbs, pixels", [] {
         auto m = read_manifest(here() / "mcpp.toml");
         check(m.has_value(), m ? "" : m.error());
         if (!m) return;
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
         check(editor(h).starts_with("# Ideas"), editor(h));
         check_eq(act(h, "main/page/tools/task", "activate"), std::int64_t{0});
         settle(h, p);
-        check(editor(h).ends_with("four languages.\n- [ ] "), editor(h));
+        check(editor(h).ends_with("three ways of writing.\n- [ ] "), editor(h));
         check_eq(tasks(h), std::string("-"));
         check_eq(act(h, "main/page/tools/today", "activate"), std::int64_t{0});
         settle(h, p);
@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
         check(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")"), title.ndjson());
         check_eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1);
 
-        check_eq(first, std::string("aeed1c53b76df93e"));
+        check_eq(first, std::string("25f626398be76161"));  // the help says the macros are TypeScript (D-138)
     });
 
     return s.run(argc, argv);

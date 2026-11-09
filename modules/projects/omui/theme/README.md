@@ -64,10 +64,7 @@ Every mistake in a file is reported in one reading, with its line and column and
   - [styles](styles): the style packs — glass, neon, retro CRT, ink on paper, liquid.
 - **A part of a window**: `apply_style(runtime, name, scope)` gives a style to a theme scope only (`Runtime::set_scope`): the nodes whose `theme_scope` names it take the pack, and its cross-fade covers their area. The site shows S2's workshop this way, in the pack chosen, inside a page that keeps its own theme.
 - **An application's own files** are listed in its manifest: `themes = ["themes/*.theme.omui.toml"]` and `theme = ["light"]` for the composition to start with.
-- **Scripts** choose a composition:
-  - Lua: `omui.theme("dark", "compact")`;
-  - JavaScript: `theme("dark", "compact")`;
-  - Python: `omui.theme("dark", "compact")`.
+- **Scripts** choose a composition: `theme("dark", "compact")` in TypeScript.
 
   `themes()` lists the themes and overlays and the current composition. The C ABI has `omuiTheme` and `omuiThemes`.
 

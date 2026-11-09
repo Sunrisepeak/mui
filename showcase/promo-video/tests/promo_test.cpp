@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
             for (const auto& f : a.findings) fail(std::format("{}: {} (frame {})", f.check, f.what, f.frame));
             // The sound pinned: the same samples everywhere.
             std::println("    {:<6} sound {} ({} cues)", name, hex(xengine::audio::hash(track->samples)), track->cues.size());
-            check_eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "fb3c40f65ec1f389" : "4cd8e041d7edf38a"));
+            check_eq(hex(xengine::audio::hash(track->samples)), std::string(name == "promo" ? "ee3b2de561dcdcea" : "4cd8e041d7edf38a"));
         }
     });
 
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
 
     s.test("frames pinned on every platform: a frame of each chapter at half size, one at 1080p, one at 4K", [] {
         const promo::Cut c = cut("promo");
-        // Each chapter's signature moment: the pixel, the wordmark, the counter four times, the wall, neon, the needs-answer, the rally, the rewind, the command.
+        // Each chapter's signature moment: the pixel, the wordmark, the counter in TypeScript and C++, the wall, neon, the needs-answer, the rally, the rewind, the command.
         constexpr std::array<std::int64_t, 10> frames{60, 400, 900, 1500, 1820, 1830 + 30, 2470, 2900, 3030, 3420};
         promo::Player p(film(), c, {.scale = 0.5f, .fonts = &fonts(), .parallel_raster = false});
         Hash all;
@@ -159,15 +159,15 @@ int main(int argc, char** argv) {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        check_eq(all.hex(), std::string("dc5c3e3586b5ce3b"));
+        check_eq(all.hex(), std::string("68d51c6fdc962699"));
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         check(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080, "1080p");
-        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("181c9b8bb8e65405"));
+        if (hd) check_eq(hex(promo::pixel_hash(**hd)), std::string("25318c2baa60810e"));
         promo::Player uhd(film(), c, {.scale = 2, .fonts = &fonts(), .parallel_raster = false});
         auto k4 = uhd.frame(400);
         check(k4 && (*k4)->width() == 3840 && (*k4)->height() == 2160, "4K");
-        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("d2d19ea9290225d7"));
+        if (k4) check_eq(hex(promo::pixel_hash(**k4)), std::string("8857e7cc0ed245ac"));
     });
 
     s.test("seek: a frame drawn directly is the frame played to — in every chapter, after its moments, and through the rewind", [] {

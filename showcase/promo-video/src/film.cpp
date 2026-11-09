@@ -22,7 +22,7 @@ Files::Files() {
     for (const auto& [name, text] : files::sound_files) carried_.emplace(std::format("sounds/{}", name), text);
     for (const auto& [name, text] : files::page_files) carried_.emplace(std::format("script/{}", name), text);
     using Table = std::span<const std::pair<std::string_view, std::string_view>>;
-    for (const Table table : {Table(files::ts_files), Table(files::lua_files), Table(files::py_files), Table(files::cpp_files)})
+    for (const Table table : {Table(files::ts_files), Table(files::cpp_files)})
         for (const auto& [name, text] : table) carried_.emplace(std::format("code/{}", name), text);
 }
 

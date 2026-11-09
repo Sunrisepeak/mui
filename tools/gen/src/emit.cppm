@@ -42,11 +42,9 @@ struct CppOptions {
 // spec/docs/registry.md — the registry as reference tables.
 [[nodiscard]] std::string emit_docs(const Registry& reg);
 
-// Typed builder declarations for script languages, one file per contract set.
+// Typed builder declarations for TypeScript, one file per contract set.
 // `module` names the package the builders come from (for the header comment).
 [[nodiscard]] std::string emit_dts(const std::vector<Contract>& contracts, std::string_view module);
-[[nodiscard]] std::string emit_pyi(const std::vector<Contract>& contracts, std::string_view module);
-[[nodiscard]] std::string emit_lua(const std::vector<Contract>& contracts, std::string_view module);
 
 // A native module's C++ (component-binding §8): the partition
 // `<module>:<name>_native` with its records, the declarations of the
@@ -54,11 +52,8 @@ struct CppOptions {
 // registers them for scripts (openmui.native).
 [[nodiscard]] std::string emit_cpp_native(const NativeModule& m, const CppOptions& o, std::string_view source);
 // Script stubs of native modules: the TypeScript module declarations
-// (`openmui:native/<name>`), a Python stub per module (openmui/native/<name>.pyi)
-// and the LuaLS annotations of omui.native.<name>.
+// (`openmui:native/<name>`).
 [[nodiscard]] std::string emit_native_dts(const std::vector<NativeModule>& modules, std::string_view module);
-[[nodiscard]] std::string emit_native_pyi(const NativeModule& m, std::string_view module);
-[[nodiscard]] std::string emit_native_lua(const std::vector<NativeModule>& modules, std::string_view module);
 
 // A data file as a module partition `<module>:<name>`, its text an exported
 // `inline constexpr std::string_view <name>` in namespace `ns`: how a package

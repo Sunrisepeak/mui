@@ -4,7 +4,7 @@
 //     omui::store().set("theme", "dark");          // C++
 //     auto t = omui::store().get("theme");
 //
-//     import { store } from "openmui:native/store"; // TypeScript (and Python, Lua)
+//     import { store } from "openmui:native/store"; // TypeScript
 //     store.set("theme", "dark");
 //
 // `Store` is the plugin interface: text values by key, small (settings,

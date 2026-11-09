@@ -9,7 +9,7 @@
 // (declared as the module interface it provides, with its imports, since a
 // file that does not exist yet cannot be scanned), one the builder, an
 // implementation unit of the package's module. Both join the package's
-// compile set. One more runs `omui-gen stubs` for the TS / Python / Lua stubs
+// compile set. One more runs `omui-gen stubs` for the TypeScript stubs
 // and the view-document schema. Every edge re-runs when a contract, the
 // registry or the generator changes: they are its inputs.
 export module omui.build.contracts;
@@ -26,7 +26,7 @@ struct component_options {
     std::string contracts = "contract";                   // the directory of *.contract.omui.toml
     std::string registry;                                 // spec/registry (default: beside this plugin in the openmui tree)
     std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
-    bool        stubs = true;                             // TS / Python / Lua stubs and the schema
+    bool        stubs = true;                             // TypeScript stubs and the schema
 };
 
 // The contract names a file declares (its `[contract.<name>]` tables).
@@ -45,7 +45,7 @@ struct native_options {
     std::string natives = "native";                       // the directory of *.native.omui.toml
     std::string registry;                                 // spec/registry (default: beside this plugin in the openmui tree)
     std::string out_dir = std::string(mcpp::out_dir());   // generated files go under out_dir/openmui
-    bool        stubs = true;                             // TS / Python / Lua stubs
+    bool        stubs = true;                             // TypeScript stubs
 };
 
 // The native modules a file declares (its `[native.<name>]` tables).

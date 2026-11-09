@@ -1,6 +1,6 @@
 // The application's own component (component-binding §2): its interface is
 // this contract; openmui.build.contracts generates the C++ partition, the builder and
-// the TypeScript / Python / Lua stubs when the package builds, and every
+// the TypeScript stubs when the package builds, and every
 // language reaches it by name once the program registers it.
 import { defineContract } from "openmui/define";
 

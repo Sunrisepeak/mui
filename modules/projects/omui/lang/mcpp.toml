@@ -2,8 +2,8 @@
 # the Script Binding Profile over openmui.h. A script runs on its own thread
 # (the logical thread); the tree stays on the runtime's. Views a script builds
 # are view documents, its signals are runtime signals it mirrors, its event
-# handlers are a document's own events forwarded to it. Lua, TypeScript and
-# Python bind their values to this; nothing here knows a language.
+# handlers are a document's own events forwarded to it. TypeScript binds its
+# values to this; nothing here knows a language.
 [package]
 namespace   = "omui"
 name        = "lang"

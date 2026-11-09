@@ -1,7 +1,7 @@
 # omui.entry.player — the player's main (component-binding §10.2): what a
 # script-first application's one-line src/main.cpp calls. It reads the
 # application's [package.metadata.openmui], registers the official components
-# and the script languages (Lua, JavaScript, TypeScript, Python), and runs
+# and the script languages (TypeScript, and JavaScript), and runs
 # the player with openmui's options; saved files reload in place.
 #
 # A package of its own rather than a feature of the umbrella: a workspace
@@ -33,9 +33,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 [dependencies]
 omui.sdk           = { path = "../../../modules/projects/omui/sdk" }
 omui.player        = { path = "../../../modules/projects/omui/player" }
-omui.lang.lua      = { path = "../../../modules/projects/omui/lang/lua" }
 omui.lang.js       = { path = "../../../modules/projects/omui/lang/js" }
-omui.lang.python.embedded = { path = "../../../modules/projects/omui/lang/python/embedded" }
 omui.ui.markdown   = { path = "../../../modules/projects/omui/components/markdown" }
 omui.native.fuzzy  = { path = "../../../modules/projects/omui/native/fuzzy" }
 omui.theme.default = { path = "../../../modules/projects/omui/theme/default" }

@@ -30,11 +30,11 @@ Compared with today's major UI frameworks: Qt (Widgets / QML), Flutter, SwiftUI,
 
 **Evidence**: pinned pixel hashes on all six CI rows (examples, components, showcases); a CPU reference rasteriser without floating-point contraction; text and i18n that use no system libraries (no ICU).
 
-## 4. One tree, four languages, and view documents
+## 4. One tree: C++, TypeScript and view documents
 
-**What**: C++, TypeScript, Python, Lua and `*.view.omui.json` build the same semantic tree; components are contract-first, and the bindings of the four languages are generated.
+**What**: C++, TypeScript and `*.view.omui.json` build the same semantic tree; components are contract-first, and the TypeScript binding is generated. TypeScript is the one script language (D-138): one binding kept complete rather than several kept partly.
 
-**Evidence**: CTS scenarios record byte-identical traces in the three script languages; `omui-gen` generates bindings, stubs and schemas.
+**Evidence**: CTS scenarios record the pinned traces in TypeScript; the C++, TypeScript and view-document trees are compared in tests; `omui-gen` generates bindings, stubs and schemas.
 
 ## 5. Independent animation, composable playback
 
@@ -142,7 +142,7 @@ Chinese typography follows CSS Text 4: autospace between Chinese and Latin text,
 | Agent grants under a developer's cap (an open standard) | ✓ (openas) | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 | Byte-identical pixels across platforms | ✓ | ✗ | close (Skia/Impeller; system fonts) | ✗ | ✗ | ✗ | ✗ |
 | Exact record and replay | ✓ | ✗ | ✗ | ✗ | ✗ | partly (tools) | ✗ |
-| Several languages, one tree | ✓ (4 + documents) | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
+| Several languages, one tree | ✓ (C++, TS + documents) | C++ / QML / Python | Dart | Swift | Kotlin | JS | C++ |
 | Custom shader effects | ✓ (Slang, hot reload) | ✓ (QML ShaderEffect) | ✓ (FragmentProgram) | ✓ (Metal) | ✓ (AGSL) | partly (WebGL) | by hand |
 | Performance budgets in CI, a public report | ✓ | ✗ | partly | ✗ | partly (Macrobenchmark) | ✗ | ✗ |
 | Components releasable alone | ✓ | partly | ✗ | ✗ | partly | ✓ (npm) | — |

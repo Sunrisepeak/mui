@@ -37,4 +37,5 @@ mlibs.utils   = { path = "../../../base/utils" }
 mcpplibs.mtest     = "0.5.0"
 mlibs.image        = { path = "../../../base/image" }
 omui.ui.base       = { path = "../components/base" }
+# Twins of the application, as the entry makes them, for the tests.
 omui.host.headless = { path = "../host/headless" }

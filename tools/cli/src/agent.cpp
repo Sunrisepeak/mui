@@ -445,6 +445,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp\n"
                "  omui replay FILE     a recording (record) played in a fresh instance, its end checked byte for byte\n"
                "  omui design sync     Live Design's history (.omui/design) carried into git as design/<branch>\n"
+               "  omui design film     the design's history as a film (WebM): each step as it was presented, captioned\n"
                "  omui package [--format F]   the application packaged to give away (mcpp pack)\n"
                "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (--install)\n"
                "  omui config          omui.config.ts as the player reads it: agents' level, what the recorder keeps\n"

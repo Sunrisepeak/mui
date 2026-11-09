@@ -555,6 +555,7 @@ std::string Player::source_name(const std::filesystem::path& file) const { retur
 std::filesystem::path Player::source_file(std::string_view path) const { return impl_->full(path); }
 Runtime& Player::runtime() const noexcept { return impl_->rt; }
 const PlayerOptions& Player::options() const noexcept { return impl_->options; }
+const std::vector<Language>& Player::languages() const noexcept { return impl_->languages; }
 
 std::vector<std::string> Player::poll() {
     Impl& d = *impl_;

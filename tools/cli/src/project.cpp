@@ -273,6 +273,13 @@ cmd::App project_command(std::string_view name) {
             .subcommand(App("sync")
                             .description("Carries it into git: each design commit a commit on design/<branch>, tags as design/<tag>; the work tree untouched")
                             .option(Option("dir").takes_value().value_name("DIR").help("the application's directory (here when absent)"))
+                            .option(json))
+            .subcommand(App("film")
+                            .description("The design's history as a film: each step as it was presented, under its caption (design.film), rendered to WebM")
+                            .option(Option("out").takes_value().value_name("FILE").help("the film (design.webm)"))
+                            .option(Option("branch").takes_value().value_name("NAME").help("whose commits (the one designed on)"))
+                            .option(Option("fps").takes_value().value_name("N").help("frames a second (30)"))
+                            .option(Option("seconds").takes_value().value_name("S").help("each step's time on screen (1.5)"))
                             .option(json));
     if (name == "deps")
         return App("deps").description("The project's dependencies, as its mcpp.toml declares them: each package, its kind, its version or path").option(json);
@@ -318,12 +325,27 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         return 0;
     }
     if (name == "design") {
-        if (!p.has_subcommand() || p.subcommand_name() != "sync") {
-            err << "omui design: sync (omui design sync --help)\n";
+        if (!p.has_subcommand() || (p.subcommand_name() != "sync" && p.subcommand_name() != "film")) {
+            err << "omui design: sync or film (omui design --help)\n";
             return 2;
         }
-        const cmd::ParsedArgs& sync = p.subcommand()->get();
-        return design_sync(mcpplibs::os::fs::from_utf8(sync.value("dir").value_or(".")), sync.is_flag_set("json"), out, err);
+        const cmd::ParsedArgs& sub = p.subcommand()->get();
+        if (p.subcommand_name() == "sync")
+            return design_sync(mcpplibs::os::fs::from_utf8(sub.value("dir").value_or(".")), sub.is_flag_set("json"), out, err);
+        // The film: the application, with its designer, makes the frames and the description (design.film);
+        // omui video renders them.
+        const std::string branch = sub.value("branch").value_or("");
+        const std::string frames = std::format(".omui/design/film/{}", branch.empty() ? "head" : branch);
+        std::vector<std::string> args{"run", "-q", "--features", "omui.entry.player/design", "--", "--design-film", frames};
+        if (!branch.empty()) args.insert(args.end(), {"--film-branch", branch});
+        for (const std::string_view key : {"fps", "seconds"})
+            if (auto given = sub.value(key)) args.insert(args.end(), {std::format("--film-{}", key), *given});
+        Ran made = run_tool("mcpp", std::move(args), err);
+        record(out, sub.is_flag_set("json"), "frames", made);
+        if (made.code != 0) return made.code;
+        const std::string film = sub.value("out").value_or("design.webm");
+        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.toml", "--out", film};
+        return cli::run(render, out, err);
     }
     Ran ran;
     if (name == "new") {

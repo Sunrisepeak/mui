@@ -25,7 +25,7 @@ namespace {
 
 constexpr Log log{"designer"};
 
-using player::Language, player::Player, player::StandIn;
+using player::Language, player::Player, player::Twin;
 
 void collect(void* user, const char* data, std::size_t size) { static_cast<std::string*>(user)->append(data, size); }
 
@@ -177,14 +177,24 @@ private:
         std::filesystem::path picture;
         Value                 changes;  // against what the person sees now
     };
+    // A twin of the application (the entry makes them), or why there is none.
+    std::expected<std::unique_ptr<Twin>, std::string> twin(bool design) {
+        if (!player.options().twin) return std::unexpected(std::string("this host makes no twin of the application to show it in (omui dev's player does)"));
+        return player.options().twin(design);
+    }
+
     std::expected<Shown, std::string> stand_in(const std::map<std::string, std::string>& texts) {
-        if (!player.options().stand_in) return std::unexpected(std::string("this host makes no stand-in to show it in (omui dev's player does)"));
-        auto shown = player.options().stand_in(texts);
-        if (!shown) return std::unexpected(std::format("the stand-in: {}", shown.error()));
-        auto picture = history.keep_picture(shown->png);
+        auto made = twin(false);
+        if (!made) return std::unexpected(made.error());
+        Twin& shown = **made;
+        if (auto ran = shown.player().show(texts); !ran) return std::unexpected(std::format("the stand-in: {}", ran.error()));
+        shown.settle();
+        auto png = shown.png();
+        if (!png) return std::unexpected(std::format("the stand-in: {}", png.error()));
+        auto picture = history.keep_picture(*png);
         if (!picture) return std::unexpected(picture.error());
-        semantic::Tree tree(rt);
-        return Shown{std::move(*picture), semantic::changes_between(tree.snapshot(), shown->tree)};
+        semantic::Tree here(rt), there(shown.runtime());
+        return Shown{std::move(*picture), semantic::changes_between(here.snapshot(), there.snapshot())};
     }
 
     void show_preview(const std::filesystem::path& picture) {
@@ -349,21 +359,81 @@ private:
 
     // Pictures for the latest commits that have none, each in a stand-in (the timeline's thumbnails).
     std::size_t picture_commits(std::size_t at_most) {
-        if (!player.options().stand_in) return 0;
+        if (!player.options().twin) return 0;
         auto in_time = commits_in_time();
         std::size_t made = 0;
         for (auto commit = in_time.rbegin(); commit != in_time.rend() && made < at_most; ++commit) {
             if (history.thumbnail(commit->id)) continue;
             auto texts = history.texts_of(commit->id);
             if (!texts) continue;
-            auto shown = player.options().stand_in(*texts);
+            auto shown = stand_in(*texts);
             if (!shown) continue;
-            if (auto picture = history.keep_picture(shown->png)) {
-                (void)history.set_thumbnail(commit->id, *picture);
-                ++made;
-            }
+            (void)history.set_thumbnail(commit->id, shown->picture);
+            ++made;
         }
         return made;
+    }
+
+    // The design's history as a film (D-151 §2.14, 设计回放成为作品): a
+    // branch's commits from its first, each run in an unseen twin of the
+    // application as a design edit runs (its presentation: written in,
+    // unwritten, springing) under a caption saying what the step was, drawn
+    // frame by frame; the frames (PNG) and a video description beside them,
+    // which `omui video render` makes a WebM of (`omui design film`).
+    std::expected<Value, std::string> film(const Value& args) {
+        const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
+        auto commits = history.log(branch, 1000);
+        if (commits.empty()) return std::unexpected(std::format("`{}` has no commits to film (design.history.commit, or every design step, makes them)", branch));
+        std::ranges::reverse(commits);
+        const auto number = [&](std::string_view key, double fallback, double low, double high) {
+            const Value* given = args.get(key);
+            return std::clamp(given && given->is_number() ? given->as_double() : fallback, low, high);
+        };
+        const int fps = static_cast<int>(number("fps", 30, 1, 60));
+        const double each = number("seconds", 1.5, 0.2, 10);
+        const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
+        const std::filesystem::path out = out_text.empty() ? history.directory() / "film" / branch
+                                                           : std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(out_text.data()), out_text.size()));
+        std::error_code error;
+        std::filesystem::remove_all(out / "frames", error);
+        std::filesystem::create_directories(out / "frames", error);
+        if (error) return std::unexpected(std::format("{}: {}", generic_utf8(out), error.message()));
+
+        // The twin: the application again, unseen, designing as the person's does.
+        auto made = twin(true);
+        if (!made) return std::unexpected(made.error());
+        Twin& shown = **made;
+        const Size window = shown.runtime().size();
+        std::size_t frame = 0;
+        double at = shown.time().count();
+        const auto frames_each = static_cast<std::size_t>(std::lround(each * fps));
+        for (std::size_t index = 0; index < commits.size(); ++index) {
+            auto texts = history.texts_of(commits[index].id);
+            if (!texts) return std::unexpected(texts.error());
+            if (auto ran = shown.player().show(*texts); !ran) return std::unexpected(std::format("{}: {}", commits[index].id.substr(0, 8), ran.error()));
+            shown.settle();
+            shown.runtime().mount("design-caption", caption_view(window, std::format("{}/{} · {}", index + 1, commits.size(), commits[index].message)));
+            for (std::size_t step = 0; step < frames_each; ++step, ++frame) {
+                at += 1.0 / fps;
+                shown.step(seconds(at));
+                auto png = shown.png();
+                if (!png) return std::unexpected(png.error());
+                std::ofstream(out / "frames" / std::format("{:05}.png", frame), std::ios::binary)
+                    .write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+            }
+        }
+        // The description `omui video render` reads (xengine.video): the frames, at their rate.
+        const auto description = out / "design.video.omui.toml";
+        std::ofstream(description, std::ios::binary)
+            << std::format("doc = \"The design of {} on {}: {} steps, {} s each.\"\n\n[video]\nwidth = {}\nheight = {}\nfps = {}\nframes = {}\n\n[frames]\npng = "
+                           "\"frames/{{:05}}.png\"\n",
+                           player.manifest().id, branch, commits.size(), each, static_cast<int>(window.width), static_cast<int>(window.height), fps, frame);
+        return Value{}
+            .set("branch", branch)
+            .set("steps", static_cast<double>(commits.size()))
+            .set("frames", static_cast<double>(frame))
+            .set("fps", static_cast<double>(fps))
+            .set("description", generic_utf8(description));
     }
 
     // Where a script built a node: its path as design.sources names it, line and column.
@@ -548,6 +618,7 @@ private:
             if (by) rt.note({.actor = by->actor.text(), .text = intent});
             return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
         });
+        add("design.film", [this](const Value& args) -> VerbResult { return film(args); });
         add("design.timeline", [this](const Value& args) -> VerbResult {
             std::size_t pictured = 0;
             if (args.get("pictures") && args.get("pictures")->as_bool()) pictured = picture_commits(12);

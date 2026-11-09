@@ -92,6 +92,34 @@ player::Language stub() {
     return {"stub", {".stub"}, [](abi::OmuiRuntime rt) -> std::unique_ptr<player::Engine> { return std::make_unique<Stub>(rt); }, {}};
 }
 
+// A twin as the entry makes one, over the test's language: the application
+// again, headless, its time stepped by the caller.
+class StubTwin final : public player::Twin {
+public:
+    StubTwin(const player::Manifest& manifest, bool design)
+        : host_(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}}), shown_(host_.runtime(), manifest, {stub()}, {.design = design}) {
+        (void)shown_.start();
+        host_.settle();
+    }
+    player::Player& player() override { return shown_; }
+    Runtime& runtime() override { return host_.runtime(); }
+    seconds time() override { return host_.runtime().now(); }
+    void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
+    void settle() override { host_.settle(); }
+    std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
+
+private:
+    Headless       host_;
+    player::Player shown_;
+};
+
+player::TwinFn stub_twins(const player::Manifest& manifest, int* made = nullptr) {
+    return [manifest, made](bool design) -> std::expected<std::unique_ptr<player::Twin>, std::string> {
+        if (made) ++*made;
+        return std::make_unique<StubTwin>(manifest, design);
+    };
+}
+
 constexpr std::string_view counter = R"j({"omui": "0.1", "view": {"signals": {"count": {"type": "int"}},
   "root": {"type": "column", "children": [
     {"type": "tally_tag", "id": "badge", "props": {"label": "clicks"}},
@@ -330,21 +358,8 @@ UTest cases{"designer", [] {
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         int stand_ins = 0;
-        // The stand-in the entry would make: the application again, headless, running the texts.
-        const auto stand_in = [&](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
-            ++stand_ins;
-            Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
-            player::Player shown(twin.runtime(), m, {stub()}, {});
-            if (auto started = shown.start(); !started) return std::unexpected(started.error());
-            twin.settle();
-            if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
-            twin.settle();
-            auto png = twin.png();
-            if (!png) return std::unexpected(png.error());
-            return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
-        };
         Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
-        player::Player p(h.runtime(), m, {stub()}, {.design = true, .stand_in = stand_in});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .twin = stub_twins(m, &stand_ins)});
         expect(p.start().has_value());
         h.settle();
         const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
@@ -391,8 +406,8 @@ UTest cases{"designer", [] {
         const auto [picked, pick_answer] = invoke("design.variants.pick", Value{}.set("name", "bold"));
         expect(eq(picked, 0)) << pick_answer.json();
         expect(eq(name_of(h, "side/hello"), std::string("bold")) && !h.tree().node("design-variants/cards/variant-bold").has_value());
-        expect(eq(stand_ins, 5)) << "two previews, three variants";
-        // Without a stand-in, they say so.
+        expect(eq(stand_ins, 5)) << "two previews, three variants: a twin each";
+        // Without twins, they say so.
         Headless plain(HeadlessOptions{.size = {320, 240}});
         player::Player without(plain.runtime(), m, {stub()}, {.design = true});
         expect(without.start().has_value());
@@ -400,7 +415,7 @@ UTest cases{"designer", [] {
         call.args = Value{}.set("path", "logic/side.stub").set("text", saying("x"));
         call.actor = {"agent", "designer", {}};
         const Envelope refused = plain.runtime().verbs().invoke("design.preview", call);
-        expect(refused.exit_code().value_or(0) != 0 && refused.ndjson().contains("stand-in")) << refused.ndjson();
+        expect(refused.exit_code().value_or(0) != 0 && refused.ndjson().contains("twin")) << refused.ndjson();
     };
 
     "the timeline: lanes of branches, commits in time with their pictures; a commit pressed is seen, steps go through time, two compared"_test = [] {
@@ -416,20 +431,8 @@ UTest cases{"designer", [] {
         m.base = dir;
         m.scripts = {{"stub", "logic/side.stub"}};
         int stand_ins = 0;
-        const auto stand_in = [&](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
-            ++stand_ins;
-            Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
-            player::Player shown(twin.runtime(), m, {stub()}, {});
-            if (auto started = shown.start(); !started) return std::unexpected(started.error());
-            twin.settle();
-            if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
-            twin.settle();
-            auto png = twin.png();
-            if (!png) return std::unexpected(png.error());
-            return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
-        };
         Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {480, 360}});
-        player::Player p(h.runtime(), m, {stub()}, {.design = true, .stand_in = stand_in});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .twin = stub_twins(m, &stand_ins)});
         expect(p.start().has_value());
         h.settle();
         const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
@@ -465,7 +468,7 @@ UTest cases{"designer", [] {
         expect(eq(opened, 0)) << model.json();
         expect(model.get("lanes") && model.get("lanes")->list()->size() == 2 && model.get("columns")->as_int() == 4) << model.json();
         expect(model.get("lanes")->list()->front().get("branch")->as_string() == "main") << "the branch designed on first";
-        expect(eq(stand_ins, 4)) << "a picture for each commit";
+        expect(eq(stand_ins, 4)) << "a picture for each commit, a twin each";
         expect(model.json().contains(".png")) << model.json();
         expect(h.tree().node("design-timeline/panel/bar/back").has_value()) << "shown over the application";
         // A commit pressed: the application shows it, the branch where it was.
@@ -492,6 +495,47 @@ UTest cases{"designer", [] {
         // Put away.
         expect(eq(invoke("design.timeline", Value{}.set("show", false)).first, 0));
         expect(!h.tree().node("design-timeline/panel/bar/back").has_value());
+    };
+
+    "the design as a film: each step run in a twin as it was presented, under its caption, frame by frame; a description for omui video"_test = [] {
+        const auto dir = scratch_dir("designer-film");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string doc = R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+  {"type": "text", "id": "hello", "props": {"text": "one"}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", doc);
+        player::Manifest m;
+        m.id = "org.openmui.designer-film";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .twin = stub_twins(m)});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        expect(eq(invoke("design.begin", Value{}.set("intent", "a film")).first, 0));
+        for (const std::string_view words : {"two", "three"}) {
+            std::string text = doc;
+            text.replace(text.find("\"one\""), 5, std::format("\"{}\"", words));
+            expect(eq(invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text)).first, 0));
+        }
+        const auto [filmed, film] = invoke("design.film", Value{}.set("fps", 10).set("seconds", 0.3));
+        expect(eq(filmed, 0)) << film.json();
+        expect(film.get("steps") && film.get("steps")->as_int() == 3 && film.get("frames")->as_int() == 9) << film.json();
+        const auto out = dir / ".omui" / "design" / "film" / "main";
+        const std::string description = file_text(out / "design.video.omui.toml");
+        expect(description.contains("frames = 9") && description.contains("png = \"frames/{:05}.png\"") && description.contains("width = 320")) << description;
+        const std::string first = file_text(out / "frames" / "00000.png"), last = file_text(out / "frames" / "00008.png");
+        expect(!first.empty() && !last.empty() && first != last) << "the design changing over the film";
+        expect(eq(name_of(h, "side/hello"), std::string("three"))) << "what the person sees untouched";
     };
 
     "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {

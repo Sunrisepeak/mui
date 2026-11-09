@@ -162,6 +162,20 @@ export default defineOps({
       undo: "design.variants again, or design.history.switch to a variant's branch",
     },
     {
+      name: "design.film",
+      effect: "reversible",
+      summary: "The design's history as a film: a branch's commits from its first, each run in an unseen twin of the application as a design edit runs (its presentation) under a caption saying what the step was, drawn frame by frame — the frames (PNG) and a video description beside them, which `omui video render` (or `omui design film`) makes a WebM of",
+      params: [
+        { name: "branch", type: "string", doc: "whose commits (the one designed on when absent)", optional: true },
+        { name: "out", type: "path", doc: "where the frames and the description go (.omui/design/film/<branch>)", optional: true },
+        { name: "fps", type: "integer", doc: "frames a second, 1 … 60 (30)", optional: true },
+        { name: "seconds", type: "number", doc: "each step's time on screen, 0.2 … 10 (1.5)", optional: true },
+      ],
+      result: "json",
+      cost: "heavy",
+      undo: "delete the directory it names",
+    },
+    {
       name: "design.timeline",
       effect: "reversible",
       summary: "The design's history and its time in one picture, shown over the application (D-151): a lane for each branch, its commits by when they were made with their pictures; a commit pressed is seen, ◀ ▶ go through time, two compared. Answers the same as data; `at` sees a commit, `step` goes back or forward, `pictures` makes the latest commits' pictures in stand-ins",

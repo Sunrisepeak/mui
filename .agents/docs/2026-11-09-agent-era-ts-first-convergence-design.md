@@ -740,6 +740,9 @@ my-app/
   - 入口 player 只在 `design` 特性下链接它：`omui dev` 用 `mcpp run --features omui.entry.player/design -- --dev`，`omui build --release` 不带这个特性。
   - 没有设计器的开发模式会说明这一点，应用照常运行。
   - mcpp 的 profile 不能选择特性，命令行也不能关闭默认特性，所以由开发一侧去打开特性。
+- 第十二块完成：设计回放成为作品（第 9 步）。`design.film` 在看不见的孪生应用里，从一条分支的第一个提交起逐步运行：每一步都像设计编辑那样呈现（写入、擦除、弹动），下方配上这一步的说明字幕，按帧绘制；输出 PNG 帧序列，旁边写一份视频描述（`*.video.omui.toml`）。
+  - `omui design film` 先用设计器构建并运行应用（入口的 `--design-film`），再用 `omui video render` 渲染成 WebM。
+  - 每步的时长、帧率和分支都可以设置。
 - 下一块：
   - hanim 呈现设计过程；
   - 预演与方案板。

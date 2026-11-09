@@ -73,6 +73,13 @@ inline Element board_view(Size window, std::string_view brief, const std::vector
                    row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))});
 }
 
+// A film's caption (design.film): what the step was, at the bottom.
+inline Element caption_view(Size window, std::string words) {
+    return column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},
+                  {box({.id = "caption", .padding = Edges(8.0f, 14.0f), .background = Fill(std::string(glass)), .radius = 10, .label = words},
+                       {text({.text = words, .style = "label", .color = Fill(std::string(ink)), .wrap = false, .max_lines = 1})})});
+}
+
 // The timeline (D-151 §2.14): the design's history and its time in one
 // picture — a lane for each branch, its commits placed by when they were
 // made (one column each), each with its picture when it has one.

@@ -117,23 +117,32 @@ struct Language {
     SourceEditor edit;
 };
 
-// What a stand-in shows: its picture (PNG) and its semantic tree.
-struct StandIn {
-    std::vector<std::uint8_t> png;
-    semantic::Snapshot        tree;
+class Player;
+// A twin (D-149): the application again in this process, unseen and headless
+// — its own runtime and player, the same manifest and languages — whose time
+// the caller steps. What a preview or a variant looks like (a stand-in), the
+// design's film, a motion measured: the application the person sees is never
+// touched. The entry makes them (a headless host); the designer works in them.
+class Twin {
+public:
+    virtual ~Twin() = default;
+    [[nodiscard]] virtual Player& player() = 0;
+    [[nodiscard]] virtual Runtime& runtime() = 0;
+    // Its clock; a frame at a time on it (the next when none).
+    [[nodiscard]] virtual seconds time() = 0;
+    virtual void step(std::optional<seconds> at = std::nullopt) = 0;
+    // Its scripts done, nothing moving.
+    virtual void settle() = 0;
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> png() = 0;
 };
-// A stand-in (替身, D-149): the application again in this process, unseen and
-// headless, running the given texts (sources by path; the rest as their files
-// are) — what a preview or a variant looks like, the application the person
-// sees untouched. The entry makes one (a headless host, the same size, theme
-// and languages).
-using StandInFn = std::function<std::expected<StandIn, std::string>(const std::map<std::string, std::string>& texts)>;
+// A twin started (`design`: in development mode, its edits presented as the
+// person's are), or why not.
+using TwinFn = std::function<std::expected<std::unique_ptr<Twin>, std::string>(bool design)>;
 
 // Live Design's designer (omui.designer, D-149): the design verbs, the
 // history, previews and the timeline, made for a player in development mode
 // when the program links one — it says so as it starts (provide_designer). A
 // release links none: development mode then says it has no designer.
-class Player;
 class Designer {
 public:
     virtual ~Designer() = default;
@@ -147,9 +156,10 @@ struct PlayerOptions {
     // frame (its semantic changes answered, or its problems, nothing changed),
     // and commit it to the files or discard it. Left out of a release.
     bool design = false;
-    // Previews, the variants board and the history's pictures (design.preview,
-    // design.variants, design.history with pictures); without one they say so.
-    StandInFn stand_in;
+    // Twins of the application: previews, the variants board, the history's
+    // pictures and film, motion measured (the designer's); without them those
+    // say so.
+    TwinFn twin;
 };
 
 class Player {
@@ -193,6 +203,8 @@ public:
     [[nodiscard]] std::filesystem::path source_file(std::string_view path) const;
     [[nodiscard]] Runtime& runtime() const noexcept;
     [[nodiscard]] const PlayerOptions& options() const noexcept;
+    // The languages it runs scripts in (a twin of the application runs the same).
+    [[nodiscard]] const std::vector<Language>& languages() const noexcept;
     // Polls on the runtime's timers, every `period`.
     void watch(seconds period = seconds(0.1));
 

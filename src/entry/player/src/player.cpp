@@ -23,31 +23,40 @@ namespace omui {
 
 namespace {
 
-// Live Design's stand-in (D-149): the application again, headless and unseen,
-// running texts the design has not taken yet — a preview's or a variant's
-// picture and semantic tree — what the person sees untouched.
-player::StandInFn stand_in(const player::Manifest& manifest) {
-    return [manifest](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
-        Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size, .app = manifest.id + ".stand-in"});
-        player::Player shown(twin.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()}, {});
-        // Its scripts run on a thread of their own: waited for by time (a few frames
-        // pass before QuickJS has begun), its frames stepped meanwhile.
-        const auto settle = [&] {
-            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-            while (!shown.idle() && std::chrono::steady_clock::now() < deadline) {
-                (void)twin.step();
-                std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            }
-            twin.settle();
-        };
-        if (auto started = shown.start(); !started) return std::unexpected(started.error());
+// Twins of the application (D-149): the application again, headless and
+// unseen, with its own runtime and player — previews, variants, the design's
+// film and motion measured in them; what the person sees untouched.
+class HeadlessTwin final : public player::Twin {
+public:
+    HeadlessTwin(const player::Manifest& manifest, bool design)
+        : host_(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size, .app = manifest.id + ".twin"}),
+          shown_(host_.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()}, {.design = design}) {
+        (void)shown_.start();  // its problems are the application's own, said where it runs
         settle();
-        if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
-        settle();
-        auto png = twin.png();
-        if (!png) return std::unexpected(png.error());
-        return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
-    };
+    }
+    player::Player& player() override { return shown_; }
+    Runtime& runtime() override { return host_.runtime(); }
+    seconds time() override { return host_.runtime().now(); }
+    void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
+    // Its scripts run on a thread of their own: waited for by time (a few frames
+    // pass before QuickJS has begun), its frames stepped meanwhile.
+    void settle() override {
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+        while (!shown_.idle() && std::chrono::steady_clock::now() < deadline) {
+            (void)host_.step();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+        host_.settle();
+    }
+    std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
+
+private:
+    Headless       host_;
+    player::Player shown_;
+};
+
+player::TwinFn twins(const player::Manifest& manifest) {
+    return [manifest](bool design) -> std::expected<std::unique_ptr<player::Twin>, std::string> { return std::make_unique<HeadlessTwin>(manifest, design); };
 }
 
 // `ui/*.view.omui.json`: the files of a directory whose names match (`*` in
@@ -173,7 +182,11 @@ int player_main(int argc, char** argv) {
         .description("Runs a script-first openmui application from its mcpp.toml")
         .option(Option("manifest").takes_value().value_name("FILE").help("the application's mcpp.toml, or its directory (default: ./mcpp.toml)"))
         .option(Option("dev").help("development mode: the application is its own designer (D-149)"))
-        .option(Option("types").takes_value().value_name("DIR").help("write the TypeScript declarations of what it registers, its API (api.json) and tsc's configuration into DIR, then end (omui check)"));
+        .option(Option("types").takes_value().value_name("DIR").help("write the TypeScript declarations of what it registers, its API (api.json) and tsc's configuration into DIR, then end (omui check)"))
+        .option(Option("design-film").takes_value().value_name("DIR").help("the design's history as a film: frames and a video description into DIR, then end (omui design film; needs the designer)"))
+        .option(Option("film-branch").takes_value().value_name("NAME").help("design-film: whose commits (the one designed on)"))
+        .option(Option("film-fps").value_type<int>().help("design-film: frames a second (30)"))
+        .option(Option("film-seconds").value_type<double>().help("design-film: each step's time on screen (1.5)"));
     auto command = command_line(std::move(line), argc, argv);
     if (!command) return command.error();
     const cmdline::ParsedArgs& parsed = command->args;
@@ -237,6 +250,29 @@ int player_main(int argc, char** argv) {
         for (const auto& file : *files) std::println("{}", utf8(file));
         return 0;
     }
+    if (auto film = parsed.value("design-film")) {
+        // The design's history as a film (design.film, the designer's): the application started
+        // headless in development mode, the verb asked, its answer printed.
+        register_base_components();
+        register_window_components();
+        Headless headless(HeadlessOptions{.size = m->size, .app = m->id});
+        player::Player designing(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()}, {.design = true, .twin = twins(*m)});
+        if (auto r = designing.start(); !r) {
+            std::print(std::cerr, "{}", r.error());
+            if (!headless.runtime().verbs().find("design.film")) return 2;  // no designer linked: nothing to film with
+        }
+        for (int frame = 0; frame < 600 && !designing.idle(); ++frame) (void)headless.step();
+        Value args = Value{}.set("out", *film);
+        if (auto branch = parsed.value("film-branch")) args.set("branch", *branch);
+        if (auto fps = parsed.value_as<int>("film-fps")) args.set("fps", *fps);
+        if (auto each = parsed.value_as<double>("film-seconds")) args.set("seconds", *each);
+        Invocation call;
+        call.args = std::move(args);
+        call.actor = {"person", "developer", {}};
+        const Envelope answer = headless.runtime().verbs().invoke("design.film", call);
+        std::print("{}", answer.ndjson());
+        return answer.exit_code().value_or(1) == 0 ? 0 : 1;
+    }
     std::optional<player::Player> p;
     AppSpec app;
     app.id = m->id;
@@ -246,7 +282,7 @@ int player_main(int argc, char** argv) {
     app.setup = [&](Runtime& rt) {
         if (record) rt.set_record_level(*record);
         p.emplace(rt, *m, std::vector<player::Language>{lang::js::typescript(), lang::js::javascript()},
-                  player::PlayerOptions{.design = design, .stand_in = design ? stand_in(*m) : player::StandInFn{}});
+                  player::PlayerOptions{.design = design, .twin = design ? twins(*m) : player::TwinFn{}});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
         // A saved file shows within a frame in development mode (W2: save to screen ≤ 100 ms at p95; a
         // stat of the app's files a frame costs microseconds), within a tenth of a second otherwise.

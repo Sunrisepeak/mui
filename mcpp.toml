@@ -186,10 +186,13 @@ ldflags = ["-sNODERAWFS=1"]
 # exit code to the page. Asyncify, not JSPI: JSPI makes the exceptions'
 # invoke_ imports suspending, and a static constructor that reaches a try
 # block then fails outside WebAssembly.promising.
+# Its stack for what is unwound while waiting: 64 KiB — mtest's runner sits
+# above a waiting case, more than the default 4 KiB holds (it trapped,
+# `unreachable`, red list 45).
 [workspace.profile.wasm-browser]
 opt     = 1
 debug   = false
-ldflags = ["-sASYNCIFY=1", "-sEXIT_RUNTIME=1"]
+ldflags = ["-sASYNCIFY=1", "-sASYNCIFY_STACK_SIZE=65536", "-sEXIT_RUNTIME=1"]
 
 # The Web's bytes, looked into (W8; tools/ci/wasm-size.sh): the release
 # build's code (-O2) with its functions' names kept in a name section, for

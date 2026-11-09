@@ -44,6 +44,10 @@ struct ServerOptions {
     // verbs: each becomes a tool (cellular.paint → cellular_paint) with the
     // listing's schema and hints, invoking that verb.
     std::vector<Value> listings;
+    // Live Design's verbs (design.*, omui.agent's design catalog) as tools
+    // too: they answer in an application started in development mode
+    // (`omui dev`), and refuse elsewhere as any verb an application lacks.
+    bool design = true;
 };
 
 // A listing read and checked: an omui.ops listing of an application's verbs

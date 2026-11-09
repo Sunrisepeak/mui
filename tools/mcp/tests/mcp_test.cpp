@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 19, "nineteen tools");
+        check(tools && tools->list() && tools->list()->size() == 29, "nineteen ui_* tools and Live Design's ten");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -163,7 +163,9 @@ int main(int argc, char** argv) {
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
                                                   "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
-                                                  "ui_timeline", "ui_explain", "ui_reload", "ui_record"}));
+                                                  "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_sources", "design_api",
+                                                  "design_edit", "design_expect", "design_check", "design_handover", "design_save_scenario",
+                                                  "design_replay", "design_discard", "design_commit"}));
             // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
@@ -174,6 +176,14 @@ int main(int argc, char** argv) {
                   "reads");
             check(!hint("ui_clock", "readOnlyHint") && !hint("ui_clock", "destructiveHint") && !hint("ui_input", "readOnlyHint"), "reversible");
             check(!hint("ui_act", "readOnlyHint") && hint("ui_act", "destructiveHint") && hint("ui_invoke", "destructiveHint"), "delegated: at most irreversible");
+            // Live Design's, from its catalog (design.ops.omui.ts): an edit takes the script's path and text, and is undone.
+            check(hint("design_sources", "readOnlyHint") && !hint("design_edit", "readOnlyHint") && !hint("design_edit", "destructiveHint"), "design: reads and edits");
+            for (const Value& t : *tools->list())
+                if (t.get("name")->as_string() == "design_edit") {
+                    const Value* properties = t.get("inputSchema")->get("properties");
+                    check(properties->get("path") && properties->get("text") && properties->get("app"), t.json());
+                    check(t.get("description")->as_string().contains("the application's verb design.edit"), t.json());
+                }
         }
         check(c.reply(3) && c.reply(3)->get("result"), "ping");
         check(c.reply(4) && c.reply(4)->get("error")->get("code")->as_int() == -32601, "an unknown method");
@@ -434,7 +444,7 @@ int main(int argc, char** argv) {
         check(!mcp::read_listing(dir / "nothing.ops.json"), "a file that is not there");
         Notes notes(dir);
         if (!notes.h.endpoint()) return;
-        mcp::Server server({.directory = dir, .listings = {*listing}});
+        mcp::Server server({.directory = dir, .listings = {*listing}, .design = false});
         Client c;
         c.in = {initialize(1, false), request(2, "tools/list"), call(3, "notes_pin"), call(4, "notes_delete")};
         serve(notes.h, server, c);

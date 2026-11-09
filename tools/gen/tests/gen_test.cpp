@@ -250,7 +250,7 @@ int main(int argc, char** argv) {
             const auto stale = [&](const std::filesystem::path& file, const std::string& now) {
                 check(read(file) == now, std::format("{} is out of date: run omui-gen ops {} --out {}", file.generic_string(), entry.path().generic_string(), out.generic_string()));
             };
-            if (!catalog->module.empty()) stale(out / "catalog.cppm", gen::emit_catalog_cpp(*catalog, name));
+            if (!catalog->module.empty()) stale(out / (catalog->partition + ".cppm"), gen::emit_catalog_cpp(*catalog, name));
             stale(out / (catalog->product + ".ops.json"), gen::emit_catalog_json(*catalog));
             stale(out / (catalog->product + ".ops.md"), gen::emit_catalog_markdown(*catalog));
         }

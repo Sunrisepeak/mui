@@ -6,6 +6,7 @@ export import omui.core;
 export import omui.view;
 export import omui.semantic;
 export import :catalog;
+export import :design;
 export import :protocol;
 export import :endpoint;
 export import :api;

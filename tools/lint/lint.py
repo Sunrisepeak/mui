@@ -831,8 +831,8 @@ TS_OPERATION_NAME = re.compile(r'\bname:\s*"([a-z0-9_-]+\.[a-z0-9._-]+)"')
 
 
 def check_operations(root: Path) -> list[Problem]:
-    """A package that declares operations (a name with an openas effect) has a
-    catalog, <product>.ops.omui.toml or <product>.ops.omui.ts (defineOps,
+    """A package that declares operations (a name with an openas effect) has
+    catalogs, <product>.ops.omui.toml or <product>.ops.omui.ts (defineOps,
     D-139), naming each one, and a skill.omui.md (convergence plan §10.3);
     omui-gen ops makes its table from the catalog."""
     import tomllib
@@ -850,22 +850,26 @@ def check_operations(root: Path) -> list[Problem]:
         if not declared and not catalogs:
             continue
         where = f"{member}/"
-        if len(catalogs) != 1:
-            problems.append(Problem("ops", where, f"declares operations ({', '.join(sorted(declared)[:3])}…) but has {len(catalogs)} catalogs: one <product>.ops.omui.toml or .ops.omui.ts"))
+        if not catalogs:
+            problems.append(Problem("ops", where, f"declares operations ({', '.join(sorted(declared)[:3])}…) but has no catalog: a <product>.ops.omui.toml or .ops.omui.ts"))
             continue
-        if catalogs[0].suffix == ".ts":
-            # Operation names are dotted string literals (`name: "document.check"`); parameters' are not.
-            listed = set(TS_OPERATION_NAME.findall(catalogs[0].read_text(encoding="utf-8")))
-        else:
-            try:
-                data = tomllib.loads(catalogs[0].read_text(encoding="utf-8"))
-            except tomllib.TOMLDecodeError as e:
-                problems.append(Problem("ops", catalogs[0].relative_to(root).as_posix(), str(e)))
+        # A package may hold more than one product's catalog (omui.agent: the protocol's and Live Design's).
+        listed = set()
+        for catalog in catalogs:
+            if catalog.suffix == ".ts":
+                # Operation names are dotted string literals (`name: "document.check"`); parameters' are not.
+                listed |= set(TS_OPERATION_NAME.findall(catalog.read_text(encoding="utf-8")))
                 continue
-            listed = {op.get("name") for op in data.get("operation", [])}
+            try:
+                data = tomllib.loads(catalog.read_text(encoding="utf-8"))
+            except tomllib.TOMLDecodeError as e:
+                problems.append(Problem("ops", catalog.relative_to(root).as_posix(), str(e)))
+                continue
+            listed |= {op.get("name") for op in data.get("operation", [])}
+        names = " or ".join(catalog.name for catalog in catalogs)
         for name, f in sorted(declared.items()):
             if name not in listed:
-                problems.append(Problem("ops", f, f"operation `{name}` is not in {catalogs[0].name}"))
+                problems.append(Problem("ops", f, f"operation `{name}` is not in {names}"))
         if not (base / "skill.omui.md").exists():
             problems.append(Problem("ops", where, "has operations but no skill.omui.md (how an Agent does the work, and how it is verified)"))
     return problems

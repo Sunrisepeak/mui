@@ -98,6 +98,8 @@ export interface Catalog {
     /** A program's module and namespace, for the catalog's C++. */
     module?: string;
     namespace?: string;
+    /** The partition holding it (`catalog` when absent): a module with two catalogs names the second. */
+    partition?: string;
     tiers?: Tier[];
 }
 export declare function defineOps(catalog: Catalog): Defined<"ops">;

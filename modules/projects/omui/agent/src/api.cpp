@@ -5,6 +5,7 @@ import std;
 import omui.core;
 import omui.view;
 import omui.native;
+import mlibs.control;
 
 namespace omui::agent {
 
@@ -24,6 +25,21 @@ Value api_of(Runtime& runtime) {
     }
     out.set("verbs", Value(std::move(verbs)));
     return out;
+}
+
+VerbDesc verb_of(const mlibs::control::CatalogEntry& entry) {
+    VerbDesc verb{.name = std::string(entry.operation.name),
+                  .summary = std::string(entry.summary),
+                  .person = entry.operation.person,
+                  .undoable = entry.undoable};
+    switch (entry.operation.effect) {
+    case openas::Effect::read: verb.effect = Effect::read; break;
+    case openas::Effect::reversible: verb.effect = Effect::reversible; break;
+    case openas::Effect::irreversible: verb.effect = Effect::irreversible; break;
+    default: verb.effect = Effect::external;
+    }
+    for (const auto& parameter : entry.parameters) verb.args.emplace_back(parameter.name, parameter.type);
+    return verb;
 }
 
 }  // namespace omui::agent

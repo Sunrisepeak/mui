@@ -228,7 +228,11 @@ struct Server::Impl {
     std::map<std::string, std::string>     verbs;
 
     explicit Impl(ServerOptions o) : options(std::move(o)), actor(options.actor.empty() ? "agent:mcp" : options.actor) {
-        for (const Value& listing : options.listings) {
+        std::vector<Value> listings;
+        if (options.design)
+            if (auto design = parse_json(agent::design::listing)) listings.push_back(std::move(*design));
+        listings.insert(listings.end(), options.listings.begin(), options.listings.end());
+        for (const Value& listing : listings) {
             const Value* tools = listing.get("tools");
             if (!tools || !tools->list()) continue;
             for (const Value& op : *tools->list()) {

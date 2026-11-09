@@ -40,6 +40,7 @@ struct Tier {
 };
 struct Catalog {
     std::string product, module, ns, doc;
+    std::string partition = "catalog";  // the C++ partition (and its file's name)
     std::string generated = "src/control";  // where its outputs go, beside the catalog
     std::vector<Operation> operations;
     std::vector<Tier> tiers;

@@ -6,6 +6,7 @@ import omui.view;
 import omui.abi;
 import omui.theme;
 import omui.semantic;
+import omui.agent;
 import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -371,11 +372,13 @@ struct Player::Impl {
     }
 
     void design_verbs() {
-        auto add = [&](VerbDesc desc, VerbFn fn) {
-            if (auto r = rt.verbs().add(std::move(desc), std::move(fn)); !r) problem(std::format("design: {}", r.error()));
+        // Each verb as Live Design's catalog declares it (design.ops.omui.ts).
+        auto add = [&](std::string_view name, VerbFn fn) {
+            const auto entry = std::ranges::find(agent::design::catalog, name, [](const auto& op) { return op.operation.name; });
+            if (entry == agent::design::catalog.end()) return problem(std::format("design: {} is not in the catalog", name));
+            if (auto r = rt.verbs().add(agent::verb_of(*entry), std::move(fn)); !r) problem(std::format("design: {}", r.error()));
         };
-        add({.name = "design.sources", .summary = "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's)",
-             .effect = Effect::read},
+        add("design.sources",
             [this](const Value&) -> VerbResult {
                 Value::List scripts;
                 for (const auto& f : files) {
@@ -403,10 +406,7 @@ struct Player::Impl {
                 }
                 return Value{}.set("scripts", Value(std::move(scripts))).set("modules", Value(std::move(modules)));
             });
-        add({.name = "design.api",
-             .summary = "How the scripts are written here: each language's API over this application's components — every builder with its "
-                        "properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit",
-             .effect = Effect::read},
+        add("design.api",
             [this](const Value&) -> VerbResult {
                 std::string catalog;
                 (void)abi::omuiCatalog(handle, collect, &catalog);
@@ -417,11 +417,7 @@ struct Player::Impl {
                 if (languages.map()->empty()) return std::unexpected(std::string("no script language here describes its API"));
                 return Value{}.set("languages", std::move(languages));
             });
-        add({.name = "design.edit",
-             .summary = "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with "
-                        "their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it",
-             .effect = Effect::reversible,
-             .args = {{"path", "string"}, {"text", "string"}}},
+        add("design.edit",
             [this](const Value& args) -> VerbResult {
                 const std::string path(args.get("path") ? args.get("path")->as_string() : "");
                 const Value* text = args.get("text");
@@ -460,11 +456,7 @@ struct Player::Impl {
                 announce(path, *done);
                 return done;
             });
-        add({.name = "design.expect",
-             .summary = "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, "
-                        "value …), `absent` when they must not be there; with no query, lists what is expected",
-             .effect = Effect::read,
-             .args = {{"say", "string"}, {"query", "json"}, {"absent", "bool"}}},
+        add("design.expect",
             [this](const Value& args) -> VerbResult {
                 if (const Value* q = args.get("query")) {
                     auto query = semantic::Query::parse(*q);
@@ -477,14 +469,9 @@ struct Player::Impl {
                     list.push_back(Value{}.set("say", x.say).set("query", x.query.to_value()).set("absent", x.absent));
                 return Value{}.set("expected", Value(std::move(list)));
             });
-        add({.name = "design.check",
-             .summary = "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and "
-                        "states, and for a node that did not do what was expected, what the last press on it came to (the recorder)",
-             .effect = Effect::read},
+        add("design.check",
             [this](const Value&) -> VerbResult { return check_expectations(expectations); });
-        add({.name = "design.handover",
-             .summary = "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)",
-             .effect = Effect::read},
+        add("design.handover",
             [this](const Value&) -> VerbResult {
                 const auto journal = rt.action_journal();
                 handed_over_at = journal.empty() ? 0 : journal.back().id;
@@ -492,11 +479,7 @@ struct Player::Impl {
                     rt.note({.actor = by->actor.text(), .text = "Your turn: try it, and tell me when you are done", .hands_back = true});
                 return Value{}.set("from", static_cast<double>(handed_over_at));
             });
-        add({.name = "design.save_scenario",
-             .summary = "What the person did since design.handover — their actions that were done, as semantic steps (node, action, arguments) — and "
-                        "what is expected, written as tests/<name>.scenario.omui.json beside the application: a demonstration as a test",
-             .effect = Effect::reversible,
-             .args = {{"name", "string"}}},
+        add("design.save_scenario",
             [this](const Value& args) -> VerbResult {
                 const std::string name(args.get("name") ? args.get("name")->as_string() : "");
                 if (name.empty() || name.find_first_of("/\\.") != std::string::npos) return std::unexpected(std::string("`name`: a scenario's name, no path"));
@@ -513,10 +496,7 @@ struct Player::Impl {
                 std::ofstream(file, std::ios::binary) << scenario.json() << '\n';
                 return Value{}.set("file", generic_utf8(file)).set("steps", static_cast<double>(steps.size()));
             });
-        add({.name = "design.replay",
-             .summary = "A saved scenario played again: each step done as it was, then what is expected checked — the demonstration as a test",
-             .effect = Effect::reversible,
-             .args = {{"name", "string"}}},
+        add("design.replay",
             [this](const Value& args) -> VerbResult {
                 const std::string name(args.get("name") ? args.get("name")->as_string() : "");
                 const auto text = read_file(manifest.base / "tests" / (name + ".scenario.omui.json"));
@@ -542,8 +522,7 @@ struct Player::Impl {
                             expected.push_back({std::string(x.get("say") ? x.get("say")->as_string() : ""), std::move(*query), x.get("absent") && x.get("absent")->as_bool()});
                 return check_expectations(expected).set("steps", Value(std::move(done)));
             });
-        add({.name = "design.discard", .summary = "Drops every edit not committed: each edited script runs its file's text again; the dropped texts are answered",
-             .effect = Effect::reversible},
+        add("design.discard",
             [this](const Value&) -> VerbResult {
                 Value::List dropped;
                 std::vector<File*> again;  // scripts whose modules were edited: run once more, after
@@ -562,8 +541,7 @@ struct Player::Impl {
                     if (auto ran = run_text(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error());
                 return Value{}.set("discarded", Value(std::move(dropped)));
             });
-        add({.name = "design.commit", .summary = "Writes every edit to its script's file (TypeScript stays the one source); each file's text before is answered",
-             .effect = Effect::reversible},
+        add("design.commit",
             [this](const Value&) -> VerbResult {
                 Value::List written;
                 for (auto it = edited.begin(); it != edited.end();) {

@@ -417,7 +417,7 @@ int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
 }
 
 // omui-gen ops <file.ops.omui.toml or .ops.omui.ts> --out <dir> [--check]: the C++ partition
-// (<dir>/catalog.cppm) and the listings (<dir>/<product>.ops.json, .ops.md).
+// (<dir>/<partition>.cppm, catalog.cppm by default) and the listings (<dir>/<product>.ops.json, .ops.md).
 int ops_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), out = args.value("out").value_or("");
     const bool check = args.is_flag_set("check");
@@ -430,7 +430,7 @@ int ops_main(const mcpplibs::cmdline::ParsedArgs& args) {
     Writer w{check};
     // Its outputs where the catalog says, beside it, unless --out says otherwise.
     const std::filesystem::path dir = out.empty() ? std::filesystem::path(file).parent_path() / catalog->generated : std::filesystem::path(out);
-    if (!catalog->module.empty()) w.put(dir / "catalog.cppm", omui::gen::emit_catalog_cpp(*catalog, name));
+    if (!catalog->module.empty()) w.put(dir / (catalog->partition + ".cppm"), omui::gen::emit_catalog_cpp(*catalog, name));
     w.put(dir / (catalog->product + ".ops.json"), omui::gen::emit_catalog_json(*catalog));
     w.put(dir / (catalog->product + ".ops.md"), omui::gen::emit_catalog_markdown(*catalog));
     if (check && w.stale) {

@@ -27,7 +27,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 
 ## Designing live (development mode, `omui dev`)
 
-The application is its own designer (D-149); its `design.*` verbs (`ui_invoke`) are the loop:
+The application is its own designer (D-149); its `design.*` verbs are the loop — over MCP each is a tool of its own (`design_edit` …, from Live Design's catalog `design.ops.omui.ts`), over the protocol `invoke` {verb}:
 1. `design.sources` — the TypeScript each script and module runs now.
    Before writing, read what the application offers to write with: `design.api` (each language's API over its components), or `describe` with `api: true` (every builder, native module, theme token and verb, as data — `omui describe --api` and `.omui/types/` give the same from the command line; `omui check` type-checks what you wrote against it).
 2. `design.edit` {path, text} — new text runs at once, state kept; the answer is the semantic changes and the time. A text that does not run is refused with its line, nothing changed. The person sees each edit written in, and your note beside it.

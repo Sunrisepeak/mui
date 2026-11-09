@@ -10,9 +10,15 @@ export module omui.agent:api;
 import std;
 import omui.core;
 import omui.view;
+import mlibs.control;
 
 export namespace omui::agent {
 
 [[nodiscard]] Value api_of(Runtime& runtime);
+
+// A catalog's operation as the application's verb that implements it (its
+// name, summary, effect, arguments): the player registers design.* so, from
+// design.ops.omui.ts.
+[[nodiscard]] VerbDesc verb_of(const mlibs::control::CatalogEntry& entry);
 
 }  // namespace omui::agent

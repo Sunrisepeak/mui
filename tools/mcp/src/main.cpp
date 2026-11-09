@@ -18,7 +18,8 @@ int main(int argc, char** argv) {
                     .option(mcpplibs::cmdline::Option("app").takes_value().value_name("NAME").help("the application a call names none of"))
                     .option(mcpplibs::cmdline::Option("directory").takes_value().value_name("DIR").help("endpoints in DIR, not the per-user one"))
                     .option(mcpplibs::cmdline::Option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name)"))
-                    .option(mcpplibs::cmdline::Option("ops").takes_value().multiple().value_name("LISTING").help("an application's verbs as tools, from its listing"));
+                    .option(mcpplibs::cmdline::Option("ops").takes_value().multiple().value_name("LISTING").help("an application's verbs as tools, from its listing"))
+                    .option(mcpplibs::cmdline::Option("no-design").help("leave Live Design's verbs (design.*) out"));
     auto parsed = line.parse(argc, argv);
     if (!parsed) {
         if (!parsed.error().is_error()) return 0;
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
     if (auto app = parsed->value("app")) options.app = *app;
     if (auto directory = parsed->value("directory")) options.directory = mcpplibs::os::fs::from_utf8(*directory);
     if (auto actor = parsed->value("actor")) options.actor = *actor;
+    options.design = !parsed->is_flag_set("no-design");
     for (const std::string& file : parsed->option_or_empty("ops").values) {
         auto listing = omui::mcp::read_listing(mcpplibs::os::fs::from_utf8(file));
         if (!listing) {

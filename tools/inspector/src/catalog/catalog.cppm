@@ -89,4 +89,60 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
     {{"motion.save", openas::Effect::irreversible, false}, "Write the document as it is now to its file (or the file given).", parameters_motion_save, "json", mlibs::control::Cost::instant, "none: the file is written over (keep a copy, or save elsewhere)", false, false, false},
 }};
 
+// The listing (inspector.ops.json), as written beside this file.
+inline constexpr std::string_view listing = R"listing({
+  "kind": "omui.ops",
+  "version": 1,
+  "product": "inspector",
+  "doc": "Read, edit, step and replay the Inspector's cellular material field; look at, point into and tune a hanim animation document.",
+  "tools": [
+    {"name": "cellular.describe", "description": "Discover the integer rule project format, budgets and editing SOP.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.snapshot", "description": "Read revision, simulation tick, replay frame, brushes and current state hash.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.project", "description": "Export the current state as a reloadable cellular project; history is not serialized.", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.config", "description": "Read editable rules, palette, brushes, rate and boundary.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "cellular.inspect", "description": "Read all channels of one cell at x/y.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}}, "required": ["x", "y"]}},
+    {"name": "cellular.load", "description": "Validate and load a project atomically; starts a new replay history.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo restores the field before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"project": {"description": "a *.cellular.omui.json project"}, "revision": {"type": "integer", "description": "the revision it was read at (stale ones are refused)"}}, "required": ["project"]}},
+    {"name": "cellular.configure", "description": "Validate an edited rule/palette configuration over the current field.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "ui.undo restores the configuration before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"config": {"description": "name, rate, boundary, rules, palette and/or brushes"}, "revision": {"type": "integer"}}, "required": ["config"]}},
+    {"name": "cellular.paint", "description": "Paint an integer-radius brush at x/y; records an input without advancing simulation time.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo restores the cells before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"x": {"type": "integer"}, "y": {"type": "integer"}, "radius": {"type": "integer", "description": "0 to 8"}, "brush": {"type": "string", "description": "a brush ID cellular.config lists"}, "revision": {"type": "integer"}}, "required": ["x", "y", "radius", "brush"]}},
+    {"name": "cellular.advance", "description": "Advance 1..120 fixed simulation steps; retained history can be sought.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "cellular.seek to the frame cellular.snapshot read before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"count": {"type": "integer", "description": "1 to 120"}, "revision": {"type": "integer"}}, "required": ["count"]}},
+    {"name": "cellular.seek", "description": "Restore a retained replay frame exactly, including paint inputs.", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "cellular.seek to the frame before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"frame": {"type": "integer", "description": "within the retained history"}, "revision": {"type": "integer"}}, "required": ["frame"]}},
+    {"name": "cellular.reset", "description": "Restore this project's initial state; starts a new replay history.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "ui.undo restores the field before it", "undoable": true, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"revision": {"type": "integer"}}, "required": []}},
+    {"name": "cellular.play", "description": "Start or stop live playback; continuation rechecks the initiating Agent authority.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "cellular.play with the other enabled", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"enabled": {"type": "boolean"}, "revision": {"type": "integer"}}, "required": ["enabled"]}},
+    {"name": "motion.snapshot", "description": "The workbench now: the document's file, its length, the moment shown, the step being tuned, how many changes can be undone and redone.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.document", "description": "The animation document as it is now (its JSON).", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.open", "description": "Open a hanim animation document from a file or its text; its problems refuse it (what was open stays).", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.open with the document that was open", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}, "text": {"type": "string", "description": "the document itself, instead of a file"}}, "required": []}},
+    {"name": "motion.seek", "description": "Show the stage at a moment (seconds, clamped to the animation's length).", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.seek to the moment shown before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"time": {"type": "number"}}, "required": ["time"]}},
+    {"name": "motion.at", "description": "The steps that govern a moment (of an object, if given), innermost first: each one's JSON pointer, kind, start, end, how far through, the objects it moves.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"time": {"type": "number", "description": "seconds (default: the moment shown)"}, "object": {"type": "string"}}, "required": []}},
+    {"name": "motion.knobs", "description": "A step's numbers, words and switches — what a person tunes — each with its JSON pointer and value.", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"where": {"type": "string", "description": "the step's JSON pointer (default: the step being tuned)"}}, "required": []}},
+    {"name": "motion.set", "description": "One value at a JSON pointer; the document read again whole — refused with its problems, nothing changed, when it does not read. One step of the workbench's history.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.undo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"where": {"type": "string", "description": "the value's JSON pointer, e.g. /program/items/0/duration"}, "value": {}}, "required": ["where", "value"]}},
+    {"name": "motion.undo", "description": "Take back the last change.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.redo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.redo", "description": "Put back the last change taken back.", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "motion.undo", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "motion.save", "description": "Write the document as it is now to its file (or the file given).", "effect": "irreversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: the file is written over (keep a copy, or save elsewhere)", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"file": {"type": "string", "description": "a file or directory path"}}, "required": []}}
+  ],
+  "tiers": []
+}
+)listing";
+
 }  // namespace omui::inspector

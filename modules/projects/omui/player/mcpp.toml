@@ -27,6 +27,8 @@ omui.viewdoc = { path = "../viewdoc" }
 omui.abi     = { path = "../abi" }
 omui.theme   = { path = "../theme" }
 omui.semantic = { path = "../semantic" }
+# Live Design's catalog (design.ops.omui.ts): the design.* verbs as declared.
+omui.agent    = { path = "../agent" }
 mlibs.utils   = { path = "../../../base/utils" }
 
 [dev-dependencies]

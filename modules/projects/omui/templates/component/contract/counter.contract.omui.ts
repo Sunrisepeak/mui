@@ -1,5 +1,5 @@
 // The interface of a component: the one source of truth. Its C++ base, the
-// builder, the TS / Python / Lua stubs and the view-document schema are made
+// builder, the TypeScript stubs and the view-document schema are made
 // from it when the package builds (component-binding §2).
 import { defineContract } from "openmui/define";
 

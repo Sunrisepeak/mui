@@ -1,6 +1,6 @@
 // omui::fuzzy (the :matching partition) for scripts: command palettes, finders, a long list filtered
 // as a person types (component-binding §8). The bindings are generated from
-// this contract: `fuzzy.rank(…)` in TypeScript, Python and Lua.
+// this contract: `fuzzy.rank(…)` in TypeScript.
 import { defineNative } from "openmui/define";
 
 export default defineNative({

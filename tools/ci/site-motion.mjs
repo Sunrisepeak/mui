@@ -555,8 +555,8 @@ try {
     await requireCheck(async () => (await label(root + '/workspace/meaning/title')).includes('Same object in browser'), 'the live semantic view reads back the edited object');
     await pointer(root + '/toggle_details');
     await requireCheck(() => exists(root + '/details/language'), 'explicit Details mounts the language picker');
-    for (const [index, language, spelling] of [[0, 'cpp', 'text_box('], [1, 'ts', 'textBox('], [2, 'python', 'omui.text_box('], [3, 'lua', 'omui.TextBox']]) {
-      await segment(root + '/details/language', index, 4, language);
+    for (const [index, language, spelling] of [[0, 'cpp', 'text_box('], [1, 'ts', 'textBox(']]) {
+      await segment(root + '/details/language', index, 2, language);
       await requireCheck(async () => (await label(root + '/details/source')).includes(spelling) && (await label(root + '/details/source')).includes('Same object in browser'), language + ' displays its existing builder API expression with the current value');
     }
     check(JSON.stringify((await snapshot(object)).map(n => n.id).sort()) === JSON.stringify(ids) && await scalar(object + '/title') === 'Same object in browser', 'changing source language preserves the same object IDs and model');

@@ -4,13 +4,14 @@
 // The colour science is the application's native module (native/
 // contrast.native.omui.ts, C++); this file is all the interface.
 import { signal, fmt, select, eq, ne, column, row, box, text, textBox, when, mount, OmuiError } from "openmui";
+import type { Operand } from "openmui";
 import { contrast } from "openmui:native/contrast";
 
 const foreground = signal("#6b7280");
 const background = signal("#ffffff");
 const report = signal(contrast.check(foreground.get(), background.get()));
 const views = signal(contrast.simulate(foreground.get(), background.get()));
-const suggestion = signal(null);
+const suggestion = signal<string | null>(null);
 const problem = signal("");
 
 let fg: string = foreground.get();
@@ -36,7 +37,7 @@ function update() {
 }
 update();
 
-const level = (id: string, passes: unknown, name: string) =>
+const level = (id: string, passes: Operand<boolean>, name: string) =>
   text({ id, text: select(passes, fmt("✓ {}", name), fmt("✗ {}", name)), style: "heading" });
 
 const kinds = ["protanopia", "deuteranopia", "tritanopia", "achromatopsia"];

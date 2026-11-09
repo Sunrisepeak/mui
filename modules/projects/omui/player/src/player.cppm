@@ -82,6 +82,14 @@ struct Language {
     // catalogue, as omuiCatalog gives it), as its code writes it — what an
     // agent needs to write a script (design.api, D-145). Empty: none.
     std::function<std::string(std::string_view catalog_json)> describe;
+    // The language's declarations for a type checker (`omui check`, W1 step
+    // 5), written into `dir`: its API, a builder for every component of the
+    // catalogue (omuiCatalog), the native modules (omuiNativeCatalog), and
+    // the checker's configuration over the application's sources under
+    // `root`. Answers the files it wrote. Empty: none.
+    std::function<std::expected<std::vector<std::filesystem::path>, std::string>(
+        std::string_view catalog_json, std::string_view natives_json, const std::filesystem::path& root, const std::filesystem::path& dir)>
+        declare;
 };
 
 struct PlayerOptions {
@@ -110,6 +118,10 @@ public:
     // The scripts are done for now (tests and `--headless` wait for it).
     [[nodiscard]] bool idle() const;
     [[nodiscard]] std::span<const std::string> problems() const noexcept;
+    // Each language's declarations for a type checker, into `dir`, from what
+    // this application registered (after start: its component documents
+    // too). Answers the files written.
+    [[nodiscard]] std::expected<std::vector<std::filesystem::path>, std::string> declare(const std::filesystem::path& dir) const;
     [[nodiscard]] const Manifest& manifest() const noexcept;
     [[nodiscard]] abi::OmuiRuntime handle() const noexcept;
 

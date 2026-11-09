@@ -1,7 +1,8 @@
 // omui's project commands (D-150): the help names them; doctor says what is
 // there and what each tool is for, as records for an agent; new lists its
 // templates (TypeScript first) and refuses one it does not have — before any
-// tool runs.
+// tool runs; check, in a project, finds what is not erasable TypeScript and
+// what a view document gets wrong, where each is, in one list.
 import std;
 import mcpplibs.mtest;
 import omui.cli;
@@ -65,5 +66,28 @@ UTest cases{"cli.project", [] {
         const auto refused = invoke({"omui", "new", "x", "--template", "app-lua"});
         expect(eq(refused.code, 2));
         expect(refused.err.contains("no template `app-lua`")) << refused.err;
+    };
+
+    "check in a project: TypeScript that is not erasable and a view document's mistake, where each is, as records"_test = [] {
+        const auto root = temp_dir() / "project";
+        std::filesystem::create_directories(root / "contracts");
+        std::filesystem::create_directories(root / "design");
+        std::filesystem::create_directories(root / "target" / "skipped");
+        std::ofstream(root / "mcpp.toml") << "[package]\nname = \"probe\"\n";
+        std::ofstream(root / "contracts" / "dial.contract.omui.ts") << "import { defineContract } from \"openmui/define\";\nenum Size { S }\n"
+                                                                      "export default defineContract({ dial: { role: \"slider\", doc: \"A dial.\" } });\n";
+        std::ofstream(root / "design" / "main.view.omui.json") << R"({"omui": "0.1", "view": {"root": {"type": "colum", "id": "page"}}})";
+        std::ofstream(root / "target" / "skipped" / "bad.ts") << "enum Ignored { A }\n";  // builds are not sources
+        const auto here = std::filesystem::current_path();
+        std::filesystem::current_path(root);
+        const auto ran = invoke({"omui", "check", "--json"});
+        std::filesystem::current_path(here);
+        expect(eq(ran.code, 1)) << ran.out + ran.err;
+        const auto found = records(ran.out);
+        expect(eq(found.size(), std::size_t{2})) << ran.out;
+        const auto erasable = std::ranges::find_if(found, [](const Value& v) { return v.get("code")->as_string() == "erasable"; });
+        expect(erasable != found.end() && erasable->get("file")->as_string() == "contracts/dial.contract.omui.ts" && erasable->get("line")->as_int() == 2)
+            << ran.out;
+        expect(std::ranges::any_of(found, [](const Value& v) { return v.get("file")->as_string() == "design/main.view.omui.json"; })) << ran.out;
     };
 }};

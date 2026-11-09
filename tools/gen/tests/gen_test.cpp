@@ -36,7 +36,11 @@ int main(int argc, char** argv) {
         same(spec_dir() / "src" / "generated" / "registry.cppm", gen::emit_spec_registry(reg));
         same(spec_dir() / "src" / "generated" / "catalog.cppm", gen::emit_spec_catalog(reg));
         same(spec_dir() / "docs" / "registry.md", gen::emit_docs(reg));
-        same(spec_dir() / "stubs" / "core.d.ts", gen::emit_dts(reg.contracts, "the Core profile"));
+        same(spec_dir() / "stubs" / "core.d.ts", gen::emit_dts(reg.contracts, "the Core profile", true));
+        // The scripts' declarations, written by hand, carried in code.
+        for (const auto& [file, name] : {std::pair{"openmui.d.ts", "binding_api"}, std::pair{"define.d.ts", "define_api"}})
+            same(spec_dir() / "src" / "generated" / std::format("{}.cppm", name),
+                 gen::emit_embed(read(spec_dir() / "stubs" / file), std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name));
         same(spec_dir() / "schema" / "core.components.json", gen::emit_view_schema(reg.contracts, "the Core profile"));
         // modules/projects/omui/abi's view of the same ABI.
         const auto abi = spec_dir().parent_path() / "modules" / "projects" / "omui" / "abi" / "src";

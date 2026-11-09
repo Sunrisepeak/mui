@@ -667,6 +667,18 @@ my-app/
     - 构建函数接受 `(props, children)`，也接受只传 children；
     - 组件自己的属性和同名的节点属性冲突时，用 `Omit<NodeProps, …>` 去掉节点属性的那个。
   - `--portable` 按来源标注，列出用到的非规范组件和 `omui` 导入（D-157）。
+- 第 5 步第一块完成（2026-11-09）：
+  - `spec/stubs/openmui.d.ts` 和 `define.d.ts` 为手写的规范性文件，`omui-gen registry` 把它们嵌入规范包（`openmui.spec:binding_api`、`:define_api`）。`omui/define` 的声明在 `omui.lang.ts` 里，和它的运行时源码放在一起。
+  - `omui.lang.ts:declare` 是组件和 native 声明的唯一生成器：omui-gen 的 `core.d.ts` 和各包的 natives 存根、应用的 `.omui/types/openmui.d.ts` 都由它产出。lang.js 自己的 `camel` 并入 `ts::camel_case`。
+  - player 增加 `Language::declare` 和 `Player::declare`；player 入口增加 `--types DIR`。`omuiCatalog` 的每个组件带上 `spec` 标记（是否在规范注册表里）。
+  - `omui check` 不给文件时检查当前项目，三步得到一份诊断：可擦除语法、视图文档、由应用写出类型后运行 tsc。tsc 的诊断转成 omui 的格式，常见错误附改法；TS1294 交给第一步报。
+  - tsc 来自 `xim:typescript` 7.0.2（openxlings/xim-pkgindex#1130，已合入），工作区、lang.js 和 app-ts 模板都已声明。
+  - 实测：02、04、05、06、12 五个用 player 运行的示例全部通过。检查发现了三类问题：
+    - 声明写窄了：间距和圆角也接受主题令牌，已修正；
+    - 05 的 `signal(null)` 被推断成 `Signal<null>`，`passes` 写成了 `unknown`，代码已修正；
+    - 构造的错误（拼错的属性、非法枚举值、类型不符的 signal）都报在原处。
+  - 仓库里 51 个契约、native 和视图数据模块，8 个 ops 目录和配置，全部通过 `openmui/define`、`omui/define` 的检查。
+  - 尚未完成：`--portable`（声明里已有来源标注）、`design.api` 改用这份声明，以及 C++ 应用里数据模块的类型检查（目前只覆盖用 player 运行的应用）。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

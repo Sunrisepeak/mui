@@ -24,7 +24,7 @@ constexpr std::array<GuideEntry, 7> guides{{
     {"lead", "Lead", "领先度", "Every metric against the strongest competitor, measured side by side; what is behind too.", "每个指标对最强竞品的同机实测，落后的也列出。"},
     {"motion", "Motion specimens", "动效规格样本", "The specification's motion samples, each live: surfaces, transforms, layout, text, values, presence.", "规范里的动效样本，逐个现场运行：表面、变换、布局、文字、数值、出现与消失。"},
     {"styles", "Styling", "风格化", "The same live controls in glass, ink, neon, retro and liquid materials.", "同一组真实控件，换上玻璃、墨纸、霓虹、复古与液态材质。"},
-    {"interface", "One interface × languages", "统一接口 × 多语言", "One live workspace, read back as semantics, and its API in C++, TypeScript, Python and Lua.", "一个真实工作台，读回它的语义，对照 C++、TypeScript、Python、Lua 的接口。"},
+    {"interface", "One interface × languages", "统一接口 × 多语言", "One live workspace, read back as semantics, and its API in C++ and TypeScript.", "一个真实工作台，读回它的语义，对照 C++ 和 TypeScript 的接口。"},
 }};
 
 std::string folded(std::string_view input) {

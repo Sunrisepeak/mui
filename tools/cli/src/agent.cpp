@@ -478,7 +478,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui doctor          which tools are there, which are missing\n\n"
                "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
-               "  omui check FILE…     view documents: names, types, ids, expressions (--json)\n"
+               "  omui check [FILE…]  the project here: TypeScript (erasable syntax, tsc types), view documents; or the documents given (--json)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
                "  omui schema          the JSON Schema of view documents\n"
                "  omui video render | still | check | probe | timing   videos: frames and sound on exact counts\n"

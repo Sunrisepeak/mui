@@ -66,7 +66,9 @@ private:
 
 }  // namespace omui::lang::js
 
-// The module's own, for its units: a snake_case name as JavaScript writes it (max_width → maxWidth).
+// The module's own, for its units: TypeScript's declarations for a type checker
+// (declare.cpp; the TypeScript language's `declare`).
 namespace omui::lang::js {
-[[nodiscard]] std::string camel(std::string_view snake);
+[[nodiscard]] std::expected<std::vector<std::filesystem::path>, std::string> declare_typescript(std::string_view catalog_json, std::string_view natives_json,
+                                                                                                const std::filesystem::path& root, const std::filesystem::path& dir);
 }

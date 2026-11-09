@@ -49,4 +49,9 @@ inline constexpr std::array<std::string_view, 8> data_kinds{"contract", "native"
 // giving `{ kind, value }`.
 [[nodiscard]] std::string define_module_source(bool spec);
 
+// The TypeScript declarations of "omui/define", for type-checking an
+// application's configuration and catalogs ("openmui/define"'s are the
+// spec's own, spec/stubs/define.d.ts).
+[[nodiscard]] std::string_view omui_define_types();
+
 }  // namespace omui::lang::ts

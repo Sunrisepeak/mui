@@ -8,6 +8,9 @@
 // (`--manifest FILE`, default ./mcpp.toml), registers the official components
 // and the script languages, and runs the player with openmui's options
 // (--headless, --png, --serve, --dark …); saved files reload in place.
+// `--dev` is development mode (D-149); `--types DIR` writes, instead of
+// running, the TypeScript declarations of what the application registered
+// and tsc's configuration over its sources (`omui check`, W1 step 5).
 export module omui.entry.player;
 
 import std;

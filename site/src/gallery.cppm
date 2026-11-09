@@ -15,10 +15,9 @@ struct Sample {
     std::vector<std::pair<std::string, Value>> props;
 };
 
-// The builder call of a sample in a language: "cpp", "ts", "python" or "lua".
-// The properties as the language writes them: C++'s in the options' order (by
-// name) with a choice as its enum (`BadgeTone::danger`), TypeScript's in
-// camelCase, Python's as keywords, Lua's as a table.
+// The builder call of a sample in a language: "cpp" or "ts". The properties as
+// the language writes them: C++'s in the options' order (by name) with a
+// choice as its enum (`BadgeTone::danger`), TypeScript's in camelCase.
 [[nodiscard]] std::string code_of(std::string_view language, const Sample& sample);
 
 // The page's own state: the style shown, the code's language, and the samples' values as a person left them.

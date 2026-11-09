@@ -756,7 +756,9 @@ OmuiResult omuiCatalog(OmuiRuntime rt, PFN_omuiSink sink, void* user) noexcept {
             for (const spec::ActionSpec& a : k->actions) actions.set(a.name, Value(Value::Map{}).set("effect", spec::name(a.effect)));
             if (!k->doc.empty()) c.set("doc", k->doc);
         }
-        c.set("contract", t->contract != nullptr).set("props", std::move(props)).set("events", std::move(events)).set("actions", std::move(actions));
+        // `spec`: its contract is the spec's registry's (a Core component), so a script using it is portable (D-157).
+        const bool core = t->contract && std::ranges::contains(spec::catalog::core, t->contract);
+        c.set("contract", t->contract != nullptr).set("spec", core).set("props", std::move(props)).set("events", std::move(events)).set("actions", std::move(actions));
         components.set(t->name, std::move(c));
     }
     Value common(Value::List{}), common_events(Value::List{});

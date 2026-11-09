@@ -32,6 +32,7 @@ sources = ["src/native/web/*.cpp"]
 "omui.lang.ts" = { path = "../ts" }
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
+openlifa.openmui = { path = "../../../../../spec" }
 mcpplibs.os       = "0.4.1"
 nlohmann.json     = "3.12.0"
 
@@ -47,3 +48,9 @@ omui.native.fuzzy  = { path = "../../native/fuzzy" }
 omui.theme.default = { path = "../../theme/default" }
 omui.theme.compact = { path = "../../theme/compact" }
 omui.ui.base       = { path = "../../components/base" }
+
+# tsc runs the declaration tests' type checks (declare_test; skipped where it
+# is missing): installed from xlings while this package is developed on its
+# own; in the workspace the root declares it for test runs.
+[xlings.workspace]
+"xim:typescript" = { version = "7.0.2", when = "dev" }

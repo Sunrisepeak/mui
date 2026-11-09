@@ -45,23 +45,6 @@ private:
 
 std::unique_ptr<player::Engine> make(abi::OmuiRuntime rt) { return std::make_unique<JsEngine>(rt); }
 
-}  // namespace
-
-std::string camel(std::string_view snake) {
-    std::string out;
-    bool up = false;
-    for (const char c : snake) {
-        if (c == '_') {
-            up = true;
-            continue;
-        }
-        out += up ? static_cast<char>(std::toupper(static_cast<unsigned char>(c))) : c;
-        up = false;
-    }
-    return out;
-}
-
-namespace {
 
 // The `openmui` module as a script writes it (D-145: what an agent reads before writing an edit), then a builder
 // for every component the application has registered, from its contract.
@@ -90,18 +73,18 @@ std::string describe_typescript(std::string_view catalog_json) {
                     type.clear();
                     for (const auto& v : p.value()["values"]) type += (type.empty() ? "" : " | ") + std::format("\"{}\"", v.get<std::string>());
                 }
-                props += std::format("{}{}?: {}", props.empty() ? "" : "; ", camel(p.key()), type);
+                props += std::format("{}{}?: {}", props.empty() ? "" : "; ", ts::camel_case(p.key()), type);
             }
         if (c.contains("events"))
             for (auto e = c["events"].begin(); e != c["events"].end(); ++e) {
-                std::string event = camel(e.key());
+                std::string event = ts::camel_case(e.key());
                 if (!event.empty()) event[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(event[0])));
                 props += std::format("{}on{}?: (args) => void", props.empty() ? "" : "; ", event);
             }
         std::string actions;
         if (c.contains("actions"))
             for (auto a = c["actions"].begin(); a != c["actions"].end(); ++a) actions += std::format("{}{}", actions.empty() ? "" : ", ", a.key());
-        out += std::format("\n  {}({{ id?: string; {} }}) — {}{}", camel(it.key()), props, c.value("role", std::string("generic")),
+        out += std::format("\n  {}({{ id?: string; {} }}) — {}{}", ts::camel_case(it.key()), props, c.value("role", std::string("generic")),
                            actions.empty() ? std::string() : std::format("; actions: {}", actions));
     }
     return out;
@@ -114,7 +97,7 @@ player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, des
 player::Language typescript() {
     return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return ts::compile(file); },
             [](std::string_view text, const std::filesystem::path& file) { return ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
-            describe_typescript};
+            describe_typescript, declare_typescript};
 }
 
 }  // namespace omui::lang::js

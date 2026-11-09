@@ -7,7 +7,7 @@ namespace omui::site {
 
 namespace {
 
-// snake_case as CamelCase (a C++ type's, a Lua builder's) or camelCase (a TypeScript property's).
+// snake_case as CamelCase (a C++ type's) or camelCase (a TypeScript property's).
 std::string camel(std::string_view s, bool first_upper) {
     std::string out;
     bool up = first_upper;
@@ -33,7 +33,7 @@ std::string quoted(std::string_view s, std::string_view language) {
             case '\t': out += "\\t"; break;
             default:
                 if (static_cast<unsigned char>(c) < 32)
-                    out += language == "cpp" ? std::format("\\{:03o}", static_cast<unsigned char>(c)) : language == "lua" ? std::format("\\{:03d}", static_cast<unsigned char>(c)) : std::format("\\u{:04x}", static_cast<unsigned char>(c));
+                    out += language == "cpp" ? std::format("\\{:03o}", static_cast<unsigned char>(c)) : std::format("\\u{:04x}", static_cast<unsigned char>(c));
                 else out += c;
         }
     }
@@ -46,11 +46,10 @@ std::string literal(std::string_view language, const Value& v, bool is_double) {
         std::string out;
         for (const Value& x : *l) out += (out.empty() ? "" : ", ") + literal(language, x, false);
         if (language == "cpp") return "std::vector<std::string>{" + out + "}";
-        if (language == "lua") return "{ " + out + " }";
         return "[" + out + "]";
     }
     if (v.type() == Value::Type::text) return quoted(v.as_string(), language);
-    if (v.type() == Value::Type::boolean) return language == "python" ? (v.as_bool() ? "True" : "False") : (v.as_bool() ? "true" : "false");
+    if (v.type() == Value::Type::boolean) return v.as_bool() ? "true" : "false";
     if (v.type() == Value::Type::integer) return is_double && language == "cpp" ? std::format("{}.0", v.as_int()) : std::format("{}", v.as_int());
     std::string d = std::format("{}", v.as_double());
     if (language == "cpp" && is_double && !d.contains('.') && !d.contains('e')) d += ".0";
@@ -78,15 +77,11 @@ std::string code_of(std::string_view language, const Sample& sample) {
         std::string value = literal(language, v, is_double);
         if (language == "cpp" && p && p->type == spec::PropType::choice) value = camel(sample.component, true) + camel(k, true) + "::" + std::string(v.as_string());
         if (language == "cpp") fields += std::format("{}.{} = {}", fields.empty() ? "" : ", ", k, value);
-        else if (language == "ts") fields += std::format("{}{}: {}", fields.empty() ? "" : ", ", camel(k, false), value);
-        else if (language == "python") fields += std::format("{}{}={}", fields.empty() ? "" : ", ", k, value);
-        else fields += std::format("{}{} = {}", fields.empty() ? "" : ", ", k, value);
+        else fields += std::format("{}{}: {}", fields.empty() ? "" : ", ", camel(k, false), value);
     }
     const std::string name(sample.component);
     if (language == "cpp") return std::format("{}({{{}}})", name, fields);
-    if (language == "ts") return std::format("{}({{ {} }})", camel(name, false), fields);
-    if (language == "python") return std::format("omui.{}({})", name, fields);
-    return std::format("omui.{} {{ {} }}", camel(name, true), fields);
+    return std::format("{}({{ {} }})", camel(name, false), fields);
 }
 
 namespace {
@@ -254,9 +249,9 @@ std::vector<Entry> entries() {
                               .label = "People", .model = "gallery_people", .selected = g.picked, .sort = g.sort,
                               .widths = std::vector<std::string>{"*", "70", "*"}, .width = Dim(480.0f)});
         });
-    add("combobox", {"combobox", {{"id", V("lang")}, {"options", strings({"cpp", "ts", "py", "lua"})}, {"value", V("ts")}}}, [](Gallery& g) {
-        return combobox({.id = "lang", .label = "Language", .labels = std::vector<std::string>{"C++", "TypeScript", "Python", "Lua"},
-                         .options = std::vector<std::string>{"cpp", "ts", "py", "lua"}, .value = g.lang_choice, .width = Dim(240.0f)});
+    add("combobox", {"combobox", {{"id", V("lang")}, {"options", strings({"cpp", "ts", "view"})}, {"value", V("ts")}}}, [](Gallery& g) {
+        return combobox({.id = "lang", .label = "Written in", .labels = std::vector<std::string>{"C++", "TypeScript", "A view document"},
+                         .options = std::vector<std::string>{"cpp", "ts", "view"}, .value = g.lang_choice, .width = Dim(240.0f)});
     });
     add("tag_input", {"tag_input", {{"id", V("topics")}, {"tags", strings({"design", "motion"})}}}, [](Gallery& g) {
         return tag_input({.id = "topics", .label = "Topics", .suggestions = std::vector<std::string>{"agents", "layout", "motion", "design", "effects"},
@@ -710,7 +705,7 @@ Element detail(Gallery& g, const GallerySite& site, const Entry& entry, float wi
         if (pane.empty()) return std::vector<Element>{};
         if (pane == "code") {
             std::vector<Element> languages;
-            for (const auto& [key, label] : {std::pair{"cpp", "C++"}, {"ts", "TS"}, {"python", "Python"}, {"lua", "Lua"}})
+            for (const auto& [key, label] : {std::pair{"cpp", "C++"}, {"ts", "TS"}})
                 languages.push_back(tab({.id = key, .text = label}));
             return std::vector<Element>{column({.id = "code", .width = Dim(width), .padding = Edges(20), .gap = 16,
                 .background = "surface", .border_color = "border", .border_width = 1, .radius = 14}, {

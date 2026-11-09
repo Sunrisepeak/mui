@@ -44,7 +44,7 @@ struct CppOptions {
 
 // Typed builder declarations for TypeScript, one file per contract set.
 // `module` names the package the builders come from (for the header comment).
-[[nodiscard]] std::string emit_dts(const std::vector<Contract>& contracts, std::string_view module);
+[[nodiscard]] std::string emit_dts(const std::vector<Contract>& contracts, std::string_view module, bool spec = false);
 
 // A native module's C++ (component-binding §8): the partition
 // `<module>:<name>_native` with its records, the declarations of the

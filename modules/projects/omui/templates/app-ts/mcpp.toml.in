@@ -25,3 +25,8 @@ omui.entry.player = "{{self.version}}"
 [dev-dependencies]
 omui.player  = "{{self.version}}"
 omui.lang.js = "{{self.version}}"
+
+# `omui check` type-checks app/ with tsc (TypeScript 7, native): installed
+# from xlings for this project.
+[xlings.workspace]
+"xim:typescript" = { version = "7.0.2", when = "dev" }

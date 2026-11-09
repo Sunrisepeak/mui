@@ -46,8 +46,9 @@ std::vector<std::string> files_of(const cmd::ParsedArgs& p) {
 
 cmd::App check_command() {
     cmd::App a{"check"};
-    (void)a.description("Checks view documents: the names of components, properties, events and signals, types, ids, expressions");
-    a.arg("file").required().help("*.view.omui.json files (component documents are defined first, so views can use them)");
+    (void)a.description("Checks a project as the runtime and tsc read it — every TypeScript file's syntax (erasable only), its view documents, "
+                        "its types against what the application registers — or the view documents given");
+    a.arg("file").help("*.view.omui.json files (component documents are defined first, so views can use them); none: the project here");
     a.option("json").help("one JSON record per diagnostic");
     return a;
 }
@@ -67,28 +68,19 @@ cmd::App schema_command() {
     return a;
 }
 
-int check(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+std::optional<std::vector<Found>> check_documents(const std::vector<std::string>& files, std::ostream& err) {
     register_components();
-    const bool json = p.is_flag_set("json");
     struct Doc {
         std::string file, text;
         bool        component = false;
     };
     std::vector<Doc> docs;
-    for (const std::string& f : files_of(p)) {
+    for (const std::string& f : files) {
         auto text = read_text(f, err);
-        if (!text) return 1;
+        if (!text) return std::nullopt;
         const auto v = parse_json(*text);
         docs.push_back({f, std::move(*text), v && v->get("component")});
     }
-    std::size_t errors = 0, warnings = 0;
-    auto print = [&](const std::string& file, const std::vector<vd::Diagnostic>& diags) {
-        for (const vd::Diagnostic& d : diags) {
-            (d.level == vd::Diagnostic::Level::error ? errors : warnings) += 1;
-            if (json) out << d.to_value(file).json() << '\n';
-            else out << d.text(file) << '\n';
-        }
-    };
     // Component documents first, as often as one still enables another.
     std::vector<const Doc*> pending;
     for (const Doc& d : docs)
@@ -101,10 +93,31 @@ int check(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
             return true;
         });
     }
-    for (const Doc& d : docs) print(d.file, vd::read(d.text, {.file = d.file}).diagnostics);
-    if (!json) err << std::format("{} error{}, {} warning{} in {} file{}\n", errors, errors == 1 ? "" : "s", warnings, warnings == 1 ? "" : "s",
-                                  docs.size(), docs.size() == 1 ? "" : "s");
+    std::vector<Found> found;
+    for (const Doc& d : docs)
+        for (vd::Diagnostic& diagnostic : vd::read(d.text, {.file = d.file}).diagnostics) found.push_back({d.file, std::move(diagnostic)});
+    return found;
+}
+
+int report(const std::vector<Found>& found, std::size_t files, bool json, std::ostream& out, std::ostream& err) {
+    std::size_t errors = 0, warnings = 0;
+    for (const Found& f : found) {
+        (f.diagnostic.level == vd::Diagnostic::Level::error ? errors : warnings) += 1;
+        if (json) out << f.diagnostic.to_value(f.file).json() << '\n';
+        else out << f.diagnostic.text(f.file) << '\n';
+    }
+    if (!json) err << std::format("{} error{}, {} warning{} in {} file{}\n", errors, errors == 1 ? "" : "s", warnings, warnings == 1 ? "" : "s", files,
+                                  files == 1 ? "" : "s");
     return errors ? 1 : 0;
+}
+
+int check(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
+    const bool json = p.is_flag_set("json");
+    const auto files = files_of(p);
+    if (files.empty()) return check_project(json, out, err);
+    auto found = check_documents(files, err);
+    if (!found) return 1;
+    return report(*found, files.size(), json, out, err);
 }
 
 int fmt(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {

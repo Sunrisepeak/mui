@@ -1,7 +1,7 @@
 // A program's own small storage for scripts: settings, progress, a draft —
 // kept where the host keeps such things (the page's localStorage on the Web,
 // memory when the host keeps none). The bindings are generated from this
-// contract: `store.get(…)` in TypeScript, Python and Lua.
+// contract: `store.get(…)` in TypeScript.
 import { defineNative } from "openmui/define";
 
 export default defineNative({

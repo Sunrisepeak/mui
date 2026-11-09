@@ -414,7 +414,7 @@ std::optional<std::string> native_module_source(Script::Impl& s, std::string_vie
     std::string out = "import { __native } from \"openmui\";\n";
     std::string members;
     for (auto it = m["functions"].begin(); it != m["functions"].end(); ++it) {
-        const std::string fn = camel(it.key());
+        const std::string fn = ts::camel_case(it.key());
         const bool async = it.value().value("async", false);
         out += std::format("export const {} = (...args) => __native({}, {}, {}, args);\n", fn, Json(std::string(module)).dump(), Json(it.key()).dump(),
                            async ? "true" : "false");
@@ -544,7 +544,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
         const Json c = Json::parse(catalog, nullptr, false);
         if (c.is_object() && c.contains("components"))
             for (auto it = c["components"].begin(); it != c["components"].end(); ++it) {
-                const std::string name = camel(it.key());
+                const std::string name = ts::camel_case(it.key());
                 // The prelude's own names win (its select is the component's builder too).
                 if (s->module_source.find(std::format("export const {} ", name)) != std::string::npos ||
                     s->module_source.find(std::format("export function {}(", name)) != std::string::npos)

@@ -980,7 +980,9 @@ int main(int argc, char** argv) {
         // Re-pinned with D4a/D4b: the components page opens on the wall (its search and style packs).
         // Re-pinned with D6: the guide offers the permission demonstration (the agent-asks picture).
         // Re-pinned with the lead page (Part 2 §2.3): the docs' directory lists "Lead" after the practical guide.
-        check_eq(all.hex(), std::string("796a8c49eb5341c3"));
+        // Re-pinned with D-138: the docs say C++, TypeScript and view documents (features §4, the practical
+        // guide's table), the interface page compares C++ and TypeScript, the combobox sample picks how a view is written.
+        check_eq(all.hex(), std::string("0d9430382f9aa6c8"));
     });
 
     s.test("the components: curated search, live detail, reset, languages and scoped appearance", [] {
@@ -1008,8 +1010,6 @@ int main(int argc, char** argv) {
         act(detail + "/panes/code", "activate");
         check_eq(a.text(detail + "/code/scroll/source"), std::string("badge({.count = 3, .id = \"mail\", .tone = BadgeTone::danger})"));
         for (const auto& [language, expected] : {
-                 std::pair{"python", "omui.badge(id=\"mail\", count=3, tone=\"danger\")"},
-                 std::pair{"lua", "omui.Badge { id = \"mail\", count = 3, tone = \"danger\" }"},
                  std::pair{"ts", "badge({ id: \"mail\", count: 3, tone: \"danger\" })"}}) {
             act(detail + "/code/language/" + language, "activate");
             check_eq(a.text(detail + "/code/scroll/source"), std::string(expected));

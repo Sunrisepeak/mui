@@ -44,6 +44,17 @@ namespace omui::cli {
 [[nodiscard]] mcpplibs::cmdline::App fmt_command();
 [[nodiscard]] mcpplibs::cmdline::App schema_command();
 int check(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
+// A diagnostic and the file it is about: what `omui check` prints, whichever check found it.
+struct Found {
+    std::string                   file;
+    omui::viewdoc::Diagnostic     diagnostic;
+};
+// The view documents' diagnostics (component documents defined first); nothing when one cannot be read.
+[[nodiscard]] std::optional<std::vector<Found>> check_documents(const std::vector<std::string>& files, std::ostream& err);
+// Prints them (text, or a JSON record each), the count to `err`; 1 when one is an error.
+int report(const std::vector<Found>& found, std::size_t files, bool json, std::ostream& out, std::ostream& err);
+// `omui check` with no files: the project here (typecheck.cpp).
+int check_project(bool json, std::ostream& out, std::ostream& err);
 int fmt(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 int schema(const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // The official components, registered once (documents and views use them).

@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
         check(f.state.observed.peek().json().contains("2 local cues"));
         check_eq(f.h.tree().node(f.context.root + "/workspace/meaning/cues")->name, std::string("2 local cues"));
         f.act("toggle_details", "activate");
-        for (const auto language : {"cpp", "ts", "python", "lua"}) {
+        for (const auto language : {"cpp", "ts"}) {
             f.state.language.set(language); f.refresh();
             check_eq(f.rt->find(f.context.root + "/workspace/object"), object);
             check_eq(f.rt->find(f.context.root + "/workspace/object/quiet"), quiet);

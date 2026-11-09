@@ -177,8 +177,8 @@ std::string expression(FeatureExamples* s, const FeatureExamplesContext& c) {
     return out;
 }
 Element language_picker(FeatureExamples* s, float width) {
-    SegmentedOptions o; o.id = "language"; o.options = std::vector<std::string>{"cpp", "ts", "python", "lua"};
-    o.labels = std::vector<std::string>{"C++", "TS", "Python", "Lua"}; o.value = s->language; o.width = Dim(width); return segmented(std::move(o));
+    SegmentedOptions o; o.id = "language"; o.options = std::vector<std::string>{"cpp", "ts"};
+    o.labels = std::vector<std::string>{"C++", "TS"}; o.value = s->language; o.width = Dim(width); return segmented(std::move(o));
 }
 
 Element interface_object(FeatureExamples* s, const FeatureExamplesContext& c, float width) {

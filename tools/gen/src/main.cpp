@@ -170,7 +170,18 @@ int run_registry(const Options& o) {
     w.put(o.out / "src" / "generated" / "registry.cppm", emit_spec_registry(reg));
     w.put(o.out / "src" / "generated" / "catalog.cppm", emit_spec_catalog(reg));
     w.put(o.out / "docs" / "registry.md", emit_docs(reg));
-    w.put(o.out / "stubs" / "core.d.ts", emit_dts(reg.contracts, "the Core profile"));
+    w.put(o.out / "stubs" / "core.d.ts", emit_dts(reg.contracts, "the Core profile", true));
+    // The binding API's declarations and the define functions' (written by hand, normative), carried in
+    // code: what a tool puts beside an application's builders when it type-checks it (omui check).
+    for (const auto& [file, name] : {std::pair{"openmui.d.ts", "binding_api"}, std::pair{"define.d.ts", "define_api"}}) {
+        std::ifstream in(o.out / "stubs" / file, std::ios::binary);
+        if (!in) {
+            std::println(std::cerr, "omui-gen: cannot read {}", generic_utf8(o.out / "stubs" / file));
+            return 1;
+        }
+        const std::string text(std::istreambuf_iterator<char>(in), {});
+        w.put(o.out / "src" / "generated" / std::format("{}.cppm", name), emit_embed(text, std::format("spec/stubs/{}", file), "openmui.spec", "omui::spec::stubs", name));
+    }
     w.put(o.out / "schema" / "core.components.json", emit_view_schema(reg.contracts, "the Core profile"));
     if (o.check) {
         if (w.stale) {

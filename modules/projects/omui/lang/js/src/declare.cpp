@@ -1,0 +1,140 @@
+// TypeScript's declarations for a type checker (W1 step 5): an application's
+// `openmui` module as its runtime registered it, written into a directory with
+// tsc's configuration — what `omui check` runs tsc over.
+//
+//   openmui.d.ts          the binding API (the spec's stubs/openmui.d.ts) and a
+//                         builder for every registered component (omui.lang.ts:declare)
+//   natives.d.ts          `openmui:native/<name>` for every native module
+//   openmui-define.d.ts   "openmui/define" (the spec's stubs/define.d.ts)
+//   omui-define.d.ts      "omui/define" (omui.lang.ts)
+//   tsconfig.json         strict, erasable syntax only, over the application's sources
+module omui.lang.js;
+
+import std;
+import mcpplibs.os;
+import openmui.spec;
+import omui.lang;
+import omui.lang.ts;
+
+namespace omui::lang::js {
+
+namespace {
+
+std::vector<ts::ComponentShape> components_of(const Json& catalog) {
+    std::vector<ts::ComponentShape> out;
+    if (!catalog.is_object() || !catalog.contains("components")) return out;
+    for (auto it = catalog["components"].begin(); it != catalog["components"].end(); ++it) {
+        const Json& c = it.value();
+        ts::ComponentShape shape{.name = it.key(), .doc = c.value("doc", std::string()), .spec = c.value("spec", false)};
+        if (c.contains("props"))
+            for (auto p = c["props"].begin(); p != c["props"].end(); ++p) {
+                ts::PropShape prop{.name = p.key(), .type = p.value().value("type", std::string("any")), .bindable = p.value().value("bindable", false),
+                                   .doc = p.value().value("doc", std::string())};
+                if (p.value().contains("values"))
+                    for (const Json& v : p.value()["values"]) prop.values.push_back(v.get<std::string>());
+                shape.props.push_back(std::move(prop));
+            }
+        if (c.contains("events"))
+            for (auto e = c["events"].begin(); e != c["events"].end(); ++e) {
+                ts::EventShape event{.name = e.key()};
+                if (e.value().contains("args"))
+                    for (auto a = e.value()["args"].begin(); a != e.value()["args"].end(); ++a)
+                        event.args.push_back({.name = a.key(), .type = a.value().get<std::string>()});
+                shape.events.push_back(std::move(event));
+            }
+        out.push_back(std::move(shape));
+    }
+    return out;
+}
+
+std::vector<ts::FieldShape> fields_of(const Json& list) {
+    std::vector<ts::FieldShape> out;
+    if (list.is_array())
+        for (const Json& f : list) out.push_back({.name = f.value("name", std::string()), .type = f.value("type", std::string("any")), .doc = f.value("doc", std::string())});
+    return out;
+}
+
+std::vector<ts::NativeShape> natives_of(const Json& catalog) {
+    std::vector<ts::NativeShape> out;
+    if (!catalog.is_object() || !catalog.contains("modules")) return out;
+    for (auto it = catalog["modules"].begin(); it != catalog["modules"].end(); ++it) {
+        const Json& m = it.value();
+        ts::NativeShape shape{.name = it.key(), .doc = m.value("doc", std::string())};
+        if (m.contains("types"))
+            for (auto t = m["types"].begin(); t != m["types"].end(); ++t)
+                shape.records.push_back({.name = t.key(), .doc = t.value().value("doc", std::string()), .fields = fields_of(t.value().value("fields", Json::array()))});
+        if (m.contains("functions"))
+            for (auto f = m["functions"].begin(); f != m["functions"].end(); ++f)
+                shape.functions.push_back({.name = f.key(), .doc = f.value().value("doc", std::string()), .returns = f.value().value("returns", std::string()),
+                                           .params = fields_of(f.value().value("params", Json::array())), .async = f.value().value("async", false)});
+        out.push_back(std::move(shape));
+    }
+    return out;
+}
+
+// A path as tsconfig.json writes it: forward slashes, relative to the configuration's directory.
+std::string config_path(const std::filesystem::path& path, const std::filesystem::path& from) {
+    return std::string(reinterpret_cast<const char*>(path.lexically_relative(from).generic_u8string().c_str()));
+}
+
+}  // namespace
+
+std::expected<std::vector<std::filesystem::path>, std::string> declare_typescript(std::string_view catalog_json, std::string_view natives_json,
+                                                                                  const std::filesystem::path& root, const std::filesystem::path& dir) {
+    const Json catalog = Json::parse(catalog_json, nullptr, false), natives = Json::parse(natives_json, nullptr, false);
+    if (catalog.is_discarded()) return std::unexpected(std::string("the component catalogue is not JSON"));
+    const auto components = components_of(catalog);
+    const auto modules = natives_of(natives.is_discarded() ? Json::object() : natives);
+
+    std::string api = "// Generated by the player (omui check) from the running application. Do not edit.\n"
+                      "// The binding API (the spec's stubs/openmui.d.ts), then a builder for every\n"
+                      "// component this application registered.\n\n";
+    api += spec::stubs::binding_api;
+    api += "\n// ── this application's components ────────────────────────────────────────\n";
+    api += ts::declare_components(components, {.standalone = false});
+
+    std::error_code error;
+    std::filesystem::create_directories(dir, error);
+    if (error) return std::unexpected(std::format("cannot make {}: {}", config_path(dir, std::filesystem::current_path()), error.message()));
+    // The manifest's base is empty for one in the working directory.
+    const std::filesystem::path base = std::filesystem::absolute(root.empty() ? std::filesystem::path(".") : root).lexically_normal();
+    const std::filesystem::path out = std::filesystem::absolute(dir).lexically_normal();
+    const std::string here = config_path(base, out);
+    std::string config = std::format(R"({{
+  "compilerOptions": {{
+    "strict": true,
+    "noEmit": true,
+    "target": "es2023",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2023"],
+    "types": [],
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "paths": {{
+      "openmui": ["./openmui.d.ts"],
+      "openmui/define": ["./openmui-define.d.ts"],
+      "omui/define": ["./omui-define.d.ts"]
+    }}
+  }},
+  "files": ["./openmui.d.ts", "./natives.d.ts", "./openmui-define.d.ts", "./omui-define.d.ts"],
+  "include": ["{0}/**/*.ts", "{0}/**/*.mts"],
+  "exclude": ["{0}/target", "{0}/**/target", "{0}/**/node_modules", "{0}/**/*.d.ts"]
+}}
+)",
+                                     here.empty() ? std::string(".") : here);
+    const std::array<std::pair<std::string_view, std::string>, 5> files{{{"openmui.d.ts", std::move(api)},
+                                                                          {"natives.d.ts", ts::declare_natives(modules, {.header = "Generated by the player (omui check): this application's native modules. Do not edit."})},
+                                                                          {"openmui-define.d.ts", std::string(spec::stubs::define_api)},
+                                                                          {"omui-define.d.ts", std::string(ts::omui_define_types())},
+                                                                          {"tsconfig.json", std::move(config)}}};
+    std::vector<std::filesystem::path> written;
+    for (const auto& [name, text] : files) {
+        const std::filesystem::path file = out / name;
+        if (auto w = mcpplibs::os::fs::write_atomic(file, text); !w) return std::unexpected(std::format("cannot write {}: {}", name, w.error().message()));
+        written.push_back(file);
+    }
+    return written;
+}
+
+}  // namespace omui::lang::js

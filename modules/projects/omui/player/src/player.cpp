@@ -649,6 +649,22 @@ bool Player::idle() const {
 }
 
 std::span<const std::string> Player::problems() const noexcept { return impl_->problems; }
+
+std::expected<std::vector<std::filesystem::path>, std::string> Player::declare(const std::filesystem::path& dir) const {
+    const Impl& d = *impl_;
+    std::string catalog, natives;
+    (void)abi::omuiCatalog(d.handle, collect, &catalog);
+    (void)abi::omuiNativeCatalog(d.handle, collect, &natives);
+    std::vector<std::filesystem::path> written;
+    for (const Language& l : d.languages) {
+        if (!l.declare) continue;
+        auto files = l.declare(catalog, natives, d.manifest.base, dir);
+        if (!files) return std::unexpected(std::format("{}: {}", l.name, files.error()));
+        written.insert(written.end(), files->begin(), files->end());
+    }
+    if (written.empty()) return std::unexpected(std::string("no language registered here declares its API for a type checker"));
+    return written;
+}
 const Manifest& Player::manifest() const noexcept { return impl_->manifest; }
 abi::OmuiRuntime Player::handle() const noexcept { return impl_->handle; }
 

@@ -51,7 +51,7 @@ try {
   await act(detail('text_box') + '/stage/specimen/variants/name', 'set_value', { value: 'Lin' });
   await act(detail('text_box') + '/panes/code', 'activate');
   check(await until(`${name(detail('text_box') + '/code/scroll/source')}?.includes('Lin')`), 'builder reference follows the real input value');
-  for (const [language, prefix] of [['ts', 'textBox('], ['python', 'omui.text_box('], ['lua', 'omui.TextBox {'], ['cpp', 'text_box(']]) {
+  for (const [language, prefix] of [['ts', 'textBox('], ['cpp', 'text_box(']]) {
     await act(detail('text_box') + '/code/language/' + language, 'activate');
     check(await until(`${name(detail('text_box') + '/code/scroll/source')}?.startsWith(${JSON.stringify(prefix)}) && ${name(detail('text_box') + '/code/scroll/source')}?.includes('Lin')`), language + ' expression describes the same edited model');
   }

@@ -138,6 +138,7 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
 int player_main(int argc, char** argv) {
     std::filesystem::path manifest = "mcpp.toml";
     bool design = false;
+    std::optional<std::filesystem::path> types;  // --types DIR: declarations for a type checker, then exit (omui check)
     std::vector<char*> rest{argv[0]};
     for (int i = 1; i < argc; ++i) {
         const std::string_view a = argv[i];
@@ -147,6 +148,9 @@ int player_main(int argc, char** argv) {
             if (std::filesystem::is_directory(manifest)) manifest /= "mcpp.toml";
         } else if (a == "--dev") {
             design = true;  // development mode: the application is its own designer (D-149)
+        } else if (a == "--types" && i + 1 < argc) {
+            const std::string_view d = argv[++i];
+            types = std::filesystem::path(std::u8string(d.begin(), d.end()));
         } else {
             rest.push_back(argv[i]);
         }
@@ -183,6 +187,24 @@ int player_main(int argc, char** argv) {
     // application's own come from its manifest (`themes`).
     for (auto add : {themes::add_default, themes::add_compact})
         if (auto r = add(); !r) warn("a theme package: {}", r.error()[0].text());
+    if (types) {
+        // What the application registered, declared for tsc (W1 step 5): its
+        // components (its component documents too, so it starts, headless),
+        // native modules and the define functions, a file a line. The
+        // official components first, as run() registers them.
+        register_base_components();
+        register_window_components();
+        Headless headless(HeadlessOptions{.size = m->size});
+        player::Player declaring(headless.runtime(), *m, {lang::js::typescript(), lang::js::javascript()});
+        if (auto r = declaring.start(); !r) std::print(std::cerr, "{}", r.error());
+        auto files = declaring.declare(*types);
+        if (!files) {
+            std::println(std::cerr, "{}", files.error());
+            return 1;
+        }
+        for (const auto& file : *files) std::println("{}", utf8(file));
+        return 0;
+    }
     std::optional<player::Player> p;
     AppSpec app;
     app.id = m->id;

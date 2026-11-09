@@ -1863,7 +1863,7 @@ std::string static_html(std::string_view lang) {
             } else if (p.id == "release") out += hero_html(chinese) + destinations_html(chinese);
             else if (p.id == "motion") out += motion_gallery_html(chinese, false);
             else if (p.id == "styles") out += chinese ? "<h1>同一语义，不同材质。</h1><p>对照同一组真实控件，切换玻璃、墨纸、霓虹、复古与液态风格。交互演示需要 JavaScript；参数与源码按需展开。</p>" : "<h1>Same meaning. A new material.</h1><p>Compare the same live controls in glass, ink, neon, retro and liquid styles. Interactive previews need JavaScript; parameters and source open on request.</p>";
-            else if (p.id == "interface") out += chinese ? "<h1>一套接口，多种入口。</h1><p>修改真实工作台并读回同一对象的语义；查看详情后对照 C++、TypeScript、Python、Lua 的接口表达式。</p>" : "<h1>One interface. Every way in.</h1><p>Edit a live workspace and read the same object's semantics. Open details to compare C++, TypeScript, Python and Lua API expressions.</p>";
+            else if (p.id == "interface") out += chinese ? "<h1>一套接口，多种入口。</h1><p>修改真实工作台并读回同一对象的语义；查看详情后对照 C++ 和 TypeScript 的接口表达式。</p>" : "<h1>One interface. Every way in.</h1><p>Edit a live workspace and read the same object's semantics. Open details to compare the C++ and TypeScript API expressions.</p>";
             else if (p.id == "agent") out += chinese ? "<h1>让 agent 直接理解界面。</h1><p>使用、开发、设计：通过真实语义操作、动作回执和可撤销记录理解 Agent 原生。内置脚本明确标注为演示，连接入口用于你自己的 agent。</p>" : "<h1>An interface your agent can understand.</h1><p>Use, develop and design with real semantic actions, receipts and undoable records. Scripted previews are marked; connect your own agent to operate this page.</p>";
             else if (p.id == "brand") out += brand_html(chinese, theme.color("accent"));
             else if (p.id == "reactions") out += chinese

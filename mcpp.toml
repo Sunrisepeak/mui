@@ -3,10 +3,13 @@
 # (D-41). The umbrella package users name is modules/projects/omui/sdk; this
 # manifest declares no package (convergence plan §9.2).
 # The workspace's tools, from xlings, installed for the verbs that need them:
-# esbuild is the oracle of omui.lang.ts's type stripper (its tests), so
-# `mcpp test` and `mcpp run` install it and a plain build does not.
+# esbuild is the oracle of omui.lang.ts's type stripper (its tests); tsc
+# (TypeScript 7, native, no node) is what `omui check` type-checks with and
+# what omui.lang.js's declaration tests run: `mcpp test` and `mcpp run`
+# install them and a plain build does not.
 [workspace.xlings.workspace]
 "xim:esbuild" = { version = "0.25.12", when = "run" }
+"xim:typescript" = { version = "7.0.2", when = "run" }
 
 [workspace]
 members = [

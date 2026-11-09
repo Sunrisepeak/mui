@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
                                                   "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
                                                   "ui_timeline", "ui_explain"}));
-            // The hints are the catalog's effects (omui.ops.omui.toml): reads, changes, and what runs what it names.
+            // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
                     if (t.get("name")->as_string() == tool) return t.get("annotations")->get(key)->as_bool();

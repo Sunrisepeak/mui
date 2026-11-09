@@ -11,14 +11,13 @@ title = "{{project.name}}"
 size  = "480x320"
 
 [package.metadata.openmui.scripts]
-main = "logic/main.ts"
+main = "app/main.ts"
 
+# No C++ to write: the program's main is the player's (an entry target of
+# omui.entry.player); the application is app/.
 [targets.{{project.name}}]
 kind = "bin"
-main = "src/main.cpp"
-
-[build]
-sources = ["src/*.cpp"]
+main = { from = "omui.entry.player/player" }
 
 [dependencies]
 omui.entry.player = "{{self.version}}"

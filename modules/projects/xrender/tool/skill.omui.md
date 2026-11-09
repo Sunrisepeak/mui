@@ -1,6 +1,6 @@
 # xrender — skill
 
-How an Agent (or a person at a terminal) works with the renderer without a GUI: writes a pixel effect, checks it, looks at it drawn by the real GPU renderer, and checks the device against the CPU reference. The operations are the catalog's: [`xrender.ops.omui.toml`](xrender.ops.omui.toml), listed in [`media/ops/xrender.ops.json`](media/ops/xrender.ops.json) and [`media/ops/xrender.ops.md`](media/ops/xrender.ops.md). Each is the `xrender` command (`effect.check` is `xrender effect check FILE…`, `conformance.run` is `xrender cts`): one JSON answer, exit 0 done, 1 failed with why, 2 a wrong command. Headless machines use a software device (lavapipe: `OMUI_VULKAN_LIBRARY`, `OMUI_GPU_VIDEO_DRIVER=offscreen`, as the tests do).
+How an Agent (or a person at a terminal) works with the renderer without a GUI: writes a pixel effect, checks it, looks at it drawn by the real GPU renderer, and checks the device against the CPU reference. The operations are the catalog's: [`xrender.ops.omui.ts`](xrender.ops.omui.ts), listed in [`media/ops/xrender.ops.json`](media/ops/xrender.ops.json) and [`media/ops/xrender.ops.md`](media/ops/xrender.ops.md). Each is the `xrender` command (`effect.check` is `xrender effect check FILE…`, `conformance.run` is `xrender cts`): one JSON answer, exit 0 done, 1 failed with why, 2 a wrong command. Headless machines use a software device (lavapipe: `OMUI_VULKAN_LIBRARY`, `OMUI_GPU_VIDEO_DRIVER=offscreen`, as the tests do).
 
 ## Before
 

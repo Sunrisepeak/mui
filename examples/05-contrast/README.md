@@ -9,7 +9,7 @@
 
 The interface is TypeScript ([`logic/main.ts`](logic/main.ts)), run by the player. The colour science is the application's own native module (component-binding §8):
 
-- [`native/contrast.native.omui.toml`](native/contrast.native.omui.toml) is the contract: three functions and two records.
+- [`native/contrast.native.omui.ts`](native/contrast.native.omui.ts) is the contract: three functions and two records.
 - [`src/contrast.cpp`](src/contrast.cpp) is the C++ that implements it: WCAG relative luminance, Machado, Oliveira and Fernandes (2009) for the deficiencies, OKLab for the suggestion.
 - [`build.mcpp`](build.mcpp) runs `omui.build.contracts`' `natives()`, which generates the partition `colors:contrast_native` and the TypeScript, Python and Lua stubs when the package builds.
 - [`src/main.cpp`](src/main.cpp) registers the module, then hands over to the player.

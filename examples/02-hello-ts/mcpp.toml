@@ -26,10 +26,7 @@ main = "logic/main.ts"
 
 [targets.text-stats]
 kind = "bin"
-main = "src/main.cpp"
-
-[build]
-sources = ["src/*.cpp"]
+main = { from = "omui.entry.player/player" }
 
 [dependencies]
 omui.entry.player = { path = "../../src/entry/player" }

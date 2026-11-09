@@ -872,9 +872,27 @@ def check_lead(root: Path) -> list[Problem]:
     return [Problem("lead", where, what) for where, what in lead.problems(root)]
 
 
+DATA_IN_TS = (".contract.omui.toml", ".native.omui.toml", ".ops.omui.toml")
+
+
+def check_typescript_data(root: Path) -> list[Problem]:
+    """Contracts, native modules and operation catalogs are TypeScript data
+    modules (D-138, D-139: defineContract, defineNative, defineOps); the
+    spec's registry (the spec's own decision) and omui-gen's tests of its TOML
+    reader are the TOML left. tools/dev/toml_to_ts.py converts one."""
+    problems = []
+    for path in root.rglob("*.omui.toml"):
+        rel = path.relative_to(root).as_posix()
+        if not rel.endswith(DATA_IN_TS) or rel.startswith(("spec/", "tools/gen/tests/data/")) or "target/" in rel or "/." in "/" + rel:
+            continue
+        problems.append(Problem("typescript", rel, f"is TOML: write it as {path.name[:-len('.toml')]}.ts (tools/dev/toml_to_ts.py converts it)"))
+    return problems
+
+
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_lead(root))
+            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_lead(root)
+            + check_typescript_data(root))
 
 
 def self_test() -> int:
@@ -899,6 +917,7 @@ def self_test() -> int:
         "manifest": None,
         "pins": None,
         "closure": None,
+        "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
         "lead": (LEAD_FEATURES, '[[feature]]\nid = "A"\nproject = "omui"\nline = "use-safely"\ntitle = "x"\nstatus = "claimed"\n'),

@@ -11,7 +11,7 @@
 // progress, a draft), read and written on the program's thread. A host puts
 // its own in place with use_store() — the Web host the page's localStorage —
 // and where none does, the program keeps them in memory (MemoryStore). The
-// script interface is the contract's (native/store.native.omui.toml),
+// script interface is the contract's (native/store.native.omui.ts),
 // generated into :store_native; its functions reach whichever store is in use.
 export module omui.native.store;
 

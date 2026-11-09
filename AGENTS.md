@@ -21,7 +21,7 @@
 - **`modules/` 分两类目录**，每个分组目录都有 README 说明定位和准入：层级分组（`base`／`gfx`／`content`，放 mlibs）；成熟项目（`projects/`，放成熟、复杂、可独立成项目／仓库级别的品牌，品牌内部再容纳尚未毕业的子系统）。**进入 `projects/` 必须能用一句话说清楚它是什么，并有几项明确的、业界领先或面向未来设计的标志性特性**；一句话定义写在项目 README 第一行，特性附对照证据或真实任务演示。判定：通用的放 mlibs，具体实现归所属品牌。
 - **毕业**：xengine 子系统或 mlibs 库满足“有标志性特性、至少 2 个独立消费者、API v1 冻结、有 ops／skill、CTS、文档、基准”后，可以拥有自己的品牌，成为 `modules/projects/` 下的独立项目；拿不出有证据的标志性特性的，留在 xengine 或 mlibs。
 - **包的身份就是主要模块名**（`omui.core` ↔ `import omui.core;`）；**路径就是包名**（叶子目录 = 包名最后一段，lint `layout`）；按角色命名，不按实现命名；不用裸的 `mui`。
-- **不留兼容层**：内部开发阶段，改名和 API 调整一次改完，不保留转发入口和旧别名（lint `legacy-import`）。M1 已完成命名与目录迁移：omui 的包是 `omui.*`，`openmui` 只指规范（包 `openlifa.openmui`、模块 `openmui.spec`）。**公开名按层面取**：属于规范层面的（协议与格式标识、C ABI、规范 stubs 定义的脚本 API：`import openmui`、`openmui:native/*`）用 `openmui`；具体实现、非规范层面的（包、C++ 模块、命令行、工具）用 `omui`。
+- **不留兼容层**：内部开发阶段，改名和 API 调整一次改完，不保留转发入口和旧别名（lint `legacy-import`）。M1 已完成命名与目录迁移：omui 的包是 `omui.*`，`openmui` 只指规范（包 `openlifa.openmui`、模块 `openmui.spec`）。**公开名按层面取**：属于规范层面的（协议与格式标识、C ABI、规范 stubs 定义的脚本 API：`import openmui`、`openmui:native/*`、规范定义的数据格式 `openmui/define`）用 `openmui`；具体实现、非规范层面的（包、C++ 模块、命令行、工具、实现层的脚本导入 `omui/define`、`omui`）用 `omui`。只依赖 `openmui` 的脚本可移植；组件都从 `openmui` 导入，可移植性按组件来源由工具检查（D-157）。
 - 保持不变的外部契约：协议字段、schema、`[package.metadata.openmui]`、`spec/include/openmui.h`、C ABI 的 `omui*`／`OMUI_*`、命令行 `omui`、数据文件后缀。
 - 品牌：官网和应用用 **omui**，介绍标准用 **openmui 规范**；标志是 **O 形轮廓**（可艺术化，不必是字母）内含小写 **mui**，用框架自身的矢量代码构造；品牌形象 **Mui（喵）**是像素风、每个像素都是矢量的猫，可与标志互相变形（[官网方案](.agents/docs/2026-11-08-site-redesign-mui-design.md)）。
 

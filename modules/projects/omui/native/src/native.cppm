@@ -1,6 +1,6 @@
 // openmui.native — the native modules of a program (component-binding §8).
 //
-//     # native/fuzzy.native.omui.toml
+//     # native/fuzzy.native.omui.ts
 //     [native.fuzzy.functions.rank]
 //     args    = { query = "string", candidates = "string[]", limit = "u32" }
 //     returns = "Match[]"

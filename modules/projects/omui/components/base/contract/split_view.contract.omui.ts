@@ -1,0 +1,25 @@
+// Two panes beside each other (or one above the other), the room between
+// them shared as the person drags the handle: its handle an item of its own
+// (`<id>/handle`, a splitter) the arrows and an agent move too, kept within
+// `min` of either edge; a drag taken back as one action.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  split_view: {
+    role: "group",
+    spec: "0.1",
+    children: "any",
+    doc: "Two panes sharing their room, the share moved by a handle between them.",
+    props: {
+      ratio: { type: "f64", default: 0.5, bindable: true, doc: "The first pane's share of the room, 0–1." },
+      min: { type: "f64", default: 0.15, doc: "The least share either pane keeps." },
+      vertical: { type: "bool", default: false, doc: "One above the other." },
+      label: { type: "string", default: "" },
+    },
+    events: { changed: { args: { ratio: "f64" }, coalesce: "frame" } },
+    actions: { set_value: { effect: "reversible", args: { value: "f64" }, doc: "The first pane's share." } },
+    keys: { "Left|Up": "decrement", "Right|Down": "increment" },
+    commands: { increment: { doc: "The first pane a step larger." }, decrement: { doc: "A step smaller." } },
+    parts: { handle: {}, grip: {} },
+  },
+});

@@ -1,0 +1,46 @@
+// A table of a model's rows: its columns (the rows' `fields`), sorted by a
+// column header pressed (ascending, descending, as the model has it), rows
+// chosen one or several at a time. Each row an item of its own
+// (`<id>/<key>`, its fields its value), each column header too
+// (`<id>/col_<field>`), so an agent reads, sorts and chooses as a person
+// does; drawn as they come into view, however many there are.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  data_grid: {
+    role: "grid",
+    spec: "0.1",
+    doc: "A table of a model's rows: sorted by a column, rows chosen, read whole by agents.",
+    props: {
+      model: { type: "string", default: "", doc: "The model whose rows it shows." },
+      fields: {
+        type: "list<string>",
+        default: [],
+        doc: "The rows' fields shown as its columns, in order (named `fields`: `columns` is a grid layout's).",
+      },
+      headers: { type: "list<string>", default: [], doc: "Their headers (else the fields' names)." },
+      widths: { type: "list<string>", default: [], doc: "Each column's width in pixels; empty or * shares what is left." },
+      sort: {
+        type: "string",
+        default: "",
+        bindable: true,
+        doc: "The column sorted by: a field, ascending; -field, descending; empty: the model's order.",
+      },
+      selected: { type: "list<string>", default: [], bindable: true, doc: "The chosen rows' keys." },
+      multiple: { type: "bool", default: false, doc: "Several rows chosen at once (Ctrl or Shift, Space)." },
+      label: { type: "string", default: "" },
+    },
+    events: { sorted: { args: { sort: "string" } }, activated: { args: { key: "string" } } },
+    actions: { set_sort: { effect: "reversible", args: { sort: "string" } }, set_selected: { effect: "reversible", args: { keys: "any" } } },
+    keys: { Down: "next", Up: "previous", Home: "first", End: "last", Enter: "activate", Space: "toggle" },
+    commands: {
+      next: { doc: "Go to the row below." },
+      previous: { doc: "Go to the row above." },
+      first: { doc: "Go to the first row." },
+      last: { doc: "Go to the last row." },
+      activate: { doc: "Activate the row gone to." },
+      toggle: { doc: "Choose the row gone to, or (several) add or take it out." },
+    },
+    parts: { header: {}, row: {}, cell: {}, sort: {} },
+  },
+});

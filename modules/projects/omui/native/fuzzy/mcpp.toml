@@ -1,7 +1,7 @@
 # omui.native.fuzzy — fuzzy matching as a finder does it (:matching,
 # omui::fuzzy), and the official native module every host registers for
 # scripts (the player, the Python extension): its contract
-# (native/fuzzy.native.omui.toml) is all that is written about the script
+# (native/fuzzy.native.omui.ts) is all that is written about the script
 # interface; that partition and the TS / Python / Lua stubs are generated
 # (`omui-gen native`; tools/gen's test keeps them current). The matcher was
 # mlibs.fuzzy; this package was its one consumer (convergence plan §9.3).

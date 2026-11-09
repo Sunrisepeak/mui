@@ -42,6 +42,8 @@
 | **D-153** | **`omui` 与 mcpp 的分工**：omui 专属的构建步骤都是 mcpp 插件（契约、嵌入、TS 求值、打包），`omui build` 和 `mcpp build` 结果完全一致；`omui` 只是上层入口和编排 | 不重复实现；程序员和非程序员各取所需 |
 | **D-154** | **开发宿主持有窗口，应用是渲染输出目标**：宿主进程持有窗口、GPU 表面、输入、设计器、设计历史；应用的显示列表交给宿主，用同一套 xrender 画出（与直接运行逐字节一致）；C++ 改动 → 增量构建 → 新进程按语义 ID 接回状态 → 离屏画第一帧 → 交叉淡化切换；构建期间旧版本可用，编译错误贴在元素旁边；窗口、headless、Web、视频都是渲染输出目标 | 混合开发也要“无感刷新”；进程替换比动态库热替换更可靠（C++ 模块、静态初始化） |
 | **D-155** | **开发模式下 Agent 默认拥有全部控制权，是否询问人由 Agent 自己判断**：`omui dev` 默认使用 `development` 预设，即对可信会话开放全部已声明的能力，不会因为等待人的回答而拒绝请求；要不要先问人，由 Agent 结合人给它的指示来判断。发布模式按授权管理（默认 `dual-user`：不可逆、外部的操作先问人）。人可以在 `omui.config.ts` 里为两种模式分别设定 Agent 授权（automatic / development / dual-user）和记录等级；启动时给出的 `--agent-mode` 优先于配置。所有请求仍然经由 `mlibs.control` 按 openas 判定 | 开发和设计不应被授权打断；Claude Code 这类宿主本身就有 default / auto / bypass 等模式，由人选择；发布面对终端用户，权限必须可管 |
+| **D-156** | **工程结构语义清晰（待 review）**：根目录只放约定的入口（`mcpp.toml`、`omui.config.ts`、`README.md`，需要时加 `build.mcpp`、`skill.omui.md`）；每类内容只有一个归宿（`app/`、`design/`、`contracts/`、`native/`、`ops/`、`assets/`、`tests/`），`.<种类>.omui.ts` 后缀说明种类；必须提交的生成物只放在 `generated/` 目录，本地状态放在 `.omui/`；纯 TS 应用不带手写 C++。lint `layout` 负责检查（§2.17） | 人和 Agent 都要一眼看懂工程：代码在哪、数据在哪、什么是生成的 |
+| **D-157** | **脚本导入按层面分（已确认，2026-11-09）**：`openmui` 只放规范定义的内容——脚本绑定 API、`openmui:native/*`、`openmui/define` 里规范定义的数据格式（契约、native、视图）；`omui` 放实现层的内容——`omui/define` 的 `defineConfig`、`defineOps`、`defineStyle`、`defineMotion`，以及以后给脚本的开发辅助。组件不按模块拆分（规范规定注册的组件都出现在 `openmui` 里），可移植性由工具按组件来源检查（`omui check --portable`、`.d.ts` 标注来源）；扩展先进入规范再改从 `openmui` 导入，不留别名 | 只依赖 `openmui` 的代码可在任何实现上运行；依赖实现的地方在代码里一眼可见（参照 Vulkan、OpenXR 的核心加扩展） |
 
 已同步改动的规则：AGENTS.md §2.4 补充 D-142、D-144、D-145、D-148、D-149；§5 补充 D-150；§4 的数据文件命名改为 `<名字>.<种类>.omui.{ts,json,jsonl}`，“契约优先”改为 TS 契约，脚本语言改为 TS/JS；§5 的测试改为 mtest 和局部测试。顶层方案 §0.1 和核心准则 §9.8、§9.9 也已同步。
 
@@ -398,6 +400,83 @@ mcpp 仍是底层的构建和包管理系统；`omui` 是产品层的统一入�
 | 出错时 | 编译错误或启动失败 | 错误以卡片贴在对应元素旁边（源码位置可点），旧版本继续运行 |
 
 **为什么用进程替换，不用动态库热替换**：C++ 模块、静态初始化、ABI 都让动态库热替换很脆弱；进程替换配合状态迁移更可靠，也和渲染输出目标的抽象一致。release 构建里没有宿主这一层，应用直接持有窗口。
+
+### 2.17 工程结构：语义清晰、一眼能懂（D-156，待维护者 review）
+
+**问题**：现在的工程布局各写各的：
+- TS 代码有的在 `logic/`，有的在 `gifts/`、`code/`；
+- 视图文档在 `ui/`，契约在 `contract/`；
+- ops 目录和 skill 文件放在包的根目录；
+- 作品的根目录下摊着 music/、sounds/、sim/ 等一串目录；
+- 纯 TS 应用还要带一个手写的一行 `src/main.cpp`。
+人和 Agent 打开一个工程，很难一眼看出"代码在哪、数据在哪、什么是生成的"。
+
+**原则**：
+1. **根目录只放约定的入口**：`mcpp.toml`（构建和身份）、`omui.config.ts`（运行方式：授权、记录）、`README.md`；有构建步骤时加 `build.mcpp`；有操作时加 `skill.omui.md`。其余内容都进命名清楚的目录。
+2. **每类内容只有一个归宿**：目录名说明用途，`.<种类>.omui.ts` 后缀说明种类（工具按后缀找文件）。同类文件不散落在多个目录。
+3. **源码和生成物严格分开**：
+   - 构建产物在 `target/`；
+   - 必须提交的生成物只放在名为 `generated/` 的目录（例如 `src/generated/`、`stubs/` 的约定改为 `generated/stubs/`），并且标明"不要编辑"；
+   - 框架自己的本地状态（设计历史等）放在 `.omui/`，不手改。
+4. **集合用复数，角色用单数**：`contracts/`、`tests/`、`assets/`、`examples/` 是一组同类文件；`app/`、`src/`、`native/`、`design/` 是一个角色的位置。
+
+**应用工程**（`omui new`）：
+```
+my-app/
+├─ mcpp.toml          构建；[package.metadata.openmui] 是应用的身份（id、标题、尺寸、入口）
+├─ omui.config.ts     运行方式：开发与发布各自的 Agent 授权、记录等级
+├─ README.md
+├─ app/               应用本身（TypeScript）：main.ts 是入口，其余模块按路径导入；Live Design 编辑的就是这里
+├─ design/            外观与动效的数据模块：*.theme.omui.ts、*.style.omui.ts、*.motion.omui.ts、*.view.omui.json
+├─ contracts/         应用自己组件的契约（*.contract.omui.ts，有 C++ 组件时才有）
+├─ native/            C++（只在需要时）：组件实现、*.native.omui.ts 及其实现
+├─ assets/            字体、图片、声音等二进制资源
+├─ tests/             mtest 用例、*.scenario.omui.json（演示即测试）
+└─ .omui/             框架的本地状态（设计历史），不手改
+```
+纯 TS 应用不再有手写的 C++：`omui.entry.player` 声明一个 `kind = "entry"` 的目标，应用的可执行目标写 `main = { from = "omui.entry.player/player" }`（mcpp 2026.10.26.2 起支持由依赖提供程序入口），工程里不出现 `src/main.cpp`。
+
+**框架包**：
+```
+<package>/
+├─ mcpp.toml、README.md（第一行是一句话定义）、build.mcpp、skill.omui.md
+├─ src/               C++，按职责分 src/<职责>/；必须提交的生成物在 src/generated/
+├─ contracts/         *.contract.omui.ts
+├─ native/            *.native.omui.ts
+├─ ops/               <product>.ops.omui.ts，以及生成的清单（ops/generated/）
+├─ design/            主题、风格等数据模块
+├─ generated/stubs/   生成的脚本存根
+├─ tests/  examples/  media/（README 用的图片和视频）
+```
+
+**落地步骤**：
+1. app-ts 模板和 `omui new` 先按新布局生成；lint `layout` 增加规则：根目录出现约定以外的文件或目录、同类数据文件分散在多处，都报出来，并给出应当放的位置。
+2. 现有的包和作品逐个迁移：`contract/` → `contracts/`（契约插件的默认目录随之改）、根目录的 `*.ops.omui.ts` → `ops/`、`logic/` → `app/`、`ui/` → `design/`。每个包迁移后，用 `tools/dev/verify_ts_migration.py` 的同样方法核对生成物逐字节不变，并运行该包的测试。
+3. 作品里的资源目录（music/、sounds/、gifts/ 等）按内容并入 `assets/` 或 `app/`。
+
+### 2.18 脚本导入按层面分：`openmui` 是规范，`omui` 是实现（D-157，已确认）
+
+**原则**：沿用"公开名按层面取"（AGENTS §1）。脚本里导入什么，就说明这段代码依赖到哪一层。
+
+| 导入 | 层面 | 内容 |
+|---|---|---|
+| `"openmui"` | 规范（脚本绑定 §5.2） | 构建函数、信号、表达式、区域、`mount`、`verb`、`model`、`find`/`act` 等；运行时注册的每个组件的构建函数（规范规定如此，包括 omui 自带的组件和应用自己的组件） |
+| `"openmui:native/<名字>"` | 规范（native 机制 §8） | 应用自己的 native 模块 |
+| `"openmui/define"` | 规范定义的数据格式 | `defineContract`、`defineNative`、`defineView` |
+| `"omui/define"` | 实现 | `defineConfig`（`omui.config.ts`）、`defineOps`、`defineStyle`、`defineMotion`、`defineTheme`（主题格式进入规范之前） |
+| `"omui"` | 实现 | 以后给脚本用的开发、设计辅助；目前为空，需要时才出现 |
+
+**组件不按模块拆分**：组件都从 `openmui` 导入。可移植与否取决于组件来自哪个包，由工具检查：
+- 生成的 `.d.ts` 为每个构建函数注明来源包，并标出它是否属于规范注册表；
+- `omui check --portable` 列出用到的非规范组件和 `omui` 导入；
+- lint 检查标为可移植的包里没有 `omui` 导入。
+
+**晋升路径**：omui 的扩展证明有价值后，先进入规范（规范仓库的 openmui-design 分支），再把导入改成 `openmui`，一次改完，不留别名。
+
+**落地**：
+1. `lang.ts` 的数据模块求值同时提供 `openmui/define` 和 `omui/define`，`define*` 函数按上表分到两处；`omui.config.ts`、ops 目录、风格包、动效配方改从 `omui/define` 导入。
+2. 存根生成器把规范的 `openmui.d.ts` 和实现的 `omui.d.ts` 分开生成，并加上来源标注。
+3. 补上 `omui check --portable`（W1 第 5 步接入 tsc 时一起做）。
 
 ## 3. 特性总表
 

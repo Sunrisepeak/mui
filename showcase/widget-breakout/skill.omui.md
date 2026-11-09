@@ -1,6 +1,6 @@
 # Component breakout — skill
 
-How an agent plays the component breakout, headless, as a player. The operations and the tiers are the catalog's: [`breakout.ops.omui.toml`](breakout.ops.omui.toml) (listing [`media/ops/breakout.ops.json`](media/ops/breakout.ops.json), reference [`media/ops/breakout.ops.md`](media/ops/breakout.ops.md)).
+How an agent plays the component breakout, headless, as a player. The operations and the tiers are the catalog's: [`breakout.ops.omui.ts`](breakout.ops.omui.ts) (listing [`media/ops/breakout.ops.json`](media/ops/breakout.ops.json), reference [`media/ops/breakout.ops.md`](media/ops/breakout.ops.md)).
 
 ## Before
 

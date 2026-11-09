@@ -69,7 +69,7 @@ Field::~Field() {
 }
 
 namespace {
-// The tiers an agent player is held to (plan §8.4; breakout.ops.omui.toml).
+// The tiers an agent player is held to (plan §8.4; breakout.ops.omui.ts).
 constexpr xengine::PlayTier human_tier{.name = "human", .reaction_steps = steps_per_second / 10, .actions_per_second = 10, .full_view = false};
 constexpr xengine::PlayTier assist_tier{.name = "assist", .reaction_steps = 0, .actions_per_second = 0, .full_view = true};
 std::optional<xengine::PlayTier> tier_named(std::string_view name) {

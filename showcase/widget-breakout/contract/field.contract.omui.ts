@@ -1,0 +1,117 @@
+// The field: the breakout at 120 steps a second over a room whose bricks are
+// real components (its own children, composed from the room and placed by
+// layout). A person plays it with the pointer or the arrows and Space; an
+// agent through its actions — the same simulation, the same frames.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  field: {
+    role: "canvas",
+    spec: "0.1",
+    doc: "A breakout's field: a paddle, balls and capsules over a room of real components as bricks — switches, capacitors, kickers, shutters and a core; from the pointer, the keyboard or an agent.",
+    props: {
+      room: {
+        type: "i32",
+        default: 1,
+        doc: "Which room of the run (1–5): its bricks are the field's children; a new room starts afresh with what the run carries (score, balls, sparks, contraptions).",
+      },
+      paused: { type: "bool", default: false, doc: "Stand still: `step` plays one frame." },
+      inspector: {
+        type: "bool",
+        default: false,
+        doc: "The inspector (Tab): every brick's role and id, the hidden ones, the semantic tree's latest changes, the state's checksum, and how the room is made; the game waits while it is open.",
+      },
+      copilot: { type: "bool", default: true, doc: "Room 5: the application's agent plays the top paddle; off, it leaves it to another agent." },
+      agent_overlay: {
+        type: "bool",
+        default: false,
+        doc: "Draws the agent player's intent over the play — the arrow it holds, where it means the paddle to be, its note, the step it saw and the step it took effect — live or in a replay; never changes the play.",
+      },
+      agent_player: {
+        type: "string",
+        default: "off",
+        doc: "Whether an agent may play the bottom paddle as a player, and at which tier (plan §8.4): `off`; `human`, as a person plays — the arrows held and Space (`play`), taking effect 100 ms after what it saw, at most ten actions a second, shown what is drawn (`observe`); `assist`, no delay and no limit, shown everything. The application sets it; the person can turn it off.",
+      },
+    },
+    events: {
+      brick_broke: { args: { id: "string" } },
+      room_began: { args: { number: "i32", path: "string" } },
+      room_over: { args: { cleared: "bool", score: "i32" } },
+      choosing: { args: { open: "bool", after: "i32" }, doc: "Between rooms: the choice of a contraption is open (after room `after`), or made." },
+      style: {
+        args: { name: "string" },
+        doc: "The style pack the room asks for (empty: the application's own). Whoever hosts the field applies it.",
+      },
+    },
+    actions: {
+      launch: { effect: "reversible", doc: "Sends the ball on the paddle up, along the aim." },
+      aim: {
+        effect: "reversible",
+        args: { across: "f64" },
+        doc: "Holds the launch's aim, across per up (−1.2 … 1.2), until the launch; without it the aim sweeps to and fro.",
+      },
+      move_to: { effect: "reversible", args: { x: "f64" }, doc: "Moves the paddle toward x, 0 at the left to 1 at the right (as the pointer does)." },
+      release: { effect: "reversible", doc: "Gives the paddle back to the pointer and the keyboard." },
+      pause: { effect: "reversible" },
+      resume: { effect: "reversible" },
+      step: { effect: "reversible", doc: "One frame, while paused." },
+      restart: { effect: "reversible", doc: "The room from its start, with what the run brought into it." },
+      again: { effect: "reversible", doc: "A new run, from the first room." },
+      rewind: {
+        effect: "reversible",
+        args: { frames: "i32" },
+        doc: "Back that many frames (120 a second, at most 2 s, never before the last rewind's landing) for 100 sparks; playing on from there is a new branch.",
+      },
+      scan: { effect: "reversible", doc: "The X-ray: for 1.5 s the hidden caches and the circuits show (then 6 s to recharge)." },
+      order: { effect: "reversible", args: { to: "string" }, doc: "Room 5: what the copilot does — `hold`, `left`, `right` or `feed`." },
+      guard_to: {
+        effect: "reversible",
+        args: { x: "f64", seen: "string", says: "string", aim: "f64" },
+        doc: "Room 5: moves the top paddle toward x (0 … 1) — an agent's lane; `seen`: what it saw (the inspector shows it), `says`: a word to the player, `aim`: where it means to send the ball (0 … 1).",
+      },
+      set_rules: {
+        effect: "reversible",
+        args: {
+          drop_one_in: "i32",
+          magnet_catches: "i32",
+          multi_balls: "i32",
+          pierce_steps: "i32",
+          slow_percent: "i32",
+          slow_steps: "i32",
+          wide_half: "i32",
+          wide_steps: "i32",
+        },
+        doc: "What the contraptions do from the next step on (their scripts answer them); each within its bounds, or none is changed.",
+      },
+      choose: {
+        effect: "reversible",
+        args: { gift: "string" },
+        doc: "Between rooms: takes one of the two contraptions offered (`wide`, `magnet`, `multi`, `pierce`, `slow`), and the next room begins.",
+      },
+      next: { effect: "reversible", doc: "On from a room over: lost, the run again; the run complete, a new one." },
+      observe: {
+        effect: "read",
+        doc: "What an agent player is shown at its tier: the step, the paddle, the balls, the score, lives and bricks left, whether the room is over; at `assist` also the contraptions' rules and the hidden bricks. Refused while agent players are off.",
+      },
+      record: {
+        effect: "read",
+        doc: "The agent player's record since the room began: its tier, every action it took — the step it was given (`now`), the step it saw, the step it took effect, what it held — and the simulation's checksum; enough to replay it (`replay`).",
+      },
+      replay: {
+        effect: "reversible",
+        args: { plays: "any" },
+        doc: "Plays a record's actions again from the room's start, each given at the step it was (a record's `plays`); what the room becomes is the record's checksum if the record is whole.",
+      },
+      intend: {
+        effect: "reversible",
+        args: { target: "f64", note: "string" },
+        doc: "The agent player's intent, carried by its next `play` and never played: where it means the paddle to be (`target`, 0 … 1; below 0: nowhere in particular) and why (`note`, 80 characters) — kept in the record, drawn when `agent_overlay` is on. Undone by another `intend`.",
+      },
+      play: {
+        effect: "reversible",
+        args: { seen: "i64", axis: "f64", launch: "bool", look: "bool" },
+        doc: "An agent player's actions, a person's: the arrows held (axis −1 … 1, 0: neither), Space held (launch), Z held (look). They take effect no sooner than the tier's reaction after step `seen` (what it saw) and hold until the next; the answer says the step; it carries the intent `intend` said. Refused while agent players are off, for a step not yet played, or more often than the tier allows.",
+      },
+    },
+  },
+});

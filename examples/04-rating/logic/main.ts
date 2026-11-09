@@ -1,6 +1,6 @@
 // The reading list: books and how much you liked them, the average, the ones
 // you would recommend. `rating` is this application's own component
-// (contract/rating.contract.omui.toml, src/rating.cpp): once the program
+// (contract/rating.contract.omui.ts, src/rating.cpp): once the program
 // registers it, its builder is in "openmui" like any other component's —
 // nothing between C++ and this file is written by hand.
 import { signal, fmt, model, verb, column, row, text, textBox, button, toggle, each, or, not, ge, eq, mount, rating } from "openmui";

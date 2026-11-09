@@ -3,7 +3,7 @@
 The agent endpoint of an openmui application (spec §9, plan §11):
 `openmui.tree@0.1` as JSON lines.
 
-Its operations are its catalog's, [`omui.ops.omui.toml`](omui.ops.omui.toml)
+Its operations are its catalog's, [`omui.ops.omui.ts`](omui.ops.omui.ts)
 (convergence plan §10.3): `omui-gen ops` makes the protocol's table
 (`omui::agent::catalog`, effects and admission from it), the CLI/MCP listing
 and the reference in `src/catalog/`; how an Agent works with it is

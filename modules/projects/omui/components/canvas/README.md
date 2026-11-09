@@ -1,6 +1,6 @@
 # omui.ui.canvas
 
-An infinite canvas (module `omui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas/kit`). Contract-first: `contract/canvas.contract.omui.toml` is its interface.
+An infinite canvas (module `omui.ui.canvas`, canvas-markdown §1, `OMUI_EXT_canvas`): a scene of nodes in world space — thousands of windows, notes, shapes — seen through a camera. It is the mechanism; selection, dragging, handles, snapping, connectors and the minimap are behaviours canvas-kit registers (`components/canvas/kit`). Contract-first: `contract/canvas.contract.omui.ts` is its interface.
 
 ```cpp
 import omui.ui.canvas;

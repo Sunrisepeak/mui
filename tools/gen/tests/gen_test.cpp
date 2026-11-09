@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     s.test("a property of any type is data as it is: a Value, read and handed back whole", [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto lens = gen::read_contracts(spec_dir().parent_path() / "site" / "contract" / "lens.contract.omui.toml", reg, diags);
+        auto lens = gen::read_contracts(spec_dir().parent_path() / "site" / "contract" / "lens.contract.omui.ts", reg, diags);
         check(!diags.has_errors(), diags.text());
         const std::string cpp = gen::emit_cpp_contract(lens.at(0), reg, {"x.site", "x::site", false});
         for (auto expect : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
         for (const auto& pkg : std::filesystem::directory_iterator(root, ec)) {
             for (const auto& f : std::filesystem::directory_iterator(pkg.path() / "native", ec)) {
                 const std::string file = gen::generic_utf8(f.path().filename());
-                if (!file.ends_with(".native.omui.toml")) continue;
+                if (!file.ends_with(".native.omui.toml") && !file.ends_with(".native.omui.ts")) continue;
                 const std::string module = "omui.native." + gen::generic_utf8(pkg.path().filename());
                 auto modules = gen::read_natives(f.path(), reg, diags);
                 check(!diags.has_errors(), diags.text());

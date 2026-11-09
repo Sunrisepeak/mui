@@ -44,7 +44,7 @@ Still-image judgments followed `ui_wait {settled:true}`.
 
 Stable document IDs, named windows, structured Markdown roles, actor reporting, and reversible drag history make the framework useful to an evaluator. Shared group carriage now closes an important human/agent discrepancy.
 
-Local link activation also improved: an agent could follow a relative document link without an external-action confirmation. However, the document-level `open_link` action remains uniformly external in its [contract](/home/speak/workspace/mui/components/markdown/contract/markdown.contract.omui.toml:33). Classification should agree across equivalent entry points.
+Local link activation also improved: an agent could follow a relative document link without an external-action confirmation. However, the document-level `open_link` action remains uniformly external in its [contract](/home/speak/workspace/mui/components/markdown/contract/markdown.contract.omui.ts:33). Classification should agree across equivalent entry points.
 
 The most serious remaining framework problems are gesture arbitration and consistency between pixels, semantic bounds, and virtual subtrees. Add a frame-consistent inspection boundary, expose the minimap as a named semantic control, and require a real inverse before advertising an operation as reversible.
 

@@ -202,6 +202,7 @@ int player_main(int argc, char** argv) {
         p->watch(design ? seconds(1.0 / 60) : seconds(0.1));
     };
     app.ready = [&] { return p && p->idle(); };
+    app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime
     return run(std::move(app), static_cast<int>(rest.size()), rest.data());
 }
 

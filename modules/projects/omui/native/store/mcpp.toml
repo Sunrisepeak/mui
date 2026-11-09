@@ -1,7 +1,7 @@
 # omui.native.store — a program's own small storage (D-84 §6.2): the
 # `Store` plugin interface a host gives its storage through (the Web host:
 # the page's localStorage; where none does, memory), and its face for
-# scripts, the contract native/store.native.omui.toml (the partition and the
+# scripts, the contract native/store.native.omui.ts (the partition and the
 # TS / Python / Lua stubs are generated: `omui-gen native`; tools/gen's test
 # keeps them current).
 [package]

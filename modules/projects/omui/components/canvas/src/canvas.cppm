@@ -9,7 +9,7 @@
 // The scene (:scene) holds nodes by column with a grid index; the camera
 // (:camera) looks at it in double precision; the component (:view) draws
 // what it sees, by each node's tier, and makes the largest live. The
-// interface is contract/canvas.contract.omui.toml.
+// interface is contract/canvas.contract.omui.ts.
 export module omui.ui.canvas;
 
 export import omui.core;

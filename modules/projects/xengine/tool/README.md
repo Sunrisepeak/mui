@@ -11,4 +11,4 @@ xengine timeline undo short.timeline.omui.toml                               # t
 
 One JSON answer on standard output; exit 0 done, 1 refused or failed (why), 2 a wrong command. An edit refused (outside its clip, an overlap) leaves the file as it was; the text before each edit is kept beside the file (`.<file>.history.omui.jsonl`, the last 64).
 
-Its operations are a catalog ([`xengine.ops.omui.toml`](xengine.ops.omui.toml), listed in [`media/ops`](media/ops)); how an Agent uses them is [`skill.omui.md`](skill.omui.md). Checked end to end by `tools/ci/tools-e2e.sh`.
+Its operations are a catalog ([`xengine.ops.omui.ts`](xengine.ops.omui.ts), listed in [`media/ops`](media/ops)); how an Agent uses them is [`skill.omui.md`](skill.omui.md). Checked end to end by `tools/ci/tools-e2e.sh`.

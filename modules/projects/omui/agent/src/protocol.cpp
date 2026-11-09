@@ -28,7 +28,7 @@ constexpr std::size_t default_children_limit = 256;
 constexpr Log protocol_log{"agent"};
 
 
-// The protocol's operations are its catalog's (omui.ops.omui.toml), named on the
+// The protocol's operations are its catalog's (omui.ops.omui.ts), named on the
 // wire without their `ui.` domain.
 constexpr std::string_view wire_domain = "ui.";
 constexpr std::string_view wire_name(const mlibs::control::CatalogEntry& entry) { return entry.operation.name.substr(wire_domain.size()); }

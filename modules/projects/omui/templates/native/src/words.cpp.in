@@ -1,4 +1,4 @@
-// The functions native/words.native.omui.toml declares.
+// The functions native/words.native.omui.ts declares.
 module {{project.name}};
 
 import std;

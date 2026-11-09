@@ -1,6 +1,6 @@
 # hanim — skill
 
-How an Agent (or a person at a terminal) does animation work with hanim without a GUI. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`hanim.ops.omui.toml`](hanim.ops.omui.toml), listed for CLI and MCP in [`src/control/hanim.ops.json`](src/control/hanim.ops.json) and for reading in [`src/control/hanim.ops.md`](src/control/hanim.ops.md).
+How an Agent (or a person at a terminal) does animation work with hanim without a GUI. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`hanim.ops.omui.ts`](hanim.ops.omui.ts), listed for CLI and MCP in [`src/control/hanim.ops.json`](src/control/hanim.ops.json) and for reading in [`src/control/hanim.ops.md`](src/control/hanim.ops.md).
 
 ## Before
 

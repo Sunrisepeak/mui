@@ -36,6 +36,9 @@ struct AppSpec {
     std::filesystem::path  effects;
     // Called once the runtime exists, before the view mounts (timers, more slots).
     std::function<void(Runtime&)> setup;
+    // Called before the runtime goes, whichever way the run ends: what setup
+    // made that holds on to the runtime (a player, its timers) lets go here.
+    std::function<void(Runtime&)> teardown;
     // Whether what setup started (scripts on their threads) is done for now:
     // a headless run settles until it is.
     std::function<bool()> ready;

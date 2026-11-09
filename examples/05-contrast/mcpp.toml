@@ -1,7 +1,7 @@
 # Example 05 — a native module (canvas-markdown §5; component-binding §8): a
 # WCAG 2.2 contrast checker. The interface is TypeScript (logic/main.ts),
 # run by the player; the colour science is the application's own native
-# module, native/contrast.native.omui.toml, implemented in C++
+# module, native/contrast.native.omui.ts, implemented in C++
 # (src/contrast.cpp). The bindings — the C++ partition and the TS / Python /
 # Lua stubs — are generated when the package builds; nothing is written by
 # hand between the two languages. The tool: the contrast of a text colour on

@@ -1,6 +1,6 @@
 # omui — skill
 
-How an Agent (or a person at a terminal) uses a running omui application without a GUI: reads it, finds what to act on, acts, waits, and checks the result in its tree and its pixels. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`omui.ops.omui.toml`](omui.ops.omui.toml), listed for CLI and MCP in [`src/catalog/omui.ops.json`](src/catalog/omui.ops.json) and for reading in [`src/catalog/omui.ops.md`](src/catalog/omui.ops.md). On the wire each is one JSON line, `{"op": "snapshot", …}` (the name without `ui.`).
+How an Agent (or a person at a terminal) uses a running omui application without a GUI: reads it, finds what to act on, acts, waits, and checks the result in its tree and its pixels. The operations, their parameters, effects, costs and how each is undone are the catalog's: [`omui.ops.omui.ts`](omui.ops.omui.ts), listed for CLI and MCP in [`src/catalog/omui.ops.json`](src/catalog/omui.ops.json) and for reading in [`src/catalog/omui.ops.md`](src/catalog/omui.ops.md). On the wire each is one JSON line, `{"op": "snapshot", …}` (the name without `ui.`).
 
 ## Before
 

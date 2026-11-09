@@ -7,7 +7,7 @@ namespace hanim::control {
 namespace {
 constexpr mlibs::log::Log diagnostic{"hanim.control"};
 enum class Op {prepare,play,list,inspect,plan,seek,seek_progress,pause,resume,reverse,rate,cancel,release};
-static_assert(catalog.size()==13,"one Op a catalog entry, in its order (hanim.ops.omui.toml)");
+static_assert(catalog.size()==13,"one Op a catalog entry, in its order (hanim.ops.omui.ts)");
 template<class Fn> auto invoke(mlibs::control::InvocationContext& context,
     const std::shared_ptr<const mlibs::control::Access>& access,const mlibs::control::Invocation& call,
     Op operation,Fn&& execute) -> Reply<typename std::invoke_result_t<Fn>::value_type> {

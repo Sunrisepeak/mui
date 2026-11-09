@@ -1,5 +1,5 @@
 // {{project.name}} — its components. The `:counter_contract` partition is
-// generated from contract/counter.contract.omui.toml.
+// generated from contract/counter.contract.omui.ts.
 export module {{project.name}};
 
 export import omui;

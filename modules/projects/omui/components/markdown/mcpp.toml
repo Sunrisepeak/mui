@@ -1,7 +1,7 @@
 # omui.ui.markdown — the Markdown component (canvas-markdown §2): a
 # document of semantic nodes over openmui.markdown's model, with block nodes
 # keyed by content so streaming re-lays out only the tail. Contract-first:
-# contract/markdown.contract.omui.toml becomes the base class, the builder,
+# contract/markdown.contract.omui.ts becomes the base class, the builder,
 # the stubs and the schema when it builds (omui.build.contracts). An official
 # component package, not in the umbrella's defaults.
 [package]

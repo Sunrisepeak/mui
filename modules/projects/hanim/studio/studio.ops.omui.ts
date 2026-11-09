@@ -4,7 +4,7 @@
 // problems, 2 a wrong command). omui-gen ops makes the listing
 // (media/ops/studio.ops.json for CLI and MCP bindings) and the reference
 // (media/ops/studio.ops.md); effects are openas's. Operating a host's Engine
-// is hanim's own catalog (hanim.ops.omui.toml).
+// is hanim's own catalog (hanim.ops.omui.ts).
 import { defineOps } from "openmui/define";
 
 export default defineOps({

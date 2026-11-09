@@ -1,5 +1,5 @@
 // acme.ui — a component package of someone else's: its badge's interface is
-// generated from contract/badge.contract.omui.toml when it builds.
+// generated from contract/badge.contract.omui.ts when it builds.
 export module acme.ui;
 
 export import omui.core;

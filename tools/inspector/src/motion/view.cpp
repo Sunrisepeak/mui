@@ -32,7 +32,7 @@ Element number_knob(const std::shared_ptr<Session>& session, std::string id, std
 }  // namespace
 
 void add_verbs(AppSpec& app, const std::shared_ptr<Session>& session) {
-    // The verbs are the catalog's motion.* (inspector.ops.omui.toml).
+    // The verbs are the catalog's motion.* (inspector.ops.omui.ts).
     for (const auto& entry : catalog) {
         if (!entry.operation.name.starts_with("motion.")) continue;
         const auto operation = entry.operation.name.substr(std::string_view("motion.").size());

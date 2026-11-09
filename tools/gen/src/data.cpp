@@ -13,42 +13,65 @@ namespace {
 
 using Json = nlohmann::ordered_json;
 
-// A JSON value as a TOML node; null has no TOML form.
-std::expected<std::unique_ptr<toml::node>, std::string> node_of(const Json& value, const std::string& pointer) {
+// A JSON value as TOML text, inline, its keys in the module's order: parsed
+// back, every node has a place (line, column) in that order, which is the
+// order the readers take declarations in (a native module's arguments, its
+// functions) — as a TOML file's own. Null has no TOML form.
+std::expected<void, std::string> write(const Json& value, const std::string& pointer, std::string& out) {
+    const auto key = [](std::string_view k) {
+        const bool bare = !k.empty() && std::ranges::all_of(k, [](char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-'; });
+        return bare ? std::string(k) : Json(std::string(k)).dump();
+    };
     switch (value.type()) {
     case Json::value_t::object: {
-        auto table = std::make_unique<toml::table>();
+        out += '{';
+        bool first = true;
         for (const auto& item : value.items()) {
-            auto node = node_of(item.value(), std::format("{}/{}", pointer, item.key()));
-            if (!node) return std::unexpected(node.error());
-            table->insert(item.key(), std::move(**node));
+            out += first ? " " : ", ";
+            first = false;
+            out += key(item.key()) + " = ";
+            if (auto r = write(item.value(), std::format("{}/{}", pointer, item.key()), out); !r) return r;
         }
-        return table;
+        out += first ? "}" : " }";
+        return {};
     }
     case Json::value_t::array: {
-        auto array = std::make_unique<toml::array>();
+        out += '[';
         std::size_t index = 0;
         for (const auto& item : value) {
-            auto node = node_of(item, std::format("{}/{}", pointer, index++));
-            if (!node) return std::unexpected(node.error());
-            array->push_back(std::move(**node));
+            if (index) out += ", ";
+            if (auto r = write(item, std::format("{}/{}", pointer, index++), out); !r) return r;
         }
-        return array;
+        out += ']';
+        return {};
     }
-    case Json::value_t::string: return std::make_unique<toml::value<std::string>>(value.get<std::string>());
-    case Json::value_t::boolean: return std::make_unique<toml::value<bool>>(value.get<bool>());
+    case Json::value_t::string: out += Json(value.get<std::string>()).dump(); return {};  // a JSON string is a TOML basic string
+    case Json::value_t::boolean: out += value.get<bool>() ? "true" : "false"; return {};
     case Json::value_t::number_integer:
-    case Json::value_t::number_unsigned: return std::make_unique<toml::value<std::int64_t>>(value.get<std::int64_t>());
-    case Json::value_t::number_float: return std::make_unique<toml::value<double>>(value.get<double>());
+    case Json::value_t::number_unsigned: out += std::to_string(value.get<std::int64_t>()); return {};
+    case Json::value_t::number_float: {
+        std::string number = value.dump();
+        if (number.find_first_of(".eE") == std::string::npos) number += ".0";
+        out += number;
+        return {};
+    }
     default: return std::unexpected(std::format("{}: null has no place here (leave the key out)", pointer.empty() ? "/" : pointer));
     }
 }
 
-std::expected<toml::table, std::string> table_of(const Json& value, const std::string& pointer) {
-    if (!value.is_object()) return std::unexpected(std::format("{}: an object, by name", pointer.empty() ? "/" : pointer));
-    auto node = node_of(value, pointer);
-    if (!node) return std::unexpected(node.error());
-    return std::move(*(*node)->as_table());
+// A document's top-level tables, a line each, as TOML text; then parsed.
+std::expected<toml::table, std::string> parsed(const std::vector<std::pair<std::string, const Json*>>& top, const std::string& name) {
+    std::string text;
+    for (const auto& [k, v] : top) {
+        text += k + " = ";
+        if (auto r = write(*v, "/" + k, text); !r) return std::unexpected(r.error());
+        text += '\n';
+    }
+    try {
+        return toml::parse(text, name);
+    } catch (const toml::parse_error& error) {
+        return std::unexpected(std::string(error.description()));
+    }
 }
 
 }  // namespace
@@ -65,24 +88,18 @@ std::expected<toml::table, std::string> data_document(const std::filesystem::pat
     const Json value = Json::parse(data->json, nullptr, false);
     if (value.is_discarded()) return std::unexpected(std::format("{}: its JSON does not read back", name));
     auto problem = [&](std::string text) { return std::unexpected(std::format("{}: {}", name, std::move(text))); };
-    toml::table document;
     if (kind == "ops") {
         // The catalog's fields, its operations and its tiers: [catalog], [[operation]], [[tier]].
-        Json head = Json::object();
         if (!value.is_object()) return problem("/: an object (product, doc, operations …)");
+        Json head = Json::object();
         for (const auto& item : value.items())
             if (item.key() != "operations" && item.key() != "tiers") head[item.key()] = item.value();
-        auto catalog = table_of(head, "");
-        if (!catalog) return problem(catalog.error());
-        document.insert("catalog", std::move(*catalog));
-        for (const auto& [key, as] : std::array{std::pair{std::string_view("operations"), std::string_view("operation")},
-                                                std::pair{std::string_view("tiers"), std::string_view("tier")}}) {
-            if (!value.contains(key)) continue;
-            auto list = node_of(value[std::string(key)], std::format("/{}", key));
-            if (!list) return problem(list.error());
-            document.insert(as, std::move(**list));
-        }
-        return document;
+        std::vector<std::pair<std::string, const Json*>> top{{"catalog", &head}};
+        if (value.contains("operations")) top.emplace_back("operation", &value["operations"]);
+        if (value.contains("tiers")) top.emplace_back("tier", &value["tiers"]);
+        auto document = parsed(top, name);
+        if (!document) return problem(document.error());
+        return std::move(*document);
     }
     // One component (or native module) a file, named as the file: the build plans by the name alone.
     const std::string suffix = std::format(".{}.omui.ts", kind);
@@ -90,10 +107,9 @@ std::expected<toml::table, std::string> data_document(const std::filesystem::pat
     if (!value.is_object() || value.size() != 1 || !value.contains(expected))
         return problem(std::format("a {} file holds one, named as the file: define{}{}({{ {}: {{ … }} }})", kind,
                                    static_cast<char>(kind[0] - 'a' + 'A'), kind.substr(1), expected));
-    auto body = table_of(value, "");
-    if (!body) return problem(body.error());
-    document.insert(std::string(kind), std::move(*body));
-    return document;
+    auto document = parsed({{std::string(kind), &value}}, name);
+    if (!document) return problem(document.error());
+    return std::move(*document);
 }
 
 }  // namespace omui::gen

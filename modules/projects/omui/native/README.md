@@ -3,7 +3,7 @@
 The native modules of a program (component-binding §8): functions written in C++ behind a `*.native.omui.toml` contract, which scripts call. It is like React Native's TurboModules or Tauri's commands, but nothing is written by hand between the languages.
 
 ```toml
-# native/fuzzy.native.omui.toml
+# native/fuzzy.native.omui.ts
 [native.fuzzy.functions.rank]
 args    = { query = "string", candidates = "string[]", limit = "u32?" }
 returns = "Match[]"

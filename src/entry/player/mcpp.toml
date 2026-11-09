@@ -21,6 +21,12 @@ kind = "entry"
 [targets.openmui-entry-player]
 kind = "lib"
 
+# The program's main for a TypeScript application (D-156: it writes no C++):
+# `main = { from = "omui.entry.player/player" }` in its manifest.
+[targets.player]
+kind = "entry"
+main = "src/entry/main.cpp"
+
 [build]
 sources = ["src/*.cppm", "src/*.cpp"]
 

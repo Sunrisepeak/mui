@@ -1,0 +1,24 @@
+// One of a few choices side by side, the chosen one raised (a segmented
+// control): each choice a radio of its own in the semantic tree
+// (`<id>/<value>`), chosen by a press, the arrows or an agent; taken back.
+import { defineContract } from "openmui/define";
+
+export default defineContract({
+  segmented: {
+    role: "radio_group",
+    spec: "0.1",
+    doc: "One of a few choices side by side, the chosen one raised.",
+    props: {
+      value: { type: "string", default: "", bindable: true },
+      options: { type: "list<string>", default: [], doc: "The choices' values; their labels from `labels` or the values." },
+      labels: { type: "list<string>", default: [] },
+      label: { type: "string", default: "", doc: "The accessible name of the group." },
+      disabled: { type: "bool", default: false },
+    },
+    events: { changed: { args: { value: "string" } } },
+    actions: { set_value: { effect: "reversible", args: { value: "string" } } },
+    keys: { "Right|Down": "next", "Left|Up": "previous" },
+    commands: { next: { doc: "Choose the next choice." }, previous: { doc: "Choose the choice before." } },
+    parts: { track: {}, segment: {}, thumb: {} },
+  },
+});

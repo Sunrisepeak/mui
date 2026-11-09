@@ -44,7 +44,7 @@
      - Agent 在该问的时候主动问人；
      - 预演、事务、确定性、像素溯源从架构上内建，不靠事后适配；
      - Agent 交互的模型归 openas，MCP、WebMCP、A2UI 等只是适配层（D-137）。
-   - **应用即设计器，Live Design 是首选的设计范式**（D-149）：开发者/设计器模式是启动模式，默认可视，release 编译期去掉；Agent 直接发 TS 代码或结构化操作，组件级增量求值 ≤ 1 帧，TS 源码是唯一事实来源；设计过程由 hanim 呈现（呈现与状态分离）；人随时接手，Agent 对照可执行的期望核对事实。
+   - **应用即设计器，Live Design 是首选的设计范式**（D-149）：开发者/设计器模式是启动模式，默认可视，release 编译期去掉；Agent 直接发 TS 代码或结构化操作，组件级增量求值 ≤ 1 帧，TS 源码是唯一事实来源；设计过程由 hanim 呈现（呈现与状态分离）；人随时接手，Agent 对照可执行的期望核对事实；设计历史可以提交、分支、切换、回退，回放可以编辑并导出成作品（D-151）；UI、应用、动画、动画视频都用这一套模式（D-152）。
    - **人 × Agent × 框架协同**（D-144、D-148）：运行时生成（UI、交互、动画、组件、动作、资产）默认支持代码，开发模式下是顶级能力，发布时由开发者在 `omui.config.ts` 里选择开放程度；框架记录每一次交互及其从输入到效果的因果链，Agent 经 openas 查询事实（`ui.timeline`、`ui.explain`），不依赖人的转述；读取人的记录需要授权。
    - **观察**以语义为先，需要看时截任意区域，需要精确数据时读 SVG，不做 computer use（D-142）；Agent 需要的 API 由框架从契约自描述导出，skill 只保留 SOP（D-145）。
    - 细则见[核心设计准则 §9](.agents/docs/2026-11-05-local-global-composable-architecture-design.md#9-人与-agent-双第一优先级的设计与验收)（§9.7 是本条）。
@@ -73,7 +73,7 @@
 
 ## 5. 工程与包
 
-- **`omui` 命令行是 omui 应用唯一的顶级入口**（D-150）：new、dev、run、build、test、package、依赖、辅助工具、Agent 接入都经由它，底层是 mcpp 和 mtest。
+- **`omui` 命令行是 omui 应用唯一的顶级入口**（D-150、D-153）：new、dev、run、build、test、package、依赖、辅助工具、Agent 接入都经由它，底层是 mcpp 和 mtest；omui 专属的构建步骤都是 mcpp 插件（`mcpp/`），所以直接用 mcpp 构建结果一致。开发模式下由宿主进程持有窗口，应用是渲染输出目标（D-154）。
 - 工程文件只有 `mcpp.toml`；构建、测试、打包都用 mcpp，工具经 xlings 安装。带命名空间的依赖写成点分键（`nlohmann.json = "3.12.0"`）；父包和子包同时出现时键要加引号。`mcpp.lock` 不提交（已在 `.gitignore`）。根 `mcpp.toml` 只有 `[workspace]`，SDK 伞包是 omui 的 `sdk/`（`import omui;`）；`mcpp/` 只放构建插件；程序入口在 `src/entry/`。
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **优先用 mcpp 生态**（D-56）。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。

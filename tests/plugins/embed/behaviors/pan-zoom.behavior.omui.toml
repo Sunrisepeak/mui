@@ -1,3 +1,0 @@
-# A behaviour carried in the package (`-` in its stem becomes `_`).
-[behavior]
-name = "pan-zoom"

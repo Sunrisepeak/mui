@@ -185,6 +185,8 @@ def scan(text: str):
             continue
         if found := KEY.match(line):
             at = table + path_of(found.group(1))
+            for cut in range(len(table) + 1, len(at)):  # a dotted key's tables: written over lines, a key a line
+                headers.add(at[:cut])
             if block:
                 before[at] = block
             rest = line[found.end() :]

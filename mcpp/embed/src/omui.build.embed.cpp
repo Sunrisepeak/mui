@@ -73,7 +73,7 @@ bool themes(theme_options opt) {
 }
 
 bool behaviors(behavior_options opt) {
-    return embed({.module = std::move(opt.module), .ns = std::move(opt.ns), .dir = std::move(opt.behaviors), .suffix = ".behavior.omui.toml",
+    return embed({.module = std::move(opt.module), .ns = std::move(opt.ns), .dir = std::move(opt.behaviors), .suffix = ".behavior.omui.ts",
                   .tag = "behavior", .out_dir = std::move(opt.out_dir)});
 }
 

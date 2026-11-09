@@ -42,6 +42,6 @@ UTest cases{"plugins.embed", [] {
     "themes() and behaviors(): embed() for their directories"_test = [] {
         // A TypeScript data module is carried as the JSON it evaluates to.
         expect(acme::data::dusk_theme == std::string_view(R"({"theme":{"dusk":{"extends":"dark","colors":{"accent":"#f59e0b"}}}})" "\n"));
-        expect(acme::data::pan_zoom_behavior == file("behaviors/pan-zoom.behavior.omui.toml"));
+        expect(acme::data::pan_zoom_behavior == std::string_view(R"({"behavior":{"pan-zoom":{"on":"canvas"}}})" "\n"));
     };
 }};

@@ -16,7 +16,7 @@ export default defineOps({
       name: "effect.check",
       effect: "read",
       summary: "Read each effect file, compile its shader for the device formats and register it: its parameters, or every problem at file, line and column",
-      params: [{ name: "files", type: "json", doc: "the <name>.effect.omui.toml files" }],
+      params: [{ name: "files", type: "json", doc: "the <name>.effect.omui.json files (what a .effect.omui.ts evaluates to)" }],
       result: "json",
       cost: "bounded",
     },

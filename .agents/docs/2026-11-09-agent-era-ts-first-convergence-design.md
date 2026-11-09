@@ -714,6 +714,10 @@ my-app/
     - 数据文件之间的引用写作者看到的模块名（`music/promo.music.omui.ts`）：读者按快照名找（宣传片的 `Files` 读嵌入的 `.omui.json`；`--dir` 下的改稿先找快照，否则求值目录里的模块）。`xengine.video` 不求值 TS：`soundtrack` 接受调用方的 `DataReader`，`omui video` 传入自己的求值器；`omui audio automation` 同样接受 `.timeline.omui.ts`。
     - `omui` 命令行新增内部的 `data_text`：`.omui.ts` 求值，其余原样读。设计影片写 `design.video.omui.json`。`xengine` 工具处理时间线的 JSON（`omui-gen snapshot` 生成），tools-e2e 改用快照。
     - 宣传片逐帧哈希只有结尾卡（第 3420 帧，字幕改为 `promo.timeline.omui.ts`）一帧变化，其余九帧与上次 CI 记录逐一相同；时间线编辑器组件、音轨（xengine.video 的声音哈希）不变。
+  - F 完成：效果和画布行为。
+    - `xrender.effect` 读 `{"effect": {name, doc, reach, params}}`（`[[param]]` 改为 `params`）；它不求值 TS：`Options::data` 由宿主注入，桌面宿主（`DesktopOptions::effect_data`、sdk 的 `App::effect_data`）转交，player 入口传入自己的求值器，所以应用的 `*.effect.omui.ts` 随保存热重载；没有求值器时只认 `.effect.omui.json`，`.ts` 给出指向快照的提示。测试数据改为 JSON 快照（xrender 的测试不求值 TS）。
+    - 画布行为：`omui.ui.canvas.kit` 的树改由 `mlibs.json` 构造（`Toml` 改名 `Tree`），对象按键序交出，与原来一致；markdown-wall 的两个行为和 embed 插件的 `behaviors()` 改用 `.behavior.omui.ts`。
+    - 转写器支持点分键（`on.key = …` 的表展开为多行对象）和跨行书写的列表（保持一项一行）。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

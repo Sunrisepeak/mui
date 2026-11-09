@@ -32,9 +32,11 @@ struct AppSpec {
     std::function<View()>  view;                 // what the window shows (mounted at "main")
     std::vector<VerbSpec>  verbs;                // the application's verbs (S-1: their effects classify actions)
     Theme                  theme = Theme::light();
-    // A directory of the application's own effects (*.effect.omui.toml):
-    // loaded with the window, loaded again when one changes (openmui.render.effect).
+    // A directory of the application's own effects (*.effect.omui.ts, or their
+    // JSON): loaded with the window, loaded again when one changes
+    // (openmui.render.effect). A module is read through `effect_data`.
     std::filesystem::path  effects;
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
     // Called once the runtime exists, before the view mounts (timers, more slots).
     std::function<void(Runtime&)> setup;
     // Called before the runtime goes, whichever way the run ends: what setup

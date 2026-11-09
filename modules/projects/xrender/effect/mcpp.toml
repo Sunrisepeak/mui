@@ -1,6 +1,6 @@
 # openmui.render.effect — a program's own pixel effects (D-60, D-68; architecture
 # §8: "a third party's shader uses the effect template only"): a
-# `<name>.effect.omui.toml` names the effect, its parameters and its Slang
+# `<name>.effect.omui.ts` (read as its JSON) names the effect, its parameters and its Slang
 # shader, written against the template openmui.render carries; the library
 # compiles it for the device (mlibs.shader), registers it with the renderer's
 # effects, and loads it again when it — or anything the shader imports —
@@ -9,7 +9,7 @@
 namespace   = "xrender"
 name        = "effect"
 version     = "0.1.0"
-description = "A program's own Slang pixel effects from *.effect.omui.toml: checked, compiled for the device, registered and reloaded while it runs"
+description = "A program's own Slang pixel effects from *.effect.omui.ts (as JSON): checked, compiled for the device, registered and reloaded while it runs"
 license     = "Apache-2.0"
 repo        = "https://github.com/Sunrisepeak/mui"
 
@@ -20,14 +20,14 @@ kind = "module"
 kind = "lib"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 xrender.vector = { path = "../vector" }
 mlibs.rhi    = { path = "../../../gfx/rhi" }
 mlibs.shader = { path = "../../../gfx/shader" }
 mlibs.utils  = { path = "../../../base/utils" }
-marzer.tomlplusplus = "3.4.0"
+mlibs.json   = { path = "../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"

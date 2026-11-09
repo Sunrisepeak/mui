@@ -36,7 +36,7 @@ struct Manifest {
     std::vector<std::filesystem::path> views;       // view documents, mounted at their files' stems
     std::vector<std::filesystem::path> themes;      // theme files (*.theme.omui.ts), added to the program's library
     std::vector<std::string>           theme;       // the composition to start with: a theme, then overlays
-    std::filesystem::path              effects;     // a directory of the application's effects (*.effect.omui.toml)
+    std::filesystem::path              effects;     // a directory of the application's effects (*.effect.omui.ts)
     std::vector<Script>                scripts;
 };
 

@@ -23,7 +23,7 @@
 //   delete    Delete / Backspace removes the selection; a node's `delete`
 //             (irreversible: its answer is "yes")
 //
-// Declarative behaviours (:declarative) come from *.behavior.omui.toml.
+// Declarative behaviours (:declarative) come from *.behavior.omui.ts (their JSON).
 export module omui.ui.canvas.kit;
 
 export import omui.ui.canvas;

@@ -25,6 +25,7 @@ int shown(const AppSpec& app, const RunOptions& o, const Prepare& prepare) {
     d.accessibility = o.accessibility && app.accessibility;
     d.theme = o.dark ? Theme::dark_theme() : app.theme;
     d.effects = app.effects;
+    d.effect_data = app.effect_data;
     d.reduce_transparency = o.reduce_transparency;
     if (o.gpu) d.renderer = *o.gpu ? DesktopOptions::Renderer::gpu : DesktopOptions::Renderer::cpu;
     else if (app.renderer == "cpu") d.renderer = DesktopOptions::Renderer::cpu;

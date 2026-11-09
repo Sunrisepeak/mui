@@ -1,6 +1,6 @@
 # omui.ui.canvas.kit
 
-What a canvas does beyond panning and zooming (module `omui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.omui.toml` run by C++.
+What a canvas does beyond panning and zooming (module `omui.ui.canvas.kit`, canvas-markdown §1.1–1.3): behaviours a canvas names in its `behaviors`, and declarative ones, statecharts in `*.behavior.omui.ts` run by C++.
 
 ```cpp
 import omui.ui.canvas.kit;
@@ -27,32 +27,37 @@ Presses are offered from the highest priority: minimap 100, resize 60, connect 5
 
 ## Declarative behaviours
 
-A statechart in TOML (view-data-files §5), loaded with `world::load_behaviors(text, file)` or `world::load_behavior_file(path)` and then named like any other:
+A statechart as a TypeScript data module (view-data-files §5, D-139). The kit reads the JSON it evaluates to, loaded with `world::load_behaviors(json, file)` (the build embeds it: `omui::build::behaviors`) or `world::load_behavior_file(path)` (a `.behavior.omui.json`), and then named like any other:
 
-```toml
-# group-drag.behavior.omui.toml
-[behavior.group-drag]
-on       = "canvas"
-initial  = "idle"
-priority = 45
+```ts
+// group-drag.behavior.omui.ts
+import { defineBehavior } from "omui/define";
 
-[behavior.group-drag.states.idle]
-on.pointer_down = { when = "hit != null && hit.kind == 'label'", to = "dragging", do = ["capture()", "select(hit.node)"] }
-
-[behavior.group-drag.states.dragging]
-on.pointer_move = { do = ["move(hit.node, delta.world)"] }
-on.pointer_up   = { to = "idle", do = ["commit('group.moved', {'key': hit.node, 'dx': travel.world.x})"] }
-
-[behavior.group-drag.actions.nudge]       # what it adds to a node's actions
-when = "node.kind == 'label'"
-args = { dx = "f64", dy = "f64" }
-do   = ["move(node.key, {'x': args.dx, 'y': args.dy})"]
+export default defineBehavior({
+  "group-drag": {
+    on: "canvas",
+    initial: "idle",
+    priority: 45,
+    states: {
+      idle: { on: { pointer_down: { when: "hit != null && hit.kind == 'label'", to: "dragging", do: ["capture()", "select(hit.node)"] } } },
+      dragging: {
+        on: {
+          pointer_move: { do: ["move(hit.node, delta.world)"] },
+          pointer_up: { to: "idle", do: ["commit('group.moved', {'key': hit.node, 'dx': travel.world.x})"] },
+        },
+      },
+    },
+    actions: {   // what it adds to a node's actions
+      nudge: { when: "node.kind == 'label'", args: { dx: "f64", dy: "f64" }, do: ["move(node.key, {'x': args.dx, 'y': args.dy})"] },
+    },
+  },
+});
 ```
 
 - **Events**: `pointer_down`, `pointer_move`, `pointer_up`, `pointer_cancel`, `tap`, `key`. Each maps to a transition or a list of them; the first whose `when` holds is taken. A transition may go `to` a state and `do` operations; states may have `entry` and `exit` operations (exit, the transition's own, entry — SCXML's order). A press is the behaviour's only if a `pointer_down` transition does `capture()`.
 - **Names** the expressions read: `pointer` and `press` ({x, y, world: {x, y}, button, clicks}), `delta` (since the last event) and `travel` (since the press), `hit` (what the press hit: {node, kind, title, inside} — `inside`, the keys of the nodes lying wholly on it, so a frame drags what is on it) and `over` (what the pointer is over now), `mods` ({shift, ctrl, alt, meta, mod}), `key` (`"Escape"`, `"A"`), and always `selection`, `zoom`, `vars` (what `set` remembered; `vars.args` is what follows the name in `behaviors`) and `state`. An action's expressions read `node` ({key, kind, x, y, width, height}) and `args`.
 - **Operations** (`world::behavior_operations()`): `capture`, `move`, `move_to`, `resize`, `raise`, `select`, `add_to_selection`, `toggle_selection`, `clear_selection`, `connect`, `disconnect`, `remove`, `commit`, `set`, `fit`, `preset`, `zoom_to`. A target is a node's key or a list of them.
-- **Checked when it loads**: every key, state, event, operation, its number of arguments, every function and name in the expressions, the types of an action's arguments, and S-1 (an irreversible action states its answer). A file with a problem registers nothing; each problem has its line and column and, where one is near, the name meant (`did you mean `pointer_down`?`).
+- **Checked when it loads**: every key, state, event, operation, its number of arguments, every function and name in the expressions, the types of an action's arguments, and S-1 (an irreversible action states its answer). A file with a problem registers nothing; each problem has its line and column in the JSON and, where one is near, the name meant (`did you mean `pointer_down`?`).
 - Nothing runs a script: the expressions are evaluated by C++ (`omui.expr`), so the per-frame path stays native; `commit` is where scripts hear of it.
 
 ## Conformance and cost

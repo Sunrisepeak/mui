@@ -4,7 +4,7 @@
 // A behaviour is a C++ object a canvas holds (its `behaviors` property
 // names them; canvas-kit registers select, drag, resize, snap, connect,
 // grid, minimap and delete; a program registers its own, and canvas-kit
-// makes declarative ones from *.behavior.omui.toml). Each frame's input
+// makes declarative ones from *.behavior.omui.ts). Each frame's input
 // goes to them in a gesture arena (Flutter's, simplified): a press is
 // offered to every behaviour, the highest priority first, until one takes
 // it; that one then has the pointer until it is released. A press no one

@@ -13,7 +13,7 @@ A real reading tool: openmui's own design documents are read with it (`omui-wall
 | Layer | Package | What it is |
 |---|---|---|
 | Canvas | `omui.ui.canvas` | a scene of nodes in world space, a camera, tiers (box, texture, live component), textures rasterised on the task pool, the semantic items of what is on screen and `find` across the rest |
-| Canvas behaviours | `omui.ui.canvas.kit` | select, drag, snap, resize, and declarative statecharts (`*.behavior.omui.toml`) |
+| Canvas behaviours | `omui.ui.canvas.kit` | select, drag, snap, resize, and declarative statecharts (`*.behavior.omui.ts`) |
 | Markdown | `openmui.markdown`, `omui.ui.markdown` | parsing (incremental: a stream parses only its tail), the document component |
 | Scripts | `omui.lang.{js,lua}`, the Python binding | the tour, one scene script in three languages |
 | The application | `showcase/markdown-wall` | documents into workspaces, the window element, the HUD, the verbs |
@@ -21,7 +21,7 @@ A real reading tool: openmui's own design documents are read with it (`omui-wall
 ## 3. How each part was built
 
 - **One element per window, three tiers.** Under 40 px it is two instanced boxes; up to 900 px, a texture of the window's own element, painted by an offscreen runtime on the task pool at the mip level the screen asks for; beyond that, or when focused, the live element. The texture and the live window are the same element, so nothing moves when a window goes live.
-- **Behaviours are data.** Dragging a workspace with every window on it, and the two views (1 and 2), are statecharts embedded at build time (`behaviors/*.behavior.omui.toml`).
+- **Behaviours are data.** Dragging a workspace with every window on it, and the two views (1 and 2), are statecharts embedded at build time (`behaviors/*.behavior.omui.ts`).
 - **Streaming** writes tokens into the nearest windows at a language model's pace. A live window appends and parses only the tail. A texture window is made stale at most four times a second and redrawn on the pool.
 - **The tour** (`scripts/tour.{ts,lua,py}`) is one scene script written three times. TypeScript and Lua run inside the program on its script host; the Python one runs as an outside agent over the agent protocol. The test runs all three and requires the same records and the same wall.
 

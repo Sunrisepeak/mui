@@ -1,22 +1,27 @@
 // openmui.ui.canvas.kit:declarative — behaviours as data
-// (view-data-files §5): a statechart in a *.behavior.omui.toml, run by C++.
+// (view-data-files §5): a statechart in a *.behavior.omui.ts, run by C++. The
+// kit reads the JSON the module evaluates to (D-139; the build embeds it,
+// omui-gen snapshot writes it out).
 //
-//     # group-drag.behavior.omui.toml
-//     [behavior.group-drag]
-//     on      = "canvas"
-//     initial = "idle"
-//
-//     [behavior.group-drag.states.idle]
-//     on.pointer_down = { when = "hit != null && hit.kind == 'group.label'", to = "dragging", do = ["capture()"] }
-//
-//     [behavior.group-drag.states.dragging]
-//     on.pointer_move = { do = ["move(hit.node, delta.world)"] }
-//     on.pointer_up   = { to = "idle", do = ["commit('group.moved', hit.node)"] }
-//
-//     [behavior.group-drag.actions.nudge]          # what it adds to a node's actions
-//     when = "node.kind == 'group.label'"
-//     args = { dx = "f64", dy = "f64" }
-//     do   = ["move(node.key, {'x': args.dx, 'y': args.dy})"]
+//     // group-drag.behavior.omui.ts
+//     export default defineBehavior({
+//       "group-drag": {
+//         on: "canvas",
+//         initial: "idle",
+//         states: {
+//           idle: { on: { pointer_down: { when: "hit != null && hit.kind == 'group.label'", to: "dragging", do: ["capture()"] } } },
+//           dragging: {
+//             on: {
+//               pointer_move: { do: ["move(hit.node, delta.world)"] },
+//               pointer_up: { to: "idle", do: ["commit('group.moved', hit.node)"] },
+//             },
+//           },
+//         },
+//         actions: {   // what it adds to a node's actions
+//           nudge: { when: "node.kind == 'group.label'", args: { dx: "f64", dy: "f64" }, do: ["move(node.key, {'x': args.dx, 'y': args.dy})"] },
+//         },
+//       },
+//     });
 //
 // A state's `on` maps events — pointer_down, pointer_move, pointer_up,
 // pointer_cancel, tap, key — to a transition or a list of them (the first
@@ -27,7 +32,7 @@
 // `mods`, `key`) and the canvas (`selection`, `zoom`, `vars`, `state`). The
 // operations are the canvas's (behavior_operations()); everything is checked
 // when the file loads — a misspelt state, event, operation or name is a
-// problem with its line, not a surprise later. Nothing here runs a script:
+// problem with its place, not a surprise later. Nothing here runs a script:
 // the expressions are evaluated by C++, so the per-frame path stays native.
 export module omui.ui.canvas.kit:declarative;
 
@@ -48,8 +53,9 @@ struct BehaviorProblem {
 
 using BehaviorProblems = std::vector<BehaviorProblem>;
 
-// Reads a behaviour file and registers what it declares (by name: again
-// replaces it; canvases made after use the new one). Answers the names.
+// Reads a behaviour file's JSON (`{"behavior": {<name>: …}}`) and registers
+// what it declares (by name: again replaces it; canvases made after use the
+// new one). Answers the names. A file: its `.behavior.omui.json`.
 [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::string_view text, std::string_view file = "<behaviour>");
 [[nodiscard]] std::expected<std::vector<std::string>, BehaviorProblems> load_behavior_file(const std::filesystem::path& file);
 

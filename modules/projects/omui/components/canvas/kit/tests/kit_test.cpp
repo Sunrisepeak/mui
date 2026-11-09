@@ -90,54 +90,45 @@ struct Fixture {
 };
 
 
-constexpr std::string_view group_drag = R"toml(
-# group-drag.behavior.omui.toml
-[behavior.group-drag]
-on       = "canvas"
-initial  = "idle"
-priority = 45
-doc      = "Drags a group by its label."
-
-[behavior.group-drag.states.idle]
-on.pointer_down = { when = "hit != null && hit.kind == 'label'", to = "dragging", do = ["capture()", "select(hit.node)", "set('moves', 0)"] }
-on.key = [
-  { when = "key == 'G' && mods.mod", do = ["commit('group.requested', {'keys': selection})"] },
-]
-
-[behavior.group-drag.states.dragging]
-entry             = ["raise(hit.node)"]
-exit              = "commit('group.left', {'moves': vars.moves})"
-on.pointer_move   = { do = ["move(hit.node, delta.world)", "set('moves', vars.moves + 1)"] }
-on.pointer_up     = { to = "idle", do = ["commit('group.moved', {'key': hit.node, 'dx': travel.world.x, 'dy': travel.world.y})"] }
-on.pointer_cancel = { to = "idle" }
-
-[behavior.group-drag.actions.nudge]
-doc  = "Moves the group by a little."
-when = "node.kind == 'label'"
-args = { dx = "f64", dy = "f64" }
-do   = ["move(node.key, {'x': args.dx, 'y': args.dy})"]
-
-[behavior.group-drag.actions.dissolve]
-effect = "irreversible"
-answer = "yes"
-when   = "node.kind == 'label'"
-do     = ["remove(node.key)"]
-)toml";
+// group-drag.behavior.omui.ts, as it evaluates to.
+constexpr std::string_view group_drag = R"json({"behavior": {"group-drag": {
+  "on": "canvas",
+  "initial": "idle",
+  "priority": 45,
+  "doc": "Drags a group by its label.",
+  "states": {
+    "idle": {"on": {
+      "pointer_down": {"when": "hit != null && hit.kind == 'label'", "to": "dragging", "do": ["capture()", "select(hit.node)", "set('moves', 0)"]},
+      "key": [{"when": "key == 'G' && mods.mod", "do": ["commit('group.requested', {'keys': selection})"]}]
+    }},
+    "dragging": {
+      "entry": ["raise(hit.node)"],
+      "exit": "commit('group.left', {'moves': vars.moves})",
+      "on": {
+        "pointer_move": {"do": ["move(hit.node, delta.world)", "set('moves', vars.moves + 1)"]},
+        "pointer_up": {"to": "idle", "do": ["commit('group.moved', {'key': hit.node, 'dx': travel.world.x, 'dy': travel.world.y})"]},
+        "pointer_cancel": {"to": "idle"}
+      }
+    }
+  },
+  "actions": {
+    "nudge": {"doc": "Moves the group by a little.", "when": "node.kind == 'label'", "args": {"dx": "f64", "dy": "f64"}, "do": ["move(node.key, {'x': args.dx, 'y': args.dy})"]},
+    "dissolve": {"effect": "irreversible", "answer": "yes", "when": "node.kind == 'label'", "do": ["remove(node.key)"]}
+  }
+}}})json";
 
 // Every mistake on its line, and a hint.
-constexpr std::string_view misspelt = R"toml([behavior.bad]
-on = "canvas"
-initial = "idel"
-prority = 3
-[behavior.bad.states.idle]
-on.pointer_dwn = { do = ["capture()"] }
-on.pointer_down = { when = "hti.kind == 'x'", to = "draging", do = ["mvoe(hit.node, delta.world)", "capture(1)"] }
-on.tap = { do = ["capture()", "select(hit.node"] }
-[behavior.bad.states.dragging]
-[behavior.bad.actions.zap]
-effect = "irreversible"
-do = ["remove(node.key)"]
-)toml";
+constexpr std::string_view misspelt = R"json({"behavior": {"bad": {
+  "on": "canvas",
+  "initial": "idel",
+  "prority": 3,
+  "states": {"idle": {"on": {
+    "pointer_dwn": {"do": ["capture()"]},
+    "pointer_down": {"when": "hti.kind == 'x'", "to": "draging", "do": ["mvoe(hit.node, delta.world)", "capture(1)"]},
+    "tap": {"do": ["capture()", "select(hit.node"]}
+  }}, "dragging": {}},
+  "actions": {"zap": {"effect": "irreversible", "do": ["remove(node.key)"]}}
+}}})json";
 
 bool mentions(const world::BehaviorProblems& ps, int line, std::string_view text) {
     return std::ranges::any_of(ps, [&](const world::BehaviorProblem& p) { return p.line == line && (p.message + " " + p.hint).contains(text); });
@@ -500,7 +491,7 @@ UTest cases{"ui.canvas.kit", [] {
     };
 
     "declarative: a statechart from TOML drags a group by its label, commits, and adds its actions"_test = [] {
-        const auto loaded = world::load_behaviors(group_drag, "group-drag.behavior.omui.toml");
+        const auto loaded = world::load_behaviors(group_drag, "group-drag.behavior.omui.json");
         expect(loaded.has_value()) << (loaded ? std::string{} : loaded.error().front().text());
         expect(eq(loaded.value_or(std::vector<std::string>{}), std::vector<std::string>{"group-drag"}));
         expect(has(world::behaviors(), "group-drag")) << "registered by name";
@@ -553,7 +544,7 @@ UTest cases{"ui.canvas.kit", [] {
     };
 
     "declarative: a misspelt file is refused whole, each problem on its line with a hint"_test = [] {
-        const auto bad = world::load_behaviors(misspelt, "bad.behavior.omui.toml");
+        const auto bad = world::load_behaviors(misspelt, "bad.behavior.omui.json");
         expect(!bad.has_value()) << "refused";
         if (bad) return;
         const auto& ps = bad.error();
@@ -569,26 +560,26 @@ UTest cases{"ui.canvas.kit", [] {
         expect(mentions(ps, 8, "ends early")) << "a parse error";
         expect(mentions(ps, 10, "S-1")) << "an irreversible action without its answer";
         expect(!has(world::behaviors(), "bad")) << "nothing registered";
-        const auto broken = world::load_behaviors("[behavior.x\non = 1", "broken.behavior.omui.toml");
-        expect(!broken && broken.error().front().line == 1) << "malformed TOML: where";
-        const auto missing = world::load_behavior_file("/nonexistent/x.behavior.omui.toml");
+        const auto broken = world::load_behaviors("{\"behavior\": {\"x\"", "broken.behavior.omui.json");
+        expect(!broken && broken.error().front().line == 1) << "malformed JSON: where";
+        const auto missing = world::load_behavior_file("/nonexistent/x.behavior.omui.json");
         expect(!missing.has_value()) << "a missing file";
         // From a file: the same as from text, the problems naming the file.
         const auto dir = std::filesystem::temp_directory_path() / std::format("omui-canvas-kit-{}", std::random_device{}());
         std::filesystem::create_directories(dir);
         {
-            std::ofstream(dir / "group-drag.behavior.omui.toml", std::ios::binary) << group_drag;
-            std::ofstream(dir / "bad.behavior.omui.toml", std::ios::binary) << misspelt;
+            std::ofstream(dir / "group-drag.behavior.omui.json", std::ios::binary) << group_drag;
+            std::ofstream(dir / "bad.behavior.omui.json", std::ios::binary) << misspelt;
         }
-        const auto good = world::load_behavior_file(dir / "group-drag.behavior.omui.toml");
+        const auto good = world::load_behavior_file(dir / "group-drag.behavior.omui.json");
         expect(good && good->size() == 1) << "a file loads";
-        const auto wrong = world::load_behavior_file(dir / "bad.behavior.omui.toml");
-        expect(!wrong && wrong.error().front().file.ends_with("bad.behavior.omui.toml") && wrong.error().front().line == 3) << "a file's problems name it";
+        const auto wrong = world::load_behavior_file(dir / "bad.behavior.omui.json");
+        expect(!wrong && wrong.error().front().file.ends_with("bad.behavior.omui.json") && wrong.error().front().line == 3) << "a file's problems name it";
         std::filesystem::remove_all(dir);
     };
 
     "conformance: every behaviour registered — canvas-kit's and a declarative one — passes the behaviour CTS"_test = [] {
-        expect(world::load_behaviors(group_drag, "group-drag.behavior.omui.toml").has_value()) << "group-drag loads";
+        expect(world::load_behaviors(group_drag, "group-drag.behavior.omui.json").has_value()) << "group-drag loads";
         std::vector<std::string> all;
         for (const std::string& name : world::behaviors()) all.push_back(name);
         // With arguments, as canvases name them.

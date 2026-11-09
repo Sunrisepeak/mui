@@ -57,10 +57,14 @@ struct DesktopOptions {
     enum class Renderer : std::uint8_t { automatic, cpu, gpu };
     Renderer                renderer = Renderer::automatic;
     std::string             vulkan_library;   // the Vulkan loader the GPU device uses ("" the system's)
-    // A directory of *.effect.omui.toml (openmui.render.effect): loaded with the
-    // window, loaded again when a file changes. Effects are drawn by the GPU
-    // renderer; the CPU renderer draws their layers without them.
+    // A directory of effects (openmui.render.effect): `*.effect.omui.json`, or
+    // `*.effect.omui.ts` read through `effect_data`; loaded with the window,
+    // loaded again when a file changes. Effects are drawn by the GPU renderer;
+    // the CPU renderer draws their layers without them.
     std::filesystem::path   effects;
+    // How an effect module is read as its JSON (the host program's evaluator:
+    // the player's TypeScript). Empty: only `.effect.omui.json` effects.
+    std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> effect_data;
     // Show a runtime that exists already rather than make one (the window
     // does not own it; it must outlive the desktop).
     Runtime*                runtime = nullptr;

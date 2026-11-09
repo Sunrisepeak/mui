@@ -14,7 +14,7 @@ A CPU/GPU same-source, Web-first renderer whose pixels agents can review (intern
 |---|---|
 | [graph](graph) | `xrender.graph`: the render graph and the texture pool (below) |
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer |
-| [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
+| [effect](effect) | A program's own pixel effects (`*.effect.omui.ts` and Slang), loaded and reloaded while it runs |
 | [text](text) | `xrender.text`: mlibs.text's glyphs rasterised and cached, its paragraphs painted (layer content) |
 | [raster](raster) | The deterministic CPU rasteriser: paths, strokes, gradients, images, clips, layers, blend modes, shadows |
 | [rhi](rhi) | The backends of `mlibs.rhi`: SDL_GPU, WebGPU, WebGL2 |
@@ -51,7 +51,7 @@ portable runtime package. Both this package and its serial tests run on Web.
 | Package | |
 |---|---|
 | [vector](vector) | 2D vector rendering: the display list, its CPU reference renderer and its GPU renderer, whose passes are this graph's |
-| [effect](effect) | A program's own pixel effects (`*.effect.omui.toml` and Slang), loaded and reloaded while it runs |
+| [effect](effect) | A program's own pixel effects (`*.effect.omui.ts` and Slang), loaded and reloaded while it runs |
 | [cts](cts) | The render contract's suite on mlibs.cts (48 cases), run by each backend's tests (D-118) |
 
 Depends on: `mlibs.rhi`, `mlibs.trace`.

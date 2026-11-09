@@ -31,7 +31,7 @@ export default defineContract({
       behaviors: {
         type: "list<string>",
         default: [],
-        doc: "What else it does, by name: canvas-kit's select, drag, resize, snap, connect, grid, minimap, delete, a program's own, or a declarative behaviour's (*.behavior.omui.toml).",
+        doc: "What else it does, by name: canvas-kit's select, drag, resize, snap, connect, grid, minimap, delete, a program's own, or a declarative behaviour's (*.behavior.omui.ts).",
       },
       upload_mb: {
         type: "f64",

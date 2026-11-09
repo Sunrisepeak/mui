@@ -279,6 +279,12 @@ int player_main(int argc, char** argv) {
     app.title = m->title;
     app.size = m->size;
     app.effects = m->effects;
+    // The application's effects written in TypeScript, evaluated as they load and reload (D-139).
+    app.effect_data = [](const std::filesystem::path& file) -> std::expected<std::string, std::string> {
+        auto data = lang::ts::evaluate(file);
+        if (!data) return std::unexpected(data.error());
+        return std::format("{{\"{}\":{}}}", data->kind, data->json);
+    };
     app.setup = [&](Runtime& rt) {
         if (record) rt.set_record_level(*record);
         p.emplace(rt, *m, std::vector<player::Language>{lang::js::typescript(), lang::js::javascript()},

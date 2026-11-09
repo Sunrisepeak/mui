@@ -54,13 +54,13 @@ bool themes(theme_options opt);
 struct behavior_options {
     std::string module;                                   // the package's module (acme.wall)
     std::string ns;                                       // the namespace of the embedded texts (default: the module's)
-    std::string behaviors = "behaviors";                  // the directory of *.behavior.omui.toml
+    std::string behaviors = "behaviors";                  // the directory of *.behavior.omui.ts
     std::string out_dir = std::string(mcpp::out_dir());
 };
 
 // Each behaviour file as a partition `<module>:<stem>_behavior` holding its
 // text: the program loads it with
-// omui::world::load_behaviors(<stem>_behavior, "<stem>.behavior.omui.toml"),
+// omui::world::load_behaviors(<stem>_behavior, "<stem>.behavior.omui.json"),
 // so a shipped program carries its behaviours and reads no file to have them.
 bool behaviors(behavior_options opt);
 

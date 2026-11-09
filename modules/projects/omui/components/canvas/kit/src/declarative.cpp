@@ -1,4 +1,4 @@
-// Declarative behaviours: compiling *.behavior.omui.toml into a statechart
+// Declarative behaviours: compiling a *.behavior.omui.ts's JSON into a statechart
 // (every state, event, operation and name checked, with its line), and
 // running it as a canvas behaviour.
 module omui.ui.canvas.kit;
@@ -126,14 +126,14 @@ bool identifier(std::string_view s) {
     return std::ranges::all_of(s, [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; });
 }
 
-std::string_view type_name(Toml::Type t) {
+std::string_view type_name(Tree::Type t) {
     switch (t) {
-        case Toml::Type::table: return "a table";
-        case Toml::Type::array: return "a list";
-        case Toml::Type::text: return "a string";
-        case Toml::Type::integer: return "an integer";
-        case Toml::Type::real: return "a number";
-        case Toml::Type::boolean: return "a boolean";
+        case Tree::Type::table: return "a table";
+        case Tree::Type::array: return "a list";
+        case Tree::Type::text: return "a string";
+        case Tree::Type::integer: return "an integer";
+        case Tree::Type::real: return "a number";
+        case Tree::Type::boolean: return "a boolean";
         default: return "a date";
     }
 }
@@ -144,34 +144,34 @@ struct Compiler {
     std::string              file;
     world::BehaviorProblems& out;
 
-    void error(const Toml* n, std::string message, std::string hint = {}) {
+    void error(const Tree* n, std::string message, std::string hint = {}) {
         out.push_back({file, n ? n->line : 0, n ? n->column : 0, std::move(message), std::move(hint)});
     }
 
     template <std::size_t N>
-    void only(const Toml& t, const std::array<std::string_view, N>& keys, std::string_view where) {
+    void only(const Tree& t, const std::array<std::string_view, N>& keys, std::string_view where) {
         for (std::size_t i = 0; i < t.keys.size(); ++i)
             if (std::ranges::find(keys, t.keys[i]) == keys.end())
                 error(&t.items[i], std::format("{} has no key `{}`", where, t.keys[i]), did_you_mean(t.keys[i], keys, "keys"));
     }
 
-    const Toml* table(const Toml* n, std::string_view what) {
+    const Tree* table(const Tree* n, std::string_view what) {
         if (!n) return nullptr;
-        if (n->type == Toml::Type::table) return n;
+        if (n->type == Tree::Type::table) return n;
         error(n, std::format("{} is a table, not {}", what, type_name(n->type)));
         return nullptr;
     }
 
-    std::optional<std::string> text(const Toml* n, std::string_view what) {
+    std::optional<std::string> text(const Tree* n, std::string_view what) {
         if (!n) return std::nullopt;
-        if (n->type == Toml::Type::text) return n->text;
+        if (n->type == Tree::Type::text) return n->text;
         error(n, std::format("{} is a string, not {}", what, type_name(n->type)));
         return std::nullopt;
     }
 
     // Every call in it is one of the expression language's functions, and
     // every name it reads is one the place offers.
-    bool check(const expr::Node& node, const Toml* at, std::span<const std::string_view> names, std::string_view where) {
+    bool check(const expr::Node& node, const Tree* at, std::span<const std::string_view> names, std::string_view where) {
         bool ok = true;
         if (node.op == expr::Op::call && std::ranges::find(expr::functions(), node.name) == expr::functions().end()) {
             error(at, std::format("{}: `{}` is not a function of expressions", where, node.name), did_you_mean(node.name, expr::functions(), "functions"));
@@ -185,7 +185,7 @@ struct Compiler {
         return ok;
     }
 
-    std::optional<expr::Expr> parse(const Toml* n, std::string_view where) {
+    std::optional<expr::Expr> parse(const Tree* n, std::string_view where) {
         auto e = expr::parse(n->text);
         if (!e) {
             // The column inside the string, past its opening quote.
@@ -195,7 +195,7 @@ struct Compiler {
         return std::move(*e);
     }
 
-    std::optional<expr::Expr> condition(const Toml* n, std::span<const std::string_view> names, std::string_view where) {
+    std::optional<expr::Expr> condition(const Tree* n, std::span<const std::string_view> names, std::string_view where) {
         auto s = text(n, where);
         if (!s) return std::nullopt;
         auto e = parse(n, where);
@@ -204,19 +204,19 @@ struct Compiler {
     }
 
     // `do`: an operation, or a list of them.
-    std::vector<Step> steps(const Toml* n, std::span<const std::string_view> names, std::string_view where, bool may_capture) {
+    std::vector<Step> steps(const Tree* n, std::span<const std::string_view> names, std::string_view where, bool may_capture) {
         std::vector<Step> out_steps;
         if (!n) return out_steps;
-        std::vector<const Toml*> items;
-        if (n->type == Toml::Type::text) items.push_back(n);
-        else if (n->type == Toml::Type::array)
-            for (const Toml& i : n->items) items.push_back(&i);
+        std::vector<const Tree*> items;
+        if (n->type == Tree::Type::text) items.push_back(n);
+        else if (n->type == Tree::Type::array)
+            for (const Tree& i : n->items) items.push_back(&i);
         else {
-            error(n, std::format("{} is an operation or a list of them, not {}", where, type_name(n->type)), "do = [\"capture()\", \"select(hit.node)\"]");
+            error(n, std::format("{} is an operation or a list of them, not {}", where, type_name(n->type)), "do: [\"capture()\", \"select(hit.node)\"]");
             return out_steps;
         }
-        for (const Toml* item : items) {
-            if (item->type != Toml::Type::text) {
+        for (const Tree* item : items) {
+            if (item->type != Tree::Type::text) {
                 error(item, std::format("{}: an operation is a string, not {}", where, type_name(item->type)));
                 continue;
             }
@@ -257,7 +257,7 @@ struct Compiler {
         return out_steps;
     }
 
-    std::optional<Chart> behavior(std::string_view name, const Toml& t) {
+    std::optional<Chart> behavior(std::string_view name, const Tree& t) {
         const std::size_t before = out.size();
         Chart c;
         c.name = std::string(name);
@@ -267,14 +267,14 @@ struct Compiler {
             error(&t, std::format("`{}` is not a behaviour name", name), "lower case, digits, `-`, `_` and `.`, a letter first: canvases name it in `behaviors`");
         only(t, behavior_keys, where);
         if (auto on = text(t.get("on"), std::format("{}'s `on`", where)); on && *on != "canvas")
-            error(t.get("on"), std::format("{} is on `{}`: only canvases have behaviours", where, *on), "on = \"canvas\"");
+            error(t.get("on"), std::format("{} is on `{}`: only canvases have behaviours", where, *on), "on: \"canvas\"");
         if (auto doc = text(t.get("doc"), "`doc`")) c.doc = *doc;
-        if (const Toml* p = t.get("priority")) {
-            if (p->type == Toml::Type::integer && std::abs(p->number) < 1e6) c.priority = static_cast<int>(p->number);
+        if (const Tree* p = t.get("priority")) {
+            if (p->type == Tree::Type::integer && std::abs(p->number) < 1e6) c.priority = static_cast<int>(p->number);
             else error(p, std::format("{}'s `priority` is a whole number", where), "presses are offered from the highest: canvas-kit's select is 30, drag 40, connect 50, resize 60, minimap 100");
         }
         // States: first their names (transitions name each other), then what they do.
-        const Toml* states = table(t.get("states"), std::format("{}'s `states`", where));
+        const Tree* states = table(t.get("states"), std::format("{}'s `states`", where));
         if (states)
             for (std::size_t i = 0; i < states->keys.size(); ++i) {
                 if (!identifier(states->keys[i])) error(&states->items[i], std::format("`{}` is not a state name", states->keys[i]), "lower case, digits and _, a letter first");
@@ -284,14 +284,14 @@ struct Compiler {
         for (const State& s : c.states) state_names.push_back(s.name);
         if (states)
             for (std::size_t i = 0; i < states->keys.size(); ++i) {
-                const Toml* st = table(&states->items[i], std::format("state `{}`", states->keys[i]));
+                const Tree* st = table(&states->items[i], std::format("state `{}`", states->keys[i]));
                 if (!st) continue;
                 State& s = c.states[i];
                 const std::string sw = std::format("state `{}`", s.name);
                 only(*st, state_keys, sw);
                 s.entry = steps(st->get("entry"), entry_names, sw + "'s entry", false);
                 s.exit = steps(st->get("exit"), entry_names, sw + "'s exit", false);
-                const Toml* on = table(st->get("on"), sw + "'s `on`");
+                const Tree* on = table(st->get("on"), sw + "'s `on`");
                 if (!on) continue;
                 for (std::size_t k = 0; k < on->keys.size(); ++k) {
                     const auto ev = std::ranges::find(event_names, on->keys[k]);
@@ -301,19 +301,19 @@ struct Compiler {
                     }
                     const auto e = static_cast<Event>(ev - event_names.begin());
                     const std::string tw = std::format("{} on {}", sw, *ev);
-                    std::vector<const Toml*> list;
-                    const Toml& v = on->items[k];
-                    if (v.type == Toml::Type::table) list.push_back(&v);
-                    else if (v.type == Toml::Type::array)
-                        for (const Toml& x : v.items) list.push_back(&x);
-                    for (const Toml* x : list) {
-                        if (x->type != Toml::Type::table) {
-                            error(x, std::format("{}: a transition is a table, not {}", tw, type_name(x->type)), "{ when = \"…\", to = \"…\", do = [\"…\"] }");
+                    std::vector<const Tree*> list;
+                    const Tree& v = on->items[k];
+                    if (v.type == Tree::Type::table) list.push_back(&v);
+                    else if (v.type == Tree::Type::array)
+                        for (const Tree& x : v.items) list.push_back(&x);
+                    for (const Tree* x : list) {
+                        if (x->type != Tree::Type::table) {
+                            error(x, std::format("{}: a transition is a table, not {}", tw, type_name(x->type)), "{ when: \"…\", to: \"…\", do: [\"…\"] }");
                             continue;
                         }
                         only(*x, transition_keys, tw);
                         Transition tr;
-                        if (const Toml* w = x->get("when")) tr.when = condition(w, names_for(e), tw + "'s `when`");
+                        if (const Tree* w = x->get("when")) tr.when = condition(w, names_for(e), tw + "'s `when`");
                         if (auto to = text(x->get("to"), tw + "'s `to`")) {
                             const auto at = std::ranges::find(state_names, *to);
                             if (at == state_names.end())
@@ -326,19 +326,19 @@ struct Compiler {
                     if (list.empty()) error(&v, std::format("{} is a transition or a list of them, not {}", tw, type_name(v.type)));
                 }
             }
-        if (const Toml* init = t.get("initial")) {
+        if (const Tree* init = t.get("initial")) {
             if (auto s = text(init, std::format("{}'s `initial`", where))) {
                 const auto at = std::ranges::find(state_names, *s);
                 if (at == state_names.end()) error(init, std::format("{} begins in `{}`, which is not one of its states", where, *s), did_you_mean(*s, state_names, "states"));
                 else c.initial = static_cast<int>(at - state_names.begin());
             }
         } else if (!c.states.empty()) {
-            error(&t, std::format("{} has states but no `initial`", where), std::format("initial = \"{}\"", c.states.front().name));
+            error(&t, std::format("{} has states but no `initial`", where), std::format("initial: \"{}\"", c.states.front().name));
         }
-        if (const Toml* actions = table(t.get("actions"), std::format("{}'s `actions`", where)))
+        if (const Tree* actions = table(t.get("actions"), std::format("{}'s `actions`", where)))
             for (std::size_t i = 0; i < actions->keys.size(); ++i) {
                 const std::string aw = std::format("action `{}`", actions->keys[i]);
-                const Toml* a = table(&actions->items[i], aw);
+                const Tree* a = table(&actions->items[i], aw);
                 if (!a) continue;
                 only(*a, action_keys, aw);
                 ActionDef d;
@@ -352,8 +352,8 @@ struct Compiler {
                 }
                 if (auto ans = text(a->get("answer"), aw + "'s `answer`")) d.answer = *ans;
                 if (spec::requires_answer(d.effect) && d.answer.empty())
-                    error(&actions->items[i], std::format("{} is {}, so it states the answer that confirms it (S-1)", aw, spec::name(d.effect)), "answer = \"yes\"");
-                if (const Toml* args = table(a->get("args"), aw + "'s `args`"))
+                    error(&actions->items[i], std::format("{} is {}, so it states the answer that confirms it (S-1)", aw, spec::name(d.effect)), "answer: \"yes\"");
+                if (const Tree* args = table(a->get("args"), aw + "'s `args`"))
                     for (std::size_t k = 0; k < args->keys.size(); ++k) {
                         auto type = text(&args->items[k], std::format("{}'s argument `{}`", aw, args->keys[k]));
                         if (!type) continue;
@@ -362,9 +362,9 @@ struct Compiler {
                         d.args.emplace_back(args->keys[k], *type);
                     }
                 std::ranges::sort(d.args);  // by name, as the catalogue lists them
-                if (const Toml* w = a->get("when")) d.when = condition(w, action_when_names, aw + "'s `when`");
+                if (const Tree* w = a->get("when")) d.when = condition(w, action_when_names, aw + "'s `when`");
                 d.steps = steps(a->get("do"), action_names, aw, false);
-                if (!a->get("do")) error(a, std::format("{} does nothing", aw), "do = [\"move(node.key, {'x': args.dx, 'y': args.dy})\"]");
+                if (!a->get("do")) error(a, std::format("{} does nothing", aw), "do: [\"move(node.key, {'x': args.dx, 'y': args.dy})\"]");
                 c.actions.push_back(std::move(d));
             }
         if (c.states.empty() && c.actions.empty()) error(&t, std::format("{} has neither states nor actions", where));
@@ -762,7 +762,7 @@ namespace omui::world {
 
 std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::string_view text, std::string_view file) {
     BehaviorProblems problems;
-    auto root = kit::parse_toml(text, file);
+    auto root = kit::parse_tree(text, file);
     if (!root) {
         problems.push_back(std::move(root.error()));
         return std::unexpected(std::move(problems));
@@ -770,17 +770,17 @@ std::expected<std::vector<std::string>, BehaviorProblems> load_behaviors(std::st
     kit::Compiler c{std::string(file), problems};
     constexpr std::array<std::string_view, 1> top{"behavior"};
     c.only(*root, top, "a behaviour file");
-    const kit::Toml* behaviors = c.table(root->get("behavior"), "`behavior`");
-    if (!behaviors && !root->get("behavior")) c.error(&*root, "the file declares no behaviour", "[behavior.<name>] on = \"canvas\" …");
+    const kit::Tree* behaviors = c.table(root->get("behavior"), "`behavior`");
+    if (!behaviors && !root->get("behavior")) c.error(&*root, "the file declares no behaviour", "defineBehavior({ <name>: { on: \"canvas\", … } })");
     std::vector<kit::Chart> charts;
     if (behaviors)
         for (std::size_t i = 0; i < behaviors->keys.size(); ++i) {
-            const kit::Toml* t = c.table(&behaviors->items[i], std::format("behaviour `{}`", behaviors->keys[i]));
+            const kit::Tree* t = c.table(&behaviors->items[i], std::format("behaviour `{}`", behaviors->keys[i]));
             if (!t) continue;
             if (auto chart = c.behavior(behaviors->keys[i], *t)) charts.push_back(std::move(*chart));
         }
     if (!problems.empty()) {
-        // In the file's order (toml++ hands tables over sorted by key).
+        // In the file's order (the tree hands objects over sorted by key).
         std::ranges::stable_sort(problems, {}, [](const BehaviorProblem& p) { return std::pair{p.line, p.column}; });
         return std::unexpected(std::move(problems));
     }

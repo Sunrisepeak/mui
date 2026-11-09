@@ -564,8 +564,8 @@ void register_all() {
     omui::register_canvas_component();
     omui::register_canvas_kit();
     omui::register_markdown_component();
-    for (auto [text, file] : {std::pair{group_drag_behavior, std::string_view("group-drag.behavior.omui.toml")},
-                              std::pair{views_behavior, std::string_view("views.behavior.omui.toml")}}) {
+    for (auto [text, file] : {std::pair{group_drag_behavior, std::string_view("group-drag.behavior.omui.json")},
+                              std::pair{views_behavior, std::string_view("views.behavior.omui.json")}}) {
         // Checked when the program is built (the tests load them); a broken one is a bug, said once.
         if (auto loaded = omui::world::load_behaviors(text, file); !loaded)
             for (const auto& p : loaded.error()) mlibs::log::warn("wall: {}", p.text());

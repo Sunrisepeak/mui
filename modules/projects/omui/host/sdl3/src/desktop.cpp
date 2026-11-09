@@ -311,7 +311,7 @@ std::expected<void, std::string> Desktop::open() {
         }
     }
     if (!d.options.effects.empty()) {
-        d.effects.emplace(xrender::effect::Options{.formats = d.device ? d.device->caps().formats : xrender::gpu_shader_formats()});
+        d.effects.emplace(xrender::effect::Options{.formats = d.device ? d.device->caps().formats : xrender::gpu_shader_formats(), .data = d.options.effect_data});
         if (auto loaded = d.effects->load_directory(d.options.effects); !loaded)
             for (const xrender::effect::Diagnostic& p : loaded.error()) warn("effect: {}", p.text());
         if (!d.gpu) warn("effects in {} are drawn by the GPU renderer; the CPU renderer draws their layers without them", mcpplibs::os::fs::utf8(d.options.effects));

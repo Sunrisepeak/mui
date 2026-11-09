@@ -5,7 +5,7 @@ How an Agent (or a person at a terminal) works with the renderer without a GUI: 
 ## Before
 
 1. `device.describe`: which device draws (a software one is slower, never less exact).
-2. An effect is two files: `<name>.effect.omui.toml` (its name, parameters with ranges, reach) and its Slang fragment shader written against the effect template ([xrender.effect](../effect/README.md)). Read an existing one first.
+2. An effect is two files: `<name>.effect.omui.ts` (its name, parameters with ranges, reach; the tool reads its JSON: `omui-gen snapshot`) and its Slang fragment shader written against the effect template ([xrender.effect](../effect/README.md)). Read an existing one first.
 
 ## Doing
 

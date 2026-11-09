@@ -41,7 +41,7 @@ the same pixels, which openmui.render.vector's tests hold together.
 when the machine has one and the CPU renderer when the only device is a
 software rasteriser (lavapipe, WARP), which the CPU renderer outruns; `cpu`
 and `gpu` insist. `DesktopOptions::effects` names a directory of
-`*.effect.omui.toml` (openmui.render.effect): loaded with the window, loaded again
+`*.effect.omui.ts` or `.json` (openmui.render.effect): loaded with the window, loaded again
 between frames when a file in it — or a file its shader imports — changes, so
 a shader saved while the program runs shows on the next frame; a file that
 no longer loads is reported where it is wrong and the effect stays as it was.

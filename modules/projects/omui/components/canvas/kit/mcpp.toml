@@ -3,7 +3,7 @@
 # (alignment guides, a grid), connect, grid, minimap and delete, as
 # behaviours a canvas names in `behaviors`, each adding to the semantic tree
 # what it makes possible (a node's `move_to` exists because drag is on); and
-# declarative ones, statecharts in *.behavior.omui.toml run by C++.
+# declarative ones, statecharts in *.behavior.omui.ts (read as their JSON) run by C++.
 [package]
 namespace   = "omui.ui.canvas"
 name        = "kit"
@@ -19,7 +19,7 @@ kind = "component"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
@@ -30,7 +30,7 @@ omui.ui.canvas = { path = ".." }
 omui.expr      = { path = "../../../expr" }
 hanim.core             = { path = "../../../../hanim/core" }
 xrender.raster    = { path = "../../../../xrender/raster" }
-marzer.tomlplusplus = "3.4.0"
+mlibs.json             = { path = "../../../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"

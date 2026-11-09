@@ -12,7 +12,9 @@ namespace xrender::effect {
 
 namespace {
 
-constexpr std::string_view suffix = ".effect.omui.toml";
+// An effect's description: its JSON, or the TypeScript module it is written as (D-139).
+constexpr std::string_view json_suffix = ".effect.omui.json";
+constexpr std::string_view module_suffix = ".effect.omui.ts";
 
 std::optional<std::string> read_text(const std::filesystem::path& f) {
     std::ifstream in(f, std::ios::binary);
@@ -162,13 +164,20 @@ struct Library::Impl {
         mlibs::trace::Span span("effect.load", "effect");
         const auto from = std::chrono::steady_clock::now();
         const std::string where = utf8(file);
-        const auto text = read_text(file);
-        if (!text) return std::unexpected(Diagnostics{{where, 0, 0, "the file cannot be read", ""}});
+        const bool module = where.ends_with(module_suffix);
+        if (module && !options.data)
+            return std::unexpected(Diagnostics{{where, 0, 0, "a TypeScript data module, which this program does not evaluate",
+                                                std::format("its JSON (omui-gen snapshot): {}", where.substr(0, where.size() - module_suffix.size()) + std::string(json_suffix))}});
+        std::expected<std::string, std::string> text = std::unexpected(std::string("the file cannot be read"));
+        if (module) text = options.data(file);
+        else if (auto read_ = read_text(file)) text = std::move(*read_);
+        if (!text) return std::unexpected(Diagnostics{{where, 0, 0, text.error(), ""}});
         auto declared = read(*text, where);
         if (!declared) return std::unexpected(std::move(declared.error()));
         auto owned = std::make_shared<Owned>();
         owned->declaration = std::move(*declared);
         const Declaration& d = owned->declaration;
+        const std::string_view suffix = module ? module_suffix : json_suffix;
         if (utf8(file.filename()) != d.name + std::string(suffix))
             return std::unexpected(Diagnostics{{where, 1, 1, std::format("the effect `{}` is in {}", d.name, utf8(file.filename())),
                                                 std::format("name the file {}{}", d.name, suffix)}});
@@ -258,8 +267,17 @@ std::expected<Loaded, Diagnostics> Library::load(const std::filesystem::path& fi
 std::expected<std::vector<Loaded>, Diagnostics> Library::load_directory(const std::filesystem::path& dir) {
     std::vector<std::filesystem::path> files;
     std::error_code ec;
-    for (const auto& e : std::filesystem::directory_iterator(dir, ec))
-        if (utf8(e.path().filename()).ends_with(suffix)) files.push_back(e.path());
+    // Each effect once: its module when the program evaluates them, else its JSON.
+    for (const auto& e : std::filesystem::directory_iterator(dir, ec)) {
+        const std::string name = utf8(e.path().filename());
+        if (name.ends_with(module_suffix) && impl_->options.data) files.push_back(e.path());
+        if (name.ends_with(json_suffix)) {
+            const auto module = e.path().parent_path() / std::filesystem::path(std::u8string(
+                                    reinterpret_cast<const char8_t*>(name.data()), name.size() - json_suffix.size()) + u8".effect.omui.ts");
+            std::error_code missing;
+            if (!impl_->options.data || !std::filesystem::exists(module, missing)) files.push_back(e.path());
+        }
+    }
     if (ec) return std::unexpected(Diagnostics{{utf8(dir), 0, 0, std::format("the directory cannot be read: {}", ec.message()), ""}});
     std::ranges::sort(files);
     std::vector<Loaded> loaded;

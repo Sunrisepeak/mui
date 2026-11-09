@@ -591,26 +591,35 @@ std::future<Result<void>> Script::run(std::string code, std::string name) {
     return future;
 }
 
+namespace {
+
+// A reload, on the script thread.
+Result<void> reload_module(Script::Impl& s, const std::string& code, const std::string& name) {
+    if (!*s.alive) return std::unexpected(gone());
+    s.next_signal = 0;  // the module's signals are the last run's, in order
+    for (const auto& [token, id] : s.watches) {  // the last run's watches go: this run makes its own again
+        s.session.unwatch(token);
+        s.release(id);
+    }
+    s.watches.clear();
+    // A module of the same name is cached: the new text gets a name of its own.
+    static int generation = 0;
+    return run_module(s, code, std::format("{}#{}", name, ++generation));
+}
+
+}  // namespace
+
 std::future<Result<void>> Script::reload(std::string code, std::string name) {
     auto done = std::make_shared<std::promise<Result<void>>>();
     auto future = done->get_future();
     std::shared_ptr<Impl> s = impl_;
-    s->session.host().post([s, done, code = std::move(code), name = std::move(name)]() mutable {
-        if (!*s->alive) {
-            done->set_value(std::unexpected(gone()));
-            return;
-        }
-        s->next_signal = 0;  // the module's signals are the last run's, in order
-        for (const auto& [token, id] : s->watches) {  // the last run's watches go: this run makes its own again
-            s->session.unwatch(token);
-            s->release(id);
-        }
-        s->watches.clear();
-        // A module of the same name is cached: the new text gets a name of its own.
-        static int generation = 0;
-        done->set_value(run_module(*s, code, std::format("{}#{}", name, ++generation)));
-    });
+    s->session.host().post([s, done, code = std::move(code), name = std::move(name)] { done->set_value(reload_module(*s, code, name)); });
     return future;
+}
+
+Result<void> Script::reload_now(std::string code, std::string name) {
+    std::shared_ptr<Impl> s = impl_;
+    return s->session.host().script([&] { return reload_module(*s, code, name); });
 }
 
 }  // namespace omui::lang::js

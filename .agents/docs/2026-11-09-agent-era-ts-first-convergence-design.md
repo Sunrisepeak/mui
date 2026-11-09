@@ -574,6 +574,20 @@ mcpp 仍是底层的构建和包管理系统；`omui` 是产品层的统一入�
 9. **设计回放成为作品**：可编辑节奏、镜头、字幕，导出视频或可交互的设计过程文档。
 **验收（P0 的标志性镜头）**：`omui new`、`omui dev`；人看着 Agent 一步步设计出订阅设置页，每一步都有过渡动画；人说“我来试试”，点几下后说“你看看”；Agent 对照期望逐条回报事实，指出回弹超标，人同意后修正；这段操作存成 mtest 用例；`omui build --release` 去掉设计器模块。全程只用 `omui`，所有改动都回写成 TS 源码，组件级编辑的延迟 p95 ≤ 16 ms。然后在时间线上切回两步之前的提交、分出一个方案、再切回来，界面都平滑过渡；最后把整个设计过程编辑成一段带字幕和镜头的视频，放到官网和 README。
 
+**W14 进度（2026-11-09，第一块：开发模式与 `design.*` 的最小闭环）**：
+- player 的开发模式由 `omui dev` 传入 `--dev` 开启。它会默认加上 `--agent-mode development`，并注册以下动词，全部走 openas 的判定：
+  - `design.sources`（读）：每个脚本的路径、语言和当前运行的文本。
+  - `design.edit`（可逆）：传入新的 TS 文本，在进程内去类型，在运行时线程上同步重载，状态保留。返回语义差异（复用 `semantic::changes_between`，现已导出）和耗时。文本有问题时报错，之前的状态原样恢复。
+  - `design.discard`（可逆）：丢弃未提交的编辑，返回被丢弃的文本。
+  - `design.commit`（可逆）：把编辑写回 TS 源文件（TS 源码是唯一真相），返回写入前的原文；监视器不会因此再跑一遍。
+- 引擎新增 `reload_now`：JS 用 `Host::script` 等待，等待期间运行时线程继续处理脚本发来的请求。
+- 实测：未优化构建下 `reload_now` 的中位数 0.63 ms，p95 0.92 ms；对运行中的 hello-ts 做一次端到端 `design.edit`（经 `omui agent call`）用时 2.85 ms，返回的差异正好是标题那一项，源文件不变。
+- 下一块：
+  - 被导入的模块按版本重新求值（组件级）；
+  - `design.*` 进入操作目录和 MCP；
+  - hanim 呈现设计过程；
+  - 预演与方案板。
+
 **W15 `omui` 命令行（C5、D-150、D-153）**
 0. 分工：omui 专属的构建步骤都是 mcpp 插件（已有 `omui.build.contracts`、`embed`、`toy`、`plan`，补上 TS 求值和打包），`omui build` 与 `mcpp build` 结果逐字节一致；`omui` 只做入口和编排。
 1. `omui new`（最小应用模板，同时也是设计界面）、`omui dev`、`omui run`、`omui build`、`omui test`（mtest）、`omui package`、`omui add` 和 `omui deps`、`omui tools`、`omui doctor`；已有的 `mcp`、`agent`、`check`、`fmt` 并入同一套约定。

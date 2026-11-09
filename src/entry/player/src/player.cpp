@@ -99,6 +99,7 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
 
 int player_main(int argc, char** argv) {
     std::filesystem::path manifest = "mcpp.toml";
+    bool design = false;
     std::vector<char*> rest{argv[0]};
     for (int i = 1; i < argc; ++i) {
         const std::string_view a = argv[i];
@@ -106,9 +107,17 @@ int player_main(int argc, char** argv) {
             const std::string_view f = argv[++i];
             manifest = std::filesystem::path(std::u8string(f.begin(), f.end()));
             if (std::filesystem::is_directory(manifest)) manifest /= "mcpp.toml";
+        } else if (a == "--dev") {
+            design = true;  // development mode: the application is its own designer (D-149)
         } else {
             rest.push_back(argv[i]);
         }
+    }
+    // Development mode lets the session's agents do what the application declares, as a developer's own tools would.
+    static char agent_mode[] = "--agent-mode", development[] = "development";
+    if (design && std::ranges::none_of(rest, [](const char* arg) { return std::string_view(arg) == "--agent-mode"; })) {
+        rest.push_back(agent_mode);
+        rest.push_back(development);
     }
     auto m = read_manifest(manifest);
     if (!m) {
@@ -132,7 +141,8 @@ int player_main(int argc, char** argv) {
     app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
         p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript(),
-                                                       lang::python::embedded::language()});
+                                                       lang::python::embedded::language()},
+                  player::PlayerOptions{.design = design});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
         p->watch();
     };

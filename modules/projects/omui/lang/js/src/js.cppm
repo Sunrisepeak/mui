@@ -39,6 +39,9 @@ public:
     // the module is the last run's, or the one of the same key), views are
     // reconciled, handlers replaced.
     [[nodiscard]] std::future<Result<void>> reload(std::string code, std::string name = "main.js");
+    // The same, waited for, from the runtime's thread, which meanwhile does
+    // what the script asks of it (Live Design's edits, D-149).
+    [[nodiscard]] Result<void> reload_now(std::string code, std::string name = "main.js");
 
     void on_error(std::function<void(std::string_view)> fn);
 

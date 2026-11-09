@@ -48,6 +48,14 @@ public:
     [[nodiscard]] virtual std::future<Status> run(std::string code, std::string name) = 0;
     // Runs the new text in place: the script's signals keep their values.
     [[nodiscard]] virtual std::future<Status> reload(std::string code, std::string name) = 0;
+    // The same, waited for on the runtime's thread, which meanwhile does what
+    // the script asks of it (a verb that edits a script: Live Design). A
+    // language that cannot says so.
+    [[nodiscard]] virtual Status reload_now(std::string code, std::string name) {
+        (void)code;
+        (void)name;
+        return std::unexpected(std::string("this language runs its scripts again from their files only"));
+    }
     // Nothing left to do on its thread, and nothing in flight to the runtime.
     [[nodiscard]] virtual bool idle() const = 0;
 };
@@ -59,11 +67,22 @@ struct Language {
     // The source of an entry: the file, or what a compiler makes of it
     // (TypeScript with its types blanked). Empty: the file as it is.
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> load;
+    // The same from text not yet in the file (Live Design's edits), named as
+    // the file. Empty: the text as it is.
+    std::function<std::expected<std::string, std::string>(std::string_view text, const std::filesystem::path& file)> load_text;
+};
+
+struct PlayerOptions {
+    // Development mode (D-149): the application is its own designer. The
+    // design.* verbs read the scripts' TypeScript, run new text within the
+    // frame (its semantic changes answered, or its problems, nothing changed),
+    // and commit it to the files or discard it. Left out of a release.
+    bool design = false;
 };
 
 class Player {
 public:
-    Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages);
+    Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages, PlayerOptions options = {});
     ~Player();
     Player(const Player&) = delete;
     Player& operator=(const Player&) = delete;

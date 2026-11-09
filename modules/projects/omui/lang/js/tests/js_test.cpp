@@ -367,6 +367,30 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
         expect(eq(r.name_of("main/text:0"), std::string("12 taps")));
     };
 
+    "a reload waited for on the runtime's thread (Live Design's edit): the state kept, within a frame"_test = [] {
+        Runtime r;
+        Js js(r);
+        expect(js.run(std::string(counter_js)).has_value());
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
+        r.settle(js.host);
+        std::string next(counter_js);
+        next.replace(next.find("{} clicks"), 9, "{} taps");
+        std::vector<double> took;
+        for (int round = 0; round < 20; ++round) {
+            const auto start = std::chrono::steady_clock::now();
+            auto reloaded = js.script.reload_now(round % 2 ? std::string(counter_js) : next);
+            took.push_back(std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
+            expect(reloaded.has_value()) << (reloaded ? "" : reloaded.error().text());
+            expect(eq(r.name_of("main/text:0"), std::string(round % 2 ? "1 clicks" : "1 taps"))) << "at once, the count kept";
+        }
+        std::ranges::sort(took);
+        const double p95 = took[took.size() * 95 / 100];
+        std::println("reload_now: median {:.2f} ms, p95 {:.2f} ms (unoptimised)", took[took.size() / 2], p95);
+        expect(p95 < 16.0) << std::format("p95 {:.2f} ms", p95);
+        auto broken = js.script.reload_now("mount(\"main\", column({}, [text({ text: undefinedName })]));");
+        expect(!broken.has_value()) << "an error is the answer";
+    };
+
     "TypeScript: its types blanked in this process; its own modules imported by path, their types blanked too"_test = [] {
         const auto dir = scratch_dir("lang-js-ts");
         std::ofstream(dir / "label.ts", std::ios::binary) << R"ts(

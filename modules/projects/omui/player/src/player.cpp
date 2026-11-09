@@ -5,6 +5,7 @@ import omui.core;
 import omui.view;
 import omui.abi;
 import omui.theme;
+import omui.semantic;
 import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -64,6 +65,10 @@ struct Player::Impl {
     Runtime&                          rt;
     Manifest                          manifest;
     std::vector<Language>             languages;
+    PlayerOptions                     options;
+    // Live Design: the text an edited script runs now, by its name, until
+    // it is committed to its file or discarded.
+    std::map<std::string, std::string> edited;
     abi::OmuiRuntime                  handle = nullptr;
     std::vector<File>                 files;
     std::vector<std::pair<std::string, std::future<Status>>> pending;  // scripts running, by path
@@ -71,7 +76,8 @@ struct Player::Impl {
     std::uint64_t                     timer = 0;
     seconds                           period{0.1};
 
-    Impl(Runtime& r, Manifest m, std::vector<Language> l) : rt(r), manifest(std::move(m)), languages(std::move(l)) {
+    Impl(Runtime& r, Manifest m, std::vector<Language> l, PlayerOptions o)
+        : rt(r), manifest(std::move(m)), languages(std::move(l)), options(o) {
         handle = abi::attach(rt, manifest.id);
     }
     ~Impl() {
@@ -173,6 +179,122 @@ struct Player::Impl {
         return true;
     }
 
+    // ---- Live Design (D-149): the design.* verbs, in development mode ----
+
+    File* script_named(std::string_view path) {
+        for (auto& f : files)
+            if (f.kind == File::Kind::script && name(f.path) == path) return &f;
+        return nullptr;
+    }
+
+    std::expected<std::string, std::string> compiled(const File& f, std::string_view text) const {
+        if (f.lang->load_text) return f.lang->load_text(text, full(f.path));
+        return std::string(text);
+    }
+
+    // The text a script runs now: its edit, or its file's.
+    std::optional<std::string> running_text(const File& f) const {
+        if (auto it = edited.find(name(f.path)); it != edited.end()) return it->second;
+        return read_file(full(f.path));
+    }
+
+    // Runs `text` as the script, waited for; the semantic changes it made.
+    std::expected<Value, std::string> run_text(File& f, std::string_view text) {
+        auto code = compiled(f, text);
+        if (!code) return std::unexpected(code.error());  // nothing ran
+        if (!f.engine) return std::unexpected(std::format("{} is not running", name(f.path)));
+        semantic::Tree tree(rt);
+        const auto before = tree.snapshot();
+        const auto start = std::chrono::steady_clock::now();
+        Status ran;
+        {
+            mlibs::trace::Span span("player.design", "player");
+            ran = f.engine->reload_now(std::move(*code), generic_utf8(full(f.path)));
+        }
+        const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        if (!ran) return std::unexpected(std::format("{}: {}", name(f.path), ran.error()));
+        return Value{}.set("path", name(f.path)).set("took_ms", took).set("changes", semantic::changes_between(before, tree.snapshot()));
+    }
+
+    void design_verbs() {
+        auto add = [&](VerbDesc desc, VerbFn fn) {
+            if (auto r = rt.verbs().add(std::move(desc), std::move(fn)); !r) problem(std::format("design: {}", r.error()));
+        };
+        add({.name = "design.sources", .summary = "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's)",
+             .effect = Effect::read},
+            [this](const Value&) -> VerbResult {
+                Value::List scripts;
+                for (const auto& f : files) {
+                    if (f.kind != File::Kind::script) continue;
+                    const auto text = running_text(f);
+                    scripts.push_back(Value{}
+                                          .set("path", name(f.path))
+                                          .set("language", f.lang->name)
+                                          .set("text", text ? *text : std::string())
+                                          .set("edited", edited.contains(name(f.path))));
+                }
+                return Value{}.set("scripts", Value(std::move(scripts)));
+            });
+        add({.name = "design.edit",
+             .summary = "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with "
+                        "their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it",
+             .effect = Effect::reversible,
+             .args = {{"path", "string"}, {"text", "string"}}},
+            [this](const Value& args) -> VerbResult {
+                const std::string path(args.get("path") ? args.get("path")->as_string() : "");
+                File* f = script_named(path);
+                if (!f) return std::unexpected(std::format("no script `{}` (design.sources lists them)", path));
+                const Value* text = args.get("text");
+                if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
+                const std::string previous = running_text(*f).value_or(std::string());
+                auto done = run_text(*f, text->as_string());
+                if (!done) {
+                    // A run that failed part way: what ran before runs again.
+                    if (!compiled(*f, text->as_string()).has_value()) return std::unexpected(done.error());
+                    (void)run_text(*f, previous);
+                    return std::unexpected(done.error());
+                }
+                edited[path] = std::string(text->as_string());
+                return done;
+            });
+        add({.name = "design.discard", .summary = "Drops every edit not committed: each edited script runs its file's text again; the dropped texts are answered",
+             .effect = Effect::reversible},
+            [this](const Value&) -> VerbResult {
+                Value::List dropped;
+                for (auto it = edited.begin(); it != edited.end();) {
+                    File* f = script_named(it->first);
+                    const auto file_text = f ? read_file(full(f->path)) : std::nullopt;
+                    if (f && file_text)
+                        if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error());
+                    dropped.push_back(Value{}.set("path", it->first).set("text", it->second));
+                    it = edited.erase(it);
+                }
+                return Value{}.set("discarded", Value(std::move(dropped)));
+            });
+        add({.name = "design.commit", .summary = "Writes every edit to its script's file (TypeScript stays the one source); each file's text before is answered",
+             .effect = Effect::reversible},
+            [this](const Value&) -> VerbResult {
+                Value::List written;
+                for (auto it = edited.begin(); it != edited.end();) {
+                    File* f = script_named(it->first);
+                    if (!f) {
+                        it = edited.erase(it);
+                        continue;
+                    }
+                    const auto before = read_file(full(f->path));
+                    {
+                        std::ofstream out(full(f->path), std::ios::binary | std::ios::trunc);
+                        out << it->second;
+                        if (!out) return std::unexpected(std::format("{}: cannot be written", it->first));
+                    }
+                    f->stamp = stamp_of(full(f->path));  // the watcher need not run it again
+                    written.push_back(Value{}.set("path", it->first).set("before", before ? *before : std::string()));
+                    it = edited.erase(it);
+                }
+                return Value{}.set("committed", Value(std::move(written)));
+            });
+    }
+
     // Scripts that finished: their errors are problems.
     void collect_runs() {
         std::erase_if(pending, [&](auto& p) {
@@ -183,8 +305,8 @@ struct Player::Impl {
     }
 };
 
-Player::Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages)
-    : impl_(std::make_unique<Impl>(runtime, std::move(manifest), std::move(languages))) {}
+Player::Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages, PlayerOptions options)
+    : impl_(std::make_unique<Impl>(runtime, std::move(manifest), std::move(languages), options)) {}
 
 Player::~Player() = default;
 
@@ -232,6 +354,7 @@ Status Player::start() {
         if (f.kind == Impl::File::Kind::view) (void)d.mount(f);
     for (auto& f : d.files)
         if (f.kind == Impl::File::Kind::script) (void)d.run(f, false);
+    if (d.options.design) d.design_verbs();
     if (d.problems.empty()) return {};
     std::string all;
     for (const auto& p : d.problems) all += p + "\n";
@@ -246,6 +369,7 @@ std::vector<std::string> Player::poll() {
         const auto now = stamp_of(d.full(f.path));
         if (now == f.stamp) continue;
         f.stamp = now;
+        d.edited.erase(d.name(f.path));  // a file saved meanwhile wins over an edit not committed
         mlibs::trace::Span span("player.reload", "player");
         bool ok = false;
         switch (f.kind) {

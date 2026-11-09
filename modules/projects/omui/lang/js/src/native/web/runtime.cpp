@@ -32,5 +32,6 @@ Script::~Script() = default;
 void Script::on_error(std::function<void(std::string_view)> fn) { impl_->errors = std::move(fn); }
 std::future<Result<void>> Script::run(std::string, std::string) { return not_here(*impl_); }
 std::future<Result<void>> Script::reload(std::string, std::string) { return not_here(*impl_); }
+Result<void> Script::reload_now(std::string, std::string) { return not_here(*impl_).get(); }
 
 }  // namespace omui::lang::js

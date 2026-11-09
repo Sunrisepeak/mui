@@ -231,8 +231,8 @@ Envelope Tree::act(std::string_view id, std::string_view action, const Invocatio
 
 namespace {
 
-// A node's semantic face for a preview's changes: what a person or an agent
-// reads, not where it is drawn.
+// A node's semantic face for changes: what a person or an agent reads, not
+// where it is drawn.
 Value face_of(const spec::SemanticNode& node) {
     Value all = spec::to_value(node);
     Value face(Value::Map{});
@@ -240,6 +240,8 @@ Value face_of(const spec::SemanticNode& node) {
         if (const Value* v = all.get(key)) face.set(key, *v);
     return face;
 }
+
+}  // namespace
 
 Value changes_between(const Snapshot& before, const Snapshot& after) {
     std::unordered_map<std::string_view, const spec::SemanticNode*> was;
@@ -268,7 +270,6 @@ Value changes_between(const Snapshot& before, const Snapshot& after) {
     return Value{}.set("added", Value(std::move(added))).set("removed", Value(std::move(removed))).set("changed", Value(std::move(changed)));
 }
 
-}  // namespace
 
 Envelope Tree::preview(std::span<const Step> steps, const Invocation& call, const std::function<Value()>& look) {
     Envelope e;

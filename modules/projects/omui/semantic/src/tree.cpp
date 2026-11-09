@@ -239,6 +239,13 @@ Value Tree::state() {
             entry.set("checked", node.states.has(State::checked));
             any = true;
         }
+        // Where a view the person scrolled is: its offset (a view at its start says nothing).
+        if (node.action("scroll_to") && node.value.map())
+            if (const double x = node.value.get("x") ? node.value.get("x")->as_double() : 0, y = node.value.get("y") ? node.value.get("y")->as_double() : 0;
+                x != 0 || y != 0) {
+                entry.set("scroll", Value{}.set("x", x).set("y", y));
+                any = true;
+            }
         if (any) kept.push_back(std::move(entry));
     }
     Value out = Value{}.set("nodes", Value(std::move(kept)));
@@ -270,6 +277,12 @@ Value Tree::restore(const Value& state, const Invocation& call) {
             }
             if (const Value* checked = entry.get("checked"); checked && now->action("toggle") && now->states.has(State::checked) != checked->as_bool())
                 done = act(id, "toggle", call).exit_code().value_or(1) == 0 && done;
+            // Put where it was at once (a property, not the glide scroll_to takes); the view keeps it within its content when laid out.
+            if (const Value* scroll = entry.get("scroll"); scroll && now->action("scroll_to"))
+                if (const NodeId view = runtime_.find(id); runtime_.valid(view)) {
+                    if (const Value* x = scroll->get("x")) runtime_.set(view, "x", *x);
+                    if (const Value* y = scroll->get("y")) runtime_.set(view, "y", *y);
+                }
             (done ? restored : refused).push_back(Value(id));
         }
     if (const Value* focused = state.get("focused"); focused && node(focused->as_string())) (void)act(focused->as_string(), "focus", call);

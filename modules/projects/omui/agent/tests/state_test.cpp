@@ -1,6 +1,7 @@
 // What a person set, carried into another instance by semantic id (W16,
 // D-154): a new build of the application takes the text typed, the switch
-// turned on, the slider moved and the focus — not a step anyone takes back.
+// turned on, the slider moved, where a list was scrolled to and the focus —
+// not a step anyone takes back.
 import std;
 import omui.agent;
 import omui.ui.base;
@@ -33,6 +34,9 @@ struct Settings {
           }()) {
         std::vector<Element> children{text_box({.id = "name", .label = "Name"}), toggle({.id = "dark", .label = "Dark"}), text_box({.id = "secret", .password = true})};
         if (!rebuilt) children.push_back(slider({.id = "volume", .max = 100.0, .value = 20.0}));
+        std::vector<Element> rows;
+        for (int index = 0; index < 30; ++index) rows.push_back(text({.id = std::format("row-{}", index), .text = std::format("Row {}", index)}));
+        children.push_back(scroll({.id = "list", .height = Dim(60)}, std::move(rows)));
         rt.mount("main", column({.padding = 8, .gap = 8}, std::move(children)));
         (void)rt.frame({seconds(0), {}});
     }
@@ -53,7 +57,7 @@ const Value* data_of(const std::vector<Value>& reply) {
 }  // namespace
 
 UTest cases{"state", [] {
-    "a new build takes back what the person set: the text, the switch, the focus; what is gone is said; the password is not kept"_test = [] {
+    "a new build takes back what the person set: the text, the switch, where a list was scrolled to, the focus; what is gone is said; the password is not kept"_test = [] {
         register_base_components();
         Settings old_build(false);
         semantic::Tree before(old_build.rt);
@@ -63,8 +67,11 @@ UTest cases{"state", [] {
         expect(eq(before.act("main/dark", "toggle", person).exit_code().value_or(1), 0));
         expect(eq(before.act("main/secret", "set_value", Invocation{.args = Value{}.set("value", "hunter2"), .actor = {"person", "tester", {}}}).exit_code().value_or(1), 0));
         expect(eq(before.act("main/volume", "set_value", Invocation{.args = Value{}.set("value", 70), .actor = {"person", "tester", {}}}).exit_code().value_or(1), 0));
+        const Envelope scrolled = before.act("main/list", "scroll_to", Invocation{.args = Value{}.set("x", 0).set("y", 120), .actor = {"person", "tester", {}}});
+        expect(eq(scrolled.exit_code().value_or(1), 0)) << scrolled.ndjson();
         expect(eq(before.act("main/name", "focus", person).exit_code().value_or(1), 0));
         (void)old_build.rt.frame({seconds(0.1), {}});
+        (void)old_build.rt.frame({seconds(1), {}});  // the scroll's glide settled
 
         agent::Protocol old_protocol(old_build.rt, {});
         const auto asked = talk(old_protocol, Value{}.set("op", "state"));
@@ -82,6 +89,10 @@ UTest cases{"state", [] {
         expect(after.node("main/name") && after.node("main/name")->value == Value("Ada"));
         expect(after.node("main/dark") && after.node("main/dark")->states.has(State::checked));
         expect(after.node("main/name") && after.node("main/name")->states.has(State::focused)) << "the focus where it was";
+        (void)new_build.rt.frame({seconds(0.1), {}});
+        const auto list = after.node("main/list");
+        expect(list && list->value.get("y") && std::abs(list->value.get("y")->as_double() - 120) < 0.5) << "the list where it was scrolled to: "
+                                                                                                         << (list ? list->value.json() : std::string("none"));
         expect(after.node("main/secret") && after.node("main/secret")->value.as_string().empty()) << "the password typed again, not carried";
         const History history = new_build.rt.history(new_build.rt.undo_scope(new_build.rt.root()));
         expect(history.undo.empty()) << "putting back is no one's step";

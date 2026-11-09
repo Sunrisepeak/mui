@@ -417,7 +417,7 @@ export interface EffectParam {
     doc?: string;
 }
 /** A pixel effect: its Slang shader (`<name>.slang`, entry `<name>_fs` unless named) and its parameters. */
-export interface Effect {
+export interface PixelEffect {
     name: string;
     doc?: string;
     shader?: string;
@@ -427,7 +427,7 @@ export interface Effect {
     params?: EffectParam[];
 }
 /** `export default defineEffect({ name: "scanlines", reach: 0, params: [{ name: "strength", default: 0.5 }] })`. */
-export declare function defineEffect(effect: Effect): Defined<"effect">;
+export declare function defineEffect(effect: PixelEffect): Defined<"effect">;
 /** A canvas behaviour: a state machine over a canvas's events, its states, actions and what each does. */
 export declare function defineBehavior(behaviors: { [name: string]: { on?: string; initial?: string; doc?: string; [field: string]: unknown } }): Defined<"behavior">;
 

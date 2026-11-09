@@ -212,7 +212,7 @@ std::expected<Data, std::string> evaluate_source(std::string_view source, std::s
     JS_AddIntrinsicTypedArrays(context);
     JS_AddIntrinsicPromise(context);
     JS_AddIntrinsicBigInt(context);
-    auto result = run(runtime, context, *code, mcpplibs::os::fs::utf8(path), evaluation);
+    auto result = run(runtime, context, *code, mcpplibs::os::fs::generic_utf8(path), evaluation);  // `/`-named: see evaluate()
     JS_FreeContext(context);
     JS_FreeRuntime(runtime);
     if (!result) return std::unexpected(std::format("{}: {}", name, result.error()));

@@ -10,7 +10,7 @@ Each service is a partition with one contract; a platform that does not give it 
 
 | Service | What it is for | Platforms (planned) |
 |---|---|---|
-| `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus (done) · Windows: toast · macOS/iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
+| `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus, with the answers (an action chosen, dismissed, expired, closed) read back from its signals (done) · Windows: toast · macOS/iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
 | `pick` | the person choosing files or folders the system holds (storage access) | Linux: the desktop portal · Windows/macOS: the file dialogs · iOS/Android: the document pickers · Web: File System Access |
 | `transfer` | data handed between applications: clipboard, share, drag and drop | |
 | `launch` | how an application is started and found: open a URL, file associations and deep links, single instance, start at login | |
@@ -33,6 +33,8 @@ mpal is one build: a backend is chosen with `mcpplibs.os`'s platform questions �
 
 A primitive mpal needs and os lacks is asked of os; a service never goes into os. Drawing is neither's: mpal takes pixels (an icon as RGBA), xrender draws; a service that is given pixels and gives back events (a surface, opensal's sense) would be a package above xrender (`mpal.surface`, gfx layer), so mpal itself stays at the base layer.
 
-The D-Bus wire format (`:dbus`) is its own partition: marshalling, the EXTERNAL authentication and a method call's reply — no libdbus (its licence) and no sd-bus.
+The D-Bus wire format (`:dbus`) is its own partition: marshalling, the EXTERNAL authentication, a method call's reply and the signals a match rule asks for (kept in order while a call waits) — no libdbus (its licence) and no sd-bus.
+
+A service answered asynchronously is read by pulling (`Notifier::next(wait)`): mpal starts no threads. A program that must not wait where it shows (an interface's thread) listens on a second connection in a thread of its own (`Notifier::listen()`), as omui's desktop host does.
 
 Why a package of its own (D-99): it is general (no UI, no omui), its platform code is isolated from the layers that use it, and it is meant to leave the repository once its contracts settle.

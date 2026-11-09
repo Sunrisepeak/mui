@@ -795,7 +795,8 @@ public:
     struct NativeSurfaces {
         // `chosen` may be called on another thread: post it (queue()).
         std::function<bool(const FileChoice&, FilesChosen chosen)> choose_files;
-        std::function<bool(const Notice&)>                          notify;
+        // `pressed`: the person chose the notice (its verb's to run); may be called on another thread.
+        std::function<bool(const Notice&, std::function<void()> pressed)> notify;
         std::function<bool(const std::vector<MenuEntry>&, std::string_view tooltip, std::function<void(std::string_view verb)> chosen)> tray;
     };
     void set_native_surfaces(NativeSurfaces surfaces);

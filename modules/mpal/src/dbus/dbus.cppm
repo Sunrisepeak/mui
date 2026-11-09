@@ -1,8 +1,9 @@
 // mpal:dbus — D-Bus spoken over a local connection (the specification's wire
 // format, little-endian): values marshalled by signature with their
 // alignment, the EXTERNAL authentication (the bus reads who connects from the
-// connection itself), a method call and its reply. Enough for a service call;
-// no libdbus, no sd-bus.
+// connection itself), a method call and its reply, and the signals a service
+// sends (asked for by a match rule). Enough for a service's conversation; no
+// libdbus, no sd-bus.
 export module mpal:dbus;
 
 import std;
@@ -55,10 +56,19 @@ public:
 
     // A method call and its reply's body (an error reply is the error).
     [[nodiscard]] std::expected<std::vector<Value>, Error> call(const Call& call, std::chrono::milliseconds wait = std::chrono::milliseconds(2000));
+    // Asks the bus for the signals `rule` matches (AddMatch: "type='signal',interface='…'").
+    [[nodiscard]] std::expected<void, Error> add_match(std::string_view rule);
+    // The next signal, waiting at most `wait`; none when none came. Signals that
+    // arrived while a call waited for its reply are kept for this, in order.
+    [[nodiscard]] std::expected<std::optional<Message>, Error> next_signal(std::chrono::milliseconds wait);
     [[nodiscard]] const std::string& name() const noexcept { return name_; }
 
 private:
+    // One message read, waiting at most until `until`; none when the time ran out.
+    [[nodiscard]] std::expected<std::optional<Message>, Error> receive(std::chrono::steady_clock::time_point until);
+
     mcpplibs::os::ipc::connection connection_;
+    std::deque<Message>           signals_;
     std::string                   pending_;
     std::uint32_t                 serial_ = 0;
     std::string                   name_;  // the unique name Hello gave

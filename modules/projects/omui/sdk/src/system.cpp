@@ -329,7 +329,17 @@ void System::choose_files(FileChoice choice, FilesChosen chosen) {
 void System::notify(Notice notice) {
     Impl& d = *impl_;
     if (d.options.notifications == Surfacing::native)
-        if (const auto& native = d.runtime.native_surfaces().notify; native && native(notice)) return;
+        if (const auto& native = d.runtime.native_surfaces().notify) {
+            // Pressed may be heard on another thread: its verb runs on the UI thread.
+            Runtime* runtime = &d.runtime;
+            const std::weak_ptr<Impl> alive = impl_;
+            if (native(notice, [runtime, alive, verb = notice.verb] {
+                    runtime->queue().post([alive, verb] {
+                        if (auto impl = alive.lock()) impl->invoke(verb);
+                    });
+                }))
+                return;
+        }
     const std::uint64_t id = d.next_notice++;
     d.notices.push_back({id, std::move(notice)});
     d.show_notices(impl_);

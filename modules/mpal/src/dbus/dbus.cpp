@@ -356,27 +356,17 @@ std::expected<Bus, Error> Bus::at(const std::filesystem::path& directory, std::s
     return bus;
 }
 
-std::expected<std::vector<Value>, Error> Bus::call(const Call& asked, std::chrono::milliseconds wait) {
-    const std::uint32_t serial = ++serial_;
-    if (auto written = connection_.write(message_bytes(asked, serial)); !written) return failure(Error::Code::failed, written.error().message());
-    const auto until = std::chrono::steady_clock::now() + wait;
+std::expected<std::optional<Message>, Error> Bus::receive(std::chrono::steady_clock::time_point until) {
     while (true) {
         auto message = read_message(pending_);
         if (!message) return std::unexpected(message.error());
         if (*message) {
             auto [read, used] = std::move(**message);
             pending_.erase(0, used);
-            if (read.reply_to != serial) continue;  // a signal, or another's reply
-            if (read.kind == Kind::error) {
-                std::string why = read.error_name;
-                if (!read.body.empty())
-                    if (auto* text = text_of(read.body.front())) why += ": " + *text;
-                return failure(Error::Code::refused, why);
-            }
-            return std::move(read.body);
+            return std::optional(std::move(read));
         }
         const auto left = std::chrono::duration_cast<std::chrono::milliseconds>(until - std::chrono::steady_clock::now());
-        if (left.count() <= 0) return failure(Error::Code::failed, std::format("`{}` was not answered in time", asked.member));
+        if (left.count() <= 0) return std::optional<Message>{};
         auto chunk = connection_.read_for(left);
         if (!chunk) return failure(Error::Code::failed, chunk.error().message());
         if (*chunk) {
@@ -384,6 +374,50 @@ std::expected<std::vector<Value>, Error> Bus::call(const Call& asked, std::chron
             pending_ += **chunk;
         }
     }
+}
+
+std::expected<std::vector<Value>, Error> Bus::call(const Call& asked, std::chrono::milliseconds wait) {
+    const std::uint32_t serial = ++serial_;
+    if (auto written = connection_.write(message_bytes(asked, serial)); !written) return failure(Error::Code::failed, written.error().message());
+    const auto until = std::chrono::steady_clock::now() + wait;
+    while (true) {
+        auto received = receive(until);
+        if (!received) return std::unexpected(received.error());
+        if (!*received) return failure(Error::Code::failed, std::format("`{}` was not answered in time", asked.member));
+        Message& read = **received;
+        if (read.kind == Kind::signal) {
+            signals_.push_back(std::move(read));
+            continue;
+        }
+        if (read.reply_to != serial) continue;  // another's reply
+        if (read.kind == Kind::error) {
+            std::string why = read.error_name;
+            if (!read.body.empty())
+                if (auto* text = text_of(read.body.front())) why += ": " + *text;
+            return failure(Error::Code::refused, why);
+        }
+        return std::move(read.body);
+    }
+}
+
+std::expected<void, Error> Bus::add_match(std::string_view rule) {
+    auto added = call({.destination = "org.freedesktop.DBus", .path = "/org/freedesktop/DBus", .interface = "org.freedesktop.DBus",
+                       .member = "AddMatch", .signature = "s", .arguments = {Value::of(std::string(rule))}});
+    if (!added) return std::unexpected(added.error());
+    return {};
+}
+
+std::expected<std::optional<Message>, Error> Bus::next_signal(std::chrono::milliseconds wait) {
+    const auto until = std::chrono::steady_clock::now() + wait;
+    while (signals_.empty()) {
+        auto received = receive(until);
+        if (!received) return std::unexpected(received.error());
+        if (!*received) return std::optional<Message>{};
+        if ((*received)->kind == Kind::signal) signals_.push_back(std::move(**received));
+    }
+    Message next = std::move(signals_.front());
+    signals_.pop_front();
+    return std::optional(std::move(next));
 }
 
 }  // namespace mpal::dbus

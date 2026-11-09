@@ -28,6 +28,71 @@ using mlibs::log::warn;
 
 namespace omui {
 
+namespace {
+
+// The system's notifications (mpal) and the person's answers: shown from the
+// interface's thread, heard on a thread of its own over a second connection
+// (a read waits there, never in a frame); a pressed notice's callback is run
+// there, and posts its verb to the interface.
+class NativeNotices {
+public:
+    // None where the system has no notification service.
+    static std::unique_ptr<NativeNotices> open() {
+        auto shower = mpal::Notifier::open();
+        if (!shower) {
+            info("desktop: system notifications: {} (drawn instead)", shower.error().text);
+            return nullptr;
+        }
+        auto notices = std::make_unique<NativeNotices>();
+        notices->shower_.emplace(std::move(*shower));
+        notices->listener_ = std::jthread([raw = notices.get()](std::stop_token stop) { raw->hear(stop); });
+        return notices;
+    }
+
+    bool show(std::string_view application, const Runtime::Notice& notice, std::function<void()> pressed) {
+        mpal::Notification shown{.application = std::string(application), .title = notice.title, .body = notice.body};
+        // "default": the notice itself, clicked.
+        if (!notice.verb.empty()) shown.actions = {{"default", notice.title}};
+        auto id = shower_->show(shown);
+        if (!id) return false;
+        if (!notice.verb.empty()) {
+            const std::scoped_lock lock(mutex_);
+            pressed_[*id] = std::move(pressed);
+        }
+        return true;
+    }
+
+private:
+    void hear(std::stop_token stop) {
+        auto listener = mpal::Notifier::listen();
+        if (!listener) return;
+        while (!stop.stop_requested()) {
+            auto answer = listener->next(std::chrono::milliseconds(500));
+            if (!answer) return;  // the bus gone
+            if (!*answer) continue;
+            std::function<void()> pressed;
+            {
+                const std::scoped_lock lock(mutex_);
+                const auto found = pressed_.find((*answer)->id);
+                if (found == pressed_.end()) continue;  // not one of ours
+                if ((*answer)->kind == mpal::Answer::Kind::chosen) pressed = found->second;
+                else pressed_.erase(found);
+            }
+            if (pressed) {
+                pressed();
+                platform::wake();
+            }
+        }
+    }
+
+    std::optional<mpal::Notifier>                    shower_;
+    std::mutex                                       mutex_;
+    std::map<std::uint32_t, std::function<void()>>   pressed_;
+    std::jthread                                     listener_;  // last: stopped first
+};
+
+}  // namespace
+
 struct Desktop::Impl final : WindowHost {
     DesktopOptions                           options;
     std::unique_ptr<mlibs::text::FontCollection> own_fonts;
@@ -39,6 +104,8 @@ struct Desktop::Impl final : WindowHost {
     // Assistive technology's view of the tree (D-21).
     std::unique_ptr<accessibility::Mirror>   mirror;
     std::unique_ptr<accessibility::Adapter>  access;
+    // The system's notifications, opened when the first is shown (none: drawn instead).
+    std::optional<std::unique_ptr<NativeNotices>> notices;
     platform::WindowPtr                      window;
     xrender::CpuRenderer                      renderer;
     xrender::DamageTracker                    damage;     // what the next list changes
@@ -345,10 +412,10 @@ std::expected<void, std::string> Desktop::open() {
     d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
                                         return d.window && platform::choose_files(*d.window, choice, std::move(chosen));
                                     },
-                                    // The system's notification (mpal), for a notice that only tells: the
-                                    // person's answer to one is not read back yet, so one with a verb is drawn.
-                                    .notify = [title = d.options.title](const Runtime::Notice& notice) {
-                                        return notice.verb.empty() && mpal::notify({.application = title, .title = notice.title, .body = notice.body}).has_value();
+                                    // The system's notification (mpal); the person pressing it runs its verb.
+                                    .notify = [&d](const Runtime::Notice& notice, std::function<void()> pressed) {
+                                        if (!d.notices) d.notices = NativeNotices::open();
+                                        return *d.notices && (*d.notices)->show(d.options.title, notice, std::move(pressed));
                                     },
                                     .tray = [](const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip,
                                                std::function<void(std::string_view)> chosen) { return platform::tray(entries, tooltip, std::move(chosen)); }});

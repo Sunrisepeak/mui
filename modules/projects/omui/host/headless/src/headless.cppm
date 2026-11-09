@@ -102,6 +102,10 @@ public:
     // The current frame's pixels (rendered when the display list changed).
     [[nodiscard]] const xrender::raster::Surface& pixels();
     [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> png(std::optional<Rect> region = {});
+    // The window's picture with a camera on `frame` (logical pixels): that region filling the
+    // window, its shape kept and centred, drawn at the window's resolution (a film's close-up).
+    // What the slot `fixed` holds (a caption) is drawn over it as it is, outside the camera.
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed = {});
     std::expected<void, std::string> save_png(const std::filesystem::path& file, std::optional<Rect> region = {});
     // The same frame as vectors (xrender.vector.svg): SVG at any size, each
     // node's drawing a group marked with its path (data-node), and the

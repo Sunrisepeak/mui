@@ -138,6 +138,9 @@ public:
     // Its scripts done, nothing moving.
     virtual void settle() = 0;
     [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> png() = 0;
+    // Its picture with a camera on `frame` (logical pixels): that region filling the window (a film's
+    // close-up), the slot `fixed` (a caption) drawn over it as it is.
+    [[nodiscard]] virtual std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) = 0;
 };
 // A twin started (`design`: in development mode, its edits presented as the
 // person's are), or why not.

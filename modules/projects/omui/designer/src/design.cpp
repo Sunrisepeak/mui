@@ -498,15 +498,82 @@ private:
         auto commits = history.log(branch, 1000);
         if (commits.empty()) return std::unexpected(std::format("`{}` has no commits to film (design.history.commit, or every design step, makes them)", branch));
         std::ranges::reverse(commits);
-        const auto number = [&](std::string_view key, double fallback, double low, double high) {
-            const Value* given = args.get(key);
+        const auto number = [&](const Value& from, std::string_view key, double fallback, double low, double high) {
+            const Value* given = from.get(key);
             return std::clamp(given && given->is_number() ? given->as_double() : fallback, low, high);
         };
-        const int fps = static_cast<int>(number("fps", 30, 1, 60));
-        const double each = number("seconds", 1.5, 0.2, 10);
+        const auto path_of = [](std::string_view text) { return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text.data()), text.size())); };
         const std::string out_text(args.get("out") ? args.get("out")->as_string() : std::string());
-        const std::filesystem::path out = out_text.empty() ? history.directory() / "film" / branch
-                                                           : std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(out_text.data()), out_text.size()));
+        const std::filesystem::path out = out_text.empty() ? history.directory() / "film" / branch : path_of(out_text);
+
+        // The film's script (D-151: a replay is edited — its pace, its shots, its words): what the
+        // person or an agent changed in it is followed, a step it does not name yet is added as it
+        // would be filmed, and the merged script written back, for the next edit.
+        const std::string script_text(args.get("script") ? args.get("script")->as_string() : std::string());
+        const std::filesystem::path script_file = script_text.empty() ? history.directory() / "film" / std::format("{}.film.omui.json", branch) : path_of(script_text);
+        Value script(Value::Map{});
+        if (std::ifstream in{script_file, std::ios::binary}) {
+            const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+            auto read = parse_json(text);
+            if (!read) return std::unexpected(std::format("{}:{}", generic_utf8(script_file), read.error().text()));
+            if (const Value* film = read->get("film")) script = *film;
+        }
+        const int fps = static_cast<int>(number(script.get("fps") ? script : args, "fps", 30, 1, 60));
+        const double each = number(args, "seconds", 1.5, 0.2, 10);
+        struct Shot {
+            std::string                commit;
+            std::string                caption;
+            double                     seconds = 1.5;
+            bool                       keep = true;
+            std::optional<std::string> node;  // the camera on what was built there, framed
+            std::optional<Rect>        rect;  // or on a region of the window
+        };
+        std::vector<Shot> shots;
+        const Value::List* written = script.get("steps") ? script.get("steps")->list() : nullptr;
+        for (std::size_t index = 0; index < commits.size(); ++index) {
+            // What the step did (the session's intent, which every step's message begins with, said once by the first).
+            std::string_view said = commits[index].message;
+            if (const auto dash = said.find(" — "); dash != std::string_view::npos && index > 0) said.remove_prefix(dash + std::string_view(" — ").size());
+            Shot shot{.commit = commits[index].id, .caption = std::format("{}/{} · {}", index + 1, commits.size(), said), .seconds = each};
+            if (written)
+                for (const Value& step : *written) {
+                    const std::string_view named = step.get("commit") ? step.get("commit")->as_string() : std::string_view{};
+                    if (named.size() < 7 || !commits[index].id.starts_with(named)) continue;
+                    if (const Value* caption = step.get("caption"); caption && caption->type() == Value::Type::text) shot.caption = caption->as_string();
+                    shot.seconds = number(step, "seconds", each, 0.1, 30);
+                    if (const Value* keep = step.get("keep")) shot.keep = keep->as_bool(true);
+                    if (const Value* camera = step.get("camera"); camera && camera->map()) {
+                        if (const Value* node = camera->get("node")) shot.node = std::string(node->as_string());
+                        if (const Value* rect = camera->get("rect"); rect && rect->list() && rect->list()->size() == 4) {
+                            const auto& r = *rect->list();
+                            shot.rect = Rect{static_cast<float>(r[0].as_double()), static_cast<float>(r[1].as_double()), static_cast<float>(r[2].as_double()),
+                                             static_cast<float>(r[3].as_double())};
+                        }
+                    }
+                    break;
+                }
+            shots.push_back(std::move(shot));
+        }
+        {
+            Value::List steps;
+            for (const Shot& shot : shots) {
+                Value camera;  // null: the whole window
+                if (shot.node) camera = Value{}.set("node", *shot.node);
+                else if (shot.rect) camera = Value{}.set("rect", Value(Value::List{Value(shot.rect->x), Value(shot.rect->y), Value(shot.rect->width), Value(shot.rect->height)}));
+                steps.push_back(Value{}.set("commit", shot.commit.substr(0, 12)).set("caption", shot.caption).set("seconds", shot.seconds).set("keep", shot.keep).set("camera", camera));
+            }
+            const Value written_back = Value(Value::Map{})
+                                           .set("doc", "The film of a design branch, one step a commit: its caption, its time on screen, whether it is kept, and a camera "
+                                                       "(null: the whole window; {node: a path}: what was built there, framed; {rect: [x, y, width, height]}). "
+                                                       "Edit it and film again (design.film).")
+                                           .set("branch", branch)
+                                           .set("fps", fps)
+                                           .set("steps", Value(std::move(steps)));
+            std::error_code made;
+            std::filesystem::create_directories(script_file.parent_path(), made);
+            std::ofstream(script_file, std::ios::binary) << indented_json(Value(Value::Map{}).set("film", written_back));
+        }
+
         std::error_code error;
         std::filesystem::remove_all(out / "frames", error);
         std::filesystem::create_directories(out / "frames", error);
@@ -517,31 +584,52 @@ private:
         if (!made) return std::unexpected(made.error());
         Twin& shown = **made;
         const Size window = shown.runtime().size();
-        std::size_t frame = 0;
+        const Rect whole{0, 0, window.width, window.height};
+        Rect camera = whole;  // where the camera was when the last shot ended
+        std::size_t frame = 0, steps_filmed = 0;
         double at = shown.time().count();
-        const auto frames_each = static_cast<std::size_t>(std::lround(each * fps));
-        for (std::size_t index = 0; index < commits.size(); ++index) {
+        const auto lerp = [](float from, float to, float amount) { return from + (to - from) * amount; };
+        for (std::size_t index = 0; index < shots.size(); ++index) {
+            const Shot& shot = shots[index];
             auto texts = history.texts_of(commits[index].id);
             if (!texts) return std::unexpected(texts.error());
+            // A step left out is still run (the next builds on it), not filmed.
             if (auto ran = shown.player().show(*texts); !ran) return std::unexpected(std::format("{}: {}", commits[index].id.substr(0, 8), ran.error()));
             shown.settle();
-            // What the step did (the session's intent, which every step's message begins with, said once by the first).
-            std::string_view said = commits[index].message;
-            if (const auto dash = said.find(" — "); dash != std::string_view::npos && index > 0) said.remove_prefix(dash + std::string_view(" — ").size());
-            shown.runtime().mount("design-caption", caption_view(window, std::format("{}/{} · {}", index + 1, commits.size(), said)));
+            if (!shot.keep) continue;
+            ++steps_filmed;
+            shown.runtime().mount("design-caption", caption_view(window, shot.caption));
+            // Where the camera goes: the node framed with a margin, a region, or the whole window.
+            Rect target = whole;
+            if (shot.rect) target = *shot.rect;
+            else if (shot.node) {
+                const NodeId framed = shown.runtime().reveal(*shot.node);
+                if (!shown.runtime().valid(framed)) return std::unexpected(std::format("the camera's node {} is not in step {}", *shot.node, index + 1));
+                const Rect box = shown.runtime().drawn_bounds(framed);
+                constexpr float margin = 16;
+                target = {box.x - margin, box.y - margin, box.width + 2 * margin, box.height + 2 * margin};
+            }
+            const auto frames_each = static_cast<std::size_t>(std::lround(shot.seconds * fps));
+            const double move_frames = std::max(1.0, 0.6 * fps);  // the camera's move: the shot's first 0.6 s, eased in and out
             for (std::size_t step = 0; step < frames_each; ++step, ++frame) {
                 at += 1.0 / fps;
                 shown.step(seconds(at));
-                auto png = shown.png();
+                const float progress = static_cast<float>(std::min(1.0, static_cast<double>(step + 1) / move_frames));
+                const float eased = progress * progress * (3 - 2 * progress);
+                const Rect now{lerp(camera.x, target.x, eased), lerp(camera.y, target.y, eased), lerp(camera.width, target.width, eased),
+                               lerp(camera.height, target.height, eased)};
+                const bool all = std::abs(now.x) < 0.25f && std::abs(now.y) < 0.25f && std::abs(now.width - whole.width) < 0.25f && std::abs(now.height - whole.height) < 0.25f;
+                auto png = all ? shown.png() : shown.framed_png(now, "design-caption");
                 if (!png) return std::unexpected(png.error());
                 std::ofstream(out / "frames" / std::format("{:05}.png", frame), std::ios::binary)
                     .write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
             }
+            camera = target;
         }
         // The description `omui video render` reads (xengine.video): the frames, at their rate.
         const auto description = out / "design.video.omui.json";
         const Value video = Value(Value::Map{})
-                                .set("doc", std::format("The design of {} on {}: {} steps, {} s each.", player.manifest().id, branch, commits.size(), each))
+                                .set("doc", std::format("The design of {} on {}: {} steps.", player.manifest().id, branch, steps_filmed))
                                 .set("width", static_cast<int>(window.width))
                                 .set("height", static_cast<int>(window.height))
                                 .set("fps", fps)
@@ -550,10 +638,11 @@ private:
         std::ofstream(description, std::ios::binary) << indented_json(Value(Value::Map{}).set("video", video));
         return Value{}
             .set("branch", branch)
-            .set("steps", static_cast<double>(commits.size()))
+            .set("steps", static_cast<double>(steps_filmed))
             .set("frames", static_cast<double>(frame))
             .set("fps", static_cast<double>(fps))
-            .set("description", generic_utf8(description));
+            .set("description", generic_utf8(description))
+            .set("script", generic_utf8(script_file));
     }
 
     // A motion measured (design.expect's `motion`, §2.12.4): the action done

@@ -285,6 +285,50 @@ std::expected<std::vector<std::uint8_t>, std::string> Headless::png(std::optiona
     return mlibs::image::encode_png(*v);
 }
 
+std::expected<std::vector<std::uint8_t>, std::string> Headless::framed_png(Rect frame, std::string_view fixed) {
+    Impl& d = *impl_;
+    if (d.options.level < HeadlessLevel::pixels) return std::unexpected("no pixels below H2 (level pixels)");
+    if (frame.width <= 0 || frame.height <= 0) return std::unexpected("a camera on an empty region");
+    // The list in two: the fixed slot's drawing (a top-level node: its commands carry their own
+    // transform, window coordinates) and everything else, which the camera frames.
+    const NodeId kept = fixed.empty() ? NodeId{} : d.runtime->find(fixed);
+    xrender::DisplayList scene, over;
+    int inside = 0;
+    for (const xrender::Command& command : d.runtime->display_list().commands()) {
+        const auto* begin = std::get_if<xrender::BeginNode>(&command);
+        if (inside == 0 && begin && d.runtime->valid(kept) && d.runtime->node_at_index(begin->node) == kept) inside = 1;
+        else if (inside > 0 && begin) ++inside;
+        else if (inside > 0 && std::holds_alternative<xrender::EndNode>(command)) {
+            over.append_command(command);
+            --inside;
+            continue;
+        }
+        (inside > 0 ? over : scene).append_command(command);
+    }
+    const Size window = d.options.size;
+    // The region scaled to fit the window, centred, then to device pixels.
+    const float fit = std::min(window.width / frame.width, window.height / frame.height);
+    const float left = (window.width - frame.width * fit) / 2 - frame.x * fit, top = (window.height - frame.height * fit) / 2 - frame.y * fit;
+    const int width = static_cast<int>(std::lround(window.width * d.options.scale)), height = static_cast<int>(std::lround(window.height * d.options.scale));
+    xrender::raster::Surface framed(width, height);
+    const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
+    xrender::CpuOptions through;
+    through.scale = d.options.scale * fit;
+    through.background = d.options.background;
+    through.transform = xrender::Affine::scale(d.options.scale, d.options.scale) * xrender::Affine::translate(left, top) * xrender::Affine::scale(fit, fit);
+    through.effect_scale = d.options.scale;
+    (void)d.renderer.render(scene, framed, resources, through);
+    if (!over.commands().empty()) {
+        xrender::CpuOptions as_is;
+        as_is.scale = d.options.scale;
+        as_is.clear = false;
+        (void)d.renderer.render(over, framed, resources, as_is);
+    }
+    auto v = view_of(framed, d.options.scale, std::nullopt);
+    if (!v) return std::unexpected(v.error());
+    return mlibs::image::encode_png(*v);
+}
+
 std::expected<void, std::string> Headless::save_png(const std::filesystem::path& file, std::optional<Rect> region) {
     Impl& d = *impl_;
     if (d.options.level < HeadlessLevel::pixels) return std::unexpected("no pixels below H2 (level pixels)");

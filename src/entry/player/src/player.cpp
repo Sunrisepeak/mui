@@ -49,6 +49,7 @@ public:
         host_.settle();
     }
     std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
+    std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) override { return host_.framed_png(frame, fixed); }
 
 private:
     Headless       host_;

@@ -174,12 +174,13 @@ export default defineOps({
     {
       name: "design.film",
       effect: "reversible",
-      summary: "The design's history as a film: a branch's commits from its first, each run in an unseen twin of the application as a design edit runs (its presentation) under a caption saying what the step was, drawn frame by frame — the frames (PNG) and a video description beside them, which `omui video render` (or `omui design film`) makes a WebM of",
+      summary: "The design's history as a film: a branch's commits from its first, each run in an unseen twin of the application as a design edit runs (its presentation) under a caption saying what the step was, drawn frame by frame — the frames (PNG) and a video description beside them, which `omui video render` (or `omui design film`) makes a WebM of. It follows the film's script (<branch>.film.omui.json, written beside the film when it is first made): each step's caption, time on screen, whether it is kept, and a camera on a node or a region, eased from the last",
       params: [
         { name: "branch", type: "string", doc: "whose commits (the one designed on when absent)", optional: true },
         { name: "out", type: "path", doc: "where the frames and the description go (.omui/design/film/<branch>)", optional: true },
-        { name: "fps", type: "integer", doc: "frames a second, 1 … 60 (30)", optional: true },
-        { name: "seconds", type: "number", doc: "each step's time on screen, 0.2 … 10 (1.5)", optional: true },
+        { name: "fps", type: "integer", doc: "frames a second, 1 … 60 (30; the script's when it says)", optional: true },
+        { name: "seconds", type: "number", doc: "a step's time on screen where the script does not say, 0.2 … 10 (1.5)", optional: true },
+        { name: "script", type: "path", doc: "the film's script, edited (.omui/design/film/<branch>.film.omui.json)", optional: true },
       ],
       result: "json",
       cost: "heavy",

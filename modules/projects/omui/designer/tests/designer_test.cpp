@@ -109,6 +109,11 @@ public:
     void step(std::optional<seconds> at) override { (void)host_.step({}, at); }
     void settle() override { host_.settle(); }
     std::expected<std::vector<std::uint8_t>, std::string> png() override { return host_.png(); }
+    std::expected<std::vector<std::uint8_t>, std::string> framed_png(Rect frame, std::string_view fixed) override {
+        cameras.push_back(frame);
+        return host_.framed_png(frame, fixed);
+    }
+    static inline std::vector<Rect> cameras;  // every camera a film asked of a twin, in order
 
 private:
     Headless       host_;
@@ -617,6 +622,36 @@ UTest cases{"designer", [] {
         const std::string first = file_text(out / "frames" / "00000.png"), last = file_text(out / "frames" / "00008.png");
         expect(!first.empty() && !last.empty() && first != last) << "the design changing over the film";
         expect(eq(name_of(h, "side/hello"), std::string("three"))) << "what the person sees untouched";
+
+        // Edited: the film's script, written beside it — the second step left out, the last with its own
+        // words, a second on screen and the camera on what was built there; filmed again, as written.
+        const auto script_file = dir / ".omui" / "design" / "film" / "main.film.omui.json";
+        auto script = parse_json(file_text(script_file));
+        expect(fatal(script.has_value() && script->get("film") && script->get("film")->get("steps")));
+        Value::List steps = *script->get("film")->get("steps")->list();
+        expect(fatal(steps.size() == 3));
+        expect(steps[0].get("caption")->as_string().starts_with("1/3") && steps[0].get("camera")->is_null()) << steps[0].json();
+        steps[1].set("keep", false);
+        steps[2].set("caption", "The end").set("seconds", 1.0).set("camera", Value{}.set("node", "side/hello"));
+        Value edited = *script->get("film");
+        edited.set("steps", Value(steps));
+        std::ofstream(script_file, std::ios::binary) << Value(Value::Map{}).set("film", edited).json();
+        StubTwin::cameras.clear();
+        const auto [again, refilmed] = invoke("design.film", Value{}.set("fps", 10).set("seconds", 0.3));
+        expect(eq(again, 0)) << refilmed.json();
+        expect(refilmed.get("steps")->as_int() == 2 && refilmed.get("frames")->as_int() == 13) << "0.3 s and 1 s at 10 a second: " << refilmed.json();
+        expect(fatal(StubTwin::cameras.size() == 10)) << "the last shot's frames through the camera";
+        const Rect first_move = StubTwin::cameras.front(), landed = StubTwin::cameras.back();
+        // Where it lands: the node as the person's window lays it out (the same design), with 16 px around it.
+        const Rect node = h.runtime().drawn_bounds(h.runtime().find("side/hello"));
+        expect(std::abs(landed.x - (node.x - 16)) < 0.5f && std::abs(landed.y - (node.y - 16)) < 0.5f && std::abs(landed.width - (node.width + 32)) < 0.5f &&
+               std::abs(landed.height - (node.height + 32)) < 0.5f)
+            << "on the node, with its margin: " << landed.width << "x" << landed.height;
+        expect(first_move.height < 240 && first_move.height > landed.height) << "moving from the whole window toward it, eased";
+        expect(std::abs(StubTwin::cameras[6].width - landed.width) < 0.01f) << "arrived after 0.6 s, then still";
+        const std::string kept = file_text(script_file);
+        expect(kept.contains("\"keep\": false") && kept.contains("The end")) << "the edits kept when the script is written back";
+        expect(file_text(out / "frames" / "00012.png") != file_text(out / "frames" / "00002.png")) << "the close-up differs from the whole window";
     };
 
     "a motion expected and measured in a twin: how long it took, how far it sprang past — a fact against the person's words; fixed, it holds"_test = [] {

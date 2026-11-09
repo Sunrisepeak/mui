@@ -313,6 +313,9 @@ public:
     // pointer last (a window's own frame, under the application).
     NodeId mount_beneath(std::string_view slot, View view);
     void unmount(std::string_view slot);
+    // A region shows the slot (a view document's `slot`, a script's slot()):
+    // what is mounted under the name goes there rather than the top level.
+    [[nodiscard]] bool claimed(std::string_view slot) const;
     // The slot's view keeps `insets` from the window's edges (the
     // application inside a window's own frame); none by default.
     void set_slot_insets(std::string_view slot, Insets insets);

@@ -155,6 +155,11 @@ Signal<std::optional<Element>> Runtime::outlet(std::string_view name) {
     return it->second;
 }
 
+bool Runtime::claimed(std::string_view slot) const {
+    const auto it = impl_->outlets.find(slot);
+    return it != impl_->outlets.end() && it->second.observed();
+}
+
 void Runtime::Impl::reconcile_outlets() {
     for (auto& [name, o] : outlets) {
         auto view = mounted_views.find(name);

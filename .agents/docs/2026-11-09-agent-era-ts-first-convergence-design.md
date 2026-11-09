@@ -877,6 +877,15 @@ my-app/
 6. 按读写集合检查版本（PPet §7.2）。
 **验收**：PPet 的 UI 和动作两类意图端到端完成：生成、预演、提交、撤销、复用；对 NSH 和 A2UI 做能力对照。
 
+**W5 进度（2026-11-10，第一块：生成管线的核心）**：
+- `omui.agent:generation`（`Generation`）实现第 1 步的管线：草稿 → 校验 → 准备 → 预演 → 提交 → 撤销，每一步单独请求，状态可查。操作目录是 `generate.ops.omui.ts`（8 个操作：`generate.surfaces`、`draft`、`preview`、`commit`、`restore`、`versions`、`drafts`、`discard`），作为应用的动词经协议和 MCP（`generate_*`）提供，并进入 `describe --api` 的导出。
+- 生成的内容只能放进应用声明的表面（surface，即视图里的 slot）；没有显示在屏幕上的表面不接受提交。
+- 四档开放程度：off 什么都不收；data 只收视图文档，不能调用动词；limited 可以由代码生成文档（宿主提供沙箱求值），只能用列出的组件和动词；all 不限。限额：文档字节数、节点数。校验失败时每个问题都带 JSON 指针，什么都不改变。
+- 预演在同一个应用里把草稿挂到表面上，拍下前后两张图并给出语义差异，然后恢复原状。验证时发现动词运行在批处理里，挂载引起的效果要等动词返回才执行，所以 `omui.core` 新增 `settle_effects()`：在批处理内部先运行已排队的效果（after_batch 的回调仍然等最外层结束）。
+- 提交成为表面的下一个版本（记录是谁、何时、哪个草稿），进入撤销历史：`ui.undo` 回到上一个版本，redo 重做；`generate.restore` 可以回到任意版本。
+- 验收：omui.agent 的 generation_test 经协议走完三类情况（data 的完整生命周期与撤销重做；limited 的代码草稿与组件限制、off；限额与不在屏幕上的表面）。
+- 下一块：player 提供 TS 的沙箱求值（QuickJS 的内存和时间上限），`omui.config.ts` 的 `generation` 与表面声明，生成内容的 hanim 进场配方，版本持久化与重启后重新校验。
+
 **W6 性能证据（E1、E2、E3、D-143）**
 1. AVX2 运行时分派，追平描边和连接。
 2. 和 GPUI Kit 同机对比表格、编辑器、画布；和 MyGo 同机对比启动、内存、体积、空闲 CPU、滚动时每帧 CPU（沿用它的方法）。

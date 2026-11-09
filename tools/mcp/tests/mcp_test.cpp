@@ -155,7 +155,7 @@ UTest cases{"mcp", [] {
             expect(eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui")));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        expect(tools && tools->list() && tools->list()->size() == 51) << "nineteen ui_* tools and Live Design's thirty-two";
+        expect(tools && tools->list() && tools->list()->size() == 59) << "nineteen ui_* tools, Live Design's thirty-two and runtime generation's eight (nothing runs: all listed)";
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -168,7 +168,9 @@ UTest cases{"mcp", [] {
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_preview", "design_preview_accept", "design_preview_reject", "design_variants",
                                                   "design_variants_pick", "design_variants_close", "design_film", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_expect", "design_check", "design_handover", "design_save_scenario",
-                                                  "design_replay", "design_discard", "design_commit", "design_pace"}));
+                                                  "design_replay", "design_discard", "design_commit", "design_pace",
+                                                  "generate_surfaces", "generate_draft", "generate_preview", "generate_commit", "generate_restore",
+                                                  "generate_versions", "generate_drafts", "generate_discard"}));
             // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.
             const auto hint = [&](std::string_view tool, std::string_view key) {
                 for (const Value& t : *tools->list())
@@ -194,6 +196,23 @@ UTest cases{"mcp", [] {
         expect(!c.error(6) && c.text(6).contains("no openmui application is running")) << c.text(6);
         expect(c.error(7) && c.text(7).contains("no openmui application is running")) << c.text(7);
         expect(eq(c.out.size(), std::size_t{8}));  // the notification is not answered
+    };
+
+    "tools/list leaves out the listings' tools no running application offers: an application without its designer gets no design_* (W4)"_test = [] {
+        const auto dir = scratch_dir("mcp-offered");
+        Notes notes(dir);
+        if (!notes.h.endpoint()) {
+            std::println("    skipped: local endpoints are not supported here");
+            return;
+        }
+        mcp::Server server({.directory = dir});
+        Client c;
+        c.in = {initialize(1, false), request(2, "tools/list"), call(3, "design_sources")};
+        serve(notes.h, server, c);
+        const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
+        expect(tools && tools->list() && tools->list()->size() == 19) << (tools ? tools->json() : std::string("<none>"));
+        expect(eq(server.tools().size(), std::size_t{59})) << "every tool still known";
+        expect(c.reply(3) && c.error(3)) << "a tool not listed answers as a verb the application lacks";
     };
 
     "against a running application: apps, the tree, find, a verb, wait, capture — and an irreversible action refused to a client that cannot ask"_test = [] {

@@ -233,6 +233,8 @@ struct Server::Impl {
         std::vector<Value> listings;
         if (options.design)
             if (auto design = parse_json(agent::design::listing)) listings.push_back(std::move(*design));
+        if (options.generate)
+            if (auto generate = parse_json(agent::generate::listing)) listings.push_back(std::move(*generate));
         listings.insert(listings.end(), options.listings.begin(), options.listings.end());
         for (const Value& listing : listings) {
             const Value* tools = listing.get("tools");
@@ -320,6 +322,20 @@ struct Server::Impl {
         std::vector<agent::EndpointInfo> out;
         for (agent::EndpointInfo& e : agent::list(directory()))
             if (clients.contains(e.name) || agent::Client::connect(e.name, directory())) out.push_back(std::move(e));
+        return out;
+    }
+
+    // The verbs the running applications offer; none when nothing runs (nothing to tell by).
+    std::optional<std::set<std::string>> offered_verbs() {
+        const auto apps = running();
+        if (apps.empty()) return std::nullopt;
+        std::set<std::string> out;
+        for (const auto& app : apps) {
+            const Answer described = call(app.name, Value{}.set("op", "describe"), options.timeout);
+            if (described.exit != 0) return std::nullopt;  // one that cannot say: list everything
+            if (const Value* verbs = described.data.get("verbs"); verbs && verbs->list())
+                for (const Value& verb : *verbs->list()) out.insert(std::string(str(verb, "name")));
+        }
         return out;
     }
 
@@ -879,6 +895,17 @@ Value::List Server::tools() const {
     return out;
 }
 
+Value::List Server::offered_tools() const {
+    Value::List out = tools();
+    const auto offered = impl_->offered_verbs();
+    if (!offered) return out;
+    std::erase_if(out, [&](const Value& listed) {
+        const auto verb = impl_->verbs.find(std::string(str(listed, "name")));
+        return verb != impl_->verbs.end() && !offered->contains(verb->second);
+    });
+    return out;
+}
+
 void Server::serve(Transport& transport) {
     while (true) {
         std::string line;
@@ -938,7 +965,7 @@ void Server::handle(std::string_view line, Transport& t) {
         return;
     }
     if (method == "tools/list") {
-        t.write(response(*id, Value{}.set("tools", Value(tools()))).json());
+        t.write(response(*id, Value{}.set("tools", Value(offered_tools()))).json());
         return;
     }
     if (method == "tools/call") {

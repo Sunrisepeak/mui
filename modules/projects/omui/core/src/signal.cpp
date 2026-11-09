@@ -36,8 +36,8 @@ bool any_dep_changed(ReactiveNode& n) {
     return false;
 }
 
-void flush() {
-    if (graph.flushing) return;
+// The effects scheduled, run until none is left (what waits for the batch stays waiting).
+void run_effects() {
     graph.flushing = true;
     int guard = 0;
     while (!graph.queue.empty()) {
@@ -56,6 +56,11 @@ void flush() {
         e->checked = graph.epoch;
     }
     graph.flushing = false;
+}
+
+void flush() {
+    if (graph.flushing) return;
+    run_effects();
     // What waits for the writes to have notified: in order; what it writes
     // flushes again (and may wait in turn).
     while (!graph.after.empty() && graph.batch == 0 && !graph.flushing) {
@@ -149,6 +154,10 @@ void after_batch(std::function<void()> f) {
 
 void end_batch() {
     if (--graph.batch == 0) flush();
+}
+
+void settle_effects() {
+    if (!graph.flushing) run_effects();
 }
 
 void dispose(ReactiveNode& n) {

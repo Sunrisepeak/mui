@@ -48,8 +48,11 @@ Value api_of(Runtime& runtime) {
         verbs.push_back(std::move(one));
     }
     out.set("verbs", Value(std::move(verbs)));
-    // What an agent may do with it: the protocol's operations and Live Design's (the catalogs').
-    out.set("operations", Value{}.set("ui", operations_of(catalog)).set("design", operations_of(design::catalog)));
+    // What an agent may do with it: the protocol's operations, Live Design's and runtime generation's (the catalogs').
+    out.set("operations", Value{}
+                              .set("ui", operations_of(catalog))
+                              .set("design", operations_of(design::catalog))
+                              .set("generate", operations_of(generate::catalog)));
     return out;
 }
 

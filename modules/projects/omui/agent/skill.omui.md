@@ -40,6 +40,15 @@ The application is its own designer (D-149). Its operations are Live Design's ca
 
 When the files are edited directly rather than through `design.edit`, `reload` reloads what was saved and answers what it did — the semantic changes, the changed region before and after, the motion it started and whether it settled — so you confirm the change without comparing screenshots.
 
+## Generating interface into a running application (as it ships)
+
+Where an application lets generated interface in (D-144), the operations are [`generate.ops.omui.ts`](generate.ops.omui.ts)'s:
+
+1. `generate.surfaces` first: the places it may go, how open generation is here (off, data, limited, all) and the limits. Off is an answer; data means a view document and no verbs; limited lists the components and verbs you may use. Do not try to get around them.
+2. `generate.draft` a view document for a surface (or code, where allowed). A refusal names every problem at its place: fix them all and draft again.
+3. When the person is to decide, `generate.preview` the draft and show them the pictures and the changes; nothing of it stays.
+4. `generate.commit` makes it the surface's next version. Undo takes it back to the version before; `generate.restore` goes to any version; `generate.versions` says who made each.
+
 ## When the person says something did not work
 
 "I clicked and nothing happened" is a report to check, not a fact to repeat. Ask the recorder (D-148) what their input did: `explain` with `at` (where they clicked) gives that press from press to release — what it hit, what stopped it (a disabled control, a release outside it, nothing there to press, outside a modal, refused) and the actions it led to, in one sentence and the records. `timeline` lists the recent input events and what came of each (`since` a cause, `limit`). Then say what you found, fix the cause, and check it the same way. Development mode records everything; elsewhere the recorder keeps what did not happen (errors) unless the application says otherwise, and what a person types is counted, never kept. Their input is theirs: outside development, `timeline`, `explain` and `record` answer `needs-answer` for it — ask them, then send the request again with `answer: "yes"` (the rest of the session needs no asking). To keep a bug as a test, `record` (development) gives every frame's time and input and what it ended as; save it and `omui replay FILE` plays it in a fresh instance and checks the tree and pixels end the same.

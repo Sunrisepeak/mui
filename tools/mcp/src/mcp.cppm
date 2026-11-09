@@ -54,6 +54,9 @@ struct ServerOptions {
     // too: they answer in an application started in development mode
     // (`omui dev`), and refuse elsewhere as any verb an application lacks.
     bool design = true;
+    // Runtime generation's verbs (generate.*, omui.agent's generate catalog):
+    // they answer where an application lets generated interface in (W5).
+    bool generate = true;
 };
 
 // A listing read and checked: an omui.ops listing of an application's verbs
@@ -96,6 +99,10 @@ public:
     // tools/list's tools: name, title, description, input schema, hints —
     // the ui_* tools, then the listed operations'.
     [[nodiscard]] Value::List tools() const;
+    // What tools/list answers: tools() without the listings' tools no running
+    // application offers (Live Design's in an application without its designer:
+    // each tool listed is carried by every turn) — all of them while none runs.
+    [[nodiscard]] Value::List offered_tools() const;
 
     struct Impl;
 

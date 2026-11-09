@@ -57,6 +57,7 @@ void schedule(ReactiveNode& effect);
 void begin_batch() noexcept;
 void end_batch();
 void after_batch(std::function<void()> f);
+void settle_effects();
 void dispose(ReactiveNode& node);
 
 struct UntrackedScope {
@@ -209,6 +210,11 @@ decltype(auto) batch(F&& f) {
 // batch (an event to a script) sees the state the change left, watches
 // included. In order.
 inline void after_batch(std::function<void()> f) { detail::after_batch(std::move(f)); }
+
+// The effects the writes so far scheduled, run now — even inside a batch
+// (what after_batch holds still waits for the outermost one to end): a
+// preview made inside a verb sees the interface its writes make.
+inline void settle_effects() { detail::settle_effects(); }
 
 // Reads inside `f` do not become dependencies.
 template <class F>

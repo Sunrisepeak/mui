@@ -340,6 +340,13 @@ std::expected<void, std::string> Desktop::open() {
     d.runtime->set_clipboard([] { return platform::clipboard(); }, [](std::string_view t) { platform::set_clipboard(t); });
     d.runtime->set_url_opener([](std::string_view url) { return platform::open_url(url); });
     d.runtime->set_file_offer([](const Runtime::OfferedFile& file) { return platform::save_download(file.name, file.bytes); });
+    // The system's file chooser and tray (W7: the SDK's System draws what is missing).
+    d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
+                                        return d.window && platform::choose_files(*d.window, choice, std::move(chosen));
+                                    },
+                                    .notify = {},
+                                    .tray = [](const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip,
+                                               std::function<void(std::string_view)> chosen) { return platform::tray(entries, tooltip, std::move(chosen)); }});
     d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {
         const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
         auto capture = agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);

@@ -80,6 +80,13 @@ bool open_url(std::string_view url);
 // A file given to the person: written to their Downloads folder (else their
 // home), a number added to its name when one is there already.
 bool save_download(std::string_view name, std::string_view bytes);
+// The system's file chooser (SDL3's: the desktop portal, Win32's, Cocoa's) over
+// the window; `chosen` is called once, on any thread (none: cancelled, or it
+// could not be shown). False: no chooser here.
+bool choose_files(Window& w, const Runtime::FileChoice& choice, Runtime::FilesChosen chosen);
+// A tray icon with a menu, replacing the one before (none: removed); choosing
+// an entry calls `chosen` with its verb. False: no tray here.
+bool tray(const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip, std::function<void(std::string_view verb)> chosen);
 // Wakes a poll that sleeps (from any thread).
 void wake();
 // The person's languages as the system states them, best first, as BCP 47

@@ -971,6 +971,9 @@ bool Runtime::open_url(std::string_view url) {
 
 void Runtime::set_url_opener(std::function<bool(std::string_view)> open) { impl_->url_opener = std::move(open); }
 
+void Runtime::set_native_surfaces(NativeSurfaces surfaces) { impl_->native_surfaces = std::move(surfaces); }
+const Runtime::NativeSurfaces& Runtime::native_surfaces() const noexcept { return impl_->native_surfaces; }
+
 const std::vector<std::string>& Runtime::opened() const noexcept { return impl_->opened; }
 
 bool Runtime::offer_file(OfferedFile file) {

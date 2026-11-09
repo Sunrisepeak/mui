@@ -626,6 +626,86 @@ void set_clipboard(std::string_view text) { SDL_SetClipboardText(std::string(tex
 
 bool open_url(std::string_view url) { return SDL_OpenURL(std::string(url).c_str()); }
 
+namespace {
+
+// A file choice in flight: its answer, and the filters' text SDL reads until it answers.
+struct Choosing {
+    Runtime::FilesChosen               chosen;
+    std::vector<std::string>           names, patterns;
+    std::vector<SDL_DialogFileFilter>  filters;
+    std::string                        start;
+};
+
+void answered(void* userdata, const char* const* files, int) {
+    const std::unique_ptr<Choosing> choosing(static_cast<Choosing*>(userdata));
+    std::vector<std::filesystem::path> paths;
+    if (!files) mlibs::log::warn("the file chooser could not be shown: {}", SDL_GetError());
+    else
+        for (const char* const* file = files; *file; ++file) paths.push_back(mcpplibs::os::fs::from_utf8(*file));
+    choosing->chosen(std::move(paths));
+}
+
+// The tray, and each entry's verb (an entry's callback is given its index).
+struct Tray {
+    SDL_Tray*                    tray = nullptr;
+    std::vector<std::string>     verbs;
+    std::vector<std::uintptr_t>  indices;
+    std::function<void(std::string_view)> chosen;
+};
+Tray the_tray;
+
+void tray_chosen(void* userdata, SDL_TrayEntry*) {
+    const auto index = reinterpret_cast<std::uintptr_t>(userdata);
+    if (index < the_tray.verbs.size() && the_tray.chosen) the_tray.chosen(the_tray.verbs[index]);
+}
+
+}  // namespace
+
+bool choose_files(Window& w, const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
+    if (!w.window) return false;
+    auto choosing = std::make_unique<Choosing>();
+    choosing->chosen = std::move(chosen);
+    for (const Runtime::FileFilter& filter : choice.filters) {
+        choosing->names.push_back(filter.name);
+        choosing->patterns.push_back(filter.pattern);
+    }
+    for (std::size_t index = 0; index < choosing->names.size(); ++index)
+        choosing->filters.push_back({choosing->names[index].c_str(), choosing->patterns[index].c_str()});
+    std::filesystem::path start = choice.start;
+    if (choice.kind == Runtime::FileChoice::Kind::save && !choice.name.empty()) start /= mcpplibs::os::fs::from_utf8(choice.name);
+    choosing->start = start.empty() ? std::string() : mcpplibs::os::fs::utf8(start);
+    const char* where = choosing->start.empty() ? nullptr : choosing->start.c_str();
+    const SDL_DialogFileFilter* filters = choosing->filters.empty() ? nullptr : choosing->filters.data();
+    const int count = static_cast<int>(choosing->filters.size());
+    Choosing* given = choosing.release();  // the answer frees it
+    switch (choice.kind) {
+    case Runtime::FileChoice::Kind::open: SDL_ShowOpenFileDialog(&answered, given, w.window, filters, count, where, choice.many); break;
+    case Runtime::FileChoice::Kind::save: SDL_ShowSaveFileDialog(&answered, given, w.window, filters, count, where); break;
+    case Runtime::FileChoice::Kind::folder: SDL_ShowOpenFolderDialog(&answered, given, w.window, where, false); break;
+    }
+    return true;
+}
+
+bool tray(const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip, std::function<void(std::string_view verb)> chosen) {
+    if (the_tray.tray) {
+        SDL_DestroyTray(the_tray.tray);
+        the_tray = {};
+    }
+    if (entries.empty()) return true;
+    the_tray.tray = SDL_CreateTray(nullptr, std::string(tooltip).c_str());
+    if (!the_tray.tray) return false;
+    the_tray.chosen = std::move(chosen);
+    SDL_TrayMenu* menu = SDL_CreateTrayMenu(the_tray.tray);
+    for (const Runtime::MenuEntry& entry : entries) {
+        const auto index = static_cast<std::uintptr_t>(the_tray.verbs.size());
+        the_tray.verbs.push_back(entry.verb);
+        SDL_TrayEntry* item = SDL_InsertTrayEntryAt(menu, -1, entry.label.c_str(),
+                                                    entry.checked ? (SDL_TRAYENTRY_CHECKBOX | SDL_TRAYENTRY_CHECKED) : SDL_TRAYENTRY_BUTTON);
+        if (item) SDL_SetTrayEntryCallback(item, &tray_chosen, reinterpret_cast<void*>(index));
+    }
+    return true;
+}
+
 bool save_download(std::string_view name, std::string_view bytes) {
     const char* folder = SDL_GetUserFolder(SDL_FOLDER_DOWNLOADS);
     if (!folder) folder = SDL_GetUserFolder(SDL_FOLDER_HOME);

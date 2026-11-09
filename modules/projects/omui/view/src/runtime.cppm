@@ -765,6 +765,41 @@ public:
     bool offer_file(OfferedFile file);
     void set_file_offer(std::function<bool(const OfferedFile&)> offer);
     [[nodiscard]] const std::deque<OfferedFile>& offered_files() const noexcept;
+    // The system's own surfaces where the host has them (W7, D-140): a file
+    // chooser, a notification, a tray icon's menu. Each answers false when it
+    // is not there after all; what is missing is drawn by the interface
+    // instead (the SDK's System), the same on every platform.
+    struct FileFilter {
+        std::string name;     // "Pictures"
+        std::string pattern;  // "png;jpg": extensions, `;`-separated ("*": all)
+    };
+    struct FileChoice {
+        enum class Kind : std::uint8_t { open, save, folder };
+        Kind                    kind = Kind::open;
+        std::string             title;
+        std::vector<FileFilter> filters;
+        bool                    many = false;  // open: several files
+        std::filesystem::path   start;         // where it begins (default: the working directory)
+        std::string             name;          // save: the name offered
+    };
+    using FilesChosen = std::function<void(std::vector<std::filesystem::path>)>;  // none: cancelled
+    struct Notice {
+        std::string title, body;
+        std::string verb;  // pressed: the application's verb it invokes (none: it only tells)
+    };
+    struct MenuEntry {
+        std::string label;
+        std::string verb;  // what choosing it invokes
+        bool        checked = false;
+    };
+    struct NativeSurfaces {
+        // `chosen` may be called on another thread: post it (queue()).
+        std::function<bool(const FileChoice&, FilesChosen chosen)> choose_files;
+        std::function<bool(const Notice&)>                          notify;
+        std::function<bool(const std::vector<MenuEntry>&, std::string_view tooltip, std::function<void(std::string_view verb)> chosen)> tray;
+    };
+    void set_native_surfaces(NativeSurfaces surfaces);
+    [[nodiscard]] const NativeSurfaces& native_surfaces() const noexcept;
     // What is drawn now as SVG (each node's drawing marked by its path), over
     // `region` (logical pixels; the window when none), where the host can say
     // it in vectors (agent::vector_capture); why not, otherwise.

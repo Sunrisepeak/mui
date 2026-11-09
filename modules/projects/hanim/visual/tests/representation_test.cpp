@@ -105,6 +105,27 @@ int main(int argc, char** argv) {
         check(shrinking, "a going ring is undrawn");
     });
 
+    suite.test("an appearing fill is written too: its outline drawn along its length first, then the fill coming in, then the fill itself", [] {
+        auto options = linear();
+        options.appear = *hanim::presence("write_in");
+        const mo::Morph morph(mo::Matter::extract(blank(), resolver()), mo::Matter::extract(card(), resolver()), options, 0);
+        const auto at = [&](double time) {
+            std::optional<float> outline;
+            bool fill = false;
+            for (const auto& command : drawn(morph, time).commands()) {
+                if (const auto* stroke = std::get_if<xrender::StrokePath>(&command)) outline = stroke->style.trim_end;
+                fill = fill || std::holds_alternative<xrender::FillRect>(command);
+            }
+            return std::pair{outline, fill};
+        };
+        const auto [early_line, early_fill] = at(0.3);
+        check(early_line && std::abs(*early_line - 0.5f) < 1e-5 && !early_fill, "at 0.3 half the outline, no fill yet");
+        const auto [late_line, late_fill] = at(0.8);
+        check(late_line && *late_line == 1 && late_fill, "at 0.8 the whole outline, the fill coming in");
+        const auto [rest_line, rest_fill] = at(1.5);
+        check(!rest_line && rest_fill, "at rest the fill as drawn, no outline");
+    });
+
     suite.test("what appears drops in, flattens about its bottom as it lands, and rests exactly",
                [] {
                    auto options = linear();

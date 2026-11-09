@@ -277,6 +277,20 @@ struct Emitter {
     DrawProof*        proof = nullptr;
     // Strokes drawn from trim start to trim end (a written stroke), when set.
     std::optional<std::array<float, 2>> trim;
+    // A fill drawn as its outline instead, trimmed (a written fill's first stroke).
+    bool outline = false;
+    static constexpr float outline_width = 1.5f;
+
+    // A fill's outline, written from trim start to trim end, in its paint.
+    void outlined(const Path& shape, const Paint& paint, float opacity) {
+        const StrokeStyle style{.width = outline_width, .trim_start = (*trim)[0], .trim_end = (*trim)[1]};
+        if (auto p = faded(paint, opacity)) out.stroke_path(shape, style, *p);
+        else {
+            out.push_layer(opacity);
+            out.stroke_path(shape, style, paint);
+            out.pop_layer();
+        }
+    }
 
     // The piece's clips (as `m` holds them) and then its transform.
     Pushes enter(const Matter& m, int clip, const Affine& t, bool transient = true) {
@@ -329,10 +343,18 @@ struct Emitter {
                     out.pop_layer();
                 };
                 if constexpr (std::same_as<T, FillRect>) {
-                    if (auto p = faded(cmd.paint, opacity)) out.fill_rect(cmd.rect, *p);
+                    if (outline && trim) {
+                        Path shape;
+                        shape.add_rect(cmd.rect);
+                        outlined(shape, cmd.paint, opacity);
+                    } else if (auto p = faded(cmd.paint, opacity)) out.fill_rect(cmd.rect, *p);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, FillRoundRect>) {
-                    if (auto p = faded(cmd.paint, opacity)) out.fill_round_rect(cmd.rect, cmd.radii, *p);
+                    if (outline && trim) {
+                        Path shape;
+                        shape.add_rounded_rect(cmd.rect, cmd.radii);
+                        outlined(shape, cmd.paint, opacity);
+                    } else if (auto p = faded(cmd.paint, opacity)) out.fill_round_rect(cmd.rect, cmd.radii, *p);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, StrokeRoundRect>) {
                     if (trim) {  // written: its outline as a path, trimmed (a rounded rectangle starts at its top-left)
@@ -363,7 +385,8 @@ struct Emitter {
                     else if (auto p = faded(cmd.paint, opacity)) out.stroke_path(path_of(cmd.path), cmd.style, *p);
                     else layered([&] { out.append_command(c); });
                 } else if constexpr (std::same_as<T, FillPath>) {
-                    if (opacity >= 1) out.append_command(c);
+                    if (outline && trim) outlined(path_of(cmd.path), cmd.paint, opacity);
+                    else if (opacity >= 1) out.append_command(c);
                     else if (auto p = faded(cmd.paint, opacity)) out.fill_path(path_of(cmd.path), cmd.rule, *p);
                     else layered([&] { out.append_command(c); });
                 } else {
@@ -1432,6 +1455,11 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         const auto& command = matter.list().commands()[piece.command];
         return std::holds_alternative<StrokePath>(command) || std::holds_alternative<StrokeRoundRect>(command);
     };
+    auto filled = [](const Matter& matter, const Piece& piece) {
+        if (piece.cls == PieceClass::group) return false;
+        const auto& command = matter.list().commands()[piece.command];
+        return std::holds_alternative<FillRect>(command) || std::holds_alternative<FillRoundRect>(command) || std::holds_alternative<FillPath>(command);
+    };
     // A moving piece's translation along the translation path (the morph's own curve otherwise).
     auto travelled = [&](Affine moving, const Affine& from, const Affine& to, double k) {
         if (options_.translation_path.linear()) return moving;
@@ -1565,6 +1593,21 @@ void Morph::draw(double t, DisplayList& out, const NestedDraw& nested, bool snap
         // A group of a nested root is inside its own marker already.
         e.begin(pb.cls == PieceClass::group && pb.nested ? 0 : marker_b(pb));
         if (p.a < 0) {  // only in the second: appearing where it is (from below, smaller, when it is asked to)
+            if (options_.appear.writes && k < 1 && filled(to_, pb)) {
+                // A fill written: its outline drawn along its length first, then the fill coming in over it.
+                const Affine arrival = shaped(1 - clamp01(u), pb.bounds) * pb.transform;
+                const double line = std::clamp(k / 0.6, 0.0, 1.0), fill = std::clamp((k - 0.45) / 0.55, 0.0, 1.0);
+                if (k > 0) {
+                    e.trim = std::array<float, 2>{0, static_cast<float>(line)};
+                    e.outline = true;
+                    e.piece(to_, pb, arrival, pb.opacity, true, true);
+                    e.outline = false;
+                    e.trim.reset();
+                }
+                if (fill > 0) e.piece(to_, pb, arrival, static_cast<float>(pb.opacity * fill), true, true);
+                e.end();
+                continue;
+            }
             const bool written = options_.appear.writes && k < 1 && stroked(to_, pb);  // settled: the stroke itself
             const bool falling = drop_of(options_) > 0;
             const Affine arrival = falling ? dropped(k) : shaped(1 - clamp01(u), pb.bounds);

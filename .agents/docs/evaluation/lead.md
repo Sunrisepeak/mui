@@ -1,6 +1,6 @@
 # 领先度（lead）
 
-由 `tools/eval/lead.py summary` 从台账生成（2026-11-08）。判定规则见第二部分方案 §2.2。
+由 `tools/eval/lead.py summary` 从台账生成（2026-11-09）。判定规则见第二部分方案 §2.2。
 
 ## 指标
 
@@ -13,11 +13,11 @@
 | hanim | motion.document.bytes | — | lottie, rive | — | planned |
 | hanim | motion.playback.ms | — | rive, lottie-web | — | planned |
 | hanim | motion.gpu.morph-1m.ms | — | hanim-cpu | — | pending_hardware |
-| xrender | raster.fills-1000.median_ms | xrender 10.691 | skia 11.758 | 1.11× [1.08, 1.13] | par |
-| xrender | raster.gradients-200.median_ms | xrender 5.515 | skia 7.313 | 1.33× [1.30, 1.35] | ahead |
-| xrender | raster.small-5000.median_ms | xrender 2.297 | resvg 7.464 | 3.27× [3.24, 3.30] | ahead |
-| xrender | raster.strokes-500.median_ms | xrender 13.595 | skia 10.298 | 0.76× [0.75, 0.77] | behind |
-| xrender | raster.joins-300.median_ms | xrender 13.821 | skia 10.242 | 0.75× [0.74, 0.76] | behind |
+| xrender | raster.fills-1000.median_ms | xrender 8.903 | skia 11.611 | 1.30× [1.30, 1.33] | ahead |
+| xrender | raster.gradients-200.median_ms | xrender 5.346 | skia 7.161 | 1.35× [1.34, 1.37] | ahead |
+| xrender | raster.small-5000.median_ms | xrender 1.877 | resvg 7.429 | 3.96× [3.94, 4.01] | ahead |
+| xrender | raster.strokes-500.median_ms | xrender 10.427 | skia 10.271 | 1.00× [0.98, 1.02] | par |
+| xrender | raster.joins-300.median_ms | xrender 9.395 | skia 10.164 | 1.09× [1.07, 1.13] | par |
 | xrender | raster.fills-1000.error | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | ahead |
 | xrender | raster.gradients-200.error | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | par |
 | xrender | raster.small-5000.error | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | ahead |
@@ -66,8 +66,8 @@
 | omui.components | omui.canvas-objects 组件即画布对象：缩小后依然是活的 | craft | planned | — |
 | omui.components | omui.style-packs 风格包同时改变质感和动效配方 | craft | planned | — |
 | omui.components | H.components Agent 批量做出带全部状态、动效、无障碍和契约的组件变体，人并排挑选和微调 | build-reliably | planned | — |
-| hanim | F AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入 | build-reliably | planned | — |
-| hanim | H Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调 | build-reliably | planned | — |
+| hanim | F AI 产出可编辑的动画程序：读回计划、精确修改、确定、可嵌入 | build-reliably | evidence | — |
+| hanim | H Agent 驱动的设计与动效工作台：分支方案、画面指认、参数微调 | build-reliably | evidence | — |
 | hanim | hanim.one-engine 一个引擎服务 UI、视频和游戏，三处逐位一致 | craft | planned | — |
 | hanim | hanim.morph 跨表示、拓扑对齐的形变 | craft | evidence | ahead |
 | hanim | hanim.composable 可组合：叶子、组合、配方同一种值；配方 id 进入规范 | foundation | planned | — |

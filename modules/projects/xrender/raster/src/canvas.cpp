@@ -171,12 +171,7 @@ namespace {
 }
 
 // Source-over of s onto d; an opaque source replaces (s + d·0 = s exactly).
-[[gnu::always_inline]] inline Rgba8 over(Rgba8 d, Rgba8 s) noexcept {
-    if (s.a == 255) return s;
-    const std::uint32_t inv = 255u - s.a;
-    return {static_cast<std::uint8_t>(s.r + mul255(d.r, inv)), static_cast<std::uint8_t>(s.g + mul255(d.g, inv)),
-            static_cast<std::uint8_t>(s.b + mul255(d.b, inv)), static_cast<std::uint8_t>(s.a + mul255(d.a, inv))};
-}
+[[gnu::always_inline]] inline Rgba8 over(Rgba8 d, Rgba8 s) noexcept { return over_scalar(d, s); }
 
 }  // namespace
 
@@ -319,6 +314,30 @@ void Canvas::composite_runs(FillRule rule, const Shading& shader) {
     const bool solid = shader.solid();
     const Rgba8 sc = shader.solid_color();
     if (solid && sc == Rgba8{}) return;
+    if (solid && !c.mask) {
+        // One colour, no mask: a shape's inside as runs, its edges a stretch at a time (:blend's widest path).
+        rasterizer_.rasterize_rows(polygons_, rule, box, [&](std::int32_t y, std::int32_t x, std::int32_t length, std::uint8_t value, const std::uint8_t* values) {
+            if (y < box.y || y >= box.y + box.height) return;
+            const std::int32_t x0 = std::max(x, box.x), x1 = std::min(x + length, box.x + box.width);
+            if (x1 <= x0) return;
+            const std::int32_t n = x1 - x0;
+            Rgba8* out = dst.row(y) + x0;
+            std::uint32_t* id = ids ? ids_.data() + static_cast<std::size_t>(y) * base_->width() + x0 : nullptr;
+            if (!values) {
+                const Rgba8 s = scaled(sc, value);
+                if (s == Rgba8{}) return;
+                over_run(out, n, s);
+                if (id && value >= 128) std::fill_n(id, n, object_id_);
+                return;
+            }
+            const std::uint8_t* coverage = values + (x0 - x);
+            over_coverage(out, n, sc, coverage);
+            if (id)
+                for (std::int32_t i = 0; i < n; ++i)
+                    if (coverage[i] >= 128) id[i] = object_id_;
+        });
+        return;
+    }
     rasterizer_.rasterize_runs(polygons_, rule, box, [&](std::int32_t y, std::int32_t x, std::int32_t length, std::uint8_t value) {
         if (y < box.y || y >= box.y + box.height) return;
         const std::int32_t x0 = std::max(x, box.x), x1 = std::min(x + length, box.x + box.width);
@@ -352,9 +371,7 @@ void Canvas::composite_runs(FillRule rule, const Shading& shader) {
         if (solid) {
             const Rgba8 s = scaled(sc, k);
             if (s == Rgba8{}) return;
-            if (s.a == 255) std::fill_n(out, n, s);
-            else
-                for (std::int32_t i = 0; i < n; ++i) out[i] = over(out[i], s);
+            over_run(out, n, s);
         } else {
             for (std::int32_t i = 0; i < n; ++i) {
                 const Rgba8 s = scaled(row_[static_cast<std::size_t>(i)], k);

@@ -69,7 +69,7 @@ std::int64_t floor_div(std::int64_t a, std::int64_t b) {
 // visits the marked columns alone, a word of 64 at a time, and leaves the
 // cells and bits zero again. What lies right of the clip (the extra column)
 // changes no visible pixel, so it is not kept.
-void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
+[[gnu::always_inline]] inline void Rasterizer::cell(std::int32_t ex, std::int32_t ey, std::int32_t cover, std::int32_t area) {
     if (ey < 0 || ey >= height_ || ex >= width_) return;
     if (ex < 0) ex = 0;
     Cell& at = cells_[static_cast<std::size_t>(ey) * static_cast<std::size_t>(width_) + static_cast<std::size_t>(ex)];

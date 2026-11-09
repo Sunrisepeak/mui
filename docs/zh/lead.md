@@ -1,6 +1,6 @@
 # 领先度：和最强的比
 
-每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-08）。
+每个指标都是我们对最强竞品，在同一台机器、同一个作业里交替测量；判定看比值的 95% 区间：低于 0.95× 为落后，到 1.2× 为持平，1.2× 起为领先，10× 起或竞品做不到为远超。落后的照样列在这里；没有设备测的如实写明。由领先度台账生成（2026-11-09）。
 
 ## 指标
 
@@ -13,11 +13,11 @@
 | hanim | `motion.document.bytes` | — | lottie, rive | — | 计划中 |
 | hanim | `motion.playback.ms` | — | rive, lottie-web | — | 计划中 |
 | hanim | `motion.gpu.morph-1m.ms` | — | hanim-cpu | — | 待真机验证 |
-| xrender | `raster.fills-1000.median_ms` | xrender 10.691 | skia 11.758 | 1.11× [1.08, 1.13] | **par** |
-| xrender | `raster.gradients-200.median_ms` | xrender 5.515 | skia 7.313 | 1.33× [1.30, 1.35] | **ahead** |
-| xrender | `raster.small-5000.median_ms` | xrender 2.297 | resvg 7.464 | 3.27× [3.24, 3.30] | **ahead** |
-| xrender | `raster.strokes-500.median_ms` | xrender 13.595 | skia 10.298 | 0.76× [0.75, 0.77] | **behind** |
-| xrender | `raster.joins-300.median_ms` | xrender 13.821 | skia 10.242 | 0.75× [0.74, 0.76] | **behind** |
+| xrender | `raster.fills-1000.median_ms` | xrender 8.903 | skia 11.611 | 1.30× [1.30, 1.33] | **ahead** |
+| xrender | `raster.gradients-200.median_ms` | xrender 5.346 | skia 7.161 | 1.35× [1.34, 1.37] | **ahead** |
+| xrender | `raster.small-5000.median_ms` | xrender 1.877 | resvg 7.429 | 3.96× [3.94, 4.01] | **ahead** |
+| xrender | `raster.strokes-500.median_ms` | xrender 10.427 | skia 10.271 | 1.00× [0.98, 1.02] | **par** |
+| xrender | `raster.joins-300.median_ms` | xrender 9.395 | skia 10.164 | 1.09× [1.07, 1.13] | **par** |
 | xrender | `raster.fills-1000.error` | xrender 0.339 | resvg 0.627 | 1.85× [1.85, 1.85] | **ahead** |
 | xrender | `raster.gradients-200.error` | xrender 0.28 | resvg 0.27 | 0.96× [0.96, 0.96] | **par** |
 | xrender | `raster.small-5000.error` | xrender 0.188 | resvg 0.255 | 1.36× [1.36, 1.36] | **ahead** |

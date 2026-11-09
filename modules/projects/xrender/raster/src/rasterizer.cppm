@@ -87,7 +87,93 @@ public:
         });
     }
 
+    // The same coverage, a row's short pieces gathered: emit(row, column,
+    // count, value, values) — `values` null for a run of `value` (long runs:
+    // a shape's inside), else the coverage of each of `count` pixels (the
+    // edge cells and the short runs between them, together), for a caller
+    // that composites a stretch of varying coverage at once.
+    template <class Emit>
+    void rasterize_rows(const Polygons& polygons, FillRule rule, PixelRect clip, Emit&& emit) {
+        if (!prepare(polygons, clip)) return;
+        const std::int32_t step = band_rows();
+        if (row_pieces_.size() < static_cast<std::size_t>(width_)) row_pieces_.resize(static_cast<std::size_t>(width_));
+        for (std::int32_t first = 0; first < box_height_; first += step) {
+            band(polygons, first, std::min(step, box_height_ - first));
+            sweep_rows(rule, emit);
+        }
+    }
+
 private:
+    // sweep's coverage, a row at a time: a piece of varying coverage is
+    // written in place (row_pieces_, a byte a column) and given whole; a run
+    // of one value at least long_run pixels (a shape's inside) as a run.
+    template <class Emit>
+    void sweep_rows(FillRule rule, Emit&& emit) {
+        constexpr std::int32_t long_run = 16;
+        auto value = [rule](std::int64_t v) -> std::uint8_t {
+            if (v < 0) v = -v;
+            std::int64_t c = v >> 9;
+            if (rule == FillRule::even_odd) {
+                c &= 511;
+                if (c > 256) c = 512 - c;
+            }
+            return static_cast<std::uint8_t>(c > 255 ? 255 : c);
+        };
+        std::uint8_t* piece = row_pieces_.data();
+        for (std::int32_t y = 0; y < height_; ++y) {
+            Cell* row = cells_.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(width_);
+            std::uint64_t* marks = marked_.data() + static_cast<std::size_t>(y) * static_cast<std::size_t>(words_);
+            const std::int32_t device_row = y + min_y_;
+            std::int64_t acc = 0;
+            std::int32_t x = 0;            // the next pixel not yet given
+            std::int32_t piece_from = -1, piece_end = 0;  // the piece being gathered (from −1: none)
+            const auto flush = [&] {
+                if (piece_from >= 0) emit(device_row, piece_from + min_x_, piece_end - piece_from, std::uint8_t{0}, piece + piece_from);
+                piece_from = -1;
+            };
+            const auto gather = [&](std::int32_t from, std::int32_t to) {
+                if (piece_from < 0) piece_from = from;
+                piece_end = to;
+            };
+            // The pixels from x to `to`, all of one value.
+            const auto between = [&](std::int32_t to, std::uint8_t v) {
+                const std::int32_t count = to - x;
+                if (count <= 0) return;
+                if (v == 0) {
+                    flush();
+                } else if (count >= long_run) {
+                    flush();
+                    emit(device_row, x + min_x_, count, v, static_cast<const std::uint8_t*>(nullptr));
+                } else {
+                    std::memset(piece + x, v, static_cast<std::size_t>(count));
+                    gather(x, to);
+                }
+            };
+            for (std::int32_t word = 0; word < words_; ++word) {
+                std::uint64_t bits = std::exchange(marks[word], 0);
+                while (bits != 0) {
+                    const std::int32_t column = word * 64 + std::countr_zero(bits);
+                    bits &= bits - 1;
+                    const Cell c = std::exchange(row[column], Cell{});
+                    between(column, value(acc << 9));
+                    acc += c.cover;
+                    const std::uint8_t v = value((acc << 9) - c.area);
+                    if (v == 0) {
+                        flush();
+                    } else {
+                        piece[column] = v;
+                        gather(column, column + 1);
+                    }
+                    x = column + 1;
+                }
+            }
+            between(width_, value(acc << 9));
+            flush();
+        }
+    }
+
+private:
+    std::vector<std::uint8_t> row_pieces_;  // rasterize_rows's gathered piece
     struct Cell {
         std::int32_t cover = 0, area = 0;
     };

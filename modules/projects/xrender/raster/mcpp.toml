@@ -20,6 +20,14 @@ kind = "lib"
 sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
+# The compositing loops (:blend): AVX2 chosen at run time on x86-64, the
+# scalar reference elsewhere — the same bytes either way (W6, D-143).
+[target.'cfg(arch = "x86_64")'.build]
+sources = ["src/native/x86/*.cpp"]
+
+[target.'cfg(not(arch = "x86_64"))'.build]
+sources = ["src/native/portable/*.cpp"]
+
 [dependencies]
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.geom = { path = "../../../base/geom" }

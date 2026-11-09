@@ -4,6 +4,7 @@
 //   :rasterizer  paths to anti-aliased coverage in exact integer arithmetic
 //   :paint       solid colours, gradients, image patterns
 //   :stroke      stroke outlines: joins, caps, dashes
+//   :blend       the compositing loops of a run, AVX2 where the machine has it
 //   :canvas      compositing, clips, layers with blend modes, shadows,
 //                images, the object-id buffer
 //
@@ -15,4 +16,5 @@ export import :surface;
 export import :rasterizer;
 export import :paint;
 export import :stroke;
+export import :blend;
 export import :canvas;

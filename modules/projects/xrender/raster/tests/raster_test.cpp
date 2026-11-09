@@ -34,6 +34,62 @@ int at(const raster::Coverage& c, int x, int y) {
 
 UTest cases{"raster", [] {
 
+    "a run composited on the widest path is the scalar reference's bytes: every channel against every alpha, and runs of every length"_test = [] {
+        // Every destination byte against every source alpha (the channel's own value at most the alpha: premultiplied).
+        std::vector<raster::Rgba8> wide, reference;
+        for (int alpha = 0; alpha < 255; ++alpha) {
+            const raster::Rgba8 source{static_cast<std::uint8_t>(alpha / 3), static_cast<std::uint8_t>(alpha / 2), static_cast<std::uint8_t>(alpha),
+                                       static_cast<std::uint8_t>(alpha)};
+            wide.clear();
+            for (int value = 0; value < 256; ++value)
+                wide.push_back({static_cast<std::uint8_t>(value), static_cast<std::uint8_t>(255 - value), static_cast<std::uint8_t>(value / 2),
+                                static_cast<std::uint8_t>(value)});
+            reference = wide;
+            raster::over_run(wide.data(), static_cast<std::int32_t>(wide.size()), source);
+            raster::over_run_reference(reference.data(), static_cast<std::int32_t>(reference.size()), source);
+            if (wide != reference) {
+                expect(false) << std::format("alpha {} on the {} path", alpha, raster::blend_path());
+                break;
+            }
+        }
+        // Runs of every length from 0 to 40 (the wide loop's body and its tail), on random pixels.
+        std::mt19937 random(7);
+        for (std::int32_t length = 0; length <= 40; ++length) {
+            std::vector<raster::Rgba8> row(static_cast<std::size_t>(length) + 2);
+            for (auto& pixel : row) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                             static_cast<std::uint8_t>(random())};
+            auto expected_row = row;
+            const raster::Rgba8 source{40, 20, 90, 120};
+            raster::over_run(row.data() + 1, length, source);
+            raster::over_run_reference(expected_row.data() + 1, length, source);
+            expect(row == expected_row) << std::format("a run of {} on the {} path", length, raster::blend_path());
+        }
+        // Varying coverage: every coverage against a few colours, on random pixels, runs of every length to 40.
+        for (const raster::Rgba8 source : {raster::Rgba8{200, 10, 90, 255}, raster::Rgba8{40, 20, 90, 120}, raster::Rgba8{0, 0, 0, 1}, raster::Rgba8{3, 2, 1, 4}}) {
+            std::vector<std::uint8_t> coverage(256);
+            for (int value = 0; value < 256; ++value) coverage[static_cast<std::size_t>(value)] = static_cast<std::uint8_t>(value);
+            std::vector<raster::Rgba8> row(256);
+            for (auto& pixel : row) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                             static_cast<std::uint8_t>(random())};
+            auto expected_row = row;
+            raster::over_coverage(row.data(), 256, source, coverage.data());
+            raster::over_coverage_reference(expected_row.data(), 256, source, coverage.data());
+            expect(row == expected_row) << std::format("coverage 0…255 of ({}, {}, {}, {})", source.r, source.g, source.b, source.a);
+            for (std::int32_t length = 0; length <= 40; ++length) {
+                std::vector<raster::Rgba8> run(static_cast<std::size_t>(length));
+                std::vector<std::uint8_t> covered(static_cast<std::size_t>(length));
+                for (auto& pixel : run) pixel = {static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()), static_cast<std::uint8_t>(random()),
+                                                 static_cast<std::uint8_t>(random())};
+                for (auto& value : covered) value = static_cast<std::uint8_t>(random());
+                auto expected_run = run;
+                raster::over_coverage(run.data(), length, source, covered.data());
+                raster::over_coverage_reference(expected_run.data(), length, source, covered.data());
+                expect(run == expected_run) << std::format("coverage, a run of {}", length);
+            }
+        }
+        std::println("blend path here: {}", raster::blend_path());
+    };
+
     "an integer square covers exactly its pixels"_test = [] {
         raster::PathBuilder pb;
         pb.rect({4, 4, 10, 10});

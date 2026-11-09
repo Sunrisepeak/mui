@@ -902,7 +902,11 @@ my-app/
   - 说明：方案里写的是“A2UI 1.0”，目前公开的是 v0.8 的消息格式，这里按 v0.8 实现。
   - 验收：generation_test 用一段订座流：先发组件和数据（不渲染）；beginRendering 后提交并显示（滑块取数据里的 2）；人按下 Book，`generate.actions` 交回 action 和 context；之后的更新成为版本 2；未读取的组件和缺失的组件被指名；deleteSurface 可以撤销。
 - 第 2 步（签名包）需要一个 Ed25519 实现：mcpp-index 里的 compat.openssl 不支持 Windows 和 Web，compat.mbedtls 没有 EdDSA。可选的做法是把 monocypher（CC0/BSD-2）按 mwrap 包成 mcpplibs 的新仓库并发布到 mcpp-index——这要新建对外仓库，先请维护者确认。
-- 下一块：动作提取为技能（第 5 步）；读写集合（第 6 步）。
+- 第六块完成（第 5、6 步在界面生成上的部分）：
+  - 复用：`generate.keep` 把某个版本按名字保存为可复用的部件（piece），`generate.pieces` 列出，`generate.draft {piece}` 在任意表面重新起草（照常重新校验），`generate.forget` 删除；部件和版本一样保存在目录里。
+  - 读写集合：每个草稿记录它基于表面的哪个版本，以及读取的宿主 signal、调用的动词和写入的表面；提交时如果表面已经变到别的版本，按冲突拒绝（说明两边的版本），除非 `over` 明确要求覆盖。实时数据（signal 的值）不算结构版本，不会让草稿过期。
+  - PPet 的“动作提取为技能”（角色动作组）要等 PPet 本身出现时在 xengine 一侧实现；界面这一侧的复用已经就位。
+- 目录现在是 13 个操作（MCP 共 64 个工具）。
 
 **W6 性能证据（E1、E2、E3、D-143）**
 1. AVX2 运行时分派，追平描边和连接。

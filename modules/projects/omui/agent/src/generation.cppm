@@ -96,6 +96,9 @@ public:
     VerbResult discard(const Value& args);
     VerbResult a2ui(const Value& args);
     VerbResult actions(const Value& args) const;
+    VerbResult keep(const Value& args);
+    VerbResult pieces() const;
+    VerbResult forget(const Value& args);
 
     struct Impl;
 

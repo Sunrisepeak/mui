@@ -43,6 +43,20 @@ void count(const viewdoc::Node& node, Census& out) {
     for (const viewdoc::Node& child : node.otherwise) count(child, out);
 }
 
+// What a document reads and writes beyond itself (PPet §7.2): the host's signals it binds to,
+// the verbs it invokes, the surface it fills.
+Value read_write_set(const viewdoc::Document& document, std::string_view surface) {
+    Census census;
+    count(document.root, census);
+    Value::List provided, verbs;
+    for (const viewdoc::SignalDecl& signal : document.signals)
+        if (signal.provided) provided.push_back(Value(signal.name));
+    for (const std::string& verb : census.verbs) verbs.push_back(Value(verb));
+    return Value{}
+        .set("reads", Value{}.set("signals", Value(std::move(provided))).set("verbs", Value(std::move(verbs))))
+        .set("writes", Value{}.set("surface", std::string(surface)));
+}
+
 }  // namespace
 
 std::string_view openness_name(Openness openness) noexcept {
@@ -66,7 +80,13 @@ struct Generation::Impl {
         std::string   id, surface, document, actor;
         Stage         stage = Stage::validated;
         viewdoc::View view;
+        std::size_t   base = 0;  // the surface's version it was made over (its read set: what a commit checks)
     };
+    // A piece kept for reuse (generate.keep): its document, checked again whenever it is drafted.
+    struct Piece {
+        std::string name, document, doc, actor, from;
+    };
+    std::map<std::string, Piece, std::less<>> pieces;
     struct Version {
         std::size_t   number = 0;
         std::string   document, actor, draft;
@@ -290,6 +310,10 @@ struct Generation::Impl {
             auto made = options.evaluate(language, code);
             if (!made) return std::unexpected(std::format("the code did not make a document: {}", made.error()));
             document = std::move(*made);
+        } else if (const std::string piece = text_arg(args, "piece"); !piece.empty()) {
+            const auto kept = pieces.find(piece);
+            if (kept == pieces.end()) return std::unexpected(std::format("no piece `{}` (generate.pieces lists them)", piece));
+            document = kept->second.document;
         } else if (const Value* given = args.get("document"); given && given->map()) {
             document = given->json();
         } else if (given && given->type() == Value::Type::text) {
@@ -312,8 +336,16 @@ struct Generation::Impl {
         view->on_any([alive, surface](std::string_view event, const Value& emitted) {
             if (auto impl = alive.lock()) impl->acted(surface, event, emitted);
         });
-        drafts.insert_or_assign(id, Draft{id, surface, document, actor_now(runtime), Stage::prepared, std::move(*view)});
-        return Value{}.set("draft", id).set("surface", surface).set("stage", "prepared").set("bytes", static_cast<std::int64_t>(document.size()));
+        const std::size_t base = surfaces.find(surface)->second.current;
+        Value answer = Value{}
+                           .set("draft", id)
+                           .set("surface", surface)
+                           .set("stage", "prepared")
+                           .set("bytes", static_cast<std::int64_t>(document.size()))
+                           .set("over", static_cast<std::int64_t>(base))
+                           .set("set", read_write_set(view->document(), surface));
+        drafts.insert_or_assign(id, Draft{id, surface, document, actor_now(runtime), Stage::prepared, std::move(*view), base});
+        return answer;
     }
 
     VerbResult preview(const Value& args) {
@@ -361,6 +393,10 @@ struct Generation::Impl {
         Draft& draft = **found;
         if (!runtime.claimed(draft.surface)) return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
         Shown& shown = surfaces.find(draft.surface)->second;
+        if (shown.current != draft.base && !(args.get("over") && args.get("over")->as_bool()))
+            return std::unexpected(std::format("conflict: `{}` shows version {} now; the draft was made over version {} — draft it again over what is there, "
+                                               "or commit with `over` to replace it",
+                                               draft.surface, shown.current, draft.base));
         const std::size_t before = shown.current, number = shown.versions.size() + 1;
         shown.versions.push_back({number, draft.document, actor_now(runtime), draft.id, runtime.now().count(), draft.view});
         const std::string surface = draft.surface, id = draft.id;
@@ -472,6 +508,61 @@ struct Generation::Impl {
         return Value{}.set("actions", Value(std::move(list))).set("last", next_action - 1);
     }
 
+    // ── pieces kept for reuse ──
+    void keep_pieces() const {
+        if (options.directory.empty()) return;
+        std::error_code error;
+        std::filesystem::create_directories(options.directory, error);
+        Value::List list;
+        for (const auto& [name, piece] : pieces)
+            list.push_back(Value{}.set("name", name).set("doc", piece.doc).set("actor", piece.actor).set("from", piece.from)
+                               .set("document", parse_json(piece.document).value_or(Value{})));
+        (void)mcpplibs::os::fs::write_atomic(options.directory / "pieces.json", Value{}.set("pieces", Value(std::move(list))).json());
+    }
+
+    void read_pieces() {
+        if (options.directory.empty()) return;
+        auto text = mcpplibs::os::fs::read(options.directory / "pieces.json");
+        if (!text) return;
+        const auto kept = parse_json(*text);
+        const Value* list = kept ? kept->get("pieces") : nullptr;
+        if (!list || !list->list()) return;
+        for (const Value& entry : *list->list())
+            if (const Value* document = entry.get("document"); document && document->map())
+                pieces.insert_or_assign(text_arg(entry, "name"),
+                                        Piece{text_arg(entry, "name"), document->json(), text_arg(entry, "doc"), text_arg(entry, "actor"), text_arg(entry, "from")});
+    }
+
+    VerbResult keep_piece(const Value& args) {
+        const std::string surface = text_arg(args, "surface"), name = text_arg(args, "name");
+        auto known = surface_of(surface);
+        if (!known) return std::unexpected(known.error());
+        if (name.empty() || !std::ranges::all_of(name, [](char c) { return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_'; }))
+            return std::unexpected(std::string("a piece's name is lower-case words joined by _"));
+        const Value* given = args.get("version");
+        const std::size_t version = given && given->is_number() ? static_cast<std::size_t>(given->as_int()) : (*known)->current;
+        if (version == 0 || version > (*known)->versions.size() || (*known)->versions[version - 1].document.empty())
+            return std::unexpected(std::format("`{}` has no version {} to keep", surface, version));
+        const std::string from = std::format("{} version {}", surface, version);
+        pieces.insert_or_assign(name, Piece{name, (*known)->versions[version - 1].document, text_arg(args, "doc"), actor_now(runtime), from});
+        keep_pieces();
+        return Value{}.set("piece", name).set("from", from);
+    }
+
+    Value pieces_value() const {
+        Value::List list;
+        for (const auto& [name, piece] : pieces)
+            list.push_back(Value{}.set("name", name).set("doc", piece.doc).set("actor", piece.actor).set("from", piece.from));
+        return Value{}.set("pieces", Value(std::move(list)));
+    }
+
+    VerbResult forget(const Value& args) {
+        const std::string name = text_arg(args, "name");
+        if (!pieces.erase(name)) return std::unexpected(std::format("no piece `{}` (generate.pieces lists them)", name));
+        keep_pieces();
+        return Value{}.set("piece", name).set("forgotten", true);
+    }
+
     Value drafts_value() const {
         Value::List list;
         for (const auto& [id, draft] : drafts)
@@ -482,6 +573,7 @@ struct Generation::Impl {
 
 Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std::make_shared<Impl>(runtime, std::move(options))) {
     impl_->restart(impl_);
+    impl_->read_pieces();
     const auto add = [&](std::string_view name, VerbFn fn) {
         const auto entry = std::ranges::find(generate::catalog, name, [](const auto& op) { return op.operation.name; });
         if (entry == generate::catalog.end()) return;
@@ -497,6 +589,9 @@ Generation::Generation(Runtime& runtime, GenerationOptions options) : impl_(std:
     add("generate.discard", [this](const Value& args) { return discard(args); });
     add("generate.a2ui", [this](const Value& args) { return a2ui(args); });
     add("generate.actions", [this](const Value& args) { return actions(args); });
+    add("generate.keep", [this](const Value& args) { return keep(args); });
+    add("generate.pieces", [this](const Value&) { return pieces(); });
+    add("generate.forget", [this](const Value& args) { return forget(args); });
 }
 
 Generation::~Generation() {
@@ -507,6 +602,9 @@ VerbResult Generation::surfaces() const { return impl_->surfaces_value(); }
 VerbResult Generation::draft(const Value& args) { return impl_->draft(args, impl_); }
 VerbResult Generation::a2ui(const Value& args) { return impl_->read_a2ui(args, impl_); }
 VerbResult Generation::actions(const Value& args) const { return impl_->actions_value(args); }
+VerbResult Generation::keep(const Value& args) { return impl_->keep_piece(args); }
+VerbResult Generation::pieces() const { return impl_->pieces_value(); }
+VerbResult Generation::forget(const Value& args) { return impl_->forget(args); }
 VerbResult Generation::preview(const Value& args) { return impl_->preview(args); }
 VerbResult Generation::commit(const Value& args) { return impl_->commit(args, impl_); }
 VerbResult Generation::restore(const Value& args) { return impl_->restore(args, impl_); }

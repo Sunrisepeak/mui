@@ -307,6 +307,31 @@ UTest cases{"generation", [] {
         expect(page.shows("Table for four"));
     };
 
+    "two drafts over the same version: the second to commit is a conflict unless it says `over`; a version kept as a piece is drafted again elsewhere"_test = [] {
+        Page page;
+        agent::Generation generation(page.rt, {.openness = agent::Openness::data, .surfaces = {{"extras", ""}}});
+        agent::Protocol protocol(page.rt, {});
+        const Answer one = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("Pro")));
+        const Answer two = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("document", card("Team")));
+        expect(eq(one.data.get("over")->as_int(), std::int64_t{0}) && one.data.get("set")->get("writes")->get("surface")->as_string() == "extras")
+            << one.data.json();
+        expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", one.data.get("draft")->as_string())).exit, 0));
+        const Answer late = invoke(protocol, "generate.commit", Value{}.set("draft", two.data.get("draft")->as_string()));
+        expect(eq(late.exit, 1) && late.error.contains("conflict") && late.error.contains("version 1")) << late.error;
+        expect(page.shows("Pro") && !page.shows("Team")) << "nothing replaced";
+        expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", two.data.get("draft")->as_string()).set("over", true)).exit, 0));
+        expect(page.shows("Team"));
+
+        const Answer kept = invoke(protocol, "generate.keep", Value{}.set("surface", "extras").set("version", 1).set("name", "pro_card").set("doc", "the Pro plan"));
+        expect(eq(kept.exit, 0)) << kept.error;
+        expect(invoke(protocol, "generate.pieces").data.json().contains("pro_card"));
+        const Answer again = invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("piece", "pro_card"));
+        expect(eq(invoke(protocol, "generate.commit", Value{}.set("draft", again.data.get("draft")->as_string())).exit, 0)) << again.error;
+        expect(page.shows("Pro") && !page.shows("Team")) << "the piece, reused";
+        expect(eq(invoke(protocol, "generate.forget", Value{}.set("name", "pro_card")).exit, 0));
+        expect(eq(invoke(protocol, "generate.draft", Value{}.set("surface", "extras").set("piece", "pro_card")).exit, 1));
+    };
+
     "limits and places: a document over the limits is refused; a surface nothing shows takes no commit"_test = [] {
         Page page;
         agent::Generation generation(page.rt, {.openness = agent::Openness::all, .surfaces = {{"extras", ""}, {"footer", "not on this page"}}, .max_nodes = 2});

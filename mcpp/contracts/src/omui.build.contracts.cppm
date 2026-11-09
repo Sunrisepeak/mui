@@ -1,6 +1,7 @@
 // openmui.build.contracts — the build plugin for contracts: a package's
 // interface written once becomes code inside its build (component-binding
-// §2.3, §8, §11): components() for *.contract.omui.toml, natives() for
+// §2.3, §8, §11): components() for *.contract.omui.toml or .ts (one component a
+// TypeScript file, named as the file), natives() for
 // *.native.omui.toml.
 //
 // For each contract in `contract/*.contract.omui.toml`, two actions run

@@ -170,14 +170,6 @@ jobs:
           case "$version" in *"$MCPP_VERSION"*) ;; *) echo "::error::not mcpp $MCPP_VERSION"; exit 1 ;; esac
           mcpp self config --mirror GLOBAL
 
-      - name: Install esbuild (TypeScript is compiled to JavaScript; modules/projects/omui/lang/js, example 03)
-        run: |
-          for attempt in 1 2 3; do
-            if xlings install esbuild -y -g; then break; fi
-            [ "$attempt" = 3 ] && { echo "::error::esbuild could not be installed"; exit 1; }
-            sleep 30
-          done
-          esbuild --version
 
       - name: Select the toolchain
         run: |

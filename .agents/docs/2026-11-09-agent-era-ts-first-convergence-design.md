@@ -541,6 +541,23 @@ mcpp 仍是底层的构建和包管理系统；`omui` 是产品层的统一入�
 5. 接入 tsc 类型检查，`omui check` 统一诊断格式。
 6. （原第 6 步“开发模式下的动态设计”并入 W14。）
 
+**W1 进度（2026-11-09）**：
+- 第 1 步完成，位置按 D-99 调整为独立的小包 `omui.lang.ts`（`modules/projects/omui/lang/ts`），没有放在 `omui.lang.js` 的 `src/ts/`：运行时（lang.js）和构建期的 `omui-gen` 都要读 TS，而生成器不能依赖运行时。
+  - `:strip` 的做法：一遍略读解析，类型换成等长空白，行列不变。歧义按 TS 的规则判定（箭头函数头部先试、不成立就退回；`f<T>(x)` 只在后面无法接表达式时才算类型实参）。只在 ASI 有风险时才写入 `;`；跨行的箭头返回类型把 `)` 移到类型末尾。
+  - 不可擦除的语法报出位置和改法：`enum`、带代码的 `namespace`、参数属性、`import x =`、`export =`、`<T>x`、装饰器。
+  - 验收：33 个逐字节用例；esbuild 对照覆盖每个用例、语料文件和仓库里全部 `.ts`，两种方式的输出逐字节相同。速度是线性的，未优化构建约 5 ms/千行。
+  - `omui.lang.js` 不再调用 esbuild（Web 端也能直接跑 TS）。程序自己的模块按路径加载（`./label`），不再需要打包。
+- 第 2 步完成了求值环境，并完成 `studio.ops` 的试点。
+  - `:data` 的求值环境：每个模块独占一个 QuickJS 运行时，没有 Date、Math.random、WeakRef 和 I/O；内存、栈和时间都有上限；只认数据（函数、`undefined`、`NaN`、`Map`、环都会报错，并给出 JSON 指针）；导入只允许 `openmui/define` 和本目录内的文件。
+  - `define{Contract,Native,Ops,Theme,Style,Motion,View,Config}` 已就位。
+  - `omui-gen` 的 `omui.gen.data` 把数据模块转换成该类 TOML 的同一份文档，契约、native 和 ops 走同一个读取器。
+  - `studio.ops.omui.ts` 替换了 TOML，生成的 `media/ops/studio.ops.{json,md}` 逐字节不变（由 gen_test 的"产物是否最新"检查验证）。
+  - 契约试点用 `caption_button`（`components/window`）。`button` 在 `spec/registry`，属于规范，见下面的待决项。
+    - 约定：一个 TS 契约文件只有一个组件，名字和文件名相同。现有契约全部符合这一约定，omui-gen 会检查。构建插件因此只看文件名就能规划，不必先求值。
+    - 插件同时认 `.toml` 和 `.ts`，TS 文件可能导入的同目录模块也算作输入。
+    - 两个 C++ 分区和四个存根（`.d.ts`、`.pyi`、`.lua`、`.components.json`）与 TOML 版逐字节相同，只有头注释里的源文件名不同（本应如此）。
+  - **待决**：`spec/registry`（规范的组件注册表，包括 `button`）是否也改成 TS。它属于 openmui 规范，改了就是规定"契约格式是 TS 数据模块"，需要规范仓库的决定。在此之前，注册表保持 TOML，`omui-gen` 两种都读。
+
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。
 2. Agent 版热重载：重载后回报语义差异、像素差异、动画采样差异；协议 `reload`、MCP `ui_reload`、`omui dev`。**验收**：Agent 任务里不截图也能确认改动效果。
@@ -562,6 +579,13 @@ mcpp 仍是底层的构建和包管理系统；`omui` 是产品层的统一入�
 1. `omui new`（最小应用模板，同时也是设计界面）、`omui dev`、`omui run`、`omui build`、`omui test`（mtest）、`omui package`、`omui add` 和 `omui deps`、`omui tools`、`omui doctor`；已有的 `mcp`、`agent`、`check`、`fmt` 并入同一套约定。
 2. 所有命令输出 JSON，退出码明确；读取 `omui.config.ts`；Agent 经 MCP 调用时，会写出产物的命令需要人回答。
 **验收**：从一台只有 xlings 的新机器开始，`omui doctor` → `omui new` → `omui dev` → `omui test` → `omui package`，每一步都由新的 Agent 会话只用 `omui` 完成。
+
+**W15 进度（2026-11-09，第一块）**：
+- `omui new`（默认 `app-ts`，`--list` 列出模板）、`dev`（`--headless`）、`run`、`build`、`test`、`doctor` 已加入，都映射到 mcpp。
+- `--json` 时每一步输出一条记录（`{step, command, exit}`），退出码就是工具自己的。
+- `doctor` 报告 mcpp、xlings、tsc、esbuild 是否就位，以及各自的用途。
+- `omui new` 不再提供 `app-lua` 和 `app-py`（D-138）。
+- 尚未完成：`package`、`add`/`deps`、`tools`，以及读取 `omui.config.ts`。
 
 **W3 自描述 API（A1、D-145）**
 1. `omui describe --api`：从契约、组件、令牌、操作目录导出写应用所需的 API（JSON），llms.txt 自动导出；运行中的应用通过协议提供同样的内容。**验收**：导出内容和 `.d.ts` 由同一来源生成，lint 检查二者是否一致。

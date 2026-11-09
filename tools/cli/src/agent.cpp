@@ -337,6 +337,7 @@ cmd::App app() {
     cmd::App a{"omui"};
     (void)a.version("0.1.0").description("The openmui command line");
     a.option("dir").takes_value().value_name("DIR").global().help("agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)");
+    for (const auto name : project_commands) (void)a.subcommand(project_command(name));
     (void)a.subcommand(agent_command());
     (void)a.subcommand(check_command());
     (void)a.subcommand(fmt_command());
@@ -470,7 +471,12 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
         return 2;
     }
     if (!parsed->has_subcommand()) {
-        out << "omui — the openmui command line\n\n  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
+        out << "omui — the openmui command line\n\n"
+               "  omui new NAME [--template app-ts]   a project from a template (--list)\n"
+               "  omui dev [--headless]   the application in development mode: its own designer (person and agent, live)\n"
+               "  omui run | build | test [--release]   run, build, test (mtest) — over mcpp\n"
+               "  omui doctor          which tools are there, which are missing\n\n"
+               "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"
                "  omui check FILE…     view documents: names, types, ids, expressions (--json)\n"
                "  omui fmt FILE…       the canonical format (--check)\n"
@@ -483,6 +489,8 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "Run `omui <command> --help` for its options.\n";
         return 0;
     }
+    if (std::ranges::contains(project_commands, parsed->subcommand_name()))
+        return project(parsed->subcommand_name(), parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "agent") return agent(parsed->subcommand()->get(), global(*parsed, "dir"), out, err);
     if (parsed->subcommand_name() == "check") return check(parsed->subcommand()->get(), out, err);
     if (parsed->subcommand_name() == "fmt") return fmt(parsed->subcommand()->get(), out, err);

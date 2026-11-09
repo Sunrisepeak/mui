@@ -13,10 +13,12 @@
 // and methods: count.add(1)), regions (`when`, `each`, `slot`), `mount`,
 // `verb` / `invoke`, `model`, `find` / `act` / `snapshot`, `tr`, `log`. Props
 // are camel case (maxWidth is max_width), handlers `on<Event>`. A call that
-// fails throws an OmuiError. TypeScript is compiled to JavaScript before it
-// runs (esbuild at build time; the generated .d.ts types the builders).
+// fails throws an OmuiError. TypeScript runs as the JavaScript left when its
+// types are blanked (omui.lang.ts, in this process, the Web's too; the
+// generated .d.ts types the builders, tsc checks them in `omui check`).
 export module omui.lang.js;
 
+export import omui.lang.ts;
 import std;
 import omui.lang;
 import omui.player;
@@ -48,14 +50,9 @@ private:
 
 // JavaScript for the player: `lang = "js"`, *.js and *.mjs.
 [[nodiscard]] player::Language javascript();
-// TypeScript for the player: `lang = "ts"`, *.ts and *.tsx, compiled with
-// esbuild (found on PATH, or OMUI_ESBUILD) when it is loaded; `openmui` stays
-// an import, the rest of the program's imports are bundled.
+// TypeScript for the player: `lang = "ts"`, *.ts and *.mts, its types
+// blanked when it is loaded (omui.lang.ts); the modules it imports by path
+// ("./label") are loaded the same way as they are imported.
 [[nodiscard]] player::Language typescript();
-// What esbuild makes of a TypeScript file: one ES module.
-[[nodiscard]] std::expected<std::string, std::string> compile_typescript(const std::filesystem::path& file);
-// What esbuild makes of TypeScript source (an editor's text, `name` in its
-// messages): the module transformed, its imports left as they are.
-[[nodiscard]] std::expected<std::string, std::string> compile_typescript_source(std::string_view source, std::string_view name = "main.ts");
 
 }  // namespace omui::lang::js

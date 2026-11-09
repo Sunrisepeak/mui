@@ -28,7 +28,8 @@ sources = ["src/native/quickjs/*.cpp"]
 sources = ["src/native/web/*.cpp"]
 
 [dependencies]
-omui.lang   = { path = ".." }
+"omui.lang"    = { path = ".." }
+"omui.lang.ts" = { path = "../ts" }
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
 mcpplibs.os       = "0.4.1"
@@ -38,6 +39,8 @@ nlohmann.json     = "3.12.0"
 mcpplibs.mwrap.quickjs_ng = "0.17.0"
 
 [dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest     = "0.5.0"
 mlibs.utils       = { path = "../../../../base/utils" }
 omui.cts           = { path = "../../cts" }
 omui.native.fuzzy  = { path = "../../native/fuzzy" }

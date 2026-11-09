@@ -7,7 +7,7 @@ The same interface is written five times:
 - in C++, with the builders: [`src/tally.cpp`](src/tally.cpp);
 - as a view document: [`ui/tally.view.omui.json`](ui/tally.view.omui.json) (view-data-files §3), with CEL expressions for what the text shows and `set` operations for what the buttons do;
 - in Lua: [`lua/tally.lua`](lua/tally.lua) ([omui.lang.lua](../../modules/projects/omui/lang/lua)). It uses table builders and signal arithmetic, and its handlers run on the script's own thread.
-- in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([omui.lang.js](../../modules/projects/omui/lang/js)). esbuild compiles it, and QuickJS-ng runs it.
+- in TypeScript: [`ts/tally.ts`](ts/tally.ts) ([omui.lang.js](../../modules/projects/omui/lang/js)). Its types are blanked ([omui.lang.ts](../../modules/projects/omui/lang/ts)), and QuickJS-ng runs it.
 - in Python: [`python/tally.py`](python/tally.py) ([openmui for Python](../../modules/projects/omui/lang/python)). The builders nest as `with` blocks, the stubs type it (`mypy --strict` passes), and `pip install ./lang/python` then `python examples/03-counter/python/tally.py` runs it.
 
 The five are **one semantic tree and the same pixels**, before and after every click and every agent action (the CTS S level). The Python version is checked by the Python binding's suite, which runs it in CPython against the view document and pins the same pixel hash (`lang/python/tests/test_example_counter.py`). The same file also runs unchanged in Python embedded in a C++ program ([PocketPy](../../modules/projects/omui/lang/python/embedded)), and this example's tests check it against the C++ view, as they check the Lua and TypeScript versions.

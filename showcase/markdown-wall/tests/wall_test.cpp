@@ -586,7 +586,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the tour in TypeScript, Lua and Python: the same records, the same wall (§3.6)", [] {
-        auto ts = lang::js::compile_typescript(scripts() / "tour.ts");
+        auto ts = lang::ts::compile(scripts() / "tour.ts");
         check(ts.has_value(), ts ? std::string{} : ts.error());
         if (!ts) return;
         const Tour t = in_process([](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *ts, "tour.ts");

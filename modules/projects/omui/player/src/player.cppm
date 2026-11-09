@@ -57,7 +57,7 @@ struct Language {
     std::vector<std::string> extensions;  // .lua, .js, .ts …
     std::function<std::unique_ptr<Engine>(abi::OmuiRuntime)> make;
     // The source of an entry: the file, or what a compiler makes of it
-    // (TypeScript through esbuild). Empty: the file as it is.
+    // (TypeScript with its types blanked). Empty: the file as it is.
     std::function<std::expected<std::string, std::string>(const std::filesystem::path&)> load;
 };
 

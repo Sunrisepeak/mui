@@ -24,7 +24,7 @@ How an Agent (or a person at a terminal) does animation work with hanim without 
 
 ## Authoring without code: a document and the `hanim` command
 
-The command's operations are [hanim.studio's catalog](studio/studio.ops.omui.toml) (`document.check`, `document.sample`, `document.render`; listed in [`studio/media/ops`](studio/media/ops)). Twenty documents to start from are [hanim.studio's examples](studio/examples/README.md).
+The command's operations are [hanim.studio's catalog](studio/studio.ops.omui.ts) (`document.check`, `document.sample`, `document.render`; listed in [`studio/media/ops`](studio/media/ops)). Twenty documents to start from are [hanim.studio's examples](studio/examples/README.md).
 
 1. Write `<name>.animation.omui.json` ([hanim.studio](studio/README.md)): the stage, the objects (shapes, fills, where they stand), and the program as steps (`move_to`, `drop`, `morph`, `scale_to` with a `spring` …) in sequences and parallels. Add `marker`s at the moments you will check.
 2. `hanim check FILE`: the plan (duration, tracks, markers) or every problem at its JSON pointer — fix them all, then check again.

@@ -167,8 +167,9 @@ struct Player::Impl {
             problem(std::format("{}: the {} language could not start", name(f.path), f.lang->name));
             return false;
         }
-        const std::string script = name(f.path);
-        pending.emplace_back(script, again ? f.engine->reload(std::move(*code), script) : f.engine->run(std::move(*code), script));
+        // By its full path: the modules it imports by path are found from it.
+        const std::string script = generic_utf8(full(f.path));
+        pending.emplace_back(name(f.path), again ? f.engine->reload(std::move(*code), script) : f.engine->run(std::move(*code), script));
         return true;
     }
 

@@ -8,9 +8,11 @@ module omui.lang.js;
 
 import std;
 import mcpplibs.mwrap.quickjs_ng;
+import mcpplibs.os;
 import nlohmann.json;
 import omui.abi;
 import omui.lang;
+import omui.lang.ts;
 import :prelude;
 
 namespace omui::lang::js {
@@ -452,8 +454,39 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
         return def;
     }
     if (n != "openmui") {
-        JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\" and \"openmui:native/<name>\"; bundle the rest at build time)", name);
-        return nullptr;
+        // The program's own module, by path from the one importing it
+        // ("./label" is <its directory>/label): the file as it is named, or
+        // with .ts, .mts, .js, .mjs, or its directory's index; TypeScript with
+        // its types blanked.
+        const auto path = mcpplibs::os::fs::from_utf8(n);
+        std::optional<std::filesystem::path> found;
+        for (const std::string_view suffix : {"", ".ts", ".mts", ".js", ".mjs", "/index.ts", "/index.js"}) {
+            auto candidate = path;
+            candidate += mcpplibs::os::fs::from_utf8(suffix);
+            std::error_code error;
+            if (std::filesystem::is_regular_file(candidate, error)) {
+                found = std::move(candidate);
+                break;
+            }
+        }
+        if (!found) {
+            JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\", \"openmui:native/<name>\" and their own files by path)", name);
+            return nullptr;
+        }
+        const auto extension = found->extension();
+        auto code = extension == ".ts" || extension == ".mts" ? ts::compile(*found) : [&]() -> std::expected<std::string, std::string> {
+            std::ifstream in(*found, std::ios::binary);
+            return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        }();
+        if (!code) {
+            JS_ThrowSyntaxError(ctx, "%s", code.error().c_str());
+            return nullptr;
+        }
+        JSValue module = JS_Eval(ctx, code->data(), code->size(), name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
+        if (JS_IsException(module)) return nullptr;
+        auto* def = static_cast<JSModuleDef*>(JS_VALUE_GET_PTR(module));
+        JS_FreeValue(ctx, module);
+        return def;
     }
     JSValue m = JS_Eval(ctx, s.module_source.data(), s.module_source.size(), "openmui", JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
     if (JS_IsException(m)) return nullptr;

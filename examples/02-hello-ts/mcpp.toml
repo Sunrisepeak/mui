@@ -1,6 +1,6 @@
 # Example 02 — hello, TypeScript (canvas-markdown §5): an application written
 # in TypeScript alone, no C++ to write. The player (omui.entry.player) reads the
-# manifest below, compiles logic/main.ts with esbuild and runs it; a saved
+# manifest below, blanks logic/main.ts's types (omui.lang.ts) and runs it; a saved
 # file shows at once. The tool: statistics of a text — characters, words,
 # sentences, reading time — as you type or paste.
 #

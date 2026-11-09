@@ -88,7 +88,7 @@ struct Workshop::Impl {
     // Runs a script's text, the first time or again in place.
     std::expected<std::future<lang::Result<void>>, std::string> run(std::size_t i, const GiftScript& g, std::string_view text, bool again) {
         if (g.language == "ts") {
-            auto code = lang::js::compile_typescript_source(text, g.file);
+            auto code = lang::ts::compile_source(text, g.file);
             if (!code) return std::unexpected(code.error());
             return again ? js[i]->reload(std::move(*code), g.file) : js[i]->run(std::move(*code), g.file);
         }

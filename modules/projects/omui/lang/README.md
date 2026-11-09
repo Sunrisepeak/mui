@@ -18,5 +18,6 @@ Depends on `omui.abi` (the C ABI's declarations and implementation) and `nlohman
 | Package | |
 |---|---|
 | [js](js) | JavaScript and TypeScript (QuickJS-ng) |
+| [ts](ts) | TypeScript for openmui: types blanked to JavaScript, data modules evaluated to JSON (`defineContract` …) |
 | [lua](lua) | Lua 5.4 |
 | [python](python) | Python in host mode, over CPython's stable ABI; and [python/embedded](python/embedded), Python embedded in a C++ program (PocketPy) |

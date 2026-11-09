@@ -11,11 +11,15 @@ the agent is a fresh session in an empty directory with one tool server:
 
   semantic    omui mcp — the application's semantic tree and its operations
               (actions, verbs, preview, undo; what needs the person asks them)
-  a11y-tree   the same task on an equivalent page through a browser agent's
-              accessibility tree (Playwright MCP) — needs that page: unsupported yet
-  screenshot  through screenshots and clicks — unsupported yet
+  a11y-tree   what a browser agent's accessibility tree gives (Playwright MCP's
+              snapshot): roles, names, values, states and bounds by ref, a
+              picture, a person's devices — no operations of the application
+  screenshot  what computer use gives: a picture and a person's devices at
+              coordinates
 
-An unsupported way is recorded as such, never as a failure or a pass. After
+The two control arms are baseline_mcp.py over the same running application
+(D-142, W4): only the interface differs. An unsupported way is recorded as
+such, never as a failure or a pass. After
 the agent is done, the checks run through omui mcp: `present` queries must
 match, `absent` must not, `state` values must be what a verb's data holds at a
 JSON pointer ({verb, at, equals}), `answer` must be in the agent's last
@@ -127,11 +131,23 @@ def program_args(spec: dict, scratch: Path) -> list[str]:
     return out
 
 
-def agent_session(agent: str, goal: str, omui: Path, endpoints: Path, budget_turns: int = 30) -> dict:
-    """A fresh session with nothing but the application's tools: its tool calls, turns, tokens, last message."""
-    config = {"mcpServers": {"openmui": {"command": str(omui), "args": ["mcp", "--dir", str(endpoints), "--actor", "agent:tasks"]}}}
-    prompt = (f"You operate a running application through its tools (the openmui tools: ui_snapshot, ui_find, ui_act, ui_invoke, ui_preview, "
-              f"ui_undo, ui_capture …). Do this for the person you work for:\n\n{goal}\n\nUse only those tools. If something needs the person's "
+BASELINE = Path(__file__).resolve().parent / "baseline_mcp.py"
+TOOLS_SAID = {
+    "semantic": "the openmui tools: ui_snapshot, ui_find, ui_act, ui_invoke, ui_preview, ui_undo, ui_capture …",
+    "a11y-tree": "the window's accessibility tree, a screenshot, and clicking, typing, keys, dragging and scrolling",
+    "screenshot": "a screenshot of the window, and clicking, typing, keys, dragging and scrolling at its coordinates",
+}
+
+
+def agent_session(agent: str, goal: str, omui: Path, endpoints: Path, via: str = "semantic", budget_turns: int = 30) -> dict:
+    """A fresh session with nothing but one way's tools: its tool calls, turns, tokens, last message."""
+    if via == "semantic":
+        server = {"command": str(omui), "args": ["mcp", "--dir", str(endpoints), "--actor", "agent:tasks"]}
+    else:
+        server = {"command": sys.executable, "args": [str(BASELINE), "--omui", str(omui), "--dir", str(endpoints), "--way", via, "--actor", "agent:tasks"]}
+    config = {"mcpServers": {"openmui": server}}
+    prompt = (f"You operate a running application through its tools ({TOOLS_SAID[via]}). Do this for the person you work for:\n\n{goal}\n\n"
+              f"Use only those tools. If something needs the person's "
               f"decision or confirmation, do not decide it for them: stop and say what you would need them to confirm.")
     if agent != "claude":
         return {"unavailable": f"agent {agent}"}
@@ -165,8 +181,6 @@ def agent_session(agent: str, goal: str, omui: Path, endpoints: Path, budget_tur
 
 def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: Path) -> dict:
     record = {"date": datetime.date.today().isoformat(), "set": spec["set"], "task": task["id"], "via": via, "agent": agent, "commit": commit()}
-    if via != "semantic":
-        return {**record, "outcome": "unsupported", "why": "the equivalent page and its browser agent are not set up yet (Part 2 §6.3)"}
     endpoints = Path(tempfile.mkdtemp(prefix="omui-task-ep-"))
     scratch = Path(tempfile.mkdtemp(prefix="omui-task-files-"))
     # The application as its users run it (the set's agent mode; development preauthorizes everything declared).
@@ -179,7 +193,7 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
             time.sleep(0.1)
         else:
             return {**record, "outcome": "unavailable", "why": f"{program.name} did not start"}
-        session = agent_session(agent, task["goal"], omui, endpoints)
+        session = agent_session(agent, task["goal"], omui, endpoints, via)
         if "unavailable" in session:
             return {**record, "outcome": "unavailable", "why": session["unavailable"]}
         check = Mcp(omui, endpoints, "service:tasks-check")
@@ -206,7 +220,7 @@ def run_task(spec: dict, task: dict, via: str, agent: str, omui: Path, program: 
 def cmd_run(arguments: argparse.Namespace) -> int:
     spec = json.loads((SETS / f"{arguments.set}.tasks.omui.json").read_text(encoding="utf-8"))
     omui, program = binary("omui"), binary(spec["run"])
-    if arguments.via == "semantic" and (not omui or not program):
+    if not omui or not program:
         sys.exit(f"tasks.py: build omui and {spec['run']} first (mcpp build -p omui.cli -p {spec.get('package', '…')})")
     only = set(arguments.only.split(",")) if arguments.only else None
     records = []

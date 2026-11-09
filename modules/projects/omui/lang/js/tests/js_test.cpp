@@ -3,12 +3,14 @@
 // by hand; expressions are the runtime's; loops, verbs and models; errors are
 // exceptions with their places; a reload keeps the state.
 import std;
+import mcpplibs.os;
 import nlohmann.json;
 import omui.abi;
 import omui.lang;
 import omui.lang.js;
 import omui.ui.base;
 import mlibs.testing;
+import mcpplibs.mtest;
 import omui.view;
 import omui.cts;
 import omui.native;
@@ -18,6 +20,7 @@ import omui.theme.default_theme;
 import omui.theme.compact;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui::abi;
 namespace lang = omui::lang;
 using lang::Json;
@@ -36,7 +39,7 @@ struct Runtime {
         info.type = OMUI_STRUCTURE_TYPE_RUNTIME_CREATE_INFO;
         info.spec_version = OMUI_SPEC_VERSION;
         info.headless = 1;
-        check_eq(omuiCreateRuntime(&info, &rt), OMUI_SUCCESS);
+        expect(eq(omuiCreateRuntime(&info, &rt), OMUI_SUCCESS));
     }
     ~Runtime() { (void)omuiDestroyRuntime(rt); }
     // Whether another frame is wanted (something still moves).
@@ -147,30 +150,29 @@ constexpr std::string_view counter_document = R"j({"omui": "0.1", "view": {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"lang.js"};
+UTest cases{"lang.js", [] {
     omui::register_base_components();
 
-    s.test("the counter in JavaScript is the hand-written document's tree, before and after a click (S level)", [] {
+    "the counter in JavaScript is the hand-written document's tree, before and after a click (S level)"_test = [] {
         Runtime js_rt, doc_rt;
         Js js(js_rt);
         auto ran = js.run(std::string(counter_js));
-        check(ran.has_value(), ran ? "" : ran.error().text());
-        check_eq(omuiMount(doc_rt.rt, str("main"), str(counter_document)), OMUI_SUCCESS);
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(omuiMount(doc_rt.rt, str("main"), str(counter_document)), OMUI_SUCCESS));
         doc_rt.frame();
-        check_eq(js_rt.tree("main"), doc_rt.tree("main"));
+        expect(eq(js_rt.tree("main"), doc_rt.tree("main")));
         for (int i = 0; i < 3; ++i) {
-            check_eq(js_rt.act("main/inc", "activate"), std::int64_t{0});
-            check_eq(doc_rt.act("main/inc", "activate"), std::int64_t{0});
+            expect(eq(js_rt.act("main/inc", "activate"), std::int64_t{0}));
+            expect(eq(doc_rt.act("main/inc", "activate"), std::int64_t{0}));
         }
         js_rt.settle(js.host);
         doc_rt.frame();
-        check_eq(js_rt.name_of("main/text:0"), std::string("3 clicks"));
-        check_eq(js_rt.tree("main"), doc_rt.tree("main"));
-        check(js.errors.empty(), js.errors.empty() ? "" : js.errors[0]);
-    });
+        expect(eq(js_rt.name_of("main/text:0"), std::string("3 clicks")));
+        expect(eq(js_rt.tree("main"), doc_rt.tree("main")));
+        expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
+    };
 
-    s.test("expressions and signals: methods, combinators, mirrored reads", [] {
+    "expressions and signals: methods, combinators, mirrored reads"_test = [] {
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(
@@ -186,13 +188,13 @@ if (a.get() !== 6) throw new Error("a is " + a.get());
 a.set(1);
 if (a.value !== 1) throw new Error("the mirror has it");
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
-        check_eq(r.name_of("main/sum"), std::string("8"));
-        check_eq(r.name_of("main/who"), std::string("ADA"));
-        check_eq(r.name_of("main/big"), std::string("small"));
-    });
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.name_of("main/sum"), std::string("8")));
+        expect(eq(r.name_of("main/who"), std::string("ADA")));
+        expect(eq(r.name_of("main/big"), std::string("small")));
+    };
 
-    s.test("tr: a message in the person's language, its arguments by name; a key no catalog has is its own message", [] {
+    "tr: a message in the person's language, its arguments by name; a key no catalog has is its own message"_test = [] {
         (void)omui::languages().add_messages(*mlibs::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
         omui::languages().request({*mlibs::i18n::Locale::parse("en")});
         Runtime r;
@@ -206,12 +208,12 @@ mount("main", column([
 ]));
 name.set("Grace");
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
-        check_eq(r.name_of("main/greeting"), std::string("Hello, Grace!"));
-        check_eq(r.name_of("main/raw"), std::string("3 left"));
-    });
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.name_of("main/greeting"), std::string("Hello, Grace!")));
+        expect(eq(r.name_of("main/raw"), std::string("3 left")));
+    };
 
-    s.test("loops over a model, handlers with their row, a verb in JavaScript, async handlers", [] {
+    "loops over a model, handlers with their row, a verb in JavaScript, async handlers"_test = [] {
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(
@@ -232,18 +234,18 @@ mount("main", column([
 ]));
 globalThis.showFilter = () => onlyOpen.set(true);
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
-        check_eq(r.name_of("main/n2/text:0"), std::string("Bread"));
-        check_eq(r.act("main/n2/archive", "activate"), std::int64_t{0});
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.name_of("main/n2/text:0"), std::string("Bread")));
+        expect(eq(r.act("main/n2/archive", "activate"), std::int64_t{0}));
         r.settle(js.host);
-        check(js.errors.empty(), js.errors.empty() ? "" : js.errors[0]);
+        expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
         auto archived = js.run("if (archived[0] !== 'n2') throw new Error('archived ' + archived);", "check.js");
-        check(archived.has_value(), archived ? "" : archived.error().text());
-        check(js.run("showFilter();", "show.js").has_value());
-        check_eq(r.name_of("main/filter"), std::string("open only"));
-    });
+        expect(archived.has_value()) << (archived ? "" : archived.error().text());
+        expect(js.run("showFilter();", "show.js").has_value());
+        expect(eq(r.name_of("main/filter"), std::string("open only")));
+    };
 
-    s.test("a handler reads the signals as its event left them (a bound field's changed)", [] {
+    "a handler reads the signals as its event left them (a bound field's changed)"_test = [] {
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(
@@ -252,16 +254,16 @@ const query = signal("");
 globalThis.seen = [];
 mount("main", column([textBox({ id: "q", label: "Search", text: query, onChanged: (e) => seen.push(query.get() + "|" + e.text) })]));
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
         for (std::string_view v : {"middle", "", "rose"}) {
-            check_eq(r.act("main/q", "set_value", Json{{"value", v}}), std::int64_t{0});
+            expect(eq(r.act("main/q", "set_value", Json{{"value", v}}), std::int64_t{0}));
             r.settle(js.host);
         }
         auto seen = js.run("const want = 'middle|middle,|,rose|rose'; if (seen.join() !== want) throw new Error(seen.join());", "check.js");
-        check(seen.has_value(), seen ? "" : seen.error().text());
-    });
+        expect(seen.has_value()) << (seen ? "" : seen.error().text());
+    };
 
-    s.test("errors are exceptions, with what and where", [] {
+    "errors are exceptions, with what and where"_test = [] {
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(
@@ -271,17 +273,17 @@ try { mount("main", element("buton", { id: "x" })); } catch (e) { caught = e.mes
 if (!caught.includes("did you mean `button`")) throw new Error(caught);
 try { invoke("no.such", {}); throw new Error("no throw"); } catch (e) { if (!e.message.includes("not-found")) throw e; }
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
         auto syntax = js.run("let x = = 1;", "tally.js");
-        check(!syntax && syntax.error().text().find("tally.js") != std::string::npos, syntax ? "" : syntax.error().text());
+        expect(!syntax && syntax.error().text().find("tally.js") != std::string::npos) << (syntax ? "" : syntax.error().text());
         auto thrown = js.run("import { mount } from 'openmui'; mount('main', 3);", "bad.js");
-        check(!thrown && thrown.error().text().find("mount(slot, element)") != std::string::npos, thrown ? "" : thrown.error().text());
+        expect(!thrown && thrown.error().text().find("mount(slot, element)") != std::string::npos) << (thrown ? "" : thrown.error().text());
         auto missing = js.run("import { x } from 'left-pad';", "dep.js");
-        check(!missing && missing.error().text().find("no module `left-pad`") != std::string::npos, missing ? "" : missing.error().text());
-    });
+        expect(!missing && missing.error().text().find("no module `left-pad`") != std::string::npos) << (missing ? "" : missing.error().text());
+    };
 
-    s.test("native modules: openmui:native/<name>, a promise for an async one, its refusals as OmuiError", [] {
-        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
+    "native modules: openmui:native/<name>, a promise for an async one, its refusals as OmuiError"_test = [] {
+        if (!omui::native::find("fuzzy")) expect(omui::natives::fuzzy::define().has_value()) << "the official native module";
         Runtime r;
         Js js(r);
         auto ran = js.run(R"js(
@@ -301,7 +303,7 @@ p.then((best) => {
   return rank("q", ["a", 3]);
 }).then(() => { outcome = "no rejection"; }, (e) => { outcome = e instanceof OmuiError ? e.message : "not an OmuiError: " + e; });
 )js");
-        check(ran.has_value(), ran ? "" : ran.error().text());
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
         int quiet = 0;
         for (int i = 0; i < 20000 && quiet < 3; ++i) {
             r.frame();
@@ -309,13 +311,13 @@ p.then((best) => {
             if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
         }
         const std::string outcome = invoke(r, "t.outcome", Json::object()).get<std::string>();
-        check(outcome.find("invalid-argument") != std::string::npos && outcome.find("`candidates[1]` is the number 3") != std::string::npos, outcome);
-        check(js.errors.empty(), js.errors.empty() ? "" : js.errors[0]);
+        expect(outcome.find("invalid-argument") != std::string::npos && outcome.find("`candidates[1]` is the number 3") != std::string::npos) << outcome;
+        expect(js.errors.empty()) << (js.errors.empty() ? "" : js.errors[0]);
         auto missing = js.run("import { x } from 'openmui:native/nope';", "nope.js");
-        check(!missing && missing.error().text().find("no native module `nope`") != std::string::npos, missing ? "" : missing.error().text());
-    });
+        expect(!missing && missing.error().text().find("no native module `nope`") != std::string::npos) << (missing ? "" : missing.error().text());
+    };
 
-    s.test("a script destroyed while it loads: its run finishes first, its queued runs are refused, its verbs answer that it is gone", [] {
+    "a script destroyed while it loads: its run finishes first, its queued runs are refused, its verbs answer that it is gone"_test = [] {
         // Each verb registration waits on the runtime's thread, which is the
         // one destroying the script: the teardown arrives while the script's
         // code is on the script thread's stack.
@@ -337,19 +339,19 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
             (void)first.get();
             const auto rb = queued_b.get(), ra = queued_a.get();
             // b's run may start while a's teardown waits (b is not destroyed yet); if not, it is refused.
-            check(rb || rb.error().message.contains("gone"), rb ? "" : rb.error().message);
-            check(!ra && ra.error().message.contains("gone"), ra ? "a's queued run ran after a was destroyed" : ra.error().message);
+            expect(rb || rb.error().message.contains("gone")) << (rb ? "" : rb.error().message);
+            expect(!ra && ra.error().message.contains("gone")) << (ra ? "a's queued run ran after a was destroyed" : ra.error().message);
             const Json answer = invoke(r, "load.v0", Json::object());
-            check(answer.is_null() || answer.contains("runner-error"), std::format("a verb of a destroyed script answers nothing: {}", answer.dump()));
+            expect(answer.is_null() || answer.contains("runner-error")) << std::format("a verb of a destroyed script answers nothing: {}", answer.dump());
         }
-    });
+    };
 
-    s.test("a reload keeps the state, the nodes, and replaces the handlers", [] {
+    "a reload keeps the state, the nodes, and replaces the handlers"_test = [] {
         Runtime r;
         Js js(r);
-        check(js.run(std::string(counter_js)).has_value());
-        check_eq(r.act("main/inc", "activate"), std::int64_t{0});
-        check_eq(r.act("main/inc", "activate"), std::int64_t{0});
+        expect(js.run(std::string(counter_js)).has_value());
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
         r.settle(js.host);
         std::string next(counter_js);
         next.replace(next.find("{} clicks"), 9, "{} taps");
@@ -357,15 +359,15 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
         const auto start = std::chrono::steady_clock::now();
         auto reloaded = r.wait(js.host, js.script.reload(next));
         const auto took = std::chrono::steady_clock::now() - start;
-        check(reloaded.has_value(), reloaded ? "" : reloaded.error().text());
-        check_eq(r.name_of("main/text:0"), std::string("2 taps"));
-        check(took < std::chrono::milliseconds(200), std::format("{}", std::chrono::duration_cast<std::chrono::milliseconds>(took)));
-        check_eq(r.act("main/inc", "activate"), std::int64_t{0});
+        expect(reloaded.has_value()) << (reloaded ? "" : reloaded.error().text());
+        expect(eq(r.name_of("main/text:0"), std::string("2 taps")));
+        expect(took < std::chrono::milliseconds(200)) << std::format("{}", std::chrono::duration_cast<std::chrono::milliseconds>(took));
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
         r.settle(js.host);
-        check_eq(r.name_of("main/text:0"), std::string("12 taps"));
-    });
+        expect(eq(r.name_of("main/text:0"), std::string("12 taps")));
+    };
 
-    s.test("TypeScript: esbuild compiles it, bundling the program's own modules; openmui stays an import", [] {
+    "TypeScript: its types blanked in this process; its own modules imported by path, their types blanked too"_test = [] {
         const auto dir = scratch_dir("lang-js-ts");
         std::ofstream(dir / "label.ts", std::ios::binary) << R"ts(
 export const label = (n: number): string => `${n} clicks`;
@@ -381,45 +383,46 @@ mount("main", column({ gap: 8 }, [
   button({ id: "inc", text: "+1", onActivated: (): void => state.count.update((v: number) => v + 1) }),
 ]));
 )ts";
-        auto js = lang::js::compile_typescript(dir / "main.ts");
-        check(js.has_value(), js ? "" : js.error());
+        auto js = lang::ts::compile(dir / "main.ts");
+        expect(js.has_value()) << (js ? "" : js.error());
         if (!js) return;
-        check(js->find("from \"openmui\"") != std::string::npos && js->find("interface") == std::string::npos, *js);
+        expect(js->find("from \"openmui\"") != std::string::npos && js->find("interface") == std::string::npos) << *js;
+        expect(eq(std::ranges::count(*js, '\n'), std::ranges::count(file_text(dir / "main.ts"), '\n'))) << "the lines are the source's";
         Runtime r;
         Js script(r);
-        auto ran = script.run(*js, "main.ts");
-        check(ran.has_value(), ran ? "" : ran.error().text());
-        check_eq(r.name_of("main/caption"), std::string("3 clicks"));
-        check_eq(r.act("main/inc", "activate"), std::int64_t{0});
+        auto ran = script.run(*js, mcpplibs::os::fs::utf8(dir / "main.ts"));
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.name_of("main/caption"), std::string("3 clicks")));
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
         r.settle(script.host);
-        check_eq(r.name_of("main/text:1"), std::string("1 clicks"));
-        auto broken = lang::js::compile_typescript(dir / "missing.ts");
-        check(!broken && !broken.error().empty());
-    });
+        expect(eq(r.name_of("main/text:1"), std::string("1 clicks")));
+        auto broken = lang::ts::compile(dir / "missing.ts");
+        expect(!broken && !broken.error().empty());
+    };
 
-    s.test("TypeScript from an editor's text: transformed, its types gone, openmui an import; an error names the line", [] {
-        auto js = lang::js::compile_typescript_source(R"ts(
+    "TypeScript from an editor's text: transformed, its types gone, openmui an import; an error names the line"_test = [] {
+        auto js = lang::ts::compile_source(R"ts(
 import { verb } from "openmui";
 const half: number = 110;
 verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
 )ts", "wide.ts");
-        check(js.has_value(), js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error());
         if (!js) return;
-        check(js->find("from \"openmui\"") != std::string::npos && js->find(": number") == std::string::npos, *js);
-        auto broken = lang::js::compile_typescript_source("const x: number = ;\n", "broken.ts");
-        check(!broken && broken.error().find("broken.ts") != std::string::npos, broken ? *broken : broken.error());
-    });
+        expect(js->find("from \"openmui\"") != std::string::npos && js->find(": number") == std::string::npos) << *js;
+        auto broken = lang::ts::compile_source("const x: number = ;\n", "broken.ts");
+        expect(!broken && broken.error().starts_with("broken.ts:1:19: ")) << (broken ? *broken : broken.error());
+    };
 
-    s.test("CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)", [] {
-        if (!omui::native::find("fuzzy")) check(omui::natives::fuzzy::define().has_value(), "the official native module");
-        check(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value(), "the official themes");
+    "CTS level S: every scenario records its pinned trace (spec/conformance/S, tests/cts.js)"_test = [] {
+        if (!omui::native::find("fuzzy")) expect(omui::natives::fuzzy::define().has_value()) << "the official native module";
+        expect(omui::themes::add_default().has_value() && omui::themes::add_compact().has_value()) << "the official themes";
         const std::string runner = file_text(std::filesystem::path(std::source_location::current().file_name()).parent_path() / "cts.js");
         const auto report = omui::cts::conform([&](const omui::cts::Scenario& scenario) -> Json {
             Runtime r;
             r.height = 480;  // the scenarios' viewport: 320 × 480
             Js js(r);
             auto ran = js.run(runner, "cts.js");
-            check(ran.has_value(), ran ? "" : ran.error().text());
+            expect(ran.has_value()) << (ran ? "" : ran.error().text());
             if (!ran) return Json::array();
             const Json trace = omui::cts::run(
                 scenario, [&](std::string_view verb, const Json& args) { return invoke(r, verb, args); },
@@ -433,14 +436,12 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
                         if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
                     }
                 });
-            check(js.errors.empty(), js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
+            expect(js.errors.empty()) << (js.errors.empty() ? "" : scenario.name + ": " + js.errors[0]);
             return trace;
         }, {.subject = "javascript"});
-        check(report.has_value() && report->outcomes.size() >= 3, report ? "fewer than three scenarios" : report.error());
+        expect(report.has_value() && report->outcomes.size() >= 3) << (report ? "fewer than three scenarios" : report.error());
         if (!report) return;
         std::print("{}", report->text());
-        check(report->ok() && report->count(mlibs::cts::Status::passed) == report->outcomes.size(), report->text());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(report->ok() && report->count(mlibs::cts::Status::passed) == report->outcomes.size()) << (report->text());
+    };
+}};

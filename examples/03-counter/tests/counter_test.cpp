@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
     });
 
     s.test("the TypeScript version is the same tree and pixels, before and after each operation", [&] {
-        auto js = lang::js::compile_typescript(script_file("ts/tally.ts"));
+        auto js = lang::ts::compile(script_file("ts/tally.ts"));
         check(js.has_value(), js ? "" : js.error());
         if (!js) return;
         script_version("TypeScript", [](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *js, "ts/tally.ts");

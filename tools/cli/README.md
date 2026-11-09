@@ -1,5 +1,18 @@
 # omui — the openmui command line
 
+`omui` is the one top-level command (D-150): a project from its start to its package, the running application operated by an agent, documents checked. The project commands go over mcpp (D-153: omui's build steps are mcpp plugins, so `omui build` is `mcpp build`); someone who is not a programmer needs only `omui`, and someone who is may use either.
+
+```text
+omui new NAME [--template app-ts]   a project (app-ts, app-cpp, component, native, theme; --list)
+omui dev [--headless] [-- ARGS]     the application in development mode: its own designer, a person and an agent designing it live (D-149)
+omui run [--release] [-- ARGS]      the application as it ships (mcpp run)
+omui build [--release]              mcpp build
+omui test [-- CASES]                its tests, mtest's (mcpp test)
+omui doctor                         which tools are there, which are missing, what each is for
+```
+
+Each says what it ran; `--json` gives one record a step (`{"step", "command", "exit"}`) and the exit code is the tool's, for an agent.
+
 `omui audio automation FILE --track NAME --clip NAME --out PREFIX [--property gain] [--seconds 2] [--fps 60]` auditions a named timeline gain property on a 220 Hz calibration tone. It exports a float WAV, a labeled eight-frame PNG sheet drawn by omui, a lossless WebP process and a timestamped `.report.omui.json`; no window or audio device is opened. `--fps` changes visual observation only. Duration is 1–10 whole seconds; the visual rate is an exact timeline rate in 1–120 fps (for example 30, 60 or 120). See the [public timeline/audio adapter and minimal SOP](../../modules/projects/xengine/timeline/audio/README.md) for the sample-clock, ownership, safe binding and failure boundaries. Exit codes are 0 success, 1 domain/output failure, 2 invalid command arguments. A later output failure lists files already written.
 
 ```text

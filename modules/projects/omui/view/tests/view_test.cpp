@@ -505,7 +505,7 @@ UTest cases{"view", [] {
         const auto ly = hanim::lanes<hanim::Rgba>::to({1, 1, 0, 1});
         const hanim::Rgba mid = hanim::lanes<hanim::Rgba>::from({(lb[0] + ly[0]) / 2, (lb[1] + ly[1]) / 2, (lb[2] + ly[2]) / 2, 1});
         const auto half = fill();
-        expect(half && std::abs(half->r - mid.r) < 2e-3f && std::abs(half->g - mid.g) < 2e-3f && std::abs(half->b - mid.b) < 2e-3f) << half ? std::format("{} {} {} (OKLab mid {} {} {})", half->r, half->g, half->b, mid.r, mid.g, mid.b) : "no fill";
+        expect(half && std::abs(half->r - mid.r) < 2e-3f && std::abs(half->g - mid.g) < 2e-3f && std::abs(half->b - mid.b) < 2e-3f) << (half ? std::format("{} {} {} (OKLab mid {} {} {})", half->r, half->g, half->b, mid.r, mid.g, mid.b) : "no fill");
         expect(half && !(std::abs(half->r - 0.5f) < 0.02f && std::abs(half->g - 0.5f) < 0.02f && std::abs(half->b - 0.5f) < 0.02f)) << "not the sRGB midpoint";
         rt.frame({seconds(1.0), {}});
         expect(fill() == std::optional<Color>(Color::hex(0xffff00))) << "settled: exactly the colour set";
@@ -635,7 +635,7 @@ UTest cases{"view", [] {
         rt.mount("main", text({.id = "t", .text = "hi"}));
         const auto failed = rt.frame({seconds(0), {}});
         set_log_sink(nullptr, nullptr);
-        expect(failed.failure.contains("the device was lost")) << failed.failure.empty() ? std::string("no failure said") : failed.failure;
+        expect(failed.failure.contains("the device was lost")) << (failed.failure.empty() ? std::string("no failure said") : failed.failure);
         rt.set_debug({});
         const auto next = rt.frame({seconds(0.1), {}});
         expect(next.failure.empty()) << next.failure;
@@ -1098,7 +1098,7 @@ UTest cases{"view", [] {
         rt.set(rt.find("main/title"), "text", Value("Hello again"));
         rt.frame();
         auto logs = recent_logs(10, Level::warning);
-        expect(!logs.empty() && logs.back().category == "frame" && logs.back().message.find("layout") != std::string::npos) << logs.empty() ? "no record" : logs.back().message;
+        expect(!logs.empty() && logs.back().category == "frame" && logs.back().message.find("layout") != std::string::npos) << (logs.empty() ? "no record" : logs.back().message);
         set_log_sink(nullptr, nullptr);
     };
 

@@ -23,6 +23,7 @@ sources = ["src/*.cppm", "src/*.cpp"]
 
 [dependencies]
 mlibs.utils = { path = "../../modules/base/utils" }
+omui.lang.ts = { path = "../../modules/projects/omui/lang/ts" }
 marzer.tomlplusplus = "3.4.0"
 nlohmann.json       = "3.12.0"
 

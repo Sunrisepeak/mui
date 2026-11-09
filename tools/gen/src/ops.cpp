@@ -2,6 +2,7 @@ module omui.gen.ops;
 
 import std;
 import tomlplusplus;
+import omui.gen.data;
 
 namespace omui::gen {
 namespace {
@@ -90,16 +91,10 @@ std::string schema_type(std::string_view type, std::string_view doc) {
 }
 }  // namespace
 
-std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view text,
-                                                              std::string_view file) {
+namespace {
+
+std::expected<Catalog, std::vector<std::string>> read_root(const toml::table& root, std::string_view file) {
     std::vector<std::string> problems;
-    toml::table root;
-    try {
-        root = toml::parse(text, std::string(file));
-    } catch (const toml::parse_error& error) {
-        return std::unexpected(std::vector<std::string>{
-            std::format("{}:{}: {}", file, error.source().begin.line, error.description())});
-    }
     const auto at = [&](const toml::node* node) {
         return node ? static_cast<int>(node->source().begin.line) : 0;
     };
@@ -235,6 +230,34 @@ std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view t
     if (!problems.empty())
         return std::unexpected(std::move(problems));
     return catalog;
+}
+
+}  // namespace
+
+std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view text,
+                                                              std::string_view file) {
+    toml::table root;
+    try {
+        root = toml::parse(text, std::string(file));
+    } catch (const toml::parse_error& error) {
+        return std::unexpected(std::vector<std::string>{
+            std::format("{}:{}: {}", file, error.source().begin.line, error.description())});
+    }
+    return read_root(root, file);
+}
+
+std::expected<Catalog, std::vector<std::string>> read_catalog_file(const std::filesystem::path& file) {
+    std::string name;  // UTF-8, never through the code page
+    for (const char8_t unit : file.filename().generic_u8string()) name += static_cast<char>(unit);
+    if (is_data_module(file)) {
+        auto root = data_document(file, "ops");
+        if (!root) return std::unexpected(std::vector<std::string>{root.error()});
+        return read_root(*root, name);
+    }
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::unexpected(std::vector<std::string>{std::format("{}: cannot be read", name)});
+    const std::string text{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+    return read_catalog(text, name);
 }
 
 std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source) {

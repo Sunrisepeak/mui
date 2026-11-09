@@ -30,7 +30,7 @@ namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        expect(bool(result)) << result ? std::string() : result.error().text();
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
         expect(bool(result));
     if (!result) std::abort();
@@ -143,7 +143,7 @@ UTest cases{"xrender.sdl.signature", [] {
                 xrender::CpuRenderer reference;
                 (void)reference.render(list, cpu, {}, {.background = ground});
                 const auto report = gpu.render(list, *target, {}, {.background = ground});
-                expect(report.has_value()) << report ? "" : report.error().message;
+                expect(report.has_value()) << (report ? "" : report.error().message);
                 const auto bytes = device.read(*target, rhi::Region{0, 0, W, H});
                 expect(bytes.has_value());
                 if (!bytes) continue;

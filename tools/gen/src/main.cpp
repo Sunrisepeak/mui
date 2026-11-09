@@ -443,7 +443,7 @@ int wasm_size_main(int argc, char** argv) {
     return 0;
 }
 
-// omui-gen ops <file.ops.omui.toml> --out <dir> [--check]: the C++ partition
+// omui-gen ops <file.ops.omui.toml or .ops.omui.ts> --out <dir> [--check]: the C++ partition
 // (<dir>/catalog.cppm) and the listings (<dir>/<product>.ops.json, .ops.md).
 int ops_main(int argc, char** argv) {
     std::string file, out;
@@ -462,14 +462,8 @@ int ops_main(int argc, char** argv) {
         std::println(std::cerr, "usage: omui-gen ops <file.ops.omui.toml> [--out <dir>] [--check]");
         return 2;
     }
-    std::ifstream in(std::filesystem::path(file), std::ios::binary);
-    if (!in) {
-        std::println(std::cerr, "omui-gen ops: cannot read {}", file);
-        return 1;
-    }
-    const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     const auto name = generic_utf8(std::filesystem::path(file).filename());
-    auto catalog = omui::gen::read_catalog(text, name);
+    auto catalog = omui::gen::read_catalog_file(std::filesystem::path(file));
     if (!catalog) {
         for (const auto& problem : catalog.error()) std::println(std::cerr, "{}", problem);
         return 1;

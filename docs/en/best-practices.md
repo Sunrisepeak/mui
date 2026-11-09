@@ -7,7 +7,7 @@ What building the showcases taught, as rules a program on omui can follow. Each 
 omui is layered (D-82): independent components (`modules/`), the UI framework, the game engine services (`mgame`), specialised frameworks (`gongfu`), and applications. A capability goes to the lowest layer where it is general:
 
 - Recolouring a range of drawn commands is a renderer capability (`DisplayList::recolor`), even if one fighter's time stop is what needed it.
-- Compiling TypeScript from an editor's text is the script binding's (`compile_typescript_source`), even if one workshop asked for it.
+- Compiling TypeScript from an editor's text is the script binding's (`omui::lang::ts::compile_source`), even if one workshop asked for it.
 - A theme change is the host's: a component says what it wants (an event), and the application applies it.
 
 Never bend the architecture for one application's convenience. When something is awkward to do, fix the layer it belongs to.

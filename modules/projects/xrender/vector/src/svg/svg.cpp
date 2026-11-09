@@ -452,7 +452,8 @@ private:
                                 const std::size_t segments = flat.closed[line] ? points.size() : points.size() - 1;
                                 for (std::size_t at = 0; at < segments && points.size() > 1; ++at) {
                                     const Point head = points[at], tail = points[(at + 1) % points.size()];
-                                    length += std::hypot(static_cast<double>(tail.x - head.x), static_cast<double>(tail.y - head.y));
+                                    const double across = static_cast<double>(tail.x - head.x), down = static_cast<double>(tail.y - head.y);
+                                    length += std::sqrt(across * across + down * down);  // sqrt is IEEE's everywhere; hypot is each libm's
                                 }
                             }
                             if (!(length > 0)) continue;

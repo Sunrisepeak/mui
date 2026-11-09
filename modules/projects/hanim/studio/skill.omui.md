@@ -1,6 +1,6 @@
 # hanim.studio — skill
 
-How an Agent (or a person at a terminal) makes an animation without a GUI: writes a document, checks it, reads its numbers at the moments that matter, looks at its frames. The operations are the catalog's: [`studio.ops.omui.toml`](studio.ops.omui.toml), listed in [`media/ops/studio.ops.json`](media/ops/studio.ops.json) and [`media/ops/studio.ops.md`](media/ops/studio.ops.md); each is the `hanim` command (`document.check` is `hanim check FILE`): one JSON answer, exit 0 done, 1 the document's problems, 2 a wrong command. The document format is in [README.md](README.md).
+How an Agent (or a person at a terminal) makes an animation without a GUI: writes a document, checks it, reads its numbers at the moments that matter, looks at its frames. The operations are the catalog's: [`studio.ops.omui.ts`](studio.ops.omui.ts), listed in [`media/ops/studio.ops.json`](media/ops/studio.ops.json) and [`media/ops/studio.ops.md`](media/ops/studio.ops.md); each is the `hanim` command (`document.check` is `hanim check FILE`): one JSON answer, exit 0 done, 1 the document's problems, 2 a wrong command. The document format is in [README.md](README.md).
 
 ## Before
 

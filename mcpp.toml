@@ -2,6 +2,12 @@
 # on others only by `path`, so any of them can move to its own repository
 # (D-41). The umbrella package users name is modules/projects/omui/sdk; this
 # manifest declares no package (convergence plan §9.2).
+# The workspace's tools, from xlings, installed for the verbs that need them:
+# esbuild is the oracle of omui.lang.ts's type stripper (its tests), so
+# `mcpp test` and `mcpp run` install it and a plain build does not.
+[workspace.xlings.workspace]
+"xim:esbuild" = { version = "0.25.12", when = "run" }
+
 [workspace]
 members = [
     "spec",
@@ -95,6 +101,7 @@ members = [
     "modules/projects/omui/components/window",
     "modules/projects/omui/lang",
     "modules/projects/omui/lang/js",
+    "modules/projects/omui/lang/ts",
     "modules/projects/omui/lang/lua",
     "modules/projects/omui/lang/python",
     "modules/projects/omui/lang/python/embedded",

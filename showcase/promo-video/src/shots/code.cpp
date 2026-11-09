@@ -81,7 +81,7 @@ Tally run_tally(std::string_view language, float scale) {
                 lua->on_error(keep);
                 ran = lua->run(std::move(code), "@" + name);
             } else if (language == "ts") {
-                auto compiled = lang::js::compile_typescript_source(code, name);
+                auto compiled = lang::ts::compile_source(code, name);
                 if (!compiled) {
                     out.error = compiled.error();
                     abi::detach(handle);

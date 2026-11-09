@@ -29,11 +29,11 @@ UTest cases{"hanim.studio", [] {
 
     "the example reads, opens through hanim.control and has its plan"_test = [] {
         const auto document = studio::read(example());
-        expect(document.has_value()) << document ? "" : studio::to_text(document.error());
+        expect(document.has_value()) << (document ? "" : studio::to_text(document.error()));
         if (!document) return;
         expect(eq(document->objects.size(), std::size_t{4}));
         auto opened = studio::Studio::open(*document);
-        expect(opened.has_value()) << opened ? "" : studio::to_text(opened.error());
+        expect(opened.has_value()) << (opened ? "" : studio::to_text(opened.error()));
         if (!opened) return;
         // The drop's course and its squash settling, the travel with the star's spring, the morph, the wobble.
         expect(opened->duration().count() > 3 && opened->duration().count() < 8) << std::format("{} s", opened->duration().count());
@@ -81,7 +81,7 @@ UTest cases{"hanim.studio", [] {
         const auto draw = [&](double time) {
             xrender::raster::Surface surface(480, 320);
             const auto drawn = opened->render(hanim::seconds(time), surface);
-            expect(drawn.has_value()) << drawn ? "" : studio::to_text(drawn.error());
+            expect(drawn.has_value()) << (drawn ? "" : studio::to_text(drawn.error()));
             return std::vector<xrender::raster::Rgba8>(surface.pixels().begin(), surface.pixels().end());
         };
         const double end_time = opened->duration().count();
@@ -108,10 +108,10 @@ UTest cases{"hanim.studio", [] {
             {"do": "bob", "object": "d", "amplitude": 8, "period": 1, "count": 2},
             {"do": "fade_out", "object": "c"}
         ]}})");
-        expect(document.has_value()) << document ? "" : studio::to_text(document.error());
+        expect(document.has_value()) << (document ? "" : studio::to_text(document.error()));
         if (!document) return;
         auto opened = studio::Studio::open(*document);
-        expect(opened.has_value()) << opened ? "" : studio::to_text(opened.error());
+        expect(opened.has_value()) << (opened ? "" : studio::to_text(opened.error()));
         if (!opened) return;
         const auto start = *opened->state(hanim::seconds(0));
         expect(find(start, "a").opacity < .01 && std::abs(find(start, "a").scale.x - .3) < 1e-6) << "a pops in from small and unseen";
@@ -139,17 +139,17 @@ UTest cases{"hanim.studio", [] {
         const auto drawn = studio::read(R"({"version": 1, "objects": [{"id": "ring", "shape": {"path": "M-10 0 A10 10 0 1 1 10 0 A10 10 0 1 1 -10 0 Z M-5 0 A5 5 0 1 0 5 0 A5 5 0 1 0 -5 0 Z"}, "fill": "#fff", "at": [50, 50]}],
             "program": {"do": "pulse", "object": "ring"}})");
         auto ring = drawn ? studio::Studio::open(*drawn) : std::unexpected(drawn.error());
-        expect(ring.has_value()) << ring ? "" : studio::to_text(ring.error());
+        expect(ring.has_value()) << (ring ? "" : studio::to_text(ring.error()));
         if (ring) {
             const auto& state = find(*ring->state(hanim::seconds(0)), "ring");
             expect(std::abs(state.high.x - state.low.x - 20) < .01) << std::format("a ring 20 across: {}", state.high.x - state.low.x);
         }
         const auto broken_path = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"path": "M0 0 L5"}, "fill": "#fff"}], "program": {"do": "pulse", "object": "a"}})");
-        expect(!broken_path && says(broken_path.error(), "/objects/0/shape/path", "stops at character")) << broken_path ? "accepted" : studio::to_text(broken_path.error());
+        expect(!broken_path && says(broken_path.error(), "/objects/0/shape/path", "stops at character")) << (broken_path ? "accepted" : studio::to_text(broken_path.error()));
         // A recipe's fields are its own.
         const auto wrong = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"circle": 5}, "fill": "#fff"}],
             "program": {"do": "rise_in", "object": "a", "distnace": 10}})");
-        expect(!wrong && says(wrong.error(), "/program/distnace", "not a field of `rise_in`")) << wrong ? "accepted" : studio::to_text(wrong.error());
+        expect(!wrong && says(wrong.error(), "/program/distnace", "not a field of `rise_in`")) << (wrong ? "accepted" : studio::to_text(wrong.error()));
     };
 
     "the examples: each reads, opens, has an end and moves through it — every object drawn where it should be; each frame as SVG is vectors alone"_test = [] {
@@ -207,7 +207,7 @@ UTest cases{"hanim.studio", [] {
         expect(says(problems, "/program/items/1/do", "not a step")) << "the unknown step";
         expect(says(problems, "/program/items/2/ease", "not an ease")) << "the unknown ease";
         const auto syntax = studio::read("{\n  \"version\": 1,\n  \"objects\": [ }");
-        expect(!syntax && syntax.error().size() == 1 && syntax.error()[0].where.starts_with("line 3")) << syntax ? "" : syntax.error()[0].where;
+        expect(!syntax && syntax.error().size() == 1 && syntax.error()[0].where.starts_with("line 3")) << (syntax ? "" : syntax.error()[0].where);
     };
 
     "pointing at a moment: the steps that govern it, innermost first, each by its JSON pointer"_test = [] {
@@ -221,9 +221,9 @@ UTest cases{"hanim.studio", [] {
         // While the ball travels the star springs: asking for the star names its step, not the ball's.
         const double travel = opened->markers()[0].time.count() + 0.2;
         const auto star = opened->at(hanim::seconds(travel), "star");
-        expect(!star.empty() && star[0].where == "/program/items/2/items/1") << star.empty() ? "nothing for the star" : star[0].where;
+        expect(!star.empty() && star[0].where == "/program/items/2/items/1") << (star.empty() ? "nothing for the star" : star[0].where);
         const auto ball = opened->at(hanim::seconds(travel), "ball");
-        expect(!ball.empty() && ball[0].where == "/program/items/2/items/0") << ball.empty() ? "nothing for the ball" : ball[0].where;
+        expect(!ball.empty() && ball[0].where == "/program/items/2/items/0") << (ball.empty() ? "nothing for the ball" : ball[0].where);
         expect(opened->at(hanim::seconds(travel), "nobody").empty()) << "an object no step moves: nothing governs it";
     };
 

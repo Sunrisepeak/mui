@@ -2,6 +2,7 @@ module omui.gen.read;
 
 import std;
 import tomlplusplus;
+import omui.gen.data;
 import omui.gen.model;
 
 namespace omui::gen {
@@ -171,6 +172,16 @@ struct Reader {
 };
 
 std::optional<toml::table> parse(const std::filesystem::path& path, Diagnostics& diags) {
+    if (is_data_module(path)) {  // <name>.<kind>.omui.ts (D-139)
+        const auto name = generic_utf8(path.filename());
+        const std::string_view kind = name.ends_with(".native.omui.ts") ? "native" : "contract";
+        auto document = data_document(path, kind);
+        if (!document) {
+            diags.error({generic_utf8(path), 0, 0}, document.error());
+            return std::nullopt;
+        }
+        return std::move(*document);
+    }
     try {
         // Read through the path itself (wide on Windows), then parse the text.
         std::ifstream in(path, std::ios::binary);

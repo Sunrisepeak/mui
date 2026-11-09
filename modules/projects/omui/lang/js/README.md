@@ -25,13 +25,15 @@ The ES module `openmui` provides:
   - `model(name)`, with `push`, `splice`, `rows` and `clear`;
   - `find(path or query)` with `get` and `set`, plus `act`, `snapshot`, `tr` and `log`.
 - **Errors are exceptions** (`OmuiError`), with the message the runtime gave (`did you mean "button"?`). An exception in a handler, a verb or an unhandled promise goes to `Script::on_error`. Promise jobs run after every call, so async handlers work.
-- **Modules**: a script imports `"openmui"`. Its own modules are bundled at build time, when TypeScript is compiled with esbuild (`compile_typescript`; the player's `ts` language does it when it loads a file). Any other import is an error that says so.
+- **Modules**: a script imports `"openmui"`, `"openmui:native/<name>"` and its own modules by path (`"./label"`: the file, or with `.ts`, `.mts`, `.js`, `.mjs`, or the directory's `index`), loaded as they are imported. Any other import is an error that says so.
 - **Hot reload**: `Script::reload(code)` evaluates the module again under a new name. The n-th `signal()` returns the same signal with its value, views are reconciled, and handlers are replaced. The tests require it to finish in under 200 ms.
 
-For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.tsx`, compiled with the `esbuild` on `PATH`, or `OMUI_ESBUILD`).
+For the player: `javascript()` (`*.js`, `*.mjs`) and `typescript()` (`*.ts`, `*.mts`).
+
+**TypeScript** (D-139) runs as the JavaScript left when its types are blanked, in this process and on the Web, with no tool: [omui.lang.ts](../ts/README.md).
 
 The conformance scenarios (`spec/conformance/S`, CTS level S) run in JavaScript through `tests/cts.js`. It builds each view with the builders and the expression functions and does the steps through `act`, `invoke` and the rest. It must record the trace pinned beside each scenario, which Python and Lua record too.
 
-**Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `import { fuzzy } from "openmui:native/fuzzy"`: an `async` function answers a promise, and has a `…Sync` form for where a promise cannot be awaited (a verb). esbuild leaves `openmui:native/*` external.
+**Native modules** (component-binding §8) are made from the program's catalogue, with no binding written by hand: `import { fuzzy } from "openmui:native/fuzzy"`: an `async` function answers a promise, and has a `…Sync` form for where a promise cannot be awaited (a verb).
 
 **Themes** (omui.theme): a theme, then overlays — `theme("dark", "compact")` (an `OmuiError` when it cannot be composed) and `themes()`.

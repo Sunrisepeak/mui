@@ -181,16 +181,35 @@ def rewrite_checks(src: str) -> tuple[str, int]:
             a, b = inner[:commas[0]].strip(), inner[commas[0] + 1:].strip()
             out.append(f"expect(eq(std::bit_cast<std::uint64_t>(double({a})), std::bit_cast<std::uint64_t>(double({b}))))")
         elif name == "fail":
-            out.append(f"expect(false) << {inner.strip()}")
+            out.append(f"expect(false) << {message(inner.strip())}")
         elif commas:
             cond, what = inner[:commas[-1]].strip(), inner[commas[-1] + 1:].strip()
-            out.append(f"expect({cond}) << {what}")
+            out.append(f"expect({cond}) << {message(what)}")
         else:
             out.append(f"expect({inner.strip()})")
         if returned:
             out[-1] = "{ " + out[-1] + "; return; }"
         i = close + 1
     return "".join(out), count
+
+
+def message(what: str) -> str:
+    """A message for `<<`: in parentheses when an operator binding looser than `<<` is at its top level."""
+    depth, i = 0, 0
+    while i < len(what):
+        k = skip_literal(what, i)
+        if k != i:
+            i = k
+            continue
+        c = what[i]
+        if c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif depth == 0 and (c in "?|&^=<>," and what[i:i + 2] not in ("->", "::")):
+            return f"({what})"
+        i += 1
+    return what
 
 
 SUITE = re.compile(r"^[ \t]*(?:mlibs::testing::)?Suite\s+(\w+)\s*[{(]\s*(\"(?:[^\"\\]|\\.)*\")\s*[})]\s*;[ \t]*\n", re.M)

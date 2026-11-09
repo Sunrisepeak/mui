@@ -1,0 +1,48 @@
+# omui.lang.ts — TypeScript as code and as data (D-138, D-139): its types
+# blanked to the JavaScript under them (strip_types, here and on the Web), and
+# a data module (`export default defineContract({…})`) evaluated in a QuickJS
+# of its own, deterministic and bounded, to the JSON it stands for.
+#
+# A package of its own (D-99): the runtime (omui.lang.js) and the build-time
+# generator (omui-gen) both read TypeScript, and the generator must not
+# depend on the runtime.
+[package]
+namespace   = "omui.lang"
+name        = "ts"
+version     = "0.1.0"
+description = "TypeScript for openmui: types blanked to JavaScript, data modules evaluated to JSON"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[package.metadata.openmui]
+kind = "lang"
+
+[targets.openmui-lang-ts]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp"]
+
+# Data modules are evaluated by QuickJS-ng where its wrap builds; a page
+# (wasm32) reads TypeScript, it does not generate from it (src/native/web).
+[target.'cfg(not(os = "emscripten"))'.build]
+sources = ["src/native/quickjs/*.cpp"]
+
+[target.'cfg(os = "emscripten")'.build]
+sources = ["src/native/web/*.cpp"]
+
+[dependencies]
+mcpplibs.os = "0.4.1"
+
+[target.'cfg(not(os = "emscripten"))'.dependencies]
+mcpplibs.mwrap.quickjs_ng = "0.17.0"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.5.0"
+
+# esbuild is the oracle of the stripper's tests (strip_test), nothing else:
+# installed from xlings while this package is developed on its own (`dev`
+# reaches no consumer); in the workspace the root declares it for test runs.
+[xlings.workspace]
+"xim:esbuild" = { version = "0.25.12", when = "dev" }

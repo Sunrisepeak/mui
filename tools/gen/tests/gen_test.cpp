@@ -240,9 +240,11 @@ int main(int argc, char** argv) {
         for (const auto& path : files) {
             const std::filesystem::directory_entry entry(path);
             const auto name = entry.path().filename().generic_string();
-            if (!entry.is_regular_file() || !name.ends_with(".ops.omui.toml") || entry.path().generic_string().find("/target/") != std::string::npos) continue;
+            if (!entry.is_regular_file() || !(name.ends_with(".ops.omui.toml") || name.ends_with(".ops.omui.ts")) ||
+                entry.path().generic_string().find("/target/") != std::string::npos)
+                continue;
             ++catalogs;
-            auto catalog = gen::read_catalog(read(entry.path()), name);
+            auto catalog = gen::read_catalog_file(entry.path());
             check(catalog.has_value(), catalog ? std::string() : catalog.error().front());
             if (!catalog) continue;
             // Its outputs where the catalog says, beside it.

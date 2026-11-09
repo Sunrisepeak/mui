@@ -243,6 +243,13 @@ def strip_comments(text: str) -> str:
                 j += 2 if text[j] == "\\" else 1
             out.append('""')
             i = j + 1
+        elif c == "'" and not (i > 0 and text[i - 1].isalnum()):
+            # A character literal ('"', '\''); after a digit, a digit separator (1'000).
+            j = i + 1
+            while j < n and text[j] != "'" and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            out.append("''")
+            i = j + 1
         else:
             out.append(c)
             i += 1
@@ -806,12 +813,14 @@ def check_media(root: Path) -> list[Problem]:
 
 
 OPERATION = re.compile(r'"([a-z0-9_-]+\.[a-z0-9._-]+)"\s*,\s*openas::Effect::')
+TS_OPERATION_NAME = re.compile(r'\bname:\s*"([a-z0-9_-]+\.[a-z0-9._-]+)"')
 
 
 def check_operations(root: Path) -> list[Problem]:
     """A package that declares operations (a name with an openas effect) has a
-    catalog, <product>.ops.omui.toml, naming each one, and a skill.omui.md
-    (convergence plan §10.3); omui-gen ops makes its table from the catalog."""
+    catalog, <product>.ops.omui.toml or <product>.ops.omui.ts (defineOps,
+    D-139), naming each one, and a skill.omui.md (convergence plan §10.3);
+    omui-gen ops makes its table from the catalog."""
     import tomllib
     problems = []
     for member in workspace_members(root):
@@ -823,19 +832,23 @@ def check_operations(root: Path) -> list[Problem]:
                 continue
             for m in OPERATION.finditer(f.read_text(encoding="utf-8")):  # names are string literals: not stripped
                 declared.setdefault(m.group(1), f.relative_to(root).as_posix())
-        catalogs = sorted(base.glob("*.ops.omui.toml"))
+        catalogs = sorted([*base.glob("*.ops.omui.toml"), *base.glob("*.ops.omui.ts")])
         if not declared and not catalogs:
             continue
         where = f"{member}/"
         if len(catalogs) != 1:
-            problems.append(Problem("ops", where, f"declares operations ({', '.join(sorted(declared)[:3])}…) but has {len(catalogs)} catalogs: one <product>.ops.omui.toml"))
+            problems.append(Problem("ops", where, f"declares operations ({', '.join(sorted(declared)[:3])}…) but has {len(catalogs)} catalogs: one <product>.ops.omui.toml or .ops.omui.ts"))
             continue
-        try:
-            data = tomllib.loads(catalogs[0].read_text(encoding="utf-8"))
-        except tomllib.TOMLDecodeError as e:
-            problems.append(Problem("ops", catalogs[0].relative_to(root).as_posix(), str(e)))
-            continue
-        listed = {op.get("name") for op in data.get("operation", [])}
+        if catalogs[0].suffix == ".ts":
+            # Operation names are dotted string literals (`name: "document.check"`); parameters' are not.
+            listed = set(TS_OPERATION_NAME.findall(catalogs[0].read_text(encoding="utf-8")))
+        else:
+            try:
+                data = tomllib.loads(catalogs[0].read_text(encoding="utf-8"))
+            except tomllib.TOMLDecodeError as e:
+                problems.append(Problem("ops", catalogs[0].relative_to(root).as_posix(), str(e)))
+                continue
+            listed = {op.get("name") for op in data.get("operation", [])}
         for name, f in sorted(declared.items()):
             if name not in listed:
                 problems.append(Problem("ops", f, f"operation `{name}` is not in {catalogs[0].name}"))

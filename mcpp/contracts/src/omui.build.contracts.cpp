@@ -18,9 +18,36 @@ std::string default_registry() {
 
 }  // namespace
 
-std::vector<std::string> contract_names(const std::filesystem::path& file) { return table_names(file, "contract"); }
+// A TypeScript file (<name>.contract.omui.ts, D-139) holds one, named as the
+// file (omui-gen checks it); a TOML file says its names as tables.
+std::vector<std::string> names_in(const std::filesystem::path& file, std::string_view kind) {
+    const std::string name = utf8(file.filename());
+    const std::string typescript = std::format(".{}.omui.ts", kind);
+    if (name.ends_with(typescript)) return {name.substr(0, name.size() - typescript.size())};
+    return table_names(file, kind);
+}
 
-std::vector<std::string> native_names(const std::filesystem::path& file) { return table_names(file, "native"); }
+std::vector<std::string> contract_names(const std::filesystem::path& file) { return names_in(file, "contract"); }
+
+std::vector<std::string> native_names(const std::filesystem::path& file) { return names_in(file, "native"); }
+
+// The files of a kind in `dir`: <name>.<kind>.omui.toml and <name>.<kind>.omui.ts.
+std::vector<std::filesystem::path> kind_files(const std::filesystem::path& dir, std::string_view kind) {
+    auto files = files_ending(dir, std::format(".{}.omui.toml", kind));
+    std::ranges::move(files_ending(dir, std::format(".{}.omui.ts", kind)), std::back_inserter(files));
+    std::ranges::sort(files);
+    return files;
+}
+
+// What a file's outputs depend on: the file, and, for TypeScript, the
+// modules it may import (by path, inside its directory).
+std::vector<std::string> sources_of(const std::filesystem::path& file) {
+    std::vector<std::string> sources{utf8(file)};
+    if (utf8(file.filename()).ends_with(".omui.ts"))
+        for (const auto& other : files_ending(file.parent_path(), ".ts"))
+            if (other != file) sources.push_back(utf8(other));
+    return sources;
+}
 
 std::vector<edge> plan(const component_options& opt) {
     const std::string root = mcpp::manifest_dir();
@@ -43,7 +70,7 @@ std::vector<edge> plan(const component_options& opt) {
         std::println(std::cerr, "omui.build.contracts: no registry at {} (set component_options::registry to openmui's spec/registry)", registry);
         return {};
     }
-    const auto files = files_ending(std::filesystem::path(root) / opt.contracts, ".contract.omui.toml");
+    const auto files = kind_files(std::filesystem::path(root) / opt.contracts, "contract");
     const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
     const auto registry_files = files_under(registry);
 
@@ -56,7 +83,8 @@ std::vector<edge> plan(const component_options& opt) {
                 e.description = std::format("contract {} → {} ({})", name, file, opt.module);
                 e.command = {gen, "cpp", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", opt.ns,
                              "--out", out, "--contract", name, "--part", part};
-                e.inputs = {utf8(f), gen};
+                e.inputs = sources_of(f);
+                e.inputs.push_back(gen);
                 e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
                 e.outputs = {out + "/" + file};
                 e.imports = {"std", "omui.core", "omui.view"};
@@ -78,7 +106,7 @@ std::vector<edge> plan(const component_options& opt) {
         for (const auto& f : files) e.command.push_back(utf8(f));
         e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs"});
         e.inputs = {gen};
-        for (const auto& f : files) e.inputs.push_back(utf8(f));
+        for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
         e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
         for (const char* ext : {".d.ts", ".pyi", ".lua", ".components.json"}) e.outputs.push_back(out + "/stubs/" + opt.module + ext);
         edges.push_back(std::move(e));
@@ -90,7 +118,7 @@ bool components(component_options opt) {
     mcpp::rerun_if_changed_glob((opt.contracts + "/**").c_str());
     auto edges = plan(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.toml)", opt.contracts);
+        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.toml or .contract.omui.ts)", opt.contracts);
         return false;
     }
     return submit(edges);
@@ -109,7 +137,7 @@ std::vector<edge> plan_natives(const native_options& opt) {
     }
     const std::string registry = opt.registry.empty() ? default_registry() : opt.registry;
     const std::string ns = opt.ns.empty() ? namespace_of(opt.module) : opt.ns;
-    const auto files = files_ending(std::filesystem::path(root) / opt.natives, ".native.omui.toml");
+    const auto files = kind_files(std::filesystem::path(root) / opt.natives, "native");
     const std::string out = utf8(std::filesystem::path(opt.out_dir) / "openmui");
     const auto registry_files = files_under(registry);
 
@@ -123,7 +151,8 @@ std::vector<edge> plan_natives(const native_options& opt) {
             e.description = std::format("native module {} → {}_native.cppm ({})", name, name, opt.module);
             e.command = {gen, "native", utf8(f), "--registry", registry, "--module", opt.module, "--namespace", ns, "--out", out,
                          "--native", name, "--part", "cpp"};
-            e.inputs = {utf8(f), gen};
+            e.inputs = sources_of(f);
+            e.inputs.push_back(gen);
             e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
             e.outputs = {out + "/" + name + "_native.cppm"};
             e.provides = {opt.module + ":" + name + "_native"};
@@ -138,7 +167,7 @@ std::vector<edge> plan_natives(const native_options& opt) {
         for (const auto& f : files) e.command.push_back(utf8(f));
         e.command.insert(e.command.end(), {"--registry", registry, "--module", opt.module, "--out", out + "/stubs", "--part", "stubs"});
         e.inputs = {gen};
-        for (const auto& f : files) e.inputs.push_back(utf8(f));
+        for (const auto& f : files) std::ranges::move(sources_of(f), std::back_inserter(e.inputs));
         e.inputs.insert(e.inputs.end(), registry_files.begin(), registry_files.end());
         e.outputs = {out + "/stubs/" + opt.module + ".natives.d.ts", out + "/stubs/" + opt.module + ".natives.lua"};
         for (const auto& n : names) e.outputs.push_back(out + "/stubs/" + n + ".pyi");
@@ -151,7 +180,7 @@ bool natives(native_options opt) {
     mcpp::rerun_if_changed_glob((opt.natives + "/**").c_str());
     auto edges = plan_natives(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.toml)", opt.natives);
+        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.toml or .native.omui.ts)", opt.natives);
         return false;
     }
     return submit(edges);

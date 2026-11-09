@@ -35,5 +35,6 @@ hanim.core          = { path = "../../hanim/core" }
 "xrender.raster" = { path = "../raster" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.image   = { path = "../../../base/image" }
 mcpplibs.os     = "0.4.1"

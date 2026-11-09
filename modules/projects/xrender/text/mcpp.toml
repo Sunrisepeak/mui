@@ -29,5 +29,6 @@ xrender.raster = { path = "../raster" }
 xrender.vector = { path = "../vector" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../../base/utils" }
 mlibs.image = { path = "../../../base/image" }

@@ -5,14 +5,15 @@
 import std;
 import hanim.core;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using hanim::seconds;
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.golden"};
+UTest cases{"hanim.golden", [] {
 
-    s.test("curves", [] {
+    "curves"_test = [] {
         Hash h;
         for (int k = 0; k <= static_cast<int>(hanim::EaseKind::in_out_bounce); ++k) {
             hanim::Ease e{static_cast<hanim::EaseKind>(k)};
@@ -21,10 +22,10 @@ int main(int argc, char** argv) {
         for (auto e : {hanim::ease::css_ease, hanim::ease::standard, hanim::Ease::bezier(0.68, -0.6, 0.32, 1.6)})
             for (int i = 0; i <= 256; ++i) h.f64(e(i / 256.0));
         std::println("    curves {}", h.hex());
-        check_eq(h.hex(), std::string("ab1e08bd389e7baa"));
-    });
+        expect(eq(h.hex(), std::string("ab1e08bd389e7baa")));
+    };
 
-    s.test("springs and decay", [] {
+    "springs and decay"_test = [] {
         Hash h;
         for (auto p : {hanim::springs::standard, hanim::springs::wobbly, hanim::springs::molasses,
                        hanim::SpringParams{100, 20, 1}, hanim::SpringParams::response(0.35, 0.25)}) {
@@ -39,10 +40,10 @@ int main(int argc, char** argv) {
         h.f64(g.settle_time());
         for (int i = 0; i <= 600; ++i) h.f64(g.position(i / 240.0));
         std::println("    springs {}", h.hex());
-        check_eq(h.hex(), std::string("0d1c041e44ae6388"));
-    });
+        expect(eq(h.hex(), std::string("0d1c041e44ae6388")));
+    };
 
-    s.test("colours and motion", [] {
+    "colours and motion"_test = [] {
         Hash h;
         auto a = hanim::Rgba::bytes(255, 64, 0);
         auto b = hanim::Rgba::bytes(20, 120, 255, 200);
@@ -73,8 +74,6 @@ int main(int argc, char** argv) {
             h.f64(pose.angle);
         }
         std::println("    colours/motion {}", h.hex());
-        check_eq(h.hex(), std::string("9a82a28e165d19fe"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(h.hex(), std::string("9a82a28e165d19fe")));
+    };
+}};

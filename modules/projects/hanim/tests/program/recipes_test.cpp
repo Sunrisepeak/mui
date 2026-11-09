@@ -4,18 +4,19 @@
 // out, cues end where they began, loops go round `count` times, moves arrive.
 import std;
 import hanim.engine;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+// mtest by name: some of its names (tag, suite, body …) are this test's own too.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::operator""_test;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result) std::abort();
     if constexpr (!std::is_void_v<T>) return std::move(*result);
 }
@@ -62,10 +63,9 @@ std::string text(const Pose& p) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.recipes"};
+UTest cases{"hanim.recipes", [] {
 
-    s.test("entrances: from a pose of their own to where it stood, faded in", [] {
+    "entrances: from a pose of their own to where it stood, faded in"_test = [] {
         struct Entrance {
             std::string_view name;
             std::function<Program(ObjectRef)> make;
@@ -85,21 +85,21 @@ int main(int argc, char** argv) {
         for (const auto& e : entrances) {
             Run run(e.make);
             const Pose start = run.at(0), middle = run.at(run.length / 2), end = run.at(run.length);
-            check(run.length > 0 && e.start(start), std::format("{} starts {}", e.name, text(start)));
-            check(rests(end) && near(end.trim_end, 1), std::format("{} ends {}", e.name, text(end)));
-            check(!rests(middle) || (e.name == "write_in" && middle.trim_end > 0 && middle.trim_end < 1), std::format("{} moves: {}", e.name, text(middle)));
+            expect(run.length > 0 && e.start(start)) << std::format("{} starts {}", e.name, text(start));
+            expect(rests(end) && near(end.trim_end, 1)) << std::format("{} ends {}", e.name, text(end));
+            expect(!rests(middle) || (e.name == "write_in" && middle.trim_end > 0 && middle.trim_end < 1)) << std::format("{} moves: {}", e.name, text(middle));
         }
         // pop_in overshoots its size on the way (out_back).
         Run pop([](ObjectRef o) { return anim::pop_in(o); });
         double most = 0;
         for (int k = 0; k <= 40; ++k) most = std::max(most, pop.at(pop.length * k / 40).sx);
-        check(most > 1.02, std::format("pop_in overshoots: {:.3f}", most));
+        expect(most > 1.02) << std::format("pop_in overshoots: {:.3f}", most);
         // drop_in falls from above onto where it stood, and rests there.
         Run drop([](ObjectRef o) { return anim::drop_in(o, 120, {.part = "box"}); });
-        check(near(drop.at(0).y, -20) && near(drop.at(drop.length).y, 100), std::format("drop_in from {} to {}", drop.at(0).y, drop.at(drop.length).y));
-    });
+        expect(near(drop.at(0).y, -20) && near(drop.at(drop.length).y, 100)) << std::format("drop_in from {} to {}", drop.at(0).y, drop.at(drop.length).y);
+    };
 
-    s.test("exits: from where it stands to a pose of their own, faded out", [] {
+    "exits: from where it stands to a pose of their own, faded out"_test = [] {
         struct Exit {
             std::string_view name;
             std::function<Program(ObjectRef)> make;
@@ -119,12 +119,12 @@ int main(int argc, char** argv) {
         for (const auto& e : exits) {
             Run run(e.make);
             const Pose start = run.at(0), end = run.at(run.length);
-            check(run.length > 0 && rests(start) && near(start.trim_start, 0), std::format("{} starts {}", e.name, text(start)));
-            check(e.end(end), std::format("{} ends {}", e.name, text(end)));
+            expect(run.length > 0 && rests(start) && near(start.trim_start, 0)) << std::format("{} starts {}", e.name, text(start));
+            expect(e.end(end)) << std::format("{} ends {}", e.name, text(end));
         }
-    });
+    };
 
-    s.test("attention: each cue does its own thing and ends where it began", [] {
+    "attention: each cue does its own thing and ends where it began"_test = [] {
         struct Cue {
             std::string_view name;
             std::function<Program(ObjectRef)> make;
@@ -154,12 +154,12 @@ int main(int argc, char** argv) {
             Run run(cue.make);
             std::vector<Pose> course;
             for (int k = 0; k <= 280; ++k) course.push_back(run.at(run.length * k / 280));
-            check(rests(course.front()) && rests(course.back()), std::format("{} begins {} and ends {}", cue.name, text(course.front()), text(course.back())));
-            check(cue.course(course), std::format("{}'s course", cue.name));
+            expect(rests(course.front()) && rests(course.back())) << std::format("{} begins {} and ends {}", cue.name, text(course.front()), text(course.back()));
+            expect(cue.course(course)) << std::format("{}'s course", cue.name);
         }
-    });
+    };
 
-    s.test("idle loops: `count` courses of `period`, each ending where it began", [] {
+    "idle loops: `count` courses of `period`, each ending where it began"_test = [] {
         const struct {
             std::string_view name;
             std::function<Program(ObjectRef)> make;
@@ -174,22 +174,22 @@ int main(int argc, char** argv) {
         };
         for (const auto& l : loops) {
             Run run(l.make);
-            check(near(run.length, 4), std::format("{}: two courses of 2 s: {}", l.name, run.length));
+            expect(near(run.length, 4)) << std::format("{}: two courses of 2 s: {}", l.name, run.length);
             const Pose half = run.at(1), round = run.at(2), end = run.at(4);
-            check(l.halfway(half), std::format("{} halfway round: {}", l.name, text(half)));
+            expect(l.halfway(half)) << std::format("{} halfway round: {}", l.name, text(half));
             Pose settled = end;
             settled.rotation = std::remainder(settled.rotation, 2 * std::numbers::pi);  // a whole turn is where it began
-            check(rests(settled) && near(round.x, 100, 1e-6) && near(round.y, 100, 1e-6), std::format("{} round again: {}, ends {}", l.name, text(round), text(end)));
+            expect(rests(settled) && near(round.x, 100, 1e-6) && near(round.y, 100, 1e-6)) << std::format("{} round again: {}, ends {}", l.name, text(round), text(end));
         }
         Run forever([](ObjectRef o) { return anim::spin(o); });
-        check(std::isinf(forever.length), "spin, by default, forever");
-    });
+        expect(std::isinf(forever.length)) << "spin, by default, forever";
+    };
 
-    s.test("moves: along an arc; two exchanging places, passing each other; several one after another", [] {
+    "moves: along an arc; two exchanging places, passing each other; several one after another"_test = [] {
         Run arc([](ObjectRef o) { return anim::arc_to(o, {260, 100}, .3); });
         const Pose middle = arc.at(arc.length / 2), end = arc.at(arc.length);
-        check(near(end.x, 260) && near(end.y, 100), std::format("arrives: {}", text(end)));
-        check(std::abs(middle.y - 100) > 20, std::format("off the straight way halfway: {}", text(middle)));
+        expect(near(end.x, 260) && near(end.y, 100)) << std::format("arrives: {}", text(end));
+        expect(std::abs(middle.y - 100) > 20) << std::format("off the straight way halfway: {}", text(middle));
         // Two objects.
         Engine engine = take(Engine::make());
         const auto a = take(engine.create_object(square({100, 100}))), b = take(engine.create_object(square({300, 100})));
@@ -198,10 +198,9 @@ int main(int argc, char** argv) {
         const double length = take(engine.inspect(played)).duration.count();
         take(engine.seek(played, seconds(length / 2)));
         const double ya = take(engine.frame(played, 0)).geometry.parts[0].local.ty, yb = take(engine.frame(played, 1)).geometry.parts[0].local.ty;
-        check((ya - 100) * (yb - 100) < 0, std::format("they pass on either side: {} and {}", ya, yb));
+        expect((ya - 100) * (yb - 100) < 0) << std::format("they pass on either side: {} and {}", ya, yb);
         take(engine.seek(played, seconds(length)));
-        check(near(take(engine.frame(played, 0)).geometry.parts[0].local.tx, 300) && near(take(engine.frame(played, 1)).geometry.parts[0].local.tx, 100),
-              "and exchange places");
+        expect(near(take(engine.frame(played, 0)).geometry.parts[0].local.tx, 300) && near(take(engine.frame(played, 1)).geometry.parts[0].local.tx, 100)) << "and exchange places";
         // Several, staggered.
         Engine many = take(Engine::make());
         std::vector<ObjectInput> objects;
@@ -210,23 +209,22 @@ int main(int argc, char** argv) {
         const auto shuffled = take(many.play(anim::reorder(objects, offsets, seconds(.1))));
         take(many.pause(shuffled));
         const double all = take(many.inspect(shuffled)).duration.count();
-        check(near(all, .7, 1e-9), std::format("0.5 s each, 0.1 s apart: {}", all));
+        expect(near(all, .7, 1e-9)) << std::format("0.5 s each, 0.1 s apart: {}", all);
         take(many.seek(shuffled, seconds(.05)));
-        check(take(many.frame(shuffled, 0)).geometry.parts[0].local.tx > 100 && near(take(many.frame(shuffled, 2)).geometry.parts[0].local.tx, 200),
-              "the first moves before the last");
+        expect(take(many.frame(shuffled, 0)).geometry.parts[0].local.tx > 100 && near(take(many.frame(shuffled, 2)).geometry.parts[0].local.tx, 200)) << "the first moves before the last";
         take(many.seek(shuffled, seconds(all)));
-        check(near(take(many.frame(shuffled, 0)).geometry.parts[0].local.tx, 200) && near(take(many.frame(shuffled, 2)).geometry.parts[0].local.tx, 150), "all arrive");
-    });
+        expect(near(take(many.frame(shuffled, 0)).geometry.parts[0].local.tx, 200) && near(take(many.frame(shuffled, 2)).geometry.parts[0].local.tx, 150)) << "all arrive";
+    };
 
-    s.test("bad values are refused at preparation, not drawn", [] {
+    "bad values are refused at preparation, not drawn"_test = [] {
         Engine engine = take(Engine::make());
         const auto box = take(engine.create_object(square({100, 100})));
         for (const Program& bad : {anim::rise_in(box, std::numeric_limits<double>::infinity()), anim::fade_in(box, {.duration = seconds(-1)}),
                                    anim::flash(box, 0), anim::bob(box, 6, seconds(0)), anim::orbit(box, -4), anim::heartbeat(box, 0)})
-            check(!engine.prepare(bad), "refused");
-    });
+            expect(!engine.prepare(bad)) << "refused";
+    };
 
-    s.test("an open stroke (a letter's line, not an outline) is written along its length; its frames keep it open", [] {
+    "an open stroke (a letter's line, not an outline) is written along its length; its frames keep it open"_test = [] {
         Engine engine = take(Engine::make());
         const std::array hook{ShapeSegment::line({0, 30}), ShapeSegment::cubic({0, 40}, {10, 44}, {20, 40})};
         const auto stroke = take(engine.create_object({{{.id = "stroke",
@@ -236,7 +234,7 @@ int main(int argc, char** argv) {
         // Shown as it is (a morph to itself): it prepares, and its contour says it is open.
         const auto shown = take(engine.play(anim::morph(stroke, stroke)));
         const auto still = take(engine.frame(shown));
-        check(still.animation && !still.geometry.contours.empty() && !still.geometry.contours[0].closed, "open, as made");
+        expect(still.animation && !still.geometry.contours.empty() && !still.geometry.contours[0].closed) << "open, as made";
         take(engine.release(shown));
         // Written: its trim's end goes from 0 to 1.
         const auto written = take(engine.play(anim::write_in(stroke, {.part = "stroke"})));
@@ -247,30 +245,28 @@ int main(int argc, char** argv) {
             take(engine.seek(written, seconds(length * fraction)));
             const auto frame = take(engine.frame(written));
             const double end = frame.geometry.value(0, ch::trim_end).value_or(-1);
-            check(end >= previous && !frame.geometry.contours[0].closed, std::format("at {}: trim end {}", fraction, end));
+            expect(end >= previous && !frame.geometry.contours[0].closed) << std::format("at {}: trim end {}", fraction, end);
             previous = end;
         }
-        check(near(previous, 1), "written whole at its end");
-    });
+        expect(near(previous, 1)) << "written whole at its end";
+    };
 
-    s.test("the library by name: every recipe in the catalogue made by name plays on an object; a loop says its course; an unknown name makes none", [] {
+    "the library by name: every recipe in the catalogue made by name plays on an object; a loop says its course; an unknown name makes none"_test = [] {
         std::set<std::string_view> names;
         for (const auto& info : anim::recipes()) {
-            check(names.insert(info.name).second, std::format("{} once", info.name));
-            check(anim::find_recipe(info.name) == &info, std::string(info.name));
-            check((info.kind == anim::RecipeKind::loop) == (info.period > 0), std::format("{}: a loop has a course, and only a loop", info.name));
+            expect(names.insert(info.name).second) << std::format("{} once", info.name);
+            expect(anim::find_recipe(info.name) == &info) << std::string(info.name);
+            expect((info.kind == anim::RecipeKind::loop) == (info.period > 0)) << std::format("{}: a loop has a course, and only a loop", info.name);
             const auto made = anim::recipe(info.name, ObjectRef{}, {.count = 1});
-            check(made.has_value(), std::string(info.name));
+            expect(made.has_value()) << std::string(info.name);
             if (!made) continue;
             Run run([&](ObjectRef o) { return *anim::recipe(info.name, o, {.count = 1}, {.part = "box"}); });
-            check(run.length > 0, std::format("{} plays: {} s", info.name, run.length));
+            expect(run.length > 0) << std::format("{} plays: {} s", info.name, run.length);
         }
-        check(names.size() >= 36, std::format("{} recipes", names.size()));
-        check(!anim::recipe("no_such_recipe", ObjectRef{}) && !anim::find_recipe("no_such_recipe"), "an unknown name: none");
+        expect(names.size() >= 36) << std::format("{} recipes", names.size());
+        expect(!anim::recipe("no_such_recipe", ObjectRef{}) && !anim::find_recipe("no_such_recipe")) << "an unknown name: none";
         // A value given is used: rise_in from 60 below rather than its 24.
         Run rise([](ObjectRef o) { return *anim::recipe("rise_in", o, {.number = 60.0}); });
-        check(near(rise.at(0).y, 160), std::format("from 60 below: {}", rise.at(0).y));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(near(rise.at(0).y, 160)) << std::format("from 60 below: {}", rise.at(0).y);
+    };
+}};

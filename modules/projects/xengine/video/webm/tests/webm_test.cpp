@@ -9,8 +9,10 @@ import hanim.core;
 import xengine.video;
 import xengine.video.webm;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace video = xengine::video;
 
 namespace {
@@ -29,7 +31,7 @@ Encoded encode(const video::Format& f, video::WebmOptions o = {}) {
     auto webm = video::webm_encoder("card.webm", o);
     std::array<video::Encoder*, 1> enc{webm.get()};
     const auto done = video::encode(f, card, track, enc, out);
-    check(done.has_value(), done ? "" : done.error());
+    expect(done.has_value()) << (done ? "" : done.error());
     if (!done) return {};
     const auto b = out.bytes("card.webm");
     return {{b.begin(), b.end()}, done->files.at(0).hash};
@@ -89,7 +91,7 @@ ChunkRun chunked(const video::Format& f, const std::filesystem::path& dir, std::
     };
     video::MemoryOutput out;
     auto done = video::encode_webm_chunked(f, video::card_track(f), plan, out, "chunks.webm");
-    check(done.has_value(), done ? "" : done.error());
+    expect(done.has_value()) << (done ? "" : done.error());
     if (!done) return run;
     run.done = *done;
     const auto b = out.bytes("chunks.webm");
@@ -99,72 +101,71 @@ ChunkRun chunked(const video::Format& f, const std::filesystem::path& dir, std::
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s("xengine.video.webm");
+UTest cases{"xengine.video.webm", [] {
 
-    s.test("chunks (D-54's fourth cache layer): drawn and encoded once, found after and never drawn again — the same file; an edited chunk alone drawn again; several at once the same", [] {
+    "chunks (D-54's fourth cache layer): drawn and encoded once, found after and never drawn again — the same file; an edited chunk alone drawn again; several at once the same"_test = [] {
         const video::Format f{.width = 160, .height = 90, .timing = {{30, 1}, 48000}, .frames = 90, .channels = 2};
         const auto dir = scratch_dir("webm-chunks");
         const ChunkRun first = chunked(f, dir);
-        check(first.done.chunks == 3 && first.done.reused == 0 && first.done.drawn == 90 && first.draws == 3, "every chunk drawn the first time");
+        expect(first.done.chunks == 3 && first.done.reused == 0 && first.done.drawn == 90 && first.draws == 3) << "every chunk drawn the first time";
         const auto d = video::decode_webm(first.bytes);
-        check(d.has_value(), d ? "" : d.error());
+        expect(d.has_value()) << (d ? "" : d.error());
         if (!d) return;
-        check_eq(d->frames.size(), std::size_t{90});
-        check(worst_psnr(f, *d) > 38, std::format("every frame within 38 dB (worst {:.1f})", worst_psnr(f, *d)));
+        expect(eq(d->frames.size(), std::size_t{90}));
+        expect(worst_psnr(f, *d) > 38) << std::format("every frame within 38 dB (worst {:.1f})", worst_psnr(f, *d));
         const auto track = video::card_track(f);
-        check_eq(d->samples.size(), track.size());
+        expect(eq(d->samples.size(), track.size()));
         const ChunkRun again = chunked(f, dir);
-        check(again.done.reused == 3 && again.done.drawn == 0 && again.draws == 0, "the second time, every chunk found: no frame drawn");
-        check(again.bytes == first.bytes, "the same file");
+        expect(again.done.reused == 3 && again.done.drawn == 0 && again.draws == 0) << "the second time, every chunk found: no frame drawn";
+        expect(again.bytes == first.bytes) << "the same file";
         // An edit to the middle chunk's frames: that chunk alone drawn, the file what a run from nothing writes.
         const ChunkRun edited = chunked(f, dir, 1);
-        check(edited.done.reused == 2 && edited.done.drawn == 30 && edited.draws == 1, std::format("one chunk drawn again ({} reused)", edited.done.reused));
+        expect(edited.done.reused == 2 && edited.done.drawn == 30 && edited.draws == 1) << std::format("one chunk drawn again ({} reused)", edited.done.reused);
         const ChunkRun fresh = chunked(f, scratch_dir("webm-chunks-fresh"), 1);
-        check(fresh.done.reused == 0 && fresh.bytes == edited.bytes, "the same file as one encoded from nothing");
-        check(fresh.bytes != first.bytes, "and not the unedited one");
+        expect(fresh.done.reused == 0 && fresh.bytes == edited.bytes) << "the same file as one encoded from nothing";
+        expect(fresh.bytes != first.bytes) << "and not the unedited one";
         // Three chunks at once, each its own encoder: the same bytes.
         const ChunkRun parallel = chunked(f, scratch_dir("webm-chunks-parallel"), -1, 3);
-        check(parallel.done.drawn == 90 && parallel.draws == 3 && parallel.bytes == first.bytes, "three at once: the same file");
-    });
+        expect(parallel.done.drawn == 90 && parallel.draws == 3 && parallel.bytes == first.bytes) << "three at once: the same file";
+    };
 
-    s.test("pictures only: every frame back at its time, BT.709 limited range said, the bytes pinned and the same twice", [] {
+    "pictures only: every frame back at its time, BT.709 limited range said, the bytes pinned and the same twice"_test = [] {
         const video::Format f{.width = 160, .height = 90, .timing = {{30, 1}, 48000}, .frames = 30, .channels = 0};
         const Encoded a = encode(f);
-        check(!a.bytes.empty());
+        expect(!a.bytes.empty());
         const auto d = video::decode_webm(a.bytes);
-        check(d.has_value(), d ? "" : d.error());
+        expect(d.has_value()) << (d ? "" : d.error());
         if (!d) return;
-        check_eq(d->frames.size(), std::size_t{30});
-        check(d->width == 160 && d->height == 90 && d->video_codec == "V_VP9" && d->audio_codec.empty() && d->bt709 && d->limited_range);
+        expect(eq(d->frames.size(), std::size_t{30}));
+        expect(d->width == 160 && d->height == 90 && d->video_codec == "V_VP9" && d->audio_codec.empty() && d->bt709 && d->limited_range);
         bool times = d->frame_ns.size() == 30;
         for (std::size_t i = 0; times && i < 30; ++i) times = d->frame_ns[i] == f.timing.time_of(static_cast<std::int64_t>(i), 1'000'000'000) / 1'000'000 * 1'000'000;
-        check(times, "each frame at its time (WebM keeps milliseconds)");
+        expect(times) << "each frame at its time (WebM keeps milliseconds)";
         const double psnr = worst_psnr(f, *d);
         std::println("    {} bytes, worst PSNR {:.2f} dB, {}", a.bytes.size(), psnr, hex(a.hash));
-        check(psnr > 38, std::format("PSNR {:.2f}", psnr));
-        check(encode(f).hash == a.hash, "the same bytes twice");
-        check_eq(hex(a.hash), std::string("821cfb7347162cd1"));  // libvpx 1.17.0 and libwebm 1.0.0.32, one thread: every platform
-    });
+        expect(psnr > 38) << std::format("PSNR {:.2f}", psnr);
+        expect(encode(f).hash == a.hash) << "the same bytes twice";
+        expect(eq(hex(a.hash), std::string("821cfb7347162cd1")));  // libvpx 1.17.0 and libwebm 1.0.0.32, one thread: every platform
+    };
 
-    s.test("lossless: every Y'CbCr sample back", [] {
+    "lossless: every Y'CbCr sample back"_test = [] {
         const video::Format f{.width = 64, .height = 36, .timing = {{24, 1}, 48000}, .frames = 6, .channels = 0};
         const auto d = video::decode_webm(encode(f, {.lossless = true}).bytes);
-        check(d.has_value() && d->frames.size() == 6, d ? std::format("{} frames", d->frames.size()) : d.error());
-        if (d) check(std::isinf(worst_psnr(f, *d)), std::format("PSNR {}", worst_psnr(f, *d)));
-    });
+        expect(d.has_value() && d->frames.size() == 6) << (d ? std::format("{} frames", d->frames.size()) : d.error());
+        if (d) expect(std::isinf(worst_psnr(f, *d))) << std::format("PSNR {}", worst_psnr(f, *d));
+    };
 
-    s.test("with sound: exactly the samples that went in, each second's beep still on its flash frame", [] {
+    "with sound: exactly the samples that went in, each second's beep still on its flash frame"_test = [] {
         for (const mlibs::time::Rate fps : {mlibs::time::Rate{30, 1}, mlibs::time::Rate{30000, 1001}}) {
             const video::Timing t{fps, 48000};
             const video::Format f{.width = 96, .height = 54, .timing = t, .frames = t.frames_in(2.0), .channels = 2};
             const Encoded e = encode(f);
             const auto d = video::decode_webm(e.bytes);
-            check(d.has_value(), d ? "" : d.error());
+            expect(d.has_value()) << (d ? "" : d.error());
             if (!d) continue;
-            check(d->audio_codec == "A_OPUS" && d->rate == 48000 && d->channels == 2);
-            check_eq(d->samples.size(), static_cast<std::size_t>(f.samples() * 2));
-            check_eq(d->frames.size(), static_cast<std::size_t>(f.frames));
+            expect(d->audio_codec == "A_OPUS" && d->rate == 48000 && d->channels == 2);
+            expect(eq(d->samples.size(), static_cast<std::size_t>(f.samples() * 2)));
+            expect(eq(d->frames.size(), static_cast<std::size_t>(f.frames)));
             // Each beep begins within a millisecond of its flash frame's first sample.
             for (std::int64_t i = 0; i < f.frames; ++i) {
                 if (!video::card_flash(t, i)) continue;
@@ -172,7 +173,7 @@ int main(int argc, char** argv) {
                 std::int64_t onset = -1;
                 for (std::int64_t k = std::max<std::int64_t>(0, at - 480); k < std::min<std::int64_t>(f.samples(), at + 480) && onset < 0; ++k)
                     if (std::abs(d->samples[static_cast<std::size_t>(2 * k)]) > 0.1f) onset = k;
-                check(onset >= at - 48 && onset <= at + 48, std::format("{} fps: the beep of frame {} at sample {}, its frame from {}", video::rate_text(fps), i, onset, at));
+                expect(onset >= at - 48 && onset <= at + 48) << std::format("{} fps: the beep of frame {} at sample {}, its frame from {}", video::rate_text(fps), i, onset, at);
             }
             // The tone itself, within what a 128 kb/s Opus keeps.
             const auto original = video::card_track(f);
@@ -183,20 +184,18 @@ int main(int argc, char** argv) {
             }
             const double snr = 10 * std::log10(signal / std::max(noise, 1e-12));
             std::println("    {} fps: {} bytes, sound SNR {:.1f} dB", video::rate_text(fps), e.bytes.size(), snr);
-            check(snr > 15, std::format("SNR {:.1f}", snr));
+            expect(snr > 15) << std::format("SNR {:.1f}", snr);
         }
-    });
+    };
 
-    s.test("what Opus cannot take is refused", [] {
+    "what Opus cannot take is refused"_test = [] {
         const video::Format f{.width = 32, .height = 32, .timing = {{30, 1}, 44100}, .frames = 2, .channels = 2};
         video::Card card(f);
         video::MemoryOutput out;
         auto webm = video::webm_encoder("x.webm");
         std::array<video::Encoder*, 1> enc{webm.get()};
         const auto r = video::encode(f, card, {}, enc, out);
-        check(!r && r.error().find("48 kHz") != std::string::npos);
-        check(!video::decode_webm(std::as_bytes(std::span("not a webm", 10))).has_value());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!r && r.error().find("48 kHz") != std::string::npos);
+        expect(!video::decode_webm(std::as_bytes(std::span("not a webm", 10))).has_value());
+    };
+}};

@@ -7,9 +7,10 @@
 // knockdown's own length.
 import std;
 import gongfu;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+// mtest by name: some of its names (tag, suite, body …) are this test's own too.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::operator""_test;
 using namespace gongfu;
 
 namespace {
@@ -213,7 +214,7 @@ FighterDef body() {
 const Fighter& rule() {
     static const Fighter f = [] {
         auto c = compile(body());
-        check(c.has_value(), c ? "" : c.error().front().where + ": " + c.error().front().text);
+        expect(c.has_value()) << (c ? "" : c.error().front().where + ": " + c.error().front().text);
         return c ? *c : Fighter{};
     }();
     return f;
@@ -280,24 +281,23 @@ void play(Match& m, std::span<const Pad> a, std::span<const Pad> b = {}) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"gongfu.rules"};
+UTest cases{"gongfu.rules", [] {
 
-    s.test("G-1 dashes: tapped twice, not held; the back dash goes through a jab but not a throw", [] {
+    "G-1 dashes: tapped twice, not held; the back dash goes through a jab but not a throw"_test = [] {
         Match m = apart(600_fx);
         const std::array tap{pad(6), pad(5), pad(6)};
         play(m, tap);
-        check_eq(moving(m, 0), std::string_view("66"));
+        expect(eq(moving(m, 0), std::string_view("66")));
         Match held = apart(600_fx);
         const std::array walk{pad(6), pad(6), pad(6), pad(6)};
         play(held, walk);
-        check(held.state().f[0].mode == Mode::walk_forward, "holding forward walks");
+        expect(held.state().f[0].mode == Mode::walk_forward) << "holding forward walks";
         Match slow = apart(600_fx);
         std::vector<Pad> late{pad(6)};
         for (int i = 0; i < 12; ++i) late.push_back(pad(5));
         late.push_back(pad(6));
         play(slow, late);
-        check(moving(slow, 0) != std::string_view("66"), "too slow: a walk");
+        expect(moving(slow, 0) != std::string_view("66")) << "too slow: a walk";
         // The right fighter faces left: its back is 6.
         Match bd = apart(90_fx);
         const std::array jab{pad(5, LP)};
@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
             bd.tick(pad(5), pad(5));
             hit = hit || has(bd, Event::Kind::hit);
         }
-        check(!hit, "the jab passes through the back dash");
+        expect(!hit) << "the jab passes through the back dash";
         (void)jab;
         Match bt = apart(70_fx);
         play(bt, std::span<const Pad>{}, std::span<const Pad>(away).first(2));
@@ -319,24 +319,24 @@ int main(int argc, char** argv) {
             bt.tick(pad(5), pad(5));
             thrown = thrown || bt.state().f[1].mode == Mode::thrown;
         }
-        check(thrown, "a back dash is thrown");
-    });
+        expect(thrown) << "a back dash is thrown";
+    };
 
-    s.test("G-2 projectiles: one on screen at a time; one falls and is gone at the ground; one hits three times and outweighs another", [] {
+    "G-2 projectiles: one on screen at a time; one falls and is gone at the ground; one hits three times and outweighs another"_test = [] {
         Match m = apart(900_fx);
         const std::array motion{pad(2), pad(3), pad(6, LP)};
         play(m, motion);
         for (int f = 0; f < 15; ++f) m.tick(pad(5), pad(5));
-        check(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive != 0; }) == 1, "one glyph out");
+        expect(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive != 0; }) == 1) << "one glyph out";
         for (int f = 0; f < 30; ++f) m.tick(pad(5), pad(5));  // the first glyph's move is over; the glyph flies on
         play(m, motion);
-        check(moving(m, 0) == std::string_view("5LP"), std::format("a second is not started past the limit: {}", moving(m, 0)));
+        expect(moving(m, 0) == std::string_view("5LP")) << std::format("a second is not started past the limit: {}", moving(m, 0));
         // Falling: from a jump, it comes down and is gone where it meets the ground.
         Match j = apart(900_fx);
         j.tick(pad(8), pad(5));
         for (int f = 0; f < 10; ++f) j.tick(pad(5), pad(5));
         play(j, motion);
-        check_eq(moving(j, 0), std::string_view("j.236P"));
+        expect(eq(moving(j, 0), std::string_view("j.236P")));
         bool seen_low = false, gone = false;
         for (int f = 0; f < 80 && !gone; ++f) {
             j.tick(pad(5), pad(5));
@@ -345,7 +345,7 @@ int main(int argc, char** argv) {
             const bool any = std::ranges::any_of(j.state().p, [](const ProjectileState& p) { return p.alive != 0; });
             gone = seen_low && !any;
         }
-        check(gone, "it fell and was gone at the ground");
+        expect(gone) << "it fell and was gone at the ground";
         // The great glyph: three hits, four frames apart at least, and it outweighs a glyph.
         Match g = apart(400_fx);
         State st = g.state();
@@ -358,8 +358,8 @@ int main(int argc, char** argv) {
             g.tick(pad(5), pad(5));
             hits += count(g, Event::Kind::hit);
         }
-        check_eq(hits, 3);
-        check_eq(g.state().f[1].health, 10000 - 3 * 500);  // a super's scaling is locked at its first hit (system 0.3)
+        expect(eq(hits, 3));
+        expect(eq(g.state().f[1].health, 10000 - 3 * 500));  // a super's scaling is locked at its first hit (system 0.3)
         Match c = apart(900_fx);
         st = c.state();
         st.f[0].meter = 1000;
@@ -373,23 +373,22 @@ int main(int argc, char** argv) {
         }
         (void)mirrored;
         const auto alive = std::ranges::count_if(c.state().p, [](const ProjectileState& p) { return p.alive != 0; });
-        check(clash && alive == 1, std::format("clashed {}, {} left", clash, alive));
+        expect(clash && alive == 1) << std::format("clashed {}, {} left", clash, alive);
         bool hit_right = false;
         for (int f = 0; f < 120 && !hit_right; ++f) {
             c.tick(pad(5), pad(5));
             hit_right = std::ranges::any_of(c.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; });
         }
-        check(hit_right, "the great glyph went on and hit");
-    });
+        expect(hit_right) << "the great glyph went on and hit";
+    };
 
-    s.test("G-3 throws: a back throw changes places; no throw just after blockstun; a fighter about to jump is thrown", [] {
+    "G-3 throws: a back throw changes places; no throw just after blockstun; a fighter about to jump is thrown"_test = [] {
         Match m = apart(70_fx);
         const Fixed x0 = m.state().f[0].pos.x, x1 = m.state().f[1].pos.x;
         m.tick(pad(4, static_cast<std::uint16_t>(LP | LK)), pad(5));
         for (int f = 0; f < 6; ++f) m.tick(pad(5), pad(5));
-        check(m.state().f[1].mode == Mode::thrown && m.state().f[0].pos.x > m.state().f[1].pos.x,
-              std::format("{} → {}, {} → {}", x0.to_double(), m.state().f[0].pos.x.to_double(), x1.to_double(), m.state().f[1].pos.x.to_double()));
-        check(m.state().f[0].facing == -1 && m.state().f[1].facing == 1, "each faces the other");
+        expect(m.state().f[1].mode == Mode::thrown && m.state().f[0].pos.x > m.state().f[1].pos.x) << std::format("{} → {}, {} → {}", x0.to_double(), m.state().f[0].pos.x.to_double(), x1.to_double(), m.state().f[1].pos.x.to_double());
+        expect(m.state().f[0].facing == -1 && m.state().f[1].facing == 1) << "each faces the other";
         // Protection: thrown neither on the frame blockstun ends nor the next, then thrown.
         for (const int late : {0, 3}) {
             Match p = apart(70_fx);
@@ -404,7 +403,7 @@ int main(int argc, char** argv) {
                 p.tick(pad(5), pad(5));
                 thrown = thrown || p.state().f[1].mode == Mode::thrown;
             }
-            check(thrown == (late == 3), std::format("{} frames after blockstun: thrown {}", late, thrown));
+            expect(thrown == (late == 3)) << std::format("{} frames after blockstun: thrown {}", late, thrown);
         }
         Match pj = apart(70_fx);
         pj.tick(pad(5, static_cast<std::uint16_t>(LP | LK)), pad(5));
@@ -415,10 +414,10 @@ int main(int argc, char** argv) {
             pj.tick(pad(5), pad(5));
             thrown = thrown || pj.state().f[1].mode == Mode::thrown;
         }
-        check(thrown, "prejump is thrown");
-    });
+        expect(thrown) << "prejump is thrown";
+    };
 
-    s.test("G-4 invulnerability by kind: an anti-air passes through a jump-in but a ground jab hits it", [] {
+    "G-4 invulnerability by kind: an anti-air passes through a jump-in but a ground jab hits it"_test = [] {
         // Fighter 2 on its anti-air's frame 3 (invulnerable to the air); fighter 1 on an active frame of j.HP above it, then of a jab beside it.
         for (const bool from_air : {true, false}) {
             Match m = apart(from_air ? 60_fx : 90_fx);
@@ -436,11 +435,11 @@ int main(int argc, char** argv) {
             m.restore(st);
             m.tick(pad(5), pad(5));
             const bool hit = std::ranges::any_of(m.events(), [](const Event& e) { return e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter); });
-            check(hit == !from_air, std::format("{}: hit {}", from_air ? "from the air" : "from the ground", hit));
+            expect(hit == !from_air) << std::format("{}: hit {}", from_air ? "from the air" : "from the ground", hit);
         }
-    });
+    };
 
-    s.test("G-5 a move's own hurtboxes: the stretched arm is hit where the body is not", [] {
+    "G-5 a move's own hurtboxes: the stretched arm is hit where the body is not"_test = [] {
         // 5MK's arm reaches 105 in front on frames 6–12; a jab reaching 90 from 160 away hits only the arm.
         for (const bool poke : {false, true}) {
             Match m = apart(160_fx);
@@ -452,22 +451,22 @@ int main(int argc, char** argv) {
                 m.tick(pad(5), pad(5));
                 hit = hit || std::ranges::any_of(m.events(), [](const Event& e) { return e.attacker == 0 && (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter); });
             }
-            check(hit == poke, std::format("{}: hit {}", poke ? "the arm out" : "standing", hit));
+            expect(hit == poke) << std::format("{}: hit {}", poke ? "the arm out" : "standing", hit);
         }
-    });
+    };
 
-    s.test("G-6 a target combo: 5MP into 5HP on contact; not into 5LP, not on a whiff", [] {
+    "G-6 a target combo: 5MP into 5HP on contact; not into 5LP, not on a whiff"_test = [] {
         for (const auto& [gap, then, want] : {std::tuple{90_fx, HP, "5HP"}, std::tuple{90_fx, LP, "5MP"}, std::tuple{400_fx, HP, "-"}}) {
             Match m = apart(gap);
             m.tick(pad(5, MP), pad(5));
             for (int f = 0; f < 6; ++f) m.tick(pad(5), pad(5));
             m.tick(pad(5, then), pad(5));
             for (int f = 0; f < 12; ++f) m.tick(pad(5), pad(5));  // through the hitstop
-            check(moving(m, 0) == std::string_view(want), std::format("gap {}, then {}: {}", gap.to_double(), then, moving(m, 0)));
+            expect(moving(m, 0) == std::string_view(want)) << std::format("gap {}, then {}: {}", gap.to_double(), then, moving(m, 0));
         }
-    });
+    };
 
-    s.test("G-7 juggle points: one follow-up in the air, then an air reset", [] {
+    "G-7 juggle points: one follow-up in the air, then an air reset"_test = [] {
         Match m = apart(80_fx);
         m.tick(pad(2, HP), pad(5));
         std::vector<std::int32_t> combo;
@@ -479,17 +478,17 @@ int main(int argc, char** argv) {
                 if (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) combo.push_back(m.state().f[1].combo);
             reset = reset || m.state().f[1].mode == Mode::reset;
         }
-        check(combo.size() >= 2 && combo[0] == 1 && combo[1] == 2, std::format("{}", combo));
-        check(reset, "the third hit in the air resets");
-        check(m.state().f[1].mode == Mode::idle && m.state().f[1].pos.y == Fixed{}, "it lands free");
-    });
+        expect(combo.size() >= 2 && combo[0] == 1 && combo[1] == 2) << std::format("{}", combo);
+        expect(reset) << "the third hit in the air resets";
+        expect(m.state().f[1].mode == Mode::idle && m.state().f[1].pos.y == Fixed{}) << "it lands free";
+    };
 
-    s.test("G-8 hitstop by side; a projectile's owner keeps moving; input kept through a super's flash", [] {
+    "G-8 hitstop by side; a projectile's owner keeps moving; input kept through a super's flash"_test = [] {
         Match m = apart(90_fx);
         m.tick(pad(5, HP), pad(5));
         for (int f = 0; f < 7; ++f) m.tick(pad(5), pad(5));
-        check(has(m, Event::Kind::hit), "5HP hit on frame 8");
-        check(m.state().f[0].stop == 4 && m.state().f[1].stop == 10, std::format("stops {} / {}", m.state().f[0].stop, m.state().f[1].stop));
+        expect(has(m, Event::Kind::hit)) << "5HP hit on frame 8";
+        expect(m.state().f[0].stop == 4 && m.state().f[1].stop == 10) << std::format("stops {} / {}", m.state().f[0].stop, m.state().f[1].stop);
         // The glyph: when it hits, its owner's move goes on.
         Match p = apart(160_fx);
         const std::array motion{pad(2), pad(3), pad(6, LP)};
@@ -500,8 +499,7 @@ int main(int argc, char** argv) {
             if (has(p, Event::Kind::hit)) frame_at_hit = p.state().f[0].move_frame;
         }
         p.tick(pad(5), pad(5));
-        check(frame_at_hit > 0 && p.state().f[0].move_frame == frame_at_hit + 1 && p.state().f[0].stop == 0,
-              std::format("the owner at frame {} then {}", frame_at_hit, p.state().f[0].move_frame));
+        expect(frame_at_hit > 0 && p.state().f[0].move_frame == frame_at_hit + 1 && p.state().f[0].stop == 0) << std::format("the owner at frame {} then {}", frame_at_hit, p.state().f[0].move_frame);
         // A reversal pressed during the flash starts on the frame after it.
         Match fl = apart(500_fx);
         State st = fl.state();
@@ -509,20 +507,20 @@ int main(int argc, char** argv) {
         fl.restore(st);
         const std::array super{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LP)};
         play(fl, super);
-        check(fl.state().freeze > 0, "the flash");
+        expect(fl.state().freeze > 0) << "the flash";
         const std::array dp{pad(4), pad(1), pad(2), pad(1, LP)};
         for (int f = 0; f < 10; ++f) fl.tick(pad(5), pad(5));
         play(fl, std::span<const Pad>{}, dp);  // asked for well inside the flash
         while (fl.state().freeze > 0) fl.tick(pad(5), pad(5));
         fl.tick(pad(5), pad(5));
-        check_eq(moving(fl, 1), std::string_view("623P"));
-    });
+        expect(eq(moving(fl, 1), std::string_view("623P")));
+    };
 
-    s.test("G-9 a defender gains a tenth of the damage it takes as meter; G-10 a knockdown's own length", [] {
+    "G-9 a defender gains a tenth of the damage it takes as meter; G-10 a knockdown's own length"_test = [] {
         Match m = apart(90_fx);
         m.tick(pad(5, LP), pad(5));
         for (int f = 0; f < 4; ++f) m.tick(pad(5), pad(5));
-        check_eq(m.state().f[1].meter, 30);
+        expect(eq(m.state().f[1].meter, 30));
         Match k = apart(100_fx);
         k.tick(pad(2, HK), pad(5));
         int down = 0;
@@ -532,11 +530,11 @@ int main(int argc, char** argv) {
             hit = hit || has(k, Event::Kind::hit);
             if (k.state().f[1].mode == Mode::knockdown && k.state().f[1].stop == 0) ++down;
         }
-        check(hit, "the sweep hit");
-        check_eq(down, 20);
-    });
+        expect(hit) << "the sweep hit";
+        expect(eq(down, 20));
+    };
 
-    s.test("G-16 armour: a strike on its frames does its damage and the move goes on; a second one stops it; a super goes through", [] {
+    "G-16 armour: a strike on its frames does its damage and the move goes on; a second one stops it; a super goes through"_test = [] {
         // Fighter 2 in 6HK's armour; fighter 1's jab lands on it.
         auto armoured = [](int jabs) {
             Match m = apart(80_fx);
@@ -554,14 +552,13 @@ int main(int argc, char** argv) {
             return std::pair{all, m.state()};
         };
         auto [one, after_one] = armoured(1);
-        check(std::ranges::count(one, Event::Kind::armor, &Event::kind) == 1 && after_one.f[1].health == 10000 - 300, "the jab's damage, taken");
-        check(std::ranges::any_of(one, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 1; }), "and the elbow still lands");
+        expect(std::ranges::count(one, Event::Kind::armor, &Event::kind) == 1 && after_one.f[1].health == 10000 - 300) << "the jab's damage, taken";
+        expect(std::ranges::any_of(one, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 1; })) << "and the elbow still lands";
         auto [two, after_two] = armoured(2);
-        check(std::ranges::any_of(two, [](const Event& e) { return (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) && e.attacker == 0; }),
-              "a second jab: the armour is spent, it is hit (a counter: the elbow is still starting)");
-    });
+        expect(std::ranges::any_of(two, [](const Event& e) { return (e.kind == Event::Kind::hit || e.kind == Event::Kind::counter) && e.attacker == 0; })) << "a second jab: the armour is spent, it is hit (a counter: the elbow is still starting)";
+    };
 
-    s.test("G-17 rotations: 360 by the four sides, 720 twice round, up not a jump; a half circle is not 360", [] {
+    "G-17 rotations: 360 by the four sides, 720 twice round, up not a jump; a half circle is not 360"_test = [] {
         // A long stick motion goes through up: done where a jump cannot start (here, blockstun), as players do a 720.
         auto grabbed = [](std::vector<Pad> stick, int stun = 0) {
             Match m = apart(80_fx);
@@ -580,15 +577,15 @@ int main(int argc, char** argv) {
             }
             return std::string("-");
         };
-        check_eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LP)}), std::string("360P"));
-        check_eq(grabbed({pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6, LP)}), std::string("360P"));
-        check(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4, LP)}) != "360P", "a half circle is not 360");
-        check_eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 15),
-                 std::string("720K"));
-        check(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 7) != "720K", "once round is not 720");
-    });
+        expect(eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LP)}), std::string("360P")));
+        expect(eq(grabbed({pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6, LP)}), std::string("360P")));
+        expect(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4, LP)}) != "360P") << "a half circle is not 360";
+        expect(eq(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9), pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 15),
+                 std::string("720K")));
+        expect(grabbed({pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LK)}, 7) != "720K") << "once round is not 720";
+    };
 
-    s.test("G-17 a grab super on its first frame takes hold on the frame after its flash, never during it; a grounded opponent cannot walk out", [] {
+    "G-17 a grab super on its first frame takes hold on the frame after its flash, never during it; a grounded opponent cannot walk out"_test = [] {
         FighterDef def = rule().def;
         MoveDef& spin = def.moves[static_cast<std::size_t>(rule().find("360P"))];
         spin.level = 1;
@@ -606,18 +603,18 @@ int main(int argc, char** argv) {
         m.restore(st);
         const std::array stick{pad(6), pad(3), pad(2), pad(1), pad(4), pad(7), pad(8), pad(9, LP)};
         play(m, stick);
-        check(m.state().freeze == 30 && m.state().f[0].move_frame == 0, std::format("the flash on the frame it is asked for: freeze {}, frame {}", m.state().freeze, m.state().f[0].move_frame));
+        expect(m.state().freeze == 30 && m.state().f[0].move_frame == 0) << std::format("the flash on the frame it is asked for: freeze {}, frame {}", m.state().freeze, m.state().f[0].move_frame);
         int during = 0;
         while (m.state().freeze > 0) {
             m.tick(pad(5), pad(4));  // the other walks away through the flash: it is kept for after
             during += m.state().f[1].mode == Mode::thrown;
         }
-        check_eq(during, 0);
+        expect(eq(during, 0));
         m.tick(pad(5), pad(4));
-        check(m.state().f[1].mode == Mode::thrown && m.state().f[0].move_frame == 1, std::format("thrown on frame {}", m.state().f[0].move_frame));
-    });
+        expect(m.state().f[1].mode == Mode::thrown && m.state().f[0].move_frame == 1) << std::format("thrown on frame {}", m.state().f[0].move_frame);
+    };
 
-    s.test("G-18 an anti-air throw takes a jumping fighter, not a standing one", [] {
+    "G-18 an anti-air throw takes a jumping fighter, not a standing one"_test = [] {
         for (const bool jumping : {true, false}) {
             Match m = apart(80_fx);
             State st = m.state();
@@ -633,11 +630,11 @@ int main(int argc, char** argv) {
                 m.tick(f < 3 ? dp[static_cast<std::size_t>(f)] : pad(5), pad(5));
                 thrown = thrown || m.state().f[1].mode == Mode::thrown;
             }
-            check(thrown == jumping, std::format("{}: thrown {}", jumping ? "jumping" : "standing", thrown));
+            expect(thrown == jumping) << std::format("{}: thrown {}", jumping ? "jumping" : "standing", thrown);
         }
-    });
+    };
 
-    s.test("landing: a ground move that rises and comes down past the ground lasts its frames; an air move ends where it lands, at the ground or past it", [] {
+    "landing: a ground move that rises and comes down past the ground lasts its frames; an air move ends where it lands, at the ground or past it"_test = [] {
         FighterDef def = rule().def;
         MoveDef kick{.name = "rising", .command = {.direction = 6, .buttons = LK}, .total = 38, .priority = 3};
         kick.steps = {{3, {2_fx, 12_fx}}, {12, {0_fx, -8_fx}}};  // up 108, down 8 a frame: past the ground on its 25th frame
@@ -659,24 +656,23 @@ int main(int argc, char** argv) {
             }
             return frames;
         };
-        check_eq(lasts(pad(6, LK)), lasts(pad(4, LK)));
+        expect(eq(lasts(pad(6, LK)), lasts(pad(4, LK))));
         // A jump's arc comes back to the ground exactly: a jumping heavy pressed at the top ends as it lands.
         Match j(rules(), rule(), rule());
         j.tick(pad(8), pad(5));
         while (j.state().f[0].vel.y > Fixed{} || j.state().f[0].mode != Mode::air) j.tick(pad(5), pad(5));
         j.tick(pad(5, HP), pad(5));
         while (j.state().f[0].pos.y > Fixed{}) j.tick(pad(5), pad(5));
-        check(j.state().f[0].mode != Mode::move, std::format("landed: mode {}", static_cast<int>(j.state().f[0].mode)));
-    });
+        expect(j.state().f[0].mode != Mode::move) << std::format("landed: mode {}", static_cast<int>(j.state().f[0].mode));
+    };
 
-    s.test("G-15 a pane stops the other side's projectiles, one of its durability a hit, and is gone at none; strikes and bodies pass it, a strike costing it once", [] {
+    "G-15 a pane stops the other side's projectiles, one of its durability a hit, and is gone at none; strikes and bodies pass it, a strike costing it once"_test = [] {
         Match m = apart(500_fx);
         const std::array pane{pad(2), pad(3), pad(6, LK)};
         play(m, pane);
         for (int f = 0; f < 14; ++f) m.tick(pad(5), pad(5));
         auto standing = [&] { return std::ranges::count_if(m.state().pieces, [](const PieceState& q) { return q.alive != 0; }); };
-        check(standing() == 1 && m.state().pieces[0].durability == 2 && m.state().pieces[0].pos.x == m.state().f[0].pos.x + 120_fx,
-              std::format("one pane, 120 in front: {}", standing()));
+        expect(standing() == 1 && m.state().pieces[0].durability == 2 && m.state().pieces[0].pos.x == m.state().f[0].pos.x + 120_fx) << std::format("one pane, 120 in front: {}", standing());
         // Fighter 2 (facing left: 214 on the screen is its 236) throws two glyphs; the pane takes both, and is gone.
         int stopped = 0;
         for (int shot = 0; shot < 2; ++shot) {
@@ -687,13 +683,13 @@ int main(int argc, char** argv) {
                 stopped += count(m, Event::Kind::piece_hit);
             }
         }
-        check(stopped == 2 && standing() == 0 && m.state().f[0].health == 10000, std::format("stopped {}, standing {}, health {}", stopped, standing(), m.state().f[0].health));
+        expect(stopped == 2 && standing() == 0 && m.state().f[0].health == 10000) << std::format("stopped {}, standing {}, health {}", stopped, standing(), m.state().f[0].health);
         // Another; fighter 2 walks through it, then jabs fighter 1 through it: the jab lands, and costs the pane 1, once.
         play(m, pane);
         for (int f = 0; f < 14; ++f) m.tick(pad(5), pad(5));
         const Fixed pane_x = m.state().pieces[0].pos.x;
         while (m.state().f[1].pos.x - m.state().f[0].pos.x > 80_fx) m.tick(pad(5), pad(4));
-        check(m.state().f[1].pos.x < pane_x, "walked past the pane");
+        expect(m.state().f[1].pos.x < pane_x) << "walked past the pane";
         State st = m.state();
         st.pieces[0].pos.x = st.f[0].pos.x + 40_fx;  // between them, in the jab's reach
         m.restore(st);
@@ -702,11 +698,10 @@ int main(int argc, char** argv) {
             m.tick(pad(5), f == 0 ? pad(5, LP) : pad(5));
             seen.insert(seen.end(), m.events().begin(), m.events().end());
         }
-        check(any_kind(seen, Event::Kind::hit) && std::ranges::count(seen, Event::Kind::piece_hit, &Event::kind) == 1 && m.state().pieces[0].durability == 1,
-              std::format("pane at {}", m.state().pieces[0].durability));
-    });
+        expect(any_kind(seen, Event::Kind::hit) && std::ranges::count(seen, Event::Kind::piece_hit, &Event::kind) == 1 && m.state().pieces[0].durability == 1) << std::format("pane at {}", m.state().pieces[0].durability);
+    };
 
-    s.test("G-15 her own strike shatters her pane into three shards that fly at the other fighter; 214K shatters them all; the oldest gives way; a pane's life", [] {
+    "G-15 her own strike shatters her pane into three shards that fly at the other fighter; 214K shatters them all; the oldest gives way; a pane's life"_test = [] {
         Match m = apart(300_fx);
         const std::array pane{pad(2), pad(3), pad(6, LK)};
         play(m, pane);
@@ -721,8 +716,8 @@ int main(int argc, char** argv) {
             seen.insert(seen.end(), m.events().begin(), m.events().end());
             shards = std::max<int>(shards, static_cast<int>(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive && p.from == 0; })));
         }
-        check(any_kind(seen, Event::Kind::shatter) && shards == 3, std::format("shards {}", shards));
-        check(std::ranges::count_if(seen, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }) >= 1, "a shard hit");
+        expect(any_kind(seen, Event::Kind::shatter) && shards == 3) << std::format("shards {}", shards);
+        expect(std::ranges::count_if(seen, [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }) >= 1) << "a shard hit";
         // Three placed, two stand (the limit): the first is gone; 214K shatters both.
         Match n = apart(600_fx);
         std::array<std::int32_t, 3> placed{};
@@ -732,7 +727,7 @@ int main(int argc, char** argv) {
             placed[static_cast<std::size_t>(k)] = n.state().frame;
         }
         const auto alive = [](const Match& x) { return std::ranges::count_if(x.state().pieces, [](const PieceState& q) { return q.alive != 0; }); };
-        check(alive(n) == 2, std::format("{} standing", alive(n)));
+        expect(alive(n) == 2) << std::format("{} standing", alive(n));
         const std::array burst{pad(2), pad(1), pad(4, LK)};
         play(n, burst);
         int bursts = 0;
@@ -740,7 +735,7 @@ int main(int argc, char** argv) {
             n.tick(pad(5), pad(5));
             bursts += count(n, Event::Kind::shatter);
         }
-        check(bursts == 2 && alive(n) == 0, std::format("{} shattered", bursts));
+        expect(bursts == 2 && alive(n) == 0) << std::format("{} shattered", bursts);
         // Left alone, a pane is gone after its 480 frames.
         Match o = apart(900_fx);
         play(o, pane);
@@ -749,10 +744,10 @@ int main(int argc, char** argv) {
             o.tick(pad(5), pad(5));
             if (alive(o) > 0) ++life;
         }
-        check_eq(life, 480);
-    });
+        expect(eq(life, 480));
+    };
 
-    s.test("G-15 a gallery's pane turns a projectile back once — it hits its thrower, and gives no one meter — then shatters; a super's is stopped, not turned", [] {
+    "G-15 a gallery's pane turns a projectile back once — it hits its thrower, and gives no one meter — then shatters; a super's is stopped, not turned"_test = [] {
         FighterDef def = rule().def;
         def.moves[static_cast<std::size_t>(rule().find("22P"))].pieces[0].shards = 0;  // no shards here: only the reflected glyph hits
         const Fighter f = *compile(def);
@@ -767,7 +762,7 @@ int main(int argc, char** argv) {
             const std::array call{pad(2), pad(5), pad(2, LP)};
             play(m, call);
             while (m.state().freeze > 0 || m.state().f[0].mode == Mode::move) m.tick(pad(5), pad(5));
-            check(std::ranges::count_if(m.state().pieces, [](const PieceState& q) { return q.alive && q.reflects == 1; }) == 3, "three panes that turn one back");
+            expect(std::ranges::count_if(m.state().pieces, [](const PieceState& q) { return q.alive && q.reflects == 1; }) == 3) << "three panes that turn one back";
             play(m, {}, other);
             std::vector<Event> seen;
             for (int fr = 0; fr < 200; ++fr) {
@@ -777,16 +772,15 @@ int main(int argc, char** argv) {
             return std::pair{m.state(), seen};
         };
         const auto [after, seen] = gallery({pad(2), pad(1), pad(4, LP)});
-        check(any_kind(seen, Event::Kind::reflect) && any_kind(seen, Event::Kind::shatter), "turned back; the pane shattered");
-        check(after.f[1].health == 10000 - 600 && after.f[0].health == 10000, std::format("the thrower hit by its own glyph: {}", after.f[1].health));
-        check(after.f[0].meter == 0 && after.f[1].meter == 1000, std::format("meter {} / {}: none from the reflected hit", after.f[0].meter, after.f[1].meter));
+        expect(any_kind(seen, Event::Kind::reflect) && any_kind(seen, Event::Kind::shatter)) << "turned back; the pane shattered";
+        expect(after.f[1].health == 10000 - 600 && after.f[0].health == 10000) << std::format("the thrower hit by its own glyph: {}", after.f[1].health);
+        expect(after.f[0].meter == 0 && after.f[1].meter == 1000) << std::format("meter {} / {}: none from the reflected hit", after.f[0].meter, after.f[1].meter);
         // A super's projectile (strength 2): stopped by the panes, never turned back.
         const auto [after_super, seen_super] = gallery({pad(2), pad(1), pad(4), pad(2), pad(1), pad(4, LP)});
-        check(!any_kind(seen_super, Event::Kind::reflect) && any_kind(seen_super, Event::Kind::piece_hit) && after_super.f[1].health == 10000,
-              std::format("stopped, not turned: thrower at {}", after_super.f[1].health));
-    });
+        expect(!any_kind(seen_super, Event::Kind::reflect) && any_kind(seen_super, Event::Kind::piece_hit) && after_super.f[1].health == 10000) << std::format("stopped, not turned: thrower at {}", after_super.f[1].health);
+    };
 
-    s.test("G-15 22K takes her to the far side of the pane nearest the other fighter, which shatters; without a pane it is not done", [] {
+    "G-15 22K takes her to the far side of the pane nearest the other fighter, which shatters; without a pane it is not done"_test = [] {
         Match m = apart(500_fx);
         const std::array pane{pad(2), pad(3), pad(6, LK)};
         play(m, pane);
@@ -794,19 +788,19 @@ int main(int argc, char** argv) {
         const Fixed pane_x = m.state().pieces[0].pos.x;
         const std::array step{pad(2), pad(5), pad(2, LK)};
         play(m, step);
-        check_eq(moving(m, 0), std::string_view("22K"));
+        expect(eq(moving(m, 0), std::string_view("22K")));
         bool shattered = false;
         while (m.state().f[0].mode == Mode::move && m.state().f[0].move_frame < 12) {
             m.tick(pad(5), pad(5));
             shattered = shattered || has(m, Event::Kind::shatter);
         }
-        check(shattered && m.state().f[0].pos.x == pane_x - 40_fx, std::format("at {} (the pane at {})", m.state().f[0].pos.x.to_double(), pane_x.to_double()));
+        expect(shattered && m.state().f[0].pos.x == pane_x - 40_fx) << std::format("at {} (the pane at {})", m.state().f[0].pos.x.to_double(), pane_x.to_double());
         Match n = apart(500_fx);
         play(n, step);
-        check(moving(n, 0) != "22K", "no pane: not done");
-    });
+        expect(moving(n, 0) != "22K") << "no pane: not done";
+    };
 
-    s.test("G-15 the level 2 with no pane standing places one before the other fighter and shatters it: three glints; a full pool takes no more", [] {
+    "G-15 the level 2 with no pane standing places one before the other fighter and shatters it: three glints; a full pool takes no more"_test = [] {
         Match m = apart(500_fx);
         State st = m.state();
         st.f[0].meter = 2000;
@@ -819,7 +813,7 @@ int main(int argc, char** argv) {
             glints = std::max<int>(glints, static_cast<int>(std::ranges::count_if(m.state().p, [](const ProjectileState& p) { return p.alive != 0; })));
             hits += static_cast<int>(std::ranges::count_if(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }));
         }
-        check(glints == 3 && hits == 3, std::format("glints {}, hits {}", glints, hits));
+        expect(glints == 3 && hits == 3) << std::format("glints {}, hits {}", glints, hits);
         // Every slot taken: a shatter adds none, and moves none of those flying.
         Match full = apart(500_fx);
         play(full, std::array{pad(2), pad(3), pad(6, LK)});
@@ -830,10 +824,10 @@ int main(int argc, char** argv) {
         const std::array burst{pad(2), pad(1), pad(4, LK)};
         play(full, burst);
         for (int f = 0; f < 10; ++f) full.tick(pad(5), pad(5));
-        check(std::ranges::all_of(full.state().p, [](const ProjectileState& p) { return p.from == 1; }), "the pool as it was");
-    });
+        expect(std::ranges::all_of(full.state().p, [](const ProjectileState& p) { return p.from == 1; })) << "the pool as it was";
+    };
 
-    s.test("G-19 a hand that comes back: it hits going, turns on its frame, comes back to her wherever she has gone, hits again, and is caught", [] {
+    "G-19 a hand that comes back: it hits going, turns on its frame, comes back to her wherever she has gone, hits again, and is caught"_test = [] {
         Match m = apart(300_fx);
         play(m, std::array{pad(2), pad(1), pad(4, LP)});
         int hits = 0;
@@ -846,10 +840,10 @@ int main(int argc, char** argv) {
             turned = turned || std::ranges::any_of(m.state().p, [](const ProjectileState& p) { return p.alive && p.turned; });
             if (turned && !flying) caught = true, thrower = m.state().f[0].pos.x;
         }
-        check(hits == 2 && turned && caught, std::format("hits {}, turned {}, caught {}", hits, turned, caught));
-    });
+        expect(hits == 2 && turned && caught) << std::format("hits {}, turned {}, caught {}", hits, turned, caught);
+    };
 
-    s.test("G-20 a mark, and a rewind to it (used up); with none, to where she stood 60 frames ago; on the ground, then 8 frames of landing", [] {
+    "G-20 a mark, and a rewind to it (used up); with none, to where she stood 60 frames ago; on the ground, then 8 frames of landing"_test = [] {
         Match m = apart(500_fx);
         State st = m.state();
         st.f[0].meter = 3000;
@@ -857,9 +851,9 @@ int main(int argc, char** argv) {
         const Fixed start = m.state().f[0].pos.x;
         play(m, std::array{pad(4, MK)});
         for (int f = 0; f < 25; ++f) m.tick(pad(5), pad(5));
-        check(m.state().history[0].marked == 1 && m.state().history[0].mark.pos.x == start, "marked where she stood");
+        expect(m.state().history[0].marked == 1 && m.state().history[0].mark.pos.x == start) << "marked where she stood";
         for (int f = 0; f < 40; ++f) m.tick(pad(6), pad(5));
-        check(m.state().f[0].pos.x > start + 100_fx, "walked away from it");
+        expect(m.state().f[0].pos.x > start + 100_fx) << "walked away from it";
         std::map<std::int32_t, Fixed> after;  // where she was after each frame
         auto rewind = [&] {
             const std::array call{pad(6), pad(3), pad(2), pad(1), pad(4, LK)};
@@ -876,21 +870,21 @@ int main(int argc, char** argv) {
             return at;
         };
         const std::int32_t first = rewind();
-        check(first > 0 && after[first] == start && m.state().history[0].marked == 0, std::format("back at the mark: {}", after[first].to_double()));
-        check(m.state().f[0].mode == Mode::landing || m.state().f[0].mode == Mode::idle, "landing after");
+        expect(first > 0 && after[first] == start && m.state().history[0].marked == 0) << std::format("back at the mark: {}", after[first].to_double());
+        expect(m.state().f[0].mode == Mode::landing || m.state().f[0].mode == Mode::idle) << "landing after";
         // No mark: where she stood at the start of the frame 60 before.
         for (int f = 0; f < 90; ++f) {
             m.tick(pad(6), pad(5));
             after[m.state().frame] = m.state().f[0].pos.x;
         }
         const std::int32_t second = rewind();
-        check(second > 0 && after[second] == after[second - 61], std::format("{} then, {} now", after[second - 61].to_double(), after[second].to_double()));
+        expect(second > 0 && after[second] == after[second - 61]) << std::format("{} then, {} now", after[second - 61].to_double(), after[second].to_double());
         int landing = 0;
         while (m.state().f[0].mode == Mode::landing) m.tick(pad(5), pad(5)), ++landing;
-        check_eq(landing, 8);
-    });
+        expect(eq(landing, 8));
+    };
 
-    s.test("G-21 a clone plays her last 120 frames again from where she stood: its jab lands; touched by the other side it is gone; so when she is hit; and after its frames", [] {
+    "G-21 a clone plays her last 120 frames again from where she stood: its jab lands; touched by the other side it is gone; so when she is hit; and after its frames"_test = [] {
         // She jabs, walks back, then calls the clone (its flash counts as time too): it starts
         // where she stood 120 frames before and does it all again — the jab lands.
         auto setup = [](Match& m) {
@@ -908,21 +902,20 @@ int main(int argc, char** argv) {
         Match m = apart(80_fx);
         const Fixed began = m.state().f[0].pos.x;
         setup(m);
-        check(m.state().clones[0].alive && abs(m.state().clones[0].body.pos.x - began) < 10_fx,
-              std::format("out where she stood: {} (she began at {})", m.state().clones[0].body.pos.x.to_double(), began.to_double()));
+        expect(m.state().clones[0].alive && abs(m.state().clones[0].body.pos.x - began) < 10_fx) << std::format("out where she stood: {} (she began at {})", m.state().clones[0].body.pos.x.to_double(), began.to_double());
         int clone_hits = 0, frames = 0;
         while (m.state().clones[0].alive && frames < 200) {
             m.tick(pad(5), pad(5));
             ++frames;
             clone_hits += static_cast<int>(std::ranges::count_if(m.events(), [](const Event& e) { return e.kind == Event::Kind::hit && e.attacker == 0; }));
         }
-        check(clone_hits == 1, std::format("its jab landed: {}", clone_hits));
-        check(frames > 100 && frames <= 120, std::format("gone after its frames: {}", frames));
+        expect(clone_hits == 1) << std::format("its jab landed: {}", clone_hits);
+        expect(frames > 100 && frames <= 120) << std::format("gone after its frames: {}", frames);
         // Touched by the other fighter's jab: gone.
         Match t = apart(80_fx);
         setup(t);
         for (int f = 0; f < 40; ++f) t.tick(pad(5), f == 20 ? pad(5, LP) : pad(5));
-        check(!t.state().clones[0].alive, "struck, gone");
+        expect(!t.state().clones[0].alive) << "struck, gone";
         // She is hit: gone.
         Match h = apart(80_fx);
         setup(h);
@@ -930,10 +923,10 @@ int main(int argc, char** argv) {
         st.f[1].pos.x = st.f[0].pos.x + 70_fx;  // the other walks up to her
         h.restore(st);
         for (int f = 0; f < 10; ++f) h.tick(pad(5), f == 0 ? pad(5, LP) : pad(5));
-        check(!h.state().clones[0].alive, "she was hit: gone");
-    });
+        expect(!h.state().clones[0].alive) << "she was hit: gone";
+    };
 
-    s.test("G-22 a stall: twenty more frames of hitstun the first time in a combo, not the second", [] {
+    "G-22 a stall: twenty more frames of hitstun the first time in a combo, not the second"_test = [] {
         Match m = apart(90_fx);
         const std::uint16_t hitstun = rule().def.moves[static_cast<std::size_t>(rule().find("6MK"))].hits[0].hitstun;
         std::vector<std::int32_t> stuns;
@@ -948,15 +941,14 @@ int main(int argc, char** argv) {
                 m.restore(st);
             }
         }
-        check(stuns.size() == 2 && stuns[0] == hitstun + 20 && stuns[1] == hitstun && m.state().f[1].combo == 2,
-              std::format("stuns {}", stuns));
-    });
+        expect(stuns.size() == 2 && stuns[0] == hitstun + 20 && stuns[1] == hitstun && m.state().f[1].combo == 2) << std::format("stuns {}", stuns);
+    };
 
-    s.test("P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%", [] {
+    "P-1 posture: a block costs the move's posture; full, a guard break; its first follow-up resets it, steadies and scales from 80%"_test = [] {
         FighterDef small = body();
         small.posture_max = 300;
         const Fighter thin = *compile(small);
-        check_eq(thin.posture[static_cast<std::size_t>(thin.find("5HP"))][0], std::int32_t{110});
+        expect(eq(thin.posture[static_cast<std::size_t>(thin.find("5HP"))][0], std::int32_t{110}));
         Match m(rules(), thin, thin);
         guarding(m, 120_fx);
         const std::array hold{pad(6)};
@@ -967,9 +959,9 @@ int main(int argc, char** argv) {
             m.restore(st);
             auto es = exchange(m, HP, hold, 40);
             all.insert(all.end(), es.begin(), es.end());
-            if (round < 2) check_eq(m.state().f[1].posture, std::int32_t{110 * (round + 1)});
+            if (round < 2) expect(eq(m.state().f[1].posture, std::int32_t{110 * (round + 1)}));
         }
-        check(any_kind(all, Event::Kind::guard_break), "the third blocked 5HP breaks a guard of 300");
+        expect(any_kind(all, Event::Kind::guard_break)) << "the third blocked 5HP breaks a guard of 300";
         // Broken again from the start: staggered, unable to block; the first hit resets posture, steadies, scales.
         Match b(rules(), thin, thin);
         guarding(b, 120_fx);
@@ -980,11 +972,11 @@ int main(int argc, char** argv) {
         b.restore(st);
         auto es = exchange(b, HP, hold, 20);
         auto hit = std::ranges::find(es, Event::Kind::hit, &Event::kind);
-        check(hit != es.end() && hit->damage == 800 * 80 / 100, std::format("a broken guard is hit, scaled from 80%: {}", hit != es.end() ? hit->damage : -1));
-        check(b.state().f[1].posture == 0 && b.state().f[1].steady > 0, "posture back to 0, steadied");
-    });
+        expect(hit != es.end() && hit->damage == 800 * 80 / 100) << std::format("a broken guard is hit, scaled from 80%: {}", hit != es.end() ? hit->damage : -1);
+        expect(b.state().f[1].posture == 0 && b.state().f[1].steady > 0) << "posture back to 0, steadied";
+    };
 
-    s.test("P-1 posture recovers after a quiet while: half holding back, double going forward", [] {
+    "P-1 posture recovers after a quiet while: half holding back, double going forward"_test = [] {
         std::vector<std::int32_t> recovered;
         for (const int dir : {5, 6, 4}) {  // fighter 2 faces left: 6 is back, 4 forward
             Match m = apart(600_fx);
@@ -996,10 +988,10 @@ int main(int argc, char** argv) {
             for (int f = 0; f < 40; ++f) m.tick(pad(5), pad(dir));
             recovered.push_back(before - m.state().f[1].posture);
         }
-        check(recovered[0] == 120 && recovered[1] == 60 && recovered[2] == 240, std::format("{}", recovered));
-    });
+        expect(recovered[0] == 120 && recovered[1] == 60 && recovered[2] == 240) << std::format("{}", recovered);
+    };
 
-    s.test("P-2 clashes: equal and even, nothing changes; heavier wins; fresher wins; a super wins; an invulnerable move passes through", [] {
+    "P-2 clashes: equal and even, nothing changes; heavier wins; fresher wins; a super wins; an invulnerable move passes through"_test = [] {
         // Two 5HPs at once, 180 apart: blades meet, bodies out of reach.
         {
             Match m = apart(180_fx);
@@ -1007,13 +999,12 @@ int main(int argc, char** argv) {
             for (int f = 0; f < 40; ++f) {
                 m.tick(f == 0 ? pad(5, HP) : pad(5), f == 0 ? pad(5, HP) : pad(5));
                 es.insert(es.end(), m.events().begin(), m.events().end());
-                if (f == 12) check(m.state().f[0].mode == m.state().f[1].mode, "both in the same state");
+                if (f == 12) expect(m.state().f[0].mode == m.state().f[1].mode) << "both in the same state";
             }
             auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
-            check(c != es.end() && c->attacker == -1, "a perfect clash");
-            check(!any_kind(es, Event::Kind::hit) && m.state().f[0].posture == 0 && m.state().f[1].posture == 0 && m.state().f[0].health == 10000 &&
-                      m.state().f[1].health == 10000,
-                  "nothing changes");
+            expect(c != es.end() && c->attacker == -1) << "a perfect clash";
+            expect(!any_kind(es, Event::Kind::hit) && m.state().f[0].posture == 0 && m.state().f[1].posture == 0 && m.state().f[0].health == 10000 &&
+                      m.state().f[1].health == 10000) << "nothing changes";
         }
         // 5MP against 5HP, both fresh: the heavier wins; the loser takes its posture and recovers 8 later.
         {
@@ -1024,8 +1015,8 @@ int main(int argc, char** argv) {
                 es.insert(es.end(), m.events().begin(), m.events().end());
             }
             auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
-            check(c != es.end() && c->attacker == 1, std::format("the 5HP wins: {}", c != es.end() ? c->attacker : -9));
-            check_eq(m.state().f[0].posture, std::int32_t{110});
+            expect(c != es.end() && c->attacker == 1) << std::format("the 5HP wins: {}", c != es.end() ? c->attacker : -9);
+            expect(eq(m.state().f[0].posture, std::int32_t{110}));
         }
         // A long 8LK met 5 frames into its active ones by a fresh 5LP: the fresher wins.
         {
@@ -1036,7 +1027,7 @@ int main(int argc, char** argv) {
                 es.insert(es.end(), m.events().begin(), m.events().end());
             }
             auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
-            check(c != es.end() && c->attacker == 1, std::format("the fresh jab wins: {}", c != es.end() ? c->attacker : -9));
+            expect(c != es.end() && c->attacker == 1) << std::format("the fresh jab wins: {}", c != es.end() ? c->attacker : -9);
         }
         // A super against a fresh 5HP: the super wins.
         {
@@ -1051,7 +1042,7 @@ int main(int argc, char** argv) {
                 es.insert(es.end(), m.events().begin(), m.events().end());
             }
             auto c = std::ranges::find(es, Event::Kind::clash, &Event::kind);
-            check(c != es.end() && c->attacker == 0, std::format("the super wins: {}", c != es.end() ? c->attacker : -9));
+            expect(c != es.end() && c->attacker == 0) << std::format("the super wins: {}", c != es.end() ? c->attacker : -9);
         }
         // An anti-air invulnerable to the air: a jumping strike passes through it, no clash.
         {
@@ -1068,11 +1059,11 @@ int main(int argc, char** argv) {
             st.f[1].facing = -1;
             m.restore(st);
             m.tick(pad(5), pad(5));
-            check(!has(m, Event::Kind::clash), "no blades meet through invulnerability");
+            expect(!has(m, Event::Kind::clash)) << "no blades meet through invulnerability";
         }
-    });
+    };
 
-    s.test("P-3 deflects: a fresh back just before the hit; not a back held long, not one too early, not against a super; again for a string", [] {
+    "P-3 deflects: a fresh back just before the hit; not a back held long, not one too early, not against a super; again for a string"_test = [] {
         auto blocked_with = [](std::span<const Pad> guard) {
             Match m = apart(120_fx);
             return exchange(m, HP, guard, 40);
@@ -1081,17 +1072,17 @@ int main(int argc, char** argv) {
         std::vector<Pad> fresh(40, pad(6));
         for (int f = 0; f < 5; ++f) fresh[static_cast<std::size_t>(f)] = pad(5);  // back from tick 6: two frames before the hit
         auto es = blocked_with(fresh);
-        check(any_kind(es, Event::Kind::deflect) && !any_kind(es, Event::Kind::block), "deflected");
+        expect(any_kind(es, Event::Kind::deflect) && !any_kind(es, Event::Kind::block)) << "deflected";
         std::vector<Pad> early(40, pad(6));
         for (int f = 0; f < 2; ++f) early[static_cast<std::size_t>(f)] = pad(5);  // back from tick 3: too early
         es = blocked_with(early);
-        check(any_kind(es, Event::Kind::block) && !any_kind(es, Event::Kind::deflect), "too early: a block");
+        expect(any_kind(es, Event::Kind::block) && !any_kind(es, Event::Kind::deflect)) << "too early: a block";
         // Held all along (and long before): a block, and the posture it costs.
         Match held = apart(120_fx);
         guarding(held, 120_fx);
         const std::array hold{pad(6)};
         es = exchange(held, HP, hold, 40);
-        check(any_kind(es, Event::Kind::block) && held.state().f[1].posture == 110, "held: a block");
+        expect(any_kind(es, Event::Kind::block) && held.state().f[1].posture == 110) << "held: a block";
         // A deflect leaves the attacker 4 frames worse off than a block (and neither's posture changes).
         auto advantage = [](std::span<const Pad> guard) {
             Match m = apart(120_fx);
@@ -1114,7 +1105,7 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 2; ++f) early_long[static_cast<std::size_t>(f)] = pad(5);
         const auto [d_adv, d_posture] = advantage(fresh_long);
         const auto [b_adv, b_posture] = advantage(early_long);
-        check(b_adv - d_adv == 4 && d_posture == 0 && b_posture == 110, std::format("deflect {:+} / block {:+}; posture {} / {}", d_adv, b_adv, d_posture, b_posture));
+        expect(b_adv - d_adv == 4 && d_posture == 0 && b_posture == 110) << std::format("deflect {:+} / block {:+}; posture {} / {}", d_adv, b_adv, d_posture, b_posture);
         // A super is not deflected.
         {
             Match m = apart(160_fx);
@@ -1127,7 +1118,7 @@ int main(int argc, char** argv) {
                 m.tick(f < 6 ? motion[static_cast<std::size_t>(f)] : pad(5), f >= 11 ? pad(6) : pad(5));
                 all.insert(all.end(), m.events().begin(), m.events().end());
             }
-            check(any_kind(all, Event::Kind::block) && !any_kind(all, Event::Kind::deflect), "a super is blocked, never deflected");
+            expect(any_kind(all, Event::Kind::block) && !any_kind(all, Event::Kind::deflect)) << "a super is blocked, never deflected";
         }
         // A string: 5LP chained into 5LP. Where its two hits land (blocked), then each met by a tap two frames before.
         {
@@ -1148,19 +1139,19 @@ int main(int argc, char** argv) {
             std::vector<int> lands;
             for (const auto& [f, k] : plain)
                 if (k == Event::Kind::block) lands.push_back(f);
-            check_eq(lands.size(), std::size_t{2});
+            expect(eq(lands.size(), std::size_t{2}));
             if (lands.size() == 2) {
                 std::vector<bool> taps(40, false);
                 for (const int f : lands)
                     for (int k = f - 2; k <= f + 4 && k < 40; ++k) taps[static_cast<std::size_t>(k)] = true;
                 const auto deflected = play(taps, false);
-                check_eq(std::ranges::count(deflected, Event::Kind::deflect, &std::pair<int, Event::Kind>::second), std::ptrdiff_t{2});
+                expect(eq(std::ranges::count(deflected, Event::Kind::deflect, &std::pair<int, Event::Kind>::second), std::ptrdiff_t{2}));
             }
         }
-    });
+    };
 
-    s.test("P-4 three bars; a super's scaling locked once, never under its level's floor; no meter back from a super", [] {
-        check_eq(SystemDef{}.meter_max, std::int32_t{3000});
+    "P-4 three bars; a super's scaling locked once, never under its level's floor; no meter back from a super"_test = [] {
+        expect(eq(SystemDef{}.meter_max, std::int32_t{3000}));
         SystemDef steep = rules();
         steep.scaling = {100, 50, 20};
         Match m(steep, rule(), rule());
@@ -1180,11 +1171,11 @@ int main(int argc, char** argv) {
             for (const Event& e : m.events())
                 if (e.kind == Event::Kind::hit) damage.push_back(e.damage);
         }
-        check(damage == std::vector<std::int32_t>{150, 150, 150}, std::format("{} (30% of 500, three times)", damage));
-        check_eq(m.state().f[0].meter, std::int32_t{0});
-    });
+        expect(damage == std::vector<std::int32_t>{150, 150, 150}) << std::format("{} (30% of 500, three times)", damage);
+        expect(eq(m.state().f[0].meter, std::int32_t{0}));
+    };
 
-    s.test("P-5 a level-3 super's cinematic: its first hit locks both; its hits land on their frames; the timer stands; then each where it says", [] {
+    "P-5 a level-3 super's cinematic: its first hit locks both; its hits land on their frames; the timer stands; then each where it says"_test = [] {
         const std::array finale{pad(2), pad(3), pad(6), pad(2), pad(3), pad(6, LK)};
         // On hit.
         {
@@ -1202,18 +1193,18 @@ int main(int argc, char** argv) {
                 if (m.state().lock.owner == 0) {
                     ++lock_frames;
                     if (timer_at_lock < 0) timer_at_lock = m.state().timer;
-                    check(m.state().timer == timer_at_lock, "the timer stands still");
+                    expect(m.state().timer == timer_at_lock) << "the timer stands still";
                 }
             }
             auto cine = std::ranges::find_if(seen, [](const auto& p) { return p.second.kind == Event::Kind::cinematic; });
-            check(cine != seen.end(), "the cinematic began");
+            expect(cine != seen.end()) << "the cinematic began";
             std::vector<std::int32_t> after;
             for (const auto& [frame, e] : seen)
                 if (cine != seen.end() && frame > cine->first && e.kind == Event::Kind::hit) after.push_back(frame - cine->first);
-            check(after == std::vector<std::int32_t>{20, 40, 60}, std::format("hits on the lock's frames {}", after));
-            check_eq(lock_frames, 100);  // the frame it begins on, then its frames 1–99; the 100th ends it
-            check_eq(m.state().f[1].health, 10000 - 300 - 3 * 1000);
-            check(m.state().f[1].pos.x == start + 150_fx && m.state().f[0].pos.x == start, "where it says");
+            expect(after == std::vector<std::int32_t>{20, 40, 60}) << std::format("hits on the lock's frames {}", after);
+            expect(eq(lock_frames, 100));  // the frame it begins on, then its frames 1–99; the 100th ends it
+            expect(eq(m.state().f[1].health, 10000 - 300 - 3 * 1000));
+            expect(m.state().f[1].pos.x == start + 150_fx && m.state().f[0].pos.x == start) << "where it says";
         }
         // Blocked: no cinematic.
         {
@@ -1228,7 +1219,7 @@ int main(int argc, char** argv) {
                 cinematic = cinematic || has(m, Event::Kind::cinematic);
                 blocked = blocked || has(m, Event::Kind::block);
             }
-            check(blocked && !cinematic, "a blocked level 3 is only a heavy block");
+            expect(blocked && !cinematic) << "a blocked level 3 is only a heavy block";
         }
         // A KO in the lock waits for its end.
         {
@@ -1243,11 +1234,11 @@ int main(int argc, char** argv) {
                 if (has(m, Event::Kind::cinematic)) cine_at = m.state().frame;
                 if (m.state().over) over_at = m.state().frame;
             }
-            check(cine_at > 0 && over_at == cine_at + 100 && m.state().winner == 0, std::format("over at {} (lock from {})", over_at, cine_at));
+            expect(cine_at > 0 && over_at == cine_at + 100 && m.state().winner == 0) << std::format("over at {} (lock from {})", over_at, cine_at);
         }
-    });
+    };
 
-    s.test("all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks, a cinematic, panes and time, every rollback the bytes of a straight run; the hash pinned", [] {
+    "all of it rolled back: 5,000 frames of motions, dashes, supers, juggles, throws, clashes, deflects, guard breaks, a cinematic, panes and time, every rollback the bytes of a straight run; the hash pinned"_test = [] {
         // Inputs a player could give this fighter: held directions, presses, and now and then a whole motion.
         struct Rng {
             std::uint64_t s;
@@ -1417,20 +1408,16 @@ int main(int argc, char** argv) {
             }
             if (rolled.checksum() != hashes[static_cast<std::size_t>(i)]) ++mismatches;
         }
-        check_eq(mismatches, 0);
-        check(events[0] > 0 && events[1] > 0 && events[2] > 0 && cinematics > 0,
-              std::format("clashes {}, deflects {}, guard breaks {}, cinematics {}", events[0], events[1], events[2], cinematics));
-        check(seen[0] > 0 && seen[1] > 0 && seen[2] > 0 && seen[3] > 0 && seen[4] > 0 && seen[5] > 0,
-              std::format("resets {}, thrown {}, dashes {}, supers {}, flashes {}, projectiles {}", seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]));
+        expect(eq(mismatches, 0));
+        expect(events[0] > 0 && events[1] > 0 && events[2] > 0 && cinematics > 0) << std::format("clashes {}, deflects {}, guard breaks {}, cinematics {}", events[0], events[1], events[2], cinematics);
+        expect(seen[0] > 0 && seen[1] > 0 && seen[2] > 0 && seen[3] > 0 && seen[4] > 0 && seen[5] > 0) << std::format("resets {}, thrown {}, dashes {}, supers {}, flashes {}, projectiles {}", seen[0], seen[1], seen[2], seen[3], seen[4], seen[5]);
         std::println("    rules run: clashes {}, deflects {}, guard breaks {}, hits {}, blocks {} (posture up to {}); resets {}", events[0], events[1], events[2], events[3], blocks,
                      most_posture, seen[0]);
         std::println("    panes: placed {}, stopped or struck {}, turned back {}, shattered {}", panes[0], panes[1], panes[2], panes[3]);
-        check(panes[0] > 0 && panes[1] > 0 && panes[2] > 0 && panes[3] > 0, "panes placed, struck, turning back, shattered");
+        expect(panes[0] > 0 && panes[1] > 0 && panes[2] > 0 && panes[3] > 0) << "panes placed, struck, turning back, shattered";
         std::println("    time: marks {}, rewinds {}, clones {} (gone {}), hands coming back {}, stalled {}", times[0], times[1], times[2], times[3], times[4], times[5]);
-        check(std::ranges::all_of(times, [](int n) { return n > 0; }), "marks, rewinds, a clone and its end, hands coming back, stalls");
+        expect(std::ranges::all_of(times, [](int n) { return n > 0; })) << "marks, rewinds, a clone and its end, hands coming back, stalls";
         std::println("    rules run hash {:016x}", hashes.back());
-        check(hashes.back() == 0x50d0046d4a870b49ULL, std::format("run hash {:016x}", hashes.back()));  // GCC, LLVM and wasm
-    });
-
-    return s.run(argc, argv);
-}
+        expect(hashes.back() == 0x50d0046d4a870b49ULL) << std::format("run hash {:016x}", hashes.back());  // GCC, LLVM and wasm
+    };
+}};

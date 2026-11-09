@@ -29,3 +29,6 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 hanim.core          = { path = "../../hanim/core" }
 mlibs.utils         = { path = "../../../base/utils" }
 marzer.tomlplusplus = "3.4.0"
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.0"

@@ -5,10 +5,10 @@
 // the pulled geometry.
 import std;
 import hanim.engine;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 inline constexpr auto pull = ch::define<Vec2>("glyph.pull");
@@ -18,9 +18,9 @@ inline constexpr auto stretch = ch::define<Vec2>("glyph.stretch", {1, 1});
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result)
         std::abort();
     if constexpr (!std::is_void_v<T>)
@@ -78,23 +78,20 @@ bool legs_still(const FrameView& frame) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.library.deform"};
+UTest cases{"hanim.library.deform", [] {
 
-    suite.test("a selection weighs its points: full inside, falling off to none", [] {
-        check(crossbar.weight({50, 50}) == 1 && crossbar.weight({20, 50}) == 0 &&
+    "a selection weighs its points: full inside, falling off to none"_test = [] {
+        expect(crossbar.weight({50, 50}) == 1 && crossbar.weight({20, 50}) == 0 &&
               crossbar.weight({50, 20}) == 0);
         const double edge = crossbar.weight({68, 50});  // 3 of the 6 out
-        check(edge > 0 && edge < 1, std::format("half way out of the feather: {}", edge));
+        expect(edge > 0 && edge < 1) << std::format("half way out of the feather: {}", edge);
         const auto round = Selector::around({0, 0}, 10, ease::linear);
-        check(round.weight({0, 0}) == 1 && round.weight({5, 0}) == .5 &&
+        expect(round.weight({0, 0}) == 1 && round.weight({5, 0}) == .5 &&
               round.weight({10, 0}) == 0);
-        check(Selector::everything().weight({1e6, -1e6}) == 1);
-    });
+        expect(Selector::everything().weight({1e6, -1e6}) == 1);
+    };
 
-    suite
-        .test("pulled down and let go, the crossbar overshoots its rest and settles; the legs stay",
-              [] {
+    "pulled down and let go, the crossbar overshoots its rest and settles; the legs stay"_test = [] {
                   Scene scene({deform::displace(crossbar, pull)});
                   const auto program =
                       sequence(anim::to(part(scene.letter, "H"), pull = Vec2{0, 20})
@@ -102,7 +99,7 @@ int main(int argc, char** argv) {
                                anim::to(part(scene.letter, "H"), pull = Vec2{})
                                    .spring(springs::wobbly));
                   const auto playback = take(scene.engine.play(program));
-                  check(crossbar_y(scene.now(playback)) == 75, "pulled 20 down from 55");
+                  expect(crossbar_y(scene.now(playback)) == 75) << "pulled 20 down from 55";
                   double highest = 75;
                   bool legs = true;
                   for (int step = 1; step <= 200; ++step) {
@@ -111,30 +108,28 @@ int main(int argc, char** argv) {
                       highest = std::min(highest, crossbar_y(frame));
                       legs = legs && legs_still(frame);
                   }
-                  check(highest < 54, std::format("past its rest at 55, up to {}", highest));
-                  check(legs, "the legs never moved");
+                  expect(highest < 54) << std::format("past its rest at 55, up to {}", highest);
+                  expect(legs) << "the legs never moved";
                   take(scene.engine.advance(seconds(5)));
-                  check(std::abs(crossbar_y(scene.now(playback)) - 55) < 1e-6, "settled at rest");
-              });
+                  expect(std::abs(crossbar_y(scene.now(playback)) - 55) < 1e-6) << "settled at rest";
+              };
 
-    suite.test("an interruption goes on from the pulled geometry", [] {
+    "an interruption goes on from the pulled geometry"_test = [] {
         Scene scene({deform::displace(crossbar, pull)});
         const auto playback = take(scene.engine.play(
             anim::to(part(scene.letter, "H"), pull = Vec2{0, 20}).duration(seconds(1))));
         take(scene.engine.advance(seconds(.5)));
         const double before = crossbar_y(scene.now(playback));
-        check(before > 55 && before < 75, std::format("half pulled: {}", before));
+        expect(before > 55 && before < 75) << std::format("half pulled: {}", before);
         take(scene.engine.retarget(playback,
                                    PropertyTargets{.part = "H", .values = {pull.value({0, -10})}},
                                    {.duration = seconds(1)}));
-        check(std::abs(crossbar_y(scene.now(playback)) - before) < 1e-9,
-              "no jump at the interruption");
+        expect(std::abs(crossbar_y(scene.now(playback)) - before) < 1e-9) << "no jump at the interruption";
         take(scene.engine.advance(seconds(1)));
-        check(std::abs(crossbar_y(scene.now(playback)) - 45) < 1e-9,
-              "then to its new target, 10 up");
-    });
+        expect(std::abs(crossbar_y(scene.now(playback)) - 45) < 1e-9) << "then to its new target, 10 up";
+    };
 
-    suite.test("scale and rotate deform about their anchor, in proportion to the weight", [] {
+    "scale and rotate deform about their anchor, in proportion to the weight"_test = [] {
         Scene scene({deform::rotate(crossbar, turn, {50, 50}),
                      deform::scale(Selector::everything(), stretch, {50, 100})});
         const auto quarter = take(scene.engine.play(
@@ -142,26 +137,22 @@ int main(int argc, char** argv) {
         take(scene.engine.advance(seconds(1)));
         // (56.7, 55) about (50, 50) a quarter turn on a y-down screen: (45, 56.7).
         const auto turned = scene.now(quarter).cubics[7].control1;
-        check(std::abs(turned.x - 45) < 1e-9 && std::abs(turned.y - (50 + 20.0 / 3)) < 1e-9,
-              std::format("the crossbar's point turned to ({}, {})", turned.x, turned.y));
+        expect(std::abs(turned.x - 45) < 1e-9 && std::abs(turned.y - (50 + 20.0 / 3)) < 1e-9) << std::format("the crossbar's point turned to ({}, {})", turned.x, turned.y);
         Scene tall({deform::scale(Selector::everything(), stretch, {50, 100})});
         const auto taller = take(tall.engine.play(
             anim::to(part(tall.letter, "H"), stretch = Vec2{1, 2}).duration(seconds(1))));
         take(tall.engine.advance(seconds(1)));
-        check(crossbar_y(tall.now(taller)) == 10, "twice as tall from the baseline: 55 becomes 10");
-    });
+        expect(crossbar_y(tall.now(taller)) == 10) << "twice as tall from the baseline: 55 becomes 10";
+    };
 
-    suite.test("deformers name a part's own channels; malformed ones are refused", [] {
+    "deformers name a part's own channels; malformed ones are refused"_test = [] {
         Engine engine = take(Engine::make());
         auto builtin = glyph({deform::displace(crossbar, ch::position)});
         const auto object = take(engine.create_object(builtin));
-        check(!engine.prepare(anim::to(part(object, "H"), pull = Vec2{1, 1})),
-              "a built-in channel is no deformer's");
+        expect(!engine.prepare(anim::to(part(object, "H"), pull = Vec2{1, 1}))) << "a built-in channel is no deformer's";
         auto shapeless = glyph({deform::displace(Selector::around({0, 0}, 0), pull)});
-        check(!engine.create_object(shapeless), "a selection without a radius");
+        expect(!engine.create_object(shapeless)) << "a selection without a radius";
         auto inverted = glyph({deform::displace(Selector::inside({10, 10}, {0, 0}, 1), pull)});
-        check(!engine.create_object(inverted), "a box inside out");
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(!engine.create_object(inverted)) << "a box inside out";
+    };
+}};

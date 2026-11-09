@@ -6,9 +6,9 @@ import std;
 import xengine.cellular;
 import mlibs.cts;
 import mlibs.hash;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace ca = xengine::cellular;
 namespace cts = mlibs::cts;
 
@@ -42,10 +42,9 @@ struct Rules {
 };
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"cellular.cts.prepare"};
+UTest cases{"cellular.cts.prepare", [] {
 
-    s.test("rules prepare the same way twice; malformed ones and ones beyond the limits are refused by kind", [] {
+    "rules prepare the same way twice; malformed ones and ones beyond the limits are refused by kind"_test = [] {
         using C = ca::Condition;
         using W = ca::WriteKind;
         const std::vector<ca::Rule> grow{{{C::self({0, {1, 1}}), C::neighbors({1, {2, 4}}, ca::cardinal, {2, 4})}, {{1, W::add_saturating, 1}}},
@@ -63,9 +62,7 @@ int main(int argc, char** argv) {
                            .over_budget = {{"rules", {1, many, {.max_rules = 4}}}, {"channels", {20, copy}}}});
         Rules rules;
         const auto report = suite.run(rules, {}, {}, {.subject = "cpu"});
-        check(report.ok(), report.text());
-        check_eq(report.count(cts::Status::passed), std::size_t{10});
-    });
-
-    return s.run(argc, argv);
-}
+        expect(report.ok()) << report.text();
+        expect(eq(report.count(cts::Status::passed), std::size_t{10}));
+    };
+}};

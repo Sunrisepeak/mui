@@ -6,11 +6,13 @@ import mlibs.geom;
 import mlibs.text;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.raster;
 import xrender.vector;
 import xrender.text;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace text = mlibs::text;
 namespace render = xrender;
 namespace raster = xrender::raster;
@@ -36,10 +38,9 @@ text::ParagraphStyle style(float size = 16) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"xrender.text"};
+UTest cases{"xrender.text", [] {
 
-    s.test("pixels: mixed scripts and emoji, pinned", [] {
+    "pixels: mixed scripts and emoji, pinned"_test = [] {
         auto st = style(18);
         st.style.color = geom::Color::hex(0x0f172a);
         std::vector<text::StyledRange> ranges{{6, 13, {}}};
@@ -54,16 +55,16 @@ int main(int argc, char** argv) {
         raster::Surface surf(340, 30 + static_cast<int>(p.size().height));
         render::CpuRenderer cpu;
         auto report = cpu.render(dl, surf, {nullptr, &glyphs}, {.background = geom::Color::white()});
-        check_eq(report.missing_glyphs, std::size_t{0});
+        expect(eq(report.missing_glyphs, std::size_t{0}));
         auto dir = scratch_dir("text");
         mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(surf.pixels().data()), surf.width(), surf.height(),
                             surf.width() * 4};
-        check(mlibs::image::save_png(dir / "mixed.png", v).has_value());
+        expect(mlibs::image::save_png(dir / "mixed.png", v).has_value());
         std::println("    {:016x} ({})", surf.hash(), (dir / "mixed.png").generic_string());
-        check_eq(std::format("{:016x}", surf.hash()), std::string("09abccfc87e4202b"));
-    });
+        expect(eq(std::format("{:016x}", surf.hash()), std::string("09abccfc87e4202b")));
+    };
 
-    s.test("per-glyph styles: translation, opacity, tint, rotation (D-68)", [] {
+    "per-glyph styles: translation, opacity, tint, rotation (D-68)"_test = [] {
         auto st = style(20);
         st.style.color = geom::Color::hex(0x0f172a);
         text::Paragraph p(fonts(), "Animate me \U0001F680", st);
@@ -89,10 +90,10 @@ int main(int argc, char** argv) {
         };
         const auto moved = draw([&](auto& dl) { styled(dl, [](const render::Glyph&) { return render::GlyphStyle{.transform = geom::Affine::translate(3, 2)}; }); });
         const auto shifted = draw([&](auto& dl) { xrender::text::paint(p, dl, {13, 12}); });
-        check(moved.hash() == shifted.hash(), "a translated glyph is the glyph drawn there, byte for byte");
+        expect(moved.hash() == shifted.hash()) << "a translated glyph is the glyph drawn there, byte for byte";
         const auto hidden = draw([&](auto& dl) { styled(dl, [](const render::Glyph&) { return render::GlyphStyle{.opacity = 0}; }); });
         const auto blank = draw([](auto&) {});
-        check(hidden.hash() == blank.hash(), "opacity 0 draws nothing");
+        expect(hidden.hash() == blank.hash()) << "opacity 0 draws nothing";
         const auto tinted = draw([&](auto& dl) {
             styled(dl, [](const render::Glyph& g) {
                 return g.grapheme < 7 ? render::GlyphStyle{.tint = geom::Color::hex(0xdc2626)} : render::GlyphStyle{};
@@ -102,7 +103,7 @@ int main(int argc, char** argv) {
         text::Paragraph p2(fonts(), "Animate me \U0001F680", red, {{0, 7, [&] { auto x = red.style; x.color = geom::Color::hex(0xdc2626); return x; }()}});
         p2.layout(400);
         const auto colored = draw([&](auto& dl) { xrender::text::paint(p2, dl, {10, 10}); });
-        check(tinted.hash() == colored.hash(), "a full tint is the colour");
+        expect(tinted.hash() == colored.hash()) << "a full tint is the colour";
         // Rotation about each glyph's origin: outlines (and the emoji's image under the transform).
         const auto turned = draw([&](auto& dl) {
             styled(dl, [](const render::Glyph& g) {
@@ -110,14 +111,14 @@ int main(int argc, char** argv) {
                 return render::GlyphStyle{.transform = geom::Affine::rotation(1 - a * a / 2, a), .opacity = 0.85f};
             });
         });
-        check(turned.hash() != moved.hash() && turned.hash() != blank.hash());
+        expect(turned.hash() != moved.hash() && turned.hash() != blank.hash());
         std::println("    rotated {:016x}", turned.hash());
         {
             mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(turned.pixels().data()), turned.width(), turned.height(), turned.width() * 4};
-            check(mlibs::image::save_png(scratch_dir("text") / "glyph-styles.png", v).has_value());
+            expect(mlibs::image::save_png(scratch_dir("text") / "glyph-styles.png", v).has_value());
         }
         // Pinned for every platform: rotated glyphs go through the fixed-point rasterizer.
-        check_eq(std::format("{:016x}", turned.hash()), std::string("dd0a611f25d4ddce"));
+        expect(eq(std::format("{:016x}", turned.hash()), std::string("dd0a611f25d4ddce")));
         // The styled command's bounds hold every pixel it drew (damage stays exact).
         render::DisplayList dl;
         styled(dl, [](const render::Glyph& g) {
@@ -133,13 +134,13 @@ int main(int argc, char** argv) {
                 if (!(surf.at(x, y) == blank.at(0, 0)) && box &&
                     !box->contains(geom::Point{static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f}))
                     inside = false;
-        check(box.has_value() && inside, "every drawn pixel is inside the command's bounds");
-        check(render::hash_command(dl.commands().back(), 0) != 0);
-    });
+        expect(box.has_value() && inside) << "every drawn pixel is inside the command's bounds";
+        expect(render::hash_command(dl.commands().back(), 0) != 0);
+    };
 
-    s.test("a collection without fonts draws nothing instead of failing", [] {
+    "a collection without fonts draws nothing instead of failing"_test = [] {
         text::FontCollection none;
-        check(none.add_defaults("/no/fonts/here").has_value() == false);
+        expect(none.add_defaults("/no/fonts/here").has_value() == false);
         text::Paragraph p(none, "Hello 统一 مرحبا \U0001F680", style());
         p.layout(200);
         render::DisplayList dl;
@@ -148,8 +149,6 @@ int main(int argc, char** argv) {
         raster::Surface surf(64, 32);
         render::CpuRenderer cpu;
         (void)cpu.render(dl, surf, {nullptr, &glyphs}, {.background = geom::Color::white()});
-        check(std::ranges::all_of(surf.pixels(), [&](auto px) { return px == surf.pixels().front(); }), "nothing drawn");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(std::ranges::all_of(surf.pixels(), [&](auto px) { return px == surf.pixels().front(); })) << "nothing drawn";
+    };
+}};

@@ -5,18 +5,18 @@
 import std;
 import hanim.library;
 import mlibs.geom;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result)
         std::abort();
     return std::move(*result);
@@ -79,44 +79,36 @@ double largest_gap(const std::vector<ShapeCubic>& left, const std::vector<ShapeC
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.library.process"};
+UTest cases{"hanim.library.process", [] {
     const auto square = glyph({rectangle(0, 0, 100, 100)});
     const auto round = glyph({circle({50, 50}, 50)});
 
-    suite
-        .test("noise along the way keeps both ends exact and moves the middle within its amplitude",
-              [&] {
+    "noise along the way keeps both ends exact and moves the middle within its amplitude"_test = [&] {
                   for (const auto noise :
                        {PointPath::jitter(6, 25, 3), PointPath::swirl(6, 25, 3)}) {
                       Course plain(square, round),
                           noisy(square, round, {.shape = {.point_path = noise}});
-                      check(same_bits(plain.at(0), noisy.at(0)) &&
-                                same_bits(plain.at(1), noisy.at(1)),
-                            "the ends are the plain morph's, bit for bit");
+                      expect(same_bits(plain.at(0), noisy.at(0)) &&
+                                same_bits(plain.at(1), noisy.at(1))) << "the ends are the plain morph's, bit for bit";
                       const double middle = largest_gap(plain.at(.5), noisy.at(.5));
-                      check(middle > .5 && middle <= 6 * std::sqrt(2.0) + 1e-9,
-                            std::format("halfway the noise moves points by up to {}", middle));
-                      check(largest_gap(plain.at(.01), noisy.at(.01)) < .02,
-                            "the envelope starts it gently");
+                      expect(middle > .5 && middle <= 6 * std::sqrt(2.0) + 1e-9) << std::format("halfway the noise moves points by up to {}", middle);
+                      expect(largest_gap(plain.at(.01), noisy.at(.01)) < .02) << "the envelope starts it gently";
                       const auto frame = noisy.at(.37);
                       for (std::size_t index = 0; index < frame.size(); ++index)
-                          check(frame[index].end == frame[(index + 1) % frame.size()].start,
-                                "the seams stay shared");
+                          expect(frame[index].end == frame[(index + 1) % frame.size()].start) << "the seams stay shared";
                   }
-              });
+              };
 
-    suite.test("noise is a function of time and seed: any order of seeks, the same frames", [&] {
+    "noise is a function of time and seed: any order of seeks, the same frames"_test = [&] {
         Course noisy(square, round, {.shape = {.point_path = PointPath::jitter(6, 25, 3)}});
         const auto forwards = noisy.at(.3), later = noisy.at(.8), again = noisy.at(.3);
-        check(same_bits(forwards, again) && !same_bits(forwards, later));
+        expect(same_bits(forwards, again) && !same_bits(forwards, later));
         Course other(square, round, {.shape = {.point_path = PointPath::jitter(6, 25, 4)}});
-        check(!same_bits(other.at(.3), forwards), "another seed, another way");
-    });
+        expect(!same_bits(other.at(.3), forwards)) << "another seed, another way";
+    };
 
-    suite.test("other matching rules give another valid course; pins pair first; bad rules are "
-               "refused",
-               [&] {
+    mcpplibs::mtest::test(std::string_view("other matching rules give another valid course; pins pair first; bad rules are "
+               "refused")) = [&] {
                    // 一 into 二: by default 一 becomes the long lower bar.
                    const auto one = glyph({rectangle(10, 45, 80, 10)});
                    const auto two = glyph({rectangle(20, 20, 60, 10), rectangle(10, 70, 80, 10)});
@@ -125,12 +117,10 @@ int main(int argc, char** argv) {
                            .centroid_y;
                    };
                    Course fitting(one, two);
-                   check(std::abs(lower_y(fitting.at(1)) - 75) < 1e-9,
-                         "by size and place, the lower bar");
+                   expect(std::abs(lower_y(fitting.at(1)) - 75) < 1e-9) << "by size and place, the lower bar";
                    Course pinned(one, two, {.match = {.pins = {{"glyph", 0, 0}}}});
-                   check(std::abs(lower_y(pinned.at(1)) - 25) < 1e-9, "pinned to the upper bar");
-                   check(pinned.plan.contours().size() == 2 && fitting.plan.contours().size() == 2,
-                         "the other bar still grows");
+                   expect(std::abs(lower_y(pinned.at(1)) - 25) < 1e-9) << "pinned to the upper bar";
+                   expect(pinned.plan.contours().size() == 2 && fitting.plan.contours().size() == 2) << "the other bar still grows";
                    ObjectRegistry registry = take(ObjectRegistry::make());
                    const auto source = take(registry.capture(take(registry.create(one))));
                    const auto target = take(registry.capture(take(registry.create(two))));
@@ -138,19 +128,15 @@ int main(int argc, char** argv) {
                        PreparedObjectAnimation::prepare(source, target,
                                                         {.match = {.pins = {{"glyph", 0, 0},
                                                                             {"glyph", 0, 1}}}});
-                   check(!twice && twice.error().code == MorphError::invalid_options,
-                         "one contour pinned twice");
+                   expect(!twice && twice.error().code == MorphError::invalid_options) << "one contour pinned twice";
                    const auto negative =
                        PreparedObjectAnimation::prepare(source, target,
                                                         {.match = {.distance = -1}});
-                   check(!negative && negative.error().code == MorphError::invalid_options,
-                         "a negative weight");
+                   expect(!negative && negative.error().code == MorphError::invalid_options) << "a negative weight";
                    const auto wild =
                        PreparedObjectAnimation::prepare(source, target,
                                                         {.shape = {.point_path =
                                                                        PointPath::jitter(1, 0)}});
-                   check(!wild, "noise without a feature size");
-               });
-
-    return suite.run(argc, argv);
-}
+                   expect(!wild) << "noise without a feature size";
+               };
+}};

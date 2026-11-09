@@ -7,8 +7,10 @@ import xrender.raster;
 import xrender.vector;
 import hanim.visual;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
 namespace render = xrender;
 namespace raster = xrender::raster;
@@ -66,7 +68,7 @@ raster::Surface draw(const render::DisplayList& list, render::ImageStore* images
     raster::Surface pixels(dimension, dimension);
     render::CpuRenderer renderer;
     const auto report = renderer.render(list, pixels, {images, nullptr});
-    check_eq(report.missing_images, std::size_t{0});
+    expect(eq(report.missing_images, std::size_t{0}));
     return pixels;
 }
 std::vector<const render::FillPath*> fills(const render::DisplayList& list) {
@@ -76,126 +78,125 @@ std::vector<const render::FillPath*> fills(const render::DisplayList& list) {
 }
 void shared_geometry(const render::DisplayList& list) {
     const auto paths = fills(list);
-    check_eq(paths.size(), std::size_t{1}); if (paths.size() != 1) return;
-    check(paths[0]->paint.kind == render::Paint::Kind::mix);
-    check_eq(paths[0]->paint.mix.size(), std::size_t{2});
-    for (const auto& term : paths[0]->paint.mix) check(term.paint.kind != render::Paint::Kind::mix);
-    check_eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::move), std::ptrdiff_t{1});
-    check_eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::close), std::ptrdiff_t{1});
+    expect(eq(paths.size(), std::size_t{1})); if (paths.size() != 1) return;
+    expect(paths[0]->paint.kind == render::Paint::Kind::mix);
+    expect(eq(paths[0]->paint.mix.size(), std::size_t{2}));
+    for (const auto& term : paths[0]->paint.mix) expect(term.paint.kind != render::Paint::Kind::mix);
+    expect(eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::move), std::ptrdiff_t{1}));
+    expect(eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::close), std::ptrdiff_t{1}));
 }
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"motion.path-morph"};
-    suite.test("public point path changes real pixels and retains exact endpoints and interrupted pose", [] {
+UTest cases{"motion.path-morph", [] {
+    "public point path changes real pixels and retains exact endpoints and interrupted pose"_test = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         auto curved_options = options(); curved_options.vertex_path = hanim::PointPath::bend(.35);
         const mo::Morph curved(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), curved_options, 0);
         const auto plain = transition(a, b);
-        check(curved.path_morphs()[0].mode == mo::PathMorphMode::prepared);
-        check(draw(at(curved, 0)).hash() == draw(a).hash());
-        check(draw(at(curved, 1)).hash() == draw(b).hash());
+        expect(curved.path_morphs()[0].mode == mo::PathMorphMode::prepared);
+        expect(draw(at(curved, 0)).hash() == draw(a).hash());
+        expect(draw(at(curved, 1)).hash() == draw(b).hash());
         const auto actual = draw(at(curved, .37)).hash();
-        check(actual != draw(at(plain, .37)).hash(), "process effect changes coverage, not just metadata");
+        expect(actual != draw(at(plain, .37)).hash()) << "process effect changes coverage, not just metadata";
         const mo::Morph interrupted(curved.snapshot(.37), mo::Matter::extract(a, resolver()), curved_options, 2);
-        check(draw(at(interrupted, 2)).hash() == actual, "new path starts at the actual curved pose");
-        check(draw(at(interrupted, 3)).hash() == draw(a).hash());
+        expect(draw(at(interrupted, 2)).hash() == actual) << "new path starts at the actual curved pose";
+        expect(draw(at(interrupted, 3)).hash() == draw(a).hash());
         for (double time : {1., .7, .1, 0.}) (void)at(curved, time);
-        check(draw(at(curved, .37)).hash() == actual);
+        expect(draw(at(curved, .37)).hash() == actual);
         render::DisplayList out; curved.draw(.5, out); out.clear(); curved.draw(.6, out);
         const auto before = allocations.load();
         for (unsigned i = 0; i < 100; ++i) { out.clear(); curved.draw(.37, out); }
-        const auto after = allocations.load(); check_eq(before, after);
-    });
-    suite.test("compatible open paths share the operator and invalid modifiers have an observable fallback", [] {
+        const auto after = allocations.load(); expect(eq(before, after));
+    };
+    "compatible open paths share the operator and invalid modifiers have an observable fallback"_test = [] {
         render::Path a_path, b_path;
         a_path.move_to({20, 20}).line_to({80, 20}); b_path.move_to({20, 20}).line_to({80, 80});
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(a_path, paint, 2), b = scene(b_path, paint, 2);
         auto policy = options(); policy.vertex_path = hanim::PointPath::bend(.25);
         const mo::Morph curved(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), policy, 0);
-        check_eq(curved.stats().paths_compatible, std::size_t{1});
+        expect(eq(curved.stats().paths_compatible, std::size_t{1}));
         const auto middle = at(curved, .5); bool seen = false;
         for (const auto& command : middle.commands()) if (auto* stroke = std::get_if<render::StrokePath>(&command)) {
-            seen = true; check(stroke->path.points[0] == geom::Point{20, 20});
-            check(stroke->path.points[1] == geom::Point{65, 50});
+            seen = true; expect(stroke->path.points[0] == geom::Point{20, 20});
+            expect(stroke->path.points[1] == geom::Point{65, 50});
         }
-        check(seen);
+        expect(seen);
         policy.vertex_path.control1.x = std::numeric_limits<double>::infinity();
         const mo::Morph invalid(mo::Matter::extract(a, resolver()), mo::Matter::extract(b, resolver()), policy, 0);
-        check_eq(invalid.stats().paths_unsupported, std::size_t{1});
-        check(invalid.path_morphs()[0].geometry_error == hanim::ShapeMorphError::invalid_options);
+        expect(eq(invalid.stats().paths_unsupported, std::size_t{1}));
+        expect(invalid.path_morphs()[0].geometry_error == hanim::ShapeMorphError::invalid_options);
         render::Path huge_a, huge_b;
         huge_a.move_to({0, 0}).line_to({1e38f, 1e38f}); huge_b.move_to({0, 0}).line_to({-1e38f, 1e38f});
         const auto large_a = scene(huge_a, paint, 2), large_b = scene(huge_b, paint, 2);
         policy.vertex_path = hanim::PointPath::bend(8);
         const mo::Morph overflow(mo::Matter::extract(large_a, resolver()), mo::Matter::extract(large_b, resolver()), policy, 0);
-        check_eq(overflow.stats().paths_unsupported, std::size_t{1});
-        check(overflow.path_morphs()[0].geometry_error == hanim::ShapeMorphError::numerical_range);
-    });
-    suite.test("fill triangle to circle prepares hanim correspondence and retains exact original endpoint pixels", [] {
+        expect(eq(overflow.stats().paths_unsupported, std::size_t{1}));
+        expect(overflow.path_morphs()[0].geometry_error == hanim::ShapeMorphError::numerical_range);
+    };
+    "fill triangle to circle prepares hanim correspondence and retains exact original endpoint pixels"_test = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         const auto morph = transition(a, b);
-        check_eq(morph.stats().paths_prepared, std::size_t{1});
-        check_eq(morph.stats().paths_unsupported, std::size_t{0});
-        check_eq(morph.path_morphs().size(), std::size_t{1});
-        check(morph.path_morphs()[0].mode == mo::PathMorphMode::prepared);
-        check(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::interpolated);
-        check(draw(at(morph, 0)).hash() == draw(a).hash());
-        check(draw(at(morph, 1)).hash() == draw(b).hash());
+        expect(eq(morph.stats().paths_prepared, std::size_t{1}));
+        expect(eq(morph.stats().paths_unsupported, std::size_t{0}));
+        expect(eq(morph.path_morphs().size(), std::size_t{1}));
+        expect(morph.path_morphs()[0].mode == mo::PathMorphMode::prepared);
+        expect(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::interpolated);
+        expect(draw(at(morph, 0)).hash() == draw(a).hash());
+        expect(draw(at(morph, 1)).hash() == draw(b).hash());
         const auto middle = at(morph, 0.5);
         const auto paths = fills(middle);
-        check_eq(paths.size(), std::size_t{1}); if (paths.empty()) return;
-        check_eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::move), std::ptrdiff_t{1});
-        check(std::ranges::count(paths[0]->path.verbs, render::PathVerb::cubic) >= 4);
-        check(paths[0]->paint.color.a == 1);
+        expect(eq(paths.size(), std::size_t{1})); if (paths.empty()) return;
+        expect(eq(std::ranges::count(paths[0]->path.verbs, render::PathVerb::move), std::ptrdiff_t{1}));
+        expect(std::ranges::count(paths[0]->path.verbs, render::PathVerb::cubic) >= 4);
+        expect(paths[0]->paint.color.a == 1);
         const auto pa = draw(a), pb = draw(b), pm = draw(middle);
         unsigned not_fade = 0;
         for (int y = 0; y < dimension; ++y) for (int x = 0; x < dimension; ++x) {
             const int average = (static_cast<int>(pa.at(x, y).a) + pb.at(x, y).a) / 2;
             not_fade += std::abs(static_cast<int>(pm.at(x, y).a) - average) > 64 ? 1u : 0u;
         }
-        check(not_fade > 200, "actual pixels are a moving single opaque shape, not a two-endpoint fade");
-    });
+        expect(not_fade > 200) << "actual pixels are a moving single opaque shape, not a two-endpoint fade";
+    };
 
-    suite.test("stroke paths use the same prepared geometry while width and endpoint pixels remain correct", [] {
+    "stroke paths use the same prepared geometry while width and endpoint pixels remain correct"_test = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint, 2), b = scene(circle(), paint, 6);
         const auto morph = transition(a, b);
-        check_eq(morph.stats().paths_prepared, std::size_t{1});
-        check(draw(at(morph, 0)).hash() == draw(a).hash());
-        check(draw(at(morph, 1)).hash() == draw(b).hash());
+        expect(eq(morph.stats().paths_prepared, std::size_t{1}));
+        expect(draw(at(morph, 0)).hash() == draw(a).hash());
+        expect(draw(at(morph, 1)).hash() == draw(b).hash());
         const auto middle = at(morph, 0.5);
         std::size_t count = 0;
         for (const auto& command : middle.commands()) if (const auto* path = std::get_if<render::StrokePath>(&command)) {
-            ++count; check(path->style.width == 4); check(path->style.join == render::LineJoin::round);
-            check(std::ranges::count(path->path.verbs, render::PathVerb::cubic) >= 4);
+            ++count; expect(path->style.width == 4); expect(path->style.join == render::LineJoin::round);
+            expect(std::ranges::count(path->path.verbs, render::PathVerb::cubic) >= 4);
         }
-        check_eq(count, std::size_t{1});
-        check(draw(middle).hash() != draw(a).hash());
-    });
+        expect(eq(count, std::size_t{1}));
+        expect(draw(middle).hash() != draw(a).hash());
+    };
 
-    suite.test("incompatible solid and gradient paints mix on the current geometry without losing opaque interior", [] {
+    "incompatible solid and gradient paints mix on the current geometry without losing opaque interior"_test = [] {
         const auto a = scene(triangle(), render::Paint::solid(geom::Color{1, 0, 0, 1}));
         const std::array<render::GradientStop, 2> stops{{{0, geom::Color{0, 0, 1, 1}}, {1, geom::Color{0, 1, 1, 1}}}};
         render::Paint gradient; gradient.kind = render::Paint::Kind::gradient;
         gradient.gradient.start = {32, 96}; gradient.gradient.end = {160, 96}; gradient.gradient.stops = stops;
         const auto b = scene(circle(), gradient);
         const auto morph = transition(a, b);
-        check(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
+        expect(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
         const auto middle = at(morph, 0.5);
         shared_geometry(middle);
         const auto image = draw(middle);
         const auto color = image.at(96, 96);
-        check(color.a >= 254, "once-only coverage does not create a .75-alpha hole");
-        check(color.r > 100 && color.b > 100, "both incompatible paints actually contribute");
-        check(draw(at(morph, 0)).hash() == draw(a).hash());
-        check(draw(at(morph, 1)).hash() == draw(b).hash());
-    });
+        expect(color.a >= 254) << "once-only coverage does not create a .75-alpha hole";
+        expect(color.r > 100 && color.b > 100) << "both incompatible paints actually contribute";
+        expect(draw(at(morph, 0)).hash() == draw(a).hash());
+        expect(draw(at(morph, 1)).hash() == draw(b).hash());
+    };
 
-    suite.test("different materials on the same image do not cancel geometry morph or silently switch lighting", [] {
+    "different materials on the same image do not cancel geometry morph or silently switch lighting"_test = [] {
         render::ImageStore images;
         const auto albedo = images.add(4, 4, std::vector<raster::Rgba8>(16, raster::Rgba8{255, 255, 255, 255}));
         const auto normal = images.add(4, 4, std::vector<raster::Rgba8>(16, raster::Rgba8{128, 128, 255, 255}));
@@ -207,30 +208,30 @@ int main(int argc, char** argv) {
         paint.material = &warm; const auto a = scene(triangle(), paint);
         paint.material = &cool; const auto b = scene(circle(), paint);
         const auto morph = transition(a, b);
-        check_eq(morph.stats().paths_prepared, std::size_t{1});
-        check(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
+        expect(eq(morph.stats().paths_prepared, std::size_t{1}));
+        expect(morph.path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
         const auto middle = at(morph, 0.5); shared_geometry(middle);
         const auto color = draw(middle, &images).at(96, 96);
-        check(color.r > 100 && color.b > 100 && color.g < 50 && color.a >= 254);
-    });
+        expect(color.r > 100 && color.b > 100 && color.g < 50 && color.a >= 254);
+    };
 
-    suite.test("arbitrary seek and reverse are deterministic and a solid snapshot retarget starts on actual current geometry", [] {
+    "arbitrary seek and reverse are deterministic and a solid snapshot retarget starts on actual current geometry"_test = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         const auto morph = transition(a, b);
         const auto before = at(morph, 0.37);
         const auto expected = draw(before).hash();
         for (double time : {1.0, 0.9, 0.2, 0.8, 0.0}) (void)at(morph, time);
-        check(draw(at(morph, 0.37)).hash() == expected);
+        expect(draw(at(morph, 0.37)).hash() == expected);
         const mo::Morph interrupted(morph.snapshot(0.37), mo::Matter::extract(a, resolver()), options(), 2);
-        check_eq(interrupted.stats().paths_prepared, std::size_t{1});
-        check_eq(interrupted.stats().from_only, std::size_t{0});
-        check(draw(at(interrupted, 2)).hash() == expected, "retarget starts at the actual sampled shape, not a nearest endpoint");
-        check_eq(fills(at(interrupted, 2.3)).size(), std::size_t{1});
-        check(draw(at(interrupted, 3)).hash() == draw(a).hash());
-    });
+        expect(eq(interrupted.stats().paths_prepared, std::size_t{1}));
+        expect(eq(interrupted.stats().from_only, std::size_t{0}));
+        expect(draw(at(interrupted, 2)).hash() == expected) << "retarget starts at the actual sampled shape, not a nearest endpoint";
+        expect(eq(fills(at(interrupted, 2.3)).size(), std::size_t{1}));
+        expect(draw(at(interrupted, 3)).hash() == draw(a).hash());
+    };
 
-    suite.test("repeated mixed-material retargets keep one geometry and a flat bounded material", [] {
+    "repeated mixed-material retargets keep one geometry and a flat bounded material"_test = [] {
         const auto a = scene(triangle(), render::Paint::solid(geom::Color{1, 0, 0, 1}));
         const std::array<render::GradientStop, 2> stops{{{0, geom::Color{0, 0, 1, 1}}, {1, geom::Color{0, 1, 1, 1}}}};
         render::Paint gradient; gradient.kind = render::Paint::Kind::gradient;
@@ -242,38 +243,37 @@ int main(int argc, char** argv) {
             const auto before = draw(at(*current, now)).hash();
             const auto target = scene(i % 2 ? circle() : triangle(), render::Paint::solid({0.1f * static_cast<float>(i + 1), 0.7f, 0.2f, 1}));
             auto next = std::make_unique<mo::Morph>(current->snapshot(now), mo::Matter::extract(target, resolver()), options(), now);
-            check_eq(next->stats().from_only, std::size_t{0});
-            check(draw(at(*next, now)).hash() == before);
+            expect(eq(next->stats().from_only, std::size_t{0}));
+            expect(draw(at(*next, now)).hash() == before);
             const auto middle = at(*next, now + 0.25);
-            const auto paths = fills(middle); check_eq(paths.size(), std::size_t{1});
+            const auto paths = fills(middle); expect(eq(paths.size(), std::size_t{1}));
             if (!paths.empty()) {
-                check(paths[0]->paint.kind == render::Paint::Kind::mix);
-                check(paths[0]->paint.mix.size() <= 7);
-                for (const auto& term : paths[0]->paint.mix) check(term.paint.kind != render::Paint::Kind::mix);
+                expect(paths[0]->paint.kind == render::Paint::Kind::mix);
+                expect(paths[0]->paint.mix.size() <= 7);
+                for (const auto& term : paths[0]->paint.mix) expect(term.paint.kind != render::Paint::Kind::mix);
             }
-            check(next->path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
-            check(!next->path_morphs()[0].material_error);
+            expect(next->path_morphs()[0].material_mode == mo::PathMaterialMode::prepared_mix);
+            expect(!next->path_morphs()[0].material_error);
             current = std::move(next);
         }
-    });
+    };
 
-    suite.test("legacy compatible open paths retain interpolation and unsupported new topology is diagnosed", [] {
+    "legacy compatible open paths retain interpolation and unsupported new topology is diagnosed"_test = [] {
         render::Path line, bent;
         line.move_to({20, 20}).line_to({80, 20}); bent.move_to({20, 20}).line_to({80, 80});
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto compatible = transition(scene(line, paint, 2), scene(bent, paint, 2));
-        check_eq(compatible.stats().paths_compatible, std::size_t{1});
+        expect(eq(compatible.stats().paths_compatible, std::size_t{1}));
         const auto middle = at(compatible, 0.5);
-        for (const auto& c : middle.commands()) if (const auto* stroke = std::get_if<render::StrokePath>(&c)) check(stroke->path.points[1] == geom::Point{80, 50});
+        for (const auto& c : middle.commands()) if (const auto* stroke = std::get_if<render::StrokePath>(&c)) expect(stroke->path.points[1] == geom::Point{80, 50});
         const auto unsupported = transition(scene(line, paint, 2), scene(circle(), paint, 2));
-        check_eq(unsupported.stats().paths_prepared, std::size_t{0});
-        check_eq(unsupported.stats().paths_unsupported, std::size_t{1});
-        check(unsupported.path_morphs()[0].mode == mo::PathMorphMode::unsupported);
-        check(unsupported.path_morphs()[0].issue == mo::PathMorphIssue::unsupported_contours,
-              "legacy fallback is not reported as successful general shape morph");
-    });
+        expect(eq(unsupported.stats().paths_prepared, std::size_t{0}));
+        expect(eq(unsupported.stats().paths_unsupported, std::size_t{1}));
+        expect(unsupported.path_morphs()[0].mode == mo::PathMorphMode::unsupported);
+        expect(unsupported.path_morphs()[0].issue == mo::PathMorphIssue::unsupported_contours) << "legacy fallback is not reported as successful general shape morph";
+    };
 
-    suite.test("warm prepared path draws do not allocate per-frame geometry or mutate the plan", [] {
+    "warm prepared path draws do not allocate per-frame geometry or mutate the plan"_test = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         const auto morph = transition(a, b);
@@ -284,12 +284,12 @@ int main(int argc, char** argv) {
             out.clear(); morph.draw(0.1 + static_cast<double>(i % 801) / 1000, out);
         }
         const auto after = allocations.load(std::memory_order_relaxed);
-        check_eq(after, count);
-        check_eq(morph.stats().paths_prepared, std::size_t{1});
-    });
+        expect(eq(after, count));
+        expect(eq(morph.stats().paths_prepared, std::size_t{1}));
+    };
 
-    suite.test(threads ? "concurrent draws use independent caller-owned recording buffers"
-                       : "threadless draws use independent caller-owned recording buffers", [] {
+    mcpplibs::mtest::test(std::string_view(threads ? "concurrent draws use independent caller-owned recording buffers"
+                       : "threadless draws use independent caller-owned recording buffers")) = [] {
         const auto paint = render::Paint::solid(geom::Color::white());
         const auto a = scene(triangle(), paint), b = scene(circle(), paint);
         const auto morph = transition(a, b);
@@ -304,7 +304,6 @@ int main(int argc, char** argv) {
         };
         if constexpr (threads) { std::jthread first(run), second(run); }
         else { run(); run(); }
-        check_eq(wrong.load(), 0u);
-    });
-    return suite.run(argc, argv);
-}
+        expect(eq(wrong.load(), 0u));
+    };
+}};

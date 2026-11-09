@@ -24,4 +24,5 @@ xengine.input = { path = "../input" }
 mlibs.simulation = { path = "../../../base/simulation" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../../base/utils" }

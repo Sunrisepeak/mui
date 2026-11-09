@@ -34,3 +34,6 @@ mlibs.math  = { path = "../../../base/math" }
 mlibs.utils  = { path = "../../../base/utils" }
 mlibs.memory = { path = "../../../base/memory" }
 mlibs.geom   = { path = "../../../base/geom" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.0"

@@ -5,18 +5,18 @@
 // ball's.
 import std;
 import hanim.engine;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result)
         std::abort();
     if constexpr (!std::is_void_v<T>)
@@ -49,12 +49,10 @@ Shape measure(const FrameView& frame) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.drop"};
+UTest cases{"hanim.drop", [] {
 
-    suite.test("a dropped ball lands, squashes about its bottom, bounces lower each time and "
-               "settles",
-               [] {
+    mcpplibs::mtest::test(std::string_view("a dropped ball lands, squashes about its bottom, bounces lower each time and "
+               "settles")) = [] {
                    Engine engine = take(Engine::make());
                    const auto object = take(engine.create_object(ball()));
                    const anim::DropOptions options{.restitution = .45,
@@ -78,43 +76,34 @@ int main(int argc, char** argv) {
                        if (time > 2 * first_fall && time < 2.3 * first_fall)
                            widest_second = std::max(widest_second, shape.width);
                    }
-                   check(deepest <= 220 + 1e-9, std::format("never below the ground: {}", deepest));
-                   check(tallest > 42,
-                         std::format("stretched as it speeds down: {} tall", tallest));
-                   check(widest_first > 46 && widest_second > 40 && widest_second < widest_first,
-                         std::format("squashed {} wide at the first landing, {} at the second",
-                                     widest_first, widest_second));
+                   expect(deepest <= 220 + 1e-9) << std::format("never below the ground: {}", deepest);
+                   expect(tallest > 42) << std::format("stretched as it speeds down: {} tall", tallest);
+                   expect(widest_first > 46 && widest_second > 40 && widest_second < widest_first) << std::format("squashed {} wide at the first landing, {} at the second",
+                                     widest_first, widest_second);
                    // The last squash rounds quickly: the whole drop is not much longer than its fall.
                    const auto length = take(engine.inspect(playback)).duration.count();
-                   check(length > 1 && length < 1.5, std::format("the drop lasts {} s for a 1 s fall", length));
+                   expect(length > 1 && length < 1.5) << std::format("the drop lasts {} s for a 1 s fall", length);
                    take(engine.advance(seconds(5)));
                    const auto rest = measure(take(engine.frame(playback)).geometry);
-                   check(std::abs(rest.position - 200) < 1e-9 && std::abs(rest.width - 40) < 1e-6 &&
-                             std::abs(rest.height - 40) < 1e-6,
-                         std::format("at rest on the ground, round again: ({}, {} × {})",
-                                     rest.position, rest.width, rest.height));
-               });
+                   expect(std::abs(rest.position - 200) < 1e-9 && std::abs(rest.width - 40) < 1e-6 &&
+                             std::abs(rest.height - 40) < 1e-6) << std::format("at rest on the ground, round again: ({}, {} × {})",
+                                     rest.position, rest.width, rest.height);
+               };
 
-    suite
-        .test("the curve: on the ground at each landing, exactly, and the apexes lower each bounce",
-              [] {
+    "the curve: on the ground at each landing, exactly, and the apexes lower each bounce"_test = [] {
                   const auto curve = Ease::fall(.45, 2);
-                  check(curve.valid() && std::abs(curve.falls() - 2.45) < 1e-12);
+                  expect(curve.valid() && std::abs(curve.falls() - 2.45) < 1e-12);
                   for (const double on_ground : {1.0, 1.05, 1.0999, 2.0, 2.02})
-                      check(std::abs(curve(on_ground / 2.45) - 1) < 1e-12,
-                            std::format("on the ground at {} falls", on_ground));
-                  check(curve(1) == 1, "and for good at the end");
-                  check(std::abs(curve(1.55 / 2.45) - (1 - .45 * .45)) < 1e-12,
-                        "the first apex at .45² of the height");
-                  check(!Ease::fall(1, 2).valid() && !Ease::fall(.5, -1).valid(),
-                        "no perpetual or negative bouncing");
-                  check(to_string(curve) == "fall(0.45, 2, 0.1)" &&
+                      expect(std::abs(curve(on_ground / 2.45) - 1) < 1e-12) << std::format("on the ground at {} falls", on_ground);
+                  expect(curve(1) == 1) << "and for good at the end";
+                  expect(std::abs(curve(1.55 / 2.45) - (1 - .45 * .45)) < 1e-12) << "the first apex at .45² of the height";
+                  expect(!Ease::fall(1, 2).valid() && !Ease::fall(.5, -1).valid()) << "no perpetual or negative bouncing";
+                  expect(to_string(curve) == "fall(0.45, 2, 0.1)" &&
                             parse_ease("fall(0.45, 2, 0.1)") == curve &&
-                            parse_ease("fall(0.45, 2)") == curve,
-                        "named like the others");
-              });
+                            parse_ease("fall(0.45, 2)") == curve) << "named like the others";
+              };
 
-    suite.test("any part drops the same way: a bar of text squashes about its baseline", [] {
+    "any part drops the same way: a bar of text squashes about its baseline"_test = [] {
         Engine engine = take(Engine::make());
         const std::array edges{ShapeSegment::line({80, 0}), ShapeSegment::line({80, 10}),
                                ShapeSegment::line({0, 10})};
@@ -126,9 +115,6 @@ int main(int argc, char** argv) {
         const auto playback = take(engine.play(anim::drop(part(bar, "bar"), {0, 100})));
         take(engine.advance(seconds(1.05 / 2.45)));  // halfway through its first landing
         const auto shape = measure(take(engine.frame(playback)).geometry);
-        check(shape.width > 80 && std::abs(shape.bottom - 110) < 1e-6,
-              std::format("{} wide, its baseline at {}", shape.width, shape.bottom));
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(shape.width > 80 && std::abs(shape.bottom - 110) < 1e-6) << std::format("{} wide, its baseline at {}", shape.width, shape.bottom);
+    };
+}};

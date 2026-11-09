@@ -3,9 +3,9 @@ import std;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 using Params = std::vector<std::pair<std::string_view, float>>;
@@ -47,64 +47,62 @@ xrender::raster::Surface draw(const xrender::DisplayList& list, float scale) {
     xrender::raster::Surface out(static_cast<int>(120 * scale), static_cast<int>(90 * scale));
     xrender::CpuRenderer renderer;
     const auto report = renderer.render(list, out, {}, {.scale = scale});
-    check(report.effects_skipped == 0 && report.invalid_paints == 0 && list.balanced());
+    expect(report.effects_skipped == 0 && report.invalid_paints == 0 && list.balanced());
     return out;
 }
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"render.pixelate"};
-    suite.test("zero strength is identity at fractional and high DPI while one logical pixel is not", [] {
+UTest cases{"render.pixelate", [] {
+    "zero strength is identity at fractional and high DPI while one logical pixel is not"_test = [] {
         const auto input = source();
         for (float scale : {.5f, 1.f, 1.25f, 2.f}) {
-            check(filtered(input, {{"size", 9}, {"amount", 0}}, scale).hash() == input.hash());
-            check(filtered(input, {{"size", 1}, {"device_pixels", 1}}, scale).hash() == input.hash());
+            expect(filtered(input, {{"size", 9}, {"amount", 0}}, scale).hash() == input.hash());
+            expect(filtered(input, {{"size", 1}, {"device_pixels", 1}}, scale).hash() == input.hash());
         }
-        check(filtered(input, {{"size", 1}}, 2).hash() != input.hash(), "a logical pixel spans multiple device samples");
-        check(filtered(input, {{"size", 4}}, 1.25f).hash() == filtered(input, {{"size", 5}, {"device_pixels", 1}}, 2).hash());
-    });
-    suite.test("partial strength mixes premultiplied source and blocks without losing alpha", [] {
+        expect(filtered(input, {{"size", 1}}, 2).hash() != input.hash()) << "a logical pixel spans multiple device samples";
+        expect(filtered(input, {{"size", 4}}, 1.25f).hash() == filtered(input, {{"size", 5}, {"device_pixels", 1}}, 2).hash());
+    };
+    "partial strength mixes premultiplied source and blocks without losing alpha"_test = [] {
         const auto input = source();
         const auto full = filtered(input, {{"size", 6}});
         const auto half = filtered(input, {{"size", 6}, {"amount", .5f}});
-        check(half.hash() != input.hash() && half.hash() != full.hash());
+        expect(half.hash() != input.hash() && half.hash() != full.hash());
         for (int y = 0; y < input.height(); ++y) for (int x = 0; x < input.width(); ++x) {
             const auto a = input.at(x, y), b = full.at(x, y), p = half.at(x, y);
-            check(p.r <= p.a && p.g <= p.a && p.b <= p.a);
-            check(std::abs(2 * p.r - a.r - b.r) <= 2 && std::abs(2 * p.a - a.a - b.a) <= 2);
+            expect(p.r <= p.a && p.g <= p.a && p.b <= p.a);
+            expect(std::abs(2 * p.r - a.r - b.r) <= 2 && std::abs(2 * p.a - a.a - b.a) <= 2);
         }
-    });
-    suite.test("grid offset uses the selected unit and a whole cell preserves phase", [] {
+    };
+    "grid offset uses the selected unit and a whole cell preserves phase"_test = [] {
         const auto input = source();
         const auto base = filtered(input, {{"size", 6}});
-        check(filtered(input, {{"size", 6}, {"origin_x", 6}, {"origin_y", -6}}).hash() == base.hash());
-        check(filtered(input, {{"size", 6}, {"origin_x", 2}}).hash() != base.hash());
-        check(filtered(input, {{"size", 3}, {"origin_x", -1}, {"origin_y", 2}}, 2).hash() ==
+        expect(filtered(input, {{"size", 6}, {"origin_x", 6}, {"origin_y", -6}}).hash() == base.hash());
+        expect(filtered(input, {{"size", 6}, {"origin_x", 2}}).hash() != base.hash());
+        expect(filtered(input, {{"size", 3}, {"origin_x", -1}, {"origin_y", 2}}, 2).hash() ==
               filtered(input, {{"size", 6}, {"origin_x", -2}, {"origin_y", 4}, {"device_pixels", 1}}, 2).hash());
-    });
-    suite.test("real renderer identity retains nested effects clips blending and outside pixels", [] {
+    };
+    "real renderer identity retains nested effects clips blending and outside pixels"_test = [] {
         for (float scale : {1.f, 1.25f, 2.f}) {
             const auto plain = draw(scene(0, false), scale);
             const auto zero = draw(scene(0), scale);
             const auto full = draw(scene(1), scale);
-            check(plain.hash() == zero.hash(), "the declared identity is an ordinary layer, even with nested effects");
-            check(full.hash() != zero.hash());
+            expect(plain.hash() == zero.hash()) << "the declared identity is an ordinary layer, even with nested effects";
+            expect(full.hash() != zero.hash());
             for (int y = 0; y < plain.height(); ++y) for (int x = static_cast<int>(104 * scale); x < plain.width(); ++x)
-                check(plain.at(x, y) == full.at(x, y), "unrelated pixels stay unchanged");
+                expect(plain.at(x, y) == full.at(x, y)) << "unrelated pixels stay unchanged";
         }
-    });
-    suite.test("viewport cropping retains the full grid neighbourhood at its edges", [] {
+    };
+    "viewport cropping retains the full grid neighbourhood at its edges"_test = [] {
         for (float scale : {1.f, 1.25f, 2.f}) {
             const auto list = scene(1);
             const auto whole = draw(list, scale);
             xrender::raster::Surface tile(48, 32); xrender::CpuRenderer renderer;
             xrender::CpuOptions options; options.transform = mlibs::geom::Affine::translate(-37, -22) * mlibs::geom::Affine::scale(scale, scale);
-            const auto report = renderer.render(list, tile, {}, options); check(report.effects_skipped == 0);
+            const auto report = renderer.render(list, tile, {}, options); expect(report.effects_skipped == 0);
             bool equal = true;
             for (int y = 0; y < tile.height(); ++y) for (int x = 0; x < tile.width(); ++x)
                 equal = equal && tile.at(x, y) == whole.at(x + 37, y + 22);
-            check(equal, std::format("DPI {}: an independently cropped viewport is the same region of the full render", scale));
+            expect(equal) << std::format("DPI {}: an independently cropped viewport is the same region of the full render", scale);
         }
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

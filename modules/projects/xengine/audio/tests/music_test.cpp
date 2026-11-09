@@ -9,9 +9,11 @@
 import std;
 import xengine.audio;
 import mlibs.testing;
+import mcpplibs.mtest;
 import mlibs.trace;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace audio = xengine::audio;
 
 // Heap allocations counted here, in the test program only.
@@ -179,7 +181,7 @@ outro = ["end"]
 audio::Music read_piece(std::string_view text = piece) {
     auto m = audio::read_music(text, "test.music.omui.toml");
     if (!m) {
-        for (const auto& p : m.error()) fail(p.text());
+        for (const auto& p : m.error()) expect(false) << p.text();
         return {};
     }
     return *m;
@@ -219,7 +221,7 @@ loop = ["s"]
 std::vector<float> render(const audio::Music& m, double seconds, std::span<const audio::Cue> cues = {}) {
     auto r = audio::render_music(m, seconds, cues);
     if (!r) {
-        for (const auto& p : r.error()) fail(p.text());
+        for (const auto& p : r.error()) expect(false) << p.text();
         return {};
     }
     return std::move(r->samples);
@@ -259,53 +261,51 @@ double rms(std::span<const float> lr, std::size_t from, std::size_t to) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"music"};
+UTest cases{"music", [] {
 
-    s.test("the built-in patches read; a piece reads, and what is written reads back as itself", [] {
-        check(audio::builtin_patches().size() >= 25, std::format("{} built-in patches", audio::builtin_patches().size()));
+    "the built-in patches read; a piece reads, and what is written reads back as itself"_test = [] {
+        expect(audio::builtin_patches().size() >= 25) << std::format("{} built-in patches", audio::builtin_patches().size());
         const audio::Music m = read_piece();
-        check_eq(m.name, std::string("test"));
-        check(m.tempo == 140 && m.meter == std::array<std::int32_t, 2>{4, 4} && m.gain == 0.4f);
-        check_eq(m.instruments.size(), std::size_t{7});
-        check_eq(m.patterns.size(), std::size_t{5});
-        check(m.arrangement.intro == std::vector<std::string>{"intro"} && m.arrangement.loop == std::vector<std::string>{"a", "b"});
-        check_eq(m.bars(m.arrangement.loop), std::int32_t{8});
+        expect(eq(m.name, std::string("test")));
+        expect(m.tempo == 140 && m.meter == std::array<std::int32_t, 2>{4, 4} && m.gain == 0.4f);
+        expect(eq(m.instruments.size(), std::size_t{7}));
+        expect(eq(m.patterns.size(), std::size_t{5}));
+        expect(m.arrangement.intro == std::vector<std::string>{"intro"} && m.arrangement.loop == std::vector<std::string>{"a", "b"});
+        expect(eq(m.bars(m.arrangement.loop), std::int32_t{8}));
         const auto lead = std::ranges::find(m.patches, "lead", &audio::Patch::name);
         const auto koto = std::ranges::find(audio::builtin_patches(), "koto", &audio::Patch::name);
-        check(lead != m.patches.end() && lead->base == "koto" && lead->engine == audio::Engine::pluck && lead->pluck.decay == 1.5f &&
-                  lead->pluck.brightness == koto->pluck.brightness && lead->amp == koto->amp,
-              "a patch on a base: the base's, and what it changes");
+        expect(lead != m.patches.end() && lead->base == "koto" && lead->engine == audio::Engine::pluck && lead->pluck.decay == 1.5f &&
+                  lead->pluck.brightness == koto->pluck.brightness && lead->amp == koto->amp) << "a patch on a base: the base's, and what it changes";
         const std::string written = audio::write_music(m);
         auto again = audio::read_music(written, "written.music.omui.toml");
-        check(again.has_value(), again ? "" : again.error().front().text());
+        expect(again.has_value()) << (again ? "" : again.error().front().text());
         if (!again) return;
-        check(*again == m, "the same piece");
-        check_eq(audio::write_music(*again), written);
-    });
+        expect(*again == m) << "the same piece";
+        expect(eq(audio::write_music(*again), written));
+    };
 
-    s.test("a pattern's text: notes, lengths, chords, slides, accents and bar lines, into ticks; drum lanes repeated to the longest", [] {
+    "a pattern's text: notes, lengths, chords, slides, accents and bar lines, into ticks; drum lanes repeated to the longest"_test = [] {
         const audio::Music m = read_piece();
         const auto hook = *std::ranges::find(m.patterns, "hook", &audio::Pattern::name);
         auto h = audio::hits(hook, m);
-        check(h.has_value());
+        expect(h.has_value());
         if (!h) return;
-        check_eq(h->bars, std::int32_t{2});
+        expect(eq(h->bars, std::int32_t{2}));
         // D5:2 . F5 G5:2 A5>C6:2 — eighths of 480 ticks.
-        check(h->hits[0] == audio::Hit{0, 960, 74, -1, 0.8f, -1}, "D5 for two eighths");
-        check(h->hits[1] == audio::Hit{1440, 480, 77, -1, 0.8f, -1}, "F5 after a rest");
-        check(h->hits[3] == audio::Hit{2880, 960, 81, 84, 0.8f, -1}, "A5 sliding to C6");
-        check(h->hits.back().velocity == 0.5f && h->hits.back().key == 74, "a soft D5 last");
+        expect(h->hits[0] == audio::Hit{0, 960, 74, -1, 0.8f, -1}) << "D5 for two eighths";
+        expect(h->hits[1] == audio::Hit{1440, 480, 77, -1, 0.8f, -1}) << "F5 after a rest";
+        expect(h->hits[3] == audio::Hit{2880, 960, 81, 84, 0.8f, -1}) << "A5 sliding to C6";
+        expect(h->hits.back().velocity == 0.5f && h->hits.back().key == 74) << "a soft D5 last";
         const auto chords = *std::ranges::find(m.patterns, "chords", &audio::Pattern::name);
         auto c = audio::hits(chords, m);
-        check(c && c->hits.size() == 6 && c->hits[3].tick == 3840 && c->hits[0].length == 3840, "three-note chords a bar each");
+        expect(c && c->hits.size() == 6 && c->hits[3].tick == 3840 && c->hits[0].length == 3840) << "three-note chords a bar each";
         const auto beat = *std::ranges::find(m.patterns, "beat", &audio::Pattern::name);
         auto b = audio::hits(beat, m);
         const auto kick = static_cast<std::int32_t>(std::ranges::find(beat.lanes, "kick", &audio::Lane::instrument) - beat.lanes.begin());
-        check(b && b->bars == 1 && std::ranges::count(b->hits, kick, &audio::Hit::lane) == 4, "four kicks in the bar");
-    });
+        expect(b && b->bars == 1 && std::ranges::count(b->hits, kick, &audio::Hit::lane) == 4) << "four kicks in the bar";
+    };
 
-    s.test("every problem at its line and column, with the nearest right word; a wrong note at its very token", [] {
+    "every problem at its line and column, with the nearest right word; a wrong note at its very token"_test = [] {
         const auto bad = problems_of(R"([music]
 name = "bad"
 tempp = 120
@@ -341,62 +341,61 @@ loop = ["b"]
 )");
         auto has = [&](std::string_view t) { return std::ranges::any_of(bad, [&](const std::string& x) { return x == t; }); };
         const std::string all = std::format("{}", bad);
-        check(has("bad.music.omui.toml:3:1: [music] has no key `tempp` (did you mean `tempo`?)"), all);
-        check(has("bad.music.omui.toml:6:9: instrument `lead`'s patch `kotto` is not a patch of the piece's or a built-in (did you mean `koto`?)"), all);
-        check(has("bad.music.omui.toml:7:11: instrument `lead` sends to `rooom` is not one of the piece's buses (did you mean `room`?)"), all);
-        check(has("bad.music.omui.toml:10:31: a reverb has no key `sise` (did you mean `size`?)"), all);
-        check(has("bad.music.omui.toml:13:14: pattern `hook`'s instrument `leed` is not one of the piece's instruments (did you mean `lead`?)"), all);
-        check(has("bad.music.omui.toml:14:16: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)"), all);
-        check(has("bad.music.omui.toml:14:40: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)"), all);
-        check(has("bad.music.omui.toml:20:22: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)"), all);
-        check(has("bad.music.omui.toml:25:20: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)"), all);
-        check(has("bad.music.omui.toml:29:42: an intensity's range [0.8, 0.2] holds nothing (from below to: [0.5, 1])"), all);
-        check(has("bad.music.omui.toml:29:23: section `a` plays `hok` is not one of the piece's patterns (did you mean `hook`?)"), all);
-        check(has("bad.music.omui.toml:32:9: the loop plays `b` is not one of the piece's sections (one of `a`)"), all);
+        expect(has("bad.music.omui.toml:3:1: [music] has no key `tempp` (did you mean `tempo`?)")) << all;
+        expect(has("bad.music.omui.toml:6:9: instrument `lead`'s patch `kotto` is not a patch of the piece's or a built-in (did you mean `koto`?)")) << all;
+        expect(has("bad.music.omui.toml:7:11: instrument `lead` sends to `rooom` is not one of the piece's buses (did you mean `room`?)")) << all;
+        expect(has("bad.music.omui.toml:10:31: a reverb has no key `sise` (did you mean `size`?)")) << all;
+        expect(has("bad.music.omui.toml:13:14: pattern `hook`'s instrument `leed` is not one of the piece's instruments (did you mean `lead`?)")) << all;
+        expect(has("bad.music.omui.toml:14:16: `H5` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.omui.toml:14:40: the last stretch is 9 steps, not whole bars (a bar is 8 1/8 steps)")) << all;
+        expect(has("bad.music.omui.toml:20:22: `Q6` is not a note (a note is a letter A–G, maybe # or b, and an octave: `C4`, `F#3`, `Bb5`; `.` is a rest)")) << all;
+        expect(has("bad.music.omui.toml:25:20: `z` is not a step (`x` a hit, `X` an accent, `o` a ghost, `.` none, `|` a bar line)")) << all;
+        expect(has("bad.music.omui.toml:29:42: an intensity's range [0.8, 0.2] holds nothing (from below to: [0.5, 1])")) << all;
+        expect(has("bad.music.omui.toml:29:23: section `a` plays `hok` is not one of the piece's patterns (did you mean `hook`?)")) << all;
+        expect(has("bad.music.omui.toml:32:9: the loop plays `b` is not one of the piece's sections (one of `a`)")) << all;
         // Problems come in the file's order.
-        check(std::ranges::is_sorted(bad, {}, [](const std::string& t) {
+        expect(std::ranges::is_sorted(bad, {}, [](const std::string& t) {
                   const auto a = t.find(':') + 1, b = t.find(':', a);
                   return std::stoi(t.substr(a, b - a));
-              }),
-              all);
+              })) << all;
         const auto malformed = problems_of("[music]\ntempo = \n");
-        check(malformed.size() == 1 && malformed[0].starts_with("bad.music.omui.toml:2:"), std::format("{}", malformed));
-    });
+        expect(malformed.size() == 1 && malformed[0].starts_with("bad.music.omui.toml:2:")) << std::format("{}", malformed);
+    };
 
-    s.test("a plucked string plays in tune (from low to high) and rings down; a slide reaches its note", [] {
+    "a plucked string plays in tune (from low to high) and rings down; a slide reaches its note"_test = [] {
         for (const auto& [note, hz] : std::array<std::pair<std::string_view, double>, 6>{{{"A2", 110}, {"E3", 164.81}, {"A4", 440}, {"E5", 659.26}, {"D6", 1174.66}, {"G6", 1567.98}}}) {
             const auto m = read_piece(solo_piece("koto", std::format("{}:8", note)));
             const auto out = render(m, 1.0);
             if (out.empty()) return;
             const double f = pitch(out, 4800, 4800 + 9600, hz * 0.7, hz * 1.4);
             std::println("    {} {:.2f} Hz (of {})", note, f, hz);
-            check(std::abs(f / hz - 1) < 0.0015, std::format("{}: {} Hz, not {}", note, f, hz));  // under 3 cents
-            check(rms(out, 4800, 9600) > 4 * rms(out, 40000, 45000), std::format("{} rings down", note));
+            expect(std::abs(f / hz - 1) < 0.0015) << std::format("{}: {} Hz, not {}", note, f, hz);  // under 3 cents
+            expect(rms(out, 4800, 9600) > 4 * rms(out, 40000, 45000)) << std::format("{} rings down", note);
         }
         const auto m = read_piece(solo_piece("koto", "A4>C5:8"));
         const auto out = render(m, 1.0);
         const double f = pitch(out, 24000, 33600, 350, 700);
-        check(std::abs(f / 523.25 - 1) < 0.006, std::format("slid to {} Hz, not C5's 523.25", f));
-    });
+        expect(std::abs(f / 523.25 - 1) < 0.006) << std::format("slid to {} Hz, not C5's 523.25", f);
+    };
 
-    s.test("an FM bell, a saw stack and a pulse play at their pitch; unison spreads across the stereo field, one voice does not", [] {
+    "an FM bell, a saw stack and a pulse play at their pitch; unison spreads across the stereo field, one voice does not"_test = [] {
         for (const auto& [patch, note, hz] : std::array<std::tuple<std::string_view, std::string_view, double>, 4>{
                  {{"epiano", "A3", 220}, {"sub_bass", "A1", 55}, {"pulse_bass", "A2", 110}, {"saw_lead", "A4", 440}}}) {
             const auto m = read_piece(solo_piece(patch, std::format("{}:8", note)));
             const auto out = render(m, 1.0);
             if (out.empty()) return;
             const double f = pitch(out, 9600, 9600 + 9600, hz * 0.7, hz * 1.4);
-            check(std::abs(f / hz - 1) < 0.01, std::format("{} {}: {} Hz, not {}", patch, note, f, hz));
+            expect(std::abs(f / hz - 1) < 0.01) << std::format("{} {}: {} Hz, not {}", patch, note, f, hz);
         }
         auto correlation = [](std::string_view patch) {
             const auto out = render(read_piece(solo_piece(patch, "A3:8")), 0.6);
             return audio::levels(out, 48000).correlation;
         };
         const double wide = correlation("supersaw"), narrow = correlation("saw_lead"), mono = correlation("epiano");
-        check(wide < 0.8 && mono > 0.999 && narrow > wide, std::format("supersaw {}, saw lead {}, e-piano {}", wide, narrow, mono));
-    });
+        expect(wide < 0.8 && mono > 0.999 && narrow > wide) << std::format("supersaw {}, saw lead {}, e-piano {}", wide, narrow, mono);
+    };
 
-    s.test("drums: a kick falls in pitch and dies; a closed hat is short and bright, a taiko long and low; an open hat is choked by a closed one", [] {
+    "drums: a kick falls in pitch and dies; a closed hat is short and bright, a taiko long and low; an open hat is choked by a closed one"_test = [] {
         auto hit = [](std::string_view patch) {  // a lane: the drum at its own pitch
             const auto m = read_piece(std::format(R"([music]
 name = "drum"
@@ -426,11 +425,11 @@ loop = ["s"]
         };
         const int early = crossings(240), late = crossings(12000);
         const double settled = pitch(kick, 9600, 19200, 30, 200);
-        check(early >= 4 && late <= 3 && settled > 44 && settled < 52, std::format("the kick: {} cycles, then {}; settled at {} Hz", early, late, settled));
-        check(rms(kick, 40000, 48000) < 1e-4, "and dies");
+        expect(early >= 4 && late <= 3 && settled > 44 && settled < 52) << std::format("the kick: {} cycles, then {}; settled at {} Hz", early, late, settled);
+        expect(rms(kick, 40000, 48000) < 1e-4) << "and dies";
         const auto hl = audio::levels(std::span(hat).first(2 * 9600), 48000), tl = audio::levels(std::span(taiko).first(2 * 24000), 48000);
-        check(hl.bands[4] > -3 && tl.bands[0] > -6, std::format("the hat's air {} dB, the taiko's sub {} dB", hl.bands[4], tl.bands[0]));
-        check(rms(hat, 9600, 14400) < 0.01 * rms(hat, 0, 2400) && rms(taiko, 14400, 19200) > 0.05 * rms(taiko, 0, 2400), "the hat short, the taiko long");
+        expect(hl.bands[4] > -3 && tl.bands[0] > -6) << std::format("the hat's air {} dB, the taiko's sub {} dB", hl.bands[4], tl.bands[0]);
+        expect(rms(hat, 9600, 14400) < 0.01 * rms(hat, 0, 2400) && rms(taiko, 14400, 19200) > 0.05 * rms(taiko, 0, 2400)) << "the hat short, the taiko long";
         // An open hat alone rings; followed by a closed one it is cut.
         auto lanes = [](std::string_view open, std::string_view closed) {
             return read_piece(std::format(R"([music]
@@ -458,10 +457,10 @@ loop = ["s"]
         };
         const auto alone = render(lanes("x...............", "................"), 0.4);
         const auto choked = render(lanes("x...............", ".x.............."), 0.4);
-        check(rms(choked, 9000, 12000) < 0.05 * rms(alone, 9000, 12000), std::format("{} choked, {} alone", rms(choked, 9000, 12000), rms(alone, 9000, 12000)));
-    });
+        expect(rms(choked, 9000, 12000) < 0.05 * rms(alone, 9000, 12000)) << std::format("{} choked, {} alone", rms(choked, 9000, 12000), rms(alone, 9000, 12000));
+    };
 
-    s.test("effects: a reverb's tail falls away; a chorus moves; a ping-pong echo crosses; a bus ducks under its key", [] {
+    "effects: a reverb's tail falls away; a chorus moves; a ping-pong echo crosses; a bus ducks under its key"_test = [] {
         audio::Mixer m;
         m.add_effect("sfx", audio::effect({.kind = audio::EffectKind::reverb, .wet = 1, .dry = 0, .size = 0.7f}, 48000));
         audio::Sound click{.name = "click"};
@@ -469,7 +468,7 @@ loop = ["s"]
         m.play(m.add(click), 0);
         const auto tail = audio::render(m, 4 * 48000);
         const double early = rms(tail, 2400, 12000), mid = rms(tail, 48000, 52800), late = rms(tail, 3 * 48000, 4 * 48000 - 1);
-        check(early > 0 && mid < early && late < 0.01 * early, std::format("{} then {} then {}", early, mid, late));
+        expect(early > 0 && mid < early && late < 0.01 * early) << std::format("{} then {} then {}", early, mid, late);
         // Ducking: a steady tone on "music" down while a loud one plays on "sfx", back after.
         audio::Mixer d;
         audio::Sound tone{.name = "tone", .bus = "music"};
@@ -482,13 +481,13 @@ loop = ["s"]
         d.play(d.add(hit), 24000);
         const auto out = audio::render(d, 96000);
         const double before = rms(out, 12000, 23000), during = rms(out, 30000, 36000), after = rms(out, 70000, 90000);
-        check(during < 0.5 * before && after > 0.95 * before, std::format("{} → {} → {}", before, during, after));
+        expect(during < 0.5 * before && after > 0.95 * before) << std::format("{} → {} → {}", before, during, after);
         // A chorus and a ping-pong echo through a piece's buses (the test piece's pads and lead).
         const auto piece_out = render(read_piece(), 3.0);
-        check(audio::levels(piece_out, 48000).correlation < 0.95, "spread wide");
-    });
+        expect(audio::levels(piece_out, 48000).correlation < 0.95) << "spread wide";
+    };
 
-    s.test("notes start on their very samples: a bar of four beats at 120 is 96000 samples, each hit on its tick's sample", [] {
+    "notes start on their very samples: a bar of four beats at 120 is 96000 samples, each hit on its tick's sample"_test = [] {
         const auto m = read_piece(solo_piece("woodblock", "C5 . C5 . C5 . C5 ."));
         const auto out = render(m, 2.2);
         if (out.empty()) return;
@@ -496,11 +495,11 @@ loop = ["s"]
             const std::size_t at = beat * 24000;
             bool silent = true;
             for (std::size_t i = at >= 2000 ? at - 2000 : 0; i < at; ++i) silent = silent && out[2 * i] == 0 && out[2 * i + 1] == 0;
-            check(silent && out[2 * at] != 0, std::format("silent up to beat {}, sounding on its very sample", beat));
+            expect(silent && out[2 * at] != 0) << std::format("silent up to beat {}, sounding on its very sample", beat);
         }
-    });
+    };
 
-    s.test("intensity: a layer comes in at the next bar after it is asked for, and goes at the next bar after", [] {
+    "intensity: a layer comes in at the next bar after it is asked for, and goes at the next bar after"_test = [] {
         const auto m = read_piece(R"([music]
 name = "layers"
 tempo = 120
@@ -543,18 +542,18 @@ loop = ["s"]
         };
         std::int64_t bar = 0, bars = 0;
         const auto with = play(true, bar, bars), without = play(false, bar, bars);
-        check_eq(bar, std::int64_t{96000});
-        check_eq(bars, std::int64_t{5});
+        expect(eq(bar, std::int64_t{96000}));
+        expect(eq(bars, std::int64_t{5}));
         std::vector<float> layer(with.size());
         for (std::size_t i = 0; i < with.size(); ++i) layer[i] = with[i] - without[i];
         auto silent = [&](std::size_t from, std::size_t to) { return std::all_of(layer.begin() + static_cast<std::ptrdiff_t>(2 * from), layer.begin() + static_cast<std::ptrdiff_t>(2 * to), [](float x) { return x == 0; }); };
-        check(silent(0, 192000), "nothing of it before bar 2");
-        check(layer[2 * 192000] != 0, "on bar 2's very first sample");
-        check(rms(layer, 360000, 362000) > 0.01, "on bar 3's last beat (asked for none after bar 3 began)");
-        check(silent(384000, 480000), "nothing of it in bar 4");
-    });
+        expect(silent(0, 192000)) << "nothing of it before bar 2";
+        expect(layer[2 * 192000] != 0) << "on bar 2's very first sample";
+        expect(rms(layer, 360000, 362000) > 0.01) << "on bar 3's last beat (asked for none after bar 3 began)";
+        expect(silent(384000, 480000)) << "nothing of it in bar 4";
+    };
 
-    s.test("the loop goes round without a click: what rings at its end rings on into its start, sample to sample", [] {
+    "the loop goes round without a click: what rings at its end rings on into its start, sample to sample"_test = [] {
         const auto m = read_piece();
         // The intro is 2 bars and the loop 8 at 140: the loop's end is at bar 10.
         const auto out = render(m, 22.0);
@@ -563,7 +562,7 @@ loop = ["s"]
         auto seq = audio::Sequencer::attach(m, probe);
         const auto loop_point = static_cast<std::size_t>((*seq)->bar_sample(10));
         const auto first = static_cast<std::size_t>((*seq)->bar_sample(2));
-        check_eq(loop_point, std::size_t{822857});
+        expect(eq(loop_point, std::size_t{822857}));
         // A tone held to the end of a one-bar loop and struck again as it goes round: the curve of the sound (its second
         // difference) is as smooth across the loop point as in the middle of the bar; no step, no gap.
         const auto tone = read_piece(R"([music]
@@ -596,13 +595,13 @@ loop = ["s"]
         };
         for (const std::size_t pass : {96000u, 192000u, 288000u}) {
             const double across = bend(pass - 256, pass + 256), within = bend(pass - 48000 - 256, pass - 48000 + 256);
-            check(across < 2 * within && rms(round, pass - 480, pass + 480) > 0.05, std::format("at {}: {} across the loop point, {} within the bar", pass, across, within));
+            expect(across < 2 * within && rms(round, pass - 480, pass + 480) > 0.05) << std::format("at {}: {} across the loop point, {} within the bar", pass, across, within);
         }
         // Around the loop point the sound is continuous: the pad's chord, held over the bar line, is not cut.
-        check(rms(out, loop_point - 2400, loop_point) > 0.01 && rms(out, loop_point, loop_point + 2400) > 0.01, "sounding across it");
-    });
+        expect(rms(out, loop_point - 2400, loop_point) > 0.01 && rms(out, loop_point, loop_point + 2400) > 0.01) << "sounding across it";
+    };
 
-    s.test("finishing: the outro from the next bar, then nothing new", [] {
+    "finishing: the outro from the next bar, then nothing new"_test = [] {
         const auto m = read_piece();
         audio::Mixer mixer;
         auto seq = audio::Sequencer::attach(m, mixer);
@@ -611,15 +610,15 @@ loop = ["s"]
         (void)audio::render(mixer, 48000 * 5);
         song.finish();
         (void)audio::render(mixer, 48000 * 6);
-        check(!song.playing(), "stopped after its outro");
+        expect(!song.playing()) << "stopped after its outro";
         const std::int64_t bars = song.bars();
         (void)audio::render(mixer, 48000 * 4);
-        check_eq(song.bars(), bars);
+        expect(eq(song.bars(), bars));
         const auto tail = audio::render(mixer, 48000);
-        check(audio::peak(tail) < 1e-3, std::format("silent at last: {}", audio::peak(tail)));
-    });
+        expect(audio::peak(tail) < 1e-3) << std::format("silent at last: {}", audio::peak(tail));
+    };
 
-    s.test("nothing is allocated while playing: notes, voices taken again, bars, loops, intensity, a finish", [] {
+    "nothing is allocated while playing: notes, voices taken again, bars, loops, intensity, a finish"_test = [] {
         const auto m = read_piece();
         audio::Mixer mixer;
         auto seq = audio::Sequencer::attach(m, mixer);
@@ -634,11 +633,11 @@ loop = ["s"]
             if (b == 3900) song.finish();
             mixer.render(block);
         }
-        check_eq(allocations.load() - before, std::int64_t{0});
-        check(song.bars() > 10, std::format("{} bars", song.bars()));
-    });
+        expect(eq(allocations.load() - before, std::int64_t{0}));
+        expect(song.bars() > 10) << std::format("{} bars", song.bars());
+    };
 
-    s.test("traced: a span a render and a mark a bar, in category `audio`", [] {
+    "traced: a span a render and a mark a bar, in category `audio`"_test = [] {
         const auto m = read_piece();
         audio::Mixer mixer;
         auto seq = audio::Sequencer::attach(m, mixer);
@@ -648,25 +647,23 @@ loop = ["s"]
         const auto t = mlibs::trace::stop();
         const auto spans = std::ranges::count_if(t.events, [](const auto& e) { return std::string_view(e.name) == "audio.music" && std::string_view(e.category) == "audio"; });
         const auto bars = std::ranges::count_if(t.events, [](const auto& e) { return std::string_view(e.name) == "audio.music.bar"; });
-        check(spans > 100 && bars >= 2, std::format("{} span events, {} bars", spans, bars));
-    });
+        expect(spans > 100 && bars >= 2) << std::format("{} span events, {} bars", spans, bars);
+    };
 
-    s.test("a piece rendered offline is the same bits everywhere, under the limiter's ceiling without it working hard", [] {
+    "a piece rendered offline is the same bits everywhere, under the limiter's ceiling without it working hard"_test = [] {
         const auto m = read_piece();
         const std::array<audio::Cue, 3> cues{{{0, 1}, {6, 0.3f}, {12, 1}}};
         auto r = audio::render_music(m, 16.0, cues);
-        check(r.has_value());
+        expect(r.has_value());
         if (!r) return;
         const auto l = audio::levels(r->samples, 48000);
-        check(l.peak > 0.2f && l.peak <= 0.89f + 1e-6f, std::format("peak {}", l.peak));
-        check(r->limiter.deepest > 0.9f, std::format("the limiter down to {}", r->limiter.deepest));
+        expect(l.peak > 0.2f && l.peak <= 0.89f + 1e-6f) << std::format("peak {}", l.peak);
+        expect(r->limiter.deepest > 0.9f) << std::format("the limiter down to {}", r->limiter.deepest);
         std::println("    piece {:016x}  peak {:.3f}  {:.1f} LUFS  limiter {:.3f} over {} frames", audio::hash(r->samples), l.peak, l.loudness, r->limiter.deepest,
                      r->limiter.frames);
         const auto w = audio::wav(r->samples, 48000);
         const auto dir = scratch_dir("music");
         std::ofstream(dir / "piece.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
-        check_eq(audio::hash(r->samples), std::uint64_t{0xab0350d3813bbcc8});  // GCC (debug and release) and LLVM
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(audio::hash(r->samples), std::uint64_t{0xab0350d3813bbcc8}));  // GCC (debug and release) and LLVM
+    };
+}};

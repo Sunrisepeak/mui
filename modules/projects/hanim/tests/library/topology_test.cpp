@@ -5,18 +5,18 @@
 import std;
 import hanim.library;
 import mlibs.geom;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result)
         std::abort();
     return std::move(*result);
@@ -79,79 +79,67 @@ void check_continuous(Course& course, double largest_step) {
     double previous = filled(course.at(0));
     for (int step = 1; step <= 100; ++step) {
         const double now = filled(course.at(step / 100.0));
-        check(std::abs(now - previous) <= largest_step,
-              std::format("the area jumps from {} to {} at {}", previous, now, step / 100.0));
+        expect(std::abs(now - previous) <= largest_step) << std::format("the area jumps from {} to {} at {}", previous, now, step / 100.0);
         previous = now;
     }
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.library.topology"};
+UTest cases{"hanim.library.topology", [] {
 
-    suite.test("\"一\" splits into \"二\": the second bar grows out of the first", [] {
+    "\"一\" splits into \"二\": the second bar grows out of the first"_test = [] {
         // 一: one bar across the middle; 二: a short bar above, a long one below.
         Course course(glyph({rectangle(10, 45, 80, 10)}),
                       glyph({rectangle(20, 20, 60, 10), rectangle(10, 70, 80, 10)}));
         const auto start = course.at(0);
-        check(start.contours.size() == 2 && start.parts[0].info.contour_count == 2,
-              "a pair and a growing bar");
-        check(near(measured(start, 0).area, 800) && is_point(start, 1, {50, 50}),
-              "一 itself, the new bar a point at its centre");
+        expect(start.contours.size() == 2 && start.parts[0].info.contour_count == 2) << "a pair and a growing bar";
+        expect(near(measured(start, 0).area, 800) && is_point(start, 1, {50, 50})) << "一 itself, the new bar a point at its centre";
         const auto middle = course.at(.5);
         const auto grown = measured(middle, 1);
-        check(grown.area > 100 && grown.area < 700,
-              std::format("halfway the new bar is part grown: {}", grown.area));
+        expect(grown.area > 100 && grown.area < 700) << std::format("halfway the new bar is part grown: {}", grown.area);
         const auto end = course.at(1);
         // The long bar pairs with 一 (the same size, nearest); the short one grows.
-        check(near(measured(end, 0).area, 800) && near(measured(end, 0).centroid_y, 75),
-              "一 became the lower bar");
-        check(near(measured(end, 1).area, 600) && near(measured(end, 1).centroid_y, 25),
-              "the upper bar has grown in full");
+        expect(near(measured(end, 0).area, 800) && near(measured(end, 0).centroid_y, 75)) << "一 became the lower bar";
+        expect(near(measured(end, 1).area, 600) && near(measured(end, 1).centroid_y, 25)) << "the upper bar has grown in full";
         check_continuous(course, 60);
-    });
+    };
 
-    suite
-        .test("holes pair with holes; a hole left over opens from its own centre or closes into it",
-              [] {
+    "holes pair with holes; a hole left over opens from its own centre or closes into it"_test = [] {
                   // An outline with one hole to the same outline with two (A towards B).
                   const auto outer = rectangle(0, 0, 100, 100);
                   Course opening(glyph({outer, rectangle(20, 10, 60, 30, true)}),
                                  glyph({outer, rectangle(20, 10, 60, 30, true),
                                         rectangle(20, 60, 60, 30, true)}));
                   const auto start = opening.at(0);
-                  check(start.contours.size() == 3 && is_point(start, 2, {50, 75}),
-                        "the second hole a point at its own centre");
-                  check(near(filled(start), 10000 - 1800), "the start is the first glyph");
-                  check(near(filled(opening.at(1)), 10000 - 3600), "the end is the second");
-                  check(measured(opening.at(.5), 2).area < 0,
-                        "the opening hole runs the holes' way round");
+                  expect(start.contours.size() == 3 && is_point(start, 2, {50, 75})) << "the second hole a point at its own centre";
+                  expect(near(filled(start), 10000 - 1800)) << "the start is the first glyph";
+                  expect(near(filled(opening.at(1)), 10000 - 3600)) << "the end is the second";
+                  expect(measured(opening.at(.5), 2).area < 0) << "the opening hole runs the holes' way round";
                   check_continuous(opening, 60);
                   // And back: the hole closes into its centre.
                   Course closing(glyph({outer, rectangle(20, 10, 60, 30, true),
                                         rectangle(20, 60, 60, 30, true)}),
                                  glyph({outer, rectangle(20, 10, 60, 30, true)}));
                   const auto end = closing.at(1);
-                  check(end.contours.size() == 3 && is_point(end, 2, {50, 75}) &&
+                  expect(end.contours.size() == 3 && is_point(end, 2, {50, 75}) &&
                         near(filled(end), 10000 - 1800));
-              });
+              };
 
-    suite.test("an outline left over merges into the nearest outline; strict pairing refuses", [] {
+    "an outline left over merges into the nearest outline; strict pairing refuses"_test = [] {
         const ObjectDescription two = glyph({rectangle(20, 20, 60, 10), rectangle(10, 70, 80, 10)});
         const ObjectDescription one = glyph({rectangle(10, 45, 80, 10)});
         Course merging(two, one);
         const auto end = merging.at(1);
-        check(end.contours.size() == 2 && is_point(end, 1, {50, 50}) && near(filled(end), 800),
-              "the short bar closes into 一's centre");
+        expect(end.contours.size() == 2 && is_point(end, 1, {50, 50}) && near(filled(end), 800)) << "the short bar closes into 一's centre";
         ObjectRegistry registry = take(ObjectRegistry::make());
         const auto source = take(registry.capture(take(registry.create(two))));
         const auto target = take(registry.capture(take(registry.create(one))));
         const auto strict =
             PreparedObjectAnimation::prepare(source, target, {.contours = ContourPairing::strict});
-        check(!strict && strict.error().code == MorphError::contour_count_mismatch);
-    });
+        expect(!strict && strict.error().code == MorphError::contour_count_mismatch);
+    };
 
-    suite.test("a morph continued from a grown frame ignores the point it grew from", [] {
+    "a morph continued from a grown frame ignores the point it grew from"_test = [] {
         Course course(glyph({rectangle(10, 45, 80, 10)}),
                       glyph({rectangle(20, 20, 60, 10), rectangle(10, 70, 80, 10)}));
         const auto start = course.at(0);  // 一 and a point
@@ -161,9 +149,6 @@ int main(int argc, char** argv) {
         std::vector<FramePart> parts(again.requirements().parts);
         std::vector<ShapeCubic> cubics(again.requirements().cubics);
         const auto frame = take(again.sample(.5, {parts, cubics}));
-        check(frame.contours.size() == 1 && near(filled(frame), 800),
-              "一 to 一: the point was no contour");
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(frame.contours.size() == 1 && near(filled(frame), 800)) << "一 to 一: the point was no contour";
+    };
+}};

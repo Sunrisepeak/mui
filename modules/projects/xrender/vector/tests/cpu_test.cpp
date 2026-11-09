@@ -6,8 +6,10 @@ import xrender.raster;
 import xrender.vector;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -105,34 +107,33 @@ void card(render::DisplayList& dl) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.cpu"};
+UTest cases{"render.cpu", [] {
 
-    s.test("a card at 1x and 2x, with provenance", [] {
+    "a card at 1x and 2x, with provenance"_test = [] {
         render::DisplayList dl;
         card(dl);
-        check(dl.balanced());
+        expect(dl.balanced());
         render::CpuRenderer cpu;
         render::ImageStore images;
         raster::Surface one(200, 140), two(400, 280);
         auto report = cpu.render(dl, one, {&images, nullptr}, {.scale = 1, .object_ids = true, .background = geom::Color::hex(0xf1f5f9)});
-        check_eq(report.commands, dl.size());
-        check_eq(cpu.object_at(100, 56, 200), std::uint32_t{2}, std::source_location::current());
-        check_eq(cpu.object_at(30, 110, 200), std::uint32_t{1});
-        check_eq(cpu.object_at(5, 5, 200), std::uint32_t{0});
+        expect(eq(report.commands, dl.size()));
+        expect(eq(cpu.object_at(100, 56, 200), std::uint32_t{2}), std::source_location::current());
+        expect(eq(cpu.object_at(30, 110, 200), std::uint32_t{1}));
+        expect(eq(cpu.object_at(5, 5, 200), std::uint32_t{0}));
         cpu.render(dl, two, {&images, nullptr}, {.scale = 2, .background = geom::Color::hex(0xf1f5f9)});
         // The same pixel at 2x is the same colour where the colour is flat.
-        check(one.at(30, 110) == two.at(60, 220));
+        expect(one.at(30, 110) == two.at(60, 220));
         auto dir = scratch_dir("render-cpu");
         mlibs::image::View v1{reinterpret_cast<const std::uint8_t*>(one.pixels().data()), 200, 140, 800};
         mlibs::image::View v2{reinterpret_cast<const std::uint8_t*>(two.pixels().data()), 400, 280, 1600};
-        check(mlibs::image::save_png(dir / "card@1x.png", v1).has_value());
-        check(mlibs::image::save_png(dir / "card@2x.png", v2).has_value());
+        expect(mlibs::image::save_png(dir / "card@1x.png", v1).has_value());
+        expect(mlibs::image::save_png(dir / "card@2x.png", v2).has_value());
         std::println("    {:016x} {:016x}  ({})", one.hash(), two.hash(), (dir / "card@2x.png").generic_string());
-        check_eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("5eda17b635d9aa7c/35ae4c67bbb07df1"));
-    });
+        expect(eq(std::format("{:016x}/{:016x}", one.hash(), two.hash()), std::string("5eda17b635d9aa7c/35ae4c67bbb07df1")));
+    };
 
-    s.test("images by reference; missing ones are reported", [] {
+    "images by reference; missing ones are reported"_test = [] {
         render::ImageStore images;
         std::vector<raster::Rgba8> px{{255, 0, 0, 255}, {0, 0, 255, 255}};
         auto ref = images.add(2, 1, px);
@@ -142,11 +143,11 @@ int main(int argc, char** argv) {
         raster::Surface out(4, 2);
         render::CpuRenderer cpu;
         auto report = cpu.render(dl, out, {&images, nullptr});
-        check(out.at(0, 0) == px[0] && out.at(3, 1) == px[1]);
-        check_eq(report.missing_images, std::size_t{1});
-    });
+        expect(out.at(0, 0) == px[0] && out.at(3, 1) == px[1]);
+        expect(eq(report.missing_images, std::size_t{1}));
+    };
 
-    s.test("a textured mesh: a picture bent by its vertices — flat, it is the image drawn; bent, the same bytes every run", [] {
+    "a textured mesh: a picture bent by its vertices — flat, it is the image drawn; bent, the same bytes every run"_test = [] {
         render::ImageStore images;
         std::vector<raster::Rgba8> px(32 * 32);
         for (int y = 0; y < 32; ++y)
@@ -177,7 +178,7 @@ int main(int argc, char** argv) {
         int differ = 0;
         for (int y = 10; y < 70; ++y)
             for (int x = 10; x < 70; ++x) differ += !(a.at(x, y) == b.at(x, y));
-        check_eq(differ, 0);  // inside, where no edge's antialiasing reaches: the image itself, no cracks along the diagonals
+        expect(eq(differ, 0));  // inside, where no edge's antialiasing reaches: the image itself, no cracks along the diagonals
         // Bent: the middle row pushed right, as a bone would.
         for (int i = 3; i < 6; ++i) at[static_cast<std::size_t>(i)].x += 10;
         render::DisplayList bent;
@@ -185,15 +186,15 @@ int main(int argc, char** argv) {
         raster::Surface c(90, 80);
         cpu.render(bent, c, {&images, nullptr});
         std::println("    bent {:016x}", c.hash());
-        check(c.at(50, 40) != b.at(50, 40), "moved");
-        check_eq(bent.hash(), [&] {
+        expect(c.at(50, 40) != b.at(50, 40)) << "moved";
+        expect(eq(bent.hash(), [&] {
             render::DisplayList again;
             again.draw_mesh(ref, at, uv, tri);
             return again.hash();
-        }());
-    });
+        }()));
+    };
 
-    s.test("a long mesh turned and running out of its clip: drawn whole up to the clip, one quad or many", [] {
+    "a long mesh turned and running out of its clip: drawn whole up to the clip, one quad or many"_test = [] {
         render::ImageStore images;
         const auto ref = images.add(400, 200, std::vector<raster::Rgba8>(400 * 200, raster::Rgba8{200, 60, 40, 255}));
         // A strip of the picture (300 × 40 at 20, 100), turned −25° and scaled 0.6, its far end past the clip.
@@ -228,16 +229,16 @@ int main(int argc, char** argv) {
         const int whole = strip(1, 400), whole8 = strip(8, 400);
         const int one = strip(1, 120), many = strip(8, 120);
         // Eight quads cover a little more (their seams grown half a pixel); no more than that unclipped.
-        check(one > 2000 && std::abs(many - one) <= whole8 - whole, std::format("{} pixels drawn by one quad, {} by eight", one, many));
-    });
+        expect(one > 2000 && std::abs(many - one) <= whole8 - whole) << std::format("{} pixels drawn by one quad, {} by eight", one, many);
+    };
 
-    s.test("lit meshes: a bevelled disc under a light from the upper left — bands, a rim on the lit edge; turned and mirrored copies lit by the light, not the picture", [] {
+    "lit meshes: a bevelled disc under a light from the upper left — bands, a rim on the lit edge; turned and mirrored copies lit by the light, not the picture"_test = [] {
         render::ImageStore images;
         const LitScene scene = lit_scene(images);
         raster::Surface out(160, 120);
         render::CpuRenderer cpu;
         const auto report = cpu.render(scene.list, out, {&images, nullptr});
-        check_eq(report.missing_images, std::size_t{0});
+        expect(eq(report.missing_images, std::size_t{0}));
         const auto lum = [&](int x, int y) {
             const raster::Rgba8 p = out.at(x, y);
             return 2 * p.r + 5 * p.g + p.b;
@@ -245,7 +246,7 @@ int main(int argc, char** argv) {
         // The upright copy (centre 32, 32): the upper left in the top band with the rim on it, the
         // middle (facing the viewer) in the middle band, the lower right in shadow.
         const int ul = lum(32 - 13, 32 - 13), mid = lum(32, 32), lr = lum(32 + 12, 32 + 12);
-        check(ul > mid && mid > lr, std::format("upper left {}, middle {}, lower right {}", ul, mid, lr));
+        expect(ul > mid && mid > lr) << std::format("upper left {}, middle {}, lower right {}", ul, mid, lr);
         // The brightest pixel toward the light, and toward the shadow, along the diagonal's outer part.
         const auto brightest = [&](int cx, int cy, int from, int to) {
             raster::Rgba8 best{};
@@ -254,17 +255,17 @@ int main(int argc, char** argv) {
             return best;
         };
         const raster::Rgba8 base = scene.base, centre = out.at(32, 32), lit_edge = brightest(32, 32, -15, -10), dark = out.at(32 + 12, 32 + 12);
-        check(lit_edge.r > base.r + 20 && lit_edge.g > base.g + 20, std::format("the rim brightens the lit edge: {} {} {}", lit_edge.r, lit_edge.g, lit_edge.b));
+        expect(lit_edge.r > base.r + 20 && lit_edge.g > base.g + 20) << std::format("the rim brightens the lit edge: {} {} {}", lit_edge.r, lit_edge.g, lit_edge.b);
         const raster::Rgba8 far_edge = brightest(32, 32, 10, 15);
-        check(far_edge.r < base.r, "no rim away from the light");
-        check(dark.r < centre.r && dark.b * 255 / dark.r > base.b * 255 / base.r, "the shadow is darker and toward its (purple) colour");
+        expect(far_edge.r < base.r) << "no rim away from the light";
+        expect(dark.r < centre.r && dark.b * 255 / dark.r > base.b * 255 / base.r) << "the shadow is darker and toward its (purple) colour";
         // Three bands: along the diagonal the colour holds still between steps (plateaus).
         std::set<std::uint32_t> levels;
         for (int t = -8; t <= 8; ++t) {
             const raster::Rgba8 p = out.at(32 + t, 32 + t);
             levels.insert(static_cast<std::uint32_t>(p.r) << 16 | static_cast<std::uint32_t>(p.g) << 8 | p.b);
         }
-        check(levels.size() <= 8, std::format("{} colours along 17 pixels of the diagonal: banded", levels.size()));
+        expect(levels.size() <= 8) << std::format("{} colours along 17 pixels of the diagonal: banded", levels.size());
         // The copy turned 90° (centre 80, 32) and the mirrored copy (centre 128, 32) shade as the
         // upright one, pixel for pixel: the light stays where it is as the picture turns or flips.
         int turned = 0, mirrored = 0, opaque = 0;
@@ -276,34 +277,34 @@ int main(int argc, char** argv) {
                 turned = std::max({turned, std::abs(a.r - b.r), std::abs(a.g - b.g), std::abs(a.b - b.b)});
                 mirrored = std::max({mirrored, std::abs(a.r - c.r), std::abs(a.g - c.g), std::abs(a.b - c.b)});
             }
-        check(opaque > 1000);
-        check_eq(turned, 0);
-        check_eq(mirrored, 0);
+        expect(opaque > 1000);
+        expect(eq(turned, 0));
+        expect(eq(mirrored, 0));
         // Turned 30° (centre 32, 88): still lit from the upper left.
-        check(lum(32 - 13, 88 - 13) > lum(32 + 12, 88 + 12));
+        expect(lum(32 - 13, 88 - 13) > lum(32 + 12, 88 + 12));
         // The picture as a mask (centre 80, 88): dark ink, its alpha the disc's, a rim of light on its upper left only.
         const raster::Rgba8 ink_lit = brightest(80, 88, -15, -10), ink_dark = brightest(80, 88, 10, 15), ink_mid = out.at(80, 88);
-        check(ink_mid.a == 255 && ink_mid.r < 40 && ink_dark.r < 40 && ink_lit.r > 100, std::format("ink {} {} {}", ink_mid.r, ink_dark.r, ink_lit.r));
-        check(out.at(80, 88 - 23).a == 0 && out.at(80 + 23, 88).a == 0, "outside the disc, nothing");
+        expect(ink_mid.a == 255 && ink_mid.r < 40 && ink_dark.r < 40 && ink_lit.r > 100) << std::format("ink {} {} {}", ink_mid.r, ink_dark.r, ink_lit.r);
+        expect(out.at(80, 88 - 23).a == 0 && out.at(80 + 23, 88).a == 0) << "outside the disc, nothing";
         // Smooth (bands 0, centre 128, 88): more distinct colours along the diagonal than banded.
         std::set<std::uint32_t> smooth;
         for (int t = -8; t <= 8; ++t) smooth.insert(out.at(128 + t, 88 + t).r);
-        check(smooth.size() > levels.size(), std::format("smooth: {} levels", smooth.size()));
+        expect(smooth.size() > levels.size()) << std::format("smooth: {} levels", smooth.size());
         // Premultiplied everywhere; the same bytes every run (pinned for every platform).
-        for (const raster::Rgba8 p : out.pixels()) check(p.r <= p.a && p.g <= p.a && p.b <= p.a);
+        for (const raster::Rgba8 p : out.pixels()) expect(p.r <= p.a && p.g <= p.a && p.b <= p.a);
         raster::Surface again(160, 120);
         render::CpuRenderer{}.render(scene.list, again, {&images, nullptr});
-        check(again.bytes().size() == out.bytes().size() && std::ranges::equal(again.bytes(), out.bytes()));
+        expect(again.bytes().size() == out.bytes().size() && std::ranges::equal(again.bytes(), out.bytes()));
         std::println("    lit {:016x}", out.hash());
         const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(out.pixels().data()), 160, 120, 160 * 4};
-        check(mlibs::image::save_png(scratch_dir("render-cpu") / "lit.png", view).has_value());  // to look at
-        check_eq(out.hash(), 0x27807ca9fb71b7c2ull);
+        expect(mlibs::image::save_png(scratch_dir("render-cpu") / "lit.png", view).has_value());  // to look at
+        expect(eq(out.hash(), 0x27807ca9fb71b7c2ull));
         // A list with a material hashes apart from the same without one; copied lists keep it.
         render::DisplayList plain, copy;
         plain.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri);
-        check(plain.hash() != scene.list.hash());
+        expect(plain.hash() != scene.list.hash());
         copy.append(scene.list);
-        check_eq(copy.hash(), scene.list.hash());
+        expect(eq(copy.hash(), scene.list.hash()));
         // A missing normal map draws unlit, and is counted.
         render::Material lost = scene.material;
         lost.normal = {999};
@@ -311,12 +312,12 @@ int main(int argc, char** argv) {
         missing.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri, render::Sampling::linear, 1, 0.5f, &lost);
         unlit.draw_mesh(scene.picture, scene.at, scene.uv, scene.tri);
         raster::Surface m1(160, 120), m2(160, 120);
-        check_eq(cpu.render(missing, m1, {&images, nullptr}).missing_images, std::size_t{1 * 2});
+        expect(eq(cpu.render(missing, m1, {&images, nullptr}).missing_images, std::size_t{1 * 2}));
         cpu.render(unlit, m2, {&images, nullptr});
-        check(std::ranges::equal(m1.bytes(), m2.bytes()));
-    });
+        expect(std::ranges::equal(m1.bytes(), m2.bytes()));
+    };
 
-    s.test("unregistered effects and external textures are skipped and counted (R-3)", [] {
+    "unregistered effects and external textures are skipped and counted (R-3)"_test = [] {
         render::DisplayList dl;
         std::array<float, 1> params{0.5f};
         dl.push_layer(1, render::BlendMode::normal, {999}, params);  // no effect has this ref
@@ -326,10 +327,8 @@ int main(int argc, char** argv) {
         raster::Surface out(4, 4);
         render::CpuRenderer cpu;
         auto report = cpu.render(dl, out, {});
-        check_eq(report.effects_skipped, std::size_t{1});
-        check_eq(report.external_skipped, std::size_t{1});
-        check_eq(int(out.at(1, 1).a), 255, std::source_location::current());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(report.effects_skipped, std::size_t{1}));
+        expect(eq(report.external_skipped, std::size_t{1}));
+        expect(eq(int(out.at(1, 1).a), 255), std::source_location::current());
+    };
+}};

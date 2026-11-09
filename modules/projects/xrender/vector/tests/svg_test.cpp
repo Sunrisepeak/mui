@@ -10,8 +10,10 @@ import xrender.raster;
 import xrender.vector;
 import xrender.vector.svg;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace geom = mlibs::geom;
 
 namespace {
@@ -96,48 +98,47 @@ struct Scene {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.svg"};
+UTest cases{"render.svg", [] {
 
-    s.test("every kind of command as SVG's own element; what it cannot say, a marked island; the same bytes", [] {
+    "every kind of command as SVG's own element; what it cannot say, a marked island; the same bytes"_test = [] {
         Scene scene;
         const auto resources = scene.resources();
         const auto picture = xrender::svg::write(scene.list, resources, {.view = {0, 0, 200, 120}, .node_name = [](std::uint32_t node) {
             return node == 7 ? std::string("main/card") : std::string{};
         }, .encode_png = png});
-        check(picture.has_value(), picture ? "" : picture.error());
+        expect(picture.has_value()) << (picture ? "" : picture.error());
         if (!picture) return;
         const std::string_view text = picture->text;
-        check(text.starts_with(R"(<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">)"));
-        check(text.contains(R"(data-node="main/card")"), "the node marker named");
-        check(text.contains(R"(data-part="label" data-part-id="title")"), "the part marker");
-        check(text.contains("<linearGradient") && text.contains(R"(stop-color="#2563eb")"), "the gradient");
-        check(text.contains(R"(stroke-dasharray="6 3")") && text.contains(R"(stroke-linecap="round")"), "the dashed stroke");
-        check(text.contains("<clipPath") && text.contains(R"svg(transform="matrix(0.8 0.6 -0.6 0.8 140 90)")svg"), "clip and transform");
-        check(text.contains(R"svg(opacity="0.5" style="mix-blend-mode:multiply")svg"), "the layer");
-        check(text.contains("feGaussianBlur") && text.contains("<mask"), "the outer shadow: blurred, outside the box");
-        check(text.contains(R"(fill-rule="evenodd")"), "the rounded rectangle's stroke as a ring");
+        expect(text.starts_with(R"(<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120" viewBox="0 0 200 120">)"));
+        expect(text.contains(R"(data-node="main/card")")) << "the node marker named";
+        expect(text.contains(R"(data-part="label" data-part-id="title")")) << "the part marker";
+        expect(text.contains("<linearGradient") && text.contains(R"(stop-color="#2563eb")")) << "the gradient";
+        expect(text.contains(R"(stroke-dasharray="6 3")") && text.contains(R"(stroke-linecap="round")")) << "the dashed stroke";
+        expect(text.contains("<clipPath") && text.contains(R"svg(transform="matrix(0.8 0.6 -0.6 0.8 140 90)")svg")) << "clip and transform";
+        expect(text.contains(R"svg(opacity="0.5" style="mix-blend-mode:multiply")svg")) << "the layer";
+        expect(text.contains("feGaussianBlur") && text.contains("<mask")) << "the outer shadow: blurred, outside the box";
+        expect(text.contains(R"(fill-rule="evenodd")")) << "the rounded rectangle's stroke as a ring";
         // Glyph 1 twice, defined once; the blank glyph not at all.
-        check_eq(count(text, R"(<path id="g3_1")"), std::size_t{1});
-        check_eq(count(text, R"(href="#g3_1")"), std::size_t{2});
-        check(!text.contains("g3_2"), "a blank glyph draws nothing");
-        check(text.contains(R"(fill="#111827" fill-opacity="0.5")"), "a glyph's own opacity");
+        expect(eq(count(text, R"(<path id="g3_1")"), std::size_t{1}));
+        expect(eq(count(text, R"(href="#g3_1")"), std::size_t{2}));
+        expect(!text.contains("g3_2")) << "a blank glyph draws nothing";
+        expect(text.contains(R"(fill="#111827" fill-opacity="0.5")")) << "a glyph's own opacity";
         // The picture defined once, shown twice, nearest kept.
-        check_eq(count(text, R"(<image id="i)"), std::size_t{1});
-        check_eq(count(text, R"(<use href="#i)"), std::size_t{2});
-        check(text.contains("image-rendering:pixelated"));
+        expect(eq(count(text, R"(<image id="i)"), std::size_t{1}));
+        expect(eq(count(text, R"(<use href="#i)"), std::size_t{2}));
+        expect(text.contains("image-rendering:pixelated"));
         // The conic paint as pixels, and said why.
-        check_eq(picture->report.islands.size(), std::size_t{1});
-        check(picture->report.islands.front().why == xrender::svg::Why::paint);
-        check(text.contains(R"(data-island="paint")"));
-        check_eq(picture->report.glyphs, std::size_t{2});
-        check_eq(picture->report.images, std::size_t{2});
-        check_eq(picture->report.unencoded, std::size_t{0});
+        expect(eq(picture->report.islands.size(), std::size_t{1}));
+        expect(picture->report.islands.front().why == xrender::svg::Why::paint);
+        expect(text.contains(R"(data-island="paint")"));
+        expect(eq(picture->report.glyphs, std::size_t{2}));
+        expect(eq(picture->report.images, std::size_t{2}));
+        expect(eq(picture->report.unencoded, std::size_t{0}));
         // Written twice, the same bytes; pinned on every platform.
         const auto again = xrender::svg::write(scene.list, resources, {.view = {0, 0, 200, 120}, .node_name = [](std::uint32_t node) {
             return node == 7 ? std::string("main/card") : std::string{};
         }, .encode_png = png});
-        check(again && again->text == picture->text, "deterministic");
+        expect(again && again->text == picture->text) << "deterministic";
         mlibs::hash::Fnv1a hash;
         hash.text(picture->text);
         std::println("    svg {} bytes, {}", picture->text.size(), hash.hex());
@@ -147,10 +148,10 @@ int main(int argc, char** argv) {
         xrender::raster::Surface surface(400, 240);
         xrender::CpuRenderer cpu;
         (void)cpu.render(scene.list, surface, resources, {.scale = 2});
-        check(mlibs::image::save_png(dir / "scene@2x.png", {surface.bytes().data(), 400, 240, 1600, mlibs::image::Alpha::premultiplied}).has_value());
-    });
+        expect(mlibs::image::save_png(dir / "scene@2x.png", {surface.bytes().data(), 400, 240, 1600, mlibs::image::Alpha::premultiplied}).has_value());
+    };
 
-    s.test("an effect layer is one island drawn by the CPU reference; without an encoder, pixels are left out and counted", [] {
+    "an effect layer is one island drawn by the CPU reference; without an encoder, pixels are left out and counted"_test = [] {
         xrender::DisplayList list;
         list.fill_rect({0, 0, 64, 64}, geom::Color::hex(0x334155));
         const auto ref = *xrender::effects().find("pixelate");
@@ -161,20 +162,20 @@ int main(int argc, char** argv) {
         list.pop_layer();
         list.fill_rect({0, 60, 64, 4}, geom::Color::hex(0xffffff));
         const auto picture = xrender::svg::write(list, {}, {.view = {0, 0, 64, 64}, .encode_png = png});
-        check(picture.has_value());
+        expect(picture.has_value());
         if (!picture) return;
-        check_eq(picture->report.islands.size(), std::size_t{1});
-        check(picture->report.islands.front().why == xrender::svg::Why::effect);
-        check_eq(picture->report.islands.front().command, std::size_t{1});
-        check_eq(picture->report.islands.front().effect, std::string("pixelate"));
-        check(picture->text.contains(R"svg(data-island="effect" data-effect="pixelate")svg"));
+        expect(eq(picture->report.islands.size(), std::size_t{1}));
+        expect(picture->report.islands.front().why == xrender::svg::Why::effect);
+        expect(eq(picture->report.islands.front().command, std::size_t{1}));
+        expect(eq(picture->report.islands.front().effect, std::string("pixelate")));
+        expect(picture->text.contains(R"svg(data-island="effect" data-effect="pixelate")svg"));
         // What follows the layer is vectors again.
-        check(picture->text.find(R"(fill="#ffffff")") > picture->text.find("data-island"));
+        expect(picture->text.find(R"(fill="#ffffff")") > picture->text.find("data-island"));
         const auto bare = xrender::svg::write(list, {}, {.view = {0, 0, 64, 64}});
-        check(bare && bare->report.unencoded == 1 && !bare->text.contains("data-island"));
-    });
+        expect(bare && bare->report.unencoded == 1 && !bare->text.contains("data-island"));
+    };
 
-    s.test("the opacity effect is SVG's group opacity, not pixels", [] {
+    "the opacity effect is SVG's group opacity, not pixels"_test = [] {
         xrender::DisplayList list;
         const auto ref = *xrender::effects().find("opacity");
         const auto params = xrender::effects().params(ref, std::vector<std::pair<std::string_view, float>>{{"amount", 0.5f}});
@@ -182,30 +183,28 @@ int main(int argc, char** argv) {
         list.fill_rect({4, 4, 24, 24}, geom::Color::hex(0x0ea5e9));
         list.pop_layer();
         const auto picture = xrender::svg::write(list, {}, {.view = {0, 0, 32, 32}, .encode_png = png});
-        check(picture && picture->report.islands.empty() && picture->text.contains(R"(<g opacity="0.25">)"), picture ? picture->text : picture.error());
-    });
+        expect(picture && picture->report.islands.empty() && picture->text.contains(R"(<g opacity="0.25">)")) << (picture ? picture->text : picture.error());
+    };
 
-    s.test("a trimmed stroke is a dash one contour long, each contour its own, the start wrapping", [] {
+    "a trimmed stroke is a dash one contour long, each contour its own, the start wrapping"_test = [] {
         xrender::DisplayList list;
         xrender::Path two;
         two.move_to({2, 2}).line_to({30, 2}).move_to({2, 20}).line_to({30, 20});
         list.stroke_path(two, {.width = 2, .trim_start = 0.25f, .trim_end = 0.75f, .trim_offset = 0.5f}, xrender::Paint::solid(geom::Color::hex(0x111827)));
         const auto picture = xrender::svg::write(list, {}, {.view = {0, 0, 32, 32}});
-        check(picture.has_value());
+        expect(picture.has_value());
         if (!picture) return;
-        check_eq(count(picture->text, R"(stroke-dasharray="14 14" stroke-dashoffset="-21")"), std::size_t{2});
-        check(picture->report.islands.empty());
-    });
+        expect(eq(count(picture->text, R"(stroke-dasharray="14 14" stroke-dashoffset="-21")"), std::size_t{2}));
+        expect(picture->report.islands.empty());
+    };
 
-    s.test("pushes and pops that do not nest are refused; a picture needs a size", [] {
+    "pushes and pops that do not nest are refused; a picture needs a size"_test = [] {
         xrender::DisplayList list;
         list.push_clip({0, 0, 10, 10});
         list.push_transform(geom::Affine::translate(1, 1));
         list.pop_clip();
         list.pop_transform();
-        check(!xrender::svg::write(list, {}, {.view = {0, 0, 10, 10}}).has_value());
-        check(!xrender::svg::write(xrender::DisplayList{}, {}, {}).has_value());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!xrender::svg::write(list, {}, {.view = {0, 0, 10, 10}}).has_value());
+        expect(!xrender::svg::write(xrender::DisplayList{}, {}, {}).has_value());
+    };
+}};

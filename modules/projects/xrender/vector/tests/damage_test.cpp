@@ -8,8 +8,10 @@ import xrender.raster;
 import xrender.vector;
 import mlibs.memory;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -112,7 +114,7 @@ struct Pair {
     explicit Pair(const Knobs& k) {
         scene(list, k);
         auto spans = tracker.update(list, W, H, 1);
-        check(tracker.full() && spans.size() == 1 && spans[0] == render::RowSpan{0, H});
+        expect(tracker.full() && spans.size() == 1 && spans[0] == render::RowSpan{0, H});
         (void)renderer.render(list, incremental, {}, {.object_ids = true, .background = geom::Color::white(), .rows = spans});
     }
 
@@ -127,21 +129,20 @@ struct Pair {
         raster::Surface full(W, H);
         render::CpuRenderer fresh;
         (void)fresh.render(list, full, {}, {.object_ids = true, .background = geom::Color::white()});
-        check(std::ranges::equal(incremental.bytes(), full.bytes()), std::format("{}: pixels differ from the full render", what));
-        check(std::ranges::equal(renderer.object_ids(), fresh.object_ids()), std::format("{}: object ids differ", what));
+        expect(std::ranges::equal(incremental.bytes(), full.bytes())) << std::format("{}: pixels differ from the full render", what);
+        expect(std::ranges::equal(renderer.object_ids(), fresh.object_ids())) << std::format("{}: object ids differ", what);
     }
 };
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.damage"};
+UTest cases{"render.damage", [] {
 
-    s.test("every kind of change, incrementally, is the full render byte for byte", [] {
+    "every kind of change, incrementally, is the full render byte for byte"_test = [] {
         Knobs k;
         Pair p(k);
         p.step(k, "nothing");
-        check_eq(p.rows, std::size_t{0});
+        expect(eq(p.rows, std::size_t{0}));
         k.accent = geom::Color::hex(0xec4899);
         p.step(k, "a colour in two nodes");
         k.card_y = 26;
@@ -163,29 +164,29 @@ int main(int argc, char** argv) {
         k.stroke_width = 7;
         k.wedge = {170, 100};
         p.step(k, "a stroke's width and a moved point");
-    });
+    };
 
-    s.test("little change, few rows", [] {
+    "little change, few rows"_test = [] {
         Knobs k;
         Pair p(k);
         k.layer_opacity = 0.6f;  // nodes 6 and 7: rows 139 … 221 and their edges
         p.step(k, "opacity");
-        check(p.rows > 0 && p.rows < 100, std::format("{} rows", p.rows));
+        expect(p.rows > 0 && p.rows < 100) << std::format("{} rows", p.rows);
         k.wedge = {200, 151};
         p.step(k, "a point moved by a pixel");
-        check(p.rows > 0 && p.rows < static_cast<std::size_t>(H), std::format("{} rows", p.rows));
-    });
+        expect(p.rows > 0 && p.rows < static_cast<std::size_t>(H)) << std::format("{} rows", p.rows);
+    };
 
-    s.test("an image updated in place: its revisions, and only what changed redrawn — exactly", [] {
+    "an image updated in place: its revisions, and only what changed redrawn — exactly"_test = [] {
         render::ImageStore store;
         constexpr int side = 64;
         auto pixels = std::make_shared<raster::Surface>(side, side);
         for (int y = 0; y < side; ++y)
             for (int x = 0; x < side; ++x) pixels->at(x, y) = raster::Rgba8{static_cast<std::uint8_t>(x * 4), static_cast<std::uint8_t>(y * 4), 90, 255};
         const auto image = store.add(std::shared_ptr<const raster::Surface>(pixels));
-        check_eq(store.revision(image), std::uint64_t{0});
-        check(!store.update(image, std::make_shared<raster::Surface>(side, side + 1)), "another size is refused");
-        check(!store.update(render::ImageRef{999}, std::make_shared<raster::Surface>(side, side)), "an image not in the store");
+        expect(eq(store.revision(image), std::uint64_t{0}));
+        expect(!store.update(image, std::make_shared<raster::Surface>(side, side + 1))) << "another size is refused";
+        expect(!store.update(render::ImageRef{999}, std::make_shared<raster::Surface>(side, side))) << "an image not in the store";
         const render::Resources resources{&store, nullptr};
         const auto draw = [&](render::DisplayList& list, render::Sampling sampling) {
             list.clear();
@@ -206,51 +207,51 @@ int main(int argc, char** argv) {
             for (int y = 40; y < 44; ++y)
                 for (int x = 30; x < 34; ++x) next->at(x, y) = raster::Rgba8{255, 255, 255, 255};
             const std::array changed{geom::PixelRect{30, 40, 4, 4}};
-            check(store.update(image, std::shared_ptr<const raster::Surface>(next), changed), "updated");
+            expect(store.update(image, std::shared_ptr<const raster::Surface>(next), changed)) << "updated";
             draw(list, sampling);
             const auto spans = tracker.update(list, W, H, 1, resources);
             std::size_t rows = 0;
             for (auto r : spans) rows += static_cast<std::size_t>(r.bottom - r.top);
-            check(rows > 0 && rows <= 24 && spans.front().top >= 130 && spans.back().bottom <= 162, std::format("{} rows from {}", rows, spans.empty() ? -1 : spans.front().top));
+            expect(rows > 0 && rows <= 24 && spans.front().top >= 130 && spans.back().bottom <= 162) << std::format("{} rows from {}", rows, spans.empty() ? -1 : spans.front().top);
             (void)renderer.render(list, incremental, resources, {.rows = spans});
             raster::Surface full(W, H);
             render::CpuRenderer fresh;
             (void)fresh.render(list, full, resources);
-            check(std::ranges::equal(incremental.bytes(), full.bytes()), "the incremental frame is the full one");
+            expect(std::ranges::equal(incremental.bytes(), full.bytes())) << "the incremental frame is the full one";
             // Unchanged since: nothing redrawn.
             draw(list, sampling);
-            check(tracker.update(list, W, H, 1, resources).empty(), "nothing changed, nothing redrawn");
+            expect(tracker.update(list, W, H, 1, resources).empty()) << "nothing changed, nothing redrawn";
         }
         // Updates beyond what the store remembers: all of it, once.
         std::vector<geom::PixelRect> out;
         const auto revision = store.revision(image);
-        check(store.changed_since(image, revision - 1, out) && out.size() == 1 && out[0] == geom::PixelRect{30, 40, 4, 4}, "the last update's rectangle");
-        for (std::size_t k = 0; k < render::ImageStore::remembered + 1; ++k) check(store.update(image, store.shared(image), std::array{geom::PixelRect{0, 0, 1, 1}}));
+        expect(store.changed_since(image, revision - 1, out) && out.size() == 1 && out[0] == geom::PixelRect{30, 40, 4, 4}) << "the last update's rectangle";
+        for (std::size_t k = 0; k < render::ImageStore::remembered + 1; ++k) expect(store.update(image, store.shared(image), std::array{geom::PixelRect{0, 0, 1, 1}}));
         out.clear();
-        check(!store.changed_since(image, revision, out), "forgotten: treat all of it as changed");
-        check(store.changed_since(image, store.revision(image), out), "up to date");
+        expect(!store.changed_since(image, revision, out)) << "forgotten: treat all of it as changed";
+        expect(store.changed_since(image, store.revision(image), out)) << "up to date";
         // A snapshot store keeps the revision (canvas textures on another thread).
         render::ImageStore snapshot;
         snapshot.put(image, store.shared(image), store.revision(image));
-        check_eq(snapshot.revision(image), store.revision(image));
-    });
+        expect(eq(snapshot.revision(image), store.revision(image)));
+    };
 
-    s.test("a new size, a new scale, or invalidate() damage every row", [] {
+    "a new size, a new scale, or invalidate() damage every row"_test = [] {
         Knobs k;
         render::DisplayList dl;
         scene(dl, k);
         render::DamageTracker t;
         (void)t.update(dl, W, H, 1);
-        check(t.update(dl, W, H, 1).empty() && !t.full());
+        expect(t.update(dl, W, H, 1).empty() && !t.full());
         auto all = [&](std::span<const render::RowSpan> r, int h) { return t.full() && r.size() == 1 && r[0] == render::RowSpan{0, h}; };
-        check(all(t.update(dl, W, H + 10, 1), H + 10));
-        check(all(t.update(dl, W, H + 10, 2), H + 10));
+        expect(all(t.update(dl, W, H + 10, 1), H + 10));
+        expect(all(t.update(dl, W, H + 10, 2), H + 10));
         t.invalidate();
-        check(all(t.update(dl, W, H + 10, 2), H + 10));
-        check(t.update(dl, W, H + 10, 2).empty());
-    });
+        expect(all(t.update(dl, W, H + 10, 2), H + 10));
+        expect(t.update(dl, W, H + 10, 2).empty());
+    };
 
-    s.test("bands of a canvas are the rows of the whole surface, for edges that cross them", [] {
+    "bands of a canvas are the rows of the whole surface, for edges that cross them"_test = [] {
         // Paths whose edges cross band boundaries at every angle, filled under
         // both rules, at fractional positions.
         raster::PathBuilder pb;
@@ -277,13 +278,13 @@ int main(int argc, char** argv) {
                         if (y >= top && y < bottom) same = same && band.at(x, y) == whole.at(x, y);
                         else outside_untouched = outside_untouched && band.at(x, y) == raster::Rgba8{};
                     }
-                check(same, std::format("rows {}…{} differ", top, bottom));
-                check(outside_untouched, std::format("rows {}…{} drew outside", top, bottom));
+                expect(same) << std::format("rows {}…{} differ", top, bottom);
+                expect(outside_untouched) << std::format("rows {}…{} drew outside", top, bottom);
             }
         }
-    });
+    };
 
-    if constexpr (threads) s.test("bands drawn at the same time give the serial bytes and ids", [] {
+    if constexpr (threads) "bands drawn at the same time give the serial bytes and ids"_test = [] {
         Threads pool;
         Knobs k;
         render::DisplayList dl;
@@ -292,8 +293,8 @@ int main(int argc, char** argv) {
         render::CpuRenderer a, b;
         (void)a.render(dl, serial, {}, {.object_ids = true, .background = geom::Color::white()});
         (void)b.render(dl, parallel, {}, {.object_ids = true, .background = geom::Color::white(), .parallel = &pool, .rows_per_task = 16});
-        check(std::ranges::equal(serial.bytes(), parallel.bytes()), "whole frame");
-        check(std::ranges::equal(a.object_ids(), b.object_ids()), "whole frame ids");
+        expect(std::ranges::equal(serial.bytes(), parallel.bytes())) << "whole frame";
+        expect(std::ranges::equal(a.object_ids(), b.object_ids())) << "whole frame ids";
         // And incrementally: the damaged rows only, cut into tasks.
         render::DamageTracker t;
         (void)t.update(dl, W, H, 1);
@@ -305,11 +306,11 @@ int main(int argc, char** argv) {
         raster::Surface full(W, H);
         render::CpuRenderer c;
         (void)c.render(dl, full, {}, {.object_ids = true, .background = geom::Color::white()});
-        check(std::ranges::equal(full.bytes(), parallel.bytes()), "incremental, in parallel");
-        check(std::ranges::equal(c.object_ids(), b.object_ids()), "incremental ids");
-    });
+        expect(std::ranges::equal(full.bytes(), parallel.bytes())) << "incremental, in parallel";
+        expect(std::ranges::equal(c.object_ids(), b.object_ids())) << "incremental ids";
+    };
 
-    s.test("a reused renderer allocates its buffers once", [] {
+    "a reused renderer allocates its buffers once"_test = [] {
         // Two renders of the same list; the second reuses the canvas (and
         // gives the same pixels).
         Knobs k;
@@ -319,8 +320,6 @@ int main(int argc, char** argv) {
         raster::Surface a(W, H), b(W, H);
         (void)r.render(dl, a, {}, {.background = geom::Color::white()});
         (void)r.render(dl, b, {}, {.background = geom::Color::white()});
-        check(std::ranges::equal(a.bytes(), b.bytes()));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(std::ranges::equal(a.bytes(), b.bytes()));
+    };
+}};

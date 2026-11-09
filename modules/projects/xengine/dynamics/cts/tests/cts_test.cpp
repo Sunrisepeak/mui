@@ -3,24 +3,22 @@
 // passed), and failed when the runner requires it; the report as JSON.
 import std;
 import xengine.dynamics.cts;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace cts = xengine::dynamics::cts;
 
-int main(int argc, char** argv) {
-    Suite s{"dynamics.cts"};
-    s.test("the CPU reference passes every case", [] {
+UTest cases{"dynamics.cts", [] {
+    "the CPU reference passes every case"_test = [] {
         const auto report = cts::run();
         std::println("{}", report.text());
-        check(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size() && report.outcomes.size() >= 6, report.text());
-        check(report.json().contains("\"suite\""), "a machine-readable report");
-    });
-    s.test("a subject without a family: its cases unsupported, failed when required", [] {
+        expect(report.ok() && report.count(mlibs::cts::Status::passed) == report.outcomes.size() && report.outcomes.size() >= 6) << report.text();
+        expect(report.json().contains("\"suite\"")) << "a machine-readable report";
+    };
+    "a subject without a family: its cases unsupported, failed when required"_test = [] {
         const auto partial = cts::run({.name = "collision-only", .families = {"collision"}});
-        check(partial.ok() && partial.count(mlibs::cts::Status::unsupported) > 0, "unsupported is not passed, nor failed");
+        expect(partial.ok() && partial.count(mlibs::cts::Status::unsupported) > 0) << "unsupported is not passed, nor failed";
         const auto required = cts::run({.name = "collision-only", .families = {"collision"}}, {}, {.required = {"xpbd"}});
-        check(!required.ok(), "a required family missing fails");
-    });
-    return s.run(argc, argv);
-}
+        expect(!required.ok()) << "a required family missing fails";
+    };
+}};

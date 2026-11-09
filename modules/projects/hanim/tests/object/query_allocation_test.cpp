@@ -1,10 +1,10 @@
 import std;
 import hanim.object;
 import mlibs.trace;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 std::atomic<std::size_t> allocations{0};
@@ -57,16 +57,15 @@ void operator delete[](void* pointer, std::size_t, std::align_val_t) noexcept { 
 void operator delete(void* pointer, std::align_val_t, const std::nothrow_t&) noexcept { free_aligned(pointer); }
 void operator delete[](void* pointer, std::align_val_t, const std::nothrow_t&) noexcept { free_aligned(pointer); }
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.object.query_allocations"};
-    s.test("warm capture named/ref/resource queries allocate no scalar or array storage even while tracing", [] {
+UTest cases{"hanim.object.query_allocations", [] {
+    "warm capture named/ref/resource queries allocate no scalar or array storage even while tracing"_test = [] {
         mlibs::trace::start();
         const std::array edges{ShapeSegment::line({1, 0})};
-        auto contour = Contour::copy({{}, edges, false}); check(contour.has_value());
-        auto registry = ObjectRegistry::make(); check(registry.has_value());
-        const auto object = registry->create({{{.id = "long-stable-part-key-not-a-display-label", .contours = {*contour}}}}); check(object.has_value());
-        auto warm = registry->capture(*object); check(warm.has_value());
-        const auto part = warm->find("long-stable-part-key-not-a-display-label"); check(part.has_value());
+        auto contour = Contour::copy({{}, edges, false}); expect(contour.has_value());
+        auto registry = ObjectRegistry::make(); expect(registry.has_value());
+        const auto object = registry->create({{{.id = "long-stable-part-key-not-a-display-label", .contours = {*contour}}}}); expect(object.has_value());
+        auto warm = registry->capture(*object); expect(warm.has_value());
+        const auto part = warm->find("long-stable-part-key-not-a-display-label"); expect(part.has_value());
         const auto proof_before = allocations.load(std::memory_order_relaxed);
         ::operator delete(::operator new(1));
         ::operator delete[](::operator new[](1));
@@ -83,8 +82,7 @@ int main(int argc, char** argv) {
         ::operator delete[](::operator new[](1, aligned), std::size_t{1}, aligned);
         ::operator delete(::operator new(1, aligned, std::nothrow), aligned, std::nothrow);
         ::operator delete[](::operator new[](1, aligned, std::nothrow), aligned, std::nothrow);
-        check(alignment_correct && allocations.load(std::memory_order_relaxed) - proof_before == 12,
-            "scalar/array, throwing/nothrow and aligned allocation families are observed and paired");
+        expect(alignment_correct && allocations.load(std::memory_order_relaxed) - proof_before == 12) << "scalar/array, throwing/nothrow and aligned allocation families are observed and paired";
         bool valid = true;
         double consumed = 0;
         const auto before = allocations.load(std::memory_order_relaxed);
@@ -103,9 +101,9 @@ int main(int argc, char** argv) {
         }
         const auto after = allocations.load(std::memory_order_relaxed);
         const auto trace = mlibs::trace::stop();
-        check(valid && consumed == 2000);
-        check(after == before, std::format("{} scalar/array allocations across 2000 complete capture/query iterations", after - before));
-        check(trace.dropped == 0);
+        expect(valid && consumed == 2000);
+        expect(after == before) << std::format("{} scalar/array allocations across 2000 complete capture/query iterations", after - before);
+        expect(trace.dropped == 0);
         bool captured = false, created = false, owner_counter = false;
         for (const auto& event : trace.events) {
             if (std::string_view(event.category) != "hanim.object") continue;
@@ -113,7 +111,6 @@ int main(int argc, char** argv) {
             created |= event.kind == mlibs::trace::Kind::begin && std::string_view(event.name) == "create";
             owner_counter |= event.kind == mlibs::trace::Kind::counter && std::string_view(event.name) == "owner.low" && event.value == static_cast<double>(object->owner);
         }
-        check(captured && created && owner_counter, "existing trace infrastructure records object operations and exact owner halves");
-    });
-    return s.run(argc, argv);
-}
+        expect(captured && created && owner_counter) << "existing trace infrastructure records object operations and exact owner halves";
+    };
+}};

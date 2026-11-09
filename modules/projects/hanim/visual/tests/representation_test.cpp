@@ -7,10 +7,10 @@ import hanim.core;
 import mlibs.geom;
 import xrender.vector;
 import hanim.visual;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
 namespace geom = mlibs::geom;
 
@@ -68,10 +68,9 @@ std::optional<geom::Rect> placed_fill(const xrender::DisplayList& list) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.visual.representation"};
+UTest cases{"hanim.visual.representation", [] {
 
-    suite.test("an appearing stroke is written along its length, then is the stroke itself", [] {
+    "an appearing stroke is written along its length, then is the stroke itself"_test = [] {
         auto options = linear();
         options.appear = *hanim::presence("write_in", {.fade = 0.3});
         options.vanish = *hanim::presence("unwrite", {.fade = 0.6});
@@ -83,18 +82,16 @@ int main(int argc, char** argv) {
             for (const auto& command : frame.commands())
                 if (const auto* stroke = std::get_if<xrender::StrokePath>(&command))
                     written = stroke;
-            check(written && written->style.trim_start == 0 &&
-                      std::abs(written->style.trim_end - time) < 1e-6 && written->style.width == 2,
-                  std::format("at {} the ring is drawn to {}", time,
-                              written ? written->style.trim_end : -1));
+            expect(written && written->style.trim_start == 0 &&
+                      std::abs(written->style.trim_end - time) < 1e-6 && written->style.width == 2) << std::format("at {} the ring is drawn to {}", time,
+                              written ? written->style.trim_end : -1);
         }
         const auto end = drawn(morph, 1.5);
-        check(std::ranges::any_of(end.commands(),
+        expect(std::ranges::any_of(end.commands(),
                                   [](const auto& command) {
                                       return std::holds_alternative<xrender::StrokeRoundRect>(
                                           command);
-                                  }),
-              "settled: the ring as drawn");
+                                  })) << "settled: the ring as drawn";
         // And going, unwritten.
         const mo::Morph going(mo::Matter::extract(ring(), resolver()),
                               mo::Matter::extract(blank(), resolver()), options, 0);
@@ -102,10 +99,10 @@ int main(int argc, char** argv) {
         for (const auto& command : drawn(going, .3).commands())
             if (const auto* stroke = std::get_if<xrender::StrokePath>(&command))
                 shrinking = stroke->style.trim_end < 1 && stroke->style.trim_end > 0;
-        check(shrinking, "a going ring is undrawn");
-    });
+        expect(shrinking) << "a going ring is undrawn";
+    };
 
-    suite.test("an appearing fill is written too: its outline drawn along its length first, then the fill coming in, then the fill itself", [] {
+    "an appearing fill is written too: its outline drawn along its length first, then the fill coming in, then the fill itself"_test = [] {
         auto options = linear();
         options.appear = *hanim::presence("write_in");
         const mo::Morph morph(mo::Matter::extract(blank(), resolver()), mo::Matter::extract(card(), resolver()), options, 0);
@@ -119,37 +116,32 @@ int main(int argc, char** argv) {
             return std::pair{outline, fill};
         };
         const auto [early_line, early_fill] = at(0.3);
-        check(early_line && std::abs(*early_line - 0.5f) < 1e-5 && !early_fill, "at 0.3 half the outline, no fill yet");
+        expect(early_line && std::abs(*early_line - 0.5f) < 1e-5 && !early_fill) << "at 0.3 half the outline, no fill yet";
         const auto [late_line, late_fill] = at(0.8);
-        check(late_line && *late_line == 1 && late_fill, "at 0.8 the whole outline, the fill coming in");
+        expect(late_line && *late_line == 1 && late_fill) << "at 0.8 the whole outline, the fill coming in";
         const auto [rest_line, rest_fill] = at(1.5);
-        check(!rest_line && rest_fill, "at rest the fill as drawn, no outline");
-    });
+        expect(!rest_line && rest_fill) << "at rest the fill as drawn, no outline";
+    };
 
-    suite.test("what appears drops in, flattens about its bottom as it lands, and rests exactly",
-               [] {
+    "what appears drops in, flattens about its bottom as it lands, and rests exactly"_test = [] {
                    auto options = linear();
                    options.appear = *hanim::presence("drop_in", {.height = 24, .fade = 0.3});
                    const mo::Morph morph(mo::Matter::extract(blank(), resolver()),
                                          mo::Matter::extract(card(), resolver()), options, 0);
                    const auto early = placed_fill(drawn(morph, .05));
-                   check(early && early->y < 60 - 20,
-                         std::format("high above at first: y {}", early ? early->y : 0));
+                   expect(early && early->y < 60 - 20) << std::format("high above at first: y {}", early ? early->y : 0);
                    // Half-way through the first landing (fall(0.45, 2): 1.05 of 2.45 falls).
                    const auto landed = placed_fill(drawn(morph, 1.05 / 2.45));
-                   check(landed && landed->width > 40 && landed->height < 20 &&
-                             std::abs(landed->bottom() - 80) < 1e-3,
-                         std::format("pressed flat on its bottom: {} × {} down to {}",
+                   expect(landed && landed->width > 40 && landed->height < 20 &&
+                             std::abs(landed->bottom() - 80) < 1e-3) << std::format("pressed flat on its bottom: {} × {} down to {}",
                                      landed ? landed->width : 0, landed ? landed->height : 0,
-                                     landed ? landed->bottom() : 0));
+                                     landed ? landed->bottom() : 0);
                    const auto rest = placed_fill(drawn(morph, 1.5));
-                   check(rest && rest->x == 30 && rest->y == 60 && rest->width == 40 &&
-                             rest->height == 20,
-                         "at rest where it is drawn");
-               });
+                   expect(rest && rest->x == 30 && rest->y == 60 && rest->width == 40 &&
+                             rest->height == 20) << "at rest where it is drawn";
+               };
 
-    suite.test("a moving piece wanders on its way under a translation path, exact at both ends",
-               [] {
+    "a moving piece wanders on its way under a translation path, exact at both ends"_test = [] {
                    auto plain = linear(), wandering = linear();
                    wandering.translation_path = hanim::PointPath::jitter(6, 20, 3);
                    const auto from = card(), to = card(geom::Affine::translate(100, 0));
@@ -159,18 +151,15 @@ int main(int argc, char** argv) {
                                          mo::Matter::extract(to, resolver()), wandering, 0);
                    const auto middle_straight = placed_fill(drawn(straight, .5)),
                               middle_noisy = placed_fill(drawn(noisy, .5));
-                   check(middle_straight && middle_noisy &&
+                   expect(middle_straight && middle_noisy &&
                              (std::abs(middle_noisy->x - middle_straight->x) > .1 ||
-                              std::abs(middle_noisy->y - middle_straight->y) > .1),
-                         "off the straight way half-way");
+                              std::abs(middle_noisy->y - middle_straight->y) > .1)) << "off the straight way half-way";
                    const auto start = placed_fill(drawn(noisy, 0)),
                               end = placed_fill(drawn(noisy, 1.5));
-                   check(start && end && start->x == 30 && end->x == 130 && end->y == 60,
-                         "exact where it leaves and arrives");
-               });
+                   expect(start && end && start->x == 30 && end->x == 130 && end->y == 60) << "exact where it leaves and arrives";
+               };
 
-    suite.test("a replaced glyph reshapes into its replacement, holes and all, then is the glyph",
-               [] {
+    "a replaced glyph reshapes into its replacement, holes and all, then is the glyph"_test = [] {
                    // "A" (an outline with a hole) becomes "B" (an outline with two): stand-in em
                    // outlines.
                    const auto outline_of = [](std::uint32_t id) {
@@ -221,9 +210,9 @@ int main(int argc, char** argv) {
                        return most;
                    };
                    const auto middle = drawn(morph, .5);
-                   check(contours(middle) == 3, std::format("half-way one outline of {} contours: "
+                   expect(contours(middle) == 3) << std::format("half-way one outline of {} contours: "
                                                             "the hole kept, the second growing",
-                                                            contours(middle)));
+                                                            contours(middle));
                    bool replaced_hidden = true;
                    for (const auto& command : middle.commands())
                        if (const auto* run = std::get_if<xrender::DrawGlyphs>(&command))
@@ -231,13 +220,11 @@ int main(int argc, char** argv) {
                                if (run->glyphs[index].id != 7 && !run->styles.empty() &&
                                    run->styles[index].opacity > 0)
                                    replaced_hidden = false;
-                   check(replaced_hidden, "neither letter fades meanwhile");
-                   check(contours(drawn(morph, 1.5)) == 0, "settled: the glyph as drawn");
-               });
+                   expect(replaced_hidden) << "neither letter fades meanwhile";
+                   expect(contours(drawn(morph, 1.5)) == 0) << "settled: the glyph as drawn";
+               };
 
-    suite
-        .test("a press presses the drawing in about the finger and rings out to nothing by the end",
-              [] {
+    "a press presses the drawing in about the finger and rings out to nothing by the end"_test = [] {
                   auto options = linear();
                   options.pulse_at = geom::Point{0.25f, 1};  // the card's lower left quarter
                   options.pulse = .1f;
@@ -245,16 +232,13 @@ int main(int argc, char** argv) {
                   const mo::Morph morph(mo::Matter::extract(from, resolver()),
                                         mo::Matter::extract(to, resolver()), options, 0);
                   const auto pressed = placed_fill(drawn(morph, 1.0 / 6));  // the first crest
-                  check(pressed && std::abs(pressed->width - 36) < 1e-3 &&
+                  expect(pressed && std::abs(pressed->width - 36) < 1e-3 &&
                             std::abs(pressed->bottom() - 80) < 1e-3 &&
-                            std::abs(pressed->x - 31) < 1e-3,
-                        std::format("pressed to {} wide about (40, 80)",
-                                    pressed ? pressed->width : 0));
+                            std::abs(pressed->x - 31) < 1e-3) << std::format("pressed to {} wide about (40, 80)",
+                                    pressed ? pressed->width : 0);
                   const auto ringing = placed_fill(drawn(morph, .5));
-                  check(ringing && ringing->width > 40, "ringing back out past its size");
+                  expect(ringing && ringing->width > 40) << "ringing back out past its size";
                   const auto rest = placed_fill(drawn(morph, 1.5));
-                  check(rest && rest->width == 40 && rest->x == 30, "at rest it is not there");
-              });
-
-    return suite.run(argc, argv);
-}
+                  expect(rest && rest->width == 40 && rest->x == 30) << "at rest it is not there";
+              };
+}};

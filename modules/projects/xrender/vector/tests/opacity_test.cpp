@@ -2,9 +2,9 @@ import std;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render=xrender;
 namespace geom=mlibs::geom;
 namespace raster=xrender::raster;
@@ -26,37 +26,33 @@ render::DisplayList scene(float amount,bool filter=true,bool individual=false,bo
 raster::Surface draw(const render::DisplayList& list,float dpi=1) {
     render::CpuRenderer renderer;raster::Surface pixels(int(100*dpi),int(80*dpi));
     const auto report=renderer.render(list,pixels,{}, {.scale=dpi});
-    check(report.effects_skipped==0 && report.invalid_paints==0 && list.balanced());return pixels;
+    expect(report.effects_skipped==0 && report.invalid_paints==0 && list.balanced());return pixels;
 }
 }
-int main(int argc,char** argv) {
-    Suite suite{"render.opacity"};
-    suite.test("group opacity preserves overlap semantics and premultiplied endpoints",[] {
+UTest cases{"render.opacity", [] {
+    "group opacity preserves overlap semantics and premultiplied endpoints"_test = [] {
         const auto full=draw(scene(1)),half=draw(scene(.5)),hidden=draw(scene(0));
-        check(full.hash()==draw(scene(1,false)).hash());
-        check(half.at(20,20).a==128 && half.at(40,20).a==128,
-            "the composed layer fades once even where children overlap");
-        check(draw(scene(.5,false,true)).at(40,20).a>half.at(40,20).a,
-            "changing individual paint alpha is a different operation");
-        check(std::ranges::all_of(hidden.pixels(),[](auto p){return p.r==0 && p.g==0 && p.b==0 && p.a==0;}));
-        check(std::ranges::all_of(half.pixels(),[](auto p){return p.r<=p.a && p.g<=p.a && p.b<=p.a;}));
-    });
-    suite.test("identity retains outer opacity blend clipping and fractional DPI",[] {
+        expect(full.hash()==draw(scene(1,false)).hash());
+        expect(half.at(20,20).a==128 && half.at(40,20).a==128) << "the composed layer fades once even where children overlap";
+        expect(draw(scene(.5,false,true)).at(40,20).a>half.at(40,20).a) << "changing individual paint alpha is a different operation";
+        expect(std::ranges::all_of(hidden.pixels(),[](auto p){return p.r==0 && p.g==0 && p.b==0 && p.a==0;}));
+        expect(std::ranges::all_of(half.pixels(),[](auto p){return p.r<=p.a && p.g<=p.a && p.b<=p.a;}));
+    };
+    "identity retains outer opacity blend clipping and fractional DPI"_test = [] {
         for(float dpi:{1.f,1.25f,2.f}) {
-            check(draw(scene(1,true,false,true),dpi).hash()==draw(scene(1,false,false,true),dpi).hash());
-            check(draw(scene(.5,true,false,true),dpi).hash()!=draw(scene(1,true,false,true),dpi).hash());
+            expect(draw(scene(1,true,false,true),dpi).hash()==draw(scene(1,false,false,true),dpi).hash());
+            expect(draw(scene(.5,true,false,true),dpi).hash()!=draw(scene(1,true,false,true),dpi).hash());
         }
-    });
-    suite.test("all opacity samples replay without changing capture bounds or source geometry",[] {
+    };
+    "all opacity samples replay without changing capture bounds or source geometry"_test = [] {
         const auto info=render::effects().info(*render::effects().find("opacity"));
-        check(info && info->row_local && info->preserves_hit_geometry && info->gpu.fragment);
+        expect(info && info->row_local && info->preserves_hit_geometry && info->gpu.fragment);
         std::array<std::uint64_t,61> hashes{};int previous=-1;
         for(int i=0;i<=60;++i) {
             const auto pixels=draw(scene(i/60.f));hashes[std::size_t(i)]=pixels.hash();
-            const auto alpha=pixels.at(40,20).a;check(alpha>=previous);previous=alpha;
-            check(pixels.at(2,2).a==0 && pixels.at(90,72).a==0);
+            const auto alpha=pixels.at(40,20).a;expect(alpha>=previous);previous=alpha;
+            expect(pixels.at(2,2).a==0 && pixels.at(90,72).a==0);
         }
-        for(int i=60;i>=0;--i)check(draw(scene(i/60.f)).hash()==hashes[std::size_t(i)]);
-    });
-    return suite.run(argc,argv);
-}
+        for(int i=60;i>=0;--i)expect(draw(scene(i/60.f)).hash()==hashes[std::size_t(i)]);
+    };
+}};

@@ -3,49 +3,48 @@ import xrender.vector;
 import mlibs.geom;
 import mlibs.memory;
 import hanim.core;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace geom = mlibs::geom;
 
-int main(int argc, char** argv) {
-    Suite s{"render.display"};
+UTest cases{"render.display", [] {
 
-    s.test("affine transforms", [] {
+    "affine transforms"_test = [] {
         auto m = geom::Affine::translate(10, 5) * geom::Affine::scale(2, 3);
         auto p = m.apply({1, 1});
-        check(p == geom::Point{12, 8});
+        expect(p == geom::Point{12, 8});
         auto inv = m.inverse();
-        check(inv.has_value());
+        expect(inv.has_value());
         auto back = inv->apply(p);
-        check_near(back.x, 1, 1e-6);
-        check_near(back.y, 1, 1e-6);
-        check(!geom::Affine::scale(0, 1).inverse().has_value());
+        expect(near(back.x, 1, 1e-6));
+        expect(near(back.y, 1, 1e-6));
+        expect(!geom::Affine::scale(0, 1).inverse().has_value());
         auto r = render::rotate(hanim::dm::half_pi).apply({1, 0});
-        check_near(r.x, 0, 1e-6);
-        check_near(r.y, 1, 1e-6);
-        check(geom::Affine{}.identity());
-    });
+        expect(near(r.x, 0, 1e-6));
+        expect(near(r.y, 1, 1e-6));
+        expect(geom::Affine{}.identity());
+    };
 
-    s.test("paths", [] {
+    "paths"_test = [] {
         render::Path p;
         p.add_rounded_rect({0, 0, 100, 40}, geom::CornerRadii::all(8));
-        check(p.bounds() == geom::Rect{0, 0, 100, 40});
+        expect(p.bounds() == geom::Rect{0, 0, 100, 40});
         render::Path q;
         q.add_rounded_rect({0, 0, 10, 10}, geom::CornerRadii::all(50));  // radii clamp to the box
-        check(q.bounds() == geom::Rect{0, 0, 10, 10});
+        expect(q.bounds() == geom::Rect{0, 0, 10, 10});
         render::Path arc;
         arc.move_to({0, 0}).arc_to({50, 50}, 0, false, true, {100, 0});
         auto end = arc.points().back();
-        check_near(end.x, 100, 1e-3);
-        check_near(end.y, 0, 1e-3);
-        check(arc.bounds().y < -45, "a half circle bulges by its radius");
+        expect(near(end.x, 100, 1e-3));
+        expect(near(end.y, 0, 1e-3));
+        expect(arc.bounds().y < -45) << "a half circle bulges by its radius";
         auto moved = p.transformed(geom::Affine::translate(5, 5));
-        check(moved.bounds() == geom::Rect{5, 5, 100, 40});
-    });
+        expect(moved.bounds() == geom::Rect{5, 5, 100, 40});
+    };
 
-    s.test("a range of a list recoloured: its solid paints and shadows, not the commands around it", [] {
+    "a range of a list recoloured: its solid paints and shadows, not the commands around it"_test = [] {
         render::DisplayList dl;
         dl.fill_rect({0, 0, 10, 10}, render::Paint::solid(geom::Color::hex(0xff0000)));
         dl.fill_rect({0, 0, 10, 10}, render::Paint::solid(geom::Color::hex(0x00ff00)));
@@ -63,11 +62,11 @@ int main(int argc, char** argv) {
                 else return {};
             }, dl.commands()[i]);
         };
-        check(colour(0) == geom::Color::hex(0xff0000) && colour(3) == geom::Color::hex(0xffff00), "outside the range: as drawn");
-        check(colour(1).r == colour(1).g && colour(1).g == colour(1).b && colour(2).r == colour(2).b, "inside: grey");
-    });
+        expect(colour(0) == geom::Color::hex(0xff0000) && colour(3) == geom::Color::hex(0xffff00)) << "outside the range: as drawn";
+        expect(colour(1).r == colour(1).g && colour(1).g == colour(1).b && colour(2).r == colour(2).b) << "inside: grey";
+    };
 
-    s.test("lists hash by content and stay balanced", [] {
+    "lists hash by content and stay balanced"_test = [] {
         auto build = [](render::DisplayList& dl, float x) {
             dl.begin_node(1);
             dl.push_clip({0, 0, 100, 100}, geom::CornerRadii::all(4));
@@ -84,19 +83,17 @@ int main(int argc, char** argv) {
         build(a, 1);
         build(b, 1);
         build(c, 2);
-        check(a.balanced());
-        check_eq(a.hash(), b.hash());
-        check(a.hash() != c.hash());
+        expect(a.balanced());
+        expect(eq(a.hash(), b.hash()));
+        expect(a.hash() != c.hash());
         render::DisplayList d;
         d.append(a);
-        check_eq(d.hash(), a.hash());
+        expect(eq(d.hash(), a.hash()));
         a.clear();
-        check(a.empty());
-        check_eq(d.hash(), b.hash(), std::source_location::current());
+        expect(a.empty());
+        expect(eq(d.hash(), b.hash()), std::source_location::current());
         render::DisplayList bad;
         bad.pop_layer();
-        check(!bad.balanced());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!bad.balanced());
+    };
+}};

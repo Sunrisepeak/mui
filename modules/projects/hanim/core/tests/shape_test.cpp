@@ -2,8 +2,10 @@
 import std;
 import hanim.core;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace hanim;
 
 namespace { std::atomic<std::size_t> allocations{0}; }
@@ -31,7 +33,7 @@ ShapeContour tri() { return {{0, -1}, triangle}; }
 ShapeContour disk() { return {{0, -1}, circle}; }
 std::vector<ShapeCubic> sample(const PreparedShapeMorph& plan, double progress) {
     std::vector<ShapeCubic> result(plan.segment_count());
-    check(plan.sample(progress, result).has_value());
+    expect(plan.sample(progress, result).has_value());
     return result;
 }
 bool close(Vec2 a, Vec2 b, double epsilon = 1e-10) {
@@ -41,9 +43,9 @@ bool same(const ShapeCubic& a, const ShapeCubic& b) {
     return a.start == b.start && a.control1 == b.control1 && a.control2 == b.control2 && a.end == b.end;
 }
 void connected(std::span<const ShapeCubic> curves) {
-    check(!curves.empty());
+    expect(!curves.empty());
     for (std::size_t i = 0; i < curves.size(); ++i)
-        check(curves[i].end == curves[(i + 1) % curves.size()].start, "single exactly closed contour");
+        expect(curves[i].end == curves[(i + 1) % curves.size()].start) << "single exactly closed contour";
 }
 double nearest(Vec2 p, std::span<const ShapeCubic> curves) {
     double best = std::numeric_limits<double>::infinity();
@@ -92,38 +94,37 @@ std::array<ShapeCubic, 4> circle_cubics() {
 }
 }
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.shape"};
-    s.test("point paths preserve endpoints and express the same bend in any chord frame", [] {
+UTest cases{"hanim.shape", [] {
+    "point paths preserve endpoints and express the same bend in any chord frame"_test = [] {
         const auto path = PointPath::bend(.25);
-        check(path.valid() && !path.linear() && PointPath{}.linear());
-        check(close(path.interpolate({0, 0}, {8, 0}, .5), {4, 2}));
-        check(close(path.interpolate({3, 7}, {3, 15}, .5), {1, 11}));
-        check(close(path.interpolate({0, 0}, {16, 0}, .5), {8, 4}));
-        for (double t : {0., .2, .5, .9, 1.}) check(path.interpolate({2, 3}, {2, 3}, t) == Vec2{2, 3});
-        check(path.interpolate({1, 2}, {9, 2}, 0) == Vec2{1, 2});
-        check(path.interpolate({1, 2}, {9, 2}, 1) == Vec2{9, 2});
-        check(path.interpolate({1, 2}, {9, 2}, 1.5) == Vec2{13, 2}, "extrapolated baseline has no process displacement");
+        expect(path.valid() && !path.linear() && PointPath{}.linear());
+        expect(close(path.interpolate({0, 0}, {8, 0}, .5), {4, 2}));
+        expect(close(path.interpolate({3, 7}, {3, 15}, .5), {1, 11}));
+        expect(close(path.interpolate({0, 0}, {16, 0}, .5), {8, 4}));
+        for (double t : {0., .2, .5, .9, 1.}) expect(path.interpolate({2, 3}, {2, 3}, t) == Vec2{2, 3});
+        expect(path.interpolate({1, 2}, {9, 2}, 0) == Vec2{1, 2});
+        expect(path.interpolate({1, 2}, {9, 2}, 1) == Vec2{9, 2});
+        expect(path.interpolate({1, 2}, {9, 2}, 1.5) == Vec2{13, 2}) << "extrapolated baseline has no process displacement";
         const auto combined = PointPath::bend(.125).added(PointPath::bend(.125));
-        check(combined.interpolate({0, 0}, {8, 0}, .5) == path.interpolate({0, 0}, {8, 0}, .5));
+        expect(combined.interpolate({0, 0}, {8, 0}, .5) == path.interpolate({0, 0}, {8, 0}, .5));
         const PointPath asymmetric{{0, 1}, {0, -1}};
-        check(asymmetric.interpolate({0, 0}, {8, 0}, .25).y > 0);
-        check(asymmetric.interpolate({0, 0}, {8, 0}, .75).y < 0);
-    });
-    s.test("process path changes matched vertex trajectories without changing correspondence or endpoints", [] {
+        expect(asymmetric.interpolate({0, 0}, {8, 0}, .25).y > 0);
+        expect(asymmetric.interpolate({0, 0}, {8, 0}, .75).y < 0);
+    };
+    "process path changes matched vertex trajectories without changing correspondence or endpoints"_test = [] {
         const auto plain = PreparedShapeMorph::prepare(tri(), disk());
         ShapeMorphOptions options; options.point_path = PointPath::bend(.35);
         const auto curved = PreparedShapeMorph::prepare(tri(), disk(), options);
-        check(plain && curved); if (!plain || !curved) return;
-        check_eq(plain->segment_count(), curved->segment_count());
-        check(plain->target_reversed() == curved->target_reversed());
-        check(plain->target_start_fraction() == curved->target_start_fraction());
+        expect(plain && curved); if (!plain || !curved) return;
+        expect(eq(plain->segment_count(), curved->segment_count()));
+        expect(plain->target_reversed() == curved->target_reversed());
+        expect(plain->target_start_fraction() == curved->target_start_fraction());
         for (double t : {0., 1., -1., 2.}) {
             const auto a = sample(*plain, t), b = sample(*curved, t);
-            check(std::ranges::equal(a, b, same));
+            expect(std::ranges::equal(a, b, same));
         }
         const auto a = sample(*plain, .37), b = sample(*curved, .37);
-        check(!std::ranges::equal(a, b, same)); connected(b);
+        expect(!std::ranges::equal(a, b, same)); connected(b);
         std::vector<ShapeCubic> output(curved->segment_count());
         const auto before = allocations.load(); bool valid = true;
         for (unsigned i = 0; i < 1000; ++i) {
@@ -134,46 +135,46 @@ int main(int argc, char** argv) {
                 valid = valid && part.has_value() && same(*part, output[j - 1]);
             }
         }
-        const auto after = allocations.load(); check(valid); check_eq(before, after);
-        check(std::ranges::equal(b, sample(*curved, .37), same));
+        const auto after = allocations.load(); expect(valid); expect(eq(before, after));
+        expect(std::ranges::equal(b, sample(*curved, .37), same));
         for (double value : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity(), 1e7}) {
             options.point_path.control2.x = value;
             const auto bad = PreparedShapeMorph::prepare(tri(), disk(), options);
-            check(!bad && bad.error() == ShapeMorphError::invalid_options);
+            expect(!bad && bad.error() == ShapeMorphError::invalid_options);
         }
-    });
-    s.test("triangle to circle is one moving cubic contour with original endpoint geometry", [] {
+    };
+    "triangle to circle is one moving cubic contour with original endpoint geometry"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const auto a = sample(*prepared, 0), b = sample(*prepared, 1), middle = sample(*prepared, 0.5);
-        check(prepared->segment_count() >= 4);
+        expect(prepared->segment_count() >= 4);
         connected(a); connected(b); connected(middle);
         bool moved = false;
         for (std::size_t i = 0; i < middle.size(); ++i) {
-            check(close(middle[i].control1, {(a[i].control1.x + b[i].control1.x) * 0.5,
+            expect(close(middle[i].control1, {(a[i].control1.x + b[i].control1.x) * 0.5,
                                              (a[i].control1.y + b[i].control1.y) * 0.5}));
             moved = moved || (!same(middle[i], a[i]) && !same(middle[i], b[i]));
             for (double t : {0.0, 0.2, 0.5, 0.8, 1.0}) {
                 const auto p = a[i].point(t);
                 const double left = std::abs(p.y + 2 * p.x + 1);
                 const double right = std::abs(p.y - 2 * p.x + 1);
-                check(std::min({left, right, std::abs(p.y - 1)}) < 1e-10, "triangle sides stay exact straight lines");
-                check(circle_locus_error(b[i].point(t)) < 1e-10, "target retains original Bezier locus, not sampled chords");
+                expect(std::min({left, right, std::abs(p.y - 1)}) < 1e-10) << "triangle sides stay exact straight lines";
+                expect(circle_locus_error(b[i].point(t)) < 1e-10) << "target retains original Bezier locus, not sampled chords";
             }
         }
-        check(moved, "intermediate controls differ from both endpoints; no pair of faded fixed shapes");
+        expect(moved) << "intermediate controls differ from both endpoints; no pair of faded fixed shapes";
         for (Vec2 corner : {Vec2{0, -1}, Vec2{-1, 1}, Vec2{1, 1}}) {
             bool retained = false;
             for (const auto& c : a) retained = retained || close(c.start, corner);
-            check(retained, "original sharp vertex is a subdivision boundary");
+            expect(retained) << "original sharp vertex is a subdivision boundary";
         }
-    });
+    };
 
-    s.test("quadratic degree elevation and subdivision preserve every original curved endpoint", [] {
+    "quadratic degree elevation and subdivision preserve every original curved endpoint"_test = [] {
         const std::array<ShapeSegment, 2> lens{{ShapeSegment::quadratic({2, -2}, {4, 0}), ShapeSegment::quadratic({2, 2}, {0, 0})}};
         const auto prepared = PreparedShapeMorph::prepare({{0, 0}, lens}, disk(), {.align_start = false});
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const auto result = sample(*prepared, 0);
         const auto quadratic = [](double t, bool bottom) {
@@ -182,51 +183,51 @@ int main(int argc, char** argv) {
         for (const auto& c : result) for (double t : {0.0, 0.25, 0.5, 0.75, 1.0}) {
             const auto p = c.point(t);
             const auto expected = quadratic(p.x / 4, p.y >= 0);
-            check(close(p, expected), "endpoint is the exact quadratic locus, not a polyline");
+            expect(close(p, expected)) << "endpoint is the exact quadratic locus, not a polyline";
         }
-        check(nearest({2, -1}, result) < 0.01 && nearest({2, 1}, result) < 0.01, "both arcs survive");
-    });
+        expect(nearest({2, -1}, result) < 0.01 && nearest({2, 1}, result) < 0.01) << "both arcs survive";
+    };
 
-    s.test("cubic controls remain exact when no subdivision is needed", [] {
+    "cubic controls remain exact when no subdivision is needed"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(disk(), disk(), {.align_start = false});
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const auto result = sample(*prepared, 0);
         const auto originals = circle_cubics();
-        check_eq(result.size(), originals.size());
-        for (std::size_t i = 0; i < result.size(); ++i) check(same(result[i], originals[i]));
-    });
+        expect(eq(result.size(), originals.size()));
+        for (std::size_t i = 0; i < result.size(); ++i) expect(same(result[i], originals[i]));
+    };
 
-    s.test("opposite winding and shifted start align without rotating the shape", [] {
+    "opposite winding and shifted start align without rotating the shape"_test = [] {
         const std::array<ShapeSegment, 3> a{{ShapeSegment::line({1, -1}), ShapeSegment::line({1, 1}), ShapeSegment::line({-1, 1})}};
         const std::array<ShapeSegment, 3> b{{ShapeSegment::line({1, -1}), ShapeSegment::line({-1, -1}), ShapeSegment::line({-1, 1})}};
         const auto prepared = PreparedShapeMorph::prepare({{-1, -1}, a}, {{1, 1}, b});
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
-        check(prepared->target_reversed());
-        check(prepared->target_start_fraction() > 0);
+        expect(prepared->target_reversed());
+        expect(prepared->target_start_fraction() > 0);
         const auto first = sample(*prepared, 0), last = sample(*prepared, 1), mid = sample(*prepared, 0.5);
         for (std::size_t i = 0; i < first.size(); ++i) {
-            check(close(first[i].start, last[i].start));
-            check(close(first[i].control1, last[i].control1));
-            check(close(first[i].control2, last[i].control2));
-            check(close(first[i].end, last[i].end));
-            check(close(first[i].start, mid[i].start), "identical squares do not collapse due to phase or winding");
+            expect(close(first[i].start, last[i].start));
+            expect(close(first[i].control1, last[i].control1));
+            expect(close(first[i].control2, last[i].control2));
+            expect(close(first[i].end, last[i].end));
+            expect(close(first[i].start, mid[i].start)) << "identical squares do not collapse due to phase or winding";
         }
-    });
+    };
 
-    s.test("alignment can be disabled and preserves explicit traversal", [] {
+    "alignment can be disabled and preserves explicit traversal"_test = [] {
         const std::array<ShapeSegment, 2> backwards{{ShapeSegment::line({1, 1}), ShapeSegment::line({-1, 1})}};
         const auto prepared = PreparedShapeMorph::prepare(tri(), {{0, -1}, backwards}, {.align_direction = false, .align_start = false});
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
-        check(!prepared->target_reversed());
-        check_bits(prepared->target_start_fraction(), 0.0);
+        expect(!prepared->target_reversed());
+        expect(eq(std::bit_cast<std::uint64_t>(double(prepared->target_start_fraction())), std::bit_cast<std::uint64_t>(double(0.0))));
         const auto a = sample(*prepared, 0), b = sample(*prepared, 1);
-        check(a.front().control1.x < 0 && b.front().control1.x > 0);
-    });
+        expect(a.front().control1.x < 0 && b.front().control1.x > 0);
+    };
 
-    s.test("concave star to curved contour keeps all ten protected source corners", [] {
+    "concave star to curved contour keeps all ten protected source corners"_test = [] {
         std::array<Vec2, 10> vertices{};
         for (std::size_t i = 0; i < vertices.size(); ++i) {
             const double angle = static_cast<double>(i) * dm::pi / 5;
@@ -236,92 +237,92 @@ int main(int argc, char** argv) {
         std::array<ShapeSegment, 9> star{};
         for (std::size_t i = 0; i < star.size(); ++i) star[i] = ShapeSegment::line(vertices[i + 1]);
         const auto prepared = PreparedShapeMorph::prepare({vertices[0], star}, disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const auto result = sample(*prepared, 0);
         for (auto vertex : vertices) {
             bool retained = false;
             for (const auto& c : result) retained = retained || close(c.start, vertex);
-            check(retained);
+            expect(retained);
         }
         connected(sample(*prepared, 0.37));
-    });
+    };
 
-    s.test("arbitrary seek, reverse sampling and a re-prepared intermediate are continuous", [] {
+    "arbitrary seek, reverse sampling and a re-prepared intermediate are continuous"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const auto forward = sample(*prepared, 0.37);
         for (double t : {1.0, 0.9, 0.1, 0.0, 0.8}) (void)sample(*prepared, t);
         const auto again = sample(*prepared, 0.37);
-        for (std::size_t i = 0; i < forward.size(); ++i) check(same(forward[i], again[i]), "seek order cannot mutate the plan");
+        for (std::size_t i = 0; i < forward.size(); ++i) expect(same(forward[i], again[i])) << "seek order cannot mutate the plan";
         std::vector<ShapeSegment> segments;
         for (const auto& c : forward) segments.push_back(ShapeSegment::cubic(c.control1, c.control2, c.end));
         const auto retarget = PreparedShapeMorph::prepare({forward.front().start, segments}, tri(), {.align_start = false});
-        check(retarget.has_value());
+        expect(retarget.has_value());
         if (!retarget) return;
         const auto restart = sample(*retarget, 0);
         for (const auto& c : restart) for (double t : {0.0, 0.5, 1.0})
-            check(nearest(c.point(t), forward) < 0.004, "retarget starts on sampled geometry");
+            expect(nearest(c.point(t), forward) < 0.004) << "retarget starts on sampled geometry";
         // Geometry continuity only: this primitive does not promise velocity continuity.
         const auto low = sample(*prepared, -1), high = sample(*prepared, 2);
         const auto first = sample(*prepared, 0), last = sample(*prepared, 1);
-        for (std::size_t i = 0; i < low.size(); ++i) { check(same(low[i], first[i])); check(same(high[i], last[i])); }
-    });
+        for (std::size_t i = 0; i < low.size(); ++i) { expect(same(low[i], first[i])); expect(same(high[i], last[i])); }
+    };
 
-    s.test("open, empty, degenerate and invalid commands return explicit errors", [] {
-        check(PreparedShapeMorph::prepare({{0, 0}, {}}, disk()).error() == ShapeMorphError::empty_contour);
-        check(PreparedShapeMorph::prepare({{0, -1}, triangle, false}, disk()).error() == ShapeMorphError::open_contour);
+    "open, empty, degenerate and invalid commands return explicit errors"_test = [] {
+        expect(PreparedShapeMorph::prepare({{0, 0}, {}}, disk()).error() == ShapeMorphError::empty_contour);
+        expect(PreparedShapeMorph::prepare({{0, -1}, triangle, false}, disk()).error() == ShapeMorphError::open_contour);
         const std::array<ShapeSegment, 1> point{{ShapeSegment::line({0, 0})}};
-        check(PreparedShapeMorph::prepare({{0, 0}, point}, disk()).error() == ShapeMorphError::degenerate_contour);
+        expect(PreparedShapeMorph::prepare({{0, 0}, point}, disk()).error() == ShapeMorphError::degenerate_contour);
         const std::array<ShapeSegment, 2> line{{ShapeSegment::line({1, 1}), ShapeSegment::line({2, 2})}};
-        check(PreparedShapeMorph::prepare({{0, 0}, line}, disk()).error() == ShapeMorphError::degenerate_contour);
+        expect(PreparedShapeMorph::prepare({{0, 0}, line}, disk()).error() == ShapeMorphError::degenerate_contour);
         auto invalid = triangle;
         invalid[0].verb = static_cast<ShapeVerb>(99);
-        check(PreparedShapeMorph::prepare({{0, -1}, invalid}, disk()).error() == ShapeMorphError::invalid_verb);
-        check_eq(describe(ShapeMorphError::open_contour).name, std::string_view("hanim.shape.open-contour"));
-    });
+        expect(PreparedShapeMorph::prepare({{0, -1}, invalid}, disk()).error() == ShapeMorphError::invalid_verb);
+        expect(eq(describe(ShapeMorphError::open_contour).name, std::string_view("hanim.shape.open-contour")));
+    };
 
-    s.test("nonfinite coordinates, unsafe numeric range and invalid option budgets fail preparation", [] {
+    "nonfinite coordinates, unsafe numeric range and invalid option budgets fail preparation"_test = [] {
         auto invalid = circle;
         invalid[0].control2.x = std::numeric_limits<double>::infinity();
-        check(PreparedShapeMorph::prepare(tri(), {{0, -1}, invalid}).error() == ShapeMorphError::nonfinite_coordinate);
+        expect(PreparedShapeMorph::prepare(tri(), {{0, -1}, invalid}).error() == ShapeMorphError::nonfinite_coordinate);
         invalid = circle;
         invalid[0].control1.y = std::numeric_limits<double>::quiet_NaN();
-        check(PreparedShapeMorph::prepare(tri(), {{0, -1}, invalid}).error() == ShapeMorphError::nonfinite_coordinate);
-        check(PreparedShapeMorph::prepare({{1e200, 0}, triangle}, disk()).error() == ShapeMorphError::numerical_range);
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.max_input_segments = 0}).error() == ShapeMorphError::invalid_options);
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.arc_samples = 257}).error() == ShapeMorphError::invalid_options);
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.alignment_samples = 3}).error() == ShapeMorphError::invalid_options);
-    });
+        expect(PreparedShapeMorph::prepare(tri(), {{0, -1}, invalid}).error() == ShapeMorphError::nonfinite_coordinate);
+        expect(PreparedShapeMorph::prepare({{1e200, 0}, triangle}, disk()).error() == ShapeMorphError::numerical_range);
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.max_input_segments = 0}).error() == ShapeMorphError::invalid_options);
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.arc_samples = 257}).error() == ShapeMorphError::invalid_options);
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.alignment_samples = 3}).error() == ShapeMorphError::invalid_options);
+    };
 
-    s.test("implicit close and correspondence subdivisions count against segment budgets", [] {
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.max_input_segments = 2}).error() == ShapeMorphError::segment_budget);
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = 3}).error() == ShapeMorphError::segment_budget);
+    "implicit close and correspondence subdivisions count against segment budgets"_test = [] {
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.max_input_segments = 2}).error() == ShapeMorphError::segment_budget);
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = 3}).error() == ShapeMorphError::segment_budget);
         auto exact = PreparedShapeMorph::prepare(tri(), disk());
-        check(exact.has_value());
+        expect(exact.has_value());
         if (!exact) return;
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = exact->segment_count()}).has_value());
-        check(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = exact->segment_count() - 1}).error() == ShapeMorphError::segment_budget);
-    });
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = exact->segment_count()}).has_value());
+        expect(PreparedShapeMorph::prepare(tri(), disk(), {.max_output_segments = exact->segment_count() - 1}).error() == ShapeMorphError::segment_budget);
+    };
 
-    s.test("invalid seek and undersized buffers fail atomically", [] {
+    "invalid seek and undersized buffers fail atomically"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         const ShapeCubic sentinel{{7, 8}, {9, 10}, {11, 12}, {13, 14}};
         std::vector<ShapeCubic> output(prepared->segment_count() + 1, sentinel);
-        check(prepared->sample(0.5, std::span(output).first(prepared->segment_count() - 1)).error() == ShapeMorphError::output_too_small);
-        check(prepared->sample(std::numeric_limits<double>::quiet_NaN(), output).error() == ShapeMorphError::invalid_progress);
-        check(prepared->sample(std::numeric_limits<double>::infinity(), output).error() == ShapeMorphError::invalid_progress);
-        for (const auto& c : output) check(same(c, sentinel));
-        check(prepared->sample(0.5, output).has_value());
-        check(same(output.back(), sentinel), "caller storage beyond the written span stays intact");
+        expect(prepared->sample(0.5, std::span(output).first(prepared->segment_count() - 1)).error() == ShapeMorphError::output_too_small);
+        expect(prepared->sample(std::numeric_limits<double>::quiet_NaN(), output).error() == ShapeMorphError::invalid_progress);
+        expect(prepared->sample(std::numeric_limits<double>::infinity(), output).error() == ShapeMorphError::invalid_progress);
+        for (const auto& c : output) expect(same(c, sentinel));
+        expect(prepared->sample(0.5, output).has_value());
+        expect(same(output.back(), sentinel)) << "caller storage beyond the written span stays intact";
         PreparedShapeMorph empty;
-        check(empty.sample(0.5, output).error() == ShapeMorphError::unprepared);
-    });
+        expect(empty.sample(0.5, output).error() == ShapeMorphError::unprepared);
+    };
 
-    s.test("uniform tiny and large scales retain geometry without squared-length underflow", [] {
+    "uniform tiny and large scales retain geometry without squared-length underflow"_test = [] {
         for (double scale : {1e-200, 1e90}) {
             auto source = triangle;
             auto target = circle;
@@ -334,49 +335,48 @@ int main(int argc, char** argv) {
                 }
             }
             const auto prepared = PreparedShapeMorph::prepare({{0, -scale}, source}, {{0, -scale}, target});
-            check(prepared.has_value());
+            expect(prepared.has_value());
             if (!prepared) continue;
             const auto result = sample(*prepared, 1);
             connected(result);
             for (const auto& cubic : result) for (double t : {0.0, 0.3, 0.7, 1.0}) {
                 const auto point = cubic.point(t);
-                check(circle_locus_error({point.x / scale, point.y / scale}) < 1e-10,
-                      "shape is invariant under a finite uniform scale");
+                expect(circle_locus_error({point.x / scale, point.y / scale}) < 1e-10) << "shape is invariant under a finite uniform scale";
             }
         }
-    });
+    };
 
-    s.test("a positive edge below perimeter precision is rejected rather than silently removed", [] {
+    "a positive edge below perimeter precision is rejected rather than silently removed"_test = [] {
         const std::array<ShapeSegment, 4> tiny_edge{{
             ShapeSegment::line({1, 0}), ShapeSegment::line({1, 1e-20}),
             ShapeSegment::line({1, 1}), ShapeSegment::line({0, 1})}};
         const auto result = PreparedShapeMorph::prepare({{0, 0}, tiny_edge}, disk());
-        check(!result.has_value());
-        if (!result) check(result.error() == ShapeMorphError::numerical_range);
-    });
+        expect(!result.has_value());
+        if (!result) expect(result.error() == ShapeMorphError::numerical_range);
+    };
 
-    s.test("prepared contour samples have a cross-toolchain conformance fingerprint", [] {
+    "prepared contour samples have a cross-toolchain conformance fingerprint"_test = [] {
         Hash digest;
         for (auto options : {ShapeMorphOptions{}, ShapeMorphOptions{.align_direction = false, .align_start = false}}) {
             const auto prepared = PreparedShapeMorph::prepare(tri(), disk(), options);
-            check(prepared.has_value());
+            expect(prepared.has_value());
             if (!prepared) return;
             digest.u64(prepared->segment_count());
             digest.f64(prepared->target_start_fraction());
             std::vector<ShapeCubic> output(prepared->segment_count());
             for (unsigned i = 0; i <= 64; ++i) {
-                check(prepared->sample(static_cast<double>(i) / 64, output).has_value());
+                expect(prepared->sample(static_cast<double>(i) / 64, output).has_value());
                 for (const auto& c : output)
                     for (auto p : {c.start, c.control1, c.control2, c.end}) { digest.f64(p.x); digest.f64(p.y); }
             }
         }
         std::println("    prepared-shape fingerprint {}", digest.hex());
-        check_eq(digest.hex(), std::string("37b21beebb9bc81e"));
-    });
+        expect(eq(digest.hex(), std::string("37b21beebb9bc81e")));
+    };
 
-    s.test("streaming segment samples equal bulk output in arbitrary order without allocating", [] {
+    "streaming segment samples equal bulk output in arbitrary order without allocating"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         for (double t : {1.0, 0.37, 0.0, -1.0, 2.0}) {
             const auto bulk = sample(*prepared, t);
@@ -387,19 +387,19 @@ int main(int argc, char** argv) {
                 equal = equal && streamed.has_value() && same(*streamed, bulk[i - 1]);
             }
             const auto after = allocations.load(std::memory_order_relaxed);
-            check(equal); check_eq(after, before);
+            expect(equal); expect(eq(after, before));
         }
         const auto invalid = prepared->sample_segment(0.5, prepared->segment_count());
-        check(!invalid && invalid.error() == ShapeMorphError::invalid_segment);
+        expect(!invalid && invalid.error() == ShapeMorphError::invalid_segment);
         const auto nonfinite = prepared->sample_segment(std::numeric_limits<double>::infinity(), 0);
-        check(!nonfinite && nonfinite.error() == ShapeMorphError::invalid_progress);
+        expect(!nonfinite && nonfinite.error() == ShapeMorphError::invalid_progress);
         const auto empty = PreparedShapeMorph{}.sample_segment(0.5, 0);
-        check(!empty && empty.error() == ShapeMorphError::unprepared);
-    });
+        expect(!empty && empty.error() == ShapeMorphError::unprepared);
+    };
 
-    s.test("warm sampling performs no scalar or array allocation and has immutable storage", [] {
+    "warm sampling performs no scalar or array allocation and has immutable storage"_test = [] {
         const auto prepared = PreparedShapeMorph::prepare(tri(), disk());
-        check(prepared.has_value());
+        expect(prepared.has_value());
         if (!prepared) return;
         std::vector<ShapeCubic> output(prepared->segment_count());
         const auto* storage = output.data();
@@ -407,46 +407,44 @@ int main(int argc, char** argv) {
         auto* scalar_probe = ::operator new(1);
         auto* array_probe = ::operator new[](1);
         ::operator delete(scalar_probe); ::operator delete[](array_probe);
-        check_eq(allocations.load(std::memory_order_relaxed) - probe_before, std::size_t{2});
+        expect(eq(allocations.load(std::memory_order_relaxed) - probe_before, std::size_t{2}));
         const auto before = allocations.load(std::memory_order_relaxed);
         bool all_ok = true;
         for (unsigned i = 0; i < 10000; ++i)
             all_ok = all_ok && prepared->sample(static_cast<double>((i * 37) % 1001) / 1000, output).has_value();
         const auto after = allocations.load(std::memory_order_relaxed);
-        check(all_ok);
-        check_eq(after, before);
-        check(output.data() == storage);
-    });
+        expect(all_ok);
+        expect(eq(after, before));
+        expect(output.data() == storage);
+    };
 
-    s.test("strokes: two open paths morph end to end (turned round when their ends lie the other way), never closed; a stroke never into an outline; strokes pair with strokes", [] {
+    "strokes: two open paths morph end to end (turned round when their ends lie the other way), never closed; a stroke never into an outline; strokes pair with strokes"_test = [] {
         // A hook and a straight stroke, both open.
         const std::array hook{ShapeSegment::line({0, 10}), ShapeSegment::cubic({0, 14}, {4, 16}, {8, 14})};
         const std::array straight{ShapeSegment::line({20, 0})}, leftward{ShapeSegment::line({0, 10})};
         const ShapeContour a{{0, 0}, hook, false}, b{{20, 10}, leftward, false};  // b runs right to left: its end is near a's start
         auto morph = PreparedShapeMorph::prepare(a, b);
-        check(morph.has_value(), morph ? "" : "refused");
+        expect(morph.has_value()) << (morph ? "" : "refused");
         if (!morph) return;
-        check(!morph->closed() && morph->target_reversed(), "open, the target turned round");
+        expect(!morph->closed() && morph->target_reversed()) << "open, the target turned round";
         std::vector<ShapeCubic> out(morph->segment_count());
         for (const double t : {0.0, 0.5, 1.0}) {
-            check(morph->sample(t, out).has_value());
-            check(!(out.back().end == out.front().start), std::format("at {}: its two ends apart, not closed", t));
+            expect(morph->sample(t, out).has_value());
+            expect(!(out.back().end == out.front().start)) << std::format("at {}: its two ends apart, not closed", t);
         }
-        check(morph->sample(0, out).has_value() && out.front().start == Vec2{0, 0} && out.back().end == Vec2{8, 14}, "it starts as the hook");
-        check(morph->sample(1, out).has_value() && out.front().start == Vec2{0, 10} && out.back().end == Vec2{20, 10}, "and ends as the stroke, turned round");
-        check(PreparedShapeMorph::prepare(a, disk()).error() == ShapeMorphError::open_contour, "a stroke into an outline: refused");
+        expect(morph->sample(0, out).has_value() && out.front().start == Vec2{0, 0} && out.back().end == Vec2{8, 14}) << "it starts as the hook";
+        expect(morph->sample(1, out).has_value() && out.front().start == Vec2{0, 10} && out.back().end == Vec2{20, 10}) << "and ends as the stroke, turned round";
+        expect(PreparedShapeMorph::prepare(a, disk()).error() == ShapeMorphError::open_contour) << "a stroke into an outline: refused";
         // An object of an outline and two strokes, into one of the same: strokes pair with strokes, the outline with the outline.
         const std::array from{disk(), a, ShapeContour{{30, 0}, straight, false}};
         const std::array to{ShapeContour{{0, -1}, circle}, ShapeContour{{30, 1}, straight, false}, ShapeContour{{0, 1}, hook, false}};
         const auto pairs = pair_contours(from, to);
-        check(pairs.has_value(), "paired");
+        expect(pairs.has_value()) << "paired";
         if (!pairs) return;
         const auto to_of = [&](std::size_t from_index) {
             for (const auto& pair : *pairs) if (pair.from == from_index) return pair.to;
             return ContourPair::none;
         };
-        check(to_of(0) == 0 && to_of(1) == 2 && to_of(2) == 1, std::format("the disk with the circle, each stroke with its nearest stroke: {} {} {}", to_of(0), to_of(1), to_of(2)));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(to_of(0) == 0 && to_of(1) == 2 && to_of(2) == 1) << std::format("the disk with the circle, each stroke with its nearest stroke: {} {} {}", to_of(0), to_of(1), to_of(2));
+    };
+}};

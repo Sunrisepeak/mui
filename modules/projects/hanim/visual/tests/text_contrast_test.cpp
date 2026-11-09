@@ -8,9 +8,11 @@ import mlibs.math;
 import xrender.vector;
 import hanim.visual;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace mo = hanim::visual;
 
 namespace {
@@ -144,10 +146,10 @@ double ratio(Color a, Color b) {
 }
 void readable(const mo::Morph& motion, double time) {
     const auto frame = paints(at(motion, time));
-    check(frame.fill && frame.text, "real carrier and unchanged glyph drawing emitted");
+    expect(frame.fill && frame.text) << "real carrier and unchanged glyph drawing emitted";
     if (frame.fill && frame.text) {
-        check(ratio(frame.ink, frame.background) >= 4.5 - 0.00001, std::format("contrast {} at {}", ratio(frame.ink, frame.background), time));
-        check_eq(frame.ink.a, 1.0f);
+        expect(ratio(frame.ink, frame.background) >= 4.5 - 0.00001) << std::format("contrast {} at {}", ratio(frame.ink, frame.background), time);
+        expect(eq(frame.ink.a, 1.0f));
     }
 }
 Paints caption_paints(const xrender::DisplayList& list) {
@@ -182,36 +184,35 @@ Color actual_carrier(const xrender::DisplayList& list) {
     return color;
 }
 void near(Color actual, Color expected) {
-    check_near(actual.r, expected.r, 0.0001); check_near(actual.g, expected.g, 0.0001);
-    check_near(actual.b, expected.b, 0.0001); check_near(actual.a, expected.a, 0.0001);
+    expect(mcpplibs::mtest::near(actual.r, expected.r, 0.0001)); expect(mcpplibs::mtest::near(actual.g, expected.g, 0.0001));
+    expect(mcpplibs::mtest::near(actual.b, expected.b, 0.0001)); expect(mcpplibs::mtest::near(actual.a, expected.a, 0.0001));
 }
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"motion.text-contrast"};
+UTest cases{"motion.text-contrast", [] {
     const Frame light{};
     Frame dark; dark.background = Color::black(); dark.ink = Color::white();
-    suite.test("opposite ink and carrier polarities stay readable through real middle paints", [&] {
+    "opposite ink and carrier polarities stay readable through real middle paints"_test = [&] {
         auto guarded = transition(light, dark);
-        check_eq(guarded.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(guarded.stats().text_contrast_runs, std::size_t{1}));
         for (int step = 0; step <= 100; ++step) readable(guarded, static_cast<double>(step) / 100);
         near(paints(at(guarded, 0)).ink, light.ink); near(paints(at(guarded, 0)).background, light.background);
         near(paints(at(guarded, 1)).ink, dark.ink); near(paints(at(guarded, 1)).background, dark.background);
         auto unguarded = transition(light, dark, options(0));
         const auto middle = paints(at(unguarded, 0.5));
-        check(ratio(middle.ink, middle.background) < 1.01, "the failure probe really has coincident mixed inks/backgrounds");
-        check_eq(unguarded.stats().text_contrast_runs, std::size_t{0});
+        expect(ratio(middle.ink, middle.background) < 1.01) << "the failure probe really has coincident mixed inks/backgrounds";
+        expect(eq(unguarded.stats().text_contrast_runs, std::size_t{0}));
         auto reverse = transition(dark, light);
         for (int step = 0; step <= 100; ++step) readable(reverse, static_cast<double>(step) / 100);
-    });
-    suite.test("carrier uses its own staggered curve instead of the text progress", [&] {
+    };
+    "carrier uses its own staggered curve instead of the text progress"_test = [&] {
         auto timing = options(); timing.order = mo::Order::document; timing.stagger = 0.3;
         auto motion = transition(light, dark, timing);
-        check_eq(motion.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
         for (int step = 0; step <= 130; ++step) readable(motion, static_cast<double>(step) / 100);
-        check_near(motion.end(), 1.3, 0.00001);
-    });
-    suite.test("transparent, disabled, changed and intentionally low-contrast drawings are not normalized", [&] {
+        expect(near(motion.end(), 1.3, 0.00001));
+    };
+    "transparent, disabled, changed and intentionally low-contrast drawings are not normalized"_test = [&] {
         for (int variant = 0; variant < 7; ++variant) {
             Frame a = light, b = dark;
             if (variant == 0) a.ink.a = b.ink.a = 0.5f;
@@ -223,11 +224,11 @@ int main(int argc, char** argv) {
             if (variant == 6) a.ink = Color::hex(0xb0b0b0);
             auto guarded = transition(a, b);
             auto baseline = transition(a, b, options(0));
-            check_eq(guarded.stats().text_contrast_runs, std::size_t{0});
-            for (const double time : {0.1, 0.5, 0.9}) check_eq(at(guarded, time).hash(), at(baseline, time).hash());
+            expect(eq(guarded.stats().text_contrast_runs, std::size_t{0}));
+            for (const double time : {0.1, 0.5, 0.9}) expect(eq(at(guarded, time).hash(), at(baseline, time).hash()));
         }
-    });
-    suite.test("images, effects, gradients, foreign fills and unprovable clips are not carriers", [&] {
+    };
+    "images, effects, gradients, foreign fills and unprovable clips are not carriers"_test = [&] {
         for (int variant = 0; variant < 9; ++variant) {
             Frame a = light, b = dark;
             if (variant == 0) a.no_carrier = b.no_carrier = true;
@@ -240,45 +241,45 @@ int main(int argc, char** argv) {
             if (variant == 7) a.foreign = b.foreign = true;
             if (variant == 8) a.tint = b.tint = Color::hex(0x607080, 0.2f);
             auto guarded = transition(a, b);
-            check_eq(guarded.stats().text_contrast_runs, std::size_t{0});
+            expect(eq(guarded.stats().text_contrast_runs, std::size_t{0}));
         }
-    });
-    suite.test("rounded and moving carriers are checked in their actual geometry", [&] {
+    };
+    "rounded and moving carriers are checked in their actual geometry"_test = [&] {
         Frame a = light, b = dark;
         a.radii = mlibs::geom::CornerRadii::all(12); b.radii = mlibs::geom::CornerRadii::all(18);
         a.stroke = b.stroke = true;
         b.carrier.width = 250; b.carrier.height = 100;
         auto rounded = transition(a, b);
-        check_eq(rounded.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(rounded.stats().text_contrast_runs, std::size_t{1}));
         for (int step = 0; step <= 100; ++step) readable(rounded, static_cast<double>(step) / 100);
         a.carrier = b.carrier = {0, 0, 60, 60}; a.radii = b.radii = mlibs::geom::CornerRadii::all(30);
         a.origin = b.origin = {1, 21};
         auto corner = transition(a, b);
-        check_eq(corner.stats().text_contrast_runs, std::size_t{0});
+        expect(eq(corner.stats().text_contrast_runs, std::size_t{0}));
         a = light; b = dark;
         b.carrier_transform = b.text_transform = Affine::translate(200, 0);
         auto timing = options(); timing.order = mo::Order::document; timing.stagger = 0.8;
         auto moving = transition(a, b, timing);
         auto baseline = transition(a, b, [&] { auto o = timing; o.minimum_text_contrast = 0; return o; }());
-        check_eq(moving.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(moving.stats().text_contrast_runs, std::size_t{1}));
         // At .5 the carrier moved while the delayed text did not. Its
         // endpoint association cannot justify pretending it is underneath.
-        check_eq(at(moving, 0.5).hash(), at(baseline, 0.5).hash());
-    });
-    suite.test("guarded paint is seekable and survives an interrupted solid-carrier snapshot", [&] {
+        expect(eq(at(moving, 0.5).hash(), at(baseline, 0.5).hash()));
+    };
+    "guarded paint is seekable and survives an interrupted solid-carrier snapshot"_test = [&] {
         auto first = transition(light, dark);
         const auto saved = at(first, 0.63).hash();
         (void)at(first, 0.2); (void)at(first, 0.9);
-        check_eq(at(first, 0.63).hash(), saved);
+        expect(eq(at(first, 0.63).hash(), saved));
         const auto before = paints(at(first, 0.63));
         const auto target = drawing(light);
         mo::Morph second(first.snapshot(0.63), mo::Matter::extract(target, names()), options(), 0);
-        check_eq(second.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(second.stats().text_contrast_runs, std::size_t{1}));
         const auto resumed = paints(at(second, 0.000001));
         near(resumed.ink, before.ink); near(resumed.background, before.background);
         for (int step = 0; step <= 100; ++step) readable(second, static_cast<double>(step) / 100);
-    });
-    suite.test("guard adds no scalar heap allocations to an identical warm draw sequence", [&] {
+    };
+    "guard adds no scalar heap allocations to an identical warm draw sequence"_test = [&] {
         auto guarded = transition(light, dark), baseline = transition(light, dark, options(0));
         xrender::DisplayList protected_list, plain_list;
         protected_list.reserve(64); plain_list.reserve(64);
@@ -292,25 +293,25 @@ int main(int argc, char** argv) {
         };
         const auto plain_allocations = count(baseline, plain_list);
         const auto protected_allocations = count(guarded, protected_list);
-        check(plain_allocations > 0, "instrumentation sees the existing glyph style allocation");
-        check_eq(protected_allocations, plain_allocations);
-    });
-    suite.test("direct options expose the actual supported ink-only threshold", [&] {
+        expect(plain_allocations > 0) << "instrumentation sees the existing glyph style allocation";
+        expect(eq(protected_allocations, plain_allocations));
+    };
+    "direct options expose the actual supported ink-only threshold"_test = [&] {
         auto clamped = transition(light, dark, options(7));
-        check_eq(clamped.options().minimum_text_contrast, 4.5);
+        expect(eq(clamped.options().minimum_text_contrast, 4.5));
         auto negative = transition(light, dark, options(-1));
-        check_eq(negative.options().minimum_text_contrast, 0.0);
+        expect(eq(negative.options().minimum_text_contrast, 0.0));
         auto not_finite = transition(light, dark, options(std::numeric_limits<double>::quiet_NaN()));
-        check_eq(not_finite.options().minimum_text_contrast, 0.0);
-    });
-    suite.test("independently moving nested drawings are proved from this draw exactly once", [&] {
+        expect(eq(not_finite.options().minimum_text_contrast, 0.0));
+    };
+    "independently moving nested drawings are proved from this draw exactly once"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
         policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
         auto raw = transition(a, b, options(0));
-        check_eq(motion.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
         for (const double time : {0.39, 0.5, 0.61}) {
             int calls = 0;
             const bool crossing = time == 0.5;
@@ -320,15 +321,15 @@ int main(int argc, char** argv) {
                 out.end_node();
             };
             xrender::DisplayList output; motion.draw(time, output, nested);
-            check_eq(calls, 1); check(output.balanced());
+            expect(eq(calls, 1)); expect(output.balanced());
             const auto frame = caption_paints(output);
             if (crossing) near(frame.ink, caption_paints(at(raw, time)).ink);
-            else check(ratio(frame.ink, frame.background) >= 4.5 - 0.00001, "far-away actual nested drawing permits protection");
+            else expect(ratio(frame.ink, frame.background) >= 4.5 - 0.00001) << "far-away actual nested drawing permits protection";
         }
         auto missing_source = transition(a, b);
-        check_eq(missing_source.stats().text_contrast_runs, std::size_t{0});
-    });
-    suite.test("unknown nested effects and unsupported real glyph bounds cannot certify clear space", [&] {
+        expect(eq(missing_source.stats().text_contrast_runs, std::size_t{0}));
+    };
+    "unknown nested effects and unsupported real glyph bounds cannot certify clear space"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
@@ -350,11 +351,11 @@ int main(int argc, char** argv) {
                 if (variant == 0) out.pop_layer();
                 out.end_node();
             });
-            check_eq(calls, 1); check(output.balanced());
+            expect(eq(calls, 1)); expect(output.balanced());
             near(caption_paints(output).ink, expected);
         }
-    });
-    suite.test("actual translated styled glyph masks are bounded without em approximations", [] {
+    };
+    "actual translated styled glyph masks are bounded without em approximations"_test = [] {
         FixedGlyphs source;
         const std::array<xrender::Glyph, 1> glyphs{{{.id = 11}}};
         const std::array<xrender::GlyphStyle, 1> translated{{{.transform = Affine::translate(40, 3)}}};
@@ -362,18 +363,18 @@ int main(int argc, char** argv) {
         list.draw_glyphs(xrender::FontRef{1}, 16, {20, 48}, glyphs, xrender::Paint::solid(Color::black()), translated);
         const auto& run = std::get<xrender::DrawGlyphs>(list.commands().front());
         const auto bounds = mo::glyph_ink_bounds(run, Affine{}, source);
-        check(bounds.has_value());
-        if (bounds) { check_near(bounds->x, 59, 0.001); check_near(bounds->y, 38, 0.001); check_near(bounds->width, 9, 0.001); check_near(bounds->height, 15, 0.001); }
-        check(!mo::glyph_ink_bounds(run, Affine::rotation(0.8f, 0.6f), source));
-        check(!mo::glyph_ink_bounds(run, Affine::scale(1, 2), source));
+        expect(bounds.has_value());
+        if (bounds) { expect(near(bounds->x, 59, 0.001)); expect(near(bounds->y, 38, 0.001)); expect(near(bounds->width, 9, 0.001)); expect(near(bounds->height, 15, 0.001)); }
+        expect(!mo::glyph_ink_bounds(run, Affine::rotation(0.8f, 0.6f), source));
+        expect(!mo::glyph_ink_bounds(run, Affine::scale(1, 2), source));
         const std::array<xrender::Glyph, 1> blank{{{.id = 0}}};
         xrender::DisplayList blank_list;
         blank_list.draw_glyphs(xrender::FontRef{1}, 16, {}, blank, xrender::Paint::solid(Color::black()));
         const auto empty = mo::glyph_ink_bounds(std::get<xrender::DrawGlyphs>(blank_list.commands().front()), Affine{}, source);
-        check(empty && empty->empty(), "known blank mask is distinct from missing geometry");
-    });
-    suite.test(threads ? "nested draw reentry and concurrent seeking keep independent proof scratch"
-                       : "nested draw reentry and threadless seeking keep independent proof scratch", [&] {
+        expect(empty && empty->empty()) << "known blank mask is distinct from missing geometry";
+    };
+    mcpplibs::mtest::test(std::string_view(threads ? "nested draw reentry and concurrent seeking keep independent proof scratch"
+                       : "nested draw reentry and threadless seeking keep independent proof scratch")) = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
@@ -392,16 +393,16 @@ int main(int argc, char** argv) {
         };
         const auto expected = draw_once();
         const auto frame = caption_paints(expected);
-        check(ratio(frame.ink, frame.background) >= 4.5 - 0.00001);
+        expect(ratio(frame.ink, frame.background) >= 4.5 - 0.00001);
         if constexpr (threads) {
             auto first = std::async(std::launch::async, [&] { return draw_once().hash(); });
             auto second = std::async(std::launch::async, [&] { return draw_once().hash(); });
-            check_eq(first.get(), expected.hash()); check_eq(second.get(), expected.hash());
+            expect(eq(first.get(), expected.hash())); expect(eq(second.get(), expected.hash()));
         } else {
-            check_eq(draw_once().hash(), expected.hash()); check_eq(draw_once().hash(), expected.hash());
+            expect(eq(draw_once().hash(), expected.hash())); expect(eq(draw_once().hash(), expected.hash()));
         }
-    });
-    suite.test("proof capacity overflow preserves drawing and conservatively skips ink correction", [&] {
+    };
+    "proof capacity overflow preserves drawing and conservatively skips ink correction"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 65;
         auto policy = options();
@@ -412,10 +413,10 @@ int main(int argc, char** argv) {
         motion.draw(0.5, output, [&](std::uint32_t marker, xrender::DisplayList& nested) {
             ++calls; nested.begin_node(marker); nested.fill_rect({140, 65, 20, 10}, Color::black()); nested.end_node();
         });
-        check_eq(calls, 65); check(output.balanced());
+        expect(eq(calls, 65)); expect(output.balanced());
         near(caption_paints(output).ink, caption_paints(at(raw, 0.5)).ink);
-    });
-    suite.test("deep nested proof exhaustion skips safely and releases every lease", [&] {
+    };
+    "deep nested proof exhaustion skips safely and releases every lease"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.nested_count = b.nested_count = 1;
         auto policy = options();
@@ -432,31 +433,31 @@ int main(int argc, char** argv) {
             });
         };
         draw_level(0, output);
-        check(output.balanced());
+        expect(output.balanced());
         const auto background = caption_paints(output).background;
         std::size_t texts = 0;
         for (const auto& command : output.commands())
             if (const auto* text = std::get_if<xrender::DrawGlyphs>(&command)) {
-                if (texts < 8) check(ratio(text->paint.color, background) >= 4.5 - 0.00001, "eight independent leases retain their own patches");
-                else check(ratio(text->paint.color, background) < 1.01, "overflow draws honestly without claiming protection");
+                if (texts < 8) expect(ratio(text->paint.color, background) >= 4.5 - 0.00001) << "eight independent leases retain their own patches";
+                else expect(ratio(text->paint.color, background) < 1.01) << "overflow draws honestly without claiming protection";
                 ++texts;
             }
-        check_eq(texts, std::size_t{10});
+        expect(eq(texts, std::size_t{10}));
         xrender::DisplayList again;
         motion.draw(0.5, again, [](std::uint32_t marker, xrender::DisplayList& nested) {
             nested.begin_node(marker); nested.fill_rect({140, 65, 20, 10}, Color::black()); nested.end_node();
         });
         const auto frame = caption_paints(again);
-        check(ratio(frame.ink, frame.background) >= 4.5 - 0.00001, "all recursive leases returned before the next seek");
-    });
-    suite.test("safe translucent carriers use the actual opaque prefix instead of a presumed white backdrop", [&] {
+        expect(ratio(frame.ink, frame.background) >= 4.5 - 0.00001) << "all recursive leases returned before the next seek";
+    };
+    "safe translucent carriers use the actual opaque prefix instead of a presumed white backdrop"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f;
         for (const float scale : {1.0f, 2.0f}) for (const auto under : {Color::white(), Color::black(), Color::hex(0x23395b), Color::hex(0xf0a060)}) {
             auto policy = options(); policy.proof_scale = scale;
             policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
             auto motion = transition(a, b, policy);
-            check_eq(motion.stats().text_contrast_runs, std::size_t{1});
+            expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
             for (int step = 0; step <= 100; step += 2) {
                 xrender::DisplayList output;
                 output.push_transform(Affine::translate(37, 19) * Affine::scale(1.25f, 1.25f));
@@ -464,13 +465,12 @@ int main(int argc, char** argv) {
                 motion.draw(static_cast<double>(step) / 100, output); output.pop_transform();
                 const auto ink = caption_paints(output).ink;
                 const auto surface = actual_carrier(output);
-                check(ratio(ink, over(surface, under)) >= 4.5 - 0.00001,
-                      std::format("actual alpha-composite contrast at {} scale {}", step, scale));
-                check_near(surface.a, 0.94, 0.00001);
+                expect(ratio(ink, over(surface, under)) >= 4.5 - 0.00001) << std::format("actual alpha-composite contrast at {} scale {}", step, scale);
+                expect(near(surface.a, 0.94, 0.00001));
             }
         }
-    });
-    suite.test("translucent proof rejects absent opaque underpaint and partial or unknown composition", [&] {
+    };
+    "translucent proof rejects absent opaque underpaint and partial or unknown composition"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f;
         auto policy = options();
@@ -492,7 +492,7 @@ int main(int argc, char** argv) {
             motion.draw(0.5, output);
             if (variant == 4) output.pop_clip();
             if (variant >= 5) output.pop_layer();
-            check(output.balanced()); near(caption_paints(output).ink, expected);
+            expect(output.balanced()); near(caption_paints(output).ink, expected);
         }
         // Opaque parent recovery is valid even when a still earlier image
         // was unknown: the later solid really covers every selected pixel.
@@ -500,15 +500,15 @@ int main(int argc, char** argv) {
         recovered.draw_image(xrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
         recovered.fill_rect({-500, -500, 1000, 1000}, Color::hex(0x23395b));
         motion.draw(0.5, recovered);
-        check(ratio(caption_paints(recovered).ink, over(actual_carrier(recovered), Color::hex(0x23395b))) >= 4.5 - 0.00001);
-    });
-    suite.test("registered effect write bounds preserve source coverage and reject actual overlap", [&] {
+        expect(ratio(caption_paints(recovered).ink, over(actual_carrier(recovered), Color::hex(0x23395b))) >= 4.5 - 0.00001);
+    };
+    "registered effect write bounds preserve source coverage and reject actual overlap"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f; a.nested_count = b.nested_count = 1;
         auto policy = options();
         policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy), raw = transition(a, b, options(0));
-        const auto effect = xrender::effects().find("liquid_glass"); check(effect.has_value()); if (!effect) return;
+        const auto effect = xrender::effects().find("liquid_glass"); expect(effect.has_value()); if (!effect) return;
         const auto expected = caption_paints(at(raw, 0.5)).ink;
         auto params = xrender::effects().params(*effect, {});
         // Large sampling reach is not the effect's generated write region.
@@ -525,12 +525,12 @@ int main(int argc, char** argv) {
                 nested.fill_rect(variant == 2 ? Rect{20, 35, 28, 15} : declared, Color::black());
                 nested.pop_layer(); nested.end_node();
             });
-            check_eq(calls, 1); check(output.balanced());
-            if (variant == 0) check(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
+            expect(eq(calls, 1)); expect(output.balanced());
+            if (variant == 0) expect(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
             else near(caption_paints(output).ink, expected);
         }
-    });
-    suite.test("live proof scale is read once and invalid scale never certifies a correction", [&] {
+    };
+    "live proof scale is read once and invalid scale never certifies a correction"_test = [&] {
         FixedGlyphs glyphs;
         Frame a = light, b = dark; a.background.a = b.background.a = 0.94f;
         float scale = 1; int reads = 0; float greatest_matrix = 0;
@@ -544,16 +544,16 @@ int main(int argc, char** argv) {
         for (const float dpi : {1.0f, 2.0f, 1.0f}) {
             scale = dpi; reads = 0; greatest_matrix = 0;
             xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
-            check_eq(reads, 1); check_near(greatest_matrix, dpi, 0.0001);
-            check(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
+            expect(eq(reads, 1)); expect(near(greatest_matrix, dpi, 0.0001));
+            expect(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
         }
         for (const float invalid : {0.0f, -1.0f, std::numeric_limits<float>::quiet_NaN(), std::numeric_limits<float>::infinity()}) {
             scale = invalid; reads = 0;
             xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(0.5, output);
-            check_eq(reads, 1); near(caption_paints(output).ink, caption_paints(at(raw, 0.5)).ink);
+            expect(eq(reads, 1)); near(caption_paints(output).ink, caption_paints(at(raw, 0.5)).ink);
         }
-    });
-    suite.test("styled vector glyph bounds use the actual outline and complete affine", [] {
+    };
+    "styled vector glyph bounds use the actual outline and complete affine"_test = [] {
         OutlineGlyphs source;
         const std::array<xrender::Glyph, 1> glyphs{{{.id = 11}}};
         const Affine device = Affine::translate(7, 11) * Affine::scale(2, 2);
@@ -563,26 +563,26 @@ int main(int argc, char** argv) {
             xrender::DisplayList drawing;
             drawing.draw_glyphs(xrender::FontRef{1}, 16, {20, 48}, glyphs, xrender::Paint::solid(Color::black()), styles);
             const auto bounds = mo::glyph_ink_bounds(std::get<xrender::DrawGlyphs>(drawing.commands().front()), device, source);
-            check(bounds.has_value());
+            expect(bounds.has_value());
             if (bounds) {
-                check_near(bounds->x, 54, 0.0001); check_near(bounds->y, rotated ? 112 : 100, 0.0001);
-                check_near(bounds->width, 26, 0.0001); check_near(bounds->height, rotated ? 18 : 14, 0.0001);
+                expect(near(bounds->x, 54, 0.0001)); expect(near(bounds->y, rotated ? 112 : 100, 0.0001));
+                expect(near(bounds->width, 26, 0.0001)); expect(near(bounds->height, rotated ? 18 : 14, 0.0001));
             }
         }
-    });
-    suite.test("unchanged content can keep contrast while its font size changes", [&] {
+    };
+    "unchanged content can keep contrast while its font size changes"_test = [&] {
         OutlineGlyphs glyphs;
         Frame a = light, b = dark; a.text_size = 13; b.text_size = 12; a.background.a = b.background.a = 0.94f;
         auto policy = options();
         policy.glyph_bounds = [&glyphs](const xrender::DrawGlyphs& run, const Affine& transform) { return mo::glyph_ink_bounds(run, transform, glyphs); };
         auto motion = transition(a, b, policy);
-        check_eq(motion.stats().text_contrast_runs, std::size_t{1});
+        expect(eq(motion.stats().text_contrast_runs, std::size_t{1}));
         for (const double time : {0.0, 0.25, 0.5, 0.75, 1.0}) {
             xrender::DisplayList output; output.fill_rect({-500, -500, 1000, 1000}, Color::white()); motion.draw(time, output);
-            check(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
+            expect(ratio(caption_paints(output).ink, over(actual_carrier(output), Color::white())) >= 4.5 - 0.00001);
         }
-    });
-    suite.test("contextual snapshots retain sampled protected ink without importing the page prefix", [&] {
+    };
+    "contextual snapshots retain sampled protected ink without importing the page prefix"_test = [&] {
         OutlineGlyphs glyphs;
         Frame a = light, b = dark; a.text_size = 13; b.text_size = 12; a.background.a = b.background.a = 0.94f;
         a.nested_count = b.nested_count = 1;
@@ -604,29 +604,27 @@ int main(int argc, char** argv) {
         };
         const auto earlier = screen(0.19); // sampling must not replay this last drawing
         calls = 0;
-        const auto expected = screen(0.63); check_eq(calls, 1);
+        const auto expected = screen(0.63); expect(eq(calls, 1));
         calls = 0;
         auto snapshot = motion.snapshot(0.63, nested, mo::SnapshotContext{prefix.commands()});
-        check_eq(calls, 1); check(snapshot.list().balanced());
+        expect(eq(calls, 1)); expect(snapshot.list().balanced());
         const auto ink = caption_paints(snapshot.list()).ink;
         near(ink, caption_paints(expected).ink);
-        check(ink != caption_paints(earlier).ink, "the root is evaluated at the requested time");
-        check(ratio(ink, over(actual_carrier(snapshot.list()), Color::white())) >= 4.5 - 0.00001);
-        check(std::ranges::none_of(snapshot.nodes(), [](const auto& node) { return node.key == "main/other"; }), "prefix owner is proof-only");
-        check(snapshot.clips().empty(), "ancestor prefix clip is not imported into the returned local Matter");
+        expect(ink != caption_paints(earlier).ink) << "the root is evaluated at the requested time";
+        expect(ratio(ink, over(actual_carrier(snapshot.list()), Color::white())) >= 4.5 - 0.00001);
+        expect(std::ranges::none_of(snapshot.nodes(), [](const auto& node) { return node.key == "main/other"; })) << "prefix owner is proof-only";
+        expect(snapshot.clips().empty()) << "ancestor prefix clip is not imported into the returned local Matter";
         bool local_carrier = false;
         for (const auto& piece : snapshot.pieces()) if (piece.cls == mo::PieceClass::fill && snapshot.nodes()[piece.node].key == "main/card") {
-            check_eq(piece.transform, Affine{}); local_carrier = true;
+            expect(eq(piece.transform, Affine{})); local_carrier = true;
         }
-        check(local_carrier, "the borrowed prefix transform does not shift local geometry");
-        const auto own_hash = snapshot.hash(); prefix.clear(); check_eq(snapshot.hash(), own_hash);
+        expect(local_carrier) << "the borrowed prefix transform does not shift local geometry";
+        const auto own_hash = snapshot.hash(); prefix.clear(); expect(eq(snapshot.hash(), own_hash));
         const auto isolated = motion.snapshot(0.63, nested);
-        check(ratio(caption_paints(isolated.list()).ink, over(actual_carrier(isolated.list()), Color::white())) < 4.5,
-              "the compatible isolated API does not invent an opaque page backdrop");
+        expect(ratio(caption_paints(isolated.list()).ink, over(actual_carrier(isolated.list()), Color::white())) < 4.5) << "the compatible isolated API does not invent an opaque page backdrop";
         xrender::DisplayList unknown;
         unknown.draw_image(xrender::ImageRef{1}, {0, 0, 220, 90}, {0, 0, 220, 90});
         const auto unproved = motion.snapshot(0.63, nested, mo::SnapshotContext{unknown.commands()});
         near(caption_paints(unproved.list()).ink, caption_paints(isolated.list()).ink);
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

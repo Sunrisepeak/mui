@@ -5,18 +5,18 @@
 // and rival constraints are refused.
 import std;
 import hanim.engine;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result)
         std::abort();
     if constexpr (!std::is_void_v<T>)
@@ -48,7 +48,7 @@ struct Scene {
         for (const auto& shown : frame.parts)
             if (shown.info.id == part)
                 return shown.local;
-        check(false, "the part shows");
+        expect(false) << "the part shows";
         return {};
     }
 };
@@ -57,10 +57,9 @@ bool near(double left, double right) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.engine.constraint"};
+UTest cases{"hanim.engine.constraint", [] {
 
-    suite.test("a tag follows a moving card in world space, through its parent's transform", [] {
+    "a tag follows a moving card in world space, through its parent's transform"_test = [] {
         Scene scene;
         take(scene.engine.constrain({.kind = ConstraintKind::follow,
                                      .target = {scene.tag, "tag"},
@@ -71,13 +70,12 @@ int main(int argc, char** argv) {
             const auto card = scene.local(scene.moving, "card"),
                        tag = scene.local(scene.held, "tag");
             // World (card.tx, card.ty − 12) in a group at (100, 0) scaled 2.
-            check(near(tag.tx, (card.tx - 100) / 2) && near(tag.ty, (card.ty - 12) / 2),
-                  std::format("at {}s the tag is at ({}, {}) for a card at ({}, {})", time, tag.tx,
-                              tag.ty, card.tx, card.ty));
+            expect(near(tag.tx, (card.tx - 100) / 2) && near(tag.ty, (card.ty - 12) / 2)) << std::format("at {}s the tag is at ({}, {}) for a card at ({}, {})", time, tag.tx,
+                              tag.ty, card.tx, card.ty);
         }
-    });
+    };
 
-    suite.test("an arrow aims at the card; a channel is driven from another", [] {
+    "an arrow aims at the card; a channel is driven from another"_test = [] {
         Scene scene;
         take(scene.engine.constrain({.kind = ConstraintKind::aim,
                                      .target = {scene.arrow, "arrow"},
@@ -92,11 +90,11 @@ int main(int argc, char** argv) {
         take(scene.engine.advance(seconds(1)));
         const auto arrow = scene.local(scene.pointing, "arrow");
         // From (0, 100) to the card at (200, 50).
-        check(near(arrow.rotate, std::atan2(-50.0, 200.0)), std::format("turned {}", arrow.rotate));
-        check(near(arrow.sx, 3) && near(arrow.sy, 1.5), "scale = 0.01 × position + 1");
-    });
+        expect(near(arrow.rotate, std::atan2(-50.0, 200.0))) << std::format("turned {}", arrow.rotate);
+        expect(near(arrow.sx, 3) && near(arrow.sy, 1.5)) << "scale = 0.01 × position + 1";
+    };
 
-    suite.test("chains apply in dependency order, whatever order they were added in", [] {
+    "chains apply in dependency order, whatever order they were added in"_test = [] {
         Scene scene;
         // The arrow follows the tag, which follows the card: added last first.
         take(scene.engine.constrain({.kind = ConstraintKind::follow,
@@ -108,11 +106,10 @@ int main(int argc, char** argv) {
         take(scene.engine.advance(seconds(.5)));
         const auto card = scene.local(scene.moving, "card"),
                    arrow = scene.local(scene.pointing, "arrow");
-        check(near(arrow.tx, card.tx) && near(arrow.ty, card.ty),
-              "the arrow is where the card is, the same frame");
-    });
+        expect(near(arrow.tx, card.tx) && near(arrow.ty, card.ty)) << "the arrow is where the card is, the same frame";
+    };
 
-    suite.test("a cycle and a rival are refused; a removed constraint frees its channel", [] {
+    "a cycle and a rival are refused; a removed constraint frees its channel"_test = [] {
         Scene scene;
         const auto first = take(scene.engine.constrain({.kind = ConstraintKind::follow,
                                                         .target = {scene.tag, "tag"},
@@ -120,27 +117,25 @@ int main(int argc, char** argv) {
         const auto cycle = scene.engine.constrain({.kind = ConstraintKind::follow,
                                                    .target = {scene.card, "card"},
                                                    .source = {scene.tag, "tag"}});
-        check(!cycle && cycle.error().code == EngineError::constraint_cycle,
-              "the card cannot follow its follower");
+        expect(!cycle && cycle.error().code == EngineError::constraint_cycle) << "the card cannot follow its follower";
         const auto rival = scene.engine.constrain({.kind = ConstraintKind::follow,
                                                    .target = {scene.tag, "tag"},
                                                    .source = {scene.arrow, "arrow"}});
-        check(!rival && rival.error().code == EngineError::binding_conflict,
-              "one constraint a target channel");
-        check(scene.engine.constraint_count() == 1);
+        expect(!rival && rival.error().code == EngineError::binding_conflict) << "one constraint a target channel";
+        expect(scene.engine.constraint_count() == 1);
         take(scene.engine.unconstrain(first));
-        check(scene.engine
+        expect(scene.engine
                   .constrain({.kind = ConstraintKind::follow,
                               .target = {scene.tag, "tag"},
                               .source = {scene.arrow, "arrow"}})
                   .has_value());
-        check(!scene.engine.unconstrain(first), "a removed constraint's handle is stale");
-        check(!scene.engine.constrain({.kind = ConstraintKind::follow,
+        expect(!scene.engine.unconstrain(first)) << "a removed constraint's handle is stale";
+        expect(!scene.engine.constrain({.kind = ConstraintKind::follow,
                                        .target = {scene.tag, "nothing"},
                                        .source = {scene.card, "card"}}));
-    });
+    };
 
-    suite.test("a source no playback shows is read as its object describes it", [] {
+    "a source no playback shows is read as its object describes it"_test = [] {
         Engine engine = take(Engine::make());
         const auto still = take(engine.create_object(single("still", {.tx = 40, .ty = 30})));
         const auto follower = take(engine.create_object(single("follower")));
@@ -149,9 +144,6 @@ int main(int argc, char** argv) {
                                .target = {follower, "follower"},
                                .source = {still, "still"}}));
         const auto frame = take(engine.frame(shown)).geometry;
-        check(near(frame.parts[0].local.tx, 40) && near(frame.parts[0].local.ty, 30),
-              "applied at once, from the description");
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(near(frame.parts[0].local.tx, 40) && near(frame.parts[0].local.ty, 30)) << "applied at once, from the description";
+    };
+}};

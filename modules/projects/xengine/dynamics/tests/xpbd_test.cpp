@@ -4,9 +4,9 @@
 import std;
 import mlibs.simulation;
 import xengine.dynamics;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace sim = xengine::dynamics;
 
 namespace {
@@ -19,7 +19,7 @@ sim::SoftBody ball(sim::BodyParams params = {}) {
     }
     const std::array ground{sim::Plane{.normal_x = 0, .normal_y = -1, .offset = -300}};
     auto body = sim::SoftBody::ring(outline, params, ground);
-    check(body.has_value());
+    expect(body.has_value());
     if (!body)
         std::abort();
     return std::move(*body);
@@ -34,12 +34,9 @@ Extent extent(const sim::SoftBody& body) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"simulation.bodies"};
+UTest cases{"simulation.bodies", [] {
 
-    suite
-        .test("dropped on the ground: it falls, flattens, bounces, keeps its area and rests on top",
-              [] {
+    "dropped on the ground: it falls, flattens, bounces, keeps its area and rests on top"_test = [] {
                   auto body = ball();
                   const double area = body.area();
                   double flattest = 1, deepest = 0, lowest_centre = 0, area_drift = 0;
@@ -61,34 +58,31 @@ int main(int argc, char** argv) {
                       }
                       previous_centre = centre;
                   }
-                  check(flattest < .95,
-                        std::format("it flattens on landing: height over width down to {}",
-                                    flattest));
-                  check(rose_again, "it bounces");
-                  check(deepest < .5, std::format("never into the ground beyond {}", deepest));
-                  check(area_drift < .05, std::format("its area holds within {}", area_drift));
+                  expect(flattest < .95) << std::format("it flattens on landing: height over width down to {}",
+                                    flattest);
+                  expect(rose_again) << "it bounces";
+                  expect(deepest < .5) << std::format("never into the ground beyond {}", deepest);
+                  expect(area_drift < .05) << std::format("its area holds within {}", area_drift);
                   const auto rest = extent(body);
-                  check(std::abs(rest.lowest - 300) < .5 && std::abs(body.centre()[1] - 280) < 2,
-                        std::format("at rest on the ground: centre {}", body.centre()[1]));
+                  expect(std::abs(rest.lowest - 300) < .5 && std::abs(body.centre()[1] - 280) < 2) << std::format("at rest on the ground: centre {}", body.centre()[1]);
                   double speed = 0;
                   for (std::size_t index = 0; index < body.size(); ++index)
                       speed = std::max(speed, std::abs(body.velocity_y[index]));
-                  check(speed < 5, std::format("and still: {}", speed));
-              });
+                  expect(speed < 5) << std::format("and still: {}", speed);
+              };
 
-    suite.test("a hand drags it and lets it go", [] {
+    "a hand drags it and lets it go"_test = [] {
         auto body = ball({.gravity_y = 0});
         for (int step = 0; step < 120; ++step)
             sim::SoftBodyModel::step(body, {.pin = {.particle = 0,
                                                     .x = 160 + step * .5,
                                                     .y = 100,
                                                     .active = true}});
-        check(body.x[0] == 160 + 119 * .5, "the held particle where the hand is");
-        check(body.centre()[0] > 120,
-              std::format("the body came along: centre at {}", body.centre()[0]));
-    });
+        expect(body.x[0] == 160 + 119 * .5) << "the held particle where the hand is";
+        expect(body.centre()[0] > 120) << std::format("the body came along: centre at {}", body.centre()[0]);
+    };
 
-    suite.test("the same run twice, and a replay from a checkpoint, are the same bits", [] {
+    "the same run twice, and a replay from a checkpoint, are the same bits"_test = [] {
         const auto run = [] {
             mlibs::simulation::Timeline<sim::SoftBodyModel> history(ball(), 1200, 60);
             for (int step = 0; step < 300; ++step)
@@ -97,25 +91,23 @@ int main(int argc, char** argv) {
         };
         auto first = run();
         const auto second = run();
-        check(first.state().x == second.state().x && first.state().y == second.state().y,
-              "deterministic");
+        expect(first.state().x == second.state().x && first.state().y == second.state().y) << "deterministic";
         const auto at_end = first.state();
-        check(first.seek(150) && first.seek(300), "back and forth through the checkpoints");
-        check(first.state().x == at_end.x && first.state().velocity_y == at_end.velocity_y,
-              "the replay reaches the same bits");
-    });
+        expect(first.seek(150) && first.seek(300)) << "back and forth through the checkpoints";
+        expect(first.state().x == at_end.x && first.state().velocity_y == at_end.velocity_y) << "the replay reaches the same bits";
+    };
 
-    suite.test("malformed bodies are refused", [] {
+    "malformed bodies are refused"_test = [] {
         const std::array<std::array<double, 2>, 2> two{{{0, 0}, {1, 0}}};
-        check(!sim::SoftBody::ring(two));
+        expect(!sim::SoftBody::ring(two));
         const std::array<std::array<double, 2>, 3> line{{{0, 0}, {1, 0}, {2, 0}}};
-        check(!sim::SoftBody::ring(line), "no area");
+        expect(!sim::SoftBody::ring(line)) << "no area";
         const std::array<std::array<double, 2>, 3> triangle{{{0, 0}, {1, 0}, {0, 1}}};
-        check(!sim::SoftBody::ring(triangle, {.substeps = 0}));
-        check(!sim::SoftBody::ring(triangle, {.mass = -1}));
-    });
+        expect(!sim::SoftBody::ring(triangle, {.substeps = 0}));
+        expect(!sim::SoftBody::ring(triangle, {.mass = -1}));
+    };
 
-    suite.test("ledges: what comes down onto one stands on it; beside it or from below it passes; a push walks it, a kick hops it", [] {
+    "ledges: what comes down onto one stands on it; beside it or from below it passes; a push walks it, a kick hops it"_test = [] {
         const auto with_ledge = [](double left, double right) {
             sim::BodyInput in;
             in.ledges[0] = {left, right, 200};
@@ -125,11 +117,11 @@ int main(int argc, char** argv) {
         // Dropped onto a ledge under it: stands on it, above the ground.
         auto on = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(on, with_ledge(40, 160));
-        check(std::abs(extent(on).lowest - 200) < 0.5, std::format("standing on the ledge: {}", extent(on).lowest));
+        expect(std::abs(extent(on).lowest - 200) < 0.5) << std::format("standing on the ledge: {}", extent(on).lowest);
         // Beside it: falls past, to the ground.
         auto beside = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(beside, with_ledge(300, 400));
-        check(std::abs(extent(beside).lowest - 300) < 0.5, std::format("past it, on the ground: {}", extent(beside).lowest));
+        expect(std::abs(extent(beside).lowest - 300) < 0.5) << std::format("past it, on the ground: {}", extent(beside).lowest);
         // From below: a body under the ledge rises through it (a kick up) and lands on it.
         auto under = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 2; ++step) sim::SoftBodyModel::step(under, {});  // on the ground first
@@ -141,8 +133,8 @@ int main(int argc, char** argv) {
             sim::SoftBodyModel::step(under, with_ledge(40, 160));
             highest = std::min(highest, under.centre()[1]);
         }
-        check(highest < 180, std::format("through it from below: up to {}", highest));
-        check(std::abs(extent(under).lowest - 200) < 0.5, std::format("and down onto it: {}", extent(under).lowest));
+        expect(highest < 180) << std::format("through it from below: up to {}", highest);
+        expect(std::abs(extent(under).lowest - 200) < 0.5) << std::format("and down onto it: {}", extent(under).lowest);
         // A push walks it along the ground; standing, it stays.
         auto walker = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(walker, {});
@@ -150,7 +142,7 @@ int main(int argc, char** argv) {
         sim::BodyInput walk;
         walk.push_x = 400;
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(walker, walk);
-        check(walker.centre()[0] > start + 20, std::format("pushed: {} → {}", start, walker.centre()[0]));
+        expect(walker.centre()[0] > start + 20) << std::format("pushed: {} → {}", start, walker.centre()[0]);
         // Its feet at a speed: friction holds what touches the floor to it.
         auto strider = ball({.shape_stiffness = 0.3, .friction = 0.5});
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(strider, {});
@@ -158,7 +150,7 @@ int main(int argc, char** argv) {
         sim::BodyInput stride;
         stride.walk = -100;
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(strider, stride);
-        check(strider.centre()[0] < from - 25, std::format("walked left at its feet's speed: {} → {}", from, strider.centre()[0]));
+        expect(strider.centre()[0] < from - 25) << std::format("walked left at its feet's speed: {} → {}", from, strider.centre()[0]);
         // On a ledge too (a box-like body: no rolling, its feet alone carry it).
         auto on_ledge = ball({.shape_stiffness = 0.5, .friction = 0.5});
         sim::BodyInput standing;
@@ -169,7 +161,7 @@ int main(int argc, char** argv) {
         sim::BodyInput going = standing;
         going.walk = 100;
         for (int step = 0; step < 120; ++step) sim::SoftBodyModel::step(on_ledge, going);
-        check(on_ledge.centre()[0] > at + 40, std::format("walked along the ledge: {} → {}", at, on_ledge.centre()[0]));
+        expect(on_ledge.centre()[0] > at + 40) << std::format("walked along the ledge: {} → {}", at, on_ledge.centre()[0]);
         // Upright: kicked off-centre it turns, then comes back unturned; without, it keeps turning.
         const auto turned = [](const sim::SoftBody& b) {
             const auto [cx, cy] = b.centre();
@@ -180,16 +172,16 @@ int main(int argc, char** argv) {
             for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(spun, {});
             for (std::size_t i = 0; i < spun.size(); ++i) spun.velocity_x[i] += (spun.y[i] - spun.centre()[1]) * 6;  // a spin
             for (int step = 0; step < 240; ++step) sim::SoftBodyModel::step(spun, {});
-            if (up > 0) check(std::abs(turned(spun)) < 0.05, std::format("upright: back unturned ({})", turned(spun)));
-            else check(std::abs(turned(spun)) > 0.1, std::format("free: it stays turned ({})", turned(spun)));
+            if (up > 0) expect(std::abs(turned(spun)) < 0.05) << std::format("upright: back unturned ({})", turned(spun));
+            else expect(std::abs(turned(spun)) > 0.1) << std::format("free: it stays turned ({})", turned(spun));
         }
         // The same inputs, the same bits.
         auto again = ball({.shape_stiffness = 0.3});
         for (int step = 0; step < 120 * 3; ++step) sim::SoftBodyModel::step(again, with_ledge(40, 160));
-        check(again.x == on.x && again.y == on.y, "deterministic");
-    });
+        expect(again.x == on.x && again.y == on.y) << "deterministic";
+    };
 
-    suite.test("looked at between steps: paused, stepped once, read — where it is, what it touches, in words", [] {
+    "looked at between steps: paused, stepped once, read — where it is, what it touches, in words"_test = [] {
         auto body = ball({.shape_stiffness = 0.3});
         mlibs::simulation::Timeline<sim::SoftBodyModel> history(body, 1200, 60);
         sim::BodyInput on_ledge;
@@ -197,20 +189,20 @@ int main(int argc, char** argv) {
         on_ledge.ledge_count = 1;
         for (int step = 0; step < 120 * 5; ++step) history.step(on_ledge);  // landed, bounced, at rest
         // Paused: back half a second, then one step on — the report is of that step.
-        check(history.seek(history.frame() - 60));
+        expect(history.seek(history.frame() - 60));
         history.step(on_ledge);
         const auto report = sim::report(history.state());
-        check(std::abs(report.bottom - 200) < 0.5 && !report.contacts.empty(), std::format("on the ledge: bottom {}", report.bottom));
-        check(std::ranges::all_of(report.contacts, [](const sim::Contact& c) { return c.kind == sim::ContactKind::ledge; }), "its contacts are the ledge's");
-        check(report.area > 0.9 * report.rest_area && report.fastest < 50, "near its rest shape, nearly still");
+        expect(std::abs(report.bottom - 200) < 0.5 && !report.contacts.empty()) << std::format("on the ledge: bottom {}", report.bottom);
+        expect(std::ranges::all_of(report.contacts, [](const sim::Contact& c) { return c.kind == sim::ContactKind::ledge; })) << "its contacts are the ledge's";
+        expect(report.area > 0.9 * report.rest_area && report.fastest < 50) << "near its rest shape, nearly still";
         const std::string words = sim::explain(history.state());
-        check(words.contains("on a ledge") && words.contains("a step: settle kick predict edges area shape collide velocity"), words);
+        expect(words.contains("on a ledge") && words.contains("a step: settle kick predict edges area shape collide velocity")) << words;
         auto flying = ball();
         sim::SoftBodyModel::step(flying, {});
-        check(sim::report(flying).contacts.empty() && sim::explain(flying).contains("in the air"));
-    });
+        expect(sim::report(flying).contacts.empty() && sim::explain(flying).contains("in the air"));
+    };
 
-    suite.test("settled: in the shape it was made in, upright, standing where it was, still — whatever brought it there", [] {
+    "settled: in the shape it was made in, upright, standing where it was, still — whatever brought it there"_test = [] {
         const auto rest_after = [](double push) {
             auto body = ball({.shape_stiffness = 0.3, .upright = 1});
             sim::BodyInput in;
@@ -221,8 +213,8 @@ int main(int argc, char** argv) {
             sim::BodyInput settle;
             settle.settle = true;
             sim::SoftBodyModel::step(body, settle);
-            check(std::abs(*std::ranges::max_element(body.y) - bottom) < 1e-9, "standing where its lowest point was");
-            check(std::ranges::all_of(body.velocity_x, [](double v) { return v == 0; }), "still");
+            expect(std::abs(*std::ranges::max_element(body.y) - bottom) < 1e-9) << "standing where its lowest point was";
+            expect(std::ranges::all_of(body.velocity_x, [](double v) { return v == 0; })) << "still";
             return body;
         };
         const auto one = rest_after(0), other = rest_after(0.0001);
@@ -236,24 +228,22 @@ int main(int argc, char** argv) {
         const auto a = shape(one), b = shape(other);
         bool same = a.size() == b.size();
         for (std::size_t i = 0; same && i < a.size(); ++i) same = std::abs(a[i] - b[i]) < 1e-9;
-        check(same, "one resting shape");
-        check(std::abs(one.area() - one.rest_area) < 1e-6, "its rest area");
-    });
+        expect(same) << "one resting shape";
+        expect(std::abs(one.area() - one.rest_area) < 1e-6) << "its rest area";
+    };
 
-    suite.test("its materials: a table every family reads; a soft body's parameters from one; its stages said in order", [] {
+    "its materials: a table every family reads; a soft body's parameters from one; its stages said in order"_test = [] {
         auto table = sim::MaterialTable::defaults();
         const auto* jelly = table.find("jelly");
-        check(jelly != nullptr && jelly->phase == sim::Phase::soft);
+        expect(jelly != nullptr && jelly->phase == sim::Phase::soft);
         const auto params = sim::params_of(*jelly, 2.0);
-        check(params.mass == 2.0 && params.friction == jelly->friction && params.restitution == jelly->restitution &&
+        expect(params.mass == 2.0 && params.friction == jelly->friction && params.restitution == jelly->restitution &&
               params.shape_stiffness == jelly->shape_stiffness);
-        check(table.add({"jelly"}).error() == sim::MaterialError::duplicate_name, "a name once");
-        check(table.add({"bad", sim::Phase::solid, 1, 1.5}).error() == sim::MaterialError::invalid_value, "friction 0 to 1");
+        expect(table.add({"jelly"}).error() == sim::MaterialError::duplicate_name) << "a name once";
+        expect(table.add({"bad", sim::Phase::solid, 1, 1.5}).error() == sim::MaterialError::invalid_value) << "friction 0 to 1";
         const auto added = table.add({"felt", sim::Phase::soft, 0.4, 0.9, 0.1});
-        check(added.has_value() && table.at(*added)->name == "felt" && table.id_of("felt") == *added);
+        expect(added.has_value() && table.at(*added)->name == "felt" && table.id_of("felt") == *added);
         const auto stages = sim::stages();
-        check(stages.size() == 8 && stages.front().name == "settle" && stages.back().name == "velocity");
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(stages.size() == 8 && stages.front().name == "settle" && stages.back().name == "velocity");
+    };
+}};

@@ -1,10 +1,13 @@
 import std;
 import hanim.library;
 import mlibs.testing;
+import mcpplibs.mtest;
 import mlibs.trace;
 
 using namespace hanim;
 using namespace mlibs::testing;
+// mtest by name: some of its names (tag, suite, body …) are this test's own too.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::operator""_test;
 namespace {
 std::atomic<std::size_t> allocations{0};
 struct Allocation { void* pointer; std::size_t size; };
@@ -71,7 +74,7 @@ void operator delete[](void* p,std::size_t,std::align_val_t)noexcept{release_ali
 void operator delete(void* p,std::align_val_t,const std::nothrow_t&)noexcept{release_aligned(p);}
 void operator delete[](void* p,std::align_val_t,const std::nothrow_t&)noexcept{release_aligned(p);}
 namespace {
-template<class T,class E> T take(std::expected<T,E> result) { check(bool(result)); if(!result) std::abort(); return std::move(*result); }
+template<class T,class E> T take(std::expected<T,E> result) { expect(bool(result)); if(!result) std::abort(); return std::move(*result); }
 Contour triangle(bool closed=true) {
     const std::array segments{ShapeSegment::line({-1,1}),ShapeSegment::line({1,1})};
     return take(Contour::copy({{0,-1},segments,closed}));
@@ -127,12 +130,12 @@ bool on_triangle(Vec2 p) {
 void check_connected(FrameView frame) {
     for(const auto& range:frame.contours) {
         const auto curves=frame.cubics.subspan(range.first_cubic,range.cubic_count);
-        check(!curves.empty());
-        for(std::size_t i=0;i<curves.size();++i) check(curves[i].end==curves[(i+1)%curves.size()].start);
+        expect(!curves.empty());
+        for(std::size_t i=0;i<curves.size();++i) expect(curves[i].end==curves[(i+1)%curves.size()].start);
     }
 }
 template<class T> void error_is(const std::expected<T,MorphFailure>& result,MorphError code) {
-    check(!result); if(!result) check(result.error().code==code,describe(result.error().code).name);
+    expect(!result); if(!result) expect(result.error().code==code) << describe(result.error().code).name;
 }
 // The fixture's convex cubics are monotone on their endpoint-dominant axis.
 // This independent geometric witness permits new de Casteljau cuts without
@@ -152,9 +155,8 @@ double distance_to(Vec2 point,std::span<const ShapeCubic> original) {
     return best;
 }
 }
-int main(int argc,char** argv) {
-    Suite suite{"hanim.library.morph"};
-    suite.test("allocation instrumentation pairs ordinary array nothrow and aligned families",[] {
+UTest cases{"hanim.library.morph", [] {
+    "allocation instrumentation pairs ordinary array nothrow and aligned families"_test = [] {
         const auto before=allocations.load();
         ::operator delete(::operator new(1));::operator delete[](::operator new[](1));
         ::operator delete(::operator new(1),std::size_t{1});::operator delete[](::operator new[](1),std::size_t{1});
@@ -164,34 +166,34 @@ int main(int argc,char** argv) {
         ::operator delete[](::operator new[](1,align),align);
         ::operator delete(::operator new(1,align),std::size_t{1},align);::operator delete[](::operator new[](1,align),std::size_t{1},align);
         ::operator delete(::operator new(1,align,std::nothrow),align,std::nothrow);::operator delete[](::operator new[](1,align,std::nothrow),align,std::nothrow);
-        check(aligned);check_eq(allocations.load()-before,std::size_t{12});
-    });
-    suite.test("explicit ids match reordered input arrays while source parent-first sibling semantics survive",[] {
+        expect(aligned);expect(eq(allocations.load()-before,std::size_t{12}));
+    };
+    "explicit ids match reordered input arrays while source parent-first sibling semantics survive"_test = [] {
         Fixture f; auto plan=f.plan(); Buffer buffer(plan);
-        check(plan.requirements().parts==2 && plan.requirements().contours==1 && plan.requirements().cubics>=4);
-        check(plan.parts()[0].id=="root" && plan.parts()[1].id=="shape");
-        check(plan.parts()[0].parent==invalid_object_slot && plan.parts()[1].parent==0);
-        check(plan.parts()[1].from_ref==take(f.from.find("shape")) && plan.parts()[1].to_ref==take(f.to.find("shape")));
-        auto first=buffer.sample(plan,0); check(!first.parts[0].fill && first.parts[1].fill==std::optional<Rgba>(Rgba{1,0,0,1}));
-        for(const auto& curve:first.cubics) for(double t:{0.,.25,.5,.75,1.}) check(on_triangle(curve.point(t)));
-        auto last=buffer.sample(plan,1); check(last.parts[0].local.tx==10 && last.parts[1].local.tx==20);
-        check(last.parts[1].fill==std::optional<Rgba>(Rgba{0,0,1,.5f}));
-        for(const auto& curve:last.cubics) for(double t:{0.,.25,.5,.75,1.}) { const auto p=curve.point(t);check(near(dm::sqrt(p.x*p.x+p.y*p.y),1,.0004)); }
+        expect(plan.requirements().parts==2 && plan.requirements().contours==1 && plan.requirements().cubics>=4);
+        expect(plan.parts()[0].id=="root" && plan.parts()[1].id=="shape");
+        expect(plan.parts()[0].parent==invalid_object_slot && plan.parts()[1].parent==0);
+        expect(plan.parts()[1].from_ref==take(f.from.find("shape")) && plan.parts()[1].to_ref==take(f.to.find("shape")));
+        auto first=buffer.sample(plan,0); expect(!first.parts[0].fill && first.parts[1].fill==std::optional<Rgba>(Rgba{1,0,0,1}));
+        for(const auto& curve:first.cubics) for(double t:{0.,.25,.5,.75,1.}) expect(on_triangle(curve.point(t)));
+        auto last=buffer.sample(plan,1); expect(last.parts[0].local.tx==10 && last.parts[1].local.tx==20);
+        expect(last.parts[1].fill==std::optional<Rgba>(Rgba{0,0,1,.5f}));
+        for(const auto& curve:last.cubics) for(double t:{0.,.25,.5,.75,1.}) { const auto p=curve.point(t);expect(near(dm::sqrt(p.x*p.x+p.y*p.y),1,.0004)); }
         check_connected(last);
-        auto copy=plan; check(copy.identity()==plan.identity());
-        check(last.preparation==plan.identity() && last.source_object==f.a && last.source_revision==f.from.revision());
-        check(plan.from().object()==f.a && plan.to().object()==f.b);
-    });
-    suite.test("midpoint channels and arbitrary repeat seek are deterministic single current geometry",[] {
+        auto copy=plan; expect(copy.identity()==plan.identity());
+        expect(last.preparation==plan.identity() && last.source_object==f.a && last.source_revision==f.from.revision());
+        expect(plan.from().object()==f.a && plan.to().object()==f.b);
+    };
+    "midpoint channels and arbitrary repeat seek are deterministic single current geometry"_test = [] {
         Fixture f;auto plan=f.plan();Buffer output(plan);
-        auto mid=output.sample(plan,.5);check(mid.parts[0].local.tx==5 && mid.parts[1].local.tx==10);
-        check(mid.parts[1].fill && mid.parts[1].fill->a==.75f && *mid.parts[1].fill!=Rgba{1,0,0,1} && *mid.parts[1].fill!=Rgba{0,0,1,.5f});
+        auto mid=output.sample(plan,.5);expect(mid.parts[0].local.tx==5 && mid.parts[1].local.tx==10);
+        expect(mid.parts[1].fill && mid.parts[1].fill->a==.75f && *mid.parts[1].fill!=Rgba{1,0,0,1} && *mid.parts[1].fill!=Rgba{0,0,1,.5f});
         auto quarter=output.sample(plan,.25);std::vector<ShapeCubic> reference(quarter.cubics.begin(),quarter.cubics.end());
         for(double t:{1.,.8,0.,.5,.25}) check_connected(output.sample(plan,t));
-        for(std::size_t i=0;i<reference.size();++i) check(same(reference[i],output.cubics[i]));
-        check(output.sample(plan,-4).progress==0 && output.sample(plan,7).progress==1);
-    });
-    suite.test("strict capabilities reject part set ordering hierarchy count fill and open-contour changes",[] {
+        for(std::size_t i=0;i<reference.size();++i) expect(same(reference[i],output.cubics[i]));
+        expect(output.sample(plan,-4).progress==0 && output.sample(plan,7).progress==1);
+    };
+    "strict capabilities reject part set ordering hierarchy count fill and open-contour changes"_test = [] {
         Fixture f;
         auto missing=description(circle());missing.parts[1].id="different";
         error_is(PreparedObjectAnimation::prepare(f.from,f.add(missing)),MorphError::part_set_mismatch);
@@ -214,9 +216,9 @@ int main(int argc,char** argv) {
         // paired automatically, strokes pair with strokes — this one closes into a point, the outline grows.
         auto open=description(triangle(false));
         error_is(PreparedObjectAnimation::prepare(f.add(open),f.to,{.contours=ContourPairing::strict}),MorphError::open_contour);
-        check(PreparedObjectAnimation::prepare(f.add(open),f.to).has_value(),"automatic: the stroke closes into a point, the outline grows");
-    });
-    suite.test("budgets and delegated core errors reject preparation without changing any snapshot",[] {
+        expect(PreparedObjectAnimation::prepare(f.add(open),f.to).has_value()) << "automatic: the stroke closes into a point, the outline grows";
+    };
+    "budgets and delegated core errors reject preparation without changing any snapshot"_test = [] {
         Fixture f;const auto revision=take(f.registry.revision(f.a));
         error_is(PreparedObjectAnimation::prepare({},f.to),MorphError::invalid_snapshot);
         error_is(PreparedObjectAnimation::prepare(f.from,f.to,{.max_parts=0}),MorphError::invalid_options);
@@ -227,18 +229,18 @@ int main(int argc,char** argv) {
         error_is(PreparedObjectAnimation::prepare(f.from,f.to,{.max_cubics=1}),MorphError::cubic_budget);
         MorphOptions options;options.shape.max_input_segments=0;
         auto core=PreparedObjectAnimation::prepare(f.from,f.to,options);
-        error_is(core,MorphError::shape_failure);if(!core) check(core.error().caused_by(ShapeMorphError::invalid_options));
+        error_is(core,MorphError::shape_failure);if(!core) expect(core.error().caused_by(ShapeMorphError::invalid_options));
         const std::array flat{ShapeSegment::line({1,0}),ShapeSegment::line({2,0})};
         auto degenerate=description(take(Contour::copy({{0,0},flat})));
         auto bad=PreparedObjectAnimation::prepare(f.add(degenerate),f.to);
-        error_is(bad,MorphError::shape_failure);if(!bad) check(bad.error().caused_by(ShapeMorphError::degenerate_contour));
-        check(take(f.registry.revision(f.a))==revision);
-    });
-    suite.test("all sample errors preserve caller buffers including late overflowing transforms",[] {
+        error_is(bad,MorphError::shape_failure);if(!bad) expect(bad.error().caused_by(ShapeMorphError::degenerate_contour));
+        expect(take(f.registry.revision(f.a))==revision);
+    };
+    "all sample errors preserve caller buffers including late overflowing transforms"_test = [] {
         Fixture f;auto plan=f.plan();Buffer buffer(plan);
         for(auto& part:buffer.parts) {part.info.id="sentinel";part.local.tx=123;}
         for(auto& curve:buffer.cubics) curve.start={456,789};
-        auto unchanged=[&] {for(const auto& p:buffer.parts) check(p.info.id=="sentinel" && p.local.tx==123);for(const auto& c:buffer.cubics)check(c.start==Vec2{456,789});};
+        auto unchanged=[&] {for(const auto& p:buffer.parts) expect(p.info.id=="sentinel" && p.local.tx==123);for(const auto& c:buffer.cubics)expect(c.start==Vec2{456,789});};
         error_is(PreparedObjectAnimation{}.sample(.5,buffer.output()),MorphError::unprepared);unchanged();
         for(double bad:{std::numeric_limits<double>::quiet_NaN(),std::numeric_limits<double>::infinity(),-std::numeric_limits<double>::infinity()}) {error_is(plan.sample(bad,buffer.output()),MorphError::invalid_progress);unchanged();}
         error_is(plan.sample(.5,{std::span(buffer.parts).first(1),buffer.cubics}),MorphError::output_too_small);unchanged();
@@ -251,27 +253,27 @@ int main(int argc,char** argv) {
         MorphOptions curved;curved.translation_path=PointPath::bend(8);
         auto process_overflow=take(PreparedObjectAnimation::prepare(f.add(x),f.add(y),curved));
         error_is(process_overflow.sample(.5,buffer.output()),MorphError::nonfinite_transform);unchanged();
-    });
-    suite.test("empty groups remain usable and multiple contours preserve compound winding",[] {
+    };
+    "empty groups remain usable and multiple contours preserve compound winding"_test = [] {
         Fixture f;ObjectDescription empty;empty.parts.push_back({.id="group"});
         auto capture=f.add(empty);auto groups=take(PreparedObjectAnimation::prepare(capture,capture));Buffer no_geometry(groups);
-        auto frame=no_geometry.sample(groups,.5);check(frame.cubics.empty() && frame.contours.empty() && !frame.parts[0].fill);
+        auto frame=no_geometry.sample(groups,.5);expect(frame.cubics.empty() && frame.contours.empty() && !frame.parts[0].fill);
         auto source=description(circle());source.parts[1].contours.push_back(circle(.3,true));
         auto target=source;auto a=f.add(source),b=f.add(target);
-        auto valid=take(PreparedObjectAnimation::prepare(a,b));Buffer two(valid);check(two.sample(valid,.5).contours.size()==2);
+        auto valid=take(PreparedObjectAnimation::prepare(a,b));Buffer two(valid);expect(two.sample(valid,.5).contours.size()==2);
         target.parts[1].contours[1]=circle(.3,false);
         error_is(PreparedObjectAnimation::prepare(a,f.add(target),{.contours=ContourPairing::strict}),MorphError::unsupported_topology);
         // Aligned, the hole closes and the inner outline grows instead.
         auto aligned=take(PreparedObjectAnimation::prepare(a,f.add(target)));Buffer three(aligned);
-        check(three.sample(aligned,.5).contours.size()==3,"a pair, a closing hole and a growing outline");
-    });
-    suite.test("endpoint resources and metadata outlive registries and the original plan owner",[] {
+        expect(three.sample(aligned,.5).contours.size()==3) << "a pair, a closing hole and a growing outline";
+    };
+    "endpoint resources and metadata outlive registries and the original plan owner"_test = [] {
         PreparedObjectAnimation retained;
-        { Fixture f;auto original=f.plan();retained=original;check(f.registry.destroy(f.a).has_value(),"destroy source");check(f.registry.destroy(f.b).has_value(),"destroy target"); }
+        { Fixture f;auto original=f.plan();retained=original;expect(f.registry.destroy(f.a).has_value()) << "destroy source";expect(f.registry.destroy(f.b).has_value()) << "destroy target"; }
         Buffer buffer(retained);auto frame=buffer.sample(retained,.75);
-        check(frame.parts[1].info.id=="shape" && retained.from() && retained.to());check_connected(frame);
-    });
-    suite.test("C0 retarget deep owns current pose and releases old preparation and snapshot tables",[] {
+        expect(frame.parts[1].info.id=="shape" && retained.from() && retained.to());check_connected(frame);
+    };
+    "C0 retarget deep owns current pose and releases old preparation and snapshot tables"_test = [] {
         recorded_count=0;recording=true;
         Fixture f;auto old=f.plan();Buffer current(old);auto frame=current.sample(old,.37);
         auto target=f.add(description(triangle(),-8));
@@ -279,21 +281,21 @@ int main(int argc,char** argv) {
         const auto old_tx=frame.parts[1].local.tx;const auto old_fill=frame.parts[1].fill;
         auto* old_payload=allocation_containing(old.identity());
         auto* old_a=allocation_containing(f.from.parts().data());auto* old_b=allocation_containing(f.to.parts().data());
-        recording=false;check(old_payload && old_a && old_b);
+        recording=false;expect(old_payload && old_a && old_b);
         watching[0]=old_payload;watching[1]=old_a;watching[2]=old_b;for(auto& flag:freed)flag=false;
         auto next=take(PreparedObjectAnimation::retarget(frame,target));
-        check(next.identity()!=old.identity() && !next.from() && next.to().object()==target.object());
-        check(next.source_object()==f.a && next.source_revision()==f.from.revision());
-        check(next.parts()[1].from_ref==frame.parts[1].info.from_ref && next.parts()[1].to_ref==take(target.find("shape")));
-        check(f.registry.destroy(f.a).has_value() && f.registry.destroy(f.b).has_value());f.from={};f.to={};old={};
-        for(auto& flag:freed)check(flag.load(),"retarget retains no old plan or endpoint snapshot table");
+        expect(next.identity()!=old.identity() && !next.from() && next.to().object()==target.object());
+        expect(next.source_object()==f.a && next.source_revision()==f.from.revision());
+        expect(next.parts()[1].from_ref==frame.parts[1].info.from_ref && next.parts()[1].to_ref==take(target.find("shape")));
+        expect(f.registry.destroy(f.a).has_value() && f.registry.destroy(f.b).has_value());f.from={};f.to={};old={};
+        for(auto& flag:freed)expect(flag.load()) << "retarget retains no old plan or endpoint snapshot table";
         for(auto& pointer:watching)pointer=nullptr;
         current.parts.clear();current.parts.shrink_to_fit();current.cubics.clear();current.cubics.shrink_to_fit();
-        Buffer output(next);auto zero=output.sample(next,0);check(zero.parts[1].info.id=="shape" && zero.parts[1].local.tx==old_tx && zero.parts[1].fill==old_fill);
-        for(const auto& curve:zero.cubics) for(double t:{0.,.25,.5,.75,1.})check(distance_to(curve.point(t),old_geometry)<1e-9,"retarget zero preserves actual Bezier geometry");
+        Buffer output(next);auto zero=output.sample(next,0);expect(zero.parts[1].info.id=="shape" && zero.parts[1].local.tx==old_tx && zero.parts[1].fill==old_fill);
+        for(const auto& curve:zero.cubics) for(double t:{0.,.25,.5,.75,1.})expect(distance_to(curve.point(t),old_geometry)<1e-9) << "retarget zero preserves actual Bezier geometry";
         for(double t:{.2,.5,.8})check_connected(output.sample(next,t));
-    });
-    suite.test("retarget rejects malformed ranges disconnected cubics and changed part contracts",[] {
+    };
+    "retarget rejects malformed ranges disconnected cubics and changed part contracts"_test = [] {
         Fixture f;auto plan=f.plan();Buffer current(plan);auto frame=current.sample(plan,.5);
         auto target=f.add(description(triangle(),4));
         auto bad=frame;bad.preparation=nullptr;error_is(PreparedObjectAnimation::retarget(bad,target),MorphError::invalid_frame);
@@ -303,9 +305,9 @@ int main(int argc,char** argv) {
         error_is(PreparedObjectAnimation::retarget(bad,target),MorphError::invalid_frame);
         auto missing=description(triangle());missing.parts[1].id="other";
         error_is(PreparedObjectAnimation::retarget(frame,f.add(missing)),MorphError::part_set_mismatch);
-        auto old=plan.identity();check(plan.sample(.5,current.output()).has_value() && plan.identity()==old);
-    });
-    suite.test("warm metadata and caller-buffer sampling add no heap allocation even with active trace",[] {
+        auto old=plan.identity();expect(plan.sample(.5,current.output()).has_value() && plan.identity()==old);
+    };
+    "warm metadata and caller-buffer sampling add no heap allocation even with active trace"_test = [] {
         Fixture f;auto plan=f.plan();Buffer output(plan);(void)output.sample(plan,.25);
         mlibs::trace::start();(void)output.sample(plan,.25);
         const auto before=allocations.load();bool valid=true;double sum=0;
@@ -315,13 +317,12 @@ int main(int argc,char** argv) {
             sum+=frame->cubics[0].control1.x+frame->parts[1].local.tx;
         }
         const auto after=allocations.load();auto trace=mlibs::trace::stop();
-        check(valid && sum!=0 && !trace.events.empty());check_eq(after,before);
-    });
-    if constexpr(threads) suite.test("concurrent arbitrary seeks use independent caller buffers",[] {
+        expect(valid && sum!=0 && !trace.events.empty());expect(eq(after,before));
+    };
+    if constexpr(threads) "concurrent arbitrary seeks use independent caller buffers"_test = [] {
         Fixture f;auto plan=f.plan();
         auto seek=[&](double u) { Buffer buffer(plan);for(int i=0;i<100;++i) {auto frame=buffer.sample(plan,u);if(frame.parts[1].local.tx!=20*u)return false;}return true;};
         auto a=std::async(std::launch::async,[&]{return seek(.25);});auto b=std::async(std::launch::async,[&]{return seek(.75);});
-        check(a.get() && b.get());
-    });
-    return suite.run(argc,argv);
-}
+        expect(a.get() && b.get());
+    };
+}};

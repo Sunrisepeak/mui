@@ -6,10 +6,10 @@ import std;
 import hanim.engine;
 import mlibs.cts;
 import mlibs.hash;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace cts = mlibs::cts;
 
 namespace {
@@ -94,10 +94,9 @@ struct Plays {
 };
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.cts.prepare"};
+UTest cases{"hanim.cts.prepare", [] {
 
-    s.test("a program prepares the same way twice; refusals by kind leave the engine as it was", [] {
+    "a program prepares the same way twice; refusals by kind leave the engine as it was"_test = [] {
         Programs p{*Engine::make()};
         p.a = *p.engine.create_object(shape(false, 0));
         p.b = *p.engine.create_object(shape(true, 40));
@@ -114,11 +113,11 @@ int main(int argc, char** argv) {
                                            {"effects", {composite(anim::morph(p.a, p.b)).with_effect(fx::blur(0, 1)).with_effect(fx::blur(0, 2)),
                                                         {.effects = {.max_effects = 1}}}}}});
         const auto report = suite.run(p, {}, {}, {.subject = "hanim.engine"});
-        check(report.ok(), report.text());
-        check_eq(report.count(cts::Status::passed), std::size_t{7});
-    });
+        expect(report.ok()) << report.text();
+        expect(eq(report.count(cts::Status::passed), std::size_t{7}));
+    };
 
-    s.test("an engine refusing a program beyond its totals publishes none of it", [] {
+    "an engine refusing a program beyond its totals publishes none of it"_test = [] {
         Plays p{*Engine::make({.max_total_parts = 64})};
         for (int i = 0; i < 40; ++i) {
             p.from.push_back(*p.engine.create_object(shape(false, i)));
@@ -127,7 +126,7 @@ int main(int argc, char** argv) {
         // Two playing already, half way: what a refusal must leave as it was.
         const auto first = p.engine.play(anim::morph(p.from[0], p.to[0]));
         const auto second = p.engine.play(parallel(anim::morph(p.from[1], p.to[1]), anim::morph(p.from[2], p.to[2])));
-        check(first && second && p.engine.advance(seconds(.25)).has_value());
+        expect(first && second && p.engine.advance(seconds(.25)).has_value());
         std::vector<Program> all;
         for (std::size_t i = 3; i < 40; ++i) all.push_back(anim::morph(p.from[i], p.to[i]));
         cts::Suite<Plays> suite{"hanim.engine.play", "1"};
@@ -135,10 +134,8 @@ int main(int argc, char** argv) {
                           {.invalid = {{"negative-time", anim::move_through(p.from[3], {{seconds(-1), {1, 0}}})}, {"empty", Program{}}},
                            .over_budget = {{"parts", parallel(std::span<const Program>(all))}}});
         const auto report = suite.run(p, {}, {}, {.subject = "hanim.engine"});
-        check(report.ok(), report.text());
-        check_eq(report.count(cts::Status::passed), std::size_t{3});
-        check_eq(p.engine.size(), std::size_t{2});
-    });
-
-    return s.run(argc, argv);
-}
+        expect(report.ok()) << report.text();
+        expect(eq(report.count(cts::Status::passed), std::size_t{3}));
+        expect(eq(p.engine.size(), std::size_t{2}));
+    };
+}};

@@ -25,4 +25,5 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 "gongfu.ai" = { path = "../ai" }  # the pads that ask for a move: a move list plays each one
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../../base/utils" }

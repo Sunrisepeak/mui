@@ -2,9 +2,9 @@ import std;
 import xrender.vector;
 import mlibs.geom;
 import xrender.raster;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render=xrender;
 namespace raster=xrender::raster;
 namespace geom=mlibs::geom;
@@ -36,12 +36,11 @@ render::DisplayList scene(bool content,float shift=0) {
 }
 raster::Surface draw(const render::DisplayList& list,float scale=1) {
     raster::Surface pixels(static_cast<int>(width*scale),static_cast<int>(height*scale));render::CpuRenderer cpu;
-    auto report=cpu.render(list,pixels,{}, {.scale=scale});check(report.effects_skipped==0);return pixels;
+    auto report=cpu.render(list,pixels,{}, {.scale=scale});expect(report.effects_skipped==0);return pixels;
 }
 }
-int main(int argc,char** argv) {
-    Suite suite{"render.layer-content"};
-    suite.test("nested filter sizes are output logical pixels independent of object transform",[] {
+UTest cases{"render.layer-content", [] {
+    "nested filter sizes are output logical pixels independent of object transform"_test = [] {
         for(float dpi:{1.f,2.f}) {
             render::DisplayList scaled,flattened;
             scaled.push_transform(geom::Affine::translate(20,20)*geom::Affine::scale(2,2));
@@ -52,19 +51,19 @@ int main(int argc,char** argv) {
             }
             scaled.fill_rect({5,5,10,10},geom::Color::white());flattened.fill_rect({30,30,20,20},geom::Color::white());
             for(int i=0;i<2;++i){scaled.pop_layer();flattened.pop_layer();}scaled.pop_transform();
-            check(draw(scaled,dpi).hash()==draw(flattened,dpi).hash(),"recursive offscreen capture does not multiply the filter DPI by object scale");
+            expect(draw(scaled,dpi).hash()==draw(flattened,dpi).hash()) << "recursive offscreen capture does not multiply the filter DPI by object scale";
         }
-    });
-    suite.test("content bounds retain displaced children shadows and nested blur at each DPI",[] {
+    };
+    "content bounds retain displaced children shadows and nested blur at each DPI"_test = [] {
         for(float dpi:{1.f,2.f}) {
             auto automatic=scene(true),reference=scene(false);
-            render::LayerBoundsMap measured;check(measured.measure(automatic,geom::Affine::scale(dpi,dpi),dpi));
-            check(measured.entries().size()==2);
-            const auto* outer=measured.at(1);check(outer && outer->area.width>80*dpi && outer->area.width<150*dpi);
-            check(draw(automatic,dpi).hash()==draw(reference,dpi).hash(),"automatic capture matches a generously bounded real render");
+            render::LayerBoundsMap measured;expect(measured.measure(automatic,geom::Affine::scale(dpi,dpi),dpi));
+            expect(measured.entries().size()==2);
+            const auto* outer=measured.at(1);expect(outer && outer->area.width>80*dpi && outer->area.width<150*dpi);
+            expect(draw(automatic,dpi).hash()==draw(reference,dpi).hash()) << "automatic capture matches a generously bounded real render";
         }
-    });
-    suite.test("identity content scopes preserve ordinary group clipping and recorded copies",[] {
+    };
+    "identity content scopes preserve ordinary group clipping and recorded copies"_test = [] {
         render::DisplayList plain,identity;
         for(auto* list:{&plain,&identity}) {
             list->push_clip({20,20,80,60},geom::CornerRadii::all(11));
@@ -73,21 +72,20 @@ int main(int argc,char** argv) {
             list->fill_rect({10,10,110,90},geom::Color::hex(0x7744dd));
             list->pop_layer();list->pop_clip();
         }
-        check(draw(plain).hash()==draw(identity).hash());
-        render::DisplayList copy;copy.append(identity);check(copy.hash()==identity.hash());check(draw(copy).hash()==draw(identity).hash());
-    });
-    suite.test("incremental damage covers the old and new generated output of moving content scopes",[] {
+        expect(draw(plain).hash()==draw(identity).hash());
+        render::DisplayList copy;copy.append(identity);expect(copy.hash()==identity.hash());expect(draw(copy).hash()==draw(identity).hash());
+    };
+    "incremental damage covers the old and new generated output of moving content scopes"_test = [] {
         render::DamageTracker damage;render::CpuRenderer cpu;raster::Surface retained(width,height);
         for(float shift:{0.f,9.f,-11.f,3.f}) {
             auto list=scene(true,shift);const auto rows=damage.update(list,width,height,1);
-            auto report=cpu.render(list,retained,{}, {.rows=rows});check(report.effects_skipped==0);
-            check(retained.hash()==draw(list).hash(),"partial redraw equals a full output including every halo");
+            auto report=cpu.render(list,retained,{}, {.rows=rows});expect(report.effects_skipped==0);
+            expect(retained.hash()==draw(list).hash()) << "partial redraw equals a full output including every halo";
         }
-    });
-    suite.test("content measurement rejects unbalanced scopes and publishes no valid lookup",[] {
+    };
+    "content measurement rejects unbalanced scopes and publishes no valid lookup"_test = [] {
         render::DisplayList list;scope(list,2,true);list.fill_rect({10,10,5,5},geom::Color::white());
-        render::LayerBoundsMap measured;check(!measured.measure(list,{},1));check(measured.at(0)==nullptr);
-        list.pop_layer();check(measured.measure(list,{},1));check(measured.at(0)!=nullptr);
-    });
-    return suite.run(argc,argv);
-}
+        render::LayerBoundsMap measured;expect(!measured.measure(list,{},1));expect(measured.at(0)==nullptr);
+        list.pop_layer();expect(measured.measure(list,{},1));expect(measured.at(0)!=nullptr);
+    };
+}};

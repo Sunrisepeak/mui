@@ -51,6 +51,7 @@ mlibs.geom = { path = "../../base/geom" }
 mlibs.control = { path = "../../base/control" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../base/utils" }
 mlibs.cts   = { path = "../../base/cts" }
 mcpplibs.os = "0.4.1"

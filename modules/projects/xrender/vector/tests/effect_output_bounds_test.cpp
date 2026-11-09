@@ -4,9 +4,9 @@ import std;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -73,45 +73,44 @@ void compare(std::span<const raster::Rgba8> source, std::span<const raster::Rgba
             changed += different;
             if (!inside(bounds, p, scale)) beyond_geometry += different;
         }
-    check(outside > 1000, std::format("{} has substantial outside-source evidence", c.name));
-    check(escaped == 0, std::format("{} scale {}: {} pixels outside output reach + AA differ from input", c.name, scale, escaped));
-    check(changed > 50, std::format("{} actually runs the effect", c.name));
+    expect(outside > 1000) << std::format("{} has substantial outside-source evidence", c.name);
+    expect(escaped == 0) << std::format("{} scale {}: {} pixels outside output reach + AA differ from input", c.name, scale, escaped);
+    expect(changed > 50) << std::format("{} actually runs the effect", c.name);
     if (c.name == "eight overlapping")
-        check(beyond_geometry > 0, "smooth unions really generate pixels beyond geometry; zero reach would be false");
+        expect(beyond_geometry > 0) << "smooth unions really generate pixels beyond geometry; zero reach would be false";
 }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.effect_output_bounds"};
+UTest effect_output_bounds{"render.effect_output_bounds", [] {
 
-    s.test("declared output reach is independent of capture; undeclared effects fall back conservatively", [] {
+    "declared output reach is independent of capture; undeclared effects fall back conservatively"_test = [] {
         auto& registry = render::effects();
         const auto glass = registry.find("liquid_glass");
-        check(glass.has_value());
+        expect(glass.has_value());
         if (!glass) return;
         for (const auto& c : cases()) {
             const auto p = params(*glass, c);
             const auto output = registry.output_reach(*glass, p);
-            check(output && *output == c.smoothness, std::format("{} only smoothness expands writes", c.name));
-            check(registry.reach(*glass, p) == c.thickness * 2 + c.blur + c.smoothness, "capture retains refraction and blur");
+            expect(output && *output == c.smoothness) << std::format("{} only smoothness expands writes", c.name);
+            expect(registry.reach(*glass, p) == c.thickness * 2 + c.blur + c.smoothness) << "capture retains refraction and blur";
         }
         auto p = registry.params(*glass, {});
         p[10] = -12;
-        check(registry.output_reach(*glass, p) == 12.0f, "direct parameter callers get conservative absolute reach");
+        expect(registry.output_reach(*glass, p) == 12.0f) << "direct parameter callers get conservative absolute reach";
         render::EffectRegistry custom;
         render::EffectInfo external;
         external.name = "external_capture_only";
         external.reach = [](std::span<const float>) { return 17.0f; };
         const auto ref = custom.add(std::move(external));
-        check(custom.output_reach(ref, {}) == 17.0f, "external effects need no new declaration to keep old capture bounds");
-        check(!custom.output_reach(render::EffectRef{}, {}), "unknown effect has unknown bounds");
-        check(!registry.output_reach(*glass, {}), "incomplete parameters cannot prove bounds");
-    });
+        expect(custom.output_reach(ref, {}) == 17.0f) << "external effects need no new declaration to keep old capture bounds";
+        expect(!custom.output_reach(render::EffectRef{}, {})) << "unknown effect has unknown bounds";
+        expect(!registry.output_reach(*glass, {})) << "incomplete parameters cannot prove bounds";
+    };
 
-    s.test("CPU glass preserves every input pixel outside declared output plus AA", [] {
+    "CPU glass preserves every input pixel outside declared output plus AA"_test = [] {
         const auto ref = render::effects().find("liquid_glass");
-        check(ref.has_value());
+        expect(ref.has_value());
         if (!ref) return;
         const auto* info = render::effects().info(*ref);
         for (const auto& c : cases()) for (float scale : {1.0f, 2.0f}) {
@@ -133,7 +132,5 @@ int main(int argc, char** argv) {
             render::run_cpu_effect(*info, {source, target, p, scale, scaled(layer, scale), &backdrop, shapes}, nullptr);
             compare(source.pixels(), target.pixels(), c, scale, *render::effects().output_reach(*ref, p));
         }
-    });
-
-    return s.run(argc, argv);
-}
+    };
+}};

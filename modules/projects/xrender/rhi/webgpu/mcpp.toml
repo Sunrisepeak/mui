@@ -33,6 +33,7 @@ mlibs.rhi    = { path = "../../../../gfx/rhi" }
 mlibs.memory = { path = "../../../../base/memory" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 xengine.cellular.rhi.cts = { path = "../../../xengine/cellular/rhi/cts" }
 hanim.rhi = { path = "../../../hanim/rhi" }
 mlibs.utils = { path = "../../../../base/utils" }

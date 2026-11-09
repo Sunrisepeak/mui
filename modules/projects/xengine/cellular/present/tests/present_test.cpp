@@ -5,9 +5,9 @@
 import std;
 import xengine.cellular;
 import xengine.cellular.present;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace ca = xengine::cellular;
 namespace geom = mlibs::geom;
 namespace raster = xrender::raster;
@@ -46,53 +46,51 @@ bool image_is(const xrender::ImageStore& store, const ca::FieldPresenter& view, 
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"simulation.cellular.present"};
+UTest cases{"simulation.cellular.present", [] {
 
-    s.test("every pixel is its cell's colour after every step; only the changed tiles are recoloured and named", [] {
+    "every pixel is its cell's colour after every step; only the changed tiles are recoloured and named"_test = [] {
         const ca::Shape shape{100, 70};
         const auto rule_list = rules();
         const auto program = ca::Program::prepare(3, rule_list);
-        check(program.has_value());
+        expect(program.has_value());
         if (!program) return;
         xrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3, palette(), {16, 16});
-        check(view.has_value(), view ? "" : view.error());
+        expect(view.has_value()) << (view ? "" : view.error());
         if (!view) return;
         auto cells = field(shape), next = cells;
         const auto first = view->present(cells);
-        check(first && first->whole && first->tiles == 7 * 5, "the first present: all 35 tiles");
-        check(image_is(store, *view, cells), "the first picture");
+        expect(first && first->whole && first->tiles == 7 * 5) << "the first present: all 35 tiles";
+        expect(image_is(store, *view, cells)) << "the first picture";
         std::vector<std::uint8_t> mask(35);
         for (int step = 0; step < 60; ++step) {
-            check(program->step(shape, cells, next, {.tile = {16, 16}, .changed_tiles = mask}).has_value());
+            expect(program->step(shape, cells, next, {.tile = {16, 16}, .changed_tiles = mask}).has_value());
             cells.swap(next);
             const auto before = store.revision(view->image());
             const auto report = view->present(cells, mask);
             const auto changed = static_cast<std::size_t>(std::ranges::count(mask, 1));
-            check(report && report->tiles == changed, std::format("step {}: {} tiles recoloured, {} changed", step, report ? report->tiles : 0, changed));
-            check(store.revision(view->image()) == before + (changed ? 1 : 0), "one update when something changed, none otherwise");
+            expect(report && report->tiles == changed) << std::format("step {}: {} tiles recoloured, {} changed", step, report ? report->tiles : 0, changed);
+            expect(store.revision(view->image()) == before + (changed ? 1 : 0)) << "one update when something changed, none otherwise";
             std::vector<geom::PixelRect> rects;
-            check(!changed || (store.changed_since(view->image(), before, rects) &&
+            expect(!changed || (store.changed_since(view->image(), before, rects) &&
                                std::accumulate(rects.begin(), rects.end(), 0, [](int sum, const geom::PixelRect& r) { return sum + r.width * r.height; }) <=
-                                   static_cast<int>(changed) * 256),
-                  "the update names the changed tiles' cells only");
-            check(image_is(store, *view, cells), std::format("step {}: the picture", step));
+                                   static_cast<int>(changed) * 256)) << "the update names the changed tiles' cells only";
+            expect(image_is(store, *view, cells)) << std::format("step {}: the picture", step);
         }
         // Comparing presents finds the same tiles.
         auto other = ca::FieldPresenter::make(store, shape, 3, palette(), {16, 16});
         auto replay = field(shape), replay_next = replay;
         (void)other->present(replay);
         for (int step = 0; step < 20; ++step) {
-            check(program->step(shape, replay, replay_next, {.tile = {16, 16}, .changed_tiles = mask}).has_value());
+            expect(program->step(shape, replay, replay_next, {.tile = {16, 16}, .changed_tiles = mask}).has_value());
             replay.swap(replay_next);
             const auto report = other->present(replay);
-            check(report && report->tiles == static_cast<std::size_t>(std::ranges::count(mask, 1)), "found by comparison: the mask's tiles");
+            expect(report && report->tiles == static_cast<std::size_t>(std::ranges::count(mask, 1))) << "found by comparison: the mask's tiles";
         }
-        check(image_is(store, *other, replay), "and the same picture");
-    });
+        expect(image_is(store, *other, replay)) << "and the same picture";
+    };
 
-    s.test("drawn: one command; redrawing only the damaged rows gives the full frame byte for byte", [] {
+    "drawn: one command; redrawing only the damaged rows gives the full frame byte for byte"_test = [] {
         const ca::Shape shape{120, 90};
         const auto rule_list = rules();
         const auto program = ca::Program::prepare(3, rule_list);
@@ -110,14 +108,14 @@ int main(int argc, char** argv) {
             view->draw(list, {0, 0, W, H});  // four pixels a cell
         };
         scene();
-        check_eq(list.commands().size(), std::size_t{2});
+        expect(eq(list.commands().size(), std::size_t{2}));
         raster::Surface incremental(W, H);
         xrender::CpuRenderer renderer;
         xrender::DamageTracker tracker;
         (void)renderer.render(list, incremental, resources, {.rows = tracker.update(list, W, H, 1, resources)});
         std::size_t most = 0;
         for (int step = 0; step < 40; ++step) {
-            check(program->step(shape, cells, next, {.tile = {32, 32}, .changed_tiles = mask}).has_value());
+            expect(program->step(shape, cells, next, {.tile = {32, 32}, .changed_tiles = mask}).has_value());
             cells.swap(next);
             (void)view->present(cells, mask);
             scene();
@@ -129,12 +127,12 @@ int main(int argc, char** argv) {
             raster::Surface full(W, H);
             xrender::CpuRenderer fresh;
             (void)fresh.render(list, full, resources);
-            check(std::ranges::equal(incremental.bytes(), full.bytes()), std::format("step {}: the incremental frame is the full one", step));
+            expect(std::ranges::equal(incremental.bytes(), full.bytes())) << std::format("step {}: the incremental frame is the full one", step);
         }
-        check(most > 0 && most < static_cast<std::size_t>(H), std::format("at most {} of {} rows redrawn a step", most, H));
-    });
+        expect(most > 0 && most < static_cast<std::size_t>(H)) << std::format("at most {} of {} rows redrawn a step", most, H);
+    };
 
-    s.test("a snapshot holding the image keeps its pixels; a new palette recolours everything; bad input is refused", [] {
+    "a snapshot holding the image keeps its pixels; a new palette recolours everything; bad input is refused"_test = [] {
         const ca::Shape shape{40, 30};
         xrender::ImageStore store;
         auto view = ca::FieldPresenter::make(store, shape, 3, palette(), {8, 8});
@@ -146,28 +144,26 @@ int main(int argc, char** argv) {
         (void)view->present(cells);
         cells[5 * 40 + 30] = 1;
         (void)view->present(cells);
-        check(std::ranges::equal(held->pixels(), kept), "what another thread holds never changes");
-        check(image_is(store, *view, cells), "and the image is current");
+        expect(std::ranges::equal(held->pixels(), kept)) << "what another thread holds never changes";
+        expect(image_is(store, *view, cells)) << "and the image is current";
         auto bright = palette();
         bright.fallback = geom::Color::white();
-        check(view->recolor(bright).has_value());
+        expect(view->recolor(bright).has_value());
         const auto report = view->present(cells);
-        check(report && report->whole && report->tiles == 5 * 4, "every tile recoloured");
-        check(image_is(store, *view, cells), "in the new palette");
-        check(!view->present(std::span(cells).first(10)), "too few values");
-        check(!view->present(cells, std::vector<std::uint8_t>(3)), "a mask of the wrong size");
-        check(!ca::FieldPresenter::make(store, shape, 1, palette()), "a swatch testing a channel the field has not");
-        check(!ca::FieldPresenter::make(store, {0, 4}, 3, palette()), "an empty field");
+        expect(report && report->whole && report->tiles == 5 * 4) << "every tile recoloured";
+        expect(image_is(store, *view, cells)) << "in the new palette";
+        expect(!view->present(std::span(cells).first(10))) << "too few values";
+        expect(!view->present(cells, std::vector<std::uint8_t>(3))) << "a mask of the wrong size";
+        expect(!ca::FieldPresenter::make(store, shape, 1, palette())) << "a swatch testing a channel the field has not";
+        expect(!ca::FieldPresenter::make(store, {0, 4}, 3, palette())) << "an empty field";
         const auto images = store.size();
         {
             auto gone = ca::FieldPresenter::make(store, shape, 3, palette());
-            check_eq(store.size(), images + 1);
+            expect(eq(store.size(), images + 1));
             gone->release();
         }
-        check_eq(store.size(), images);
+        expect(eq(store.size(), images));
         { auto outlives = ca::FieldPresenter::make(store, shape, 3, palette()); }  // never touches the store when it goes
-        check_eq(store.size(), images + 1);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(store.size(), images + 1));
+    };
+}};

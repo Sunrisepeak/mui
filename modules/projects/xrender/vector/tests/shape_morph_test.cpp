@@ -8,9 +8,11 @@ import xrender.raster;
 import xrender.vector;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 import mcpplibs.os;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -32,7 +34,7 @@ geom::Point placed(hanim::Vec2 p) {
 }
 std::optional<hanim::PreparedShapeMorph> prepare() {
     auto result = hanim::PreparedShapeMorph::prepare({{0, -1}, triangle}, {{0, -1}, circle});
-    check(result.has_value());
+    expect(result.has_value());
     if (!result) return std::nullopt;
     return std::move(*result);
 }
@@ -47,7 +49,7 @@ render::Path original(bool disk) {
 render::Path sampled(const hanim::PreparedShapeMorph& plan, double t) {
     std::vector<hanim::ShapeCubic> cubics(plan.segment_count());
     const auto result = plan.sample(t, cubics);
-    check(result.has_value());
+    expect(result.has_value());
     render::Path path;
     if (!result || cubics.empty()) return path;
     path.move_to(placed(cubics.front().start));
@@ -67,8 +69,8 @@ raster::Surface draw(const render::DisplayList& list, float scale = 1, render::I
     raster::Surface pixels(dimension, dimension);
     render::CpuRenderer renderer;
     const auto report = renderer.render(list, pixels, {images, nullptr}, {.scale = scale});
-    check_eq(report.missing_images, std::size_t{0});
-    check_eq(report.effects_skipped, std::size_t{0});
+    expect(eq(report.missing_images, std::size_t{0}));
+    expect(eq(report.effects_skipped, std::size_t{0}));
     return pixels;
 }
 raster::Surface plain(const render::Path& path, float scale = 1) {
@@ -84,11 +86,11 @@ const std::filesystem::path& directory() {
     return path;
 }
 void write_bytes(std::string_view name, const std::expected<std::vector<std::uint8_t>, std::string>& encoded) {
-    check(encoded.has_value());
+    expect(encoded.has_value());
     if (!encoded) return;
     const auto bytes = std::string_view(reinterpret_cast<const char*>(encoded->data()), encoded->size());
     const auto written = os::fs::write_atomic(directory() / os::fs::from_utf8(name), bytes);
-    check(written.has_value());
+    expect(written.has_value());
 }
 void save(const raster::Surface& surface, std::string_view name) { write_bytes(name, image::encode_png(view(surface))); }
 
@@ -97,7 +99,7 @@ void save(const raster::Surface& surface, std::string_view name) { write_bytes(n
 // allow 18/255 coverage (including subpixel rounding) ONLY in a one-pixel
 // reference boundary band. There is no geometric/image-wide tolerance.
 void endpoint_pixels(const raster::Surface& expected, const raster::Surface& actual, unsigned scale) {
-    check_eq(expected.width(), actual.width());
+    expect(eq(expected.width(), actual.width()));
     unsigned worst = 0, off_band = 0;
     std::uint64_t sum = 0;
     for (int y = 0; y < expected.height(); ++y) for (int x = 0; x < expected.width(); ++x) {
@@ -112,13 +114,13 @@ void endpoint_pixels(const raster::Surface& expected, const raster::Surface& act
             edge = edge || expected.at(xx, yy).a != a.a;
         }
         if (!edge) ++off_band;
-        check(a.r == a.a && a.g == a.a && a.b == a.a, "white reference is premultiplied coverage");
-        check(b.r == b.a && b.g == b.a && b.b == b.a, "sample uses one opaque white paint, not faded copies");
+        expect(a.r == a.a && a.g == a.a && a.b == a.a) << "white reference is premultiplied coverage";
+        expect(b.r == b.a && b.g == b.a && b.b == b.a) << "sample uses one opaque white paint, not faded copies";
     }
     std::println("    endpoint @{}x: max coverage difference {}, sum {}, off boundary {}", scale, worst, sum, off_band);
-    check(worst <= 18, "independent curve flattening remains within declared coverage error");
-    check(off_band == 0, "fully interior and far exterior pixels stay exact");
-    check(sum <= 8192u * scale, "total error stays bounded by the contour perimeter, not image area");
+    expect(worst <= 18) << "independent curve flattening remains within declared coverage error";
+    expect(off_band == 0) << "fully interior and far exterior pixels stay exact";
+    expect(sum <= 8192u * scale) << "total error stays bounded by the contour perimeter, not image area";
 }
 
 struct MaterialRig {
@@ -144,7 +146,7 @@ struct MaterialRig {
         list.begin_node(42);
         if (blur) {
             const auto effect = render::effects().find("blur");
-            check(effect.has_value());
+            expect(effect.has_value());
             if (effect) {
                 const std::array<std::pair<std::string_view, float>, 1> values{{{"radius", 4}}};
                 list.push_layer(1, render::BlendMode::normal, *effect, render::effects().params(*effect, values), path.bounds());
@@ -152,7 +154,7 @@ struct MaterialRig {
         }
         if (tone) {
             const auto effect = render::effects().find("tone");
-            check(effect.has_value());
+            expect(effect.has_value());
             if (effect) {
                 const std::array<std::pair<std::string_view, float>, 4> values{{
                     {"color_r", 1}, {"color_g", 1}, {"color_b", 1}, {"amount", 1}}};
@@ -169,9 +171,8 @@ struct MaterialRig {
 
 } // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"render.shape-morph"};
-    suite.test("original line triangle and cubic circle endpoints survive actual CPU rasterization at 1x and 2x", [] {
+UTest cases{"render.shape-morph", [] {
+    "original line triangle and cubic circle endpoints survive actual CPU rasterization at 1x and 2x"_test = [] {
         const auto plan = prepare(); if (!plan) return;
         for (unsigned scale : {1u, 2u}) for (bool disk : {false, true}) {
             const auto reference = plain(original(disk), static_cast<float>(scale));
@@ -179,19 +180,19 @@ int main(int argc, char** argv) {
             endpoint_pixels(reference, actual, scale);
             save(actual, std::format("{}@{}x.png", disk ? "circle" : "triangle", scale));
             if (!disk) {
-                check(actual.at(95 * static_cast<int>(scale), 34 * static_cast<int>(scale)).a > 200, "top sharp corner retains filled pixels");
-                check(actual.at(34 * static_cast<int>(scale), 158 * static_cast<int>(scale)).a > 200, "left sharp corner survives");
-                check(actual.at(157 * static_cast<int>(scale), 158 * static_cast<int>(scale)).a > 200, "right sharp corner survives");
+                expect(actual.at(95 * static_cast<int>(scale), 34 * static_cast<int>(scale)).a > 200) << "top sharp corner retains filled pixels";
+                expect(actual.at(34 * static_cast<int>(scale), 158 * static_cast<int>(scale)).a > 200) << "left sharp corner survives";
+                expect(actual.at(157 * static_cast<int>(scale), 158 * static_cast<int>(scale)).a > 200) << "right sharp corner survives";
             }
         }
-    });
+    };
 
-    suite.test("middle is one current closed path whose pixels are not a two-image crossfade", [] {
+    "middle is one current closed path whose pixels are not a two-image crossfade"_test = [] {
         const auto plan = prepare(); if (!plan) return;
         const auto path = sampled(*plan, 0.5);
-        check_eq(std::ranges::count(path.verbs(), render::PathVerb::move), std::ptrdiff_t{1});
-        check_eq(std::ranges::count(path.verbs(), render::PathVerb::close), std::ptrdiff_t{1});
-        check_eq(std::ranges::count(path.verbs(), render::PathVerb::cubic), static_cast<std::ptrdiff_t>(plan->segment_count()));
+        expect(eq(std::ranges::count(path.verbs(), render::PathVerb::move), std::ptrdiff_t{1}));
+        expect(eq(std::ranges::count(path.verbs(), render::PathVerb::close), std::ptrdiff_t{1}));
+        expect(eq(std::ranges::count(path.verbs(), render::PathVerb::cubic), static_cast<std::ptrdiff_t>(plan->segment_count())));
         const auto list = list_of(path, render::Paint::solid(geom::Color::white()));
         std::size_t paths = 0, images = 0, layers = 0;
         for (const auto& command : list.commands()) {
@@ -199,20 +200,20 @@ int main(int argc, char** argv) {
             images += std::holds_alternative<render::DrawImage>(command) ? 1u : 0u;
             layers += std::holds_alternative<render::PushLayer>(command) ? 1u : 0u;
         }
-        check_eq(paths, std::size_t{1}); check_eq(images, std::size_t{0}); check_eq(layers, std::size_t{0});
+        expect(eq(paths, std::size_t{1})); expect(eq(images, std::size_t{0})); expect(eq(layers, std::size_t{0}));
         const auto a = plain(original(false)), b = plain(original(true)), middle = draw(list);
         unsigned different_from_fade = 0;
         for (int y = 0; y < side; ++y) for (int x = 0; x < side; ++x) {
             const int average = (static_cast<int>(a.at(x, y).a) + b.at(x, y).a) / 2;
             if (std::abs(static_cast<int>(middle.at(x, y).a) - average) > 64) ++different_from_fade;
         }
-        check(different_from_fade > 200, "a geometric boundary moves; endpoint-exclusive regions are not half-transparent");
-        check(middle.at(96, 96).a == 255, "shared interior is opaque");
-        check(middle.hash() != a.hash() && middle.hash() != b.hash());
+        expect(different_from_fade > 200) << "a geometric boundary moves; endpoint-exclusive regions are not half-transparent";
+        expect(middle.at(96, 96).a == 255) << "shared interior is opaque";
+        expect(middle.hash() != a.hash() && middle.hash() != b.hash());
         save(middle, "middle-geometry.png");
-    });
+    };
 
-    suite.test("real Material key-light parameters change one current geometry without changing coverage", [] {
+    "real Material key-light parameters change one current geometry without changing coverage"_test = [] {
         const auto plan = prepare(); if (!plan) return;
         const auto path = sampled(*plan, 0.5);
         MaterialRig rig;
@@ -220,36 +221,35 @@ int main(int argc, char** argv) {
         const auto mid = draw(rig.frame(path, 0.5), 1, &rig.images);
         const auto cool = draw(rig.frame(path, 1), 1, &rig.images);
         const auto coverage = plain(path);
-        check(warm.hash() != mid.hash() && cool.hash() != mid.hash() && warm.hash() != cool.hash());
-        check(warm.at(96, 96).r > warm.at(96, 96).b + 150);
-        check(cool.at(96, 96).b > cool.at(96, 96).r + 150);
+        expect(warm.hash() != mid.hash() && cool.hash() != mid.hash() && warm.hash() != cool.hash());
+        expect(warm.at(96, 96).r > warm.at(96, 96).b + 150);
+        expect(cool.at(96, 96).b > cool.at(96, 96).r + 150);
         for (int y = 0; y < side; ++y) for (int x = 0; x < side; ++x) {
             const auto alpha = coverage.at(x, y).a;
-            check(warm.at(x, y).a == alpha && mid.at(x, y).a == alpha && cool.at(x, y).a == alpha,
-                  "material processing reuses the same current shape mask");
+            expect(warm.at(x, y).a == alpha && mid.at(x, y).a == alpha && cool.at(x, y).a == alpha) << "material processing reuses the same current shape mask";
         }
         save(warm, "middle-material-warm.png"); save(cool, "middle-material-cool.png");
-    });
+    };
 
-    suite.test("registered tone and blur compose around the current material-painted contour", [] {
+    "registered tone and blur compose around the current material-painted contour"_test = [] {
         const auto plan = prepare(); if (!plan) return;
         const auto path = sampled(*plan, 0.5);
         MaterialRig rig;
         const auto bare = draw(rig.frame(path, 0), 1, &rig.images);
         const auto toned = draw(rig.frame(path, 0, true), 1, &rig.images);
         const auto chain = draw(rig.frame(path, 0, true, true), 1, &rig.images);
-        check(toned.hash() != bare.hash(), "tone changes material RGB");
-        check(chain.hash() != toned.hash(), "blur acts on the already toned pixels");
+        expect(toned.hash() != bare.hash()) << "tone changes material RGB";
+        expect(chain.hash() != toned.hash()) << "blur acts on the already toned pixels";
         const auto gray = toned.at(96, 96);
-        check(gray.r == gray.g && gray.g == gray.b && gray.a == 255);
+        expect(gray.r == gray.g && gray.g == gray.b && gray.a == 255);
         unsigned outside = 0;
         for (int y = 0; y < side; ++y) for (int x = 0; x < side; ++x)
             outside += bare.at(x, y).a == 0 && chain.at(x, y).a > 0 ? 1u : 0u;
-        check(outside > 50, "blur coverage really extends beyond the current path, not just metadata");
+        expect(outside > 50) << "blur coverage really extends beyond the current path, not just metadata";
         save(chain, "middle-material-tone-blur.png");
-    });
+    };
 
-    suite.test("seek and reverse frame order reproduce pixels and emit reviewable actual frames", [] {
+    "seek and reverse frame order reproduce pixels and emit reviewable actual frames"_test = [] {
         const auto plan = prepare(); if (!plan) return;
         MaterialRig rig;
         std::vector<raster::Surface> frames;
@@ -262,12 +262,12 @@ int main(int argc, char** argv) {
         for (unsigned i : {12u, 0u, 8u, 3u, 11u, 1u, 6u, 4u, 9u, 2u, 10u, 5u, 7u}) {
             const double t = static_cast<double>(i) / 12;
             const auto again = draw(rig.frame(sampled(*plan, t), t), 1, &rig.images);
-            check(again.hash() == hashes[i], "arbitrary time is independent of playback history");
+            expect(again.hash() == hashes[i]) << "arbitrary time is independent of playback history";
         }
         for (unsigned i = 12; i > 0; --i) {
             const double t = static_cast<double>(i - 1) / 12;
             frames.push_back(draw(rig.frame(sampled(*plan, t), t), 1, &rig.images));
-            check(frames.back().hash() == hashes[i - 1], "reverse ends at the original first frame");
+            expect(frames.back().hash() == hashes[i - 1]) << "reverse ends at the original first frame";
         }
         raster::Surface strip(side * 5, side);
         for (unsigned tile = 0; tile < 5; ++tile) for (int y = 0; y < side; ++y)
@@ -277,6 +277,5 @@ int main(int argc, char** argv) {
         for (const auto& frame : frames) views.push_back(view(frame));
         write_bytes("triangle-circle-material.webp", image::encode_animated_webp(views, {.delay_num = 1, .delay_den = 12, .lossless = true}));
         std::println("    actual CPU shape/material media: {}", os::fs::utf8(directory()));
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

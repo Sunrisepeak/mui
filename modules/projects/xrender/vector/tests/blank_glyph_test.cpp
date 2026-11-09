@@ -4,9 +4,9 @@ import std;
 import mlibs.geom;
 import xrender.raster;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -56,9 +56,8 @@ Result draw(Kind kind, Placement placement) {
     raster::Surface surface(64, 64);
     render::CpuRenderer cpu;
     const auto report = cpu.render(list, surface, {nullptr, &glyphs}, {.background = geom::Color::white()});
-    check(glyphs.mask_calls > 0, "the fixture resolves a real GlyphSource mask");
-    check(placement == Placement::translation ? glyphs.outline_calls == 0 : glyphs.outline_calls > 0,
-          "the chosen transform exercises the intended mask or outline fallback branch");
+    expect(glyphs.mask_calls > 0) << "the fixture resolves a real GlyphSource mask";
+    expect(placement == Placement::translation ? glyphs.outline_calls == 0 : glyphs.outline_calls > 0) << "the chosen transform exercises the intended mask or outline fallback branch";
     return {report, surface.hash(), glyphs.mask_calls, glyphs.outline_calls};
 }
 
@@ -68,40 +67,38 @@ std::uint64_t untouched() {
 constexpr std::array placements{Placement::translation, Placement::scaled_glyph, Placement::rotated_list};
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite("render.blank-glyph");
-    suite.test("a valid empty coverage is a blank glyph through translation, glyph scaling and list rotation", [] {
+UTest cases{"render.blank-glyph", [] {
+    "a valid empty coverage is a blank glyph through translation, glyph scaling and list rotation"_test = [] {
         for (const auto placement : placements) {
             const auto result = draw(Kind::blank, placement);
-            check(result.report.missing_glyphs == 0, "a valid blank has no missing-glyph diagnostic");
-            check(result.pixels == untouched(), "a blank does not change any pixel");
+            expect(result.report.missing_glyphs == 0) << "a valid blank has no missing-glyph diagnostic";
+            expect(result.pixels == untouched()) << "a blank does not change any pixel";
         }
-    });
-    suite.test("a null mask and empty outline still report a genuinely missing glyph", [] {
+    };
+    "a null mask and empty outline still report a genuinely missing glyph"_test = [] {
         for (const auto placement : placements) {
             const auto result = draw(Kind::missing, placement);
-            check_eq(result.report.missing_glyphs, std::size_t{1});
-            check_eq(result.pixels, untouched());
+            expect(eq(result.report.missing_glyphs, std::size_t{1}));
+            expect(eq(result.pixels, untouched()));
         }
-    });
-    suite.test("a nonempty coverage-only bitmap is drawn normally and remains explicitly unsupported without a transformed outline", [] {
+    };
+    "a nonempty coverage-only bitmap is drawn normally and remains explicitly unsupported without a transformed outline"_test = [] {
         for (const auto placement : placements) {
             const auto result = draw(Kind::bitmap, placement);
             if (placement == Placement::translation) {
-                check_eq(result.report.missing_glyphs, std::size_t{0});
-                check(result.pixels != untouched(), "the ordinary bitmap mask actually paints");
+                expect(eq(result.report.missing_glyphs, std::size_t{0}));
+                expect(result.pixels != untouched()) << "the ordinary bitmap mask actually paints";
             } else {
-                check(result.report.missing_glyphs == 1, "a nonempty unsupported bitmap must not be silently accepted as whitespace");
-                check(result.pixels == untouched(), "the diagnostic fix does not add a new bitmap transformation feature");
+                expect(result.report.missing_glyphs == 1) << "a nonempty unsupported bitmap must not be silently accepted as whitespace";
+                expect(result.pixels == untouched()) << "the diagnostic fix does not add a new bitmap transformation feature";
             }
         }
-    });
-    suite.test("color image fallback still paints with no missing-glyph diagnostic under every placement", [] {
+    };
+    "color image fallback still paints with no missing-glyph diagnostic under every placement"_test = [] {
         for (const auto placement : placements) {
             const auto result = draw(Kind::color, placement);
-            check_eq(result.report.missing_glyphs, std::size_t{0});
-            check(result.pixels != untouched(), "the existing color fallback really paints");
+            expect(eq(result.report.missing_glyphs, std::size_t{0}));
+            expect(result.pixels != untouched()) << "the existing color fallback really paints";
         }
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

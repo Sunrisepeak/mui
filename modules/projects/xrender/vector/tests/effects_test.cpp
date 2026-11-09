@@ -10,8 +10,10 @@ import xrender.raster;
 import xrender.vector;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
@@ -75,22 +77,21 @@ void save(const raster::Surface& s, std::string_view name) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"render.effects"};
+UTest cases{"render.effects", [] {
 
-    s.test("the registry: built-ins in a fixed order, parameters with defaults and limits", [] {
+    "the registry: built-ins in a fixed order, parameters with defaults and limits"_test = [] {
         const std::vector<std::string_view> expected{"dissolve", "wipe", "reveal", "displace", "noise", "chromatic", "blur", "pixelate", "particles"};
         const auto names = render::effects().names();
-        check(names.size() >= expected.size() && std::equal(expected.begin(), expected.end(), names.begin()), "built-ins first, in order");
+        expect(names.size() >= expected.size() && std::equal(expected.begin(), expected.end(), names.begin())) << "built-ins first, in order";
         const auto ref = render::effects().find("dissolve");
-        check(ref && ref->id == 1, "refs are the same in every process");
+        expect(ref && ref->id == 1) << "refs are the same in every process";
         const std::array<std::pair<std::string_view, float>, 2> v{{{"progress", 2.0f}, {"grain", 4}}};
         const auto p = render::effects().params(*ref, v);
-        check(p.size() == 4 && p[0] == 1.0f && p[3] == 4.0f && p[2] == 0.15f, "clamped, given and default");
-        check(!render::effects().find("nope"));
-    });
+        expect(p.size() == 4 && p[0] == 1.0f && p[3] == 4.0f && p[2] == 0.15f) << "clamped, given and default";
+        expect(!render::effects().find("nope"));
+    };
 
-    s.test("every built-in, pinned on every platform", [] {
+    "every built-in, pinned on every platform"_test = [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);
         const auto plain = draw(dl);
@@ -112,15 +113,15 @@ int main(int argc, char** argv) {
             scene(dl, std::pair{name, params});
             const auto out = draw(dl);
             save(out, name);
-            check(out.hash() != plain.hash(), std::format("{} changes the layer", name));
+            expect(out.hash() != plain.hash()) << std::format("{} changes the layer", name);
             std::println("    {:<10} {:016x}", name, out.hash());
             all.u64(out.hash());
         }
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
-        check_eq(all.hex(), std::string("9a97767fe1102700"));
-    });
+        expect(eq(all.hex(), std::string("9a97767fe1102700")));
+    };
 
-    s.test("liquid glass: the backdrop bent, frosted, tinted and lit under the glass; pinned", [] {
+    "liquid glass: the backdrop bent, frosted, tinted and lit under the glass; pinned"_test = [] {
         // A striped backdrop; glass over its middle, a mark on the glass.
         auto build = [](render::DisplayList& dl, std::vector<std::pair<std::string_view, float>> values, std::vector<render::EffectShape> shapes,
                         bool mark = true) {
@@ -142,14 +143,14 @@ int main(int argc, char** argv) {
         // Under the flat middle the backdrop is as it was (the tint aside);
         // at the bevel it is bent: a stripe's edge moves.
         const raster::Rgba8 middle = clear_glass.at(static_cast<int>(layer.x + 30), static_cast<int>(layer.y + 50));
-        check(middle.a == 255, "the glass is over an opaque backdrop");
+        expect(middle.a == 255) << "the glass is over an opaque backdrop";
         build(dl, {{"thickness", 0.0f}, {"tint_a", 0.0f}, {"rim", 0.0f}, {"adaptive", 0.0f}}, {{layer, geom::CornerRadii::all(28)}});
         const auto flat = draw(dl);  // no bevel, no tint, no light: the backdrop itself under the glass
         int moved = 0;
         for (int y = static_cast<int>(layer.y) + 2; y < static_cast<int>(layer.bottom()) - 2; ++y)
             for (int x = static_cast<int>(layer.x) + 2; x < static_cast<int>(layer.x) + 10; ++x)
                 moved += clear_glass.at(x, y) == flat.at(x, y) ? 0 : 1;
-        check(moved > 50, std::format("the bevel bends the backdrop ({} pixels moved)", moved));
+        expect(moved > 50) << std::format("the bevel bends the backdrop ({} pixels moved)", moved);
         build(dl, {{"blur", 8}, {"dispersion", 0.8f}, {"tint_a", 0.3f}}, {{layer, geom::CornerRadii::all(28)}});
         const auto frosted = draw(dl);
         save(frosted, "liquid_glass_frosted");
@@ -159,15 +160,14 @@ int main(int argc, char** argv) {
         const auto group = draw(dl);
         save(group, "liquid_glass_group");
         // Between the two drops, merged: glass where neither shape is alone.
-        check(!(group.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50)) == flat.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50))),
-              "the drops merge across the gap");
+        expect(!(group.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50)) == flat.at(static_cast<int>(layer.x + 65), static_cast<int>(layer.y + 50)))) << "the drops merge across the gap";
         Hash all;
         for (const raster::Surface* s : {&clear_glass, &frosted, &group}) all.u64(s->hash());
         std::println("    liquid_glass {}", all.hex());
-        check_eq(all.hex(), std::string("fed433c73b906b44"));
-    });
+        expect(eq(all.hex(), std::string("fed433c73b906b44")));
+    };
 
-    s.test("the style packs' effects (S2): neon, crt, paper, wobble, metaball — each changes the layer, pinned", [] {
+    "the style packs' effects (S2): neon, crt, paper, wobble, metaball — each changes the layer, pinned"_test = [] {
         // Two rounded shapes in the layer (a switch's track and thumb): what
         // neon lights and metaball merges.
         const std::vector<render::EffectShape> shapes{{{layer.x + 10, layer.y + 30, 70, 40}, geom::CornerRadii::all(20)},
@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
             dl.fill_rect({0, 0, W, H}, geom::Color::hex(0x0f172a));
             dl.begin_node(2);
             const auto ref = render::effects().find(name);
-            check(ref.has_value(), std::string(name));
+            expect(ref.has_value()) << std::string(name);
             const auto params = render::effects().params(*ref, values);
             if (shaped) dl.push_layer(1, render::BlendMode::normal, *ref, params, layer, shapes);
             else dl.push_layer(1, render::BlendMode::normal, *ref, params, layer);
@@ -216,7 +216,7 @@ int main(int argc, char** argv) {
             build(dl, name, params, shaped);
             const auto out = draw(dl);
             save(out, name);
-            check(out.hash() != plain.hash(), std::format("{} changes the layer", name));
+            expect(out.hash() != plain.hash()) << std::format("{} changes the layer", name);
             std::println("    {:<10} {:016x}", name, out.hash());
             all.u64(out.hash());
         }
@@ -224,22 +224,22 @@ int main(int argc, char** argv) {
         build(dl, "metaball", {{"smoothness", 24}}, true);
         const auto merged = draw(dl);
         const auto bridge = merged.at(static_cast<int>(layer.x + 85), static_cast<int>(layer.y + 50));
-        check(bridge.b > 150 && bridge.r < 140, std::format("the bridge is filled: {} {} {}", bridge.r, bridge.g, bridge.b));
+        expect(bridge.b > 150 && bridge.r < 140) << std::format("the bridge is filled: {} {} {}", bridge.r, bridge.g, bridge.b);
         build(dl, "metaball", {{"smoothness", 0}}, true);
         const auto apart = draw(dl).at(static_cast<int>(layer.x + 85), static_cast<int>(layer.y + 50));
-        check(apart.r == 15 && apart.g == 23 && apart.b == 42, "smoothness 0: apart");
+        expect(apart.r == 15 && apart.g == 23 && apart.b == 42) << "smoothness 0: apart";
         // Pinned: GCC and LLVM, Linux, macOS and Windows compute these bytes.
         std::println("    all {}", all.hex());
-        check_eq(all.hex(), std::string("1b2cea8047d48716"));
-    });
+        expect(eq(all.hex(), std::string("1b2cea8047d48716")));
+    };
 
-    s.test("tone: the layer in one colour, its brightness kept; amount 0 is the layer as it is — pinned", [] {
+    "tone: the layer in one colour, its brightness kept; amount 0 is the layer as it is — pinned"_test = [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);
         const auto plain = draw(dl);
         using P = std::vector<std::pair<std::string_view, float>>;
         scene(dl, std::pair{std::string_view("tone"), P{{"amount", 0}}});
-        check(draw(dl).hash() == plain.hash(), "amount 0: as it is");
+        expect(draw(dl).hash() == plain.hash()) << "amount 0: as it is";
         // A neutral tint: every pixel grey, as bright as it was.
         scene(dl, std::pair{std::string_view("tone"), P{{"color_r", 1}, {"color_g", 1}, {"color_b", 1}}});
         const auto grey = draw(dl);
@@ -248,9 +248,9 @@ int main(int argc, char** argv) {
         for (int y = static_cast<int>(layer.y) + 14; y < static_cast<int>(layer.bottom()) - 14; y += 7)
             for (int x = static_cast<int>(layer.x) + 14; x < static_cast<int>(layer.right()) - 14; x += 7) {
                 const auto c = grey.at(x, y), o = plain.at(x, y);
-                check(c.r == c.g && c.g == c.b, std::format("grey at {},{}: {} {} {}", x, y, c.r, c.g, c.b));
+                expect(c.r == c.g && c.g == c.b) << std::format("grey at {},{}: {} {} {}", x, y, c.r, c.g, c.b);
                 const float luma = 0.2126f * o.r + 0.7152f * o.g + 0.0722f * o.b;
-                check(std::abs(static_cast<float>(c.r) - luma) <= 1.5f, std::format("as bright at {},{}: {} for {}", x, y, c.r, luma));
+                expect(std::abs(static_cast<float>(c.r) - luma) <= 1.5f) << std::format("as bright at {},{}: {} for {}", x, y, c.r, luma);
             }
         // A warm tint, half way: the stop of a clock.
         scene(dl, std::pair{std::string_view("tone"), P{{"color_r", 0.85f}, {"color_g", 0.81f}, {"color_b", 0.74f}, {"amount", 0.8f}}});
@@ -260,22 +260,22 @@ int main(int argc, char** argv) {
         all.u64(grey.hash());
         all.u64(warm.hash());
         std::println("    tone {}", all.hex());
-        check_eq(all.hex(), std::string("b05e4b5bbb0ecfb2"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("b05e4b5bbb0ecfb2")));  // GCC and LLVM, every platform
+    };
 
-    s.test("progress 0 is the layer as it is (1 for reveal)", [] {
+    "progress 0 is the layer as it is (1 for reveal)"_test = [] {
         render::DisplayList dl;
         scene(dl, std::nullopt);
         const auto plain = draw(dl);
         for (std::string_view name : {"dissolve", "wipe", "particles"}) {
             scene(dl, std::pair{name, std::vector<std::pair<std::string_view, float>>{{"progress", 0}}});
-            check(draw(dl).hash() == plain.hash(), name);
+            expect(draw(dl).hash() == plain.hash()) << name;
         }
         scene(dl, std::pair{std::string_view("reveal"), std::vector<std::pair<std::string_view, float>>{{"progress", 1}}});
-        check(draw(dl).hash() == plain.hash(), "reveal at 1");
-    });
+        expect(draw(dl).hash() == plain.hash()) << "reveal at 1";
+    };
 
-    if constexpr (threads) s.test("under contention: several renderers at once, each in parallel bands, draw what one thread alone draws", [] {
+    if constexpr (threads) "under contention: several renderers at once, each in parallel bands, draw what one thread alone draws"_test = [] {
         // The promo's tape: a picture drawn small inside a chromatic layer,
         // beside a blur and a dissolve; every frame a little different.
         raster::Surface pic(320, 200);
@@ -336,24 +336,24 @@ int main(int argc, char** argv) {
                     }
                 });
         }
-        check_eq(wrong.load(), 0);
-    });
+        expect(eq(wrong.load(), 0));
+    };
 
-    if constexpr (threads) s.test("bands at the same time render the whole layer's effect exactly", [] {
+    if constexpr (threads) "bands at the same time render the whole layer's effect exactly"_test = [] {
         render::DisplayList dl;
         scene(dl, std::pair{std::string_view("particles"), std::vector<std::pair<std::string_view, float>>{{"progress", 0.5f}, {"seed", 2}}});
         const auto whole = draw(dl);
         Threads pool;
         const auto banded = draw(dl, {.parallel = &pool, .rows_per_task = 16});
-        check(std::ranges::equal(whole.bytes(), banded.bytes()), "parallel bands");
+        expect(std::ranges::equal(whole.bytes(), banded.bytes())) << "parallel bands";
         const std::array<render::RowSpan, 2> rows{{{0, 70}, {70, H}}};
         raster::Surface parts(W, H);
         render::CpuRenderer r;
         (void)r.render(dl, parts, {}, {.background = geom::Color::white(), .rows = rows});
-        check(std::ranges::equal(whole.bytes(), parts.bytes()), "row spans");
-    });
+        expect(std::ranges::equal(whole.bytes(), parts.bytes())) << "row spans";
+    };
 
-    s.test("an animated effect, frame after frame incrementally, is the full render", [] {
+    "an animated effect, frame after frame incrementally, is the full render"_test = [] {
         raster::Surface incremental(W, H);
         render::CpuRenderer renderer;
         render::DamageTracker tracker;
@@ -365,11 +365,11 @@ int main(int argc, char** argv) {
             const auto spans = tracker.update(dl, W, H, 1);
             if (!spans.empty()) (void)renderer.render(dl, incremental, {}, {.background = geom::Color::white(), .rows = spans});
             const auto full = draw(dl);
-            check(std::ranges::equal(incremental.bytes(), full.bytes()), std::format("frame {}", f));
+            expect(std::ranges::equal(incremental.bytes(), full.bytes())) << std::format("frame {}", f);
         }
-    });
+    };
 
-    s.test("particles reach outside their layer; the damage covers where they go", [] {
+    "particles reach outside their layer; the damage covers where they go"_test = [] {
         render::DisplayList dl;
         scene(dl, std::pair{std::string_view("particles"),
                             std::vector<std::pair<std::string_view, float>>{{"progress", 0.6f}, {"seed", 7}, {"spread", 40}, {"gravity", 25}}});
@@ -381,10 +381,10 @@ int main(int argc, char** argv) {
                 const auto px = out.at(x, y);
                 if (!layer.contains(c) && !(px.r == 0xf8 && px.g == 0xfa && px.b == 0xfc)) outside = true;
             }
-        check(outside, "a particle outside the layer");
-    });
+        expect(outside) << "a particle outside the layer";
+    };
 
-    s.test("an effect a program registers is drawn like the built-ins", [] {
+    "an effect a program registers is drawn like the built-ins"_test = [] {
         const auto ref = render::effects().add(
             {"invert", "Colours inverted.", {}, nullptr, [](const render::EffectInput& in) {
                  for (int y = 0; y < in.target.height(); ++y)
@@ -394,13 +394,11 @@ int main(int argc, char** argv) {
                                                static_cast<std::uint8_t>(p.a - p.b), p.a};
                      }
              }});
-        check(render::effects().add({"invert", "again", {}, nullptr, nullptr}).id == ref.id, "a name is registered once");
+        expect(render::effects().add({"invert", "again", {}, nullptr, nullptr}).id == ref.id) << "a name is registered once";
         render::DisplayList dl;
         scene(dl, std::pair{std::string_view("invert"), std::vector<std::pair<std::string_view, float>>{}});
         const auto out = draw(dl);
         const auto px = out.at(static_cast<int>(layer.x + 60), static_cast<int>(layer.y + 50));  // the dark dot, inverted
-        check(px.r > 200 && px.g > 200 && px.b > 200, std::format("{} {} {}", px.r, px.g, px.b));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(px.r > 200 && px.g > 200 && px.b > 200) << std::format("{} {} {}", px.r, px.g, px.b);
+    };
+}};

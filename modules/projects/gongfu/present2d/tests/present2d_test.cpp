@@ -11,8 +11,11 @@ import xrender.raster;
 import xrender.vector;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+// mtest by name: some of its names (tag, suite, body …) are this test's own too.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::operator""_test;
 using namespace gongfu;
 namespace p2 = gongfu::present2d;
 
@@ -160,27 +163,26 @@ void save(const xrender::raster::Surface& s, std::string_view name) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"gongfu.present2d"};
+UTest cases{"gongfu.present2d", [] {
     const p2::Look ink = look(Color::hex(0x1f2430), Color::hex(0x3a4152));
     const p2::Look paper = look(Color::hex(0xe8dcc4), Color::hex(0xb7aa90));
 
-    s.test("the clip is what the fighter does: its move by name, else its mode", [&] {
+    "the clip is what the fighter does: its move by name, else its mode"_test = [&] {
         Match m(rules(), fighter(), fighter());
-        check_eq(p2::clip_name(fighter(), m.state().f[0]), std::string_view("idle"));
+        expect(eq(p2::clip_name(fighter(), m.state().f[0]), std::string_view("idle")));
         m.tick(pad(5, LP), pad(6));  // the right fighter faces left: 6 is back
-        check_eq(p2::clip_name(fighter(), m.state().f[0]), std::string_view("5LP"));
-        check_eq(p2::clip_name(fighter(), m.state().f[1]), std::string_view("walk_back"));
-    });
+        expect(eq(p2::clip_name(fighter(), m.state().f[0]), std::string_view("5LP")));
+        expect(eq(p2::clip_name(fighter(), m.state().f[1]), std::string_view("walk_back")));
+    };
 
-    s.test("a jab's arm reaches on its active frames; the other side is a mirror", [&] {
+    "a jab's arm reaches on its active frames; the other side is a mirror"_test = [&] {
         Match m(rules(), fighter(), fighter());
         const auto rest = p2::pose(ink, fighter(), m.state().f[0], 0);
         m.tick(pad(5, LP), pad(5));
         for (int f = 0; f < 3; ++f) m.tick(pad(5), pad(5));  // frame 4: active
         const auto out = p2::pose(ink, fighter(), m.state().f[0], m.state().frame);
         const float reach_rest = rest[fore_front].tip.x - static_cast<float>(m.state().f[0].pos.x.to_double()), reach = out[fore_front].tip.x - static_cast<float>(m.state().f[0].pos.x.to_double());
-        check(reach > reach_rest + 20, std::format("the fist {} ahead, {} at rest", reach, reach_rest));
+        expect(reach > reach_rest + 20) << std::format("the fist {} ahead, {} at rest", reach, reach_rest);
         // Two fighters standing apart: one pose the other's mirror around the middle.
         Match q(rules(), fighter(), fighter());
         const auto a = p2::pose(ink, fighter(), q.state().f[0], 0), b = p2::pose(ink, fighter(), q.state().f[1], 0);
@@ -188,10 +190,10 @@ int main(int argc, char** argv) {
         bool mirrored = true;
         for (std::size_t i = 0; i < a.size(); ++i)
             mirrored = mirrored && std::abs((a[i].tip.x - mid) + (b[i].tip.x - mid)) < 1e-3f && std::abs(a[i].tip.y - b[i].tip.y) < 1e-3f;
-        check(mirrored, "facing the other way mirrors every bone");
-    });
+        expect(mirrored) << "facing the other way mirrors every bone";
+    };
 
-    s.test("the frames: the stage, both fighters, a spark where the jab lands — pinned", [&] {
+    "the frames: the stage, both fighters, a spark where the jab lands — pinned"_test = [&] {
         Match m(rules(), fighter(), fighter());
         State st = m.state();
         st.f[0].pos.x = 915_fx;
@@ -214,15 +216,15 @@ int main(int argc, char** argv) {
                 save(px, std::format("frame-{}", m.state().frame));
             }
         }
-        check(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; }), "the jab landed");
-        check(pixels[0] != pixels[1] && pixels[1] != pixels[2], "each frame differs");
+        expect(std::ranges::any_of(fx.kept(), [](const p2::Effects::Kept& k) { return k.event.kind == Event::Kind::hit; })) << "the jab landed";
+        expect(pixels[0] != pixels[1] && pixels[1] != pixels[2]) << "each frame differs";
         std::println("    present2d lists {:016x} {:016x} {:016x} pixels {:016x} {:016x} {:016x}", lists[0], lists[1], lists[2], pixels[0], pixels[1], pixels[2]);
         // The list hash covers stroke trims since cd341715; the pixels did not move.
-        check(lists == std::vector<std::uint64_t>{0x2bc57d3dbc61c26bULL, 0xc699396f7f54c996ULL, 0xf052d619b4c80b06ULL}, "lists pinned");
-        check(pixels == std::vector<std::uint64_t>{0x63cbb3e2c177a1bcULL, 0x94b2608af7e6ac66ULL, 0xa8ef2d37eb4b6200ULL}, "pixels pinned");
-    });
+        expect(lists == std::vector<std::uint64_t>{0x2bc57d3dbc61c26bULL, 0xc699396f7f54c996ULL, 0xf052d619b4c80b06ULL}) << "lists pinned";
+        expect(pixels == std::vector<std::uint64_t>{0x63cbb3e2c177a1bcULL, 0x94b2608af7e6ac66ULL, 0xa8ef2d37eb4b6200ULL}) << "pixels pinned";
+    };
 
-    s.test("a reaction's clock (D-90): its first drawing through the hitstop, then retimed to the stun — the onset never skipped", [&] {
+    "a reaction's clock (D-90): its first drawing through the hitstop, then retimed to the stun — the onset never skipped"_test = [&] {
         Match m(rules(), fighter(), fighter());
         State st = m.state();
         st.f[0].pos.x = 915_fx;
@@ -238,19 +240,19 @@ int main(int argc, char** argv) {
             const FighterState& d = m.state().f[1];
             if (d.mode != Mode::hitstun) continue;
             const auto t = fx.reaction_time(1, d, clip);
-            check(t.has_value(), "the reaction is known from its blow");
+            expect(t.has_value()) << "the reaction is known from its blow";
             if (!t) break;
             if (d.stop > 0) stopped_at_onset = stopped_at_onset && *t == 0;
             else seen.push_back(*t);
         }
-        check(stopped_at_onset, "held at the first drawing while the hitstop holds");
-        check(!seen.empty() && seen.front() <= 1 && seen.back() == clip - 1, std::format("from the onset to the last drawing: {}", seen));
-        check(std::ranges::is_sorted(seen), "never backwards");
+        expect(stopped_at_onset) << "held at the first drawing while the hitstop holds";
+        expect(!seen.empty() && seen.front() <= 1 && seen.back() == clip - 1) << std::format("from the onset to the last drawing: {}", seen);
+        expect(std::ranges::is_sorted(seen)) << "never backwards";
         fx.rewind(0);
-        check(!fx.reaction_time(1, m.state().f[1], clip).has_value(), "a rewind forgets the reaction till the next blow");
-    });
+        expect(!fx.reaction_time(1, m.state().f[1], clip).has_value()) << "a rewind forgets the reaction till the next blow";
+    };
 
-    s.test("after a rollback the frame is drawn again the same: the picture is the state's", [&] {
+    "after a rollback the frame is drawn again the same: the picture is the state's"_test = [&] {
         Match m(rules(), fighter(), fighter());
         State st = m.state();
         st.f[0].pos.x = 915_fx;
@@ -277,21 +279,21 @@ int main(int argc, char** argv) {
         }
         xrender::DisplayList after;
         p2::draw(m, ink, paper, fx, scene, after);
-        check(before.hash() == after.hash(), "the same display list");
-    });
+        expect(before.hash() == after.hash()) << "the same display list";
+    };
 
-    s.test("a look file reads, writes back, and reads again the same: the same picture", [] {
+    "a look file reads, writes back, and reads again the same: the same picture"_test = [] {
         auto look = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml"), "kata.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check_eq(look->bones.size(), std::size_t{11});
-        check(look->slots == std::vector<std::string>{"body", "limb"} && look->palettes.size() == 2, "two palettes of two slots");
-        check(look->clips.contains("j.HK") && look->clips.contains("5LP") && look->impacts.size() == 10);
+        expect(eq(look->bones.size(), std::size_t{11}));
+        expect(look->slots == std::vector<std::string>{"body", "limb"} && look->palettes.size() == 2) << "two palettes of two slots";
+        expect(look->clips.contains("j.HK") && look->clips.contains("5LP") && look->impacts.size() == 10);
         const std::string text = p2::write_look(*look);
         auto again = p2::read_look(text, "written.look.gongfu.toml");
-        check(again.has_value(), again ? "" : std::format("{}\n{}", texts(again.error()), text));
+        expect(again.has_value()) << (again ? "" : std::format("{}\n{}", texts(again.error()), text));
         if (!again) return;
-        check(p2::write_look(*again) == text, "what is written reads back as itself");
+        expect(p2::write_look(*again) == text) << "what is written reads back as itself";
         Match m = close_match();
         p2::Effects fx;
         xrender::DisplayList a, b;
@@ -301,10 +303,10 @@ int main(int argc, char** argv) {
         }
         p2::draw(m, *look, *look, fx, {}, a);
         p2::draw(m, *again, *again, fx, {}, b);
-        check(a.hash() == b.hash(), "the same picture");
-    });
+        expect(a.hash() == b.hash()) << "the same picture";
+    };
 
-    s.test("a look's glyphs and a level 3's cinematic read back as themselves; a cinematic naming no clip or glyph is a problem", [] {
+    "a look's glyphs and a level 3's cinematic read back as themselves; a cinematic naming no clip or glyph is a problem"_test = [] {
         std::string text = "footfall = { every = 24, dip = 3, frames = 10 }\n" + read(here() / "data" / "kata.look.gongfu.toml");
         text += R"(
 [glyph."一"]
@@ -324,22 +326,20 @@ quake = [[158, 30, 40]]
 ring = [[158, 70, 0, 700, 30]]
 )";
         auto look = p2::read_look(text, "kata.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const auto& c = look->cinematics.at("finale");
-        check(c.camera.size() == 2 && c.glyph == "一" && c.glyph_ends == std::vector<std::int32_t>{40} && c.seal_frame == 172 && c.flashes.size() == 1);
-        check(c.clouds.count == 6 && c.clouds.high == 900 && c.attacker_path.size() == 2 && c.defender_path.size() == 2 && c.quakes.size() == 1 && c.rings.size() == 1,
-              "clouds, paths, a quake and a ring");
-        check(look->footfall.dip == 3 && look->footfall.frames == 10, "a footfall");
+        expect(c.camera.size() == 2 && c.glyph == "一" && c.glyph_ends == std::vector<std::int32_t>{40} && c.seal_frame == 172 && c.flashes.size() == 1);
+        expect(c.clouds.count == 6 && c.clouds.high == 900 && c.attacker_path.size() == 2 && c.defender_path.size() == 2 && c.quakes.size() == 1 && c.rings.size() == 1) << "clouds, paths, a quake and a ring";
+        expect(look->footfall.dip == 3 && look->footfall.frames == 10) << "a footfall";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, "written back as itself");
+        expect(again && p2::write_look(*again) == written) << "written back as itself";
         auto bad = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml") + "\n[cinematic.finale]\nattacker = \"5XP\"\nglyph = { name = \"永\" }\n", "bad.look.gongfu.toml");
-        check(!bad && has(texts(bad.error()), "plays `5XP`, which is no clip") && has(texts(bad.error()), "writes `永`, which is no glyph"),
-              bad ? "read" : std::format("{}", texts(bad.error())));
-    });
+        expect(!bad && has(texts(bad.error()), "plays `5XP`, which is no clip") && has(texts(bad.error()), "writes `永`, which is no glyph")) << (bad ? "read" : std::format("{}", texts(bad.error())));
+    };
 
-    s.test("a cinematic's bodies: turned, eased along a path, held reacting from each hold's start, standing in a blow's hitstop, launched (the heavy hit where a look has none), afterimages — files read back as themselves", [&] {
+    "a cinematic's bodies: turned, eased along a path, held reacting from each hold's start, standing in a blow's hitstop, launched (the heavy hit where a look has none), afterimages — files read back as themselves"_test = [&] {
         // The keys read and write back.
         const std::string text = read(here() / "data" / "kata.look.gongfu.toml") + R"(
 [cinematic.finale]
@@ -355,22 +355,21 @@ in_front = [[10, 20]]
 reactions = ["hitstun.body", "launched", "slammed"]
 )";
         auto read_back = p2::read_look(text, "kata.look.gongfu.toml");
-        check(read_back.has_value(), read_back ? "" : std::format("{}", texts(read_back.error())));
+        expect(read_back.has_value()) << (read_back ? "" : std::format("{}", texts(read_back.error())));
         if (read_back) {
             const auto& c = read_back->cinematics.at("finale");
-            check(c.attacker_path.size() == 3 && !c.attacker_path[0].ease && c.attacker_path[1].ease && c.defender_path[2].ease, "a path key's ease");
-            check(c.attacker_turn.size() == 1 && c.defender_turn.size() == 1 && c.hitstops.size() == 2 && c.hitstops[1][1] == 8 && c.afterimages.size() == 1 && c.in_front.size() == 1);
-            check(c.reactions.size() == 3 && c.reactions[1] == "launched", "taken reactions are reactions");
+            expect(c.attacker_path.size() == 3 && !c.attacker_path[0].ease && c.attacker_path[1].ease && c.defender_path[2].ease) << "a path key's ease";
+            expect(c.attacker_turn.size() == 1 && c.defender_turn.size() == 1 && c.hitstops.size() == 2 && c.hitstops[1][1] == 8 && c.afterimages.size() == 1 && c.in_front.size() == 1);
+            expect(c.reactions.size() == 3 && c.reactions[1] == "launched") << "taken reactions are reactions";
             const std::string written = p2::write_look(*read_back);
             auto again = p2::read_look(written, "written.look.gongfu.toml");
-            check(again && p2::write_look(*again) == written, "written back as itself");
+            expect(again && p2::write_look(*again) == written) << "written back as itself";
         }
         auto bad = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml") + "\n[cinematic.finale]\nattacker = \"5HP\"\nreactions = [\"lanched\"]\n"
                                                                                        "defender_path = [[0, 0, 0, \"bouncy\"]]\nattacker_turn = [[40, 20]]\n",
                                  "bad.look.gongfu.toml");
-        check(!bad && has(texts(bad.error()), "`lanched` is not a hit reaction") && has(texts(bad.error()), "`bouncy` is not an ease") &&
-                  has(texts(bad.error()), "`attacker_turn` ends after it begins"),
-              bad ? "read" : std::format("{}", texts(bad.error())));
+        expect(!bad && has(texts(bad.error()), "`lanched` is not a hit reaction") && has(texts(bad.error()), "`bouncy` is not an ease") &&
+                  has(texts(bad.error()), "`attacker_turn` ends after it begins")) << (bad ? "read" : std::format("{}", texts(bad.error())));
 
         // Drawn: a fighter whose level 3 lands twice in its cinematic (frames 10 and 30).
         static const Fighter super = [] {
@@ -384,7 +383,7 @@ reactions = ["hitstun.body", "launched", "slammed"]
             return *compile(f);
         }();
         const std::int32_t move = super.find("236236K");
-        check(move >= 0);
+        expect(move >= 0);
         p2::Look a = ink, d = paper;
         a.clips["still"] = p2::Clip{.frames = 1, .loop = true};
         for (p2::Look* l : {&a, &d}) {
@@ -419,54 +418,52 @@ reactions = ["hitstun.body", "launched", "slammed"]
         // Turned: drawn as if it faced the other way.
         p2::CinematicLook turned = plain;
         turned.attacker_turn = {{0, 50}};
-        check(drawn(turned, 20, d) == drawn(plain, 20, d, -1) && drawn(turned, 20, d) != drawn(plain, 20, d), "a turn faces the attacker the other way");
-        check(drawn(turned, 50, d) == drawn(plain, 50, d), "and back after it");
+        expect(drawn(turned, 20, d) == drawn(plain, 20, d, -1) && drawn(turned, 20, d) != drawn(plain, 20, d)) << "a turn faces the attacker the other way";
+        expect(drawn(turned, 50, d) == drawn(plain, 50, d)) << "and back after it";
         // A path key's ease: linear, a quarter of the way at a quarter of the time (eased in and out, less).
         p2::CinematicLook linear = plain, smooth = plain, there = plain;
         linear.defender_path = {{0, {0, 0}, {}}, {20, {100, 0}, hanim::ease::linear}};
         smooth.defender_path = {{0, {0, 0}, {}}, {20, {100, 0}, {}}};
         there.defender_path = {{0, {25, 0}, {}}, {20, {25, 0}, {}}};
-        check(drawn(linear, 5, d) == drawn(there, 5, d) && drawn(smooth, 5, d) != drawn(there, 5, d), "linear along the path");
+        expect(drawn(linear, 5, d) == drawn(there, 5, d) && drawn(smooth, 5, d) != drawn(there, 5, d)) << "linear along the path";
         // Held, the hold's clip plays from the hold's first frame.
         p2::CinematicLook early = plain, late = plain;
         early.holds = {{.from = 10, .to = 30, .bone = fore_front, .along = 28, .body = {0, 110}, .clip = "5LP"}};
         late.holds = {{.from = 20, .to = 40, .bone = fore_front, .along = 28, .body = {0, 110}, .clip = "5LP"}};
         p2::Look jabbing = d;
         jabbing.clips["5LP"] = ink.clips.at("5LP");
-        check(drawn(early, 13, jabbing) == drawn(late, 23, jabbing) && drawn(early, 13, jabbing) != drawn(early, 16, jabbing), "a hold's clip from its start");
+        expect(drawn(early, 13, jabbing) == drawn(late, 23, jabbing) && drawn(early, 13, jabbing) != drawn(early, 16, jabbing)) << "a hold's clip from its start";
         // A hitstop: the struck shakes in it, and its reaction waits till it is over.
         p2::CinematicLook stopped = plain;
         stopped.hitstops = {{10, 6}};
-        check(drawn(stopped, 19, d) == drawn(plain, 13, d), "the reaction three frames in, after the six stood");
-        check(drawn(stopped, 12, d) != drawn(plain, 12, d), "in the hitstop the struck stands and shakes");
+        expect(drawn(stopped, 19, d) == drawn(plain, 13, d)) << "the reaction three frames in, after the six stood";
+        expect(drawn(stopped, 12, d) != drawn(plain, 12, d)) << "in the hitstop the struck stands and shakes";
         // Launched: the look's own, or the heavy hit's where it has none.
         p2::CinematicLook launched = plain, heavy = plain;
         launched.reactions = {"launched"};
         heavy.reactions = {"hitstun.heavy"};
-        check(drawn(launched, 14, d) == drawn(heavy, 14, d), "no `launched`: the heavy hit");
-        check(drawn(launched, 14, launchable) != drawn(heavy, 14, launchable), "its own `launched`");
+        expect(drawn(launched, 14, d) == drawn(heavy, 14, d)) << "no `launched`: the heavy hit";
+        expect(drawn(launched, 14, launchable) != drawn(heavy, 14, launchable)) << "its own `launched`";
         // Launched again (a juggle): it goes on from the first, not again from its start.
         p2::CinematicLook juggled = plain, restarted = plain, kept = plain;
         juggled.reactions = {"launched", "launched"};
         restarted.reactions = {"hitstun.heavy", "launched"};
         kept.reactions = {"launched", "hitstun"};
-        check(drawn(juggled, 29, launchable) == drawn(kept, 29, launchable) && drawn(juggled, 33, launchable) != drawn(restarted, 33, launchable),
-              "launched twice: one turn going on");
+        expect(drawn(juggled, 29, launchable) == drawn(kept, 29, launchable) && drawn(juggled, 33, launchable) != drawn(restarted, 33, launchable)) << "launched twice: one turn going on";
         // In front: the attacker drawn over the defender — the same picture as with the sides swapped.
         p2::CinematicLook over = plain;
         over.in_front = {{0, 50}};
-        check(drawn(over, 20, d) != drawn(plain, 20, d) && drawn(over, 50, d) == drawn(plain, 50, d), "the attacker over the defender over its frames only");
+        expect(drawn(over, 20, d) != drawn(plain, 20, d) && drawn(over, 50, d) == drawn(plain, 50, d)) << "the attacker over the defender over its frames only";
         // Afterimages: the attacker again as it was its trail's frames before.
         p2::Look trailing = a;
         trailing.trail.frames = {3, 6};
         p2::CinematicLook jab = plain, ghosts = plain;
         jab.attacker_clip = ghosts.attacker_clip = "5LP";
         ghosts.afterimages = {{0, 30}};
-        check(drawn(ghosts, 8, d, 1, &trailing) != drawn(jab, 8, d, 1, &trailing) && drawn(ghosts, 40, d, 1, &trailing) == drawn(jab, 40, d, 1, &trailing),
-              "afterimages over their frames only");
-    });
+        expect(drawn(ghosts, 8, d, 1, &trailing) != drawn(jab, 8, d, 1, &trailing) && drawn(ghosts, 40, d, 1, &trailing) == drawn(jab, 40, d, 1, &trailing)) << "afterimages over their frames only";
+    };
 
-    s.test("drawn as an artist would: curves, a light (shadow and rim), drawings swapped at a key, a sleeve that follows its swing", [] {
+    "drawn as an artist would: curves, a light (shadow and rim), drawings swapped at a key, a sleeve that follows its swing"_test = [] {
         const std::string text = R"(gongfu = "0.1"
 name = "drawn"
 light = { from = [-0.6, -0.8], shade = 6, darken = 0.5, shadow = "#000000", rim = 3, rim_color = "#ffffff" }
@@ -512,13 +509,13 @@ angle.arm = [[0, 0], [8, 90], [20, 90]]
 swap.body = [[0, 0], [8, 1], [12, 0]]
 )";
         auto look = p2::read_look(text, "drawn.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check(look->light.shade == 6 && look->parts[0].shape == p2::Shape::curve && look->parts[0].variants.size() == 1 && !look->parts[1].shade, "read");
-        check(look->bones[1].follow.lag == 4 && look->clips.at("swing").swaps.size() == 2, "a follow and a swap");
+        expect(look->light.shade == 6 && look->parts[0].shape == p2::Shape::curve && look->parts[0].variants.size() == 1 && !look->parts[1].shade) << "read";
+        expect(look->bones[1].follow.lag == 4 && look->clips.at("swing").swaps.size() == 2) << "a follow and a swap";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         p2::use_palette(*look, 0);
         const Fighter f = *compile(body());
         FighterState st;
@@ -538,14 +535,14 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         auto grey = [&](const xrender::raster::Surface& px, int x, int y) { return static_cast<int>(px.at(x, y).r); };
         // The arm lies along +x from (0, 100) on the stage: on the picture, from the middle, 100 px above the ground line.
         const int cx = 230, cy = 180;  // the body's middle
-        check(grey(rest, cx, cy) > 110 && grey(rest, cx, cy) < 150, std::format("the middle: {}", grey(rest, cx, cy)));
+        expect(grey(rest, cx, cy) > 110 && grey(rest, cx, cy) < 150) << std::format("the middle: {}", grey(rest, cx, cy));
         // Up and down the column from the middle to the outline (dark): the body's pixels just inside it.
         int first = cy, last = cy;
         while (first > cy - 45 && grey(rest, cx + 30, first - 1) > 40) --first;
         while (last < cy + 45 && grey(rest, cx + 30, last + 1) > 40) ++last;
         first += 1, last -= 1;  // inside the outline's antialiased edge
-        check(first > 0 && grey(rest, cx + 30, first) > grey(rest, cx, cy) + 20, std::format("the rim above: {} over {}", first > 0 ? grey(rest, cx + 30, first) : -1, grey(rest, cx, cy)));
-        check(last > 0 && grey(rest, cx + 30, last) + 20 < grey(rest, cx, cy), std::format("the shadow below: {} under {}", last > 0 ? grey(rest, cx + 30, last) : -1, grey(rest, cx, cy)));
+        expect(first > 0 && grey(rest, cx + 30, first) > grey(rest, cx, cy) + 20) << std::format("the rim above: {} over {}", first > 0 ? grey(rest, cx + 30, first) : -1, grey(rest, cx, cy));
+        expect(last > 0 && grey(rest, cx + 30, last) + 20 < grey(rest, cx, cy)) << std::format("the shadow below: {} under {}", last > 0 ? grey(rest, cx + 30, last) : -1, grey(rest, cx, cy));
         // The swap: frames 8–11 draw the variant (bigger), 0–7 and 12– the points.
         Hash h0, h7, h9, h12;
         auto hash = [&](const xrender::raster::Surface& px, Hash& h) {
@@ -556,32 +553,32 @@ swap.body = [[0, 0], [8, 1], [12, 0]]
         hash(draw_at(still, 9), h9);
         hash(draw_at(still, 12), h12);
         hash(draw_at(still, 13), h7);
-        check(h9.hex() != h12.hex(), "swapped at 8");
-        check(h12.hex() == h7.hex(), "back at 12: the arm still, the picture the same");
+        expect(h9.hex() != h12.hex()) << "swapped at 8";
+        expect(h12.hex() == h7.hex()) << "back at 12: the arm still, the picture the same";
         // The sleeve follows: while the arm swings (frame 6) it lags, so the picture differs from the one without; at rest it does not.
         Hash with_swing, without_swing, with_rest, without_rest;
         hash(draw_at(*look, 6), with_swing);
         hash(draw_at(still, 6), without_swing);
         hash(draw_at(*look, 18), with_rest);
         hash(draw_at(still, 18), without_rest);
-        check(with_swing.hex() != without_swing.hex(), "lagging while it swings");
-        check(with_rest.hex() == without_rest.hex(), "hanging still once it stops");
+        expect(with_swing.hex() != without_swing.hex()) << "lagging while it swings";
+        expect(with_rest.hex() == without_rest.hex()) << "hanging still once it stops";
         // Problems: a swap of no part, a variant it does not have, a follow without a lag.
         std::string bad = text;
         bad.replace(bad.find("swap.body"), 9, "swap.bdy");
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "swaps `bdy`, which is no part's name"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "swaps `bdy`, which is no part's name")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad.replace(bad.find("[8, 1], [12, 0]"), 6, "[8, 2]");
         auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "chooses 2"), b2 ? "read" : std::format("{}", texts(b2.error())));
+        expect(!b2 && has(texts(b2.error()), "chooses 2")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
         bad = text;
         bad.replace(bad.find("lag = 4, "), 9, "");
         auto b3 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b3 && has(texts(b3.error()), "a follow has a `lag`"), b3 ? "read" : std::format("{}", texts(b3.error())));
-    });
+        expect(!b3 && has(texts(b3.error()), "a follow has a `lag`")) << (b3 ? "read" : std::format("{}", texts(b3.error())));
+    };
 
-    s.test("whole-body drawings (D-90): a clip's cels shown in place of the rig, held to their next exposure, at the fighter's place and facing; their sockets on the stage; a file that reads back as itself", [&] {
+    "whole-body drawings (D-90): a clip's cels shown in place of the rig, held to their next exposure, at the fighter's place and facing; their sockets on the stage; a file that reads back as itself"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "cels"
 art_scale = 0.5
@@ -624,18 +621,17 @@ frames = 20
 cels = [[0, "load"], [5, "hit"], [12, "rig"]]
 )";
         auto look = p2::read_look(text, "cels.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check(look->cels.size() == 2 && look->clips.at("punch").exposures.size() == 3, "read");
+        expect(look->cels.size() == 2 && look->clips.at("punch").exposures.size() == 3) << "read";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         const p2::Clip& punch = look->clips.at("punch");
         const auto cel_of = [&](std::string_view n) { return static_cast<std::int32_t>(std::ranges::find(look->cels, n, &p2::Cel::name) - look->cels.begin()); };
         const std::int32_t load_cel = cel_of("load"), hit_cel = cel_of("hit");
-        check(p2::exposed(&punch, 0) == load_cel && p2::exposed(&punch, 4) == load_cel && p2::exposed(&punch, 5) == hit_cel && p2::exposed(&punch, 11) == hit_cel &&
-                  p2::exposed(&punch, 12) == -1,
-              "held to the next exposure; the rig again");
+        expect(p2::exposed(&punch, 0) == load_cel && p2::exposed(&punch, 4) == load_cel && p2::exposed(&punch, 5) == hit_cel && p2::exposed(&punch, 11) == hit_cel &&
+                  p2::exposed(&punch, 12) == -1) << "held to the next exposure; the rig again";
         // The picture: the load pose red, the hit pose blue.
         xrender::ImageStore images;
         std::vector<xrender::raster::Rgba8> px(200 * 100);
@@ -665,28 +661,28 @@ cels = [[0, "load"], [5, "hit"], [12, "rig"]]
         // At half scale the load pose is 50 × 50, its pivot under the fighter (x 200 on screen): red from 175 to 225, above the ground.
         const auto load = draw_at(2, 1), hit = draw_at(7, 1), left = draw_at(7, -1), rig = draw_at(14, 1);
         save(hit, "cel-hit");
-        check(count(load, false, 170, 230) > 2000 && count(load, true, 0, 400) == 0, "the load drawing where the fighter stands");
+        expect(count(load, false, 170, 230) > 2000 && count(load, true, 0, 400) == 0) << "the load drawing where the fighter stands";
         // The hit drawing's pivot is 30 px into it: it reaches forward, 185 to 235 facing right, 165 to 215 facing left (mirrored).
-        check(count(hit, true, 186, 234) > 2000 && count(hit, true, 0, 180) == 0, "the hit drawing reaching forward");
-        check(count(left, true, 166, 214) > 2000 && count(left, true, 220, 400) == 0, "and facing left, mirrored about the fighter");
-        check(count(rig, false, 0, 400) == 0 && count(rig, true, 0, 400) == 0, "the rig again: no drawing");
+        expect(count(hit, true, 186, 234) > 2000 && count(hit, true, 0, 180) == 0) << "the hit drawing reaching forward";
+        expect(count(left, true, 166, 214) > 2000 && count(left, true, 220, 400) == 0) << "and facing left, mirrored about the fighter";
+        expect(count(rig, false, 0, 400) == 0 && count(rig, true, 0, 400) == 0) << "the rig again: no drawing";
         // The fist's socket on the stage: 60 px forward of the pivot, 60 up — at half scale 30 and 30.
         st.facing = 1;
         const p2::Cel& c = look->cels[static_cast<std::size_t>(hit_cel)];
         const auto fist = p2::cel_point(*look, c, st, c.sockets.at("fist").at);
-        check(std::abs(fist.x - 230) < 1e-3 && std::abs(fist.y - 30) < 1e-3, std::format("the fist at ({}, {})", fist.x, fist.y));
+        expect(std::abs(fist.x - 230) < 1e-3 && std::abs(fist.y - 30) < 1e-3) << std::format("the fist at ({}, {})", fist.x, fist.y);
         // Errors: a cel unknown, exposures out of order.
         std::string bad = text;
         bad.replace(bad.find("[5, \"hit\"]"), 10, "[5, \"hti\"]");
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "which is no cel's name"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "which is no cel's name")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad.replace(bad.find("[12, \"rig\"]"), 11, "[3, \"rig\"]");
         auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "go forward in time"), b2 ? "read" : std::format("{}", texts(b2.error())));
-    });
+        expect(!b2 && has(texts(b2.error()), "go forward in time")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
+    };
 
-    s.test("drawn art on bones: a picture's region skinned to a bone and bent at the next one's joint; a file that reads back as itself", [&] {
+    "drawn art on bones: a picture's region skinned to a bone and bent at the next one's joint; a file that reads back as itself"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "art"
 
@@ -725,12 +721,12 @@ ease = "linear"
 angle.fore = [[0, 0], [10, 90]]
 )";
         auto look = p2::read_look(text, "art.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check(look->pictures.size() == 1 && look->parts[0].shape == p2::Shape::image && look->parts[0].bend.size() == 1, "read");
+        expect(look->pictures.size() == 1 && look->parts[0].shape == p2::Shape::image && look->parts[0].bend.size() == 1) << "read";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         // The picture: a red upper half, a blue lower half (where the forearm's art is).
         xrender::ImageStore images;
         std::vector<xrender::raster::Rgba8> px(40 * 200);
@@ -760,11 +756,11 @@ angle.fore = [[0, 0], [10, 90]]
                 below += blue(straight, x, y);
                 beside += blue(bent, x, y);
             }
-        check(below > 1500 && beside > 1500, std::format("the lower half drawn: {} straight, {} bent", below, beside));
+        expect(below > 1500 && beside > 1500) << std::format("the lower half drawn: {} straight, {} bent", below, beside);
         int moved = 0;
         for (int y = 0; y < 300; ++y)
             for (int x = 0; x < 400; ++x) moved += blue(straight, x, y) != blue(bent, x, y);
-        check(moved > 1500, std::format("bent, the forearm's art moved: {} pixels", moved));
+        expect(moved > 1500) << std::format("bent, the forearm's art moved: {} pixels", moved);
         // A bent rest elbow (the forearm at rest across, as painted arms often are): bending it further leaves the
         // shoulder's end of the art on its joint — the bend is measured along the upper arm, not across its width.
         {
@@ -772,7 +768,7 @@ angle.fore = [[0, 0], [10, 90]]
             rested.replace(rested.find("length = 80\n\n[[part]]"), 11, "length = 80\nrest = 100");
             rested.replace(rested.find("angle.fore = [[0, 0], [10, 90]]"), 31, "angle.fore = [[0, 0], [10, -60]]");
             auto bent_rest = p2::read_look(rested, "rested.look.gongfu.toml");
-            check(bent_rest.has_value(), bent_rest ? "" : std::format("{}", texts(bent_rest.error())));
+            expect(bent_rest.has_value()) << (bent_rest ? "" : std::format("{}", texts(bent_rest.error())));
             if (!bent_rest) return;
             bent_rest->pictures[0].ref = look->pictures[0].ref;
             auto draw = [&](std::int32_t t) {
@@ -793,7 +789,7 @@ angle.fore = [[0, 0], [10, 90]]
                     if (red(at_rest, x, y)) top = y;
             for (int x = 0; x < 400; ++x)
                 if (top >= 0 && red(at_rest, x, top)) sx += x, ++n;
-            check(top >= 0 && n > 0, "the upper arm drawn");
+            expect(top >= 0 && n > 0) << "the upper arm drawn";
             if (n == 0) return;
             sx /= n;
             int same = 0, there = 0;
@@ -802,20 +798,20 @@ angle.fore = [[0, 0], [10, 90]]
                     there += red(at_rest, x, y);
                     same += red(at_rest, x, y) && red(turned, x, y);
                 }
-            check(there > 200 && same * 100 >= there * 95, std::format("the shoulder's end stays: {} of {} pixels", same, there));
+            expect(there > 200 && same * 100 >= there * 95) << std::format("the shoulder's end stays: {} of {} pixels", same, there);
         }
         // Problems: a picture not declared, a source outside it.
         std::string bad = text;
         bad.replace(bad.find("picture = \"arm\""), 15, "picture = \"leg\"");
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "no picture is called `leg`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "no picture is called `leg`")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad.replace(bad.find("source = [0, 0, 40, 200]"), 24, "source = [0, 0, 40, 300]");
         auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
-    });
+        expect(!b2 && has(texts(b2.error()), "is not inside picture")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
+    };
 
-    s.test("time standing still: a cinematic's stop draws the whole picture grey toward its tint, drawn art too; before and after it, in colour", [&] {
+    "time standing still: a cinematic's stop draws the whole picture grey toward its tint, drawn art too; before and after it, in colour"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "art"
 
@@ -865,7 +861,7 @@ defender = "hitstun"
 stop = { from = 10, to = 30, tint = "#ffffff" }
 )";
         auto look = p2::read_look(text, "stop.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         // The picture: red and blue halves.
         xrender::ImageStore images;
@@ -933,17 +929,17 @@ stop = { from = 10, to = 30, tint = "#ffffff" }
             p2::draw(m, *look, *look, fx, {}, dl);
             return dl.hash();
         };
-        check(played(13) == played(17) && played(17) != played(8), "before the blow, the struck stands as it was when time stopped");
-        check(played(24) == played(28) && played(24) != played(17), "the blow's effect hangs, the struck stands");
-        check(played(31) != played(33), "from the bell, both go on");
+        expect(played(13) == played(17) && played(17) != played(8)) << "before the blow, the struck stands as it was when time stopped";
+        expect(played(24) == played(28) && played(24) != played(17)) << "the blow's effect hangs, the struck stands";
+        expect(played(31) != played(33)) << "from the bell, both go on";
         const auto before = at(5), still = at(20), after = at(35);
         save(still, "stop-grey");
         const auto b = count(before), s2 = count(still), a = count(after);
-        check(b[1] > 1000 && a[1] > 1000, std::format("in colour before and after: {} and {} red", b[1], a[1]));
-        check(s2[0] == 0, std::format("all grey while it stands: {} coloured pixels", s2[0]));
-    });
+        expect(b[1] > 1000 && a[1] > 1000) << std::format("in colour before and after: {} and {} red", b[1], a[1]);
+        expect(s2[0] == 0) << std::format("all grey while it stands: {} coloured pixels", s2[0]);
+    };
 
-    s.test("a cinematic's effects behind the fighters: drawn under the bodies (a dial standing behind them), over them as `fx`; read back as themselves", [&] {
+    "a cinematic's effects behind the fighters: drawn under the bodies (a dial standing behind them), over them as `fx`; read back as themselves"_test = [&] {
         const std::string base = R"(gongfu = "0.1"
 name = "art"
 
@@ -986,11 +982,11 @@ defender = "still"
 )";
         auto behind = p2::read_look(base + "behind = [[0, \"disc\", 0, 120]]\n", "behind.look.gongfu.toml");
         auto over = p2::read_look(base + "fx = [[0, \"disc\", 0, 120]]\n", "over.look.gongfu.toml");
-        check(behind && over, behind ? (over ? "" : std::format("{}", texts(over.error()))) : std::format("{}", texts(behind.error())));
+        expect(behind && over) << (behind ? (over ? "" : std::format("{}", texts(over.error()))) : std::format("{}", texts(behind.error())));
         if (!behind || !over) return;
         const std::string written = p2::write_look(*behind);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && again->cinematics.at("236236K").behind.size() == 1 && p2::write_look(*again) == written, written);
+        expect(again && again->cinematics.at("236236K").behind.size() == 1 && p2::write_look(*again) == written) << written;
         xrender::ImageStore images;
         std::vector<xrender::raster::Rgba8> px(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255});
         const auto ref = images.add(40, 200, std::move(px));
@@ -1029,11 +1025,11 @@ defender = "still"
             return n;
         };
         const auto under = red(*behind), on = red(*over);
-        check(under[1] > 500 && on[1] > 500, std::format("the disc drawn: {} and {}", under[1], on[1]));
-        check(under[0] > on[0] + 200, std::format("behind, the arm over it: {} red pixels, over it {}", under[0], on[0]));
-    });
+        expect(under[1] > 500 && on[1] > 500) << std::format("the disc drawn: {} and {}", under[1], on[1]);
+        expect(under[0] > on[0] + 200) << std::format("behind, the arm over it: {} red pixels, over it {}", under[0], on[0]);
+    };
 
-    s.test("an afterimage is one silhouette: parts that overlap, and the triangles of their meshes, no darker where they meet (their edges aside)", [&] {
+    "an afterimage is one silhouette: parts that overlap, and the triangles of their meshes, no darker where they meet (their edges aside)"_test = [&] {
         const std::string one = R"(gongfu = "0.1"
 name = "art"
 
@@ -1074,7 +1070,7 @@ tip = [20, 100]
 mesh = [1, 6]
 )";
         auto a = p2::read_look(one, "one.look.gongfu.toml"), b = p2::read_look(two, "two.look.gongfu.toml");
-        check(a && b, "read");
+        expect(a && b) << "read";
         if (!a || !b) return;
         xrender::ImageStore images;
         const auto ref = images.add(40, 200, std::vector<xrender::raster::Rgba8>(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255}));
@@ -1101,7 +1097,7 @@ mesh = [1, 6]
                 tinted += c.r != 255 || c.g != 255 || c.b != 255;
                 differ += c.r != d.r || c.g != d.g || c.b != d.b;
             }
-        check(tinted > 1000 && differ * 10 < tinted, std::format("{} pixels differ of {}", differ, tinted));
+        expect(tinted > 1000 && differ * 10 < tinted) << std::format("{} pixels differ of {}", differ, tinted);
         // And within one part, no lines where its mesh's triangles meet: every tinted pixel inside is the same colour.
         std::map<std::uint32_t, int> colours;
         for (int y = 0; y < 300; ++y)
@@ -1112,10 +1108,10 @@ mesh = [1, 6]
         const auto most = std::ranges::max_element(colours, {}, [](const auto& e) { return e.second; });
         int off = 0;
         for (const auto& [c, n] : colours) off += c != most->first && n > 0 ? n : 0;
-        check(most->second > 1000 && off < most->second / 10, std::format("{} pixels of the tint, {} others (edges)", most->second, off));
-    });
+        expect(most->second > 1000 && off < most->second / 10) << std::format("{} pixels of the tint, {} others (edges)", most->second, off);
+    };
 
-    s.test("a mark (G-20) where it stands: the look's effect played on the floor there while it stands, and not after; read back as itself", [&] {
+    "a mark (G-20) where it stands: the look's effect played on the floor there while it stands, and not after; read back as itself"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "art"
 rewind = { color = "#d4af37", ghosts = 3, frames = 16, mark = "dial" }
@@ -1148,14 +1144,14 @@ size = [20, 40]
 alpha = [1, 0.5]
 )";
         auto look = p2::read_look(text, "mark.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check(look->rewind.mark == "dial", "read");
+        expect(look->rewind.mark == "dial") << "read";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && again->rewind.mark == "dial" && p2::write_look(*again) == written, written);
+        expect(again && again->rewind.mark == "dial" && p2::write_look(*again) == written) << written;
         auto bad = p2::read_look(text.substr(0, text.find("mark = \"dial\"")) + "mark = \"dail\" }\n" + text.substr(text.find("}\n") + 2), "bad.look.gongfu.toml");
-        check(!bad, "an effect the look has not");
+        expect(!bad) << "an effect the look has not";
         xrender::ImageStore images;
         look->pictures[0].ref = images.add(40, 200, std::vector<xrender::raster::Rgba8>(40 * 200, xrender::raster::Rgba8{220, 40, 40, 255}));
         auto drawn = [&](bool marked) {
@@ -1168,7 +1164,7 @@ alpha = [1, 0.5]
             p2::draw(m, *look, *look, p2::Effects{}, {}, dl);
             return dl.hash();
         };
-        check(drawn(true) != drawn(false), "drawn while it stands");
+        expect(drawn(true) != drawn(false)) << "drawn while it stands";
         p2::Look plain = *look;
         plain.rewind.mark.clear();
         Match m(rules(), fighter(), fighter());
@@ -1180,10 +1176,10 @@ alpha = [1, 0.5]
         st.history[0].marked = 0;
         m.restore(st);
         p2::draw(m, plain, plain, p2::Effects{}, {}, b);
-        check(a.hash() == b.hash(), "a look without a mark's effect draws none");
-    });
+        expect(a.hash() == b.hash()) << "a look without a mark's effect draws none";
+    };
 
-    s.test("lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves", [&] {
+    "lit drawn art: a picture's relief and a material light a part from the stage's side; an afterimage is the part's shape in its tint; files read back as themselves"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "lit"
 
@@ -1220,12 +1216,12 @@ tip = [40, 10]
 mesh = [1, 1]
 )";
         auto look = p2::read_look(text, "lit.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
-        check(look->pictures[0].relief && look->pictures[0].relief->bevel == 24 && look->materials.contains("body") && look->materials.at("body").bands == 2, "read");
+        expect(look->pictures[0].relief && look->pictures[0].relief->bevel == 24 && look->materials.contains("body") && look->materials.at("body").bands == 2) << "read";
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         // A grey slab; its relief (a bevel) made as a stage's carrier makes it, once.
         mlibs::image::Image slab{.width = 80, .height = 160, .alpha = mlibs::image::Alpha::straight, .rgba = std::vector<std::uint8_t>(80 * 160 * 4, 0)};
         for (int y = 6; y < 154; ++y)
@@ -1271,8 +1267,8 @@ mesh = [1, 1]
         const auto [fl, fr] = sides(flat);
         const auto [ll, lr] = sides(left);
         const auto [rl, rr] = sides(right);
-        check(std::abs(fl - fr) * 100 < fl, std::format("unlit, both sides alike: {} {}", fl, fr));
-        check(ll > lr * 11 / 10 && rr > rl * 11 / 10, std::format("lit from the left {} > {}; from the right {} > {}", ll, lr, rr, rl));
+        expect(std::abs(fl - fr) * 100 < fl) << std::format("unlit, both sides alike: {} {}", fl, fr);
+        expect(ll > lr * 11 / 10 && rr > rl * 11 / 10) << std::format("lit from the left {} > {}; from the right {} > {}", ll, lr, rr, rl);
         // An afterimage: the part's shape, all in its tint.
         const auto ghost = draw(&from_left, Color::hex(0xff3ea5));
         int pink = 0, other = 0;
@@ -1282,19 +1278,19 @@ mesh = [1, 1]
                 if (p.r + p.g + p.b == 0) continue;
                 (p.r > 200 && p.g < 90 && p.b > 130 ? pink : other) += 1;
             }
-        check(pink > 5000 && other < pink / 10, std::format("the afterimage in its tint: {} pink, {} other", pink, other));
+        expect(pink > 5000 && other < pink / 10) << std::format("the afterimage in its tint: {} pink, {} other", pink, other);
         // Problems: a material not declared; a material on a shape that is not drawn art.
         std::string bad = text;
         bad += "material = \"skin\"\n";
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "no material is called `skin`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "no material is called `skin`")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad += "\n[[part]]\nbone = \"torso\"\nshape = \"capsule\"\nmaterial = \"body\"\n";
         auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "lights an image part"), b2 ? "read" : std::format("{}", texts(b2.error())));
-    });
+        expect(!b2 && has(texts(b2.error()), "lights an image part")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
+    };
 
-    s.test("a grip (two-bone IK): the back hand stays on the staff wherever the front arm swings it; let go, the arm hangs as the clip has it; a file that reads back as itself", [] {
+    "a grip (two-bone IK): the back hand stays on the staff wherever the front arm swings it; let go, the arm hangs as the clip has it; a file that reads back as itself"_test = [] {
         const std::string text = R"(gongfu = "0.1"
 name = "grip"
 
@@ -1372,11 +1368,11 @@ angle.front = [[0, 0], [20, 80]]
 grip.hands = [[0, 1], [10, 1], [20, 0]]
 )";
         auto look = p2::read_look(text, "grip.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         for (const std::int32_t facing : {1, -1}) {
             FighterState st;
             st.facing = facing;
@@ -1386,33 +1382,32 @@ grip.hands = [[0, 1], [10, 1], [20, 0]]
                 const p2::BonePlace& staff = pose[2];
                 const double hx = staff.joint.x + 20 * std::cos(staff.angle), hy = staff.joint.y + 20 * std::sin(staff.angle);
                 const double miss = std::hypot(pose[4].tip.x - hx, pose[4].tip.y - hy);
-                check(miss < 0.01, std::format("facing {}, frame {}: the hand is {} from its place on the staff", facing, t, miss));
-                check(std::hypot(pose[4].joint.x - pose[3].tip.x, pose[4].joint.y - pose[3].tip.y) < 0.01, "the forearm hangs from the elbow");
+                expect(miss < 0.01) << std::format("facing {}, frame {}: the hand is {} from its place on the staff", facing, t, miss);
+                expect(std::hypot(pose[4].joint.x - pose[3].tip.x, pose[4].joint.y - pose[3].tip.y) < 0.01) << "the forearm hangs from the elbow";
             }
             // The foot on the ground where the fighter stands, `at` ahead (stepping in clip `aimed`).
             for (const auto& [clip, t, ahead] : {std::tuple{"swing", 0, 10.0}, std::tuple{"aimed", 5, 20.0}, std::tuple{"aimed", 10, 30.0}}) {
                 p2::pose_clip(*look, clip, t, st, pose);
-                check(std::hypot(pose[6].tip.x - ahead * facing, pose[6].tip.y) < 0.01, std::format("facing {}: the foot at ({}, {})", facing, pose[6].tip.x, pose[6].tip.y));
+                expect(std::hypot(pose[6].tip.x - ahead * facing, pose[6].tip.y) < 0.01) << std::format("facing {}: the foot at ({}, {})", facing, pose[6].tip.x, pose[6].tip.y);
             }
             // Aimed: the arm's angle to the world, whatever the body does (mirrored facing left).
             p2::pose_clip(*look, "aimed", 0, st, pose);
             const double want = facing > 0 ? -std::numbers::pi / 6 : std::numbers::pi + std::numbers::pi / 6;
-            check(std::abs(std::remainder(pose[1].angle - want, 2 * std::numbers::pi)) < 1e-9, std::format("aimed: {}", pose[1].angle));
+            expect(std::abs(std::remainder(pose[1].angle - want, 2 * std::numbers::pi)) < 1e-9) << std::format("aimed: {}", pose[1].angle);
             p2::pose_clip(*look, "swing", 20, st, pose);  // let go: the arm as the clip has it (straight down the back)
-            check(std::abs(std::remainder(pose[3].angle + std::numbers::pi / 2, 2 * std::numbers::pi)) < 1e-6,
-                  std::format("let go, the upper arm hangs straight down: {}", pose[3].angle));
+            expect(std::abs(std::remainder(pose[3].angle + std::numbers::pi / 2, 2 * std::numbers::pi)) < 1e-6) << std::format("let go, the upper arm hangs straight down: {}", pose[3].angle);
         }
         std::string bad = text;
         bad.replace(bad.find("lower = \"lower\""), 15, "lower = \"staff\"");
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "is not a child of `upper`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "is not a child of `upper`")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad.replace(bad.find("grip.hands"), 10, "grip.hand");
         auto b2 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "holds `hand`, which is no grip"), b2 ? "read" : std::format("{}", texts(b2.error())));
-    });
+        expect(!b2 && has(texts(b2.error()), "holds `hand`, which is no grip")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
+    };
 
-    s.test("key poses by name: a clip keyed by poses makes the tracks they say, a key may change its pose; files read back as themselves", [] {
+    "key poses by name: a clip keyed by poses makes the tracks they say, a key may change its pose; files read back as themselves"_test = [] {
         const std::string text = R"(gongfu = "0.1"
 name = "poses"
 
@@ -1449,32 +1444,32 @@ ease = "linear"
 poses = [[0, "stance"], [4, "jab", "out_expo"], [6, "jab", { aim = { body = 80 }, rise = -4 }], [12, "stance"]]
 )";
         auto look = p2::read_look(text, "poses.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         FighterState st;
         st.facing = 1;
         p2::Pose pose;
         p2::pose_clip(*look, "punch", 4, st, pose);
-        check(std::abs(pose[1].angle) < 1e-9, std::format("the jab's arm straight out: {}", pose[1].angle));
+        expect(std::abs(pose[1].angle) < 1e-9) << std::format("the jab's arm straight out: {}", pose[1].angle);
         p2::pose_clip(*look, "punch", 6, st, pose);
-        check(std::abs(pose[0].angle - 80 * std::numbers::pi / 180) < 1e-9 && std::abs(pose[0].joint.y - 76) < 1e-4, "the key's change: the body leaning, lower");
+        expect(std::abs(pose[0].angle - 80 * std::numbers::pi / 180) < 1e-9 && std::abs(pose[0].joint.y - 76) < 1e-4) << "the key's change: the body leaning, lower";
         p2::pose_clip(*look, "punch", 0, st, pose);
-        check(std::abs(pose[1].angle + 60 * std::numbers::pi / 180) < 1e-9, "the stance's arm");
+        expect(std::abs(pose[1].angle + 60 * std::numbers::pi / 180) < 1e-9) << "the stance's arm";
         auto bad = [&](std::string_view from, std::string_view to, std::string_view want) {
             std::string b = text;
             b.replace(b.find(from), from.size(), to);
             auto r = p2::read_look(b, "bad.look.gongfu.toml");
-            check(!r && has(texts(r.error()), want), r ? std::string("read") : std::format("{}", texts(r.error())));
+            expect(!r && has(texts(r.error()), want)) << (r ? std::string("read") : std::format("{}", texts(r.error())));
         };
         bad("[4, \"jab\"", "[4, \"jbb\"", "no pose is called `jbb`");
         bad("from = \"stance\"", "from = \"jab\"", "is built on itself");
         bad("aim = { body = 90, arm = -60 }", "aim = { arm = -60 }", "does not aim `body`");
-    });
+    };
 
-    s.test("effects from a look's pictures: a sprite grows and fades, a stroke is drawn out along its curve, droplets fly and fall; a cut-in band slides in — files read back as themselves", [] {
+    "effects from a look's pictures: a sprite grows and fades, a stroke is drawn out along its curve, droplets fly and fall; a cut-in band slides in — files read back as themselves"_test = [] {
         const std::string text = R"(gongfu = "0.1"
 name = "ink"
 
@@ -1537,13 +1532,13 @@ alpha = [1, 1]
 ease = "linear"
 )";
         auto look = p2::read_look(text, "ink.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "written.look.gongfu.toml");
-        check(again && p2::write_look(*again) == written, again ? written : std::format("{}", texts(again.error())));
-        check(look->fx.at("splash").length() == 20 && look->fx.at("slash").length() == 12, "lengths");
-        check(look->impacts.size() == 1 && look->impacts[0].fx == "splash" && look->cutins.contains("L3"), "named");
+        expect(again && p2::write_look(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
+        expect(look->fx.at("splash").length() == 20 && look->fx.at("slash").length() == 12) << "lengths";
+        expect(look->impacts.size() == 1 && look->impacts[0].fx == "splash" && look->cutins.contains("L3")) << "named";
         xrender::ImageStore images;
         look->pictures[0].ref = images.add(64, 32, std::vector<xrender::raster::Rgba8>(64 * 32, xrender::raster::Rgba8{20, 20, 20, 255}));
         p2::Painter painter;
@@ -1561,11 +1556,11 @@ ease = "linear"
             return std::pair{n, out.hash()};
         };
         const auto s0 = inked("splash", 0), s5 = inked("splash", 5), s12 = inked("splash", 12), s30 = inked("splash", 30);
-        check(s0.first > 0 && s5.first > s0.first, std::format("the splash grows: {} then {} pixels", s0.first, s5.first));
-        check(s12.first > 0 && s30.first == 0, std::format("droplets fly on after the splash, then nothing: {}, {}", s12.first, s30.first));
+        expect(s0.first > 0 && s5.first > s0.first) << std::format("the splash grows: {} then {} pixels", s0.first, s5.first);
+        expect(s12.first > 0 && s30.first == 0) << std::format("droplets fly on after the splash, then nothing: {}, {}", s12.first, s30.first);
         const auto k0 = inked("slash", 0), k3 = inked("slash", 3), k7 = inked("slash", 7);
-        check(k0.first > 0 && k3.first > 2 * k0.first && k7.first == k3.first, std::format("drawn out along its curve, then held: {}, {}, {}", k0.first, k3.first, k7.first));
-        check(inked("slash", 3).second == k3.second, "the same picture every time");
+        expect(k0.first > 0 && k3.first > 2 * k0.first && k7.first == k3.first) << std::format("drawn out along its curve, then held: {}, {}, {}", k0.first, k3.first, k7.first);
+        expect(inked("slash", 3).second == k3.second) << "the same picture every time";
         // A sprite travelling: from its place to its destination along an arc `lift` high at the middle.
         auto centre = [&](double age) {
             xrender::DisplayList dl;
@@ -1583,22 +1578,22 @@ ease = "linear"
         const auto [x5, y5] = centre(5);
         const auto [x10, y10] = centre(10);
         // The picture's middle is x 200; the stage's 100 up is y 150 (ground 250).
-        check(std::abs(x0 - 100) < 2 && std::abs(x10 - 300) < 2 && std::abs(x5 - 200) < 2, std::format("along: {:.1f} {:.1f} {:.1f}", x0, x5, x10));
-        check(std::abs(y0 - y10) < 1 && std::abs((y0 - y5) - 60) < 2, std::format("over the arc: {:.1f} {:.1f} {:.1f}", y0, y5, y10));
+        expect(std::abs(x0 - 100) < 2 && std::abs(x10 - 300) < 2 && std::abs(x5 - 200) < 2) << std::format("along: {:.1f} {:.1f} {:.1f}", x0, x5, x10);
+        expect(std::abs(y0 - y10) < 1 && std::abs((y0 - y5) - 60) < 2) << std::format("over the arc: {:.1f} {:.1f} {:.1f}", y0, y5, y10);
         // The cut-in: sliding in, then across the band (the middle 40%).
         xrender::DisplayList dl;
         dl.fill_rect({0, 0, 400, 300}, Color::hex(0xffffff));
         painter.panel(*look, look->cutins.at("L3"), 10, 1, scene, dl);
         xrender::raster::Surface out(400, 300);
         xrender::CpuRenderer{}.render(dl, out, {&images, nullptr}, {.scale = 1});
-        check(out.at(200, 150).r < 60 && out.at(200, 20).r > 200 && out.at(200, 280).r > 200, "a band across the middle");
+        expect(out.at(200, 150).r < 60 && out.at(200, 20).r > 200 && out.at(200, 280).r > 200) << "a band across the middle";
         std::string bad = text;
         bad.replace(bad.find("fx = \"splash\""), 14, "fx = \"splosh\"");
         auto b1 = p2::read_look(bad, "bad.look.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "plays `splosh`, which is no effect of the look"), b1 ? "read" : std::format("{}", texts(b1.error())));
-    });
+        expect(!b1 && has(texts(b1.error()), "plays `splosh`, which is no effect of the look")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
+    };
 
-    s.test("a stage's painted layers: a picture's region standing in a layer, moving by its parallax, mirrored when flipped; files read back as themselves", [&] {
+    "a stage's painted layers: a picture's region standing in a layer, moving by its parallax, mirrored when flipped; files read back as themselves"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "painted"
 sky = ["#000000", "#000000"]
@@ -1621,17 +1616,17 @@ at = [760, 100]
 width = 400
 )";
         auto st = p2::read_stage(text, "painted.stage.gongfu.toml");
-        check(st.has_value(), st ? "" : std::format("{}", texts(st.error())));
+        expect(st.has_value()) << (st ? "" : std::format("{}", texts(st.error())));
         if (!st) return;
-        check(st->pictures.size() == 1 && st->layers[0].images.size() == 1 && st->layers[0].images[0].width == 400, "read");
+        expect(st->pictures.size() == 1 && st->layers[0].images.size() == 1 && st->layers[0].images[0].width == 400) << "read";
         const std::string written = p2::write_stage(*st);
         auto again = p2::read_stage(written, "written.stage.gongfu.toml");
-        check(again && p2::write_stage(*again) == written, again ? written : std::format("{}", texts(again.error())));
+        expect(again && p2::write_stage(*again) == written) << (again ? written : std::format("{}", texts(again.error())));
         // The fighters' contact shadows in the stage's colour: read, and written back.
         auto shaded = p2::read_stage(text.substr(0, text.find("\n[[picture]]")) + "contact = \"#10203080\"\nlight = { color = \"#ffb070\" }\n",
                                      "shaded.stage.gongfu.toml");
-        check(shaded && std::abs(shaded->contact.a - 128 / 255.0f) < 1e-6f && p2::write_stage(*shaded).contains("contact = "), "contact read and written");
-        check(shaded && shaded->light_color && p2::write_stage(*shaded).contains("color = "), "the light's colour read and written");
+        expect(shaded && std::abs(shaded->contact.a - 128 / 255.0f) < 1e-6f && p2::write_stage(*shaded).contains("contact = ")) << "contact read and written";
+        expect(shaded && shaded->light_color && p2::write_stage(*shaded).contains("color = ")) << "the light's colour read and written";
         // A picture: its left half red, its right half blue.
         xrender::ImageStore images;
         std::vector<xrender::raster::Rgba8> px(64 * 32);
@@ -1662,26 +1657,26 @@ width = 400
         const auto middle = draw(*st, 960), moved = draw(*st, 1360);
         save(middle, "painted-middle");
         // Bottom left at 760 along: 280 px left of the middle (480 − 200), 100 up from the ground.
-        check(std::abs(red_from(middle) - 280) <= 1, std::format("its left edge at {}", red_from(middle)));  // within its edge's smoothing
-        check(blue_from(middle) > red_from(middle), "red, then blue");
+        expect(std::abs(red_from(middle) - 280) <= 1) << std::format("its left edge at {}", red_from(middle));  // within its edge's smoothing
+        expect(blue_from(middle) > red_from(middle)) << "red, then blue";
         // The camera 400 units on: a layer at parallax 0.25 goes 100 the other way.
-        check(std::abs(red_from(moved) - 180) <= 1, std::format("moved by its parallax to {}", red_from(moved)));
+        expect(std::abs(red_from(moved) - 180) <= 1) << std::format("moved by its parallax to {}", red_from(moved));
         p2::Stage flipped = *st;
         flipped.layers[0].images[0].flip = true;
         const auto mirror = draw(flipped, 960);
-        check(std::abs(blue_from(mirror) - 280) <= 1 && red_from(mirror) > blue_from(mirror) + 100, std::format("flipped: blue from {}, then red from {}", blue_from(mirror), red_from(mirror)));
+        expect(std::abs(blue_from(mirror) - 280) <= 1 && red_from(mirror) > blue_from(mirror) + 100) << std::format("flipped: blue from {}, then red from {}", blue_from(mirror), red_from(mirror));
         // Problems: a picture not declared, a source outside it.
         std::string bad = text;
         bad.replace(bad.find("picture = \"far\"\nsource"), 15, "picture = \"fur\"");
         auto b1 = p2::read_stage(bad, "bad.stage.gongfu.toml");
-        check(!b1 && has(texts(b1.error()), "no picture is called `fur`"), b1 ? "read" : std::format("{}", texts(b1.error())));
+        expect(!b1 && has(texts(b1.error()), "no picture is called `fur`")) << (b1 ? "read" : std::format("{}", texts(b1.error())));
         bad = text;
         bad.replace(bad.find("source = [0, 0, 64, 32]"), 23, "source = [0, 0, 64, 64]");
         auto b2 = p2::read_stage(bad, "bad.stage.gongfu.toml");
-        check(!b2 && has(texts(b2.error()), "is not inside picture"), b2 ? "read" : std::format("{}", texts(b2.error())));
-    });
+        expect(!b2 && has(texts(b2.error()), "is not inside picture")) << (b2 ? "read" : std::format("{}", texts(b2.error())));
+    };
 
-    s.test("a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself", [&] {
+    "a stage's art: layers by parallax, generators from a seed, sway and flicker by the frame, the world's light; a file that reads back as itself"_test = [&] {
         const std::string text = R"(gongfu = "0.1"
 name = "test"
 sky = ["#f3eadb", "#e4d5bb"]
@@ -1724,15 +1719,15 @@ color = "#ffcc66"
 flicker = 0.4
 )";
         auto stage = p2::read_stage(text, "test.stage.gongfu.toml");
-        check(stage.has_value(), stage ? "" : std::format("{}", texts(stage.error())));
+        expect(stage.has_value()) << (stage ? "" : std::format("{}", texts(stage.error())));
         if (!stage) return;
-        check(stage->layers.size() == 3 && stage->layers[0].shapes.size() == 1 + 5 + 4 && stage->layers[2].front, "a lattice's paper and bars; a front layer");
-        check(stage->layers[1].shapes.size() > 25, std::format("bamboo: {} shapes", stage->layers[1].shapes.size()));
+        expect(stage->layers.size() == 3 && stage->layers[0].shapes.size() == 1 + 5 + 4 && stage->layers[2].front) << "a lattice's paper and bars; a front layer";
+        expect(stage->layers[1].shapes.size() > 25) << std::format("bamboo: {} shapes", stage->layers[1].shapes.size());
         auto again = p2::read_stage(text, "test.stage.gongfu.toml");
-        check(again && p2::write_stage(*again) == p2::write_stage(*stage), "a generator gives the same shapes from its seed");
+        expect(again && p2::write_stage(*again) == p2::write_stage(*stage)) << "a generator gives the same shapes from its seed";
         const std::string written = p2::write_stage(*stage);
         auto back = p2::read_stage(written, "written.stage.gongfu.toml");
-        check(back && p2::write_stage(*back) == written, back ? "written back as itself" : std::format("{}", texts(back.error())));
+        expect(back && p2::write_stage(*back) == written) << (back ? "written back as itself" : std::format("{}", texts(back.error())));
         // Drawn: the bamboo sways over time; the far layer moves less than the near one as the camera pans.
         Match m = close_match();
         p2::Effects fx;
@@ -1744,17 +1739,17 @@ flicker = 0.4
             p2::draw(mm, ink, paper, fx, scene, dl);
             return dl.hash();
         };
-        check(hash_at(1) != hash_at(60), "swaying");
+        expect(hash_at(1) != hash_at(60)) << "swaying";
         xrender::DisplayList plain, art;
         p2::draw(m, ink, paper, fx, {}, plain);
         p2::draw(m, ink, paper, fx, scene, art);
-        check(plain.hash() != art.hash(), "the art is drawn");
+        expect(plain.hash() != art.hash()) << "the art is drawn";
         // Problems at their place: a misspelt key, a generator's bad field.
         auto bad = p2::read_stage(text + "\n[[layer]]\nname = \"x\"\nparalax = 1\n", "bad.stage.gongfu.toml");
-        check(!bad && has(texts(bad.error()), "a layer has no key `paralax`"), bad ? "read" : std::format("{}", texts(bad.error())));
-    });
+        expect(!bad && has(texts(bad.error()), "a layer has no key `paralax`")) << (bad ? "read" : std::format("{}", texts(bad.error())));
+    };
 
-    s.test("problems in a look at their line and column, with the nearest right word", [] {
+    "problems in a look at their line and column, with the nearest right word"_test = [] {
         const std::string text = R"(gongfu = "0.1"
 name = "broken"
 
@@ -1794,7 +1789,7 @@ shake = [2, 6]
 spark = { style = "rays", colour = "#ffd166" }
 )";
         auto bad = p2::read_look(text, "broken.look.gongfu.toml");
-        check(!bad.has_value());
+        expect(!bad.has_value());
         if (bad) return;
         const auto t = texts(bad.error());
         for (std::string_view want : {"broken.look.gongfu.toml:10:1: the first palette has no slot `bdy` (did you mean `body`?)",
@@ -1807,18 +1802,18 @@ spark = { style = "rays", colour = "#ffd166" }
                                       "frame 20 comes after frame 30",
                                       "clip `idle` turns `tail`, which is no bone",
                                       "impact `light`'s spark has no key `colour` (did you mean `color`?)"})
-            check(has(t, want), std::format("{}: {}", want, t));
-    });
+            expect(has(t, want)) << std::format("{}: {}", want, t);
+    };
 
-    s.test("impacts: a hit's profile by its name, the block's and the KO's by theirs, the rest by default", [&] {
+    "impacts: a hit's profile by its name, the block's and the KO's by theirs, the rest by default"_test = [&] {
         p2::Look l = ink;
         l.impacts = {{.name = "light", .shake = 9, .shake_frames = 10, .zoom = 0.1f, .zoom_frames = 10, .spark = p2::Spark::bolt},
                      {.name = "block", .spark = p2::Spark::shards}};
         p2::bind(l, fighter());
-        check(l.impact_of == std::vector<std::int32_t>{0}, "the fighter's `light` is the look's first");
+        expect(l.impact_of == std::vector<std::int32_t>{0}) << "the fighter's `light` is the look's first";
         Event hit{.kind = Event::Kind::hit, .impact = 0}, block{.kind = Event::Kind::block, .impact = 0}, ko{.kind = Event::Kind::ko};
-        check(&p2::impact_for(l, hit) == &l.impacts[0] && &p2::impact_for(l, block) == &l.impacts[1]);
-        check(&p2::impact_for(l, ko) == &p2::default_impact(Event::Kind::ko), "no `ko` profile: the default");
+        expect(&p2::impact_for(l, hit) == &l.impacts[0] && &p2::impact_for(l, block) == &l.impacts[1]);
+        expect(&p2::impact_for(l, ko) == &p2::default_impact(Event::Kind::ko)) << "no `ko` profile: the default";
         // The camera: punched in and shaken at contact, as the profile says, and still again after.
         Match m = close_match();
         p2::Effects fx;
@@ -1829,19 +1824,18 @@ spark = { style = "rays", colour = "#ffd166" }
             m.tick(pad(5), pad(5));
             fx.record(m);
         }
-        check(!fx.kept().empty(), "the jab landed");
+        expect(!fx.kept().empty()) << "the jab landed";
         const p2::Camera plain = p2::frame_camera(m, scene), punched = p2::view_camera(m, l, l, fx, scene);
-        check(punched.zoom > plain.zoom * 1.05 && (punched.x != plain.x || punched.y != plain.y),
-              std::format("zoom {} → {}, x {} → {}", plain.zoom, punched.zoom, plain.x, punched.x));
+        expect(punched.zoom > plain.zoom * 1.05 && (punched.x != plain.x || punched.y != plain.y)) << std::format("zoom {} → {}, x {} → {}", plain.zoom, punched.zoom, plain.x, punched.x);
         for (int f = 0; f < 12; ++f) {
             m.tick(pad(5), pad(5));
             fx.record(m);
         }
         const p2::Camera later = p2::view_camera(m, l, l, fx, scene), still = p2::frame_camera(m, scene);
-        check(later.zoom == still.zoom && later.x == still.x && later.y == still.y, "the shake and the punch are over");
-    });
+        expect(later.zoom == still.zoom && later.x == still.x && later.y == still.y) << "the shake and the punch are over";
+    };
 
-    s.test("a giant's footfalls: walking, the camera dips on each step and is back between them; standing, it never dips", [&] {
+    "a giant's footfalls: walking, the camera dips on each step and is back between them; standing, it never dips"_test = [&] {
         p2::Look heavy, light;
         heavy.footfall = {.every = 24, .dip = 3, .frames = 8};
         Match m = close_match();
@@ -1857,15 +1851,15 @@ spark = { style = "rays", colour = "#ffd166" }
             if (phase == 0) dips += y < plain;
             if (phase >= 8) level += y == plain;
         }
-        check(dips == 2 && level == 32, std::format("dips {}, level {}", dips, level));
+        expect(dips == 2 && level == 32) << std::format("dips {}, level {}", dips, level);
         Match idle = close_match();
         for (int f = 0; f < 30; ++f) {
             idle.tick(pad(5), pad(5));
-            check(p2::view_camera(idle, heavy, light, fx, scene).y == p2::view_camera(idle, light, light, fx, scene).y, "standing: no dip");
+            expect(p2::view_camera(idle, heavy, light, fx, scene).y == p2::view_camera(idle, light, light, fx, scene).y) << "standing: no dip";
         }
-    });
+    };
 
-    s.test("set pieces (G-15) drawn: a whole pane, a cracked one, one that turns projectiles back — the owner's glass; pinned", [&] {
+    "set pieces (G-15) drawn: a whole pane, a cracked one, one that turns projectiles back — the owner's glass; pinned"_test = [&] {
         Match m = close_match();
         State st = m.state();
         const Fixed mid = m.system().stage_width / 2;
@@ -1885,25 +1879,24 @@ spark = { style = "rays", colour = "#ffd166" }
         Hash h;
         h.u64(dl.hash());
         std::println("    panes {}", h.hex());
-        check_eq(h.hex(), std::string("6de55fbe33f431db"));  // the list hash covers stroke trims since cd341715
+        expect(eq(h.hex(), std::string("6de55fbe33f431db")));  // the list hash covers stroke trims since cd341715
         // A pane's colours read back from a look file.
         auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\" }\n" +
                                       read(here() / "data" / "kata.look.gongfu.toml"),
                                   "kata.look.gongfu.toml");
-        check(look && look->pane.reflect == Color::parse("#ffd36be6") && p2::read_look(p2::write_look(*look), "w.look.gongfu.toml")->pane.glass == look->pane.glass,
-              "the pane's colours, written back");
-    });
+        expect(look && look->pane.reflect == Color::parse("#ffd36be6") && p2::read_look(p2::write_look(*look), "w.look.gongfu.toml")->pane.glass == look->pane.glass) << "the pane's colours, written back";
+    };
 
-    s.test("set pieces drawn from a picture: the whole region standing on a pane, the cracked one once worn, a gold edge on one that turns projectiles back; read back", [&] {
+    "set pieces drawn from a picture: the whole region standing on a pane, the cracked one once worn, a gold edge on one that turns projectiles back; read back"_test = [&] {
         auto look = p2::read_look("pane = { glass = \"#9fd8ff4c\", edge = \"#ffffffcc\", shine = \"#ffffff80\", reflect = \"#ffd36be6\", picture = \"fx\", "
                                   "whole = [0, 0, 10, 30], cracked = [10, 0, 10, 30] }\n" +
                                       read(here() / "data" / "kata.look.gongfu.toml") + "\n[[picture]]\nname = \"fx\"\nfile = \"fx.webp\"\nsize = [20, 30]\n",
                                   "kata.look.gongfu.toml");
-        check(look.has_value(), look ? "" : std::format("{}", texts(look.error())));
+        expect(look.has_value()) << (look ? "" : std::format("{}", texts(look.error())));
         if (!look) return;
         const std::string written = p2::write_look(*look);
         auto again = p2::read_look(written, "w.look.gongfu.toml");
-        check(again && again->pane.picture == 0 && again->pane.cracked.x == 10 && p2::write_look(*again) == written, "the pane's picture, written back");
+        expect(again && again->pane.picture == 0 && again->pane.cracked.x == 10 && p2::write_look(*again) == written) << "the pane's picture, written back";
         // The picture: its left half blue (whole), its right half red (cracked).
         std::vector<xrender::raster::Rgba8> px(20 * 30);
         for (int y = 0; y < 30; ++y)
@@ -1930,11 +1923,10 @@ spark = { style = "rays", colour = "#ffd166" }
             return out.at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto whole = at(mid - 150_fx), cracked = at(mid + 150_fx);
-        check(whole.b > 200 && whole.r < 60 && cracked.r > 200 && cracked.b < 60,
-              std::format("whole {} {} {}, cracked {} {} {}", whole.r, whole.g, whole.b, cracked.r, cracked.g, cracked.b));
-    });
+        expect(whole.b > 200 && whole.r < 60 && cracked.r > 200 && cracked.b < 60) << std::format("whole {} {} {}, cracked {} {} {}", whole.r, whole.g, whole.b, cracked.r, cracked.g, cracked.b);
+    };
 
-    s.test("hit feel: the struck shakes through the hitstop; the camera shakes only where the impact asks", [&] {
+    "hit feel: the struck shakes through the hitstop; the camera shakes only where the impact asks"_test = [&] {
         const auto play = [&](float shake) {
             p2::Look l = ink;
             l.impacts = {{.name = "light", .shake = shake, .shake_frames = 8, .spark_count = 0, .spark_frames = 0}};
@@ -1958,16 +1950,16 @@ spark = { style = "rays", colour = "#ffd166" }
         };
         const auto [still_lists, still_moved, stops] = play(0);
         const auto [shaken_lists, shaken_moved, _] = play(6);
-        check(std::ranges::none_of(still_moved, std::identity{}), "a light impact (shake 0) leaves the camera alone");
-        check(std::ranges::any_of(shaken_moved, std::identity{}), "an impact that shakes moves it");
+        expect(std::ranges::none_of(still_moved, std::identity{})) << "a light impact (shake 0) leaves the camera alone";
+        expect(std::ranges::any_of(shaken_moved, std::identity{})) << "an impact that shakes moves it";
         // Both stand still in the hitstop: frame to frame, only the struck's shake changes the picture.
         int stopped = 0, changed = 0;
         for (std::size_t f = 1; f < stops.size(); ++f)
             if (stops[f - 1] > 1 && stops[f] > 0) ++stopped, changed += still_lists[f] != still_lists[f - 1];
-        check(stopped >= 3 && changed == stopped, std::format("{} of {} stopped frames shaken", changed, stopped));
-    });
+        expect(stopped >= 3 && changed == stopped) << std::format("{} of {} stopped frames shaken", changed, stopped);
+    };
 
-    s.test("each spark style and flash draws its own picture, pinned", [&] {
+    "each spark style and flash draws its own picture, pinned"_test = [&] {
         std::vector<std::uint64_t> lists;
         Hash all;
         for (const p2::Spark style : {p2::Spark::rays, p2::Spark::ring, p2::Spark::splash, p2::Spark::shards, p2::Spark::bolt, p2::Spark::cracks}) {
@@ -1991,14 +1983,14 @@ spark = { style = "rays", colour = "#ffd166" }
                 save(px, std::format("spark-{}-{}", static_cast<int>(style), static_cast<int>(flash)));
             }
         }
-        check_eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size());
+        expect(eq(std::set<std::uint64_t>(lists.begin(), lists.end()).size(), lists.size()));
         std::println("    sparks {}", all.hex());
-        check_eq(all.hex(), std::string("37ddd5753e77d72a"));  // the list hash covers stroke trims since cd341715
-    });
+        expect(eq(all.hex(), std::string("37ddd5753e77d72a")));  // the list hash covers stroke trims since cd341715
+    };
 
-    s.test("the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned", [] {
+    "the training fighter's look, every clip at three moments: a contact sheet (saved), its picture pinned"_test = [] {
         auto look = p2::read_look(read(here() / "data" / "kata.look.gongfu.toml"), "kata.look.gongfu.toml");
-        check(look.has_value());
+        expect(look.has_value());
         if (!look) return;
         // A fighter whose moves are named as the clips are, so pose() plays each.
         FighterDef def = body();
@@ -2040,8 +2032,6 @@ spark = { style = "rays", colour = "#ffd166" }
         xrender::CpuRenderer{}.render(dl, px, {}, {.scale = 1});
         save(px, "kata-clips");
         std::println("    kata clips {:016x}", picture(px));
-        check_eq(picture(px), std::uint64_t{0xbe828cd8a3d52feeULL});
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(picture(px), std::uint64_t{0xbe828cd8a3d52feeULL}));
+    };
+}};

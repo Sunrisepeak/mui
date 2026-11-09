@@ -5,18 +5,19 @@
 // staircase morphing into the curve.
 import std;
 import hanim.engine;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+// mtest by name: some of its names (tag, suite, body …) are this test's own too.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::eq, mcpplibs::mtest::operator""_test;
 
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
     if constexpr (requires { result.error().text(); })
-        check(bool(result), result ? std::string() : result.error().text());
+        expect(bool(result)) << (result ? std::string() : result.error().text());
     else
-        check(bool(result));
+        expect(bool(result));
     if (!result) std::abort();
     if constexpr (!std::is_void_v<T>) return std::move(*result);
 }
@@ -74,89 +75,87 @@ Vec2 home(std::string_view id) {
 double moved(const std::pair<Vec2, double>& pose, std::string_view id) { return std::hypot(pose.first.x - home(id).x, pose.first.y - home(id).y); }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.pixels"};
+UTest cases{"hanim.pixels", [] {
 
-    s.test("one picture three ways: a part a pixel; an outline an ink, its holes and corners its own; smoothed with the same segments", [] {
+    "one picture three ways: a part a pixel; an outline an ink, its holes and corners its own; smoothed with the same segments"_test = [] {
         const auto cells = take(pixel_cells(face));
-        check_eq(cells.size(), std::size_t{17});
+        expect(eq(cells.size(), std::size_t{17}));
         const auto pixels = take(pixel_object("face", face, {.form = PixelForm::pixels}));
-        check_eq(pixels.parts.size(), std::size_t{18});  // the root and a part a pixel
-        check(pixels.parts[1].id == pixel_id(0, 0) && near(pixels.parts[1].local.tx, 5) && near(pixels.parts[1].local.ty, 5));
+        expect(eq(pixels.parts.size(), std::size_t{18}));  // the root and a part a pixel
+        expect(pixels.parts[1].id == pixel_id(0, 0) && near(pixels.parts[1].local.tx, 5) && near(pixels.parts[1].local.ty, 5));
 
         const auto outline = take(pixel_object("face", face));
-        check_eq(outline.parts.size(), std::size_t{4});  // the root and an ink each
+        expect(eq(outline.parts.size(), std::size_t{4}));  // the root and an ink each
         const auto& ink_o = outline.parts[1];
-        check(ink_o.id == ink_id('o') && ink_o.fill == face.inks[0].color);
+        expect(ink_o.id == ink_id('o') && ink_o.fill == face.inks[0].color);
         // The outline ink's region covers every ink after it: the ear, and the
         // face of 4 × 4 — two loops (they touch only at a corner).
-        check_eq(ink_o.contours.size(), std::size_t{2});
+        expect(eq(ink_o.contours.size(), std::size_t{2}));
         double covered = 0;
         for (const Contour& c : ink_o.contours) covered += area(c);
-        check(near(covered, 17 * 100), std::format("the outline ink's region: 17 cells, {} by area", covered / 100));
+        expect(near(covered, 17 * 100)) << std::format("the outline ink's region: 17 cells, {} by area", covered / 100);
         // The body's region is the body and the eye; the eye's, one cell.
         const auto& ink_b = outline.parts[2];
-        check(ink_b.contours.size() == 1 && near(area(ink_b.contours[0]), 4 * 100));
-        check(near(area(outline.parts[3].contours[0]), 100));
+        expect(ink_b.contours.size() == 1 && near(area(ink_b.contours[0]), 4 * 100));
+        expect(near(area(outline.parts[3].contours[0]), 100));
 
         const auto smooth = take(pixel_object("face", face, {.form = PixelForm::smooth}));
-        check_eq(smooth.parts.size(), outline.parts.size());
+        expect(eq(smooth.parts.size(), outline.parts.size()));
         for (std::size_t i = 1; i < smooth.parts.size(); ++i)
             for (std::size_t c = 0; c < smooth.parts[i].contours.size(); ++c)
-                check_eq(smooth.parts[i].contours[c].segment_count(), outline.parts[i].contours[c].segment_count());
-        check(area(smooth.parts[3].contours[0]) < 100, "rounded off: the smooth eye is smaller than its square");
+                expect(eq(smooth.parts[i].contours[c].segment_count(), outline.parts[i].contours[c].segment_count()));
+        expect(area(smooth.parts[3].contours[0]) < 100) << "rounded off: the smooth eye is smaller than its square";
         // A loop's start, the middle of an edge, is the same in both.
-        check(take(smooth.parts[3].contours[0].view()).start == take(outline.parts[3].contours[0].view()).start);
-    });
+        expect(take(smooth.parts[3].contours[0].view()).start == take(outline.parts[3].contours[0].view()).start);
+    };
 
-    s.test("what a picture cannot be is refused", [] {
-        check(pixel_object("face", {{{'o', {}}}, {"ox"}, 10}).error() == ObjectError::invalid_color, "an unknown ink");
-        check(pixel_object("face", {{{'o', {}}, {'o', {}}}, {"o"}, 10}).error() == ObjectError::duplicate_id, "an ink twice");
-        check(pixel_object("face", {{{'o', {}}}, {"o"}, 0}).error() == ObjectError::invalid_coordinate, "no size");
-        check(pixel_object("face", face, {.form = PixelForm::smooth, .smoothing = 2}).error() == ObjectError::invalid_coordinate);
-        check(pixel_object("", face).error() == ObjectError::invalid_id);
-    });
+    "what a picture cannot be is refused"_test = [] {
+        expect(pixel_object("face", {{{'o', {}}}, {"ox"}, 10}).error() == ObjectError::invalid_color) << "an unknown ink";
+        expect(pixel_object("face", {{{'o', {}}, {'o', {}}}, {"o"}, 10}).error() == ObjectError::duplicate_id) << "an ink twice";
+        expect(pixel_object("face", {{{'o', {}}}, {"o"}, 0}).error() == ObjectError::invalid_coordinate) << "no size";
+        expect(pixel_object("face", face, {.form = PixelForm::smooth, .smoothing = 2}).error() == ObjectError::invalid_coordinate);
+        expect(pixel_object("", face).error() == ObjectError::invalid_id);
+    };
 
-    s.test("scattered: at rest at the start; the nearest gone first; all far and clear at the end; the same seed the same flight", [] {
+    "scattered: at rest at the start; the nearest gone first; all far and clear at the end; the same seed the same flight"_test = [] {
         Flight scatter([](ObjectRef o) { return anim::scatter_out(o, face, {.seed = 7}); });
-        check(near(scatter.length, .9, 1e-9), std::format("0.9 s by default: {}", scatter.length));
+        expect(near(scatter.length, .9, 1e-9)) << std::format("0.9 s by default: {}", scatter.length);
         const auto start = scatter.at(0);
-        check_eq(start.size(), std::size_t{17});
-        for (const auto& [id, pose] : start) check(near(moved(pose, id), 0) && near(pose.second, 1), id);
+        expect(eq(start.size(), std::size_t{17}));
+        for (const auto& [id, pose] : start) expect(near(moved(pose, id), 0) && near(pose.second, 1)) << id;
         // A fifth in: the middle of the body (it starts at once) has gone further than the ear (the farthest, last).
         const auto early = scatter.at(.2);
-        check(moved(early.at(pixel_id(2, 2)), pixel_id(2, 2)) > 1 && near(moved(early.at(pixel_id(0, 0)), pixel_id(0, 0)), 0), "the nearest first");
+        expect(moved(early.at(pixel_id(2, 2)), pixel_id(2, 2)) > 1 && near(moved(early.at(pixel_id(0, 0)), pixel_id(0, 0)), 0)) << "the nearest first";
         const auto middle = scatter.at(.45);
         int on_the_way = 0;
         for (const auto& [id, pose] : middle) on_the_way += pose.second > .01 && pose.second < .99 ? 1 : 0;
-        check(on_the_way > 8, std::format("halfway, most are fading: {}", on_the_way));
+        expect(on_the_way > 8) << std::format("halfway, most are fading: {}", on_the_way);
         const auto end = scatter.at(scatter.length);
-        for (const auto& [id, pose] : end) check(moved(pose, id) > 48 * .6 - 1e-6 && near(pose.second, 0), id);
+        for (const auto& [id, pose] : end) expect(moved(pose, id) > 48 * .6 - 1e-6 && near(pose.second, 0)) << id;
         Flight again([](ObjectRef o) { return anim::scatter_out(o, face, {.seed = 7}); });
         Flight other([](ObjectRef o) { return anim::scatter_out(o, face, {.seed = 8}); });
-        check(again.at(.45) == middle, "the same seed, the same flight");
-        check(other.at(.45) != middle, "another seed, another");
-    });
+        expect(again.at(.45) == middle) << "the same seed, the same flight";
+        expect(other.at(.45) != middle) << "another seed, another";
+    };
 
-    s.test("coming together: from where the scatter ends, the farthest first, at rest at the end; the scatter played backwards ends at rest too", [] {
+    "coming together: from where the scatter ends, the farthest first, at rest at the end; the scatter played backwards ends at rest too"_test = [] {
         Flight scatter([](ObjectRef o) { return anim::scatter_out(o, face, {.seed = 3}); });
         Flight assemble([](ObjectRef o) { return anim::assemble_in(o, face, {.seed = 3}); });
         const auto scattered = scatter.at(scatter.length), from = assemble.at(0);
         for (const auto& [id, pose] : from) {
-            check(near(pose.first.x, scattered.at(id).first.x, 1e-9) && near(pose.first.y, scattered.at(id).first.y, 1e-9), id);
-            check(near(pose.second, 0), id);
+            expect(near(pose.first.x, scattered.at(id).first.x, 1e-9) && near(pose.first.y, scattered.at(id).first.y, 1e-9)) << id;
+            expect(near(pose.second, 0)) << id;
         }
         const auto early = assemble.at(.2);
-        check(moved(early.at(pixel_id(0, 0)), pixel_id(0, 0)) < moved(from.at(pixel_id(0, 0)), pixel_id(0, 0)) &&
-                  near(moved(early.at(pixel_id(3, 3)), pixel_id(3, 3)), moved(from.at(pixel_id(3, 3)), pixel_id(3, 3)), 1e-9),
-              "the ear (farthest) is on its way while the eye waits");
-        for (const auto& [id, pose] : assemble.at(assemble.length)) check(near(moved(pose, id), 0, 1e-9) && near(pose.second, 1), id);
+        expect(moved(early.at(pixel_id(0, 0)), pixel_id(0, 0)) < moved(from.at(pixel_id(0, 0)), pixel_id(0, 0)) &&
+                  near(moved(early.at(pixel_id(3, 3)), pixel_id(3, 3)), moved(from.at(pixel_id(3, 3)), pixel_id(3, 3)), 1e-9)) << "the ear (farthest) is on its way while the eye waits";
+        for (const auto& [id, pose] : assemble.at(assemble.length)) expect(near(moved(pose, id), 0, 1e-9) && near(pose.second, 1)) << id;
         Flight back([](ObjectRef o) { return anim::scatter_out(o, face, {.seed = 3}).reverse(); });
-        for (const auto& [id, pose] : back.at(0)) check(near(pose.first.x, scattered.at(id).first.x, 1e-9), id);
-        for (const auto& [id, pose] : back.at(back.length)) check(near(moved(pose, id), 0, 1e-9) && near(pose.second, 1), id);
-    });
+        for (const auto& [id, pose] : back.at(0)) expect(near(pose.first.x, scattered.at(id).first.x, 1e-9)) << id;
+        for (const auto& [id, pose] : back.at(back.length)) expect(near(moved(pose, id), 0, 1e-9) && near(pose.second, 1)) << id;
+    };
 
-    s.test("the staircase into the curve: the outline morphs into the smooth form, every corner on its way, and back", [] {
+    "the staircase into the curve: the outline morphs into the smooth form, every corner on its way, and back"_test = [] {
         Engine engine = take(Engine::make());
         const auto sharp = take(engine.create_object(take(pixel_object("face", face))));
         const auto round = take(engine.create_object(take(pixel_object("face", face, {.form = PixelForm::smooth}))));
@@ -184,11 +183,9 @@ int main(int argc, char** argv) {
         const auto smooth = take(pixel_object("face", face, {.form = PixelForm::smooth}));
         const double rounded = area(smooth.parts[3].contours[0]);
         const double first = eye_area(0), middle = eye_area(.5), last = eye_area(1);
-        check(near(first, 100, 1e-6), std::format("square at the start: {}", first));
-        check(near(last, rounded, 1e-6), std::format("rounded at the end: {} (the curve's {})", last, rounded));
-        check(middle < first - 1e-3 && middle > last + 1e-3, std::format("between halfway: {}", middle));
-        check(near(eye_area(.25), eye_area(.25)), "a sample is a function of time");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(near(first, 100, 1e-6)) << std::format("square at the start: {}", first);
+        expect(near(last, rounded, 1e-6)) << std::format("rounded at the end: {} (the curve's {})", last, rounded);
+        expect(middle < first - 1e-3 && middle > last + 1e-3) << std::format("between halfway: {}", middle);
+        expect(near(eye_area(.25), eye_area(.25))) << "a sample is a function of time";
+    };
+}};

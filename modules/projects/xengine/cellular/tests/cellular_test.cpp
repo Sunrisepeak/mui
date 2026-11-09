@@ -1,9 +1,9 @@
 import std;
 import mlibs.simulation;
 import xengine.cellular;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace ca=xengine::cellular;
 namespace {
 std::vector<ca::Rule> reaction_rules() {
@@ -43,89 +43,87 @@ struct Model {
     struct Input {bool ignite=false;std::uint32_t x=0,y=0;};
     static void step(State& s,const Input& in) {
         if(in.ignite && in.x<s.shape.width && in.y<s.shape.height)s.current[s.shape.width*s.shape.height+in.y*s.shape.width+in.x]=1;
-        auto result=s.program.step(s.shape,s.current,s.next);check(result.has_value());s.current.swap(s.next);
+        auto result=s.program.step(s.shape,s.current,s.next);expect(result.has_value());s.current.swap(s.next);
     }
 };
 }
-int main(int argc,char** argv) {
-    Suite s{"simulation.cellular"};
-    s.test("state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders", [] {
+UTest cases{"simulation.cellular", [] {
+    "state/threshold/neighborhood rules agree with a scalar oracle across tile sizes and both orders"_test = [] {
         const ca::Shape shape{19,11};auto rules=reaction_rules();auto prepared=ca::Program::prepare(3,rules);
-        check(prepared.has_value());if(!prepared)return;
-        rules.clear();check(prepared->halo()==1 && prepared->channels()==3);
+        expect(prepared.has_value());if(!prepared)return;
+        rules.clear();expect(prepared->halo()==1 && prepared->channels()==3);
         for(auto tile:std::array<ca::Shape,4>{{{1,1},{7,3},{32,32},{19,11}}})for(bool reverse:{false,true}) {
             auto state=initial(shape),next=state;
             for(int frame=0;frame<24;++frame) {
                 const auto expected=reference(shape,state);
                 const auto step=prepared->step(shape,state,next,{.tile=tile,.reverse_tiles=reverse});
-                check(step && step->cells==209 && next==expected);
+                expect(step && step->cells==209 && next==expected);
                 state.swap(next);
             }
             // The inert separator prevents the wave crossing into the right half.
-            for(std::uint32_t y=0;y<shape.height;++y)for(std::uint32_t x=10;x<shape.width;++x)check(state[209+y*shape.width+x]==0);
+            for(std::uint32_t y=0;y<shape.height;++y)for(std::uint32_t x=10;x<shape.width;++x)expect(state[209+y*shape.width+x]==0);
         }
-    });
-    s.test("the changed-tile mask marks exactly the tiles where a cell changed; a mask of the wrong size is refused", [] {
+    };
+    "the changed-tile mask marks exactly the tiles where a cell changed; a mask of the wrong size is refused"_test = [] {
         const ca::Shape shape{19,11};const auto rules=reaction_rules();const auto prepared=ca::Program::prepare(3,rules);
-        check(prepared.has_value());if(!prepared)return;
+        expect(prepared.has_value());if(!prepared)return;
         for(const auto tile:std::array<ca::Shape,3>{{{4,4},{7,3},{19,11}}}) {
             const auto grid=ca::tiles(shape,tile);
             auto state=initial(shape),next=state;
             std::vector<std::uint8_t> mask(grid.width*grid.height,7);
             for(int frame=0;frame<16;++frame) {
-                check(prepared->step(shape,state,next,{.tile=tile,.changed_tiles=mask}).has_value());
+                expect(prepared->step(shape,state,next,{.tile=tile,.changed_tiles=mask}).has_value());
                 for(std::uint32_t ty=0;ty<grid.height;++ty)for(std::uint32_t tx=0;tx<grid.width;++tx) {
                     bool differs=false;
                     for(std::uint32_t c=0;c<3;++c)for(std::uint32_t y=ty*tile.height;y<std::min(shape.height,(ty+1)*tile.height);++y)
                         for(std::uint32_t x=tx*tile.width;x<std::min(shape.width,(tx+1)*tile.width);++x) {
                             const auto i=c*209+y*shape.width+x;differs|=state[i]!=next[i];
                         }
-                    check(mask[ty*grid.width+tx]==(differs?1:0),std::format("tile {},{} of {}x{} at frame {}",tx,ty,tile.width,tile.height,frame));
+                    expect(mask[ty*grid.width+tx]==(differs?1:0)) << std::format("tile {},{} of {}x{} at frame {}",tx,ty,tile.width,tile.height,frame);
                 }
                 state.swap(next);
             }
             std::vector<std::uint8_t> wrong(grid.width*grid.height+1);
             const auto refused=prepared->step(shape,state,next,{.tile=tile,.changed_tiles=wrong});
-            check(!refused && refused.error().code==ca::Errc::tile);
+            expect(!refused && refused.error().code==ca::Errc::tile);
         }
-        check(ca::tiles({1024,1024},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).height==1);
-    });
-    s.test("partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo", [] {
+        expect(ca::tiles({1024,1024},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).width==32 && ca::tiles({1000,7},{32,32}).height==1);
+    };
+    "partial tile writes leave the rest untouched; constant/clamp/wrap read the full logical halo"_test = [] {
         using C=ca::Condition;const std::array<ca::Offset,1> left{{{-1,0}}};
         const std::array rules{ca::Rule{{C::neighbors({0,{9,9}},left,{1,1})},{{0,ca::WriteKind::set,1}}}};
-        const auto p=ca::Program::prepare(1,rules);check(p.has_value());if(!p)return;
+        const auto p=ca::Program::prepare(1,rules);expect(p.has_value());if(!p)return;
         const std::vector<std::uint32_t> input{2,3,9,4,5,6};
         std::vector<std::uint32_t> output(6,77);
-        check(p->step_tile({3,2},{0,0,1,1},input,output,{ca::Edge::wrap}).has_value());
-        check(output==std::vector<std::uint32_t>{1,77,77,77,77,77});
-        check(p->step({3,2},input,output,{.boundary={ca::Edge::clamp}}).has_value());check(output==input);
-        check(p->step({3,2},input,output,{.boundary={ca::Edge::constant,9}}).has_value());
-        check(output==std::vector<std::uint32_t>{1,3,9,1,5,6});
-    });
-    s.test("first match and saturating writes are explicit; errors preserve output and moved plans are unprepared", [] {
+        expect(p->step_tile({3,2},{0,0,1,1},input,output,{ca::Edge::wrap}).has_value());
+        expect(output==std::vector<std::uint32_t>{1,77,77,77,77,77});
+        expect(p->step({3,2},input,output,{.boundary={ca::Edge::clamp}}).has_value());expect(output==input);
+        expect(p->step({3,2},input,output,{.boundary={ca::Edge::constant,9}}).has_value());
+        expect(output==std::vector<std::uint32_t>{1,3,9,1,5,6});
+    };
+    "first match and saturating writes are explicit; errors preserve output and moved plans are unprepared"_test = [] {
         const std::array rules{ca::Rule{{},{{0,ca::WriteKind::add_saturating,10},{1,ca::WriteKind::subtract_saturating,10}}},ca::Rule{{},{{0,ca::WriteKind::set,3}}}};
-        auto p=ca::Program::prepare(2,rules);check(p.has_value());if(!p)return;
+        auto p=ca::Program::prepare(2,rules);expect(p.has_value());if(!p)return;
         std::vector<std::uint32_t> input{0xfffffffau,7},output{44,55};
-        const auto result=p->step({1,1},input,output);check(result && result->changed==1 && result->matched==1);
-        check(output==std::vector<std::uint32_t>{0xffffffffu,0});
-        output={44,55};check(!p->step({2,1},input,output));check(output==std::vector<std::uint32_t>{44,55});
-        check(!p->step({1,1},input,input));check(input==std::vector<std::uint32_t>{0xfffffffau,7});
-        check(!p->step({1,1},input,output,{.tile={0,1}}));check(output==std::vector<std::uint32_t>{44,55});
-        auto moved=std::move(*p);check(!p->step({1,1},input,output));check(moved.step({1,1},input,output).has_value());
+        const auto result=p->step({1,1},input,output);expect(result && result->changed==1 && result->matched==1);
+        expect(output==std::vector<std::uint32_t>{0xffffffffu,0});
+        output={44,55};expect(!p->step({2,1},input,output));expect(output==std::vector<std::uint32_t>{44,55});
+        expect(!p->step({1,1},input,input));expect(input==std::vector<std::uint32_t>{0xfffffffau,7});
+        expect(!p->step({1,1},input,output,{.tile={0,1}}));expect(output==std::vector<std::uint32_t>{44,55});
+        auto moved=std::move(*p);expect(!p->step({1,1},input,output));expect(moved.step({1,1},input,output).has_value());
         auto bad=reaction_rules();bad[0].writes.push_back(bad[0].writes[0]);
-        check(ca::Program::prepare(3,bad).error().code==ca::Errc::duplicate_write);
-        bad=reaction_rules();bad[2].when[2].offsets[0].x=33;check(!ca::Program::prepare(3,bad));
-        check(!ca::Program::prepare(0,rules));check(!ca::Program::prepare(2,rules,{.max_words=5}));
-    });
-    s.test("the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine", [] {
-        const ca::Shape shape{19,11};const auto p=ca::Program::prepare(3,reaction_rules());check(p.has_value());if(!p)return;
+        expect(ca::Program::prepare(3,bad).error().code==ca::Errc::duplicate_write);
+        bad=reaction_rules();bad[2].when[2].offsets[0].x=33;expect(!ca::Program::prepare(3,bad));
+        expect(!ca::Program::prepare(0,rules));expect(!ca::Program::prepare(2,rules,{.max_words=5}));
+    };
+    "the shared owned-state history rebuilds cellular states and inputs without a second checkpoint engine"_test = [] {
+        const ca::Shape shape{19,11};const auto p=ca::Program::prepare(3,reaction_rules());expect(p.has_value());if(!p)return;
         auto state=initial(shape);
         mlibs::simulation::Timeline<Model> history({*p,shape,state,state},30,5);
         std::vector<std::vector<std::uint32_t>> frames{state};
         for(int f=0;f<25;++f) {history.step({f==8,15,5});frames.push_back(history.state().current);}
-        for(int f:{25,0,8,15,10,24}) {check(history.seek(f));check(history.state().current==frames[static_cast<std::size_t>(f)]);}
-        check(history.seek(8));history.step({false});check(history.state().current!=frames[9]);
-        check(!history.seek(10));check(history.seek(8));history.step({true,15,5});check(history.state().current==frames[9]);
-    });
-    return s.run(argc,argv);
-}
+        for(int f:{25,0,8,15,10,24}) {expect(history.seek(f));expect(history.state().current==frames[static_cast<std::size_t>(f)]);}
+        expect(history.seek(8));history.step({false});expect(history.state().current!=frames[9]);
+        expect(!history.seek(10));expect(history.seek(8));history.step({true,15,5});expect(history.state().current==frames[9]);
+    };
+}};

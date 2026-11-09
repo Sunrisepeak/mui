@@ -2,10 +2,10 @@
 // No UI Runtime, renderer, application model callback or Engine is implied.
 import std;
 import hanim.object;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 constexpr double k = 0.5522847498307936;
@@ -41,45 +41,43 @@ bool same(const ShapeCubic& a, const ShapeCubic& b) {
 }
 }
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.object.consumer"};
-    s.test("a synthetic host captures named endpoints and prepares one real triangle-to-circle contour", [] {
-        auto registry = ObjectRegistry::make(); check(registry.has_value()); if (!registry) return;
+UTest cases{"hanim.object.consumer", [] {
+    "a synthetic host captures named endpoints and prepares one real triangle-to-circle contour"_test = [] {
+        auto registry = ObjectRegistry::make(); expect(registry.has_value()); if (!registry) return;
         HostAdapter adapter{*registry};
         HostShape host{.edges = {ShapeSegment::line({-1, 1}), ShapeSegment::line({1, 1})}, .color = {1, 0, 0, 1}};
-        const auto object = adapter.publish(host); check(object.has_value());
-        auto a = registry->capture(*object); check(a.has_value());
-        const auto outline = a->find("outline"); check(outline.has_value());
+        const auto object = adapter.publish(host); expect(object.has_value());
+        auto a = registry->capture(*object); expect(a.has_value());
+        const auto outline = a->find("outline"); expect(outline.has_value());
         host.edges = {ShapeSegment::cubic({k, -1}, {1, -k}, {1, 0}), ShapeSegment::cubic({1, k}, {k, 1}, {0, 1}),
             ShapeSegment::cubic({-k, 1}, {-1, k}, {-1, 0}), ShapeSegment::cubic({-1, -k}, {-k, -1}, {0, -1})};
         host.transform.tx = 100; host.color = {0, 0, 1, 1};
-        check(adapter.publish(host) == object);
-        auto b = registry->capture(*object); check(b.has_value());
-        check(a->revision() == 1 && b->revision() == 2 && b->find("outline") == outline);
-        check(a->require_capability("hanim.contours").has_value() && b->require_capability("hanim.solid-fill").has_value());
+        expect(adapter.publish(host) == object);
+        auto b = registry->capture(*object); expect(b.has_value());
+        expect(a->revision() == 1 && b->revision() == 2 && b->find("outline") == outline);
+        expect(a->require_capability("hanim.contours").has_value() && b->require_capability("hanim.solid-fill").has_value());
         const auto* from = *a->get(*outline); const auto* to = *b->get(*outline);
-        const auto av = from->contours.front().view(), bv = to->contours.front().view(); check(av && bv);
-        auto plan = PreparedShapeMorph::prepare(*av, *bv); check(plan.has_value()); if (!plan) return;
+        const auto av = from->contours.front().view(), bv = to->contours.front().view(); expect(av && bv);
+        auto plan = PreparedShapeMorph::prepare(*av, *bv); expect(plan.has_value()); if (!plan) return;
         std::vector<ShapeCubic> start(plan->segment_count()), middle(start.size()), finish(start.size()), again(start.size());
-        check(plan->sample(0, start).has_value() && plan->sample(0.5, middle).has_value() && plan->sample(1, finish).has_value());
+        expect(plan->sample(0, start).has_value() && plan->sample(0.5, middle).has_value() && plan->sample(1, finish).has_value());
         bool changed = false;
         for (std::size_t i = 0; i < middle.size(); ++i) {
             changed |= !same(middle[i], start[i]) && !same(middle[i], finish[i]);
-            check(middle[i].end == middle[(i + 1) % middle.size()].start, "the midpoint is one connected current contour");
+            expect(middle[i].end == middle[(i + 1) % middle.size()].start) << "the midpoint is one connected current contour";
         }
-        check(changed && middle.size() >= 4, "this consumes a prepared geometric correspondence, not two endpoint copies");
+        expect(changed && middle.size() >= 4) << "this consumes a prepared geometric correspondence, not two endpoint copies";
         const auto transform = lerp(from->local, to->local, 0.5);
         const auto color = lerp(*from->fill, *to->fill, 0.5);
-        check(transform.tx == 50 && color.a == 1 && color != *from->fill && color != *to->fill);
-        check(adapter.publications == 2, "sampling does not call the host's publishing function");
+        expect(transform.tx == 50 && color.a == 1 && color != *from->fill && color != *to->fill);
+        expect(adapter.publications == 2) << "sampling does not call the host's publishing function";
         host.edges.clear(); host.edges.shrink_to_fit();
-        check(registry->destroy(*object).has_value());
+        expect(registry->destroy(*object).has_value());
         // The endpoint captures can be released too: the core prepared plan
         // has already copied the geometry it needs into owned coefficients.
         a = Snapshot{}; b = Snapshot{};
-        for (double progress : {1.0, 0.0, 0.25, 0.75, 0.5}) check(plan->sample(progress, again).has_value());
-        for (std::size_t i = 0; i < middle.size(); ++i) check(same(middle[i], again[i]), "replayed midpoint survives host/object/capture resource release");
-        check(adapter.publications == 2);
-    });
-    return s.run(argc, argv);
-}
+        for (double progress : {1.0, 0.0, 0.25, 0.75, 0.5}) expect(plan->sample(progress, again).has_value());
+        for (std::size_t i = 0; i < middle.size(); ++i) expect(same(middle[i], again[i])) << "replayed midpoint survives host/object/capture resource release";
+        expect(adapter.publications == 2);
+    };
+}};

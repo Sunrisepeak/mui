@@ -1,14 +1,13 @@
 import std;
 import hanim.core;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using hanim::seconds;
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.set"};
+UTest cases{"hanim.set", [] {
 
-    s.test("evaluate agrees with per-channel values", [] {
+    "evaluate agrees with per-channel values"_test = [] {
         hanim::Set set;
         auto a = set.tween(0, 10, seconds(0), seconds(1), hanim::ease::linear);
         auto b = set.spring(0, 100, seconds(0), hanim::springs::wobbly);
@@ -17,29 +16,29 @@ int main(int argc, char** argv) {
         std::vector<double> out(set.capacity());
         for (double t = 0; t < 3; t += 0.1) {
             auto moving = hanim::evaluate(set, seconds(t), out);
-            check_bits(out[a.index], set.value(a, seconds(t)));
-            check_bits(out[b.index], set.value(b, seconds(t)));
-            check_bits(out[c.index], set.value(c, seconds(t)));
-            check_bits(out[d.index], 7.0);
-            check(moving <= 3);
+            expect(eq(std::bit_cast<std::uint64_t>(double(out[a.index])), std::bit_cast<std::uint64_t>(double(set.value(a, seconds(t))))));
+            expect(eq(std::bit_cast<std::uint64_t>(double(out[b.index])), std::bit_cast<std::uint64_t>(double(set.value(b, seconds(t))))));
+            expect(eq(std::bit_cast<std::uint64_t>(double(out[c.index])), std::bit_cast<std::uint64_t>(double(set.value(c, seconds(t))))));
+            expect(eq(std::bit_cast<std::uint64_t>(double(out[d.index])), std::bit_cast<std::uint64_t>(double(7.0))));
+            expect(moving <= 3);
         }
-        check(hanim::evaluate(set, seconds(100), out) == 0, "all at rest eventually");
-    });
+        expect(hanim::evaluate(set, seconds(100), out) == 0) << "all at rest eventually";
+    };
 
-    s.test("retargeting a spring keeps position and velocity", [] {
+    "retargeting a spring keeps position and velocity"_test = [] {
         hanim::Set set;
         auto ch = set.spring(0, 100, seconds(0), hanim::springs::gentle);
         double t = 0.2;
         double x = set.value(ch, seconds(t));
         double v = set.velocity(ch, seconds(t));
         set.spring_to(ch, seconds(t), -20);
-        check_bits(set.value(ch, seconds(t)), x);
-        check(std::abs(set.velocity(ch, seconds(t)) - v) < 1e-9);
-        check_bits(set.value(ch, set.settle_time(ch)), -20.0);
-        check_bits(set.target(ch), -20.0);
-    });
+        expect(eq(std::bit_cast<std::uint64_t>(double(set.value(ch, seconds(t)))), std::bit_cast<std::uint64_t>(double(x))));
+        expect(std::abs(set.velocity(ch, seconds(t)) - v) < 1e-9);
+        expect(eq(std::bit_cast<std::uint64_t>(double(set.value(ch, set.settle_time(ch)))), std::bit_cast<std::uint64_t>(double(-20.0))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(set.target(ch))), std::bit_cast<std::uint64_t>(double(-20.0))));
+    };
 
-    s.test("seek consistency: 1000 random frames, seeked after the fact, are the frames played (M2 ③)", [] {
+    "seek consistency: 1000 random frames, seeked after the fact, are the frames played (M2 ③)"_test = [] {
         // Played: a spring interrupted, retargeted, turned into a tween and back,
         // stepped at 60 Hz with every interruption applied when its time comes.
         struct Step {
@@ -61,7 +60,7 @@ int main(int argc, char** argv) {
                 if (st.kind == 0) set.spring_to(ch, seconds(st.t), st.target, st.target == 0 ? std::optional(hanim::springs::wobbly) : std::nullopt);
                 else set.tween_to(ch, seconds(st.t), st.target, seconds(0.4), hanim::ease::in_out_cubic);
                 if (st.kind == 0)
-                    check(std::abs(set.velocity(ch, seconds(st.t)) - before) < 1e-9, std::format("velocity continuous at {}", st.t));
+                    expect(std::abs(set.velocity(ch, seconds(st.t)) - before) < 1e-9) << std::format("velocity continuous at {}", st.t);
             }
             played.push_back(set.value(ch, seconds(t)));
         }
@@ -77,28 +76,28 @@ int main(int argc, char** argv) {
             if (std::bit_cast<std::uint64_t>(set.value(ch, seconds(f / 60.0))) != std::bit_cast<std::uint64_t>(played[static_cast<std::size_t>(f)]))
                 ++differing;
         }
-        check_eq(differing, 0);
-    });
+        expect(eq(differing, 0));
+    };
 
-    s.test("reduced motion shows targets", [] {
+    "reduced motion shows targets"_test = [] {
         hanim::Set set;
         auto ch = set.tween(0, 1, seconds(0), seconds(1));
-        check_bits(set.value(ch, seconds(0.1), {.reduce_motion = true}), 1.0);
-    });
+        expect(eq(std::bit_cast<std::uint64_t>(double(set.value(ch, seconds(0.1), {.reduce_motion = true}))), std::bit_cast<std::uint64_t>(double(1.0))));
+    };
 
-    s.test("removed channels are invalid and their slots reused", [] {
+    "removed channels are invalid and their slots reused"_test = [] {
         hanim::Set set;
         auto a = set.hold(1);
         set.remove(a);
-        check(!set.valid(a));
+        expect(!set.valid(a));
         auto b = set.hold(2);
-        check(b.index == a.index && b.generation != a.generation);
-        check(set.size() == 1);
+        expect(b.index == a.index && b.generation != a.generation);
+        expect(set.size() == 1);
         set.clear();
-        check(set.size() == 0 && !set.valid(b));
-    });
+        expect(set.size() == 0 && !set.valid(b));
+    };
 
-    s.test("evaluating does not allocate", [] {
+    "evaluating does not allocate"_test = [] {
         hanim::Set set;
         for (int i = 0; i < 1000; ++i) (void)set.spring(0, i, seconds(i * 0.001), hanim::springs::standard);
         std::vector<double> out(set.capacity());
@@ -108,8 +107,6 @@ int main(int argc, char** argv) {
         for (int f = 0; f < 60; ++f) (void)hanim::evaluate(set, seconds(f / 60.0), out);
         auto ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count() / 60;
         std::println("    1000 springs: {:.3f} ms per frame", ms);
-        check(ms < 4.0);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(ms < 4.0);
+    };
+}};

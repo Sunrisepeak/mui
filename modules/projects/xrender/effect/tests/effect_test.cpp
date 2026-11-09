@@ -9,9 +9,9 @@ import xrender.vector;
 import mlibs.rhi;
 import xrender.rhi.sdl;
 import xrender.effect;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace fx = xrender::effect;
 namespace render = xrender;
 namespace raster = xrender::raster;
@@ -33,7 +33,7 @@ std::unique_ptr<rhi::Device> open_device() {
     if (auto video = mcpplibs::os::env::get("OMUI_GPU_VIDEO_DRIVER")) o.video_driver = *video;
     auto d = xrender::rhi::sdl::create(o);
     if (!d) {
-        if (required()) check(false, std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message));
+        if (required()) expect(false) << std::format("OMUI_REQUIRE_GPU=1 and no device: {}", d.error().message);
         else std::println("no GPU device here ({}); set OMUI_REQUIRE_GPU=1 to make that a failure", d.error().message);
         return nullptr;
     }
@@ -92,7 +92,7 @@ struct Gpu {
         g.device = open_device();
         if (!g.device) return std::nullopt;
         auto r = render::GpuRenderer::create(*g.device);
-        check(r.has_value(), r ? "" : r.error().message);
+        expect(r.has_value()) << (r ? "" : r.error().message);
         if (!r) return std::nullopt;
         g.renderer.emplace(std::move(*r));
         auto t = g.device->create(rhi::TextureDesc{rhi::Format::rgba8_unorm, W, H, rhi::TextureUsage::color_target, "test.target"});
@@ -103,10 +103,10 @@ struct Gpu {
 
     std::vector<std::byte> draw(const render::DisplayList& dl) {
         auto report = renderer->render(dl, target, {});
-        check(report.has_value(), report ? "" : report.error().message);
-        if (report) check_eq(report->effects_skipped, std::size_t{0});
+        expect(report.has_value()) << (report ? "" : report.error().message);
+        if (report) expect(eq(report->effects_skipped, std::size_t{0}));
         auto bytes = device->read(target, rhi::Region{0, 0, W, H});
-        check(bytes.has_value());
+        expect(bytes.has_value());
         return bytes ? std::move(*bytes) : std::vector<std::byte>{};
     }
 };
@@ -130,24 +130,22 @@ void expect_scanlines(const std::vector<std::byte>& px, float strength, std::str
         const int inv = 255 - a;
         auto over = [&](int s) { return s + static_cast<int>(raster::mul255(255, static_cast<std::uint32_t>(inv))); };
         const int x = 30;
-        check(std::abs(channel(px, x, y, 0) - over(r)) <= 1 && std::abs(channel(px, x, y, 1) - over(g)) <= 1 && std::abs(channel(px, x, y, 2) - over(b)) <= 1,
-              std::format("{}: row {} is ({}, {}, {}), not ({}, {}, {})", what, y, channel(px, x, y, 0), channel(px, x, y, 1), channel(px, x, y, 2),
-                          over(r), over(g), over(b)));
+        expect(std::abs(channel(px, x, y, 0) - over(r)) <= 1 && std::abs(channel(px, x, y, 1) - over(g)) <= 1 && std::abs(channel(px, x, y, 2) - over(b)) <= 1) << std::format("{}: row {} is ({}, {}, {}), not ({}, {}, {})", what, y, channel(px, x, y, 0), channel(px, x, y, 1), channel(px, x, y, 2),
+                          over(r), over(g), over(b));
     }
 }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"effect"};
+UTest cases{"effect", [] {
 
-    s.test("an effect file: what it declares, and every mistake where it is", [] {
+    "an effect file: what it declares, and every mistake where it is"_test = [] {
         auto ok = fx::read(text_of(data("scanlines.effect.omui.toml")), "scanlines.effect.omui.toml");
-        check(ok.has_value(), ok ? "" : problems(ok.error()));
+        expect(ok.has_value()) << (ok ? "" : problems(ok.error()));
         if (ok) {
-            check(ok->name == "scanlines" && ok->shader == "scanlines.slang" && ok->entry == "scanlines_fs");
-            check_eq(ok->params.size(), std::size_t{2});
-            check(ok->params[0].name == "strength" && ok->params[0].value == 0.5f && ok->params[1].max == 16);
+            expect(ok->name == "scanlines" && ok->shader == "scanlines.slang" && ok->entry == "scanlines_fs");
+            expect(eq(ok->params.size(), std::size_t{2}));
+            expect(ok->params[0].name == "strength" && ok->params[0].value == 0.5f && ok->params[1].max == 16);
         }
         auto bad = fx::read(R"(name = "Scan lines"
 reahc = 2
@@ -158,52 +156,52 @@ default = 2
 name = "strength"
 )",
                             "bad.effect.omui.toml");
-        check(!bad.has_value());
+        expect(!bad.has_value());
         if (!bad) {
             const std::string all = problems(bad.error());
-            check(all.contains("bad.effect.omui.toml:1:") && all.contains("not an effect name"), all);
-            check(all.contains("no key `reahc`") && all.contains("did you mean `reach`?"), all);
-            check(all.contains("the default 2 is outside [0, 1]"), all);
-            check(all.contains("a second parameter named `strength`"), all);
+            expect(all.contains("bad.effect.omui.toml:1:") && all.contains("not an effect name")) << all;
+            expect(all.contains("no key `reahc`") && all.contains("did you mean `reach`?")) << all;
+            expect(all.contains("the default 2 is outside [0, 1]")) << all;
+            expect(all.contains("a second parameter named `strength`")) << all;
         }
         auto reach = fx::read("name = \"x\"\nreach = \"spread\"\n", "x.effect.omui.toml");
-        check(!reach && problems(reach.error()).contains("`reach` names `spread`, which is not a parameter"));
+        expect(!reach && problems(reach.error()).contains("`reach` names `spread`, which is not a parameter"));
         auto broken = fx::read("name = \"x\"\n[param\n", "x.effect.omui.toml");
-        check(!broken && broken.error().front().line == 2, broken ? "" : problems(broken.error()));
-    });
+        expect(!broken && broken.error().front().line == 2) << (broken ? "" : problems(broken.error()));
+    };
 
-    s.test("loading: compiled for the device, registered, refused when it binds more than the template", [] {
+    "loading: compiled for the device, registered, refused when it binds more than the template"_test = [] {
         fx::Library lib({.formats = render::gpu_shader_formats()});
         auto loaded = lib.load(data("scanlines.effect.omui.toml"));
-        check(loaded.has_value(), loaded ? "" : problems(loaded.error()));
+        expect(loaded.has_value()) << (loaded ? "" : problems(loaded.error()));
         if (!loaded) return;
         const auto found = render::effects().find("scanlines");
-        check(found && found->id == loaded->ref.id);
+        expect(found && found->id == loaded->ref.id);
         const render::EffectInfo* info = render::effects().info(loaded->ref);
-        check(info && info->gpu.pass == render::EffectPass::pixel && info->gpu.fragment && !info->cpu);
-        if (info) check(info->params.size() == 2 && info->params[1].name == "period" && info->doc.contains("CRT"));
+        expect(info && info->gpu.pass == render::EffectPass::pixel && info->gpu.fragment && !info->cpu);
+        if (info) expect(info->params.size() == 2 && info->params[1].name == "period" && info->doc.contains("CRT"));
         std::println("  load (read, compile, register): {} ms", loaded->took.count() / 1000.0);
         auto greedy = lib.load(data("greedy.effect.omui.toml"));
-        check(!greedy && problems(greedy.error()).contains("binds resources of its own"), greedy ? "" : problems(greedy.error()));
+        expect(!greedy && problems(greedy.error()).contains("binds resources of its own")) << (greedy ? "" : problems(greedy.error()));
         auto taken = lib.load(data("blur.effect.omui.toml"));
-        check(!taken && problems(taken.error()).contains("an effect named `blur` is registered already"), taken ? "" : problems(taken.error()));
+        expect(!taken && problems(taken.error()).contains("an effect named `blur` is registered already")) << (taken ? "" : problems(taken.error()));
         // The CPU renderer has no path for it: drawn without it, counted.
         raster::Surface cpu(W, H);
         render::CpuRenderer r;
         const auto report = r.render(scene(loaded->ref, 0.5f), cpu, {}, {});
-        check_eq(report.effects_skipped, std::size_t{1});
-    });
+        expect(eq(report.effects_skipped, std::size_t{1}));
+    };
 
-    s.test("drawn by the GPU renderer, and loaded again within 500 ms when its shader changes", [] {
+    "drawn by the GPU renderer, and loaded again within 500 ms when its shader changes"_test = [] {
         auto gpu = Gpu::open();
         if (!gpu) return;
         const auto dir = scratch();
         fx::Library lib({.formats = gpu->device->caps().formats});
         auto loaded = lib.load(dir / "scanlines.effect.omui.toml");
-        check(loaded.has_value(), loaded ? "" : problems(loaded.error()));
+        expect(loaded.has_value()) << (loaded ? "" : problems(loaded.error()));
         if (!loaded) return;
         expect_scanlines(gpu->draw(scene(loaded->ref, 0.5f)), 0.5f, "as written");
-        check(lib.poll().empty(), "nothing changed, nothing reloaded");
+        expect(lib.poll().empty()) << "nothing changed, nothing reloaded";
 
         // The shader edited while the program runs: scanlines at full strength.
         const auto shader = dir / "scanlines.slang";
@@ -211,25 +209,25 @@ name = "strength"
         src.replace(src.find("scaled(s, 1 - param(0))"), std::string_view("scaled(s, 1 - param(0))").size(), "scaled(s, 0.0)");
         write(shader, src);
         auto reloads = lib.poll();
-        check_eq(reloads.size(), std::size_t{1});
+        expect(eq(reloads.size(), std::size_t{1}));
         if (reloads.size() == 1) {
-            check(reloads[0].ok(), problems(reloads[0].problems));
-            check(reloads[0].ref.id == loaded->ref.id, "the same effect, replaced in place");
+            expect(reloads[0].ok()) << problems(reloads[0].problems);
+            expect(reloads[0].ref.id == loaded->ref.id) << "the same effect, replaced in place";
             std::println("  reload: {} ms", reloads[0].took.count() / 1000.0);
-            check(reloads[0].took < std::chrono::milliseconds(500), std::format("a reload takes {} ms; M4 asks for under 500", reloads[0].took.count() / 1000.0));
+            expect(reloads[0].took < std::chrono::milliseconds(500)) << std::format("a reload takes {} ms; M4 asks for under 500", reloads[0].took.count() / 1000.0);
         }
         expect_scanlines(gpu->draw(scene(loaded->ref, 0.5f)), 1.0f, "edited");
 
         // A mistake: reported where it is; the effect draws as it was.
         write(shader, text_of(shader) + "\nfloat broken( {\n");
         reloads = lib.poll();
-        check(reloads.size() == 1 && !reloads[0].ok(), "a broken shader is reported");
+        expect(reloads.size() == 1 && !reloads[0].ok()) << "a broken shader is reported";
         if (reloads.size() == 1 && !reloads[0].ok()) {
             const auto& d = reloads[0].problems.front();
-            check(d.file.ends_with("scanlines.slang") && d.line > 10, d.text());
+            expect(d.file.ends_with("scanlines.slang") && d.line > 10) << d.text();
         }
         expect_scanlines(gpu->draw(scene(loaded->ref, 0.5f)), 1.0f, "after a broken edit");
-        check(lib.poll().empty(), "a broken file is not retried until it changes again");
+        expect(lib.poll().empty()) << "a broken file is not retried until it changes again";
 
         // The parameters edited: a reload of the file alone.
         write(shader, src);
@@ -237,12 +235,10 @@ name = "strength"
         decl.replace(decl.find("max     = 16"), std::string_view("max     = 16").size(), "max     = 32");
         write(dir / "scanlines.effect.omui.toml", decl);
         reloads = lib.poll();
-        check(reloads.size() == 1 && reloads[0].ok(), reloads.empty() ? "" : problems(reloads[0].problems));
+        expect(reloads.size() == 1 && reloads[0].ok()) << (reloads.empty() ? "" : problems(reloads[0].problems));
         const render::EffectInfo* info = render::effects().info(loaded->ref);
-        check(info && info->params.size() == 2 && info->params[1].max == 32);
+        expect(info && info->params.size() == 2 && info->params[1].max == 32);
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
-    });
-
-    return s.run(argc, argv);
-}
+    };
+}};

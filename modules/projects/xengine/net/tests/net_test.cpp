@@ -7,9 +7,9 @@
 import std;
 import xengine.net;
 import gongfu;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 
@@ -184,58 +184,56 @@ Outcome play(int frames, Link ab, Link ba, net::Options options, bool tamper = f
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"xengine.net"};
+UTest cases{"xengine.net", [] {
 
-    s.test("messages: bytes that read back, and refuse what is not one", [] {
+    "messages: bytes that read back, and refuse what is not one"_test = [] {
         net::Message m{.first = 12, .count = 2, .inputs = std::vector<std::byte>(8, std::byte{3}), .ack = 9, .frame = 15, .checksum_frame = 0,
                        .checksum = 0x0123456789abcdefULL};
         const auto bytes = net::encode(m);
         auto back = net::decode(bytes);
-        check(back && back->first == 12 && back->count == 2 && back->inputs == m.inputs && back->ack == 9 && back->frame == 15 &&
+        expect(back && back->first == 12 && back->count == 2 && back->inputs == m.inputs && back->ack == 9 && back->frame == 15 &&
               back->checksum == m.checksum);
         auto cut = bytes;
         cut.pop_back();
-        check(!net::decode(cut), "a short message");
+        expect(!net::decode(cut)) << "a short message";
         auto wrong = bytes;
         wrong[0] = std::byte{0};
-        check(!net::decode(wrong), "not a message of this format");
-    });
+        expect(!net::decode(wrong)) << "not a message of this format";
+    };
 
-    s.test("a perfect link: no rollback, both peers and the offline run alike", [] {
+    "a perfect link: no rollback, both peers and the offline run alike"_test = [] {
         const auto o = play(600, Link{}, Link{}, {.delay = 2});
-        check(o.frames == 600 && o.a == o.b && o.a == o.offline, std::format("{} frames; {:016x} {:016x} offline {:016x}", o.frames, o.a, o.b, o.offline));
-        check_eq(o.rollbacks, 0);
-    });
+        expect(o.frames == 600 && o.a == o.b && o.a == o.offline) << std::format("{} frames; {:016x} {:016x} offline {:016x}", o.frames, o.a, o.b, o.offline);
+        expect(eq(o.rollbacks, 0));
+    };
 
-    s.test("latency within the input delay: still no rollback", [] {
+    "latency within the input delay: still no rollback"_test = [] {
         const auto o = play(600, Link{.latency = 2}, Link{.latency = 2}, {.delay = 3});
-        check(o.a == o.b && o.a == o.offline);
-        check_eq(o.rollbacks, 0);
-    });
+        expect(o.a == o.b && o.a == o.offline);
+        expect(eq(o.rollbacks, 0));
+    };
 
-    s.test("latency past the delay, jitter and loss: rollbacks, and the same bytes as offline", [] {
+    "latency past the delay, jitter and loss: rollbacks, and the same bytes as offline"_test = [] {
         for (const auto& [lat, jit, loss] : {std::tuple{4, 0, 0.0}, std::tuple{6, 3, 0.05}, std::tuple{8, 4, 0.15}}) {
             const auto o = play(1200, Link{.latency = lat, .jitter = jit, .loss = loss}, Link{.latency = lat, .jitter = jit, .loss = loss, .rng = {91}},
                                 {.delay = 2, .max_rollback = 10});
-            check(o.frames == 1200 && o.a == o.b && o.a == o.offline,
-                  std::format("latency {}±{}, loss {}: {:016x} {:016x} offline {:016x}", lat, jit, loss, o.a, o.b, o.offline));
-            check(o.rollbacks > 0 && !o.desync, std::format("{} rollbacks, desync {}", o.rollbacks, o.desync.value_or(-1)));
+            expect(o.frames == 1200 && o.a == o.b && o.a == o.offline) << std::format("latency {}±{}, loss {}: {:016x} {:016x} offline {:016x}", lat, jit, loss, o.a, o.b, o.offline);
+            expect(o.rollbacks > 0 && !o.desync) << std::format("{} rollbacks, desync {}", o.rollbacks, o.desync.value_or(-1));
         }
-    });
+    };
 
-    s.test("a peer far behind is waited for: no frame runs past max_rollback", [] {
+    "a peer far behind is waited for: no frame runs past max_rollback"_test = [] {
         const auto o = play(300, Link{.latency = 20}, Link{.latency = 20}, {.delay = 1, .max_rollback = 6});
-        check(o.waited > 0 && o.a == o.b && o.a == o.offline, std::format("waited {} times", o.waited));
-    });
+        expect(o.waited > 0 && o.a == o.b && o.a == o.offline) << std::format("waited {} times", o.waited);
+    };
 
-    s.test("a game altered behind the session's back is named at the frame they parted", [] {
+    "a game altered behind the session's back is named at the frame they parted"_test = [] {
         const auto o = play(900, Link{.latency = 3}, Link{.latency = 3}, {.delay = 2, .checksum_every = 30}, true);
-        check(o.desync.has_value(), "the checksums disagree");
-        if (o.desync) check(*o.desync > 200 && *o.desync <= 240, std::format("parted at frame {} (the state at the start of the first checked frame after 200)", *o.desync));
-    });
+        expect(o.desync.has_value()) << "the checksums disagree";
+        if (o.desync) expect(*o.desync > 200 && *o.desync <= 240) << std::format("parted at frame {} (the state at the start of the first checked frame after 200)", *o.desync);
+    };
 
-    s.test("options out of range are taken as the nearest accepted: no negative ring, no checksum every 0 frames", [] {
+    "options out of range are taken as the nearest accepted: no negative ring, no checksum every 0 frames"_test = [] {
         constexpr net::Options o = net::Options{.delay = -3, .max_rollback = 500, .checksum_every = 0}.valid();
         static_assert(o.delay == 0 && o.max_rollback == 120 && o.checksum_every == 1);
         const auto& f = compiled();
@@ -247,8 +245,6 @@ int main(int argc, char** argv) {
             (void)a.advance();
             (void)b.advance();
         }
-        check(a.frame() > 0, "the session ran");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(a.frame() > 0) << "the session ran";
+    };
+}};

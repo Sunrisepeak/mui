@@ -4,8 +4,10 @@
 import std;
 import hanim.core;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace dm = hanim::dm;
 
 namespace {
@@ -66,15 +68,14 @@ std::vector<Reference> reference() {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"hanim.math"};
+UTest cases{"hanim.math", [] {
 
     // Accuracy against correctly rounded values (data/math-reference.tsv,
     // made with mpmath at 256 bits), not against the platform's libm: libm's
     // last bits differ between glibc, Apple and Windows, ours do not.
-    s.test("accuracy against correctly rounded references", [] {
+    "accuracy against correctly rounded references"_test = [] {
         auto rows = reference();
-        check(rows.size() == 8000, std::format("{} reference rows", rows.size()));
+        expect(rows.size() == 8000) << std::format("{} reference rows", rows.size());
         std::map<std::string, std::int64_t> worst;
         std::map<std::string, double> worst_at;
         for (const auto& r : rows) {
@@ -99,36 +100,36 @@ int main(int argc, char** argv) {
                                                         {"atan", 1}, {"atan2", 2}, {"cbrt", 1}, {"pow", 16}};
         for (const auto& [name, w] : worst) {
             std::println("    {:6} worst {} ulp", name, w);
-            check(w <= limit.at(name), std::format("{}: {} ulps at {:.17g}", name, w, worst_at[name]));
+            expect(w <= limit.at(name)) << std::format("{}: {} ulps at {:.17g}", name, w, worst_at[name]);
         }
-    });
+    };
 
-    s.test("special values", [] {
-        check_bits(dm::exp(0.0), 1.0);
-        check(dm::exp(1000.0) == std::numeric_limits<double>::infinity());
-        check(dm::exp(-1000.0) == 0.0);
-        check(std::isnan(dm::exp(std::numeric_limits<double>::quiet_NaN())));
-        check_bits(dm::log(1.0), 0.0);
-        check(dm::log(0.0) == -std::numeric_limits<double>::infinity());
-        check(std::isnan(dm::log(-1.0)));
-        check_bits(dm::sin(0.0), 0.0);
-        check_bits(dm::cos(0.0), 1.0);
-        check(std::isnan(dm::sin(std::numeric_limits<double>::infinity())));
-        check_bits(dm::atan2(0.0, -1.0), dm::pi);
-        check_bits(dm::atan2(1.0, 0.0), dm::half_pi);
-        check_bits(dm::cbrt(27.0), 3.0);
-        check_bits(dm::cbrt(-8.0), -2.0);
-        check_bits(dm::pow(2.0, 10.0), 1024.0);
-    });
+    "special values"_test = [] {
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::exp(0.0))), std::bit_cast<std::uint64_t>(double(1.0))));
+        expect(dm::exp(1000.0) == std::numeric_limits<double>::infinity());
+        expect(dm::exp(-1000.0) == 0.0);
+        expect(std::isnan(dm::exp(std::numeric_limits<double>::quiet_NaN())));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::log(1.0))), std::bit_cast<std::uint64_t>(double(0.0))));
+        expect(dm::log(0.0) == -std::numeric_limits<double>::infinity());
+        expect(std::isnan(dm::log(-1.0)));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::sin(0.0))), std::bit_cast<std::uint64_t>(double(0.0))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::cos(0.0))), std::bit_cast<std::uint64_t>(double(1.0))));
+        expect(std::isnan(dm::sin(std::numeric_limits<double>::infinity())));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::atan2(0.0, -1.0))), std::bit_cast<std::uint64_t>(double(dm::pi))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::atan2(1.0, 0.0))), std::bit_cast<std::uint64_t>(double(dm::half_pi))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::cbrt(27.0))), std::bit_cast<std::uint64_t>(double(3.0))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::cbrt(-8.0))), std::bit_cast<std::uint64_t>(double(-2.0))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::pow(2.0, 10.0))), std::bit_cast<std::uint64_t>(double(1024.0))));
+    };
 
-    s.test("mix ends exactly at its endpoints", [] {
-        check_bits(dm::mix(0.1, 0.7, 1.0), 0.7);
-        check_bits(dm::mix(0.1, 0.7, 0.0), 0.1);
-    });
+    "mix ends exactly at its endpoints"_test = [] {
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::mix(0.1, 0.7, 1.0))), std::bit_cast<std::uint64_t>(double(0.7))));
+        expect(eq(std::bit_cast<std::uint64_t>(double(dm::mix(0.1, 0.7, 0.0))), std::bit_cast<std::uint64_t>(double(0.1))));
+    };
 
     // The cross-platform gate: the same arguments give the same bits on Linux,
     // macOS and Windows. A change of this value is a change of results.
-    s.test("pinned bits", [] {
+    "pinned bits"_test = [] {
         Hash h;
         Sequence seq{2026};
         for (int i = 0; i < 4096; ++i) {
@@ -142,8 +143,6 @@ int main(int argc, char** argv) {
             h.f64(dm::pow(dm::abs(x), 1.0 / 2.4));
         }
         std::println("    anim.math pinned hash {}", h.hex());
-        check_eq(h.hex(), std::string("65ba3a579a4a44b3"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(h.hex(), std::string("65ba3a579a4a44b3")));
+    };
+}};

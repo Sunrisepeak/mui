@@ -185,6 +185,13 @@ UTest cases{"designer", [] {
         expect(changes && changes->json().contains("\"before\":\"first\"") && changes->json().contains("\"after\":\"second\"")) << edited.ndjson();
         expect(answer.get("took_ms") && answer.get("took_ms")->as_double() >= 0);
         expect(eq(name_of(h, "side"), std::string("second")));
+        // The code it wrote, beside what it changed, for a moment (a frame on: settling waits out the presence, longer than the card).
+        (void)h.step();
+        const auto card = h.tree().snapshot({.root = "design-code/card"}).to_value().json();
+        expect(card.contains("logic/side.stub:1") && card.contains("+ ") && card.contains("second")) << card;
+        (void)h.step({}, h.runtime().now() + seconds(3.5));
+        h.settle();
+        expect(!h.tree().node("design-code/card").has_value()) << "gone after a moment";
         expect(eq(file_text(dir / "logic" / "side.stub"), first)) << "an edit stays in the session until committed";
         // The agent's edit is said beside what it changed (its presence shows it).
         const auto notes = h.runtime().agent_notes();
@@ -690,7 +697,9 @@ UTest cases{"designer", [] {
         const std::string end = page(true);
         expect(abi::omuiMount(abi::attach(plain.runtime(), "plain"), {"side", 4}, {end.data(), end.size()}) == abi::OMUI_SUCCESS);
         plain.settle();
-        expect(!differ(frames.back(), plain.pixels())) << "the presentation ends where the edit draws";
+        // The code it wrote stays beside it for a moment (design-code); after it, the edit's own drawing.
+        (void)h.advance(seconds(3.0));
+        expect(!differ(h.pixels(), plain.pixels())) << "the presentation ends where the edit draws";
         // The strip, for the eye (README media are made from it).
         const int width = frames.front().width(), height = frames.front().height();
         std::vector<std::uint8_t> strip(static_cast<std::size_t>(width) * frames.size() * height * 4);

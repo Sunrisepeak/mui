@@ -73,6 +73,35 @@ inline Element board_view(Size window, std::string_view brief, const std::vector
                    row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))});
 }
 
+// The code beside what it changed (§2.12.2, 代码与画面的联系): the lines an
+// edit changed — what was there, what is there now — on a card next to the
+// first node it changed.
+inline Element code_card_view(Size window, Rect near, std::string_view place, std::string_view before, std::string_view after) {
+    const float width = std::min(380.0f, window.width - 16.0f);
+    const float x = std::clamp(near.x, 8.0f, std::max(8.0f, window.width - width - 8.0f));
+    float y = near.y + near.height + 6.0f;
+    if (y + 96.0f > window.height) y = std::max(8.0f, near.y - 102.0f);
+    std::vector<Element> lines{text({.text = std::string(place), .style = "caption", .color = Fill(std::string(muted)), .wrap = false, .max_lines = 1})};
+    const auto add = [&](std::string_view block, std::string_view mark, std::string_view colour) {
+        std::size_t shown = 0;
+        for (const auto line : std::views::split(block, '\n')) {
+            const std::string_view words(line.begin(), line.end());
+            if (words.empty() && block.empty()) break;
+            if (++shown > 3) {
+                lines.push_back(text({.text = "  …", .style = "code", .color = Fill(std::string(colour))}));
+                break;
+            }
+            lines.push_back(text({.text = std::format("{} {}", mark, words), .style = "code", .color = Fill(std::string(colour)), .wrap = false, .max_lines = 1}));
+        }
+    };
+    add(before, "-", "#fca5a5");
+    add(after, "+", "#86efac");
+    return stack({.width = window.width, .height = window.height},
+                 {column({.id = "card", .width = width, .padding = 8, .gap = 2, .background = Fill(std::string(glass)), .radius = 8, .shadow = "md",
+                          .translate_x = x, .translate_y = y, .label = "The code this change wrote"},
+                         std::move(lines))});
+}
+
 // A film's caption (design.film): what the step was, at the bottom.
 inline Element caption_view(Size window, std::string words) {
     return column({.width = window.width, .height = window.height, .padding = 14, .justify = "end", .align = "center"},

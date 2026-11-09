@@ -40,8 +40,9 @@ public:
     explicit Design(Player& designed) : player(designed), rt(designed.runtime()), history(designed.manifest().base / ".omui" / "design") { verbs(); }
     ~Design() override {
         // Its verbs and its overlays go with it.
+        if (card_timer) rt.cancel(card_timer);
         for (const auto& name : added) (void)rt.verbs().remove(name);
-        for (const std::string_view slot : {"design-preview", "design-variants", "design-timeline"}) rt.unmount(slot);
+        for (const std::string_view slot : {"design-preview", "design-variants", "design-timeline", "design-code"}) rt.unmount(slot);
     }
 
 private:
@@ -576,6 +577,28 @@ private:
             .set("why", said);
     }
 
+    // The code an edit wrote, beside the first node it changed, for a moment
+    // (§2.12.2: the TS and the picture tied together); the next edit's replaces it.
+    std::uint64_t card_timer = 0;
+    void show_code(const std::string& path, const Value& answer, std::string_view before, std::string_view after) {
+        const Value lines = answer.get("source") ? *answer.get("source") : changed_lines(before, after);
+        if (!lines.get("line") || (lines.get("before")->as_string().empty() && lines.get("after")->as_string().empty())) return;
+        std::string node;
+        if (const Value* changes = answer.get("changes"))
+            for (const std::string_view kind : {"changed", "added"})
+                if (const Value* list = changes->get(kind); node.empty() && list && list->list() && !list->list()->empty())
+                    node = std::string(list->list()->front().get("id")->as_string());
+        const NodeId id = node.empty() ? NodeId{} : rt.reveal(node);
+        const Rect near = rt.valid(id) ? rt.screen_bounds(id) : Rect{16, 16, 0, 0};
+        rt.mount("design-code", code_card_view(rt.size(), near, std::format("{}:{}", path, lines.get("line")->as_int()), lines.get("before")->as_string(),
+                                               lines.get("after")->as_string()));
+        if (card_timer) rt.cancel(card_timer);
+        card_timer = rt.after(seconds(3.0), [this] {
+            card_timer = 0;
+            rt.unmount("design-code");
+        });
+    }
+
     // Where a script built a node: its path as design.sources names it, line and column.
     struct Place {
         std::string path;
@@ -609,7 +632,9 @@ private:
         if (!changed) return std::unexpected(std::format("{}:{}: {}", place->path, place->line, changed.error()));
         auto done = player.edit(place->path, *changed);
         if (!done) return std::unexpected(done.error());
-        return done->set("path", place->path).set("source", changed_lines(*text, *changed));
+        done->set("path", place->path).set("source", changed_lines(*text, *changed));
+        show_code(place->path, *done, *text, *changed);
+        return done;
     }
 
     // Where two texts differ, by whole lines: the first line and the lines before and after.
@@ -703,7 +728,10 @@ private:
             const Value* text = args.get("text");
             if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
             const std::string path(args.get("path") ? args.get("path")->as_string() : "");
-            return step(player.edit(path, text->as_string()), std::format("edit {}", path));
+            const std::string before = player.text(path).value_or(std::string());
+            auto done = step(player.edit(path, text->as_string()), std::format("edit {}", path));
+            if (done) show_code(path, *done, before, text->as_string());
+            return done;
         });
         add("design.set", [this](const Value& args) -> VerbResult {
             const Value* properties = args.get("props");

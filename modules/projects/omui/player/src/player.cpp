@@ -458,6 +458,112 @@ struct Player::Impl {
             .set("files", Value(std::move(paths)));
     }
 
+    // Previews and the variants board (D-149's 原地预演 and 替身方案板): what a
+    // stand-in shows, above the application in slots of their own, until the
+    // person (or the agent) takes one or lets it go.
+    std::optional<std::map<std::string, std::string>> previewing;  // the texts a preview shows
+    std::map<std::string, std::string>                  variants;    // a variant on the board → its branch
+
+    // The texts as they would be after these edits: `edits` [{path, text}], or one `path` and `text`.
+    std::expected<std::map<std::string, std::string>, std::string> with_edits(const Value& args) {
+        std::map<std::string, std::string> texts = design_texts();
+        Value::List one;
+        const Value* edits = args.get("edits");
+        if (!edits || !edits->list())
+            one.push_back(Value{}.set("path", args.get("path") ? *args.get("path") : Value{}).set("text", args.get("text") ? *args.get("text") : Value{}));
+        for (const Value& edit : edits && edits->list() ? *edits->list() : one) {
+            const Value* path = edit.get("path");
+            const Value* text = edit.get("text");
+            if (!path || !text || text->type() != Value::Type::text)
+                return std::unexpected(std::string("each edit is {path, text}: a source and its whole new text"));
+            if (!texts.contains(std::string(path->as_string())))
+                return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path->as_string()));
+            texts[std::string(path->as_string())] = std::string(text->as_string());
+        }
+        return texts;
+    }
+
+    // What a stand-in shows of these texts, its picture kept in the history's store.
+    struct Shown {
+        std::filesystem::path picture;
+        Value                 changes;  // against what the person sees now
+    };
+    std::expected<Shown, std::string> stand_in(const std::map<std::string, std::string>& texts) {
+        if (!options.stand_in) return std::unexpected(std::string("this host makes no stand-in to show it in (omui dev's player does)"));
+        auto shown = options.stand_in(texts);
+        if (!shown) return std::unexpected(std::format("the stand-in: {}", shown.error()));
+        auto picture = history.keep_picture(shown->png);
+        if (!picture) return std::unexpected(picture.error());
+        semantic::Tree tree(rt);
+        return Shown{std::move(*picture), semantic::changes_between(tree.snapshot(), shown->tree)};
+    }
+
+    // The preview: its picture over the application, half seen, with how to take it or let it go.
+    void show_preview(const std::filesystem::path& picture) {
+        const Size window = rt.size();
+        rt.mount("design-preview",
+                 stack({.width = window.width, .height = window.height, .label = "A preview of a design change"},
+                       {image({.id = "ghost", .source = generic_utf8(picture), .alt = "the design as it would be", .fit = "fill",
+                               .width = window.width, .height = window.height, .opacity = 0.55f}),
+                        row({.id = "choice", .padding = Edges(6.0f, 10.0f), .gap = 8, .align = "center", .background = "#0f172ae0", .radius = 8},
+                            {text({.text = "Preview", .style = "label", .color = "#f8fafc"}),
+                             box({.id = "accept", .padding = Edges(4.0f, 10.0f), .background = "#22c55e", .radius = 6, .label = "Accept",
+                                  .on = {{"press", [this](const Value&) { (void)accept_preview(); }}}},
+                                 {text({.text = "Accept", .style = "label", .color = "#052e16"})}),
+                             box({.id = "reject", .padding = Edges(4.0f, 10.0f), .background = "#e2e8f0", .radius = 6, .label = "Reject",
+                                  .on = {{"press", [this](const Value&) { reject_preview(); }}}},
+                                 {text({.text = "Reject", .style = "label", .color = "#0f172a"})})})}));
+    }
+    VerbResult accept_preview() {
+        if (!previewing) return std::unexpected(std::string("no preview is shown (design.preview shows one)"));
+        auto texts = std::move(*previewing);
+        previewing.reset();
+        rt.unmount("design-preview");
+        return step(apply_texts(texts), "the preview, accepted");
+    }
+    void reject_preview() {
+        previewing.reset();
+        rt.unmount("design-preview");
+    }
+
+    // The board: each variant's picture on a card, side by side, to pick one.
+    void show_board(const std::vector<std::pair<std::string, std::filesystem::path>>& cards, std::string_view brief) {
+        const Size window = rt.size();
+        const float columns = static_cast<float>(std::max<std::size_t>(cards.size(), 1));
+        const float card_width = std::max(80.0f, (window.width - 24.0f - 12.0f * (columns - 1)) / columns);
+        const float picture_height = (card_width - 12.0f) * window.height / std::max(window.width, 1.0f);
+        std::vector<Element> shown;
+        for (const auto& [name, picture] : cards) {
+            const std::string chosen = name;
+            shown.push_back(column({.id = std::format("variant-{}", name),
+                                    .width = card_width,
+                                    .padding = 6,
+                                    .gap = 6,
+                                    .background = "#f8fafc",
+                                    .radius = 10,
+                                    .shadow = "md",
+                                    .label = std::format("Variant {}", name),
+                                    .on = {{"press", [this, chosen](const Value&) { (void)pick_variant(chosen); }}}},
+                                   {image({.source = generic_utf8(picture), .alt = std::format("variant {}", name), .fit = "contain",
+                                           .width = card_width - 12.0f, .height = picture_height}),
+                                    text({.text = name, .style = "label", .color = "#0f172a"})}));
+        }
+        rt.mount("design-variants",
+                 column({.width = window.width, .height = window.height, .padding = 12, .gap = 10, .justify = "center", .background = "#0f172ac0",
+                         .label = std::format("Variants: {}", brief)},
+                        {text({.id = "brief", .text = std::string(brief), .style = "title", .color = "#f8fafc"}),
+                         row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))}));
+    }
+    VerbResult pick_variant(const std::string& name) {
+        const auto branch = variants.find(name);
+        if (branch == variants.end()) return std::unexpected(std::format("no variant `{}` on the board", name));
+        auto texts = history.texts_of(branch->second);
+        if (!texts) return std::unexpected(texts.error());
+        variants.clear();
+        rt.unmount("design-variants");
+        return step(apply_texts(*texts), std::format("variant {} picked", name));
+    }
+
     // Where a script built a node: its path as design.sources names it, line and column.
     struct Place {
         std::string path;
@@ -807,6 +913,64 @@ struct Player::Impl {
             if (!tagged) return std::unexpected(tagged.error());
             return Value{}.set("tag", name).set("at", *tagged);
         });
+        // Previews and the variants board, in a stand-in (D-149 §2.12.3).
+        add("design.preview", [this](const Value& args) -> VerbResult {
+            auto texts = with_edits(args);
+            if (!texts) return std::unexpected(texts.error());
+            auto shown = stand_in(*texts);
+            if (!shown) return std::unexpected(shown.error());
+            previewing = std::move(*texts);
+            show_preview(shown->picture);
+            return Value{}.set("picture", generic_utf8(shown->picture)).set("changes", shown->changes);
+        });
+        add("design.preview.accept", [this](const Value&) -> VerbResult { return accept_preview(); });
+        add("design.preview.reject", [this](const Value&) -> VerbResult {
+            if (!previewing) return std::unexpected(std::string("no preview is shown"));
+            reject_preview();
+            return Value{}.set("rejected", true);
+        });
+        add("design.variants", [this](const Value& args) -> VerbResult {
+            const std::string brief(args.get("brief") ? args.get("brief")->as_string() : "");
+            const Value* list = args.get("variants");
+            if (brief.empty() || !list || !list->list() || list->list()->size() < 2 || list->list()->size() > 6)
+                return std::unexpected(std::string("design.variants takes a `brief` and 2 to 6 `variants`: [{name, edits: [{path, text}]}]"));
+            const auto by = rt.current_invocation();
+            std::vector<std::pair<std::string, std::filesystem::path>> cards;
+            std::map<std::string, std::string> branches;
+            Value::List answered;
+            for (const Value& variant : *list->list()) {
+                const std::string name(variant.get("name") ? variant.get("name")->as_string() : "");
+                if (!valid_ref_name(name) || name.contains('/')) return std::unexpected(std::format("`{}` cannot name a variant (letters, digits, - _ .)", name));
+                auto texts = with_edits(variant);
+                if (!texts) return std::unexpected(std::format("{}: {}", name, texts.error()));
+                auto shown = stand_in(*texts);
+                if (!shown) return std::unexpected(std::format("{}: {}", name, shown.error()));
+                // Each variant is a branch of its own (D-151), its picture the commit's.
+                const std::string branch = std::format("variant/{}", name);
+                auto commit = history.commit_on(branch, *texts, std::format("{}: {}", brief, name), by ? by->actor.text() : std::string("person"), std::string());
+                if (commit) (void)history.set_thumbnail(commit->id, shown->picture);
+                branches[name] = branch;
+                cards.emplace_back(name, shown->picture);
+                answered.push_back(Value{}
+                                       .set("name", name)
+                                       .set("branch", branch)
+                                       .set("commit", commit ? Value(commit->id) : Value{})
+                                       .set("picture", generic_utf8(shown->picture))
+                                       .set("changes", shown->changes));
+            }
+            variants = std::move(branches);
+            show_board(cards, brief);
+            return Value{}.set("brief", brief).set("variants", Value(std::move(answered)));
+        });
+        add("design.variants.pick", [this](const Value& args) -> VerbResult {
+            return pick_variant(std::string(args.get("name") ? args.get("name")->as_string() : ""));
+        });
+        add("design.variants.close", [this](const Value&) -> VerbResult {
+            if (variants.empty()) return std::unexpected(std::string("no variants are shown"));
+            variants.clear();
+            rt.unmount("design-variants");
+            return Value{}.set("closed", true);
+        });
         add("design.expect",
             [this](const Value& args) -> VerbResult {
                 if (const Value* q = args.get("query")) {
@@ -986,6 +1150,12 @@ Status Player::start() {
     std::string all;
     for (const auto& p : d.problems) all += p + "\n";
     return std::unexpected(std::move(all));
+}
+
+Status Player::show(const std::map<std::string, std::string>& texts) {
+    auto applied = impl_->apply_texts(texts);
+    if (!applied) return std::unexpected(applied.error());
+    return {};
 }
 
 std::vector<std::string> Player::poll() {

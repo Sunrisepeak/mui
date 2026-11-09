@@ -23,6 +23,27 @@ namespace omui {
 
 namespace {
 
+// Live Design's stand-in (D-149): the application again, headless and unseen,
+// running texts the design has not taken yet — a preview's or a variant's
+// picture and semantic tree — what the person sees untouched.
+player::StandInFn stand_in(const player::Manifest& manifest) {
+    return [manifest](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
+        Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size, .app = manifest.id + ".stand-in"});
+        player::Player shown(twin.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()}, {});
+        const auto settle = [&] {
+            for (int frame = 0; frame < 600 && !shown.idle(); ++frame) (void)twin.step();
+            twin.settle();
+        };
+        if (auto started = shown.start(); !started) return std::unexpected(started.error());
+        settle();
+        if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
+        settle();
+        auto png = twin.png();
+        if (!png) return std::unexpected(png.error());
+        return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
+    };
+}
+
 // `ui/*.view.omui.json`: the files of a directory whose names match (`*` in
 // the last component only), sorted; a path without `*` as it is.
 std::vector<std::filesystem::path> expand(const std::filesystem::path& base, std::string_view pattern) {
@@ -219,7 +240,7 @@ int player_main(int argc, char** argv) {
     app.setup = [&](Runtime& rt) {
         if (record) rt.set_record_level(*record);
         p.emplace(rt, *m, std::vector<player::Language>{lang::js::typescript(), lang::js::javascript()},
-                  player::PlayerOptions{.design = design});
+                  player::PlayerOptions{.design = design, .stand_in = design ? stand_in(*m) : player::StandInFn{}});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
         // A saved file shows within a frame in development mode (W2: save to screen ≤ 100 ms at p95; a
         // stat of the app's files a frame costs microseconds), within a tenth of a second otherwise.

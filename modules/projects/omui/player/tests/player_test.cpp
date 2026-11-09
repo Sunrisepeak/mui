@@ -6,6 +6,7 @@ import omui.core;
 import omui.view;
 import omui.abi;
 import omui.player;
+import omui.semantic;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.image;
@@ -397,6 +398,92 @@ UTest cases{"player", [] {
         expect(eq(name_of(h, "side/bye"), std::string("later")));
         // The store beside the application.
         expect(std::filesystem::exists(dir / ".omui" / "design" / "HEAD") && std::filesystem::exists(dir / ".omui" / "design" / "refs" / "heads" / "quiet"));
+    };
+
+    "a preview and a variants board in stand-ins: their pictures and changes, the application untouched until one is taken"_test = [] {
+        const auto dir = scratch_dir("player-stand-in");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string doc = R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+  {"type": "text", "id": "hello", "props": {"text": "first"}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", doc);
+        player::Manifest m;
+        m.id = "org.openmui.player-stand-in";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        int stand_ins = 0;
+        // The stand-in the entry would make: the application again, headless, running the texts.
+        const auto stand_in = [&](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
+            ++stand_ins;
+            Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+            player::Player shown(twin.runtime(), m, {stub()}, {});
+            if (auto started = shown.start(); !started) return std::unexpected(started.error());
+            twin.settle();
+            if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
+            twin.settle();
+            auto png = twin.png();
+            if (!png) return std::unexpected(png.error());
+            return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
+        };
+        Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .stand_in = stand_in});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        const auto saying = [&](std::string_view words) {
+            std::string text = doc;
+            text.replace(text.find("\"first\""), 7, std::format("\"{}\"", words));
+            return text;
+        };
+
+        // A preview: the picture and the changes it would bring; nothing changed until accepted.
+        const auto [previewed, preview] = invoke("design.preview", Value{}.set("path", "logic/side.stub").set("text", saying("previewed")));
+        expect(eq(previewed, 0)) << preview.json();
+        expect(eq(name_of(h, "side/hello"), std::string("first"))) << "the application untouched";
+        expect(preview.json().contains("\"after\":\"previewed\"")) << preview.json();
+        const auto picture = preview.get("picture") ? std::filesystem::path(std::string(preview.get("picture")->as_string())) : std::filesystem::path();
+        expect(std::filesystem::exists(picture) && picture.extension() == ".png") << picture.string();
+        expect(h.tree().node("design-preview/ghost").has_value()) << "shown over the application, half seen";
+        expect(eq(invoke("design.preview.reject").first, 0));
+        expect(!h.tree().node("design-preview/ghost").has_value() && eq(name_of(h, "side/hello"), std::string("first")));
+        expect(eq(invoke("design.preview", Value{}.set("path", "logic/side.stub").set("text", saying("accepted"))).first, 0));
+        const auto [accepted, accept_answer] = invoke("design.preview.accept");
+        expect(eq(accepted, 0) && accept_answer.get("commit")) << accept_answer.json() << " — a step of the design";
+        expect(eq(name_of(h, "side/hello"), std::string("accepted")));
+
+        // A board of variants, each a branch with its picture; picking one runs it.
+        Value::List variants;
+        for (const std::string_view name : {"calm", "bold", "warm"})
+            variants.push_back(Value{}.set("name", name).set("edits", Value(Value::List{Value{}.set("path", "logic/side.stub").set("text", saying(name))})));
+        const auto [boarded, board] = invoke("design.variants", Value{}.set("brief", "how it greets").set("variants", Value(variants)));
+        expect(eq(boarded, 0)) << board.json();
+        expect(board.get("variants") && board.get("variants")->list()->size() == 3) << board.json();
+        expect(eq(name_of(h, "side/hello"), std::string("accepted"))) << "nothing the person sees changed";
+        expect(h.tree().node("design-variants/cards/variant-bold").has_value())
+            << "the cards, side by side: " << h.tree().snapshot({.root = "design-variants"}).to_value().json();
+        const auto history = invoke("design.history").second;
+        expect(history.get("branches")->get("variant/calm") && history.get("branches")->get("variant/warm")) << history.json();
+        const auto [picked, pick_answer] = invoke("design.variants.pick", Value{}.set("name", "bold"));
+        expect(eq(picked, 0)) << pick_answer.json();
+        expect(eq(name_of(h, "side/hello"), std::string("bold")) && !h.tree().node("design-variants/cards/variant-bold").has_value());
+        expect(eq(stand_ins, 5)) << "two previews, three variants";
+        // Without a stand-in, they say so.
+        Headless plain(HeadlessOptions{.size = {320, 240}});
+        player::Player without(plain.runtime(), m, {stub()}, {.design = true});
+        expect(without.start().has_value());
+        Invocation call;
+        call.args = Value{}.set("path", "logic/side.stub").set("text", saying("x"));
+        call.actor = {"agent", "designer", {}};
+        const Envelope refused = plain.runtime().verbs().invoke("design.preview", call);
+        expect(refused.exit_code().value_or(0) != 0 && refused.ndjson().contains("stand-in")) << refused.ndjson();
     };
 
     "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {

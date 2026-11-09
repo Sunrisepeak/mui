@@ -273,7 +273,49 @@ std::expected<std::map<std::string, std::string>, std::string> DesignHistory::te
 
 std::expected<DesignCommit, std::string> DesignHistory::commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
                                                                std::string tree, std::optional<std::vector<std::string>> parents, std::string changes) {
-    const std::string branch_name = head_branch();
+    return commit_to(head_branch(), texts, std::move(message), std::move(actor), std::move(tree), std::move(parents), std::move(changes));
+}
+
+std::expected<DesignCommit, std::string> DesignHistory::commit_on(std::string_view branch, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string tree) {
+    if (!valid_ref_name(branch)) return std::unexpected(std::format("`{}` cannot name a branch (letters, digits, - _ . /)", branch));
+    if (!ref("heads", branch))
+        if (const auto at = resolve("HEAD"))
+            if (auto made = write(directory_ / "refs" / "heads" / path_of(branch), *at + "\n"); !made) return std::unexpected(made.error());
+    return commit_to(std::string(branch), texts, std::move(message), std::move(actor), std::move(tree), std::nullopt, {});
+}
+
+std::expected<std::filesystem::path, std::string> DesignHistory::keep_picture(std::span<const std::uint8_t> png) {
+    const std::string_view bytes(reinterpret_cast<const char*>(png.data()), png.size());
+    const auto file = directory_ / "pictures" / path_of(hash_of(bytes) + ".png");
+    if (const auto there = read(file); there && *there == bytes) return file;
+    if (auto written = write(file, bytes); !written) return std::unexpected(written.error());
+    return file;
+}
+
+std::optional<std::filesystem::path> DesignHistory::thumbnail(std::string_view commit) const {
+    const auto text = read(directory_ / "thumbnails.json");
+    if (!text) return std::nullopt;
+    const auto map = parse_json(*text);
+    const Value* name = map ? map->get(commit) : nullptr;
+    if (!name || name->type() != Value::Type::text) return std::nullopt;
+    auto file = directory_ / "pictures" / path_of(name->as_string());
+    std::error_code error;
+    return std::filesystem::exists(file, error) ? std::optional(std::move(file)) : std::nullopt;
+}
+
+std::expected<void, std::string> DesignHistory::set_thumbnail(std::string_view commit, const std::filesystem::path& picture) {
+    const auto text = read(directory_ / "thumbnails.json");
+    Value map(Value::Map{});
+    if (text)
+        if (auto read_back = parse_json(*text); read_back && read_back->map()) map = std::move(*read_back);
+    map.set(commit, generic_utf8(picture.filename()));
+    return write(directory_ / "thumbnails.json", map.json());
+}
+
+std::expected<DesignCommit, std::string> DesignHistory::commit_to(const std::string& branch_name, const std::map<std::string, std::string>& texts,
+                                                                  std::string message, std::string actor, std::string tree,
+                                                                  std::optional<std::vector<std::string>> parents, std::string changes) {
     DesignCommit commit;
     commit.message = std::move(message);
     commit.actor = std::move(actor);
@@ -296,7 +338,7 @@ std::expected<DesignCommit, std::string> DesignHistory::commit(const std::map<st
     commit.id = hash_of(text);
     if (auto written = write(directory_ / "commits" / path_of(commit.id + ".json"), text); !written) return std::unexpected(written.error());
     if (auto moved = write(directory_ / "refs" / "heads" / path_of(branch_name), commit.id + "\n"); !moved) return std::unexpected(moved.error());
-    if (!read(directory_ / "HEAD"))
+    if (!read(directory_ / "HEAD") && branch_name == head_branch())
         if (auto head = write(directory_ / "HEAD", branch_name + "\n"); !head) return std::unexpected(head.error());
     return commit;
 }

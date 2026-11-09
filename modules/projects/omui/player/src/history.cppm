@@ -44,6 +44,15 @@ public:
     std::expected<DesignCommit, std::string> commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
                                                    std::string tree, std::optional<std::vector<std::string>> parents = std::nullopt,
                                                    std::string changes = {});
+    // The texts as a commit on another branch than HEAD's (a variant's), the
+    // branch made at HEAD's commit when it is not there; HEAD stays.
+    std::expected<DesignCommit, std::string> commit_on(std::string_view branch, const std::map<std::string, std::string>& texts, std::string message,
+                                                      std::string actor, std::string tree);
+    // A picture (PNG) kept by content under pictures/: its file.
+    std::expected<std::filesystem::path, std::string> keep_picture(std::span<const std::uint8_t> png);
+    // A commit's picture, once one is kept for it (a thumbnail: thumbnails.json).
+    [[nodiscard]] std::optional<std::filesystem::path> thumbnail(std::string_view commit) const;
+    std::expected<void, std::string> set_thumbnail(std::string_view commit, const std::filesystem::path& picture);
     // A branch at a commit (HEAD's when none); HEAD stays where it is.
     std::expected<std::string, std::string> branch(std::string_view name, std::optional<std::string_view> at = std::nullopt);
     // HEAD on another branch; its last commit's id.
@@ -59,6 +68,9 @@ public:
     [[nodiscard]] std::optional<std::string> common_ancestor(std::string_view first, std::string_view second) const;
 
 private:
+    std::expected<DesignCommit, std::string> commit_to(const std::string& branch, const std::map<std::string, std::string>& texts, std::string message,
+                                                      std::string actor, std::string tree, std::optional<std::vector<std::string>> parents,
+                                                      std::string changes);
     [[nodiscard]] std::expected<std::string, std::string> put_object(std::string_view text);
     [[nodiscard]] std::optional<std::string> read(const std::filesystem::path& file) const;
     std::expected<void, std::string> write(const std::filesystem::path& file, std::string_view text) const;

@@ -19,6 +19,7 @@ import std;
 import omui.core;
 import omui.view;
 import omui.abi;
+import omui.semantic;
 
 export namespace omui::player {
 
@@ -118,12 +119,27 @@ struct Language {
     SourceEditor edit;
 };
 
+// What a stand-in shows: its picture (PNG) and its semantic tree.
+struct StandIn {
+    std::vector<std::uint8_t> png;
+    semantic::Snapshot        tree;
+};
+// A stand-in (替身, D-149): the application again in this process, unseen and
+// headless, running the given texts (sources by path; the rest as their files
+// are) — what a preview or a variant looks like, the application the person
+// sees untouched. The entry makes one (a headless host, the same size, theme
+// and languages).
+using StandInFn = std::function<std::expected<StandIn, std::string>(const std::map<std::string, std::string>& texts)>;
+
 struct PlayerOptions {
     // Development mode (D-149): the application is its own designer. The
     // design.* verbs read the scripts' TypeScript, run new text within the
     // frame (its semantic changes answered, or its problems, nothing changed),
     // and commit it to the files or discard it. Left out of a release.
     bool design = false;
+    // Previews, the variants board and the history's pictures (design.preview,
+    // design.variants, design.history with pictures); without one they say so.
+    StandInFn stand_in;
 };
 
 class Player {
@@ -138,6 +154,9 @@ public:
     // Reloads what changed on disk since the last look; answers what it
     // reloaded (its paths). Errors go to problems().
     std::vector<std::string> poll();
+    // Runs these texts in place of the sources' (by path, as design.sources
+    // names them), as design.edit runs an edit: what a stand-in shows.
+    Status show(const std::map<std::string, std::string>& texts);
     // Polls on the runtime's timers, every `period`.
     void watch(seconds period = seconds(0.1));
 

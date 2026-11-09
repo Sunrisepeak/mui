@@ -722,6 +722,11 @@ my-app/
   - 合并以共同祖先为基准逐行三方合并，同一处的不同改动会列出冲突、不做合并。
   - 每一步都是一次提交（D-151）：`design.begin {intent}` 先把起点记成提交，此后每次 edit、set、insert、remove 各成一次提交，消息里带意图和这一步做了什么，并附上语义差异。切换可以指向任意提交（不移动分支，标为 `detached`）。
   - `omui design sync` 用 git 自身的命令和单独的 index 把每个设计提交写成 `design/<branch>` 上的 git 提交（标签为 `design/<tag>`），工作区、index 和 HEAD 都不动；`git.json` 记录已同步的提交，重复执行不会再写。
+- 第九块完成：替身、原地预演与方案板（§2.12.3）。`PlayerOptions::stand_in` 由入口提供：在同一进程里起一个看不见的 headless 宿主和 player，运行给定文本，返回图像和语义树；人看到的应用不受影响。
+  - `design.preview`：图像以半透明的幽灵层叠在应用上，附上将带来的语义差异；`.accept` 让它成为设计的一步（一次提交），`.reject` 放弃。
+  - `design.variants {brief, variants}`：2 到 6 个方案各起一个替身，各记成一条分支 `variant/<名字>`（图像作为该提交的缩略图），并排放在方案板上；`.pick` 把选中的方案作为一步运行并收起方案板，`.close` 什么都不选。
+  - 图像按内容存放在 `.omui/design/pictures/`。
+  - 没有替身的宿主会明确说明做不到。
 - 下一块：
   - 时间线视图；
   - hanim 呈现设计过程；

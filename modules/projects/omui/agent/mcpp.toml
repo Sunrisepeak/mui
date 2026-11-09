@@ -46,3 +46,5 @@ mcpplibs.os      = "0.4.4"
 mcpplibs.mtest = "0.5.2"
 # generation_test: A2UI's components drafted as the official ones (button, checkbox, text_box, slider).
 omui.ui.base = { path = "../components/base" }
+# present_test: the application's own font drawn by a host that lacked it, glyph for glyph.
+xrender.text = { path = "../../xrender/text" }

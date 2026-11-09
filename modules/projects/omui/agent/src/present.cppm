@@ -4,7 +4,9 @@
 // application sends each frame's display list (xrender.vector:wire) and the
 // images it refers to, once per revision; the host draws them with the same
 // xrender — the same pixels as the application drawing itself — and sends
-// the person's input back. Fonts and effects are the same on both sides.
+// the person's input back. A font is named by what it is (its face's bytes'
+// hash, weight, slant); the host says which faces it has, and a face it lacks
+// (one the application loaded itself) is sent once.
 //
 // Over a local connection (mcpplibs.os), framed: a length, a kind, its bytes.
 // A new build takes over from the one before: the host asks the old for what
@@ -49,6 +51,10 @@ private:
     mcpplibs::os::ipc::connection                  connection_;
     std::unordered_map<std::uint32_t, std::uint64_t> sent_;  // image id → revision the host has
     std::set<std::uint32_t>                        fonts_sent_;  // font references the host knows
+    std::set<std::uint64_t>                        host_faces_;  // the faces the host has, by identity
+    bool                                           host_said_ = false;  // whether it has said which
+    std::set<std::uint64_t>                        faces_sent_;  // the faces sent to it
+    std::unordered_map<std::uint32_t, std::uint64_t> identities_;  // a face's identity, once computed
     std::string                                    pending_;
     std::vector<InputEvent>                        input_;
     std::optional<std::pair<Size, float>>          size_;
@@ -57,9 +63,9 @@ private:
 
 class Presentation {
 public:
-    // `fonts`: where the application's font references are interned again
-    // (the same faces loaded in the same order, as add_defaults does); none:
-    // its numbers taken as they are.
+    // `fonts`: where the application's font references are interned again, by
+    // their faces' identities; a face it lacks is sent by the application and
+    // added (its own fonts). None: their numbers taken as they are.
     explicit Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts = nullptr);
     // The next frame's list (the images it refers to stored first); none when
     // nothing came within `wait`, or the application is gone (gone()).
@@ -94,6 +100,7 @@ private:
     std::optional<Value>          places_;
     mlibs::text::FontCollection*  fonts_ = nullptr;
     std::unordered_map<std::uint32_t, std::uint32_t> font_map_;  // the application's reference → this side's
+    std::unordered_map<std::uint64_t, std::uint32_t> faces_;     // a face's identity → this side's face
 };
 
 }  // namespace omui::agent

@@ -5,6 +5,7 @@ import std;
 import omui.agent;
 import xrender.vector;
 import xrender.raster;
+import xrender.text;
 import mcpplibs.os;
 import mcpplibs.mtest;
 
@@ -161,6 +162,47 @@ UTest cases{"present", [] {
         expect(found.get("width") && std::abs(found.get("width")->as_double() - drawn.width) < 0.01 && std::abs(found.get("y")->as_double() - drawn.y) < 0.01)
             << found.json();
         expect((*host.places()->list())[1].is_null()) << "a place no element was built at: null";
+    };
+
+    "an application's own font: a host that lacks the face is sent it once and draws it as the application does"_test = [] {
+        Pair ends;
+        Runtime rt([] {
+            RuntimeOptions options;
+            options.fonts = &fonts();
+            options.size = {200, 60};
+            return options;
+        }());
+        rt.mount("main", column({.padding = 8}, {text({.id = "code", .text = "let answer = 42;", .style = "code"})}));
+        const FrameOutput first = rt.frame({seconds(0), {}});
+        // The host has Inter only: the monospace face is the application's to give.
+        mlibs::text::FontCollection host_fonts;
+        expect(fatal(host_fonts.add_file(mlibs::text::FontCollection::default_directory() / "Inter.ttf").has_value()));
+        agent::Presentation host(std::move(ends.host), &host_fonts);
+        agent::Presenter presenter(rt, std::move(ends.application));
+        expect(presenter.send(first));
+        const xrender::DisplayList* got = nullptr;
+        for (int tries = 0; tries < 200 && !got; ++tries) got = host.receive(std::chrono::milliseconds(5));
+        expect(fatal(got != nullptr));
+        expect(eq(host_fonts.face_count(), std::size_t{2})) << "the face it lacked, added";
+        const auto drawn_with = [](const xrender::DisplayList& list, mlibs::text::FontCollection& faces, xrender::ImageStore& images) {
+            xrender::text::GlyphCache glyphs(faces);
+            xrender::raster::Surface surface(200, 60);
+            xrender::CpuRenderer renderer;
+            (void)renderer.render(list, surface, {&images, &glyphs});
+            return std::vector<std::uint8_t>(surface.bytes().begin(), surface.bytes().end());
+        };
+        const auto own = drawn_with(*first.list, fonts(), rt.images());
+        const auto hosted = drawn_with(*got, host_fonts, host.images());
+        expect(own == hosted) << "the same pixels as the application's own";
+        long inked = 0;
+        for (std::size_t index = 3; index < own.size(); index += 4) inked += own[index] != 0;
+        expect(inked > 50) << "text was drawn";
+        // A frame after: the face is not sent again.
+        rt.mount("main", column({.padding = 8}, {text({.id = "code", .text = "let answer = 43;", .style = "code"})}));
+        expect(presenter.send(rt.frame({seconds(0.1), {}})));
+        const xrender::DisplayList* again = nullptr;
+        for (int tries = 0; tries < 200 && !again; ++tries) again = host.receive(std::chrono::milliseconds(5));
+        expect(again != nullptr && host_fonts.face_count() == 2) << "sent once";
     };
 
     "images: sent with the first frame that uses them, again only when they change"_test = [] {

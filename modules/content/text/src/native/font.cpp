@@ -270,6 +270,8 @@ std::size_t FontCollection::face_count() const noexcept {
 }
 const FaceInfo& FontCollection::face(FaceId id) const { return impl_->at(id).info; }
 
+std::span<const std::uint8_t> FontCollection::face_data(FaceId id) const { return impl_->at(id).data; }
+
 std::optional<FaceId> FontCollection::find_family(std::string_view family) const {
     {
         std::shared_lock g(impl_->lock);

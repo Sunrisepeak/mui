@@ -108,6 +108,8 @@ public:
 
     [[nodiscard]] std::size_t face_count() const noexcept;
     [[nodiscard]] const FaceInfo& face(FaceId id) const;
+    // The face's file as it was added: what another process loads the same face from.
+    [[nodiscard]] std::span<const std::uint8_t> face_data(FaceId id) const;
     [[nodiscard]] std::optional<FaceId> find_family(std::string_view family) const;
     [[nodiscard]] bool covers(FaceId id, char32_t cp) const;
 

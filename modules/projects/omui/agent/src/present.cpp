@@ -9,6 +9,7 @@ import xrender.vector;
 import xrender.raster;
 import omui.semantic;
 import mlibs.text;
+import mlibs.hash;
 
 namespace omui::agent {
 
@@ -16,8 +17,14 @@ namespace {
 
 // A message: its length (u32, the kind and the bytes), its kind, its bytes.
 enum class Kind : char {
-    frame = 'F', image = 'I', font = 'T', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R', ask_places = 'P', places = 'L'
+    frame = 'F', image = 'I', font = 'T', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R', ask_places = 'P', places = 'L',
+    faces_known = 'K', face = 'B'
 };
+
+// A face's identity: its bytes' hash (the same file on both sides is the same face).
+std::uint64_t identity_of(const mlibs::text::FontCollection& fonts, mlibs::text::FaceId face) {
+    return mlibs::hash::fnv1a(std::as_bytes(fonts.face_data(face)));
+}
 
 void put32(std::string& out, std::uint32_t value) {
     for (int index = 0; index < 4; ++index) out.push_back(static_cast<char>((value >> (8 * index)) & 0xFF));
@@ -118,13 +125,31 @@ bool Presenter::send(const FrameOutput& frame) {
         out += message(Kind::image, image);
         sent_[id] = revision;
     }
-    // The fonts it names, by what they are (face, weight, slant), once each: references are interned per process.
+    // The fonts it names, by what they are (face, weight, slant), once each: references are interned per
+    // process. A face the host lacks (the application's own) goes first, its bytes once — after the
+    // host has said which it has; before that, each is described again with every frame (the host's
+    // own faces drawn at once, the application's when it is sent) and no bytes go.
+    read_available();  // what the host has said it has
+    std::set<std::uint32_t> described_now;
     for (const auto& command : frame.list->commands())
-        if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command); glyphs && glyphs->font.id && fonts_sent_.insert(glyphs->font.id).second) {
+        if (const auto* glyphs = std::get_if<xrender::DrawGlyphs>(&command);
+            glyphs && glyphs->font.id && !fonts_sent_.contains(glyphs->font.id) && described_now.insert(glyphs->font.id).second) {
+            if (host_said_) fonts_sent_.insert(glyphs->font.id);
             const mlibs::text::FontRef font{glyphs->font.id};
+            const mlibs::text::FaceId face = runtime_.fonts().face_of(font);
+            auto known = identities_.find(face);
+            if (known == identities_.end()) known = identities_.emplace(face, identity_of(runtime_.fonts(), face)).first;
+            const std::uint64_t identity = known->second;
+            if (host_said_ && !host_faces_.contains(identity) && faces_sent_.insert(identity).second) {
+                const auto data = runtime_.fonts().face_data(face);
+                std::string bytes;
+                put64(bytes, identity);
+                bytes.append(reinterpret_cast<const char*>(data.data()), data.size());
+                out += message(Kind::face, bytes);
+            }
             std::string described;
             put32(described, glyphs->font.id);
-            put32(described, runtime_.fonts().face_of(font));
+            put64(described, identity);
             put32(described, std::bit_cast<std::uint32_t>(runtime_.fonts().weight_of(font)));
             described.push_back(static_cast<char>(runtime_.fonts().slant_of(font)));
             out += message(Kind::font, described);
@@ -172,6 +197,11 @@ void Presenter::read_available() {
                                          .set("path", runtime_.path(found)));
                 }
             (void)connection_.write(message(Kind::places, Value(std::move(answer)).json()));
+        } else if (next->first == Kind::faces_known && next->second.size() >= 4) {
+            const std::string_view bytes = next->second;
+            const auto count = static_cast<std::size_t>(get(bytes, 0, 4));
+            for (std::size_t index = 0; index < count && 4 + 8 * (index + 1) <= bytes.size(); ++index) host_faces_.insert(get(bytes, 4 + 8 * index, 8));
+            host_said_ = true;
         } else if (next->first == Kind::size && next->second.size() == 12) {
             const auto width = std::bit_cast<float>(static_cast<std::uint32_t>(get(next->second, 0, 4)));
             const auto height = std::bit_cast<float>(static_cast<std::uint32_t>(get(next->second, 4, 4)));
@@ -192,7 +222,18 @@ std::optional<std::pair<Size, float>> Presenter::resized() {
 }
 
 Presentation::Presentation(mcpplibs::os::ipc::connection connection, mlibs::text::FontCollection* fonts)
-    : connection_(std::move(connection)), fonts_(fonts) {}
+    : connection_(std::move(connection)), fonts_(fonts) {
+    if (!fonts_) return;
+    // The faces this side has, by identity: the application sends only those it lacks.
+    std::string known;
+    put32(known, static_cast<std::uint32_t>(fonts_->face_count()));
+    for (std::size_t face = 0; face < fonts_->face_count(); ++face) {
+        const std::uint64_t identity = identity_of(*fonts_, static_cast<mlibs::text::FaceId>(face));
+        faces_[identity] = static_cast<std::uint32_t>(face);
+        put64(known, identity);
+    }
+    (void)connection_.write(message(Kind::faces_known, known));
+}
 
 const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait) {
     const auto until = std::chrono::steady_clock::now() + wait;
@@ -207,14 +248,21 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
                 auto surface = std::make_shared<xrender::raster::Surface>(width, height);
                 std::memcpy(surface->pixels().data(), bytes.data() + 20, bytes.size() - 20);
                 images_.put({id}, std::move(surface), revision);
-            } else if (next->first == Kind::font && next->second.size() == 13) {
+            } else if (next->first == Kind::face && next->second.size() > 8) {
+                // A face the application has and this side had not: added, once.
                 const std::string_view bytes = next->second;
-                if (fonts_) {
-                    const auto face = static_cast<mlibs::text::FaceId>(get(bytes, 4, 4));
-                    const auto weight = std::bit_cast<float>(static_cast<std::uint32_t>(get(bytes, 8, 4)));
-                    const auto slant = static_cast<mlibs::text::Slant>(bytes[12]);
-                    font_map_[static_cast<std::uint32_t>(get(bytes, 0, 4))] = fonts_->font(face, weight, slant).id;
-                }
+                const std::uint64_t identity = get(bytes, 0, 8);
+                if (fonts_ && !faces_.contains(identity))
+                    if (auto added = fonts_->add_data(std::vector<std::uint8_t>(bytes.begin() + 8, bytes.end())))
+                        faces_[identity] = static_cast<std::uint32_t>(*added);
+            } else if (next->first == Kind::font && next->second.size() == 17) {
+                const std::string_view bytes = next->second;
+                if (fonts_)
+                    if (const auto face = faces_.find(get(bytes, 4, 8)); face != faces_.end()) {
+                        const auto weight = std::bit_cast<float>(static_cast<std::uint32_t>(get(bytes, 12, 4)));
+                        const auto slant = static_cast<mlibs::text::Slant>(bytes[16]);
+                        font_map_[static_cast<std::uint32_t>(get(bytes, 0, 4))] = fonts_->font(static_cast<mlibs::text::FaceId>(face->second), weight, slant).id;
+                    }
             } else if (next->first == Kind::places) {
                 if (auto places = parse_json(next->second)) places_ = std::move(*places);
             } else if (next->first == Kind::state) {

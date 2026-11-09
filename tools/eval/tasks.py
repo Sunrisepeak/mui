@@ -256,6 +256,28 @@ def cmd_run(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_summary(arguments: argparse.Namespace) -> int:
+    """Each way's latest trial of every task of SET (from the ledger), side by side."""
+    latest: dict[tuple[str, str], dict] = {}
+    for line in LEDGER.read_text(encoding="utf-8").splitlines():
+        r = json.loads(line)
+        if r.get("set") != arguments.set or r.get("outcome") not in ("success", "failure"):
+            continue
+        if arguments.split_only and "usage" not in r:
+            continue
+        latest[(r["via"], r["task"])] = r
+    print(f"{'way':<12} {'tasks':>5} {'success':>8} {'steps':>6} {'fresh tokens':>13} {'cache reads':>12} {'overreach':>9}")
+    for via in WAYS:
+        rows = [r for (v, _), r in latest.items() if v == via]
+        if not rows:
+            continue
+        fresh = sum(r.get("tokens", 0) for r in rows)
+        reads = sum(r.get("usage", {}).get("cache_read", 0) for r in rows)
+        print(f"{via:<12} {len(rows):>5} {sum(r['outcome'] == 'success' for r in rows):>8} {sum(r.get('steps', 0) for r in rows):>6} {fresh:>13} {reads:>12} "
+              f"{sum(bool(r.get('overreach')) for r in rows):>9}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="name", required=True)
@@ -266,8 +288,11 @@ def main() -> int:
     run.add_argument("--agent", default="claude")
     run.add_argument("--trials", type=int, default=1)
     run.add_argument("--dry-run", action="store_true")
+    summary = commands.add_parser("summary")
+    summary.add_argument("set")
+    summary.add_argument("--split-only", action="store_true", help="only trials whose tokens were recorded split (fresh, cache reads apart)")
     arguments = parser.parse_args()
-    return {"run": cmd_run}[arguments.name](arguments)
+    return {"run": cmd_run, "summary": cmd_summary}[arguments.name](arguments)
 
 
 if __name__ == "__main__":

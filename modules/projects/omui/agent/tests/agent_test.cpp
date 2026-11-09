@@ -627,4 +627,21 @@ UTest cases{"agent", [] {
         expect(none.front().json().contains("\"found\":false")) << none.front().json();
         expect(eq(exit_of(talk(p, R"({"op":"explain"})")), std::int64_t{1})) << "it needs at or cause";
     };
+
+    "report: changes — a step answers with the semantic changes it made, in one round trip (W4)"_test = [] {
+        Notes app;
+        agent::Protocol p(app.rt);
+        const auto done = talk(p, R"({"op":"act","node":"notes/save","action":"activate","report":"changes"})");
+        expect(eq(exit_of(done), std::int64_t{0}));
+        const auto all = [&] {
+            std::string text;
+            for (const auto& r : done) text += r.json();
+            return text;
+        }();
+        expect(all.contains("\"changes\"") && all.contains("notes/status") && all.contains("\"added\"")) << all;
+        const auto plain = talk(p, R"({"op":"act","node":"notes/save","action":"activate"})");
+        std::string text;
+        for (const auto& r : plain) text += r.json();
+        expect(!text.contains("\"changes\"")) << "only when asked";
+    };
 }};

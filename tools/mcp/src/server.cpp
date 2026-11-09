@@ -130,15 +130,48 @@ struct Answer {
     Value       data;
     std::string code, message;
     Value       detail;    // the error record's data (the answer an action wants)
+    Value       changes;   // what a step changed (report: "changes"), apart from its data
     bool        delivered = false;  // a result came back
 };
+
+// A step's semantic changes, a line each: "+ id role \"name\"", "- id",
+// "~ id field: before → after" (at most 24 lines; the rest counted).
+std::string changes_text(const Value& changes) {
+    if (changes.is_null()) return {};
+    std::vector<std::string> lines;
+    const auto face = [](const Value& v) {
+        const std::string_view name = v.get("name") ? v.get("name")->as_string() : "";
+        return std::format("{}{}", v.get("role") ? v.get("role")->as_string() : "", name.empty() ? std::string() : std::format(" \"{}\"", name));
+    };
+    if (const Value* added = changes.get("added"); added && added->list())
+        for (const Value& n : *added->list()) lines.push_back(std::format("+ {} {}", str(n, "id"), n.get("now") ? face(*n.get("now")) : std::string()));
+    if (const Value* removed = changes.get("removed"); removed && removed->list())
+        for (const Value& n : *removed->list()) lines.push_back(std::format("- {}", str(n, "id")));
+    if (const Value* changed = changes.get("changed"); changed && changed->list())
+        for (const Value& n : *changed->list())
+            if (const Value* fields = n.get("fields"); fields && fields->map())
+                for (const auto& [field, was] : *fields->map()) {
+                    const auto shown = [](const Value* v) { return !v ? std::string("?") : v->type() == Value::Type::text ? std::format("\"{}\"", v->as_string()) : v->json(); };
+                    lines.push_back(std::format("~ {} {}: {} → {}", str(n, "id"), field, shown(was.get("before")), shown(was.get("after"))));
+                }
+    if (lines.empty()) return "\nno semantic change";
+    std::string out = "\nchanged:";
+    for (std::size_t index = 0; index < lines.size() && index < 24; ++index) out += "\n  " + lines[index];
+    if (lines.size() > 24) out += std::format("\n  … and {} more", lines.size() - 24);
+    return out;
+}
 
 Answer read_records(const std::vector<Value>& records) {
     Answer a;
     for (const Value& r : records) {
         const std::string_view kind = str(r, "kind");
         if (kind == "data") {
-            if (const Value* d = r.get("data")) a.data = *d;
+            if (const Value* d = r.get("data")) {
+                if (d->map() && d->map()->size() == 1 && d->get("changes"))
+                    a.changes = *d->get("changes");
+                else
+                    a.data = *d;
+            }
         } else if (kind == "error") {
             a.code = std::string(str(r, "code"));
             a.message = std::string(str(r, "text"));
@@ -313,7 +346,7 @@ struct Server::Impl {
     // An act or invoke: done, refused, or — irreversible or external — put
     // to the person and done again with their answer.
     Value perform(Transport& t, const std::string& app, Value request, std::string_view what) {
-        request.set("actor", actor);
+        request.set("actor", actor).set("report", "changes");  // what it changed comes back with it: no snapshot to check (W4)
         Answer a = call(app, request, options.timeout);
         if (a.exit == 2) {
             const Value* answers = a.detail.get("answer");
@@ -332,6 +365,7 @@ struct Server::Impl {
         if (a.exit == 0) {
             std::string out = std::format("done: {}", what);
             if (!a.data.is_null() && !(a.data.type() == Value::Type::boolean)) out += std::format("\n{}", a.data.json());
+            out += changes_text(a.changes);
             return tool_result(std::move(out), false, a.data.is_null() ? Value{} : Value{}.set("data", a.data));
         }
         return tool_result(std::format("{}: {}{}", a.code.empty() ? "failed" : a.code, a.message.empty() ? std::string(what) : a.message,
@@ -671,7 +705,8 @@ Value::List Server::tools() const {
                             {"query", o("an openmui.tree query")}, {"limit", n("at most")}}), "ui.find"),
         tool("ui_act", "Act on a node",
              "Performs a node's action (activate, toggle, set_value {value}, focus …). Where the session's policy has the user decide an "
-             "irreversible or external one, the answer says so: pass `answer` only when the user gave it. dry_run: what it would do.",
+             "irreversible or external one, the answer says so: pass `answer` only when the user gave it. The answer lists the semantic changes it "
+             "made, so there is no need to snapshot again. dry_run: what it would do.",
              object_schema({app_prop, {"node", s("its id")}, {"action", s("an action it lists")}, {"args", o("arguments")},
                             {"answer", s("the user's answer")}, {"dry_run", b("change nothing")}},
                            {"node", "action"}), "ui.act"),

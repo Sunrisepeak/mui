@@ -213,6 +213,7 @@ int main(int argc, char** argv) {
         check(c.error(5) && c.text(5).contains("needs the user's confirmation") && c.text(5).contains("\"answer\": \"yes\""), c.text(5));
         check_eq(notes.deleted, 0);
         check(!c.error(6) && notes.pinned && c.text(6).contains("\"pinned\":1"), c.text(6));
+        check(c.text(6).contains("no semantic change"), "what the step changed comes back with it: " + c.text(6));
         check(!c.error(7), c.text(7));
         const Value* shot = c.reply(8) ? c.reply(8)->get("result")->get("content") : nullptr;
         check(shot && shot->list() && shot->list()->size() == 2, "a text and an image");

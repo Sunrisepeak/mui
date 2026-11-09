@@ -331,6 +331,36 @@ std::vector<std::string> lines(const Envelope& envelope, const Value& re) {
     return out;
 }
 
+namespace {
+
+// `report: "changes"` (an agent that would otherwise snapshot again to see
+// what its step did, W4): the step's answer and, done, the semantic changes
+// it made — added, removed, changed node by node — in one round trip.
+template <class Step>
+Envelope with_changes(Runtime& runtime, semantic::Tree& tree, const Value& req, const Invocation& call, Step step) {
+    if (text_of(req, "report") != "changes" || call.dry_run) return step();
+    const auto before = tree.snapshot();
+    Envelope e = step();
+    if (e.exit_code().value_or(1) != spec::exit_code::success) return e;
+    // A frame at this very time (as a preview's): what the step made, its
+    // reactive updates applied and laid out, before it is read.
+    FrameInput still;
+    still.time = runtime.now();
+    (void)runtime.frame(still);
+    // The result stays the last record: its data first, then the changes, then the result
+    // (an answer of another shape — notices, logs — goes as it is).
+    Envelope out;
+    for (const spec::Record& r : e.records()) {
+        if (r.kind == spec::RecordKind::result) break;
+        if (r.kind != spec::RecordKind::data || !r.body.get("data")) return e;
+        out.data(*r.body.get("data"));
+    }
+    out.data(Value{}.set("changes", semantic::changes_between(before, tree.snapshot())));
+    return std::move(out.result(spec::exit_code::success));
+}
+
+}  // namespace
+
 Protocol::Protocol(Runtime& runtime, ProtocolOptions options)
     : runtime_(runtime), tree_(runtime), options_(std::move(options)) {}
 
@@ -499,7 +529,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             return invalid("`act` needs `node` and `action`", R"({"op":"act","node":"main/save","action":"activate","dry_run":false})");
         auto call = invocation(req);
         if (!call) return call.error();
-        return tree_.act(node, action, *call);
+        return with_changes(runtime_, tree_, req, *call, [&] { return tree_.act(node, action, *call); });
     }
     if (op == "invoke") {
         // An application verb (S-1 as for a person's: an irreversible or
@@ -508,7 +538,7 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         if (verb.empty()) return invalid("`invoke` needs a `verb`", R"({"op":"invoke","verb":"notes.new","args":{"title":"Today"}})");
         auto call = invocation(req);
         if (!call) return call.error();
-        return runtime_.invoke(verb, *call);
+        return with_changes(runtime_, tree_, req, *call, [&] { return runtime_.invoke(verb, *call); });
     }
     if (op == "undo" || op == "redo") {
         // The history of a scope (S-12): the window's, or a node's with `undo_scope`.

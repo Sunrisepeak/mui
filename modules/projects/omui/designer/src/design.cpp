@@ -54,11 +54,74 @@ private:
     // What the person expects of the design, in their words and as a query
     // that holds or does not (design.expect); design.check reads them against
     // the tree as it is — facts, not an account of them.
-    struct Expectation {
-        std::string     say;
-        semantic::Query query;
-        bool            absent = false;
+    // A motion expected (§2.12.4: "it opens in 300–400 ms and springs at most
+    // 10%"): after an action, how a node's drawn box moves — measured, not
+    // read off the tree, whose bounds are the target's (S-6).
+    struct Motion {
+        std::string                              act_node, action;
+        Value                                    args;
+        std::string                              node, measure = "height";  // height, width, x or y
+        std::optional<std::pair<double, double>> within_ms;
+        std::optional<double>                    overshoot;  // at most, of the distance moved
+
+        static std::expected<Motion, std::string> parse(const Value& value) {
+            Motion motion;
+            const Value* act = value.get("act");
+            if (!act || !act->get("node") || !act->get("action"))
+                return std::unexpected(std::string("a motion says what starts it: act {node, action, args?}"));
+            motion.act_node = std::string(act->get("node")->as_string());
+            motion.action = std::string(act->get("action")->as_string());
+            if (const Value* given = act->get("args")) motion.args = *given;
+            motion.node = std::string(value.get("node") ? value.get("node")->as_string() : act->get("node")->as_string());
+            if (const Value* measure = value.get("measure")) motion.measure = std::string(measure->as_string());
+            if (motion.measure != "height" && motion.measure != "width" && motion.measure != "x" && motion.measure != "y")
+                return std::unexpected(std::format("a motion measures height, width, x or y — not `{}`", motion.measure));
+            if (const Value* within = value.get("within_ms")) {
+                if (!within->list() || within->list()->size() != 2) return std::unexpected(std::string("within_ms is [the least, the most]"));
+                motion.within_ms = std::pair{(*within->list())[0].as_double(), (*within->list())[1].as_double()};
+            }
+            if (const Value* overshoot = value.get("overshoot"); overshoot && overshoot->is_number()) motion.overshoot = overshoot->as_double();
+            return motion;
+        }
+        [[nodiscard]] Value to_value() const {
+            Value value = Value{}
+                              .set("act", Value{}.set("node", act_node).set("action", action).set("args", args))
+                              .set("node", node)
+                              .set("measure", measure);
+            if (within_ms) value.set("within_ms", Value(Value::List{Value(within_ms->first), Value(within_ms->second)}));
+            if (overshoot) value.set("overshoot", *overshoot);
+            return value;
+        }
     };
+    struct Expectation {
+        std::string           say;
+        semantic::Query       query;
+        bool                  absent = false;
+        std::optional<Motion> motion;
+    };
+    static Value expectation_value(const Expectation& expected) {
+        Value value = Value{}.set("say", expected.say);
+        if (expected.motion) return value.set("motion", expected.motion->to_value());
+        return value.set("query", expected.query.to_value()).set("absent", expected.absent);
+    }
+    static std::expected<Expectation, std::string> expectation_of(const Value& value) {
+        Expectation expected{.say = std::string(value.get("say") ? value.get("say")->as_string() : "")};
+        if (const Value* motion = value.get("motion")) {
+            auto parsed = Motion::parse(*motion);
+            if (!parsed) return std::unexpected(parsed.error());
+            expected.motion = std::move(*parsed);
+            if (expected.say.empty()) expected.say = motion->json();
+            return expected;
+        }
+        const Value* query = value.get("query");
+        if (!query) return std::unexpected(std::string("an expectation is a `query` (nodes there or absent) or a `motion`"));
+        auto parsed = semantic::Query::parse(*query);
+        if (!parsed) return std::unexpected(std::format("query: {}", parsed.error()));
+        expected.query = std::move(*parsed);
+        expected.absent = value.get("absent") && value.get("absent")->as_bool();
+        if (expected.say.empty()) expected.say = query->json();
+        return expected;
+    }
     std::vector<Expectation> expectations;
     // Where the person took the floor (design.handover): what they do after
     // it, done, is a scenario's steps (design.save_scenario).
@@ -70,6 +133,12 @@ private:
         Value::List results;
         std::size_t held = 0;
         for (const auto& x : list) {
+            if (x.motion) {
+                Value measured = motion_result(x);
+                held += measured.get("holds")->as_bool();
+                results.push_back(std::move(measured));
+                continue;
+            }
             const auto found = tree.find(x.query);
             const bool holds = x.absent ? found.empty() : !found.empty();
             held += holds;
@@ -434,6 +503,77 @@ private:
             .set("frames", static_cast<double>(frame))
             .set("fps", static_cast<double>(fps))
             .set("description", generic_utf8(description));
+    }
+
+    // A motion measured (design.expect's `motion`, §2.12.4): the action done
+    // in a twin of the design as it runs, then the node's drawn box sampled
+    // every 1/120 s until it rests — where it went from and to, when it
+    // settled (within 1% of where it ended, for good), how far it sprang past.
+    struct Measured {
+        double from = 0, to = 0, settle_ms = 0, overshoot = 0;
+    };
+    std::expected<Measured, std::string> measure(const Motion& motion) {
+        auto made = twin(false);
+        if (!made) return std::unexpected(made.error());
+        Twin& shown = **made;
+        if (auto ran = shown.player().show(design_texts()); !ran) return std::unexpected(ran.error());
+        shown.settle();
+        Runtime& there = shown.runtime();
+        const auto value = [&]() -> std::optional<double> {
+            const NodeId node = there.reveal(motion.node);
+            if (!there.valid(node)) return std::nullopt;
+            const Rect box = there.drawn_bounds(node);
+            if (motion.measure == "width") return box.width;
+            if (motion.measure == "x") return box.x;
+            if (motion.measure == "y") return box.y;
+            return box.height;
+        };
+        const auto first = value();
+        if (!first) return std::unexpected(std::format("no node {} to measure", motion.node));
+        Invocation as;
+        as.actor = {"person", "check", {}};
+        as.args = motion.args;
+        semantic::Tree tree(there);
+        if (const Envelope done = tree.act(motion.act_node, motion.action, as); done.exit_code().value_or(1) != 0)
+            return std::unexpected(std::format("{} {}: {}", motion.act_node, motion.action, done.ndjson()));
+        constexpr int rate = 120, longest = 3 * rate;
+        const double start = shown.time().count();
+        std::vector<std::pair<double, double>> samples;  // ms after the action, the value
+        for (int frame = 1; frame <= longest; ++frame) {
+            shown.step(seconds(start + static_cast<double>(frame) / rate));
+            if (const auto now = value()) samples.emplace_back(frame * 1000.0 / rate, *now);
+        }
+        if (samples.empty()) return std::unexpected(std::format("{} went away", motion.node));
+        Measured measured{.from = *first, .to = samples.back().second};
+        const double span = std::abs(measured.to - measured.from);
+        if (span < 0.5) return measured;  // it did not move
+        const double band = std::max(0.5, span * 0.01), toward = measured.to > measured.from ? 1.0 : -1.0;
+        for (const auto& [at, now] : samples) {
+            if (std::abs(now - measured.to) > band) measured.settle_ms = at;
+            measured.overshoot = std::max(measured.overshoot, (now - measured.to) * toward / span);
+        }
+        return measured;
+    }
+
+    // What a motion came to, said with what was expected of it.
+    Value motion_result(const Expectation& expected) {
+        Value one = Value{}.set("say", expected.say);
+        auto measured = measure(*expected.motion);
+        if (!measured) return one.set("holds", false).set("why", measured.error());
+        const Motion& motion = *expected.motion;
+        const bool in_time = !motion.within_ms || (measured->settle_ms >= motion.within_ms->first && measured->settle_ms <= motion.within_ms->second);
+        const bool sprang = !motion.overshoot || measured->overshoot <= *motion.overshoot + 1e-9;
+        std::string said = std::format("{} {:.0f} → {:.0f} px in {:.0f} ms", motion.measure, measured->from, measured->to, measured->settle_ms);
+        if (motion.within_ms) said += std::format(" ({} {:.0f}–{:.0f} ms)", in_time ? "within" : "not within", motion.within_ms->first, motion.within_ms->second);
+        said += std::format(", overshoot {:.0f}%", measured->overshoot * 100);
+        if (motion.overshoot) said += std::format(" ({} {:.0f}%)", sprang ? "at most" : "more than", *motion.overshoot * 100);
+        return one.set("holds", in_time && sprang)
+            .set("measured", Value{}
+                                 .set("from", measured->from)
+                                 .set("to", measured->to)
+                                 .set("settle_ms", measured->settle_ms)
+                                 .set("overshoot", measured->overshoot))
+            .set("why", said);
     }
 
     // Where a script built a node: its path as design.sources names it, line and column.
@@ -846,19 +986,16 @@ private:
             rt.unmount("design-variants");
             return Value{}.set("closed", true);
         });
-        add("design.expect",
-            [this](const Value& args) -> VerbResult {
-                if (const Value* q = args.get("query")) {
-                    auto query = semantic::Query::parse(*q);
-                    if (!query) return std::unexpected(std::format("query: {}", query.error()));
-                    const std::string say(args.get("say") ? args.get("say")->as_string() : q->json());
-                    expectations.push_back({say, std::move(*query), args.get("absent") && args.get("absent")->as_bool()});
-                }
-                Value::List list;
-                for (const auto& x : expectations)
-                    list.push_back(Value{}.set("say", x.say).set("query", x.query.to_value()).set("absent", x.absent));
-                return Value{}.set("expected", Value(std::move(list)));
-            });
+        add("design.expect", [this](const Value& args) -> VerbResult {
+            if (args.get("query") || args.get("motion")) {
+                auto expected = expectation_of(args);
+                if (!expected) return std::unexpected(expected.error());
+                expectations.push_back(std::move(*expected));
+            }
+            Value::List list;
+            for (const auto& x : expectations) list.push_back(expectation_value(x));
+            return Value{}.set("expected", Value(std::move(list)));
+        });
         add("design.check",
             [this](const Value&) -> VerbResult { return check_expectations(expectations); });
         add("design.handover",
@@ -878,7 +1015,7 @@ private:
                     if (entry.id > handed_over_at && entry.actor.starts_with("person:") && entry.exit_code == 0 && entry.action != "input")
                         steps.push_back(Value{}.set("node", entry.path).set("action", entry.action).set("args", entry.args));
                 Value::List expect;
-                for (const auto& x : expectations) expect.push_back(Value{}.set("say", x.say).set("query", x.query.to_value()).set("absent", x.absent));
+                for (const auto& x : expectations) expect.push_back(expectation_value(x));
                 const Value scenario = Value{}.set("omui", "0.1").set("scenario", name).set("steps", Value(steps)).set("expect", Value(std::move(expect)));
                 const auto file = player.manifest().base / "tests" / (name + ".scenario.omui.json");
                 std::error_code error;
@@ -908,8 +1045,7 @@ private:
                 std::vector<Expectation> expected;
                 if (const Value* list = scenario->get("expect"); list && list->list())
                     for (const Value& x : *list->list())
-                        if (auto query = semantic::Query::parse(x.get("query") ? *x.get("query") : Value{}))
-                            expected.push_back({std::string(x.get("say") ? x.get("say")->as_string() : ""), std::move(*query), x.get("absent") && x.get("absent")->as_bool()});
+                        if (auto one = expectation_of(x)) expected.push_back(std::move(*one));
                 return check_expectations(expected).set("steps", Value(std::move(done)));
             });
         add("design.discard", [this](const Value&) -> VerbResult { return player.discard_edits(); });

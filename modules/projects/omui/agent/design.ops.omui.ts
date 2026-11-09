@@ -283,11 +283,12 @@ export default defineOps({
     {
       name: "design.expect",
       effect: "read",
-      summary: "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, value …), `absent` when they must not be there; with no query, lists what is expected",
+      summary: "What the person expects, kept to check against: `say` in their words, and either `query` — the nodes it means (id, role, name, state, value …), `absent` when they must not be there — or `motion`: after an action, how a node moves (\"opens in 300–400 ms, springs at most 10%\"), measured in a twin. With neither, lists what is expected",
       params: [
         { name: "say", type: "string", doc: "the expectation in the person's words", optional: true },
         { name: "query", type: "json", doc: "the nodes it means: {\"id\": \"save\", \"state\": \"disabled\"}", optional: true },
         { name: "absent", type: "bool", doc: "they must not be there", optional: true },
+        { name: "motion", type: "json", doc: "{act: {node, action, args?}, node, measure: height|width|x|y, within_ms: [least, most], overshoot: 0.1}", optional: true },
       ],
       result: "json",
       cost: "instant",

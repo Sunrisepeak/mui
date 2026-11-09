@@ -538,6 +538,61 @@ UTest cases{"designer", [] {
         expect(eq(name_of(h, "side/hello"), std::string("three"))) << "what the person sees untouched";
     };
 
+    "a motion expected and measured in a twin: how long it took, how far it sprang past — a fact against the person's words; fixed, it holds"_test = [] {
+        const auto dir = scratch_dir("designer-motion");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string springy = R"j({"omui": "0.1", "view": {"signals": {"open": {"type": "bool"}},
+  "root": {"type": "column", "children": [
+  {"type": "button", "id": "toggle", "props": {"text": "Plans"}, "on": {"activated": [{"set": "open", "expr": "!open"}]}},
+  {"type": "box", "id": "card", "props": {"width": 120, "height": {"expr": "open ? 160 : 40"}, "background": "#38bdf8"},
+   "animate": {"height": {"spring": {"stiffness": 300, "damping": 10}}}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", springy);
+        player::Manifest m;
+        m.id = "org.openmui.designer-motion";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .twin = stub_twins(m)});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        const auto motion = [](double overshoot) {
+            return Value{}
+                .set("act", Value{}.set("node", "side/toggle").set("action", "activate"))
+                .set("node", "side/card")
+                .set("measure", "height")
+                .set("within_ms", Value(Value::List{Value(50), Value(2500)}))
+                .set("overshoot", overshoot);
+        };
+        expect(eq(invoke("design.expect", Value{}.set("say", "the card opens, a lively spring").set("motion", motion(0.6))).first, 0));
+        expect(eq(invoke("design.expect", Value{}.set("say", "the card opens without springing past").set("motion", motion(0.05))).first, 0));
+        const auto [checked, facts] = invoke("design.check");
+        expect(eq(checked, 0)) << facts.json();
+        const auto& results = *facts.get("results")->list();
+        expect(results.size() == 2 && results[0].get("holds")->as_bool() && !results[1].get("holds")->as_bool()) << facts.json();
+        const Value* measured = results[1].get("measured");
+        expect(measured && measured->get("from")->as_double() < 41 && measured->get("to")->as_double() > 159) << facts.json();
+        expect(measured && measured->get("overshoot")->as_double() > 0.2 && measured->get("settle_ms")->as_double() > 100) << facts.json();
+        expect(results[1].get("why")->as_string().contains("more than 5%")) << results[1].get("why")->as_string();
+        expect(eq(name_of(h, "side/toggle"), std::string("Plans"))) << "measured in a twin: the person's application untouched";
+        // The fix the agent proposes — more damping — and the facts again.
+        std::string calm = springy;
+        const std::string_view lively = "\"damping\": 10";
+        calm.replace(calm.find(lively), lively.size(), "\"damping\": 40");
+        expect(eq(invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", calm)).first, 0));
+        const auto again = invoke("design.check").second;
+        expect(again.get("held") && again.get("held")->as_int() == 2) << again.json();
+    };
+
     "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {
         const std::string base = "a\nb\nc\nd";
         const auto both = designer::merge_text(base, "A\nb\nc\nd", "a\nb\nc\nD");

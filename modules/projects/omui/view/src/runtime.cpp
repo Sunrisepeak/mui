@@ -967,6 +967,15 @@ std::expected<std::string, std::string> Runtime::capture_svg(std::optional<Rect>
 
 void Runtime::set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture) { impl_->svg_capture = std::move(capture); }
 
+std::expected<Value, std::string> Runtime::reload_sources(const Value& request) {
+    if (!impl_->source_reloader) return std::unexpected("nothing here reloads: the application is not run from sources (a player runs them)");
+    return impl_->source_reloader(request);
+}
+
+void Runtime::set_source_reloader(std::function<std::expected<Value, std::string>(const Value&)> reloader) {
+    impl_->source_reloader = std::move(reloader);
+}
+
 // ── what others did here, and the person's own agent ──
 
 void Runtime::Impl::journal_add(std::string where, std::string_view action, const Invocation& call, int exit_code) {

@@ -429,6 +429,7 @@ struct Runtime::Impl {
     std::function<bool(const Runtime::OfferedFile&)> file_offer;
     std::deque<Runtime::OfferedFile>        offered_files;
     std::function<std::expected<std::string, std::string>(Rect)> svg_capture;
+    std::function<std::expected<Value, std::string>(const Value&)> source_reloader;
     // The person's own agent (Runtime::link_agent): the host's way to link, what it last heard.
     Runtime::AgentLinker                    agent_linker;
     AgentLink                               agent_link;

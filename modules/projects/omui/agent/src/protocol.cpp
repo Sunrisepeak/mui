@@ -621,6 +621,32 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
         }
         return shown;
     }
+    if (op == "reload") {
+        // Agent hot reload (W2): what a saved file changed, said so that no screenshot need be compared — the
+        // semantic changes (the reloader's), where the pixels changed (that region before and after) and the
+        // motion it started, sampled over time with the clock held.
+        const bool last = req.get("last") && req.get("last")->as_bool();
+        const bool pictures = static_cast<bool>(options_.capture) && !last && !(req.get("pictures") && !req.get("pictures")->as_bool());
+        const Rect window{0, 0, runtime_.size().width, runtime_.size().height};
+        mlibs::image::Image before;
+        if (pictures)
+            if (auto png = options_.capture(window))
+                if (auto decoded = mlibs::image::decode_png(*png)) before = std::move(*decoded);
+        auto answer = runtime_.reload_sources(req);
+        if (!answer) return e.error(spec::error_code::failed, answer.error()).result(spec::exit_code::failure);
+        const Value* reloaded = answer->get("reloaded");
+        if (!pictures || before.empty() || !reloaded || !reloaded->list() || reloaded->list()->empty())
+            return e.data(std::move(*answer)).result(spec::exit_code::success);
+        Reload sampling{.re = re, .reply = reply, .answer = std::move(*answer), .before = before, .previous = std::move(before)};
+        if (const Value* every = req.get("every"); every && every->is_number()) sampling.every = std::clamp(every->as_double(), 1.0 / 240, 1.0);
+        if (const Value* samples = req.get("samples"); samples && samples->is_number()) sampling.left = std::clamp(static_cast<int>(samples->as_int()), 1, 120);
+        sampling.held = !runtime_.time_state().controlled;
+        if (sampling.held) runtime_.pause_time(true);
+        reloads_.push_back(std::move(sampling));
+        deferred = true;
+        runtime_.request_frame();
+        return e;
+    }
     if (op == "wait") {
         // The condition's fields sit in the request itself: q, absent, settled.
         Value fields = Value(Value::Map{});
@@ -1074,6 +1100,7 @@ void Protocol::poll() {
         deliveries_.pop_front();
     }
     if (!deliveries_.empty()) runtime_.request_frame();
+    poll_reloads();
     if (waits_.empty()) return;
     const auto now = std::chrono::steady_clock::now();
     std::vector<Wait> still;
@@ -1098,6 +1125,82 @@ void Protocol::poll() {
     }
     waits_ = std::move(still);
     if (!waits_.empty()) runtime_.request_frame();
+}
+
+namespace {
+
+// Where two pictures of a size differ, in their pixels: [x, y, width, height]; none when they do not.
+std::optional<std::array<int, 4>> differing(const mlibs::image::Image& one, const mlibs::image::Image& other) {
+    if (one.width != other.width || one.height != other.height) return std::array<int, 4>{0, 0, other.width, other.height};
+    int left = one.width, top = one.height, right = -1, bottom = -1;
+    for (int y = 0; y < one.height; ++y) {
+        const auto a = one.row(y), b = other.row(y);
+        if (std::ranges::equal(a, b)) continue;
+        for (int x = 0; x < one.width; ++x)
+            if (!std::ranges::equal(a.subspan(static_cast<std::size_t>(x) * 4, 4), b.subspan(static_cast<std::size_t>(x) * 4, 4))) {
+                left = std::min(left, x), right = std::max(right, x);
+            }
+        top = std::min(top, y), bottom = std::max(bottom, y);
+    }
+    if (right < 0) return std::nullopt;
+    return std::array<int, 4>{left, top, right - left + 1, bottom - top + 1};
+}
+
+// A region of a picture as PNG, base64 (what a capture answers).
+Value region_png(const mlibs::image::Image& picture, const std::array<int, 4>& region) {
+    const auto [x, y, width, height] = region;
+    const mlibs::image::View view{.rgba = picture.rgba.data() + (static_cast<std::size_t>(y) * picture.width + x) * 4,
+                                  .width = width, .height = height, .stride = picture.width * 4};
+    auto png = mlibs::image::encode_png(view);
+    if (!png) return Value{}.set("error", png.error());
+    return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
+}
+
+}  // namespace
+
+void Protocol::poll_reloads() {
+    if (reloads_.empty()) return;
+    const Rect window{0, 0, runtime_.size().width, runtime_.size().height};
+    // Pixels to logical pixels: what a capture is drawn at.
+    const auto logical = [&](const mlibs::image::Image& picture, const std::array<int, 4>& region) {
+        const double scale = picture.width > 0 ? window.width / picture.width : 1.0;
+        Value::List out;
+        for (const int value : region) out.emplace_back(std::round(value * scale * 100) / 100);
+        return Value(std::move(out));
+    };
+    std::vector<Reload> still;
+    for (Reload& r : reloads_) {
+        mlibs::image::Image now;
+        if (auto png = options_.capture(window))
+            if (auto decoded = mlibs::image::decode_png(*png)) now = std::move(*decoded);
+        const auto moved = now.empty() ? std::nullopt : differing(r.previous, now);
+        r.samples.push_back(Value{}.set("at", std::round(r.at * 1000) / 1000).set("changed", moved ? logical(now, *moved) : Value{}));
+        r.still = moved ? 0 : r.still + 1;
+        if (!now.empty()) r.previous = std::move(now);
+        if (r.still < 2 && --r.left > 0 && !r.previous.empty()) {
+            runtime_.step_time(seconds(r.every));
+            r.at += r.every;
+            still.push_back(std::move(r));
+            continue;
+        }
+        if (r.held) runtime_.release_time();
+        Value pixels;
+        const auto changed = differing(r.before, r.previous);
+        pixels.set("changed", changed ? logical(r.previous, *changed) : Value{});
+        if (changed && changed->at(0) + changed->at(2) <= r.before.width && changed->at(1) + changed->at(3) <= r.before.height) {
+            pixels.set("before", region_png(r.before, *changed));
+            pixels.set("after", region_png(r.previous, *changed));
+        }
+        Value data = r.answer;
+        data.set("pixels", std::move(pixels));
+        data.set("motion", Value{}.set("every", r.every).set("seconds", std::round(r.at * 1000) / 1000).set("settled", r.still >= 2)
+                                   .set("samples", Value(std::move(r.samples))));
+        Envelope e;
+        e.data(std::move(data)).result(spec::exit_code::success);
+        send(r.reply, e, r.re);
+    }
+    reloads_ = std::move(still);
+    if (!reloads_.empty()) runtime_.request_frame();
 }
 
 std::expected<VectorCapture, std::string> vector_capture(const Runtime& runtime, const xrender::Resources& resources, Rect region, float scale,

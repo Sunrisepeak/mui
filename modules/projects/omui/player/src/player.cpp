@@ -256,6 +256,78 @@ struct Player::Impl {
         return read_file(full(f.path));
     }
 
+    // ---- Reloading at once (W2): what changed on disk, or the files named, waited for ----
+    Value last_reload;  // what the last reload did, an automatic one too
+
+    std::expected<Value, std::string> reload_now(const Value& request) {
+        if (const Value* last = request.get("last"); last && last->as_bool())
+            return last_reload.is_null() ? Value{}.set("reloaded", Value(Value::List{})).set("changes", Value{}) : last_reload;
+        std::set<std::string> named;
+        if (const Value* paths = request.get("paths"); paths && paths->list())
+            for (const Value& path : *paths->list()) named.insert(std::string(path.as_string()));
+        collect_runs();
+        semantic::Tree tree(rt);
+        const auto before = tree.snapshot();
+        const auto start = std::chrono::steady_clock::now();
+        Value::List reloaded, failed;
+        std::vector<File*> scripts;  // to run again, each once
+        const auto again = [&](File& f) {
+            if (std::ranges::find(scripts, &f) == scripts.end()) scripts.push_back(&f);
+        };
+        const auto fail = [&](std::string path, std::string why) { failed.push_back(Value{}.set("path", std::move(path)).set("problem", std::move(why))); };
+        // The modules scripts import by path: one saved runs its script again (it alone evaluated again).
+        for (auto& f : files) {
+            if (f.kind != File::Kind::script || !f.engine) continue;
+            for (const auto& m : f.engine->modules()) {
+                const auto module = module_name(m);
+                const auto now = stamp_of(m);
+                auto [seen, first] = module_stamps.try_emplace(module, now);
+                if ((first || seen->second == now) && !named.contains(module)) continue;
+                seen->second = now;
+                edited.erase(module);  // a file saved meanwhile wins over an edit not committed
+                f.engine->module_changed(m, std::nullopt);
+                reloaded.emplace_back(module);
+                again(f);
+            }
+        }
+        for (auto& f : files) {
+            const auto now = stamp_of(full(f.path));
+            if (now == f.stamp && !named.contains(name(f.path))) continue;
+            f.stamp = now;
+            edited.erase(name(f.path));
+            reloaded.emplace_back(name(f.path));
+            const std::size_t said = problems.size();
+            bool ok = true;
+            switch (f.kind) {
+                case File::Kind::component: ok = define(f); break;
+                case File::Kind::view: ok = mount(f); break;
+                case File::Kind::theme: ok = add_theme(f, true); break;
+                case File::Kind::script: again(f); break;
+            }
+            if (!ok) fail(name(f.path), problems.size() > said ? problems.back() : std::string("not reloaded"));
+        }
+        for (File* f : scripts) {
+            auto code = f->lang->load ? f->lang->load(full(f->path)) : [&]() -> std::expected<std::string, std::string> {
+                auto text = read_file(full(f->path));
+                if (!text) return std::unexpected(std::string("cannot be read"));
+                return *text;
+            }();
+            if (!code) {
+                fail(name(f->path), code.error());
+                continue;
+            }
+            mlibs::trace::Span span("player.reload", "player");
+            if (options.design) rt.present_design();  // shown as a design edit: written in, unwritten, springing
+            if (auto ran = f->engine->reload_now(std::move(*code), generic_utf8(full(f->path))); !ran) fail(name(f->path), ran.error());
+        }
+        const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+        Value answer;
+        answer.set("reloaded", Value(std::move(reloaded))).set("took_ms", took).set("changes", semantic::changes_between(before, tree.snapshot()));
+        if (!failed.empty()) answer.set("problems", Value(std::move(failed)));
+        if (!answer.get("reloaded")->list()->empty()) last_reload = answer;  // a look that found nothing keeps the last
+        return answer;
+    }
+
     // Runs `text` as the script, waited for; the semantic changes it made.
     std::expected<Value, std::string> run_text(File& f, std::string_view text) {
         auto code = compiled(f, text);
@@ -529,9 +601,12 @@ struct Player::Impl {
 };
 
 Player::Player(Runtime& runtime, Manifest manifest, std::vector<Language> languages, PlayerOptions options)
-    : impl_(std::make_unique<Impl>(runtime, std::move(manifest), std::move(languages), options)) {}
+    : impl_(std::make_unique<Impl>(runtime, std::move(manifest), std::move(languages), options)) {
+    // The protocol's `reload` (W2) reloads through the player.
+    runtime.set_source_reloader([impl = impl_.get()](const Value& request) { return impl->reload_now(request); });
+}
 
-Player::~Player() = default;
+Player::~Player() { impl_->rt.set_source_reloader({}); }
 
 Status Player::start() {
     mlibs::trace::Span span("player.start", "player");
@@ -586,6 +661,16 @@ Status Player::start() {
 
 std::vector<std::string> Player::poll() {
     Impl& d = *impl_;
+    if (d.options.design) {
+        // Development mode reloads at once, waited for, so what a save did is known (W2: `reload` with `last`).
+        std::vector<std::string> reloaded;
+        if (auto done = d.reload_now(Value{}); done)
+            if (const Value* list = done->get("reloaded"); list && list->list()) {
+                for (const Value& path : *list->list()) reloaded.emplace_back(path.as_string());
+                if (!reloaded.empty()) log.info("{} reloaded", reloaded.front());
+            }
+        return reloaded;
+    }
     d.collect_runs();
     std::vector<std::string> reloaded;
     // The modules scripts import by path: one saved runs its script again (it alone evaluated again).

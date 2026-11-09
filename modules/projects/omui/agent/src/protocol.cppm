@@ -20,6 +20,7 @@ import omui.core;
 import omui.view;
 import omui.semantic;
 import xrender.vector;
+import mlibs.image;
 
 export namespace omui::agent {
 
@@ -95,7 +96,7 @@ public:
     void request(std::string_view line, const Reply& reply);
     // Checks pending waits; call after each frame.
     void poll();
-    [[nodiscard]] std::size_t pending() const noexcept { return waits_.size() + deliveries_.size(); }
+    [[nodiscard]] std::size_t pending() const noexcept { return waits_.size() + deliveries_.size() + reloads_.size(); }
     // The next frame's events from `input` requests, oldest first: the host
     // takes one batch a frame (an empty batch is a frame with none); none
     // when nothing waits.
@@ -121,7 +122,22 @@ private:
         Value::List                         pressed;
         Invocation                          call;
     };
+    // A `reload` sampling the motion it started (W2): the time held, stepped a
+    // sample a frame, each picture against the one before, until two in a row
+    // are the same or the samples run out.
+    struct Reload {
+        Value               re;
+        Reply               reply;
+        Value               answer;   // the reloader's: what it reloaded, the semantic changes
+        mlibs::image::Image before;   // the window before the reload
+        mlibs::image::Image previous; // the last sample
+        Value::List         samples;
+        double              every = 1.0 / 30, at = 0;
+        int                 left = 12, still = 0;
+        bool                held = false;  // the protocol holds the time (the agent did not already)
+    };
     void ensure_session();
+    void poll_reloads();
     [[nodiscard]] std::optional<Envelope> denied(const Invocation& call, Effect effect) const;
     void send(const Reply& reply, const Envelope& envelope, const Value& re) const;
     Envelope handle(const Value& req, const Value& re, const Reply& reply, bool& deferred);
@@ -134,6 +150,7 @@ private:
     const AgentAccess* session_access_ = nullptr;
     std::vector<Wait> waits_;
     std::deque<Delivery> deliveries_;
+    std::vector<Reload> reloads_;
 };
 
 // The record lines of an envelope, each with "re" when it is not null.

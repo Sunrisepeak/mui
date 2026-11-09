@@ -10,6 +10,13 @@ export namespace omui::agent {
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_ui_describe{{
     {"api", "bool", "also what writing for it takes: every builder (properties, events, actions; whether the spec's), the native modules, the theme's tokens", true},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 5> parameters_ui_reload{{
+    {"paths", "json", "only these files, as design.sources names them", true},
+    {"last", "bool", "what the last reload did, an automatic one too", true},
+    {"samples", "integer", "motion samples, 1 … 120 (default 12)", true},
+    {"every", "number", "seconds between samples (default 1/30)", true},
+    {"pictures", "bool", "false: the semantic changes alone", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 6> parameters_ui_snapshot{{
     {"root", "node", "the subtree's root (the window when absent)", true},
     {"depth", "integer", "levels below the root (all when absent)", true},
@@ -118,8 +125,9 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_ui_clock{{
 }};
 
 // Read, find, act on, wait for, capture and inspect a running application's semantic tree.
-inline constexpr std::array<mlibs::control::CatalogEntry, 25> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 26> catalog{{
     {{"ui.describe", openas::Effect::read, false}, "What this endpoint is: the protocol, the application, its operations, the session's policy and the application's verbs", parameters_ui_describe, "json", mlibs::control::Cost::instant, "", false, false, false},
+    {{"ui.reload", openas::Effect::reversible, false}, "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time", parameters_ui_reload, "json", mlibs::control::Cost::bounded, "edit the file back and reload; design.discard drops edits not saved", false, false, false},
     {{"ui.snapshot", openas::Effect::read, false}, "The semantic tree, or a part of it", parameters_ui_snapshot, "tree", mlibs::control::Cost::bounded, "", false, false, false},
     {{"ui.changes", openas::Effect::read, false}, "What changed in the tree since the last snapshot or changes", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"ui.find", openas::Effect::read, false}, "Nodes matching a query (role, name, id, state; wildcards)", parameters_ui_find, "json", mlibs::control::Cost::bounded, "", false, false, false},

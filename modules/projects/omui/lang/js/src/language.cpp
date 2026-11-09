@@ -58,35 +58,13 @@ constexpr std::string_view module_api = R"(import { … } from "openmui"
 Builders: name(props, children?) — props in camelCase; give anything a person or an agent operates an explicit `id`; handlers are on<Event>.)";
 
 std::string describe_typescript(std::string_view catalog_json) {
+    // The everyday API in brief, then every component's builder as the type checker reads it — the one
+    // declaration writer's text (omui.lang.ts:declare), so design.api and .omui/types say the same.
     std::string out(module_api);
     const Json catalog = Json::parse(catalog_json, nullptr, false);
-    if (!catalog.is_object() || !catalog.contains("components")) return out;
-    for (auto it = catalog["components"].begin(); it != catalog["components"].end(); ++it) {
-        const Json& c = it.value();
-        std::string props;
-        if (c.contains("props"))
-            for (auto p = c["props"].begin(); p != c["props"].end(); ++p) {
-                std::string type = p.value().value("type", "any");
-                if (type == "bool") type = "boolean";
-                else if (type == "i64" || type == "i32" || type == "u32" || type == "f64" || type == "f32") type = "number";
-                if (p.value().contains("values")) {
-                    type.clear();
-                    for (const auto& v : p.value()["values"]) type += (type.empty() ? "" : " | ") + std::format("\"{}\"", v.get<std::string>());
-                }
-                props += std::format("{}{}?: {}", props.empty() ? "" : "; ", ts::camel_case(p.key()), type);
-            }
-        if (c.contains("events"))
-            for (auto e = c["events"].begin(); e != c["events"].end(); ++e) {
-                std::string event = ts::camel_case(e.key());
-                if (!event.empty()) event[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(event[0])));
-                props += std::format("{}on{}?: (args) => void", props.empty() ? "" : "; ", event);
-            }
-        std::string actions;
-        if (c.contains("actions"))
-            for (auto a = c["actions"].begin(); a != c["actions"].end(); ++a) actions += std::format("{}{}", actions.empty() ? "" : ", ", a.key());
-        out += std::format("\n  {}({{ id?: string; {} }}) — {}{}", ts::camel_case(it.key()), props, c.value("role", std::string("generic")),
-                           actions.empty() ? std::string() : std::format("; actions: {}", actions));
-    }
+    if (catalog.is_discarded()) return out;
+    out += "\n\n// The builders of this application's components (props in camelCase; a builder takes its props and children, or its children alone):\n";
+    out += ts::declare_components(components_of(catalog), {.standalone = false});
     return out;
 }
 

@@ -24,6 +24,21 @@ export default defineOps({
       result: "json",
     },
     {
+      name: "ui.reload",
+      effect: "reversible",
+      summary: "Development: reloads the saved sources (or those named) at once and says what came of it — the semantic changes, where the pixels changed (that region before and after) and the motion it started, sampled over time",
+      params: [
+        { name: "paths", type: "json", doc: "only these files, as design.sources names them", optional: true },
+        { name: "last", type: "bool", doc: "what the last reload did, an automatic one too", optional: true },
+        { name: "samples", type: "integer", doc: "motion samples, 1 … 120 (default 12)", optional: true },
+        { name: "every", type: "number", doc: "seconds between samples (default 1/30)", optional: true },
+        { name: "pictures", type: "bool", doc: "false: the semantic changes alone", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "edit the file back and reload; design.discard drops edits not saved",
+    },
+    {
       name: "ui.snapshot",
       effect: "read",
       summary: "The semantic tree, or a part of it",

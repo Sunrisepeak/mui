@@ -2,6 +2,7 @@
 // between frames, and the same conversation over a real local endpoint.
 import std;
 import omui.agent;
+import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -644,4 +645,48 @@ UTest cases{"agent", [] {
         for (const auto& r : plain) text += r.json();
         expect(!text.contains("\"changes\"")) << "only when asked";
     };
+
+    "reload (W2): what a saved file changed — the semantic changes, where the pixels changed, the motion sampled until it settles"_test = [] {
+        Notes app;
+        int version = 0;
+        double reloaded_at = 0;
+        app.rt.set_source_reloader([&](const Value& request) -> std::expected<Value, std::string> {
+            if (request.get("last")) return Value{}.set("reloaded", Value(Value::List{Value("app/main.ts")})).set("changes", Value{});
+            ++version;
+            reloaded_at = app.rt.time_state().shown.count();
+            return Value{}.set("reloaded", Value(Value::List{Value("app/main.ts")})).set("took_ms", 1.0).set("changes", Value{});
+        });
+        // The window as a picture: its lower right quarter coloured by the version, its first pixel
+        // moving with the time for 0.1 s after a reload (a motion the reload started), then still.
+        agent::Protocol p(app.rt, {.capture = [&](Rect) -> std::expected<std::vector<std::uint8_t>, std::string> {
+            mlibs::image::Image picture{.width = 8, .height = 8, .rgba = std::vector<std::uint8_t>(8 * 8 * 4, 255)};
+            for (int y = 4; y < 8; ++y)
+                for (int x = 4; x < 8; ++x) picture.row(y)[static_cast<std::size_t>(x) * 4] = static_cast<std::uint8_t>(40 * version);
+            const double moving = std::clamp(app.rt.time_state().shown.count() - reloaded_at, 0.0, 0.1);
+            picture.row(0)[1] = static_cast<std::uint8_t>(moving * 2000);
+            return mlibs::image::encode_png(mlibs::image::view(picture));
+        }});
+        std::vector<Value> answers;
+        p.request(R"({"op":"reload","every":0.025,"samples":20})", [&](std::string_view line) { answers.push_back(parse_json(line).value()); });
+        expect(answers.empty()) << "the motion is sampled over frames: the answer comes after";
+        double at = 0;
+        for (int frame = 0; frame < 40 && answers.empty(); ++frame) {
+            app.rt.frame({seconds(at += 1.0 / 60), {}});
+            p.poll();
+        }
+        expect(exit_of(answers) == 0) << (answers.empty() ? std::string("no answer") : answers.back().json());
+        if (answers.empty()) return;
+        const Value& data = *answers.front().get("data");
+        expect(data.get("reloaded")->list()->front().as_string() == "app/main.ts") << data.json();
+        expect(!data.get("pixels")->get("changed")->is_null()) << "the picture changed where the version is";
+        expect(data.get("pixels")->get("before") && data.get("pixels")->get("after")) << "that region before and after";
+        const Value::List& samples = *data.get("motion")->get("samples")->list();
+        const auto moving = std::ranges::count_if(samples, [](const Value& s) { return !s.get("changed")->is_null(); });
+        expect(moving >= 3 && samples.size() > static_cast<std::size_t>(moving)) << data.get("motion")->json();
+        expect(data.get("motion")->get("settled")->as_bool()) << "two still samples end it";
+        expect(!app.rt.time_state().controlled) << "the time is the host's again";
+        // What the last reload did, without reloading.
+        expect(exit_of(talk(p, R"({"op":"reload","last":true})")) == 0);
+    };
 }};
+

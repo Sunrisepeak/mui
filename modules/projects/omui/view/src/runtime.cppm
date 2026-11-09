@@ -739,6 +739,15 @@ public:
     // it in vectors (agent::vector_capture); why not, otherwise.
     [[nodiscard]] std::expected<std::string, std::string> capture_svg(std::optional<Rect> region = {});
     void set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture);
+    // What the application was made from, reloaded at once where it can (a
+    // player: its scripts, the modules they import, views, components and
+    // themes): what changed on disk, or the files `request` names
+    // ({"paths": […]}); {"last": true}, what the last reload did (an
+    // automatic one too). The answer: what it reloaded, how long it took, the
+    // semantic changes, the problems. The protocol's `reload` adds the pixels
+    // and the motion (W2). Why not, where nothing reloads.
+    [[nodiscard]] std::expected<Value, std::string> reload_sources(const Value& request);
+    void set_source_reloader(std::function<std::expected<Value, std::string>(const Value&)> reloader);
     // The person's own agent (agent connect, D-95), where the host can link
     // one — the Web, through a bridge on the person's machine: link_agent()
     // starts looking for it and answers the pairing code the person gives

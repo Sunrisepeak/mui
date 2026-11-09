@@ -531,7 +531,9 @@ verb("gift.wide", { effect: "read" }, (): { half: number } => ({ half }));
         (void)omuiCatalog(r.rt, collect, &catalog);
         const auto api = lang::js::typescript().describe(catalog);
         expect(api.contains("signal(initial, key?)") && api.contains("mount(slot, element)")) << api.substr(0, 400);
-        expect(api.contains("\n  button({ id?: string;") && api.contains("onActivated?: (args) => void")) << api;
-        expect(api.contains("textBox(")) << "builders in camel case";
+        // Each builder as the type checker reads it: the one declaration writer's text (omui.lang.ts:declare).
+        expect(api.contains("export declare function button(props?: ButtonProps, children?: Children): View;") &&
+               api.contains("onActivated?: Handler")) << api;
+        expect(api.contains("export declare function textBox(")) << "builders in camel case";
     };
 }};

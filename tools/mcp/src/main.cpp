@@ -9,42 +9,33 @@
 // Diagnostics go to standard error; standard output is the protocol's.
 import std;
 import mcpplibs.os;
+import mcpplibs.cmdline;
 import omui.mcp;
 
 int main(int argc, char** argv) {
+    auto line = mcpplibs::cmdline::App("omui-mcp")
+                    .description("An MCP server for the openmui applications running here, on standard input and output")
+                    .option(mcpplibs::cmdline::Option("app").takes_value().value_name("NAME").help("the application a call names none of"))
+                    .option(mcpplibs::cmdline::Option("directory").takes_value().value_name("DIR").help("endpoints in DIR, not the per-user one"))
+                    .option(mcpplibs::cmdline::Option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name)"))
+                    .option(mcpplibs::cmdline::Option("ops").takes_value().multiple().value_name("LISTING").help("an application's verbs as tools, from its listing"));
+    auto parsed = line.parse(argc, argv);
+    if (!parsed) {
+        if (!parsed.error().is_error()) return 0;
+        (void)mcpplibs::os::stdio::write_error(std::format("omui-mcp: {}\n", parsed.error().message));
+        return 2;
+    }
     omui::mcp::ServerOptions options;
-    for (int i = 1; i < argc; ++i) {
-        const std::string_view a = argv[i];
-        auto value = [&]() -> std::optional<std::string_view> {
-            if (i + 1 >= argc) return std::nullopt;
-            return std::string_view(argv[++i]);
-        };
-        if (a == "--app") {
-            auto v = value();
-            if (!v) return 2;
-            options.app = *v;
-        } else if (a == "--directory") {
-            auto v = value();
-            if (!v) return 2;
-            options.directory = mcpplibs::os::fs::from_utf8(*v);
-        } else if (a == "--actor") {
-            auto v = value();
-            if (!v) return 2;
-            options.actor = *v;
-        } else if (a == "--ops") {
-            auto v = value();
-            if (!v) return 2;
-            auto listing = omui::mcp::read_listing(mcpplibs::os::fs::from_utf8(*v));
-            if (!listing) {
-                (void)mcpplibs::os::stdio::write_error(std::format("omui-mcp: {}\n", listing.error()));
-                return 2;
-            }
-            options.listings.push_back(std::move(*listing));
-        } else {
-            (void)mcpplibs::os::stdio::write_error(std::format(
-                "omui-mcp: no option `{}`\nusage: omui-mcp [--app NAME] [--directory DIR] [--actor KIND:NAME] [--ops LISTING.ops.json]…\n", a));
+    if (auto app = parsed->value("app")) options.app = *app;
+    if (auto directory = parsed->value("directory")) options.directory = mcpplibs::os::fs::from_utf8(*directory);
+    if (auto actor = parsed->value("actor")) options.actor = *actor;
+    for (const std::string& file : parsed->option_or_empty("ops").values) {
+        auto listing = omui::mcp::read_listing(mcpplibs::os::fs::from_utf8(file));
+        if (!listing) {
+            (void)mcpplibs::os::stdio::write_error(std::format("omui-mcp: {}\n", listing.error()));
             return 2;
         }
+        options.listings.push_back(std::move(*listing));
     }
     omui::mcp::Server server(std::move(options));
     omui::mcp::StdioTransport stdio;

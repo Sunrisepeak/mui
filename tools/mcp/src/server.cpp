@@ -546,6 +546,43 @@ struct Server::Impl {
             if (pictures.size() == 2) text += "\n(the first picture is before, the second after)";
             return tool_result(text, false, {}, std::move(pictures));
         }
+        if (name == "ui_reload") {
+            // Agent hot reload (W2): what a saved file changed, said without a screenshot to compare — the semantic
+            // changes, where the pixels changed (that region before and after) and the motion it started, sampled.
+            Value req;
+            req.set("op", "reload").set("actor", actor);
+            for (std::string_view key : {"paths", "last", "samples", "every"})
+                if (const Value* v = args.get(key)) req.set(key, *v);
+            Answer a = call(*app, req, options.timeout);
+            if (a.exit != 0) return tool_result(std::format("{}: {}", a.code.empty() ? "failed" : a.code, a.message), true);
+            std::string reloaded;
+            if (const Value* list = a.data.get("reloaded"); list && list->list())
+                for (const Value& path : *list->list()) reloaded += std::format("{}{}", reloaded.empty() ? "" : ", ", path.as_string());
+            std::string text = reloaded.empty() ? std::string("nothing changed on disk")
+                                                : std::format("reloaded {} in {:.1f} ms", reloaded, a.data.get("took_ms") ? a.data.get("took_ms")->as_double() : 0.0);
+            if (const Value* c = a.data.get("changes"))
+                for (std::string_view kind : {"changed", "added", "removed"})
+                    if (const Value* l = c->get(kind); l && l->list())
+                        for (const Value& one : *l->list()) text += std::format("\n  {} {}", kind, str(one, "id"));
+            Value::List pictures;
+            if (const Value* pixels = a.data.get("pixels")) {
+                const Value* region = pixels->get("changed");
+                text += region && !region->is_null() ? std::format("\npixels changed in {}", region->json()) : std::string("\nno pixel changed");
+                for (std::string_view when : {"before", "after"})
+                    if (const Value* pic = pixels->get(when); pic && pic->get("base64"))
+                        pictures.push_back(Value{}.set("type", "image").set("data", str(*pic, "base64")).set("mimeType", "image/png"));
+                if (pictures.size() == 2) text += " (the first picture is that region before, the second after)";
+            }
+            if (const Value* motion = a.data.get("motion"); motion && motion->get("samples") && motion->get("samples")->list()) {
+                std::size_t moving = 0;
+                for (const Value& sample : *motion->get("samples")->list())
+                    if (sample.get("changed") && !sample.get("changed")->is_null()) ++moving;
+                text += std::format("\nmotion: {} samples every {} s, {} moving; {}", motion->get("samples")->list()->size(),
+                                    motion->get("every") ? motion->get("every")->as_double() : 0.0, moving,
+                                    motion->get("settled") && motion->get("settled")->as_bool() ? "settled" : "still moving at the last");
+            }
+            return tool_result(text, false, Value{}.set("data", a.data), std::move(pictures));
+        }
         if (name == "ui_intend") {
             const Value* text = args.get("text");
             if (!text || text->type() != Value::Type::text) return tool_result("ui_intend needs `text` (\"\" withdraws what you said)", true);
@@ -724,6 +761,12 @@ Value::List Server::tools() const {
         tool("ui_preview", "Preview before allowing",
              "What steps would make — pictures before and after, the semantic changes — with nothing kept. Show it to the user before a decision that is theirs.",
              object_schema({app_prop, {"steps", steps}}, {"steps"}), "ui.preview"),
+        tool("ui_reload", "Reload what changed and say what it did",
+             "Development: reloads the saved files (or those named), then answers the semantic changes, where the pixels changed (before and "
+             "after pictures of that region) and the motion it started, sampled over time — no screenshot to compare.",
+             object_schema({app_prop, {"paths", prop("array", "only these files (paths, as design.sources lists them)")}, {"last", b("what the last automatic reload did")},
+                            {"samples", integer("motion samples (default 12)")}, {"every", prop("number", "seconds between samples (default 1/30)")}}),
+             "ui.reload"),
         tool("ui_wait", "Wait for the interface", "Waits until a query matches (or not) and/or nothing animates.",
              object_schema({app_prop, {"query", o("must match")}, {"absent", b("must not match")}, {"settled", b("nothing animates")},
                             {"timeout", prop("number", "seconds")}}), "ui.wait"),

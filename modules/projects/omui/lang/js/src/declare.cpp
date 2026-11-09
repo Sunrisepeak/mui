@@ -18,9 +18,8 @@ import omui.lang.ts;
 
 namespace omui::lang::js {
 
-namespace {
-
 std::vector<ts::ComponentShape> components_of(const Json& catalog) {
+
     std::vector<ts::ComponentShape> out;
     if (!catalog.is_object() || !catalog.contains("components")) return out;
     for (auto it = catalog["components"].begin(); it != catalog["components"].end(); ++it) {
@@ -46,6 +45,8 @@ std::vector<ts::ComponentShape> components_of(const Json& catalog) {
     }
     return out;
 }
+
+namespace {
 
 std::vector<ts::FieldShape> fields_of(const Json& list) {
     std::vector<ts::FieldShape> out;

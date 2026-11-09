@@ -893,15 +893,24 @@ std::expected<ToyReport, std::string> adopt_split(const ToySplit& split) {
     return finish_package(split.dir, target, title, html.size(), false);
 }
 
+std::vector<std::string> lazy_routes(std::string_view list) {
+    // Not views::split: over an empty list it yields no field, and the bare page would be no route.
+    std::vector<std::string> routes;
+    for (std::size_t from = 0; from <= list.size();) {
+        const std::size_t comma = std::min(list.find(',', from), list.size());
+        routes.emplace_back(list.substr(from, comma - from));
+        from = comma + 1;
+    }
+    return routes;
+}
+
 int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args) {
     ToySplit split;
     split.dir = args.positional(0);
     split.primary = args.value("primary").value_or("");
     split.deferred = args.value("deferred").value_or("");
-    if (auto lazy = args.value("lazy"))
-        for (auto part : *lazy | std::views::split(',')) split.lazy.emplace_back(part.begin(), part.end());
-    else
-        split.lazy = {"", "home"};
+    if (auto lazy = args.value("lazy")) split.lazy = lazy_routes(*lazy);
+    else split.lazy = {"", "home"};
     if (split.dir.empty() || split.primary.empty() || split.deferred.empty()) {
         std::println(std::cerr, "omui-gen dist-toy-split: a package directory, --primary and --deferred (omui-gen dist-toy-split --help)");
         return 2;

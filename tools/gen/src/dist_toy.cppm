@@ -127,6 +127,10 @@ struct ToySplit {
 
 [[nodiscard]] std::expected<ToyReport, std::string> adopt_split(const ToySplit& split);
 
+// `--lazy`'s routes: every field between commas, an empty one too — "" is the
+// bare page, "a," the route a and the bare page.
+[[nodiscard]] std::vector<std::string> lazy_routes(std::string_view list);
+
 // The command line's `dist-toy-split`, as omui-gen parsed it; the exit code.
 int dist_toy_split_main(const mcpplibs::cmdline::ParsedArgs& args);
 

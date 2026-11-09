@@ -136,6 +136,13 @@ UTest cases{"gen.dist_toy", [] {
         expect(!twice.has_value()) << "a page is split once";
     };
 
+    "--lazy's routes: the bare page is a route, an empty field too"_test = [] {
+        expect(gen::lazy_routes("") == std::vector<std::string>{""}) << "--lazy \"\": the bare page (the site's split)";
+        expect(gen::lazy_routes("home") == std::vector<std::string>{"home"});
+        expect(gen::lazy_routes(",home") == std::vector<std::string>{"", "home"});
+        expect(gen::lazy_routes("a,") == std::vector<std::string>{"a", ""});
+    };
+
     "refused: no program, a .data file, a font that is not there"_test = [] {
         Tree t;
         auto p = t.package();

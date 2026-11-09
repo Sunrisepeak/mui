@@ -10,7 +10,7 @@ omui.build.embed     = { path = "…/mcpp/embed", host-module = true }
 
 | Package | When you need it | What it gives `build.mcpp` |
 |---|---|---|
-| [`omui.build.contracts`](contracts) | Your package writes its interface as contracts: components (`contract/*.contract.omui.toml`) or native modules (`native/*.native.omui.toml`) | `components()`, `natives()`: C++ partitions and builders, script stubs, the view-document schema |
+| [`omui.build.contracts`](contracts) | Your package writes its interface as contracts: components (`contract/*.contract.omui.ts`) or native modules (`native/*.native.omui.ts`) | `components()`, `natives()`: C++ partitions and builders, script stubs, the view-document schema |
 | [`omui.build.embed`](embed) | Your program carries data files instead of reading them: themes, canvas behaviours, styles, locales, sounds, documents | `embed()`, `themes()`, `behaviors()`: each file as a partition holding its text, and optionally a table of them all |
 | [`omui.build.toy`](toy) | Your program ships as a Bilibili Toy package, or as a static page | `dist_toy()`: the `dist-toy` pack format |
 | [`omui.build.plan`](plan) | You write a plugin of your own | What the plugins share: a planned `edge`, `submit()`, `generator()`, UTF-8 path text, the files a plugin reads (each plugin re-exports it) |

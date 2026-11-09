@@ -78,6 +78,19 @@ std::expected<toml::table, std::string> parsed(const std::vector<std::pair<std::
 
 bool is_data_module(const std::filesystem::path& file) { return generic_utf8(file.filename()).ends_with(".omui.ts"); }
 
+std::expected<toml::table, std::string> json_document(const std::filesystem::path& file) {
+    const auto name = generic_utf8(file.filename());
+    std::ifstream in(file, std::ios::binary);
+    if (!in) return std::unexpected(std::format("{}: cannot be read", name));
+    const Json value = Json::parse(std::string{std::istreambuf_iterator<char>(in), {}}, nullptr, false);
+    if (value.is_discarded() || !value.is_object()) return std::unexpected(std::format("{}: not a JSON object", name));
+    std::vector<std::pair<std::string, const Json*>> top;
+    for (const auto& item : value.items()) top.emplace_back(item.key(), &item.value());
+    auto document = parsed(top, name);
+    if (!document) return std::unexpected(std::format("{}: {}", name, document.error()));
+    return std::move(*document);
+}
+
 std::expected<toml::table, std::string> data_document(const std::filesystem::path& file, std::string_view kind) {
     auto data = lang::ts::evaluate(file);
     if (!data) return std::unexpected(data.error());

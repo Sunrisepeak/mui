@@ -22,7 +22,7 @@ kind      = "app"
 id        = "org.openmui.reading-list"
 title     = "Reading list"
 size      = "560x520"
-contracts = ["contract/*.contract.omui.toml"]
+contracts = ["contract/*.contract.omui.ts"]
 
 [package.metadata.openmui.scripts]
 main = "logic/main.ts"

@@ -19,6 +19,10 @@ export namespace omui::gen {
 // Whether `file` is a data module (<name>.<kind>.omui.ts).
 [[nodiscard]] bool is_data_module(const std::filesystem::path& file);
 
+// A JSON snapshot (D-159: the spec's registry and its contracts, `<name>.json`)
+// as the TOML document its reader takes; its keys in their order.
+[[nodiscard]] std::expected<toml::table, std::string> json_document(const std::filesystem::path& file);
+
 // The data module `file` as the TOML document of `kind` ("contract", "native", "ops").
 [[nodiscard]] std::expected<toml::table, std::string> data_document(const std::filesystem::path& file, std::string_view kind);
 

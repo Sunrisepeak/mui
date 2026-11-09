@@ -897,12 +897,12 @@ DATA_IN_TS = (".contract.omui.toml", ".native.omui.toml", ".ops.omui.toml")
 def check_typescript_data(root: Path) -> list[Problem]:
     """Contracts, native modules and operation catalogs are TypeScript data
     modules (D-138, D-139: defineContract, defineNative, defineOps); the
-    spec's registry (the spec's own decision) and omui-gen's tests of its TOML
+    spec's registry is JSON snapshots (D-159), and omui-gen's tests of its TOML
     reader are the TOML left. tools/dev/toml_to_ts.py converts one."""
     problems = []
     for path in root.rglob("*.omui.toml"):
         rel = path.relative_to(root).as_posix()
-        if not rel.endswith(DATA_IN_TS) or rel.startswith(("spec/", "tools/gen/tests/data/")) or "target/" in rel or "/." in "/" + rel:
+        if not rel.endswith(DATA_IN_TS) or rel.startswith("tools/gen/tests/data/") or "target/" in rel or "/." in "/" + rel:
             continue
         problems.append(Problem("typescript", rel, f"is TOML: write it as {path.name[:-len('.toml')]}.ts (tools/dev/toml_to_ts.py converts it)"))
     return problems

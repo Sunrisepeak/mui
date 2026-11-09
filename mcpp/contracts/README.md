@@ -2,7 +2,7 @@
 
 The build plugin for contracts (component-binding §2.3, §8, §10.3). A package writes its interface once, as contracts, and the plugin makes the rest when the package builds.
 
-| from `contract/*.contract.omui.toml` | made by | goes |
+| from `contract/*.contract.omui.ts` | made by | goes |
 |---|---|---|
 | `<name>_contract.cppm`: props, choice enums, options, the CRTP base | `omui-gen cpp --part contract` | compiled, as the partition `<module>:<name>_contract` |
 | `<name>_builder.cpp`: the builder | `omui-gen cpp --part builder` | compiled, as an implementation unit of the module |

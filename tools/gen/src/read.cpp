@@ -62,6 +62,9 @@ std::string Diagnostics::json() const {
 
 namespace {
 
+// Words about the data, not data (D-159: a JSON snapshot keeps its comments as doc, note and <key>_doc).
+bool documentation(std::string_view key) { return key == "doc" || key == "note" || key.ends_with("_doc"); }
+
 struct Reader {
     std::string  file;
     Diagnostics& diags;
@@ -125,6 +128,7 @@ struct Reader {
             return out;
         }
         for (auto&& [k, v] : *m) {
+            if (documentation(k.str())) continue;
             if (auto s = v.value<std::string>()) out.emplace(std::string(k.str()), *s);
             else diags.error(loc(&v), std::format("`{}.{}` must be a string", key, k.str()));
         }
@@ -141,6 +145,7 @@ struct Reader {
             return out;
         }
         for (auto&& [k, v] : *m) {
+            if (documentation(k.str())) continue;
             if (auto s = v.value<std::string>()) out.push_back({std::string(k.str()), *s});
             else diags.error(loc(&v), "an argument type must be a string");
         }
@@ -172,6 +177,14 @@ struct Reader {
 };
 
 std::optional<toml::table> parse(const std::filesystem::path& path, Diagnostics& diags) {
+    if (path.extension() == ".json") {  // a JSON snapshot (D-159)
+        auto document = json_document(path);
+        if (!document) {
+            diags.error({generic_utf8(path), 0, 0}, document.error());
+            return std::nullopt;
+        }
+        return std::move(*document);
+    }
     if (is_data_module(path)) {  // <name>.<kind>.omui.ts (D-139)
         const auto name = generic_utf8(path.filename());
         const std::string_view kind = name.ends_with(".native.omui.ts") ? "native" : "contract";
@@ -313,8 +326,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     };
     auto file_of = [&](std::string_view name) { return generic_utf8(dir / name); };
 
-    if (auto t = load("roles.toml")) {
-        Reader r{file_of("roles.toml"), diags};
+    if (auto t = load("roles.json")) {
+        Reader r{file_of("roles.json"), diags};
         reg.spec = r.str(*t, "spec", true);
         r.each(*t, "role", [&](const toml::table& e) {
             Role x;
@@ -325,16 +338,16 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.roles.push_back(std::move(x));
         });
     }
-    if (auto t = load("states.toml")) {
-        Reader r{file_of("states.toml"), diags};
+    if (auto t = load("states.json")) {
+        Reader r{file_of("states.json"), diags};
         r.each(*t, "state", [&](const toml::table& e) {
             State x;
             r.named(x, e);
             reg.states.push_back(std::move(x));
         });
     }
-    if (auto t = load("effects.toml")) {
-        Reader r{file_of("effects.toml"), diags};
+    if (auto t = load("effects.json")) {
+        Reader r{file_of("effects.json"), diags};
         r.each(*t, "effect", [&](const toml::table& e) {
             Effect x;
             r.named(x, e);
@@ -343,16 +356,16 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.effects.push_back(std::move(x));
         });
     }
-    if (auto t = load("origins.toml")) {
-        Reader r{file_of("origins.toml"), diags};
+    if (auto t = load("origins.json")) {
+        Reader r{file_of("origins.json"), diags};
         r.each(*t, "origin", [&](const toml::table& e) {
             Origin x;
             r.named(x, e);
             reg.origins.push_back(std::move(x));
         });
     }
-    if (auto t = load("actions.toml")) {
-        Reader r{file_of("actions.toml"), diags};
+    if (auto t = load("actions.json")) {
+        Reader r{file_of("actions.json"), diags};
         r.each(*t, "action", [&](const toml::table& e) {
             Action x;
             r.named(x, e);
@@ -361,8 +374,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.actions.push_back(std::move(x));
         });
     }
-    if (auto t = load("extensions.toml")) {
-        Reader r{file_of("extensions.toml"), diags};
+    if (auto t = load("extensions.json")) {
+        Reader r{file_of("extensions.json"), diags};
         r.each(*t, "extension", [&](const toml::table& e) {
             Extension x;
             r.named(x, e);
@@ -371,8 +384,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.extensions.push_back(std::move(x));
         });
     }
-    if (auto t = load("profiles.toml")) {
-        Reader r{file_of("profiles.toml"), diags};
+    if (auto t = load("profiles.json")) {
+        Reader r{file_of("profiles.json"), diags};
         r.each(*t, "profile", [&](const toml::table& e) {
             Profile x;
             r.named(x, e);
@@ -381,8 +394,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.profiles.push_back(std::move(x));
         });
     }
-    if (auto t = load("motion.toml")) {
-        Reader r{file_of("motion.toml"), diags};
+    if (auto t = load("motion.json")) {
+        Reader r{file_of("motion.json"), diags};
         reg.easing = r.string_map(*t, "easing");
         reg.spring = r.string_map(*t, "spring");
         r.each(*t, "token", [&](const toml::table& e) {
@@ -441,8 +454,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.motion_presences.push_back(std::move(x));
         });
     }
-    if (auto t = load("expr.toml")) {
-        Reader r{file_of("expr.toml"), diags};
+    if (auto t = load("expr.json")) {
+        Reader r{file_of("expr.json"), diags};
         reg.expr_types = r.strings(*t, "types");
         r.each(*t, "operator", [&](const toml::table& e) {
             ExprOperator x;
@@ -460,8 +473,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.functions.push_back(std::move(x));
         });
     }
-    if (auto t = load("abi.toml")) {
-        Reader r{file_of("abi.toml"), diags};
+    if (auto t = load("abi.json")) {
+        Reader r{file_of("abi.json"), diags};
         read_abi(*t, r, reg.abi);
     }
 
@@ -474,7 +487,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     unique_names(reg.motion_tokens, "motion token", diags);
     unique_names(reg.motion_recipes, "motion recipe", diags);
     unique_names(reg.motion_slots, "motion slot", diags);
-    if (reg.states.size() > 32) diags.error({file_of("states.toml"), 1, 1}, "more than 32 states do not fit the state set");
+    if (reg.states.size() > 32) diags.error({file_of("states.json"), 1, 1}, "more than 32 states do not fit the state set");
     for (const Action& a : reg.actions)
         if (!Registry::find(reg.effects, a.effect))
             diags.error(a.loc, std::format("action `{}` names unknown effect `{}`", a.name, a.effect));
@@ -487,7 +500,8 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     if (std::filesystem::is_directory(components)) {
         std::vector<std::filesystem::path> files;
         for (auto& entry : std::filesystem::directory_iterator(components))
-            if (utf8(entry.path().filename()).ends_with(".contract.omui.toml")) files.push_back(entry.path());
+            if (const auto name = utf8(entry.path().filename()); name.ends_with(".contract.omui.json") || name.ends_with(".contract.omui.ts"))
+                files.push_back(entry.path());
         std::ranges::sort(files);
         for (auto& f : files)
             for (Contract& c : read_contracts(f, reg, diags)) reg.contracts.push_back(std::move(c));
@@ -507,6 +521,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
         return out;
     }
     for (auto&& [key, node] : *contracts) {
+        if (documentation(key.str())) continue;
         const toml::table* t = node.as_table();
         if (!t) continue;
         Contract c;
@@ -522,10 +537,11 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
         if (!valid_identifier(c.name))
             diags.error(c.loc, std::format("contract name `{}` is not lower_snake_case", c.name));
         if (!c.role.empty() && !Registry::find(reg.roles, c.role))
-            diags.error(r.loc(t->get("role")), std::format("unknown role `{}`", c.role), "see spec/registry/roles.toml");
+            diags.error(r.loc(t->get("role")), std::format("unknown role `{}`", c.role), "see spec/registry/roles.json");
 
         if (const toml::table* props = (*t)["props"].as_table()) {
             for (auto&& [pk, pv] : *props) {
+                if (documentation(pk.str())) continue;
                 const toml::table* pt = pv.as_table();
                 Prop p;
                 p.name = std::string(pk.str());
@@ -578,6 +594,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* events = (*t)["events"].as_table()) {
             for (auto&& [ek, ev] : *events) {
+                if (documentation(ek.str())) continue;
                 Event e;
                 e.name = std::string(ek.str());
                 e.loc = r.loc(&ev);
@@ -597,6 +614,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* actions = (*t)["actions"].as_table()) {
             for (auto&& [ak, av] : *actions) {
+                if (documentation(ak.str())) continue;
                 ContractAction a;
                 a.name = std::string(ak.str());
                 a.loc = r.loc(&av);
@@ -636,6 +654,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* commands = (*t)["commands"].as_table()) {
             for (auto&& [ck, cv] : *commands) {
+                if (documentation(ck.str())) continue;
                 Command cmd;
                 cmd.name = std::string(ck.str());
                 cmd.loc = r.loc(&cv);
@@ -646,6 +665,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* keys = (*t)["keys"].as_table()) {
             for (auto&& [kk, kv] : *keys) {
+                if (documentation(kk.str())) continue;
                 Key k{std::string(kk.str()), kv.value<std::string>().value_or(""), r.loc(&kv)};
                 std::string base = base_target(k.target);
                 bool known = std::ranges::any_of(c.actions, [&](const ContractAction& a) { return a.name == base; }) ||
@@ -660,6 +680,7 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* parts = (*t)["parts"].as_table()) {
             for (auto&& [pk, pv] : *parts) {
+                if (documentation(pk.str())) continue;
                 Part p;
                 p.name = std::string(pk.str());
                 p.loc = r.loc(&pv);
@@ -669,10 +690,11 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
 
         if (const toml::table* motion = (*t)["motion"].as_table()) {
             for (auto&& [mk, mv] : *motion) {
+                if (documentation(mk.str())) continue;
                 Motion m{std::string(mk.str()), mv.value<std::string>().value_or(""), r.loc(&mv)};
                 if (m.token != "decay" && !Registry::find(reg.motion_tokens, m.token))
                     diags.error(m.loc, std::format("motion of `{}` names unknown token `{}`", m.part, m.token),
-                                "see the [[token]] entries of spec/registry/motion.toml");
+                                "see the token entries of spec/registry/motion.json");
                 c.motion.push_back(std::move(m));
             }
         }
@@ -721,6 +743,7 @@ std::vector<NativeParam> native_params(const Reader& r, const toml::table& t, st
         return out;
     }
     for (auto&& [k, v] : *m) {
+        if (documentation(k.str())) continue;
         NativeParam p;
         p.name = std::string(k.str());
         p.loc = r.loc(&v);
@@ -755,6 +778,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
         return out;
     }
     for (auto&& [key, node] : *natives) {
+        if (documentation(key.str())) continue;
         const toml::table* t = node.as_table();
         if (!t) continue;
         NativeModule m;
@@ -770,6 +794,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
             for (auto&& [tk, tv] : *types) records.emplace(tk.str());
         if (const toml::table* types = (*t)["types"].as_table()) {
             for (auto&& [tk, tv] : *types) {
+                if (documentation(tk.str())) continue;
                 NativeType ty;
                 ty.name = std::string(tk.str());
                 ty.loc = r.loc(&tv);
@@ -790,6 +815,7 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
         }
         if (const toml::table* functions = (*t)["functions"].as_table()) {
             for (auto&& [fk, fv] : *functions) {
+                if (documentation(fk.str())) continue;
                 NativeFunction f;
                 f.name = std::string(fk.str());
                 f.loc = r.loc(&fv);

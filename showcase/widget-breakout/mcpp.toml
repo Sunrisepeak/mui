@@ -14,7 +14,7 @@ license     = "Apache-2.0"
 
 [package.metadata.openmui]
 kind      = "showcase"
-contracts = ["contract/*.contract.omui.toml"]
+contracts = ["contract/*.contract.omui.ts"]
 
 [targets.openmui-showcase-widget-breakout]
 kind = "lib"

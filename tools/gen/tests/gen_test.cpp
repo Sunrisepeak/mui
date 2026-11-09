@@ -68,7 +68,7 @@ UTest cases{"gen", [] {
             if (it == reg.contracts.end()) continue;
             std::vector<gen::Contract> contracts{*it};
             const std::string hint = std::format(
-                "out of date: run omui-gen cpp spec/registry/components/*.contract.omui.toml for {} --registry spec/registry "
+                "out of date: run omui-gen cpp spec/registry/components/*.contract.omui.json for {} --registry spec/registry "
                 "--module omui.ui.base --namespace omui --out modules/projects/omui/components/base/src/generated --catalog",
                 name);
             expect(read(entry.path()) == gen::emit_cpp_contract(contracts[0], reg, o)) << hint;
@@ -99,19 +99,19 @@ UTest cases{"gen", [] {
     "a contract's C++ base refuses a missing action"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.toml", reg, diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.json", reg, diags);
         const std::string cpp = gen::emit_cpp_contract(slider.at(0), reg, {"x.ui", "x::ui", false});
-        for (auto expect : {"export module x.ui:slider_contract;", "struct SliderProps", "double step = 1.0;",
+        for (auto wanted : {"export module x.ui:slider_contract;", "struct SliderProps", "double step = 1.0;",
                             "struct SliderOptions", "std::function<void(double)> on_committed;", "class SliderContract",
                             "needs `ActResult set_value(ActContext&, const Value& value)`", "void write_value(double value)",
                             "namespace x::ui::slider_contract_tables", "inline constexpr ContractInfo info"})
-            expect(cpp.find(expect) != std::string::npos) << expect;
+            expect(cpp.find(wanted) != std::string::npos) << wanted;
     };
 
     "alternatives typed in TypeScript (`f64 | min | max`)"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.toml", reg, diags);
+        auto slider = gen::read_contracts(spec_dir() / "registry" / "components" / "slider.contract.omui.json", reg, diags);
         expect(!slider.empty() && !slider.at(0).props.empty());
         if (slider.empty() || slider.at(0).props.empty()) return;
         slider.at(0).props.at(0).type = "f64 | min | max";
@@ -125,8 +125,8 @@ UTest cases{"gen", [] {
         auto lens = gen::read_contracts(spec_dir().parent_path() / "site" / "contract" / "lens.contract.omui.ts", reg, diags);
         expect(!diags.has_errors()) << diags.text();
         const std::string cpp = gen::emit_cpp_contract(lens.at(0), reg, {"x.site", "x::site", false});
-        for (auto expect : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
-            expect(cpp.find(expect) != std::string::npos) << expect;
+        for (auto wanted : {"::omui::Value nodes;", "::omui::Prop<::omui::Value> nodes;", "props.nodes = v.is_null() ? LensProps{}.nodes : v;"})
+            expect(cpp.find(wanted) != std::string::npos) << wanted;
     };
 
     "a broken contract is reported line by line"_test = [] {
@@ -134,10 +134,10 @@ UTest cases{"gen", [] {
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
         auto contracts = gen::read_contracts(here() / "data" / "bad.contract.omui.toml", reg, diags);
         auto text = diags.text();
-        for (auto expect : {"unknown role `spaceship`", "unknown type `huge`", "default of `mode`", "default of `count`",
+        for (auto wanted : {"unknown role `spaceship`", "unknown type `huge`", "default of `mode`", "default of `count`",
                             "weaker than its default", "unknown effect `orbital`", "names `fly`",
                             "unknown token `motion.warp`", "action `aim` argument `at` has unknown type `f64 | Up | | down`"})
-            expect(text.find(expect) != std::string::npos) << expect;
+            expect(text.find(wanted) != std::string::npos) << wanted;
         expect(text.find("bad.contract.omui.toml:3:") != std::string::npos) << "diagnostics carry line numbers";
         auto json = diags.json();
         expect(json.starts_with("[{\"severity\":\"error\"")) << json.substr(0, 60);
@@ -156,11 +156,11 @@ UTest cases{"gen", [] {
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
         auto modules = gen::read_natives(here() / "data" / "bad.native.omui.toml", reg, diags);
         auto text = diags.text();
-        for (auto expect : {"native module name `Bad` is not lower_snake_case", "type name `point` is not PascalCase",
+        for (auto wanted : {"native module name `Bad` is not lower_snake_case", "type name `point` is not PascalCase",
                             "Node.next holds a Node in itself", "Node.weight: unknown type `decimal`",
                             "`irreversible`, which needs an answer (S-1)", "find(query) follows the optional `limit`",
                             "find returns: unknown type `Hit`"})
-            expect(text.find(expect) != std::string::npos) << expect;
+            expect(text.find(wanted) != std::string::npos) << wanted;
         expect(text.find("bad.native.omui.toml:10:") != std::string::npos) << "diagnostics carry line numbers";
     };
 

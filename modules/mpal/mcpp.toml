@@ -1,0 +1,28 @@
+# mpal — the services an operating system gives an application, as one contract
+# on every platform, above mcpplibs.os (openkal → os → mpal). README.md.
+[package]
+name        = "mpal"
+version     = "0.1.0"
+description = "The services an operating system gives an application (notifications, …) as one contract on every platform, above mcpplibs.os"
+license     = "Apache-2.0"
+repo        = "https://github.com/Sunrisepeak/mui"
+
+[targets.mpal]
+kind = "lib"
+
+[build]
+sources = ["src/*.cppm", "src/*.cpp", "src/dbus/*.cppm", "src/dbus/*.cpp"]
+
+# Each platform's services; what one does not give says so.
+[target.'cfg(os = "linux")'.build]
+sources = ["src/linux/*.cpp"]
+
+[target.'cfg(not(os = "linux"))'.build]
+sources = ["src/none/*.cpp"]
+
+[dependencies]
+mcpplibs.os = "0.4.1"
+
+[dev-dependencies]
+# Tests are mtest's (D-147).
+mcpplibs.mtest = "0.5.0"

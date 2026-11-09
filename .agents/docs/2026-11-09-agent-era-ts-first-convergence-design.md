@@ -932,7 +932,9 @@ my-app/
   - 自绘通知：右上角依次排列，按下会调用它的动词并消失，到时自动消失。
   - 自绘菜单栏：应用整体下移让出菜单栏，点开一组，选中一项即调用其动词并收起。
 - 验收：omui.sdk 的 system_test 在 headless 下用人的按压走完三种表面（过滤、进出文件夹、确认、保存名、取消；通知按下与到时消失；菜单栏让位与选择）；在 headless 下没有托盘，`set_tray` 如实返回 false。
-- 下一块：原生通知（Linux 的 D-Bus、Windows 的 toast、macOS 的通知中心，归 mcpplibs.os）；macOS 原生菜单栏；脚本与 Agent 的入口（动词与 `openmui:native/system`）。第 2 步的签名与自动更新同样等待 Ed25519 库的决定。
+- 分层（维护者决定，2026-11-10）：openkal → `mcpplibs.os`（系统原语：文件与其 watcher、进程、本地连接、环境）→ **`mpal`**（`modules/mpal`，操作系统给应用的服务，不限桌面：桌面、移动、Web、嵌入式；按用途分区：notify、pick、transfer、launch、shell、secrets、power）→ omui（自绘版本与原生/自绘的选择）。输入（键盘、指针、触摸、手柄、输入法）随窗口进入宿主，不是 mpal 的服务；通知是“告诉人一件事并收回答复”的服务，答复作为该服务自己的事件返回，不走输入。
+- 第二块完成：`mpal` 建立，第一项服务 `notify`。Linux 上经会话总线调用 freedesktop Notifications：D-Bus 线格式（`mpal:dbus`：按签名与对齐编码、EXTERNAL 认证、Hello、方法调用与回复）用 `mcpplibs.os` 的本地连接自己实现，不用 libdbus（许可）和 sd-bus。其他平台如实返回 unsupported。桌面宿主把它接入 `Runtime::NativeSurfaces.notify`（暂时只用于不带动词的通知：人的答复还没有读回）。mpal 的 notify_test 用测试自己的总线（本地 socket）核对：消息布局符合规范的对齐、认证三步、Hello 的唯一名、Notify 的每个参数位置和返回的 id；没有会话总线时报告 unavailable。
+- 下一块：通知答复的读回（ActionInvoked 信号）；Windows toast、macOS 与移动端的 notify；`pick`（Linux portal 等）从 SDL 迁到 mpal；macOS 原生菜单栏；脚本与 Agent 的入口。第 2 步的签名与自动更新等待 Ed25519 库的决定。
 
 **W16 开发宿主与 C++ 无感刷新（C16、D-154）**
 1. 开发宿主持有窗口、输入、设计器和设计历史；应用的显示列表交给宿主渲染（与直接运行逐字节一致）。

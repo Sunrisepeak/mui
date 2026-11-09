@@ -24,6 +24,7 @@ members = [
     "modules/base/memory",
     "modules/base/pipeline",
     "modules/base/session",
+    "modules/mpal",
     "modules/base/simulation",
     "modules/projects/xengine/dynamics",
     "modules/projects/xengine/dynamics/cts",

@@ -6,6 +6,7 @@ import omui.view;
 import omui.semantic;
 import omui.agent;
 import omui.accessibility;
+import mpal;
 import xrender.raster;
 import xrender.vector;
 import mlibs.text;
@@ -344,7 +345,11 @@ std::expected<void, std::string> Desktop::open() {
     d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
                                         return d.window && platform::choose_files(*d.window, choice, std::move(chosen));
                                     },
-                                    .notify = {},
+                                    // The system's notification (mpal), for a notice that only tells: the
+                                    // person's answer to one is not read back yet, so one with a verb is drawn.
+                                    .notify = [title = d.options.title](const Runtime::Notice& notice) {
+                                        return notice.verb.empty() && mpal::notify({.application = title, .title = notice.title, .body = notice.body}).has_value();
+                                    },
                                     .tray = [](const std::vector<Runtime::MenuEntry>& entries, std::string_view tooltip,
                                                std::function<void(std::string_view)> chosen) { return platform::tray(entries, tooltip, std::move(chosen)); }});
     d.runtime->set_svg_capture([&d](Rect region) -> std::expected<std::string, std::string> {

@@ -23,6 +23,8 @@ kind = "lib"
 sources = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
 
 [dependencies]
+# The system's notifications (mpal: the OS's services above mcpplibs.os).
+mpal = { path = "../../../../mpal" }
 xrender.text = { path = "../../../xrender/text" }
 omui.core     = { path = "../../core" }
 omui.view     = { path = "../../view" }

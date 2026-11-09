@@ -92,6 +92,7 @@ PATH_LAYERS: dict[str, str] = {
     "modules/gfx": "gfx",
     "modules/content": "content",
     "modules/media": "media",
+    "modules/mpal": "base",  # the OS's services above mcpplibs.os: no UI, used by omui's hosts
     # the projects (plan §9.2)
     "modules/projects/hanim/core": "base",
     "modules/projects/hanim": "gfx",

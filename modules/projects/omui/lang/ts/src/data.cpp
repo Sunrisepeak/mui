@@ -38,9 +38,22 @@ export interface ByMode<T> {
     development?: T;
     release?: T;
 }
+/** How open runtime generation is (D-144): nothing, view documents only, code with the components and verbs listed, or everything. */
+export type Openness = "off" | "data" | "limited" | "all";
+/** Interface generated while the application runs (generate.*): where it may go and how far. */
+export interface Generation {
+    /** In development "all" and in a release "off", unless said. */
+    open?: ByMode<Openness>;
+    /** The slots generated interface may go into, each with what it is for: `{ extras: "cards under the plan" }`. */
+    surfaces?: { [slot: string]: string };
+    /** What "limited" lets a draft use. */
+    components?: string[];
+    verbs?: string[];
+}
 export interface Config {
     agent?: ByMode<AgentMode>;
     record?: ByMode<RecordLevel>;
+    generation?: Generation;
     /** Whether the designer is linked (D-149): in development by default; a release leaves it out at compile time unless the application is a design tool that ships it. */
     designer?: ByMode<boolean>;
 }

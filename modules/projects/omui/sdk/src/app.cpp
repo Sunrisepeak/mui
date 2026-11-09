@@ -258,13 +258,16 @@ struct TearDown {
     }
 };
 
-void prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
+// What is kept while the application runs: its generation (its verbs), when it has one.
+std::unique_ptr<agent::Generation> prepare(Runtime& rt, AppSpec& app, const std::shared_ptr<AgentAccess>& access) {
     rt.set_agent_access(access);
     rt.set_agent_players(app.agent_players);
     for (VerbSpec& v : app.verbs)
         if (auto r = rt.verbs().add(std::move(v.desc), std::move(v.fn)); !r) warn("verb not added: {}", r.error());
     if (app.setup) app.setup(rt);
     if (app.view) rt.mount("main", app.view());
+    if (!app.generation) return nullptr;
+    return std::make_unique<agent::Generation>(rt, std::move(*app.generation));
 }
 
 // A recording (the protocol's `record`, W12) played again: each frame at its
@@ -345,7 +348,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
             if (attached) window().detach();
         }
     } detach{mode != "native"};
-    prepare(host.runtime(), app, access);
+    const auto generation = prepare(host.runtime(), app, access);
     const TearDown teardown(app, host.runtime());
     const auto framed = frame_of(host.runtime(), app, mode);
     if (!o.replay.empty()) return replay(host, app, o.replay);
@@ -424,14 +427,16 @@ int run(AppSpec app, const RunOptions& o) {
     // A window on the desktop, the page's canvas on the Web (src/host/<where>/shown.cpp).
     const std::string mode = window_mode(app, o);
     return detail::shown(app, o, [&](Runtime& rt) -> std::shared_ptr<void> {
-        prepare(rt, app, access);
-        // Kept as long as the window: the frame, and the teardown before it goes.
+        auto generation = prepare(rt, app, access);
+        // Kept as long as the window: the frame, the generation, and the teardown before them.
         struct Kept {
-            std::unique_ptr<FramedWindow> frame;
-            TearDown                      teardown;  // declared last: it goes first
-            Kept(AppSpec& a, Runtime& r, std::unique_ptr<FramedWindow> f) : frame(std::move(f)), teardown(a, r) {}
+            std::unique_ptr<FramedWindow>      frame;
+            std::unique_ptr<agent::Generation> generation;
+            TearDown                           teardown;  // declared last: it goes first
+            Kept(AppSpec& a, Runtime& r, std::unique_ptr<FramedWindow> f, std::unique_ptr<agent::Generation> g)
+                : frame(std::move(f)), generation(std::move(g)), teardown(a, r) {}
         };
-        return std::make_shared<Kept>(app, rt, frame_of(rt, app, mode));
+        return std::make_shared<Kept>(app, rt, frame_of(rt, app, mode), std::move(generation));
     });
 }
 

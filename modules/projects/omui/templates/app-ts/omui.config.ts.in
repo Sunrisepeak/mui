@@ -7,6 +7,9 @@
 //           automatic — what the build profile says.
 //   record: off, errors, actions, interactions, full (what input did: `ui.explain`).
 //   designer: whether Live Design is linked; a release leaves it out at compile time.
+//   generation: where interface generated while it runs may go (a view's slots) and how
+//           open it is — e.g. { surfaces: { extras: "cards an agent adds" },
+//           open: { release: "data" } }; without surfaces, none.
 import { defineConfig } from "omui/define";
 
 export default defineConfig({

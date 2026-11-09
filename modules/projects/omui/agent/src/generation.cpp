@@ -198,8 +198,8 @@ struct Generation::Impl {
         if (!runtime.claimed(draft.surface)) return std::unexpected(std::format("the surface `{}` is not on screen now: nothing shows it", draft.surface));
         const Rect window{0, 0, runtime.size().width, runtime.size().height};
         const auto picture = [&]() -> Value {
-            if (!options.capture) return Value{};
-            auto png = options.capture(window);
+            auto png = options.capture ? options.capture(window) : runtime.capture_png(window);
+            if (!png && !options.capture) return Value{};  // a host that draws no pixels: the changes say it
             if (!png) return Value{}.set("error", png.error());
             return Value{}.set("format", "png").set("base64", mlibs::base64::encode(*png));
         };

@@ -97,6 +97,10 @@ struct AppSpec {
     // verbs and places — a figure that is its body on the page, a step that
     // needs the person — under "This application" in agent.md.
     std::string              agent_skill;
+    // Runtime generation (D-144, omui.config.ts's `generation`): the
+    // surfaces generated interface may go into and how open it is — the
+    // generate.* verbs, for as long as the application runs. None: none.
+    std::optional<agent::GenerationOptions> generation;
 };
 
 // How to run, from the command line:

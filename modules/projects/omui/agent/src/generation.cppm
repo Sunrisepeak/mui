@@ -15,7 +15,6 @@
 //     omui::agent::Generation generation(runtime, {
 //         .openness = omui::agent::Openness::data,
 //         .surfaces = {{"extras", "cards the user's agent adds under the plan"}},
-//         .capture  = host.capture(),
 //     });
 //
 // The operations are generate.ops.omui.ts's (the application's verbs, served
@@ -63,7 +62,8 @@ struct GenerationOptions {
     std::size_t max_nodes = 2000;
     // limited: the components a draft may use and the verbs it may invoke.
     std::vector<std::string> components, verbs;
-    // The previews' pictures (the host's capture); none, no pictures.
+    // The previews' pictures: the runtime's (Runtime::capture_png, what its
+    // host draws) unless given.
     CaptureFn  capture;
     EvaluateFn evaluate;
     // The host's signals a document's `"provided": true` ones bind to.

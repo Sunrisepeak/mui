@@ -138,9 +138,13 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
 //   agent:  { development?: mode, release?: mode }   automatic, development, dual-user
 //   record: { development?: level, release?: level } off, errors, actions, interactions, full
 //   designer: whether the designer is linked — omui dev and omui build read it (the player runs what it was built with)
+//   generation: { open?: { development?, release? }, surfaces?: { slot: doc }, components?, verbs? }
 struct Config {
     std::optional<std::string> development_agent, release_agent;
     std::optional<RecordLevel> development_record, release_record;
+    std::optional<agent::Openness> development_generation, release_generation;
+    std::vector<agent::Surface>    surfaces;
+    std::vector<std::string>       components, verbs;
 };
 
 std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
@@ -172,7 +176,37 @@ std::expected<Config, std::string> read_config(const std::filesystem::path& base
             (std::string_view(key) == "development" ? out.development_record : out.release_record) = found->second;
         }
     }
+    if (const Value* generation = value->get("generation"); generation && generation->map()) {
+        if (const Value* open = generation->get("open"); open && open->map())
+            for (const auto& [key, level] : *open->map()) {
+                const auto openness = agent::parse_openness(level.as_string());
+                if (!openness) return std::unexpected(std::format("{}: generation.open.{} is off, data, limited or all, not `{}`", utf8(file), key, level.as_string()));
+                (key == "development" ? out.development_generation : out.release_generation) = *openness;
+            }
+        if (const Value* surfaces = generation->get("surfaces"); surfaces && surfaces->map())
+            for (const auto& [slot, doc] : *surfaces->map()) out.surfaces.push_back({slot, std::string(doc.as_string())});
+        for (const auto& [list, into] : {std::pair{"components", &out.components}, std::pair{"verbs", &out.verbs}})
+            if (const Value* names = generation->get(list); names && names->list())
+                for (const Value& name : *names->list()) into->push_back(std::string(name.as_string()));
+    }
     return out;
+}
+
+// Code that makes a generated view document (generation's `limited` and `all`): a TypeScript
+// data module, `export default defineView({…})`, evaluated as data modules are — no I/O, no
+// real time, no randomness, a bounded heap and time — and imports by path only inside an empty
+// directory.
+agent::EvaluateFn generated_views(const std::filesystem::path& base) {
+    return [scratch = base / ".omui" / "generated"](std::string_view language, std::string_view code) -> std::expected<std::string, std::string> {
+        if (language != "ts" && language != "js") return std::unexpected(std::format("generated code is TypeScript (ts) here, not {}", language));
+        std::error_code error;
+        std::filesystem::create_directories(scratch, error);
+        auto data = lang::ts::evaluate_source(code, utf8(scratch / "draft.view.omui.ts"),
+                                              {.root = scratch, .memory_bytes = 16 * 1024 * 1024, .time = std::chrono::milliseconds(500)});
+        if (!data) return std::unexpected(data.error());
+        if (data->kind != "view") return std::unexpected(std::format("the code's default export is defineView(…), not a {}", data->kind));
+        return std::move(data->json);
+    };
 }
 
 int player_main(int argc, char** argv) {
@@ -295,6 +329,17 @@ int player_main(int argc, char** argv) {
         // stat of the app's files a frame costs microseconds), within a tenth of a second otherwise.
         p->watch(design ? seconds(1.0 / 60) : seconds(0.1));
     };
+    // Interface generated while it runs (D-144): where omui.config.ts lets it in, as open as it says
+    // — everything in development, nothing in a release unless said.
+    if (!config->surfaces.empty()) {
+        const agent::Openness open = design ? config->development_generation.value_or(agent::Openness::all)
+                                            : config->release_generation.value_or(agent::Openness::off);
+        app.generation = agent::GenerationOptions{.openness = open,
+                                                  .surfaces = config->surfaces,
+                                                  .components = config->components,
+                                                  .verbs = config->verbs,
+                                                  .evaluate = generated_views(m->base)};
+    }
     app.ready = [&] { return p && p->idle(); };
     app.teardown = [&](Runtime&) { p.reset(); };  // the player goes before its runtime
     return run(std::move(app), options);

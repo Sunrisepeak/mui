@@ -106,6 +106,7 @@ Headless::Headless(HeadlessOptions options) : impl_(std::make_unique<Impl>()) {
         if (!capture) return std::unexpected(capture.error());
         return std::move(capture->svg);
     });
+    if (d.options.level >= HeadlessLevel::pixels) d.runtime->set_png_capture(capture());
     if (d.options.level == HeadlessLevel::session) {
         agent::EndpointOptions eo;
         eo.name = d.options.endpoint_name.empty() ? d.options.app : d.options.endpoint_name;

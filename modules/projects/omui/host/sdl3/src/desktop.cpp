@@ -346,24 +346,27 @@ std::expected<void, std::string> Desktop::open() {
         if (!capture) return std::unexpected(capture.error());
         return std::move(capture->svg);
     });
+    // The frame on screen as PNG, cut to a region: the runtime's capture_png and the agent's capture.
+    const auto shown_png = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
+        // The frame on screen, cut to the region (logical pixels).
+        auto shown_frame = d.pixels();
+        if (!shown_frame) return std::unexpected(shown_frame.error());
+        const xrender::raster::Surface& f = *shown_frame;
+        const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
+        const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
+        const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
+        if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
+        mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
+        return mlibs::image::encode_png(v);
+    };
+    d.runtime->set_png_capture(shown_png);
     if (d.options.agent) {
         agent::EndpointOptions eo;
         eo.name = d.options.app;
         eo.directory = d.options.agent_directory;
         eo.protocol.app = d.options.app;
         eo.protocol.input = d.options.agent_input;
-        eo.protocol.capture = [&d](Rect region) -> std::expected<std::vector<std::uint8_t>, std::string> {
-            // The frame on screen, cut to the region (logical pixels).
-            auto shown_frame = d.pixels();
-            if (!shown_frame) return std::unexpected(shown_frame.error());
-            const xrender::raster::Surface& f = *shown_frame;
-            const PixelRect r = mlibs::geom::snap(region, d.runtime->scale());
-            const int x0 = std::clamp(r.x, 0, f.width()), y0 = std::clamp(r.y, 0, f.height());
-            const int x1 = std::clamp(r.x + r.width, x0, f.width()), y1 = std::clamp(r.y + r.height, y0, f.height());
-            if (x1 <= x0 || y1 <= y0) return std::unexpected("the region is outside the window");
-            mlibs::image::View v{reinterpret_cast<const std::uint8_t*>(f.row(y0) + x0), x1 - x0, y1 - y0, f.width() * 4, mlibs::image::Alpha::premultiplied};
-            return mlibs::image::encode_png(v);
-        };
+        eo.protocol.capture = shown_png;
         eo.protocol.capture_svg = [&d](Rect region) {
             const xrender::Resources resources{&d.runtime->images(), d.glyphs.get()};
             return agent::vector_capture(*d.runtime, resources, region, d.runtime->scale(), std::nullopt);

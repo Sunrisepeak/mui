@@ -770,6 +770,10 @@ public:
     // it in vectors (agent::vector_capture); why not, otherwise.
     [[nodiscard]] std::expected<std::string, std::string> capture_svg(std::optional<Rect> region = {});
     void set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture);
+    // What is drawn now as PNG, over `region` (logical pixels; the window
+    // when none), drawn by the host's renderer; why not, where it draws none.
+    [[nodiscard]] std::expected<std::vector<std::uint8_t>, std::string> capture_png(std::optional<Rect> region = {});
+    void set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect)> capture);
     // What the application was made from, reloaded at once where it can (a
     // player: its scripts, the modules they import, views, components and
     // themes): what changed on disk, or the files `request` names

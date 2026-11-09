@@ -992,6 +992,13 @@ std::expected<std::string, std::string> Runtime::capture_svg(std::optional<Rect>
 
 void Runtime::set_svg_capture(std::function<std::expected<std::string, std::string>(Rect)> capture) { impl_->svg_capture = std::move(capture); }
 
+std::expected<std::vector<std::uint8_t>, std::string> Runtime::capture_png(std::optional<Rect> region) {
+    if (!impl_->png_capture) return std::unexpected("this host draws no pixels");
+    return impl_->png_capture(region.value_or(Rect{0, 0, size().width, size().height}));
+}
+
+void Runtime::set_png_capture(std::function<std::expected<std::vector<std::uint8_t>, std::string>(Rect)> capture) { impl_->png_capture = std::move(capture); }
+
 std::expected<Value, std::string> Runtime::reload_sources(const Value& request) {
     if (!impl_->source_reloader) return std::unexpected("nothing here reloads: the application is not run from sources (a player runs them)");
     return impl_->source_reloader(request);

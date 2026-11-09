@@ -887,7 +887,13 @@ my-app/
 - 预演在同一个应用里把草稿挂到表面上，拍下前后两张图并给出语义差异，然后恢复原状。验证时发现动词运行在批处理里，挂载引起的效果要等动词返回才执行，所以 `omui.core` 新增 `settle_effects()`：在批处理内部先运行已排队的效果（after_batch 的回调仍然等最外层结束）。
 - 提交成为表面的下一个版本（记录是谁、何时、哪个草稿），进入撤销历史：`ui.undo` 回到上一个版本，redo 重做；`generate.restore` 可以回到任意版本。
 - 验收：omui.agent 的 generation_test 经协议走完三类情况（data 的完整生命周期与撤销重做；limited 的代码草稿与组件限制、off；限额与不在屏幕上的表面）。
-- 下一块：player 提供 TS 的沙箱求值（QuickJS 的内存和时间上限），`omui.config.ts` 的 `generation` 与表面声明，生成内容的 hanim 进场配方，版本持久化与重启后重新校验。
+- 第二块完成：接入应用。
+  - `omui.config.ts` 新增 `generation: { open, surfaces, components, verbs }`：`open` 按开发和发布分别设置（默认开发 all、发布 off），`surfaces` 是 slot 名和用途，`components`/`verbs` 是 limited 档允许使用的。没有声明表面时不开放生成。
+  - player 读取这些设置，并提供 TS 代码草稿的求值：代码是一个数据模块 `export default defineView({…})`，按数据模块的方式求值（没有 I/O、真实时间和随机数），堆 16 MB、时间 500 ms，按路径导入只能在一个空目录里。
+  - SDK 的 `AppSpec::generation` 让任何应用（C++ 或 TS）在运行期间持有 `Generation`。
+  - `Runtime::capture_png` 与已有的 `capture_svg` 对应，由宿主（headless、桌面）提供，预演的图片默认取自它。
+  - CI 新增 `tools/ci/generation-e2e.sh`：一个 TS 应用在发布模式下开放 limited，Agent 经 `omui agent call` 用 TS 代码起草两张卡片、预演（有前后 PNG，之后什么都不留）、提交、撤销、重做、查看版本；未允许的组件和不会结束的代码被拒绝。
+- 下一块：生成内容的 hanim 进场配方；版本持久化，重启后重新校验；签名包（第 2 步）；A2UI 适配（第 3 步）。
 
 **W6 性能证据（E1、E2、E3、D-143）**
 1. AVX2 运行时分派，追平描边和连接。

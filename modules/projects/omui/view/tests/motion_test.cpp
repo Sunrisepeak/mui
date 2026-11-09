@@ -449,4 +449,28 @@ UTest cases{"view.motion", [] {
         expect(!rt.motion_time(t)) << "released: on to rest, and done";
         expect(same(rest, draw(rt))) << "at rest: the drawing as it is";
     };
+
+    "a design edit presented (Live Design, D-149): what it adds writes itself in over the application's own motion; the person's level still holds"_test = [] {
+        const auto whole = [](bool design, MotionLevel level) {
+            Runtime rt(options());
+            rt.set_motion_level(level);
+            Signal<bool> more{false};
+            Element page = column({}, {box({.id = "a", .width = 40, .height = 20, .background = "#1e5ac8"}).prop("motion", Source(Value("none"))),
+                                         when([more] { return more.get(); },
+                                              []() -> Element { return box({.id = "b", .width = 80, .height = 30, .background = "#c83c28"}).prop("motion", Source(Value("none"))); })});
+            page.prop("motion", Source(Value("none")));
+            rt.mount("main", std::move(page));
+            (void)rt.frame({seconds(0), {}});
+            if (design) rt.present_design();
+            more.set(true);
+            (void)rt.frame({seconds(0.05), {}});
+            // The middle of the new box, a moment after it came: drawn whole (red) or still being written in.
+            const Point centre = rt.screen_bounds(rt.find("main/b")).center();
+            const auto picture = draw(rt);
+            return picture.at(static_cast<int>(centre.x), static_cast<int>(centre.y)) == xrender::raster::Rgba8{200, 60, 40, 255};
+        };
+        expect(whole(false, MotionLevel::full)) << "the application said none: it appears at once";
+        expect(!whole(true, MotionLevel::full)) << "presented as a design edit, it is still being written in";
+        expect(whole(true, MotionLevel::off)) << "the person's motion off holds: at once";
+    };
 }};

@@ -226,11 +226,35 @@ struct Player::Impl {
         Status ran;
         {
             mlibs::trace::Span span("player.design", "player");
+            rt.present_design();  // what it changes is shown as a design edit (written in, unwritten, springing)
             ran = f.engine->reload_now(std::move(*code), generic_utf8(full(f.path)));
         }
         const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
         if (!ran) return std::unexpected(std::format("{}: {}", name(f.path), ran.error()));
         return Value{}.set("path", name(f.path)).set("took_ms", took).set("changes", semantic::changes_between(before, tree.snapshot()));
+    }
+
+    // What an agent's edit did, said beside the first node it changed or
+    // added (its presence shows it): the file, how many changes, the first.
+    void announce(std::string_view path, const Value& answer) {
+        const auto by = rt.current_invocation();
+        if (!by || by->actor.kind != "agent") return;
+        const Value* changes = answer.get("changes");
+        std::string first, node;
+        std::size_t count = 0;
+        for (const std::string_view kind : {"changed", "added", "removed"}) {
+            const Value* list = changes ? changes->get(kind) : nullptr;
+            if (!list || !list->list()) continue;
+            count += list->list()->size();
+            if (first.empty() && !list->list()->empty()) {
+                const std::string id(list->list()->front().get("id")->as_string());
+                first = std::format("{} {}", kind, id);
+                if (kind != "removed") node = id;  // a removed one is not there to stand beside
+            }
+        }
+        rt.note({.actor = by->actor.text(),
+                 .text = count ? std::format("{}: {} change{} — {}", path, count, count == 1 ? "" : "s", first) : std::format("{}: no visible change", path),
+                 .node = node});
     }
 
     void design_verbs() {
@@ -294,6 +318,7 @@ struct Player::Impl {
                     }
                     edited[path] = std::string(text->as_string());
                     done->set("path", path);
+                    announce(path, *done);
                     return done;
                 }
                 const std::string previous = running_text(*f).value_or(std::string());
@@ -305,6 +330,7 @@ struct Player::Impl {
                     return std::unexpected(done.error());
                 }
                 edited[path] = std::string(text->as_string());
+                announce(path, *done);
                 return done;
             });
         add({.name = "design.discard", .summary = "Drops every edit not committed: each edited script runs its file's text again; the dropped texts are answered",

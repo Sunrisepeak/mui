@@ -8,6 +8,7 @@ import omui.abi;
 import omui.player;
 import omui.ui.base;
 import omui.host.headless;
+import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
 
@@ -239,6 +240,11 @@ UTest cases{"player", [] {
         expect(answer.get("took_ms") && answer.get("took_ms")->as_double() >= 0);
         expect(eq(name_of(h, "side"), std::string("second")));
         expect(eq(file_text(dir / "logic" / "side.stub"), first)) << "an edit stays in the session until committed";
+        // The agent's edit is said beside what it changed (its presence shows it).
+        const auto notes = h.runtime().agent_notes();
+        expect(!notes.empty() && notes.back().actor == "agent:designer" && notes.back().text.starts_with("logic/side.stub: 1 change — changed ") &&
+               !notes.back().node.empty())
+            << (notes.empty() ? std::string("no note") : notes.back().text);
 
         // A text that does not run: refused with its problem, nothing changed.
         const auto refused = invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", "{\"omui\": \"0.1\", \"view\": {\"root\": {\"type\": \"colum\"}}}"));
@@ -317,5 +323,60 @@ UTest cases{"player", [] {
         expect(file_text(part).contains("three"));
         const int runs = log.runs;
         expect(p.poll().empty() && log.runs == runs) << "committed text is not run twice";
+    };
+
+    "a design edit, seen over time: what it adds is written in — a middle state, then the same end as without the presentation"_test = [] {
+        const auto page = [](bool cards) {
+            std::string children = R"j({"type": "text", "id": "title", "props": {"text": "Subscriptions"}})j";
+            if (cards)
+                for (const auto* plan : {"Monthly", "Yearly"})
+                    children += std::format(R"j(, {{"type": "box", "id": "{}", "props": {{"width": 120, "height": 44, "background": "#2563eb", "radius": 10}}}})j", plan);
+            return std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "column", "id": "page", "props": {{"padding": 16, "gap": 10}}, "children": [{}]}}}}}})j", children);
+        };
+        const auto dir = scratch_dir("player-design-film");
+        write(dir / "logic" / "side.stub", page(false));
+        player::Manifest m;
+        m.id = "org.openmui.player-design-film";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.size = {240, 200}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true});
+        expect(p.start().has_value());
+        h.settle();
+        Invocation call;
+        call.actor = {"agent", "designer", {}};
+        call.args = Value{}.set("path", "logic/side.stub").set("text", page(true));
+        expect(eq(h.runtime().verbs().invoke("design.edit", call).exit_code().value_or(-1), 0));
+        // Nine moments over 0.8 s, side by side.
+        std::vector<xrender::raster::Surface> frames;
+        for (int index = 0; index < 9; ++index) {
+            if (index) (void)h.advance(seconds(0.1));
+            else (void)h.step();
+            frames.push_back(h.pixels());
+        }
+        const auto differ = [](const xrender::raster::Surface& a, const xrender::raster::Surface& b) {
+            for (int y = 0; y < a.height(); ++y)
+                for (int x = 0; x < a.width(); ++x)
+                    if (!(a.at(x, y) == b.at(x, y))) return true;
+            return false;
+        };
+        expect(differ(frames[2], frames.front()) && differ(frames[2], frames.back())) << "a real middle state";
+        // The end is the edit's own drawing: the same page mounted with no presentation.
+        Headless plain(HeadlessOptions{.size = {240, 200}});
+        const std::string end = page(true);
+        expect(abi::omuiMount(abi::attach(plain.runtime(), "plain"), {"side", 4}, {end.data(), end.size()}) == abi::OMUI_SUCCESS);
+        plain.settle();
+        expect(!differ(frames.back(), plain.pixels())) << "the presentation ends where the edit draws";
+        // The strip, for the eye (README media are made from it).
+        const int width = frames.front().width(), height = frames.front().height();
+        std::vector<std::uint8_t> strip(static_cast<std::size_t>(width) * frames.size() * height * 4);
+        for (std::size_t f = 0; f < frames.size(); ++f)
+            for (int y = 0; y < height; ++y)
+                std::memcpy(strip.data() + (static_cast<std::size_t>(y) * width * frames.size() + f * width) * 4, frames[f].row(y), static_cast<std::size_t>(width) * 4);
+        const mlibs::image::View view{strip.data(), static_cast<int>(width * frames.size()), height, static_cast<int>(width * frames.size() * 4)};
+        auto png = mlibs::image::encode_png(view);
+        expect(png.has_value());
+        if (png) std::ofstream(dir / "design-edit.strip.png", std::ios::binary).write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
+        std::println("design edit strip: {}", (dir / "design-edit.strip.png").string());
     };
 }};

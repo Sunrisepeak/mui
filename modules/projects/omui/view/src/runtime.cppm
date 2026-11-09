@@ -439,6 +439,12 @@ public:
 
     // The interaction recorder (D-148): development mode keeps everything
     // (full); otherwise errors, unless the application says otherwise.
+    // Live Design's presentation (D-149): for `duration` from now, what an
+    // edit adds is written in and settles and what it removes is unwritten,
+    // over the application's own motion; what it changes moves as the
+    // application's motion says (what did not change does not move). The
+    // person's motion level still holds.
+    void present_design(seconds duration = seconds(0.9));
     void set_record_level(RecordLevel level);
     [[nodiscard]] RecordLevel record_level() const noexcept;
     // What was recorded of the input events after `since` (a cause; 0: all

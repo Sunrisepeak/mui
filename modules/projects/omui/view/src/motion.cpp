@@ -93,6 +93,10 @@ hanim::visual::Options options_of(const MotionSpec& spec, MotionLevel level, con
 }  // namespace
 
 const MotionSpec* Runtime::Impl::slot_motion(NodeId id, std::size_t slot, bool fallback) {
+    // A design edit being shown (Runtime::present_design): what comes is written in and what goes
+    // unwritten, over the layers below. Its updates keep the application's own motion — what did not
+    // change must not move — and the window's root is never one (it would move the whole window).
+    if ((slot == 1 || slot == 2) && id != root && clock.now().count() < design_until) return &design_slots[slot];
     Node& n = at(id);
     if (n.motion_gen != motion_gen) {
         // Its slots resolved again (a property, a theme, a level, a tier, a choice changed), the layers over each
@@ -687,4 +691,25 @@ std::vector<MotionState> Runtime::motions() const {
     return out;
 }
 
+void Runtime::present_design(seconds duration) {
+    Impl& d = *impl_;
+    // What it adds writes itself in, then settles; what it removes is unwritten; what it changes
+    // springs, the nearest the change first.
+    MotionSpec update;
+    update.curve = Transition::spring_with(hanim::springs::standard);
+    update.order = MotionSpec::Order::distance;
+    update.stagger = 0.03;
+    MotionSpec enter = update;
+    enter.curve = Transition::tween(seconds(0.7), hanim::ease::standard);
+    enter.appear = *hanim::together(*hanim::presence("write_in"), *hanim::presence("settle_in", {.scale = 0.92}));
+    MotionSpec exit = update;
+    exit.curve = Transition::tween(seconds(0.45), hanim::ease::standard);
+    exit.vanish = *hanim::presence("unwrite");
+    d.design_slots = {update, enter, exit};
+    d.design_until = d.clock.now().count() + duration.count();
+    ++d.motion_gen;  // the slots resolved again as the presentation begins (and once it ends)
+    d.touch(dirty_paint);
+}
+
 }  // namespace omui
+

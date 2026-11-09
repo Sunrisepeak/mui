@@ -455,6 +455,9 @@ struct Runtime::Impl {
     std::vector<ActionEntry>    journal;
     // The interaction recorder (D-148): its level, what it keeps (a ring of
     // `record_capacity`), the input events numbered, the one being dispatched.
+    // Live Design's presentation: until when, and its recipes by slot (update, enter, exit).
+    double                      design_until = -1;
+    std::array<MotionSpec, 3>   design_slots;
     RecordLevel                 record_level = RecordLevel::errors;
     std::deque<InteractionRecord> recorded;
     std::size_t                 record_capacity = 4096;

@@ -614,6 +614,11 @@ my-app/
 3. 写 `mlibs.testing` 到 mtest 的转换脚本，先迁 `xrender.raster`、`hanim.studio`、`omui.view` 三个包验证。
 **验收**：三个包的用例全部迁完，结果与迁移前一致；`mtest plan --since` 给出正确的受影响用例。
 
+**W0 进度（2026-11-09）**：完成。试点（xrender.raster、hanim.studio、omui.view）之后，用 `tools/dev/to_mtest.py` 分四批把仓库全部测试（约 250 个文件）迁到 mtest；`tools/dev/mtest_dev_dependency.py` 让每个包声明一次 mtest。
+- 脚本处理不了的手工改：三参数形式（`where` 交给 `expect`）；与 mtest 同名的测试自有名字（`tag`、`suite`、`body`、`cases`、`near`，以及 omui.expr 的 `eq`、`ne`），这些文件改为按名字引入 mtest；`failures()` 改为自己计数，或在对应检查处用 fatal 期望。
+- `mlibs.testing` 删掉了测试框架部分（Suite、check、fail、failures），只留下 mtest 之外的共享物：`scratch_dir`（README 素材从这里取）、目标常量 `threads` 和 `Hash`。
+- 验证方式：前三批逐包验证；第四批抽样验证，其余交给 CI。
+
 **W1 TS/JS 顶级化（C1、C6、C7、C8）**
 1. C++ 可擦除语法转写器（`omui.lang.js` 的 `src/ts/`），加 `omui check` 的语法诊断。运行时生成和热重载不再依赖 esbuild。**验收**：仓库里所有 `.ts` 都能转写，结果与 esbuild 去类型后的行为一致；不可擦除语法报出位置和改法。
 2. 确定的求值环境（无 I/O、无真实时间、无随机数，宿主注入确定的替代）和 `defineContract`、`defineOps`、`defineTheme`、`defineMotion`、`defineView`；`omui-gen` 内嵌 QuickJS 求值。**验收**：`button` 契约和 `studio.ops` 的试点，生成产物与现有 TOML 逐字节一致。

@@ -9,6 +9,7 @@ import mcpplibs.os;
 import omui.cli;
 import omui.core;
 import omui.designer;
+import omui.mcp;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -84,6 +85,51 @@ UTest cases{"cli.project", [] {
             << "HEAD and the work tree as they were";
         const auto again = invoke({"omui", "design", "sync", "--dir", mcpplibs::os::fs::utf8(repository / "app")});
         expect(eq(again.code, 0) && again.out.contains("0 design commits written")) << again.out << again.err;
+    };
+
+    "omui mcp: the command line's commands as tools — one that reads runs, one that writes something to keep asks the user first"_test = [] {
+        // A client that cannot ask the user itself (no elicitation).
+        struct Lines final : mcp::Transport {
+            std::deque<std::string> in;
+            std::vector<Value> out;
+            std::optional<std::string> read() override {
+                if (in.empty()) return std::nullopt;
+                std::string line = std::move(in.front());
+                in.pop_front();
+                return line;
+            }
+            void write(std::string_view line) override {
+                if (auto value = parse_json(line)) out.push_back(std::move(*value));
+            }
+        } client;
+        const auto call = [](int id, std::string_view tool, Value args) {
+            return Value{}.set("jsonrpc", "2.0").set("id", id).set("method", "tools/call").set("params", Value{}.set("name", tool).set("arguments", std::move(args))).json();
+        };
+        client.in = {Value{}.set("jsonrpc", "2.0").set("id", 1).set("method", "initialize").set("params", Value{}.set("protocolVersion", "2025-06-18").set("capabilities", Value(Value::Map{}))).json(),
+                     Value{}.set("jsonrpc", "2.0").set("id", 2).set("method", "tools/list").json(),
+                     call(3, "omui_doctor", Value(Value::Map{})),
+                     call(4, "omui_package", Value(Value::Map{}))};
+        mcp::Server server({.directory = std::filesystem::temp_directory_path() / "omui-cli-mcp", .commands = parse_json(cli::ops::listing).value_or(Value{}),
+                            .run_command = cli::run_for_agent, .design = false});
+        server.serve(client);
+        const auto reply = [&](int id) -> const Value* {
+            for (const Value& message : client.out)
+                if (message.get("id") && message.get("id")->as_int() == id) return message.get("result");
+            return nullptr;
+        };
+        const Value* listed = reply(2);
+        std::set<std::string> names;
+        if (listed && listed->get("tools") && listed->get("tools")->list())
+            for (const Value& tool : *listed->get("tools")->list()) names.insert(std::string(tool.get("name")->as_string()));
+        for (const auto* name : {"omui_doctor", "omui_build", "omui_test", "omui_package", "omui_new", "omui_design_film", "omui_design_sync"})
+            expect(names.contains(name)) << name;
+        const Value* doctor = reply(3);
+        const Value* ran = doctor && doctor->get("structuredContent") ? doctor->get("structuredContent")->get("data") : nullptr;
+        expect(ran && ran->get("exit") && ran->get("out")->as_string().contains("\"tool\":\"mcpp\"")) << (doctor ? doctor->json() : std::string("none"));
+        const Value* package = reply(4);
+        expect(package && package->get("isError")->as_bool() && package->json().contains("needs the user's confirmation") && package->json().contains("needs_answer"))
+            << (package ? package->json() : std::string("none"));
+        expect(!package || !package->json().contains("exited")) << "nothing run before the user says so";
     };
 
     "doctor: each tool, found or not, required or not, what it is for"_test = [] {

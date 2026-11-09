@@ -44,6 +44,12 @@ struct ServerOptions {
     // verbs: each becomes a tool (cellular.paint → cellular_paint) with the
     // listing's schema and hints, invoking that verb.
     std::vector<Value> listings;
+    // The command line's own commands (the omui-cli listing, cli.ops.omui.ts)
+    // as omui_* tools, run in this process by `run_command` (a command and its
+    // arguments → {exit, out, err}); an irreversible one — it writes
+    // something to keep — is put to the person first. Empty: none.
+    Value commands;
+    std::function<Value(std::string_view command, const Value& args)> run_command;
     // Live Design's verbs (design.*, omui.agent's design catalog) as tools
     // too: they answer in an application started in development mode
     // (`omui dev`), and refuse elsewhere as any verb an application lacks.

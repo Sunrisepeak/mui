@@ -226,6 +226,8 @@ struct Server::Impl {
     // The listed operations' tools, and the verb each invokes.
     Value::List                            listed;
     std::map<std::string, std::string>     verbs;
+    // The command line's commands as tools (omui_build …): each one's command and effect.
+    std::map<std::string, std::pair<std::string, std::string>> commands;
 
     explicit Impl(ServerOptions o) : options(std::move(o)), actor(options.actor.empty() ? "agent:mcp" : options.actor) {
         std::vector<Value> listings;
@@ -252,6 +254,61 @@ struct Server::Impl {
                 verbs.emplace(name, verb);
             }
         }
+        list_commands();
+    }
+
+    // The command line's commands (no application named: they work on the project the server runs in).
+    void list_commands() {
+        const Value* tools = options.commands.get("tools");
+        if (!tools || !tools->list() || !options.run_command) return;
+        for (const Value& op : *tools->list()) {
+            const std::string command(str(op, "name")), name = tool_name(command);
+            if (command.empty() || commands.contains(name) || verbs.contains(name)) continue;
+            Value schema = op.get("inputSchema") ? *op.get("inputSchema") : Value{}.set("type", "object");
+            schema.set("additionalProperties", false);
+            const std::string effect(str(op, "effect"));
+            if (effect == "irreversible") {  // the user's answer, for a client that cannot ask them itself
+                Value properties = schema.get("properties") && schema.get("properties")->map() ? *schema.get("properties") : Value(Value::Map{});
+                properties.set("answer", prop("string", "\"yes\" — only when the user said so, asked by you"));
+                schema.set("properties", std::move(properties));
+            }
+            std::string description(str(op, "description"));
+            description += std::format(" (the omui command line, {}{}{})", effect, effect == "irreversible" ? ": the user is asked first" : "",
+                                       str(op, "undo").empty() ? std::string() : std::format("; undo: {}", str(op, "undo")));
+            Value t;
+            t.set("name", name).set("title", command).set("description", description).set("inputSchema", std::move(schema));
+            t.set("annotations", hints_of(effect, false));
+            listed.push_back(std::move(t));
+            commands.emplace(name, std::pair{command, effect});
+        }
+    }
+
+    // A command run: an irreversible one (it writes something to keep) put to the person first.
+    Value run_command(Transport& t, const std::string& command, const std::string& effect, const Value& args) {
+        if (effect == "irreversible") {
+            const std::string what = std::format("run `{}` {}", command, args.json());
+            if (!elicitation)
+                if (const Value* answer = args.get("answer"); !answer || answer->as_string() != "yes")
+                    return tool_result(std::format("{} writes something to keep — it needs the user's confirmation. Ask the user; only if they agree, call again "
+                                                   "with \"answer\": \"yes\". Never answer for them.",
+                                                   command),
+                                       true, Value{}.set("needs_answer", Value{}.set("question", what).set("answer", "yes")));
+            if (elicitation) {
+                const std::optional<bool> allowed = ask(t, std::format("{} wants to {}", actor, what));
+                if (!allowed) return tool_result(std::format("{} — the user could not be asked; nothing was done", command), true);
+                if (!*allowed) return tool_result(std::format("{} — the user declined; nothing was done. Do not try again unless they ask.", command), true);
+            }
+        }
+        Value given = Value(Value::Map{});
+        if (args.map())
+            for (const auto& [key, value] : *args.map())
+                if (key != "answer") given.set(key, value);
+        const Value ran = options.run_command(command, given);
+        const int exit = static_cast<int>(ran.get("exit") ? ran.get("exit")->as_int() : 1);
+        std::string out = std::format("{} exited {}", command, exit);
+        if (auto text = str(ran, "out"); !text.empty()) out += std::format("\n{}", text);
+        if (auto text = str(ran, "err"); !text.empty()) out += std::format("\n{}", text);
+        return tool_result(std::move(out), exit != 0, Value{}.set("data", ran));
     }
 
     [[nodiscard]] std::filesystem::path directory() const {
@@ -403,6 +460,8 @@ struct Server::Impl {
     }
 
     Value run_tool(std::string_view name, const Value& args, Transport& t) {
+        if (const auto command = commands.find(std::string(name)); command != commands.end())
+            return run_command(t, command->second.first, command->second.second, args);
         if (name == "ui_apps") {
             const auto apps = running();
             if (apps.empty()) return tool_result("no openmui application is running");

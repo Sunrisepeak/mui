@@ -18,7 +18,7 @@ kind = "bin"
 main = "src/main.cpp"
 
 [build]
-sources = ["src/*.cppm", "src/*.cpp"]
+sources = ["src/*.cppm", "src/*.cpp", "src/catalog/*.cppm"]
 
 [dependencies]
 omui.core        = { path = "../../modules/projects/omui/core" }

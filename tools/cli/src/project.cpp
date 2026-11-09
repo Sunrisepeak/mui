@@ -56,6 +56,18 @@ Ran run_tool(std::string_view program, std::vector<std::string> args, std::ostre
     mcpplibs::os::process::spawn_options options;
     options.program = *found;
     options.args = std::move(args);
+    if (tools_caught()) {
+        // For an agent: what the tool says becomes the command's.
+        auto caught = mcpplibs::os::process::run(std::move(options));
+        if (!caught) {
+            err << std::format("omui: {} did not start: {}\n", program, caught.error().message());
+            ran.code = 127;
+            return ran;
+        }
+        err << caught->out << caught->err;
+        ran.code = caught->status.shell_code();
+        return ran;
+    }
     options.out = mcpplibs::os::process::stdio::inherit;
     options.err = mcpplibs::os::process::stdio::inherit;
     auto process = mcpplibs::os::process::process::spawn(options);
@@ -221,6 +233,11 @@ int config(bool json, std::ostream& out, std::ostream& err) {
 }
 
 }  // namespace
+
+bool& tools_caught() {
+    static bool caught = false;
+    return caught;
+}
 
 cmd::App project_command(std::string_view name) {
     using cmd::App, cmd::Arg, cmd::Option;

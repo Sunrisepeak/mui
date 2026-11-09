@@ -5,8 +5,12 @@
 // 2 needs an answer, 3 not ready) — the openas convention.
 export module omui.cli;
 
+// The commands an agent may run through MCP (cli.ops.omui.ts).
+export import :catalog;
+
 import std;
 import mcpplibs.cmdline;
+import omui.core;
 import omui.viewdoc;
 
 export namespace omui::cli {
@@ -35,6 +39,11 @@ struct BridgeStart {
 };
 std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready);
 
+
+// A command of the command line, run for an agent (MCP's omui_* tools, the
+// omui-cli listing): its exit code and what it wrote, its tools' output
+// caught (standard output is the protocol's).
+[[nodiscard]] Value run_for_agent(std::string_view command, const Value& args);
 }  // namespace omui::cli
 
 // The document commands (documents.cpp), for run().
@@ -87,5 +96,13 @@ inline constexpr std::array<std::string_view, 14> project_commands{"new", "dev",
 int project(std::string_view name, const mcpplibs::cmdline::ParsedArgs& p, std::ostream& out, std::ostream& err);
 // omui design sync (design.cpp): Live Design's history (.omui/design) carried into git as design/<branch>.
 int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, std::ostream& err);
+
+}  // namespace omui::cli
+
+namespace omui::cli {
+
+// While an agent runs a command (run_for_agent), the tools it starts write to
+// what the command writes, not to this process's terminal.
+bool& tools_caught();
 
 }  // namespace omui::cli

@@ -777,7 +777,7 @@ my-app/
   - `omui tools`：项目为 xlings 声明的工具，以及是否已安装（由 xlings 自己回答），`--install` 一并装上；
   - `omui config`：`omui.config.ts` 叠加在默认值上，得到 player 实际使用的配置；
   - 所有命令都声明成链式的命令树（mcpplibs.cmdline），`--json` 输出记录。
-- 尚未完成：经 MCP 调用会写出产物的命令时，先问人（W15 第 2 步）。
+- 第三块完成（第 2 步）：命令行自己的操作目录 `tools/cli/cli.ops.omui.ts`（14 个命令；`dev`、`run`、`mcp`、`agent` 不在其中）。`omui mcp` 把它们作为 `omui_*` 工具提供，在进程内运行（工具的输出被捕获，因为标准输出是协议通道）。会写出要保留之物的命令（`new`、`package`、`design sync`、`design film`）是 irreversible：能询问的客户端先经 elicitation 问人；不能询问的客户端，Agent 要先问过人再带 `answer: "yes"` 调用，人拒绝则什么都不做。
 
 **W3 自描述 API（A1、D-145）**
 1. `omui describe --api`：从契约、组件、令牌、操作目录导出写应用所需的 API（JSON），llms.txt 自动导出；运行中的应用通过协议提供同样的内容。**验收**：导出内容和 `.d.ts` 由同一来源生成，lint 检查二者是否一致。

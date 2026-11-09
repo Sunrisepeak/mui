@@ -134,6 +134,32 @@ std::expected<Value, std::string> json_option(const cmd::ParsedArgs& p, std::str
 
 }  // namespace
 
+Value run_for_agent(std::string_view command, const Value& args) {
+    // omui.design.film → omui design film; a few arguments by position, the rest as options.
+    std::vector<std::string> argv{"omui"};
+    for (const auto word : std::views::split(command.substr(command.find('.') + 1), '.')) argv.emplace_back(std::string_view(word.begin(), word.end()));
+    static const std::map<std::string, std::string, std::less<>> positional{{"omui.new", "name"}, {"omui.add", "package"}, {"omui.remove", "package"}};
+    const auto by_position = positional.find(command);
+    if (by_position != positional.end())
+        if (const Value* value = args.get(by_position->second)) argv.emplace_back(value->as_string());
+    if (args.map())
+        for (const auto& [key, value] : *args.map()) {
+            if (by_position != positional.end() && key == by_position->second) continue;
+            if (value.type() == Value::Type::boolean) {
+                if (value.as_bool()) argv.push_back("--" + key);
+                continue;
+            }
+            argv.push_back("--" + key);
+            argv.push_back(value.type() == Value::Type::text ? std::string(value.as_string()) : value.json());
+        }
+    argv.emplace_back("--json");
+    std::ostringstream out, err;
+    tools_caught() = true;
+    const int code = run(argv, out, err);
+    tools_caught() = false;
+    return Value{}.set("exit", static_cast<double>(code)).set("out", out.str()).set("err", err.str());
+}
+
 std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, std::size_t first) {
     const std::string op(p.subcommand_name());
     const cmd::ParsedArgs& a = p.subcommand()->get();
@@ -490,6 +516,9 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
             }
             o.listings.push_back(std::move(*listing));
         }
+        // The command line's own commands, for the agent to run here (W15: what writes something to keep asks first).
+        o.commands = parse_json(ops::listing).value_or(Value{});
+        o.run_command = run_for_agent;
         mcp::Server server(std::move(o));
         mcp::StdioTransport stdio;
         server.serve(stdio);

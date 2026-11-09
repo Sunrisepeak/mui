@@ -59,6 +59,12 @@ void register_base_components() {
     register_type(component_type<Link>());
     register_type(component_type<DescriptionList>());
     register_type(component_type<Spinner>());
+    // W9: what a person gives — rating, otp input, form field, search box, toggle group.
+    register_type(component_type<Rating>());
+    register_type(component_type<OtpInput>());
+    register_type(component_type<FormField>());
+    register_type(component_type<SearchBox>());
+    register_type(component_type<ToggleGroup>());
 }
 
 }  // namespace omui

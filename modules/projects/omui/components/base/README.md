@@ -55,6 +55,11 @@ made into code when the package builds — `build.mcpp`, omui.build.contracts):
 | `link` | `link` | text that goes somewhere: an address the system opens (http, https, mailto — external: an agent answers "yes", a person's click or Enter is their answer) or the application's verb (its effect); underlined in the accent |
 | `description_list` | `list` | terms beside what they mean (baselines aligned) or each above its own; each pair an item of its own (`<id>/<index>`: its name the term, its value the description) |
 | `spinner` | `progress` | something happening, how long unknown: an arc turning on the runtime's clock, `busy`; still when motion is reduced |
+| `rating` | `slider` | how much out of a few stars (whole or half steps); the pointer shows what a press would set, pressing its value clears it; keys step it; read-only only shows |
+| `otp_input` | `text_box` | a one-time code, a box a character: typed one by one, pasted whole (what a box cannot hold dropped), Backspace, arrows; `completed` when full |
+| `form_field` | `group` | a control with its label above (`*` when required), its help under it and an error in the help's place; the group's description is the help or the error, `required` and `invalid` said |
+| `search_box` | `search_box` | a magnifier, a bare text box (its words), a × button of its own while there are words (`<id>/clear`); Enter searches (`submitted`), Escape clears |
+| `toggle_group` | `toolbar` | a few options each on or off on its own, each a toggle button of its own (`<id>/<value>`); pressed, Space, turned by an agent; kept in the options' order |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

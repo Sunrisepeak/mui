@@ -66,6 +66,11 @@ export import :separator_contract;
 export import :link_contract;
 export import :description_list_contract;
 export import :spinner_contract;
+export import :rating_contract;
+export import :otp_input_contract;
+export import :form_field_contract;
+export import :search_box_contract;
+export import :toggle_group_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -89,6 +94,7 @@ export import :collections;
 export import :entry;
 export import :code;
 export import :reading;
+export import :inputs;
 
 export namespace omui {
 

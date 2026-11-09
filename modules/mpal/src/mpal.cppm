@@ -6,3 +6,4 @@ export module mpal;
 export import :error;
 export import :dbus;
 export import :notify;
+export import :pick;

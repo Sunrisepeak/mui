@@ -30,6 +30,25 @@ namespace omui {
 
 namespace {
 
+// A file choice as mpal asks the system for it.
+mpal::Pick pick_of(const Runtime::FileChoice& choice) {
+    mpal::Pick asked;
+    asked.kind = choice.kind == Runtime::FileChoice::Kind::save     ? mpal::Pick::Kind::save
+                 : choice.kind == Runtime::FileChoice::Kind::folder ? mpal::Pick::Kind::folder
+                                                                    : mpal::Pick::Kind::open;
+    asked.title = choice.title;
+    asked.many = choice.many;
+    asked.start = choice.start;
+    asked.name = choice.name;
+    for (const Runtime::FileFilter& filter : choice.filters) {
+        mpal::Filter made{.name = filter.name, .extensions = {}};
+        for (const auto part : std::views::split(std::string_view(filter.pattern), ';'))
+            if (const std::string_view extension(part.begin(), part.end()); !extension.empty() && extension != "*") made.extensions.emplace_back(extension);
+        asked.filters.push_back(std::move(made));
+    }
+    return asked;
+}
+
 // The system's notifications (mpal) and the person's answers: shown from the
 // interface's thread, heard on a thread of its own over a second connection
 // (a read waits there, never in a frame); a pressed notice's callback is run
@@ -410,6 +429,17 @@ std::expected<void, std::string> Desktop::open() {
     d.runtime->set_file_offer([](const Runtime::OfferedFile& file) { return platform::save_download(file.name, file.bytes); });
     // The system's file chooser and tray (W7: the SDK's System draws what is missing).
     d.runtime->set_native_surfaces({.choose_files = [&d](const Runtime::FileChoice& choice, Runtime::FilesChosen chosen) {
+                                        // The system's chooser through mpal where it is here (Linux's desktop portal),
+                                        // the person answering on a thread of its own; else SDL's.
+                                        if (mpal::can_pick()) {
+                                            std::thread([asked = pick_of(choice), chosen = std::move(chosen)] {
+                                                auto picked = mpal::pick(asked);
+                                                if (!picked) warn("desktop: choosing files: {}", picked.error().text);
+                                                chosen(picked ? std::move(*picked) : std::vector<std::filesystem::path>{});
+                                                platform::wake();
+                                            }).detach();
+                                            return true;
+                                        }
                                         return d.window && platform::choose_files(*d.window, choice, std::move(chosen));
                                     },
                                     // The system's notification (mpal); the person pressing it runs its verb.

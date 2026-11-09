@@ -1,4 +1,4 @@
-// mpal's notifications, spoken as the freedesktop service hears them: a call
+// mpal's services spoken as their services hear them. Notifications: a call
 // laid out by the D-Bus specification's alignment, the EXTERNAL
 // authentication, Hello, then Notify with every argument where it belongs —
 // against a bus of the test's own (a local socket), so it runs anywhere; and
@@ -36,13 +36,30 @@ std::string reply_bytes(std::uint32_t serial, std::uint32_t reply_to, std::strin
     return message_bytes(dbus::Kind::reply, serial, {field(5, "u", Value{reply_to})}, signature, body_values);
 }
 
-// One of the notification service's signals: PATH (1, o), INTERFACE (2, s), MEMBER (3, s).
-std::string signal_bytes(std::uint32_t serial, std::string member, std::string_view signature, std::span<const Value> body_values) {
+// A signal: PATH (1, o), INTERFACE (2, s), MEMBER (3, s).
+std::string signal_at(std::uint32_t serial, std::string path, std::string interface, std::string member, std::string_view signature,
+                      std::span<const Value> body_values) {
     return message_bytes(dbus::Kind::signal, serial,
-                         {field(1, "o", Value::of("/org/freedesktop/Notifications")), field(2, "s", Value::of("org.freedesktop.Notifications")),
-                          field(3, "s", Value::of(std::move(member)))},
+                         {field(1, "o", Value::of(std::move(path))), field(2, "s", Value::of(std::move(interface))), field(3, "s", Value::of(std::move(member)))},
                          signature, body_values);
 }
+
+// One of the notification service's signals.
+std::string signal_bytes(std::uint32_t serial, std::string member, std::string_view signature, std::span<const Value> body_values) {
+    return signal_at(serial, "/org/freedesktop/Notifications", "org.freedesktop.Notifications", std::move(member), signature, body_values);
+}
+
+// An a{sv}'s value for `key` (none: absent).
+const Value* option(const Value& dictionary, std::string_view key) {
+    if (const auto* entries = std::get_if<std::vector<Value>>(&dictionary.data))
+        for (const Value& entry : *entries)
+            if (const auto* pair = std::get_if<std::vector<Value>>(&entry.data); pair && pair->size() == 2)
+                if (const auto* name = std::get_if<std::string>(&(*pair)[0].data); name && *name == key)
+                    if (const auto* held = std::get_if<dbus::Variant>(&(*pair)[1].data)) return held->second.get();
+    return nullptr;
+}
+
+Value variant_of(std::string signature, Value inner) { return Value{dbus::Variant{std::move(signature), std::make_shared<Value>(std::move(inner))}}; }
 
 // A bus of the test's own: answers the authentication, then hands each message
 // to `answer`, which writes what the bus says back, until it has handled `count`;
@@ -341,5 +358,102 @@ UTest cases{"mpal.notify", [] {
     "where there is no session bus: unavailable, said"_test = [] {
         auto none = dbus::Bus::at(std::filesystem::temp_directory_path() / "mpal-no-bus-here", "bus");
         expect(!none && none.error().code == mpal::Error::Code::unavailable);
+    };
+}};
+
+// Choosing files through the desktop portal, against a portal of the test's own.
+UTest picking{"mpal.pick", [] {
+    // A portal that answers OpenFile or SaveFile with the request's handle, then the person's answer on it.
+    struct Portal {
+        std::uint32_t                   serial = 100;
+        std::uint32_t                   response = 0;
+        std::vector<std::string>        uris;
+        std::string                     request;
+        std::optional<FakeBus>          bus;
+        Portal(std::uint32_t answer, std::vector<std::string> given) : response(answer), uris(std::move(given)) {
+            bus.emplace(3, [this](const dbus::Message& read) {
+                if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+                if (read.member == "AddMatch") return reply_bytes(++serial, read.serial, "", {});
+                const Value* token = read.body.size() == 3 ? option(read.body[2], "handle_token") : nullptr;
+                request = std::format("/org/freedesktop/portal/desktop/request/1_7/{}", token ? std::get<std::string>(token->data) : std::string());
+                std::vector<Value> listed;
+                for (const std::string& uri : uris) listed.push_back(Value::of(uri));
+                const std::array results{Value{response},
+                                         Value{std::vector<Value>{Value{std::vector<Value>{Value::of("uris"), variant_of("as", Value{std::move(listed)})}}}}};
+                return reply_bytes(++serial, read.serial, "o", std::array{Value::of(request)}) +
+                       signal_at(++serial, request, "org.freedesktop.portal.Request", "Response", "ua{sv}", results);
+            });
+        }
+    };
+
+    "files chosen: the answer listened for before the request is made, every option where the portal reads it"_test = [] {
+        Portal portal(0, {"file:///home/ada/My%20Pictures/cat.png", "file:///home/ada/b%C3%A9.jpg"});
+        auto connected = dbus::Bus::at(portal.bus->dir, "bus");
+        expect(fatal(connected.has_value()));
+        const auto chosen = mpal::pick_on(*connected,
+                                          {.kind = mpal::Pick::Kind::open, .title = "Open a picture", .filters = {{"Pictures", {"png", "jpg"}}}, .many = true,
+                                           .start = "/home/ada"},
+                                          std::chrono::milliseconds(3000));
+        expect(chosen && chosen->size() == 2) << (chosen ? std::to_string(chosen->size()) : chosen.error().text);
+        if (chosen && chosen->size() == 2) {
+            expect(mcpplibs::os::fs::utf8((*chosen)[0]) == "/home/ada/My Pictures/cat.png") << "percent-decoded";
+            expect(mcpplibs::os::fs::utf8((*chosen)[1]) == "/home/ada/bé.jpg") << "UTF-8 percent-decoded";
+        }
+        portal.bus->end();
+        const auto& heard = portal.bus->heard;
+        expect(fatal(heard.size() == 3));
+        expect(heard[1].member == "AddMatch" && std::get<std::string>(heard[1].body[0].data).contains(portal.request)) << "listened for first, on the request's path";
+        const dbus::Message& asked = heard[2];
+        expect(asked.member == "OpenFile" && asked.interface == "org.freedesktop.portal.FileChooser" && asked.signature == "ssa{sv}");
+        expect(std::get<std::string>(asked.body[1].data) == "Open a picture");
+        const Value* many = option(asked.body[2], "multiple");
+        expect(many && std::get<bool>(many->data)) << "several files";
+        const Value* filters = option(asked.body[2], "filters");
+        expect(filters && std::get<std::vector<Value>>(filters->data).size() == 1) << "one filter";
+        const Value* folder = option(asked.body[2], "current_folder");
+        expect(folder && std::get<std::vector<Value>>(folder->data).size() == std::string_view("/home/ada").size() + 1) << "the folder's bytes, nul-terminated";
+    };
+
+    "cancelled: nothing chosen; saving: SaveFile, with the name offered"_test = [] {
+        Portal cancelled(1, {});
+        auto connected = dbus::Bus::at(cancelled.bus->dir, "bus");
+        expect(fatal(connected.has_value()));
+        const auto nothing = mpal::pick_on(*connected, {.kind = mpal::Pick::Kind::open}, std::chrono::milliseconds(3000));
+        expect(nothing && nothing->empty()) << "cancelled: none";
+        cancelled.bus->end();
+
+        Portal saving(0, {"file:///home/ada/notes.md"});
+        auto again = dbus::Bus::at(saving.bus->dir, "bus");
+        expect(fatal(again.has_value()));
+        const auto saved = mpal::pick_on(*again, {.kind = mpal::Pick::Kind::save, .title = "Save notes", .name = "notes.md"}, std::chrono::milliseconds(3000));
+        expect(saved && saved->size() == 1);
+        saving.bus->end();
+        expect(fatal(saving.bus->heard.size() == 3));
+        expect(saving.bus->heard[2].member == "SaveFile");
+        const Value* name = option(saving.bus->heard[2].body[2], "current_name");
+        expect(name && std::get<std::string>(name->data) == "notes.md");
+    };
+
+    "whether a portal is here: the bus asked whether its name has an owner"_test = [] {
+        for (const bool here : {true, false}) {
+            std::uint32_t serial = 100;
+            std::optional<FakeBus> bus;
+            bus.emplace(2, [&serial, here](const dbus::Message& read) {
+                if (read.member == "Hello") return reply_bytes(++serial, read.serial, "s", std::array{Value::of(":1.7")});
+                return reply_bytes(++serial, read.serial, "b", std::array{Value{here}});
+            });
+            auto connected = dbus::Bus::at(bus->dir, "bus");
+            expect(fatal(connected.has_value()));
+            expect(eq(mpal::can_pick_on(*connected), here));
+            bus->end();
+            expect(bus->heard.size() == 2 && bus->heard[1].member == "NameHasOwner" &&
+                   std::get<std::string>(bus->heard[1].body[0].data) == "org.freedesktop.portal.Desktop");
+        }
+    };
+
+    "a file URI's path: decoded, a host part passed over, another scheme none"_test = [] {
+        expect(mpal::path_of_uri("file:///tmp/a%20b").value_or("") == std::filesystem::path("/tmp/a b"));
+        expect(mpal::path_of_uri("file://localhost/tmp/x").value_or("") == std::filesystem::path("/tmp/x"));
+        expect(!mpal::path_of_uri("https://example.org/x").has_value());
     };
 }};

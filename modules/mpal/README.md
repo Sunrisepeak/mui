@@ -11,7 +11,7 @@ Each service is a partition with one contract; a platform that does not give it 
 | Service | What it is for | Platforms (planned) |
 |---|---|---|
 | `notify` | telling the person something outside the application's view, and their answer | Linux: freedesktop Notifications over D-Bus, with the answers (an action chosen, dismissed, expired, closed) read back from its signals (done) · Windows: toasts through the Windows Runtime, the application named by a Start menu shortcut (done) · macOS: UserNotifications, for an .app (done) · iOS: UserNotifications · Android: NotificationManager · Web: Notification API |
-| `pick` | the person choosing files or folders the system holds (storage access) | Linux: the desktop portal · Windows/macOS: the file dialogs · iOS/Android: the document pickers · Web: File System Access |
+| `pick` | the person choosing files or folders the system holds (storage access) | Linux: the desktop portal's FileChooser over D-Bus (done; omui's desktop host uses it when a portal is there) · Windows/macOS: the file dialogs · iOS/Android: the document pickers · Web: File System Access |
 | `transfer` | data handed between applications: clipboard, share, drag and drop | |
 | `launch` | how an application is started and found: open a URL, file associations and deep links, single instance, start at login | |
 | `shell` | the system's surfaces for an application: tray or status item, menu bar, dock and taskbar badges, shortcuts | |

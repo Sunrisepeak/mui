@@ -30,8 +30,14 @@ player::StandInFn stand_in(const player::Manifest& manifest) {
     return [manifest](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
         Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = manifest.size, .app = manifest.id + ".stand-in"});
         player::Player shown(twin.runtime(), manifest, {lang::js::typescript(), lang::js::javascript()}, {});
+        // Its scripts run on a thread of their own: waited for by time (a few frames
+        // pass before QuickJS has begun), its frames stepped meanwhile.
         const auto settle = [&] {
-            for (int frame = 0; frame < 600 && !shown.idle(); ++frame) (void)twin.step();
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (!shown.idle() && std::chrono::steady_clock::now() < deadline) {
+                (void)twin.step();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
             twin.settle();
         };
         if (auto started = shown.start(); !started) return std::unexpected(started.error());

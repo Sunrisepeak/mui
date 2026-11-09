@@ -14,140 +14,105 @@ namespace cmd = mcpplibs::cmdline;
 
 namespace {
 
-// Builders commit into the App they were called on when the statement ends,
-// so every App here is a named object.
 // An operation's command: `omui agent <op> <app> …` names the application; `omui page <op> …` operates the paired page.
 bool naming_app = true;
 cmd::App with_app(std::string_view name, std::string_view what) {
-    cmd::App a{name};
-    (void)a.description(what);
-    if (naming_app) a.arg("app").required().help("the application's endpoint name (omui agent ls)");
-    return a;
+    cmd::App command(name);
+    (void)command.description(what);
+    if (naming_app) (void)command.arg(cmd::Arg("app").required().help("the application's endpoint name (omui agent ls)"));
+    return command;
 }
 
 // The operations of the semantic protocol (openmui.tree@0.1), as `omui agent` and `omui page` both offer them.
 cmd::App operations(cmd::App a, bool app) {
+    using cmd::Arg, cmd::Option;
     naming_app = app;
-    if (app) {
-        cmd::App ls{"ls"};
-        (void)ls.description("List the applications that have an endpoint");
-        (void)a.subcommand(std::move(ls));
-    }
-    (void)a.subcommand(with_app("describe", "The interface, spec version and operations an application offers"));
-
-    cmd::App snapshot = with_app("snapshot", "The semantic tree (compact)");
-    snapshot.option("root").takes_value().value_name("ID").help("a subtree");
-    snapshot.option("depth").takes_value().value_name("N").help("levels below the root");
-    snapshot.option("interactive").help("only nodes an agent can operate");
-    snapshot.option("offset").takes_value().value_name("N").help("skip this many nodes (paging)");
-    snapshot.option("limit").takes_value().value_name("N").help("at most this many nodes");
-    (void)a.subcommand(std::move(snapshot));
-
-    (void)a.subcommand(with_app("changes", "What changed since this connection began (everything, for one command)"));
-
-    cmd::App find = with_app("find", "Nodes matching a query");
-    find.arg("query").help(R"(a JSON query, e.g. '{"role":"button","name":"Save*"}')");
-    find.option("role").takes_value().value_name("ROLE").help("button, text_box, …");
-    find.option("name").takes_value().value_name("GLOB").help("a name glob: Save*");
-    find.option("state").takes_value().value_name("STATE").help("a state the nodes have");
-    find.option("limit").takes_value().value_name("N").help("at most this many");
-    (void)a.subcommand(std::move(find));
-
-    cmd::App act = with_app("act", "Perform an action of a node");
-    act.arg("node").required().help("the node's id (a path)");
-    act.arg("action").required().help("activate, toggle, set_value, …");
-    act.option("args").takes_value().value_name("JSON").help("the action's arguments");
-    act.option("answer").takes_value().value_name("TEXT").help("the answer an irreversible or external action asks for");
-    act.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
-    act.option("dry-run").help("only what would happen (its effect, whether it can be undone, the value after); nothing is done");
-    (void)a.subcommand(std::move(act));
-
-    for (std::string_view which : {"undo", "redo"}) {
-        cmd::App h = with_app(which, which == "undo" ? "Take back the last step of the history (S-12)" : "Put forward again what was undone");
-        h.option("scope").takes_value().value_name("ID").help("a node with its own history (default: the window)");
-        h.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
-        h.option("dry-run").help("only what it would do");
-        (void)a.subcommand(std::move(h));
-    }
-
-    cmd::App history = with_app("history", "What can be undone and redone, oldest first");
-    history.option("scope").takes_value().value_name("ID").help("a node (its scope's history; default: the window)");
-    (void)a.subcommand(std::move(history));
-
-    cmd::App txn = with_app("transaction", "Several actions as one step: all done, or all taken back (S-13)");
-    txn.arg("steps").required().help(R"(a JSON list: '[{"node":"main/a","action":"toggle"},{"node":"main/b","action":"set_value","args":{"value":3}}]')");
-    txn.option("label").takes_value().value_name("TEXT").help("what the step is called in the history");
-    txn.option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
-    txn.option("dry-run").help("only what each step would do");
-    (void)a.subcommand(std::move(txn));
-
-    cmd::App wait = with_app("wait", "Wait until a condition holds");
-    wait.option("q").takes_value().value_name("JSON").help("a query that must match");
-    wait.option("absent").help("the query must not match");
-    wait.option("settled").help("nothing animates or is being removed");
-    wait.option("timeout").takes_value().value_name("SECONDS").help("give up after this long (default 5)");
-    (void)a.subcommand(std::move(wait));
-
-    cmd::App capture = with_app("capture", "The window or a node as drawn: PNG pixels, or SVG with every node's drawing marked");
-    capture.option("node").takes_value().value_name("ID").help("a node (default: the window)");
-    capture.option("format").takes_value().value_name("png|svg").help("png (default) or svg (vectors at any size, the nodes marked)");
-    capture.option("out").takes_value().value_name("FILE").help("write the picture here");
-    (void)a.subcommand(std::move(capture));
-
-    cmd::App inspect = with_app("inspect", "Everything the runtime knows of a node: type, source line, props, layout, state");
-    inspect.arg("node").help("the node's id (default: the root)");
-    (void)a.subcommand(std::move(inspect));
-
-    (void)a.subcommand(with_app("stats", "Frame times (mean, p50, p95, p99, max), their phases, and counts"));
-
-    cmd::App profile = with_app("profile", "Record where the time goes: start, then stop");
-    profile.arg("action").required().help("start or stop");
-    profile.option("out").takes_value().value_name("FILE").help("stop: write the Chrome trace (open in Perfetto)");
-    (void)a.subcommand(std::move(profile));
-
-    cmd::App logs = with_app("logs", "The application's recent log records");
-    logs.option("level").takes_value().value_name("LEVEL").help("at least: trace, debug, info, warning, error");
-    logs.option("category").takes_value().value_name("NAME").help("layout, text, frame, agent …");
-    logs.option("limit").takes_value().value_name("N").help("the last N (default 100)");
-    (void)a.subcommand(std::move(logs));
-
-    cmd::App debug = with_app("debug", "Turn development overlays on or off in the running application");
-    for (std::string_view o : {"bounds", "repaints", "inspector", "hud"}) debug.option(o).help("turn it on");
-    debug.option("off").help("turn every overlay off");
-    debug.option("slow").takes_value().value_name("MS").help("log frames slower than this");
-    debug.option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info");
-    (void)a.subcommand(std::move(debug));
-
-    cmd::App clk = with_app("clock", "The application's time: pause, step, slow down, seek (animations are pure functions of time)");
-    clk.arg("action").help("show (default), pause, resume, rate, step, seek, release");
-    clk.arg("value").help("rate: the factor (0.25); step: seconds (0.016, or negative); seek: the time in seconds");
-    (void)a.subcommand(std::move(clk));
-
-    cmd::App pipe = with_app("pipeline", "The frame's pipeline: its stages, their plugins and times; change one while it runs");
-    pipe.arg("action").help("show (default), replace, insert or remove");
-    pipe.option("stage").takes_value().value_name("NAME").help("the stage to change");
-    pipe.option("plugin").takes_value().value_name("PLUGIN").help("replace / insert: the stage plugin");
-    pipe.option("after").takes_value().value_name("STAGE").help("insert: declared right after this stage");
-    pipe.option("config").takes_value().value_name("JSON").help(R"(the stage's configuration, e.g. '{"parallel":true}')");
-    pipe.option("toml").help("show the description as <name>.pipeline.omui.toml");
-    (void)a.subcommand(std::move(pipe));
-
-    cmd::App sw = with_app("sweep", "Every action of every node an agent can operate, really performed (and undone where it can be); a failure exits 1");
-    sw.option("root").takes_value().value_name("ID").help("only this subtree");
-    sw.option("actor").takes_value().value_name("ACTOR").help("who performs them (default agent:omui-sweep)");
-    (void)a.subcommand(std::move(sw));
-
-    cmd::App call = with_app("call", "Send a raw request");
-    call.arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')");
-    (void)a.subcommand(std::move(call));
+    const auto actor = Option("actor").takes_value().value_name("ACTOR").help("who acts: agent:name;via=person:name");
+    if (app) (void)a.subcommand(cmd::App("ls").description("List the applications that have an endpoint"));
+    (void)a.subcommand(with_app("describe", "The interface, spec version and operations an application offers"))
+        .subcommand(with_app("snapshot", "The semantic tree (compact)")
+                        .option(Option("root").takes_value().value_name("ID").help("a subtree"))
+                        .option(Option("depth").takes_value().value_name("N").help("levels below the root"))
+                        .option(Option("interactive").help("only nodes an agent can operate"))
+                        .option(Option("offset").takes_value().value_name("N").help("skip this many nodes (paging)"))
+                        .option(Option("limit").takes_value().value_name("N").help("at most this many nodes")))
+        .subcommand(with_app("changes", "What changed since this connection began (everything, for one command)"))
+        .subcommand(with_app("find", "Nodes matching a query")
+                        .arg(Arg("query").help(R"(a JSON query, e.g. '{"role":"button","name":"Save*"}')"))
+                        .option(Option("role").takes_value().value_name("ROLE").help("button, text_box, …"))
+                        .option(Option("name").takes_value().value_name("GLOB").help("a name glob: Save*"))
+                        .option(Option("state").takes_value().value_name("STATE").help("a state the nodes have"))
+                        .option(Option("limit").takes_value().value_name("N").help("at most this many")))
+        .subcommand(with_app("act", "Perform an action of a node")
+                        .arg(Arg("node").required().help("the node's id (a path)"))
+                        .arg(Arg("action").required().help("activate, toggle, set_value, …"))
+                        .option(Option("args").takes_value().value_name("JSON").help("the action's arguments"))
+                        .option(Option("answer").takes_value().value_name("TEXT").help("the answer an irreversible or external action asks for"))
+                        .option(actor)
+                        .option(Option("dry-run").help("only what would happen (its effect, whether it can be undone, the value after); nothing is done")))
+        .subcommand(with_app("undo", "Take back the last step of the history (S-12)")
+                        .option(Option("scope").takes_value().value_name("ID").help("a node with its own history (default: the window)"))
+                        .option(actor)
+                        .option(Option("dry-run").help("only what it would do")))
+        .subcommand(with_app("redo", "Put forward again what was undone")
+                        .option(Option("scope").takes_value().value_name("ID").help("a node with its own history (default: the window)"))
+                        .option(actor)
+                        .option(Option("dry-run").help("only what it would do")))
+        .subcommand(with_app("history", "What can be undone and redone, oldest first")
+                        .option(Option("scope").takes_value().value_name("ID").help("a node (its scope's history; default: the window)")))
+        .subcommand(with_app("transaction", "Several actions as one step: all done, or all taken back (S-13)")
+                        .arg(Arg("steps").required().help(
+                            R"(a JSON list: '[{"node":"main/a","action":"toggle"},{"node":"main/b","action":"set_value","args":{"value":3}}]')"))
+                        .option(Option("label").takes_value().value_name("TEXT").help("what the step is called in the history"))
+                        .option(actor)
+                        .option(Option("dry-run").help("only what each step would do")))
+        .subcommand(with_app("wait", "Wait until a condition holds")
+                        .option(Option("q").takes_value().value_name("JSON").help("a query that must match"))
+                        .option(Option("absent").help("the query must not match"))
+                        .option(Option("settled").help("nothing animates or is being removed"))
+                        .option(Option("timeout").takes_value().value_name("SECONDS").help("give up after this long (default 5)")))
+        .subcommand(with_app("capture", "The window or a node as drawn: PNG pixels, or SVG with every node's drawing marked")
+                        .option(Option("node").takes_value().value_name("ID").help("a node (default: the window)"))
+                        .option(Option("format").takes_value().value_name("png|svg").help("png (default) or svg (vectors at any size, the nodes marked)"))
+                        .option(Option("out").takes_value().value_name("FILE").help("write the picture here")))
+        .subcommand(with_app("inspect", "Everything the runtime knows of a node: type, source line, props, layout, state")
+                        .arg(Arg("node").help("the node's id (default: the root)")))
+        .subcommand(with_app("stats", "Frame times (mean, p50, p95, p99, max), their phases, and counts"))
+        .subcommand(with_app("profile", "Record where the time goes: start, then stop")
+                        .arg(Arg("action").required().help("start or stop"))
+                        .option(Option("out").takes_value().value_name("FILE").help("stop: write the Chrome trace (open in Perfetto)")))
+        .subcommand(with_app("logs", "The application's recent log records")
+                        .option(Option("level").takes_value().value_name("LEVEL").help("at least: trace, debug, info, warning, error"))
+                        .option(Option("category").takes_value().value_name("NAME").help("layout, text, frame, agent …"))
+                        .option(Option("limit").takes_value().value_name("N").help("the last N (default 100)")))
+        .subcommand(with_app("debug", "Turn development overlays on or off in the running application")
+                        .option(Option("bounds").help("turn it on"))
+                        .option(Option("repaints").help("turn it on"))
+                        .option(Option("inspector").help("turn it on"))
+                        .option(Option("hud").help("turn it on"))
+                        .option(Option("off").help("turn every overlay off"))
+                        .option(Option("slow").takes_value().value_name("MS").help("log frames slower than this"))
+                        .option(Option("log").takes_value().value_name("FILTER").help("log levels per category: layout=debug,*=info")))
+        .subcommand(with_app("clock", "The application's time: pause, step, slow down, seek (animations are pure functions of time)")
+                        .arg(Arg("action").help("show (default), pause, resume, rate, step, seek, release"))
+                        .arg(Arg("value").help("rate: the factor (0.25); step: seconds (0.016, or negative); seek: the time in seconds")))
+        .subcommand(with_app("pipeline", "The frame's pipeline: its stages, their plugins and times; change one while it runs")
+                        .arg(Arg("action").help("show (default), replace, insert or remove"))
+                        .option(Option("stage").takes_value().value_name("NAME").help("the stage to change"))
+                        .option(Option("plugin").takes_value().value_name("PLUGIN").help("replace / insert: the stage plugin"))
+                        .option(Option("after").takes_value().value_name("STAGE").help("insert: declared right after this stage"))
+                        .option(Option("config").takes_value().value_name("JSON").help(R"(the stage's configuration, e.g. '{"parallel":true}')"))
+                        .option(Option("toml").help("show the description as <name>.pipeline.omui.toml")))
+        .subcommand(with_app("sweep", "Every action of every node an agent can operate, really performed (and undone where it can be); a failure exits 1")
+                        .option(Option("root").takes_value().value_name("ID").help("only this subtree"))
+                        .option(Option("actor").takes_value().value_name("ACTOR").help("who performs them (default agent:omui-sweep)")))
+        .subcommand(with_app("call", "Send a raw request").arg(Arg("request").required().help(R"(e.g. '{"op":"snapshot","depth":1}')")));
     naming_app = true;
     return a;
 }
 
 cmd::App agent_command() {
-    cmd::App a{"agent"};
-    (void)a.description("Operate a running openmui application through its semantic tree (openmui.tree@0.1)");
-    return operations(std::move(a), true);
+    return operations(cmd::App("agent").description("Operate a running openmui application through its semantic tree (openmui.tree@0.1)"), true);
 }
 
 std::optional<std::int64_t> integer(const cmd::ParsedArgs& p, std::string_view name) {
@@ -334,27 +299,29 @@ std::expected<std::string, std::string> agent_request(const cmd::ParsedArgs& p, 
 }
 
 cmd::App app() {
-    cmd::App a{"omui"};
-    (void)a.version("0.1.0").description("The openmui command line");
-    a.option("dir").takes_value().value_name("DIR").global().help("agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)");
-    for (const auto name : project_commands) (void)a.subcommand(project_command(name));
-    (void)a.subcommand(agent_command());
-    (void)a.subcommand(check_command());
-    (void)a.subcommand(describe_command());
-    (void)a.subcommand(fmt_command());
-    (void)a.subcommand(schema_command());
-    (void)a.subcommand(video_command());
-    (void)a.subcommand(audio_command());
-    (void)a.subcommand(connect_command());
-    cmd::App pg{"page"};
-    (void)a.subcommand(page_command(operations(std::move(pg), false)));
-    cmd::App mcp{"mcp"};
-    (void)mcp.description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools");
-    mcp.option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)");
-    mcp.option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name, agent:claude-code)");
-    mcp.option("ops").takes_value().multiple().value_name("LISTING").help("an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops)");
-    (void)a.subcommand(std::move(mcp));
-    return a;
+    using cmd::Option;
+    cmd::App line("omui");
+    (void)line.version("0.1.0")
+        .description("The openmui command line")
+        .option(Option("dir").takes_value().value_name("DIR").global().help(
+            "agent: the endpoint directory; connect, page: where the bridge says where it is (default: the per-user one)"));
+    for (const auto name : project_commands) (void)line.subcommand(project_command(name));  // new, dev, run … in their order
+    (void)line.subcommand(agent_command())
+        .subcommand(check_command())
+        .subcommand(describe_command())
+        .subcommand(fmt_command())
+        .subcommand(schema_command())
+        .subcommand(video_command())
+        .subcommand(audio_command())
+        .subcommand(connect_command())
+        .subcommand(page_command(operations(cmd::App("page"), false)))
+        .subcommand(cmd::App("mcp")
+                        .description("An MCP server on standard input and output: agents (Claude Code …) operate running applications with ui_* tools")
+                        .option(Option("app").takes_value().value_name("NAME").help("the application a call names none of (default: the one running)"))
+                        .option(Option("actor").takes_value().value_name("KIND:NAME").help("who acts (default: the client's name, agent:claude-code)"))
+                        .option(Option("ops").takes_value().multiple().value_name("LISTING").help(
+                            "an application's verbs as tools, from its <product>.ops.json listing (omui-gen ops)")));
+    return line;
 }
 
 namespace {

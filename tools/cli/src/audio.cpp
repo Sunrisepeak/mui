@@ -19,19 +19,18 @@ namespace tl=xengine::timeline;
 namespace au=xengine::audio;
 
 cmd::App audio_command() {
-    cmd::App app{"audio"};
-    (void)app.description("Offline audio controls and real visual inspection; no window or device");
-    cmd::App preview{"automation"};
-    (void)preview.description("Audition one timeline gain curve on a 220 Hz reference tone; export WAV, PNG, WebP and JSON");
-    preview.arg("file").required().help("a .timeline.omui.toml file");
-    preview.option("track").takes_value().help("the exact track name");
-    preview.option("clip").takes_value().help("the exact clip name");
-    preview.option("property").takes_value().help("keyed gain property (default gain)");
-    preview.option("out").takes_value().help("output prefix; its parent directory must exist");
-    preview.option("seconds").takes_value().help("whole seconds to audition, 1..10 (default 2)");
-    preview.option("fps").takes_value().help("exact timeline rate in 1..120 (default 60); does not change audio");
-    (void)app.subcommand(std::move(preview));
-    return app;
+    using cmd::Arg, cmd::Option;
+    return cmd::App("audio")
+        .description("Offline audio controls and real visual inspection; no window or device")
+        .subcommand(cmd::App("automation")
+                        .description("Audition one timeline gain curve on a 220 Hz reference tone; export WAV, PNG, WebP and JSON")
+                        .arg(Arg("file").required().help("a .timeline.omui.toml file"))
+                        .option(Option("track").takes_value().help("the exact track name"))
+                        .option(Option("clip").takes_value().help("the exact clip name"))
+                        .option(Option("property").takes_value().help("keyed gain property (default gain)"))
+                        .option(Option("out").takes_value().help("output prefix; its parent directory must exist"))
+                        .option(Option("seconds").takes_value().help("whole seconds to audition, 1..10 (default 2)"))
+                        .option(Option("fps").takes_value().help("exact timeline rate in 1..120 (default 60); does not change audio")));
 }
 
 int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {

@@ -13,6 +13,8 @@ import mlibs.testing;
 import mcpplibs.mtest;
 import omui.view;
 import omui.player;
+import omui.host.headless;
+import omui.semantic;
 import omui.cts;
 import omui.native;
 import omui.native.fuzzy;
@@ -569,6 +571,45 @@ mount("main", column({ gap: 8 }, [
         expect(eq(file_text(dir / "app.ts"), text_of()));
         auto checked = lang::ts::compile(dir / "app.ts");
         expect(checked.has_value()) << (checked ? "" : checked.error()) << " — what was written still compiles";
+    };
+
+    "a stand-in (Live Design's previews): the application again, headless, running texts it has not taken"_test = [] {
+        const auto dir = scratch_dir("lang-js-stand-in");
+        const std::string source = R"ts(import { column, text, mount } from "openmui";
+mount("main", column({ gap: 8 }, [
+  text({ id: "title", text: "Settings" }),
+]));
+)ts";
+        std::ofstream(dir / "app.ts", std::ios::binary) << source;
+        omui::player::Manifest manifest;
+        manifest.id = "org.openmui.stand-in";
+        manifest.base = dir;
+        manifest.scripts = {{"ts", "app.ts"}};
+        omui::Headless twin(omui::HeadlessOptions{.level = omui::HeadlessLevel::pixels, .size = {320, 240}});
+        omui::player::Player shown(twin.runtime(), manifest, {lang::js::typescript()}, {});
+        // Its scripts run on a thread of their own: waited for by time (a few frames
+        // pass before QuickJS has begun), its frames stepped meanwhile.
+        const auto settle = [&] {
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (!shown.idle() && std::chrono::steady_clock::now() < deadline) {
+                (void)twin.step();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+            twin.settle();
+        };
+        expect(shown.start().has_value());
+        settle();
+        const auto title = [&] {
+            const auto node = omui::semantic::Tree(twin.runtime()).snapshot({.root = "main/title"});
+            return node.nodes.empty() ? std::string("<none>") : node.nodes.front().name;
+        };
+        expect(eq(title(), std::string("Settings")));
+        std::string next = source;
+        next.replace(next.find("\"Settings\""), 10, "\"Preferences\"");
+        auto ran = shown.show({{"app.ts", next}});
+        expect(ran.has_value()) << (ran ? "" : ran.error());
+        settle();
+        expect(eq(title(), std::string("Preferences"))) << "the texts it was given";
     };
 
     "TypeScript: its types blanked in this process; its own modules imported by path, their types blanked too"_test = [] {

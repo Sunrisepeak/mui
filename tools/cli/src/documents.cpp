@@ -65,18 +65,16 @@ cmd::App describe_command() {
 }
 
 cmd::App fmt_command() {
-    cmd::App a{"fmt"};
-    (void)a.description("Writes view documents in the canonical format");
-    a.arg("file").required().help("*.view.omui.json files");
-    a.option("check").help("change nothing; exit 1 when a file is not in the canonical format");
-    return a;
+    return cmd::App("fmt")
+        .description("Writes view documents in the canonical format")
+        .arg(cmd::Arg("file").required().help("*.view.omui.json files"))
+        .option(cmd::Option("check").help("change nothing; exit 1 when a file is not in the canonical format"));
 }
 
 cmd::App schema_command() {
-    cmd::App a{"schema"};
-    (void)a.description("The JSON Schema of view documents over the official components");
-    a.option("out").takes_value().value_name("FILE").help("write it to a file");
-    return a;
+    return cmd::App("schema")
+        .description("The JSON Schema of view documents over the official components")
+        .option(cmd::Option("out").takes_value().value_name("FILE").help("write it to a file"));
 }
 
 std::optional<std::vector<Found>> check_documents(const std::vector<std::string>& files, std::ostream& err) {

@@ -724,7 +724,14 @@ void Script::keep_built_at(bool on) {
 
 Result<void> Script::reload_now(std::string code, std::string name) {
     std::shared_ptr<Impl> s = impl_;
-    return s->session.host().script([&] { return reload_module(*s, code, name); });
+    return s->session.host().script([&]() -> Result<void> {
+        // Asked while its last run waits on the runtime's thread (a mount, a verb), this runs nested in that
+        // run: a module evaluated inside another's evaluation is what QuickJS cannot do. Refused; asked again
+        // once the run is done, it runs.
+        if (s->active > 0)
+            return std::unexpected(Error{abi::OMUI_ERROR_REFUSED, "the script is still running (its last run waits on the application); try again when it is done"});
+        return reload_module(*s, code, name);
+    });
 }
 
 }  // namespace omui::lang::js

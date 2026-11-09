@@ -204,14 +204,14 @@ Value describe(const vid::Description& d) {
 }
 
 cmd::App with_file(std::string_view name, std::string_view what) {
-    cmd::App a{name};
-    (void)a.description(what);
-    a.arg("file").required().help("a video description (*.video.omui.toml) or a view document (*.view.omui.json)");
-    a.option("size").takes_value().value_name("WxH").help("the size (a view's default: 1280x720)");
-    a.option("fps").takes_value().value_name("RATE").help("frames a second: 30, 30000/1001, 29.97 (a view's default: 30)");
-    a.option("seconds").takes_value().value_name("S").help("how long (a view's default: 3)");
-    a.option("frames").takes_value().value_name("N").help("how many frames");
-    return a;
+    using cmd::Option;
+    return cmd::App(name)
+        .description(what)
+        .arg(cmd::Arg("file").required().help("a video description (*.video.omui.toml) or a view document (*.view.omui.json)"))
+        .option(Option("size").takes_value().value_name("WxH").help("the size (a view's default: 1280x720)"))
+        .option(Option("fps").takes_value().value_name("RATE").help("frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"))
+        .option(Option("seconds").takes_value().value_name("S").help("how long (a view's default: 3)"))
+        .option(Option("frames").takes_value().value_name("N").help("how many frames"));
 }
 
 int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
@@ -404,36 +404,32 @@ int timing(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
 }  // namespace
 
 cmd::App video_command() {
-    cmd::App a{"video"};
-    (void)a.description("Videos: frames and a sound track on exact frame and sample counts (xengine.video)");
-    cmd::App r = with_file("render", "Render to files: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV");
-    r.option("out").takes_value().value_name("OUT").help("x.webm, x.y4m, x.wav, shots/{:05}.png or shots/");
-    r.option("format").takes_value().value_name("FORMAT").help("webm, y4m, png or wav (default: from --out)");
-    r.option("quality").takes_value().value_name("Q").help("WebM: VP9 at constant quality, 0 (best) … 63 (default 24)");
-    r.option("bitrate").takes_value().value_name("KBPS").help("WebM: a target bit rate instead of a quality");
-    r.option("speed").takes_value().value_name("N").help("WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)");
-    r.option("realtime").help("WebM: libvpx's real-time mode (the fastest encodes)");
-    r.option("lossless").help("WebM: every Y'CbCr sample kept");
-    r.option("threads").takes_value().value_name("N").help("WebM: encoder threads (1, the default, gives the same bytes everywhere)");
-    r.option("audio-bitrate").takes_value().value_name("KBPS").help("WebM: Opus (default 128)");
-    (void)a.subcommand(std::move(r));
-    cmd::App s = with_file("still", "One frame as a PNG");
-    s.option("frame").takes_value().value_name("N").help("the frame");
-    s.option("at").takes_value().value_name("SECONDS").help("the frame shown at a time");
-    s.option("out").takes_value().value_name("FILE.png").help("where");
-    (void)a.subcommand(std::move(s));
-    (void)a.subcommand(with_file("check", "Whether a description reads: its problems, or its size, rate, frames and samples"));
-    cmd::App pr{"probe"};
-    (void)pr.description("What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)");
-    pr.arg("file").required().help("a .webm, .y4m or .wav file");
-    (void)a.subcommand(std::move(pr));
-    cmd::App t{"timing"};
-    (void)t.description("Each frame's first sample and length, and its start in nanoseconds");
-    t.option("fps").takes_value().value_name("RATE").help("30, 30000/1001, 29.97");
-    t.option("rate").takes_value().value_name("HZ").help("samples a second (48000)");
-    t.option("frames").takes_value().value_name("N").help("how many (default: a second's)");
-    (void)a.subcommand(std::move(t));
-    return a;
+    using cmd::Arg, cmd::Option;
+    return cmd::App("video")
+        .description("Videos: frames and a sound track on exact frame and sample counts (xengine.video)")
+        .subcommand(with_file("render", "Render to files: WebM (VP9 and Opus), Y4M (and a WAV beside it), a PNG sequence, or a WAV")
+                        .option(Option("out").takes_value().value_name("OUT").help("x.webm, x.y4m, x.wav, shots/{:05}.png or shots/"))
+                        .option(Option("format").takes_value().value_name("FORMAT").help("webm, y4m, png or wav (default: from --out)"))
+                        .option(Option("quality").takes_value().value_name("Q").help("WebM: VP9 at constant quality, 0 (best) … 63 (default 24)"))
+                        .option(Option("bitrate").takes_value().value_name("KBPS").help("WebM: a target bit rate instead of a quality"))
+                        .option(Option("speed").takes_value().value_name("N").help("WebM: libvpx's speed, 0 (smallest) … 9 (fastest) (default 5)"))
+                        .option(Option("realtime").help("WebM: libvpx's real-time mode (the fastest encodes)"))
+                        .option(Option("lossless").help("WebM: every Y'CbCr sample kept"))
+                        .option(Option("threads").takes_value().value_name("N").help("WebM: encoder threads (1, the default, gives the same bytes everywhere)"))
+                        .option(Option("audio-bitrate").takes_value().value_name("KBPS").help("WebM: Opus (default 128)")))
+        .subcommand(with_file("still", "One frame as a PNG")
+                        .option(Option("frame").takes_value().value_name("N").help("the frame"))
+                        .option(Option("at").takes_value().value_name("SECONDS").help("the frame shown at a time"))
+                        .option(Option("out").takes_value().value_name("FILE.png").help("where")))
+        .subcommand(with_file("check", "Whether a description reads: its problems, or its size, rate, frames and samples"))
+        .subcommand(cmd::App("probe")
+                        .description("What a WebM, Y4M or WAV file holds (a WebM decoded: its frames and samples counted)")
+                        .arg(Arg("file").required().help("a .webm, .y4m or .wav file")))
+        .subcommand(cmd::App("timing")
+                        .description("Each frame's first sample and length, and its start in nanoseconds")
+                        .option(Option("fps").takes_value().value_name("RATE").help("30, 30000/1001, 29.97"))
+                        .option(Option("rate").takes_value().value_name("HZ").help("samples a second (48000)"))
+                        .option(Option("frames").takes_value().value_name("N").help("how many (default: a second's)")));
 }
 
 int video(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {

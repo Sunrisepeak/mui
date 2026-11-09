@@ -353,7 +353,7 @@ struct Player::Impl {
         Status ran;
         {
             mlibs::trace::Span span("player.design", "player");
-            rt.present_design();  // what it changes is shown as a design edit (written in, unwritten, springing)
+            if (options.design) rt.present_design();  // what it changes is shown as a design edit (written in, unwritten, springing); a stand-in only shows the end
             ran = f.engine->reload_now(std::move(*code), generic_utf8(full(f.path)));
         }
         const double took = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();

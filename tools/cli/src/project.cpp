@@ -335,7 +335,7 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         ran = run_tool("mcpp", {"new", *p.value("name"), "--template", "openmui:" + chosen}, err);
     } else if (name == "dev") {
         std::vector<std::string> args{"run", "--", "--dev"};
-        if (p.is_flag_set("headless")) args.push_back("--headless");
+        if (p.is_flag_set("headless")) args.push_back("--serve");  // headless, kept running for agents
         std::ranges::move(rest_of(p, 0), std::back_inserter(args));
         ran = run_tool("mcpp", std::move(args), err);
     } else if (name == "run" || name == "build") {

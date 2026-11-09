@@ -340,23 +340,22 @@ std::expected<std::string, std::string> ask_bridge(const Found& f, std::string_v
 }  // namespace
 
 cmd::App connect_command() {
-    cmd::App a{"connect"};
-    (void)a.description("Start the bridge a page in your browser pairs with, so your agent operates it with `omui page …` (it runs until stopped)");
-    a.option("code").takes_value().value_name("CODE").help("the pairing code the page shows (in the prompt it gave you)");
-    a.option("port").takes_value().value_name("N").help("the port on 127.0.0.1 (default: the first free of 47110–47113)");
-    a.option("name").takes_value().value_name("AGENT").help("who you are, as the page shows it (Claude Code, Codex …)");
-    a.option("origin").takes_value().value_name("URL").help("serve only a page of this origin (https://example.org)");
-    return a;
+    using cmd::Option;
+    return cmd::App("connect")
+        .description("Start the bridge a page in your browser pairs with, so your agent operates it with `omui page …` (it runs until stopped)")
+        .option(Option("code").takes_value().value_name("CODE").help("the pairing code the page shows (in the prompt it gave you)"))
+        .option(Option("port").takes_value().value_name("N").help("the port on 127.0.0.1 (default: the first free of 47110–47113)"))
+        .option(Option("name").takes_value().value_name("AGENT").help("who you are, as the page shows it (Claude Code, Codex …)"))
+        .option(Option("origin").takes_value().value_name("URL").help("serve only a page of this origin (https://example.org)"));
 }
 
 cmd::App page_command(cmd::App ops) {
-    (void)ops.description("Operate the page paired with the bridge (omui connect), through its semantic tree: the same operations as `omui agent`");
-    cmd::App status{"status"};
-    (void)status.description("Whether a page is paired: the page, its application, its origin");
-    status.option("wait").help("until a page pairs");
-    status.option("timeout").takes_value().value_name("SECONDS").help("how long --wait waits (default 600)");
-    (void)ops.subcommand(std::move(status));
-    return ops;
+    using cmd::Option;
+    return ops.description("Operate the page paired with the bridge (omui connect), through its semantic tree: the same operations as `omui agent`")
+        .subcommand(cmd::App("status")
+                        .description("Whether a page is paired: the page, its application, its origin")
+                        .option(Option("wait").help("until a page pairs"))
+                        .option(Option("timeout").takes_value().value_name("SECONDS").help("how long --wait waits (default 600)")));
 }
 
 std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, std::stop_token stop, const std::function<void(std::uint16_t)>& ready) {

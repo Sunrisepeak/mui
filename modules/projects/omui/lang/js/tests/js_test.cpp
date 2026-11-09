@@ -370,6 +370,36 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
         expect(eq(r.name_of("main/text:0"), std::string("12 taps")));
     };
 
+    "a reload whose signals became other things: a count kept as a count; one become a name starts from its new value"_test = [] {
+        Runtime r;
+        Js script(r);
+        const std::string before = R"js(
+import { signal, fmt, column, text, button, mount } from "openmui";
+const clicks = signal(0);
+mount("main", column({}, [text({ id: "count", text: fmt("{}", clicks) }), button({ id: "inc", text: "+1", onActivated: () => clicks.update((n) => n + 1) })]));
+)js";
+        expect(script.run(before).has_value());
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
+        r.settle(script.host);
+        expect(eq(r.name_of("main/count"), std::string("1")));
+        // The same first signal, still a number: kept.
+        const std::string counting = R"js(
+import { signal, fmt, column, text, mount } from "openmui";
+const taps = signal(10);
+mount("main", column({}, [text({ id: "count", text: fmt("{} taps", taps) })]));
+)js";
+        expect(r.wait(script.host, script.script.reload(counting, "main.js")).has_value());
+        expect(eq(r.name_of("main/count"), std::string("1 taps"))) << "a count kept";
+        // The first signal now a plan's name: it starts from "pro", not from the count.
+        const std::string naming = R"js(
+import { signal, fmt, column, text, mount } from "openmui";
+const plan = signal("pro");
+mount("main", column({}, [text({ id: "count", text: fmt("plan {}", plan) })]));
+)js";
+        expect(r.wait(script.host, script.script.reload(naming, "main.js")).has_value());
+        expect(eq(r.name_of("main/count"), std::string("plan pro")));
+    };
+
     "a reload waited for on the runtime's thread (Live Design's edit): the state kept, within a frame"_test = [] {
         Runtime r;
         Js js(r);

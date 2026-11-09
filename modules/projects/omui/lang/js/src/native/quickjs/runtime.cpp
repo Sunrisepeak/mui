@@ -171,7 +171,12 @@ JSValue n_signal_create(JSContext* ctx, JSValueConst, int argc, JSValueConst* ar
     if (!key.empty()) {
         if (auto it = s.keyed.find(key); it != s.keyed.end()) h = it->second;
     } else if (s.next_signal < s.ordered.size()) {
-        h = s.ordered[s.next_signal];  // a reload: the same signal, its value kept
+        h = s.ordered[s.next_signal];  // a reload: the same signal, its value kept…
+        // …unless the edit made it another kind of thing (a count become a plan's name): it starts again from its new
+        // first value. Numbers stay numbers; a first value of null keeps whatever was there.
+        const Json kept = s.session.get(h);
+        if (!initial.is_null() && !initial.is_discarded() && kept.type() != initial.type() && !(kept.is_number() && initial.is_number()))
+            s.session.set(h, initial);
     }
     if (!h) {
         auto made = s.session.signal(initial);

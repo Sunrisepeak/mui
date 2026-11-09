@@ -15,3 +15,4 @@ Small, real tools; each shows one thing the framework does, and each has headles
 | [09-markdown-stream](09-markdown-stream) | Markdown as it streams in | Incremental parsing, new words fading in |
 | [10-canvas-basics](10-canvas-basics) | Where a folder's space went | The infinite canvas, a treemap |
 | [12-notes](12-notes) | Markdown notes | TypeScript, a view document and C++ in one application |
+| [13-live-design](13-live-design) | Subscription settings, designed live | Live Design: an agent designs it while it runs, checks the facts against the person's words, films the design |

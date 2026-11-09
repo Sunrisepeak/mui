@@ -482,7 +482,10 @@ private:
             if (!texts) return std::unexpected(texts.error());
             if (auto ran = shown.player().show(*texts); !ran) return std::unexpected(std::format("{}: {}", commits[index].id.substr(0, 8), ran.error()));
             shown.settle();
-            shown.runtime().mount("design-caption", caption_view(window, std::format("{}/{} · {}", index + 1, commits.size(), commits[index].message)));
+            // What the step did (the session's intent, which every step's message begins with, said once by the first).
+            std::string_view said = commits[index].message;
+            if (const auto dash = said.find(" — "); dash != std::string_view::npos && index > 0) said.remove_prefix(dash + std::string_view(" — ").size());
+            shown.runtime().mount("design-caption", caption_view(window, std::format("{}/{} · {}", index + 1, commits.size(), said)));
             for (std::size_t step = 0; step < frames_each; ++step, ++frame) {
                 at += 1.0 / fps;
                 shown.step(seconds(at));
@@ -751,7 +754,11 @@ private:
                                   }
                                   return now;
                               }),
-                        std::format("set {} of {}", properties->json(), node));
+                        std::format("{}: {}", node, [&] {
+                            std::string said;
+                            for (const auto& [name, value] : *properties->map()) said += std::format("{}{} = {}", said.empty() ? "" : ", ", name, value.json());
+                            return said;
+                        }()));
         });
         add("design.insert", [this](const Value& args) -> VerbResult {
             const Value* code = args.get("code");
@@ -828,13 +835,13 @@ private:
             Value branches(Value::Map{}), tags(Value::Map{});
             for (const auto& [name, id] : history.branches()) branches.set(name, id);
             for (const auto& [name, id] : history.tags()) tags.set(name, id);
-            const auto head = history.texts_of("HEAD");
+            const auto shown = history.texts_of(shown_now().empty() ? std::string("HEAD") : shown_now());
             return Value{}
                 .set("head", history.head_branch())
                 .set("branches", std::move(branches))
                 .set("tags", std::move(tags))
                 .set("log", Value(std::move(log)))
-                .set("uncommitted", !head || *head != design_texts());
+                .set("uncommitted", !shown || *shown != design_texts());
         });
         add("design.history.commit", [this](const Value& args) -> VerbResult {
             const std::string message(args.get("message") ? args.get("message")->as_string() : "");
@@ -854,8 +861,9 @@ private:
         });
         add("design.history.switch", [this](const Value& args) -> VerbResult {
             const std::string to(args.get("to") ? args.get("to")->as_string() : "");
-            const auto head = history.texts_of("HEAD");
-            if (head && *head != design_texts() && !(args.get("force") && args.get("force")->as_bool()))
+            // Changes not committed: what runs is not the commit shown (the branch's last, or one seen on the timeline).
+            const auto shown = history.texts_of(shown_now().empty() ? std::string("HEAD") : shown_now());
+            if (shown && *shown != design_texts() && !(args.get("force") && args.get("force")->as_bool()))
                 return std::unexpected(std::string("the design has changes not committed: design.history.commit them, or switch with force (they are dropped)"));
             const auto branches = history.branches();
             auto at = history.resolve(to);

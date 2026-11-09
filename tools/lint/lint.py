@@ -876,6 +876,43 @@ def check_operations(root: Path) -> list[Problem]:
     return problems
 
 
+SKILL_NAME = re.compile(r'`([a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+)`')
+FILE_NAME = re.compile(r'\.(ts|json|jsonl|md|toml|png|webm|webp|cpp|cppm|slang)$')
+
+
+def check_skills(root: Path) -> list[Problem]:
+    """A skill is an SOP over operations its catalogs describe (D-145: the API
+    is exported from the contracts, a skill keeps only the procedure): every
+    operation it names (`design.set`, a dotted name whose product has a
+    catalog) is in a catalog, so a renamed or removed operation cannot linger
+    in a skill; and it points at its own package's catalog."""
+    problems = []
+    operations = set()
+    catalogs_of = {}
+    for catalog in root.rglob("*.ops.omui.ts"):
+        rel = catalog.relative_to(root).as_posix()
+        if "target/" in rel:
+            continue
+        names = set(TS_OPERATION_NAME.findall(catalog.read_text(encoding="utf-8")))
+        operations |= names
+        catalogs_of.setdefault(catalog.parent, []).append(catalog.name)
+    products = {name.split(".")[0] for name in operations}
+    for skill in root.rglob("skill.omui.md"):
+        rel = skill.relative_to(root).as_posix()
+        if "target/" in rel:
+            continue
+        text = skill.read_text(encoding="utf-8")
+        for number, line in enumerate(text.splitlines(), 1):
+            for m in SKILL_NAME.finditer(line):
+                name = m.group(1)
+                if name.split(".")[0] in products and name not in operations and not FILE_NAME.search(name):
+                    problems.append(Problem("skills", f"{rel}:{number}", f"names `{name}`, which no operation catalog has"))
+        own = catalogs_of.get(skill.parent, [])
+        if own and not any(catalog in text for catalog in own):
+            problems.append(Problem("skills", rel, f"does not point at its catalog ({', '.join(own)}): the operations are described there, not here"))
+    return problems
+
+
 LEAD_FEATURES = ".agents/docs/evaluation/lead.features.omui.json"
 
 
@@ -907,8 +944,8 @@ def check_typescript_data(root: Path) -> list[Problem]:
 
 def run(root: Path) -> list[Problem]:
     return (check_sources(root) + check_manifests(root) + check_layout(root) + check_licences(root) + check_platforms(root) + check_pins(root)
-            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_lead(root)
-            + check_typescript_data(root))
+            + check_documents(root) + check_media(root) + check_closures(root) + check_operations(root) + check_skills(root)
+            + check_lead(root) + check_typescript_data(root))
 
 
 def self_test() -> int:
@@ -937,6 +974,7 @@ def self_test() -> int:
         "typescript": ("modules/ui/core/contract/x.contract.omui.toml", "[contract.x]\nrole = \"button\"\n"),
         "ops": ("modules/ui/core/src/o.cpp", "module x;\nconstexpr auto op = mlibs::control::Operation{\"ui.wipe\", openas::Effect::irreversible};\n"),
         "documents": ("examples/x/ui/bad.view.omui.json", '{"omui": "0.1", "view": {"root": {"typ": "text"}}}'),
+        "skills": ("modules/ui/core/skill.omui.md", "# x\n\nSee [x.ops.omui.ts](x.ops.omui.ts); then `ui.wipe`.\n"),
         "lead": (LEAD_FEATURES, '{"feature": [{"id": "A", "project": "omui", "line": "use-safely", "title": "x", "status": "claimed"}]}\n'),
     }
     try:
@@ -996,6 +1034,8 @@ def self_test() -> int:
                 (root / "spec" / "schema").mkdir(parents=True, exist_ok=True)
                 shutil.copy(Path(__file__).resolve().parents[2] / "spec" / "schema" / "view.schema.json",
                             root / "spec" / "schema" / "view.schema.json")
+            if rule == "skills":  # the catalog its skill reads beside it, without the operation the skill names
+                (root / "modules/ui/core/x.ops.omui.ts").write_text('export default defineOps({ operations: [{ name: "ui.snapshot" }] });\n', encoding="utf-8")
             if planted:
                 path, text = planted
                 (root / path).parent.mkdir(parents=True, exist_ok=True)

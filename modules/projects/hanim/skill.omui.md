@@ -4,7 +4,7 @@ How an Agent (or a person at a terminal) does animation work with hanim without 
 
 ## Before
 
-1. Read the catalog listing: thirteen `animation.*` operations; `read` ones change nothing, `reversible` ones say their undo, `irreversible` ones (`animation.cancel`, `animation.release`) cannot be taken back.
+1. Read the catalog listing: `read` operations change nothing, `reversible` ones say their undo, `irreversible` ones (`animation.cancel`, `animation.release`) cannot be taken back.
 2. Know your grant: a host admits each call through `mlibs.control` (development sessions are pre-authorized, release profiles ask the person); a refusal is an answer, not an error to retry around.
 
 ## Doing

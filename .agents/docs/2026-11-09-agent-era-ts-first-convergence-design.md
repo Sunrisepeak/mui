@@ -833,7 +833,12 @@ my-app/
 1. `omui describe --api`：从契约、组件、令牌、操作目录导出写应用所需的 API（JSON），llms.txt 自动导出；运行中的应用通过协议提供同样的内容。**验收**：导出内容和 `.d.ts` 由同一来源生成，lint 检查二者是否一致。
 2. 各产品的 skill 精简为 SOP。
 
-**W3 进度（2026-11-09，第一块）**：`omui describe --api`（JSON、llms.txt）、协议 `describe` 的 `api: true`，与 TS 声明同源（view 的组件目录）。尚未完成：操作目录并入导出、lint 检查二者一致、各产品 skill 精简为 SOP。
+**W3 进度（2026-11-09，第一块）**：`omui describe --api`（JSON、llms.txt）、协议 `describe` 的 `api: true`，与 TS 声明同源（view 的组件目录）。
+
+**W3 进度（2026-11-10，第二块，第 1、2 步完成）**：
+- 操作目录已并入导出（`operations.ui`、`operations.design`，llms.txt 的 Operations 一节）。导出与 `.d.ts` 的一致性需要运行应用才能得到，所以由 `omui.lang.js` 的 declare_test 检查（每个构建函数、属性和事件两边都有），不放在静态 lint 里。
+- skill 精简为 SOP：omui 的 Live Design 一节改写成八步流程（开始、先读后写、用最小的形式改、该人决定的先预演、把期望写成可核对的事实、交给人试、用历史代替手工撤销、收尾），参数和效果只写在 `design.ops.omui.ts`；hanim 的 skill 去掉了会过时的操作数量。
+- 新增 lint `skills`：skill 里提到的操作名（属于某个已有目录的产品前缀）必须在某个操作目录里存在，改名或删除的操作不会残留在 skill 中；有目录的包，其 skill 必须指向自己的目录。自测 30 条规则都能抓到各自的违例。
 
 **W4 观察三模态与对照实验（A12、D-142）**
 1. MCP `ui_capture` 增加 SVG 格式；skill 写清“先语义、按需截区域、要精确就读 SVG”的次序。

@@ -7,6 +7,9 @@ import mlibs.control;
 
 export namespace omui::agent::design {
 
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_begin{{
+    {"intent", "string", "what the session is doing: \"a subscription settings page\"", false},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_locate{{
     {"node", "node", "a node's id: where it was built", true},
     {"path", "string", "a script or module, as design.sources names it", true},
@@ -40,7 +43,7 @@ inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_hist
     {"at", "string", "a branch, a tag, a commit (an id, or a name~n)", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_switch{{
-    {"to", "string", "a branch", false},
+    {"to", "string", "a branch, a tag or a commit (an id, or name~n)", false},
     {"force", "bool", "drop changes not committed", true},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_revert{{
@@ -70,7 +73,8 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_repl
 }};
 
 // Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.
-inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 23> catalog{{
+    {{"design.begin", openas::Effect::reversible, false}, "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it", parameters_design_begin, "json", mlibs::control::Cost::bounded, "none: it only names what follows; design.history.revert takes the steps back", false, false, false},
     {{"design.sources", openas::Effect::read, false}, "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.api", openas::Effect::read, false}, "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.locate", openas::Effect::read, false}, "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line", parameters_design_locate, "json", mlibs::control::Cost::bounded, "", false, false, false},
@@ -81,7 +85,7 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
     {{"design.history", openas::Effect::read, false}, "The design's history (D-151): the branch designed on, every branch and tag at its commit, a branch's commits newest first (message, who, when, the semantic tree's hash), and whether what runs now has changes not committed", parameters_design_history, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.history.commit", openas::Effect::reversible, false}, "Keeps the design as it runs now — every source's text — as a commit on the branch designed on, under .omui/design/ beside the application (not git's: omui design sync carries it there)", parameters_design_history_commit, "json", mlibs::control::Cost::bounded, "design.history.revert to the commit before", false, false, false},
     {{"design.history.branch", openas::Effect::reversible, false}, "A new branch at a commit (the one designed on when absent), to try another way without losing this one; the design stays on its branch until design.history.switch", parameters_design_history_branch, "json", mlibs::control::Cost::instant, "none: a branch is a name for a commit; it changes no design", false, false, false},
-    {{"design.history.switch", openas::Effect::reversible, false}, "Designs on another branch: its last commit's texts run at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them", parameters_design_history_switch, "json", mlibs::control::Cost::bounded, "design.history.switch back", false, false, false},
+    {{"design.history.switch", openas::Effect::reversible, false}, "Designs on another branch — or shows any commit — its texts running at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them. A commit seen leaves the branch where it was (`detached`)", parameters_design_history_switch, "json", mlibs::control::Cost::bounded, "design.history.switch back", false, false, false},
     {{"design.history.revert", openas::Effect::reversible, false}, "The design back as it was at a commit: its texts run at once, and kept as a new commit on the branch (nothing in the history is lost)", parameters_design_history_revert, "json", mlibs::control::Cost::bounded, "design.history.revert to the commit it made the step from", false, false, false},
     {{"design.history.diff", openas::Effect::read, false}, "What changed between two states of the design, source by source: the first line that differs, the lines before and after; from a commit (HEAD) to another, or to what runs now", parameters_design_history_diff, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.history.merge", openas::Effect::reversible, false}, "Another branch's changes brought into this one, line by line from their common commit: each side's own changes taken, the same change once; if both changed the same lines nothing is merged and the sources are named. Merged, it runs at once and is a commit of both", parameters_design_history_merge, "json", mlibs::control::Cost::bounded, "design.history.revert to HEAD~1", false, false, false},
@@ -102,6 +106,8 @@ inline constexpr std::string_view listing = R"listing({
   "product": "design",
   "doc": "Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.",
   "tools": [
+    {"name": "design.begin", "description": "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "none: it only names what follows; design.history.revert takes the steps back", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"intent": {"type": "string", "description": "what the session is doing: \"a subscription settings page\""}}, "required": ["intent"]}},
     {"name": "design.sources", "description": "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "design.api", "description": "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
@@ -122,8 +128,8 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"message": {"type": "string", "description": "what this state of the design is"}}, "required": ["message"]}},
     {"name": "design.history.branch", "description": "A new branch at a commit (the one designed on when absent), to try another way without losing this one; the design stays on its branch until design.history.switch", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: a branch is a name for a commit; it changes no design", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "letters, digits, - _ . /"}, "at": {"type": "string", "description": "a branch, a tag, a commit (an id, or a name~n)"}}, "required": ["name"]}},
-    {"name": "design.history.switch", "description": "Designs on another branch: its last commit's texts run at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.switch back", "undoable": false, "cancellable": false, "result": "json",
-     "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a branch"}, "force": {"type": "boolean", "description": "drop changes not committed"}}, "required": ["to"]}},
+    {"name": "design.history.switch", "description": "Designs on another branch — or shows any commit — its texts running at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them. A commit seen leaves the branch where it was (`detached`)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.switch back", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a branch, a tag or a commit (an id, or name~n)"}, "force": {"type": "boolean", "description": "drop changes not committed"}}, "required": ["to"]}},
     {"name": "design.history.revert", "description": "The design back as it was at a commit: its texts run at once, and kept as a new commit on the branch (nothing in the history is lost)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.revert to the commit it made the step from", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a commit: an id, a tag, a branch, or name~n (HEAD~2: two commits back)"}}, "required": ["to"]}},
     {"name": "design.history.diff", "description": "What changed between two states of the design, source by source: the first line that differs, the lines before and after; from a commit (HEAD) to another, or to what runs now", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

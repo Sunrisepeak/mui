@@ -720,6 +720,7 @@ my-app/
 - 第八块完成：设计历史（D-151）。`omui.player:history` 是应用旁 `.omui/design/` 下的内容寻址存储：文本对象按哈希存放，同哈希不同文本取下一个 id，存储会核对、不靠猜；提交是 JSON，另有分支、标签和 HEAD。新增动词 `design.history`（日志、分支、标签、是否有未提交的改动）及其 `.commit`、`.branch`、`.switch`、`.revert`、`.diff`、`.merge`、`.tag`：
   - 切换和回退把目标文本经 `edit_source` 立即运行，按设计编辑呈现（hanim 过渡）；有未提交的改动时拒绝切换，除非 `force`；回退记成一次新提交，历史不丢。
   - 合并以共同祖先为基准逐行三方合并，同一处的不同改动会列出冲突、不做合并。
+  - 每一步都是一次提交（D-151）：`design.begin {intent}` 先把起点记成提交，此后每次 edit、set、insert、remove 各成一次提交，消息里带意图和这一步做了什么，并附上语义差异。切换可以指向任意提交（不移动分支，标为 `detached`）。
   - `omui design sync` 用 git 自身的命令和单独的 index 把每个设计提交写成 `design/<branch>` 上的 git 提交（标签为 `design/<tag>`），工作区、index 和 HEAD 都不动；`git.json` 记录已同步的提交，重复执行不会再写。
 - 下一块：
   - 时间线视图；

@@ -21,6 +21,7 @@ struct DesignCommit {
     double time = 0;                           // seconds since the epoch
     std::string tree;                          // the semantic tree's hash when committed (agent::tree_hash)
     std::map<std::string, std::string> files;  // a source's path → its text's object
+    std::string changes;                       // the semantic changes the step made, as JSON ("" when not known)
 };
 
 class DesignHistory {
@@ -41,7 +42,8 @@ public:
     // The texts as a commit on HEAD's branch (or with `parents` given: a
     // merge's two). Texts the same as the branch's last commit's are no commit.
     std::expected<DesignCommit, std::string> commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
-                                                   std::string tree, std::optional<std::vector<std::string>> parents = std::nullopt);
+                                                   std::string tree, std::optional<std::vector<std::string>> parents = std::nullopt,
+                                                   std::string changes = {});
     // A branch at a commit (HEAD's when none); HEAD stays where it is.
     std::expected<std::string, std::string> branch(std::string_view name, std::optional<std::string_view> at = std::nullopt);
     // HEAD on another branch; its last commit's id.

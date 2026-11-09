@@ -69,6 +69,7 @@ struct Player::Impl {
     PlayerOptions                     options;
     // Live Design's history (D-151): states of the design on branches, beside the application.
     DesignHistory                     history;
+    std::string                       intent;  // what the design session is doing (design.begin): each step's commit says it
     // Live Design: the text an edited script (or a module a script imports)
     // runs now, by its name, until it is committed to its file or discarded.
     std::map<std::string, std::string> edited;
@@ -399,6 +400,21 @@ struct Player::Impl {
         return done;
     }
 
+    // A design step that changed the design, kept as a commit (D-151: every
+    // step is one): its intent, what it did, the semantic changes. Answered
+    // with the commit's id; a step that changed nothing makes none.
+    VerbResult step(VerbResult done, std::string what) {
+        if (!done) return done;
+        semantic::Tree tree(rt);
+        const auto by = rt.current_invocation();
+        const Value* changes = done->get("changes");
+        auto commit = history.commit(design_texts(), intent.empty() ? std::move(what) : std::format("{} — {}", intent, what),
+                                     by ? by->actor.text() : std::string("person"), agent::tree_hash(tree), std::nullopt,
+                                     changes ? changes->json() : std::string());
+        if (commit) done->set("commit", commit->id);
+        return done;
+    }
+
     // Every source's text as it runs now (edited, or its file's): a design's state.
     std::map<std::string, std::string> design_texts() {
         std::map<std::string, std::string> out;
@@ -603,13 +619,15 @@ struct Player::Impl {
         add("design.edit", [this](const Value& args) -> VerbResult {
             const Value* text = args.get("text");
             if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
-            return edit_source(std::string(args.get("path") ? args.get("path")->as_string() : ""), text->as_string());
+            const std::string path(args.get("path") ? args.get("path")->as_string() : "");
+            return step(edit_source(path, text->as_string()), std::format("edit {}", path));
         });
         add("design.set", [this](const Value& args) -> VerbResult {
             const Value* properties = args.get("props");
             if (!properties || !properties->map() || properties->map()->empty())
                 return std::unexpected(std::string("design.set takes `node` and `props`: {name: value} (null takes one out)"));
-            return structured(args.get("node") ? args.get("node")->as_string() : "",
+            const std::string node(args.get("node") ? args.get("node")->as_string() : "");
+            return step(structured(node,
                               [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
                                   if (!language.edit.set) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   std::string now(text);
@@ -621,7 +639,8 @@ struct Player::Impl {
                                       now = std::move(*next);
                                   }
                                   return now;
-                              });
+                              }),
+                        std::format("set {} of {}", properties->json(), node));
         });
         add("design.insert", [this](const Value& args) -> VerbResult {
             const Value* code = args.get("code");
@@ -629,18 +648,32 @@ struct Player::Impl {
                 return std::unexpected(std::string("design.insert takes `parent` and `code`: an element as the language writes it"));
             std::optional<std::size_t> index;
             if (const Value* at = args.get("index"); at && at->is_number() && at->as_double() >= 0) index = static_cast<std::size_t>(at->as_double());
-            return structured(args.get("parent") ? args.get("parent")->as_string() : "",
+            const std::string parent(args.get("parent") ? args.get("parent")->as_string() : "");
+            return step(structured(parent,
                               [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
                                   if (!language.edit.insert) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   return language.edit.insert(text, place.line, place.column, code->as_string(), index);
-                              });
+                              }),
+                        std::format("insert into {}", parent));
         });
         add("design.remove", [this](const Value& args) -> VerbResult {
-            return structured(args.get("node") ? args.get("node")->as_string() : "",
+            const std::string node(args.get("node") ? args.get("node")->as_string() : "");
+            return step(structured(node,
                               [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
                                   if (!language.edit.remove) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   return language.edit.remove(text, place.line, place.column);
-                              });
+                              }),
+                        std::format("remove {}", node));
+        });
+        add("design.begin", [this](const Value& args) -> VerbResult {
+            intent = std::string(args.get("intent") ? args.get("intent")->as_string() : "");
+            if (intent.empty()) return std::unexpected(std::string("design.begin says what the session is for: `intent`"));
+            // Kept before the first step: the state the session began from (nothing, when it is the last commit already).
+            semantic::Tree tree(rt);
+            const auto by = rt.current_invocation();
+            auto start = history.commit(design_texts(), std::format("{} — begun", intent), by ? by->actor.text() : std::string("person"), agent::tree_hash(tree));
+            if (by) rt.note({.actor = by->actor.text(), .text = intent});
+            return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
         });
         // Live Design's history (D-151): states of the design as commits on branches, under .omui/design/.
         add("design.history", [this](const Value& args) -> VerbResult {
@@ -681,11 +714,14 @@ struct Player::Impl {
             if (head && *head != design_texts() && !(args.get("force") && args.get("force")->as_bool()))
                 return std::unexpected(std::string("the design has changes not committed: design.history.commit them, or switch with force (they are dropped)"));
             const auto branches = history.branches();
-            if (!branches.contains(to)) return std::unexpected(std::format("no branch `{}` (design.history lists them; design.history.branch makes one)", to));
-            auto texts = history.texts_of(to);
+            auto at = history.resolve(to);
+            if (!at) return std::unexpected(std::format("{} (design.history lists the branches and tags)", at.error()));
+            auto texts = history.texts_of(*at);
             if (!texts) return std::unexpected(texts.error());
             auto applied = apply_texts(*texts);
             if (!applied) return std::unexpected(applied.error());
+            if (!branches.contains(to))  // a commit, seen: the branch stays; a commit keeps it there, design.history.branch makes it one
+                return applied->set("branch", history.head_branch()).set("at", *at).set("detached", true);
             (void)history.switch_to(to);
             return applied->set("branch", to).set("at", branches.at(to));
         });

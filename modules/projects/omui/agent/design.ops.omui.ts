@@ -17,6 +17,17 @@ export default defineOps({
   generated: "src/catalog",
   operations: [
     {
+      name: "design.begin",
+      effect: "reversible",
+      summary: "Begins a design session with what it is for: the intent shown by your presence, the state it begins from kept as a commit, and every step after (each edit, set, insert, remove is a commit of its own) saying it",
+      params: [
+        { name: "intent", type: "string", doc: "what the session is doing: \"a subscription settings page\"" },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "none: it only names what follows; design.history.revert takes the steps back",
+    },
+    {
       name: "design.sources",
       effect: "read",
       summary: "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import",
@@ -127,9 +138,9 @@ export default defineOps({
     {
       name: "design.history.switch",
       effect: "reversible",
-      summary: "Designs on another branch: its last commit's texts run at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them",
+      summary: "Designs on another branch — or shows any commit — its texts running at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them. A commit seen leaves the branch where it was (`detached`)",
       params: [
-        { name: "to", type: "string", doc: "a branch" },
+        { name: "to", type: "string", doc: "a branch, a tag or a commit (an id, or name~n)" },
         { name: "force", type: "bool", doc: "drop changes not committed", optional: true },
       ],
       result: "json",

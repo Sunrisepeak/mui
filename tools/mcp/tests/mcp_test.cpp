@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 41, "nineteen ui_* tools and Live Design's twenty-two");
+        check(tools && tools->list() && tools->list()->size() == 42, "nineteen ui_* tools and Live Design's twenty-three");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -163,7 +163,7 @@ int main(int argc, char** argv) {
             }
             check((names == std::set<std::string>{"ui_apps", "ui_snapshot", "ui_find", "ui_act", "ui_invoke", "ui_undo", "ui_transaction", "ui_preview",
                                                   "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
-                                                  "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_sources", "design_api",
+                                                  "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_begin", "design_sources", "design_api",
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_history", "design_history_commit", "design_history_branch",
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_expect", "design_check", "design_handover", "design_save_scenario",
                                                   "design_replay", "design_discard", "design_commit"}));

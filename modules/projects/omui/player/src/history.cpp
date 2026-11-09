@@ -36,7 +36,8 @@ Value value_of(const DesignCommit& commit) {
         .set("branch", commit.branch)
         .set("time", commit.time)
         .set("tree", commit.tree)
-        .set("files", std::move(files));
+        .set("files", std::move(files))
+        .set("changes", commit.changes.empty() ? Value{} : parse_json(commit.changes).value_or(Value{}));
 }
 
 std::vector<std::string_view> lines_of(std::string_view text) {
@@ -217,6 +218,7 @@ std::expected<DesignCommit, std::string> DesignHistory::commit_of(std::string_vi
     commit.branch = text_at(*value, "branch");
     commit.tree = text_at(*value, "tree");
     if (const Value* time = value->get("time"); time && time->is_number()) commit.time = time->as_double();
+    if (const Value* changes = value->get("changes"); changes && !changes->is_null()) commit.changes = changes->json();
     if (const Value* files = value->get("files"); files && files->map())
         for (const auto& [path, object] : *files->map()) commit.files.emplace(path, std::string(object.as_string()));
     return commit;
@@ -270,13 +272,14 @@ std::expected<std::map<std::string, std::string>, std::string> DesignHistory::te
 }
 
 std::expected<DesignCommit, std::string> DesignHistory::commit(const std::map<std::string, std::string>& texts, std::string message, std::string actor,
-                                                               std::string tree, std::optional<std::vector<std::string>> parents) {
+                                                               std::string tree, std::optional<std::vector<std::string>> parents, std::string changes) {
     const std::string branch_name = head_branch();
     DesignCommit commit;
     commit.message = std::move(message);
     commit.actor = std::move(actor);
     commit.branch = branch_name;
     commit.tree = std::move(tree);
+    commit.changes = std::move(changes);
     commit.time = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
     const auto last = ref("heads", branch_name);
     if (parents) commit.parents = std::move(*parents);

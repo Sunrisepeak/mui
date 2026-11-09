@@ -352,17 +352,19 @@ UTest cases{"player", [] {
         const auto commit = [&](std::string_view message) { return invoke("design.history.commit", Value{}.set("message", message)); };
 
         expect(invoke("design.history").second.get("uncommitted")->as_bool()) << "nothing committed yet";
-        const auto [first_done, first] = commit("the base");
-        expect(eq(first_done, 0)) << first.json();
+        const auto [began, begin_answer] = invoke("design.begin", Value{}.set("intent", "greetings"));
+        expect(eq(began, 0) && begin_answer.get("commit")->type() == Value::Type::text) << begin_answer.json() << " — the state it begins from";
         expect(commit("again").first != 0) << "nothing changed: no commit";
         expect(eq(invoke("design.history.branch", Value{}.set("name", "quiet")).first, 0));
+        // Each step is a commit of its own, saying the intent and what it did, with its semantic changes.
         expect(eq(edit("\"first\"", "\"second\""), 0));
-        expect(eq(commit("hello says second").first, 0));
+        const auto after_edit = invoke("design.history").second;
+        const Value& last = after_edit.get("log")->list()->front();
+        expect(last.get("message")->as_string() == "greetings — edit logic/side.stub" && !after_edit.get("uncommitted")->as_bool()) << after_edit.json();
         // Another branch: its texts run at once.
         expect(eq(invoke("design.history.switch", Value{}.set("to", "quiet")).first, 0));
         expect(eq(name_of(h, "side/hello"), std::string("first")));
         expect(eq(edit("\"bye\"}", "\"later\"}"), 0));
-        expect(eq(commit("bye says later").first, 0));
         expect(eq(invoke("design.history.switch", Value{}.set("to", "main")).first, 0));
         expect(eq(name_of(h, "side/hello"), std::string("second")) && eq(name_of(h, "side/bye"), std::string("bye")));
         // Merged line by line: each branch's own line.
@@ -373,7 +375,10 @@ UTest cases{"player", [] {
         const auto diff = invoke("design.history.diff", Value{}.set("from", "HEAD~1").set("to", "HEAD")).second;
         expect(diff.get("files") && diff.get("files")->list()->size() == 1 && diff.get("files")->list()->front().get("line")->as_int() == 3) << diff.json();
         expect(eq(invoke("design.history.tag", Value{}.set("name", "v1")).first, 0));
-        // Back to the base, kept as a new commit; the tag still names the merge.
+        // A commit seen, the branch staying where it is; then back to the beginning, kept as a new commit.
+        const auto [seen, seen_answer] = invoke("design.history.switch", Value{}.set("to", "HEAD~1"));
+        expect(eq(seen, 0) && seen_answer.get("detached") && seen_answer.get("detached")->as_bool()) << seen_answer.json();
+        expect(eq(name_of(h, "side/bye"), std::string("bye")));
         const auto [reverted, revert_answer] = invoke("design.history.revert", Value{}.set("to", "HEAD~2"));
         expect(eq(reverted, 0)) << revert_answer.json();
         expect(eq(name_of(h, "side/hello"), std::string("first")) && eq(name_of(h, "side/bye"), std::string("bye")));
@@ -381,14 +386,17 @@ UTest cases{"player", [] {
         expect(eq(history.get("log")->list()->size(), std::size_t{4})) << history.json();
         expect(history.get("log")->list()->front().get("message")->as_string().starts_with("back to")) << history.json();
         expect(history.get("tags")->get("v1") != nullptr && !history.get("uncommitted")->as_bool()) << history.json();
-        // Changes not committed are not dropped by a switch, unless asked.
-        expect(eq(edit("\"first\"", "\"draft\""), 0));
+        // Changes not committed (a file saved) are not dropped by a switch, unless asked.
+        std::string saved = file_text(dir / "logic" / "side.stub");
+        saved.replace(saved.find("\"first\""), 7, "\"draft\"");
+        write(dir / "logic" / "side.stub", saved);
+        expect(p.poll() == std::vector<std::string>{"logic/side.stub"});
+        h.settle();
         expect(invoke("design.history.switch", Value{}.set("to", "quiet")).first != 0);
         expect(eq(invoke("design.history.switch", Value{}.set("to", "quiet").set("force", true)).first, 0));
         expect(eq(name_of(h, "side/bye"), std::string("later")));
-        // The store beside the application; the file itself untouched (design.commit writes it).
+        // The store beside the application.
         expect(std::filesystem::exists(dir / ".omui" / "design" / "HEAD") && std::filesystem::exists(dir / ".omui" / "design" / "refs" / "heads" / "quiet"));
-        expect(eq(file_text(dir / "logic" / "side.stub"), base));
     };
 
     "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {

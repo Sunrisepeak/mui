@@ -128,6 +128,41 @@ UTest cases{"present", [] {
         if (old_host.state()) expect(new_host.restore(*old_host.state()));
     };
 
+    "a build's problem shown beside its element: the one running says where the element built nearest above the line is"_test = [] {
+        Pair ends;
+        Runtime rt([] {
+            RuntimeOptions options;
+            options.fonts = &fonts();
+            options.size = {160, 120};
+            return options;
+        }());
+        const int title_line = static_cast<int>(std::source_location::current().line()) + 1;
+        Element title = text({.id = "title", .text = "Title"});
+        const int field_line = static_cast<int>(std::source_location::current().line()) + 1;
+        Element field = box({.id = "field", .width = 80, .height = 20});
+        rt.mount("main", column({.padding = 8, .gap = 8}, {std::move(title), std::move(field)}));
+        (void)rt.frame({seconds(0), {}});
+        // The compiler names the file relative to the package, the element's place may be absolute: their trailing components match.
+        const std::string file = std::format("tests/{}", std::filesystem::path(std::source_location::current().file_name()).filename().string());
+        expect(rt.path(agent::built_near(rt, file, field_line)).ends_with("field")) << "a problem on the element's own line";
+        expect(rt.path(agent::built_near(rt, file, title_line + 1)).ends_with("title")) << "a problem below it, before the next";
+        expect(!agent::built_near(rt, file, title_line - 1)) << "none built above it in that file";
+        expect(!agent::built_near(rt, "other/thing.cpp", field_line)) << "another file";
+        agent::Presenter presenter(rt, std::move(ends.application));
+        agent::Presentation host(std::move(ends.host));
+        expect(host.ask_places(Value(Value::List{Value{}.set("file", file).set("line", field_line), Value{}.set("file", "nope.cpp").set("line", 1)})));
+        for (int tries = 0; tries < 200 && !host.places(); ++tries) {
+            (void)presenter.input();
+            (void)host.receive(std::chrono::milliseconds(5));
+        }
+        expect(fatal(host.places().has_value() && host.places()->list() && host.places()->list()->size() == 2));
+        const Value& found = (*host.places()->list())[0];
+        const Rect drawn = rt.drawn_bounds(rt.find("main/field"));
+        expect(found.get("width") && std::abs(found.get("width")->as_double() - drawn.width) < 0.01 && std::abs(found.get("y")->as_double() - drawn.y) < 0.01)
+            << found.json();
+        expect((*host.places()->list())[1].is_null()) << "a place no element was built at: null";
+    };
+
     "images: sent with the first frame that uses them, again only when they change"_test = [] {
         Pair ends;
         Runtime rt([] {

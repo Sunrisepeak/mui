@@ -63,6 +63,9 @@ struct DevHost::Impl {
     int                  started = 0;
     std::uint64_t        timer = 0;
     std::vector<DevProblem> problems;
+    // Each problem's element on the window, as the application running answered (none: listed at the top).
+    std::vector<std::optional<Rect>> pins;
+    bool                    places_asked = false;
     bool                    ended_said = false;
 
     Impl(Runtime& rt, DevHostOptions given) : runtime(rt), options(std::move(given)), glyphs(fonts) {}
@@ -118,6 +121,22 @@ struct DevHost::Impl {
                 fade_began = runtime.now();
             }
         }
+        // Where the problems' elements are, as the one running answered.
+        if (places_asked && current) {
+            if (const auto& answered = current->presentation->places(); answered && answered->list()) {
+                places_asked = false;
+                pins.assign(problems.size(), std::nullopt);
+                const auto& places = *answered->list();
+                for (std::size_t index = 0; index < problems.size() && index < places.size(); ++index)
+                    if (const Value* x = places[index].get("x"))
+                        pins[index] = Rect{static_cast<float>(x->as_double()), static_cast<float>(places[index].get("y")->as_double()),
+                                           static_cast<float>(places[index].get("width")->as_double()),
+                                           static_cast<float>(places[index].get("height")->as_double())};
+                show_problems_now();
+            } else if (current->presentation->gone()) {
+                places_asked = false;
+            }
+        }
         if (leaving && runtime.now() - fade_began >= options.fade) leaving.reset();  // the old one's connection closes: it ends
         // The application ended (or crashed): its last frame stays, said — and unsaid when one runs again.
         const bool ended = current && current->presentation->gone() && !next;
@@ -155,24 +174,52 @@ struct DevHost::Impl {
         return true;
     }
 
+    // A problem's card: where, then what.
+    static Element problem_card(const DevProblem& problem, std::size_t index, BoxOptions box) {
+        const std::string where = problem.file.empty() ? std::string() : std::format("{}:{}:{}", problem.file, problem.line, problem.column);
+        std::vector<Element> lines;
+        if (!where.empty()) lines.push_back(text({.text = where, .style = "caption", .color = Fill(std::string("text_muted")), .wrap = false, .max_lines = 1}));
+        lines.push_back(text({.text = problem.text, .style = "body", .max_lines = 3}));
+        box.id = std::format("problem-{}", index);
+        box.padding = 10;
+        box.gap = 2;
+        box.background = Fill(std::string("surface"));
+        box.border_color = Fill(std::string("danger"));
+        box.border_width = 1;
+        box.radius = 8;
+        box.label = where.empty() ? problem.text : std::format("{}: {}", where, problem.text);
+        return column(std::move(box), std::move(lines));
+    }
+
+    // The problems over the application: each beside the element it is about (outlined, its card
+    // below it, or above when there is no room), the others listed at the top.
     void show_problems_now() {
         if (problems.empty()) {
             runtime.unmount("dev-problems");
             return;
         }
-        std::vector<Element> cards;
+        pins.resize(problems.size());
+        const Size window = runtime.size();
+        constexpr float card_width = 320;
+        std::vector<Element> listed, placed;
         for (std::size_t index = 0; index < problems.size() && index < 8; ++index) {
             const DevProblem& problem = problems[index];
-            const std::string where = problem.file.empty() ? std::string() : std::format("{}:{}:{}", problem.file, problem.line, problem.column);
-            std::vector<Element> lines;
-            if (!where.empty()) lines.push_back(text({.text = where, .style = "caption", .color = Fill(std::string("text_muted")), .wrap = false, .max_lines = 1}));
-            lines.push_back(text({.text = problem.text, .style = "body", .max_lines = 3}));
-            cards.push_back(column({.id = std::format("problem-{}", index), .padding = 10, .gap = 2, .background = Fill(std::string("surface")),
-                                    .border_color = Fill(std::string("danger")), .border_width = 1, .radius = 8,
-                                    .label = where.empty() ? problem.text : std::format("{}: {}", where, problem.text)},
-                                   std::move(lines)));
+            if (!pins[index]) {
+                listed.push_back(problem_card(problem, index, {}));
+                continue;
+            }
+            const Rect at = *pins[index];
+            placed.push_back(box({.id = std::format("problem-{}-element", index), .width = Dim(at.width + 4), .height = Dim(at.height + 4),
+                                  .margin = Edges(Insets{at.y - 2, 0, 0, at.x - 2}), .border_color = Fill(std::string("danger")),
+                                  .border_width = 2, .radius = 4, .label = "the element the problem is about"}));
+            const float left = std::clamp(at.x, 8.0f, std::max(8.0f, window.width - card_width - 8));
+            const bool below = at.y + at.height + 120 <= window.height;
+            const float top = below ? at.y + at.height + 6 : std::max(8.0f, at.y - 120);
+            placed.push_back(problem_card(problem, index, {.width = Dim(card_width), .margin = Edges(Insets{top, 0, 0, left})}));
         }
-        runtime.mount("dev-problems", column({.width = runtime.size().width, .padding = 12, .gap = 8}, std::move(cards)));
+        std::vector<Element> layers = std::move(placed);
+        if (!listed.empty()) layers.push_back(column({.id = "listed", .width = window.width, .padding = 12, .gap = 8}, std::move(listed)));
+        runtime.mount("dev-problems", stack({.width = window.width, .height = window.height}, std::move(layers)));
     }
 };
 
@@ -215,13 +262,21 @@ bool DevHost::restart() {
 }
 
 void DevHost::show_problems(std::vector<DevProblem> problems) {
-    impl_->problems = std::move(problems);
-    impl_->show_problems_now();
+    Impl& d = *impl_;
+    d.problems = std::move(problems);
+    d.pins.assign(d.problems.size(), std::nullopt);
+    d.show_problems_now();
+    // Where they are: the one running is asked where the elements built at those places are.
+    Value::List places;
+    for (const DevProblem& problem : d.problems) places.push_back(Value{}.set("file", problem.file).set("line", problem.line));
+    d.places_asked = d.current && !d.current->presentation->gone() && std::ranges::any_of(d.problems, [](const DevProblem& problem) { return !problem.file.empty(); }) &&
+                     d.current->presentation->ask_places(Value(std::move(places)));
 }
 
 Value DevHost::status() const {
     const Impl& d = *impl_;
-    Value out = Value{}.set("started", static_cast<std::int64_t>(d.started)).set("fading", d.leaving.has_value()).set("problems", static_cast<std::int64_t>(d.problems.size()));
+    Value out = Value{}.set("started", static_cast<std::int64_t>(d.started)).set("fading", d.leaving.has_value()).set("problems", static_cast<std::int64_t>(d.problems.size()))
+                    .set("pinned", static_cast<std::int64_t>(std::ranges::count_if(d.pins, [](const auto& pin) { return pin.has_value(); })));
     if (d.current) out.set("shown", static_cast<std::int64_t>(d.current->number)).set("frames", static_cast<std::int64_t>(d.current->frames_drawn));
     if (d.next) out.set("waiting", static_cast<std::int64_t>(d.next->number));
     return out;

@@ -9,7 +9,9 @@
 // Over a local connection (mcpplibs.os), framed: a length, a kind, its bytes.
 // A new build takes over from the one before: the host asks the old for what
 // the person set (ui.state) and gives it to the new (ui.restore) before the
-// new is shown.
+// new is shown. A build that fails is about places in the sources: the host
+// asks the one running where the elements built there are (W16: a problem
+// shown beside its element).
 //
 //     // the application                         // the host
 //     agent::Presenter out(rt, std::move(c));    agent::Presentation in(std::move(c));
@@ -25,6 +27,11 @@ import xrender.vector;
 import mlibs.text;
 
 export namespace omui::agent {
+
+// The element built nearest above `line` in `file` (matched by its trailing
+// components: a compiler and std::source_location may name it from different
+// directories), drawn with a size; none when none was built in that file.
+[[nodiscard]] NodeId built_near(const Runtime& runtime, std::string_view file, int line);
 
 class Presenter {
 public:
@@ -69,6 +76,12 @@ public:
     [[nodiscard]] const std::optional<Value>& state() const noexcept { return state_; }
     // ui.state's values given to the application (ui.restore), before its next frame.
     bool restore(const Value& state);
+    // Where the elements built at these places are on the application's window
+    // (a list of {file, line}, as a compiler names them), asked; the answer
+    // arrives with a later receive (places()): for each, in order, the drawn
+    // rect of the element built nearest above that line in that file, or null.
+    bool ask_places(const Value& places);
+    [[nodiscard]] const std::optional<Value>& places() const noexcept { return places_; }
 
 private:
     mcpplibs::os::ipc::connection connection_;
@@ -78,6 +91,7 @@ private:
     bool                          gone_ = false;
     std::uint64_t                 frames_ = 0;
     std::optional<Value>          state_;
+    std::optional<Value>          places_;
     mlibs::text::FontCollection*  fonts_ = nullptr;
     std::unordered_map<std::uint32_t, std::uint32_t> font_map_;  // the application's reference → this side's
 };

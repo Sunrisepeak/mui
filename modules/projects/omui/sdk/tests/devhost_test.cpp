@@ -22,6 +22,7 @@ struct Application {
     std::optional<agent::Presenter>      presenter;
     bool                                 done = false;
     int                                  frame = 0;
+    static inline int                    switch_line = 0;  // where its switch is built (a problem's place)
 
     Application(std::filesystem::path socket, int version)
         : rt([] {
@@ -30,6 +31,7 @@ struct Application {
               options.size = {320, 200};
               return options;
           }()) {
+        switch_line = static_cast<int>(std::source_location::current().line()) + 3;
         rt.mount("main", column({.padding = 12, .gap = 8},
                                 {text({.id = "version", .text = std::format("Build {}", version)}),
                                  toggle({.id = "dark", .checked = on, .label = "Dark", .on_changed = [this](bool now) { on.set(now); }})}));
@@ -100,10 +102,25 @@ UTest cases{"sdk.devhost", [] {
         // A build that failed: its problems over the application.
         dev.show_problems(problems_in("src/main.cpp:12:7: error: expected ';' before '}' token\nnote: something\n"));
         (void)host.step();
-        const auto card = host.tree().node("dev-problems/problem-0");
+        const auto card = host.tree().node("dev-problems/listed/problem-0");
         expect(card && card->name.contains("src/main.cpp:12:7") && card->name.contains("expected ';'")) << (card ? card->name : std::string("none"));
+        expect(run_until([&] { return dev.status().get("pinned"); }) && dev.status().get("pinned")->as_int() == 0)
+            << "no element of the application was built in src/main.cpp: listed at the top";
+
+        // A problem in a file the application was built from: beside the element built nearest above its line.
+        const std::string file = std::format("tests/{}", std::filesystem::path(std::source_location::current().file_name()).filename().string());
+        dev.show_problems({{.file = file, .line = Application::switch_line + 1, .column = 5, .text = "no member named 'checkd'"}});
+        expect(run_until([&] { return dev.status().get("pinned")->as_int() == 1; })) << dev.status().json();
+        (void)host.step();
+        Runtime& running = applications.back()->rt;
+        const Rect switch_at = running.drawn_bounds(running.find("main/dark"));
+        const auto outline = host.tree().node("dev-problems/problem-0-element");
+        const auto pinned = host.tree().node("dev-problems/problem-0");
+        expect(outline && outline->bounds && std::abs(outline->bounds->x - (switch_at.x - 2)) < 1 && std::abs(outline->bounds->y - (switch_at.y - 2)) < 1)
+            << "the switch outlined where it is drawn";
+        expect(pinned && pinned->bounds && pinned->bounds->y >= switch_at.y + switch_at.height && pinned->name.contains("checkd")) << "its card below it";
         dev.show_problems({});
         (void)host.step();
-        expect(!host.tree().node("dev-problems/problem-0"));
+        expect(!host.tree().node("dev-problems/problem-0") && !host.tree().node("dev-problems/listed/problem-0"));
     };
 }};

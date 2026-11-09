@@ -3,7 +3,8 @@
 // build that succeeds runs in a process of its own, drawn in the host's window;
 // a change builds again and the new build takes over; a build that fails shows
 // its problems and the one running stays; fixed, it takes over again. Read as an
-// agent reads it: the host's verb dev.status over its endpoint. It runs `mcpp build` in this
+// agent reads it: the host's verb dev.status over its endpoint; a failure's
+// problem is pinned beside the element built nearest above its line. It runs `mcpp build` in this
 // workspace, so it runs outside `mcpp test` (built with --no-run; mcpp#915).
 import std;
 import omui.agent;
@@ -69,9 +70,13 @@ E2E devhost{"devhost", resource{"serial:examples/01-hello-im"}, timeout{std::chr
         changed.replace(changed.find("\"Hello, openmui\", {.style"), 16, "\"Hello again, openmui\"");
         source.write(changed);
         expect(wait_for([&](const omui::Value& s) { return number(s, "shown") == 2 && !s.get("fading")->as_bool(); })) << "a change taken over: " << last.json();
-        source.write(changed + "\nthis is not C++;\n");
-        expect(wait_for([&](const omui::Value& s) { return number(s, "failed") >= 1 && number(s, "problems") >= 1 && number(s, "shown") == 2; }))
-            << "a failure shown, the one running kept: " << last.json();
+        // A mistake inside the view, under the title: its problem shown beside the title.
+        std::string broken = changed;
+        broken.insert(broken.find('\n', broken.find("\"Hello again, openmui\"")) + 1, "                    int broken = \"not a number\";\n");
+        source.write(broken);
+        expect(wait_for([&](const omui::Value& s) {
+            return number(s, "failed") >= 1 && number(s, "problems") >= 1 && number(s, "pinned") >= 1 && number(s, "shown") == 2;
+        })) << "a failure shown beside its element, the one running kept: " << last.json();
         source.write(source.text);
         expect(wait_for([&](const omui::Value& s) { return number(s, "shown") == 3 && number(s, "problems") == 0; })) << "fixed, taken over: " << last.json();
         host->kill();

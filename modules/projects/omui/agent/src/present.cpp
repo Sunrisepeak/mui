@@ -15,7 +15,9 @@ namespace omui::agent {
 namespace {
 
 // A message: its length (u32, the kind and the bytes), its kind, its bytes.
-enum class Kind : char { frame = 'F', image = 'I', font = 'T', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R' };
+enum class Kind : char {
+    frame = 'F', image = 'I', font = 'T', input = 'E', size = 'S', ask_state = 'Q', state = 'A', restore = 'R', ask_places = 'P', places = 'L'
+};
 
 void put32(std::string& out, std::uint32_t value) {
     for (int index = 0; index < 4; ++index) out.push_back(static_cast<char>((value >> (8 * index)) & 0xFF));
@@ -65,7 +67,33 @@ void images_of(const xrender::DisplayList& list, std::set<std::uint32_t>& out) {
     out.erase(0);
 }
 
+// Whether two names of a source file name the same one: equal, or one the other's
+// trailing components (separators either way).
+bool same_source(std::string_view one, std::string_view other) {
+    std::string left(one), right(other);
+    std::ranges::replace(left, '\\', '/');
+    std::ranges::replace(right, '\\', '/');
+    if (left.size() < right.size()) std::swap(left, right);
+    if (right.empty()) return false;
+    return left == right || (left.ends_with(right) && left[left.size() - right.size() - 1] == '/');
+}
+
 }  // namespace
+
+NodeId built_near(const Runtime& runtime, std::string_view file, int line) {
+    NodeId best{};
+    std::uint32_t best_line = 0;
+    runtime.walk([&](NodeId node, int) {
+        const std::source_location where = runtime.origin(node);
+        if (where.line() == 0 || static_cast<int>(where.line()) > line || where.line() <= best_line) return;
+        if (!same_source(where.file_name(), file)) return;
+        const Rect drawn = runtime.drawn_bounds(node);
+        if (drawn.width <= 0 || drawn.height <= 0) return;
+        best = node;
+        best_line = where.line();
+    });
+    return best;
+}
 
 Presenter::Presenter(Runtime& runtime, mcpplibs::os::ipc::connection connection) : runtime_(runtime), connection_(std::move(connection)) {}
 
@@ -124,6 +152,26 @@ void Presenter::read_available() {
                 host.actor = {"person", "developer", {}};
                 (void)semantic::Tree(runtime_).restore(*state, host);
             }
+        } else if (next->first == Kind::ask_places) {
+            Value::List answer;
+            if (const auto asked = parse_json(next->second); asked && asked->list())
+                for (const Value& place : *asked->list()) {
+                    const auto* file = place.get("file");
+                    const auto* line = place.get("line");
+                    const NodeId found = file && line ? built_near(runtime_, file->as_string(), static_cast<int>(line->as_int())) : NodeId{};
+                    if (!found) {
+                        answer.emplace_back();
+                        continue;
+                    }
+                    const Rect drawn = runtime_.drawn_bounds(found);
+                    answer.push_back(Value{}
+                                         .set("x", static_cast<double>(drawn.x))
+                                         .set("y", static_cast<double>(drawn.y))
+                                         .set("width", static_cast<double>(drawn.width))
+                                         .set("height", static_cast<double>(drawn.height))
+                                         .set("path", runtime_.path(found)));
+                }
+            (void)connection_.write(message(Kind::places, Value(std::move(answer)).json()));
         } else if (next->first == Kind::size && next->second.size() == 12) {
             const auto width = std::bit_cast<float>(static_cast<std::uint32_t>(get(next->second, 0, 4)));
             const auto height = std::bit_cast<float>(static_cast<std::uint32_t>(get(next->second, 4, 4)));
@@ -167,6 +215,8 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
                     const auto slant = static_cast<mlibs::text::Slant>(bytes[12]);
                     font_map_[static_cast<std::uint32_t>(get(bytes, 0, 4))] = fonts_->font(face, weight, slant).id;
                 }
+            } else if (next->first == Kind::places) {
+                if (auto places = parse_json(next->second)) places_ = std::move(*places);
             } else if (next->first == Kind::state) {
                 if (auto state = parse_json(next->second)) state_ = std::move(*state);
             } else if (next->first == Kind::frame) {
@@ -213,6 +263,11 @@ bool Presentation::send_input(std::span<const InputEvent> events) {
 bool Presentation::ask_state() {
     state_.reset();
     return connection_.write(message(Kind::ask_state, {})).has_value();
+}
+
+bool Presentation::ask_places(const Value& places) {
+    places_.reset();
+    return connection_.write(message(Kind::ask_places, places.json())).has_value();
 }
 
 bool Presentation::restore(const Value& state) { return connection_.write(message(Kind::restore, state.json())).has_value(); }

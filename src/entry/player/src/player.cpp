@@ -197,7 +197,9 @@ int player_main(int argc, char** argv) {
                                                        lang::python::embedded::language()},
                   player::PlayerOptions{.design = design});
         if (auto r = p->start(); !r) std::print(std::cerr, "{}", r.error());
-        p->watch();
+        // A saved file shows within a frame in development mode (W2: save to screen ≤ 100 ms at p95; a
+        // stat of the app's files a frame costs microseconds), within a tenth of a second otherwise.
+        p->watch(design ? seconds(1.0 / 60) : seconds(0.1));
     };
     app.ready = [&] { return p && p->idle(); };
     return run(std::move(app), static_cast<int>(rest.size()), rest.data());

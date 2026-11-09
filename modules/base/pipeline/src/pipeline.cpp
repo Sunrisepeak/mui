@@ -128,16 +128,21 @@ std::string to_text(std::span<const Problem> problems) {
 
 namespace {
 
-std::string toml_string(std::string_view s) {
+std::string json_string(std::string_view s) {
     std::string out = "\"";
     for (char c : s) {
-        if (c == '"' || c == '\\') out += '\\';
-        out += c;
+        switch (c) {
+            case '"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            case '\t': out += "\\t"; break;
+            default: out += c;
+        }
     }
     return out + '"';
 }
 
-std::string toml_value(const ConfigValue& v) {
+std::string json_value(const ConfigValue& v) {
     return std::visit(
         [](const auto& x) -> std::string {
             using T = std::decay_t<decltype(x)>;
@@ -145,35 +150,37 @@ std::string toml_value(const ConfigValue& v) {
             else if constexpr (std::same_as<T, std::int64_t>) return std::format("{}", x);
             else if constexpr (std::same_as<T, double>) {
                 std::string s = std::format("{}", x);
-                if (s.find_first_of(".eEn") == std::string::npos) s += ".0";  // stays a float
+                if (s.find_first_of(".eEn") == std::string::npos) s += ".0";  // stays a real
                 return s;
-            } else return toml_string(x);
+            } else return json_string(x);
         },
         v);
 }
 
 }  // namespace
 
-std::string to_toml(const Description& d) {
-    std::string out = std::format("name = {}\n", toml_string(d.name));
-    for (const StageDesc& s : d.stages) {
-        out += std::format("\n[[stage]]\nname = {}\nplugin = {}\n", toml_string(s.name), toml_string(s.plugin));
+std::string to_json(const Description& d) {
+    std::string out = std::format("{{\"pipeline\": {{\"name\": {}, \"stages\": [", json_string(d.name));
+    for (std::size_t index = 0; index < d.stages.size(); ++index) {
+        const StageDesc& s = d.stages[index];
+        out += std::format("{}\n  {{\"name\": {}, \"plugin\": {}", index ? "," : "", json_string(s.name), json_string(s.plugin));
         if (!s.after.empty()) {
-            out += "after = [";
-            for (std::size_t i = 0; i < s.after.size(); ++i) out += (i ? ", " : "") + toml_string(s.after[i]);
-            out += "]\n";
+            out += ", \"after\": [";
+            for (std::size_t i = 0; i < s.after.size(); ++i) out += (i ? ", " : "") + json_string(s.after[i]);
+            out += "]";
         }
         if (!s.config.entries().empty()) {
-            out += "config = { ";
+            out += ", \"config\": {";
             bool first = true;
             for (const auto& [k, v] : s.config.entries()) {
-                out += std::format("{}{} = {}", first ? "" : ", ", k, toml_value(v));
+                out += std::format("{}{}: {}", first ? "" : ", ", json_string(k), json_value(v));
                 first = false;
             }
-            out += " }\n";
+            out += "}";
         }
+        out += "}";
     }
-    return out;
+    return out + "\n]}}\n";
 }
 
 // ── pipelines ─────────────────────────────────────────────────────────────

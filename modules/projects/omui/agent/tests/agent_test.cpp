@@ -472,7 +472,7 @@ UTest cases{"agent", [] {
         const Value* d = show[0].get("data");
         expect(d && d->get("name")->as_string() == "runtime.h2" && d->get("stages")->list()->size() == 9);  // … paint, motion, debug
         expect((*d->get("stages")->list())[4].get("plugin")->as_string() == "openmui.view.layout");
-        expect(d->get("toml")->as_string().contains("[[stage]]") && d->get("graph")->as_string().contains("writes display"));
+        expect(d->get("description") && d->get("description")->get("stages")->list()->size() == 9 && d->get("graph")->as_string().contains("writes display"));
         expect(std::ranges::any_of(*d->get("plugins")->list(), [](const Value& x) { return x.get("name")->as_string() == "openmui.view.debug"; }));
         auto rm = talk(p, R"({"op":"pipeline","action":"remove","stage":"debug"})");
         expect(exit_of(rm) == 0 && rm[0].get("data")->get("stages")->list()->size() == 8);

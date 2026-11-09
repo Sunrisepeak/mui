@@ -64,19 +64,4 @@ bool is_packed() {
     return generic_utf8(dir.filename()) == std::format("{}-{}-{}", mcpp::package_name(), mcpp::package_version(), mcpp::target());
 }
 
-std::vector<std::string> table_names(const std::filesystem::path& file, std::string_view table) {
-    const std::string open = std::format("[{}.", table);
-    std::vector<std::string> out;
-    std::ifstream in(file);
-    std::string line;
-    while (std::getline(in, line)) {
-        if (!line.starts_with(open)) continue;
-        const auto end = line.find(']');
-        if (end == std::string::npos) continue;
-        const std::string name = line.substr(open.size(), end - open.size());
-        if (name.find('.') == std::string::npos) out.push_back(name);
-    }
-    return out;
-}
-
 }  // namespace omui::build

@@ -102,7 +102,7 @@ cmd::App operations(cmd::App a, bool app) {
                         .option(Option("plugin").takes_value().value_name("PLUGIN").help("replace / insert: the stage plugin"))
                         .option(Option("after").takes_value().value_name("STAGE").help("insert: declared right after this stage"))
                         .option(Option("config").takes_value().value_name("JSON").help(R"(the stage's configuration, e.g. '{"parallel":true}')"))
-                        .option(Option("toml").help("show the description as <name>.pipeline.omui.toml")))
+                        .option(Option("description").help("show the description alone, as JSON")))
         .subcommand(with_app("sweep", "Every action of every node an agent can operate, really performed (and undone where it can be); a failure exits 1")
                         .option(Option("root").takes_value().value_name("ID").help("only this subtree"))
                         .option(Option("actor").takes_value().value_name("ACTOR").help("who performs them (default agent:omui-sweep)")))
@@ -440,8 +440,8 @@ int agent(const cmd::ParsedArgs& p, std::optional<std::string> dir_option, std::
             out << std::format("{{\"kind\":\"data\",\"data\":{{\"file\":{}}}}}\n", Value(*out_file).json());
             continue;
         }
-        if (p.subcommand_name() == "pipeline" && sub.is_flag_set("toml") && kind == "data" && r.get("data") && r.get("data")->get("toml")) {
-            out << r.get("data")->get("toml")->as_string();
+        if (p.subcommand_name() == "pipeline" && sub.is_flag_set("description") && kind == "data" && r.get("data") && r.get("data")->get("description")) {
+            out << indented_json(Value(Value::Map{}).set("pipeline", *r.get("data")->get("description")));
             continue;
         }
         out << r.json() << '\n';

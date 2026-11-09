@@ -1,4 +1,4 @@
-// The specification's presences (registry/motion.toml [[presence]], M-10) are
+// The specification's presences (registry/motion.json `presence`, M-10) are
 // hanim.core's, one for one: each name the spec gives hanim plays, of the same
 // kind, and hanim has none the spec does not name.
 import std;

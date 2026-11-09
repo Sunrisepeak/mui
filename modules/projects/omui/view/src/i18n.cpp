@@ -74,8 +74,8 @@ void Languages::edit(const std::function<void(mlibs::i18n::Library&)>& change) {
     thread_signal(0).set(generation());
 }
 
-std::expected<void, std::vector<mlibs::i18n::Diagnostic>> Languages::add_messages(const mlibs::i18n::Locale& locale, std::string_view toml, std::string_view file) {
-    auto catalog = mlibs::i18n::read_messages(toml, file);
+std::expected<void, std::vector<mlibs::i18n::Diagnostic>> Languages::add_messages(const mlibs::i18n::Locale& locale, std::string_view json, std::string_view file) {
+    auto catalog = mlibs::i18n::read_messages(json, file);
     if (!catalog) return std::unexpected(std::move(catalog.error()));
     edit([&](mlibs::i18n::Library& lib) { lib.catalog(locale) = std::move(*catalog); });
     return {};

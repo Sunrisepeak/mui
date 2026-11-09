@@ -101,7 +101,7 @@ bool equal(const Value& a, const Value& b) {
     return a == b;
 }
 
-// The functions of registry/expr.toml (spec's generated table), sorted.
+// The functions of registry/expr.json (spec's generated table), sorted.
 constexpr auto function_names = [] {
     std::array<std::string_view, spec::functions.size()> names{};
     for (std::size_t i = 0; i < names.size(); ++i) names[i] = spec::functions[i].name;

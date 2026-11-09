@@ -891,19 +891,15 @@ def check_lead(root: Path) -> list[Problem]:
     return [Problem("lead", where, what) for where, what in lead.problems(root)]
 
 
-DATA_IN_TS = (".contract.omui.toml", ".native.omui.toml", ".ops.omui.toml", ".theme.omui.toml", ".style.omui.toml")
-
-
 def check_typescript_data(root: Path) -> list[Problem]:
-    """Contracts, native modules, operation catalogs, themes and style packs
-    are TypeScript data modules (D-138, D-139: defineContract, defineNative,
-    defineOps, defineTheme, defineStyle); the
-    spec's registry is JSON snapshots (D-159), and omui-gen's tests of its TOML
-    reader are the TOML left. tools/dev/toml_to_ts.py converts one."""
+    """omui's data files are TypeScript data modules (D-138, D-139:
+    `<name>.<kind>.omui.ts`, defineContract … defineBehavior) or their JSON
+    snapshots (D-159: the spec's registry, test data): no `*.omui.toml` is
+    read any more (W1 step 3). tools/dev/toml_to_ts.py converts one."""
     problems = []
     for path in root.rglob("*.omui.toml"):
         rel = path.relative_to(root).as_posix()
-        if not rel.endswith(DATA_IN_TS) or rel.startswith("tools/gen/tests/data/") or "target/" in rel or "/." in "/" + rel:
+        if "target/" in rel or "/." in "/" + rel:
             continue
         problems.append(Problem("typescript", rel, f"is TOML: write it as {path.name[:-len('.toml')]}.ts (tools/dev/toml_to_ts.py converts it)"))
     return problems

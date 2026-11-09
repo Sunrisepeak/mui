@@ -2,7 +2,7 @@
 //
 // An Expr is an immutable tree of nodes; combinators share their arguments'
 // subtrees, so building is cheap and an expression can be reused anywhere.
-// The operators and functions are registry/expr.toml's; their C++ spellings
+// The operators and functions are registry/expr.json's; their C++ spellings
 // are the registry's `combinators.cpp` names (`not_`, `and_`, `fmt` …).
 //
 //     using namespace omui::expr;
@@ -73,7 +73,7 @@ private:
 
 [[nodiscard]] Expr make(Op op, std::vector<Expr> args, std::string name = {});
 
-// ── combinators (registry/expr.toml) ──
+// ── combinators (registry/expr.json) ──
 
 [[nodiscard]] Expr ref(std::string name);
 [[nodiscard]] Expr lit(Value v);

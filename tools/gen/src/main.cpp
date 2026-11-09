@@ -3,15 +3,15 @@
 //   omui-gen registry <spec/registry> --out <spec> [--check] [--json]
 //       openmui.h, the openmui.spec partitions, the reference tables, the Core
 //       TypeScript builders and the view-document schema
-//   omui-gen stubs <file.contract.omui.toml>... --registry <dir> --module <m>
+//   omui-gen stubs <file.contract.omui.ts>... --registry <dir> --module <m>
 //                  --out <dir> [--check] [--json]
 //       a component package's script builders and view-document schema
-//   omui-gen cpp <file.contract.omui.toml>... --registry <dir> --module <m>
+//   omui-gen cpp <file.contract.omui.ts>... --registry <dir> --module <m>
 //                --out <dir> [--namespace ns] [--catalog] [--contract name]
 //                [--part contract|builder] [--check]
 //       a component package's C++: the contract partitions (typed props,
 //       options, the CRTP base) and the builders
-//   omui-gen native <file.native.omui.toml>... --registry <dir> --module <m>
+//   omui-gen native <file.native.omui.ts>... --registry <dir> --module <m>
 //                   --out <dir> [--namespace ns] [--native name] [--part cpp|stubs] [--check]
 //       a native module's C++ (records, the functions to implement, define())
 //       and its TypeScript stubs (component-binding §8)
@@ -21,7 +21,7 @@
 //       what a data module stands for: its JSON snapshot
 //   omui-gen embed-index <file>=<partition>… --module <m> --name <partition> --out <dir> [--namespace ns] [--check]
 //       a data file (a theme) as a partition holding its text
-//   omui-gen check <file.contract.omui.toml or .native.omui.toml>... --registry <dir> [--json]
+//   omui-gen check <file.contract.omui.ts or .native.omui.ts>... --registry <dir> [--json]
 //       diagnostics only
 //   omui-gen abi <registry-dir> --out <modules/projects/omui/abi/src> [--check]
 //       openmui.h's types and functions for the C++ that implements them, and
@@ -276,7 +276,10 @@ int run_cpp(const Options& o) {
     return 0;
 }
 
-bool is_native(const std::filesystem::path& file) { return generic_utf8(file).ends_with(".native.omui.toml"); }
+bool is_native(const std::filesystem::path& file) {
+    const auto name = generic_utf8(file);
+    return name.ends_with(".native.omui.ts") || name.ends_with(".native.omui.json");
+}
 
 // A native module's C++ (<name>_native.cppm) and the stubs of the files'
 // modules: <module>.natives.d.ts.
@@ -453,7 +456,7 @@ int wasm_size_main(const mcpplibs::cmdline::ParsedArgs& args) {
     return 0;
 }
 
-// omui-gen ops <file.ops.omui.toml or .ops.omui.ts> --out <dir> [--check]: the C++ partition
+// omui-gen ops <file.ops.omui.ts> --out <dir> [--check]: the C++ partition
 // (<dir>/<partition>.cppm, catalog.cppm by default) and the listings (<dir>/<product>.ops.json, .ops.md).
 int ops_main(const mcpplibs::cmdline::ParsedArgs& args) {
     const std::string file = args.positional(0), out = args.value("out").value_or("");

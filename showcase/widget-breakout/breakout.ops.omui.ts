@@ -1,6 +1,6 @@
 // The component breakout's operations for agents (convergence plan §10.3,
 // §8.4): its field's actions, and the tiers an agent player is held to. The
-// field's contract (contract/field.contract.omui.toml) defines the actions;
+// field's contract (contract/field.contract.omui.ts) defines the actions;
 // this catalog says what each costs, how it is undone and which tier uses it.
 // omui-gen ops writes the listing (media/ops/breakout.ops.json) and its reference.
 import { defineOps } from "omui/define";

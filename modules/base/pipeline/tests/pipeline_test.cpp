@@ -212,11 +212,12 @@ UTest cases{"pipeline", [] {
         expect(std::ranges::any_of(stats, [](const auto& st) { return st.name == "double" && st.category == "test"; }));
     };
 
-    "a description writes as <name>.pipeline.omui.toml"_test = [] {
+    "a description writes as JSON, a stage a line"_test = [] {
         pl::Description d{"desktop", {{"raster", "openmui.render.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
-        const std::string toml = pl::to_toml(d);
-        expect(eq(toml, std::string("name = \"desktop\"\n\n[[stage]]\nname = \"raster\"\nplugin = \"openmui.render.cpu\"\nafter = [\"damage\"]\n"
-                                   "config = { parallel = true, rows_per_task = 64, gamma = 2.0, label = \"a \\\"b\\\"\" }\n")));
+        expect(eq(pl::to_json(d), std::string(R"({"pipeline": {"name": "desktop", "stages": [
+  {"name": "raster", "plugin": "openmui.render.cpu", "after": ["damage"], "config": {"parallel": true, "rows_per_task": 64, "gamma": 2.0, "label": "a \"b\""}}
+]}}
+)")));
     };
 
     "resources are typed: a wrong type reads as nothing"_test = [] {

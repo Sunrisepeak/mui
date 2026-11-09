@@ -16,14 +16,13 @@
 //
 //     mlibs::pipeline::Registry plugins;
 //     plugins.add({.name = "acme.blur", .kind = "stage"}, [](const Config&) { return std::make_unique<Blur>(); });
-//     auto p = mlibs::pipeline::Pipeline::build(app_pipeline(), plugins, inputs);  // app_pipeline(): generated from app.pipeline.omui.toml
+//     auto p = mlibs::pipeline::Pipeline::build(app_pipeline(), plugins, inputs);  // app_pipeline(): a C++ Description
 //     p->run(resources);
 //
 // An independent component (D-55): the standard library and mlibs.trace.
-// `<name>.pipeline.omui.toml` is read at the edges: omui-gen (and the
-// a build plugin under mcpp/) turns it into a C++ Description at build time,
-// and tools send changes as JSON over the agent protocol; this package parses
-// nothing, so it throws nothing.
+// A description is written as JSON (`to_json`) for tools and agents, and
+// changes come as JSON over the agent protocol; this package parses nothing,
+// so it throws nothing.
 export module mlibs.pipeline.api;
 
 import std;
@@ -198,21 +197,18 @@ struct Description {
 };
 
 struct Problem {
-    std::string where;    // "app.pipeline.omui.toml:12" or "stage `raster`"
+    std::string where;    // "stage `raster`"
     std::string message;
     std::string hint;
 };
 
 [[nodiscard]] std::string to_text(std::span<const Problem> problems);
 
-// A description as `<name>.pipeline.omui.toml`:
-//     name = "desktop"
-//     [[stage]]
-//     name = "raster"
-//     plugin = "openmui.render.cpu"
-//     after = ["damage"]
-//     config = { parallel = true }
-[[nodiscard]] std::string to_toml(const Description& description);
+// A description as JSON, a stage a line:
+//     {"pipeline": {"name": "desktop", "stages": [
+//       {"name": "raster", "plugin": "openmui.render.cpu", "after": ["damage"], "config": {"parallel": true}}
+//     ]}}
+[[nodiscard]] std::string to_json(const Description& description);
 
 // ── pipelines ─────────────────────────────────────────────────────────────
 

@@ -216,7 +216,7 @@ UTest cases{"viewdoc", [] {
 
     "bindings: expressions follow signals and models; bind is two-way; tr reads the catalogue"_test = [] {
         Headless h(options());
-        (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), "search = \"Suchen\"\nfound = \"{$n :number} gefunden\"\n", "de.messages.omui.toml");
+        (void)languages().add_messages(*mlibs::i18n::Locale::parse("de"), R"({"messages": {"search": "Suchen", "found": "{$n :number} gefunden"}})", "de.messages.omui.json");
         languages().request({*mlibs::i18n::Locale::parse("de")});
         auto view = vd::View::load(h.runtime(), view_of(R"j({"type": "column", "children": [
             {"type": "text_box", "id": "q", "props": {"text": {"bind": "query"}, "label": {"tr": "search"}}},

@@ -453,7 +453,7 @@ my-app/
 
 **落地步骤**：
 1. app-ts 模板和 `omui new` 先按新布局生成；lint `layout` 增加规则：根目录出现约定以外的文件或目录、同类数据文件分散在多处，都报出来，并给出应当放的位置。
-2. 现有的包和作品逐个迁移：`contract/` → `contracts/`（契约插件的默认目录随之改）、根目录的 `*.ops.omui.ts` → `ops/`、`logic/` → `app/`、`ui/` → `design/`。每个包迁移后，用 `tools/dev/verify_ts_migration.py` 的同样方法核对生成物逐字节不变，并运行该包的测试。
+2. 现有的包和作品逐个迁移：`contract/` → `contracts/`（契约插件的默认目录随之改）、根目录的 `*.ops.omui.ts` → `ops/`、`logic/` → `app/`、`ui/` → `design/`。每个包迁移后，核对生成物逐字节不变（omui-gen 的“生成物是最新的”测试），并运行该包的测试。
 3. 作品里的资源目录（music/、sounds/、gifts/ 等）按内容并入 `assets/` 或 `app/`。
 
 ### 2.18 脚本导入按层面分：`openmui` 是规范，`omui` 是实现（D-157，已确认）
@@ -718,6 +718,12 @@ my-app/
     - `xrender.effect` 读 `{"effect": {name, doc, reach, params}}`（`[[param]]` 改为 `params`）；它不求值 TS：`Options::data` 由宿主注入，桌面宿主（`DesktopOptions::effect_data`、sdk 的 `App::effect_data`）转交，player 入口传入自己的求值器，所以应用的 `*.effect.omui.ts` 随保存热重载；没有求值器时只认 `.effect.omui.json`，`.ts` 给出指向快照的提示。测试数据改为 JSON 快照（xrender 的测试不求值 TS）。
     - 画布行为：`omui.ui.canvas.kit` 的树改由 `mlibs.json` 构造（`Toml` 改名 `Tree`），对象按键序交出，与原来一致；markdown-wall 的两个行为和 embed 插件的 `behaviors()` 改用 `.behavior.omui.ts`。
     - 转写器支持点分键（`on.key = …` 的表展开为多行对象）和跨行书写的列表（保持一项一行）。
+  - G 完成，第 3 步结束：仓库里不再有 `*.omui.toml`，也没有读它的代码。
+    - omui-gen 的读取器（注册表、契约、native 模块、操作目录）改为在 `mlibs.json` 上读 JSON 快照，toml++ 依赖去掉；`.omui.toml` 直接拒绝并指向转写器。有名字的条目按键序读，生成物（openmui.h、规范分区、存根、各组件和 native 模块的代码、操作目录清单）逐字节不变，由“生成物是最新的”测试核对。操作目录读 `defineOps` 本来的形状（`{"ops": {…, operations, tiers}}`），不再先改成 `[catalog]`、`[[operation]]`。
+    - 契约插件只认 `.contract.omui.ts`、`.native.omui.ts`；只为 TOML 服务的 `table_names` 删除；验证 TOML 与 TS 等价的 `verify_ts_migration.py` 删除。
+    - 消息目录（`mlibs.i18n`）读 `{"messages": {…}}`（`defineMessages`），窗口组件、sdk 的目录、测试随之改为 JSON；管线描述（`mlibs.pipeline`）写 JSON（`to_json`），协议的 `pipeline` 回答 `description`（结构化），命令行 `--description`。
+    - 生成物与规范存根里提到的 `roles.toml`、`abi.toml`、`expr.toml` 等改为 `.json`（规范仓库 c97a650）。
+    - lint `typescript`：任何 `*.omui.toml` 都是问题。toml++ 只留在读 `mcpp.toml` 的地方（player 入口、命令行）和 gongfu 自己的格式。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。
@@ -777,7 +783,7 @@ my-app/
   - 入口 player 只在 `design` 特性下链接它：`omui dev` 用 `mcpp run --features omui.entry.player/design -- --dev`，`omui build --release` 不带这个特性。
   - 没有设计器的开发模式会说明这一点，应用照常运行。
   - mcpp 的 profile 不能选择特性，命令行也不能关闭默认特性，所以由开发一侧去打开特性。
-- 第十二块完成：设计回放成为作品（第 9 步）。`design.film` 在看不见的孪生应用里，从一条分支的第一个提交起逐步运行：每一步都像设计编辑那样呈现（写入、擦除、弹动），下方配上这一步的说明字幕，按帧绘制；输出 PNG 帧序列，旁边写一份视频描述（`*.video.omui.toml`）。
+- 第十二块完成：设计回放成为作品（第 9 步）。`design.film` 在看不见的孪生应用里，从一条分支的第一个提交起逐步运行：每一步都像设计编辑那样呈现（写入、擦除、弹动），下方配上这一步的说明字幕，按帧绘制；输出 PNG 帧序列，旁边写一份视频描述（`design.video.omui.json`）。
   - `omui design film` 先用设计器构建并运行应用（入口的 `--design-film`），再用 `omui video render` 渲染成 WebM。
   - 每步的时长、帧率和分支都可以设置。
 - 第十三块完成：时间上的断言（§2.12.4）。`design.expect {motion: {act, node, measure, within_ms, overshoot}}` 写下"做了某个动作后，节点怎样运动"。`design.check` 在孪生应用里做这个动作，以 1/120 s 的间隔采样节点实际绘制出的框（语义树的 bounds 是目标值，所以不用它），算出起止值、稳定时间（最终停在终值 1% 以内的时刻）和回弹（越过终值的比例），并与期望逐条对照，例如："height 40 → 160 px in 870 ms（在 50–2500 ms 内），回弹 39%（超过 5%）"。人的应用不受影响。场景文件也会存下运动期望。

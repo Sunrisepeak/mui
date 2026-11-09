@@ -23,24 +23,9 @@ constexpr float edge_inset = 12;       // the buttons' distance from the title b
 
 // The texts the frame shows or names, as keys with the English text in the
 // source catalog and Chinese beside it.
-constexpr std::string_view messages_en = R"([window]
-minimize = "Minimize"
-maximize = "Maximize"
-restore = "Restore"
-close = "Close"
-)";
-constexpr std::string_view messages_zh_hans = R"([window]
-minimize = "最小化"
-maximize = "最大化"
-restore = "还原"
-close = "关闭"
-)";
-constexpr std::string_view messages_zh_hant = R"([window]
-minimize = "最小化"
-maximize = "最大化"
-restore = "還原"
-close = "關閉"
-)";
+constexpr std::string_view messages_en = R"({"messages": {"window": {"minimize": "Minimize", "maximize": "Maximize", "restore": "Restore", "close": "Close"}}})";
+constexpr std::string_view messages_zh_hans = R"({"messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "还原", "close": "关闭"}}})";
+constexpr std::string_view messages_zh_hant = R"({"messages": {"window": {"minimize": "最小化", "maximize": "最大化", "restore": "還原", "close": "關閉"}}})";
 
 std::string_view kind_name(CaptionButtonKind k) {
     switch (k) {
@@ -377,9 +362,9 @@ void register_window_components() {
     register_type(component_type<CaptionButton>());
     static const bool texts = [] {
         Languages& l = languages();
-        for (auto [tag, toml] : {std::pair{"en", messages_en}, {"zh-Hans", messages_zh_hans}, {"zh-Hant", messages_zh_hant}})
+        for (auto [tag, json] : {std::pair{"en", messages_en}, {"zh-Hans", messages_zh_hans}, {"zh-Hant", messages_zh_hant}})
             if (auto loc = mlibs::i18n::Locale::parse(tag))
-                if (auto r = l.add_messages(*loc, toml, std::format("openmui.ui.window.{}.messages.omui.toml", tag)); !r)
+                if (auto r = l.add_messages(*loc, json, std::format("openmui.ui.window.{}.messages.omui.json", tag)); !r)
                     for (const auto& d : r.error()) warn("{}", d.text());
         return true;
     }();

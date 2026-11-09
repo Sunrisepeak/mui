@@ -133,13 +133,13 @@ UTest cases{"gen", [] {
     "a broken contract is reported line by line"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto contracts = gen::read_contracts(here() / "data" / "bad.contract.omui.toml", reg, diags);
+        auto contracts = gen::read_contracts(here() / "data" / "bad.contract.omui.json", reg, diags);
         auto text = diags.text();
         for (auto wanted : {"unknown role `spaceship`", "unknown type `huge`", "default of `mode`", "default of `count`",
                             "weaker than its default", "unknown effect `orbital`", "names `fly`",
                             "unknown token `motion.warp`", "action `aim` argument `at` has unknown type `f64 | Up | | down`"})
             expect(text.find(wanted) != std::string::npos) << wanted;
-        expect(text.find("bad.contract.omui.toml:3:") != std::string::npos) << "diagnostics carry line numbers";
+        expect(text.find("bad.contract.omui.json:3:") != std::string::npos) << "diagnostics carry line numbers";
         auto json = diags.json();
         expect(json.starts_with("[{\"severity\":\"error\"")) << json.substr(0, 60);
     };
@@ -155,14 +155,14 @@ UTest cases{"gen", [] {
     "a broken native contract is reported line by line"_test = [] {
         gen::Diagnostics diags;
         auto reg = gen::read_registry(spec_dir() / "registry", diags);
-        auto modules = gen::read_natives(here() / "data" / "bad.native.omui.toml", reg, diags);
+        auto modules = gen::read_natives(here() / "data" / "bad.native.omui.json", reg, diags);
         auto text = diags.text();
         for (auto wanted : {"native module name `Bad` is not lower_snake_case", "type name `point` is not PascalCase",
                             "Node.next holds a Node in itself", "Node.weight: unknown type `decimal`",
                             "`irreversible`, which needs an answer (S-1)", "find(query) follows the optional `limit`",
                             "find returns: unknown type `Hit`"})
             expect(text.find(wanted) != std::string::npos) << wanted;
-        expect(text.find("bad.native.omui.toml:10:") != std::string::npos) << "diagnostics carry line numbers";
+        expect(text.find("bad.native.omui.json:10:") != std::string::npos) << "diagnostics carry line numbers";
     };
 
     "the official native modules' generated code and stubs are current (modules/projects/omui/native/*)"_test = [] {
@@ -256,38 +256,22 @@ UTest cases{"gen", [] {
     };
 
     "a malformed catalog is reported line by line"_test = [] {
-        const auto broken = gen::read_catalog(R"([catalog]
-product = "x"
-module = "x.control"
-namespace = "x::control"
-
-[[operation]]
-name = "Bad Name"
-effect = "maybe"
-summary = "something"
-
-[[operation]]
-name = "x.change"
-effect = "reversible"
-summary = "changes"
-
-[[operation]]
-name = "x.run"
-effect = "read"
-delegated = true
-summary = "runs what it names"
-
-[[operation]]
-name = "x.peek"
-effect = "read"
-undoable = true
-summary = "reads"
-)", "x.ops.omui.toml");
+        const auto broken = gen::read_catalog(R"({"ops": {
+  "product": "x",
+  "module": "x.control",
+  "namespace": "x::control",
+  "operations": [
+    {"name": "Bad Name", "effect": "maybe", "summary": "something"},
+    {"name": "x.change", "effect": "reversible", "summary": "changes"},
+    {"name": "x.run", "effect": "read", "delegated": true, "summary": "runs what it names"},
+    {"name": "x.peek", "effect": "read", "undoable": true, "summary": "reads"}
+  ]
+}})", "x.ops.omui.json");
         expect(!broken) << "refused";
         if (broken) return;
         const auto& problems = broken.error();
         const auto says = [&](std::string_view text) { return std::ranges::any_of(problems, [&](const std::string& p) { return p.find(text) != std::string::npos; }); };
-        expect(says("x.ops.omui.toml:6") && says("dotted lowercase")) << "the bad name at its line";
+        expect(says("x.ops.omui.json:6") && says("dotted lowercase")) << "the bad name at its line";
         expect(says("not read, reversible or irreversible")) << "the bad effect";
         expect(says("say how it is undone")) << "a change without its undo";
         expect(says("the most that can be")) << "a delegated operation's bound is above read";

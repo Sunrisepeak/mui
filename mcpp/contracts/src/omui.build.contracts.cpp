@@ -19,22 +19,21 @@ std::string default_registry() {
 }  // namespace
 
 // A TypeScript file (<name>.contract.omui.ts, D-139) holds one, named as the
-// file (omui-gen checks it); a TOML file says its names as tables.
+// file (omui-gen checks it).
 std::vector<std::string> names_in(const std::filesystem::path& file, std::string_view kind) {
     const std::string name = utf8(file.filename());
     const std::string typescript = std::format(".{}.omui.ts", kind);
     if (name.ends_with(typescript)) return {name.substr(0, name.size() - typescript.size())};
-    return table_names(file, kind);
+    return {};
 }
 
 std::vector<std::string> contract_names(const std::filesystem::path& file) { return names_in(file, "contract"); }
 
 std::vector<std::string> native_names(const std::filesystem::path& file) { return names_in(file, "native"); }
 
-// The files of a kind in `dir`: <name>.<kind>.omui.toml and <name>.<kind>.omui.ts.
+// The files of a kind in `dir`: <name>.<kind>.omui.ts.
 std::vector<std::filesystem::path> kind_files(const std::filesystem::path& dir, std::string_view kind) {
-    auto files = files_ending(dir, std::format(".{}.omui.toml", kind));
-    std::ranges::move(files_ending(dir, std::format(".{}.omui.ts", kind)), std::back_inserter(files));
+    auto files = files_ending(dir, std::format(".{}.omui.ts", kind));
     std::ranges::sort(files);
     return files;
 }
@@ -118,7 +117,7 @@ bool components(component_options opt) {
     mcpp::rerun_if_changed_glob((opt.contracts + "/**").c_str());
     auto edges = plan(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.toml or .contract.omui.ts)", opt.contracts);
+        std::println(std::cerr, "omui.build.contracts: no contract in {}/ (files named <name>.contract.omui.ts)", opt.contracts);
         return false;
     }
     return submit(edges);
@@ -179,7 +178,7 @@ bool natives(native_options opt) {
     mcpp::rerun_if_changed_glob((opt.natives + "/**").c_str());
     auto edges = plan_natives(opt);
     if (edges.empty()) {
-        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.toml or .native.omui.ts)", opt.natives);
+        std::println(std::cerr, "omui.build.contracts: no native module in {}/ (files named <name>.native.omui.ts)", opt.natives);
         return false;
     }
     return submit(edges);

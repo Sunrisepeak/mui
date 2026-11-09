@@ -51,8 +51,4 @@ bool submit(std::span<const edge> edges);
 // Every file under `dir`, recursively, sorted, as UTF-8 text.
 [[nodiscard]] std::vector<std::string> files_under(const std::filesystem::path& dir);
 
-// The names a TOML file declares as `[<table>.<name>]` (a deeper
-// `[<table>.<name>.<part>]` is a sub-table, not a name).
-[[nodiscard]] std::vector<std::string> table_names(const std::filesystem::path& file, std::string_view table);
-
 }  // namespace omui::build

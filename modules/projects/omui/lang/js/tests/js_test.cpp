@@ -200,7 +200,7 @@ if (a.value !== 1) throw new Error("the mirror has it");
     };
 
     "tr: a message in the person's language, its arguments by name; a key no catalog has is its own message"_test = [] {
-        (void)omui::languages().add_messages(*mlibs::i18n::Locale::parse("en"), "greeting = \"Hello, {$name}!\"\n", "en.messages.omui.toml");
+        (void)omui::languages().add_messages(*mlibs::i18n::Locale::parse("en"), R"({"messages": {"greeting": "Hello, {$name}!"}})", "en.messages.omui.json");
         omui::languages().request({*mlibs::i18n::Locale::parse("en")});
         Runtime r;
         Js js(r);

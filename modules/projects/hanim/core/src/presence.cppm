@@ -6,7 +6,7 @@
 // An object recipe plays a course over its duration and ease (hanim's
 // `rise_in(object, 24)`); a UI transition plays it over the transition's own
 // curve, for a drawing piece that appears or vanishes (hanim.visual). The
-// names are the specification's (registry/motion.toml `[[presence]]`).
+// names are the specification's (registry/motion.json `[[presence]]`).
 //
 //     auto rise = hanim::presence("rise_in", {.distance = 8});
 //     const PresencePose pose = rise->pose(0.5);   // half-way up

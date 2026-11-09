@@ -1,5 +1,5 @@
-// omui.gen.ops — a product's operation catalog (`<product>.ops.omui.toml`,
-// or `<product>.ops.omui.ts`, convergence plan §10.3) to its generated code and listings:
+// omui.gen.ops — a product's operation catalog (`<product>.ops.omui.ts`,
+// convergence plan §10.3; read as its JSON) to its generated code and listings:
 //
 //   - (when the catalog names a module) a C++ partition `<module>:catalog` holding `catalog`, an
 //   array of
@@ -46,10 +46,11 @@ struct Catalog {
     std::vector<Tier> tiers;
 };
 
-// The catalog in `text` (named `file` in messages), or every problem in it.
+// The catalog in `text` — its JSON snapshot, `{"ops": {…}}` — (named `file`
+// in messages), or every problem in it.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog(std::string_view text,
                                                                             std::string_view file);
-// The catalog file: <product>.ops.omui.toml, or <product>.ops.omui.ts (defineOps, D-139).
+// The catalog file: <product>.ops.omui.ts (defineOps, D-139), or its JSON.
 [[nodiscard]] std::expected<Catalog, std::vector<std::string>> read_catalog_file(const std::filesystem::path& file);
 [[nodiscard]] std::string emit_catalog_cpp(const Catalog& catalog, std::string_view source);
 [[nodiscard]] std::string emit_catalog_json(const Catalog& catalog);

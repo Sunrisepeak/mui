@@ -15,6 +15,7 @@ The single progress entry (plan §12, at most 200 lines). Updated by every check
 - **W14 Live Design**: parts 1–15 done. The designer is its own package (`omui.designer`, left out of a release). It has design.* (31 operations, MCP), built_at maps both ways, structured edits, history (commit, branch, switch, merge, timeline, sync), stand-ins (previews, variants), motion expectations, a film, and a code card. The signature scene is example 13 (`tests/live_design_test.cpp`). Open: hanim's presentation recipes beyond write-in/unwrite, and the timeline's drag.
 - **W12** done (record/replay to the same bytes). **W15** done through step 2 (MCP's omui_* tools, the irreversible ones asked first). **W2**, **W1** steps 1–5. **W3**: the export with its operations, and the declarations held to it by a test.
 - **W0** done: every test is on mtest (four batches after the pilot). `mlibs.testing` keeps only `scratch_dir`, the target's constants and `Hash`.
+- **W1 step 3** done (D-139, D-159): no `*.omui.toml` is left, nor any code reading one. Every data file is a TypeScript data module (`define…`) or its JSON snapshot; readers below the interface layer read snapshots through `mlibs.json` (problems at their JSON pointer); omui-gen's outputs are byte for byte as before.
 
 ## M0 — stop the bleeding (exit met: 46b3cdfd all green)
 

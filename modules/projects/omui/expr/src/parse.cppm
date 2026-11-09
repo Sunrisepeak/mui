@@ -1,6 +1,6 @@
 // openmui.expr:parse — CEL-compatible text to the AST.
 //
-// The subset of registry/expr.toml: literals (null, booleans, ints, doubles,
+// The subset of registry/expr.json: literals (null, booleans, ints, doubles,
 // strings with escapes, lists, maps), names, member access, indexing,
 // function calls in both forms (`size(x)`, `x.size()`), `has(a.b)`, the
 // arithmetic, comparison and logical operators, `in`, and `c ? a : b`.

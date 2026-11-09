@@ -416,6 +416,15 @@ export declare function defineEffect(effect: Effect): Defined<"effect">;
 /** A canvas behaviour: a state machine over a canvas's events, its states, actions and what each does. */
 export declare function defineBehavior(behaviors: { [name: string]: { on?: string; initial?: string; doc?: string; [field: string]: unknown } }): Defined<"behavior">;
 
+// ── an application's languages (mlibs.i18n) ──────────────────────────────
+
+/** A catalog's messages (MessageFormat 2), by key; an object's keys are dotted (`inbox.count`). */
+export interface Messages {
+    [key: string]: string | Messages;
+}
+/** `export default defineMessages({ title: "Inbox", inbox: { count: "{$count :number} new" } })`, a file a language (`app.zh-Hans.messages.omui.ts`). */
+export declare function defineMessages(messages: Messages): Defined<"messages">;
+
 // ── motion recipes ───────────────────────────────────────────────────────
 
 export declare function defineMotion(motion: { [field: string]: unknown }): Defined<"motion">;

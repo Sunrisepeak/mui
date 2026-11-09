@@ -6,7 +6,7 @@
 //   Library lib;                                     // the locale packs and the catalogs
 //   lib.add(std::make_shared<LocaleData>(*read_locale_data(json)));
 //   lib.set_likely(*read_likely_subtags(likely_json));
-//   lib.catalog(*Locale::parse("zh-Hans")) = *read_messages(toml);
+//   lib.catalog(*Locale::parse("zh-Hans")) = *read_messages(json);
 //
 //   Translator t(lib, requested, *Locale::parse("en"));
 //   t.tr("inbox.count", {{"count", std::int64_t{3}}});  // 3 条新消息

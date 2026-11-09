@@ -20,16 +20,16 @@ struct Diagnostics {
     [[nodiscard]] std::string json() const;  // [{"severity", "file", "line", "column", "message", "hint"}]
 };
 
-// spec/registry: every *.toml there and components/*.contract.omui.toml.
+// spec/registry: its JSON snapshots and components/*.contract.omui.json (D-159).
 [[nodiscard]] Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags);
 
-// The contracts of one *.contract.omui.toml, checked against the registry
+// The contracts of one *.contract.omui.ts (or its JSON), checked against the registry
 // (roles, actions, effects, motion tokens exist; effects are never weaker
 // than an action's default; key bindings name actions or commands).
 [[nodiscard]] std::vector<Contract> read_contracts(const std::filesystem::path& file, const Registry& registry,
                                                    Diagnostics& diags);
 
-// The native modules of one *.native.omui.toml (component-binding §8),
+// The native modules of one *.native.omui.ts (or its JSON; component-binding §8),
 // checked: names, types (scalars, records the module declares, T[], T?),
 // effects the registry knows and that need no answer (an answer is a verb's).
 [[nodiscard]] std::vector<NativeModule> read_natives(const std::filesystem::path& file, const Registry& registry,

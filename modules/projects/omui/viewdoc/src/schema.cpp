@@ -112,7 +112,7 @@ Value component_schema(const ComponentType& t) {
 }
 
 Value expression() {
-    return typed("string").set("description", "A CEL expression (registry/expr.toml): signals, models, properties, `event` in handlers");
+    return typed("string").set("description", "A CEL expression (registry/expr.json): signals, models, properties, `event` in handlers");
 }
 
 Value defs(bool with_document_components) {

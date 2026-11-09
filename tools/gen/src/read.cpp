@@ -1,7 +1,7 @@
 module omui.gen.read;
 
 import std;
-import tomlplusplus;
+import mlibs.json;
 import omui.gen.data;
 import omui.gen.model;
 
@@ -62,157 +62,141 @@ std::string Diagnostics::json() const {
 
 namespace {
 
-// Words about the data, not data (D-159: a JSON snapshot keeps its comments as doc, note and <key>_doc).
 // The words a JSON snapshot keeps beside a map's entries (D-159): `doc`,
 // `note`, `<entry>_doc`, as text. Where an entry is a table, a name is never
 // taken for words; in a map of arguments to types only `<entry>_doc` is.
 bool documentation(std::string_view key) { return key == "doc" || key == "note" || key.ends_with("_doc"); }
 
-struct Reader {
-    std::string  file;
-    Diagnostics& diags;
+using mlibs::json::Node;
 
-    Loc loc(const toml::node* n) const {
-        if (!n) return {file, 0, 0};
-        auto s = n->source();
-        return {file, static_cast<int>(s.begin.line), static_cast<int>(s.begin.column)};
+struct Reader {
+    const mlibs::json::Document& doc;
+    Diagnostics&                 diags;
+
+    [[nodiscard]] const std::string& file() const noexcept { return doc.file(); }
+    Loc loc(const Node& n) const {
+        const auto place = doc.problem(n, {});
+        return {doc.file(), static_cast<int>(place.line), static_cast<int>(place.column)};
     }
 
-    std::string str(const toml::table& t, std::string_view key, bool required = false) const {
-        const toml::node* n = t.get(key);
+    std::string str(const Node& t, std::string_view key, bool required = false) const {
+        const Node n = t[key];
         if (!n) {
-            if (required) diags.error(loc(&t), std::format("missing `{}`", key));
+            if (required) diags.error(loc(t), std::format("missing `{}`", key));
             return {};
         }
-        if (auto v = n->value<std::string>()) return *v;
+        if (auto v = n.text()) return *v;
         diags.error(loc(n), std::format("`{}` must be a string", key));
         return {};
     }
 
-    bool boolean(const toml::table& t, std::string_view key, bool fallback) const {
-        const toml::node* n = t.get(key);
+    bool boolean(const Node& t, std::string_view key, bool fallback) const {
+        const Node n = t[key];
         if (!n) return fallback;
-        if (auto v = n->value<bool>()) return *v;
+        if (auto v = n.boolean()) return *v;
         diags.error(loc(n), std::format("`{}` must be true or false", key));
         return fallback;
     }
 
-    std::optional<double> number(const toml::table& t, std::string_view key) const {
-        const toml::node* n = t.get(key);
+    std::optional<double> number(const Node& t, std::string_view key) const {
+        const Node n = t[key];
         if (!n) return std::nullopt;
-        if (auto v = n->value<double>()) return *v;
+        if (auto v = n.number()) return *v;
         diags.error(loc(n), std::format("`{}` must be a number", key));
         return std::nullopt;
     }
 
-    std::vector<std::string> strings(const toml::table& t, std::string_view key) const {
+    std::vector<std::string> strings(const Node& t, std::string_view key) const {
         std::vector<std::string> out;
-        const toml::node* n = t.get(key);
+        const Node n = t[key];
         if (!n) return out;
-        const toml::array* a = n->as_array();
-        if (!a) {
+        if (!n.is_array()) {
             diags.error(loc(n), std::format("`{}` must be an array of strings", key));
             return out;
         }
-        for (const toml::node& e : *a) {
-            if (auto v = e.value<std::string>()) out.push_back(*v);
-            else diags.error(loc(&e), std::format("`{}` must hold strings", key));
+        for (const Node& e : n.items()) {
+            if (auto v = e.text()) out.push_back(*v);
+            else diags.error(loc(e), std::format("`{}` must hold strings", key));
         }
         return out;
     }
 
-    std::map<std::string, std::string> string_map(const toml::table& t, std::string_view key) const {
+    std::map<std::string, std::string> string_map(const Node& t, std::string_view key) const {
         std::map<std::string, std::string> out;
-        const toml::node* n = t.get(key);
+        const Node n = t[key];
         if (!n) return out;
-        const toml::table* m = n->as_table();
-        if (!m) {
-            diags.error(loc(n), std::format("`{}` must be a table", key));
+        if (!n.is_object()) {
+            diags.error(loc(n), std::format("`{}` must be an object", key));
             return out;
         }
-        for (auto&& [k, v] : *m) {
-            if (documentation(k.str())) continue;
-            if (auto s = v.value<std::string>()) out.emplace(std::string(k.str()), *s);
-            else diags.error(loc(&v), std::format("`{}.{}` must be a string", key, k.str()));
+        for (const auto& [k, v] : n.members()) {
+            if (documentation(k)) continue;
+            if (auto s = v.text()) out.emplace(k, *s);
+            else diags.error(loc(v), std::format("`{}.{}` must be a string", key, k));
         }
         return out;
     }
 
-    std::vector<Arg> args(const toml::table& t, std::string_view key) const {
+    // In name order, as the registry and the generated code have them.
+    std::vector<Arg> args(const Node& t, std::string_view key) const {
         std::vector<Arg> out;
-        const toml::node* n = t.get(key);
+        const Node n = t[key];
         if (!n) return out;
-        const toml::table* m = n->as_table();
-        if (!m) {
-            diags.error(loc(n), std::format("`{}` must be a table of name = type", key));
+        if (!n.is_object()) {
+            diags.error(loc(n), std::format("`{}` must be an object of name: type", key));
             return out;
         }
-        for (auto&& [k, v] : *m) {
-            if (k.str().ends_with("_doc")) continue;  // `doc` and `note` are arguments' names here
-            if (auto s = v.value<std::string>()) out.push_back({std::string(k.str()), *s});
-            else diags.error(loc(&v), "an argument type must be a string");
+        for (const auto& [k, v] : n.members_by_key()) {
+            if (k.ends_with("_doc")) continue;  // `doc` and `note` are arguments' names here
+            if (auto s = v.text()) out.push_back({k, *s});
+            else diags.error(loc(v), "an argument type must be a string");
         }
         return out;
     }
 
-    // Each [[name]] element as a table, with its location.
+    // Each element of the list `key` as an object, with its place.
     template <class F>
-    void each(const toml::table& root, std::string_view key, F f) const {
-        const toml::node* n = root.get(key);
+    void each(const Node& root, std::string_view key, F f) const {
+        const Node n = root[key];
         if (!n) return;
-        const toml::array* a = n->as_array();
-        if (!a) {
-            diags.error(loc(n), std::format("`{}` must be an array of tables ([[{}]])", key, key));
+        if (!n.is_array()) {
+            diags.error(loc(n), std::format("`{}` must be a list of objects", key));
             return;
         }
-        for (const toml::node& e : *a) {
-            if (const toml::table* t = e.as_table()) f(*t);
-            else diags.error(loc(&e), std::format("an element of `{}` must be a table", key));
+        for (const Node& e : n.items()) {
+            if (e.is_object()) f(e);
+            else diags.error(loc(e), std::format("an element of `{}` must be an object", key));
         }
     }
 
     template <class T>
-    void named(T& item, const toml::table& t) const {
+    void named(T& item, const Node& t) const {
         item.name = str(t, "name", true);
         item.doc = str(t, "doc");
-        item.loc = loc(&t);
+        item.loc = loc(t);
     }
 };
 
-std::optional<toml::table> parse(const std::filesystem::path& path, Diagnostics& diags) {
-    if (path.extension() == ".json") {  // a JSON snapshot (D-159)
-        auto document = json_document(path);
-        if (!document) {
-            diags.error({generic_utf8(path), 0, 0}, document.error());
-            return std::nullopt;
-        }
-        return std::move(*document);
-    }
-    if (is_data_module(path)) {  // <name>.<kind>.omui.ts (D-139)
-        const auto name = generic_utf8(path.filename());
-        const std::string_view kind = name.ends_with(".native.omui.ts") ? "native" : "contract";
-        auto document = data_document(path, kind);
-        if (!document) {
-            diags.error({generic_utf8(path), 0, 0}, document.error());
-            return std::nullopt;
-        }
-        return std::move(*document);
-    }
-    try {
-        // Read through the path itself (wide on Windows), then parse the text.
-        std::ifstream in(path, std::ios::binary);
-        if (!in) {
-            diags.error({generic_utf8(path), 0, 0}, "cannot read the file");
-            return std::nullopt;
-        }
-        const std::string text{std::istreambuf_iterator<char>(in), {}};
-        return toml::parse(text, generic_utf8(path));
-    } catch (const toml::parse_error& e) {
-        auto s = e.source();
-        diags.error({generic_utf8(path), static_cast<int>(s.begin.line), static_cast<int>(s.begin.column)},
-                    std::string(e.description()));
+// A data file as its document: a JSON snapshot (D-159), or a TypeScript
+// data module evaluated (D-139). TOML is no longer read.
+std::optional<mlibs::json::Document> parse(const std::filesystem::path& path, Diagnostics& diags) {
+    const auto name = generic_utf8(path);
+    std::expected<mlibs::json::Document, std::string> document = std::unexpected(std::string());
+    if (is_data_module(path)) {  // <name>.<kind>.omui.ts
+        const auto file = generic_utf8(path.filename());
+        document = data_document(path, file.ends_with(".native.omui.ts") ? "native" : "contract");
+    } else if (path.extension() == ".json") {
+        document = json_document(path);
+    } else {
+        diags.error({name, 0, 0}, "not a data file this reads: a <name>.<kind>.omui.ts module, or its .json",
+                    "tools/dev/toml_to_ts.py writes a TOML file as its module");
         return std::nullopt;
     }
+    if (!document) {
+        diags.error({name, 0, 0}, document.error());
+        return std::nullopt;
+    }
+    return std::move(*document);
 }
 
 template <class T>
@@ -250,59 +234,56 @@ bool valid_arg_type(std::string_view type) {
     return some;
 }
 
-void read_abi(const toml::table& root, Reader& r, Abi& abi) {
+void read_abi(const Node& root, Reader& r, Abi& abi) {
     abi.prefix = r.str(root, "prefix");
-    r.each(root, "handle", [&](const toml::table& t) {
+    r.each(root, "handle", [&](const Node& t) {
         AbiHandle h;
         r.named(h, t);
         h.kind = r.str(t, "kind", true);
         abi.handles.push_back(std::move(h));
     });
-    r.each(root, "result", [&](const toml::table& t) {
+    r.each(root, "result", [&](const Node& t) {
         AbiResult x;
         r.named(x, t);
         x.value = static_cast<int>(r.number(t, "value").value_or(0));
         abi.results.push_back(std::move(x));
     });
-    r.each(root, "enum", [&](const toml::table& t) {
+    r.each(root, "enum", [&](const Node& t) {
         AbiEnum e;
         r.named(e, t);
         e.values = r.strings(t, "values");
         abi.enums.push_back(std::move(e));
     });
-    auto fields = [&](const toml::table& t, std::string_view key) {
+    auto fields = [&](const Node& t, std::string_view key) {
         std::vector<AbiField> out;
-        const toml::node* n = t.get(key);
-        if (!n || !n->is_array()) return out;
-        for (const toml::node& e : *n->as_array()) {
-            const toml::table* f = e.as_table();
-            if (!f) continue;
-            AbiField field{r.str(*f, "name", true), r.str(*f, "type", true), r.str(*f, "doc"),
-                           static_cast<int>(r.number(*f, "array").value_or(0))};
+        for (const Node& f : t[key].items()) {
+            if (!f.is_object()) continue;
+            AbiField field{r.str(f, "name", true), r.str(f, "type", true), r.str(f, "doc"),
+                           static_cast<int>(r.number(f, "array").value_or(0))};
             out.push_back(std::move(field));
         }
         return out;
     };
-    r.each(root, "struct", [&](const toml::table& t) {
+    r.each(root, "struct", [&](const Node& t) {
         AbiStruct s;
         r.named(s, t);
         s.extensible = r.boolean(t, "extensible", false);
         s.fields = fields(t, "fields");
         abi.structs.push_back(std::move(s));
     });
-    auto params = [&](const toml::table& t) {
+    auto params = [&](const Node& t) {
         std::vector<AbiParam> out;
         for (auto& f : fields(t, "params")) out.push_back({f.name, f.type});
         return out;
     };
-    r.each(root, "callback", [&](const toml::table& t) {
+    r.each(root, "callback", [&](const Node& t) {
         AbiCallback c;
         r.named(c, t);
         c.returns = r.str(t, "returns", true);
         c.params = params(t);
         abi.callbacks.push_back(std::move(c));
     });
-    r.each(root, "function", [&](const toml::table& t) {
+    r.each(root, "function", [&](const Node& t) {
         AbiFunction f;
         r.named(f, t);
         f.params = params(t);
@@ -319,7 +300,7 @@ std::string base_target(std::string_view target) {
 
 Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     Registry reg;
-    auto load = [&](std::string_view name) -> std::optional<toml::table> {
+    auto load = [&](std::string_view name) -> std::optional<mlibs::json::Document> {
         auto path = dir / name;
         if (!std::filesystem::exists(path)) {
             diags.error({generic_utf8(path), 0, 0}, "registry file is missing");
@@ -330,9 +311,10 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
     auto file_of = [&](std::string_view name) { return generic_utf8(dir / name); };
 
     if (auto t = load("roles.json")) {
-        Reader r{file_of("roles.json"), diags};
-        reg.spec = r.str(*t, "spec", true);
-        r.each(*t, "role", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        reg.spec = r.str(root, "spec", true);
+        r.each(root, "role", [&](const Node& e) {
             Role x;
             r.named(x, e);
             x.aria = r.str(e, "aria");
@@ -342,16 +324,18 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("states.json")) {
-        Reader r{file_of("states.json"), diags};
-        r.each(*t, "state", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "state", [&](const Node& e) {
             State x;
             r.named(x, e);
             reg.states.push_back(std::move(x));
         });
     }
     if (auto t = load("effects.json")) {
-        Reader r{file_of("effects.json"), diags};
-        r.each(*t, "effect", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "effect", [&](const Node& e) {
             Effect x;
             r.named(x, e);
             x.tier = static_cast<int>(r.number(e, "tier").value_or(0));
@@ -360,16 +344,18 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("origins.json")) {
-        Reader r{file_of("origins.json"), diags};
-        r.each(*t, "origin", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "origin", [&](const Node& e) {
             Origin x;
             r.named(x, e);
             reg.origins.push_back(std::move(x));
         });
     }
     if (auto t = load("actions.json")) {
-        Reader r{file_of("actions.json"), diags};
-        r.each(*t, "action", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "action", [&](const Node& e) {
             Action x;
             r.named(x, e);
             x.effect = r.str(e, "effect", true);
@@ -378,8 +364,9 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("extensions.json")) {
-        Reader r{file_of("extensions.json"), diags};
-        r.each(*t, "extension", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "extension", [&](const Node& e) {
             Extension x;
             r.named(x, e);
             x.version = static_cast<int>(r.number(e, "version").value_or(1));
@@ -388,8 +375,9 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("profiles.json")) {
-        Reader r{file_of("profiles.json"), diags};
-        r.each(*t, "profile", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        r.each(root, "profile", [&](const Node& e) {
             Profile x;
             r.named(x, e);
             x.scripts = r.strings(e, "scripts");
@@ -398,10 +386,11 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("motion.json")) {
-        Reader r{file_of("motion.json"), diags};
-        reg.easing = r.string_map(*t, "easing");
-        reg.spring = r.string_map(*t, "spring");
-        r.each(*t, "token", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        reg.easing = r.string_map(root, "easing");
+        reg.spring = r.string_map(root, "spring");
+        r.each(root, "token", [&](const Node& e) {
             MotionToken x;
             r.named(x, e);
             x.duration_ms = r.number(e, "duration");
@@ -413,7 +402,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
                 diags.error(x.loc, std::format("motion token `{}` has neither a duration nor a spring", x.name));
             reg.motion_tokens.push_back(std::move(x));
         });
-        r.each(*t, "slot", [&](const toml::table& e) {
+        r.each(root, "slot", [&](const Node& e) {
             MotionSlot x;
             r.named(x, e);
             reg.motion_slots.push_back(std::move(x));
@@ -421,7 +410,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         constexpr std::array<std::string_view, 16> primitives{"match_drawing", "match_glyphs", "fade", "lift", "panel_lift", "grow",
                                                              "check_grow", "stretch", "stagger", "distance", "readable_text",
                                                              "write", "drop", "noise", "reshape", "press"};
-        r.each(*t, "recipe", [&](const toml::table& e) {
+        r.each(root, "recipe", [&](const Node& e) {
             MotionRecipe x;
             r.named(x, e);
             x.primitives = r.strings(e, "primitives");
@@ -444,7 +433,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             reg.motion_recipes.push_back(std::move(x));
         });
         constexpr std::array<std::string_view, 8> presence_options{"distance", "offset", "scale", "radians", "height", "fade", "duration", "ease"};
-        r.each(*t, "presence", [&](const toml::table& e) {
+        r.each(root, "presence", [&](const Node& e) {
             MotionPresence x;
             r.named(x, e);
             x.kind = r.str(e, "kind");
@@ -458,9 +447,10 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("expr.json")) {
-        Reader r{file_of("expr.json"), diags};
-        reg.expr_types = r.strings(*t, "types");
-        r.each(*t, "operator", [&](const toml::table& e) {
+        Reader r{*t, diags};
+        const Node root = t->root();
+        reg.expr_types = r.strings(root, "types");
+        r.each(root, "operator", [&](const Node& e) {
             ExprOperator x;
             r.named(x, e);
             x.text = r.str(e, "text", true);
@@ -468,7 +458,7 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
             x.combinators = r.string_map(e, "combinators");
             reg.operators.push_back(std::move(x));
         });
-        r.each(*t, "function", [&](const toml::table& e) {
+        r.each(root, "function", [&](const Node& e) {
             ExprFunction x;
             r.named(x, e);
             x.signature = r.str(e, "signature", true);
@@ -477,8 +467,9 @@ Registry read_registry(const std::filesystem::path& dir, Diagnostics& diags) {
         });
     }
     if (auto t = load("abi.json")) {
-        Reader r{file_of("abi.json"), diags};
-        read_abi(*t, r, reg.abi);
+        Reader r{*t, diags};
+        const Node root = t->root();
+        read_abi(root, r, reg.abi);
     }
 
     unique_names(reg.roles, "role", diags);
@@ -517,61 +508,59 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
     std::vector<Contract> out;
     auto parsed = parse(file, diags);
     if (!parsed) return out;
-    Reader r{generic_utf8(file), diags};
-    const toml::table* contracts = (*parsed)["contract"].as_table();
-    if (!contracts) {
-        diags.error(r.loc(&*parsed), "no [contract.<name>] table", "a contract file declares one or more [contract.<name>]");
+    Reader r{*parsed, diags};
+    const Node contracts = parsed->root()["contract"];
+    if (!contracts.is_object()) {
+        diags.error(r.loc(parsed->root()), "no `contract` object of named contracts", "{ \"contract\": { <name>: { … } } }, as defineContract evaluates");
         return out;
     }
-    for (auto&& [key, node] : *contracts) {
-        if (documentation(key.str()) && node.is_string()) continue;
-        const toml::table* t = node.as_table();
-        if (!t) continue;
+    for (const auto& [key, t] : contracts.members_by_key()) {
+        if (documentation(key) && t.is_string()) continue;
+        if (!t.is_object()) continue;
         Contract c;
-        c.name = std::string(key.str());
+        c.name = key;
         c.loc = r.loc(t);
-        c.doc = r.str(*t, "doc");
-        c.role = r.str(*t, "role", true);
-        c.spec = r.str(*t, "spec", true);
-        c.children = r.str(*t, "children");
+        c.doc = r.str(t, "doc");
+        c.role = r.str(t, "role", true);
+        c.spec = r.str(t, "spec", true);
+        c.children = r.str(t, "children");
         if (c.children.empty()) c.children = "none";
         if (c.children != "none" && c.children != "any" && !valid_identifier(c.children))
-            diags.error(r.loc(t->get("children")), std::format("`children` is none, any, or a contract name, not `{}`", c.children));
+            diags.error(r.loc(t["children"]), std::format("`children` is none, any, or a contract name, not `{}`", c.children));
         if (!valid_identifier(c.name))
             diags.error(c.loc, std::format("contract name `{}` is not lower_snake_case", c.name));
         if (!c.role.empty() && !Registry::find(reg.roles, c.role))
-            diags.error(r.loc(t->get("role")), std::format("unknown role `{}`", c.role), "see spec/registry/roles.json");
+            diags.error(r.loc(t["role"]), std::format("unknown role `{}`", c.role), "see spec/registry/roles.json");
 
-        if (const toml::table* props = (*t)["props"].as_table()) {
-            for (auto&& [pk, pv] : *props) {
-                if (documentation(pk.str()) && pv.is_string()) continue;
-                const toml::table* pt = pv.as_table();
+        if (const Node props = t["props"]; props.is_object()) {
+            for (const auto& [pk, pt] : props.members_by_key()) {
+                if (documentation(pk) && pt.is_string()) continue;
                 Prop p;
-                p.name = std::string(pk.str());
-                p.loc = r.loc(&pv);
-                if (!pt) {
+                p.name = pk;
+                p.loc = r.loc(pt);
+                if (!pt.is_object()) {
                     diags.error(p.loc, std::format("property `{}` must be a table {{ type = …, default = … }}", p.name));
                     continue;
                 }
-                p.type = r.str(*pt, "type", true);
-                p.doc = r.str(*pt, "doc");
-                p.values = r.strings(*pt, "values");
-                p.bindable = r.boolean(*pt, "bindable", false);
+                p.type = r.str(pt, "type", true);
+                p.doc = r.str(pt, "doc");
+                p.values = r.strings(pt, "values");
+                p.bindable = r.boolean(pt, "bindable", false);
                 if (!valid_identifier(p.name)) diags.error(p.loc, std::format("property name `{}` is not lower_snake_case", p.name));
                 if (std::ranges::find(prop_types, p.type) == prop_types.end())
                     diags.error(p.loc, std::format("property `{}` has unknown type `{}`", p.name, p.type),
                                 "types: bool i32 i64 f64 string color enum list<string> any");
                 if (p.type == "enum" && p.values.empty())
                     diags.error(p.loc, std::format("enum property `{}` lists no values", p.name));
-                if (const toml::node* d = pt->get("default")) {
-                    if (auto b = d->value_exact<bool>()) p.default_value = *b;
-                    else if (auto i = d->value_exact<std::int64_t>()) p.default_value = *i;
-                    else if (auto f = d->value_exact<double>()) p.default_value = *f;
-                    else if (auto s = d->value_exact<std::string>()) p.default_value = *s;
-                    else if (const toml::array* a = d->as_array()) {
+                if (const Node d = pt["default"]) {
+                    if (auto b = d.boolean()) p.default_value = *b;
+                    else if (auto i = d.integer()) p.default_value = *i;
+                    else if (auto f = d.number()) p.default_value = *f;
+                    else if (auto s = d.text()) p.default_value = *s;
+                    else if (d.is_array()) {
                         std::vector<std::string> v;
-                        for (const toml::node& e : *a)
-                            if (auto s2 = e.value<std::string>()) v.push_back(*s2);
+                        for (const Node& e : d.items())
+                            if (auto s2 = e.text()) v.push_back(*s2);
                         p.default_value = std::move(v);
                     }
                     bool fits = std::visit(
@@ -595,16 +584,16 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
             }
         }
 
-        if (const toml::table* events = (*t)["events"].as_table()) {
-            for (auto&& [ek, ev] : *events) {
-                if (documentation(ek.str()) && ev.is_string()) continue;
+        if (const Node events = t["events"]; events.is_object()) {
+            for (const auto& [ek, et] : events.members_by_key()) {
+                if (documentation(ek) && et.is_string()) continue;
                 Event e;
-                e.name = std::string(ek.str());
-                e.loc = r.loc(&ev);
-                if (const toml::table* et = ev.as_table()) {
-                    e.args = r.args(*et, "args");
-                    e.coalesce = r.str(*et, "coalesce");
-                    e.doc = r.str(*et, "doc");
+                e.name = ek;
+                e.loc = r.loc(et);
+                if (et.is_object()) {
+                    e.args = r.args(et, "args");
+                    e.coalesce = r.str(et, "coalesce");
+                    e.doc = r.str(et, "doc");
                     if (!e.coalesce.empty() && e.coalesce != "frame")
                         diags.error(e.loc, std::format("event `{}`: coalesce must be \"frame\"", e.name));
                 }
@@ -615,29 +604,29 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
             }
         }
 
-        if (const toml::table* actions = (*t)["actions"].as_table()) {
-            for (auto&& [ak, av] : *actions) {
-                if (documentation(ak.str()) && av.is_string()) continue;
+        if (const Node actions = t["actions"]; actions.is_object()) {
+            for (const auto& [ak, at] : actions.members_by_key()) {
+                if (documentation(ak) && at.is_string()) continue;
                 ContractAction a;
-                a.name = std::string(ak.str());
-                a.loc = r.loc(&av);
-                if (const toml::table* at = av.as_table()) {
-                    a.effect = r.str(*at, "effect", true);
-                    a.args = r.args(*at, "args");
+                a.name = ak;
+                a.loc = r.loc(at);
+                if (at.is_object()) {
+                    a.effect = r.str(at, "effect", true);
+                    a.args = r.args(at, "args");
                     for (const Arg& x : a.args)
                         if (!valid_arg_type(x.type))
                             diags.error(a.loc, std::format("action `{}` argument `{}` has unknown type `{}`", a.name, x.name, x.type),
                                         "a type (bool i32 i64 f64 string point rect size any …), or alternatives: `f64 | min | max`");
-                    a.doc = r.str(*at, "doc");
-                    // `answer = "yes"` names the answer; `answer = true` means the usual "yes".
-                    if (const auto* b = (*at)["answer"].as_boolean()) a.answer = b->get() ? "yes" : "";
-                    else a.answer = r.str(*at, "answer");
+                    a.doc = r.str(at, "doc");
+                    // `answer: "yes"` names the answer; `answer: true` means the usual "yes".
+                    if (const auto b = at["answer"].boolean()) a.answer = *b ? "yes" : "";
+                    else a.answer = r.str(at, "answer");
                 }
                 const Effect* eff = Registry::find(reg.effects, a.effect);
                 if (!eff) diags.error(a.loc, std::format("action `{}` names unknown effect `{}`", a.name, a.effect));
                 if (eff && eff->answer && a.answer.empty())
                     diags.error(a.loc, std::format("action `{}` is `{}` but states no answer (S-1)", a.name, a.effect),
-                                "add answer = \"yes\" (what an agent must say to confirm it)");
+                                "add answer: \"yes\" (what an agent must say to confirm it)");
                 if (const Action* common = Registry::find(reg.actions, a.name)) {
                     const Effect* base = Registry::find(reg.effects, common->effect);
                     if (eff && base && eff->tier < base->tier)
@@ -649,52 +638,52 @@ std::vector<Contract> read_contracts(const std::filesystem::path& file, const Re
                     if (a.doc.empty()) a.doc = common->doc;
                 } else if (a.doc.empty()) {
                     diags.warning(a.loc, std::format("action `{}` is not a registry action and has no doc", a.name),
-                                  "add doc = \"…\" so agents know what it does");
+                                  "add doc: \"…\" so agents know what it does");
                 }
                 c.actions.push_back(std::move(a));
             }
         }
 
-        if (const toml::table* commands = (*t)["commands"].as_table()) {
-            for (auto&& [ck, cv] : *commands) {
-                if (documentation(ck.str()) && cv.is_string()) continue;
+        if (const Node commands = t["commands"]; commands.is_object()) {
+            for (const auto& [ck, ct] : commands.members_by_key()) {
+                if (documentation(ck) && ct.is_string()) continue;
                 Command cmd;
-                cmd.name = std::string(ck.str());
-                cmd.loc = r.loc(&cv);
-                if (const toml::table* ct = cv.as_table()) cmd.doc = r.str(*ct, "doc");
+                cmd.name = ck;
+                cmd.loc = r.loc(ct);
+                if (ct.is_object()) cmd.doc = r.str(ct, "doc");
                 c.commands.push_back(std::move(cmd));
             }
         }
 
-        if (const toml::table* keys = (*t)["keys"].as_table()) {
-            for (auto&& [kk, kv] : *keys) {
-                if (documentation(kk.str()) && kv.is_string()) continue;
-                Key k{std::string(kk.str()), kv.value<std::string>().value_or(""), r.loc(&kv)};
+        if (const Node keys = t["keys"]; keys.is_object()) {
+            for (const auto& [kk, kv] : keys.members_by_key()) {
+                if (documentation(kk) && kv.is_string()) continue;
+                Key k{kk, kv.text().value_or(""), r.loc(kv)};
                 std::string base = base_target(k.target);
                 bool known = std::ranges::any_of(c.actions, [&](const ContractAction& a) { return a.name == base; }) ||
                              std::ranges::any_of(c.commands, [&](const Command& x) { return x.name == base; });
                 if (!known)
                     diags.error(k.loc, std::format("key `{}` names `{}`, which is neither an action nor a command of `{}`",
                                                    k.chord, base, c.name),
-                                std::format("declare it under [contract.{}.actions] or [contract.{}.commands]", c.name, c.name));
+                                std::format("declare it among the contract `{}`'s actions or commands", c.name));
                 c.keys.push_back(std::move(k));
             }
         }
 
-        if (const toml::table* parts = (*t)["parts"].as_table()) {
-            for (auto&& [pk, pv] : *parts) {
-                if (documentation(pk.str()) && pv.is_string()) continue;
+        if (const Node parts = t["parts"]; parts.is_object()) {
+            for (const auto& [pk, pv] : parts.members_by_key()) {
+                if (documentation(pk) && pv.is_string()) continue;
                 Part p;
-                p.name = std::string(pk.str());
-                p.loc = r.loc(&pv);
+                p.name = pk;
+                p.loc = r.loc(pv);
                 c.parts.push_back(std::move(p));
             }
         }
 
-        if (const toml::table* motion = (*t)["motion"].as_table()) {
-            for (auto&& [mk, mv] : *motion) {
-                if (documentation(mk.str()) && mv.is_string()) continue;
-                Motion m{std::string(mk.str()), mv.value<std::string>().value_or(""), r.loc(&mv)};
+        if (const Node motion = t["motion"]; motion.is_object()) {
+            for (const auto& [mk, mv] : motion.members_by_key()) {
+                if (mk.ends_with("_doc") && mv.is_string()) continue;  // a part named `doc` moves as any other
+                Motion m{mk, mv.text().value_or(""), r.loc(mv)};
                 if (m.token != "decay" && !Registry::find(reg.motion_tokens, m.token))
                     diags.error(m.loc, std::format("motion of `{}` names unknown token `{}`", m.part, m.token),
                                 "see the token entries of spec/registry/motion.json");
@@ -734,29 +723,28 @@ std::string native_type_problem(std::string_view type, const std::set<std::strin
     return std::format("unknown type `{}`", type);
 }
 
-// `name = "type"` or `name = { type = "…", doc = "…" }`, in the order the
-// file writes them (a TOML table keeps no order; the source does).
-std::vector<NativeParam> native_params(const Reader& r, const toml::table& t, std::string_view key) {
+// `name: "type"` or `name: { type: "…", doc: "…" }`, in the order the
+// file writes them (their places).
+std::vector<NativeParam> native_params(const Reader& r, const Node& t, std::string_view key) {
     std::vector<NativeParam> out;
-    const toml::node* n = t.get(key);
-    if (!n) return out;
-    const toml::table* m = n->as_table();
-    if (!m) {
-        r.diags.error(r.loc(n), std::format("`{}` must be a table: name = \"type\", or name = {{ type = …, doc = … }}", key));
+    const Node m = t[key];
+    if (!m) return out;
+    if (!m.is_object()) {
+        r.diags.error(r.loc(m), std::format("`{}` must be an object: name: \"type\", or name: {{ type: …, doc: … }}", key));
         return out;
     }
-    for (auto&& [k, v] : *m) {
-        if (documentation(k.str()) && v.is_string()) continue;
+    for (const auto& [k, v] : m.members()) {
+        if (k.ends_with("_doc") && v.is_string()) continue;  // `doc` and `note` are arguments' names here
         NativeParam p;
-        p.name = std::string(k.str());
-        p.loc = r.loc(&v);
-        if (auto s = v.value<std::string>()) {
+        p.name = k;
+        p.loc = r.loc(v);
+        if (auto s = v.text()) {
             p.type = *s;
-        } else if (const toml::table* pt = v.as_table()) {
-            p.type = r.str(*pt, "type", true);
-            p.doc = r.str(*pt, "doc");
+        } else if (v.is_object()) {
+            p.type = r.str(v, "type", true);
+            p.doc = r.str(v, "doc");
         } else {
-            r.diags.error(p.loc, std::format("`{}` is \"type\" or {{ type = …, doc = … }}", p.name));
+            r.diags.error(p.loc, std::format("`{}` is \"type\" or {{ type: …, doc: … }}", p.name));
             continue;
         }
         if (!valid_identifier(p.name)) r.diags.error(p.loc, std::format("`{}` is not lower_snake_case", p.name));
@@ -774,41 +762,38 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
     std::vector<NativeModule> out;
     auto parsed = parse(file, diags);
     if (!parsed) return out;
-    Reader r{generic_utf8(file), diags};
-    const toml::table* natives = (*parsed)["native"].as_table();
-    if (!natives) {
-        diags.error(r.loc(&*parsed), "no [native.<name>] table", "a native contract declares one or more [native.<name>]");
+    Reader r{*parsed, diags};
+    const Node natives = parsed->root()["native"];
+    if (!natives.is_object()) {
+        diags.error(r.loc(parsed->root()), "no `native` object of named modules", "{ \"native\": { <name>: { … } } }, as defineNative evaluates");
         return out;
     }
-    for (auto&& [key, node] : *natives) {
-        if (documentation(key.str()) && node.is_string()) continue;
-        const toml::table* t = node.as_table();
-        if (!t) continue;
+    for (const auto& [key, t] : natives.members_by_key()) {
+        if (documentation(key) && t.is_string()) continue;
+        if (!t.is_object()) continue;
         NativeModule m;
-        m.name = std::string(key.str());
+        m.name = key;
         m.loc = r.loc(t);
-        m.doc = r.str(*t, "doc");
-        m.spec = r.str(*t, "spec", true);
+        m.doc = r.str(t, "doc");
+        m.spec = r.str(t, "spec", true);
         if (!valid_identifier(m.name)) diags.error(m.loc, std::format("native module name `{}` is not lower_snake_case", m.name));
-        if (m.doc.empty()) diags.warning(m.loc, std::format("native module `{}` has no doc", m.name), "add doc = \"…\": scripts and agents read it");
+        if (m.doc.empty()) diags.warning(m.loc, std::format("native module `{}` has no doc", m.name), "add doc: \"…\": scripts and agents read it");
 
         std::set<std::string, std::less<>> records;
-        if (const toml::table* types = (*t)["types"].as_table())
-            for (auto&& [tk, tv] : *types) records.emplace(tk.str());
-        if (const toml::table* types = (*t)["types"].as_table()) {
-            for (auto&& [tk, tv] : *types) {
-                if (documentation(tk.str()) && tv.is_string()) continue;
+        for (const auto& [tk, tv] : t["types"].members()) records.emplace(tk);
+        if (const Node types = t["types"]; types.is_object()) {
+            for (const auto& [tk, tt] : types.members()) {
+                if (documentation(tk) && tt.is_string()) continue;
                 NativeType ty;
-                ty.name = std::string(tk.str());
-                ty.loc = r.loc(&tv);
-                const toml::table* tt = tv.as_table();
-                if (!tt) {
-                    diags.error(ty.loc, std::format("type `{}` must be a table {{ fields = {{ … }} }}", ty.name));
+                ty.name = tk;
+                ty.loc = r.loc(tt);
+                if (!tt.is_object()) {
+                    diags.error(ty.loc, std::format("type `{}` must be an object {{ fields: {{ … }} }}", ty.name));
                     continue;
                 }
                 if (!pascal_identifier(ty.name)) diags.error(ty.loc, std::format("type name `{}` is not PascalCase", ty.name));
-                ty.doc = r.str(*tt, "doc");
-                ty.fields = native_params(r, *tt, "fields");
+                ty.doc = r.str(tt, "doc");
+                ty.fields = native_params(r, tt, "fields");
                 if (ty.fields.empty()) diags.error(ty.loc, std::format("type `{}` has no fields", ty.name));
                 for (const NativeParam& f : ty.fields)
                     if (auto p = native_type_problem(f.type, records); !p.empty())
@@ -816,30 +801,29 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
                 m.types.push_back(std::move(ty));
             }
         }
-        if (const toml::table* functions = (*t)["functions"].as_table()) {
-            for (auto&& [fk, fv] : *functions) {
-                if (documentation(fk.str()) && fv.is_string()) continue;
+        if (const Node functions = t["functions"]; functions.is_object()) {
+            for (const auto& [fk, ft] : functions.members()) {
+                if (documentation(fk) && ft.is_string()) continue;
                 NativeFunction f;
-                f.name = std::string(fk.str());
-                f.loc = r.loc(&fv);
-                const toml::table* ft = fv.as_table();
-                if (!ft) {
-                    diags.error(f.loc, std::format("function `{}` must be a table {{ args = …, returns = … }}", f.name));
+                f.name = fk;
+                f.loc = r.loc(ft);
+                if (!ft.is_object()) {
+                    diags.error(f.loc, std::format("function `{}` must be an object {{ args: …, returns: … }}", f.name));
                     continue;
                 }
                 if (!valid_identifier(f.name)) diags.error(f.loc, std::format("function name `{}` is not lower_snake_case", f.name));
-                f.doc = r.str(*ft, "doc");
-                if (f.doc.empty()) diags.warning(f.loc, std::format("function `{}` has no doc", f.name), "add doc = \"…\": scripts and agents read it");
-                f.effect = r.str(*ft, "effect");
+                f.doc = r.str(ft, "doc");
+                if (f.doc.empty()) diags.warning(f.loc, std::format("function `{}` has no doc", f.name), "add doc: \"…\": scripts and agents read it");
+                f.effect = r.str(ft, "effect");
                 if (f.effect.empty()) f.effect = "read";
-                f.async = r.boolean(*ft, "async", false);
-                f.params = native_params(r, *ft, "args");
-                f.returns = r.str(*ft, "returns");
+                f.async = r.boolean(ft, "async", false);
+                f.params = native_params(r, ft, "args");
+                f.returns = r.str(ft, "returns");
                 const Effect* eff = Registry::find(reg.effects, f.effect);
                 if (!eff)
-                    diags.error(r.loc(ft->get("effect")), std::format("function `{}` names unknown effect `{}`", f.name, f.effect));
+                    diags.error(r.loc(ft["effect"]), std::format("function `{}` names unknown effect `{}`", f.name, f.effect));
                 else if (eff->answer)
-                    diags.error(r.loc(ft->get("effect")), std::format("function `{}` is `{}`, which needs an answer (S-1)", f.name, f.effect),
+                    diags.error(r.loc(ft["effect"]), std::format("function `{}` is `{}`, which needs an answer (S-1)", f.name, f.effect),
                                 "a native function cannot be confirmed: make the irreversible work a verb, which states its answer");
                 for (std::size_t i = 1; i < f.params.size(); ++i)
                     if (f.params[i - 1].type.ends_with("?") && !f.params[i].type.ends_with("?"))
@@ -850,12 +834,12 @@ std::vector<NativeModule> read_natives(const std::filesystem::path& file, const 
                         diags.error(p.loc, std::format("{}({}): {}", f.name, p.name, x), "bool i32 u32 i64 f64 string any, a type of the module, T[], T?");
                 if (!f.returns.empty())
                     if (auto x = native_type_problem(f.returns, records); !x.empty())
-                        diags.error(r.loc(ft->get("returns")), std::format("{} returns: {}", f.name, x));
+                        diags.error(r.loc(ft["returns"]), std::format("{} returns: {}", f.name, x));
                 m.functions.push_back(std::move(f));
             }
         }
         if (m.functions.empty()) diags.error(m.loc, std::format("native module `{}` declares no function", m.name));
-        // The file's order, which a TOML table does not keep.
+        // The file's order (their places).
         auto by_place = [](const auto& a, const auto& b) { return std::pair(a.loc.line, a.loc.column) < std::pair(b.loc.line, b.loc.column); };
         std::ranges::stable_sort(m.types, by_place);
         std::ranges::stable_sort(m.functions, by_place);

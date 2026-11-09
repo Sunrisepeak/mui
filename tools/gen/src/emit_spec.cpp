@@ -69,7 +69,7 @@ export namespace omui::spec {
            "    bool             interactive;\n    std::string_view doc;\n};\n\n";
     enumeration(out, "Role", "parse_role", reg.roles, "RoleInfo", "roles",
                 [](const Role& r) { return std::format("{}, {}, {}, {}, {}", q(r.name), q(r.aria), q(r.accesskit), r.interactive ? "true" : "false", q(r.doc)); },
-                "What a semantic node is (roles.toml).");
+                "What a semantic node is (roles.json).");
     out += "// Interactive roles must have a name (S-6) and should have an explicit id.\n"
            "[[nodiscard]] constexpr bool interactive(Role r) noexcept {\n"
            "    auto i = static_cast<std::size_t>(r);\n    return i < roles.size() && roles[i].interactive;\n}\n\n";
@@ -78,13 +78,13 @@ export namespace omui::spec {
     out += "struct StateInfo {\n    std::string_view name;\n    std::string_view doc;\n};\n\n";
     enumeration(out, "State", "parse_state", reg.states, "StateInfo", "states",
                 [](const State& s) { return std::format("{}, {}", q(s.name), q(s.doc)); },
-                "A state bit of a semantic node (states.toml); the enumerator is the bit index.");
+                "A state bit of a semantic node (states.json); the enumerator is the bit index.");
 
     // effects
     out += "struct EffectInfo {\n    std::string_view name;\n    int              tier;\n    bool             answer;\n    std::string_view doc;\n};\n\n";
     enumeration(out, "Effect", "parse_effect", reg.effects, "EffectInfo", "effects",
                 [](const Effect& e) { return std::format("{}, {}, {}, {}", q(e.name), e.tier, e.answer ? "true" : "false", q(e.doc)); },
-                "What performing an action does (effects.toml; openas §3.1).");
+                "What performing an action does (effects.json; openas §3.1).");
     out += "// S-1: an action of this effect must state its answer.\n"
            "[[nodiscard]] constexpr bool requires_answer(Effect e) noexcept {\n"
            "    auto i = static_cast<std::size_t>(e);\n    return i >= effects.size() || effects[i].answer;\n}\n\n"
@@ -96,7 +96,7 @@ export namespace omui::spec {
     out += "struct OriginInfo {\n    std::string_view name;\n    std::string_view doc;\n};\n\n";
     enumeration(out, "Origin", "parse_origin", reg.origins, "OriginInfo", "origins",
                 [](const Origin& o) { return std::format("{}, {}", q(o.name), q(o.doc)); },
-                "Where a node's text came from (origins.toml; S-3).");
+                "Where a node's text came from (origins.json; S-3).");
 
     // actions
     std::string decls;
@@ -108,7 +108,7 @@ export namespace omui::spec {
     std::size_t ai = 0;
     enumeration(out, "Action", "parse_action", reg.actions, "ActionInfo", "actions",
                 [&](const Action& a) { return std::format("{}, Effect::{}, {}, {}", q(a.name), ident(a.effect), arg_names[ai++], q(a.doc)); },
-                "The common actions (actions.toml); a component may declare a stronger effect.");
+                "The common actions (actions.json); a component may declare a stronger effect.");
 
     // extensions
     decls.clear();
@@ -154,12 +154,12 @@ export namespace omui::spec {
            "    for (const auto& m : motion_tokens)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
 
     // motion slots and recipes (spec M-7, M-8)
-    out += "// The motion slots (motion.toml [[slot]], spec M-7), in order: which change of a node's\n"
+    out += "// The motion slots (motion.json `slot`, spec M-7), in order: which change of a node's\n"
            "// drawing a slot's recipe moves.\nstruct MotionSlot {\n    std::string_view name;\n    std::string_view doc;\n};\n\n";
     out += std::format("inline constexpr std::array<MotionSlot, {}> motion_slots{{{{\n", reg.motion_slots.size());
     for (const MotionSlot& m : reg.motion_slots) out += std::format("    {{{}, {}}},\n", q(m.name), q(m.doc));
     out += "}};\n\n";
-    out += "// The built-in motion recipes (motion.toml [[recipe]], spec M-8): primitives\n"
+    out += "// The built-in motion recipes (motion.json `recipe`, spec M-8): primitives\n"
            "// space-separated; timing a motion token's name, \"tween(ms)\" or \"spring(k, c[, m])\".\n"
            "struct MotionRecipe {\n    std::string_view name;\n    std::string_view primitives;\n    std::string_view timing;\n"
            "    std::string_view effect;\n    std::string_view doc;\n};\n\n";
@@ -171,7 +171,7 @@ export namespace omui::spec {
     }
     out += "}};\n\n[[nodiscard]] constexpr const MotionRecipe* find_motion_recipe(std::string_view name) noexcept {\n"
            "    for (const auto& m : motion_recipes)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
-    out += "// How something comes in or goes out (motion.toml [[presence]], spec M-10): hanim.core's\n"
+    out += "// How something comes in or goes out (motion.json `presence`, spec M-10): hanim.core's\n"
            "// presences, by name; options space-separated.\n"
            "struct MotionPresence {\n    std::string_view name;\n    std::string_view kind;\n    std::string_view options;\n    std::string_view doc;\n};\n\n";
     out += std::format("inline constexpr std::array<MotionPresence, {}> motion_presences{{{{\n", reg.motion_presences.size());
@@ -184,7 +184,7 @@ export namespace omui::spec {
            "    for (const auto& m : motion_presences)\n        if (m.name == name) return &m;\n    return nullptr;\n}\n\n";
 
     // expression language
-    out += "// The expression language (expr.toml): operators and built-in functions, with\n"
+    out += "// The expression language (expr.json): operators and built-in functions, with\n"
            "// the combinator name each language uses.\n"
            "struct Combinators {\n    std::string_view cpp, ts;\n};\n\n"
            "struct OperatorInfo {\n    std::string_view name;\n    std::string_view text;\n    int              arity;\n    Combinators      combinators;\n};\n\n"

@@ -238,23 +238,21 @@ UTest cases{"i18n", [] {
             expect(!Message::parse(src).has_value() && Message::parse(src).error().starts_with(where)) << std::format("{}: {}", src, Message::parse(src).error());
     };
 
-    "catalogs and a translator: TOML tables of keys, the negotiated chain, each message in its own locale's ways"_test = [] {
+    "catalogs and a translator: objects of keys, the negotiated chain, each message in its own locale's ways"_test = [] {
         Library lib;
         lib.add(pack("en"));
         lib.add(pack("zh"));
         lib.add(pack("zh-Hant"));
         lib.set_likely(*read_likely_subtags(read(packs() / "likely.locale.omui.json")));
-        auto en = read_messages(R"(title = "Inbox"
-[inbox]
-count = ".input {$count :number}\n.match $count\none {{{$count} new message}}\n* {{{$count} new messages}}"
-only_english = "Only in English"
-)",
-                                "app.en.messages.omui.toml");
-        auto zh = read_messages(R"(title = "收件箱"
-[inbox]
-count = "{$count :number} 条新消息"
-)",
-                                "app.zh-Hans.messages.omui.toml");
+        auto en = read_messages(R"({"messages": {
+  "title": "Inbox",
+  "inbox": {
+    "count": ".input {$count :number}\n.match $count\none {{{$count} new message}}\n* {{{$count} new messages}}",
+    "only_english": "Only in English"
+  }
+}})",
+                                "app.en.messages.omui.json");
+        auto zh = read_messages(R"({"messages": {"title": "收件箱", "inbox": {"count": "{$count :number} 条新消息"}}})", "app.zh-Hans.messages.omui.json");
         expect(en.has_value() && zh.has_value());
         if (!en || !zh) return;
         lib.catalog(tag("en")) = *en;
@@ -271,11 +269,11 @@ count = "{$count :number} 条新消息"
         const std::array english{tag("en-GB")};
         expect(eq(Translator(lib, english, tag("en")).tr("inbox.count", {{"count", std::int64_t{1}}}), std::string("1 new message")));
         // Problems, located; a translation checked against its source.
-        auto bad = read_messages("[a]\nb = \"{$x\"\nc = 3\n", "bad.messages.omui.toml");
+        auto bad = read_messages("{\"messages\": {\"a\": {\n  \"b\": \"{$x\",\n  \"c\": 3\n}}}", "bad.messages.omui.json");
         expect(!bad.has_value());
         if (!bad) {
             expect(eq(bad.error().size(), std::size_t{2}));
-            expect(bad.error()[0].text().starts_with("bad.messages.omui.toml:2:")) << bad.error()[0].text();
+            expect(bad.error()[0].text().starts_with("bad.messages.omui.json:2:")) << bad.error()[0].text();
         }
         const auto diff = compare(*en, *zh);
         expect(std::ranges::find(diff, std::string("`inbox.only_english` is not translated")) != diff.end()) << (diff.empty() ? "" : diff.front());

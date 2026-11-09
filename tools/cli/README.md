@@ -36,7 +36,7 @@ omui agent profile <app> start|stop [--out FILE.trace.json]   per-span summary; 
 omui agent logs <app> [--level L] [--category C] [--limit N]
 omui agent debug <app> [--bounds] [--repaints] [--inspector] [--hud] [--off] [--slow MS] [--log FILTER]
 omui agent clock <app> [show|pause|resume|rate R|step S|seek T|release]   the application's time
-omui agent pipeline <app> [show|replace|insert|remove] [--stage S] [--plugin P] [--after S] [--config JSON] [--toml]
+omui agent pipeline <app> [show|replace|insert|remove] [--stage S] [--plugin P] [--after S] [--config JSON] [--description]
 ```
 
 An application started with `omui::run` takes the same switches at launch:

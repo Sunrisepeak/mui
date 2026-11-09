@@ -46,8 +46,9 @@ struct AppSpec {
     // a headless run settles until it is.
     std::function<bool()> ready;
     // The application's languages (D-74): the language its keys are written
-    // in, a directory of catalogs (`<tag>.messages.omui.toml`), and catalogs
-    // carried in the program (tag, text). CLDR's packs come with openmui.
+    // in, a directory of catalogs (`<tag>.messages.omui.json`, what a
+    // `.messages.omui.ts` evaluates to), and catalogs carried in the program
+    // (tag, JSON). CLDR's packs come with openmui.
     std::string            source_language = "en";
     std::filesystem::path  messages;
     std::vector<std::pair<std::string, std::string_view>> catalogs;

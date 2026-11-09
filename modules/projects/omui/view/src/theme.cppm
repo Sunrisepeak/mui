@@ -140,7 +140,7 @@ struct MotionRule {
     Layer                  layer = Layer::application;
 };
 
-// The slots are the specification's (registry/motion.toml [[slot]], M-7), in its order.
+// The slots are the specification's (registry/motion.json `slot`, M-7), in its order.
 inline constexpr auto motion_slots = [] {
     std::array<std::string_view, omui::spec::motion_slots.size()> names{};
     for (std::size_t i = 0; i < names.size(); ++i) names[i] = omui::spec::motion_slots[i].name;

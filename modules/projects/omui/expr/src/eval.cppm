@@ -40,7 +40,7 @@ struct Result {
 // A map of names, for tests and constant folding.
 [[nodiscard]] Result evaluate(const Expr& e, const Value::Map& names, const Context& context = {});
 
-// The names of the registry's functions (registry/expr.toml), sorted.
+// The names of the registry's functions (registry/expr.json), sorted.
 [[nodiscard]] std::span<const std::string_view> functions() noexcept;
 
 // The text of a value as format() and string() write it: shortest round-trip

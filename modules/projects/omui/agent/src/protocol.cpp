@@ -106,7 +106,8 @@ Value pipeline_value(Runtime& rt) {
         plugins.push_back(std::move(x));
     }
     v.set("plugins", Value(std::move(plugins)));
-    v.set("graph", p.describe()).set("toml", mlibs::pipeline::to_toml(d));
+    v.set("graph", p.describe());
+    if (auto description = parse_json(mlibs::pipeline::to_json(d))) v.set("description", *description->get("pipeline"));
     return v;
 }
 

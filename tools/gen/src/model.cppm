@@ -82,17 +82,17 @@ struct MotionToken : Named {
     std::optional<double> stiffness, damping, mass;
 };
 
-// A motion slot (motion.toml [[slot]], spec M-7): its name and what change it moves.
+// A motion slot (motion.json `slot`, spec M-7): its name and what change it moves.
 struct MotionSlot : Named {};
 
-// A built-in motion recipe (motion.toml [[recipe]], spec M-8).
+// A built-in motion recipe (motion.json `recipe`, spec M-8).
 struct MotionRecipe : Named {
     std::vector<std::string> primitives;
     std::string              timing;   // a motion token's name, "tween(ms)" or "spring(k, c[, m])"
     std::string              effect;   // an image effect while it moves, or empty
 };
 
-// How something comes in or goes out (motion.toml [[presence]], spec M-10):
+// How something comes in or goes out (motion.json `presence`, spec M-10):
 // hanim.core's presences, named by a slot's enter or exit.
 struct MotionPresence : Named {
     std::string              kind;     // enter or exit
@@ -207,7 +207,7 @@ struct Contract : Named {
     std::vector<Motion>         motion;
 };
 
-// A native module's contract (*.native.omui.toml; component-binding §8):
+// A native module's contract (*.native.omui.ts; component-binding §8):
 // functions written in C++ that scripts call, with the records they take
 // and give. Parameters keep the order the file writes them in.
 struct NativeParam {

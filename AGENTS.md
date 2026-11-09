@@ -67,7 +67,7 @@
 - **格式与命名**：格式按仓库根的 `.clang-format`（与 mcpp 仓库相同：4 空格、100 列、大括号不换行、指针靠类型）；新写和改动的代码遵守，不为格式单独大面积改动未触及的代码。变量、参数用可读的词命名，不用单字母（`s`、`p`、`d`、`r` 之类），只有约定俗成的短循环计数可以例外。命令行用 `mcpplibs.cmdline` 声明，`App` 写成一条链式表达式，缩进即子命令的层级（同 mcpp 的 `cli.cppm`）。
 - **不用宏**：用模块分区、`inline constexpr`、`if constexpr`、`consteval`、`std::source_location`。全仓库唯一的头文件是生成的 `spec/include/openmui.h`；第三方头文件只出现在 `native/` 实现分区里。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配；动画、布局、光栅模块禁用 fast-math 和浮点收缩。
-- 契约优先：组件与 native 模块先写契约，绑定由生成器产出。契约、操作目录、主题、动画用 TS 声明（`*.<种类>.omui.ts`，构建期由内嵌 QuickJS 确定地求值成 JSON；D-139）；迁移完成前沿用现有的 `.omui.toml`。
+- 契约优先：组件与 native 模块先写契约，绑定由生成器产出。契约、操作目录、主题、音乐、时间线等数据都用 TS 声明（`*.<种类>.omui.ts`，由内嵌 QuickJS 确定地求值成 JSON 快照；D-139）；读取器只读 JSON 快照（经 `mlibs.json`，问题带 JSON 指针），不再有 `.omui.toml`（lint `typescript`）。
 - **上层语言只有 TS/JS**（D-138；Lua 和 Python 的应用绑定已删除，lint `legacy-import` 拦截重新引入）：TS 即代码也即数据，求值后的 JSON 快照是规范形式；只允许可擦除语法；TS 层尽量薄，性能敏感的部分用 C++ 实现并暴露给脚本；release 构建时可选原生化成 C++（D-146）。视图代码优先（C++ builder 或 TS）；数据文件命名 `<名字>.<种类>.omui.{ts,json,jsonl}`；着色器用 `.slang`；可交互节点要写显式 ID，ID 不依赖显示文本；脚本不进入每帧路径。
 - 平台相关代码经由 `mcpplibs.os`；窗口和输入经由 SDL3。
 

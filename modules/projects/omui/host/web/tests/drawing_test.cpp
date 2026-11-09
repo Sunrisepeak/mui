@@ -7,10 +7,10 @@
 // 1/32 pixel, so edge pixels may differ by a few levels).
 import std;
 import omui.host.web;
-import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.text;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -43,29 +43,28 @@ int main(int argc, char** argv) {
     if (std::erase_if(args, [](const char* a) { return std::string_view(a) == "--webgpu"; }) > 0) wanted = Renderer::webgpu;
     if (std::erase_if(args, [](const char* a) { return std::string_view(a) == "--webgl"; }) > 0) wanted = Renderer::webgl;
     offscreen = std::erase_if(args, [](const char* a) { return std::string_view(a) == "--offscreen"; }) > 0;
-    Suite s{"host.web.drawing"};
 
-    s.test("without a page the CPU draws, and what is read back is its frame", [] {
+    "without a page the CPU draws, and what is read back is its frame"_test = [] {
         if (in_browser()) return;
         Web w({.size = {320, 200}, .renderer = Renderer::automatic});
-        check_eq(std::string(w.renderer()), std::string("cpu"));
+        expect(eq(std::string(w.renderer()), std::string("cpu")));
         w.mount("main", page(w.runtime()));
         (void)w.step();
         auto f = w.read_frame();
-        check(f.has_value() && f->hash() == w.pixels().hash(), "the CPU's frame");
-    });
+        expect(f.has_value() && f->hash() == w.pixels().hash()) << "the CPU's frame";
+    };
 
-    s.test("in a page with the device asked for, it draws: its frame within the renderer's tolerances of the CPU's", [] {
+    "in a page with the device asked for, it draws: its frame within the renderer's tolerances of the CPU's"_test = [] {
         if (!in_browser() || wanted == Renderer::automatic) return;
         const std::string_view name = wanted == Renderer::webgpu ? "webgpu" : "webgl";
         Web w({.renderer = wanted, .present = !offscreen});
-        check_eq(std::string(w.renderer()), std::string(name));
+        expect(eq(std::string(w.renderer()), std::string(name)));
         if (w.renderer() != name) return;
         w.mount("main", page(w.runtime()));
         (void)w.step();
         (void)w.step();
         auto gpu = w.read_frame();
-        check(gpu.has_value(), gpu ? "" : gpu.error());
+        expect(gpu.has_value()) << (gpu ? "" : gpu.error());
         if (!gpu) return;
         // The CPU's reference: the same list, size and scale.
         Runtime& rt = w.runtime();
@@ -78,7 +77,7 @@ int main(int argc, char** argv) {
         for (int y = 0; y < ref.height(); ++y)
             for (int x = 0; x < ref.width(); ++x)
                 if (const xrender::raster::Rgba8 c = ref.at(x, y); c.r < 100 && c.g < 100 && c.b < 120) ++ink;
-        check(ink > 800, std::format("text drawn: {} dark pixels", ink));
+        expect(ink > 800) << std::format("text drawn: {} dark pixels", ink);
         int worst = 0;
         std::size_t off = 0;
         for (int y = 0; y < ref.height(); ++y)
@@ -91,10 +90,10 @@ int main(int argc, char** argv) {
         const std::size_t pixels = static_cast<std::size_t>(ref.width()) * static_cast<std::size_t>(ref.height());
         std::println("    {} {}{}×{}: max diff {}, {} of {} pixels off by more than 1 ({} pixels of text)", name, offscreen ? "offscreen " : "", ref.width(), ref.height(), worst,
                      off, pixels, ink);
-        check(worst <= 10, std::format("max diff {}", worst));
-        check(off * 100 <= pixels, std::format("{} pixels off", off));
-        check(w.frames_shown() >= 1, "shown");
-    });
+        expect(worst <= 10) << std::format("max diff {}", worst);
+        expect(off * 100 <= pixels) << std::format("{} pixels off", off);
+        expect(w.frames_shown() >= 1) << "shown";
+    };
 
-    return s.run(static_cast<int>(args.size()), args.data());
+    return mcpplibs::mtest::run(static_cast<int>(args.size()), args.data());
 }

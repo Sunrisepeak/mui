@@ -33,5 +33,6 @@ xrender.raster    = { path = "../../../../xrender/raster" }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils       = { path = "../../../../../base/utils" }
 omui.host.headless = { path = "../../../host/headless" }

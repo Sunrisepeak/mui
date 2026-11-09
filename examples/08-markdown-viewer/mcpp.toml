@@ -29,4 +29,5 @@ mcpplibs.os         = "0.4.1"
 mcpplibs.cmdline    = "0.0.3"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../modules/base/utils" }

@@ -6,9 +6,9 @@ import omui.core;
 import omui.view;
 import omui.theme;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -67,61 +67,58 @@ std::vector<std::string> L(std::initializer_list<const char*> names) { return {n
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"theme"};
+UTest cases{"theme", [] {
 
     theme::Library lib;
-    s.test("effect animation and appearance rules roundtrip with strict channel diagnostics", [] {
+    "effect animation and appearance rules roundtrip with strict channel diagnostics"_test = [] {
         const std::string source = "[style.pixel_probe]\ntheme = \"light\"\n[style.pixel_probe.effects]\npainter = { effect = \"pixelate\", size = 8, usage = \"appearance\", duration = 0.5, reverse = true, animate = { amount = [0.0, 1.0], origin_x = [-2.0, 3.0] } }\n";
         const auto read = theme::read_styles(source, "pixel-probe.style.omui.toml");
-        check(read.has_value(), read ? "" : all(read.error())); if (!read) return;
+        expect(read.has_value()) << (read ? "" : all(read.error())); if (!read) return;
         const auto written = theme::write_style(read->front());
         const auto again = theme::read_styles(written, "roundtrip.style.omui.toml");
-        check(again.has_value(), again ? "" : all(again.error())); if (!again) return;
-        check(again->front().effects.front().effect == read->front().effects.front().effect);
+        expect(again.has_value()) << (again ? "" : all(again.error())); if (!again) return;
+        expect(again->front().effects.front().effect == read->front().effects.front().effect);
         for (const auto rule : {"animate = { missing = [0, 1] }, duration = 1", "animate = { amount = [0, 2] }, duration = 1",
             "animate = { amount = [0] }, duration = 1", "animate = { amount = [0, 1] }", "animate = { amount = [0, 1] }, duration = -1",
             "animate = { amount = [0, 1] }, duration = nan", "usage = \"missing\"", "reverse = 1"}) {
             const auto bad = theme::read_styles(std::format("[style.x]\ntheme = \"light\"\n[style.x.effects]\npainter = {{ effect = \"pixelate\", {} }}\n", rule), "bad.style.omui.toml");
-            check(!bad, rule);
+            expect(!bad) << rule;
         }
-    });
+    };
     const auto default_file = theme_dir() / "default" / "default.theme.omui.toml";
     const auto compact_file = theme_dir() / "compact" / "compact.theme.omui.toml";
 
-    s.test("the default theme file is the runtime's built-in tokens, light and dark", [&] {
+    "the default theme file is the runtime's built-in tokens, light and dark"_test = [&] {
         auto added = lib.add_file(default_file);
-        check(added.has_value(), added ? "" : all(added.error()));
-        check(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
+        expect(added.has_value()) << (added ? "" : all(added.error()));
+        expect(lib.themes() == L({"dark", "light"}) && lib.overlays() == L({"reduced_motion"}));
         auto light = lib.compose(L({"light"}));
-        check(light.has_value(), light ? "" : light.error());
-        if (light) check_eq(difference(*light, Theme::light()), std::string());
+        expect(light.has_value()) << (light ? "" : light.error());
+        if (light) expect(eq(difference(*light, Theme::light()), std::string()));
         auto dark = lib.compose(L({"dark"}));
-        check(dark.has_value(), dark ? "" : dark.error());
+        expect(dark.has_value()) << (dark ? "" : dark.error());
         if (dark) {
-            check_eq(difference(*dark, Theme::dark_theme()), std::string());
-            check_eq(dark->name, std::string("dark"));
+            expect(eq(difference(*dark, Theme::dark_theme()), std::string()));
+            expect(eq(dark->name, std::string("dark")));
         }
-    });
+    };
 
-    s.test("overlays change what they name and nothing else", [&] {
-        check(lib.add_file(compact_file).has_value());
+    "overlays change what they name and nothing else"_test = [&] {
+        expect(lib.add_file(compact_file).has_value());
         auto t = lib.compose(L({"dark", "compact", "reduced_motion"}));
-        check(t.has_value(), t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error());
         if (!t) return;
-        check_eq(t->name, std::string("dark+compact+reduced_motion"));
-        check(t->dark && same_color(t->color("background"), Color::hex(0x0b1120)), "the theme's colours");
-        check(t->space("s") == 6 && t->corner("medium") == 6, "the density's spacing and radii");
-        check(t->density == 0.8f && t->scaled(36) == 29, "controls at 0.8: 36 becomes 29 whole pixels");
-        check(t->text_style("body").size == 13 && t->text_style("body").weight == 400 && t->text_style("body").line_height == 1.4f,
-              "a text style's fields the overlay does not name stay");
-        check(t->transition("motion.normal").duration == hanim::seconds(0) && t->transition("motion.spring.snappy").kind == Transition::Kind::tween,
-              "reduced motion: every transition at once");
+        expect(eq(t->name, std::string("dark+compact+reduced_motion")));
+        expect(t->dark && same_color(t->color("background"), Color::hex(0x0b1120))) << "the theme's colours";
+        expect(t->space("s") == 6 && t->corner("medium") == 6) << "the density's spacing and radii";
+        expect(t->density == 0.8f && t->scaled(36) == 29) << "controls at 0.8: 36 becomes 29 whole pixels";
+        expect(t->text_style("body").size == 13 && t->text_style("body").weight == 400 && t->text_style("body").line_height == 1.4f) << "a text style's fields the overlay does not name stay";
+        expect(t->transition("motion.normal").duration == hanim::seconds(0) && t->transition("motion.spring.snappy").kind == Transition::Kind::tween) << "reduced motion: every transition at once";
         auto plain = lib.compose(L({"light", "compact"}));
-        check(plain && plain->transition("motion.normal").duration > hanim::seconds(0), "without the overlay, motion as it was");
-    });
+        expect(plain && plain->transition("motion.normal").duration > hanim::seconds(0)) << "without the overlay, motion as it was";
+    };
 
-    s.test("every mistake in a file, where it is", [] {
+    "every mistake in a file, where it is"_test = [] {
         auto r = theme::read(R"t(
 [theme.Bright]
 doc = "x"
@@ -145,7 +142,7 @@ extends = "light"
 dark = true
 )t",
                                  "bad.theme.omui.toml");
-        check(!r.has_value());
+        expect(!r.has_value());
         if (r) return;
         const std::string text = all(r.error());
         for (const char* expect : {"bad.theme.omui.toml:2:", "theme name `Bright` is not lower_snake_case",
@@ -155,20 +152,20 @@ dark = true
                                    "text style `caption` must be a table", "`motion.warp` is not a motion token",
                                    "easing must be an easing's name or cubic-bezier", "overlay `tight` extends nothing",
                                    "overlay `tight` cannot say whether the theme is dark"})
-            check(text.find(expect) != std::string::npos, std::format("{}\n--- in ---\n{}", expect, text));
+            expect(text.find(expect) != std::string::npos) << std::format("{}\n--- in ---\n{}", expect, text);
         auto syntax = theme::read("[theme.x\ncolors = 1", "broken.theme.omui.toml");
-        check(!syntax && syntax.error().size() == 1 && syntax.error()[0].line == 1, syntax ? "" : all(syntax.error()));
-    });
+        expect(!syntax && syntax.error().size() == 1 && syntax.error()[0].line == 1) << (syntax ? "" : all(syntax.error()));
+    };
 
-    s.test("what cannot be composed, and why", [&] {
+    "what cannot be composed, and why"_test = [&] {
         auto none = lib.compose(L({"sepia"}));
-        check(!none && none.error().find("no theme is named `sepia` (themes: dark, light)") != std::string::npos, none ? "" : none.error());
+        expect(!none && none.error().find("no theme is named `sepia` (themes: dark, light)") != std::string::npos) << (none ? "" : none.error());
         auto overlay_first = lib.compose(L({"compact"}));
-        check(!overlay_first && overlay_first.error().find("`compact` is an overlay") != std::string::npos);
+        expect(!overlay_first && overlay_first.error().find("`compact` is an overlay") != std::string::npos);
         auto theme_as_overlay = lib.compose(L({"light", "dark"}));
-        check(!theme_as_overlay && theme_as_overlay.error().find("`dark` is a theme, not an overlay") != std::string::npos);
+        expect(!theme_as_overlay && theme_as_overlay.error().find("`dark` is a theme, not an overlay") != std::string::npos);
         theme::Library more;
-        check(more.add(R"t(
+        expect(more.add(R"t(
 [theme.base]
 [theme.base.colors]
 background = "#fff"
@@ -184,30 +181,29 @@ extends = "b"
 extends = "a"
 )t", "more.theme.omui.toml").has_value());
         auto typo = more.compose(L({"typo"}));
-        check(!typo && typo.error().find("`typo` sets the colour `backgruond`, which the theme under it does not have (did you mean `background`?)") !=
-                           std::string::npos,
-              typo ? "" : typo.error());
+        expect(!typo && typo.error().find("`typo` sets the colour `backgruond`, which the theme under it does not have (did you mean `background`?)") !=
+                           std::string::npos) << (typo ? "" : typo.error());
         auto orphan = more.compose(L({"orphan"}));
-        check(!orphan && orphan.error().find("extends `nowhere`, which no theme file declares") != std::string::npos);
+        expect(!orphan && orphan.error().find("extends `nowhere`, which no theme file declares") != std::string::npos);
         auto cycle = more.compose(L({"a"}));
-        check(!cycle && cycle.error().find("extends itself") != std::string::npos, cycle ? "" : cycle.error());
-    });
+        expect(!cycle && cycle.error().find("extends itself") != std::string::npos) << (cycle ? "" : cycle.error());
+    };
 
-    s.test("a file added again replaces what it declared; another file may not take a name", [&] {
+    "a file added again replaces what it declared; another file may not take a name"_test = [&] {
         theme::Library l;
-        check(l.add("[theme.one]\n[theme.one.colors]\ntext = \"#000\"\n", "a.theme.omui.toml").has_value());
-        check(l.add("[theme.one]\n[theme.one.colors]\ntext = \"#fff\"\n", "a.theme.omui.toml").has_value(), "a saved edit");
+        expect(l.add("[theme.one]\n[theme.one.colors]\ntext = \"#000\"\n", "a.theme.omui.toml").has_value());
+        expect(l.add("[theme.one]\n[theme.one.colors]\ntext = \"#fff\"\n", "a.theme.omui.toml").has_value()) << "a saved edit";
         auto one = l.compose(L({"one"}));
-        check(one && same_color(one->color("text"), Color::hex(0xffffff)));
+        expect(one && same_color(one->color("text"), Color::hex(0xffffff)));
         auto clash = l.add("[theme.one]\n", "b.theme.omui.toml");
-        check(!clash && all(clash.error()).find("`one` is already declared by a.theme.omui.toml") != std::string::npos);
+        expect(!clash && all(clash.error()).find("`one` is already declared by a.theme.omui.toml") != std::string::npos);
         auto bad = l.add("[theme.one]\n[theme.one.colors]\ntext = \"nope\"\n", "a.theme.omui.toml");
-        check(!bad, "a broken edit is refused");
+        expect(!bad) << "a broken edit is refused";
         auto still = l.compose(L({"one"}));
-        check(still && same_color(still->color("text"), Color::hex(0xffffff)), "and changes nothing");
-    });
+        expect(still && same_color(still->color("text"), Color::hex(0xffffff))) << "and changes nothing";
+    };
 
-    s.test("style packs (S2, D-69): tokens over a theme, effects on the window, a type and a role; the semantic tree the same", [&] {
+    "style packs (S2, D-69): tokens over a theme, effects on the window, a type and a role; the semantic tree the same"_test = [&] {
         const char* neon = R"toml(
 [style.neon]
 doc       = "Light in the dark."
@@ -222,16 +218,16 @@ button       = { effect = "neon", radius = 10, intensity = 1.2 }
 text         = { effect = "paper", grain = 0.2 }
 )toml";
         auto added = lib.add_styles(neon, "neon.style.omui.toml");
-        check(added.has_value(), added ? "" : all(added.error()));
-        check(lib.styles() == L({"neon"}));
+        expect(added.has_value()) << (added ? "" : all(added.error()));
+        expect(lib.styles() == L({"neon"}));
         const auto st = lib.find_style("neon");
-        check(st && st->layers == L({"dark"}) && st->effects.size() == 4 && st->crossfade == 0.4);
+        expect(st && st->layers == L({"dark"}) && st->effects.size() == 4 && st->crossfade == 0.4);
         auto t = lib.compose_style("neon");
-        check(t.has_value(), t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error());
         if (t) {
-            check(t->dark, "over the dark theme");
-            check(same_color(t->color("accent"), Color::hex(0x22d3ee)), "its accent");
-            check_eq(t->name, std::string("dark@neon"));
+            expect(t->dark) << "over the dark theme";
+            expect(same_color(t->color("accent"), Color::hex(0x22d3ee))) << "its accent";
+            expect(eq(t->name, std::string("dark@neon")));
         }
         // On a runtime: the rules reach the window, buttons and groups; nothing else changes.
         Runtime rt({.size = {200, 120}});
@@ -246,23 +242,22 @@ text         = { effect = "paper", grain = 0.2 }
         std::vector<spec::SemanticNode> tree_before;
         for (NodeId id : {rt.find("main"), rt.find("main/cta")}) tree_before.push_back(rt.semantic_node(id));
         // The library here is the test's: apply through the program's library.
-        check(theme::library().add_file(default_file).has_value() || true);
-        check(theme::library().add_styles(neon, "neon.style.omui.toml").has_value());
+        expect(theme::library().add_file(default_file).has_value() || true);
+        expect(theme::library().add_styles(neon, "neon.style.omui.toml").has_value());
         auto applied = theme::apply_style(rt, "neon");
-        check(applied.has_value(), applied ? "" : applied.error());
+        expect(applied.has_value()) << (applied ? "" : applied.error());
         rt.frame();
         // Layers with effects: the window's crt at least, and the cross-fade's layer.
         std::size_t effect_layers = 0, plain_layers = 0;
         for (const auto& c : rt.display_list().commands())
             if (const auto* l = std::get_if<xrender::PushLayer>(&c)) (l->effect.id != 0 ? effect_layers : plain_layers) += 1;
-        check(effect_layers >= 2, std::format("the window's effect and the text's: {} effect layers", effect_layers));
-        check(plain_layers >= 1, "the cross-fade from the frame before");
-        check(rt.display_list().commands().size() > before, "the old frame drawn over, fading");
+        expect(effect_layers >= 2) << std::format("the window's effect and the text's: {} effect layers", effect_layers);
+        expect(plain_layers >= 1) << "the cross-fade from the frame before";
+        expect(rt.display_list().commands().size() > before) << "the old frame drawn over, fading";
         for (std::size_t i = 0; i < tree_before.size(); ++i) {
             const NodeId id = i == 0 ? rt.find("main") : rt.find("main/cta");
             const auto now = rt.semantic_node(id);
-            check(now.role == tree_before[i].role && now.name == tree_before[i].name && now.actions == tree_before[i].actions && now.states == tree_before[i].states,
-                  "the same semantic node under the style");
+            expect(now.role == tree_before[i].role && now.name == tree_before[i].name && now.actions == tree_before[i].actions && now.states == tree_before[i].states) << "the same semantic node under the style";
         }
         // After the cross-fade, only the style's layers.
         rt.step_time(seconds(1));
@@ -271,7 +266,7 @@ text         = { effect = "paper", grain = 0.2 }
         std::size_t plain_after = 0;
         for (const auto& c : rt.display_list().commands())
             if (const auto* l = std::get_if<xrender::PushLayer>(&c); l && l->effect.id == 0) ++plain_after;
-        check_eq(plain_after, std::size_t{0});
+        expect(eq(plain_after, std::size_t{0}));
         // A style's mistakes, where they are, with the names meant.
         const char* wrong = R"toml(
 [style.bad]
@@ -282,33 +277,32 @@ button = { effect = "neon", radios = 3 }
 card   = { radius = 3 }
 )toml";
         auto bad = theme::read_styles(wrong, "bad.style.omui.toml");
-        check(!bad.has_value(), "refused");
+        expect(!bad.has_value()) << "refused";
         if (!bad) {
             const std::string text = all(bad.error());
-            check(text.contains("bad.style.omui.toml:5") && text.contains("did you mean `crt`?"), text);
-            check(text.contains("bad.style.omui.toml:6") && text.contains("did you mean `radius`?"), text);
-            check(text.contains("bad.style.omui.toml:7") && text.contains("names no `effect`"), text);
+            expect(text.contains("bad.style.omui.toml:5") && text.contains("did you mean `crt`?")) << text;
+            expect(text.contains("bad.style.omui.toml:6") && text.contains("did you mean `radius`?")) << text;
+            expect(text.contains("bad.style.omui.toml:7") && text.contains("names no `effect`")) << text;
         }
         auto themeless = theme::read_styles("[style.x]\ndoc = \"no theme\"\n", "x.style.omui.toml");
-        check(!themeless.has_value() && all(themeless.error()).contains("names no theme"), "a style starts from a theme");
-        check(!lib.compose_style("nope").has_value(), "an unknown style");
+        expect(!themeless.has_value() && all(themeless.error()).contains("names no theme")) << "a style starts from a theme";
+        expect(!lib.compose_style("nope").has_value()) << "an unknown style";
         // Written out and read back: the same style.
         const std::string text = theme::write_style(*st);
         auto again = theme::read_styles(text, "again.style.omui.toml");
-        check(again.has_value(), again ? text : all(again.error()) + "\n" + text);
+        expect(again.has_value()) << (again ? text : all(again.error()) + "\n" + text);
         if (again) {
             const theme::Style& b = again->front();
-            check(b.name == st->name && b.doc == st->doc && b.layers == st->layers && b.crossfade == st->crossfade, text);
-            check(b.tokens.colors.size() == st->tokens.colors.size() && same_color(b.tokens.colors.at("accent"), st->tokens.colors.at("accent")), text);
-            check(b.effects.size() == st->effects.size(), text);
+            expect(b.name == st->name && b.doc == st->doc && b.layers == st->layers && b.crossfade == st->crossfade) << text;
+            expect(b.tokens.colors.size() == st->tokens.colors.size() && same_color(b.tokens.colors.at("accent"), st->tokens.colors.at("accent"))) << text;
+            expect(b.effects.size() == st->effects.size()) << text;
             for (std::size_t i = 0; i < b.effects.size() && i < st->effects.size(); ++i)
-                check(b.effects[i].selector == st->effects[i].selector && b.effects[i].effect.json() == st->effects[i].effect.json(),
-                      std::format("{} vs {}", b.effects[i].effect.json(), st->effects[i].effect.json()));
-            check_eq(theme::write_style(b), text);
+                expect(b.effects[i].selector == st->effects[i].selector && b.effects[i].effect.json() == st->effects[i].effect.json()) << std::format("{} vs {}", b.effects[i].effect.json(), st->effects[i].effect.json());
+            expect(eq(theme::write_style(b), text));
         }
-    });
+    };
 
-    s.test("a style's corners and shadows: continuous curvature and an ambient layer, carried into the theme and written back; out of range refused", [&] {
+    "a style's corners and shadows: continuous curvature and an ambient layer, carried into the theme and written back; out of range refused"_test = [&] {
         const char* smooth = R"toml(
 [style.smooth]
 theme = "light"
@@ -318,48 +312,46 @@ lg = { x = 0, y = 12, blur = 24, spread = -6, color = "#0f172a2e", ambient = { x
 control_accent = { x = 0, y = 2, blur = 4, spread = -1, color = "#0f172a38", tint = 0.6 }
 )toml";
         auto added = lib.add_styles(smooth, "smooth.style.omui.toml");
-        check(added.has_value(), added ? "" : all(added.error()));
+        expect(added.has_value()) << (added ? "" : all(added.error()));
         auto t = lib.compose_style("smooth");
-        check(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f), "the theme's corners are smoothed");
+        expect(t.has_value() && t->corner_smoothing == 0.6f && t->radii(12) == CornerRadii::all(12).smoothed(0.6f)) << "the theme's corners are smoothed";
         if (const auto st = lib.find_style("smooth")) {
             const std::string text = theme::write_style(*st);
-            check(text.contains("corner_smoothing = 0.6") && text.contains("ambient = { x = 0, y = 2, blur = 48") && text.contains("tint = 0.6"), text);
+            expect(text.contains("corner_smoothing = 0.6") && text.contains("ambient = { x = 0, y = 2, blur = 48") && text.contains("tint = 0.6")) << text;
         }
         // Shadows in layers: the key light's, and under it the ambient one.
         if (t) {
             const auto lg = t->shadows.find("lg");
-            check(lg != t->shadows.end() && lg->second.blur == 24 && lg->second.ambient && lg->second.ambient->blur == 48, "the lg shadow has its ambient layer");
+            expect(lg != t->shadows.end() && lg->second.blur == 24 && lg->second.ambient && lg->second.ambient->blur == 48) << "the lg shadow has its ambient layer";
         }
         // A shadow that takes the colour of what casts it.
         if (t) {
             const auto accent = t->shadows.find("control_accent");
-            check(accent != t->shadows.end() && accent->second.tint == 0.6f, "the accent shadow is tinted");
+            expect(accent != t->shadows.end() && accent->second.tint == 0.6f) << "the accent shadow is tinted";
         }
         auto bad = lib.add_styles("[style.rough]\ntheme = \"light\"\ncorner_smoothing = 2\n", "rough.style.omui.toml");
-        check(!bad.has_value(), "2 is out of range");
+        expect(!bad.has_value()) << "2 is out of range";
         auto overtinted = lib.add_styles("[style.ink2]\ntheme = \"light\"\n[style.ink2.shadows]\nsm = { tint = 1.5 }\n", "ink2.style.omui.toml");
-        check(!overtinted.has_value(), "a tint over 1 is refused");
-    });
+        expect(!overtinted.has_value()) << "a tint over 1 is refused";
+    };
 
-    s.test("the defaults' finish (B4): continuous corners, shadows in two layers, controls' depth by state; dark tuned on its own", [&] {
+    "the defaults' finish (B4): continuous corners, shadows in two layers, controls' depth by state; dark tuned on its own"_test = [&] {
         auto t = lib.compose(L({"light"}));
-        check(t.has_value(), t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error());
         if (!t) return;
-        check(t->corner_smoothing == 0.6f);
+        expect(t->corner_smoothing == 0.6f);
         for (const char* name : {"sm", "md", "lg", "control", "control:hovered", "control:pressed", "control_accent", "thumb", "thumb:pressed", "switch_thumb"}) {
             const auto it = t->shadows.find(name);
-            check(it != t->shadows.end() && it->second.ambient.has_value(), name);
+            expect(it != t->shadows.end() && it->second.ambient.has_value()) << name;
         }
-        check(t->shadows.at("control:hovered").offset.y > t->shadows.at("control").offset.y &&
-                  t->shadows.at("control:pressed").offset.y < t->shadows.at("control").offset.y,
-              "lifted under the pointer, tighter pressed");
-        check(t->shadows.at("control_accent").tint > 0, "an accent control's shadow takes its colour");
+        expect(t->shadows.at("control:hovered").offset.y > t->shadows.at("control").offset.y &&
+                  t->shadows.at("control:pressed").offset.y < t->shadows.at("control").offset.y) << "lifted under the pointer, tighter pressed";
+        expect(t->shadows.at("control_accent").tint > 0) << "an accent control's shadow takes its colour";
         auto dark = lib.compose(L({"dark"}));
-        check(dark && dark->shadows.at("md").color.a > t->shadows.at("md").color.a && dark->shadows.at("md").color.r == 0,
-              "dark: black and stronger, not the light theme's");
-    });
+        expect(dark && dark->shadows.at("md").color.a > t->shadows.at("md").color.a && dark->shadows.at("md").color.r == 0) << "dark: black and stronger, not the light theme's";
+    };
 
-    s.test("a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused", [&] {
+    "a style's motions (universal motion §5.2): over the framework's rules, a slot's for every node they move, a role's own; candidates; mistakes refused"_test = [&] {
         const char* ink = R"toml(
 [style.inky]
 theme = "light"
@@ -369,35 +361,31 @@ state         = "simple"
 "role:dialog" = { enter = { use = "spring", appear = { presence = "rise_in", distance = 12, also = "settle_in" } } }
 )toml";
         auto added = lib.add_styles(ink, "inky.style.omui.toml");
-        check(added.has_value(), added ? "" : all(added.error()));
+        expect(added.has_value()) << (added ? "" : all(added.error()));
         const auto st = lib.find_style("inky");
-        check(st && st->motions.size() == 3, "three motions read");
+        expect(st && st->motions.size() == 3) << "three motions read";
         auto t = lib.compose_style("inky");
-        check(t.has_value(), t ? "" : t.error());
+        expect(t.has_value()) << (t ? "" : t.error());
         if (t) {
             const auto update = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::style && r.target == "*" && r.slot == "update"; });
-            check(update != t->motion_rules.end() && update->spec.name == "ink" && update->instead.size() == 1 && update->instead[0].name == "simple", "the style applies ink to every node, with a simple fallback");
+            expect(update != t->motion_rules.end() && update->spec.name == "ink" && update->instead.size() == 1 && update->instead[0].name == "simple") << "the style applies ink to every node, with a simple fallback";
             const auto state = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::style && r.target == "*" && r.slot == "state"; });
-            check(state != t->motion_rules.end() && state->spec.name == "simple", "state feedback is the style's own slot");
-            check(std::ranges::any_of(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::framework && r.target == "checkbox" && r.spec.name == "default.check"; }), "typed defaults remain available under the style layer");
+            expect(state != t->motion_rules.end() && state->spec.name == "simple") << "state feedback is the style's own slot";
+            expect(std::ranges::any_of(t->motion_rules, [](const MotionRule& r) { return r.layer == MotionRule::Layer::framework && r.target == "checkbox" && r.spec.name == "default.check"; })) << "typed defaults remain available under the style layer";
             const auto dialog = std::ranges::find_if(t->motion_rules, [](const MotionRule& r) { return r.target == "role:dialog" && r.slot == "enter"; });
-            check(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.appear.away.offset.y == 12 && dialog->spec.appear.away.scale.x == .96 &&
-                      dialog->spec.appear.name == "rise_in+settle_in" && dialog->layer == MotionRule::Layer::style_targeted,
-                  dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.appear.name));
+            expect(dialog != t->motion_rules.end() && dialog->spec.name == "spring" && dialog->spec.appear.away.offset.y == 12 && dialog->spec.appear.away.scale.x == .96 &&
+                      dialog->spec.appear.name == "rise_in+settle_in" && dialog->layer == MotionRule::Layer::style_targeted) << (dialog == t->motion_rules.end() ? std::string("the dialog's enter: none") : std::format("the dialog's enter: {} {}", dialog->spec.name, dialog->spec.appear.name));
         }
         // Written out and read back: the same motions.
         if (st) {
             const std::string text = theme::write_style(*st);
             auto again = theme::read_styles(text, "again.style.omui.toml");
-            check(again && again->front().motions.size() == 3 && theme::write_style(again->front()) == text, text);
+            expect(again && again->front().motions.size() == 3 && theme::write_style(again->front()) == text) << text;
         }
         auto wrong = theme::read_styles("[style.w]\ntheme = \"light\"\n[style.w.motions]\nupdtae = \"ink\"\nbutton = { later = \"ink\" }\n", "w.style.omui.toml");
-        check(!wrong.has_value() && all(wrong.error()).contains("`updtae` is not a slot") && all(wrong.error()).contains("`later` is not a slot"),
-              wrong ? "accepted" : all(wrong.error()));
-        check(lib.add_styles("[style.v]\ntheme = \"light\"\n[style.v.motions]\nupdate = \"swirl\"\n", "v.style.omui.toml").has_value());
+        expect(!wrong.has_value() && all(wrong.error()).contains("`updtae` is not a slot") && all(wrong.error()).contains("`later` is not a slot")) << (wrong ? "accepted" : all(wrong.error()));
+        expect(lib.add_styles("[style.v]\ntheme = \"light\"\n[style.v.motions]\nupdate = \"swirl\"\n", "v.style.omui.toml").has_value());
         auto unknown = lib.compose_style("v");
-        check(!unknown.has_value() && unknown.error().contains("`\"swirl\"` is not a motion"), unknown ? "composed" : unknown.error());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!unknown.has_value() && unknown.error().contains("`\"swirl\"` is not a motion")) << (unknown ? "composed" : unknown.error());
+    };
+}};

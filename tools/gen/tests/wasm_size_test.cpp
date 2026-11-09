@@ -3,9 +3,9 @@
 // functions — on a binary made here, byte by byte; and symbols' owners.
 import std;
 import omui.gen.wasm_size;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -61,52 +61,49 @@ std::vector<std::uint8_t> program() {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"gen.wasm_size"};
+UTest cases{"gen.wasm_size", [] {
 
-    s.test("a symbol's owner: the module it is attached to, else its namespaces, else a C library by its prefix", [] {
-        check_eq(gen::owner_of("_ZNW7openmuiW4view4omui7Runtime5frameEv"), std::string("openmui.view"));
-        check_eq(gen::owner_of("_ZNW7openmuiW4viewWP6motion4omui4Impl3runEv"), std::string("openmui.view"));
-        check_eq(gen::owner_of("_ZN4omui6render10DisplayList4fillEv"), std::string("omui::render"));
-        check_eq(gen::owner_of("_ZNKSt6vectorIiSaIiEE4sizeEv"), std::string("std"));
-        check_eq(gen::owner_of("_ZN8nlohmann16json_abi_v3_12_010basic_jsonEv", 1), std::string("nlohmann"));
-        check_eq(gen::owner_of("_Z4mainv"), std::string("(global)"));
-        check_eq(gen::owner_of("hb_buffer_create"), std::string("harfbuzz"));
-        check_eq(gen::owner_of("FT_Load_Glyph"), std::string("freetype"));
-        check_eq(gen::owner_of("md_parse"), std::string("md4c"));
-        check_eq(gen::owner_of("__cxa_throw"), std::string("c++ runtime"));
-        check_eq(gen::owner_of("memcpy"), std::string("(C) memcpy"));
+    "a symbol's owner: the module it is attached to, else its namespaces, else a C library by its prefix"_test = [] {
+        expect(eq(gen::owner_of("_ZNW7openmuiW4view4omui7Runtime5frameEv"), std::string("openmui.view")));
+        expect(eq(gen::owner_of("_ZNW7openmuiW4viewWP6motion4omui4Impl3runEv"), std::string("openmui.view")));
+        expect(eq(gen::owner_of("_ZN4omui6render10DisplayList4fillEv"), std::string("omui::render")));
+        expect(eq(gen::owner_of("_ZNKSt6vectorIiSaIiEE4sizeEv"), std::string("std")));
+        expect(eq(gen::owner_of("_ZN8nlohmann16json_abi_v3_12_010basic_jsonEv", 1), std::string("nlohmann")));
+        expect(eq(gen::owner_of("_Z4mainv"), std::string("(global)")));
+        expect(eq(gen::owner_of("hb_buffer_create"), std::string("harfbuzz")));
+        expect(eq(gen::owner_of("FT_Load_Glyph"), std::string("freetype")));
+        expect(eq(gen::owner_of("md_parse"), std::string("md4c")));
+        expect(eq(gen::owner_of("__cxa_throw"), std::string("c++ runtime")));
+        expect(eq(gen::owner_of("memcpy"), std::string("(C) memcpy")));
         // Demangled, as an analysis build's name section holds them.
-        check_eq(gen::owner_of("omui::Runtime@openmui.view::Impl::perform(omui::Handle@openmui.memory<omui::NodeTag>)"), std::string("openmui.view"));
-        check_eq(gen::owner_of("omui::site::(anonymous namespace)::moves_window(std::__2::shared_ptr<int>)"), std::string("omui::site"));
-        check_eq(gen::owner_of("void std::__2::vector<int, std::__2::allocator<int>>::push_back(int&&)"), std::string("std"));
-        check_eq(gen::owner_of("bool omui::render::DisplayList::empty() const"), std::string("omui::render"));
-        check_eq(gen::owner_of("OT::Layout::GSUB::apply(hb_ot_apply_context_t*)"), std::string("harfbuzz"));
-        check_eq(gen::owner_of("find_syllables_use(hb_buffer_t*)"), std::string("harfbuzz"));
-        check_eq(gen::owner_of("toml::v3::impl::impl_ex::parser::parse()"), std::string("tomlplusplus"));
-        check_eq(gen::owner_of("gongfu::present2d::read_look@gongfu.present2d(std::__2::basic_string_view<char>)"), std::string("gongfu.present2d"));
-    });
+        expect(eq(gen::owner_of("omui::Runtime@openmui.view::Impl::perform(omui::Handle@openmui.memory<omui::NodeTag>)"), std::string("openmui.view")));
+        expect(eq(gen::owner_of("omui::site::(anonymous namespace)::moves_window(std::__2::shared_ptr<int>)"), std::string("omui::site")));
+        expect(eq(gen::owner_of("void std::__2::vector<int, std::__2::allocator<int>>::push_back(int&&)"), std::string("std")));
+        expect(eq(gen::owner_of("bool omui::render::DisplayList::empty() const"), std::string("omui::render")));
+        expect(eq(gen::owner_of("OT::Layout::GSUB::apply(hb_ot_apply_context_t*)"), std::string("harfbuzz")));
+        expect(eq(gen::owner_of("find_syllables_use(hb_buffer_t*)"), std::string("harfbuzz")));
+        expect(eq(gen::owner_of("toml::v3::impl::impl_ex::parser::parse()"), std::string("tomlplusplus")));
+        expect(eq(gen::owner_of("gongfu::present2d::read_look@gongfu.present2d(std::__2::basic_string_view<char>)"), std::string("gongfu.present2d")));
+    };
 
-    s.test("a binary's sections, its code by owner (imports counted out of the functions' indices), its largest functions", [] {
+    "a binary's sections, its code by owner (imports counted out of the functions' indices), its largest functions"_test = [] {
         const auto w = program();
         auto r = gen::wasm_size(w, 2);
-        check(r.has_value(), r ? "" : r.error());
+        expect(r.has_value()) << (r ? "" : r.error());
         if (!r) return;
-        check_eq(r->functions, std::size_t{3});
-        check_eq(r->named, std::size_t{3});
-        check_eq(r->data, std::size_t{50});
-        check(r->shipped < r->total, "the name section is not shipped");
-        check(r->owners.size() == 3 && r->owners[0].name == "openmui.view" && r->owners[0].bytes == 100, gen::to_json(*r));
-        check(r->owners[1].name == "harfbuzz" && r->owners[1].bytes == 30 && r->owners[2].name == "std", gen::to_json(*r));
-        check(r->largest.size() == 2 && r->largest[0].bytes == 100, "the two largest");
+        expect(eq(r->functions, std::size_t{3}));
+        expect(eq(r->named, std::size_t{3}));
+        expect(eq(r->data, std::size_t{50}));
+        expect(r->shipped < r->total) << "the name section is not shipped";
+        expect(r->owners.size() == 3 && r->owners[0].name == "openmui.view" && r->owners[0].bytes == 100) << gen::to_json(*r);
+        expect(r->owners[1].name == "harfbuzz" && r->owners[1].bytes == 30 && r->owners[2].name == "std") << gen::to_json(*r);
+        expect(r->largest.size() == 2 && r->largest[0].bytes == 100) << "the two largest";
         const std::string md = gen::to_markdown(*r);
-        check(md.contains("| openmui.view |") && md.contains("custom:name"), md);
-        check(gen::to_json(*r).starts_with("{\"total\":"), gen::to_json(*r));
-        check(!gen::wasm_size(std::vector<std::uint8_t>{1, 2, 3, 4, 5, 6, 7, 8}).has_value(), "not WebAssembly");
+        expect(md.contains("| openmui.view |") && md.contains("custom:name")) << md;
+        expect(gen::to_json(*r).starts_with("{\"total\":")) << gen::to_json(*r);
+        expect(!gen::wasm_size(std::vector<std::uint8_t>{1, 2, 3, 4, 5, 6, 7, 8}).has_value()) << "not WebAssembly";
         auto cut = w;
         cut.resize(cut.size() - 10);
-        check(!gen::wasm_size(cut).has_value(), "cut short");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!gen::wasm_size(cut).has_value()) << "cut short";
+    };
+}};

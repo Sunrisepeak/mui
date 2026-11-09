@@ -7,8 +7,10 @@ import omui.ui.base;
 import omui.host.headless;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -47,11 +49,10 @@ void key(Headless& h, Key k, Modifiers m = {}) { h.key(k, m); }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.base"};
+UTest cases{"ui.base", [] {
     register_base_components();
 
-    s.test("button: pointer, keys and agents activate it alike; the verb classifies it (S-1)", [] {
+    "button: pointer, keys and agents activate it alike; the verb classifies it (S-1)"_test = [] {
         Headless h(options());
         int activated = 0, deleted = 0;
         (void)h.runtime().verbs().add({"doc.delete", "Delete", Effect::irreversible, "delete", {}}, [&](const Value&) -> VerbResult {
@@ -66,29 +67,29 @@ int main(int argc, char** argv) {
                                }));
         h.step();
         auto save = sem(h, "main/save");
-        check(save.role == Role::button && save.name == "Save" && save.states.has(State::focusable));
-        check(spec::check(save).empty());
-        check(h.click("main/save"));
-        check(activated == 1, "a click");
-        check(h.runtime().path(h.runtime().focused()) == "main/save", "a press focuses (without the ring)");
+        expect(save.role == Role::button && save.name == "Save" && save.states.has(State::focusable));
+        expect(spec::check(save).empty());
+        expect(h.click("main/save"));
+        expect(activated == 1) << "a click";
+        expect(h.runtime().path(h.runtime().focused()) == "main/save") << "a press focuses (without the ring)";
         key(h, Key::enter);
         key(h, Key::space);
-        check(activated == 3, "Enter and Space");
-        check(act(h, "main/save", "activate") == 0 && activated == 4, "an agent");
+        expect(activated == 3) << "Enter and Space";
+        expect(act(h, "main/save", "activate") == 0 && activated == 4) << "an agent";
         // The verb makes `activate` irreversible: asked for an answer, by pointer as by agent.
         auto del = sem(h, "main/delete");
-        check(del.action("activate")->effect == Effect::irreversible && del.action("activate")->answer == "delete");
-        check(h.click("main/delete") && deleted == 0);
-        check(act(h, "main/delete", "activate") == 2 && deleted == 0);
-        check(act(h, "main/delete", "activate", {}, "delete") == 0 && deleted == 1);
-        check(act(h, "main/off", "activate") == 1, "disabled");
-        check(sem(h, "main/off").states.has(State::disabled));
+        expect(del.action("activate")->effect == Effect::irreversible && del.action("activate")->answer == "delete");
+        expect(h.click("main/delete") && deleted == 0);
+        expect(act(h, "main/delete", "activate") == 2 && deleted == 0);
+        expect(act(h, "main/delete", "activate", {}, "delete") == 0 && deleted == 1);
+        expect(act(h, "main/off", "activate") == 1) << "disabled";
+        expect(sem(h, "main/off").states.has(State::disabled));
         // Size: the label and its padding.
         const Rect b = bounds(h, "main/save");
-        check(b.height == 36 && b.width > 60, std::format("{}x{}", b.width, b.height));
-    });
+        expect(b.height == 36 && b.width > 60) << std::format("{}x{}", b.width, b.height);
+    };
 
-    s.test("toggle and checkbox: long labels wrap to their available width and keep their full accessible name", [] {
+    "toggle and checkbox: long labels wrap to their available width and keep their full accessible name"_test = [] {
         for (const std::string label : {std::string("Review the release notes with the design and accessibility teams"), std::string("与设计和无障碍团队一起检查这一轮发布说明和待办事项")}) {
             Headless h(options({220, 360}));
             auto check_box = checkbox({.id = "check", .label = label});
@@ -98,16 +99,16 @@ int main(int argc, char** argv) {
             h.mount("main", column({.padding = 20, .gap = 20}, {std::move(check_box), std::move(switch_box)})); h.settle();
             for (const auto id : {"main/check", "main/switch"}) {
                 const auto box = bounds(h, id);
-                check(box.height > 40 && box.right() <= 200.5f, std::format("{} wraps inside its width: {} x {}", id, box.width, box.height));
-                check_eq(sem(h, id).name, label);
-                check(h.click(id));
-                check(sem(h, id).states.has(State::checked));
+                expect(box.height > 40 && box.right() <= 200.5f) << std::format("{} wraps inside its width: {} x {}", id, box.width, box.height);
+                expect(eq(sem(h, id).name, label));
+                expect(h.click(id));
+                expect(sem(h, id).states.has(State::checked));
             }
-            check(h.save_png(scratch_dir("choice-labels") / (label.starts_with("Review") ? "english.png" : "chinese.png")).has_value());
+            expect(h.save_png(scratch_dir("choice-labels") / (label.starts_with("Review") ? "english.png" : "chinese.png")).has_value());
         }
-    });
+    };
 
-    s.test("toggle and checkbox: two-way bindings, events, states", [] {
+    "toggle and checkbox: two-way bindings, events, states"_test = [] {
         Headless h(options());
         auto wifi = signal(false);
         auto agree = signal(false);
@@ -119,27 +120,26 @@ int main(int argc, char** argv) {
                                    checkbox({.id = "some", .indeterminate = true, .label = "Some"}),
                                }));
         h.step();
-        check(sem(h, "main/wifi").role == Role::switch_ && sem(h, "main/wifi").name == "Wi-Fi");
-        check(h.click("main/wifi"));
-        check(wifi.peek() && changes == std::vector<bool>{true}, "the signal learns the click");
-        check(sem(h, "main/wifi").states.has(State::checked));
+        expect(sem(h, "main/wifi").role == Role::switch_ && sem(h, "main/wifi").name == "Wi-Fi");
+        expect(h.click("main/wifi"));
+        expect(wifi.peek() && changes == std::vector<bool>{true}) << "the signal learns the click";
+        expect(sem(h, "main/wifi").states.has(State::checked));
         wifi.set(false);
         h.step();
-        check(!sem(h, "main/wifi").states.has(State::checked), "and the switch follows the signal");
-        check(act(h, "main/agree", "toggle") == 0 && agree.peek());
+        expect(!sem(h, "main/wifi").states.has(State::checked)) << "and the switch follows the signal";
+        expect(act(h, "main/agree", "toggle") == 0 && agree.peek());
         h.focus_next();  // from the switch (focused by its click) to the checkbox
-        check(h.runtime().path(h.runtime().focused()) == "main/agree");
+        expect(h.runtime().path(h.runtime().focused()) == "main/agree");
         key(h, Key::space);
-        check(!agree.peek(), "Space on the focused checkbox");
+        expect(!agree.peek()) << "Space on the focused checkbox";
         auto some = sem(h, "main/some");
-        check(some.states.has(State::mixed) && some.value == Value("mixed"));
-        check(act(h, "main/some", "toggle") == 0);
-        check(sem(h, "main/some").states.has(State::checked) && !sem(h, "main/some").states.has(State::mixed),
-              "indeterminate goes to checked");
+        expect(some.states.has(State::mixed) && some.value == Value("mixed"));
+        expect(act(h, "main/some", "toggle") == 0);
+        expect(sem(h, "main/some").states.has(State::checked) && !sem(h, "main/some").states.has(State::mixed)) << "indeterminate goes to checked";
         h.settle();
-    });
+    };
 
-    s.test("slider: drag, keys, actions with symbols, steps, committed", [] {
+    "slider: drag, keys, actions with symbols, steps, committed"_test = [] {
         Headless h(options());
         auto volume = signal(30.0);
         std::vector<double> committed;
@@ -152,9 +152,9 @@ int main(int argc, char** argv) {
                                }));
         h.step();
         const Rect b = bounds(h, "main/volume");
-        check(b.width == 218 && b.height == 24);
+        expect(b.width == 218 && b.height == 24);
         auto n = sem(h, "main/volume");
-        check(n.role == Role::slider && n.name == "Volume" && n.value.get("value")->as_double() == 30);
+        expect(n.role == Role::slider && n.name == "Volume" && n.value.get("value")->as_double() == 30);
         // The track spans the width less a thumb: 9 .. 209.
         PointerEvent down;
         down.kind = PointerKind::down;
@@ -166,33 +166,33 @@ int main(int argc, char** argv) {
         PointerEvent up = move;
         up.kind = PointerKind::up;
         h.step({down});
-        check(volume.peek() == 50, std::format("{}", volume.peek()));
+        expect(volume.peek() == 50) << std::format("{}", volume.peek());
         h.step({move});
-        check(volume.peek() == 80, "snapped to the step");
+        expect(volume.peek() == 80) << "snapped to the step";
         h.step({up});
-        check(committed == std::vector<double>{80} && changed == 2);
+        expect(committed == std::vector<double>{80} && changed == 2);
         // The drag is one step of history (S-12): undone whole, redone whole.
-        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
-        check(volume.peek() == 30, std::format("undone: {}", volume.peek()));
-        check_eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0});
-        check(volume.peek() == 80, std::format("redone: {}", volume.peek()));
+        expect(eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0}));
+        expect(volume.peek() == 30) << std::format("undone: {}", volume.peek());
+        expect(eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0}));
+        expect(volume.peek() == 80) << std::format("redone: {}", volume.peek());
         changed = 2;
         committed = {80};
         h.focus_next();
         key(h, Key::right);
-        check(volume.peek() == 85);
+        expect(volume.peek() == 85);
         key(h, Key::home);
-        check(volume.peek() == 0);
-        check(act(h, "main/volume", "set_value", Value{}.set("value", "max")) == 0 && volume.peek() == 100);
-        check(act(h, "main/volume", "set_value", Value{}.set("value", 42.0)) == 0 && volume.peek() == 40, "snapped");
-        check(act(h, "main/volume", "decrement") == 0 && volume.peek() == 35);
-        check(act(h, "main/volume", "set_value", Value{}.set("value", "loud")) == 1);
+        expect(volume.peek() == 0);
+        expect(act(h, "main/volume", "set_value", Value{}.set("value", "max")) == 0 && volume.peek() == 100);
+        expect(act(h, "main/volume", "set_value", Value{}.set("value", 42.0)) == 0 && volume.peek() == 40) << "snapped";
+        expect(act(h, "main/volume", "decrement") == 0 && volume.peek() == 35);
+        expect(act(h, "main/volume", "set_value", Value{}.set("value", "loud")) == 1);
         volume.set(1000.0);
         h.step();
-        check(sem(h, "main/volume").value.get("value")->as_double() == 1000, "a binding sets what it sets");
-    });
+        expect(sem(h, "main/volume").value.get("value")->as_double() == 1000) << "a binding sets what it sets";
+    };
 
-    s.test("text box: typing, editing keys, selection, clipboard, undo, submit", [] {
+    "text box: typing, editing keys, selection, clipboard, undo, submit"_test = [] {
         Headless h(options());
         auto name = signal(std::string("Ada"));
         std::vector<std::string> submitted;
@@ -203,50 +203,50 @@ int main(int argc, char** argv) {
                                }));
         h.step();
         auto n = sem(h, "main/name");
-        check(n.role == Role::text_box && n.name == "Name" && n.value == Value("Ada") && n.states.has(State::editable));
-        check(h.click("main/name"));
-        check(h.runtime().path(h.runtime().focused()) == "main/name");
-        check(h.runtime().text_input_rect().has_value(), "the input method knows where the caret is");
+        expect(n.role == Role::text_box && n.name == "Name" && n.value == Value("Ada") && n.states.has(State::editable));
+        expect(h.click("main/name"));
+        expect(h.runtime().path(h.runtime().focused()) == "main/name");
+        expect(h.runtime().text_input_rect().has_value()) << "the input method knows where the caret is";
         // The caret went where the click was: the end of "Ada" is past the middle.
         key(h, Key::end);
         h.type(" Lovelace");
-        check(name.peek() == "Ada Lovelace", name.peek());
+        expect(name.peek() == "Ada Lovelace") << name.peek();
         key(h, Key::backspace, Modifiers(Modifier::ctrl));
-        check(name.peek() == "Ada ", name.peek());
+        expect(name.peek() == "Ada ") << name.peek();
         key(h, Key::left, Modifier::shift);
         key(h, Key::left, Modifier::shift);
         h.type("-");
-        check(name.peek() == "Ad-", name.peek());
+        expect(name.peek() == "Ad-") << name.peek();
         key(h, Key::z, Modifiers(primary_modifier()));
-        check(name.peek() == "Ada ", "undo");
+        expect(name.peek() == "Ada ") << "undo";
         key(h, Key::a, Modifiers(primary_modifier()));
         key(h, Key::c, Modifiers(primary_modifier()));
-        check(h.runtime().clipboard_text() == "Ada ");
+        expect(h.runtime().clipboard_text() == "Ada ");
         key(h, Key::end);
         key(h, Key::v, Modifiers(primary_modifier()));
-        check(name.peek() == "Ada Ada ", name.peek());
+        expect(name.peek() == "Ada Ada ") << name.peek();
         key(h, Key::enter);
-        check(submitted == std::vector<std::string>{"Ada Ada "}, "Enter submits a single line");
+        expect(submitted == std::vector<std::string>{"Ada Ada "}) << "Enter submits a single line";
         name.set("Grace");
         h.step();
-        check(sem(h, "main/name").value == Value("Grace"), "the binding sets the field");
+        expect(sem(h, "main/name").value == Value("Grace")) << "the binding sets the field";
         // A multi-line field takes Enter as a new line.
-        check(h.click("main/notes"));
+        expect(h.click("main/notes"));
         h.type("one");
         key(h, Key::enter);
         h.type("two");
-        check(sem(h, "main/notes").value == Value("one\ntwo"));
-        check(sem(h, "main/notes").name == "Notes", "the placeholder names an unlabelled field");
-        check(submitted.size() == 1);
-    });
+        expect(sem(h, "main/notes").value == Value("one\ntwo"));
+        expect(sem(h, "main/notes").name == "Notes") << "the placeholder names an unlabelled field";
+        expect(submitted.size() == 1);
+    };
 
-    s.test("undo and redo of the real components; transactions and dry runs (S-12, S-13)", [] {
+    "undo and redo of the real components; transactions and dry runs (S-12, S-13)"_test = [] {
         Headless h(options());
         auto wifi = signal(false);
         auto volume = signal(30.0);
         int toggled = 0;
         int deleted = 0;
-        check(h.runtime().verbs().add({"doc.delete", "Delete it", Effect::irreversible, "yes", {}}, [&](const Value&) -> VerbResult {
+        expect(h.runtime().verbs().add({"doc.delete", "Delete it", Effect::irreversible, "yes", {}}, [&](const Value&) -> VerbResult {
             ++deleted;
             return Value{};
         }).has_value());
@@ -261,33 +261,33 @@ int main(int argc, char** argv) {
         auto text = [&] { return std::string(sem(h, "main/msg").value.as_string()); };
         auto undoes = [&](std::string_view action) { return act(h, "app", action); };
         // A toggle, a stepped value, a text box: each says how it is taken back.
-        check(act(h, "main/wifi", "toggle") == 0 && wifi.peek());
-        check(act(h, "main/volume", "increment") == 0 && volume.peek() == 35);
-        check(act(h, "main/msg", "set_value", Value{}.set("value", "hello world")) == 0);
-        check(act(h, "main/msg", "set_selection", Value{}.set("anchor", 6).set("focus", 11)) == 0);  // read: not recorded
-        check(act(h, "main/msg", "replace_selection", Value{}.set("text", "there")) == 0 && text() == "hello there");
-        check_eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4});
-        check(undoes("undo") == 0 && text() == "hello world", "the replaced text is back");
+        expect(act(h, "main/wifi", "toggle") == 0 && wifi.peek());
+        expect(act(h, "main/volume", "increment") == 0 && volume.peek() == 35);
+        expect(act(h, "main/msg", "set_value", Value{}.set("value", "hello world")) == 0);
+        expect(act(h, "main/msg", "set_selection", Value{}.set("anchor", 6).set("focus", 11)) == 0);  // read: not recorded
+        expect(act(h, "main/msg", "replace_selection", Value{}.set("text", "there")) == 0 && text() == "hello there");
+        expect(eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4}));
+        expect(undoes("undo") == 0 && text() == "hello world") << "the replaced text is back";
         const auto& ed = h.runtime().component<TextBox>(h.runtime().find("main/msg"))->editor();
-        check(ed.selection().begin() == 6 && ed.selection().end() == 11, "and the selection there was");
-        check(undoes("undo") == 0 && text().empty());
-        check(undoes("undo") == 0 && volume.peek() == 30, "the bound signal learns the undo");
+        expect(ed.selection().begin() == 6 && ed.selection().end() == 11) << "and the selection there was";
+        expect(undoes("undo") == 0 && text().empty());
+        expect(undoes("undo") == 0 && volume.peek() == 30) << "the bound signal learns the undo";
         const int before = toggled;
-        check(undoes("undo") == 0 && !wifi.peek() && toggled == before + 1, "the switch's own event follows");
-        check(undoes("undo") == 1, "nothing left");
+        expect(undoes("undo") == 0 && !wifi.peek() && toggled == before + 1) << "the switch's own event follows";
+        expect(undoes("undo") == 1) << "nothing left";
         // Redo puts each back, in order.
-        for (int i = 0; i < 4; ++i) check(undoes("redo") == 0);
-        check(wifi.peek() && volume.peek() == 35 && text() == "hello there");
+        for (int i = 0; i < 4; ++i) expect(undoes("redo") == 0);
+        expect(wifi.peek() && volume.peek() == 35 && text() == "hello there");
         // Typed after an undo: the redo would write over it, so it is gone (what was undone stays undone).
-        check(undoes("undo") == 0 && text() == "hello world");
-        check(h.click("main/msg"));
+        expect(undoes("undo") == 0 && text() == "hello world");
+        expect(h.click("main/msg"));
         key(h, Key::end);
         h.type("!");
         (void)h.advance(seconds(1.1));  // the person's typing over (S-14): what follows is the agent's
-        check(text() == "hello world!", text());
-        check(h.runtime().history(h.runtime().root()).redo.empty(), "no redo over the typing");
-        check(undoes("redo") == 1 && text() == "hello world!", "redo has nothing to put back");
-        check(act(h, "main/msg", "set_value", Value{}.set("value", "hello there")) == 0);  // as it was, for what follows
+        expect(text() == "hello world!") << text();
+        expect(h.runtime().history(h.runtime().root()).redo.empty()) << "no redo over the typing";
+        expect(undoes("redo") == 1 && text() == "hello world!") << "redo has nothing to put back";
+        expect(act(h, "main/msg", "set_value", Value{}.set("value", "hello there")) == 0);  // as it was, for what follows
 
         // A dry run: what it would do, and nothing else.
         const std::uint64_t digest = tree.digest();
@@ -297,20 +297,17 @@ int main(int argc, char** argv) {
         dry.dry_run = true;
         dry.args = Value{}.set("value", 42.0);
         auto d = tree.act("main/volume", "set_value", dry);
-        check(d.data_value() && d.data_value()->get("value")->get("after")->as_double() == 40 && d.data_value()->get("undoable")->as_bool(),
-              d.ndjson());
+        expect(d.data_value() && d.data_value()->get("value")->get("after")->as_double() == 40 && d.data_value()->get("undoable")->as_bool()) << d.ndjson();
         dry.args = Value{}.set("text", "!");
         auto t = tree.act("main/msg", "replace_selection", dry);
-        check(t.data_value()->get("value")->get("after")->as_string() == "hello there!", t.ndjson());
+        expect(t.data_value()->get("value")->get("after")->as_string() == "hello there!") << t.ndjson();
         dry.args = {};
         auto w = tree.act("main/wifi", "toggle", dry);
-        check(w.data_value()->get("value")->get("after")->as_bool() == false && w.data_value()->get("value")->get("before")->as_bool(), w.ndjson());
+        expect(w.data_value()->get("value")->get("after")->as_bool() == false && w.data_value()->get("value")->get("before")->as_bool()) << w.ndjson();
         auto del = tree.act("main/delete", "activate", dry);
-        check(del.data_value()->get("outcome")->as_string() == "needs-answer" && del.data_value()->get("effect")->as_string() == "irreversible",
-              del.ndjson());
+        expect(del.data_value()->get("outcome")->as_string() == "needs-answer" && del.data_value()->get("effect")->as_string() == "irreversible") << del.ndjson();
         h.step();
-        check(tree.digest() == digest && h.runtime().action_journal().size() == journal && volume.peek() == 35 && wifi.peek() && deleted == 0,
-              "a dry run leaves no trace");
+        expect(tree.digest() == digest && h.runtime().action_journal().size() == journal && volume.peek() == 35 && wifi.peek() && deleted == 0) << "a dry run leaves no trace";
 
         // A transaction that fails midway is taken back, last first.
         Invocation agent;
@@ -323,70 +320,68 @@ int main(int argc, char** argv) {
         };
         auto failed = tree.transaction(steps, agent, "settings");
         h.step();
-        check(failed.exit_code() == 1 && failed.ndjson().find("step 4") != std::string::npos &&
-                  failed.ndjson().find("\"rolled_back\":3") != std::string::npos,
-              failed.ndjson());
-        check(wifi.peek() && volume.peek() == 35 && text() == "hello there", "nothing of it stays");
-        check_eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4});
+        expect(failed.exit_code() == 1 && failed.ndjson().find("step 4") != std::string::npos &&
+                  failed.ndjson().find("\"rolled_back\":3") != std::string::npos) << failed.ndjson();
+        expect(wifi.peek() && volume.peek() == 35 && text() == "hello there") << "nothing of it stays";
+        expect(eq(h.runtime().history(h.runtime().root()).undo.size(), std::size_t{4}));
         // The same without the bad step: one step of history, undone as one.
         auto done = tree.transaction(std::span(steps).first(3), agent, "settings");
         h.step();
-        check(done.exit_code() == 0 && !wifi.peek() && volume.peek() == 80 && text() == "draft", done.ndjson());
-        check_eq(h.runtime().history(h.runtime().root()).undo.back().label, std::string("settings"));
-        check(undoes("undo") == 0 && wifi.peek() && volume.peek() == 35 && text() == "hello there", "undone as one");
+        expect(done.exit_code() == 0 && !wifi.peek() && volume.peek() == 80 && text() == "draft") << done.ndjson();
+        expect(eq(h.runtime().history(h.runtime().root()).undo.back().label, std::string("settings")));
+        expect(undoes("undo") == 0 && wifi.peek() && volume.peek() == 35 && text() == "hello there") << "undone as one";
         // A dry run of a transaction states each step's outcome.
         Invocation plan = agent;
         plan.dry_run = true;
         const std::vector<semantic::Step> risky{{"main/wifi", "toggle", {}, {}}, {"main/delete", "activate", {}, "yes"}};
         auto p = tree.transaction(risky, plan);
-        check(p.data_value() && p.data_value()->get("outcome")->as_string() == "refused" &&
-                  p.data_value()->get("steps")->list()->at(1).get("outcome")->as_string() == "refused",
-              p.ndjson());
-        check(tree.transaction(risky, agent).exit_code() == 1 && wifi.peek() && deleted == 0, "an irreversible step is refused before it runs");
+        expect(p.data_value() && p.data_value()->get("outcome")->as_string() == "refused" &&
+                  p.data_value()->get("steps")->list()->at(1).get("outcome")->as_string() == "refused") << p.ndjson();
+        expect(tree.transaction(risky, agent).exit_code() == 1 && wifi.peek() && deleted == 0) << "an irreversible step is refused before it runs";
 
         // An irreversible action ends what can be undone: undo is refused there.
-        check(act(h, "main/delete", "activate", {}, "yes") == 0 && deleted == 1);
+        expect(act(h, "main/delete", "activate", {}, "yes") == 0 && deleted == 1);
         auto refused = tree.act("app", "undo", agent);
-        check(refused.exit_code() == 1 && refused.ndjson().find("cannot be taken back") != std::string::npos, refused.ndjson());
-        check(wifi.peek() && volume.peek() == 35, "and changes nothing");
+        expect(refused.exit_code() == 1 && refused.ndjson().find("cannot be taken back") != std::string::npos) << refused.ndjson();
+        expect(wifi.peek() && volume.peek() == 35) << "and changes nothing";
         h.settle();
-    });
+    };
 
-    s.test("text box: empty values in a limited field remain reversible through semantic actions", [] {
+    "text box: empty values in a limited field remain reversible through semantic actions"_test = [] {
         Headless h(options()); auto value = signal(std::string("你好吗"));
         h.mount("main", text_box({.id = "field", .label = "Limited name", .max_length = 3, .text = value})); h.settle();
-        check_eq(act(h, "main", "set_value", Value{}.set("value", "")), std::int64_t{0});
-        check_eq(value.peek(), std::string());
-        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0}); h.settle();
-        check_eq(value.peek(), std::string("你好吗"));
-        check_eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0}); h.settle();
-        check_eq(value.peek(), std::string());
-    });
+        expect(eq(act(h, "main", "set_value", Value{}.set("value", "")), std::int64_t{0}));
+        expect(eq(value.peek(), std::string()));
+        expect(eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0})); h.settle();
+        expect(eq(value.peek(), std::string("你好吗")));
+        expect(eq(h.runtime().redo({}).exit_code().value_or(-1), std::int64_t{0})); h.settle();
+        expect(eq(value.peek(), std::string()));
+    };
 
-    s.test("text box: a line of 600 graphemes for assistive technology, cut where words begin, each part going on along the last", [] {
+    "text box: a line of 600 graphemes for assistive technology, cut where words begin, each part going on along the last"_test = [] {
         Headless h(options());
         std::string words;
         for (int i = 0; i < 100; ++i) words += "word5 ";  // 600 graphemes on one line (the field scrolls)
         h.mount("main", column({.padding = 12}, {text_box({.id = "long", .label = "Long", .text = signal(words)})}));
         h.step();
         const auto layout = h.runtime().text_layout(h.runtime().find("main/long"));
-        check(layout.has_value(), "laid out");
+        expect(layout.has_value()) << "laid out";
         if (!layout) return;
-        check(layout->lines.size() == 3, std::format("{} parts", layout->lines.size()));
+        expect(layout->lines.size() == 3) << std::format("{} parts", layout->lines.size());
         std::size_t graphemes = 0, end = 0;
         for (std::size_t i = 0; i < layout->lines.size(); ++i) {
             const TextLine& l = layout->lines[i];
-            check(l.lengths.size() <= 255 && l.begin == end, std::format("part {}: {} graphemes from {}", i, l.lengths.size(), l.begin));
-            check(l.continues == (i + 1 < layout->lines.size()), "each goes on along the one before");
-            check(!l.word_starts.empty() && l.word_starts.front() == 0 && l.lengths.size() % 6 == 0, "cut where a word begins");
-            check(l.word_starts.size() == l.lengths.size() / 6, "every word's start, past the 256th grapheme too");
+            expect(l.lengths.size() <= 255 && l.begin == end) << std::format("part {}: {} graphemes from {}", i, l.lengths.size(), l.begin);
+            expect(l.continues == (i + 1 < layout->lines.size())) << "each goes on along the one before";
+            expect(!l.word_starts.empty() && l.word_starts.front() == 0 && l.lengths.size() % 6 == 0) << "cut where a word begins";
+            expect(l.word_starts.size() == l.lengths.size() / 6) << "every word's start, past the 256th grapheme too";
             graphemes += l.lengths.size();
             end = l.end;
         }
-        check(graphemes == 600 && end == words.size(), std::format("{} graphemes to byte {}", graphemes, end));
-    });
+        expect(graphemes == 600 && end == words.size()) << std::format("{} graphemes to byte {}", graphemes, end);
+    };
 
-    s.test("text box: input methods, passwords, limits, and actions in graphemes", [] {
+    "text box: input methods, passwords, limits, and actions in graphemes"_test = [] {
         Headless h(options());
         h.mount("main", column({.padding = 12, .gap = 8}, {
                                    text_box({.id = "msg"}),
@@ -394,34 +389,34 @@ int main(int argc, char** argv) {
                                    text_box({.id = "code", .label = "Code", .max_length = 4}),
                                }));
         h.step();
-        check(h.click("main/msg"));
+        expect(h.click("main/msg"));
         PreeditEvent pre;
         pre.text = "ni";
         h.step({pre});
-        check(sem(h, "main/msg").value == Value(""), "a preedit is not text yet");
+        expect(sem(h, "main/msg").value == Value("")) << "a preedit is not text yet";
         h.type("你");
-        check(sem(h, "main/msg").value == Value("你"), "committed by the input method");
+        expect(sem(h, "main/msg").value == Value("你")) << "committed by the input method";
         h.type("好👋🏽!");
         (void)h.advance(seconds(1.1));  // the person's typing over (S-14): the agent's turn
-        check(act(h, "main/msg", "set_selection", Value{}.set("anchor", 1).set("focus", 3)) == 0);
-        check(act(h, "main/msg", "replace_selection", Value{}.set("text", "们")) == 0);
-        check(sem(h, "main/msg").value == Value("你们!"), "grapheme offsets: 👋🏽 is one");
-        check(act(h, "main/msg", "set_value", Value{}.set("value", "hi")) == 0 && sem(h, "main/msg").value == Value("hi"));
-        check(h.click("main/pin"));
+        expect(act(h, "main/msg", "set_selection", Value{}.set("anchor", 1).set("focus", 3)) == 0);
+        expect(act(h, "main/msg", "replace_selection", Value{}.set("text", "们")) == 0);
+        expect(sem(h, "main/msg").value == Value("你们!")) << "grapheme offsets: 👋🏽 is one";
+        expect(act(h, "main/msg", "set_value", Value{}.set("value", "hi")) == 0 && sem(h, "main/msg").value == Value("hi"));
+        expect(h.click("main/pin"));
         h.type("1234");
         auto pin = sem(h, "main/pin");
-        check(pin.value == Value("••••"), "a password is not read out");
+        expect(pin.value == Value("••••")) << "a password is not read out";
         key(h, Key::a, Modifiers(primary_modifier()));
         h.runtime().set_clipboard_text("before");
         key(h, Key::c, Modifiers(primary_modifier()));
-        check(h.runtime().clipboard_text() == "before", "nor copied");
-        check(h.click("main/code"));
+        expect(h.runtime().clipboard_text() == "before") << "nor copied";
+        expect(h.click("main/code"));
         h.type("123456");
-        check(sem(h, "main/code").value == Value("1234"), "max_length counts graphemes");
-        check(act(h, "main/code", "focus") == 0);
-    });
+        expect(sem(h, "main/code").value == Value("1234")) << "max_length counts graphemes";
+        expect(act(h, "main/code", "focus") == 0);
+    };
 
-    s.test("progress and radio groups", [] {
+    "progress and radio groups"_test = [] {
         Headless h(options());
         auto done = signal(0.25);
         auto size = signal(std::string("m"));
@@ -437,19 +432,19 @@ int main(int argc, char** argv) {
                                    }),
                                }));
         h.settle();
-        check(sem(h, "main/upload").value == Value(0.25) && sem(h, "main/upload").role == Role::progress);
-        check(sem(h, "main/busy").states.has(State::busy), "indeterminate is busy");
-        check(sem(h, "main/size/m").states.has(State::checked) && !sem(h, "main/size/s").states.has(State::checked));
-        check(h.click("main/size/l"));
-        check(size.peek() == "l" && picked == std::vector<std::string>{"l"});
-        check(!sem(h, "main/size/m").states.has(State::checked), "the group's other radios follow its signal");
-        check(act(h, "main/size/s", "select") == 0 && size.peek() == "s");
+        expect(sem(h, "main/upload").value == Value(0.25) && sem(h, "main/upload").role == Role::progress);
+        expect(sem(h, "main/busy").states.has(State::busy)) << "indeterminate is busy";
+        expect(sem(h, "main/size/m").states.has(State::checked) && !sem(h, "main/size/s").states.has(State::checked));
+        expect(h.click("main/size/l"));
+        expect(size.peek() == "l" && picked == std::vector<std::string>{"l"});
+        expect(!sem(h, "main/size/m").states.has(State::checked)) << "the group's other radios follow its signal";
+        expect(act(h, "main/size/s", "select") == 0 && size.peek() == "s");
         done.set(0.75);
         h.step();
-        check(sem(h, "main/upload").value == Value(0.75));
-    });
+        expect(sem(h, "main/upload").value == Value(0.75));
+    };
 
-    s.test("tabs: click, arrows, and the panel that follows", [] {
+    "tabs: click, arrows, and the panel that follows"_test = [] {
         Headless h(options());
         auto page = signal(std::string("general"));
         std::vector<std::string> changes;
@@ -464,20 +459,20 @@ int main(int argc, char** argv) {
                                         [] { return text({.id = "panel", .text = "General settings"}); }),
                                }));
         h.settle();
-        check(sem(h, "main/tabs").role == Role::tab_list && sem(h, "main/tabs/general").states.has(State::selected));
-        check(h.click("main/tabs/privacy"));
-        check(page.peek() == "privacy" && changes == std::vector<std::string>{"privacy"});
-        check(sem(h, "main/panel").name == "Privacy settings");
+        expect(sem(h, "main/tabs").role == Role::tab_list && sem(h, "main/tabs/general").states.has(State::selected));
+        expect(h.click("main/tabs/privacy"));
+        expect(page.peek() == "privacy" && changes == std::vector<std::string>{"privacy"});
+        expect(sem(h, "main/panel").name == "Privacy settings");
         key(h, Key::right);
-        check(page.peek() == "advanced", std::format("Right skips the disabled tab: {}", page.peek()));
-        check(h.runtime().path(h.runtime().focused()) == "main/tabs/advanced");
+        expect(page.peek() == "advanced") << std::format("Right skips the disabled tab: {}", page.peek());
+        expect(h.runtime().path(h.runtime().focused()) == "main/tabs/advanced");
         key(h, Key::right);
-        check(page.peek() == "general", "and wraps");
-        check(act(h, "main/tabs/privacy", "select") == 0 && page.peek() == "privacy");
-        check(act(h, "main/tabs", "next") == 1, "next is a command of the keys, not an action");
-    });
+        expect(page.peek() == "general") << "and wraps";
+        expect(act(h, "main/tabs/privacy", "select") == 0 && page.peek() == "privacy");
+        expect(act(h, "main/tabs", "next") == 1) << "next is a command of the keys, not an action";
+    };
 
-    s.test("menu: opens below its button, keys and choices close it, focus comes back", [] {
+    "menu: opens below its button, keys and choices close it, focus comes back"_test = [] {
         Headless h(options({360, 300}));
         auto open = signal(false);
         int closed = 0;
@@ -494,33 +489,33 @@ int main(int argc, char** argv) {
                                    text({.id = "below", .text = "Content"}),
                                }));
         h.settle();
-        check(!h.tree().node("main/file/menu") || h.tree().find({.role = Role::menu_item}).empty(), "a closed menu is not read");
-        check(h.click("main/file/open"));
+        expect(!h.tree().node("main/file/menu") || h.tree().find({.role = Role::menu_item}).empty()) << "a closed menu is not read";
+        expect(h.click("main/file/open"));
         h.settle();
-        check(open.peek());
+        expect(open.peek());
         const Rect button_b = bounds(h, "main/file/open"), menu_b = bounds(h, "main/file/menu");
-        check(menu_b.y >= button_b.bottom() && menu_b.x == button_b.x, std::format("below: {} {}", menu_b.x, menu_b.y));
-        check(h.runtime().hit_test({menu_b.x + 20, menu_b.y + 20}) != h.runtime().find("main/below"), "above the content");
-        check(h.runtime().path(h.runtime().focused()) == "main/file/menu/new", "the first item takes focus");
+        expect(menu_b.y >= button_b.bottom() && menu_b.x == button_b.x) << std::format("below: {} {}", menu_b.x, menu_b.y);
+        expect(h.runtime().hit_test({menu_b.x + 20, menu_b.y + 20}) != h.runtime().find("main/below")) << "above the content";
+        expect(h.runtime().path(h.runtime().focused()) == "main/file/menu/new") << "the first item takes focus";
         key(h, Key::down);
-        check(h.runtime().path(h.runtime().focused()) == "main/file/menu/quit", "Down skips the disabled item");
+        expect(h.runtime().path(h.runtime().focused()) == "main/file/menu/quit") << "Down skips the disabled item";
         key(h, Key::enter);
         h.settle();
-        check(chosen == std::vector<std::string>{"quit"} && !open.peek() && closed == 1);
-        check(h.runtime().path(h.runtime().focused()) == "main/file/open", "focus goes back to the button");
+        expect(chosen == std::vector<std::string>{"quit"} && !open.peek() && closed == 1);
+        expect(h.runtime().path(h.runtime().focused()) == "main/file/open") << "focus goes back to the button";
         open.set(true);
         h.settle();
         key(h, Key::escape);
         h.settle();
-        check(!open.peek() && closed == 2, "Escape");
+        expect(!open.peek() && closed == 2) << "Escape";
         open.set(true);
         h.settle();
         h.click(Point{340, 280});
         h.settle();
-        check(!open.peek() && closed == 3, "a press outside");
-    });
+        expect(!open.peek() && closed == 3) << "a press outside";
+    };
 
-    s.test("dialog: modal, focus kept inside and given back, dismissed by Escape or the scrim", [] {
+    "dialog: modal, focus kept inside and given back, dismissed by Escape or the scrim"_test = [] {
         Headless h(options({400, 300}));
         auto open = signal(false);
         std::vector<std::string> results;
@@ -538,34 +533,34 @@ int main(int argc, char** argv) {
                                }));
         h.settle();
         h.focus_next();
-        check(h.runtime().path(h.runtime().focused()) == "main/ask");
+        expect(h.runtime().path(h.runtime().focused()) == "main/ask");
         key(h, Key::enter);
         h.settle();
-        check(open.peek());
+        expect(open.peek());
         auto d = sem(h, "main/confirm");
-        check(d.role == Role::dialog && d.name == "Delete the file?" && d.states.has(State::modal));
-        check(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel", h.runtime().path(h.runtime().focused()));
+        expect(d.role == Role::dialog && d.name == "Delete the file?" && d.states.has(State::modal));
+        expect(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel") << h.runtime().path(h.runtime().focused());
         key(h, Key::tab);
         key(h, Key::tab);
-        check(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel", "Tab stays inside");
-        check(h.runtime().hit_test(bounds(h, "main/other").center()) == h.runtime().find("main/confirm"), "the scrim blocks what is below");
+        expect(h.runtime().path(h.runtime().focused()) == "main/confirm/actions/cancel") << "Tab stays inside";
+        expect(h.runtime().hit_test(bounds(h, "main/other").center()) == h.runtime().find("main/confirm")) << "the scrim blocks what is below";
         key(h, Key::escape);
         h.settle();
-        check(!open.peek() && results == std::vector<std::string>{"dismissed"});
-        check(h.runtime().path(h.runtime().focused()) == "main/ask", "focus comes back");
+        expect(!open.peek() && results == std::vector<std::string>{"dismissed"});
+        expect(h.runtime().path(h.runtime().focused()) == "main/ask") << "focus comes back";
         open.set(true);
         h.settle();
         h.click(Point{5, 295});
         h.settle();
-        check(!open.peek() && results.size() == 2, "a press on the scrim");
+        expect(!open.peek() && results.size() == 2) << "a press on the scrim";
         open.set(true);
         h.settle();
-        check(h.click("main/confirm/actions/cancel"));
+        expect(h.click("main/confirm/actions/cancel"));
         h.settle();
-        check(!open.peek() && results.size() == 3);
-    });
+        expect(!open.peek() && results.size() == 3);
+    };
 
-    s.test("tooltip: after a delay on hover, gone on leave", [] {
+    "tooltip: after a delay on hover, gone on leave"_test = [] {
         Headless h(options());
         h.mount("main", column({.padding = 40, .gap = 8}, {
                                    row({.id = "bar"}, {
@@ -574,21 +569,21 @@ int main(int argc, char** argv) {
                                    }),
                                }));
         h.settle();
-        check(h.tree().find({.role = Role::tooltip}).empty());
+        expect(h.tree().find({.role = Role::tooltip}).empty());
         h.move(bounds(h, "main/bar/save").center());
         h.advance(seconds(0.3));
-        check(h.tree().find({.role = Role::tooltip}).empty(), "not before the delay");
+        expect(h.tree().find({.role = Role::tooltip}).empty()) << "not before the delay";
         h.advance(seconds(0.3));
         h.settle();
         auto tips = h.tree().find({.role = Role::tooltip});
-        check(tips.size() == 1 && tips[0].name == "Save the document (Ctrl+S)");
-        check(bounds(h, "main/bar/tip").bottom() <= bounds(h, "main/bar/save").y, "above its target");
+        expect(tips.size() == 1 && tips[0].name == "Save the document (Ctrl+S)");
+        expect(bounds(h, "main/bar/tip").bottom() <= bounds(h, "main/bar/save").y) << "above its target";
         h.move({5, 230});
         h.settle();
-        check(h.tree().find({.role = Role::tooltip}).empty(), "gone on leave");
-    });
+        expect(h.tree().find({.role = Role::tooltip}).empty()) << "gone on leave";
+    };
 
-    s.test("select: pointer, keys and agents choose; values are checked", [] {
+    "select: pointer, keys and agents choose; values are checked"_test = [] {
         Headless h(options({360, 320}));
         auto city = signal(std::string("paris"));
         std::vector<std::string> changes;
@@ -599,36 +594,36 @@ int main(int argc, char** argv) {
                                }));
         h.settle();
         auto n = sem(h, "main/city");
-        check(n.role == Role::combo_box && n.name == "City" && n.value.get("value")->as_string() == "paris");
-        check(n.value.get("options")->list()->size() == 3);
-        check(h.click("main/city"));
+        expect(n.role == Role::combo_box && n.name == "City" && n.value.get("value")->as_string() == "paris");
+        expect(n.value.get("options")->list()->size() == 3);
+        expect(h.click("main/city"));
         h.settle();
-        check(sem(h, "main/city").states.has(State::expanded));
+        expect(sem(h, "main/city").states.has(State::expanded));
         auto options = h.tree().find({.role = Role::option});
-        check(options.size() == 3 && options[1].name == "Tokyo");
-        check(bounds(h, "main/city/popup").width >= bounds(h, "main/city").width, "at least as wide as the field");
-        check(h.click(options[2].id));
+        expect(options.size() == 3 && options[1].name == "Tokyo");
+        expect(bounds(h, "main/city/popup").width >= bounds(h, "main/city").width) << "at least as wide as the field";
+        expect(h.click(options[2].id));
         h.settle();
-        check(city.peek() == "lima" && changes == std::vector<std::string>{"lima"} && !sem(h, "main/city").states.has(State::expanded));
-        check(h.runtime().path(h.runtime().focused()) == "main/city");
+        expect(city.peek() == "lima" && changes == std::vector<std::string>{"lima"} && !sem(h, "main/city").states.has(State::expanded));
+        expect(h.runtime().path(h.runtime().focused()) == "main/city");
         key(h, Key::enter);
         h.settle();
         key(h, Key::up);
         key(h, Key::enter);
         h.settle();
-        check(city.peek() == "tokyo", city.peek());
+        expect(city.peek() == "tokyo") << city.peek();
         key(h, Key::enter);h.settle();key(h, Key::end);
-        check(city.peek()=="tokyo","End moves option focus without committing a value");
-        key(h, Key::enter);h.settle();check(city.peek()=="lima","Enter commits the final option");
+        expect(city.peek()=="tokyo") << "End moves option focus without committing a value";
+        key(h, Key::enter);h.settle();expect(city.peek()=="lima") << "Enter commits the final option";
         key(h, Key::enter);h.settle();key(h, Key::home);
-        check(city.peek()=="lima","Home moves option focus without committing a value");
-        key(h, Key::enter);h.settle();check(city.peek()=="paris","Enter commits the first option");
-        check(act(h, "main/city", "set_value", Value{}.set("value", "tokyo")) == 0 && city.peek() == "tokyo");
-        check(act(h, "main/city", "set_value", Value{}.set("value", "berlin")) == 1, "not an option");
+        expect(city.peek()=="lima") << "Home moves option focus without committing a value";
+        key(h, Key::enter);h.settle();expect(city.peek()=="paris") << "Enter commits the first option";
+        expect(act(h, "main/city", "set_value", Value{}.set("value", "tokyo")) == 0 && city.peek() == "tokyo");
+        expect(act(h, "main/city", "set_value", Value{}.set("value", "berlin")) == 1) << "not an option";
         h.settle();
-    });
+    };
 
-    s.test("select: a label longer than the field ends in \"…\" before the chevron, never under it", [] {
+    "select: a label longer than the field ends in \"…\" before the chevron, never under it"_test = [] {
         Headless h(options({360, 120}));
         h.mount("main", column({.padding = 12}, {
                                    select({.id = "drawn", .label = "Who draws", .labels = std::vector<std::string>{"Automatic (a GPU when there is one)", "The CPU"},
@@ -636,7 +631,7 @@ int main(int argc, char** argv) {
                                }));
         h.settle();
         const Rect b = bounds(h, "main/drawn");
-        check(b.width == 180, "the field as wide as it was told");
+        expect(b.width == 180) << "the field as wide as it was told";
         // Between the text's room and the chevron: the field's own colour only, top to bottom.
         const auto& px = h.pixels();
         const int right = static_cast<int>(b.x + b.width);
@@ -647,13 +642,13 @@ int main(int argc, char** argv) {
                 const auto p = px.row(y)[x];
                 inked += p.r != ground.r || p.g != ground.g || p.b != ground.b;
             }
-        check(inked == 0, std::format("{} pixels of text under the chevron's room", inked));
-        check(sem(h, "main/drawn").value.get("value")->as_string() == "automatic", "its value whole");
-    });
+        expect(inked == 0) << std::format("{} pixels of text under the chevron's room", inked);
+        expect(sem(h, "main/drawn").value.get("value")->as_string() == "automatic") << "its value whole";
+    };
 
-    s.test("overlays in a picture: an open select and an open menu", [] {
+    "overlays in a picture: an open select and an open menu"_test = [] {
         mlibs::text::FontCollection own;
-        check(own.add_defaults().has_value());
+        expect(own.add_defaults().has_value());
         HeadlessOptions o = options({360, 240});
         o.fonts = &own;
         o.scale = 2;
@@ -671,27 +666,27 @@ int main(int argc, char** argv) {
                                 }),
                             }));
         h.settle();
-        check(act(h, "main/city", "expand") == 0);
+        expect(act(h, "main/city", "expand") == 0);
         h.settle();
         const Rect field = bounds(h, "main/city");
         for (const auto& opt : h.tree().find({.role = Role::option}))
-            check(bounds(h, opt.id).width >= field.width - 10, std::format("{} is {} wide", opt.id, bounds(h, opt.id).width));
+            expect(bounds(h, opt.id).width >= field.width - 10) << std::format("{} is {} wide", opt.id, bounds(h, opt.id).width);
         Hash hash;
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base overlays {:016x}", hash.value());
-        check(h.save_png(scratch_dir("ui-base-overlays") / "overlays@2x.png").has_value());
-        check(hash.value() == 0xf735a220f8651df1ULL, std::format("overlays {:016x}", hash.value()));
-    });
+        expect(h.save_png(scratch_dir("ui-base-overlays") / "overlays@2x.png").has_value());
+        expect(hash.value() == 0xf735a220f8651df1ULL) << std::format("overlays {:016x}", hash.value());
+    };
 
-    s.test("list: a thousand rows, the visible ones materialised, all of them queryable (S-7)", [] {
+    "list: a thousand rows, the visible ones materialised, all of them queryable (S-7)"_test = [] {
         Headless h(options({320, 400}));
         Model& notes = h.runtime().model("notes");
         std::vector<Row> rows;
         for (int i = 0; i < 1000; ++i) rows.push_back({std::format("n{}", i), Value{}.set("title", std::format("Note {}", i))});
-        check(notes.push(std::move(rows)).has_value());
-        check(!notes.push({{"bad key!", {}}}).has_value(), "keys are ids");
-        check(!notes.push({{"n3", {}}}).has_value(), "and unique");
+        expect(notes.push(std::move(rows)).has_value());
+        expect(!notes.push({{"bad key!", {}}}).has_value()) << "keys are ids";
+        expect(!notes.push({{"n3", {}}}).has_value()) << "and unique";
         auto selected = signal(std::vector<std::string>{});
         std::vector<std::string> activated;
         h.mount("main", column({.padding = 10}, {
@@ -706,47 +701,47 @@ int main(int argc, char** argv) {
         h.settle();
         const NodeId list = h.runtime().find("main/notes");
         const std::size_t materialised = h.runtime().children(list).size() - 2;  // less the two spacers
-        check(materialised > 5 && materialised < 30, std::format("{} rows are nodes", materialised));
-        check(h.runtime().node_count() < 200, std::format("{} nodes for a thousand rows", h.runtime().node_count()));
+        expect(materialised > 5 && materialised < 30) << std::format("{} rows are nodes", materialised);
+        expect(h.runtime().node_count() < 200) << std::format("{} nodes for a thousand rows", h.runtime().node_count());
         // The semantic tree states all of them, in order.
         auto snap = h.tree().snapshot({.root = "main/notes", .depth = 1});
-        check(snap.nodes.size() == 1001, std::format("{}", snap.nodes.size()));
-        check(snap.nodes.front().children.size() == 1000 && snap.nodes.front().children[999] == "main/notes/n999");
+        expect(snap.nodes.size() == 1001) << std::format("{}", snap.nodes.size());
+        expect(snap.nodes.front().children.size() == 1000 && snap.nodes.front().children[999] == "main/notes/n999");
         auto far = h.tree().find({.name = "Note 750"});
-        check(far.size() == 1 && far[0].states.has(State::offscreen), "found though not materialised");
+        expect(far.size() == 1 && far[0].states.has(State::offscreen)) << "found though not materialised";
         // An action on it brings it into view first.
-        check(act(h, "main/notes/n750", "activate") == 0);
+        expect(act(h, "main/notes/n750", "activate") == 0);
         h.settle();
-        check(activated == std::vector<std::string>{"n750"} && selected.peek() == std::vector<std::string>{"n750"});
-        check(h.runtime().valid(h.runtime().find("main/notes/n750")), "now a node");
+        expect(activated == std::vector<std::string>{"n750"} && selected.peek() == std::vector<std::string>{"n750"});
+        expect(h.runtime().valid(h.runtime().find("main/notes/n750"))) << "now a node";
         const Rect lb = bounds(h, "main/notes"), ib = bounds(h, "main/notes/n750");
-        check(ib.y >= lb.y - 0.5f && ib.bottom() <= lb.bottom() + 0.5f, std::format("in view: {}..{} in {}..{}", ib.y, ib.bottom(), lb.y, lb.bottom()));
-        check(!h.tree().node("main/notes/n750")->states.has(State::offscreen));
+        expect(ib.y >= lb.y - 0.5f && ib.bottom() <= lb.bottom() + 0.5f) << std::format("in view: {}..{} in {}..{}", ib.y, ib.bottom(), lb.y, lb.bottom());
+        expect(!h.tree().node("main/notes/n750")->states.has(State::offscreen));
         // Keys walk the items from the one focused, scrolling as they go.
-        check(act(h, "main/notes/n750", "focus") == 0);
+        expect(act(h, "main/notes/n750", "focus") == 0);
         for (int i = 0; i < 20; ++i) key(h, Key::down);
         h.settle();
-        check(h.runtime().path(h.runtime().focused()) == "main/notes/n770", h.runtime().path(h.runtime().focused()));
-        check(h.runtime().valid(h.runtime().find("main/notes/n770")));
+        expect(h.runtime().path(h.runtime().focused()) == "main/notes/n770") << h.runtime().path(h.runtime().focused());
+        expect(h.runtime().valid(h.runtime().find("main/notes/n770")));
         // The wheel moves the window.
         h.scroll(lb.center(), {0, -100000});
         h.settle();
-        check(h.runtime().valid(h.runtime().find("main/notes/n0")) && !h.runtime().valid(h.runtime().find("main/notes/n750")));
+        expect(h.runtime().valid(h.runtime().find("main/notes/n0")) && !h.runtime().valid(h.runtime().find("main/notes/n750")));
         // Rows measured taller than the estimate keep their place.
-        check(act(h, "main/notes", "scroll_to", Value{}.set("x", 0).set("y", "end")) == 0);
+        expect(act(h, "main/notes", "scroll_to", Value{}.set("x", 0).set("y", "end")) == 0);
         h.settle();
-        check(h.runtime().valid(h.runtime().find("main/notes/n999")));
+        expect(h.runtime().valid(h.runtime().find("main/notes/n999")));
         // The model changes: the list follows.
-        check(notes.patch(999, {{"last", Value{}.set("title", "The last one")}}).has_value());
+        expect(notes.patch(999, {{"last", Value{}.set("title", "The last one")}}).has_value());
         h.settle();
-        check(!h.tree().find({.name = "The last one"}).empty());
+        expect(!h.tree().find({.name = "The last one"}).empty());
         notes.remove(0, 990);
         h.settle();
-        check(h.tree().snapshot({.root = "main/notes", .depth = 1}).nodes.size() == 11);
-        check(h.tree().violations().empty(), std::format("{}", h.tree().violations().size()));
-    });
+        expect(h.tree().snapshot({.root = "main/notes", .depth = 1}).nodes.size() == 11);
+        expect(h.tree().violations().empty()) << std::format("{}", h.tree().violations().size());
+    };
 
-    s.test("immediate mode uses the real components", [] {
+    "immediate mode uses the real components"_test = [] {
         Headless h(options());
         int saves = 0;
         bool dark = false;
@@ -760,15 +755,15 @@ int main(int argc, char** argv) {
                 }));
         h.step();
         auto col = h.runtime().path(h.runtime().children(h.runtime().find("main"))[0]);
-        check(sem(h, col + "/save").role == Role::button, "a real button, not a stand-in");
-        check(act(h, col + "/save", "activate") == 0 && saves == 1);
-        check(act(h, col + "/dark", "toggle") == 0 && dark);
-        check(act(h, col + "/level", "increment") == 0 && level == 11, std::format("{}", level));
-    });
+        expect(sem(h, col + "/save").role == Role::button) << "a real button, not a stand-in";
+        expect(act(h, col + "/save", "activate") == 0 && saves == 1);
+        expect(act(h, col + "/dark", "toggle") == 0 && dark);
+        expect(act(h, col + "/level", "increment") == 0 && level == 11) << std::format("{}", level);
+    };
 
-    s.test("the gallery is the same pixels on every platform", [] {
+    "the gallery is the same pixels on every platform"_test = [] {
         mlibs::text::FontCollection own;
-        check(own.add_defaults().has_value());
+        expect(own.add_defaults().has_value());
         HeadlessOptions o = options({320, 260});
         o.fonts = &own;
         o.scale = 2;
@@ -793,23 +788,23 @@ int main(int argc, char** argv) {
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("ui.base gallery {:016x}", hash.value());
-        check(h.save_png(scratch_dir("ui-base") / "gallery@2x.png").has_value());
+        expect(h.save_png(scratch_dir("ui-base") / "gallery@2x.png").has_value());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(hash.value() == 0x9ebc220003683659ULL, std::format("gallery {:016x}", hash.value()));
+        expect(hash.value() == 0x9ebc220003683659ULL) << std::format("gallery {:016x}", hash.value());
         // The same gallery as vectors: every control named, nothing left as pixels.
         const auto vectors = h.svg();
-        check(vectors.has_value(), vectors ? "" : vectors.error());
+        expect(vectors.has_value()) << (vectors ? "" : vectors.error());
         if (vectors) {
             std::ofstream(scratch_dir("ui-base-svg") / "gallery.svg", std::ios::binary) << vectors->svg;
             for (const auto* id : {"main/row:1/c", "main/v", "main/name", "main/filled"})
-                check(vectors->svg.contains(std::format(R"(data-node="{}")", id)), std::format("{} named in the SVG", id));
-            check(vectors->islands.empty(), std::format("{} islands", vectors->islands.size()));
+                expect(vectors->svg.contains(std::format(R"(data-node="{}")", id))) << std::format("{} named in the SVG", id);
+            expect(vectors->islands.empty()) << std::format("{} islands", vectors->islands.size());
         }
-    });
+    };
 
-    s.test("universal motion's use cases 1, 2, 4, 7 on the real components: a switch, a label, a list's order, one switch's three motions — frames pinned", [] {
+    "universal motion's use cases 1, 2, 4, 7 on the real components: a switch, a label, a list's order, one switch's three motions — frames pinned"_test = [] {
         mlibs::text::FontCollection own;
-        check(own.add_defaults().has_value());
+        expect(own.add_defaults().has_value());
         HeadlessOptions o = options({320, 260});
         o.fonts = &own;
         Headless h(o);
@@ -854,25 +849,23 @@ int main(int argc, char** argv) {
         h.step();
         for (int i = 0; i < 5; ++i) h.step();  // a twelfth of a second in
         const auto moving = h.runtime().motions();
-        check(moving.size() >= 4, std::format("the four (and the list's buttons, each its own) moving: {}", moving.size()));
+        expect(moving.size() >= 4) << std::format("the four (and the list's buttons, each its own) moving: {}", moving.size());
         const auto mid = hash_now();
-        check(h.save_png(pictures / "motion-cases-mid.png").has_value());
+        expect(h.save_png(pictures / "motion-cases-mid.png").has_value());
         h.settle();
-        check(h.runtime().motions().empty(), "at rest");
+        expect(h.runtime().motions().empty()) << "at rest";
         const auto rest = hash_now();
-        check(h.save_png(pictures / "motion-cases-rest.png").has_value());
+        expect(h.save_png(pictures / "motion-cases-rest.png").has_value());
         std::println("ui.base motion cases {:016x} {:016x} {:016x}", before, mid, rest);
-        check(mid != before && mid != rest, "mid-way is neither drawing");
+        expect(mid != before && mid != rest) << "mid-way is neither drawing";
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         // The explicit parent owns reorder placement/stagger; default child
         // controls retain their state motion and the readable-text policy.
         // selection_layout_test checks real bodies, full label ink and parent
         // timing. The reviewed middle frame agrees on GCC and LLVM; both
         // source and rest remain unchanged.
-        check(before == 0x4b96f196fc28423cULL, std::format("before {:016x}", before));
-        check(mid == 0x35db1e7db2c348e1ULL, std::format("mid {:016x}", mid));
-        check(rest == 0xbf27e7fc58818d4dULL, std::format("rest {:016x}", rest));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(before == 0x4b96f196fc28423cULL) << std::format("before {:016x}", before);
+        expect(mid == 0x35db1e7db2c348e1ULL) << std::format("mid {:016x}", mid);
+        expect(rest == 0xbf27e7fc58818d4dULL) << std::format("rest {:016x}", rest);
+    };
+}};

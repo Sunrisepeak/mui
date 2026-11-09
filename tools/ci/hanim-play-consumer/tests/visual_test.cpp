@@ -5,17 +5,18 @@ import hanim.render.vector;
 import xrender.raster;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 using namespace hanim;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace raster = xrender::raster;
 namespace geom = mlibs::geom;
 template<class T,class E> T take(std::expected<T,E> value) {
-    check(value.has_value()); if (!value) std::abort(); return std::move(*value);
+    expect(value.has_value()); if (!value) std::abort(); return std::move(*value);
 }
-int main(int argc,char** argv) {
-    Suite suite{"hanim.engine.visual"};
-    suite.test("without a GUI the public player renders real material/effect pixels and a precise crop", [] {
+UTest cases{"hanim.engine.visual", [] {
+    "without a GUI the public player renders real material/effect pixels and a precise crop"_test = [] {
         auto engine = take(Engine::make());
         constexpr double k=0.5522847498307936;
         const std::array triangle{ShapeSegment::line({-1,1}),ShapeSegment::line({1,1})};
@@ -40,11 +41,11 @@ int main(int argc,char** argv) {
         std::array<std::string,3> hashes;
         int index=0;
         for (double progress:{0.,.5,1.}) {
-            check(engine.seek_progress(played,progress).has_value());
+            expect(engine.seek_progress(played,progress).has_value());
             const auto frame=take(engine.frame(played)); list.clear();
-            check(binding.record(frame.geometry,frame.effect_values,list,{&recording,world,parameters,layers}).has_value());
+            expect(binding.record(frame.geometry,frame.effect_values,list,{&recording,world,parameters,layers}).has_value());
             const auto report=renderer.render(list,pixels,{}, {.background=geom::Color::hex(0x111827)});
-            check(!report.invalid_paints && !report.missing_images && pixels.at(64,64).a>0);
+            expect(!report.invalid_paints && !report.missing_images && pixels.at(64,64).a>0);
             Hash hash;
             for(int y=0;y<128;++y) {
                 hash.bytes(std::as_bytes(std::span(pixels.row(y),128)));
@@ -52,26 +53,26 @@ int main(int argc,char** argv) {
             }
             hashes[index]=hash.hex();
             const mlibs::image::View full{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),128,128,128*4,mlibs::image::Alpha::premultiplied};
-            check(mlibs::image::save_png(output/std::format("frame-{}.png",index),full).has_value());
+            expect(mlibs::image::save_png(output/std::format("frame-{}.png",index),full).has_value());
             if(index==1) {
                 const mlibs::image::View crop{reinterpret_cast<const std::uint8_t*>(pixels.row(32)+32),64,64,128*4,mlibs::image::Alpha::premultiplied};
-                check(mlibs::image::save_png(output/"region.png",crop).has_value());
+                expect(mlibs::image::save_png(output/"region.png",crop).has_value());
                 auto decoded=mlibs::image::decode_png(take(mlibs::image::encode_png(crop)));
-                check(decoded.has_value() && decoded->width==64 && decoded->height==64);
+                expect(decoded.has_value() && decoded->width==64 && decoded->height==64);
                 // Decode is straight-alpha; compare an opaque interior witness.
                 const auto center=pixels.at(64,64);
                 const auto offset=(32*64+32)*4;
-                check(decoded->rgba[offset]==center.r && decoded->rgba[offset+1]==center.g && decoded->rgba[offset+2]==center.b && decoded->rgba[offset+3]==center.a);
+                expect(decoded->rgba[offset]==center.r && decoded->rgba[offset+1]==center.g && decoded->rgba[offset+2]==center.b && decoded->rgba[offset+3]==center.a);
             }
             ++index;
         }
-        check(hashes[0]!=hashes[1] && hashes[1]!=hashes[2] && hashes[0]!=hashes[2]);
+        expect(hashes[0]!=hashes[1] && hashes[1]!=hashes[2] && hashes[0]!=hashes[2]);
         const mlibs::image::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),384,128,384*4,mlibs::image::Alpha::premultiplied};
-        check(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
+        expect(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
         std::println("headless visual: {} source owner={} slot={} target slot={} viewport=128x128 region=32,32,64,64 backend=CPU times=0,.5,1 hashes={},{},{}",
             output.generic_string(),source.owner,source.slot,target.slot,hashes[0],hashes[1],hashes[2]);
-    });
-    suite.test("a nested multitrack program renders every current phase through prebound native adapters", [] {
+    };
+    "a nested multitrack program renders every current phase through prebound native adapters"_test = [] {
         auto engine=take(Engine::make());
         constexpr double k=.5522847498307936;
         const std::array triangle{ShapeSegment::line({-1,1}),ShapeSegment::line({1,1})};
@@ -104,13 +105,13 @@ int main(int argc,char** argv) {
         render::DisplayList list,recording;render::CpuRenderer renderer;
         raster::Surface pixels(240,128),strip(1200,128);
         auto draw=[&](double time) {
-            check(engine.seek(playback,seconds(time)).has_value());list.clear();
+            expect(engine.seek(playback,seconds(time)).has_value());list.clear();
             for(std::size_t track=0;track<plan.tracks().size();++track) {
                 const auto frame=take(engine.frame(playback,track));auto& binding=bindings[frame.segment_index];
-                check(binding.plan.record(frame.geometry,frame.effect_values,list,{&recording,binding.world,binding.parameters,binding.layers}).has_value());
+                expect(binding.plan.record(frame.geometry,frame.effect_values,list,{&recording,binding.world,binding.parameters,binding.layers}).has_value());
             }
             const auto result=renderer.render(list,pixels,{}, {.background=geom::Color::hex(0x111827)});
-            check(!result.invalid_paints && !result.missing_images && !result.effects_skipped);
+            expect(!result.invalid_paints && !result.missing_images && !result.effects_skipped);
             Hash hash;for(int y=0;y<128;++y)hash.bytes(std::as_bytes(std::span(pixels.row(y),240)));
             return hash.hex();
         };
@@ -119,13 +120,12 @@ int main(int argc,char** argv) {
             hashes[i]=draw(i*.5);
             for(int y=0;y<128;++y)std::copy_n(pixels.row(y),240,strip.row(y)+240*i);
         }
-        for(int i=0;i<5;++i)for(int j=i+1;j<5;++j)check(hashes[i]!=hashes[j]);
-        for(int i:{3,0,4,1,2})check(draw(i*.5)==hashes[i],"unordered seek must reproduce actual composite pixels");
+        for(int i=0;i<5;++i)for(int j=i+1;j<5;++j)expect(hashes[i]!=hashes[j]);
+        for(int i:{3,0,4,1,2})expect(draw(i*.5)==hashes[i]) << "unordered seek must reproduce actual composite pixels";
         const auto output=scratch_dir("hanim-program-visual");
         const mlibs::image::View sheet{reinterpret_cast<const std::uint8_t*>(strip.row(0)),1200,128,1200*4,mlibs::image::Alpha::premultiplied};
-        check(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
+        expect(mlibs::image::save_png(output/"sequence.png",sheet).has_value());
         std::println("headless program: {} tracks=2 segments=3 times=0,.5,1,1.5,2 hashes={},{},{},{},{}",
             output.generic_string(),hashes[0],hashes[1],hashes[2],hashes[3],hashes[4]);
-    });
-    return suite.run(argc,argv);
-}
+    };
+}};

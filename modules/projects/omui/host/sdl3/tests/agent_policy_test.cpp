@@ -1,13 +1,14 @@
 import std;
 import omui.host.sdl3;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
-    Suite s{"host.sdl3.agent_policy"};
-    s.test("the SDL frame preserves the session of endpoint input", [] {
+UTest cases{"host.sdl3.agent_policy", [] {
+    "the SDL frame preserves the session of endpoint input"_test = [] {
         const auto dir = scratch_dir("sdl-agent-policy");
         DesktopOptions options;
         options.app = "policy-desktop";
@@ -20,15 +21,15 @@ int main(int argc, char** argv) {
         options.renderer = DesktopOptions::Renderer::cpu;
         Desktop host(options);
         const auto opened = host.open();
-        check(opened.has_value(), opened ? "" : opened.error());
+        expect(opened.has_value()) << (opened ? "" : opened.error());
         if (!opened) return;
-        check(host.endpoint() != nullptr, "this test requires the real local endpoint");
+        expect(host.endpoint() != nullptr) << "this test requires the real local endpoint";
         if (!host.endpoint()) return;
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development});
         host.runtime().set_agent_access(access);
         int sent = 0;
-        check(host.runtime()
+        expect(host.runtime()
                   .verbs()
                   .add({.name = "mail.send", .effect = Effect::external, .answer = "send"},
                        [&](const Value&) -> VerbResult {
@@ -57,11 +58,10 @@ int main(int argc, char** argv) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         client_thread.join();
-        check(!reply.empty() && reply.back().get("exitCode")->as_int() == 0);
-        check(sent == 1);
+        expect(!reply.empty() && reply.back().get("exitCode")->as_int() == 0);
+        expect(sent == 1);
         const auto journal = host.runtime().verbs().journal();
-        check(journal.size() == 1);
-        if (!journal.empty()) check(journal.front().actor.starts_with("agent:desktop;via=service:development-session-"));
-    });
-    return s.run(argc, argv);
-}
+        expect(journal.size() == 1);
+        if (!journal.empty()) expect(journal.front().actor.starts_with("agent:desktop;via=service:development-session-"));
+    };
+}};

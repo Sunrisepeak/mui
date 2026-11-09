@@ -5,9 +5,9 @@
 import std;
 import nlohmann.json;
 import omui.native;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace native = omui::native;
 using native::Json;
 
@@ -46,16 +46,15 @@ std::string error_of(const native::Result& r) { return r ? std::string() : r.err
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"native"};
+UTest cases{"native", [] {
 
-    s.test("a module is defined once; its names and types are checked", [] {
-        check(native::define(shapes()).has_value());
+    "a module is defined once; its names and types are checked"_test = [] {
+        expect(native::define(shapes()).has_value());
         auto again = native::define(shapes());
-        check(!again && again.error().find("already defined") != std::string::npos, again ? "" : again.error());
+        expect(!again && again.error().find("already defined") != std::string::npos) << (again ? "" : again.error());
         native::Module bad;
         bad.name = "Bad-Name";
-        check(!native::define(bad).has_value(), "a module's name is snake_case");
+        expect(!native::define(bad).has_value()) << "a module's name is snake_case";
         native::Module typo;
         typo.name = "typo";
         native::Function f;
@@ -64,24 +63,24 @@ int main(int argc, char** argv) {
         f.call = [](const Json&) -> native::Result { return Json(); };
         typo.functions = {f};
         auto r = native::define(typo);
-        check(!r && r.error().find("unknown type `Rectangle`") != std::string::npos, r ? "" : r.error());
-        check(native::find("shapes") != nullptr && native::find("typo") == nullptr);
-    });
+        expect(!r && r.error().find("unknown type `Rectangle`") != std::string::npos) << (r ? "" : r.error());
+        expect(native::find("shapes") != nullptr && native::find("typo") == nullptr);
+    };
 
-    s.test("calls are positional or by name; optional arguments may be left out", [] {
+    "calls are positional or by name; optional arguments may be left out"_test = [] {
         const Json rects = Json::parse(R"j([{"w": 2, "h": 3}, {"w": 1, "h": 1, "label": "unit"}])j");
         auto a = native::call("shapes", "area", Json::array({rects}));
-        check(a.has_value() && *a == Json(7.0), error_of(a));
+        expect(a.has_value() && *a == Json(7.0)) << error_of(a);
         auto b = native::call("shapes", "area", Json{{"rects", rects}, {"scale", 2}});
-        check(b.has_value() && *b == Json(14.0), error_of(b));
+        expect(b.has_value() && *b == Json(14.0)) << error_of(b);
         auto c = native::call("shapes", "label", Json::array({3}));
-        check(c.has_value() && *c == Json("3 shapes"), error_of(c));
-        check(native::find("shapes")->functions[1].async, "async is the contract's");
-    });
+        expect(c.has_value() && *c == Json("3 shapes")) << error_of(c);
+        expect(native::find("shapes")->functions[1].async) << "async is the contract's";
+    };
 
-    s.test("arguments are the contract's: what is wrong, and where", [] {
+    "arguments are the contract's: what is wrong, and where"_test = [] {
         auto says = [](const native::Result& r, std::string_view code, std::string_view text) {
-            check(!r && r.error().code == code && r.error().message.find(text) != std::string::npos, error_of(r));
+            expect(!r && r.error().code == code && r.error().message.find(text) != std::string::npos) << error_of(r);
         };
         says(native::call("shapes", "area", Json::array()), "invalid-argument", "`rects` (Rect[]) is missing");
         says(native::call("shapes", "area", Json::parse(R"j([[{"w": 2}]])j")), "invalid-argument", "`rects[0].h` (f64) is missing");
@@ -96,38 +95,36 @@ int main(int argc, char** argv) {
         says(native::call("shapes", "area", Json("rects")), "invalid-argument", "a list, or an object by name");
         // The message names the signature.
         says(native::call("shapes", "label", Json::array()), "invalid-argument", "shapes.label(count: u32)");
-    });
+    };
 
-    s.test("what is not there, and an implementation's own failure", [] {
+    "what is not there, and an implementation's own failure"_test = [] {
         auto none = native::call("circles", "area", Json::array());
-        check(!none && none.error().code == "not-found", error_of(none));
+        expect(!none && none.error().code == "not-found") << error_of(none);
         auto fn = native::call("shapes", "volume", Json::array());
-        check(!fn && fn.error().code == "not-found" && fn.error().message.find("it has area, label") != std::string::npos, error_of(fn));
+        expect(!fn && fn.error().code == "not-found" && fn.error().message.find("it has area, label") != std::string::npos) << error_of(fn);
         auto failed = native::call("shapes", "label", Json::array({13}));
-        check(!failed && failed.error().code == "failed" && failed.error().message.find("unlucky") != std::string::npos, error_of(failed));
-    });
+        expect(!failed && failed.error().code == "failed" && failed.error().message.find("unlucky") != std::string::npos) << error_of(failed);
+    };
 
-    s.test("the catalogue is what bindings read", [] {
+    "the catalogue is what bindings read"_test = [] {
         const Json c = native::catalog();
         const Json& m = c["modules"]["shapes"];
-        check_eq(m["doc"].get<std::string>(), std::string("Areas of shapes."));
-        check_eq(m["types"]["Rect"]["fields"][2]["type"].get<std::string>(), std::string("string?"));
+        expect(eq(m["doc"].get<std::string>(), std::string("Areas of shapes.")));
+        expect(eq(m["types"]["Rect"]["fields"][2]["type"].get<std::string>(), std::string("string?")));
         const Json& area = m["functions"]["area"];
-        check_eq(area["params"][0]["name"].get<std::string>(), std::string("rects"));
-        check_eq(area["params"][1]["doc"].get<std::string>(), std::string("a factor (1)"));
-        check_eq(area["returns"].get<std::string>(), std::string("f64"));
-        check(m["functions"]["label"]["async"].get<bool>());
-    });
+        expect(eq(area["params"][0]["name"].get<std::string>(), std::string("rects")));
+        expect(eq(area["params"][1]["doc"].get<std::string>(), std::string("a factor (1)")));
+        expect(eq(area["returns"].get<std::string>(), std::string("f64")));
+        expect(m["functions"]["label"]["async"].get<bool>());
+    };
 
-    s.test("the conversions the generated code uses", [] {
+    "the conversions the generated code uses"_test = [] {
         const Json j = Json::parse(R"j([[1, 2], [], [3]])j");
         auto v = native::decode(j, std::type_identity<std::vector<std::vector<std::uint32_t>>>{});
-        check(v.size() == 3 && v[0][1] == 2 && v[2][0] == 3);
-        check(native::encode(v) == j);
+        expect(v.size() == 3 && v[0][1] == 2 && v[2][0] == 3);
+        expect(native::encode(v) == j);
         std::optional<std::string> none;
-        check(native::encode(none).is_null() && native::encode(std::optional<std::string>("x")) == Json("x"));
-        check(!native::decode(Json(nullptr), std::type_identity<std::optional<double>>{}).has_value());
-    });
-
-    return s.run(argc, argv);
-}
+        expect(native::encode(none).is_null() && native::encode(std::optional<std::string>("x")) == Json("x"));
+        expect(!native::decode(Json(nullptr), std::type_identity<std::optional<double>>{}).has_value());
+    };
+}};

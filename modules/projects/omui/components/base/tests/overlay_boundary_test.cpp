@@ -4,9 +4,11 @@ import std;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 mlibs::text::FontCollection& fonts() {
@@ -19,7 +21,7 @@ HeadlessOptions options(Size size = {760, 460}) {
     return result;
 }
 Rect bounds(Headless& h, std::string_view path) { return h.runtime().screen_bounds(h.runtime().find(path)); }
-void near(float actual, float expected) { check_near(actual, expected, 0.1); }
+void near(float actual, float expected) { expect(mcpplibs::mtest::near(actual, expected, 0.1)); }
 Element boundary(std::string id, float width, float height, std::vector<Element> children, bool enabled = true) {
     auto e = column({.id = std::move(id), .width = width, .height = height, .shrink = 0, .background = "surface_variant"}, std::move(children));
     if (enabled) e.prop("overlay_boundary", Source(Value(true)));
@@ -36,16 +38,15 @@ std::uint64_t outside(Headless& h, Rect region) {
 }
 void save(Headless& h, std::string_view name) {
     static const auto dir = scratch_dir("ui-overlay-boundary");
-    check(h.save_png(dir / std::format("{}.png", name)).has_value());
+    expect(h.save_png(dir / std::format("{}.png", name)).has_value());
 }
 void center(Rect inner, Rect outer) { near(inner.center().x, outer.center().x); near(inner.center().y, outer.center().y); }
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"ui.base.overlay-boundary"};
+UTest cases{"ui.base.overlay-boundary", [] {
     register_base_components();
 
-    suite.test("a dialog uses the nearest marked ancestor; an unmarked dialog keeps window placement", [] {
+    "a dialog uses the nearest marked ancestor; an unmarked dialog keeps window placement"_test = [] {
         for (bool bounded : {false, true}) {
             Headless h(options());
             h.runtime().set_motion_level(MotionLevel::off);
@@ -60,12 +61,12 @@ int main(int argc, char** argv) {
             h.settle();
             const Rect dialog = bounds(h, "main/outer/inner/dialog");
             center(dialog, bounded ? bounds(h, "main/outer/inner") : Rect{0, 0, 760, 460});
-            check(h.runtime().hit_test(dialog.center()) != h.runtime().find("main"), "the placed control receives real hits");
+            expect(h.runtime().hit_test(dialog.center()) != h.runtime().find("main")) << "the placed control receives real hits";
             save(h, bounded ? "dialog-local" : "dialog-window-compatible");
         }
-    });
+    };
 
-    suite.test("a side drawer fills its boundary height and follows local resize", [] {
+    "a side drawer fills its boundary height and follows local resize"_test = [] {
         Headless h(options());
         h.runtime().set_motion_level(MotionLevel::off);
         auto width = signal(360.0), height = signal(220.0);
@@ -78,7 +79,7 @@ int main(int argc, char** argv) {
         auto verify = [&] {
             const Rect stage = bounds(h, "main/stage"), drawer = bounds(h, "main/stage/drawer");
             near(drawer.right(), stage.right()); near(drawer.y, stage.y); near(drawer.height, stage.height);
-            check(stage.contains(drawer), "drawer fits the local stage");
+            expect(stage.contains(drawer)) << "drawer fits the local stage";
         };
         verify(); save(h, "drawer-local");
         width.set(280); height.set(160); h.settle(); verify();
@@ -89,9 +90,9 @@ int main(int argc, char** argv) {
         near(unbounded.right(), 620); near(unbounded.y, 0); near(unbounded.height, 380);
         h.runtime().set(h.runtime().find("main/stage"), "overlay_boundary", Value(true));
         h.settle(); verify();
-    });
+    };
 
-    suite.test("anchor popovers flip against their boundary rather than spare window space", [] {
+    "anchor popovers flip against their boundary rather than spare window space"_test = [] {
         for (bool bounded : {false, true}) {
             Headless h(options());
             h.runtime().set_motion_level(MotionLevel::off);
@@ -105,14 +106,14 @@ int main(int argc, char** argv) {
             h.settle();
             const Rect anchor = bounds(h, "main/stage/anchor"), popup = bounds(h, "main/stage/popup");
             if (bounded) {
-                check(popup.bottom() <= anchor.y, "not enough room below inside the stage: flipped above");
-                check(bounds(h, "main/stage").contains(popup));
-            } else check(popup.y >= anchor.bottom(), "the window still has room below: original behavior");
+                expect(popup.bottom() <= anchor.y) << "not enough room below inside the stage: flipped above";
+                expect(bounds(h, "main/stage").contains(popup));
+            } else expect(popup.y >= anchor.bottom()) << "the window still has room below: original behavior";
             save(h, bounded ? "popup-flips-locally" : "popup-window-compatible");
         }
-    });
+    };
 
-    suite.test("toast stacking is independent for different boundaries", [] {
+    "toast stacking is independent for different boundaries"_test = [] {
         Headless h(options({760, 380}));
         h.runtime().set_motion_level(MotionLevel::off);
         auto notice = [](std::string id) { return toast({.id = std::move(id), .duration = 0.0, .message = "Saved", .open = true, .width = 200}); };
@@ -125,12 +126,12 @@ int main(int argc, char** argv) {
         const Rect first = bounds(h, "main/left/one"), second = bounds(h, "main/left/two"), other = bounds(h, "main/right/one");
         near(left.bottom() - first.bottom(), right.bottom() - other.bottom());
         near(left.right() - first.right(), right.right() - other.right());
-        check(second.bottom() < first.y, "the second toast stacks above the first on its own boundary");
-        check(left.contains(first) && left.contains(second) && right.contains(other));
+        expect(second.bottom() < first.y) << "the second toast stacks above the first on its own boundary";
+        expect(left.contains(first) && left.contains(second) && right.contains(other));
         save(h, "independent-toast-stacks");
-    });
+    };
 
-    suite.test("a projected boundary moves overlay clipping and actual input together", [] {
+    "a projected boundary moves overlay clipping and actual input together"_test = [] {
         Headless h(options());h.runtime().set_motion_level(MotionLevel::off);
         int accepted=0;
         auto stage=boundary("stage",300,220,{
@@ -141,16 +142,16 @@ int main(int argc, char** argv) {
         const auto root=h.runtime().find("main/stage"),control=h.runtime().find("main/stage/popup/accept");
         const auto before=h.runtime().drawn_bounds(control);
         auto lease=h.runtime().acquire_presentation(std::array{PresentationTarget{root,PresentationChannel::translation}});
-        check(lease.has_value());if(!lease)return;
-        check(lease->publish(std::array{hanim::Transform2D{.tx=340,.ty=90}}).has_value());h.step();
+        expect(lease.has_value());if(!lease)return;
+        expect(lease->publish(std::array{hanim::Transform2D{.tx=340,.ty=90}}).has_value());h.step();
         const auto current=h.runtime().drawn_bounds(control);
         near(current.x,before.x+340);near(current.y,before.y+90);
-        check(h.runtime().hit_test(current.center())==control,"moved clip accepts the control beyond the old boundary");
-        h.click(current.center());h.step();check(accepted==1);save(h,"projected-boundary");
+        expect(h.runtime().hit_test(current.center())==control) << "moved clip accepts the control beyond the old boundary";
+        h.click(current.center());h.step();expect(accepted==1);save(h,"projected-boundary");
         lease->release();h.step();near(h.runtime().drawn_bounds(control).x,before.x);
-    });
+    };
 
-    suite.test("scroll and ancestor clips constrain overlay placement paint and nonmodal hits", [] {
+    "scroll and ancestor clips constrain overlay placement paint and nonmodal hits"_test = [] {
         Headless h(options());
         h.runtime().set_motion_level(MotionLevel::off);
         auto scroll_y = signal(0.0);
@@ -174,17 +175,16 @@ int main(int argc, char** argv) {
             const auto unchanged = outside(h, area);
             open.set(true); h.settle();
             center(bounds(h, "main/scroll/stage/dialog"), area);
-            check_eq(outside(h, area), unchanged);
+            expect(eq(outside(h, area), unchanged));
             const Point beyond{viewport.right() + 20, bounds(h, "main/scroll/stage/dialog").center().y};
-            check(!h.runtime().path(h.runtime().hit_test(beyond)).starts_with("main/scroll/stage/dialog"),
-                  "overflowing child paint cannot steal input outside the ancestor clip");
+            expect(!h.runtime().path(h.runtime().hit_test(beyond)).starts_with("main/scroll/stage/dialog")) << "overflowing child paint cannot steal input outside the ancestor clip";
             const Rect outside_button = bounds(h, "main/outside");
-            check(h.runtime().hit_test(outside_button.center()) == h.runtime().find("main/outside"), "outside controls stay usable");
+            expect(h.runtime().hit_test(outside_button.center()) == h.runtime().find("main/outside")) << "outside controls stay usable";
             save(h, offset == 0 ? "scroll-boundary-original" : "scroll-boundary-moved");
         }
-    });
+    };
 
-    suite.test("transformed rounded ancestor clips also constrain overlay drawing and hits", [] {
+    "transformed rounded ancestor clips also constrain overlay drawing and hits"_test = [] {
         Headless h(options());
         h.runtime().set_motion_level(MotionLevel::off);
         auto open = signal(false);
@@ -200,16 +200,14 @@ int main(int argc, char** argv) {
         const Point cut_corner{clip.x + 1, clip.y + 1};
         const auto before = h.pixels().at(static_cast<int>(cut_corner.x), static_cast<int>(cut_corner.y));
         open.set(true); h.settle();
-        check(h.pixels().at(static_cast<int>(cut_corner.x), static_cast<int>(cut_corner.y)) == before,
-              "overlay paint respects the rounded corner, not merely its rectangle");
-        check(!h.runtime().path(h.runtime().hit_test(cut_corner)).starts_with("main/clip/stage/dialog"),
-              "the same rounded corner does not intercept input");
+        expect(h.pixels().at(static_cast<int>(cut_corner.x), static_cast<int>(cut_corner.y)) == before) << "overlay paint respects the rounded corner, not merely its rectangle";
+        expect(!h.runtime().path(h.runtime().hit_test(cut_corner)).starts_with("main/clip/stage/dialog")) << "the same rounded corner does not intercept input";
         const Rect placed = bounds(h, "main/clip/stage/dialog");
         near(placed.x, clip.x); near(placed.y, clip.y);
         save(h, "transformed-rounded-clip");
-    });
+    };
 
-    suite.test("a bounded modal scrim paints locally while modal semantics remain global", [] {
+    "a bounded modal scrim paints locally while modal semantics remain global"_test = [] {
         Headless h(options());
         h.runtime().set_motion_level(MotionLevel::off);
         auto open = signal(false);
@@ -224,14 +222,11 @@ int main(int argc, char** argv) {
         const Rect area = bounds(h, "main/stage");
         const auto unchanged = outside(h, area);
         open.set(true); h.settle();
-        check_eq(outside(h, area), unchanged);
+        expect(eq(outside(h, area), unchanged));
         const auto node = h.tree().node("main/stage/dialog");
-        check(node && node->states.has(State::modal));
-        check(h.runtime().hit_test(bounds(h, "main/outside").center()) == h.runtime().find("main/stage/dialog"),
-              "a modal boundary changes its presentation, not its blocking semantics");
-        check(h.runtime().path(h.runtime().focused()).starts_with("main/stage/dialog/"), "modal focus remains trapped");
+        expect(node && node->states.has(State::modal));
+        expect(h.runtime().hit_test(bounds(h, "main/outside").center()) == h.runtime().find("main/stage/dialog")) << "a modal boundary changes its presentation, not its blocking semantics";
+        expect(h.runtime().path(h.runtime().focused()).starts_with("main/stage/dialog/")) << "modal focus remains trapped";
         save(h, "scrim-local-modal-semantics");
-    });
-
-    return suite.run(argc, argv);
-}
+    };
+}};

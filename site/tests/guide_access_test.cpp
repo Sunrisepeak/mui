@@ -1,10 +1,10 @@
 import std;
 import omui;
 import omui.site;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 constexpr std::string_view panel = "main/body/guide/";
@@ -18,12 +18,12 @@ struct BoundSite {
         auto app = site::app("docs", "en");
         host.runtime().set_theme(app.theme);
         app.setup(host.runtime());
-        for (auto& verb : app.verbs) check(host.runtime().verbs().add(verb.desc, verb.fn).has_value());
+        for (auto& verb : app.verbs) expect(host.runtime().verbs().add(verb.desc, verb.fn).has_value());
         host.mount("main", app.view());
         host.settle(seconds(0.6));
-        check(host.click("main/bar/guide_toggle"));
+        expect(host.click("main/bar/guide_toggle"));
         host.settle(seconds(0.5));
-        check(host.runtime().agent_access_binding() == access);
+        expect(host.runtime().agent_access_binding() == access);
     }
     bool visible(std::string_view tail) {
         const auto node = host.tree().node(std::string(panel) + std::string(tail));
@@ -35,7 +35,7 @@ struct BoundSite {
     }
     bool press(std::string_view tail) {
         const auto id = std::string(panel) + std::string(tail);
-        check(host.tree().act(id, "scroll_into_view").exit_code() == 0);
+        expect(host.tree().act(id, "scroll_into_view").exit_code() == 0);
         host.settle(seconds(0.5));
         const bool pressed = host.click(id);
         host.advance(seconds(1));
@@ -43,50 +43,48 @@ struct BoundSite {
         return pressed;
     }
     void link() {
-        check(press("tasks/task_link"), "a real click starts the scripted external-link request");
+        expect(press("tasks/task_link")) << "a real click starts the scripted external-link request";
         host.advance(seconds(4));
         host.settle(seconds(0.8));
     }
 };
 }
 
-int main(int argc, char** argv) {
-    Suite s{"site.guide_access"};
-    s.test("Allow for this visit authorizes the bound site and leaves another instance asking", [] {
+UTest cases{"site.guide_access", [] {
+    "Allow for this visit authorizes the bound site and leaves another instance asking"_test = [] {
         BoundSite a, b;
         a.link();
-        check(a.visible("asking") && a.host.runtime().opened().empty());
-        check(a.text("said/transcript").contains("\"exitCode\":2"), "the actual scripted Protocol request needs an answer");
-        check(a.press("asking/answer/allow"), "the person's real Allow for this visit control");
-        check(a.host.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openas"}, "the waiting external request now executes");
-        check(!a.visible("asking"), "the same bound policy accepted the grant");
-        check(a.text("held/grants") == "Grants: agent:guide=external@open_link");
+        expect(a.visible("asking") && a.host.runtime().opened().empty());
+        expect(a.text("said/transcript").contains("\"exitCode\":2")) << "the actual scripted Protocol request needs an answer";
+        expect(a.press("asking/answer/allow")) << "the person's real Allow for this visit control";
+        expect(a.host.runtime().opened() == std::vector<std::string>{"https://github.com/openlifa/openas"}) << "the waiting external request now executes";
+        expect(!a.visible("asking")) << "the same bound policy accepted the grant";
+        expect(a.text("held/grants") == "Grants: agent:guide=external@open_link");
         b.link();
-        check(b.visible("asking") && b.host.runtime().opened().empty(), "another dual-user instance still asks");
-        check(b.press("asking/answer/deny"));
+        expect(b.visible("asking") && b.host.runtime().opened().empty()) << "another dual-user instance still asks";
+        expect(b.press("asking/answer/deny"));
         // Keep the baseline's first authorization error from cascading into
         // clicks on a task correctly disabled while it is still asking.
         if (a.visible("asking") || a.host.runtime().opened().size() != 1) return;
         a.link();
-        check(a.host.runtime().opened().size() == 2 && !a.visible("asking"), "the next actual scripted request also runs within the visit grant");
-        check(a.press("held/revoke"), "the person's real revoke control");
-        check(a.text("held/grants") == "Grants: none");
+        expect(a.host.runtime().opened().size() == 2 && !a.visible("asking")) << "the next actual scripted request also runs within the visit grant";
+        expect(a.press("held/revoke")) << "the person's real revoke control";
+        expect(a.text("held/grants") == "Grants: none");
         a.link();
-        check(a.visible("asking") && a.host.runtime().opened().size() == 2, "revoking this instance makes its next request ask again");
-    });
-    s.test("revoking through one site's UI does not revoke another bound site's grant", [] {
+        expect(a.visible("asking") && a.host.runtime().opened().size() == 2) << "revoking this instance makes its next request ask again";
+    };
+    "revoking through one site's UI does not revoke another bound site's grant"_test = [] {
         // The provider's initial grants are a legitimate fixture. The
         // assertions exercise actual Script requests and the real revoke UI.
         BoundSite a(true), b(true);
         a.link(); b.link();
-        check(a.host.runtime().opened().size() == 1 && !a.visible("asking"));
-        check(b.host.runtime().opened().size() == 1 && !b.visible("asking"));
-        check(a.press("held/revoke"));
+        expect(a.host.runtime().opened().size() == 1 && !a.visible("asking"));
+        expect(b.host.runtime().opened().size() == 1 && !b.visible("asking"));
+        expect(a.press("held/revoke"));
         a.link();
-        check(a.visible("asking") && a.host.runtime().opened().size() == 1, "the local site's actual next request is no longer granted");
+        expect(a.visible("asking") && a.host.runtime().opened().size() == 1) << "the local site's actual next request is no longer granted";
         b.link();
-        check(!b.visible("asking") && b.host.runtime().opened().size() == 2, "the other site's actual request remains granted");
-        check(a.text("said/transcript").contains("\"exitCode\":2"));
-    });
-    return s.run(argc, argv);
-}
+        expect(!b.visible("asking") && b.host.runtime().opened().size() == 2) << "the other site's actual request remains granted";
+        expect(a.text("said/transcript").contains("\"exitCode\":2"));
+    };
+}};

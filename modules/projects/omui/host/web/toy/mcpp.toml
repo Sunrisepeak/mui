@@ -34,4 +34,5 @@ omui.host.web = { path = ".." }
 openlifa.openas  = "0.2.0"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../../../../base/utils" }

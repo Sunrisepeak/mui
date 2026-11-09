@@ -8,8 +8,10 @@ import omui.ui.base;
 import omui.host.headless;
 import mlibs.hash;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -35,11 +37,10 @@ std::int64_t act(Headless& h, std::string_view id, std::string_view action, Valu
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.base.agent_presence"};
+UTest cases{"ui.base.agent_presence", [] {
     register_base_components();
 
-    s.test("the model and the reticle: where the agent acts now, the steps before, what it waits for; over the page, taking no pointer", [] {
+    "the model and the reticle: where the agent acts now, the steps before, what it waits for; over the page, taking no pointer"_test = [] {
         Headless h(HeadlessOptions{.size = {480, 260}, .fonts = &fonts()});
         int saved = 0, deleted = 0;
         (void)h.runtime().verbs().add({"doc.delete", "Delete", Effect::irreversible, "delete", {}}, [&](const Value&) -> VerbResult {
@@ -57,75 +58,72 @@ int main(int argc, char** argv) {
         h.settle();
         Runtime& rt = h.runtime();
         const NodeId presence = rt.find("main/presence");
-        check(rt.valid(presence), "it is there");
-        check(h.tree().node("main/presence")->role == Role::status && h.tree().node("main/presence")->name.empty(), "no one has acted: it says nothing");
+        expect(rt.valid(presence)) << "it is there";
+        expect(h.tree().node("main/presence")->role == Role::status && h.tree().node("main/presence")->name.empty()) << "no one has acted: it says nothing";
         const auto no_one = agent_presence_state(rt, "agent:");
-        check(!no_one.now && no_one.actor.empty());
+        expect(!no_one.now && no_one.actor.empty());
 
         // The agent saves: the frame round Save, its name and the action.
-        check(act(h, "main/body/actions/save", "activate") == 0 && saved == 1);
+        expect(act(h, "main/body/actions/save", "activate") == 0 && saved == 1);
         auto now = agent_presence_state(rt, "agent:");
-        check(now.actor == "agent:guide" && now.now && now.now->path == "main/body/actions/save" && !now.asking);
-        check(now.now->bounds == rt.screen_bounds(rt.find("main/body/actions/save")), "its box, in window coordinates");
-        check_eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save"));
+        expect(now.actor == "agent:guide" && now.now && now.now->path == "main/body/actions/save" && !now.asking);
+        expect(now.now->bounds == rt.screen_bounds(rt.find("main/body/actions/save"))) << "its box, in window coordinates";
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save")));
         // Over the page and taking no pointer: a click there reaches the button.
         const Rect save = rt.screen_bounds(rt.find("main/body/actions/save"));
-        check(rt.hit_test(save.center()) == rt.find("main/body/actions/save"), "the pointer goes through it");
+        expect(rt.hit_test(save.center()) == rt.find("main/body/actions/save")) << "the pointer goes through it";
 
         // Then the volume, dragged in several writes: one step a node.
-        for (const double v : {50.0, 60.0, 70.0}) check(act(h, "main/body/volume", "set_value", Value{}.set("value", v)) == 0);
+        for (const double v : {50.0, 60.0, 70.0}) expect(act(h, "main/body/volume", "set_value", Value{}.set("value", v)) == 0);
         now = agent_presence_state(rt, "agent:");
-        check(now.now && now.now->path == "main/body/volume" && now.trail.size() == 1 && now.trail[0].path == "main/body/actions/save",
-              std::format("the slider now, Save before ({} steps)", now.trail.size()));
-        check_eq(h.tree().node("main/presence")->value.get("trail")->list()->size(), std::size_t{1});
+        expect(now.now && now.now->path == "main/body/volume" && now.trail.size() == 1 && now.trail[0].path == "main/body/actions/save") << std::format("the slider now, Save before ({} steps)", now.trail.size());
+        expect(eq(h.tree().node("main/presence")->value.get("trail")->list()->size(), std::size_t{1}));
 
         // It asks: deleting is irreversible. The card says so; nothing on it answers.
-        check(act(h, "main/body/actions/delete", "activate") == spec::exit_code::needs_answer && deleted == 0);
+        expect(act(h, "main/body/actions/delete", "activate") == spec::exit_code::needs_answer && deleted == 0);
         now = agent_presence_state(rt, "agent:");
-        check(now.asking && now.now->path == "main/body/actions/delete" && now.trail.size() == 2);
-        check_eq(h.tree().node("main/presence")->name, std::string("guide asks you: delete the document"));
-        check(h.tree().node("main/presence")->actions.empty(), "it offers no action: the answer is the person's (S-10)");
+        expect(now.asking && now.now->path == "main/body/actions/delete" && now.trail.size() == 2);
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide asks you: delete the document")));
+        expect(h.tree().node("main/presence")->actions.empty()) << "it offers no action: the answer is the person's (S-10)";
         // What it draws: a frame round Delete and the card, within the page.
         bool framed = false;
         for (const auto& command : rt.display_list().commands())
             if (std::holds_alternative<xrender::StrokePath>(command)) framed = true;
-        check(framed, "the frame's corners drawn");
+        expect(framed) << "the frame's corners drawn";
         (void)h.save_png(scratch_dir("agent-presence") / "asking.png");
         // Answered by the person's own way (the application's control): it acts on.
-        check(act(h, "main/body/actions/delete", "activate", {}, "delete") == 0 && deleted == 1);
-        check(!agent_presence_state(rt, "agent:").asking, "no longer waiting");
+        expect(act(h, "main/body/actions/delete", "activate", {}, "delete") == 0 && deleted == 1);
+        expect(!agent_presence_state(rt, "agent:").asking) << "no longer waiting";
 
         // Another skin draws the same model: with none, nothing drawn, the same said.
         rt.set(presence, "skin", Value("none"));
         h.settle();
-        check_eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/delete"));
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/delete")));
         // The person's own actions are not the agent's.
-        check(h.click("main/body/actions/save") && saved == 2);
+        expect(h.click("main/body/actions/save") && saved == 2);
         h.settle();
-        check(agent_presence_state(rt, "agent:").now->path == "main/body/actions/delete", "the person's click is not shown as the agent's");
+        expect(agent_presence_state(rt, "agent:").now->path == "main/body/actions/delete") << "the person's click is not shown as the agent's";
         // The person takes over (S-14): it says so; handed back, it no longer does.
-        check(rt.invoke("agents.take_over").exit_code() == 0);
+        expect(rt.invoke("agents.take_over").exit_code() == 0);
         h.settle();
-        check(agent_presence_state(rt, "agent:").taken_over, "taken over");
-        check_eq(h.tree().node("main/presence")->name, std::string("You have taken over from guide"));
-        check(act(h, "main/body/actions/save", "activate") != 0 && saved == 2, "the agent waits");
-        check(rt.invoke("agents.hand_back").exit_code() == 0);
+        expect(agent_presence_state(rt, "agent:").taken_over) << "taken over";
+        expect(eq(h.tree().node("main/presence")->name, std::string("You have taken over from guide")));
+        expect(act(h, "main/body/actions/save", "activate") != 0 && saved == 2) << "the agent waits";
+        expect(rt.invoke("agents.hand_back").exit_code() == 0);
         h.settle();
-        check(!agent_presence_state(rt, "agent:").taken_over && act(h, "main/body/actions/save", "activate") == 0 && saved == 3, "handed back");
+        expect(!agent_presence_state(rt, "agent:").taken_over && act(h, "main/body/actions/save", "activate") == 0 && saved == 3) << "handed back";
         // What it says it is about to do, then hands back with (openas §4.4, §5.3): shown, as its own; another agent's not.
         rt.set(presence, "skin", Value("reticle"));
         rt.note({.actor = "agent:other", .text = "Not mine to show"});
         rt.note({.actor = "agent:guide", .text = "Save, then close the report", .node = "main/body/actions/save"});
         h.settle();
-        check_eq(h.tree().node("main/presence")->name, std::string("guide: Save, then close the report"));
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide: Save, then close the report")));
         rt.note({.actor = "agent:guide", .text = "Saved twice; the report is still open: close it?", .hands_back = true});
         h.settle();
-        check_eq(h.tree().node("main/presence")->name, std::string("guide hands back: Saved twice; the report is still open: close it?"));
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide hands back: Saved twice; the report is still open: close it?")));
         (void)h.save_png(scratch_dir("agent-presence") / "hands-back.png");
         rt.note({.actor = "agent:guide"});
         h.settle();
-        check_eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(h.tree().node("main/presence")->name, std::string("guide activate …/actions/save")));
+    };
+}};

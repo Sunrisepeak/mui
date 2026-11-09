@@ -12,8 +12,10 @@ import omui.abi;
 import omui.viewdoc;
 import shelf;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -49,12 +51,11 @@ void settle(Headless& h, player::Player& p) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.rating"};
+UTest cases{"example.rating", [] {
     register_base_components();
     shelf::register_components();
 
-    s.test("the generated builder and the behaviour: half stars, actions, keys, read-only", [] {
+    "the generated builder and the behaviour: half stars, actions, keys, read-only"_test = [] {
         Headless h(HeadlessOptions{.size = {300, 120}});
         auto stars = signal(2.0);
         std::vector<double> changed;
@@ -63,31 +64,31 @@ int main(int argc, char** argv) {
             shelf::rating({.id = "average", .label = "Average", .readonly = true, .value = 3.6}),
         }));
         h.settle();
-        check_eq(meaning(h, "main/book"), std::string(R"j(slider|Middlemarch|{"value":2,"min":0,"max":5,"step":0.5}|2)j"));
-        check_eq(act(h, "main/book", "set_value", Value{}.set("value", 3.7)), std::int64_t{0});
-        check(stars.peek() == 3.5, std::format("{}: snapped to half stars, both ways", stars.peek()));
-        check_eq(act(h, "main/book", "increment"), std::int64_t{0});
-        check_eq(act(h, "main/book", "set_value", Value{}.set("value", "max")), std::int64_t{0});
-        check(stars.peek() == 5.0);
-        check_eq(act(h, "main/book", "clear"), std::int64_t{0});
-        check(stars.peek() == 0.0 && changed == std::vector<double>{3.5, 4.0, 5.0, 0.0}, "every change, an event");
-        check_eq(act(h, "main/book", "set_value", Value{}.set("value", "lots")), std::int64_t{1});  // the contract's types
+        expect(eq(meaning(h, "main/book"), std::string(R"j(slider|Middlemarch|{"value":2,"min":0,"max":5,"step":0.5}|2)j")));
+        expect(eq(act(h, "main/book", "set_value", Value{}.set("value", 3.7)), std::int64_t{0}));
+        expect(stars.peek() == 3.5) << std::format("{}: snapped to half stars, both ways", stars.peek());
+        expect(eq(act(h, "main/book", "increment"), std::int64_t{0}));
+        expect(eq(act(h, "main/book", "set_value", Value{}.set("value", "max")), std::int64_t{0}));
+        expect(stars.peek() == 5.0);
+        expect(eq(act(h, "main/book", "clear"), std::int64_t{0}));
+        expect(stars.peek() == 0.0 && changed == std::vector<double>{3.5, 4.0, 5.0, 0.0}) << "every change, an event";
+        expect(eq(act(h, "main/book", "set_value", Value{}.set("value", "lots")), std::int64_t{1}));  // the contract's types
         // The keys are the contract's: End is set_value(max).
         h.runtime().focus(h.runtime().find("main/book"));
         h.key(Key::end);
         h.key(Key::left);
-        check(stars.peek() == 4.5, std::format("{}", stars.peek()));
-        check_eq(act(h, "main/average", "increment"), std::int64_t{1});  // read-only refuses
-        check(h.tree().node("main/average")->states.has(State::readonly));
-        check(shelf::Rating::contract().name == "rating" && shelf::Rating::contract().action("clear"), "the contract, from the file");
-    });
+        expect(stars.peek() == 4.5) << std::format("{}", stars.peek());
+        expect(eq(act(h, "main/average", "increment"), std::int64_t{1}));  // read-only refuses
+        expect(h.tree().node("main/average")->states.has(State::readonly));
+        expect(shelf::Rating::contract().name == "rating" && shelf::Rating::contract().action("clear")) << "the contract, from the file";
+    };
 
-    s.test("the same rating from TypeScript and from a view document is the same node as the C++ builder's", [] {
+    "the same rating from TypeScript and from a view document is the same node as the C++ builder's"_test = [] {
         Headless h(HeadlessOptions{.size = {300, 200}});
         h.mount("cpp", shelf::rating({.id = "r", .half = true, .label = "Dune", .value = 3.5}));
         const auto doc = viewdoc::View::load(h.runtime(), R"j({"omui": "0.1", "view": {"root":
             {"type": "rating", "id": "r", "props": {"value": 3.5, "half": true, "label": "Dune"}}}})j");
-        check(doc.has_value());
+        expect(doc.has_value());
         if (!doc) return;
         auto view = *doc;
         view.mount(h.runtime(), "doc");
@@ -102,60 +103,59 @@ int main(int argc, char** argv) {
                 h.step();
             }
             auto r = ran.get();
-            check(r.has_value(), r ? "" : r.error().text());
+            expect(r.has_value()) << (r ? "" : r.error().text());
             for (int i = 0; i < 50; ++i) {
                 host.drain();
                 h.step();
             }
             h.settle();
-            check_eq(meaning(h, "ts/r"), meaning(h, "cpp/r"));
-            check_eq(meaning(h, "doc/r"), meaning(h, "cpp/r"));
+            expect(eq(meaning(h, "ts/r"), meaning(h, "cpp/r")));
+            expect(eq(meaning(h, "doc/r"), meaning(h, "cpp/r")));
         }
         abi::detach(handle);
-    });
+    };
 
-    s.test("the reading list in TypeScript: rating, an agent's verb, the filter, adding a book, pixels", [] {
+    "the reading list in TypeScript: rating, an agent's verb, the filter, adding a book, pixels"_test = [] {
         auto m = read_manifest(here() / "mcpp.toml");
-        check(m.has_value(), m ? "" : m.error());
+        expect(m.has_value()) << (m ? "" : m.error());
         if (!m) return;
         Headless h(HeadlessOptions{.size = m->size});
         player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
-        check(started.has_value(), started ? "" : started.error());
+        expect(started.has_value()) << (started ? "" : started.error());
         settle(h, p);
-        check(p.problems().empty(), p.problems().empty() ? "" : p.problems()[0]);
-        check_eq(h.tree().node("main/summary/average")->name, std::string("4.5 average"));
-        check_eq(h.tree().node("main/summary/rated")->name, std::string("3 of 4 rated"));
-        check(value_of(h, "main/summary/overall") == 4.5);
+        expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
+        expect(eq(h.tree().node("main/summary/average")->name, std::string("4.5 average")));
+        expect(eq(h.tree().node("main/summary/rated")->name, std::string("3 of 4 rated")));
+        expect(value_of(h, "main/summary/overall") == 4.5);
 
         // A person rates the unrated book, as an agent would through the tree.
-        check_eq(act(h, "main/books/b4/stars", "set_value", Value{}.set("value", 3)), std::int64_t{0});
+        expect(eq(act(h, "main/books/b4/stars", "set_value", Value{}.set("value", 3)), std::int64_t{0}));
         settle(h, p);
-        check_eq(h.tree().node("main/summary/average")->name, std::string("4.1 average"));
-        check_eq(h.tree().node("main/summary/rated")->name, std::string("4 of 4 rated"));
+        expect(eq(h.tree().node("main/summary/average")->name, std::string("4.1 average")));
+        expect(eq(h.tree().node("main/summary/rated")->name, std::string("4 of 4 rated")));
         // An agent's verb.
         Invocation call;
         call.actor = {"agent", "test", {}};
         call.args = Value{}.set("key", "b2").set("stars", 2.2);
         const Envelope e = h.runtime().verbs().invoke("books.rate", call);
-        check_eq(e.exit_code().value_or(-1), 0);
+        expect(eq(e.exit_code().value_or(-1), 0));
         settle(h, p);
-        check(value_of(h, "main/books/b2/stars") == 2.0, std::format("{}", value_of(h, "main/books/b2/stars")));
-        check_eq(h.tree().node("main/summary/average")->name, std::string("3.5 average"));
+        expect(value_of(h, "main/books/b2/stars") == 2.0) << std::format("{}", value_of(h, "main/books/b2/stars"));
+        expect(eq(h.tree().node("main/summary/average")->name, std::string("3.5 average")));
         // Four stars and up.
-        check_eq(act(h, "main/favourites", "toggle"), std::int64_t{0});
+        expect(eq(act(h, "main/favourites", "toggle"), std::int64_t{0}));
         settle(h, p);
-        check(!h.tree().node("main/books/b2/stars") && !h.tree().node("main/books/b4/stars") && h.tree().node("main/books/b1/stars"),
-              "only b1 and b3 are shown");
-        check_eq(act(h, "main/favourites", "toggle"), std::int64_t{0});
+        expect(!h.tree().node("main/books/b2/stars") && !h.tree().node("main/books/b4/stars") && h.tree().node("main/books/b1/stars")) << "only b1 and b3 are shown";
+        expect(eq(act(h, "main/favourites", "toggle"), std::int64_t{0}));
         // Adding a book.
-        check(h.tree().node("main/add/add")->states.has(State::disabled), "nothing to add yet");
-        check_eq(act(h, "main/add/title", "set_value", Value{}.set("value", "Piranesi")), std::int64_t{0});
+        expect(h.tree().node("main/add/add")->states.has(State::disabled)) << "nothing to add yet";
+        expect(eq(act(h, "main/add/title", "set_value", Value{}.set("value", "Piranesi")), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/add/add", "activate"), std::int64_t{0});
+        expect(eq(act(h, "main/add/add", "activate"), std::int64_t{0}));
         settle(h, p);
-        check(h.tree().node("main/books/b5/stars").has_value(), "the new book, unrated");
-        check_eq(h.tree().node("main/summary/rated")->name, std::string("4 of 5 rated"));
+        expect(h.tree().node("main/books/b5/stars").has_value()) << "the new book, unrated";
+        expect(eq(h.tree().node("main/summary/rated")->name, std::string("4 of 5 rated")));
 
         h.runtime().focus(NodeId{});
         h.settle();
@@ -163,9 +163,7 @@ int main(int argc, char** argv) {
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.rating pixels {}", hash.hex());
-        check(h.save_png(scratch_dir("example-rating") / "shelf.png").has_value());
-        check_eq(hash.hex(), std::string("04f5474390eb3b5c"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(h.save_png(scratch_dir("example-rating") / "shelf.png").has_value());
+        expect(eq(hash.hex(), std::string("04f5474390eb3b5c")));
+    };
+}};

@@ -1,11 +1,13 @@
 import std;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
+UTest cases{"host.headless.agent_policy", [] {
     if constexpr (!threads) {
         // This transport and its client require background threads. Web
         // authorization is exercised through the in-process/browser bridge;
@@ -13,17 +15,16 @@ int main(int argc, char** argv) {
         std::println("host.headless.agent_policy: skipped (requires threaded local IPC)");
         return 0;
     }
-    Suite s{"host.headless.agent_policy"};
-    s.test("H3 forwards the trusted session of real endpoint input", [] {
+    "H3 forwards the trusted session of real endpoint input"_test = [] {
         const auto dir = scratch_dir("headless-agent-policy");
         Headless host({.level = HeadlessLevel::session, .size = {240, 160}, .app = "policy-headless", .endpoint_directory = dir});
-        check(host.endpoint() != nullptr, "this test requires the real local endpoint");
+        expect(host.endpoint() != nullptr) << "this test requires the real local endpoint";
         if (!host.endpoint()) return;
         auto access = std::make_shared<AgentAccess>();
         access->set_policy({.mode = AgentMode::development});
         host.runtime().set_agent_access(access);
         int sent = 0;
-        check(host.runtime()
+        expect(host.runtime()
                   .verbs()
                   .add({.name = "mail.send", .effect = Effect::external, .answer = "send"},
                        [&](const Value&) -> VerbResult {
@@ -52,11 +53,10 @@ int main(int argc, char** argv) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
         }
         client_thread.join();
-        check(!reply.empty() && reply.back().get("exitCode")->as_int() == 0);
-        check(sent == 1);
+        expect(!reply.empty() && reply.back().get("exitCode")->as_int() == 0);
+        expect(sent == 1);
         const auto journal = host.runtime().verbs().journal();
-        check(journal.size() == 1);
-        if (!journal.empty()) check(journal.front().actor.starts_with("agent:headless;via=service:development-session-"));
-    });
-    return s.run(argc, argv);
-}
+        expect(journal.size() == 1);
+        if (!journal.empty()) expect(journal.front().actor.starts_with("agent:headless;via=service:development-session-"));
+    };
+}};

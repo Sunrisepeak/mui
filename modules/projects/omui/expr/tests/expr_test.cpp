@@ -2,8 +2,11 @@ import std;
 import mlibs.math;
 import omui.expr;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+// mtest by name: omui.expr's builders (eq, ne, lt …) are what the tests test.
+using mcpplibs::mtest::UTest, mcpplibs::mtest::expect, mcpplibs::mtest::operator""_test;
 using namespace omui::expr;
 
 namespace {
@@ -22,7 +25,7 @@ const Value::Map env{
 Result run(std::string_view text, const Context& ctx = {}) {
     auto e = parse(text);
     if (!e) {
-        fail(std::format("`{}` does not parse: {}", text, e.error().text()));
+        expect(false) << std::format("`{}` does not parse: {}", text, e.error().text());
         return {};
     }
     return evaluate(*e, env, ctx);
@@ -73,7 +76,7 @@ std::string repr(const Value& v) {
 std::string json(std::string_view text, std::source_location where = std::source_location::current()) {
     Result r = run(text);
     if (!r.ok()) {
-        fail(std::format("`{}`: {}", text, r.errors[0].text()), where);
+        expect(false, where) << std::format("`{}`: {}", text, r.errors[0].text());
         return "<error>";
     }
     return repr(r.value);
@@ -81,46 +84,46 @@ std::string json(std::string_view text, std::source_location where = std::source
 
 void is(std::string_view text, std::string_view expected, std::source_location where = std::source_location::current()) {
     const std::string got = json(text, where);
-    if (got != expected) fail(std::format("`{}`: expected {}, got {}", text, expected, got), where);
+    if (got != expected) expect(false, where) << std::format("`{}`: expected {}, got {}", text, expected, got);
 }
 
 // An evaluation error: null, and a diagnostic whose message contains `what`.
 void error(std::string_view text, std::string_view what, std::source_location where = std::source_location::current()) {
     Result r = run(text);
     if (r.ok()) {
-        fail(std::format("`{}` evaluated to {}, expected an error ({})", text, r.value.json(), what), where);
+        expect(false, where) << std::format("`{}` evaluated to {}, expected an error ({})", text, r.value.json(), what);
         return;
     }
-    check(r.value.is_null(), "an error gives null", where);
+    expect(r.value.is_null(), where) << "an error gives null";
     if (r.errors[0].message.find(what) == std::string::npos)
-        fail(std::format("`{}`: expected an error about `{}`, got `{}`", text, what, r.errors[0].text()), where);
+        expect(false, where) << std::format("`{}`: expected an error about `{}`, got `{}`", text, what, r.errors[0].text());
 }
 
 void syntax(std::string_view text, std::string_view what, std::source_location where = std::source_location::current()) {
     auto e = parse(text);
     if (e) {
-        fail(std::format("`{}` parsed (as `{}`), expected a syntax error", text, e->text()), where);
+        expect(false, where) << std::format("`{}` parsed (as `{}`), expected a syntax error", text, e->text());
         return;
     }
     if (e.error().text().find(what) == std::string::npos)
-        fail(std::format("`{}`: expected `{}` in the diagnostic, got `{}`", text, what, e.error().text()), where);
+        expect(false, where) << std::format("`{}`: expected `{}` in the diagnostic, got `{}`", text, what, e.error().text());
 }
 
 // Text → AST → text is stable, and parses back to the same tree.
 void round_trip(std::string_view text, std::string_view canonical = {}, std::source_location where = std::source_location::current()) {
     auto e = parse(text);
     if (!e) {
-        fail(std::format("`{}` does not parse: {}", text, e.error().text()), where);
+        expect(false, where) << std::format("`{}` does not parse: {}", text, e.error().text());
         return;
     }
     const std::string printed = e->text();
-    if (printed != (canonical.empty() ? text : canonical)) fail(std::format("`{}` prints as `{}`", text, printed), where);
+    if (printed != (canonical.empty() ? text : canonical)) expect(false, where) << std::format("`{}` prints as `{}`", text, printed);
     auto again = parse(printed);
     if (!again) {
-        fail(std::format("`{}` (printed) does not parse: {}", printed, again.error().text()), where);
+        expect(false, where) << std::format("`{}` (printed) does not parse: {}", printed, again.error().text());
         return;
     }
-    if (!again->same(*e)) fail(std::format("`{}` reparses to a different tree", printed), where);
+    if (!again->same(*e)) expect(false, where) << std::format("`{}` reparses to a different tree", printed);
 }
 
 // splitmix64: the same sequence on every platform.
@@ -135,10 +138,9 @@ struct Rng {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"expr"};
+UTest cases{"expr", [] {
 
-    s.test("literals", [] {
+    "literals"_test = [] {
         is("null", "null");
         is("true", "true");
         is("42", "42");
@@ -156,9 +158,9 @@ int main(int argc, char** argv) {
         is("{'a': 1, 'b': [true]}", "{\"a\":1,\"b\":[true]}");
         is("[]", "[]");
         is("{}", "{}");
-    });
+    };
 
-    s.test("arithmetic: ints, doubles and their mix", [] {
+    "arithmetic: ints, doubles and their mix"_test = [] {
         is("1 + 2 * 3", "7");
         is("(1 + 2) * 3", "9");
         is("7 / 2", "3");
@@ -183,17 +185,17 @@ int main(int argc, char** argv) {
         error("1.5 % 1", "% takes ints");
         error("'a' - 1", "no `-`");
         error("-'a'", "- of a string");
-    });
+    };
 
-    s.test("strings and lists concatenate", [] {
+    "strings and lists concatenate"_test = [] {
         is("'Hello, ' + name", "\"Hello, Ada\"");
         is("tags + ['c']", "[\"a\",\"b\",\"c\"]");
         Result r = run("'n = ' + count");
-        check(!r.ok());
-        check(r.errors[0].hint.find("format") != std::string::npos, "the hint names format()");
-    });
+        expect(!r.ok());
+        expect(r.errors[0].hint.find("format") != std::string::npos) << "the hint names format()";
+    };
 
-    s.test("comparison and equality across numbers", [] {
+    "comparison and equality across numbers"_test = [] {
         is("1 == 1.0", "true");
         is("1 != 1.0", "false");
         is("2 < 2.5", "true");
@@ -211,9 +213,9 @@ int main(int argc, char** argv) {
         is("double('nan') >= 1", "false");
         error("'a' < 1", "no order");
         error("[1] < [2]", "no order");
-    });
+    };
 
-    s.test("logic needs bools and absorbs errors like CEL", [] {
+    "logic needs bools and absorbs errors like CEL"_test = [] {
         is("ok && count > 2", "true");
         is("!ok || false", "false");
         is("false && missing", "false");
@@ -229,10 +231,10 @@ int main(int argc, char** argv) {
         error("!count", "takes a bool");
         error("count ? 1 : 2", "must be a bool");
         Result r = run("count ? 1 : 2");
-        check(!r.errors.empty() && r.errors[0].hint.find("compare") != std::string::npos);
-    });
+        expect(!r.errors.empty() && r.errors[0].hint.find("compare") != std::string::npos);
+    };
 
-    s.test("in, members, indexes and has()", [] {
+    "in, members, indexes and has()"_test = [] {
         is("'a' in tags", "true");
         is("'z' in tags", "false");
         is("1.0 in [1, 2]", "true");
@@ -256,10 +258,10 @@ int main(int argc, char** argv) {
         error("{'a': 1, 'a': 2}", "the key `a` twice");
         error("{1: 2}", "keys are strings");
         Result r = run("user.email");
-        check(!r.errors.empty() && r.errors[0].hint.find("has(") != std::string::npos);
-    });
+        expect(!r.errors.empty() && r.errors[0].hint.find("has(") != std::string::npos);
+    };
 
-    s.test("text functions", [] {
+    "text functions"_test = [] {
         is("format('{} of {}', 1, count)", "\"1 of 3\"");
         is("format('{{}} {}', 0.1 + 0.2)", "\"{} 0.30000000000000004\"");
         is("format('{} {} {}', null, [1, 'a'], {'k': true})", "\"null [1,\\\"a\\\"] {\\\"k\\\":true}\"");
@@ -285,9 +287,9 @@ int main(int argc, char** argv) {
         error("format()", "takes a pattern");
         error("size(1)", "size() of a int");
         error("upper(1)", "takes a string");
-    });
+    };
 
-    s.test("number functions", [] {
+    "number functions"_test = [] {
         is("min(3, 1, 2)", "1");
         is("max(3, 1.5)", "3.0");
         is("clamp(15, 0, 10)", "10");
@@ -314,9 +316,9 @@ int main(int argc, char** argv) {
         error("min()", "at least one");
         error("max(1, 'a')", "takes numbers");
         error("abs(-9223372036854775807 - 1)", "overflows");
-    });
+    };
 
-    s.test("lookup and tr", [] {
+    "lookup and tr"_test = [] {
         is("lookup(tags, 1)", "\"b\"");
         is("lookup(tags, 5, 'none')", "\"none\"");
         is("lookup(user, 'email', '-')", "\"-\"");
@@ -333,19 +335,19 @@ int main(int argc, char** argv) {
             return std::string(key);
         };
         Result r = run("tr('items', {'count': count})", de);
-        check(r.ok());
-        check_eq(r.value.json(), std::string("\"3 Einträge\""));
+        expect(r.ok());
+        expect(mcpplibs::mtest::eq(r.value.json(), std::string("\"3 Einträge\"")));
         error("tr('items', count)", "a map by name");
-    });
+    };
 
-    s.test("tr() without a catalog formats the key as its message (MessageFormat 2)", [] {
+    "tr() without a catalog formats the key as its message (MessageFormat 2)"_test = [] {
         // The key is the message: tr('{$n} left', {'n': n}) reads well untranslated.
         is("tr('{$n} left', {'n': count})", "\"3 left\"");
         // No locale's data: selection by exact value (no plural categories without a language).
         is("tr('.input {$n :number}\\n.match $n\\n1 {{one left}}\\n* {{{$n} left}}', {'n': 1})", "\"one left\"");
-    });
+    };
 
-    s.test("animation functions", [] {
+    "animation functions"_test = [] {
         is("interpolate(5, [0, 10], [0, 100])", "50.0");
         is("interpolate(-5, [0, 10], [0, 100])", "0.0");
         is("interpolate(50, [0, 10], [0, 100])", "100.0");
@@ -363,34 +365,34 @@ int main(int argc, char** argv) {
         error("interpolate(1, [0, 1], [0, 1], 'wobble')", "no ease is named");
         error("ease('nope', 0.5)", "no ease is named");
         error("spring(1, 0, 1, 0)", "stiffness > 0");
-    });
+    };
 
-    s.test("unknown names and functions suggest the nearest", [] {
+    "unknown names and functions suggest the nearest"_test = [] {
         error("cout + 1", "`cout` is not defined");
         Result r = run("sise(tags)");
-        check(!r.ok());
-        check(r.errors.size() == 1 && r.errors[0].hint == "did you mean `size`?", r.errors.empty() ? "" : r.errors[0].text());
+        expect(!r.ok());
+        expect(r.errors.size() == 1 && r.errors[0].hint == "did you mean `size`?") << (r.errors.empty() ? "" : r.errors[0].text());
         r = run("startswith(name, 'A')");
-        check(r.errors.size() == 1 && r.errors[0].hint == "did you mean `startsWith`?");
+        expect(r.errors.size() == 1 && r.errors[0].hint == "did you mean `startsWith`?");
         r = run("frobnicate(1)");
-        check(r.errors.size() == 1 && r.errors[0].hint.empty());
-    });
+        expect(r.errors.size() == 1 && r.errors[0].hint.empty());
+    };
 
-    s.test("an evaluation diagnostic points at the node", [] {
+    "an evaluation diagnostic points at the node"_test = [] {
         const std::string_view text = "count > 0 &&\n  user.email == 'x'";
         auto e = parse(text);
-        check(e.has_value());
+        expect(e.has_value());
         Result r = evaluate(*e, env);
-        check(r.errors.size() == 1);
+        expect(r.errors.size() == 1);
         if (r.errors.empty()) return;
         Diagnostic d = r.errors[0];
         locate(d, text);
-        check_eq(d.line, 2u);
-        check_eq(d.column, 7u);
-        check_eq(d.text(), std::string("2:7: no field `email` (test it first: has(….email))"));
-    });
+        expect(mcpplibs::mtest::eq(d.line, 2u));
+        expect(mcpplibs::mtest::eq(d.column, 7u));
+        expect(mcpplibs::mtest::eq(d.text(), std::string("2:7: no field `email` (test it first: has(….email))")));
+    };
 
-    s.test("syntax errors say where and how to fix it", [] {
+    "syntax errors say where and how to fix it"_test = [] {
         syntax("count = 3", "1:7: `=` is not an operator here (compare with `==`");
         syntax("a & b", "write `&&`");
         syntax("a | b", "write `||`");
@@ -408,10 +410,10 @@ int main(int argc, char** argv) {
         syntax("#", "cannot start");
         syntax("", "ends early");
         auto e = parse("x +\n  * 2");
-        check(!e && e.error().line == 2 && e.error().column == 3);
-    });
+        expect(!e && e.error().line == 2 && e.error().column == 3);
+    };
 
-    s.test("nesting is bounded, not a stack overflow", [] {
+    "nesting is bounded, not a stack overflow"_test = [] {
         syntax(std::string(10000, '('), "nested deeper than");
         syntax(std::string(10000, '-') + "x", "nested deeper than");
         syntax(std::string(10000, '[') + std::string(10000, ']'), "nested deeper than");
@@ -432,10 +434,10 @@ int main(int argc, char** argv) {
         Expr deep = ref("count");
         for (int i = 0; i < 1000; ++i) deep = -deep;
         Result r = evaluate(deep, env);
-        check(!r.ok() && r.errors[0].message.find("nested deeper") != std::string::npos);
-    });
+        expect(!r.ok() && r.errors[0].message.find("nested deeper") != std::string::npos);
+    };
 
-    s.test("printing round-trips", [] {
+    "printing round-trips"_test = [] {
         round_trip("count > 0 ? format(\"{} left\", count) : \"done\"");
         round_trip("(a + b) * c");
         round_trip("a + b * c");
@@ -458,13 +460,13 @@ int main(int argc, char** argv) {
         round_trip("'it\\'s'", "\"it's\"");
         round_trip("\"q\\\"\\\\\\n\\x01\"");
         round_trip("'é😀'", "\"é😀\"");
-    });
+    };
 
-    s.test("combinators build what the text says", [] {
+    "combinators build what the text says"_test = [] {
         const auto same = [](const Expr& built, std::string_view text, std::source_location where = std::source_location::current()) {
             auto parsed = parse(text);
-            check(parsed.has_value(), text, where);
-            if (parsed && !built.same(*parsed)) fail(std::format("built `{}`, text `{}`", built.text(), text), where);
+            expect(parsed.has_value(), where) << text;
+            if (parsed && !built.same(*parsed)) expect(false, where) << std::format("built `{}`, text `{}`", built.text(), text);
         };
         same(select(ref("count") > 0, fmt("{} left", ref("count")), "done"), "count > 0 ? format('{} left', count) : 'done'");
         same(ref("a") + ref("b") * 2, "a + b * 2");
@@ -486,45 +488,50 @@ int main(int argc, char** argv) {
         // Literals that no single token spells still evaluate to themselves.
         for (double d : {std::numeric_limits<double>::infinity(), -std::numeric_limits<double>::infinity()}) {
             auto back = parse(lit(Value(d)).text());
-            check(back && evaluate(*back, env).value.as_double() == d);
+            expect(back && evaluate(*back, env).value.as_double() == d);
         }
         auto nan = parse(lit(Value(std::numeric_limits<double>::quiet_NaN())).text());
-        check(nan && std::isnan(evaluate(*nan, env).value.as_double()));
+        expect(nan && std::isnan(evaluate(*nan, env).value.as_double()));
         auto smallest = parse(lit(Value(std::numeric_limits<std::int64_t>::min())).text());
-        check(smallest && evaluate(*smallest, env).value.as_int() == std::numeric_limits<std::int64_t>::min());
+        expect(smallest && evaluate(*smallest, env).value.as_int() == std::numeric_limits<std::int64_t>::min());
         auto negative = parse((lit(Value(-2)) * 3).text());
-        check(negative && evaluate(*negative, env).value.as_int() == -6);
-        check_eq((lit(Value(-2)).field("x")).text(), std::string("(-2).x"));
-    });
+        expect(negative && evaluate(*negative, env).value.as_int() == -6);
+        expect(mcpplibs::mtest::eq((lit(Value(-2)).field("x")).text(), std::string("(-2).x")));
+    };
 
-    s.test("references are the names read, sorted, once", [] {
+    "references are the names read, sorted, once"_test = [] {
         auto e = parse("a.b + c[d] + size(a) + has(e.f) + (c ? g : 1)");
-        check(e.has_value());
-        check(e->references() == std::vector<std::string>{"a", "c", "d", "e", "g"});
-        check(parse("1 + 2")->references().empty());
-    });
+        expect(e.has_value());
+        expect(e->references() == std::vector<std::string>{"a", "c", "d", "e", "g"});
+        expect(parse("1 + 2")->references().empty());
+    };
 
-    s.test("the function list is sorted and complete", [] {
+    "the function list is sorted and complete"_test = [] {
         auto f = functions();
-        check(std::ranges::is_sorted(f));
-        check_eq(f.size(), omui::spec::functions.size());
+        expect(std::ranges::is_sorted(f));
+        expect(mcpplibs::mtest::eq(f.size(), omui::spec::functions.size()));
         for (std::string_view name : {"format", "size", "lookup", "interpolate", "spring", "tr", "clamp", "ease"})
-            check(std::ranges::find(f, name) != f.end(), name);
+            expect(std::ranges::find(f, name) != f.end()) << name;
         // Every listed function is known to the evaluator (none says "no function").
         for (std::string_view name : f) {
             if (name == "has") continue;  // a macro: it takes a field, not a value
             Result r = run(std::format("{}()", name));
-            for (const auto& d : r.errors) check(d.message.find("no function") == std::string::npos, name);
+            for (const auto& d : r.errors) expect(d.message.find("no function") == std::string::npos) << name;
         }
-    });
+    };
 
-    s.test("random input never crashes and always round-trips", [] {
+    "random input never crashes and always round-trips"_test = [] {
         Rng rng{0x6f6d7569};
         static constexpr std::array<std::string_view, 48> atoms{
             "count", "half", "name", "tags", "user", "ok", "missing", "0", "1", "-1", "2.5", "1e3", "'s'", "\"t\"", "null",
             "true", "false", "+", "-", "*", "/", "%", "==", "!=", "<", "<=", ">", ">=", "&&", "||", "!", "?", ":", "in",
             "(", ")", "[", "]", "{", "}", ",", ".", "size", "format", "has", "lookup", ".name", "'{}'"};
-        int parsed = 0;
+        int parsed = 0, failed = 0;  // a loop of many inputs stops at twenty failures: a report, not a flood
+        const auto note = [&failed](bool held, std::string_view what) {
+            if (held) return;
+            ++failed;
+            expect(false) << what;
+        };
         for (int round = 0; round < 20000; ++round) {
             std::string text;
             const std::size_t n = 1 + rng.below(14);
@@ -538,28 +545,28 @@ int main(int argc, char** argv) {
             }
             auto e = parse(text);
             if (!e) {
-                check(!e.error().message.empty(), text);
-                check(e.error().at <= text.size(), text);
+                note(!e.error().message.empty(), text);
+                note(e.error().at <= text.size(), text);
                 continue;
             }
             ++parsed;
             const std::string printed = e->text();
             auto again = parse(printed);
             if (!again) {
-                fail(std::format("`{}` printed as `{}`, which does not parse: {}", text, printed, again.error().text()));
+                note(false, std::format("`{}` printed as `{}`, which does not parse: {}", text, printed, again.error().text()));
                 continue;
             }
-            if (again->text() != printed) fail(std::format("`{}` → `{}` → `{}`", text, printed, again->text()));
+            note(again->text() == printed, std::format("`{}` → `{}` → `{}`", text, printed, again->text()));
             Result a = evaluate(*e, env), b = evaluate(*again, env);
-            check(a.ok() == b.ok(), printed);
+            note(a.ok() == b.ok(), printed);
             if (a.ok() && b.ok() && a.value.json() != b.value.json() && a.value.json().find("nan") == std::string::npos)
-                fail(std::format("`{}` gives {}, its printed form {}", text, a.value.json(), b.value.json()));
-            if (failures() > 20) return;
+                note(false, std::format("`{}` gives {}, its printed form {}", text, a.value.json(), b.value.json()));
+            if (failed > 20) return;
         }
-        check(parsed > 500, std::format("only {} of the random inputs parsed", parsed));
-    });
+        expect(parsed > 500) << std::format("only {} of the random inputs parsed", parsed);
+    };
 
-    s.test("random well-formed expressions: print, reparse, same value", [] {
+    "random well-formed expressions: print, reparse, same value"_test = [] {
         Rng rng{0x65787072};
         // A random expression of the grammar, `depth` levels at most.
         std::function<std::string(int)> gen = [&](int depth) -> std::string {
@@ -607,31 +614,34 @@ int main(int argc, char** argv) {
             }
         };
         Hash h;
-        int values = 0;
+        int values = 0, failed = 0;
+        const auto note = [&failed](bool held, std::string_view what) {
+            if (held) return;
+            ++failed;
+            expect(false) << what;
+        };
         for (int round = 0; round < 5000; ++round) {
             const std::string text = gen(1 + static_cast<int>(rng.below(5)));
             auto e = parse(text);
             if (!e) {
-                fail(std::format("`{}` does not parse: {}", text, e.error().text()));
+                note(false, std::format("`{}` does not parse: {}", text, e.error().text()));
                 continue;
             }
             const std::string printed = e->text();
             auto again = parse(printed);
             if (!again || !again->same(*e)) {
-                fail(std::format("`{}` printed as `{}`, which reads back differently", text, printed));
+                note(false, std::format("`{}` printed as `{}`, which reads back differently", text, printed));
                 continue;
             }
             Result a = evaluate(*e, env), b = evaluate(*again, env);
-            check(a.ok() == b.ok() && repr(a.value) == repr(b.value), printed);
+            note(a.ok() == b.ok() && repr(a.value) == repr(b.value), printed);
             values += a.ok();
             h.str(printed);
             h.str(a.ok() ? repr(a.value) : a.errors[0].message);
-            if (failures() > 20) return;
+            if (failed > 20) return;
         }
-        check(values > 500, std::format("only {} of the expressions evaluated", values));
+        expect(values > 500) << std::format("only {} of the expressions evaluated", values);
         // The same expressions, printed texts, values and errors on every platform.
-        check_eq(h.hex(), std::string("dce364409b8b6d21"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(mcpplibs::mtest::eq(h.hex(), std::string("dce364409b8b6d21")));
+    };
+}};

@@ -13,8 +13,10 @@ import hanim.engine;
 import hanim.render.vector;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -133,15 +135,14 @@ Element caption(std::string id, std::string text, float size = 15) {
 
 void save(Headless& h, const std::filesystem::path& dir, std::string_view name, Size size) {
     h.settle(seconds(0.2));
-    check(h.save_png(dir / std::format("{}.png", name), Rect{0, 0, size.width, size.height}).has_value(), std::format("{} saved", name));
+    expect(h.save_png(dir / std::format("{}.png", name), Rect{0, 0, size.width, size.height}).has_value()) << std::format("{} saved", name);
 }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"site.brand_lab"};
+UTest cases{"site.brand_lab", [] {
 
-    s.test("A1: the mark's O four ways, Mui at 16 and 24 in three palettes, four directions — drawn by the framework and saved", [] {
+    "A1: the mark's O four ways, Mui at 16 and 24 in three palettes, four directions — drawn by the framework and saved"_test = [] {
         const Value marks = read_json("marks.mark.omui.json");
         const Value sprites = read_json("mascot.sprite.omui.json");
         const auto dir = scratch_dir("brand-lab");
@@ -166,7 +167,7 @@ int main(int argc, char** argv) {
                                   {row({.id = "marks", .gap = 40}, std::move(columns))}));
             save(h, dir, "marks", size);
             const auto vectors = h.svg();
-            check(vectors.has_value() && vectors->islands.empty(), "the marks as SVG, vectors alone");
+            expect(vectors.has_value() && vectors->islands.empty()) << "the marks as SVG, vectors alone";
             if (vectors) std::ofstream(dir / "marks.svg", std::ios::binary) << vectors->svg;
         }
 
@@ -235,17 +236,17 @@ int main(int argc, char** argv) {
             save(h, dir, "lockups", size);
         }
         for (const auto* name : {"marks.png", "mui16.png", "mui24.png", "lockups.png"})
-            check(std::filesystem::exists(dir / name) && std::filesystem::file_size(dir / name) < 1'000'000, std::format("{} under 1 MB", name));
-    });
+            expect(std::filesystem::exists(dir / name) && std::filesystem::file_size(dir / name) < 1'000'000) << std::format("{} under 1 MB", name);
+    };
 
-    s.test("A2: the mark, chosen — the O with ears round mui, drawn by the framework; site/brand/omui-mark.svg is what it draws", [] {
+    "A2: the mark, chosen — the O with ears round mui, drawn by the framework; site/brand/omui-mark.svg is what it draws"_test = [] {
         const Value marks = read_json("marks.mark.omui.json");
         Headless h(HeadlessOptions{.size = {100, 100}, .scale = 1});
         h.mount("main", stack({.id = "mark", .width = 100.0f, .height = 100.0f},
                               {canvas("o", 100, 100, [&marks](xrender::DisplayList& l) { draw_mark(l, marks, "ears", {0, 0}, 100, Color::hex(0x4f46e5)); })}));
         h.settle();
         const auto vectors = h.svg();
-        check(vectors.has_value() && vectors->islands.empty(), "vectors alone");
+        expect(vectors.has_value() && vectors->islands.empty()) << "vectors alone";
         if (!vectors) return;
         const auto file = brand_dir / "omui-mark.svg";
         std::ifstream in(file, std::ios::binary);
@@ -253,11 +254,11 @@ int main(int argc, char** argv) {
         if (kept != vectors->svg) {
             const auto out = scratch_dir("brand-mark") / "omui-mark.svg";
             std::ofstream(out, std::ios::binary) << vectors->svg;
-            check(false, std::format("site/brand/omui-mark.svg is not what the framework draws: copy {} over it", out.string()));
+            expect(false) << std::format("site/brand/omui-mark.svg is not what the framework draws: copy {} over it", out.string());
         }
-    });
+    };
 
-    s.test("C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved", [] {
+    "C1: Mui as hanim's pixel picture — the staircase into the curve, scattered and back together — sampled and saved"_test = [] {
         const Value sprites = read_json("mascot.sprite.omui.json");
         const auto dir = scratch_dir("brand-pixels");
         const auto grid = pixel_grid(sprites, "body24", "sit", "indigo", 6);
@@ -265,16 +266,16 @@ int main(int argc, char** argv) {
         const auto sharp = engine.create_object(*hanim::pixel_object("mui", grid));
         const auto round = engine.create_object(*hanim::pixel_object("mui", grid, {.form = hanim::PixelForm::smooth}));
         const auto pixels = engine.create_object(*hanim::pixel_object("mui", grid, {.form = hanim::PixelForm::pixels}));
-        check(sharp && round && pixels, "Mui three ways");
+        expect(sharp && round && pixels) << "Mui three ways";
         const auto morph = engine.play(hanim::anim::morph(*sharp, *round).duration(hanim::seconds(1)).easing(hanim::ease::linear));
         const auto scatter = engine.play(hanim::sequence({hanim::anim::scatter_out(*pixels, grid, {.seed = 11, .distance = 34}),
                                                           hanim::anim::assemble_in(*pixels, grid, {.seed = 11, .distance = 34})}));
-        check(morph && scatter && engine.pause(*morph) && engine.pause(*scatter), "both played, held");
+        expect(morph && scatter && engine.pause(*morph) && engine.pause(*scatter)) << "both played, held";
         if (!morph || !scatter) return;
         const double length = engine.inspect(*scatter)->duration.count();
         const std::array<double, 5> morph_at{0, .25, .5, .75, 1};
         const std::array<double, 5> scatter_at{0, .2, .45, .9, 1.35};
-        check(std::abs(length - 1.8) < 1e-9, std::format("out and back in 1.8 s: {}", length));
+        expect(std::abs(length - 1.8) < 1e-9) << std::format("out and back in 1.8 s: {}", length);
         const Size size{1080, 520};
         Headless h(HeadlessOptions{.size = size, .scale = 1});
         const auto strip = [&](std::string name, hanim::PlaybackRef playback, std::span<const double> times, std::string words) {
@@ -290,8 +291,6 @@ int main(int argc, char** argv) {
                                {strip("morph", *morph, morph_at, "the staircase into the curve: one path an ink, the same segments"),
                                 strip("scatter", *scatter, scatter_at, "a part a pixel: scattered from the middle out, then back, the farthest first")}));
         save(h, dir, "mui-pixels", size);
-        check(std::filesystem::file_size(dir / "mui-pixels.png") < 1'000'000, "under 1 MB");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(std::filesystem::file_size(dir / "mui-pixels.png") < 1'000'000) << "under 1 MB";
+    };
+}};

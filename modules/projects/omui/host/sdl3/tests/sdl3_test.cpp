@@ -10,8 +10,10 @@ import mcpplibs.os;
 import mcpplibs.mwrap.sdl3;  // a virtual gamepad (the gamepad test)
 import omui.host.sdl3;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -51,38 +53,37 @@ void write(const std::filesystem::path& f, std::string_view text) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"host.sdl3"};
+UTest cases{"host.sdl3", [] {
 
-    s.test("the window shows the frame, presented only when it changes", [] {
+    "the window shows the frame, presented only when it changes"_test = [] {
         Desktop d(offscreen());
         auto opened = d.open();
-        check(opened.has_value(), opened ? "" : opened.error());
+        expect(opened.has_value()) << (opened ? "" : opened.error());
         if (!opened) return;
         auto color = signal(std::string("#ff0000"));
         d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Prop<Fill>(Source{std::nullopt, [color] { return Value(color.get()); }, {}})})}));
-        check(d.step());
-        check(d.frames_shown() == 1);
+        expect(d.step());
+        expect(d.frames_shown() == 1);
         auto px = d.window_pixels();
-        check(px.has_value(), px ? "" : px.error());
+        expect(px.has_value()) << (px ? "" : px.error());
         if (!px) return;
-        check(px->width() == static_cast<int>(240 * d.scale()));
+        expect(px->width() == static_cast<int>(240 * d.scale()));
         auto at = px->at(static_cast<int>(40 * d.scale()), static_cast<int>(40 * d.scale()));
-        check(at.r == 255 && at.g == 0 && at.b == 0, std::format("{} {} {}", at.r, at.g, at.b));
+        expect(at.r == 255 && at.g == 0 && at.b == 0) << std::format("{} {} {}", at.r, at.g, at.b);
         auto bg = px->at(5, 5);
-        check(bg.r == 255 && bg.g == 255 && bg.b == 255, "the background");
+        expect(bg.r == 255 && bg.g == 255 && bg.b == 255) << "the background";
         d.step();
         d.step();
-        check(d.frames_shown() == 1, "nothing changed: nothing presented");
+        expect(d.frames_shown() == 1) << "nothing changed: nothing presented";
         color.set("#0000ff");
         d.step();
-        check(d.frames_shown() == 2);
+        expect(d.frames_shown() == 2);
         auto blue = d.window_pixels();
         auto b = blue->at(static_cast<int>(40 * d.scale()), static_cast<int>(40 * d.scale()));
-        check(b.b == 255 && b.r == 0);
-    });
+        expect(b.b == 255 && b.r == 0);
+    };
 
-    s.test("on the GPU: the swapchain shows the frame, and an effect file edited while it runs shows on the next frame", [] {
+    "on the GPU: the swapchain shows the frame, and an effect file edited while it runs shows on the next frame"_test = [] {
         const auto dir = std::filesystem::temp_directory_path() / "openmui-host-effects";
         std::error_code ec;
         std::filesystem::remove_all(dir, ec);
@@ -104,30 +105,30 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         Desktop d(o);
         auto opened = d.open();
         if (!opened) {
-            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") check(false, std::format("OMUI_REQUIRE_GPU=1: {}", opened.error()));
+            if (mcpplibs::os::env::get("OMUI_REQUIRE_GPU") == "1") expect(false) << std::format("OMUI_REQUIRE_GPU=1: {}", opened.error());
             else std::println("  no GPU for the window here ({})", opened.error());
             return;
         }
-        check(d.gpu(), "the GPU draws");
-        check(d.effects() && d.effects()->names() == std::vector<std::string>{"invert"}, "the effect file loaded with the window");
+        expect(d.gpu()) << "the GPU draws";
+        expect(d.effects() && d.effects()->names() == std::vector<std::string>{"invert"}) << "the effect file loaded with the window";
         d.mount("main", column({.padding = 20}, {box({.id = "swatch", .width = 40, .height = 40, .background = Fill(Color::hex(0xff0000))})}));
-        check(d.step());
-        check_eq(d.frames_shown(), std::size_t{1});
+        expect(d.step());
+        expect(eq(d.frames_shown(), std::size_t{1}));
         const auto pixel = [&](int x, int y) -> std::optional<xrender::raster::Rgba8> {
             auto px = d.window_pixels();
-            check(px.has_value(), px ? "" : px.error());
+            expect(px.has_value()) << (px ? "" : px.error());
             if (!px) return std::nullopt;
             return px->at(static_cast<int>(x * d.scale()), static_cast<int>(y * d.scale()));
         };
-        if (auto at = pixel(40, 40)) check(at->r == 255 && at->g == 0 && at->b == 0, std::format("red: {} {} {}", at->r, at->g, at->b));
-        if (auto bg = pixel(5, 5)) check(bg->r == 255 && bg->g == 255 && bg->b == 255, "the background");
+        if (auto at = pixel(40, 40)) expect(at->r == 255 && at->g == 0 && at->b == 0) << std::format("red: {} {} {}", at->r, at->g, at->b);
+        if (auto bg = pixel(5, 5)) expect(bg->r == 255 && bg->g == 255 && bg->b == 255) << "the background";
 
         // The node under the program's effect.
         Value fx;
         fx.set("name", "invert");
         d.runtime().set(d.runtime().find("main/swatch"), "pixel_effect", fx);
         d.step();
-        if (auto at = pixel(40, 40)) check(at->r == 0 && at->g == 255 && at->b == 255, std::format("inverted: {} {} {}", at->r, at->g, at->b));
+        if (auto at = pixel(40, 40)) expect(at->r == 0 && at->g == 255 && at->b == 255) << std::format("inverted: {} {} {}", at->r, at->g, at->b);
 
         // The shader edited while the program runs: on the next frame. Three
         // edits (green, blue, green): the latency is the fastest of them — a
@@ -141,32 +142,32 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             const auto from = std::chrono::steady_clock::now();
             d.step();
             took.push_back(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - from));
-            if (auto at = pixel(40, 40)) check(at->r == want.r && at->g == want.g && at->b == want.b, std::format("edited: {} {} {}", at->r, at->g, at->b));
+            if (auto at = pixel(40, 40)) expect(at->r == want.r && at->g == want.g && at->b == want.b) << std::format("edited: {} {} {}", at->r, at->g, at->b);
         }
         std::println("  from the saved shader to the frame showing it: {} ms, {} ms, {} ms", took[0].count(), took[1].count(), took[2].count());
-        check(std::ranges::min(took) < std::chrono::milliseconds(500), "M4 ③: within 500 ms");
+        expect(std::ranges::min(took) < std::chrono::milliseconds(500)) << "M4 ③: within 500 ms";
         std::filesystem::remove_all(dir, ec);
-    });
+    };
 
-    s.test("frames as often as they are wanted (D-70): a lease of 20 Hz paces the loop, idle sleeps", [] {
+    "frames as often as they are wanted (D-70): a lease of 20 Hz paces the loop, idle sleeps"_test = [] {
         Desktop d(offscreen("sdl3-pacing"));
         d.mount("main", column({.width = 240, .height = 160}, {text({.text = "paced"})}));
-        check(d.step(false));
+        expect(d.step(false));
         // Something asks for 20 frames a second: ten frames take about half a second.
         auto lease = d.runtime().demand_frames({.min_hz = 10, .max_hz = 20, .preferred_hz = 20, .reason = "test"});
-        check(d.step(false));  // the demand is the frame's: from the next one on
+        expect(d.step(false));  // the demand is the frame's: from the next one on
         const auto from = std::chrono::steady_clock::now();
-        for (int i = 0; i < 10; ++i) check(d.step(true));
+        for (int i = 0; i < 10; ++i) expect(d.step(true));
         const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - from).count();
         std::println("  10 frames at 20 Hz: {:.3f} s", took);
-        check(took > 0.40 && took < 2.0, std::format("paced: {:.3f} s", took));
-        check(d.runtime().frame_demand().reason == "test");
+        expect(took > 0.40 && took < 2.0) << std::format("paced: {:.3f} s", took);
+        expect(d.runtime().frame_demand().reason == "test");
         lease.release();
-        check(d.step(false));
-        check(d.runtime().frame_demand().idle(), "idle once released");
-    });
+        expect(d.step(false));
+        expect(d.runtime().frame_demand().idle()) << "idle once released";
+    };
 
-    s.test("input goes through SDL: pointer, keys, text, wheel, close", [] {
+    "input goes through SDL: pointer, keys, text, wheel, close"_test = [] {
         Desktop d(offscreen());
         if (!d.open()) return;
         int presses = 0;
@@ -195,7 +196,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::array<InputEvent, 2> click{down, up};
         d.synthesize(click);
         d.step();
-        check(presses == 1, "a click through SDL's queue");
+        expect(presses == 1) << "a click through SDL's queue";
         const Rect pad = d.runtime().bounds(d.runtime().find("main/pad"));
         PointerEvent focus = down;
         focus.position = pad.center();
@@ -212,15 +213,15 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::array<InputEvent, 6> more{focus, release, z, z_up, TextEvent{"héllo"}, w};
         d.synthesize(more);
         d.step();
-        check(keys == std::vector<std::string>{"Ctrl+Z"}, std::format("{}", keys));
-        check(texts == std::vector<std::string>{"héllo"});
-        check(wheel.y == 80, std::format("two notches: {}", wheel.y));
+        expect(keys == std::vector<std::string>{"Ctrl+Z"}) << std::format("{}", keys);
+        expect(texts == std::vector<std::string>{"héllo"});
+        expect(wheel.y == 80) << std::format("two notches: {}", wheel.y);
         std::array<InputEvent, 1> close{CloseRequestEvent{}};
         d.synthesize(close);
-        check(!d.step(), "closing the window ends the loop");
-    });
+        expect(!d.step()) << "closing the window ends the loop";
+    };
 
-    s.test("gamepads through SDL: plugged in while it runs, its standard mapping, the dead zone, unplugged", [] {
+    "gamepads through SDL: plugged in while it runs, its standard mapping, the dead zone, unplugged"_test = [] {
         using namespace mcpplibs::mwrap::sdl3::macros;
         Desktop d(offscreen());
         if (!d.open()) return;
@@ -246,7 +247,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         desc.nbuttons = SDL_GAMEPAD_BUTTON_COUNT;
         desc.name = "openmui virtual pad";
         const SDL_JoystickID id = SDL_AttachVirtualJoystick(&desc);
-        check(id != 0, SDL_GetError());
+        expect(id != 0) << SDL_GetError();
         if (id == 0) return;
         SDL_Joystick* j = SDL_OpenJoystick(id);
         d.step();
@@ -266,36 +267,36 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             "connected ", "down west", "axis leftX=-1", "axis rightTrigger=1", "down rightTrigger", "up west",
             "axis leftX=0", "axis rightTrigger=0", "up rightTrigger", "disconnected ",  // SDL recentres a device going
         };
-        check(seen == want, std::format("{}", seen));
+        expect(seen == want) << std::format("{}", seen);
         // A gamepad's events synthesized as a test or an agent gives them: delivered as given.
         seen.clear();
         std::array<InputEvent, 1> south{GamepadEvent{.kind = GamepadKind::down, .device = 42, .button = GamepadButton::south}};
         d.synthesize(south);
         d.step();
-        check(seen == std::vector<std::string>{"down south"}, std::format("{}", seen));
-    });
+        expect(seen == std::vector<std::string>{"down south"}) << std::format("{}", seen);
+    };
 
-    s.test("the interface's own frame (D-75): no system frame, the window.* verbs, the state, switching", [] {
+    "the interface's own frame (D-75): no system frame, the window.* verbs, the state, switching"_test = [] {
         DesktopOptions o = offscreen();
         o.frame = DesktopOptions::Frame::framework;
         Desktop d(o);
         if (!d.open()) return;
         d.mount("main", column({.padding = 10}, {text({.id = "t", .text = "Notes"})}));
         d.step();
-        check(window().framework_drawn() && window().host() != nullptr, "the interface draws the frame");
-        check(window().state() == WindowState::normal);
+        expect(window().framework_drawn() && window().host() != nullptr) << "the interface draws the frame";
+        expect(window().state() == WindowState::normal);
         for (const char* v : {"window.minimize", "window.toggle_maximize", "window.fullscreen", "window.close", "window.frame"})
-            check(d.runtime().verbs().find(v) != nullptr, v);
+            expect(d.runtime().verbs().find(v) != nullptr) << v;
         // To the system's frame and back, by its verb.
         auto native = d.runtime().verbs().invoke("window.frame", Invocation{Value{}.set("framework", false), {}, {}, false});
-        check(native.exit_code() == 0 && !window().framework_drawn(), "the system's frame");
+        expect(native.exit_code() == 0 && !window().framework_drawn()) << "the system's frame";
         (void)d.runtime().verbs().invoke("window.frame", Invocation{Value{}.set("framework", true), {}, {}, false});
-        check(window().framework_drawn(), "the interface's again");
-        check(d.runtime().verbs().invoke("window.toggle_maximize", {}).exit_code() == 0);
+        expect(window().framework_drawn()) << "the interface's again";
+        expect(d.runtime().verbs().invoke("window.toggle_maximize", {}).exit_code() == 0);
         d.step();
-    });
+    };
 
-    s.test("closing a framework-drawn window: closed at once, input not taken, gone when it has dissolved", [] {
+    "closing a framework-drawn window: closed at once, input not taken, gone when it has dissolved"_test = [] {
         DesktopOptions o = offscreen();
         o.frame = DesktopOptions::Frame::framework;
         o.close_dissolve = 0.2;
@@ -306,9 +307,9 @@ float4 invert_fs(EffectPixel px) : SV_Target {
                                                       .on = {{"press", [&](const Value&) { ++presses; }}}})}));
         d.step();
         const auto started = std::chrono::steady_clock::now();
-        check(d.runtime().verbs().invoke("window.close", {}).exit_code() == 0, "window.close");
-        check(d.step(), "still dissolving");
-        check(d.closing() && window().closing(), "closed at once");
+        expect(d.runtime().verbs().invoke("window.close", {}).exit_code() == 0) << "window.close";
+        expect(d.step()) << "still dissolving";
+        expect(d.closing() && window().closing()) << "closed at once";
         const Rect b = d.runtime().bounds(d.runtime().find("main/button"));
         PointerEvent down;
         down.kind = PointerKind::down;
@@ -319,14 +320,14 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         std::array<InputEvent, 2> click{down, up};
         d.synthesize(click);
         (void)d.step();
-        check_eq(presses, 0);
+        expect(eq(presses, 0));
         while (d.step(true)) {}
         const double took = std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count();
-        check(took >= 0.2 && took < 2.0, std::format("gone after its dissolve ({:.2f} s)", took));
+        expect(took >= 0.2 && took < 2.0) << std::format("gone after its dissolve ({:.2f} s)", took);
         window().set_closing(false);
-    });
+    };
 
-    s.test("a native window, or reduced motion, closes at once", [] {
+    "a native window, or reduced motion, closes at once"_test = [] {
         for (const bool reduce : {false, true}) {
             DesktopOptions o = offscreen();
             o.frame = reduce ? DesktopOptions::Frame::framework : DesktopOptions::Frame::native;
@@ -336,18 +337,18 @@ float4 invert_fs(EffectPixel px) : SV_Target {
             d.mount("main", column({}, {}));
             d.step();
             d.close();
-            check(!d.step(), reduce ? "reduced motion" : "native");
+            expect(!d.step()) << (reduce ? "reduced motion" : "native");
         }
-    });
+    };
 
-    s.test("the clipboard is the system's", [] {
+    "the clipboard is the system's"_test = [] {
         Desktop d(offscreen());
         if (!d.open()) return;
         d.runtime().set_clipboard_text("from openmui");
-        check(d.runtime().clipboard_text() == "from openmui");
-    });
+        expect(d.runtime().clipboard_text() == "from openmui");
+    };
 
-    s.test("an agent's request wakes a sleeping loop", [] {
+    "an agent's request wakes a sleeping loop"_test = [] {
         auto dir = scratch_dir("sdl3-agent");
         DesktopOptions o = offscreen("sdl3-agent");
         o.agent = true;
@@ -372,36 +373,36 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         for (int i = 0; i < 50 && !done; ++i) d.step(true);  // sleeps: nothing animates, no timers
         client.join();
         const auto took = std::chrono::steady_clock::now() - start;
-        check(!got.empty() && got.back().get("exitCode")->as_int() == 0, got.empty() ? "no answer" : got.back().json());
-        check(took < std::chrono::seconds(5), "woken by the request, not by a timeout");
-    });
+        expect(!got.empty() && got.back().get("exitCode")->as_int() == 0) << (got.empty() ? "no answer" : got.back().json());
+        expect(took < std::chrono::seconds(5)) << "woken by the request, not by a timeout";
+    };
 
-    s.test("assistive technology: the tree served, a screen reader's click performed between frames", [] {
+    "assistive technology: the tree served, a screen reader's click performed between frames"_test = [] {
         DesktopOptions o = offscreen("sdl3-access");
         o.accessibility = true;
         Desktop d(o);
         if (!d.open()) return;
         if constexpr (!accessibility::available) {
-            check(d.accessibility_mirror() == nullptr && d.accessibility_adapter() == nullptr);
+            expect(d.accessibility_mirror() == nullptr && d.accessibility_adapter() == nullptr);
             return;
         }
         // UI Automation and NSAccessibility need the system's window, which
         // SDL's offscreen driver has none of; AT-SPI needs none.
         if (accessibility::service() != "atspi" && !d.accessibility_adapter()) {
-            check(d.accessibility_mirror() == nullptr, "no mirror kept without an adapter");
+            expect(d.accessibility_mirror() == nullptr) << "no mirror kept without an adapter";
             std::println("    skipped: {} needs a system window (the offscreen driver has none)", accessibility::service());
             return;
         }
-        check(d.accessibility_adapter() != nullptr, "attached");
+        expect(d.accessibility_adapter() != nullptr) << "attached";
         Signal<int> pressed{0};
         d.mount("main", column({}, {box({.id = "ok", .width = 40, .height = 20, .label = "OK",
                                          .on = {{"press", [pressed](const Value&) { pressed.set(pressed.peek() + 1); }}}})}));
         d.step();
         accessibility::Mirror& m = *d.accessibility_mirror();
-        check(m.id_of(accessibility::key_of("main/ok")).has_value(), "the frame's nodes were told");
+        expect(m.id_of(accessibility::key_of("main/ok")).has_value()) << "the frame's nodes were told";
         bool named = false;
         m.each([&](const accessibility::Node& n) { named = named || (n.key == m.root() && n.label == "openmui test"); });
-        check(named, "the window is named as its title");
+        expect(named) << "the window is named as its title";
         // From the platform's thread, while the loop sleeps.
         std::jthread at([&] {
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -410,9 +411,7 @@ float4 invert_fs(EffectPixel px) : SV_Target {
         const auto start = std::chrono::steady_clock::now();
         for (int i = 0; i < 20 && pressed.peek() == 0; ++i) d.step(true);
         at.join();
-        check(pressed.peek() == 1, "performed");
-        check(std::chrono::steady_clock::now() - start < std::chrono::seconds(5), "woken by the request");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(pressed.peek() == 1) << "performed";
+        expect(std::chrono::steady_clock::now() - start < std::chrono::seconds(5)) << "woken by the request";
+    };
+}};

@@ -57,4 +57,5 @@ omui.build.toy       = { path = "../../mcpp/toy", host-module = true }
 gongfu.rules            = { path = "../../modules/projects/gongfu/rules", host-module = true }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../modules/base/utils" }

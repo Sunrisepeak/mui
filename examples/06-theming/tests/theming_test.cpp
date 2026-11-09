@@ -13,8 +13,10 @@ import omui.theme;
 import omui.theme.default_theme;
 import omui.theme.compact;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -55,75 +57,74 @@ std::string pixels(Headless& h) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.theming"};
+UTest cases{"example.theming", [] {
     register_base_components();
-    check(themes::add_default().has_value() && themes::add_compact().has_value(), "openmui's themes");
+    expect(themes::add_default().has_value() && themes::add_compact().has_value()) << "openmui's themes";
 
-    s.test("compositions from the script: light, dark + compact + reduced motion, the brand; semantics kept, density applied", [] {
+    "compositions from the script: light, dark + compact + reduced motion, the brand; semantics kept, density applied"_test = [] {
         auto m = read_manifest(here() / "mcpp.toml");
-        check(m.has_value(), m ? "" : m.error());
+        expect(m.has_value()) << (m ? "" : m.error());
         if (!m) return;
-        check(m->themes.size() == 1 && m->theme == std::vector<std::string>{"light"}, "the manifest's themes and composition");
+        expect(m->themes.size() == 1 && m->theme == std::vector<std::string>{"light"}) << "the manifest's themes and composition";
         const auto shots = scratch_dir("example-theming");
         Headless h(HeadlessOptions{.size = m->size});
         player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
-        check(started.has_value(), started ? "" : started.error());
+        expect(started.has_value()) << (started ? "" : started.error());
         settle(h, p);
-        check(p.problems().empty(), p.problems().empty() ? "" : p.problems()[0]);
-        check_eq(h.tree().node("main/current")->name, std::string("Composed: light"));
+        expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
+        expect(eq(h.tree().node("main/current")->name, std::string("Composed: light")));
         const std::string light_semantics = semantics(h);
         const float comfortable = h.runtime().bounds(h.runtime().find("main/gallery/buttons/primary")).height;
-        check_eq(comfortable, 36.0f);
+        expect(eq(comfortable, 36.0f));
         const std::string light_pixels = pixels(h);
         std::println("example.theming light {}", light_pixels);
-        check(h.save_png(shots / "light.png").has_value());
+        expect(h.save_png(shots / "light.png").has_value());
 
-        check_eq(act(h, "main/controls/scheme", "set_value", Value{}.set("value", "dark")), std::int64_t{0});
+        expect(eq(act(h, "main/controls/scheme", "set_value", Value{}.set("value", "dark")), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/controls/compact", "toggle"), std::int64_t{0});
+        expect(eq(act(h, "main/controls/compact", "toggle"), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/controls/calm", "toggle"), std::int64_t{0});
+        expect(eq(act(h, "main/controls/calm", "toggle"), std::int64_t{0}));
         settle(h, p);
-        check_eq(h.tree().node("main/current")->name, std::string("Composed: dark+compact+reduced_motion"));
-        check(h.runtime().theme().dark && h.runtime().theme().density == 0.8f);
-        check_eq(semantics(h), light_semantics);
-        check_eq(h.runtime().bounds(h.runtime().find("main/gallery/buttons/primary")).height, 29.0f);
+        expect(eq(h.tree().node("main/current")->name, std::string("Composed: dark+compact+reduced_motion")));
+        expect(h.runtime().theme().dark && h.runtime().theme().density == 0.8f);
+        expect(eq(semantics(h), light_semantics));
+        expect(eq(h.runtime().bounds(h.runtime().find("main/gallery/buttons/primary")).height, 29.0f));
         const std::string dense_pixels = pixels(h);
         std::println("example.theming dark+compact+reduced_motion {}", dense_pixels);
-        check(h.save_png(shots / "dark-compact.png").has_value());
+        expect(h.save_png(shots / "dark-compact.png").has_value());
 
-        check_eq(act(h, "main/controls/compact", "toggle"), std::int64_t{0});
+        expect(eq(act(h, "main/controls/compact", "toggle"), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/controls/calm", "toggle"), std::int64_t{0});
+        expect(eq(act(h, "main/controls/calm", "toggle"), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/controls/scheme", "set_value", Value{}.set("value", "brand")), std::int64_t{0});
+        expect(eq(act(h, "main/controls/scheme", "set_value", Value{}.set("value", "brand")), std::int64_t{0}));
         settle(h, p);
-        check_eq(h.tree().node("main/current")->name, std::string("Composed: brand"));
-        check(h.runtime().theme().color("accent").g == Color::hex(0x0f766e).g, "the brand's accent");
-        check_eq(semantics(h), light_semantics);
+        expect(eq(h.tree().node("main/current")->name, std::string("Composed: brand")));
+        expect(h.runtime().theme().color("accent").g == Color::hex(0x0f766e).g) << "the brand's accent";
+        expect(eq(semantics(h), light_semantics));
         const std::string brand_pixels = pixels(h);
         std::println("example.theming brand {}", brand_pixels);
-        check(h.save_png(shots / "brand.png").has_value());
-        check(light_pixels != dense_pixels && light_pixels != brand_pixels);
-        check_eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("b71fdb4f2d783359 8799418b5f024785 d5848d7daebb5f06"));
-    });
+        expect(h.save_png(shots / "brand.png").has_value());
+        expect(light_pixels != dense_pixels && light_pixels != brand_pixels);
+        expect(eq(light_pixels + " " + dense_pixels + " " + brand_pixels, std::string("b71fdb4f2d783359 8799418b5f024785 d5848d7daebb5f06")));
+    };
 
-    s.test("a saved edit of the application's theme file shows at once; a broken one says where and changes nothing", [] {
+    "a saved edit of the application's theme file shows at once; a broken one says where and changes nothing"_test = [] {
         // A copy of the application, to edit.
         const auto app = scratch_dir("example-theming-edit");
         for (const char* d : {"themes", "logic"}) std::filesystem::copy(here() / d, app / d, std::filesystem::copy_options::recursive);
         std::filesystem::copy_file(here() / "mcpp.toml", app / "mcpp.toml");
         auto m = read_manifest(app / "mcpp.toml");
-        check(m.has_value(), m ? "" : m.error());
+        expect(m.has_value()) << (m ? "" : m.error());
         if (!m) return;
         m->theme = {"brand"};
         Headless h(HeadlessOptions{.size = m->size});
         player::Player p(h.runtime(), *m, {lang::js::typescript()});
-        check(p.start().has_value());
+        expect(p.start().has_value());
         settle(h, p);
-        check(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);
+        expect(h.runtime().theme().color("accent").r == Color::hex(0x0f766e).r);
         const auto brand = app / "themes" / "brand.theme.omui.toml";
         // Each save a later time than the last, whatever the clock's grain
         // (Windows': about 15 ms, so two quick saves would read the same).
@@ -140,17 +141,14 @@ int main(int argc, char** argv) {
         save("accent         = \"#0f766e\"", "accent         = \"#be123c\"");
         const auto reloaded = p.poll();
         settle(h, p);
-        check(reloaded.size() == 1, std::format("{} reloaded", reloaded.size()));
-        check(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r, "the edit shows");
-        check_eq(h.runtime().theme().name, std::string("brand"));
+        expect(reloaded.size() == 1) << std::format("{} reloaded", reloaded.size());
+        expect(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r) << "the edit shows";
+        expect(eq(h.runtime().theme().name, std::string("brand")));
         save("accent         = \"#be123c\"", "accent         = \"crimson\"");
         (void)p.poll();
         settle(h, p);
-        check(!p.problems().empty() && p.problems().back().find("brand.theme.omui.toml:10:18:") != std::string::npos &&
-                  p.problems().back().find("colour `accent` must be a colour") != std::string::npos,
-              p.problems().empty() ? "" : p.problems().back());
-        check(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r, "a broken edit changes nothing");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!p.problems().empty() && p.problems().back().find("brand.theme.omui.toml:10:18:") != std::string::npos &&
+                  p.problems().back().find("colour `accent` must be a colour") != std::string::npos) << (p.problems().empty() ? "" : p.problems().back());
+        expect(h.runtime().theme().color("accent").r == Color::hex(0xbe123c).r) << "a broken edit changes nothing";
+    };
+}};

@@ -1,13 +1,14 @@
 import std;
 import omui.core;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
-    Suite s{"core.task"};
+UTest cases{"core.task", [] {
 
-    s.test("parallel_for covers every index once, in fixed chunks", [] {
+    "parallel_for covers every index once, in fixed chunks"_test = [] {
         omui::Tasks tasks(4);
         std::vector<int> hits(10007, 0);
         std::mutex m;
@@ -17,26 +18,26 @@ int main(int argc, char** argv) {
             std::lock_guard lock(m);
             chunks.emplace(b, e);
         });
-        check(std::ranges::all_of(hits, [](int h) { return h == 1; }));
-        check(chunks.size() == 11);
-        check(chunks.rbegin()->second == 10007);
-    });
+        expect(std::ranges::all_of(hits, [](int h) { return h == 1; }));
+        expect(chunks.size() == 11);
+        expect(chunks.rbegin()->second == 10007);
+    };
 
-    s.test("nested parallel_for from a worker", [] {
+    "nested parallel_for from a worker"_test = [] {
         omui::Tasks tasks(4);
         std::atomic<int> sum = 0;
         tasks.parallel_for(8, 1, [&](std::size_t, std::size_t) {
             tasks.parallel_for(100, 10, [&](std::size_t b, std::size_t e) { sum += static_cast<int>(e - b); });
         });
-        check_eq(sum.load(), 800);
-    });
+        expect(eq(sum.load(), 800));
+    };
 
-    s.test("spawn, cancel, wait", [] {
+    "spawn, cancel, wait"_test = [] {
         omui::Tasks tasks(2);
         std::atomic<int> done = 0;
         auto f = tasks.spawn([&](std::stop_token) { done += 1; });
         f.wait();
-        check_eq(done.load(), 1);
+        expect(eq(done.load(), 1));
         std::atomic<bool> stopped = false;
         if (tasks.threads() == 1) {
             // The Web host executes spawn synchronously. Cancellation has to
@@ -46,8 +47,8 @@ int main(int argc, char** argv) {
                 stopped = token.stop_requested();
             });
             g.wait();
-            check(stopped.load());
-            auto next = tasks.spawn([](std::stop_token token) { check(!token.stop_requested()); });
+            expect(stopped.load());
+            auto next = tasks.spawn([](std::stop_token token) { expect(!token.stop_requested()); });
             next.wait();
             tasks.wait_idle();
             return;
@@ -59,11 +60,11 @@ int main(int argc, char** argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
         tasks.cancel_all();
         g.wait();
-        check(stopped.load());
+        expect(stopped.load());
         tasks.wait_idle();
-    });
+    };
 
-    s.test("the UI queue takes posts from any thread", [] {
+    "the UI queue takes posts from any thread"_test = [] {
         omui::UiQueue q;
         omui::Tasks tasks(4);
         tasks.parallel_for(4, 1, [&](std::size_t begin, std::size_t end) {
@@ -72,15 +73,13 @@ int main(int argc, char** argv) {
         });
         std::size_t ran = 0;
         while (q.approximate_size() > 0) ran += q.drain();
-        check_eq(ran, std::size_t{1000});
+        expect(eq(ran, std::size_t{1000}));
         int order = 0;
         q.post([&] { order = order * 10 + 1; });
         q.post([&] { order = order * 10 + 2; q.post([&] { order = order * 10 + 3; }); });
-        check_eq(q.drain(), std::size_t{2}, std::source_location::current());
-        check_eq(order, 12);
-        check_eq(q.drain(), std::size_t{1});
-        check_eq(order, 123);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(q.drain(), std::size_t{2}), std::source_location::current());
+        expect(eq(order, 12));
+        expect(eq(q.drain(), std::size_t{1}));
+        expect(eq(order, 123));
+    };
+}};

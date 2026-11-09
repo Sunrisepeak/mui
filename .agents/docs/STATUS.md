@@ -10,6 +10,12 @@ The single progress entry (plan §12, at most 200 lines). Updated by every check
 
 **M0 and M2 exits met on CI:** run 42336690239 on 46b3cdfd (an M2 checkpoint: the render suite on mlibs.cts) is green on every row — lint, Linux x64 and arm, macOS, Windows (lavapipe), Web, the site; Pages had deployed before (red list 10). The GCC rows and their gated steps run in the nightly lane.
 
+## Convergence plan (2026-11-09, [W0–W16](2026-11-09-agent-era-ts-first-convergence-design.md)) — in progress
+
+- **W14 Live Design**: parts 1–15 done. The designer is its own package (`omui.designer`, left out of a release). It has design.* (31 operations, MCP), built_at maps both ways, structured edits, history (commit, branch, switch, merge, timeline, sync), stand-ins (previews, variants), motion expectations, a film, and a code card. The signature scene is example 13 (`tests/live_design_test.cpp`). Open: hanim's presentation recipes beyond write-in/unwrite, and the timeline's drag.
+- **W12** done (record/replay to the same bytes). **W15** done through step 2 (MCP's omui_* tools, the irreversible ones asked first). **W2**, **W1** steps 1–5. **W3**: the export with its operations, and the declarations held to it by a test.
+- **W0**: the pilot (3 packages) and two batches are on mtest (base, content, hanim, xrender, xengine, gongfu). The omui batch is running. `mlibs.testing` keeps only scratch_dir, the target's constants and Hash.
+
 ## M0 — stop the bleeding (exit met: 46b3cdfd all green)
 
 Goal: the whole CI matrix green once, Pages deployed. CI does not block progress, but every round starts by reconciling the previous checkpoint's CI (plan §10.1).
@@ -72,6 +78,7 @@ Baseline: `810d1fc` (last all-green CI: `26d1e9a`, 2026-11-01). Kind: R = regres
 | 31 | cli: "omui schema is the committed spec/schema/view.schema.json" — regenerate it (every test row) | CI, e5cc9ed4, run 42504526948 (ubuntu, arm, windows) | the agent_presence contract (C2) without its schema in the spec repo | T | fixed: the schema regenerated over agent_presence (openlifa/openmui abbfb3b), the submodule moved |
 | 32 | site (release) and the showcases: the README media are not what the tests draw (44 site stills and animations, fighting, markdown-wall, promo-video, style-gallery, breakout) | CI, e5cc9ed4, run 42504526948 (site (release)) | the pixels that moved since they were last copied (E2d, D5, LD2f's strokes) | T | fixed: `tools/ci/readme-media.sh site fighting markdown-wall promo-video style-gallery widget-breakout`, then `--check` clean (0 of 49) |
 | 33 | Pages: the site's delivery 4,009,332 B over its 4,000,000 B budget (transfer.total; before first frame, timing and frames within) | Pages (site-perf) | 2938cf53 (W0: mcpplibs.os 0.2.2 → 0.4.1 everywhere, mtest) | E (upstream) | root cause found by bisecting wasm-size builds: 9c3d6fa5 (mcpp 2026.11.8.1) adds nothing; 2938cf53 adds 7.0 KB code (openkal's rights, kal, os.fs) and 66.6 KB data — openkal-emscripten 0.13.0's `entry g_entries[4096]` with `fd = -1, root = -1` defaults: ~80 KiB of initialized data instead of bss, split by wasm-opt into 4,161 more segments (+33 KB headers). Filed mcpplibs/openkal-emscripten#16 (make the empty state all-zero); fix forward: its release, then mcpplibs.os, then the pin here — the budget stays |
+| 34 | every platform row: "omui-gen: required argument 'file=partition' missing" building tests/plugins/embed | Linux, arm, macOS, Windows; 2cec257b, run 42586987839 | 28fe4d32 (command lines on mcpplibs.cmdline) | R | fixed in 18892e1d: embed-index with no files is an empty table, its argument not required |
 
 ### Design input for M2 (motion convergence)
 

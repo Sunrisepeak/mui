@@ -1,27 +1,26 @@
 import std;
 import omui.core;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
-    Suite s{"core.signal"};
+UTest cases{"core.signal", [] {
 
-    s.test("computed values follow and are lazy", [] {
+    "computed values follow and are lazy"_test = [] {
         auto a = omui::signal(1);
         int runs = 0;
         auto doubled = omui::computed([=, &runs] { ++runs; return a() * 2; });
-        check_eq(runs, 0);
-        check_eq(doubled(), 2);
-        check_eq(doubled(), 2);
-        check_eq(runs, 1, std::source_location::current());
+        expect(eq(runs, 0));
+        expect(eq(doubled(), 2));
+        expect(eq(doubled(), 2));
+        expect(eq(runs, 1), std::source_location::current());
         a.set(5);
-        check_eq(runs, 1);  // lazy: not until read
-        check_eq(doubled(), 10);
-        check_eq(runs, 2);
-    });
+        expect(eq(runs, 1));  // lazy: not until read
+        expect(eq(doubled(), 10));
+        expect(eq(runs, 2));
+    };
 
-    s.test("a diamond updates once and never shows a mixed state", [] {
+    "a diamond updates once and never shows a mixed state"_test = [] {
         auto a = omui::signal(1);
         auto b = omui::computed([=] { return a() + 1; });
         auto c = omui::computed([=] { return a() * 10; });
@@ -29,25 +28,25 @@ int main(int argc, char** argv) {
         omui::Watch w([=, &seen] { seen.emplace_back(b(), c()); });
         a.set(2);
         a.set(3);
-        check(seen.size() == 3);
-        check(seen[1] == std::pair{3, 20});
-        check(seen[2] == std::pair{4, 30});
-    });
+        expect(seen.size() == 3);
+        expect(seen[1] == std::pair{3, 20});
+        expect(seen[2] == std::pair{4, 30});
+    };
 
-    s.test("an equal value stops propagation", [] {
+    "an equal value stops propagation"_test = [] {
         auto a = omui::signal(3);
         auto parity = omui::computed([=] { return a() % 2; });
         int runs = 0;
         omui::Watch w([=, &runs] { (void)parity(); ++runs; });
         a.set(5);  // parity unchanged
-        check_eq(runs, 1);
+        expect(eq(runs, 1));
         a.set(6);
-        check_eq(runs, 2);
+        expect(eq(runs, 2));
         a.set(6);  // same value: nothing at all
-        check_eq(runs, 2);
-    });
+        expect(eq(runs, 2));
+    };
 
-    s.test("batches notify once", [] {
+    "batches notify once"_test = [] {
         auto x = omui::signal(0);
         auto y = omui::signal(0);
         int runs = 0;
@@ -57,10 +56,10 @@ int main(int argc, char** argv) {
             y.set(2);
             x.set(3);
         });
-        check_eq(runs, 2);
-    });
+        expect(eq(runs, 2));
+    };
 
-    s.test("after_batch: once the batch's effects ran, in order; now outside a batch", [] {
+    "after_batch: once the batch's effects ran, in order; now outside a batch"_test = [] {
         auto x = omui::signal(0);
         std::vector<std::string> log;
         omui::Watch w([=, &log] { log.push_back(std::format("watch {}", x())); });
@@ -70,7 +69,7 @@ int main(int argc, char** argv) {
             omui::batch([&] { omui::after_batch([&] { log.push_back("second"); }); });
             x.set(2);
         });
-        check(log == std::vector<std::string>{"watch 0", "watch 2", "told 2", "second"}, std::format("{}", log));
+        expect(log == std::vector<std::string>{"watch 0", "watch 2", "told 2", "second"}) << std::format("{}", log);
         // What it writes notifies before what waits after it.
         log.clear();
         omui::batch([&] {
@@ -79,70 +78,68 @@ int main(int argc, char** argv) {
                 omui::after_batch([&] { log.push_back("then"); });
             });
         });
-        check(log == std::vector<std::string>{"watch 3", "then"}, std::format("{}", log));
+        expect(log == std::vector<std::string>{"watch 3", "then"}) << std::format("{}", log);
         bool now = false;
         omui::after_batch([&] { now = true; });
-        check(now, "outside a batch, at once");
-    });
+        expect(now) << "outside a batch, at once";
+    };
 
-    s.test("dynamic dependencies", [] {
+    "dynamic dependencies"_test = [] {
         auto use_a = omui::signal(true);
         auto a = omui::signal(std::string("a"));
         auto b = omui::signal(std::string("b"));
         int runs = 0;
         omui::Watch w([=, &runs] { (void)(use_a() ? a() : b()); ++runs; });
         b.set("B");  // not read: no run
-        check_eq(runs, 1);
+        expect(eq(runs, 1));
         use_a.set(false);
-        check_eq(runs, 2);
+        expect(eq(runs, 2));
         a.set("A");  // no longer read
-        check_eq(runs, 2);
+        expect(eq(runs, 2));
         b.set("BB");
-        check_eq(runs, 3);
-    });
+        expect(eq(runs, 3));
+    };
 
-    s.test("untracked reads and disposal", [] {
+    "untracked reads and disposal"_test = [] {
         auto a = omui::signal(1);
         auto b = omui::signal(1);
         int runs = 0;
         omui::Watch w([=, &runs] { (void)a(); (void)omui::untracked([&] { return b(); }); ++runs; });
         b.set(2);
-        check_eq(runs, 1);
+        expect(eq(runs, 1));
         a.set(2);
-        check_eq(runs, 2);
+        expect(eq(runs, 2));
         w.dispose();
         a.set(3);
-        check_eq(runs, 2);
-        check(!w.active());
-    });
+        expect(eq(runs, 2));
+        expect(!w.active());
+    };
 
-    s.test("a watch that writes converges", [] {
+    "a watch that writes converges"_test = [] {
         auto a = omui::signal(0);
         auto clamped = omui::signal(0);
         omui::Watch w([=] { clamped.set(std::min(a(), 10)); });
         a.set(42);
-        check_eq(clamped.peek(), 10);
-    });
+        expect(eq(clamped.peek(), 10));
+    };
 
-    s.test("signals are shared handles", [] {
+    "signals are shared handles"_test = [] {
         auto a = omui::signal(1);
         auto copy = a;
         copy.set(7);
-        check_eq(a.peek(), 7);
-        check(copy.same_as(a));
+        expect(eq(a.peek(), 7));
+        expect(copy.same_as(a));
         auto name = omui::signal("ok");
-        check_eq(name.peek(), std::string("ok"));
+        expect(eq(name.peek(), std::string("ok")));
         a.update([](int v) { return v + 1; });
-        check_eq(a.peek(), 8);
-    });
+        expect(eq(a.peek(), 8));
+    };
 
-    s.test("destroying a signal leaves dependants safe", [] {
+    "destroying a signal leaves dependants safe"_test = [] {
         std::optional<omui::Signal<int>> a(omui::signal(1));
         auto value = omui::signal(0);
         omui::Watch w([sig = *a, value] { value.set(sig()); });
         a.reset();  // the watch still holds a copy
-        check_eq(value.peek(), 1);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(value.peek(), 1));
+    };
+}};

@@ -14,8 +14,10 @@ import omui.theme;
 import omui.theme.styles;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -53,7 +55,7 @@ xrender::raster::Surface shoot(const Control& control, Shown shown, bool dark, b
     std::vector<std::string> layers{dark ? "dark" : "light"};
     if (refined) layers.push_back("refined");
     const auto applied = theme::apply(h.runtime(), layers);
-    check(applied.has_value(), applied ? std::string("the theme composes") : std::format("the theme composes: {}", applied.error()));
+    expect(applied.has_value()) << (applied ? std::string("the theme composes") : std::format("the theme composes: {}", applied.error()));
     h.mount("main", row({.id = "cell", .width = cell.width, .height = cell.height, .justify = "center", .align = "center",
                          .background = Fill(dark ? Color::hex(0x0b1120) : Color::hex(0xf6f7f9))},
                         {control.make()}));
@@ -63,7 +65,7 @@ xrender::raster::Surface shoot(const Control& control, Shown shown, bool dark, b
     if (!rt.valid(node)) {
         std::string ids;
         for (const auto& n : h.tree().snapshot({}).nodes) ids += n.id + " ";
-        check(false, std::format("{} is not there: {}", control.target, ids));
+        expect(false) << std::format("{} is not there: {}", control.target, ids);
     }
     const Rect box = rt.screen_bounds(node);
     // A slider is pressed at its thumb, the rest at their middle.
@@ -83,11 +85,10 @@ xrender::raster::Surface shoot(const Control& control, Shown shown, bool dark, b
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"site.quality_lab"};
+UTest cases{"site.quality_lab", [] {
 
-    s.test("B4: eight controls in four states, light beside dark — saved; each state of a button its own picture", [] {
-        check(themes::add_styles().has_value(), "the default themes and the packs");
+    "B4: eight controls in four states, light beside dark — saved; each state of a button its own picture"_test = [] {
+        expect(themes::add_styles().has_value()) << "the default themes and the packs";
         const auto list = controls();
         const int cell_w = static_cast<int>(cell.width * scale), cell_h = static_cast<int>(cell.height * scale);
         constexpr int gutter = 24;
@@ -119,21 +120,21 @@ int main(int argc, char** argv) {
             }
             std::string file = list[r].name;
             std::ranges::replace(file, ' ', '-');
-            check(mlibs::image::save_png(dir / "controls" / (file + ".png"), mlibs::image::view(strip)).has_value(), file + ".png saved");
+            expect(mlibs::image::save_png(dir / "controls" / (file + ".png"), mlibs::image::view(strip)).has_value()) << file + ".png saved";
         }
-        check_eq(buttons.size(), std::size_t{8});  // rest, hover, pressed, focus — in light and in dark
-        check(mlibs::image::save_png(dir / "controls.png", mlibs::image::view(sheet)).has_value(), "controls.png saved");
+        expect(eq(buttons.size(), std::size_t{8}));  // rest, hover, pressed, focus — in light and in dark
+        expect(mlibs::image::save_png(dir / "controls.png", mlibs::image::view(sheet)).has_value()) << "controls.png saved";
         std::println("quality lab: {} (columns: {} in light, then in dark)", (dir / "controls.png").string(),
                      std::views::join_with(shown_names, std::string_view(", ")) | std::ranges::to<std::string>());
-    });
+    };
 
-    s.test("B4, second pass (staged): the state's halo under refined — the defaults beside it; only the switch, checkbox and slider change", [] {
-        check(themes::add_styles().has_value(), "the default themes and the packs");
+    "B4, second pass (staged): the state's halo under refined — the defaults beside it; only the switch, checkbox and slider change"_test = [] {
+        expect(themes::add_styles().has_value()) << "the default themes and the packs";
         // The staged overlay, from its own file: never in the default library.
         const auto staged = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path().parent_path() /
                             "modules/projects/omui/theme/default/staged/refined.theme.omui.toml";
         const auto added = theme::library().add_file(staged);
-        check(added.has_value(), staged.string());
+        expect(added.has_value()) << staged.string();
         const auto list = controls();
         const int cell_w = static_cast<int>(cell.width * scale), cell_h = static_cast<int>(cell.height * scale);
         constexpr int gutter = 24;
@@ -170,15 +171,13 @@ int main(int argc, char** argv) {
             }
             const bool staged = list[r].name == "toggle" || list[r].name == "checkbox" || list[r].name == "slider";
             // The halo is the hovered and pressed states' (a focused slider's thumb too): rest stays.
-            if (staged) check(changed >= 2, std::format("refined gives {} its state's halo ({} of 4 states changed)", list[r].name, changed));
-            else check(changed == 0, std::format("refined leaves {} as it is", list[r].name));
+            if (staged) expect(changed >= 2) << std::format("refined gives {} its state's halo ({} of 4 states changed)", list[r].name, changed);
+            else expect(changed == 0) << std::format("refined leaves {} as it is", list[r].name);
             std::string file = list[r].name;
             std::ranges::replace(file, ' ', '-');
-            check(mlibs::image::save_png(dir / "refined" / (file + ".png"), mlibs::image::view(strip)).has_value(), file + ".png saved");
+            expect(mlibs::image::save_png(dir / "refined" / (file + ".png"), mlibs::image::view(strip)).has_value()) << file + ".png saved";
         }
-        check(mlibs::image::save_png(dir / "controls-refined.png", mlibs::image::view(sheet)).has_value(), "controls-refined.png saved");
+        expect(mlibs::image::save_png(dir / "controls-refined.png", mlibs::image::view(sheet)).has_value()) << "controls-refined.png saved";
         std::println("quality lab: {} (columns: the defaults, then refined)", (dir / "controls-refined.png").string());
-    });
-
-    return s.run(argc, argv);
-}
+    };
+}};

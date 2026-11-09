@@ -6,9 +6,11 @@ import omui;
 import xengine.audio;
 import omui.showcase.fighting;
 import mlibs.testing;
+import mcpplibs.mtest;
 import gongfu;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace audio = xengine::audio;
 
@@ -58,7 +60,7 @@ struct Fight {
     float step(int frames) {
         const std::size_t from = all.size();
         for (int i = 0; i < frames; ++i) {
-            check(act("step"));
+            expect(act("step"));
             stage->sounds().mixer().render(one);
             all.insert(all.end(), one.begin(), one.end());
         }
@@ -78,10 +80,9 @@ void save(const std::vector<float>& all, std::int32_t rate, std::string_view dir
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"showcase.fighting.sound"};
+UTest cases{"showcase.fighting.sound", [] {
 
-    s.test("the menus heard: the main theme calm on the title, the beat on the select screen, a cue for each move and choice; fading under the VS, and the fight's own theme playing on between rounds and ending with the match — the same bits every run", [] {
+    "the menus heard: the main theme calm on the title, the beat on the select screen, a cue for each move and choice; fading under the VS, and the fight's own theme playing on between rounds and ending with the match — the same bits every run"_test = [] {
         App a;
         audio::Mixer& mixer = a.select_mut().sounds().mixer();
         const std::int64_t per = a.select_mut().sounds().frame_samples();
@@ -98,26 +99,26 @@ int main(int argc, char** argv) {
             for (std::size_t i = from; i < all.size(); ++i) sum += static_cast<double>(all[i]) * all[i];
             return std::sqrt(sum / static_cast<double>(std::max<std::size_t>(all.size() - from, 1)));
         };
-        check_eq(a.select_mut().sounds().playing(), std::string_view("menu"));
+        expect(eq(a.select_mut().sounds().playing(), std::string_view("menu")));
         play(5);                       // the intro (two bars at 96)
         const double title = play(5);  // the loop, calm
-        check(a.act("main/select", "move", player(0).set("by", 1)) && a.act("main/select", "move", player(0).set("by", -1)), "down and up");
-        check(a.act("main/select", "confirm", player(0)), "versus");
+        expect(a.act("main/select", "move", player(0).set("by", 1)) && a.act("main/select", "move", player(0).set("by", -1))) << "down and up";
+        expect(a.act("main/select", "confirm", player(0))) << "versus";
         play(2.5);                      // the beat comes in at the bar
         const double select = play(5);
-        check(a.act("main/select", "move", player(0).set("by", 2)) && a.act("main/select", "confirm", player(0)), "player 1 ready");
+        expect(a.act("main/select", "move", player(0).set("by", 2)) && a.act("main/select", "confirm", player(0))) << "player 1 ready";
         play(0.5);
-        check(a.act("main/select", "confirm", player(1)), "both ready");
+        expect(a.act("main/select", "confirm", player(1))) << "both ready";
         play(0.75);                     // the VS: the theme fades under it, and the fight starts
-        check(!a.stage().props.paused, "the fight plays");
-        check(a.select_mut().sounds().playing().empty(), "the menus' theme finished");
-        check_eq(a.stage_mut().sounds().playing(), std::string_view("rooftop"));
+        expect(!a.stage().props.paused) << "the fight plays";
+        expect(a.select_mut().sounds().playing().empty()) << "the menus' theme finished";
+        expect(eq(a.stage_mut().sounds().playing(), std::string_view("rooftop")));
         play(1.5);                      // the VS's tail
         const double after = play(2);
         std::println("    menu music rms: {:.4f} title, {:.4f} select, {:.5f} under the fight", title, select, after);
-        check(title > 0.01, "the theme is heard on the title");
-        check(select > title * 1.15, "more of it on the select screen");
-        check(after < 2e-3, "quiet behind the fight");
+        expect(title > 0.01) << "the theme is heard on the title";
+        expect(select > title * 1.15) << "more of it on the select screen";
+        expect(after < 2e-3) << "quiet behind the fight";
         // A round over (the clock run out here, player 2 hurt): the theme plays on into the next round, which
         // begins three seconds later; the second round player 1's too, the match is over and the theme goes to its outro.
         for (int round = 1; round <= 2; ++round) {
@@ -126,27 +127,27 @@ int main(int argc, char** argv) {
             st.timer = 2, st.f[1].health = 5000;
             match.restore(st);
             a.h.advance(seconds(0.2));
-            check(a.stage().match().state().over != 0, std::format("round {} over", round));
+            expect(a.stage().match().state().over != 0) << std::format("round {} over", round);
             if (round == 1) {
-                check_eq(a.stage_mut().sounds().playing(), std::string_view("rooftop"));
+                expect(eq(a.stage_mut().sounds().playing(), std::string_view("rooftop")));
                 a.h.advance(seconds(3.1));
-                check(a.stage().match().state().over == 0, "the second round");
+                expect(a.stage().match().state().over == 0) << "the second round";
             }
         }
-        check(a.stage_mut().sounds().playing().empty(), "the fight's theme finished with the match");
+        expect(a.stage_mut().sounds().playing().empty()) << "the fight's theme finished with the match";
         const auto w = audio::wav(all, mixer.rate());
         std::ofstream(scratch_dir("fighting-menus-heard") / "menus.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    menus heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(all), std::uint64_t{0x83b5e07a2ed15da3});  // GCC and LLVM, every platform
-    });
+        expect(eq(audio::hash(all), std::uint64_t{0x83b5e07a2ed15da3}));  // GCC and LLVM, every platform
+    };
 
-    s.test("the announcer: \"round one\", \"fight\"; the clock run out, \"time\"; \"round two\", \"fight\"; at the match's end whose it was — player 2, never touched: a flawless victory", [] {
+    "the announcer: \"round one\", \"fight\"; the clock run out, \"time\"; \"round two\", \"fight\"; at the match's end whose it was — player 2, never touched: a flawless victory"_test = [] {
         Fight f("plain", "versus", "mo", "ni");  // the plain room has no music: what is heard is the announcer
         audio::Mixer& mixer = f.stage->sounds().mixer();
         const std::int64_t begun = mixer.begun();
         const float round_one = f.step(78), fight = f.step(60);
-        check(round_one > 0.05f && fight > 0.05f, std::format("\"round one\" {}, then \"fight\" {}", round_one, fight));
-        check_eq(mixer.begun() - begun, std::int64_t{2});
+        expect(round_one > 0.05f && fight > 0.05f) << std::format("\"round one\" {}, then \"fight\" {}", round_one, fight);
+        expect(eq(mixer.begun() - begun, std::int64_t{2}));
         // Two rounds to player 2 on the clock, player 1 hurt.
         float time = 0;
         for (int round = 1; round <= 2; ++round) {
@@ -154,66 +155,64 @@ int main(int argc, char** argv) {
             st.timer = 3, st.f[0].health = 5000;
             f.restore(st);
             f.step(3);
-            check(f.state().over != 0 && f.state().winner == 1, std::format("round {}: player 2's on time", round));
+            expect(f.state().over != 0 && f.state().winner == 1) << std::format("round {}: player 2's on time", round);
             time = std::max(time, f.step(60));
             if (round == 1) f.step(200);  // the next round, called and begun
         }
-        check(time > 0.05f, std::format("\"time\" {}", time));
+        expect(time > 0.05f) << std::format("\"time\" {}", time);
         const float name = f.step(80), flawless = f.step(140);
-        check(name > 0.05f && flawless > 0.05f, std::format("\"player 2\" {}, \"flawless victory\" {}", name, flawless));
+        expect(name > 0.05f && flawless > 0.05f) << std::format("\"player 2\" {}, \"flawless victory\" {}", name, flawless);
         // round one, fight; time; round two, fight; time, player 2, flawless victory
-        check_eq(mixer.begun() - begun, std::int64_t{8});
-        check(f.stage->match().state().over != 0, "the match over");
+        expect(eq(mixer.begun() - begun, std::int64_t{8}));
+        expect(f.stage->match().state().over != 0) << "the match over";
         save(f.all, mixer.rate(), "fighting-announcer", "announcer.wav");
         std::println("    announcer heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(f.all), std::uint64_t{0xdfbc9b084826ed99});  // GCC and LLVM, every platform
-    });
+        expect(eq(audio::hash(f.all), std::uint64_t{0xdfbc9b084826ed99}));  // GCC and LLVM, every platform
+    };
 
-    s.test("the fighters' voices: 坤 strains with his heavy blow and 墨 cries out under it, not again for a breath; at her K.O. she falls with a cry of her own, not two", [] {
+    "the fighters' voices: 坤 strains with his heavy blow and 墨 cries out under it, not again for a breath; at her K.O. she falls with a cry of her own, not two"_test = [] {
         Fight f("plain", "versus", "kun", "mo");
         audio::Mixer& mixer = f.stage->sounds().mixer();
         const auto& said = f.stage->sounds();
-        check(f.act("press", pad(0, "6")));
+        expect(f.act("press", pad(0, "6")));
         for (int i = 0; i < 200 && (f.state().f[1].pos.x - f.state().f[0].pos.x).to_double() > 100; ++i) f.step(1);
-        check(f.act("press", pad(0, "5")));
+        expect(f.act("press", pad(0, "5")));
         f.step(8);
-        check(f.act("press", pad(0, "5HP")));
+        expect(f.act("press", pad(0, "5HP")));
         f.step(1);
-        check(f.act("press", pad(0, "5")));
+        expect(f.act("press", pad(0, "5")));
         for (int i = 0; i < 30 && f.state().f[1].health == f.stage->match().fighter(1).def.health; ++i) f.step(1);
-        check(f.state().f[1].health < f.stage->match().fighter(1).def.health, "the heavy landed");
+        expect(f.state().f[1].health < f.stage->match().fighter(1).def.health) << "the heavy landed";
         f.step(4);
-        check_eq(said.spoken(), std::int64_t{2});  // his strain, her cry
+        expect(eq(said.spoken(), std::int64_t{2}));  // his strain, her cry
         f.step(50);
         // Her last breath of health: his heavy again, a K.O.
         gongfu::State st = f.state();
         st.f[1].health = 100;
         f.restore(st);
-        check(f.act("press", pad(0, "6")));
+        expect(f.act("press", pad(0, "6")));
         for (int i = 0; i < 200 && (f.state().f[1].pos.x - f.state().f[0].pos.x).to_double() > 100; ++i) f.step(1);
-        check(f.act("press", pad(0, "5")));
+        expect(f.act("press", pad(0, "5")));
         f.step(8);
-        check(f.act("press", pad(0, "5HP")));
+        expect(f.act("press", pad(0, "5HP")));
         f.step(1);
-        check(f.act("press", pad(0, "5")));
+        expect(f.act("press", pad(0, "5")));
         for (int i = 0; i < 30 && !f.state().over; ++i) f.step(1);
-        check(f.state().over != 0, "the K.O.");
+        expect(f.state().over != 0) << "the K.O.";
         const float fall = f.step(60);
-        check_eq(said.spoken(), std::int64_t{4});  // his strain, her fall
+        expect(eq(said.spoken(), std::int64_t{4}));  // his strain, her fall
         // The round's end plays on in slow motion: she has fallen (not frozen mid-blow) and he stands.
         f.h.step();
-        check(f.h.save_png(scratch_dir("fighting-ko") / "ko.png").has_value());
-        check(f.state().f[1].pos.y.to_double() <= 0 && f.state().frame > 0, "she is down");
+        expect(f.h.save_png(scratch_dir("fighting-ko") / "ko.png").has_value());
+        expect(f.state().f[1].pos.y.to_double() <= 0 && f.state().frame > 0) << "she is down";
         Hash ko;
         const auto& px = f.h.pixels();
         for (int y = 0; y < px.height(); ++y) ko.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("    ko {}", ko.hex());
-        check_eq(ko.hex(), std::string("6eca1a8b77342c39"));  // GCC and LLVM
-        check(fall > 0.05f, std::format("heard ({})", fall));
+        expect(eq(ko.hex(), std::string("6eca1a8b77342c39")));  // GCC and LLVM
+        expect(fall > 0.05f) << std::format("heard ({})", fall);
         save(f.all, mixer.rate(), "fighting-voices", "voices.wav");
         std::println("    voices heard {:016x} ({:.1f} s)", audio::hash(f.all), static_cast<double>(f.all.size()) / 2 / mixer.rate());
-        check_eq(audio::hash(f.all), std::uint64_t{0x0d4a6d6f5e7bb97f});  // GCC and LLVM, every platform
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(audio::hash(f.all), std::uint64_t{0x0d4a6d6f5e7bb97f}));  // GCC and LLVM, every platform
+    };
+}};

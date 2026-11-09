@@ -6,10 +6,12 @@ import omui.gen.font_subset;
 import mlibs.text;
 import mlibs.hash;
 import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.text;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace fs = std::filesystem;
 
 namespace {
@@ -40,9 +42,9 @@ std::uint32_t checksum(std::span<const std::uint8_t> bytes) {
 }
 struct Record { std::string tag; std::size_t directory = 0, offset = 0, length = 0; std::uint32_t sum = 0; };
 std::vector<Record> records(const Bytes& font) {
-    check(font.size() >= 12); if (font.size() < 12) return {};
+    expect(font.size() >= 12); if (font.size() < 12) return {};
     const auto count = u16(font, 4);
-    check(12 + std::size_t{count} * 16 <= font.size());
+    expect(12 + std::size_t{count} * 16 <= font.size());
     if (12 + std::size_t{count} * 16 > font.size()) return {};
     std::vector<Record> out;
     for (std::size_t i = 0; i < count; ++i) {
@@ -53,7 +55,7 @@ std::vector<Record> records(const Bytes& font) {
 }
 std::span<const std::uint8_t> table(const Bytes& font, std::string_view tag) {
     for (const auto& record : records(font)) if (record.tag == tag) {
-        check(record.offset <= font.size() && record.length <= font.size() - record.offset);
+        expect(record.offset <= font.size() && record.length <= font.size() - record.offset);
         if (record.offset <= font.size() && record.length <= font.size() - record.offset) return std::span(font).subspan(record.offset, record.length);
     }
     return {};
@@ -97,81 +99,80 @@ Bytes replace_table(const Bytes& font, std::string_view tag, std::optional<Bytes
     return out;
 }
 void valid_directory(const Bytes& font) {
-    check(checksum(font) == 0xB1B0AFBAu, "the complete SFNT checksum is valid");
+    expect(checksum(font) == 0xB1B0AFBAu) << "the complete SFNT checksum is valid";
     auto tables = records(font);
     std::string previous;
     for (const auto& record : tables) {
-        check(previous.empty() || previous < record.tag, "directory tags are unique and ordered"); previous = record.tag;
-        check(record.offset % 4 == 0 && record.offset >= 12 + tables.size() * 16);
-        check(record.offset <= font.size() && record.length <= font.size() - record.offset);
+        expect(previous.empty() || previous < record.tag) << "directory tags are unique and ordered"; previous = record.tag;
+        expect(record.offset % 4 == 0 && record.offset >= 12 + tables.size() * 16);
+        expect(record.offset <= font.size() && record.length <= font.size() - record.offset);
         Bytes data(table(font, record.tag).begin(), table(font, record.tag).end());
         if (record.tag == "head") put32(data, 8, 0);
-        check(checksum(data) == record.sum, record.tag + " has a valid directory checksum");
+        expect(checksum(data) == record.sum) << record.tag + " has a valid directory checksum";
     }
     std::ranges::sort(tables, {}, &Record::offset);
     for (std::size_t i = 1; i < tables.size(); ++i)
-        check(tables[i - 1].offset + tables[i - 1].length <= tables[i].offset, "table payloads do not overlap");
+        expect(tables[i - 1].offset + tables[i - 1].length <= tables[i].offset) << "table payloads do not overlap";
 }
 void preserved_tables(const Bytes& before, const Bytes& after) {
     const auto a = records(before), b = records(after);
-    check(a.size() == b.size()); if (a.size() != b.size()) return;
+    expect(a.size() == b.size()); if (a.size() != b.size()) return;
     for (std::size_t i = 0; i < a.size(); ++i) {
-        check(a[i].tag == b[i].tag);
+        expect(a[i].tag == b[i].tag);
         if (a[i].tag == "post") continue;
         Bytes original(table(before, a[i].tag).begin(), table(before, a[i].tag).end());
         Bytes delivered(table(after, a[i].tag).begin(), table(after, a[i].tag).end());
         if (a[i].tag == "head") { put32(original, 8, 0); put32(delivered, 8, 0); }
-        check(original == delivered, a[i].tag + " remains byte-for-byte identical (head adjustment excepted)");
+        expect(original == delivered) << a[i].tag + " remains byte-for-byte identical (head adjustment excepted)";
     }
     auto ap = a, bp = b;
     std::ranges::sort(ap, {}, &Record::offset); std::ranges::sort(bp, {}, &Record::offset);
-    for (std::size_t i = 0; i < ap.size(); ++i) check(ap[i].tag == bp[i].tag, "physical table order is retained");
+    for (std::size_t i = 0; i < ap.size(); ++i) expect(ap[i].tag == bp[i].tag) << "physical table order is retained";
     const auto old_post = table(before, "post"), post = table(after, "post");
-    check(post.size() == 32 && u32(post, 0) == 0x00030000u, "the actual packaged post is a 32-byte version 3 table");
+    expect(post.size() == 32 && u32(post, 0) == 0x00030000u) << "the actual packaged post is a 32-byte version 3 table";
     if (post.size() == 32 && old_post.size() >= 32)
-        check(std::equal(old_post.begin() + 4, old_post.begin() + 32, post.begin() + 4), "italic, underline, fixed pitch and all other header fields survive");
+        expect(std::equal(old_post.begin() + 4, old_post.begin() + 32, post.begin() + 4)) << "italic, underline, fixed pitch and all other header fields survive";
     valid_directory(after);
 }
 void text_is_identical(const Bytes& original, const Bytes& delivered, std::string sample) {
     mlibs::text::FontCollection before, after;
     const auto a = before.add_data(original), b = after.add_data(delivered);
-    check(a && b); if (!a || !b) return;
+    expect(a && b); if (!a || !b) return;
     const auto& ai = before.face(*a); const auto& bi = after.face(*b);
-    check(ai.family == bi.family && ai.style == bi.style && ai.units_per_em == bi.units_per_em && ai.weight == bi.weight && ai.slant == bi.slant &&
+    expect(ai.family == bi.family && ai.style == bi.style && ai.units_per_em == bi.units_per_em && ai.weight == bi.weight && ai.slant == bi.slant &&
         ai.variable == bi.variable && ai.min_weight == bi.min_weight && ai.max_weight == bi.max_weight && ai.color == bi.color);
     xrender::text::GlyphCache ac(before), bc(after);
     bool actual_glyph = false;
     for (float weight : {400.0f, 600.0f}) {
         const auto am = before.metrics(before.font(*a, weight, mlibs::text::Slant::normal), 28);
         const auto bm = after.metrics(after.font(*b, weight, mlibs::text::Slant::normal), 28);
-        check(am.ascent == bm.ascent && am.descent == bm.descent && am.line_gap == bm.line_gap && am.x_height == bm.x_height && am.cap_height == bm.cap_height &&
-            am.underline_offset == bm.underline_offset && am.underline_thickness == bm.underline_thickness, "all actual metrics, including post underline values, match");
+        expect(am.ascent == bm.ascent && am.descent == bm.descent && am.line_gap == bm.line_gap && am.x_height == bm.x_height && am.cap_height == bm.cap_height &&
+            am.underline_offset == bm.underline_offset && am.underline_thickness == bm.underline_thickness) << "all actual metrics, including post underline values, match";
         mlibs::text::ParagraphStyle style; style.style.families = {ai.family}; style.style.weight = weight; style.style.size = 28; style.style.underline = true;
         mlibs::text::Paragraph ap(before, sample, style), bp(after, sample, style); ap.layout(200); bp.layout(200);
-        check(ap.lines().size() == bp.lines().size()); if (ap.lines().size() != bp.lines().size()) continue;
+        expect(ap.lines().size() == bp.lines().size()); if (ap.lines().size() != bp.lines().size()) continue;
         for (std::size_t line = 0; line < ap.lines().size(); ++line) {
             const auto& al = ap.lines()[line]; const auto& bl = bp.lines()[line];
-            check(al.width == bl.width && al.height == bl.height && al.baseline == bl.baseline && al.begin == bl.begin && al.end == bl.end);
-            check(al.runs.size() == bl.runs.size()); if (al.runs.size() != bl.runs.size()) continue;
+            expect(al.width == bl.width && al.height == bl.height && al.baseline == bl.baseline && al.begin == bl.begin && al.end == bl.end);
+            expect(al.runs.size() == bl.runs.size()); if (al.runs.size() != bl.runs.size()) continue;
             for (std::size_t run = 0; run < al.runs.size(); ++run) {
                 const auto& ar = al.runs[run]; const auto& br = bl.runs[run];
-                check(ar.decoration_offset == br.decoration_offset && ar.decoration_thickness == br.decoration_thickness);
-                check(ar.glyphs.size() == br.glyphs.size()); if (ar.glyphs.size() != br.glyphs.size()) continue;
+                expect(ar.decoration_offset == br.decoration_offset && ar.decoration_thickness == br.decoration_thickness);
+                expect(ar.glyphs.size() == br.glyphs.size()); if (ar.glyphs.size() != br.glyphs.size()) continue;
                 for (std::size_t i = 0; i < ar.glyphs.size(); ++i) {
                     const auto& ag = ar.glyphs[i]; const auto& bg = br.glyphs[i]; actual_glyph |= ag.id != 0;
-                    check(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y, "HarfBuzz glyph ids and positioned results match");
+                    expect(ag.id == bg.id && ag.position.x == bg.position.x && ag.position.y == bg.position.y) << "HarfBuzz glyph ids and positioned results match";
                     const auto amask = ac.mask(xrender::text::font(ar.font), ag.id, ar.size, {}), bmask = bc.mask(xrender::text::font(br.font), bg.id, br.size, {});
-                    check(bool(amask.coverage) == bool(bmask.coverage));
+                    expect(bool(amask.coverage) == bool(bmask.coverage));
                     if (amask.coverage && bmask.coverage) {
                         const auto ab = amask.coverage->bounds, bb = bmask.coverage->bounds;
-                        check(ab.x == bb.x && ab.y == bb.y && ab.width == bb.width && ab.height == bb.height && amask.coverage->values == bmask.coverage->values,
-                            "the real rasterized glyph pixels match");
+                        expect(ab.x == bb.x && ab.y == bb.y && ab.width == bb.width && ab.height == bb.height && amask.coverage->values == bmask.coverage->values) << "the real rasterized glyph pixels match";
                     }
                 }
             }
         }
     }
-    check(actual_glyph, "the test actually shaped named source-font glyphs");
+    expect(actual_glyph) << "the test actually shaped named source-font glyphs";
 }
 struct Package {
     fs::path root = scratch_dir("font-delivery") / std::format("case-{}", std::chrono::steady_clock::now().time_since_epoch().count());
@@ -185,57 +186,55 @@ struct Package {
     void font(std::string name, const Bytes& bytes) { write(root / "fonts" / (name + ".ttf"), bytes); }
     Bytes sole_font(const gen::ToyReport& report) {
         for (const auto& file : report.files) if (file.path.ends_with(".ttf")) return read(root / "out" / file.path);
-        check(false, "the actual package contains a TTF asset"); return {};
+        expect(false) << "the actual package contains a TTF asset"; return {};
     }
 };
 }
 
-int main(int argc, char** argv) {
-    Suite s{"gen.font_delivery"};
+UTest cases{"gen.font_delivery", [] {
     const auto directory = mlibs::text::FontCollection::default_directory();
     const auto inter = read(directory / "Inter.ttf"), mono = read(directory / "JetBrainsMono.ttf");
-    s.test("real Inter full and initial plus Mono preserve metadata shaping and pixels through the actual packer", [&] {
-        check(!inter.empty() && !mono.empty(), "real default TTF fixtures are available"); if (inter.empty() || mono.empty()) return;
-        check(u32(table(inter, "post"), 0) == 0x00020000u && u32(table(mono, "post"), 0) == 0x00020000u);
+    "real Inter full and initial plus Mono preserve metadata shaping and pixels through the actual packer"_test = [&] {
+        expect(!inter.empty() && !mono.empty()) << "real default TTF fixtures are available"; if (inter.empty() || mono.empty()) return;
+        expect(u32(table(inter, "post"), 0) == 0x00020000u && u32(table(mono, "post"), 0) == 0x00020000u);
         Package package; package.font("Inter", inter); package.font("JetBrainsMono", mono);
         auto options = package.options({"Inter", "JetBrainsMono"});
         const std::string sample = "Office Notification configuration omui UI :-)";
         options.font_initial = {{"Inter", sample}};
         std::set<char32_t> keep; gen::characters_of(sample, keep);
-        const auto initial = gen::subset_font(inter, keep); check(initial.has_value()); if (!initial) return;
-        const auto result = gen::package_for_toy(options); check(result.has_value(), result ? "" : result.error()); if (!result) return;
+        const auto initial = gen::subset_font(inter, keep); expect(initial.has_value()); if (!initial) return;
+        const auto result = gen::package_for_toy(options); expect(result.has_value()) << (result ? "" : result.error()); if (!result) return;
         int inter_full = 0, inter_initial = 0, monospaced = 0;
         for (const auto& file : result->files) if (file.path.ends_with(".ttf")) {
             const auto bytes = read(options.out / file.path);
-            check(file.path == std::format("assets/{:012x}.ttf", mlibs::hash::fnv1a(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())) & 0xffffffffffffull),
-                "the content hash names the actual derived payload, not the source font");
-            mlibs::text::FontCollection faces; const auto face = faces.add_data(bytes); check(face.has_value()); if (!face) continue;
+            expect(file.path == std::format("assets/{:012x}.ttf", mlibs::hash::fnv1a(std::string_view(reinterpret_cast<const char*>(bytes.data()), bytes.size())) & 0xffffffffffffull)) << "the content hash names the actual derived payload, not the source font";
+            mlibs::text::FontCollection faces; const auto face = faces.add_data(bytes); expect(face.has_value()); if (!face) continue;
             const auto& family = faces.face(*face).family;
             const bool is_mono = family == "JetBrains Mono", is_full = faces.covers(*face, U'Z');
             const auto& source = is_mono ? mono : is_full ? inter : *initial;
             is_mono ? ++monospaced : is_full ? ++inter_full : ++inter_initial;
             preserved_tables(source, bytes);
             text_is_identical(source, bytes, is_mono ? "const auto x = fi + 42; -> !==" : is_full ? sample + " é Å Ω →" : sample);
-            check(bytes.size() < source.size(), "names are actually removed from each derived post2 face");
+            expect(bytes.size() < source.size()) << "names are actually removed from each derived post2 face";
             std::println("font delivery: {} {}: {} -> {} raw bytes", family, is_full ? "full" : "initial", source.size(), bytes.size());
         }
-        check(inter_full == 1 && inter_initial == 1 && monospaced == 1);
-        check(read(package.root / "fonts/Inter.ttf") == inter && read(package.root / "fonts/JetBrainsMono.ttf") == mono, "source inputs are never rewritten");
-        check(read(directory / "Inter.ttf") == inter && read(directory / "JetBrainsMono.ttf") == mono);
-    });
-    s.test("already-post3 and missing-post delivery inputs are byte-idempotent", [&] {
-        check(!inter.empty()); if (inter.empty()) return;
+        expect(inter_full == 1 && inter_initial == 1 && monospaced == 1);
+        expect(read(package.root / "fonts/Inter.ttf") == inter && read(package.root / "fonts/JetBrainsMono.ttf") == mono) << "source inputs are never rewritten";
+        expect(read(directory / "Inter.ttf") == inter && read(directory / "JetBrainsMono.ttf") == mono);
+    };
+    "already-post3 and missing-post delivery inputs are byte-idempotent"_test = [&] {
+        expect(!inter.empty()); if (inter.empty()) return;
         const auto original = table(inter, "post"); Bytes post(original.begin(), original.begin() + 32); put32(post, 0, 0x00030000u);
         for (const auto& font : {replace_table(inter, "post", post), replace_table(inter, "post", std::nullopt)}) {
             Package package; package.font("Inter", font);
-            const auto result = gen::package_for_toy(package.options()); check(result.has_value(), result ? "" : result.error()); if (!result) continue;
-            const auto packed = package.sole_font(*result); check(packed == font); valid_directory(packed);
+            const auto result = gen::package_for_toy(package.options()); expect(result.has_value()) << (result ? "" : result.error()); if (!result) continue;
+            const auto packed = package.sole_font(*result); expect(packed == font); valid_directory(packed);
             package.font("Inter", packed);
-            const auto again = gen::package_for_toy(package.options()); check(again && package.sole_font(*again) == packed);
+            const auto again = gen::package_for_toy(package.options()); expect(again && package.sole_font(*again) == packed);
         }
-    });
-    s.test("malformed directory post and checksum inputs are explicitly refused by delivery", [&] {
-        check(!inter.empty()); if (inter.empty()) return;
+    };
+    "malformed directory post and checksum inputs are explicitly refused by delivery"_test = [&] {
+        expect(!inter.empty()); if (inter.empty()) return;
         const auto source_post = table(inter, "post");
         std::vector<Bytes> malformed;
         malformed.push_back(replace_table(inter, "post", Bytes(31)));
@@ -259,9 +258,8 @@ int main(int argc, char** argv) {
         for (const auto& font : malformed) {
             Package package; package.font("Inter", font);
             const auto result = gen::package_for_toy(package.options());
-            check(!result, "invalid font data cannot be silently repackaged as an optimized delivery font");
-            if (!result) check(result.error().contains("font Inter"), result.error());
+            expect(!result) << "invalid font data cannot be silently repackaged as an optimized delivery font";
+            if (!result) expect(result.error().contains("font Inter")) << result.error();
         }
-    });
-    return s.run(argc, argv);
-}
+    };
+}};

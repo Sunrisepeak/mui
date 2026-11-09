@@ -7,8 +7,10 @@ import std;
 import omui.ui.markdown;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -58,64 +60,60 @@ std::optional<spec::SemanticNode> find_role(Headless& h, Role r, std::string_vie
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.markdown"};
+UTest cases{"ui.markdown", [] {
 
-    s.test("the semantic tree is the document's structure", [] {
+    "the semantic tree is the document's structure"_test = [] {
         Headless h({.size = {720, 900}});
         auto src = signal(std::string(readme));
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = src})}));
         h.settle();
         auto doc = h.tree().node("main/doc");
-        check(doc && doc->role == Role::document && doc->name == "openmui", "a document named by its first heading");
+        expect(doc && doc->role == Role::document && doc->name == "openmui") << "a document named by its first heading";
         const auto h1 = h.tree().node("main/doc/b0");
-        check(h1 && h1->role == Role::heading && h1->value == Value(std::int64_t{1}) && h1->name == "openmui");
+        expect(h1 && h1->role == Role::heading && h1->value == Value(std::int64_t{1}) && h1->name == "openmui");
         const auto usage = find_role(h, Role::heading, "Usage");
-        check(usage && usage->description == "usage" && usage->value == Value(std::int64_t{2}), "level and anchor");
-        check(find_role(h, Role::blockquote).has_value(), "quotes are blockquotes");
-        check(find_role(h, Role::list) && find_role(h, Role::list_item), "lists and items");
-        check(find_role(h, Role::table) && find_role(h, Role::row) && find_role(h, Role::column_header, "Feature") &&
-                  find_role(h, Role::cell, "later"),
-              "tables, rows, headers, cells");
+        expect(usage && usage->description == "usage" && usage->value == Value(std::int64_t{2})) << "level and anchor";
+        expect(find_role(h, Role::blockquote).has_value()) << "quotes are blockquotes";
+        expect(find_role(h, Role::list) && find_role(h, Role::list_item)) << "lists and items";
+        expect(find_role(h, Role::table) && find_role(h, Role::row) && find_role(h, Role::column_header, "Feature") &&
+                  find_role(h, Role::cell, "later")) << "tables, rows, headers, cells";
         const auto code = find_role(h, Role::code);
-        check(code && code->name == "import omui;" && code->description == "cpp", "code with its language");
-        check(find_role(h, Role::button, "Copy code").has_value(), "and a copy button");
-        check(find_role(h, Role::separator).has_value(), "rules are separators");
+        expect(code && code->name == "import omui;" && code->description == "cpp") << "code with its language";
+        expect(find_role(h, Role::button, "Copy code").has_value()) << "and a copy button";
+        expect(find_role(h, Role::separator).has_value()) << "rules are separators";
         const auto spec_link = find_role(h, Role::link, "the spec");
-        check(spec_link && spec_link->value == Value("https://example.com/spec"), "links are link nodes with their address");
-        check(spec_link && spec_link->action("activate") && spec_link->action("activate")->effect == Effect::external,
-              "following a link reaches outside (S-1)");
+        expect(spec_link && spec_link->value == Value("https://example.com/spec")) << "links are link nodes with their address";
+        expect(spec_link && spec_link->action("activate") && spec_link->action("activate")->effect == Effect::external) << "following a link reaches outside (S-1)";
         const auto jump = find_role(h, Role::link, "usage");
-        check(jump && jump->action("activate") && jump->action("activate")->effect == Effect::reversible && jump->action("activate")->answer.empty(),
-              "a heading of the document is inside: no answer asked");
-        check(h.tree().violations().empty(), std::format("{} violations", h.tree().violations().size()));
-    });
+        expect(jump && jump->action("activate") && jump->action("activate")->effect == Effect::reversible && jump->action("activate")->answer.empty()) << "a heading of the document is inside: no answer asked";
+        expect(h.tree().violations().empty()) << std::format("{} violations", h.tree().violations().size());
+    };
 
-    s.test("links: an agent needs the answer, a person's click is it (S-2, S-2a)", [] {
+    "links: an agent needs the answer, a person's click is it (S-2, S-2a)"_test = [] {
         Headless h({.size = {720, 900}});
         std::vector<std::string> opened;
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string(readme),
                                                            .on_link_activated = [&](std::string href) { opened.push_back(href); }})}));
         h.settle();
         const auto link = find_role(h, Role::link, "the spec");
-        check(link.has_value());
+        expect(link.has_value());
         if (!link) return;
         const std::string id = link->id;
-        check_eq(act(h, id, "activate"), std::int64_t{spec::exit_code::needs_answer});
-        check(opened.empty(), "nothing opened without the answer");
-        check_eq(act(h, id, "activate", {}, "yes"), std::int64_t{0});
-        check(opened == std::vector<std::string>{"https://example.com/spec"});
+        expect(eq(act(h, id, "activate"), std::int64_t{spec::exit_code::needs_answer}));
+        expect(opened.empty()) << "nothing opened without the answer";
+        expect(eq(act(h, id, "activate", {}, "yes"), std::int64_t{0}));
+        expect(opened == std::vector<std::string>{"https://example.com/spec"});
         // A person clicks the link itself: no question asked.
-        check(h.click(id));
+        expect(h.click(id));
         h.settle();
-        check_eq(opened.size(), std::size_t{2});
+        expect(eq(opened.size(), std::size_t{2}));
         // The document's own action only follows the document's links.
-        check_eq(act(h, "main/doc", "open_link", Value{}.set("href", "https://evil.example"), "yes"), std::int64_t{spec::exit_code::failure});
-        check_eq(act(h, "main/doc", "open_link", Value{}.set("href", "https://example.com/spec"), "yes"), std::int64_t{0});
-        check_eq(opened.size(), std::size_t{3});
-    });
+        expect(eq(act(h, "main/doc", "open_link", Value{}.set("href", "https://evil.example"), "yes"), std::int64_t{spec::exit_code::failure}));
+        expect(eq(act(h, "main/doc", "open_link", Value{}.set("href", "https://example.com/spec"), "yes"), std::int64_t{0}));
+        expect(eq(opened.size(), std::size_t{3}));
+    };
 
-    s.test("an in-document link and scroll_to_anchor bring the heading into view", [] {
+    "an in-document link and scroll_to_anchor bring the heading into view"_test = [] {
         Headless h({.size = {720, 260}});
         std::string long_doc = std::string(readme);
         for (int i = 0; i < 40; ++i) {
@@ -128,33 +126,33 @@ int main(int argc, char** argv) {
                                                                      .on_heading_visible = [&](std::string a) { seen.push_back(a); }})}));
         h.settle();
         const auto appendix = find_role(h, Role::heading, "Appendix");
-        check(appendix && appendix->states.has(State::offscreen), "the appendix starts below the view");
+        expect(appendix && appendix->states.has(State::offscreen)) << "the appendix starts below the view";
         {
             Invocation call;
             call.args = Value{}.set("anchor", "appendix");
             call.actor = {"agent", "test", {}};
             auto e = h.tree().act(find_role(h, Role::document)->id, "scroll_to_anchor", call);
-            check(e.exit_code() == 0, e.ndjson());
+            expect(e.exit_code() == 0) << e.ndjson();
         }
         h.settle();
         const auto after = find_role(h, Role::heading, "Appendix");
-        check(after && !after->states.has(State::offscreen), "and is in view after scroll_to_anchor");
-        check(!seen.empty() && seen.front() == "openmui", "heading_visible reports the first heading in view");
+        expect(after && !after->states.has(State::offscreen)) << "and is in view after scroll_to_anchor";
+        expect(!seen.empty() && seen.front() == "openmui") << "heading_visible reports the first heading in view";
         // A heading the view can scroll to the top of: its section is read from the top, not glimpsed at the bottom.
-        check_eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "middle")), std::int64_t{0});
+        expect(eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "middle")), std::int64_t{0}));
         h.settle();
         const auto middle = find_role(h, Role::heading, "Middle");
-        check(middle && middle->bounds && middle->bounds->y < 4, middle && middle->bounds ? std::format("at y {}", middle->bounds->y) : "no bounds");
-        check_eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "nope")),
-                 std::int64_t{spec::exit_code::failure});
-    });
+        expect(middle && middle->bounds && middle->bounds->y < 4) << (middle && middle->bounds ? std::format("at y {}", middle->bounds->y) : "no bounds");
+        expect(eq(act(h, find_role(h, Role::document)->id, "scroll_to_anchor", Value{}.set("anchor", "nope")),
+                 std::int64_t{spec::exit_code::failure}));
+    };
 
-    s.test("selecting text: pressed and dragged across a paragraph and into the next, the text between is selected; Ctrl+C copies it; an agent selects too", [] {
+    "selecting text: pressed and dragged across a paragraph and into the next, the text between is selected; Ctrl+C copies it; an agent selects too"_test = [] {
         Headless h({.size = {720, 900}});
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string("A paragraph to select some words from.\n\nAnd a second one after it.\n")})}));
         h.settle();
         const auto para = find_role(h, Role::paragraph, "A paragraph to select some words from.");
-        check(para.has_value(), "the paragraph");
+        expect(para.has_value()) << "the paragraph";
         if (!para) return;
         const Rect r = h.runtime().screen_bounds(h.runtime().find(para->id));
         const Point from{r.x + 2, r.y + r.height / 2}, to{r.x + 70, r.y + r.height / 2};  // a few words in
@@ -165,11 +163,11 @@ int main(int argc, char** argv) {
         h.key(Key::c, Modifier::ctrl);
         h.settle();
         const std::string copied = h.runtime().clipboard_text();
-        check(copied.starts_with("A para") && copied.size() < std::string("A paragraph to select some words from.").size(), copied);
-        check(h.tree().node(para->id)->states.has(State::selected), "selected");
+        expect(copied.starts_with("A para") && copied.size() < std::string("A paragraph to select some words from.").size()) << copied;
+        expect(h.tree().node(para->id)->states.has(State::selected)) << "selected";
         // Into the next paragraph: one selection over both, a line apart.
         const auto second = find_role(h, Role::paragraph, "And a second one after it.");
-        check(second.has_value(), "the second paragraph");
+        expect(second.has_value()) << "the second paragraph";
         if (second) {
             const Rect next = h.runtime().screen_bounds(h.runtime().find(second->id));
             h.step({PointerEvent{.kind = PointerKind::down, .position = from, .button = MouseButton::left, .buttons = 1}});
@@ -177,12 +175,12 @@ int main(int argc, char** argv) {
             h.step({PointerEvent{.kind = PointerKind::up, .position = {next.x + 40, next.y + next.height / 2}, .button = MouseButton::left}});
             h.settle();
             const std::string both = h.runtime().selected_text();
-            check(both.starts_with("A paragraph to select some words from.\nAnd"), both);
+            expect(both.starts_with("A paragraph to select some words from.\nAnd")) << both;
         }
-        check_eq(act(h, para->id, "set_selection", Value{}.set("anchor", 2).set("focus", 11)), std::int64_t{0});
-    });
+        expect(eq(act(h, para->id, "set_selection", Value{}.set("anchor", 2).set("focus", 11)), std::int64_t{0}));
+    };
 
-    s.test("tasks: toggling rewrites the mark in the source and tells the binding", [] {
+    "tasks: toggling rewrites the mark in the source and tells the binding"_test = [] {
         Headless h({.size = {720, 900}});
         auto src = signal(std::string(readme));
         std::vector<std::pair<std::int32_t, bool>> toggled;
@@ -190,27 +188,27 @@ int main(int argc, char** argv) {
                                                            .on_task_toggled = [&](bool checked, std::int32_t i) { toggled.emplace_back(i, checked); }})}));
         h.settle();
         const auto render_task = find_role(h, Role::checkbox, "render");
-        check(render_task && !render_task->states.has(State::checked));
+        expect(render_task && !render_task->states.has(State::checked));
         if (!render_task) return;
-        check_eq(act(h, render_task->id, "toggle"), std::int64_t{0});
+        expect(eq(act(h, render_task->id, "toggle"), std::int64_t{0}));
         h.settle();
-        check(src.peek().contains("- [x] render"), "the source has the new mark");
-        check((toggled == std::vector<std::pair<std::int32_t, bool>>{{1, true}}));
+        expect(src.peek().contains("- [x] render")) << "the source has the new mark";
+        expect((toggled == std::vector<std::pair<std::int32_t, bool>>{{1, true}}));
         const auto now = find_role(h, Role::checkbox, "render");
-        check(now && now->states.has(State::checked));
-        check_eq(act(h, "main/doc", "toggle_task", Value{}.set("index", std::int64_t{0})), std::int64_t{0});
+        expect(now && now->states.has(State::checked));
+        expect(eq(act(h, "main/doc", "toggle_task", Value{}.set("index", std::int64_t{0})), std::int64_t{0}));
         h.settle();
-        check(src.peek().contains("- [ ] parse"));        // A person's click toggles it as well (activate), and undo takes it back.
+        expect(src.peek().contains("- [ ] parse"));        // A person's click toggles it as well (activate), and undo takes it back.
         const auto again = find_role(h, Role::checkbox, "render");
-        check(again && h.click(again->id), "clicked");
+        expect(again && h.click(again->id)) << "clicked";
         h.settle();
-        check(src.peek().contains("- [ ] render"), "a click unchecked it");
-        check_eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0});
+        expect(src.peek().contains("- [ ] render")) << "a click unchecked it";
+        expect(eq(h.runtime().undo({}).exit_code().value_or(-1), std::int64_t{0}));
         h.settle();
-        check(src.peek().contains("- [x] render"), "undone");
-    });
+        expect(src.peek().contains("- [x] render")) << "undone";
+    };
 
-    s.test("streaming: unchanged blocks keep their nodes, the stream re-parses the tail", [] {
+    "streaming: unchanged blocks keep their nodes, the stream re-parses the tail"_test = [] {
         Headless h({.size = {720, 900}});
         auto src = signal(std::string());
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = src})}));
@@ -223,51 +221,51 @@ int main(int argc, char** argv) {
             if (!first && pos > 20) first = h.runtime().find("main/doc/b0");  // the heading is complete
         }
         h.settle();
-        check(first && h.runtime().find("main/doc/b0") == first, "the first heading's node survived every append");
+        expect(first && h.runtime().find("main/doc/b0") == first) << "the first heading's node survived every append";
         Markdown* m = nullptr;
         (void)m;
         const auto doc = h.tree().node("main/doc");
-        check(doc && doc->name == "openmui");
-        check(find_role(h, Role::table) && find_role(h, Role::code), "the whole document arrived");
+        expect(doc && doc->name == "openmui");
+        expect(find_role(h, Role::table) && find_role(h, Role::code)) << "the whole document arrived";
         // The `append` action streams too.
-        check_eq(act(h, "main/doc", "append", Value{}.set("chunk", "\n## More\n\nappended\n")), std::int64_t{0});
+        expect(eq(act(h, "main/doc", "append", Value{}.set("chunk", "\n## More\n\nappended\n")), std::int64_t{0}));
         h.settle();
-        check(find_role(h, Role::heading, "More").has_value());
-        check(src.peek().ends_with("appended\n"), "the binding learns the appended source");
-    });
+        expect(find_role(h, Role::heading, "More").has_value());
+        expect(src.peek().ends_with("appended\n")) << "the binding learns the appended source";
+    };
 
-    s.test("copy, find and the code block's copy button", [] {
+    "copy, find and the code block's copy button"_test = [] {
         Headless h({.size = {720, 900}});
         std::string clipboard;
         h.runtime().set_clipboard([&] { return clipboard; }, [&](std::string_view t) { clipboard = std::string(t); });
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string(readme)})}));
         h.settle();
-        check_eq(act(h, "main/doc", "copy"), std::int64_t{0});
-        check(clipboard.starts_with("openmui\n") && clipboard.contains("Quoted wisdom."), clipboard.substr(0, 80));
+        expect(eq(act(h, "main/doc", "copy"), std::int64_t{0}));
+        expect(clipboard.starts_with("openmui\n") && clipboard.contains("Quoted wisdom.")) << clipboard.substr(0, 80);
         Invocation call;
         call.args = Value{}.set("query", "MCPP");
         call.actor = {"agent", "test", {}};
         auto e = h.tree().act("main/doc", "find", call);
         const Value* hits = e.data_value();
-        check(hits && hits->list() && hits->list()->size() == 1, "one block mentions mcpp");
+        expect(hits && hits->list() && hits->list()->size() == 1) << "one block mentions mcpp";
         const auto copy_button = find_role(h, Role::button, "Copy code");
-        check(copy_button.has_value());
+        expect(copy_button.has_value());
         if (!copy_button) return;
-        check(h.click(copy_button->id));
+        expect(h.click(copy_button->id));
         h.step();
-        check_eq(clipboard, std::string("import omui;"));
-        check(find_role(h, Role::button, "Copied").has_value(), "the button says so");
-    });
+        expect(eq(clipboard, std::string("import omui;")));
+        expect(find_role(h, Role::button, "Copied").has_value()) << "the button says so";
+    };
 
-    s.test("remote text is marked so on every node", [] {
+    "remote text is marked so on every node"_test = [] {
         Headless h({.size = {720, 600}});
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .origin = MarkdownOrigin::remote, .source = std::string(readme)})}));
         h.settle();
         for (const auto& n : h.tree().snapshot({.root = "main/doc"}).nodes)
-            check(n.origin == spec::Origin::remote, std::format("{} is not marked remote", n.id));
-    });
+            expect(n.origin == spec::Origin::remote) << std::format("{} is not marked remote", n.id);
+    };
 
-    s.test("glyph motion reaches the document's text; the component does nothing for it (D-68)", [] {
+    "glyph motion reaches the document's text; the component does nothing for it (D-68)"_test = [] {
         Headless h({.size = {720, 600}});
         h.mount("main", column({.padding = 16}, {markdown({.id = "doc", .source = std::string(readme)})}));
         h.settle();
@@ -284,14 +282,14 @@ int main(int argc, char** argv) {
         h.runtime().set(h.runtime().find("main/doc/b0"), "glyph_motion", to_value(GlyphMotion::gather(5)));
         h.step();
         h.step();
-        check(hash() != rest, "on their way");
-        check(h.tree().node("main/doc/b1")->states.has(State::animating));
+        expect(hash() != rest) << "on their way";
+        expect(h.tree().node("main/doc/b1")->states.has(State::animating));
         h.settle();
-        check(hash() == rest, "and back to the document's own pixels");
-        check(!h.tree().node("main/doc/b1")->states.has(State::animating));
-    });
+        expect(hash() == rest) << "and back to the document's own pixels";
+        expect(!h.tree().node("main/doc/b1")->states.has(State::animating));
+    };
 
-    s.test("the same pixels on every platform", [] {
+    "the same pixels on every platform"_test = [] {
         HeadlessOptions o;
         o.size = {640, 820};
         o.scale = 2;
@@ -301,12 +299,10 @@ int main(int argc, char** argv) {
         Hash hash;
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
-        check(h.save_png(scratch_dir("ui-markdown") / "readme@2x.png").has_value());
+        expect(h.save_png(scratch_dir("ui-markdown") / "readme@2x.png").has_value());
         std::println("    pixels {}", hash.hex());
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
         // Re-pinned with M1 ⑤b: the sample's code block reads `import omui;` (was `import openmui;`).
-        check_eq(hash.hex(), std::string("ab03efbf649fa262"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(hash.hex(), std::string("ab03efbf649fa262")));
+    };
+}};

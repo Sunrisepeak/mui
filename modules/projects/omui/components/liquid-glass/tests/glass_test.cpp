@@ -9,8 +9,10 @@ import omui.ui.liquid_glass;
 import omui.host.headless;
 import xrender.vector;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -52,11 +54,10 @@ std::size_t glass_layers(const xrender::DisplayList& list, std::size_t* shapes =
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.liquid_glass"};
+UTest cases{"ui.liquid_glass", [] {
     register_liquid_glass_components();
 
-    s.test("the glass bends and tints what lies under it; its semantics are an ordinary group's", [] {
+    "the glass bends and tints what lies under it; its semantics are an ordinary group's"_test = [] {
         Headless plain({.size = {384, 200}});
         plain.mount("main", scene(column({.id = "bar", .width = 260, .height = 80}, {})));
         plain.settle();
@@ -64,9 +65,9 @@ int main(int argc, char** argv) {
         h.mount("main", scene(toolbar()));
         h.settle();
         const auto bar = h.tree().node("main/over/bar");
-        check(bar && bar->role == Role::group && bar->name == "Toolbar", "a group named by its label");
-        check(h.tree().node("main/over/bar/play").has_value(), "its content is in the tree as it is");
-        check_eq(glass_layers(h.runtime().display_list()), std::size_t{1});
+        expect(bar && bar->role == Role::group && bar->name == "Toolbar") << "a group named by its label";
+        expect(h.tree().node("main/over/bar/play").has_value()) << "its content is in the tree as it is";
+        expect(eq(glass_layers(h.runtime().display_list()), std::size_t{1}));
         (void)h.save_png(scratch_dir("ui-liquid-glass") / "toolbar.png");
         // Under the glass the stripes change (bent, tinted); outside it they do not.
         const auto& a = plain.pixels();
@@ -76,11 +77,11 @@ int main(int argc, char** argv) {
             for (int x = 44; x < 296; ++x) changed += a.at(x, y) == b.at(x, y) ? 0 : 1;
         for (int y = 0; y < 30; ++y)
             for (int x = 0; x < 384; ++x) outside += a.at(x, y) == b.at(x, y) ? 0 : 1;
-        check(changed > 5000, std::format("{} pixels under the glass changed", changed));
-        check_eq(outside, 0);
-    });
+        expect(changed > 5000) << std::format("{} pixels under the glass changed", changed);
+        expect(eq(outside, 0));
+    };
 
-    s.test("reduced transparency: an opaque panel, the same semantic tree", [] {
+    "reduced transparency: an opaque panel, the same semantic tree"_test = [] {
         Headless h({.size = {384, 200}});
         h.mount("main", scene(toolbar()));
         h.settle();
@@ -88,27 +89,27 @@ int main(int argc, char** argv) {
         const auto see_through = h.pixels().at(60, 100);
         h.runtime().set_reduce_transparency(true);
         h.settle();
-        check(roles(h) == glassy, "reduced transparency changes no node");
-        check_eq(glass_layers(h.runtime().display_list()), std::size_t{0});
+        expect(roles(h) == glassy) << "reduced transparency changes no node";
+        expect(eq(glass_layers(h.runtime().display_list()), std::size_t{0}));
         // The panel is the theme's surface: white, whatever stripe is behind.
         const auto panel = h.pixels().at(60, 100);
-        check(panel.r == 255 && panel.g == 255 && panel.b == 255, std::format("an opaque surface ({} {} {})", panel.r, panel.g, panel.b));
-        check(!(panel == see_through), "not the glass any more");
+        expect(panel.r == 255 && panel.g == 255 && panel.b == 255) << std::format("an opaque surface ({} {} {})", panel.r, panel.g, panel.b);
+        expect(!(panel == see_through)) << "not the glass any more";
         h.runtime().set_reduce_transparency(false);
         h.settle();
-        check_eq(glass_layers(h.runtime().display_list()), std::size_t{1});
-    });
+        expect(eq(glass_layers(h.runtime().display_list()), std::size_t{1}));
+    };
 
-    s.test("a group is one piece of glass: its members' shapes merge like drops", [] {
+    "a group is one piece of glass: its members' shapes merge like drops"_test = [] {
         Headless h({.size = {384, 200}});
         h.mount("main", scene(glass_group({.id = "controls", .gap = 10, .smoothness = 24},
                                           {liquid_glass({.id = "play", .radius = 30, .width = 60, .height = 60}, {}),
                                            liquid_glass({.id = "seek", .radius = 25, .width = 120, .height = 50}, {})})));
         h.settle();
         std::size_t shapes = 0;
-        check_eq(glass_layers(h.runtime().display_list(), &shapes), std::size_t{1});
-        check_eq(shapes, std::size_t{2});
-        check(h.tree().node("main/over/controls/play") && h.tree().node("main/over/controls/seek"), "the members are nodes");
+        expect(eq(glass_layers(h.runtime().display_list(), &shapes), std::size_t{1}));
+        expect(eq(shapes, std::size_t{2}));
+        expect(h.tree().node("main/over/controls/play") && h.tree().node("main/over/controls/seek")) << "the members are nodes";
         // In the gap between the members, where they come within the
         // smoothness of each other, there is glass: the stripes differ from
         // the same group with smoothness 0.
@@ -120,8 +121,6 @@ int main(int argc, char** argv) {
         int bridged = 0;
         for (int y = 60; y < 80; ++y)
             for (int x = 98; x < 112; ++x) bridged += merged.at(x, y) == apart.at(x, y) ? 0 : 1;
-        check(bridged > 20, std::format("{} pixels of the gap became glass", bridged));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(bridged > 20) << std::format("{} pixels of the gap became glass", bridged);
+    };
+}};

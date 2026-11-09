@@ -58,3 +58,4 @@ mcpplibs.os                         = "0.4.1"
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"

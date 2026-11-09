@@ -6,8 +6,10 @@ import omui;
 import omui.inspector;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -41,10 +43,9 @@ bool pump(Headless& a, Headless& b, F done) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"inspector"};
+UTest cases{"inspector", [] {
 
-    s.test("inspects a running application over its endpoint, and drives its clock", [] {
+    "inspects a running application over its endpoint, and drives its clock"_test = [] {
         register_base_components();
         const auto dir = scratch_dir("inspector-endpoints");
         HeadlessOptions to;
@@ -69,47 +70,43 @@ int main(int argc, char** argv) {
         inspector::Inspector insp(ui.runtime(), {.app = "", .directory = dir, .poll = seconds(0.05)});
         ui.mount("main", insp.view());
 
-        check(pump(target, ui, [&] { return insp.tree_size.peek() >= 3; }), std::format("the tree arrives ({} nodes; {})", insp.tree_size.peek(), insp.status.peek()));
-        check(insp.app.peek() == "org.openmui.test.target", "it chose the only other application");
-        check(insp.applications.peek() == std::vector<std::string>{"org.openmui.test.target"}, "and never itself");
+        expect(pump(target, ui, [&] { return insp.tree_size.peek() >= 3; })) << std::format("the tree arrives ({} nodes; {})", insp.tree_size.peek(), insp.status.peek());
+        expect(insp.app.peek() == "org.openmui.test.target") << "it chose the only other application";
+        expect(insp.applications.peek() == std::vector<std::string>{"org.openmui.test.target"}) << "and never itself";
 
         // A node's details.
         insp.select("main/go");
-        check(pump(target, ui, [&] { return insp.details.peek().get("type") != nullptr; }),
-              std::format("details: {}; selected {}; status {}", insp.details.peek().json().substr(0, 200), insp.selected.peek(), insp.status.peek()));
-        check(insp.details.peek().get("type")->as_string() == "button" && insp.details.peek().get("source")->as_string().contains("inspector_test.cpp"),
-              insp.details.peek().json().substr(0, 200));
+        expect(pump(target, ui, [&] { return insp.details.peek().get("type") != nullptr; })) << std::format("details: {}; selected {}; status {}", insp.details.peek().json().substr(0, 200), insp.selected.peek(), insp.status.peek());
+        expect(insp.details.peek().get("type")->as_string() == "button" && insp.details.peek().get("source")->as_string().contains("inspector_test.cpp")) << insp.details.peek().json().substr(0, 200);
 
         // Frames and the pipeline arrive on their own.
-        check(pump(target, ui, [&] {
+        expect(pump(target, ui, [&] {
             const Value* h = insp.stats.peek().get("history");
             return h && h->list() && !h->list()->empty() && insp.pipeline.peek().get("stages");
         }));
         const Value* stages = insp.pipeline.peek().get("stages");
-        check(stages && stages->list() && stages->list()->size() == 9);  // … paint, motion, debug
+        expect(stages && stages->list() && stages->list()->size() == 9);  // … paint, motion, debug
         insp.tab.set("pipeline");
         ui.step();
-        check(ui.tree().node("main/body/panels/panel") != std::nullopt);
+        expect(ui.tree().node("main/body/panels/panel") != std::nullopt);
 
         // Pause from the Inspector's button: the target's time stops.
-        check(ui.click("main/clock/pause"));
-        check(pump(target, ui, [&] { return target.runtime().time_state().paused; }), "paused from the Inspector");
+        expect(ui.click("main/clock/pause"));
+        expect(pump(target, ui, [&] { return target.runtime().time_state().paused; })) << "paused from the Inspector";
         t.wide.set(true);  // a transition that cannot move while paused
         const seconds frozen = target.runtime().now();
         for (int i = 0; i < 5; ++i) target.step();
-        check(target.runtime().now() == frozen && target.runtime().bounds(target.runtime().find("main/bar")).width == 100, "frozen");
-        check(ui.click("main/clock/forward"));  // +1 frame
-        check(pump(target, ui, [&] { return target.runtime().now() > frozen; }), "stepped by one frame");
-        check(std::abs((target.runtime().now() - frozen).count() - 1.0 / 60.0) < 1e-9);
+        expect(target.runtime().now() == frozen && target.runtime().bounds(target.runtime().find("main/bar")).width == 100) << "frozen";
+        expect(ui.click("main/clock/forward"));  // +1 frame
+        expect(pump(target, ui, [&] { return target.runtime().now() > frozen; })) << "stepped by one frame";
+        expect(std::abs((target.runtime().now() - frozen).count() - 1.0 / 60.0) < 1e-9);
         // Overlays on the target from the Inspector's toggles.
-        check(ui.click("main/clock/bounds"));
-        check(pump(target, ui, [&] { return target.runtime().debug().bounds; }), "bounds overlay turned on remotely");
+        expect(ui.click("main/clock/bounds"));
+        expect(pump(target, ui, [&] { return target.runtime().debug().bounds; })) << "bounds overlay turned on remotely";
         // Back to live time.
-        check(ui.click("main/clock/release"));
-        check(pump(target, ui, [&] { return !target.runtime().time_state().controlled; }));
-        check(ui.save_png(scratch_dir("inspector") / "inspector.png").has_value());
-        check(ui.tree().violations().empty(), "the Inspector's own tree is clean");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(ui.click("main/clock/release"));
+        expect(pump(target, ui, [&] { return !target.runtime().time_state().controlled; }));
+        expect(ui.save_png(scratch_dir("inspector") / "inspector.png").has_value());
+        expect(ui.tree().violations().empty()) << "the Inspector's own tree is clean";
+    };
+}};

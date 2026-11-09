@@ -5,51 +5,47 @@ import std;
 import nlohmann.json;
 import omui.native;
 import omui.native.fuzzy;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace native = omui::native;
 using native::Json;
 
-int main(int argc, char** argv) {
-    Suite s{"native.fuzzy"};
+UTest cases{"native.fuzzy", [] {
 
-    s.test("define() registers the contract's module, once", [] {
+    "define() registers the contract's module, once"_test = [] {
         auto d = omui::natives::fuzzy::define();
-        check(d.has_value(), d ? "" : d.error());
+        expect(d.has_value()) << (d ? "" : d.error());
         const native::Module* m = native::find("fuzzy");
-        check(m != nullptr);
+        expect(m != nullptr);
         if (!m) return;
-        check(m->functions.size() == 2 && m->functions[0].name == "rank" && m->functions[0].async, "rank, async, first as written");
-        check(m->functions[0].params.size() == 3 && m->functions[0].params[2].type == "u32?");
-        check(!omui::natives::fuzzy::define().has_value(), "a second definition is refused");
-    });
+        expect(m->functions.size() == 2 && m->functions[0].name == "rank" && m->functions[0].async) << "rank, async, first as written";
+        expect(m->functions[0].params.size() == 3 && m->functions[0].params[2].type == "u32?");
+        expect(!omui::natives::fuzzy::define().has_value()) << "a second definition is refused";
+    };
 
-    s.test("rank: by position or by name, the limit optional", [] {
+    "rank: by position or by name, the limit optional"_test = [] {
         const Json files = Json::array({"src/main.cpp", "my_config.toml", "docs/mcfg.md", "README.md"});
         auto all = native::call("fuzzy", "rank", Json::array({"mcfg", files}));
-        check(all.has_value() && all->size() == 2, all ? all->dump() : all.error().message);
+        expect(all.has_value() && all->size() == 2) << (all ? all->dump() : all.error().message);
         if (!all || all->empty()) return;
         const Json& best = (*all)[0];
-        check_eq(best["text"].get<std::string>(), std::string("docs/mcfg.md"));
-        check_eq(best["index"].get<int>(), 2);
-        check(best["segments"].size() == 3 && best["segments"][1] == Json{{"text", "mcfg"}, {"matched", true}}, best["segments"].dump());
+        expect(eq(best["text"].get<std::string>(), std::string("docs/mcfg.md")));
+        expect(eq(best["index"].get<int>(), 2));
+        expect(best["segments"].size() == 3 && best["segments"][1] == Json{{"text", "mcfg"}, {"matched", true}}) << best["segments"].dump();
         auto one = native::call("fuzzy", "rank", Json{{"query", "mcfg"}, {"candidates", files}, {"limit", 1}});
-        check(one.has_value() && one->size() == 1);
-    });
+        expect(one.has_value() && one->size() == 1);
+    };
 
-    s.test("match: a record, or null", [] {
+    "match: a record, or null"_test = [] {
         auto yes = native::call("fuzzy", "match", Json::array({"fb", "foo_bar"}));
-        check(yes.has_value() && (*yes)["positions"] == Json::array({0, 4}), yes ? yes->dump() : yes.error().message);
+        expect(yes.has_value() && (*yes)["positions"] == Json::array({0, 4})) << (yes ? yes->dump() : yes.error().message);
         auto no = native::call("fuzzy", "match", Json::array({"zz", "foo_bar"}));
-        check(no.has_value() && no->is_null());
-    });
+        expect(no.has_value() && no->is_null());
+    };
 
-    s.test("the contract's types are checked before the implementation runs", [] {
+    "the contract's types are checked before the implementation runs"_test = [] {
         auto bad = native::call("fuzzy", "rank", Json::array({"q", Json::array({"a", 3})}));
-        check(!bad && bad.error().code == "invalid-argument" && bad.error().message.find("`candidates[1]` is the number 3, not a string") != std::string::npos,
-              bad ? "" : bad.error().message);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!bad && bad.error().code == "invalid-argument" && bad.error().message.find("`candidates[1]` is the number 3, not a string") != std::string::npos) << (bad ? "" : bad.error().message);
+    };
+}};

@@ -41,3 +41,4 @@ mcpplibs.mwrap.concurrentqueue = "1.0.5"
 mcpplibs.os                    = "0.4.1"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"

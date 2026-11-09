@@ -7,10 +7,12 @@ import std;
 import omui;
 import omui.showcase.fighting;
 import mlibs.testing;
+import mcpplibs.mtest;
 import gongfu.ai;
 import xengine.audio;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace audio = xengine::audio;
 
@@ -58,59 +60,58 @@ Value pad(int player, std::string_view p) { return Value{}.set("player", player)
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"showcase.fighting"};
+UTest cases{"showcase.fighting", [] {
 
-    s.test("the roster reads: the training fighter's file, every move compiled", [] {
+    "the roster reads: the training fighter's file, every move compiled"_test = [] {
         const auto& r = fighting::roster();
-        check(r.problems.empty(), r.problems.empty() ? std::string() : r.problems.front());
-        check(r.names == std::vector<std::string>{"kata", "ke", "kun", "li", "mo", "ni", "yue"}, std::format("{}", r.names));
+        expect(r.problems.empty()) << (r.problems.empty() ? std::string() : r.problems.front());
+        expect(r.names == std::vector<std::string>{"kata", "ke", "kun", "li", "mo", "ni", "yue"}) << std::format("{}", r.names);
         for (const auto& [i, name] : {std::pair{0, "Kata"}, {1, "Ke"}, {2, "Kun"}, {3, "Li"}, {4, "Mo"}, {5, "Ni"}, {6, "Yue"}})
-            check_eq(r.fighters[static_cast<std::size_t>(i)].def.name, std::string(name));
-        check(r.fighters[0].find("236P") >= 0 && r.fighters[0].find("623P") >= 0, "its specials");
-        check_eq(r.looks.size(), 2 * r.fighters.size());  // a colour for each side
-    });
+            expect(eq(r.fighters[static_cast<std::size_t>(i)].def.name, std::string(name)));
+        expect(r.fighters[0].find("236P") >= 0 && r.fighters[0].find("623P") >= 0) << "its specials";
+        expect(eq(r.looks.size(), 2 * r.fighters.size()));  // a colour for each side
+    };
 
-    s.test("sixty frames a second on the runtime's clock, exactly", [] {
+    "sixty frames a second on the runtime's clock, exactly"_test = [] {
         Game g;
         const auto start = g.state().frame;
         g.h.advance(seconds(1));
-        check_eq(g.state().frame - start, 60);
+        expect(eq(g.state().frame - start, 60));
         g.h.advance(seconds(2.5));
-        check_eq(g.state().frame - start, 210);
-    });
+        expect(eq(g.state().frame - start, 210));
+    };
 
-    s.test("the keyboard walks player 1 forward and player 2 back, until let go", [] {
+    "the keyboard walks player 1 forward and player 2 back, until let go"_test = [] {
         Game g;
         const auto x0 = g.state().f[0].pos.x, y0 = g.state().f[1].pos.x;
         g.h.step({KeyEvent{.kind = KeyKind::down, .key = Key::d}, KeyEvent{.kind = KeyKind::down, .key = Key::right}});
         g.h.advance(seconds(0.5));
         g.h.step({KeyEvent{.kind = KeyKind::up, .key = Key::d}, KeyEvent{.kind = KeyKind::up, .key = Key::right}});
         const auto x1 = g.state().f[0].pos.x, y1 = g.state().f[1].pos.x;
-        check(x1 > x0, std::format("player 1 walked from {} to {}", x0.to_double(), x1.to_double()));
-        check(y1 > y0, std::format("player 2, facing left, walked back from {} to {}", y0.to_double(), y1.to_double()));
-        check_eq(g.seen().get("p1")->get("doing")->as_string(), std::string_view("walk_forward"));
+        expect(x1 > x0) << std::format("player 1 walked from {} to {}", x0.to_double(), x1.to_double());
+        expect(y1 > y0) << std::format("player 2, facing left, walked back from {} to {}", y0.to_double(), y1.to_double());
+        expect(eq(g.seen().get("p1")->get("doing")->as_string(), std::string_view("walk_forward")));
         g.h.advance(seconds(0.1));
-        check(g.state().f[0].pos.x == x1 || g.state().f[0].pos.x < x1 + gongfu::Fixed::of(8), "it stops");
-        check_eq(g.seen().get("p1")->get("doing")->as_string(), std::string_view("idle"));
-    });
+        expect(g.state().f[0].pos.x == x1 || g.state().f[0].pos.x < x1 + gongfu::Fixed::of(8)) << "it stops";
+        expect(eq(g.seen().get("p1")->get("doing")->as_string(), std::string_view("idle")));
+    };
 
-    s.test("pause and step: one frame at a time; step refused while playing", [] {
+    "pause and step: one frame at a time; step refused while playing"_test = [] {
         Game g;
-        check(!g.act("step"), "step plays a paused match");
-        check(g.act("pause"));
+        expect(!g.act("step")) << "step plays a paused match";
+        expect(g.act("pause"));
         const auto f = g.state().frame;
         g.h.advance(seconds(1));
-        check_eq(g.state().frame, f);
-        check(g.act("step"));
-        check(g.act("step"));
-        check_eq(g.state().frame, f + 2);
-        check(g.act("resume"));
+        expect(eq(g.state().frame, f));
+        expect(g.act("step"));
+        expect(g.act("step"));
+        expect(eq(g.state().frame, f + 2));
+        expect(g.act("resume"));
         g.h.advance(seconds(1));
-        check_eq(g.state().frame, f + 2 + 60);
-    });
+        expect(eq(g.state().frame, f + 2 + 60));
+    };
 
-    s.test("turns (agents by correspondence): the match waits for both players' turns, then plays them; a quarter circle in a turn throws the fireball", [] {
+    "turns (agents by correspondence): the match waits for both players' turns, then plays them; a quarter circle in a turn throws the fireball"_test = [] {
         Headless h{HeadlessOptions{.size = {960, 540}}};
         AppSpec spec = fighting::app();
         spec.setup(h.runtime());
@@ -130,37 +131,37 @@ int main(int argc, char** argv) {
         };
         const auto& st = h.runtime().component<fighting::Stage>(h.runtime().find("main"))->match().state();
         h.advance(seconds(1));
-        check_eq(st.frame, std::int32_t{0});  // the clock stands: no turn played yet
+        expect(eq(st.frame, std::int32_t{0}));  // the clock stands: no turn played yet
         const Envelope first = turn(0, "6");
-        check(first.exit_code() == std::optional<std::int64_t>(0) && first.ndjson().contains("\"waiting\":1"), first.ndjson());
-        check(seen().get("turns")->get("waiting")->json() == "[1]", seen().json());
-        check_eq(st.frame, std::int32_t{0});
+        expect(first.exit_code() == std::optional<std::int64_t>(0) && first.ndjson().contains("\"waiting\":1")) << first.ndjson();
+        expect(seen().get("turns")->get("waiting")->json() == "[1]") << seen().json();
+        expect(eq(st.frame, std::int32_t{0}));
         const Envelope both = turn(1, "4");
-        check(both.ndjson().contains("\"played\":true") && both.ndjson().contains("walk_forward"), both.ndjson());
-        check_eq(st.frame, std::int32_t{6});
+        expect(both.ndjson().contains("\"played\":true") && both.ndjson().contains("walk_forward")) << both.ndjson();
+        expect(eq(st.frame, std::int32_t{6}));
         // A turn standing (the forward walk out of the input buffer: else 6, 2, 3, 6 reads as a dragon punch, as it should).
-        for (int i = 0; i < 3; ++i) check(turn(0, "5").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
-        check(turn(0, "2,3,6LP").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
-        check(seen().get("p1")->get("doing")->as_string().contains("236"), seen().get("p1")->json());
-        check(turn(0, "2,2,2,2,2,2,2").exit_code() != std::optional<std::int64_t>(0), "more pads than frames");
-        check(turn(0, "5XP").exit_code() != std::optional<std::int64_t>(0), "not a pad");
+        for (int i = 0; i < 3; ++i) expect(turn(0, "5").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
+        expect(turn(0, "2,3,6LP").exit_code() == std::optional<std::int64_t>(0) && turn(1, "5").exit_code() == std::optional<std::int64_t>(0));
+        expect(seen().get("p1")->get("doing")->as_string().contains("236")) << (seen().get("p1")->json());
+        expect(turn(0, "2,2,2,2,2,2,2").exit_code() != std::optional<std::int64_t>(0)) << "more pads than frames";
+        expect(turn(0, "5XP").exit_code() != std::optional<std::int64_t>(0)) << "not a pad";
         // What happened is said to both, the move begun among it; the fighter's phase is read.
         const Value last = *seen().get("turns")->get("last");
-        check(last.json().contains("\"kind\":\"move\"") && last.json().contains("236"), last.json());
-        check(seen().get("p1")->get("move") && seen().get("p1")->get("move")->get("phase"), seen().get("p1")->json());
+        expect(last.json().contains("\"kind\":\"move\"") && last.json().contains("236")) << last.json();
+        expect(seen().get("p1")->get("move") && seen().get("p1")->get("move")->get("phase")) << (seen().get("p1")->json());
         // A seat is its first player's: another actor is refused it.
         Invocation other;
         other.actor = {"agent", "intruder", {}};
         other.args = pad(0, "5");
-        check(h.tree().act("main", "turn", other).exit_code() == std::optional<std::int64_t>(1), "player 1's seat is player1's");
+        expect(h.tree().act("main", "turn", other).exit_code() == std::optional<std::int64_t>(1)) << "player 1's seat is player1's";
         // The round's pads, frame by frame, and where they led: a replay of the same turns elsewhere lands on the same checksum.
         Invocation read;
         read.actor = {"agent", "referee", {}};
         const Envelope log = h.tree().act("main", "inputs", read);
-        check(log.exit_code() == std::optional<std::int64_t>(0) && log.ndjson().contains("\"checksum\""), log.ndjson());
-    });
+        expect(log.exit_code() == std::optional<std::int64_t>(0) && log.ndjson().contains("\"checksum\"")) << log.ndjson();
+    };
 
-    s.test("the computer plays a side: it walks, guards and attacks by itself, the same every run", [] {
+    "the computer plays a side: it walks, guards and attacks by itself, the same every run"_test = [] {
         auto play = [] {
             Headless h{HeadlessOptions{.size = {960, 540}}};
             AppSpec spec = fighting::app();
@@ -178,101 +179,101 @@ int main(int argc, char** argv) {
             return std::pair{did, stage->match().state().f[1].pos.x.to_double()};
         };
         const auto [did, x] = play();
-        check(did.size() >= 3, std::format("the computer did {} things", did.size()));
-        check(play() == std::pair{did, x}, "the same every run");
-    });
+        expect(did.size() >= 3) << std::format("the computer did {} things", did.size());
+        expect(play() == std::pair{did, x}) << "the same every run";
+    };
 
-    s.test("an agent walks in and lands a jab: player 2's health falls, the stage says so", [] {
+    "an agent walks in and lands a jab: player 2's health falls, the stage says so"_test = [] {
         Game g;
-        check(g.act("pause"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5LP")));
-        check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 10; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5LP")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 10; ++i) expect(g.act("step"));
         const Value v = g.seen();
-        check(v.get("p2")->get("health")->as_int() < 10000, std::format("player 2 at {}", v.get("p2")->get("health")->as_int()));
-        check_eq(v.get("p1")->get("name")->as_string(), std::string_view("Kata"));
-        check(!g.act("press", pad(2, "5")), "two players");
-        check(!g.act("press", pad(0, "5XP")), "not a pad");
-        check(g.act("release", Value{}.set("player", 0)));
-        check(g.act("restart"));
-        check_eq(g.seen().get("p2")->get("health")->as_int(), std::int64_t{10000});
-    });
+        expect(v.get("p2")->get("health")->as_int() < 10000) << std::format("player 2 at {}", v.get("p2")->get("health")->as_int());
+        expect(eq(v.get("p1")->get("name")->as_string(), std::string_view("Kata")));
+        expect(!g.act("press", pad(2, "5"))) << "two players";
+        expect(!g.act("press", pad(0, "5XP"))) << "not a pad";
+        expect(g.act("release", Value{}.set("player", 0)));
+        expect(g.act("restart"));
+        expect(eq(g.seen().get("p2")->get("health")->as_int(), std::int64_t{10000}));
+    };
 
-    s.test("training's readings as an agent reads them: a blocked jab is +3, a jab cancelled into a fireball a combo of 900", [] {
+    "training's readings as an agent reads them: a blocked jab is +3, a jab cancelled into a fireball a combo of 900"_test = [] {
         Game g("training");
-        check(g.act("pause"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 10; ++i) check(g.act("step"));
-        check(g.act("press", pad(1, "6")));  // player 2 faces left: 6 holds back, a block
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 2; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 10; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(1, "6")));  // player 2 faces left: 6 holds back, a block
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 2; ++i) expect(g.act("step"));
         // Held a while (a guard raised just before the hit would be a deflect); player 1 walks back in.
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5LP")));
-        check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 40; ++i) check(g.act("step"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5LP")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 40; ++i) expect(g.act("step"));
         Value seen = g.seen();  // the pointers below point into it
         const Value* t = seen.get("training");
-        check(t && t->get("advantage") && t->get("advantage")->as_int() == 3, std::format("advantage {}", t && t->get("advantage") ? t->get("advantage")->as_int() : -99));
-        check(t && t->get("startup") && t->get("startup")->as_int() == 4, "startup 4");
+        expect(t && t->get("advantage") && t->get("advantage")->as_int() == 3) << std::format("advantage {}", t && t->get("advantage") ? t->get("advantage")->as_int() : -99);
+        expect(t && t->get("startup") && t->get("startup")->as_int() == 4) << "startup 4";
         // Close again, then 5LP, 2, 3, 6+LP: the jab cancelled into the fireball.
-        check(g.act("press", pad(1, "5")));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
+        expect(g.act("press", pad(1, "5")));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) expect(g.act("step"));
         for (std::string_view p : {"5LP", "2", "2", "3", "3", "6", "6LP"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 80; ++i) check(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 80; ++i) expect(g.act("step"));
         seen = g.seen();
         t = seen.get("training");
         const Value* c = t ? t->get("combo") : nullptr;
-        check(c && c->get("hits")->as_int() == 2 && c->get("damage")->as_int() == 900, std::format("{}", c ? c->get("hits")->as_int() : -1));
-    });
+        expect(c && c->get("hits")->as_int() == 2 && c->get("damage")->as_int() == 900) << std::format("{}", c ? c->get("hits")->as_int() : -1);
+    };
 
-    s.test("a saved state comes back; a dummy plays its recording again", [] {
+    "a saved state comes back; a dummy plays its recording again"_test = [] {
         Game g("training");
-        check(!g.act("load"), "nothing saved yet");
-        check(g.act("pause"));
-        check(g.act("save"));
+        expect(!g.act("load")) << "nothing saved yet";
+        expect(g.act("pause"));
+        expect(g.act("save"));
         const gongfu::State saved = g.state();
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 30; ++i) check(g.act("step"));
-        check(g.state().frame == saved.frame + 30);
-        check(g.act("load"));
-        check(gongfu::checksum(g.state()) == gongfu::checksum(saved), "the same bytes");
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 30; ++i) expect(g.act("step"));
+        expect(g.state().frame == saved.frame + 30);
+        expect(g.act("load"));
+        expect(gongfu::checksum(g.state()) == gongfu::checksum(saved)) << "the same bytes";
         // Player 2 walks back and forth while recording, then the dummy does it again.
-        check(g.act("press", pad(0, "5")));
-        check(g.act("record", Value{}.set("player", 1)));
+        expect(g.act("press", pad(0, "5")));
+        expect(g.act("record", Value{}.set("player", 1)));
         std::vector<double> walked;
         for (int i = 0; i < 40; ++i) {
-            check(g.act("press", pad(1, i < 20 ? "6" : "4")));
-            check(g.act("step"));
+            expect(g.act("press", pad(1, i < 20 ? "6" : "4")));
+            expect(g.act("step"));
             walked.push_back(g.state().f[1].pos.x.to_double());
         }
-        check(g.act("release", Value{}.set("player", 1)));
-        check(g.act("load"));
-        check(g.act("replay", Value{}.set("player", 1)));
+        expect(g.act("release", Value{}.set("player", 1)));
+        expect(g.act("load"));
+        expect(g.act("replay", Value{}.set("player", 1)));
         std::vector<double> again;
         for (int i = 0; i < 40; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             again.push_back(g.state().f[1].pos.x.to_double());
         }
-        check(again == walked, "the dummy walks as recorded");
-        check_eq(g.seen().get("training")->get("dummy2")->as_string(), std::string_view("playing"));
-        check(g.act("stop", Value{}.set("player", 1)));
-        check(!g.act("replay", Value{}.set("player", 2)), "two players");
-    });
+        expect(again == walked) << "the dummy walks as recorded";
+        expect(eq(g.seen().get("training")->get("dummy2")->as_string(), std::string_view("playing")));
+        expect(g.act("stop", Value{}.set("player", 1)));
+        expect(!g.act("replay", Value{}.set("player", 2))) << "two players";
+    };
 
-    s.test("墨 as designed: every move's startup, and its advantage on hit and on block, measured in the simulation (characters design §3)", [] {
+    "墨 as designed: every move's startup, and its advantage on hit and on block, measured in the simulation (characters design §3)"_test = [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& mo = fighting::roster().fighters[fighting::fighter_index("mo")];
         struct Row {
@@ -297,10 +298,10 @@ int main(int argc, char** argv) {
         };
         for (const Row& row : table) {
             const std::int32_t m = mo.find(row.move);
-            check(m >= 0, row.move);
+            expect(m >= 0) << row.move;
             if (m < 0) continue;
             const gongfu::MoveDef& def = mo.def.moves[static_cast<std::size_t>(m)];
-            check_eq(mo.startup(m), std::int32_t{row.startup});
+            expect(eq(mo.startup(m), std::int32_t{row.startup}));
             for (const bool block : {false, true}) {
                 const std::optional<int>& want = block ? row.block : row.hit;
                 if (!want) continue;
@@ -327,19 +328,19 @@ int main(int argc, char** argv) {
                             contact = match.state().f[0].move_frame;
                     if (contact < 0) match.tick(gongfu::pad(5), guard);
                 }
-                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                expect(contact == row.startup) << std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact);
                 int attacker = -1, defender = -1;
                 for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
                     match.tick(gongfu::pad(5), guard);
                     if (attacker < 0 && match.recovered(0)) attacker = f;
                     if (defender < 0 && match.recovered(1)) defender = f;
                 }
-                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+                expect(defender - attacker == *want) << std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want);
             }
         }
-    });
+    };
 
-    s.test("霓 as designed: every normal's, kick rush's and hop's startup and advantage, measured in the simulation (characters design §4)", [] {
+    "霓 as designed: every normal's, kick rush's and hop's startup and advantage, measured in the simulation (characters design §4)"_test = [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& mo = fighting::roster().fighters[fighting::fighter_index("ni")];
         struct Row {
@@ -364,10 +365,10 @@ int main(int argc, char** argv) {
         };
         for (const Row& row : table) {
             const std::int32_t m = mo.find(row.move);
-            check(m >= 0, row.move);
+            expect(m >= 0) << row.move;
             if (m < 0) continue;
             const gongfu::MoveDef& def = mo.def.moves[static_cast<std::size_t>(m)];
-            check_eq(mo.startup(m), std::int32_t{row.startup});
+            expect(eq(mo.startup(m), std::int32_t{row.startup}));
             for (const bool block : {false, true}) {
                 const std::optional<int>& want = block ? row.block : row.hit;
                 if (!want) continue;
@@ -394,110 +395,110 @@ int main(int argc, char** argv) {
                             contact = match.state().f[0].move_frame;
                     if (contact < 0) match.tick(gongfu::pad(5), guard);
                 }
-                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                expect(contact == row.startup) << std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact);
                 int attacker = -1, defender = -1;
                 for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
                     match.tick(gongfu::pad(5), guard);
                     if (attacker < 0 && match.recovered(0)) attacker = f;
                     if (defender < 0 && match.recovered(1)) defender = f;
                 }
-                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+                expect(defender - attacker == *want) << std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want);
             }
         }
-    });
+    };
 
-    s.test("墨's home, the study: painted layers by parallax — moonlit mountains through a moon gate, the study's wall, floorboards catching the lanterns, a desk and a vase at its ends, blinds in front — pinned", [] {
+    "墨's home, the study: painted layers by parallax — moonlit mountains through a moon gate, the study's wall, floorboards catching the lanterns, a desk and a vase at its ends, blinds in front — pinned"_test = [] {
         Game g("versus", "mo", "ni");
         g.h.advance(seconds(1.5));
         const auto dir = scratch_dir("fighting-study");
-        check(g.h.save_png(dir / "study.png").has_value());
+        expect(g.h.save_png(dir / "study.png").has_value());
         const auto px = g.pixels();
         std::println("    study {:016x}", px);
-        check_eq(px, std::uint64_t{0x5314608a60cb78f4});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0x5314608a60cb78f4}));  // GCC and LLVM
+    };
 
-    s.test("霓's home, the street: a neon skyline, the alley's shopfronts and a noodle stall, the wet road giving the neon back, rain in front and behind — pinned", [] {
+    "霓's home, the street: a neon skyline, the alley's shopfronts and a noodle stall, the wet road giving the neon back, rain in front and behind — pinned"_test = [] {
         Game g("versus", "ni", "mo");
         g.h.advance(seconds(1.5));
-        check(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
+        expect(g.h.save_png(scratch_dir("fighting-street") / "street.png").has_value());
         const auto px = g.pixels();
         std::println("    street {:016x}", px);
-        check_eq(px, std::uint64_t{0x245d03f0a8cc1cbc});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0x245d03f0a8cc1cbc}));  // GCC and LLVM
+    };
 
-    s.test("坤's home, the rooftop: a dusk sky over the skyline, a water tower, a billboard and a fence hung with string lights, court lines on wet concrete — pinned", [] {
+    "坤's home, the rooftop: a dusk sky over the skyline, a water tower, a billboard and a fence hung with string lights, court lines on wet concrete — pinned"_test = [] {
         Game g("versus", "kun", "mo");
         g.h.advance(seconds(1.5));
-        check(g.h.save_png(scratch_dir("fighting-rooftop") / "rooftop.png").has_value());
+        expect(g.h.save_png(scratch_dir("fighting-rooftop") / "rooftop.png").has_value());
         const auto px = g.pixels();
         std::println("    rooftop {:016x}", px);
-        check_eq(px, std::uint64_t{0x644c36ecda9d7981});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0x644c36ecda9d7981}));  // GCC and LLVM
+    };
 
-    s.test("璃's home, the greenhouse: a misty garden through bending panes, white iron arches with palms and hanging ferns, wet tile catching the light, a fountain and a stand of terrariums — pinned with 墨 and 霓 on it", [] {
+    "璃's home, the greenhouse: a misty garden through bending panes, white iron arches with palms and hanging ferns, wet tile catching the light, a fountain and a stand of terrariums — pinned with 墨 and 霓 on it"_test = [] {
         Game g("versus", "mo", "ni", 1, "greenhouse");
         g.h.advance(seconds(1.5));
-        check(g.h.save_png(scratch_dir("fighting-greenhouse") / "greenhouse.png").has_value());
+        expect(g.h.save_png(scratch_dir("fighting-greenhouse") / "greenhouse.png").has_value());
         const auto px = g.pixels();
         std::println("    greenhouse {:016x}", px);
-        check_eq(px, std::uint64_t{0xd7674dd44b3f1517});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0xd7674dd44b3f1517}));  // GCC and LLVM
+    };
 
-    s.test("岳's home, the gate: a sea of clouds at sunset framed by a stone gateway, guardian lions and banners, worn granite, an incense cauldron and a great bell — pinned with 墨 and 霓 on it", [] {
+    "岳's home, the gate: a sea of clouds at sunset framed by a stone gateway, guardian lions and banners, worn granite, an incense cauldron and a great bell — pinned with 墨 and 霓 on it"_test = [] {
         Game g("versus", "mo", "ni", 1, "gate");
         g.h.advance(seconds(1.5));
-        check(g.h.save_png(scratch_dir("fighting-gate") / "gate.png").has_value());
+        expect(g.h.save_png(scratch_dir("fighting-gate") / "gate.png").has_value());
         const auto px = g.pixels();
         std::println("    gate {:016x}", px);
-        check_eq(px, std::uint64_t{0x3561a34f5dd57593});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0x3561a34f5dd57593}));  // GCC and LLVM
+    };
 
-    s.test("刻's home, the clock: the back of a glowing dial, gears and a pendulum over a catwalk, a brass compass in the floorboards, a clockmaker's bench and a grandfather clock — pinned with 墨 and 霓 on it", [] {
+    "刻's home, the clock: the back of a glowing dial, gears and a pendulum over a catwalk, a brass compass in the floorboards, a clockmaker's bench and a grandfather clock — pinned with 墨 and 霓 on it"_test = [] {
         Game g("versus", "mo", "ni", 1, "clock");
         g.h.advance(seconds(1.5));
-        check(g.h.save_png(scratch_dir("fighting-clock") / "clock.png").has_value());
+        expect(g.h.save_png(scratch_dir("fighting-clock") / "clock.png").has_value());
         const auto px = g.pixels();
         std::println("    clock {:016x}", px);
-        check_eq(px, std::uint64_t{0x0d23b234b50a6bcd});  // GCC and LLVM
-    });
+        expect(eq(px, std::uint64_t{0x0d23b234b50a6bcd}));  // GCC and LLVM
+    };
 
-    s.test("the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB", [] {
+    "the README's loop: 墨's level 3 in her study, from the flash's cut-in to the finishing blow, an animated WebP under 1 MB"_test = [] {
         Game g("training", "mo", "ni", 0.5f, "study", false);  // 480 × 270: a README's width; training's meter, not its overlays
-        check(g.act("pause"));
-        check(g.act("fill"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         for (int i = 0; i < 260; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             if (i % 5 == 0) {  // 12 frames a second of the match's 60
                 g.h.step();
                 g.h.record();
             }
         }
         const auto file = scratch_dir("readme-fighting") / "mo-level-3.webp";
-        check(g.h.save_recording(file, {.delay_num = 1, .delay_den = 12, .quality = 82}).has_value());
+        expect(g.h.save_recording(file, {.delay_num = 1, .delay_den = 12, .quality = 82}).has_value());
         const auto size = std::filesystem::file_size(file);
         std::println("    the loop: {} KB", size / 1024);
-        check(size < 1024 * 1024, std::format("{} bytes", size));
-    });
+        expect(size < 1024 * 1024) << std::format("{} bytes", size);
+    };
 
-    s.test("墨's level 3: her palm, the wrist taken, four strikes of the free hand each leaving its stroke of ink, both palms; the brush drawn for one great stroke, 一, through them, and the fall — frames pinned", [] {
+    "墨's level 3: her palm, the wrist taken, four strikes of the free hand each leaving its stroke of ink, both palms; the brush drawn for one great stroke, 一, through them, and the fall — frames pinned"_test = [] {
         Game g("training", "mo", "ni");
-        check(g.act("pause"));
-        check(g.act("fill"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
         // In range of the palm, then 236236K.
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-mo-level3");
         // Each beat at the frame that tells it.
         const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "wrist"}, {29, "palm"},  {41, "heel"}, {53, "knife"},  {65, "chop"},  {77, "both-palms"},
@@ -505,7 +506,7 @@ int main(int argc, char** argv) {
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 320; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
@@ -513,80 +514,80 @@ int main(int argc, char** argv) {
             if (beat == beats.end()) continue;
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
+            expect(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
         }
-        check(lock_from > 0, "the palm hit: the cinematic played");
-        check_eq(px.size(), beats.size());
+        expect(lock_from > 0) << "the palm hit: the cinematic played";
+        expect(eq(px.size(), beats.size()));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    mo level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("c186887d83c96506"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("c186887d83c96506")));  // GCC and LLVM, every platform
+    };
 
-    s.test("墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned", [] {
+    "墨's ink: waves of three sizes flung from the brush, and her level 2's tide along the floor — frames pinned"_test = [] {
         const auto dir = scratch_dir("fighting-mo-glyphs");
         Hash all;
         int saved = 0;
         for (const auto& [name, steps] : std::vector<std::pair<std::string, std::vector<std::string>>>{
                  {"236LP", {"2", "3", "6LP"}}, {"236MP", {"2", "3", "6MP"}}, {"236HP", {"2", "3", "6HP"}}, {"214214P", {"2", "1", "4", "2", "1", "4LP"}}}) {
             Game g("training", "mo", "kata");
-            check(g.act("pause"));
-            check(g.act("fill"));
+            expect(g.act("pause"));
+            expect(g.act("fill"));
             for (const auto& p : steps) {
-                check(g.act("press", pad(0, p)));
-                check(g.act("step"));
+                expect(g.act("press", pad(0, p)));
+                expect(g.act("step"));
             }
-            check(g.act("press", pad(0, "5")));
+            expect(g.act("press", pad(0, "5")));
             for (int i = 0; i < 100; ++i) {  // a level 2's flash first
-                check(g.act("step"));
+                expect(g.act("step"));
                 const auto& f = g.state().f[0];
                 const bool writing = f.mode == gongfu::Mode::move && f.move_frame == 8 && g.state().freeze == 0;
                 const bool flying = std::ranges::any_of(g.state().p, [](const gongfu::ProjectileState& p) { return p.alive && p.frame == 14; });
                 if (writing || flying) {
                     g.h.step();
                     all.u64(g.pixels());
-                    check(g.h.save_png(dir / std::format("{}-{}.png", name, writing ? "writing" : "flying")).has_value());
+                    expect(g.h.save_png(dir / std::format("{}-{}.png", name, writing ? "writing" : "flying")).has_value());
                     ++saved;
                 }
             }
         }
-        check_eq(saved, 8);
+        expect(eq(saved, 8));
         std::println("    mo glyphs {}", all.hex());
-        check_eq(all.hex(), std::string("33fccbcb91bd0c53"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("33fccbcb91bd0c53")));  // GCC and LLVM, every platform
+    };
 
-    s.test("霓's afterimages and her level 3: the collar taken, two knees to the gut and a headbutt while held, heaved overhead, four kicks in the air, the axe kick into the street — frames pinned", [] {
+    "霓's afterimages and her level 3: the collar taken, two knees to the gut and a headbutt while held, heaved overhead, four kicks in the air, the axe kick into the street — frames pinned"_test = [] {
         Game g("training", "ni", "kun");
-        check(g.act("pause"));
-        check(g.act("fill"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 120; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 120; ++i) expect(g.act("step"));
         const auto dir = scratch_dir("fighting-ni-level3");
         std::vector<std::uint64_t> px;
         // A kick rush first: her afterimages.
         for (std::string_view p : {"2", "3", "6MK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 13; ++i) check(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 13; ++i) expect(g.act("step"));
         g.h.step();
         px.push_back(g.pixels());
-        check(g.h.save_png(dir / "00-afterimages.png").has_value());
-        for (int i = 0; i < 60; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 100; ++i) check(g.act("step"));
+        expect(g.h.save_png(dir / "00-afterimages.png").has_value());
+        for (int i = 0; i < 60; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 100; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         // Each beat at the frame that tells it.
         const std::vector<std::pair<std::int32_t, std::string_view>> beats{{14, "collar"},  {29, "knee"},       {43, "knee-face"},  {59, "headbutt"}, {72, "heave"},  {101, "kick"},
                                                                            {113, "kick-high"}, {119, "spin-kick"}, {133, "axe-raised"}, {141, "axe"}, {148, "street"}, {162, "finisher"}};
         std::int32_t lock_from = -1;
         for (int i = 0; i < 300; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
@@ -594,27 +595,27 @@ int main(int argc, char** argv) {
             if (beat == beats.end()) continue;
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size() - 1, lf, beat->second)).has_value());
+            expect(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size() - 1, lf, beat->second)).has_value());
         }
-        check(lock_from > 0, "the straight hit: the cinematic played");
-        check_eq(px.size(), beats.size() + 1);
+        expect(lock_from > 0) << "the straight hit: the cinematic played";
+        expect(eq(px.size(), beats.size() + 1));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ni level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("a777cbbe08b1d0c7"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("a777cbbe08b1d0c7")));  // GCC and LLVM, every platform
+    };
 
-    s.test("坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned", [] {
+    "坤's level 3: the ball spun on a finger, the bounce pass into the gut, the glide and 铁山靠, the catch behind his back as they crash down behind him — frames pinned"_test = [] {
         Game g("training", "kun", "mo");
-        check(g.act("pause"));
-        check(g.act("fill"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-kun-level3");
         // Each beat at the frame that tells it.
         const std::vector<std::pair<std::int32_t, std::string_view>> beats{{24, "spin"},  {51, "coil"},   {57, "bounce"}, {63, "gut"},   {92, "stamp"},
@@ -622,7 +623,7 @@ int main(int argc, char** argv) {
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 300; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
@@ -630,17 +631,17 @@ int main(int argc, char** argv) {
             if (beat == beats.end()) continue;
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
+            expect(g.h.save_png(dir / std::format("{:02}-{}-{}.png", px.size(), lf, beat->second)).has_value());
         }
-        check(lock_from > 0, "the elbow hit: the cinematic played");
-        check_eq(px.size(), beats.size());
+        expect(lock_from > 0) << "the elbow hit: the cinematic played";
+        expect(eq(px.size(), beats.size()));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    kun level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("ce48593aca5415ac"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("ce48593aca5415ac")));  // GCC and LLVM, every platform
+    };
 
-    s.test("岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)", [] {
+    "岳 as designed: every normal's and elbow's startup and advantage, measured in the simulation (characters 2 design §3)"_test = [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& yue = fighting::roster().fighters[fighting::fighter_index("yue")];
         struct Row {
@@ -663,10 +664,10 @@ int main(int argc, char** argv) {
         };
         for (const Row& row : table) {
             const std::int32_t m = yue.find(row.move);
-            check(m >= 0, row.move);
+            expect(m >= 0) << row.move;
             if (m < 0) continue;
             const gongfu::MoveDef& def = yue.def.moves[static_cast<std::size_t>(m)];
-            check_eq(yue.startup(m), std::int32_t{row.startup});
+            expect(eq(yue.startup(m), std::int32_t{row.startup}));
             for (const bool block : {false, true}) {
                 const std::optional<int>& want = block ? row.block : row.hit;
                 if (!want) continue;
@@ -690,66 +691,66 @@ int main(int argc, char** argv) {
                             contact = match.state().f[0].move_frame;
                     if (contact < 0) match.tick(gongfu::pad(5), guard);
                 }
-                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                expect(contact == row.startup) << std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact);
                 int attacker = -1, defender = -1;
                 for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
                     match.tick(gongfu::pad(5), guard);
                     if (attacker < 0 && match.recovered(0)) attacker = f;
                     if (defender < 0 && match.recovered(1)) defender = f;
                 }
-                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+                expect(defender - attacker == *want) << std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want);
             }
         }
-    });
+    };
 
-    s.test("岳's level 3, 「泰山压顶」: a 720 out of blockstun, the leap into the clouds, the mountain coming down — frames pinned", [] {
+    "岳's level 3, 「泰山压顶」: a 720 out of blockstun, the leap into the clouds, the mountain coming down — frames pinned"_test = [] {
         Game g("training", "yue", "kata");
-        check(g.act("pause"));
-        check(g.act("fill"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
         // Kata walks in; Yue guards a while (not a deflect), then blocks a heavy and turns the stick twice round in its blockstun.
-        check(g.act("press", pad(1, "4")));
-        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 60; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "4")));
-        for (int i = 0; i < 12; ++i) check(g.act("step"));
-        check(g.act("press", pad(1, "5")));
-        check(g.act("press", pad(1, "5HP")));
-        check(g.act("step"));
-        check(g.act("press", pad(1, "5")));
-        for (int i = 0; i < 20 && g.state().f[0].mode != gongfu::Mode::blockstun; ++i) check(g.act("step"));
-        check(g.state().f[0].mode == gongfu::Mode::blockstun, std::format("Yue blocks the heavy: gap {}, mode {}", (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double(), static_cast<int>(g.state().f[0].mode)));
+        expect(g.act("press", pad(1, "4")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 60; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "4")));
+        for (int i = 0; i < 12; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(1, "5")));
+        expect(g.act("press", pad(1, "5HP")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(1, "5")));
+        for (int i = 0; i < 20 && g.state().f[0].mode != gongfu::Mode::blockstun; ++i) expect(g.act("step"));
+        expect(g.state().f[0].mode == gongfu::Mode::blockstun) << std::format("Yue blocks the heavy: gap {}, mode {}", (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double(), static_cast<int>(g.state().f[0].mode));
         // Round and round until the blockstun is about to end, then a kick: the 720 comes out on the first frame he can act.
         const std::array<std::string_view, 8> circle{"6", "3", "2", "1", "4", "7", "8", "9"};
         std::size_t k = 0;
         for (; k < 60 && (k < 15 || g.state().f[0].stun > 1); ++k) {
-            check(g.act("press", pad(0, circle[k % 8])));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, circle[k % 8])));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, std::string(circle[k % 8]) + "LK")));
-        check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, std::string(circle[k % 8]) + "LK")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-yue-level3");
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 320; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
             if (st.freeze == 25 || lf == 30 || lf == 66 || lf == 108 || lf == 140 || lf == 166 || lf == 178 || lf == 196) {
                 g.h.step();
                 px.push_back(g.pixels());
-                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+                expect(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
-        check(lock_from > 0, "the grab took: the cinematic played");
-        check_eq(px.size(), std::size_t{8});
+        expect(lock_from > 0) << "the grab took: the cinematic played";
+        expect(eq(px.size(), std::size_t{8}));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    yue level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("c1709898ecfbdea0"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("c1709898ecfbdea0")));  // GCC and LLVM, every platform
+    };
 
-    s.test("璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)", [] {
+    "璃 as designed: every normal's and 「棱光」's startup and advantage, measured in the simulation (characters 2 design §2)"_test = [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& li = fighting::roster().fighters[fighting::fighter_index("li")];
         struct Row {
@@ -772,10 +773,10 @@ int main(int argc, char** argv) {
         };
         for (const Row& row : table) {
             const std::int32_t m = li.find(row.move);
-            check(m >= 0, row.move);
+            expect(m >= 0) << row.move;
             if (m < 0) continue;
             const gongfu::MoveDef& def = li.def.moves[static_cast<std::size_t>(m)];
-            check_eq(li.startup(m), std::int32_t{row.startup});
+            expect(eq(li.startup(m), std::int32_t{row.startup}));
             for (const bool block : {false, true}) {
                 const std::optional<int>& want = block ? row.block : row.hit;
                 if (!want) continue;
@@ -797,123 +798,123 @@ int main(int argc, char** argv) {
                             contact = match.state().f[0].move_frame;
                     if (contact < 0) match.tick(gongfu::pad(5), guard);
                 }
-                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                expect(contact == row.startup) << std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact);
                 int attacker = -1, defender = -1;
                 for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
                     match.tick(gongfu::pad(5), guard);
                     if (attacker < 0 && match.recovered(0)) attacker = f;
                     if (defender < 0 && match.recovered(1)) defender = f;
                 }
-                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+                expect(defender - attacker == *want) << std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want);
             }
         }
-    });
+    };
 
-    s.test("璃's panes in play: Kata's fireball stopped by one, her palm shattering it into shards that hit him, her gallery turning a fireball back — frames pinned", [] {
+    "璃's panes in play: Kata's fireball stopped by one, her palm shattering it into shards that hit him, her gallery turning a fireball back — frames pinned"_test = [] {
         Game g("training", "li", "kata");
-        check(g.act("pause"));
-        check(g.act("fill"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
         const auto dir = scratch_dir("fighting-li-panes");
         std::vector<std::uint64_t> px;
         auto shot = [&](std::string_view name) {
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), name)).has_value());
+            expect(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), name)).has_value());
         };
         auto press = [&](int player, std::initializer_list<std::string_view> steps) {
             for (std::string_view p : steps) {
-                check(g.act("press", pad(player, p)));
-                check(g.act("step"));
+                expect(g.act("press", pad(player, p)));
+                expect(g.act("step"));
             }
-            check(g.act("press", pad(player, "5")));
+            expect(g.act("press", pad(player, "5")));
         };
         auto count = [&] { return std::ranges::count_if(g.state().pieces, [](const gongfu::PieceState& q) { return q.alive != 0; }); };
         // A pane at 220; Kata (facing left: 214 on the screen) throws his fireball into it.
         press(0, {"2", "3", "6MP"});
-        for (int i = 0; i < 30; ++i) check(g.act("step"));
-        check(count() == 1, "a pane stands");
+        for (int i = 0; i < 30; ++i) expect(g.act("step"));
+        expect(count() == 1) << "a pane stands";
         press(1, {"2", "1", "4LP"});
         bool stopped = false;
         for (int i = 0; i < 90 && !stopped; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             stopped = g.state().pieces[0].durability == 1;
         }
-        check(stopped && g.state().f[0].health == 9800, "stopped: the pane cracked, she untouched");
+        expect(stopped && g.state().f[0].health == 9800) << "stopped: the pane cracked, she untouched";
         shot("stopped");
         // She walks to it and strikes it: three shards fly at Kata.
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().pieces[0].pos.x - g.state().f[0].pos.x).to_double() > 60; ++i) check(g.act("step"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().pieces[0].pos.x - g.state().f[0].pos.x).to_double() > 60; ++i) expect(g.act("step"));
         press(0, {"5MP"});
         int flying = 0;
         for (int i = 0; i < 12; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             flying = std::max<int>(flying, static_cast<int>(std::ranges::count_if(g.state().p, [](const gongfu::ProjectileState& p) { return p.alive != 0; })));
             if (i == 5) shot("shards");
         }
-        check(flying == 3, std::format("{} shards", flying));
-        for (int i = 0; i < 80; ++i) check(g.act("step"));
-        check(g.state().f[1].health < 10000, "the shards hit");
+        expect(flying == 3) << std::format("{} shards", flying);
+        for (int i = 0; i < 80; ++i) expect(g.act("step"));
+        expect(g.state().f[1].health < 10000) << "the shards hit";
         // Apart again; her gallery; Kata's fireball turned back.
-        check(g.act("press", pad(0, "4")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() < 520; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 30; ++i) check(g.act("step"));
-        check(g.act("fill"));
+        expect(g.act("press", pad(0, "4")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() < 520; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 30; ++i) expect(g.act("step"));
+        expect(g.act("fill"));
         press(0, {"2", "3", "6", "2", "3", "6LP"});
-        for (int i = 0; i < 90; ++i) check(g.act("step"));
-        check(count() == 3, std::format("{} panes of the gallery", count()));
+        for (int i = 0; i < 90; ++i) expect(g.act("step"));
+        expect(count() == 3) << std::format("{} panes of the gallery", count());
         shot("gallery");
         const int before = g.state().f[1].health;
         press(1, {"2", "1", "4LP"});
         bool turned = false;
         for (int i = 0; i < 120; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             if (!turned && std::ranges::any_of(g.state().p, [](const gongfu::ProjectileState& p) { return p.alive && p.reflected; })) {
                 turned = true;
                 shot("turned");
             }
         }
-        check(turned && g.state().f[1].health < before, "turned back, and it hit its thrower");
+        expect(turned && g.state().f[1].health < before) << "turned back, and it hit its thrower";
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li panes {}", all.hex());
-        check_eq(all.hex(), std::string("5587040ec635abb2"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("5587040ec635abb2")));  // GCC and LLVM, every platform
+    };
 
-    s.test("璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned", [] {
+    "璃's level 3, 「琉璃界」: her eyes through cracking glass; panes about them as the world turns to glass; strikes from in front and from behind through her panes, each breaking glass and leaving a crack; the palm through the last pane, everything falling, her finishing picture — frames pinned"_test = [] {
         Game g("training", "li", "kata");
-        check(g.act("pause"));
-        check(g.act("fill"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 100; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 100; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-li-level3");
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 300; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
             if (st.freeze == 25 || lf == 24 || lf == 51 || lf == 110 || lf == 141 || lf == 152 || lf == 158 || lf == 168) {
                 g.h.step();
                 px.push_back(g.pixels());
-                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+                expect(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
-        check(lock_from > 0, "the palm hit: the cinematic played");
-        check_eq(px.size(), std::size_t{8});
+        expect(lock_from > 0) << "the palm hit: the cinematic played";
+        expect(eq(px.size(), std::size_t{8}));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    li level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("9982c4a9a5cad0f3"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("9982c4a9a5cad0f3")));  // GCC and LLVM, every platform
+    };
 
-    s.test("刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)", [] {
+    "刻 as designed: every normal's, 「停摆」's and 「拨针」's startup and advantage, measured in the simulation (characters 2 design §4)"_test = [] {
         using gongfu::operator""_fx;
         const gongfu::Fighter& ke = fighting::roster().fighters[fighting::fighter_index("ke")];
         struct Row {
@@ -936,10 +937,10 @@ int main(int argc, char** argv) {
         };
         for (const Row& row : table) {
             const std::int32_t m = ke.find(row.move);
-            check(m >= 0, row.move);
+            expect(m >= 0) << row.move;
             if (m < 0) continue;
             const gongfu::MoveDef& def = ke.def.moves[static_cast<std::size_t>(m)];
-            check_eq(ke.startup(m), std::int32_t{row.startup});
+            expect(eq(ke.startup(m), std::int32_t{row.startup}));
             for (const bool block : {false, true}) {
                 const std::optional<int>& want = block ? row.block : row.hit;
                 if (!want) continue;
@@ -961,47 +962,47 @@ int main(int argc, char** argv) {
                             contact = match.state().f[0].move_frame;
                     if (contact < 0) match.tick(gongfu::pad(5), guard);
                 }
-                check(contact == row.startup, std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact));
+                expect(contact == row.startup) << std::format("{} {}: contact on frame {}", row.move, block ? "blocked" : "hit", contact);
                 int attacker = -1, defender = -1;
                 for (int f = 1; f < 120 && (attacker < 0 || defender < 0); ++f) {
                     match.tick(gongfu::pad(5), guard);
                     if (attacker < 0 && match.recovered(0)) attacker = f;
                     if (defender < 0 && match.recovered(1)) defender = f;
                 }
-                check(defender - attacker == *want, std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want));
+                expect(defender - attacker == *want) << std::format("{} on {}: {:+} measured, {:+} designed", row.move, block ? "block" : "hit", defender - attacker, *want);
             }
         }
-    });
+    };
 
-    s.test("刻's hand comes back through Kata; her clone plays her last two seconds; a rewind leaves its ghosts — frames pinned", [] {
+    "刻's hand comes back through Kata; her clone plays her last two seconds; a rewind leaves its ghosts — frames pinned"_test = [] {
         Game g("training", "ke", "kata");
-        check(g.act("pause"));
-        check(g.act("fill"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
         const auto dir = scratch_dir("fighting-ke-time");
         std::vector<std::uint64_t> px;
         auto shot = [&](std::string_view name) {
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), name)).has_value());
+            expect(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), name)).has_value());
         };
         auto press = [&](int player, std::initializer_list<std::string_view> steps) {
             for (std::string_view p : steps) {
-                check(g.act("press", pad(player, p)));
-                check(g.act("step"));
+                expect(g.act("press", pad(player, p)));
+                expect(g.act("step"));
             }
-            check(g.act("press", pad(player, "5")));
+            expect(g.act("press", pad(player, "5")));
         };
         // The hand (236LP, back on its 30th frame): through Kata going, and again coming back.
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 200; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 12; ++i) check(g.act("step"));  // let go a while: forward again would be a dash (66)
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 200; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 12; ++i) expect(g.act("step"));  // let go a while: forward again would be a dash (66)
         const int before = g.state().f[1].health;
         press(0, {"2", "3", "6LP"});
         int hits = 0;
         bool back = false;
         for (int i = 0; i < 120; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             for (const auto& p : g.state().p)
                 if (p.alive && p.turned && !back) {
                     back = true;
@@ -1009,75 +1010,75 @@ int main(int argc, char** argv) {
                 }
             hits += static_cast<int>(std::ranges::count_if(g.stage().match().events(), [](const gongfu::Event& e) { return e.kind == gongfu::Event::Kind::hit && e.attacker == 0; }));
         }
-        check(back && hits == 2 && g.state().f[1].health < before, std::format("{} hits", hits));
+        expect(back && hits == 2 && g.state().f[1].health < before) << std::format("{} hits", hits);
         // A mark, a walk, the rewind: ghosts along the way back.
         press(0, {"2", "5", "2LP"});
-        for (int i = 0; i < 24; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 50; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        for (int i = 0; i < 12; ++i) check(g.act("step"));
+        for (int i = 0; i < 24; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 50; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        for (int i = 0; i < 12; ++i) expect(g.act("step"));
         press(0, {"2", "3", "6", "2", "3", "6LP"});
         bool rewound = false;
         for (int i = 0; i < 60 && !rewound; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             rewound = std::ranges::any_of(g.stage().match().events(), [](const gongfu::Event& e) { return e.kind == gongfu::Event::Kind::rewind; });
         }
-        check(rewound, "rewound to the mark");
-        for (int i = 0; i < 4; ++i) check(g.act("step"));
+        expect(rewound) << "rewound to the mark";
+        for (int i = 0; i < 4; ++i) expect(g.act("step"));
         shot("rewind");
         // The clone: her last 120 frames played again from where she stood.
-        check(g.act("fill"));
-        for (int i = 0; i < 30; ++i) check(g.act("step"));
+        expect(g.act("fill"));
+        for (int i = 0; i < 30; ++i) expect(g.act("step"));
         press(0, {"2", "1", "4", "2", "1", "4LP"});
         bool out = false;
         for (int i = 0; i < 60 && !out; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             out = g.state().clones[0].alive != 0;
         }
-        check(out, "the clone is out");
-        for (int i = 0; i < 20; ++i) check(g.act("step"));
+        expect(out) << "the clone is out";
+        for (int i = 0; i < 20; ++i) expect(g.act("step"));
         shot("clone");
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke time {}", all.hex());
-        check_eq(all.hex(), std::string("0200003e7ce57af8"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("0200003e7ce57af8")));  // GCC and LLVM, every platform
+    };
 
-    s.test("刻's level 3, 「零时」: the stab, the watch clicked and time stops — the picture grey, a dial's hands standing, the struck still, ten blows' sweeps and sparks hanging — then the bell, every blow at once, her finishing picture — frames pinned", [] {
+    "刻's level 3, 「零时」: the stab, the watch clicked and time stops — the picture grey, a dial's hands standing, the struck still, ten blows' sweeps and sparks hanging — then the bell, every blow at once, her finishing picture — frames pinned"_test = [] {
         Game g("training", "ke", "kata");
-        check(g.act("pause"));
-        check(g.act("fill"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110; ++i) expect(g.act("step"));
         for (std::string_view p : {"2", "3", "6", "2", "3", "6HK"}) {
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         const auto dir = scratch_dir("fighting-ke-level3");
         std::vector<std::uint64_t> px;
         std::int32_t lock_from = -1;
         for (int i = 0; i < 320; ++i) {
-            check(g.act("step"));
+            expect(g.act("step"));
             const auto& st = g.state();
             if (st.lock.owner == 0 && lock_from < 0) lock_from = st.frame;
             const std::int32_t lf = st.lock.owner == 0 ? st.lock.frame : -1;
             if (st.freeze == 25 || lf == 14 || lf == 42 || lf == 75 || lf == 112 || lf == 140 || lf == 152 || lf == 166 || lf == 186) {
                 g.h.step();
                 px.push_back(g.pixels());
-                check(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
+                expect(g.h.save_png(dir / std::format("{:02}-{}.png", px.size(), lf < 0 ? std::string("flash") : std::format("lock-{}", lf))).has_value());
             }
         }
-        check(lock_from > 0, "the stab hit: the cinematic played");
-        check_eq(px.size(), std::size_t{9});
+        expect(lock_from > 0) << "the stab hit: the cinematic played";
+        expect(eq(px.size(), std::size_t{9}));
         Hash all;
         for (auto v : px) all.u64(v);
         std::println("    ke level 3 {}", all.hex());
-        check_eq(all.hex(), std::string("851ca628f6cb44a5"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("851ca628f6cb44a5")));  // GCC and LLVM, every platform
+    };
 
-    s.test("each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned", [] {
+    "each fighter's win pose: a round won on the clock, the winner standing to play it out at its beats — frames pinned"_test = [] {
         // Who wins, against whom, and the win clip's frames (from the round's end) that tell it.
         struct Win {
             std::string_view           who, against;
@@ -1090,8 +1091,8 @@ int main(int argc, char** argv) {
         Hash all;
         for (const Win& w : wins) {
             Game g("versus", w.who, w.against);
-            check(g.act("pause"));
-            for (int i = 0; i < 100; ++i) check(g.act("step"));
+            expect(g.act("pause"));
+            for (int i = 0; i < 100; ++i) expect(g.act("step"));
             // The clock at its last frames, player 2 behind on health: the round to player 1 when it runs out.
             auto& match = const_cast<gongfu::Match&>(g.stage().match());
             gongfu::State st = match.state();
@@ -1099,24 +1100,24 @@ int main(int argc, char** argv) {
             match.restore(st);
             std::int32_t ended = -1;
             for (int i = 0; i < 20 && ended < 0; ++i) {
-                check(g.act("step"));
+                expect(g.act("step"));
                 if (g.state().over) ended = g.state().frame;
             }
-            check(ended > 0 && g.state().winner == 0, std::format("{}: the round to player 1", w.who));
+            expect(ended > 0 && g.state().winner == 0) << std::format("{}: the round to player 1", w.who);
             for (const std::int32_t beat : w.beats) {
-                for (int i = 0; i < 400 && g.state().frame - ended < beat; ++i) check(g.act("step"));
-                check_eq(g.state().frame - ended, beat);
+                for (int i = 0; i < 400 && g.state().frame - ended < beat; ++i) expect(g.act("step"));
+                expect(eq(g.state().frame - ended, beat));
                 g.h.step();
                 const std::uint64_t px = g.pixels();
                 all.u64(px);
-                check(g.h.save_png(dir / std::format("{}-{:03}.png", w.who, beat)).has_value());
+                expect(g.h.save_png(dir / std::format("{}-{:03}.png", w.who, beat)).has_value());
             }
         }
         std::println("    wins {}", all.hex());
-        check_eq(all.hex(), std::string("91644412f4c95907"));  // GCC and LLVM, every platform
-    });
+        expect(eq(all.hex(), std::string("91644412f4c95907")));  // GCC and LLVM, every platform
+    };
 
-    s.test("training's move demonstration: walked in to where it reaches, played over and over; its frame data is what it does here", [] {
+    "training's move demonstration: walked in to where it reaches, played over and over; its frame data is what it does here"_test = [] {
         Game g("training", "kata", "kata");
         Runtime& rt = g.h.runtime();
         const NodeId stage = rt.find("main");
@@ -1129,52 +1130,51 @@ int main(int argc, char** argv) {
                 const gongfu::training::FrameData d = gongfu::training::frame_data(fighting::roster().system, kata, kata.find(move));
                 Value seen = g.seen();
                 const Value* demo = seen.get("training") ? seen.get("training")->get("demo") : nullptr;
-                check(demo && demo->get("move")->as_string() == move, std::format("{}: demonstrated", move));
+                expect(demo && demo->get("move")->as_string() == move) << std::format("{}: demonstrated", move);
                 if (!demo) continue;
                 const std::int64_t frames = demo->get("frames")->as_int();
                 // Shown at its last frame, paused: the readings a player would see are the move list's.
-                check(g.act("demo_frame", Value{}.set("frame", frames)));
+                expect(g.act("demo_frame", Value{}.set("frame", frames)));
                 seen = g.seen();
                 const Value* t = seen.get("training");
-                check(t && t->get("startup") && t->get("startup")->as_int() == d.startup, std::format("{}: startup {}", move, d.startup));
+                expect(t && t->get("startup") && t->get("startup")->as_int() == d.startup) << std::format("{}: startup {}", move, d.startup);
                 const auto want = guard ? d.on_block : d.on_hit;
-                check(want && t && t->get("advantage") && t->get("advantage")->as_int() == *want,
-                      std::format("{} on {}: {} shown, {} listed", move, guard ? "block" : "hit",
-                                  t && t->get("advantage") ? t->get("advantage")->as_int() : -99, want.value_or(-99)));
+                expect(want && t && t->get("advantage") && t->get("advantage")->as_int() == *want) << std::format("{} on {}: {} shown, {} listed", move, guard ? "block" : "hit",
+                                  t && t->get("advantage") ? t->get("advantage")->as_int() : -99, want.value_or(-99));
                 // At its beginning again: both at rest, in reach.
-                check(g.act("demo_frame", Value{}.set("frame", 0)));
-                check(g.seen().get("training")->get("demo")->get("frame")->as_int() == 0);
+                expect(g.act("demo_frame", Value{}.set("frame", 0)));
+                expect(g.seen().get("training")->get("demo")->get("frame")->as_int() == 0);
             }
         // Played on: after its frames and a rest, from its beginning again.
-        check(g.act("resume"));
+        expect(g.act("resume"));
         const std::int64_t frames = g.seen().get("training")->get("demo")->get("frames")->as_int();
         for (std::int64_t i = 0; i < frames + 45; ++i) g.h.step();
         const std::int64_t at = g.seen().get("training")->get("demo")->get("frame")->as_int();
-        check(at < 10, std::format("looped: frame {}", at));
+        expect(at < 10) << std::format("looped: frame {}", at);
         g.h.step();
-        check(g.h.save_png(scratch_dir("fighting-demo") / "demo.png").has_value());
-    });
+        expect(g.h.save_png(scratch_dir("fighting-demo") / "demo.png").has_value());
+    };
 
-    s.test("training reads a perfect clash to an agent and shows it", [] {
+    "training reads a perfect clash to an agent and shows it"_test = [] {
         Game g("training");
-        check(g.act("pause"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 170; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5HP")));
-        check(g.act("press", pad(1, "5HP")));
-        check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        check(g.act("press", pad(1, "5")));
-        for (int i = 0; i < 20; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 170; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5HP")));
+        expect(g.act("press", pad(1, "5HP")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(1, "5")));
+        for (int i = 0; i < 20; ++i) expect(g.act("step"));
         Value seen = g.seen();
         const Value* x = seen.get("training") ? seen.get("training")->get("exchange") : nullptr;
-        check(x && x->get("kind")->as_string() == "perfect clash", x ? std::string(x->get("kind")->as_string()) : std::string("none"));
-        check(seen.get("p1")->get("health")->as_int() == 10000 && seen.get("p2")->get("health")->as_int() == 10000, "nothing changed");
+        expect(x && x->get("kind")->as_string() == "perfect clash") << (x ? std::string(x->get("kind")->as_string()) : std::string("none"));
+        expect(seen.get("p1")->get("health")->as_int() == 10000 && seen.get("p2")->get("health")->as_int() == 10000) << "nothing changed";
         g.h.step();
-        check(g.h.save_png(scratch_dir("fighting-clash") / "perfect-clash.png").has_value());
-    });
+        expect(g.h.save_png(scratch_dir("fighting-clash") / "perfect-clash.png").has_value());
+    };
 
-    s.test("balance checks (P-8): a guard that only guards is broken within a minute; no attacker keeps a cornered opponent stunned for 5 seconds", [] {
+    "balance checks (P-8): a guard that only guards is broken within a minute; no attacker keeps a cornered opponent stunned for 5 seconds"_test = [] {
         using gongfu::operator""_fx;
         const auto& r = fighting::roster();
         gongfu::SystemDef sys = r.system;
@@ -1191,7 +1191,7 @@ int main(int argc, char** argv) {
                     for (const gongfu::Event& e : m.events())
                         if (e.kind == gongfu::Event::Kind::guard_break) broken_at = f;
                 }
-                check(broken_at >= 0, std::format("{} guarding {} for a minute: broken at frame {}", r.names[d], r.names[a], broken_at));
+                expect(broken_at >= 0) << std::format("{} guarding {} for a minute: broken at frame {}", r.names[d], r.names[a], broken_at);
             }
         // Loops: random strings from every move a fighter has, in the corner against a defender who does nothing.
         struct Rng {
@@ -1227,13 +1227,13 @@ int main(int argc, char** argv) {
                     if (m.state().over) break;
                 }
             }
-            check(longest < 300, std::format("{}: the longest the opponent stayed stunned was {} frames", r.names[a], longest));
-            check(longest_locked < 600, std::format("{}: the longest the opponent was never let go was {} frames", r.names[a], longest_locked));
+            expect(longest < 300) << std::format("{}: the longest the opponent stayed stunned was {} frames", r.names[a], longest);
+            expect(longest_locked < 600) << std::format("{}: the longest the opponent was never let go was {} frames", r.names[a], longest_locked);
             std::println("    {} longest stun {} frames, never let go {}", r.names[a], longest, longest_locked);
         }
-    });
+    };
 
-    s.test("hit feel (the hardcore combat design §2.6): per fighter, light < medium < heavy in hitstop; a light hit leaves the camera still, a heavy one shakes it", [] {
+    "hit feel (the hardcore combat design §2.6): per fighter, light < medium < heavy in hitstop; a light hit leaves the camera still, a heavy one shakes it"_test = [] {
         const auto& r = fighting::roster();
         for (std::size_t i = 0; i < r.fighters.size(); ++i) {
             const gongfu::FighterDef& def = r.fighters[i].def;
@@ -1250,18 +1250,17 @@ int main(int argc, char** argv) {
                 for (const std::string limb : {"P", "K"}) {
                     const gongfu::MoveDef *l = find(stance + "L" + limb), *m = find(stance + "M" + limb), *h = find(stance + "H" + limb);
                     const std::string what = std::format("{}'s {}·{}", r.names[i], stance, limb);
-                    if (l && h) check(l->hits.front().hitstop < h->hits.front().hitstop, what + ": light stops less than heavy");
+                    if (l && h) expect(l->hits.front().hitstop < h->hits.front().hitstop) << what + ": light stops less than heavy";
                     if (l && m && h)
-                        check(l->hits.front().hitstop < m->hits.front().hitstop && m->hits.front().hitstop < h->hits.front().hitstop,
-                              what + ": light < medium < heavy");
-                    if (l) check(shake(*l) == 0, std::format("{}: a light hit shakes {}", what, shake(*l)));
-                    if (h) check(shake(*h) >= 6, std::format("{}: a heavy hit shakes {}", what, shake(*h)));
-                    if (m && h) check(shake(*m) > 0 && shake(*m) < shake(*h), std::format("{}: medium shakes {}", what, shake(*m)));
+                        expect(l->hits.front().hitstop < m->hits.front().hitstop && m->hits.front().hitstop < h->hits.front().hitstop) << what + ": light < medium < heavy";
+                    if (l) expect(shake(*l) == 0) << std::format("{}: a light hit shakes {}", what, shake(*l));
+                    if (h) expect(shake(*h) >= 6) << std::format("{}: a heavy hit shakes {}", what, shake(*h));
+                    if (m && h) expect(shake(*m) > 0 && shake(*m) < shake(*h)) << std::format("{}: medium shakes {}", what, shake(*m));
                 }
         }
-    });
+    };
 
-    s.test("balance gates (characters 2 design §7): bots play every pair, sides swapped; each fighter wins 38–62% of its rounds, no pair beyond 25–75", [] {
+    "balance gates (characters 2 design §7): bots play every pair, sides swapped; each fighter wins 38–62% of its rounds, no pair beyond 25–75"_test = [] {
         const auto& r = fighting::roster();
         constexpr std::int32_t rounds = 100;
         std::vector<double> won(r.fighters.size(), 0);
@@ -1283,7 +1282,7 @@ int main(int argc, char** argv) {
         for (const Pair& p : pairs) {
             const std::size_t a = p.a, b = p.b;
             const gongfu::ai::Record& rec = p.record;
-            check(rec.win_rate(0) >= 0.25 && rec.win_rate(0) <= 0.75, std::format("{} against {}: {:.2f}", r.names[a], r.names[b], rec.win_rate(0)));
+            expect(rec.win_rate(0) >= 0.25 && rec.win_rate(0) <= 0.75) << std::format("{} against {}: {:.2f}", r.names[a], r.names[b], rec.win_rate(0));
             won[a] += rec.win_rate(0) * rounds;
             won[b] += rec.win_rate(1) * rounds;
             played[a] += rounds;
@@ -1293,16 +1292,16 @@ int main(int argc, char** argv) {
         for (std::size_t i = 0; i < r.fighters.size(); ++i) {
             const double rate = won[i] / played[i];
             std::println("    {} wins {:.2f}", r.names[i], rate);
-            check(rate >= 0.38 && rate <= 0.62, std::format("{} wins {:.2f} of its rounds", r.names[i], rate));
+            expect(rate >= 0.38 && rate <= 0.62) << std::format("{} wins {:.2f} of its rounds", r.names[i], rate);
         }
         std::println("    rounds {}", all.hex());
-        check_eq(all.hex(), std::string("2863e2b344f13c37"));  // the same rounds on GCC and LLVM
-    });
+        expect(eq(all.hex(), std::string("2863e2b344f13c37")));  // the same rounds on GCC and LLVM
+    };
 
-    s.test("a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room", [] {
+    "a stage's music: the study's piece plays from the round's start, louder as the round gets close; the rooftop's for 坤; none in training's plain room"_test = [] {
         auto loud = [](std::string_view mode, bool hurt, std::string_view player1 = "mo") {
             Game g(mode, player1, "ni");
-            check(g.act("pause"));
+            expect(g.act("pause"));
             auto& sounds = g.stage_mut().sounds();
             std::vector<float> one(static_cast<std::size_t>(2 * sounds.frame_samples()));
             double sum = 0;
@@ -1314,7 +1313,7 @@ int main(int argc, char** argv) {
                     st.f[1].health = 900;
                     match.restore(st);
                 }
-                check(g.act("step"));
+                expect(g.act("step"));
                 sounds.mixer().render(one);
                 if (i >= 60 * 9)  // past the intro (4 bars at 128), the intensity a bar old
                     for (float v : one) sum += static_cast<double>(v) * v, ++n;
@@ -1323,16 +1322,16 @@ int main(int argc, char** argv) {
         };
         const double calm = loud("versus", false), close = loud("versus", true), plain = loud("training", false), rooftop = loud("versus", false, "kun");
         std::println("    music rms: {:.4f} calm, {:.4f} close, {:.4f} training, {:.4f} the rooftop", calm, close, plain, rooftop);
-        check(calm > 0.01, "the study's piece is heard");
-        check(rooftop > 0.01, "the rooftop's piece is heard");
-        check(close > calm * 1.15, "more of it when the round is close");
-        check(plain < 1e-4, "training's room is quiet until someone is hit");
-    });
+        expect(calm > 0.01) << "the study's piece is heard";
+        expect(rooftop > 0.01) << "the rooftop's piece is heard";
+        expect(close > calm * 1.15) << "more of it when the round is close";
+        expect(plain < 1e-4) << "training's room is quiet until someone is hit";
+    };
 
-    s.test("the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it", [] {
+    "the fight heard, offline: silence until the first contact, its sounds on its frame, the same bits every run — and a WAV of it"_test = [] {
         Game g("training", "mo", "yue");
-        check(g.act("pause"));
-        check(g.act("fill"));
+        expect(g.act("pause"));
+        expect(g.act("fill"));
         auto& sounds = g.stage_mut().sounds();
         const std::int64_t per = sounds.frame_samples();
         std::vector<float> all;
@@ -1340,7 +1339,7 @@ int main(int argc, char** argv) {
         std::int32_t first_contact = -1;
         // Each frame played, then that frame's sound rendered: the mixer's clock keeps the match's.
         auto step = [&] {
-            check(g.act("step"));
+            expect(g.act("step"));
             if (first_contact < 0 && std::ranges::any_of(g.stage().match().events(), [](const gongfu::Event& e) {
                     return e.kind == gongfu::Event::Kind::hit || e.kind == gongfu::Event::Kind::block || e.kind == gongfu::Event::Kind::counter;
                 }))
@@ -1350,46 +1349,46 @@ int main(int argc, char** argv) {
         };
         auto press = [&](std::initializer_list<std::string_view> pads) {
             for (std::string_view p : pads) {
-                check(g.act("press", pad(0, p)));
+                expect(g.act("press", pad(0, p)));
                 step();
             }
-            check(g.act("press", pad(0, "5")));
+            expect(g.act("press", pad(0, "5")));
         };
-        check(g.act("press", pad(0, "6")));
+        expect(g.act("press", pad(0, "6")));
         while ((g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 130) step();
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         for (int i = 0; i < 6; ++i) step();
         press({"5HP"});
         for (int i = 0; i < 40; ++i) step();
         press({"2", "3", "6MP"});        // a glyph (ink on the body)
         for (int i = 0; i < 80; ++i) step();
-        check(g.act("press", pad(0, "6")));  // in range of her thrust again
+        expect(g.act("press", pad(0, "6")));  // in range of her thrust again
         while ((g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 110) step();
-        check(g.act("press", pad(0, "5")));
+        expect(g.act("press", pad(0, "5")));
         for (int i = 0; i < 12; ++i) step();  // let go a while: forward again would be a dash
         press({"2", "3", "6", "2", "3", "6HK"});  // her level 3: the flash's sweep, the cinematic's hits
         for (int i = 0; i < 280; ++i) step();
-        check(g.state().f[1].health < 11100 - 3000, std::format("the level 3 landed: Yue at {}", g.state().f[1].health));
-        check(first_contact > 0, "they met");
+        expect(g.state().f[1].health < 11100 - 3000) << std::format("the level 3 landed: Yue at {}", g.state().f[1].health);
+        expect(first_contact > 0) << "they met";
         const auto at = [&](std::int32_t frame) { return static_cast<std::size_t>(2 * (frame - 1) * per); };
         const auto quiet = audio::peak(std::span(all).first(at(first_contact)));
         const auto loud = audio::peak(std::span(all).subspan(at(first_contact), static_cast<std::size_t>(2 * per * 6)));
-        check(quiet == 0 && loud > 0.2f, std::format("{} before the first contact (frame {}), {} after", quiet, first_contact, loud));
+        expect(quiet == 0 && loud > 0.2f) << std::format("{} before the first contact (frame {}), {} after", quiet, first_contact, loud);
         const auto w = audio::wav(all, sounds.mixer().rate());
         std::ofstream(scratch_dir("fighting-sound") / "mo-and-yue.wav", std::ios::binary).write(reinterpret_cast<const char*>(w.data()), static_cast<std::streamsize>(w.size()));
         std::println("    fight heard {:016x} ({:.1f} s)", audio::hash(all), static_cast<double>(all.size()) / 2 / sounds.mixer().rate());
-        check_eq(audio::hash(all), std::uint64_t{0xe7676c6f74275c56});  // GCC and LLVM, every platform
-    });
+        expect(eq(audio::hash(all), std::uint64_t{0xe7676c6f74275c56}));  // GCC and LLVM, every platform
+    };
 
-    s.test("霓's 5HP, the pilot's whole-body drawings (D-90): each key exposed on its frames; at contact her knuckles are where the attack box ends; pinned", [] {
+    "霓's 5HP, the pilot's whole-body drawings (D-90): each key exposed on its frames; at contact her knuckles are where the attack box ends; pinned"_test = [] {
         Game g("versus", "ni", "kata");
-        check(g.act("pause"));
+        expect(g.act("pause"));
         // Walked in to where the straight reaches, then thrown: it lands.
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 95; ++i) check(g.act("step"));
-        check(g.act("press", pad(0, "5")));
-        check(g.act("step"));
-        check(g.act("press", pad(0, "5HP")));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 95; ++i) expect(g.act("step"));
+        expect(g.act("press", pad(0, "5")));
+        expect(g.act("step"));
+        expect(g.act("press", pad(0, "5HP")));
         const auto& r = fighting::roster();
         const std::size_t ni = fighting::fighter_index("ni");
         const gongfu::present2d::Look& look = r.looks[2 * ni];
@@ -1398,8 +1397,8 @@ int main(int argc, char** argv) {
         std::map<std::int32_t, std::string> shown;  // by move frame (a hit's stop holds one)
         std::optional<double> reach;
         for (int i = 0; i < 60; ++i) {
-            check(g.act("step"));
-            if (i == 0) check(g.act("press", pad(0, "5")));
+            expect(g.act("step"));
+            if (i == 0) expect(g.act("press", pad(0, "5")));
             const auto& f = g.state().f[0];
             if (f.mode != gongfu::Mode::move) break;
             const auto [clip, t] = std::pair{&look.clips.at("5HP"), f.move_frame - 1};
@@ -1408,32 +1407,31 @@ int main(int argc, char** argv) {
             shown[f.move_frame] = cel < 0 ? std::string("rig") : look.cels[static_cast<std::size_t>(cel)].name;
             if (first && f.move_frame == hp.hits.front().active.from) {
                 const auto k = gongfu::present2d::socket(look, fighter, f, g.state().frame, "knuckle");
-                check(k.has_value(), "a knuckle socket at contact");
+                expect(k.has_value()) << "a knuckle socket at contact";
                 if (k) reach = (k->x - f.pos.x.to_double()) * (f.facing < 0 ? -1 : 1);
                 g.h.step();
-                check(g.h.save_png(scratch_dir("fighting-pilot") / "ni-5hp-contact.png").has_value());
+                expect(g.h.save_png(scratch_dir("fighting-pilot") / "ni-5hp-contact.png").has_value());
             }
         }
-        check(shown.size() >= 25 && shown[1] == "hp_guard" && shown[8] == "hp_contact" && shown[10] == "hp_reach" && shown[25] == "hp_settle",
-              std::format("{} frames shown", shown.size()));
+        expect(shown.size() >= 25 && shown[1] == "hp_guard" && shown[8] == "hp_contact" && shown[10] == "hp_reach" && shown[25] == "hp_settle") << std::format("{} frames shown", shown.size());
         // The spark where the knuckles were drawn, not between the boxes.
         bool drawn = false;
         for (const auto& k : g.stage().effects().kept())
             if (k.drawn && k.event.attacker == 0) drawn = true;
-        check(drawn, "the contact where the drawing touched");
+        expect(drawn) << "the contact where the drawing touched";
         const auto& box = hp.hits.front().boxes.front();
         const double edge = (box.x + box.w).to_double();
-        check(reach && std::abs(*reach - edge) <= 4, std::format("knuckles at {}, the attack box to {}", reach.value_or(-1), edge));
-    });
+        expect(reach && std::abs(*reach - edge) <= 4) << std::format("knuckles at {}, the attack box to {}", reach.value_or(-1), edge);
+    };
 
-    s.test("霓's 623MK, the pilot's rising knee (D-90): two contacts drawn on the knee's ridge inside each attack box, the rig for the carry, the landing drawn", [] {
+    "霓's 623MK, the pilot's rising knee (D-90): two contacts drawn on the knee's ridge inside each attack box, the rig for the carry, the landing drawn"_test = [] {
         Game g("versus", "ni", "kata");
-        check(g.act("pause"));
-        check(g.act("press", pad(0, "6")));
-        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 80; ++i) check(g.act("step"));
+        expect(g.act("pause"));
+        expect(g.act("press", pad(0, "6")));
+        for (int i = 0; i < 200 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 80; ++i) expect(g.act("step"));
         for (const char* p : {"2", "3", "3MK"}) {  // from 6, held while walking in
-            check(g.act("press", pad(0, p)));
-            check(g.act("step"));
+            expect(g.act("press", pad(0, p)));
+            expect(g.act("step"));
         }
         const auto& r = fighting::roster();
         const std::size_t ni = fighting::fighter_index("ni");
@@ -1443,7 +1441,7 @@ int main(int argc, char** argv) {
         std::map<std::int32_t, std::string> shown;
         std::vector<std::string> inside;
         for (int i = 0; i < 90; ++i) {
-            if (i == 0) check(g.act("press", pad(0, "5")));
+            if (i == 0) expect(g.act("press", pad(0, "5")));
             const auto& f = g.state().f[0];
             if (f.mode == gongfu::Mode::move && f.move == fighter.find("623MK")) {
                 const std::int32_t cel = gongfu::present2d::exposed(&look.clips.at("623MK"), f.move_frame - 1);
@@ -1461,38 +1459,35 @@ int main(int argc, char** argv) {
                                 inside.push_back(std::format("hit {} outside: knee at {:.0f},{:.0f}", h, x, y));
                         }
                         g.h.step();
-                        check(g.h.save_png(scratch_dir("fighting-pilot") / std::format("ni-623mk-contact-{}.png", h + 1)).has_value());
+                        expect(g.h.save_png(scratch_dir("fighting-pilot") / std::format("ni-623mk-contact-{}.png", h + 1)).has_value());
                     }
             } else if (!shown.empty()) {
                 break;
             }
-            check(g.act("step"));
+            expect(g.act("step"));
         }
-        check(shown.size() >= 30, std::format("{} frames of the move", shown.size()));
-        check(shown[5] == "mk_contact1" && shown[8] == "mk_contact2" && shown[15] == "rig" && shown[22] == "mk_landing" && shown[30] == "rig",
-              std::format("{} {} {} {} {}", shown[5], shown[8], shown[15], shown[22], shown[30]));
-        check(inside == std::vector<std::string>{"hit 0", "hit 1"}, std::format("{}", inside));
-    });
+        expect(shown.size() >= 30) << std::format("{} frames of the move", shown.size());
+        expect(shown[5] == "mk_contact1" && shown[8] == "mk_contact2" && shown[15] == "rig" && shown[22] == "mk_landing" && shown[30] == "rig") << std::format("{} {} {} {} {}", shown[5], shown[8], shown[15], shown[22], shown[30]);
+        expect(inside == std::vector<std::string>{"hit 0", "hit 1"}) << std::format("{}", inside);
+    };
 
-    s.test("frames pinned: versus and training (boxes and the meter) at a jab's active frame", [] {
+    "frames pinned: versus and training (boxes and the meter) at a jab's active frame"_test = [] {
         std::vector<std::uint64_t> px;
         const auto dir = scratch_dir("fighting");
         for (std::string_view mode : {"versus", "training"}) {
             Game g(mode);
-            check(g.act("pause"));
-            check(g.act("press", pad(0, "6")));
-            for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) check(g.act("step"));
-            check(g.act("press", pad(0, "5LP")));
-            for (int i = 0; i < 4; ++i) check(g.act("step"));
+            expect(g.act("pause"));
+            expect(g.act("press", pad(0, "6")));
+            for (int i = 0; i < 120 && (g.state().f[1].pos.x - g.state().f[0].pos.x).to_double() > 90; ++i) expect(g.act("step"));
+            expect(g.act("press", pad(0, "5LP")));
+            for (int i = 0; i < 4; ++i) expect(g.act("step"));
             g.h.step();
             px.push_back(g.pixels());
-            check(g.h.save_png(dir / std::format("{}.png", mode)).has_value());
+            expect(g.h.save_png(dir / std::format("{}.png", mode)).has_value());
         }
         std::println("    fighting versus {:016x} training {:016x}", px[0], px[1]);
-        check(px[0] != px[1], "training draws the boxes");
+        expect(px[0] != px[1]) << "training draws the boxes";
         // Pinned: GCC and LLVM, Linux, macOS and Windows draw these bytes.
-        check(px == std::vector<std::uint64_t>{0x94a1a5b726fa0f80ULL, 0x89f06ff6174e4a47ULL}, "pinned");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(px == std::vector<std::uint64_t>{0x94a1a5b726fa0f80ULL, 0x89f06ff6174e4a47ULL}) << "pinned";
+    };
+}};

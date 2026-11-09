@@ -1,10 +1,10 @@
 import std;
 import omui;
 import omui.site;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 constexpr std::string_view root = "main/body/view/agent/page/agent_feature";
@@ -23,37 +23,36 @@ struct Page {
 };
 }
 
-int main(int argc, char** argv) {
-    Suite suite("site.agent_guard");
-    suite.test("input reaching the specimen cancels an already-due preview before timers", [] {
+UTest cases{"site.agent_guard", [] {
+    "input reaching the specimen cancels an already-due preview before timers"_test = [] {
         Page page;
         page.h.advance(seconds(0.2));
         const auto order = page.h.runtime().frame_pipeline().order();
-        check(!order.empty() && order.front() == "preview_input_guard");
-        const auto due = page.h.runtime().next_timer(); check(due.has_value()); if (!due) return;
+        expect(!order.empty() && order.front() == "preview_input_guard");
+        const auto due = page.h.runtime().next_timer(); expect(due.has_value()); if (!due) return;
         while (page.h.now() + seconds(1.0 / 60) < *due) (void)page.h.step();
-        check(!page.reviewed(), "the preview's first action has not run");
+        expect(!page.reviewed()) << "the preview's first action has not run";
         const auto specimen = page.h.runtime().find(path("specimen"));
         const auto at = page.h.runtime().screen_bounds(specimen).center();
         (void)page.h.step({PointerEvent{.kind = PointerKind::move, .position = at}});
         page.h.advance(seconds(2));
-        check(!page.reviewed(), "the due task did not run ahead of pointer entry");
-        check(std::ranges::none_of(page.h.runtime().action_journal(), [](const auto& entry) {
+        expect(!page.reviewed()) << "the due task did not run ahead of pointer entry";
+        expect(std::ranges::none_of(page.h.runtime().action_journal(), [](const auto& entry) {
             return entry.actor == "agent:agent-feature-simulated" && entry.path.ends_with("/reviewed");
         }));
-    });
-    suite.test("window blur cancels pending preview actions before the timer stage", [] {
+    };
+    "window blur cancels pending preview actions before the timer stage"_test = [] {
         Page page;
         page.h.advance(seconds(0.2));
-        const auto due = page.h.runtime().next_timer(); check(due.has_value()); if (!due) return;
+        const auto due = page.h.runtime().next_timer(); expect(due.has_value()); if (!due) return;
         while (page.h.now() + seconds(1.0 / 60) < *due) (void)page.h.step();
         (void)page.h.step({FocusEvent{false}});
         page.h.advance(seconds(2));
-        check(!page.reviewed(), "hidden task remains untouched");
+        expect(!page.reviewed()) << "hidden task remains untouched";
         (void)page.h.step({FocusEvent{true}});
-        check(page.h.runtime().valid(page.h.runtime().find(path("use/actions/play"))), "explicit task controls remain available");
-    });
-    suite.test("releasing Enter does not revoke an explicitly started keyboard task", [] {
+        expect(page.h.runtime().valid(page.h.runtime().find(path("use/actions/play")))) << "explicit task controls remain available";
+    };
+    "releasing Enter does not revoke an explicitly started keyboard task"_test = [] {
         Page page;
         const auto stage = page.h.runtime().find(path("specimen"));
         page.h.move(page.h.runtime().screen_bounds(stage).center());
@@ -64,7 +63,6 @@ int main(int argc, char** argv) {
         (void)page.h.step({KeyEvent{.kind = KeyKind::up, .key = Key::enter}});
         page.h.advance(seconds(2.5));
         const auto receipt = page.h.tree().node(path("specimen/receipt"));
-        check(receipt && receipt->name.contains("Recorded here"), "the key-up in a later frame preserves the requested task");
-    });
-    return suite.run(argc, argv);
-}
+        expect(receipt && receipt->name.contains("Recorded here")) << "the key-up in a later frame preserves the requested task";
+    };
+}};

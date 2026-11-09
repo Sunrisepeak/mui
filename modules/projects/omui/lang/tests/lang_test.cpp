@@ -7,9 +7,9 @@ import nlohmann.json;
 import omui.abi;
 import omui.lang;
 import omui.ui.base;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui::abi;
 namespace lang = omui::lang;
 using lang::Json;
@@ -28,7 +28,7 @@ struct Runtime {
         info.type = OMUI_STRUCTURE_TYPE_RUNTIME_CREATE_INFO;
         info.spec_version = OMUI_SPEC_VERSION;
         info.headless = 1;
-        check_eq(omuiCreateRuntime(&info, &rt), OMUI_SUCCESS);
+        expect(eq(omuiCreateRuntime(&info, &rt), OMUI_SUCCESS));
     }
     ~Runtime() { (void)omuiDestroyRuntime(rt); }
     void frame() {
@@ -87,17 +87,16 @@ constexpr std::string_view counter_document = R"j({"omui": "0.1", "view": {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"lang"};
+UTest cases{"lang", [] {
     omui::register_base_components();
 
-    s.test("a script's counter is the hand-written document's tree, before and after a click", [] {
+    "a script's counter is the hand-written document's tree, before and after a click"_test = [] {
         Runtime script_rt, doc_rt;
         lang::Host host(script_rt.rt);
         lang::Session session(host);
         host.post([&] {
             auto count = session.signal(0);
-            check(count.has_value());
+            expect(count.has_value());
             lang::Element text{.type = "Text"};
             text.props.emplace_back("text", lang::Prop{.kind = lang::Prop::Kind::expr, .expr = lang::fmt("{} clicks", {lang::signal_ref(*count)})});
             lang::Element button{.type = "Button", .id = "inc"};
@@ -107,21 +106,21 @@ int main(int argc, char** argv) {
             column.props.emplace_back("gap", lang::Prop{.value = 8});
             column.children = {text, button};
             auto m = session.mount("main", column);
-            check(m.has_value(), m ? "" : m.error().text());
+            expect(m.has_value()) << (m ? "" : m.error().text());
         });
         script_rt.settle(host);
-        check_eq(omuiMount(doc_rt.rt, str("main"), str(counter_document)), OMUI_SUCCESS);
+        expect(eq(omuiMount(doc_rt.rt, str("main"), str(counter_document)), OMUI_SUCCESS));
         doc_rt.frame();
-        check_eq(script_rt.tree("main"), doc_rt.tree("main"));
-        check_eq(script_rt.act("main/inc", "activate"), std::int64_t{0});
-        check_eq(doc_rt.act("main/inc", "activate"), std::int64_t{0});
+        expect(eq(script_rt.tree("main"), doc_rt.tree("main")));
+        expect(eq(script_rt.act("main/inc", "activate"), std::int64_t{0}));
+        expect(eq(doc_rt.act("main/inc", "activate"), std::int64_t{0}));
         script_rt.settle(host);
         doc_rt.frame();
-        check_eq(script_rt.name_of("main/text:0"), std::string("1 clicks"));
-        check_eq(script_rt.tree("main"), doc_rt.tree("main"));
-    });
+        expect(eq(script_rt.name_of("main/text:0"), std::string("1 clicks")));
+        expect(eq(script_rt.tree("main"), doc_rt.tree("main")));
+    };
 
-    s.test("signals are mirrored: reading never waits; both sides' writes arrive", [] {
+    "signals are mirrored: reading never waits; both sides' writes arrive"_test = [] {
         Runtime r;
         lang::Host host(r.rt);
         lang::Session session(host);
@@ -136,22 +135,22 @@ int main(int argc, char** argv) {
         OmuiValue v{};
         v.type = OMUI_VALUE_TYPE_JSON;
         v.s = str(R"j({"a": 2})j");
-        check_eq(omuiSignalSet(r.rt, sig, &v), OMUI_SUCCESS);
+        expect(eq(omuiSignalSet(r.rt, sig, &v), OMUI_SUCCESS));
         r.settle(host);
         Json read;
         host.post([&] { read = session.get(sig); });
         r.settle(host);
-        check_eq(read.dump(), std::string(R"j({"a":2})j"));
+        expect(eq(read.dump(), std::string(R"j({"a":2})j")));
         // The script writes it: the runtime has it by the next frame.
         host.post([&] { session.set(sig, Json{{"a", 3}}); });
         r.settle(host);
         std::string out;
-        check_eq(omuiSignalGet(r.rt, sig, collect, &out), OMUI_SUCCESS);
-        check_eq(out, std::string(R"j({"a":3})j"));
-        check(seen.size() == 2 && seen[0]["a"] == 2 && seen[1]["a"] == 3, std::to_string(seen.size()));
-    });
+        expect(eq(omuiSignalGet(r.rt, sig, collect, &out), OMUI_SUCCESS));
+        expect(eq(out, std::string(R"j({"a":3})j")));
+        expect(seen.size() == 2 && seen[0]["a"] == 2 && seen[1]["a"] == 3) << std::to_string(seen.size());
+    };
 
-    s.test("a loop's handlers receive their row; a verb the script implements answers through the runtime", [] {
+    "a loop's handlers receive their row; a verb the script implements answers through the runtime"_test = [] {
         Runtime r;
         lang::Host host(r.rt);
         lang::Session session(host);
@@ -163,35 +162,33 @@ int main(int argc, char** argv) {
                 auto rows = session.rows("notes");
                 return Json{{"archived", args.value("id", "")}, {"of", rows ? rows->size() : 0}};
             });
-            check(v.has_value(), v ? "" : v.error().text());
+            expect(v.has_value()) << (v ? "" : v.error().text());
             lang::Element title{.type = "text"};
             title.props.emplace_back("text", lang::Prop{.kind = lang::Prop::Kind::expr, .expr = lang::member(lang::name_ref("note"), "title")});
             lang::Element archive{.type = "button", .id = "archive"};
             archive.props.emplace_back("text", lang::Prop{.value = "Archive"});
             archive.on.emplace_back("activated", [&session](const Json& e) {
                 auto out = session.invoke("note.archive", Json{{"id", e["rows"]["note"]["key"]}});
-                check(out.has_value());
+                expect(out.has_value());
             });
             lang::Element row{.type = "row", .children = {title, archive}};
             lang::Element list{.type = "column"};
             list.children.push_back(lang::Element{.region = std::make_shared<lang::Region>(
                                                       lang::Region{.kind = lang::Region::Kind::each, .then = {row}, .model = "notes", .variable = "note"})});
-            check(session.document(list)["view"]["models"].contains("notes"), "the document declares the model its loop reads");
+            expect(session.document(list)["view"]["models"].contains("notes")) << "the document declares the model its loop reads";
             auto m = session.mount("main", list);
-            check(m.has_value(), m ? "" : m.error().text());
-            check(session.splice("notes", 0, 0, Json::array({{{"key", "n1"}, {"title", "Milk"}}, {{"key", "n2"}, {"title", "Bread"}}})).has_value());
+            expect(m.has_value()) << (m ? "" : m.error().text());
+            expect(session.splice("notes", 0, 0, Json::array({{{"key", "n1"}, {"title", "Milk"}}, {{"key", "n2"}, {"title", "Bread"}}})).has_value());
         });
         r.settle(host);
-        check_eq(r.name_of("main/n2/text:0"), std::string("Bread"));
-        check_eq(r.act("main/n2/archive", "activate"), std::int64_t{0});
+        expect(eq(r.name_of("main/n2/text:0"), std::string("Bread")));
+        expect(eq(r.act("main/n2/archive", "activate"), std::int64_t{0}));
         r.settle(host);
-        check(archived == std::vector<std::string>{"n2"}, archived.empty() ? "" : archived[0]);
+        expect(archived == std::vector<std::string>{"n2"}) << (archived.empty() ? "" : archived[0]);
         // An agent invokes the script's verb directly: the runtime waits for the script.
         std::string out;
-        check_eq(omuiInvoke(r.rt, str("note.archive"), str(R"j({"id": "n1"})j"), collect, &out), OMUI_SUCCESS);
-        check(out.find(R"j("archived":"n1")j") != std::string::npos && out.find(R"j("of":2)j") != std::string::npos, out);
+        expect(eq(omuiInvoke(r.rt, str("note.archive"), str(R"j({"id": "n1"})j"), collect, &out), OMUI_SUCCESS));
+        expect(out.find(R"j("archived":"n1")j") != std::string::npos && out.find(R"j("of":2)j") != std::string::npos) << out;
         r.settle(host);
-    });
-
-    return s.run(argc, argv);
-}
+    };
+}};

@@ -51,3 +51,4 @@ omui.semantic = { path = "../semantic" }
 mlibs.utils     = { path = "../../../base/utils" }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"

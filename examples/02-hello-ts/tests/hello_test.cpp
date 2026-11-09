@@ -7,8 +7,10 @@ import omui.player;
 import omui.entry.player;
 import omui.lang.js;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -30,34 +32,33 @@ void settle(Headless& h, player::Player& p) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.hello-ts"};
+UTest cases{"example.hello-ts", [] {
     register_base_components();
 
-    s.test("the manifest names the script; the player runs it", [] {
+    "the manifest names the script; the player runs it"_test = [] {
         auto m = read_manifest(here() / "mcpp.toml");
-        check(m.has_value(), m ? "" : m.error());
+        expect(m.has_value()) << (m ? "" : m.error());
         if (!m) return;
-        check_eq(m->id, std::string("org.openmui.text-stats"));
-        check(m->scripts.size() == 1 && m->scripts[0].entry == "logic/main.ts");  // the language by its extension
-        check(m->size.width == 480 && m->size.height == 320, std::format("{}x{}", m->size.width, m->size.height));
+        expect(eq(m->id, std::string("org.openmui.text-stats")));
+        expect(m->scripts.size() == 1 && m->scripts[0].entry == "logic/main.ts");  // the language by its extension
+        expect(m->size.width == 480 && m->size.height == 320) << std::format("{}x{}", m->size.width, m->size.height);
 
         Headless h(HeadlessOptions{.size = m->size});
         player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
-        check(started.has_value(), started ? "" : started.error());
+        expect(started.has_value()) << (started ? "" : started.error());
         settle(h, p);
-        check(p.problems().empty(), p.problems().empty() ? "" : p.problems()[0]);
-        check_eq(name_of(h, "main/stats/characters"), std::string("0 characters"));
-        check_eq(name_of(h, "main/stats/words"), std::string("0 words"));
+        expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
+        expect(eq(name_of(h, "main/stats/characters"), std::string("0 characters")));
+        expect(eq(name_of(h, "main/stats/words"), std::string("0 words")));
 
         h.runtime().focus(h.runtime().find("main/input"));
         h.type("Hello there. How are you? 👋🏽");
         settle(h, p);
-        check_eq(name_of(h, "main/stats/characters"), std::string("27 characters"));  // the emoji is one
-        check_eq(name_of(h, "main/stats/words"), std::string("6 words"));
-        check_eq(name_of(h, "main/stats/sentences"), std::string("2 sentences"));
-        check_eq(name_of(h, "main/stats/reading"), std::string("1 min read"));
+        expect(eq(name_of(h, "main/stats/characters"), std::string("27 characters")));  // the emoji is one
+        expect(eq(name_of(h, "main/stats/words"), std::string("6 words")));
+        expect(eq(name_of(h, "main/stats/sentences"), std::string("2 sentences")));
+        expect(eq(name_of(h, "main/stats/reading"), std::string("1 min read")));
 
         // The caret blinks on the clock, and how many frames the script took
         // varies: the pixels are taken without the focus.
@@ -67,16 +68,14 @@ int main(int argc, char** argv) {
         const auto& px = h.pixels();
         for (int y = 0; y < px.height(); ++y) hash.bytes(std::as_bytes(std::span(px.row(y), static_cast<std::size_t>(px.width()))));
         std::println("example.hello-ts pixels {}", hash.hex());
-        check(h.save_png(scratch_dir("example-hello-ts") / "stats.png").has_value());
-        check_eq(hash.hex(), std::string("871664f11753d877"));
+        expect(h.save_png(scratch_dir("example-hello-ts") / "stats.png").has_value());
+        expect(eq(hash.hex(), std::string("871664f11753d877")));
 
         Invocation call;
         call.actor = {"agent", "test", {}};
-        check_eq(h.tree().act("main/clear", "activate", call).exit_code().value_or(-1), 0);
+        expect(eq(h.tree().act("main/clear", "activate", call).exit_code().value_or(-1), 0));
         settle(h, p);
-        check_eq(name_of(h, "main/stats/words"), std::string("0 words"));
-        check(h.tree().node("main/clear")->states.has(spec::State::disabled), "nothing to clear");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(name_of(h, "main/stats/words"), std::string("0 words")));
+        expect(h.tree().node("main/clear")->states.has(spec::State::disabled)) << "nothing to clear";
+    };
+}};

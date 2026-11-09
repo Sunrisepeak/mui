@@ -6,11 +6,11 @@ import std;
 import hanim.engine;
 import hanim.render.vector;
 import xrender.raster;
-import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace hanim;
 using namespace hanim::vector_render;
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render = xrender;
 namespace geom = mlibs::geom;
 namespace raster = xrender::raster;
@@ -18,7 +18,7 @@ namespace raster = xrender::raster;
 namespace {
 template <class T, class E>
 T take(std::expected<T, E> result) {
-    check(bool(result));
+    expect(bool(result));
     if (!result)
         std::abort();
     if constexpr (!std::is_void_v<T>)
@@ -74,9 +74,8 @@ Centroid red(const raster::Surface& pixels) {
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"hanim.stroke"};
-    suite.test("a trimmed stretch of the outline runs once round it, wherever it is sampled", [] {
+UTest cases{"hanim.stroke", [] {
+    "a trimmed stretch of the outline runs once round it, wherever it is sampled"_test = [] {
         Engine engine = take(Engine::make());
         const auto glyph = bar(engine);
         // A tenth of the outline, carried round by the offset in one second.
@@ -94,7 +93,7 @@ int main(int argc, char** argv) {
             raster::Surface pixels(96, 64);
             render::CpuRenderer cpu;
             const auto report = cpu.render(output, pixels, {});
-            check(output.balanced() && !report.invalid_paints);
+            expect(output.balanced() && !report.invalid_paints);
             return pixels;
         };
         // Where the middle of the stretch is: along the top, down the right
@@ -107,31 +106,27 @@ int main(int argc, char** argv) {
         std::size_t first_count = 0;
         for (const auto& [time, x, y] : course) {
             const auto found = red(draw_at(time));
-            check(found.count > 20, std::format("a red stretch at {}s", time));
-            check(std::abs(found.x - x) < 3 && std::abs(found.y - y) < 3,
-                  std::format("at {}s the stretch is at ({:.1f}, {:.1f}), expected ({}, {})", time,
-                              found.x, found.y, x, y));
+            expect(found.count > 20) << std::format("a red stretch at {}s", time);
+            expect(std::abs(found.x - x) < 3 && std::abs(found.y - y) < 3) << std::format("at {}s the stretch is at ({:.1f}, {:.1f}), expected ({}, {})", time,
+                              found.x, found.y, x, y);
             if (!first_count)
                 first_count = found.count;
-            check(found.count * 2 > first_count && found.count < first_count * 2,
-                  "the stretch keeps its length round the course");
+            expect(found.count * 2 > first_count && found.count < first_count * 2) << "the stretch keeps its length round the course";
         }
         const auto start = draw_at(0), again = draw_at(.5), lap = draw_at(1), back = draw_at(.5);
-        check(lap.pixels().size() == start.pixels().size() &&
+        expect(lap.pixels().size() == start.pixels().size() &&
                   std::ranges::equal(lap.pixels(), start.pixels(),
                                      [](const auto& left, const auto& right) {
                                          return left.r == right.r && left.g == right.g &&
                                                 left.b == right.b && left.a == right.a;
-                                     }),
-              "one lap ends where it began");
-        check(std::ranges::equal(again.pixels(), back.pixels(),
+                                     })) << "one lap ends where it began";
+        expect(std::ranges::equal(again.pixels(), back.pixels(),
                                  [](const auto& left, const auto& right) {
                                      return left.r == right.r && left.g == right.g &&
                                             left.b == right.b && left.a == right.a;
-                                 }),
-              "seeking back draws the same frame: a function of time");
-    });
-    suite.test("a deformer bends the crossbar of an H down, drawn, and lets it back", [] {
+                                 })) << "seeking back draws the same frame: a function of time";
+    };
+    "a deformer bends the crossbar of an H down, drawn, and lets it back"_test = [] {
         static constexpr auto pull = ch::define<Vec2>("glyph.pull");
         Engine engine = take(Engine::make());
         const std::array<Vec2, 12> corners{{{30, 0},
@@ -171,13 +166,12 @@ int main(int argc, char** argv) {
             (void)cpu.render(output, pixels, {});
             return pixels.at(33, 39).r > 128;  // (50, 62) in the letter: below the bar at rest
         };
-        check(lit_below_bar(0), "pulled: the bar bends down over (50, 62)");
-        check(!lit_below_bar(1), "let back: below the bar is empty again");
-    });
+        expect(lit_below_bar(0)) << "pulled: the bar bends down over (50, 62)";
+        expect(!lit_below_bar(1)) << "let back: below the bar is empty again";
+    };
 
-    suite.test("a dropped ball drawn: round in the air, wide and flat on the ground, never through "
-               "it",
-               [] {
+    mcpplibs::mtest::test(std::string_view("a dropped ball drawn: round in the air, wide and flat on the ground, never through "
+               "it")) = [] {
                    Engine engine = take(Engine::make());
                    constexpr double k = 10 * .5522847498307936;
                    const std::array arcs{ShapeSegment::cubic({k, -10}, {10, -k}, {10, 0}),
@@ -217,17 +211,13 @@ int main(int argc, char** argv) {
                    };
                    const auto [air_width, air_low] = drawn(.1 / 2.45);
                    const auto [ground_width, ground_low] = drawn(1.05 / 2.45);
-                   check(air_width <= 20 && air_low < 61,
-                         std::format("round in the air: {} wide", air_width));
-                   check(ground_width >= 24,
-                         std::format("flattened on the ground: {} wide", ground_width));
-                   check(ground_low <= 61,
-                         std::format("its lowest row {} on the ground at 62", ground_low));
-               });
+                   expect(air_width <= 20 && air_low < 61) << std::format("round in the air: {} wide", air_width);
+                   expect(ground_width >= 24) << std::format("flattened on the ground: {} wide", ground_width);
+                   expect(ground_low <= 61) << std::format("its lowest row {} on the ground at 62", ground_low);
+               };
 
-    suite.test("a simulated soft ball drawn: it widens as it lands and never sinks through the "
-               "ground",
-               [] {
+    mcpplibs::mtest::test(std::string_view("a simulated soft ball drawn: it widens as it lands and never sinks through the "
+               "ground")) = [] {
                    Engine engine = take(Engine::make());
                    constexpr double k = 10 * .5522847498307936;
                    const std::array arcs{ShapeSegment::cubic({k, -10}, {10, -k}, {10, 0}),
@@ -265,10 +255,7 @@ int main(int argc, char** argv) {
                                lowest = std::max(lowest, y);
                        }
                    }
-                   check(widest >= 22, std::format("it widens on landing: {} px", widest));
-                   check(lowest <= 62,
-                         std::format("its lowest lit row {}: the ground is at 62", lowest));
-               });
-
-    return suite.run(argc, argv);
-}
+                   expect(widest >= 22) << std::format("it widens on landing: {} px", widest);
+                   expect(lowest <= 62) << std::format("its lowest lit row {}: the ground is at 62", lowest);
+               };
+}};

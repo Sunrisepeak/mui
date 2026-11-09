@@ -9,6 +9,30 @@ import mlibs.control;
 
 namespace omui::agent {
 
+namespace {
+
+// A catalog's operations as data: name, effect, summary, parameters (type,
+// optional) — what an agent may do, beside what it may build with.
+Value operations_of(std::span<const mlibs::control::CatalogEntry> catalog) {
+    Value::List out;
+    for (const auto& entry : catalog) {
+        Value parameters(Value::Map{});
+        for (const auto& parameter : entry.parameters) {
+            Value one = Value{}.set("type", std::string(parameter.type)).set("doc", std::string(parameter.doc));
+            if (parameter.optional) one.set("optional", true);
+            parameters.set(std::string(parameter.name), std::move(one));
+        }
+        out.push_back(Value{}
+                          .set("name", std::string(entry.operation.name))
+                          .set("effect", std::string(spec::name(verb_of(entry).effect)))
+                          .set("summary", std::string(entry.summary))
+                          .set("params", std::move(parameters)));
+    }
+    return Value(std::move(out));
+}
+
+}  // namespace
+
 Value api_of(Runtime& runtime) {
     Value out = component_catalog();
     auto natives = parse_json(native::catalog().dump());
@@ -24,6 +48,8 @@ Value api_of(Runtime& runtime) {
         verbs.push_back(std::move(one));
     }
     out.set("verbs", Value(std::move(verbs)));
+    // What an agent may do with it: the protocol's operations and Live Design's (the catalogs').
+    out.set("operations", Value{}.set("ui", operations_of(catalog)).set("design", operations_of(design::catalog)));
     return out;
 }
 

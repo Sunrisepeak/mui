@@ -8,9 +8,9 @@ import std;
 import omui.ui.canvas.kit;
 import omui.host.headless;
 import xrender.vector;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -255,112 +255,111 @@ std::vector<std::string> conformance(std::string_view behavior) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.canvas.kit"};
+UTest cases{"ui.canvas.kit", [] {
     register_canvas_component();
     register_canvas_kit();
 
-    s.test("select: a click chooses, ⇧ adds and takes out, the background clears, a ⇧-drag draws a marquee, Esc and Ctrl-A", [] {
+    "select: a click chooses, ⇧ adds and takes out, the background clears, a ⇧-drag draws a marquee, Esc and Ctrl-A"_test = [] {
         board("select");
         Fixture f("select", {"select"});
         auto& h = f.h;
         click(h, screen(50, 40));
-        check_eq(f.selection, std::vector<std::string>{"a"});
+        expect(eq(f.selection, std::vector<std::string>{"a"}));
         click(h, screen(250, 40), Modifier::shift);
-        check_eq(f.selection, (std::vector<std::string>{"a", "b"}));
+        expect(eq(f.selection, (std::vector<std::string>{"a", "b"})));
         click(h, screen(50, 40), Modifier::shift);
-        check_eq(f.selection, std::vector<std::string>{"b"});
+        expect(eq(f.selection, std::vector<std::string>{"b"}));
         click(h, screen(300, 200));
-        check(f.selection.empty(), "a click on the background clears");
+        expect(f.selection.empty()) << "a click on the background clears";
         // ⇧-drag from the background over a and c (not b).
         drag(h, screen(-300, -50), screen(20, 200), Modifier::shift);
-        check_eq(f.selection, (std::vector<std::string>{"a", "c"}));
+        expect(eq(f.selection, (std::vector<std::string>{"a", "c"})));
         h.key(Key::escape);
         h.step();
-        check(f.selection.empty(), "Esc clears");
+        expect(f.selection.empty()) << "Esc clears";
         h.key(Key::a, Modifier::ctrl);
         h.step();
-        check_eq(f.selection.size(), std::size_t{3});
+        expect(eq(f.selection.size(), std::size_t{3}));
         // Agents: select adds, deselect takes out.
         h.key(Key::escape);
         h.step();
-        check(has(action_names(h, "main/board/b"), "select"), "an unchosen node offers select");
-        check_eq(act(h, "main/board/b", "select"), std::int64_t{0});
-        check_eq(act(h, "main/board/c", "select"), std::int64_t{0});
-        check_eq(f.selection, (std::vector<std::string>{"b", "c"}));
-        check(has(action_names(h, "main/board/b"), "deselect"), "a chosen node offers deselect");
-        check_eq(act(h, "main/board/b", "deselect"), std::int64_t{0});
-        check_eq(f.selection, std::vector<std::string>{"c"});
+        expect(has(action_names(h, "main/board/b"), "select")) << "an unchosen node offers select";
+        expect(eq(act(h, "main/board/b", "select"), std::int64_t{0}));
+        expect(eq(act(h, "main/board/c", "select"), std::int64_t{0}));
+        expect(eq(f.selection, (std::vector<std::string>{"b", "c"})));
+        expect(has(action_names(h, "main/board/b"), "deselect")) << "a chosen node offers deselect";
+        expect(eq(act(h, "main/board/b", "deselect"), std::int64_t{0}));
+        expect(eq(f.selection, std::vector<std::string>{"c"}));
         const auto c = h.tree().node("main/board/c");
-        check(c && c->states.has(State::selected), "the semantic tree states it");
+        expect(c && c->states.has(State::selected)) << "the semantic tree states it";
         // A plain drag on the background pans: the selection stays.
         drag(h, screen(300, 200), screen(250, 200));
-        check_eq(f.selection, std::vector<std::string>{"c"});
-    });
+        expect(eq(f.selection, std::vector<std::string>{"c"}));
+    };
 
-    s.test("select:marquee: a plain drag on the background draws the marquee", [] {
+    "select:marquee: a plain drag on the background draws the marquee"_test = [] {
         board("marquee");
         Fixture f("marquee", {"select:marquee"});
         drag(f.h, screen(-10, -10), screen(120, 100));
-        check_eq(f.selection, std::vector<std::string>{"a"});
-    });
+        expect(eq(f.selection, std::vector<std::string>{"a"}));
+    };
 
-    s.test("drag: moves the node and the selection with it, Esc puts them back, move_to for agents", [] {
+    "drag: moves the node and the selection with it, Esc puts them back, move_to for agents"_test = [] {
         auto& sc = board("drag");
         Fixture f("drag", {"select", "drag"});
         auto& h = f.h;
         drag(h, screen(50, 40), screen(80, 60));
-        check_eq(f.selection, std::vector<std::string>{"a"});
-        check_eq(sc.rect(*sc.find("a")).x, 30.0);
-        check_eq(sc.rect(*sc.find("a")).y, 20.0);
-        check(f.saw("moved"), "moved is told");
+        expect(eq(f.selection, std::vector<std::string>{"a"}));
+        expect(eq(sc.rect(*sc.find("a")).x, 30.0));
+        expect(eq(sc.rect(*sc.find("a")).y, 20.0));
+        expect(f.saw("moved")) << "moved is told";
         // Two chosen: dragging one moves both.
         click(h, screen(250, 40), Modifier::shift);
-        check_eq(f.selection.size(), std::size_t{2});
+        expect(eq(f.selection.size(), std::size_t{2}));
         drag(h, screen(250, 40), screen(250, 140));
-        check_eq(sc.rect(*sc.find("a")).y, 120.0);
-        check_eq(sc.rect(*sc.find("b")).y, 100.0);
+        expect(eq(sc.rect(*sc.find("a")).y, 120.0));
+        expect(eq(sc.rect(*sc.find("b")).y, 100.0));
         // A click on one of them: that one alone.
         click(h, screen(250, 140));
-        check_eq(f.selection, std::vector<std::string>{"b"});
+        expect(eq(f.selection, std::vector<std::string>{"b"}));
         // Esc mid-drag: back where it was, nothing told.
         const std::size_t told = f.events.size();
         h.step({press(screen(250, 140))});
         h.step({drag_to(screen(320, 200))});
-        check_eq(sc.rect(*sc.find("b")).x, 270.0);
+        expect(eq(sc.rect(*sc.find("b")).x, 270.0));
         h.key(Key::escape);
         h.step({release(screen(320, 200))});
-        check_eq(sc.rect(*sc.find("b")).x, 200.0);
-        check_eq(sc.rect(*sc.find("b")).y, 100.0);
-        check_eq(f.events.size(), told);
+        expect(eq(sc.rect(*sc.find("b")).x, 200.0));
+        expect(eq(sc.rect(*sc.find("b")).y, 100.0));
+        expect(eq(f.events.size(), told));
         // A press that does not travel moves nothing.
         click(h, screen(-220, 180));
-        check_eq(sc.rect(*sc.find("c")).x, -250.0);
+        expect(eq(sc.rect(*sc.find("c")).x, -250.0));
         // Agents.
-        check(has(action_names(h, "main/board/c"), "move_to"), "drag gives nodes move_to");
-        check_eq(act(h, "main/board/c", "move_to", Value{}.set("x", Value(5.0)).set("y", Value(6.0))), std::int64_t{0});
-        check_eq(sc.rect(*sc.find("c")).x, 5.0);
-        check(act(h, "main/board/c", "move_to", Value{}.set("x", Value(5.0))) != 0, "move_to without y is refused");
-    });
+        expect(has(action_names(h, "main/board/c"), "move_to")) << "drag gives nodes move_to";
+        expect(eq(act(h, "main/board/c", "move_to", Value{}.set("x", Value(5.0)).set("y", Value(6.0))), std::int64_t{0}));
+        expect(eq(sc.rect(*sc.find("c")).x, 5.0));
+        expect(act(h, "main/board/c", "move_to", Value{}.set("x", Value(5.0))) != 0) << "move_to without y is refused";
+    };
 
-    s.test("drag: a kind with a title bar is dragged by it; its body is not", [] {
+    "drag: a kind with a title bar is dragged by it; its body is not"_test = [] {
         auto& sc = world::scene("title");
         sc.clear();
         sc.kind("window", {.title_bar = 20});
         sc.add({.kind = "window", .x = 0, .y = 0, .width = 200, .height = 150, .key = "w", .fill = Color::hex(0xe2e8f0)});
         Fixture f("title", {"drag"});
         drag(f.h, screen(100, 80), screen(150, 80));  // the body: pans the camera
-        check_eq(sc.rect(*sc.find("w")).x, 0.0);
+        expect(eq(sc.rect(*sc.find("w")).x, 0.0));
         f.h.settle();
         // Wherever the pan (and its glide) left it, its bar drags it.
         const auto w = f.h.tree().node("main/board/w");
-        check(w && w->bounds, "the window is on screen");
+        expect(w && w->bounds) << "the window is on screen";
         const auto b = *w->bounds;
         drag(f.h, {b.x + 100, b.y + 10}, {b.x + 100, b.y + 70});
-        check_eq(sc.rect(*sc.find("w")).y, 60.0);
-    });
+        expect(eq(sc.rect(*sc.find("w")).y, 60.0));
+    };
 
-    s.test("snap: edges and centres meet the neighbours' within 6 px, with guides; snap:20 meets a grid", [] {
+    "snap: edges and centres meet the neighbours' within 6 px, with guides; snap:20 meets a grid"_test = [] {
         auto& sc = board("snap");
         Fixture f("snap", {"drag", "snap"});
         auto& h = f.h;
@@ -369,26 +368,26 @@ int main(int argc, char** argv) {
         h.step({press(screen(50, 40))});
         h.step({drag_to(screen(52, 42))});
         h.step({drag_to(screen(54, 44))});
-        check_eq(sc.rect(*sc.find("a")).y, 0.0);
-        check_eq(sc.rect(*sc.find("a")).x, 4.0);
+        expect(eq(sc.rect(*sc.find("a")).y, 0.0));
+        expect(eq(sc.rect(*sc.find("a")).x, 4.0));
         const auto guide = h.pixels().at(550, 300);
-        check(guide.r > 200 && guide.g < 80, std::format("a guide between a and b: {} {} {}", guide.r, guide.g, guide.b));
+        expect(guide.r > 200 && guide.g < 80) << std::format("a guide between a and b: {} {} {}", guide.r, guide.g, guide.b);
         h.step({release(screen(54, 44))});
         const auto after = h.pixels().at(550, 300);
-        check(after.g > 200, "no guide once it is dropped");
+        expect(after.g > 200) << "no guide once it is dropped";
         // Its right edge 0 px from b's left: meets it; the y meets nothing.
         drag(h, screen(54, 40), screen(150, 70));
-        check_eq(sc.rect(*sc.find("a")).x, 100.0);
-        check_eq(sc.rect(*sc.find("a")).y, 30.0);
+        expect(eq(sc.rect(*sc.find("a")).x, 100.0));
+        expect(eq(sc.rect(*sc.find("a")).y, 30.0));
         // snap:20 — the grid's lines too.
         auto& g = board("grid-snap");
         Fixture f2("grid-snap", {"drag", "snap:20"});
         drag(f2.h, screen(50, 40), screen(50 + 36, 40 + 43));  // a would land at (36, 43): the grid's (40, 40)
-        check_eq(g.rect(*g.find("a")).x, 40.0);
-        check_eq(g.rect(*g.find("a")).y, 40.0);
-    });
+        expect(eq(g.rect(*g.find("a")).x, 40.0));
+        expect(eq(g.rect(*g.find("a")).y, 40.0));
+    };
 
-    s.test("resize: handles on the one chosen node, ⇧ keeps proportions, never below 8 px; resize for agents", [] {
+    "resize: handles on the one chosen node, ⇧ keeps proportions, never below 8 px; resize for agents"_test = [] {
         auto& sc = board("resize");
         Fixture f("resize", {"select", "drag", "resize"});
         auto& h = f.h;
@@ -396,46 +395,46 @@ int main(int argc, char** argv) {
         // The bottom-right handle at (100, 80).
         drag(h, screen(100, 80), screen(160, 100));
         auto r = sc.rect(*sc.find("a"));
-        check_eq(r.width, 160.0);
-        check_eq(r.height, 100.0);
-        check(f.saw("resized"), "resized is told");
+        expect(eq(r.width, 160.0));
+        expect(eq(r.height, 100.0));
+        expect(f.saw("resized")) << "resized is told";
         // The left side, past the right: stops 8 px short.
         drag(h, screen(0, 50), screen(400, 50));
         r = sc.rect(*sc.find("a"));
-        check_eq(r.width, 8.0);
-        check_eq(r.right(), 160.0);
+        expect(eq(r.width, 8.0));
+        expect(eq(r.right(), 160.0));
         // ⇧ on a corner: 2:1 kept.
-        check_eq(act(h, "main/board/a", "resize", Value{}.set("width", Value(100.0)).set("height", Value(50.0))), std::int64_t{0});
+        expect(eq(act(h, "main/board/a", "resize", Value{}.set("width", Value(100.0)).set("height", Value(50.0))), std::int64_t{0}));
         r = sc.rect(*sc.find("a"));
         drag(h, screen(r.right(), r.bottom()), screen(r.right() + 100, r.bottom() + 10), Modifier::shift);
         r = sc.rect(*sc.find("a"));
-        check_eq(r.width, 200.0);
-        check_eq(r.height, 100.0);
-        check(act(h, "main/board/a", "resize", Value{}.set("width", Value(-1.0)).set("height", Value(10.0))) != 0, "a size below 0 is refused");
-    });
+        expect(eq(r.width, 200.0));
+        expect(eq(r.height, 100.0));
+        expect(act(h, "main/board/a", "resize", Value{}.set("width", Value(-1.0)).set("height", Value(10.0))) != 0) << "a size below 0 is refused";
+    };
 
-    s.test("connect: ⌥-drag from a node to another; connect and disconnect for agents", [] {
+    "connect: ⌥-drag from a node to another; connect and disconnect for agents"_test = [] {
         auto& sc = board("connect");
         Fixture f("connect", {"drag", "connect"});
         auto& h = f.h;
         drag(h, screen(50, 40), screen(250, 40), Modifier::alt);
-        check_eq(sc.edges().size(), std::size_t{1});
-        check_eq(sc.edges()[0].from, std::string("a"));
-        check_eq(sc.edges()[0].to, std::string("b"));
-        check_eq(sc.rect(*sc.find("a")).x, 0.0);  // ⌥ connects, it does not move
+        expect(eq(sc.edges().size(), std::size_t{1}));
+        expect(eq(sc.edges()[0].from, std::string("a")));
+        expect(eq(sc.edges()[0].to, std::string("b")));
+        expect(eq(sc.rect(*sc.find("a")).x, 0.0));  // ⌥ connects, it does not move
         // Dropped on the background: nothing.
         drag(h, screen(50, 40), screen(50, 250), Modifier::alt);
-        check_eq(sc.edges().size(), std::size_t{1});
-        check_eq(act(h, "main/board/c", "connect", Value{}.set("to", Value("a"))), std::int64_t{0});
-        check_eq(sc.edges_of("a").size(), std::size_t{2});
-        check(act(h, "main/board/c", "connect", Value{}.set("to", Value("nobody"))) != 0, "an unknown node is refused");
-        check(has(action_names(h, "main/board/c"), "disconnect"), "a connected node offers disconnect");
-        check_eq(act(h, "main/board/a", "disconnect", Value{}.set("to", Value("c"))), std::int64_t{0});
-        check_eq(sc.edges_of("a").size(), std::size_t{1});
-        check(f.saw("connected") && f.saw("disconnected"), "both told");
-    });
+        expect(eq(sc.edges().size(), std::size_t{1}));
+        expect(eq(act(h, "main/board/c", "connect", Value{}.set("to", Value("a"))), std::int64_t{0}));
+        expect(eq(sc.edges_of("a").size(), std::size_t{2}));
+        expect(act(h, "main/board/c", "connect", Value{}.set("to", Value("nobody"))) != 0) << "an unknown node is refused";
+        expect(has(action_names(h, "main/board/c"), "disconnect")) << "a connected node offers disconnect";
+        expect(eq(act(h, "main/board/a", "disconnect", Value{}.set("to", Value("c"))), std::int64_t{0}));
+        expect(eq(sc.edges_of("a").size(), std::size_t{1}));
+        expect(f.saw("connected") && f.saw("disconnected")) << "both told";
+    };
 
-    s.test("delete: Delete removes the selection; the action is irreversible and needs its answer", [] {
+    "delete: Delete removes the selection; the action is irreversible and needs its answer"_test = [] {
         auto& sc = board("delete");
         Fixture f("delete", {"select", "delete"});
         auto& h = f.h;
@@ -443,16 +442,16 @@ int main(int argc, char** argv) {
         click(h, screen(250, 40), Modifier::shift);
         h.key(Key::delete_);
         h.step();
-        check_eq(sc.size(), std::size_t{1});
-        check(f.selection.empty(), "the deleted are no longer chosen");
-        check(f.saw("deleted"), "deleted is told");
-        check(act(h, "main/board/c", "delete") != 0, "without its answer, refused");
-        check_eq(sc.size(), std::size_t{1});
-        check_eq(act(h, "main/board/c", "delete", {}, "yes"), std::int64_t{0});
-        check_eq(sc.size(), std::size_t{0});
-    });
+        expect(eq(sc.size(), std::size_t{1}));
+        expect(f.selection.empty()) << "the deleted are no longer chosen";
+        expect(f.saw("deleted")) << "deleted is told";
+        expect(act(h, "main/board/c", "delete") != 0) << "without its answer, refused";
+        expect(eq(sc.size(), std::size_t{1}));
+        expect(eq(act(h, "main/board/c", "delete", {}, "yes"), std::int64_t{0}));
+        expect(eq(sc.size(), std::size_t{0}));
+    };
 
-    s.test("grid and minimap: a cell of 16–32 px at any zoom, every second line stronger; the minimap moves the view", [] {
+    "grid and minimap: a cell of 16–32 px at any zoom, every second line stronger; the minimap moves the view"_test = [] {
         world::scene("grid").clear();
         for (double z : {0.0123, 0.37, 1.0, 5.5, 140.0}) {
             Headless h({.size = {800, 600}});
@@ -469,10 +468,10 @@ int main(int argc, char** argv) {
                     if (px.at(x, row).r < 246) found.push_back(x);
                 if (lines.empty() || found.size() < lines.size()) lines = std::move(found);
             }
-            check(lines.size() >= 24, std::format("zoom {}: {} lines", z, lines.size()));
+            expect(lines.size() >= 24) << std::format("zoom {}: {} lines", z, lines.size());
             if (lines.size() >= 2) {
                 const double spacing = static_cast<double>(lines.back() - lines.front()) / static_cast<double>(lines.size() - 1);
-                check(spacing >= 15.5 && spacing <= 33, std::format("zoom {}: lines {} px apart", z, spacing));
+                expect(spacing >= 15.5 && spacing <= 33) << std::format("zoom {}: lines {} px apart", z, spacing);
             }
         }
         board("mini");
@@ -484,28 +483,28 @@ int main(int argc, char** argv) {
         // The minimap: the bottom-right 200 × 136, 12 px in. Its centre is the
         // view's (the scene is inside the view); its top-left is up and left.
         const Point inside{800 - 12 - 180, 600 - 12 - 116};
-        check(h.pixels().at(static_cast<int>(inside.x), static_cast<int>(inside.y)).r >= 240, "the panel is drawn");
+        expect(h.pixels().at(static_cast<int>(inside.x), static_cast<int>(inside.y)).r >= 240) << "the panel is drawn";
         // a (green, 100 × 80 at the origin) in it: the view's 800 × 600 fit into 188 × 124.
         const auto green = h.pixels().at(698, 528);
-        check(green.g > green.r + 40 && green.g > green.b + 40, std::format("a is green in the minimap: {} {} {}", green.r, green.g, green.b));
+        expect(green.g > green.r + 40 && green.g > green.b + 40) << std::format("a is green in the minimap: {} {} {}", green.r, green.g, green.b);
         h.step({press(inside)});
         h.step({release(inside)});
-        check(x.get() < -100 && y.get() < -100, std::format("the view moved up and left: {}, {}", x.get(), y.get()));
+        expect(x.get() < -100 && y.get() < -100) << std::format("the view moved up and left: {}, {}", x.get(), y.get());
         // In another corner, at the margins it is given: a 110, 76 into the panel as before.
         Headless h2({.size = {800, 600}});
         h2.mount("main", column({.width = 800, .height = 600},
                                 {canvas({.id = "board", .behaviors = std::vector<std::string>{"minimap:top-left 40 30"}, .scene = "mini", .width = 800, .height = 600})}));
         h2.settle();
         const auto moved = h2.pixels().at(150, 106);
-        check(moved.g > moved.r + 40 && moved.g > moved.b + 40, std::format("a is green in the top-left minimap, 40 and 30 in: {} {} {}", moved.r, moved.g, moved.b));
-    });
+        expect(moved.g > moved.r + 40 && moved.g > moved.b + 40) << std::format("a is green in the top-left minimap, 40 and 30 in: {} {} {}", moved.r, moved.g, moved.b);
+    };
 
-    s.test("declarative: a statechart from TOML drags a group by its label, commits, and adds its actions", [] {
+    "declarative: a statechart from TOML drags a group by its label, commits, and adds its actions"_test = [] {
         const auto loaded = world::load_behaviors(group_drag, "group-drag.behavior.omui.toml");
-        check(loaded.has_value(), loaded ? std::string{} : loaded.error().front().text());
-        check_eq(loaded.value_or(std::vector<std::string>{}), std::vector<std::string>{"group-drag"});
-        check(has(world::behaviors(), "group-drag"), "registered by name");
-        check_eq(world::behavior_operations().size(), std::size_t{17});
+        expect(loaded.has_value()) << (loaded ? std::string{} : loaded.error().front().text());
+        expect(eq(loaded.value_or(std::vector<std::string>{}), std::vector<std::string>{"group-drag"}));
+        expect(has(world::behaviors(), "group-drag")) << "registered by name";
+        expect(eq(world::behavior_operations().size(), std::size_t{17}));
         auto& sc = board("group");
         sc.add({.kind = "label", .x = -300, .y = -200, .width = 120, .height = 30, .key = "g1", .fill = Color::hex(0xfacc15)});
         std::vector<Value> told;
@@ -524,56 +523,56 @@ int main(int argc, char** argv) {
         // The label: dragged, chosen, raised, told.
         drag(h, screen(-250, -190), screen(-210, -160));
         const auto r = sc.rect(*sc.find("g1"));
-        check_eq(r.x, -260.0);
-        check_eq(r.y, -170.0);
-        check_eq(chosen, std::vector<std::string>{"g1"});
-        check_eq(told.size(), std::size_t{2});
+        expect(eq(r.x, -260.0));
+        expect(eq(r.y, -170.0));
+        expect(eq(chosen, std::vector<std::string>{"g1"}));
+        expect(eq(told.size(), std::size_t{2}));
         if (told.size() == 2) {
-            check_eq(std::string(told[0].get("event")->as_string()), std::string("group.left"));
-            check_eq(told[0].get("args")->get("moves")->as_int(), std::int64_t{4});
-            check_eq(std::string(told[1].get("event")->as_string()), std::string("group.moved"));
-            check_eq(told[1].get("args")->get("dx")->as_double(), 40.0);
+            expect(eq(std::string(told[0].get("event")->as_string()), std::string("group.left")));
+            expect(eq(told[0].get("args")->get("moves")->as_int(), std::int64_t{4}));
+            expect(eq(std::string(told[1].get("event")->as_string()), std::string("group.moved")));
+            expect(eq(told[1].get("args")->get("dx")->as_double(), 40.0));
         }
         // A box is not a label: the press goes on (select chooses it on release).
         click(h, screen(50, 40));
-        check_eq(chosen, std::vector<std::string>{"a"});
-        check_eq(sc.rect(*sc.find("a")).x, 0.0);
+        expect(eq(chosen, std::vector<std::string>{"a"}));
+        expect(eq(sc.rect(*sc.find("a")).x, 0.0));
         // Keys.
         h.key(Key::g, Modifier::ctrl);
         h.step();
-        check(told.size() == 3 && told[2].get("args")->get("keys")->list()->size() == 1, "the key transition commits");
+        expect(told.size() == 3 && told[2].get("args")->get("keys")->list()->size() == 1) << "the key transition commits";
         // Its actions, where `when` holds.
-        check(has(action_names(h, "main/board/g1"), "nudge"), "a label offers nudge");
-        check(!has(action_names(h, "main/board/a"), "nudge"), "a box does not");
-        check_eq(act(h, "main/board/g1", "nudge", Value{}.set("dx", Value(10.0)).set("dy", Value(-5.0))), std::int64_t{0});
-        check_eq(sc.rect(*sc.find("g1")).x, -250.0);
-        check(act(h, "main/board/g1", "nudge", Value{}.set("dx", Value(10.0))) != 0, "a missing argument is refused");
-        check(act(h, "main/board/g1", "dissolve") != 0, "irreversible: refused without its answer");
-        check_eq(act(h, "main/board/g1", "dissolve", {}, "yes"), std::int64_t{0});
-        check(!sc.find("g1"), "dissolved");
-    });
+        expect(has(action_names(h, "main/board/g1"), "nudge")) << "a label offers nudge";
+        expect(!has(action_names(h, "main/board/a"), "nudge")) << "a box does not";
+        expect(eq(act(h, "main/board/g1", "nudge", Value{}.set("dx", Value(10.0)).set("dy", Value(-5.0))), std::int64_t{0}));
+        expect(eq(sc.rect(*sc.find("g1")).x, -250.0));
+        expect(act(h, "main/board/g1", "nudge", Value{}.set("dx", Value(10.0))) != 0) << "a missing argument is refused";
+        expect(act(h, "main/board/g1", "dissolve") != 0) << "irreversible: refused without its answer";
+        expect(eq(act(h, "main/board/g1", "dissolve", {}, "yes"), std::int64_t{0}));
+        expect(!sc.find("g1")) << "dissolved";
+    };
 
-    s.test("declarative: a misspelt file is refused whole, each problem on its line with a hint", [] {
+    "declarative: a misspelt file is refused whole, each problem on its line with a hint"_test = [] {
         const auto bad = world::load_behaviors(misspelt, "bad.behavior.omui.toml");
-        check(!bad.has_value(), "refused");
+        expect(!bad.has_value()) << "refused";
         if (bad) return;
         const auto& ps = bad.error();
         for (const auto& p : ps) std::println("    {}", p.text());
-        check(mentions(ps, 3, "did you mean `idle`?"), "the initial state");
-        check(mentions(ps, 4, "did you mean `priority`?"), "a key");
-        check(mentions(ps, 6, "did you mean `pointer_down`?"), "an event");
-        check(mentions(ps, 7, "did you mean `hit`?"), "a name");
-        check(mentions(ps, 7, "did you mean `dragging`?"), "a state");
-        check(mentions(ps, 7, "did you mean `move`?"), "an operation");
-        check(mentions(ps, 7, "takes 0 arguments"), "an arity");
-        check(mentions(ps, 8, "pointer_down transition"), "capture outside a press");
-        check(mentions(ps, 8, "ends early"), "a parse error");
-        check(mentions(ps, 10, "S-1"), "an irreversible action without its answer");
-        check(!has(world::behaviors(), "bad"), "nothing registered");
+        expect(mentions(ps, 3, "did you mean `idle`?")) << "the initial state";
+        expect(mentions(ps, 4, "did you mean `priority`?")) << "a key";
+        expect(mentions(ps, 6, "did you mean `pointer_down`?")) << "an event";
+        expect(mentions(ps, 7, "did you mean `hit`?")) << "a name";
+        expect(mentions(ps, 7, "did you mean `dragging`?")) << "a state";
+        expect(mentions(ps, 7, "did you mean `move`?")) << "an operation";
+        expect(mentions(ps, 7, "takes 0 arguments")) << "an arity";
+        expect(mentions(ps, 8, "pointer_down transition")) << "capture outside a press";
+        expect(mentions(ps, 8, "ends early")) << "a parse error";
+        expect(mentions(ps, 10, "S-1")) << "an irreversible action without its answer";
+        expect(!has(world::behaviors(), "bad")) << "nothing registered";
         const auto broken = world::load_behaviors("[behavior.x\non = 1", "broken.behavior.omui.toml");
-        check(!broken && broken.error().front().line == 1, "malformed TOML: where");
+        expect(!broken && broken.error().front().line == 1) << "malformed TOML: where";
         const auto missing = world::load_behavior_file("/nonexistent/x.behavior.omui.toml");
-        check(!missing.has_value(), "a missing file");
+        expect(!missing.has_value()) << "a missing file";
         // From a file: the same as from text, the problems naming the file.
         const auto dir = std::filesystem::temp_directory_path() / std::format("omui-canvas-kit-{}", std::random_device{}());
         std::filesystem::create_directories(dir);
@@ -582,22 +581,20 @@ int main(int argc, char** argv) {
             std::ofstream(dir / "bad.behavior.omui.toml", std::ios::binary) << misspelt;
         }
         const auto good = world::load_behavior_file(dir / "group-drag.behavior.omui.toml");
-        check(good && good->size() == 1, "a file loads");
+        expect(good && good->size() == 1) << "a file loads";
         const auto wrong = world::load_behavior_file(dir / "bad.behavior.omui.toml");
-        check(!wrong && wrong.error().front().file.ends_with("bad.behavior.omui.toml") && wrong.error().front().line == 3, "a file's problems name it");
+        expect(!wrong && wrong.error().front().file.ends_with("bad.behavior.omui.toml") && wrong.error().front().line == 3) << "a file's problems name it";
         std::filesystem::remove_all(dir);
-    });
+    };
 
-    s.test("conformance: every behaviour registered — canvas-kit's and a declarative one — passes the behaviour CTS", [] {
-        check(world::load_behaviors(group_drag, "group-drag.behavior.omui.toml").has_value(), "group-drag loads");
+    "conformance: every behaviour registered — canvas-kit's and a declarative one — passes the behaviour CTS"_test = [] {
+        expect(world::load_behaviors(group_drag, "group-drag.behavior.omui.toml").has_value()) << "group-drag loads";
         std::vector<std::string> all;
         for (const std::string& name : world::behaviors()) all.push_back(name);
         // With arguments, as canvases name them.
         for (const char* more : {"select:marquee", "snap:grid", "snap:20", "grid:25", "minimap:top-left", "minimap:top-right 96 54"}) all.emplace_back(more);
-        check(all.size() >= 14, std::format("{} behaviours", all.size()));
+        expect(all.size() >= 14) << std::format("{} behaviours", all.size());
         for (const std::string& b : all)
-            for (const std::string& p : conformance(b)) check(false, p);
-    });
-
-    return s.run(argc, argv);
-}
+            for (const std::string& p : conformance(b)) expect(false) << p;
+    };
+}};

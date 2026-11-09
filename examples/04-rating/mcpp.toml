@@ -42,6 +42,7 @@ omui.ui.base      = { path = "../../modules/projects/omui/components/base" }
 omui.build.contracts = { path = "../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils  = { path = "../../modules/base/utils" }
 omui.player   = { path = "../../modules/projects/omui/player" }
 omui.lang.js  = { path = "../../modules/projects/omui/lang/js" }

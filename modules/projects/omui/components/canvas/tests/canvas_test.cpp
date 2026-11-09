@@ -12,8 +12,10 @@ import omui.host.headless;
 import xrender.vector;
 import xrender.raster;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -59,11 +61,10 @@ std::size_t count_rects(const xrender::DisplayList& l) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.canvas"};
+UTest cases{"ui.canvas", [] {
     register_canvas_component();
 
-    s.test("the scene's grid finds what a scan finds, bottom to top, as nodes come, move and go", [] {
+    "the scene's grid finds what a scan finds, bottom to top, as nodes come, move and go"_test = [] {
         world::Scene sc(256);
         Rng rng;
         std::vector<world::NodeRef> nodes;
@@ -74,66 +75,66 @@ int main(int argc, char** argv) {
         for (int i = 0; i < 5; ++i) nodes.push_back(sc.add({.kind = "box", .x = -60000, .y = -60000.0 + i * 20000.0, .width = 120000, .height = 500}));
         for (int i = 0; i < 2000; ++i) sc.move(nodes[static_cast<std::size_t>(i * 7)], rng.next() * 1000, rng.next() * 1000);
         for (int i = 0; i < 1000; ++i) sc.remove(nodes[static_cast<std::size_t>(i * 13 + 1)]);
-        check_eq(sc.size(), std::size_t{20005 - 1000});
+        expect(eq(sc.size(), std::size_t{20005 - 1000}));
         std::vector<world::NodeRef> got;
         for (const world::WorldRect r : {world::WorldRect{-1000, -1000, 3000, 3000}, world::WorldRect{20000, -5000, 800, 600},
                                          world::WorldRect{-70000, -70000, 140000, 140000}, world::WorldRect{1e6, 1e6, 10, 10}}) {
             sc.query(r, got);
-            check(keys(sc, got) == brute(sc, r), std::format("the query at {} {} {}×{}", r.x, r.y, r.width, r.height));
+            expect(keys(sc, got) == brute(sc, r)) << std::format("the query at {} {} {}×{}", r.x, r.y, r.width, r.height);
         }
         // Keys name nodes; a key used again replaces its node.
         const auto a = sc.add({.kind = "box", .x = 0, .y = 0, .width = 10, .height = 10, .key = "a"});
-        check(sc.find("a") == std::optional(a));
+        expect(sc.find("a") == std::optional(a));
         const auto again = sc.add({.kind = "box", .x = 5, .y = 5, .width = 10, .height = 10, .key = "a"});
-        check(!sc.valid(a) && sc.find("a") == std::optional(again));
+        expect(!sc.valid(a) && sc.find("a") == std::optional(again));
         sc.set(again, "title", std::string("Notes"));
         sc.set(again, "progress", 0.5);
-        check(sc.text(again, "title") == "Notes" && sc.number(again, "progress") == 0.5 && sc.number(again, "absent", 7) == 7);
+        expect(sc.text(again, "title") == "Notes" && sc.number(again, "progress") == 0.5 && sc.number(again, "absent", 7) == 7);
         // Hits: the topmost; raising changes it.
         const auto under = sc.add({.kind = "box", .x = 2000000, .y = 0, .width = 100, .height = 100, .key = "under"});
         const auto over = sc.add({.kind = "box", .x = 2000050, .y = 50, .width = 100, .height = 100, .key = "over"});
-        check(sc.hit(2000075, 75)->node == over);
+        expect(sc.hit(2000075, 75)->node == over);
         sc.raise(under);
-        check(sc.hit(2000075, 75)->node == under);
+        expect(sc.hit(2000075, 75)->node == under);
         // A script's columns, in one call.
         std::vector<double> xs{0, 100, 200}, ys{0, 0, 0};
         std::vector<float> ws{50, 50, 50}, hs{40, 40, 40};
         const std::vector<std::string> kinds{"box"}, names{"p0", "p1", "p2"};
         const auto pushed = sc.push(xs, ys, ws, hs, kinds, names);
-        check(pushed.size() == 3 && sc.key(pushed[2]) == "p2" && sc.rect(pushed[1]).x == 100);
-    });
+        expect(pushed.size() == 3 && sc.key(pushed[2]) == "p2" && sc.rect(pushed[1]).x == 100);
+    };
 
-    s.test("the camera: precise far from the origin, zooming about a point, springs and flings that settle", [] {
+    "the camera: precise far from the origin, zooming about a point, springs and flings that settle"_test = [] {
         const Size vp{800, 600};
         world::Camera c{1e9, -2e9, 3};
         // A world point a billion units out lands on the right screen pixel.
         const Point p = c.to_screen(1e9 + 10.25, -2e9 - 4.5, vp);
-        check(std::abs(p.x - (400 + 30.75f)) < 1e-3f && std::abs(p.y - (300 - 13.5f)) < 1e-3f, std::format("{} {}", p.x, p.y));
+        expect(std::abs(p.x - (400 + 30.75f)) < 1e-3f && std::abs(p.y - (300 - 13.5f)) < 1e-3f) << std::format("{} {}", p.x, p.y);
         // Zooming keeps the world point under the cursor where it is.
         const Point cursor{123, 456};
         const auto before = c.to_world(cursor, vp);
         c.zoom_at(cursor, 2.5, vp, 0.01, 100);
         const auto after = c.to_world(cursor, vp);
-        check(std::abs(before[0] - after[0]) < 1e-6 && std::abs(before[1] - after[1]) < 1e-6 && c.zoom == 7.5);
+        expect(std::abs(before[0] - after[0]) < 1e-6 && std::abs(before[1] - after[1]) < 1e-6 && c.zoom == 7.5);
         c.zoom_at(cursor, 1000, vp, 0.01, 100);
-        check_eq(c.zoom, 100.0);
+        expect(eq(c.zoom, 100.0));
         // Fit: the rectangle whole, centred.
         const auto f = world::Camera::fit({0, 0, 1600, 600}, vp, 0, 0.01, 100);
-        check(f.zoom == 0.5 && f.x == 800 && f.y == 300);
+        expect(f.zoom == 0.5 && f.x == 800 && f.y == 300);
         // A spring arrives exactly, and is between before.
         const world::CameraMotion m({0, 0, 1}, {1000, 500, 4}, hanim::seconds(1));
-        check(m.at(hanim::seconds(1)) == world::Camera{0, 0, 1});
+        expect(m.at(hanim::seconds(1)) == world::Camera{0, 0, 1});
         const auto mid = m.at(hanim::seconds(1.1));
-        check(mid.x > 0 && mid.x < 1000 && mid.zoom > 1 && mid.zoom < 4);
-        check(m.settled(hanim::seconds(10)) && m.at(hanim::seconds(10)) == world::Camera{1000, 500, 4});
+        expect(mid.x > 0 && mid.x < 1000 && mid.zoom > 1 && mid.zoom < 4);
+        expect(m.settled(hanim::seconds(10)) && m.at(hanim::seconds(10)) == world::Camera{1000, 500, 4});
         // A fling glides the way it was thrown and stops.
         const world::Inertia fling({0, 0, 2}, {-600, 0}, hanim::seconds(0));
         const auto later = fling.at(hanim::seconds(0.2)), end = fling.at(hanim::seconds(5));
-        check(later.x > 0 && end.x > later.x && fling.settled(hanim::seconds(5)));
-        check(std::abs(end.x - 600.0 / 6.0 / 2.0) < 2, std::format("a fling of 600 px/s at zoom 2 glides ~50 world units, not {}", end.x));
-    });
+        expect(later.x > 0 && end.x > later.x && fling.settled(hanim::seconds(5)));
+        expect(std::abs(end.x - 600.0 / 6.0 / 2.0) < 2) << std::format("a fling of 600 px/s at zoom 2 glides ~50 world units, not {}", end.x);
+    };
 
-    s.test("the keyboard: Tab from item to item in reading order (the camera going to each), Enter activates, past the last the page goes on", [] {
+    "the keyboard: Tab from item to item in reading order (the camera going to each), Enter activates, past the last the page goes on"_test = [] {
         auto& sc = world::scene("keys");
         sc.clear();
         sc.kind("item", world::Kind{.tiers = {{0, world::Tier::Draw::box}}, .role = Role::article});
@@ -155,26 +156,26 @@ int main(int argc, char** argv) {
         };
         h.key(Key::tab);
         h.settle();
-        check_eq(focused_item(), std::string("main/board/a"));  // top row, left first
+        expect(eq(focused_item(), std::string("main/board/a")));  // top row, left first
         h.key(Key::tab);
         h.settle();
-        check_eq(focused_item(), std::string("main/board/b"));
+        expect(eq(focused_item(), std::string("main/board/b")));
         h.key(Key::tab, Modifiers{Modifier::shift});
         h.settle();
-        check_eq(focused_item(), std::string("main/board/a"));
+        expect(eq(focused_item(), std::string("main/board/a")));
         h.key(Key::enter);
         h.step();
-        check(activated == std::vector<std::string>{"a"}, "Enter: the focused item activated");
+        expect(activated == std::vector<std::string>{"a"}) << "Enter: the focused item activated";
         h.key(Key::tab);
         h.key(Key::tab);
         h.settle();
-        check_eq(focused_item(), std::string("main/board/c"));
+        expect(eq(focused_item(), std::string("main/board/c")));
         h.key(Key::tab);  // past the last: on to the page's next control
         h.settle();
-        check(h.runtime().focused() == h.runtime().find("main/after"), "the page's order goes on");
-    });
+        expect(h.runtime().focused() == h.runtime().find("main/after")) << "the page's order goes on";
+    };
 
-    s.test("the component draws what the camera sees, by tier, and makes the largest live", [] {
+    "the component draws what the camera sees, by tier, and makes the largest live"_test = [] {
         auto& sc = world::scene("tiers");
         sc.clear();
         int custom_draws = 0;
@@ -196,40 +197,39 @@ int main(int argc, char** argv) {
         h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .scene = "tiers", .x = 1350, .y = 1000, .zoom = 0.2, .width = 800, .height = 600})}));
         h.settle();
         // Far out: every card a box (48 px on screen), nothing custom, nothing live.
-        check_eq(custom_draws, 0);
-        check(count_rects(h.runtime().display_list()) >= 100, "a hundred boxes, and the background");
+        expect(eq(custom_draws, 0));
+        expect(count_rects(h.runtime().display_list()) >= 100) << "a hundred boxes, and the background";
         // Closer: the cards on screen are drawn by the kind, and only they.
-        check_eq(act(h, "main/board", "zoom_to", Value(Value::Map{{"zoom", Value(1.0)}})), std::int64_t{0});
+        expect(eq(act(h, "main/board", "zoom_to", Value(Value::Map{{"zoom", Value(1.0)}})), std::int64_t{0}));
         h.settle();
         const int drawn = custom_draws;
-        check(drawn > 0, "custom drawing happened");
+        expect(drawn > 0) << "custom drawing happened";
         custom_draws = 0;
         h.step();  // nothing changed: nothing drawn again
-        check_eq(custom_draws, 0);
+        expect(eq(custom_draws, 0));
         // Close: the centred card is live — a node of the tree — and follows the camera.
-        check_eq(act(h, "main/board", "focus_node", Value(Value::Map{{"key", Value("c55")}})), std::int64_t{0});
+        expect(eq(act(h, "main/board", "focus_node", Value(Value::Map{{"key", Value("c55")}})), std::int64_t{0}));
         h.settle();
         const auto live = h.tree().node("main/board/c55/column:0/title");
-        check(live && live->name == "Card 55", "the live card's text is in the tree");
+        expect(live && live->name == "Card 55") << "the live card's text is in the tree";
         const auto at = h.tree().node("main/board/c55");
-        check(at.has_value() && at->bounds.has_value(), "the live card has bounds");
+        expect(at.has_value() && at->bounds.has_value()) << "the live card has bounds";
         if (at && at->bounds) {
             // It sits where its world rectangle is on screen.
             const auto b = *at->bounds;
-            check(std::abs(b.x + b.width / 2 - 400) < 2 && std::abs(b.y + b.height / 2 - 300) < 2, std::format("centred: {} {} {}×{}", b.x, b.y, b.width, b.height));
+            expect(std::abs(b.x + b.width / 2 - 400) < 2 && std::abs(b.y + b.height / 2 - 300) < 2) << std::format("centred: {} {} {}×{}", b.x, b.y, b.width, b.height);
         }
         // A wheel over the live card is the card's: the camera stays (a page's end is not a zoom).
         h.scroll({400, 300}, {0, -120});
         const auto still = h.tree().node("main/board/c55");
-        check(still && still->bounds && at && at->bounds && std::abs(still->bounds->x - at->bounds->x) < 1 && std::abs(still->bounds->width - at->bounds->width) < 1,
-              "the camera stayed");
+        expect(still && still->bounds && at && at->bounds && std::abs(still->bounds->x - at->bounds->x) < 1 && std::abs(still->bounds->width - at->bounds->width) < 1) << "the camera stayed";
         // Panning (a trackpad's two fingers off the card) moves it with the camera in the same frame.
         h.scroll({6, 6}, {-50, 0});
         const auto moved = h.tree().node("main/board/c55");
-        check(moved && moved->bounds && at && at->bounds && std::abs((moved->bounds->x - at->bounds->x) - 50) < 1, "moved 50 px with the pan");
-    });
+        expect(moved && moved->bounds && at && at->bounds && std::abs((moved->bounds->x - at->bounds->x) - 50) < 1) << "moved 50 px with the pan";
+    };
 
-    s.test("live nodes of a scene made or filled after the canvas mounted: placed, and composed again when touched", [] {
+    "live nodes of a scene made or filled after the canvas mounted: placed, and composed again when touched"_test = [] {
         // Kinds always live: a node is a card from its first pixel.
         const auto card = [](world::Scene& sc) {
             sc.kind("live", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
@@ -252,33 +252,33 @@ int main(int argc, char** argv) {
         filled.clear();
         card(filled);
         h.settle();
-        check(!h.tree().node("main/made/a"), "nothing live yet");
+        expect(!h.tree().node("main/made/a")) << "nothing live yet";
         auto& late = world::scene("late");
         card(late);
         add(late, "a", 0, "Made later");
         h.settle();
         const auto made = h.tree().node("main/made/a/title");
-        check(made && made->name == "Made later", "the scene made after mount: its node live");
+        expect(made && made->name == "Made later") << "the scene made after mount: its node live";
         // Filled from a timer: in a frame before its paint, which must not
         // swallow the change the next frame's step places.
         h.runtime().after(hanim::seconds(0), [&] { add(filled, "b", 0, "From a timer"); });
         h.settle();
         const auto timed = h.tree().node("main/filled/b/title");
-        check(timed && timed->name == "From a timer", "the node a timer added: live");
+        expect(timed && timed->name == "From a timer") << "the node a timer added: live";
         // A node gone goes; a touched one is composed again from its columns.
         filled.remove(*filled.find("b"));
         add(filled, "c", 0, "Third");
         h.settle();
-        check(!h.tree().node("main/filled/b") && h.tree().node("main/filled/c/title"), "the removed node gone, the added one live");
+        expect(!h.tree().node("main/filled/b") && h.tree().node("main/filled/c/title")) << "the removed node gone, the added one live";
         const auto c = *filled.find("c");
         filled.set(c, "title", std::string("Renamed"));
         filled.touch(c);
         h.settle();
         const auto renamed = h.tree().node("main/filled/c/title");
-        check(renamed && renamed->name == "Renamed", "the touched node composed again");
-    });
+        expect(renamed && renamed->name == "Renamed") << "the touched node composed again";
+    };
 
-    s.test("promotion: live at rest by default, at once with `always`, never with `never`", [] {
+    "promotion: live at rest by default, at once with `always`, never with `never`"_test = [] {
         auto& sc = world::scene("promotion");
         sc.clear();
         sc.kind("live", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
@@ -292,20 +292,20 @@ int main(int argc, char** argv) {
             Signal<std::string> promotion = signal(std::string(policy));
             h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "c", .promotion = promotion, .scene = "promotion", .x = 100, .y = 50, .width = 800, .height = 600})}));
             h.settle();
-            check(static_cast<bool>(h.tree().node("main/c/a/title")) == (policy != "never"), std::format("{}: at rest, a", policy));
+            expect(static_cast<bool>(h.tree().node("main/c/a/title")) == (policy != "never")) << std::format("{}: at rest, a", policy);
             // b comes into view while the camera moves.
             h.scroll({400, 300}, {400, 0});
-            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "always"), std::format("{}: moving, b", policy));
+            expect(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "always")) << std::format("{}: moving, b", policy);
             h.settle();
-            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy != "never"), std::format("{}: at rest again, b", policy));
+            expect(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy != "never")) << std::format("{}: at rest again, b", policy);
             // Changed while shown: the nodes follow.
             promotion.set(policy == "never" ? "at_rest" : "never");
             h.settle();
-            check(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "never"), std::format("{}: switched, b", policy));
+            expect(static_cast<bool>(h.tree().node("main/c/b/title")) == (policy == "never")) << std::format("{}: switched, b", policy);
         }
-    });
+    };
 
-    s.test("a live node at the start view: placed by the camera it starts at, not the one before", [] {
+    "a live node at the start view: placed by the camera it starts at, not the one before"_test = [] {
         auto& sc = world::scene("started");
         sc.clear();
         sc.kind("page", world::Kind{.tiers = {{0, world::Tier::Draw::promote}},
@@ -316,13 +316,12 @@ int main(int argc, char** argv) {
         h.mount("main", canvas({.id = "c", .scene = "started", .start = "preset:p", .width = 800, .height = 300}));
         h.settle();
         const auto box = h.runtime().find("main/p");  // a mounted element is its mount
-        check(box != NodeId{}, "live");
-        check(std::abs(h.runtime().get(box, "translate_x").as_double(-1)) < 1e-3 && std::abs(h.runtime().get(box, "translate_y").as_double(-1)) < 1e-3,
-              std::format("at the view's corner: {} {}", h.runtime().get(box, "translate_x").json(), h.runtime().get(box, "translate_y").json()));
+        expect(box != NodeId{}) << "live";
+        expect(std::abs(h.runtime().get(box, "translate_x").as_double(-1)) < 1e-3 && std::abs(h.runtime().get(box, "translate_y").as_double(-1)) < 1e-3) << std::format("at the view's corner: {} {}", h.runtime().get(box, "translate_x").json(), h.runtime().get(box, "translate_y").json());
         world::drop_scene("started");
-    });
+    };
 
-    s.test("texture tiers: rasterised in the background, the nearest ready level stretched meanwhile, stale content kept until the new one is in", [] {
+    "texture tiers: rasterised in the background, the nearest ready level stretched meanwhile, stale content kept until the new one is in"_test = [] {
         auto& sc = world::scene("textures");
         sc.clear();
         std::atomic<int> built = 0;
@@ -349,26 +348,26 @@ int main(int argc, char** argv) {
         };
         const auto d5 = *sc.find("d5");
         const xrender::raster::Rgba8 grey = xrender::raster::premultiply(Color::hex(0x94a3b8)), red = xrender::raster::premultiply(Color::hex(0xdc2626));
-        check(at(d5) == grey, "a box until its texture is in");
+        expect(at(d5) == grey) << "a box until its texture is in";
         h.settle();
-        check(built.load() >= 12, std::format("every visible node's content was built ({})", built.load()));
-        check(at(d5) == red, "the texture, once in");
+        expect(built.load() >= 12) << std::format("every visible node's content was built ({})", built.load());
+        expect(at(d5) == red) << "the texture, once in";
         // The content changes: the stale texture stays until the new one is in.
         sc.set(d5, "color", 0x16a34a);
         sc.touch(d5);
         h.step();
-        check(at(d5) == red, "the old texture meanwhile, not a box");
+        expect(at(d5) == red) << "the old texture meanwhile, not a box";
         h.settle();
-        check(at(d5) == xrender::raster::premultiply(Color::hex(0x16a34a)), "the new content");
+        expect(at(d5) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the new content";
         // Closer: a sharper level is asked for; the one in is stretched meanwhile, never a box.
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(2.5));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(sc.rect(d5).x + 120));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(sc.rect(d5).y + 100));
         h.step();
         const auto centre = h.pixels().at(400, 300);
-        check(centre == xrender::raster::premultiply(Color::hex(0x16a34a)), "the coarser texture, stretched, at once");
+        expect(centre == xrender::raster::premultiply(Color::hex(0x16a34a))) << "the coarser texture, stretched, at once";
         h.settle();
-        check(h.pixels().at(400, 300) == xrender::raster::premultiply(Color::hex(0x16a34a)), "and the sharper one when it is in");
+        expect(h.pixels().at(400, 300) == xrender::raster::premultiply(Color::hex(0x16a34a))) << "and the sharper one when it is in";
         h.runtime().set(h.runtime().find("main/board"), "zoom", Value(0.6));
         h.runtime().set(h.runtime().find("main/board"), "x", Value(570.0));
         h.runtime().set(h.runtime().find("main/board"), "y", Value(350.0));
@@ -382,10 +381,10 @@ int main(int argc, char** argv) {
             boxes += px == grey;
             textured += !(px == grey);
         }
-        check(textured >= 1, "what fits stays");
-    });
+        expect(textured >= 1) << "what fits stays";
+    };
 
-    s.test("texture tiers from a view: laid out offscreen on the pool, the same pixels as the live node, drawn again in a new theme", [] {
+    "texture tiers from a view: laid out offscreen on the pool, the same pixels as the live node, drawn again in a new theme"_test = [] {
         auto& sc = world::scene("views");
         sc.clear();
         // One element for the texture and the live node: a card of the theme's surface, a coloured band, a title.
@@ -414,9 +413,9 @@ int main(int argc, char** argv) {
             return h.pixels().at(static_cast<int>(p.x), static_cast<int>(p.y));
         };
         const auto band = [&] { return at(sc.rect(c4).x + 140, sc.rect(c4).y + 20); };
-        check(band() == xrender::raster::premultiply(Color::hex(0x94a3b8)), "a box before its texture is in");
+        expect(band() == xrender::raster::premultiply(Color::hex(0x94a3b8))) << "a box before its texture is in";
         h.settle();
-        check(band() == xrender::raster::premultiply(Color::hex(0x0ea5e9)), "the view's band, from the texture");
+        expect(band() == xrender::raster::premultiply(Color::hex(0x0ea5e9))) << "the view's band, from the texture";
         // The texture is the view's own pixels: the same region drawn live (promoted, at 1:1) is the same bytes.
         const Rect region = [&] {
             const Rect r = cam.to_screen(sc.rect(c4), {800, 600});
@@ -427,7 +426,7 @@ int main(int argc, char** argv) {
         sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::promote}}, .promote = card, .view = card});
         h.settle();
         const auto live = h.png(region);
-        check(textured && live && *textured == *live, "the texture and the live node, byte for byte");
+        expect(textured && live && *textured == *live) << "the texture and the live node, byte for byte";
         // A new theme: drawn again in it.
         sc.kind("card", world::Kind{.tiers = {{0, world::Tier::Draw::box}, {60, world::Tier::Draw::texture}}, .promote = card, .view = card});
         h.settle();
@@ -435,11 +434,10 @@ int main(int argc, char** argv) {
         h.runtime().set_theme(Theme::dark_theme());
         h.settle();
         const auto dark = at(sc.rect(c4).x + 140, sc.rect(c4).y + 150);
-        check(light == xrender::raster::premultiply(Theme::light().color("surface")) && dark == xrender::raster::premultiply(Theme::dark_theme().color("surface")),
-              "the card's surface follows the theme");
-    });
+        expect(light == xrender::raster::premultiply(Theme::light().color("surface")) && dark == xrender::raster::premultiply(Theme::dark_theme().color("surface"))) << "the card's surface follows the theme";
+    };
 
-    s.test("frames drawn complete: any frame rendered directly is the one playing to it gives — textures at their level, live nodes at once", [] {
+    "frames drawn complete: any frame rendered directly is the one playing to it gives — textures at their level, live nodes at once"_test = [] {
         auto& sc = world::scene("complete");
         sc.clear();
         auto card = [](const world::Scene& s, world::NodeRef n) {
@@ -484,15 +482,15 @@ int main(int argc, char** argv) {
         std::map<std::int64_t, std::uint64_t> seen;
         for (std::int64_t i = 0; i <= 90; ++i) seen[i] = frame(*played, i);
         const Canvas* c = played->runtime().component<Canvas>(played->runtime().find("main/board"));
-        check(c && c->stats().stretched == 0 && c->stats().promoted >= 1, "the last frame: no stretched texture, the card it reached live");
+        expect(c && c->stats().stretched == 0 && c->stats().promoted >= 1) << "the last frame: no stretched texture, the card it reached live";
         for (std::int64_t i : {90, 7, 45, 0, 23, 66, 89}) {
             auto direct = made();
             const auto direct_hash = frame(*direct, i);
-            check(direct_hash == seen[i], std::format("frame {} rendered directly: {:016x}, played: {:016x}", i, direct_hash, seen[i]));
+            expect(direct_hash == seen[i]) << std::format("frame {} rendered directly: {:016x}, played: {:016x}", i, direct_hash, seen[i]);
         }
-    });
+    };
 
-    s.test("semantics: what is on screen, the viewport's actions, and find over the whole scene", [] {
+    "semantics: what is on screen, the viewport's actions, and find over the whole scene"_test = [] {
         auto& sc = world::scene("search");
         sc.clear();
         sc.kind("note", world::Kind{.role = Role::article});
@@ -506,41 +504,41 @@ int main(int argc, char** argv) {
         h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .label = "Notes", .scene = "search", .x = 400, .y = 300, .zoom = 1, .width = 800, .height = 600})}));
         h.settle();
         const auto board = h.tree().node("main/board");
-        check(board && board->role == Role::canvas && board->name == "Notes");
+        expect(board && board->role == Role::canvas && board->name == "Notes");
         // Only what is on screen is stated (an 800×600 view of a 6000×3750 scene).
         std::size_t items = 0;
         for (const auto& n : h.tree().snapshot({}).nodes) items += n.id.starts_with("main/board/n");
-        check(items > 10 && items < 60, std::format("{} items on screen", items));
+        expect(items > 10 && items < 60) << std::format("{} items on screen", items);
         const auto n41 = h.tree().node("main/board/n41");
-        check(n41 && n41->role == Role::article && n41->name == "Note 41" && n41->bounds.has_value());
+        expect(n41 && n41->role == Role::article && n41->name == "Note 41" && n41->bounds.has_value());
         // find: over the whole scene.
         Value found;
-        check_eq(act(h, "main/board", "find", Value(Value::Map{{"query", Value(Value::Map{{"name", Value("groceries")}})}}), &found), std::int64_t{0});
-        check(found.list() && found.list()->size() == 10, "ten groceries in the whole scene");
-        check_eq(act(h, "main/board", "find", Value(Value::Map{{"query", Value(Value::Map{{"near", Value(Value::List{Value(4000.0), Value(3000.0)})},
+        expect(eq(act(h, "main/board", "find", Value(Value::Map{{"query", Value(Value::Map{{"name", Value("groceries")}})}}), &found), std::int64_t{0}));
+        expect(found.list() && found.list()->size() == 10) << "ten groceries in the whole scene";
+        expect(eq(act(h, "main/board", "find", Value(Value::Map{{"query", Value(Value::Map{{"near", Value(Value::List{Value(4000.0), Value(3000.0)})},
                                                                                             {"radius", Value(200.0)},
                                                                                             {"kind", Value("note")}})}}),
                      &found),
-                 std::int64_t{0});
-        check(found.list() && !found.list()->empty(), "notes near a point");
+                 std::int64_t{0}));
+        expect(found.list() && !found.list()->empty()) << "notes near a point";
         // The viewport's actions.
-        check_eq(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("overview")}})), std::int64_t{0});
+        expect(eq(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("overview")}})), std::int64_t{0}));
         h.settle();
         items = 0;
         for (const auto& n : h.tree().snapshot({}).nodes) items += n.id.starts_with("main/board/n");
-        check_eq(items, std::size_t{1000});
-        check(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("nowhere")}})) != 0, "an unknown view is refused");
-        check_eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value("n999")}})), std::int64_t{0});
+        expect(eq(items, std::size_t{1000}));
+        expect(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("nowhere")}})) != 0) << "an unknown view is refused";
+        expect(eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value("n999")}})), std::int64_t{0}));
         h.settle();
-        check(h.tree().node("main/board/n999").has_value());
+        expect(h.tree().node("main/board/n999").has_value());
         // Several keys: all of them in view (one not in the scene left out); none: refused.
-        check_eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("n0"), Value("n999"), Value("nowhere")})}})), std::int64_t{0});
+        expect(eq(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("n0"), Value("n999"), Value("nowhere")})}})), std::int64_t{0}));
         h.settle();
-        check(h.tree().node("main/board/n0").has_value() && h.tree().node("main/board/n999").has_value(), "the first and the last, both in view");
-        check(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("nowhere")})}})) != 0, "no key in the scene: refused");
-    });
+        expect(h.tree().node("main/board/n0").has_value() && h.tree().node("main/board/n999").has_value()) << "the first and the last, both in view";
+        expect(act(h, "main/board", "fit", Value(Value::Map{{"target", Value(Value::List{Value("nowhere")})}})) != 0) << "no key in the scene: refused";
+    };
 
-    s.test("frame demand (D-70): the fastest while the camera moves on its own, none once it rests", [] {
+    "frame demand (D-70): the fastest while the camera moves on its own, none once it rests"_test = [] {
         auto& sc = world::scene("pacing");
         sc.clear();
         sc.add({.kind = "box", .x = 0, .y = 0, .width = 100, .height = 100, .key = "a", .fill = Color::hex(0x16a34a)});
@@ -548,19 +546,19 @@ int main(int argc, char** argv) {
         Headless h({.size = {800, 600}});
         h.mount("main", column({.width = 800, .height = 600}, {canvas({.id = "board", .scene = "pacing", .width = 800, .height = 600})}));
         h.settle();
-        check(h.runtime().frame_demand().idle(), "at rest");
+        expect(h.runtime().frame_demand().idle()) << "at rest";
         Invocation call;
         call.actor = {"agent", "test", {}};
         call.args = Value{}.set("key", Value("b"));
         (void)h.tree().act("main/board", "focus_node", call);
         h.step();
         const auto& d = h.runtime().frame_demand();
-        check(!d.idle() && std::isinf(d.max_hz) && d.reason == "camera spring", d.reason);
+        expect(!d.idle() && std::isinf(d.max_hz) && d.reason == "camera spring") << d.reason;
         h.settle();
-        check(h.runtime().frame_demand().idle(), "settled: none");
-    });
+        expect(h.runtime().frame_demand().idle()) << "settled: none";
+    };
 
-    s.test("the page's time taken back (D-60): the camera as it was — before a flight, during it, after; paused, it waits", [] {
+    "the page's time taken back (D-60): the camera as it was — before a flight, during it, after; paused, it waits"_test = [] {
         auto& sc = world::scene("retimed");
         sc.clear();
         sc.add({.kind = "box", .x = 0, .y = 0, .width = 100, .height = 100, .key = "a", .fill = Color::hex(0x16a34a)});
@@ -574,28 +572,28 @@ int main(int argc, char** argv) {
         const world::Camera home = c->camera();
         h.advance(seconds(1));
         const double flew = rt.now().count();
-        check_eq(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("far")}})), std::int64_t{0});
+        expect(eq(act(h, "main/board", "camera_preset", Value(Value::Map{{"name", Value("far")}})), std::int64_t{0}));
         h.advance(seconds(0.2));
         const world::Camera mid = c->camera();
         const double mid_t = rt.now().count();
         h.settle();
         const world::Camera far = c->camera();
-        check(far.x == 3050 && far.y == 2050, "flown there");
-        check(mid.x > home.x && mid.x < far.x, "under way at 0.2 s");
+        expect(far.x == 3050 && far.y == 2050) << "flown there";
+        expect(mid.x > home.x && mid.x < far.x) << "under way at 0.2 s";
 
         rt.pause_time(true);
         rt.seek_time(seconds(flew - 0.5));
         h.step();
-        check(c->camera() == home, "before the flight: where it was");
+        expect(c->camera() == home) << "before the flight: where it was";
         rt.seek_time(seconds(mid_t));
         h.step();
-        check(c->camera() == mid, "during it: the very camera of that frame");
+        expect(c->camera() == mid) << "during it: the very camera of that frame";
         for (int i = 0; i < 30; ++i) h.step();
-        check(c->camera() == mid, "paused: it waits");
-        check(rt.frame_demand().idle(), "and asks for no frames");
+        expect(c->camera() == mid) << "paused: it waits";
+        expect(rt.frame_demand().idle()) << "and asks for no frames";
         rt.pause_time(false);
         h.settle();
-        check(c->camera() == far, "played on: where the flight ends");
+        expect(c->camera() == far) << "played on: where the flight ends";
 
         // Taken back again, then moved by a person: a new course from there (what lay ahead is gone).
         rt.pause_time(true);
@@ -603,13 +601,13 @@ int main(int argc, char** argv) {
         h.step();
         rt.release_time();
         h.step();
-        check(c->camera() == far, "let go: the time is the host's again, after the flight");
-        check_eq(act(h, "main/board", "pan_to", Value(Value::Map{{"x", Value(500.0)}, {"y", Value(400.0)}})), std::int64_t{0});
+        expect(c->camera() == far) << "let go: the time is the host's again, after the flight";
+        expect(eq(act(h, "main/board", "pan_to", Value(Value::Map{{"x", Value(500.0)}, {"y", Value(400.0)}})), std::int64_t{0}));
         h.settle();
-        check(c->camera().x == 500 && c->camera().y == 400, "moved on from there");
-    });
+        expect(c->camera().x == 500 && c->camera().y == 400) << "moved on from there";
+    };
 
-    s.test("input: the wheel zooms about the cursor, a drag pans, a fling glides", [] {
+    "input: the wheel zooms about the cursor, a drag pans, a fling glides"_test = [] {
         auto& sc = world::scene("input");
         sc.clear();
         sc.add({.kind = "box", .x = 0, .y = 0, .width = 100, .height = 100, .key = "a", .fill = Color::hex(0x16a34a)});
@@ -620,14 +618,14 @@ int main(int argc, char** argv) {
         // A wheel notch about (600, 300): that point stays put; the binding sees the camera.
         h.scroll({600, 300}, {0, -120}, false);
         h.step();
-        check(zoom.get() > 1, "zoomed in");
+        expect(zoom.get() > 1) << "zoomed in";
         const double wx = x.get() + (600 - 400) / zoom.get();
-        check(std::abs(wx - 200) < 1e-6, std::format("the point under the cursor stays: {}", wx));
+        expect(std::abs(wx - 200) < 1e-6) << std::format("the point under the cursor stays: {}", wx);
         // A drag pans by what the pointer moved.
         const double x0 = x.get(), z = zoom.get();
         h.step({PointerEvent{.kind = PointerKind::down, .position = {400, 300}, .button = MouseButton::left, .buttons = 1}});
         h.step({PointerEvent{.kind = PointerKind::move, .position = {300, 300}, .buttons = 1}});
-        check(std::abs((x.get() - x0) - 100 / z) < 1e-6, "dragged 100 px left: the camera moved right");
+        expect(std::abs((x.get() - x0) - 100 / z) < 1e-6) << "dragged 100 px left: the camera moved right";
         // Released moving: it glides on, slowing, and stops.
         h.step({PointerEvent{.kind = PointerKind::move, .position = {280, 300}, .buttons = 1}});
         h.step({PointerEvent{.kind = PointerKind::up, .position = {280, 300}, .button = MouseButton::left}});
@@ -635,8 +633,6 @@ int main(int argc, char** argv) {
         h.advance(hanim::seconds(0.2));
         const double gliding = x.get();
         h.settle();
-        check(gliding > released && x.get() > gliding, std::format("glides: {} → {} → {}", released, gliding, x.get()));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(gliding > released && x.get() > gliding) << std::format("glides: {} → {} → {}", released, gliding, x.get());
+    };
+}};

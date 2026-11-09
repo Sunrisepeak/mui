@@ -10,8 +10,10 @@ import omui;
 import omui.site;
 import omui.ui.markdown;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -31,7 +33,7 @@ struct Run {
         h.settle(seconds(0.9));
         pause_preview("home");
         h.settle(seconds(0.8));
-        check(h.click("main/foot/tools_toggle"));
+        expect(h.click("main/foot/tools_toggle"));
         h.settle();
     }
     bool navigate(const site::Place& place) { return h.click(std::format("main/bar/nav/to_{}", place.id)); }
@@ -42,7 +44,7 @@ struct Run {
         // The walls' own motion (they play a few cards by themselves), paused through their buttons.
         for (const std::string wall : {std::format("main/body/view/{}/page/wall/tools/pause", place), std::format("main/body/view/{}/page/recipes/tools/pause", place)})
             if (const auto button = h.tree().node(wall); button && button->name == "Pause motion") {
-                check(h.tree().act(wall, "activate").exit_code() == std::optional<int>(0), wall);
+                expect(h.tree().act(wall, "activate").exit_code() == std::optional<int>(0)) << wall;
                 h.step();
             }
         if (place == "explore" || place == "motion" || place == "components") return;  // the studio and the walls (paused above); a gallery opens one case at a time
@@ -54,14 +56,14 @@ struct Run {
         else if (place == "interface") control = "main/body/view/interface/page/interface_feature/preview_controls/preview_pause";
         if (control.empty()) return;
         const auto button = h.tree().node(control);
-        check(button.has_value(), control);
+        expect(button.has_value()) << control;
         if (!button) return;
         if (button->name == "Pause" || button->name == "Pause auto" || button->name == "Pause preview") {
-            check(h.tree().act(control, "activate").exit_code() == std::optional<int>(0), control);
+            expect(h.tree().act(control, "activate").exit_code() == std::optional<int>(0)) << control;
             h.step();
         }
         const auto paused = h.tree().node(control);
-        check(paused && (paused->name == "Play" || paused->name == "Play preview" || paused->name == "Resume preview"), std::string(place) + ": preview explicitly paused");
+        expect(paused && (paused->name == "Play" || paused->name == "Play preview" || paused->name == "Resume preview")) << std::string(place) + ": preview explicitly paused";
     }
     struct Times {
         std::vector<double> frame, raster;
@@ -110,40 +112,39 @@ void report(std::string_view what, const Run::Times& t) {
 int main(int argc, char** argv) {
     std::vector<char*> args(argv, argv + argc);
     timing = std::erase_if(args, [](const char* a) { return std::string_view(a) == "--timing"; }) > 0;
-    Suite s{"site.frames"};
 
-    s.test("every place shown comes to rest, and the frame meter then says the page is idle", [] {
+    "every place shown comes to rest, and the frame meter then says the page is idle"_test = [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const site::Place& p : site::places()) {
             if (p.id == "home" || !p.navigation) continue;  // secondary exhibits are covered in brand_test
-            check(r.navigate(p), std::format("the nav's {}", p.id));
+            expect(r.navigate(p)) << std::format("the nav's {}", p.id);
             r.h.step();
             r.pause_preview(p.id);
             const Run::Times t = r.frames(300);
             report(std::format("to {}", p.id), t);
-            check(t.rested, std::format("to {}: at rest within 5 s (still: {})", p.id, t.wants));
+            expect(t.rested) << std::format("to {}: at rest within 5 s (still: {})", p.id, t.wants);
             const Value v = r.reading();
-            check(v.get("idle") && v.get("idle")->as_bool(), std::format("to {}: the meter idle at rest ({})", p.id, v.json()));
-            check(v.get("renderer") && v.get("renderer")->as_string() == "cpu", "the headless host's renderer");
-            check(v.get("frames") && v.get("frames")->as_int() > 0, std::format("to {}: its frames counted", p.id));
-            check(v.get("cost_ms") && v.get("cost_ms")->is_null(), "no cost where the host does not measure");
+            expect(v.get("idle") && v.get("idle")->as_bool()) << std::format("to {}: the meter idle at rest ({})", p.id, v.json());
+            expect(v.get("renderer") && v.get("renderer")->as_string() == "cpu") << "the headless host's renderer";
+            expect(v.get("frames") && v.get("frames")->as_int() > 0) << std::format("to {}: its frames counted", p.id);
+            expect(v.get("cost_ms") && v.get("cost_ms")->is_null()) << "no cost where the host does not measure";
         }
-    });
+    };
 
-    s.test("while the language switches the meter reads its rate: the frames with something new, at most 60 a second on the headless host's clock", [] {
+    "while the language switches the meter reads its rate: the frames with something new, at most 60 a second on the headless host's clock"_test = [] {
         Run r(1);
-        check(r.h.click("main/bar/lang"));
+        expect(r.h.click("main/bar/lang"));
         for (int i = 0; i < 12; ++i) (void)r.h.step();
         const Value v = r.reading();
-        check(v.get("idle") && !v.get("idle")->as_bool(), "moving: not idle");
+        expect(v.get("idle") && !v.get("idle")->as_bool()) << "moving: not idle";
         const double fps = v.get("fps") ? v.get("fps")->as_double(0) : 0;
-        check(fps > 40 && fps < 60.5, std::format("fps {}", fps));
-    });
+        expect(fps > 40 && fps < 60.5) << std::format("fps {}", fps);
+    };
 
-    s.test("the lenses: each switch comes to rest: what stays is a slow timer, and a frame displayed only when it runs", [] {
+    "the lenses: each switch comes to rest: what stays is a slow timer, and a frame displayed only when it runs"_test = [] {
         Run r(timing ? 2.0f : 1.0f);
         for (const std::string_view lens : {"tree", "agent", "test", "pixels"}) {
-            check(r.h.click(std::format("main/foot/lens_{}", lens)), std::format("the lens {}", lens));
+            expect(r.h.click(std::format("main/foot/lens_{}", lens))) << std::format("the lens {}", lens);
             const Run::Times t = r.frames(120);
             report(std::format("lens {}", lens), t);
             // Then a second of it: nothing but timers asking, and those slow (a
@@ -160,11 +161,11 @@ int main(int argc, char** argv) {
                 if (!out.demand.idle() && out.demand.reason != "timer") other = out.demand.reason;
                 if (out.next_timer) due.insert(out.next_timer->count());
             }
-            check(displayed <= std::max<int>(1, static_cast<int>(due.size())), std::format("lens {}: {} display frames at rest, {} timers", lens, displayed, due.size()));
-            check(other.empty(), std::format("lens {}: frames asked for by {}", lens, other));
-            check(due.size() <= 10, std::format("lens {}: {} timers in a second", lens, due.size()));
+            expect(displayed <= std::max<int>(1, static_cast<int>(due.size()))) << std::format("lens {}: {} display frames at rest, {} timers", lens, displayed, due.size());
+            expect(other.empty()) << std::format("lens {}: frames asked for by {}", lens, other);
+            expect(due.size() <= 10) << std::format("lens {}: {} timers in a second", lens, due.size());
         }
-    });
+    };
 
-    return s.run(static_cast<int>(args.size()), args.data());
+    return mcpplibs::mtest::run(static_cast<int>(args.size()), args.data());
 }

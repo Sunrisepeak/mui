@@ -14,8 +14,10 @@ import omui.host.headless;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace mcpplibs::mtest;
 using namespace omui;
 

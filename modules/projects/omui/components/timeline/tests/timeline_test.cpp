@@ -9,8 +9,10 @@ import omui.ui.timeline;
 import xengine.timeline;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace tl = xengine::timeline;
 
@@ -114,81 +116,77 @@ KeyEvent key(Key k, bool down, Modifiers mods = {}) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"ui.timeline"};
+UTest cases{"ui.timeline", [] {
 
-    s.test("the document read into tracks and clips an agent sees: names, kinds, frames, the playhead", [] {
+    "the document read into tracks and clips an agent sees: names, kinds, frames, the playhead"_test = [] {
         Editor e;
         const Value v = e.seen();
-        check_eq(v.get("frames")->as_int(0), std::int64_t{180});
+        expect(eq(v.get("frames")->as_int(0), std::int64_t{180}));
         const Value::List& tracks = *v.get("tracks")->list();
-        check(tracks.size() == 2 && tracks[0].get("kind")->as_string() == "video" && tracks[1].get("name")->as_string() == "music", "two tracks");
+        expect(tracks.size() == 2 && tracks[0].get("kind")->as_string() == "video" && tracks[1].get("name")->as_string() == "music") << "two tracks";
         const Value::List& clips = *tracks[0].get("clips")->list();
-        check(clips.size() == 2 && clips[1].get("name")->as_string() == "fight" && clips[1].get("frame")->as_int(0) == 90 && clips[1].get("frames")->as_int(0) == 90,
-              "the fight at frame 90 for 90 frames");
-    });
+        expect(clips.size() == 2 && clips[1].get("name")->as_string() == "fight" && clips[1].get("frame")->as_int(0) == 90 && clips[1].get("frames")->as_int(0) == 90) << "the fight at frame 90 for 90 frames";
+    };
 
-    s.test("an agent edits: select, split at the playhead, move, trim, remove — each handing out the document, each undone and redone exactly through the history (S-12)", [] {
+    "an agent edits: select, split at the playhead, move, trim, remove — each handing out the document, each undone and redone exactly through the history (S-12)"_test = [] {
         Editor e;
         const std::string original = e.text();
-        check(e.act("select", clip(0, 1)) && e.act("seek", Value{}.set("frame", 120)) && e.act("split"), "the fight split at frame 120");
-        check(e.editor().model().tracks[0].clips.size() == 3 && e.documents.size() == 1, "three clips; the document handed out");
-        check(e.act("move", Value{}.set("track", 0).set("clip", 2).set("to_track", 0).set("frame", 200)), "its second half moved later");
-        check(e.act("trim", Value{}.set("track", 0).set("clip", 0).set("frame", 5).set("frames", 40)), "the title trimmed");
-        check(e.act("select", clip(1, 0)) && e.act("remove", Value{}.set("ripple", false)), "the theme removed");
-        check(!e.act("move", Value{}.set("track", 0).set("clip", 0).set("to_track", 1).set("frame", 0)), "a picture onto the music track refused");
-        check_eq(std::string(e.seen().get("last")->as_string()), std::string("remove `theme`"));
+        expect(e.act("select", clip(0, 1)) && e.act("seek", Value{}.set("frame", 120)) && e.act("split")) << "the fight split at frame 120";
+        expect(e.editor().model().tracks[0].clips.size() == 3 && e.documents.size() == 1) << "three clips; the document handed out";
+        expect(e.act("move", Value{}.set("track", 0).set("clip", 2).set("to_track", 0).set("frame", 200))) << "its second half moved later";
+        expect(e.act("trim", Value{}.set("track", 0).set("clip", 0).set("frame", 5).set("frames", 40))) << "the title trimmed";
+        expect(e.act("select", clip(1, 0)) && e.act("remove", Value{}.set("ripple", false))) << "the theme removed";
+        expect(!e.act("move", Value{}.set("track", 0).set("clip", 0).set("to_track", 1).set("frame", 0))) << "a picture onto the music track refused";
+        expect(eq(std::string(e.seen().get("last")->as_string()), std::string("remove `theme`")));
         const std::string edited = e.text();
-        for (int i = 0; i < 4; ++i) check(e.act("undo"), "undo");
-        check_eq(e.text(), original);
-        check(!e.act("undo"), "nothing more to undo: the window's history offers no undo now");
-        for (int i = 0; i < 4; ++i) check(e.act("redo"), "redo");
-        check_eq(e.text(), edited);
-        check_eq(e.documents.back(), edited);
-    });
+        for (int i = 0; i < 4; ++i) expect(e.act("undo")) << "undo";
+        expect(eq(e.text(), original));
+        expect(!e.act("undo")) << "nothing more to undo: the window's history offers no undo now";
+        for (int i = 0; i < 4; ++i) expect(e.act("redo")) << "redo";
+        expect(eq(e.text(), edited));
+        expect(eq(e.documents.back(), edited));
+    };
 
-    s.test("a person edits: a click selects and sets the playhead, a drag moves a clip by whole frames, its edge trims, S splits, Delete removes, Ctrl+Z undoes", [] {
+    "a person edits: a click selects and sets the playhead, a drag moves a clip by whole frames, its edge trims, S splits, Delete removes, Ctrl+Z undoes"_test = [] {
         Editor e;
         const float ruler = TimelineEditor::ruler, row = TimelineEditor::track_height, x0 = TimelineEditor::header;
         auto at = [&](double seconds, int track) { return Point{x0 + static_cast<float>(seconds * 120), ruler + row * static_cast<float>(track) + row / 2}; };
         // The ruler at 1 s: the playhead to frame 30.
         e.h.step({press({x0 + 120, 10}, PointerKind::down), press({x0 + 120, 10}, PointerKind::up)});
-        check_eq(e.editor().props.frame, 30);
+        expect(eq(e.editor().props.frame, 30));
         // The fight (3 s to 6 s) dragged right by half a second: it starts at 3.5 s, frame 105.
         e.h.step({press(at(4, 0), PointerKind::down), press(at(4.5, 0), PointerKind::move), press(at(4.5, 0), PointerKind::up)});
-        check_eq(e.editor().model().tracks[0].clips[1].at, mlibs::time::Rate{30, 1}.frame_time(105));
+        expect(eq(e.editor().model().tracks[0].clips[1].at, mlibs::time::Rate{30, 1}.frame_time(105)));
         // Its right edge dragged back a second: 60 frames long.
         const double end = 3.5 + 3;
         e.h.step({press(at(end - 0.01, 0), PointerKind::down), press(at(end - 1, 0), PointerKind::move), press(at(end - 1, 0), PointerKind::up)});
-        check_eq(e.editor().model().tracks[0].clips[1].length, mlibs::time::Rate{30, 1}.frame_time(60));
+        expect(eq(e.editor().model().tracks[0].clips[1].length, mlibs::time::Rate{30, 1}.frame_time(60)));
         // The playhead into it and S: split; Delete: the selected half gone.
         e.h.step({press(at(4, 0), PointerKind::down), press(at(4, 0), PointerKind::up)});
-        check(e.act("seek", Value{}.set("frame", 120)));
+        expect(e.act("seek", Value{}.set("frame", 120)));
         e.h.step({key(Key::s, true), key(Key::s, false)});
-        check_eq(e.editor().model().tracks[0].clips.size(), std::size_t{3});
+        expect(eq(e.editor().model().tracks[0].clips.size(), std::size_t{3}));
         e.h.step({key(Key::delete_, true), key(Key::delete_, false)});
-        check_eq(e.editor().model().tracks[0].clips.size(), std::size_t{2});
+        expect(eq(e.editor().model().tracks[0].clips.size(), std::size_t{2}));
         // Ctrl+Z four times (the move, the trim, the split, the removal): back to the fight as it started.
         for (int i = 0; i < 4; ++i) e.h.step({key(Key::z, true, Modifier::ctrl), key(Key::z, false, Modifier::ctrl)});
-        check_eq(e.text(), tl::write_timeline(*tl::read_timeline(promo, "promo")));
-    });
+        expect(eq(e.text(), tl::write_timeline(*tl::read_timeline(promo, "promo"))));
+    };
 
-    s.test("a document that does not read says why, at its line and column, to people and agents", [] {
+    "a document that does not read says why, at its line and column, to people and agents"_test = [] {
         Editor e("[[track]]\nkind = \"vidoe\"\n");
         const Value v = e.seen();
-        check(v.get("problems") && v.get("problems")->list() && !v.get("problems")->list()->empty(), "the problems in its value");
-        check((*v.get("problems")->list())[0].as_string().contains("did you mean `video`?"), "with the nearest right word");
-    });
+        expect(v.get("problems") && v.get("problems")->list() && !v.get("problems")->list()->empty()) << "the problems in its value";
+        expect((*v.get("problems")->list())[0].as_string().contains("did you mean `video`?")) << "with the nearest right word";
+    };
 
-    s.test("pinned: the ruler, the tracks and their clips with fades and keys, the marker, the playhead, a selected clip", [] {
+    "pinned: the ruler, the tracks and their clips with fades and keys, the marker, the playhead, a selected clip"_test = [] {
         Editor e;
-        check(e.act("select", clip(0, 1)) && e.act("seek", Value{}.set("frame", 45)));
+        expect(e.act("select", clip(0, 1)) && e.act("seek", Value{}.set("frame", 45)));
         e.h.step();
-        check(e.h.save_png(scratch_dir("ui-timeline") / "timeline.png").has_value());
+        expect(e.h.save_png(scratch_dir("ui-timeline") / "timeline.png").has_value());
         const std::uint64_t px = e.pixels();
         std::println("    timeline editor {:016x}", px);
-        check_eq(px, std::uint64_t{0x837e206c6b7e2734});  // GCC and LLVM
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(px, std::uint64_t{0x837e206c6b7e2734}));  // GCC and LLVM
+    };
+}};

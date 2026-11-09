@@ -79,6 +79,7 @@ UTest cases{"cli.project", [] {
         expect(eq(git({"show", "design/main:app/app.ts"}).second, std::string("mount(\"main\", text({ text: \"two\" }));")));
         expect(eq(git({"show", "design/loud:app/app.ts"}).second, std::string("mount(\"main\", text({ text: \"THREE\" }));")));
         expect(eq(git({"rev-parse", "design/loud~1"}).second, git({"rev-parse", "design/main"}).second)) << "a branch grows from its parent's commit";
+        expect(eq(git({"log", "-1", "--format=%an", "design/main"}).second, std::string("agent:designer"))) << "a design commit is its actor's";
         expect(eq(git({"rev-parse", "design/main~1"}).second, start)) << "the design grows from where the repository was";
         expect(eq(git({"rev-parse", "design/first-try^{commit}"}).second, git({"rev-parse", "design/main"}).second)) << "tags too";
         expect(eq(git({"rev-parse", "HEAD"}).second, start) && eq(git({"status", "--porcelain", "--untracked-files=no"}).second, std::string()))

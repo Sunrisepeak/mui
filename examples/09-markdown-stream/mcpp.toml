@@ -30,4 +30,5 @@ omui.ui.markdown = { path = "../../modules/projects/omui/components/markdown" }
 mcpplibs.os         = "0.4.1"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../modules/base/utils" }

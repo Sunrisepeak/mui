@@ -15,10 +15,12 @@ import std;
 import omui;
 import omui.showcase.widget_breakout;
 import mlibs.testing;
+import mcpplibs.mtest;
 import omui.ui.canvas;
 import xengine.audio;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace bo = omui::breakout;
 
@@ -306,13 +308,12 @@ std::string name_of(Game& g, int card) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"showcase.widget_breakout"};
+UTest cases{"showcase.widget_breakout", [] {
 
-    s.test("a room's bricks are its components, placed by layout and read into the simulation where they stand", [] {
+    "a room's bricks are its components, placed by layout and read into the simulation where they stand"_test = [] {
         Game g;
         const auto nodes = g.bricks();
-        check_eq(nodes.size(), bo::room(1).bricks.size());
+        expect(eq(nodes.size(), bo::room(1).bricks.size()));
         const Rect me = g.h.runtime().bounds(g.field());
         std::size_t matched = 0;
         g.state().world.each<bo::Body, bo::Brick>([&](xengine::Entity, const bo::Body& b, const bo::Brick& br) {
@@ -320,35 +321,35 @@ int main(int argc, char** argv) {
             const double sx = bo::field_w / me.width, sy = bo::field_h / me.height;
             matched += b.box.x == (r.x - me.x) * sx && b.box.y == (r.y - me.y) * sy && b.box.w == r.width * sx && b.box.h == r.height * sy;
         });
-        check_eq(matched, nodes.size());
+        expect(eq(matched, nodes.size()));
         auto& r = g.h.runtime();
-        check(r.get(nodes[5], "label").as_string() == "Do Not Disturb" && r.get(nodes[5], "checked").as_bool(), "a real switch, on");
-        check(r.get(nodes[0], "text").as_string() == "Shut down", "the core: a real button");
-        check(std::abs(r.bounds(nodes[5]).x - me.x - 330) < 0.01, std::format("placed where the room says: {}", r.bounds(nodes[5]).x - me.x));
-        check_eq(g.state().cores, std::int32_t{1});
-    });
+        expect(r.get(nodes[5], "label").as_string() == "Do Not Disturb" && r.get(nodes[5], "checked").as_bool()) << "a real switch, on";
+        expect(r.get(nodes[0], "text").as_string() == "Shut down") << "the core: a real button";
+        expect(std::abs(r.bounds(nodes[5]).x - me.x - 330) < 0.01) << std::format("placed where the room says: {}", r.bounds(nodes[5]).x - me.x);
+        expect(eq(g.state().cores, std::int32_t{1}));
+    };
 
-    s.test("120 steps a second on the runtime's clock, exactly; the paddle follows the agent; the launch goes where the agent aims", [] {
+    "120 steps a second on the runtime's clock, exactly; the paddle follows the agent; the launch goes where the agent aims"_test = [] {
         Game g;
         const auto start = g.state().frame;
         g.h.advance(seconds(1));
-        check_eq(g.state().frame - start, std::int64_t{120});
-        check(g.act("move_to", Value{}.set("x", 0.25)));
+        expect(eq(g.state().frame - start, std::int64_t{120}));
+        expect(g.act("move_to", Value{}.set("x", 0.25)));
         g.h.advance(seconds(1));
-        check(std::abs(g.state().paddles[0].x - 0.25 * bo::field_w) < 1, std::format("paddle at {}", g.state().paddles[0].x));
-        check(g.act("aim", Value{}.set("across", -0.6)));
-        check(g.act("launch"));
+        expect(std::abs(g.state().paddles[0].x - 0.25 * bo::field_w) < 1) << std::format("paddle at {}", g.state().paddles[0].x);
+        expect(g.act("aim", Value{}.set("across", -0.6)));
+        expect(g.act("launch"));
         g.h.advance(seconds(0.1));
         bo::Ball b{};
         g.state().world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& x) { b = x; });
-        check(b.on == 0 && b.velocity.x < 0 && std::abs(b.velocity.x / b.velocity.y - 0.6) < 0.05, std::format("({}, {})", b.velocity.x, b.velocity.y));
-        check(!g.act("aim", Value{}.set("across", "left")), "a number");
-        check(g.act("release"));
-    });
+        expect(b.on == 0 && b.velocity.x < 0 && std::abs(b.velocity.x / b.velocity.y - 0.6) < 0.05) << std::format("({}, {})", b.velocity.x, b.velocity.y);
+        expect(!g.act("aim", Value{}.set("across", "left"))) << "a number";
+        expect(g.act("release"));
+    };
 
-    s.test("an agent plays room 1: the switch flips for real, the shield opens with it, every brick it breaks goes; the core shut down, the room is cleared", [] {
+    "an agent plays room 1: the switch flips for real, the shield opens with it, every brick it breaks goes; the core shut down, the room is cleared"_test = [] {
         Game g;
-        check(g.act("pause"));
+        expect(g.act("pause"));
         std::string wrong;
         bool opened = false;
         for (int k = 0; k < 120 && !g.state().over; ++k) {
@@ -356,60 +357,60 @@ int main(int argc, char** argv) {
             if (wrong.empty()) wrong = g.disagreement();
             opened = opened || !g.h.runtime().get(g.bricks()[1], "visible").as_bool(true);
         }
-        check_eq(wrong, std::string());
-        check(opened, "the shield opened");
-        check_eq(g.state().over, std::uint32_t{1});
+        expect(eq(wrong, std::string()));
+        expect(opened) << "the shield opened";
+        expect(eq(g.state().over, std::uint32_t{1}));
         std::println("    cleared at {:.1f} s, score {}, {} broken", static_cast<double>(g.state().frame) / bo::steps_per_second, g.state().score, g.broke.size());
-        check_eq(static_cast<std::int32_t>(g.broke.size()), static_cast<std::int32_t>(std::ranges::count_if(bo::room(1).bricks, [](const bo::BrickDef& b) { return bo::breakable(b.kind); })));
+        expect(eq(static_cast<std::int32_t>(g.broke.size()), static_cast<std::int32_t>(std::ranges::count_if(bo::room(1).bricks, [](const bo::BrickDef& b) { return bo::breakable(b.kind); }))));
         const Value v = g.seen();
-        check_eq(v.get("score")->as_int(), g.state().score);
-        check(v.get("changes")->list() && !v.get("changes")->list()->empty(), "the semantic tree's changes, for the inspector and agents");
-    });
+        expect(eq(v.get("score")->as_int(), g.state().score));
+        expect(v.get("changes")->list() && !v.get("changes")->list()->empty()) << "the semantic tree's changes, for the inspector and agents";
+    };
 
-    s.test("room 2: a capacitor's slider fills a step a hit and empties as it fires; its beam breaks the dam", [] {
+    "room 2: a capacitor's slider fills a step a hit and empties as it fires; its beam breaks the dam"_test = [] {
         Game g(2);
-        check(g.act("pause"));
-        check(g.play_until(bo::Happened::charged, 60 * bo::steps_per_second), "charged");
-        check_eq(g.disagreement(), std::string());
-        check(g.play_until(bo::Happened::beam, 60 * bo::steps_per_second), "fired");
-        check_eq(g.disagreement(), std::string());
+        expect(g.act("pause"));
+        expect(g.play_until(bo::Happened::charged, 60 * bo::steps_per_second)) << "charged";
+        expect(eq(g.disagreement(), std::string()));
+        expect(g.play_until(bo::Happened::beam, 60 * bo::steps_per_second)) << "fired";
+        expect(eq(g.disagreement(), std::string()));
         g.play(3);
         g.settle();
-        check(g.h.save_png(scratch_dir("breakout-room2") / "beam.png").has_value());
+        expect(g.h.save_png(scratch_dir("breakout-room2") / "beam.png").has_value());
         const auto beam = g.pixels();
         bool emptied = false;
         for (const NodeId n : g.bricks())
             emptied = emptied || (g.h.runtime().get(n, "label").as_string() == "Brightness" && g.h.runtime().get(n, "value").as_double() == 0) ||
                       (g.h.runtime().get(n, "label").as_string() == "Volume" && g.h.runtime().get(n, "value").as_double() == 0);
-        check(emptied, "a slider back to 0");
+        expect(emptied) << "a slider back to 0";
         g.play(90 * bo::steps_per_second);
-        check_eq(g.state().over, std::uint32_t{1});
-        check_eq(g.disagreement(), std::string());
+        expect(eq(g.state().over, std::uint32_t{1}));
+        expect(eq(g.disagreement(), std::string()));
         std::println("    beam {:016x}", beam);
-        check_eq(beam, std::uint64_t{0xa8ad53b398a6093f});  // GCC (LLVM: CI)
-    });
+        expect(eq(beam, std::uint64_t{0xa8ad53b398a6093f}));  // GCC (LLVM: CI)
+    };
 
-    s.test("a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed", [] {
+    "a rewind costs 100 sparks, puts every brick back and the score with it; never past 2 s nor the last landing; it cannot be farmed"_test = [] {
         Game g(3);
-        check(g.act("pause"));
+        expect(g.act("pause"));
         std::map<std::int64_t, std::pair<std::uint64_t, std::int64_t>> was;  // by frame: the checksum, the score
-        check(!g.act("rewind", Value{}.set("frames", 60)), "no sparks yet: refused");
+        expect(!g.act("rewind", Value{}.set("frames", 60))) << "no sparks yet: refused";
         for (int k = 0; k < 90 * bo::steps_per_second && g.state().sparks < 250 && !g.state().over; ++k) {
             was[g.state().frame] = {bo::checksum(g.state()), g.state().score};
             g.play(1);
         }
-        check(g.state().sparks >= 250, std::format("{} sparks", g.state().sparks));
+        expect(g.state().sparks >= 250) << std::format("{} sparks", g.state().sparks);
         const auto now = g.state().frame;
-        check(!g.act("rewind", Value{}.set("frames", bo::rewind_reach + 1)), "2 s at most");
-        check(g.act("rewind", Value{}.set("frames", 200)));
-        check_eq(g.state().frame, now - 200);
-        check_eq(bo::checksum(g.state()), was[now - 200].first);
-        check_eq(g.state().score, was[now - 200].second);
-        check_eq(g.disagreement(), std::string());
+        expect(!g.act("rewind", Value{}.set("frames", bo::rewind_reach + 1))) << "2 s at most";
+        expect(g.act("rewind", Value{}.set("frames", 200)));
+        expect(eq(g.state().frame, now - 200));
+        expect(eq(bo::checksum(g.state()), was[now - 200].first));
+        expect(eq(g.state().score, was[now - 200].second));
+        expect(eq(g.disagreement(), std::string()));
         const auto paid_from = g.state().sparks;
         g.play(1);
-        check(g.state().sparks <= paid_from - bo::rewind_cost + 10 * 40, "paid");
-        check(!g.act("rewind", Value{}.set("frames", 5)), "not past the last landing");
+        expect(g.state().sparks <= paid_from - bo::rewind_cost + 10 * 40) << "paid";
+        expect(!g.act("rewind", Value{}.set("frames", 5))) << "not past the last landing";
         // Farming: play two seconds, take them back, again and again — the sparks only go down, until it is refused.
         std::int32_t rewinds = 0, before = g.state().sparks;
         for (int k = 0; k < 20; ++k) {
@@ -417,32 +418,32 @@ int main(int argc, char** argv) {
             const std::int32_t had = g.state().sparks;
             if (!g.act("rewind", Value{}.set("frames", bo::rewind_reach))) break;
             g.play(1);
-            check(g.state().sparks <= had - bo::rewind_cost + 0, std::format("rewind {}: {} → {}", rewinds, had, g.state().sparks));
+            expect(g.state().sparks <= had - bo::rewind_cost + 0) << std::format("rewind {}: {} → {}", rewinds, had, g.state().sparks);
             ++rewinds;
         }
         std::println("    {} rewinds from {} sparks", rewinds, before);
-        check(rewinds >= 1 && rewinds <= 3 + 2, std::format("{} rewinds", rewinds));
-        check(!g.act("rewind", Value{}.set("frames", 60)), "spent: refused");
+        expect(rewinds >= 1 && rewinds <= 3 + 2) << std::format("{} rewinds", rewinds);
+        expect(!g.act("rewind", Value{}.set("frames", 60))) << "spent: refused";
         // R held: back through time, the cost when let go.
         Game r(3);
-        check(r.act("pause"));
+        expect(r.act("pause"));
         r.play(30 * bo::steps_per_second);
         while (r.state().sparks < bo::rewind_cost && !r.state().over) r.play(60);
-        check(r.act("resume"));
+        expect(r.act("resume"));
         const auto from = r.state().frame;
         const auto sparks = r.state().sparks;
         r.h.runtime().focus(r.field());
         r.h.step({KeyEvent{.kind = KeyKind::down, .key = Key::r}});
         r.h.advance(seconds(1));
         r.h.step({KeyEvent{.kind = KeyKind::up, .key = Key::r}});
-        check(r.state().frame <= from - bo::rewind_reach + 2 && r.state().frame >= from - bo::rewind_reach - 2, std::format("{} → {}", from, r.state().frame));
+        expect(r.state().frame <= from - bo::rewind_reach + 2 && r.state().frame >= from - bo::rewind_reach - 2) << std::format("{} → {}", from, r.state().frame);
         const auto landed = r.state().sparks;
         r.h.advance(seconds(1.0 / 60));
-        check(r.state().sparks <= landed - bo::rewind_cost + 10 * 30 && landed <= sparks, std::format("{} then {}", landed, r.state().sparks));
-        check_eq(r.disagreement(), std::string());
-    });
+        expect(r.state().sparks <= landed - bo::rewind_cost + 10 * 30 && landed <= sparks) << std::format("{} then {}", landed, r.state().sparks);
+        expect(eq(r.disagreement(), std::string()));
+    };
 
-    s.test("the inspector (Tab): each brick's role and id, the hidden caches too — buttons to the tree, nothing on the screen — the changes, how the room is made", [] {
+    "the inspector (Tab): each brick's role and id, the hidden caches too — buttons to the tree, nothing on the screen — the changes, how the room is made"_test = [] {
         Game g(4);
         g.h.step();
         const auto plain = g.pixels();
@@ -450,19 +451,19 @@ int main(int argc, char** argv) {
         for (const auto& n : g.h.tree().snapshot({}).nodes)
             for (std::size_t i = 0; i < bo::room(4).bricks.size(); ++i)
                 if (bo::room(4).bricks[i].kind == bo::Kind::hidden && n.id.ends_with("/" + bo::brick_id(i)) && n.role == spec::Role::button) ++hidden;
-        check_eq(hidden, std::int32_t{7});
-        check(g.h.runtime().get(g.bricks()[13], "opacity").as_double() == 0, "invisible on screen");
+        expect(eq(hidden, std::int32_t{7}));
+        expect(g.h.runtime().get(g.bricks()[13], "opacity").as_double() == 0) << "invisible on screen";
         g.h.key(Key::tab);
         g.h.step();
-        check(g.seen().get("inspector")->as_bool(), "open");
-        check(g.pixels() != plain, "it draws");
-        check(g.h.save_png(scratch_dir("breakout-inspector") / "inspector.png").has_value());        // While it is open the game waits; Tab again, it goes on.
+        expect(g.seen().get("inspector")->as_bool()) << "open";
+        expect(g.pixels() != plain) << "it draws";
+        expect(g.h.save_png(scratch_dir("breakout-inspector") / "inspector.png").has_value());        // While it is open the game waits; Tab again, it goes on.
         const auto frame = g.state().frame;
         g.h.advance(seconds(0.5));
-        check_eq(g.state().frame, frame);
+        expect(eq(g.state().frame, frame));
         g.h.key(Key::tab);
         g.h.advance(seconds(0.5));
-        check(g.state().frame > frame, "on again");
+        expect(g.state().frame > frame) << "on again";
         // Its keys are its own: Space pressed while it is open does not launch once it closes.
         Game w(1);
         w.h.step();
@@ -471,17 +472,17 @@ int main(int argc, char** argv) {
             w.state().world.each<bo::Ball>([&](xengine::Entity, const bo::Ball& b) { on = on || b.on != 0; });
             return on;
         };
-        check(waiting(), "a ball on the paddle");
+        expect(waiting()) << "a ball on the paddle";
         w.h.key(Key::tab);
         w.h.step();
         w.h.key(Key::space);
         w.h.step();
         w.h.key(Key::tab);
         w.h.advance(seconds(0.5));
-        check(waiting(), "still on the paddle: the Space was the inspector's");
-    });
+        expect(waiting()) << "still on the paddle: the Space was the inspector's";
+    };
 
-    s.test("the bricks are the ball's: a click on one reaches the field, an agent's toggle of one refused (read-only, and why); the keys steer after the pointer", [] {
+    "the bricks are the ball's: a click on one reaches the field, an agent's toggle of one refused (read-only, and why); the keys steer after the pointer"_test = [] {
         Game g(1);
         g.h.step();
         std::size_t sw = 0;
@@ -491,51 +492,51 @@ int main(int argc, char** argv) {
         const bool was = g.h.runtime().get(toggle, "checked").as_bool();
         // A person's click where it is drawn: the field takes it (the switch does not change).
         const Rect r = g.h.runtime().screen_bounds(toggle);
-        check(g.h.runtime().hit_test(r.center()) != toggle, "the pointer passes to the field");
+        expect(g.h.runtime().hit_test(r.center()) != toggle) << "the pointer passes to the field";
         g.h.click(r.center());
         g.h.step();
-        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "unchanged by a click");
+        expect(g.h.runtime().get(toggle, "checked").as_bool() == was) << "unchanged by a click";
         // An agent's toggle: the simulation's state again at once.
         Invocation call;
         call.actor = {"agent", "test", {}};
         const Envelope refused = g.h.runtime().act(toggle, "toggle", call);
-        check(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("read-only: the ball operates the bricks"), refused.ndjson());
+        expect(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("read-only: the ball operates the bricks")) << refused.ndjson();
         g.h.step();
-        check(g.h.runtime().get(toggle, "checked").as_bool() == was, "unchanged");
-        check(g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::readonly), "read-only to every reader");
-        check(!g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::focusable), "not in the Tab order");
-    });
+        expect(g.h.runtime().get(toggle, "checked").as_bool() == was) << "unchanged";
+        expect(g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::readonly)) << "read-only to every reader";
+        expect(!g.h.tree().node(g.h.runtime().path(toggle))->states.has(State::focusable)) << "not in the Tab order";
+    };
 
-    s.test("room 3: a switch of the cloud, near and live, is the ball's too (read-only, an agent told why)", [] {
+    "room 3: a switch of the cloud, near and live, is the ball's too (read-only, an agent told why)"_test = [] {
         Game g(3);
         g.h.settle();
         std::optional<spec::SemanticNode> live;
         for (const auto& n : g.h.tree().snapshot({}).nodes)
             if (n.role == spec::Role::switch_ && n.id.contains("/cloud/")) live = n;
-        check(live.has_value(), "a live switch in the cloud");
+        expect(live.has_value()) << "a live switch in the cloud";
         if (!live) return;
-        check(live->states.has(State::readonly), "read-only to every reader");
+        expect(live->states.has(State::readonly)) << "read-only to every reader";
         Invocation call;
         call.actor = {"agent", "test", {}};
         const Envelope refused = g.h.tree().act(live->id, "toggle", call);
-        check(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("the ball operates the bricks"), refused.ndjson());
-    });
+        expect(refused.exit_code() != std::optional<int>(0) && refused.ndjson().contains("the ball operates the bricks")) << refused.ndjson();
+    };
 
-    s.test("room 3: the cloud is a canvas's scene — live near, boxes far; through it the camera pulls back, never past half; a rewind puts the scene back", [] {
+    "room 3: the cloud is a canvas's scene — live near, boxes far; through it the camera pulls back, never past half; a rewind puts the scene back"_test = [] {
         Game g(3);
         auto& scene = world::scene(bo::cloud_scene);
         const auto& def = bo::room(3);
-        check_eq(g.state().height, 2 * bo::field_h);
+        expect(eq(g.state().height, 2 * bo::field_h));
         std::size_t notes = 0;
         for (std::size_t i = 0; i < def.bricks.size(); ++i) notes += scene.find(bo::brick_id(i)).has_value();
-        check_eq(notes, def.bricks.size());
+        expect(eq(notes, def.bricks.size()));
         const NodeId cloud = g.h.runtime().children(g.field()).at(0);
         g.settle();
-        check(g.h.runtime().children(cloud).size() > 3, std::format("live components near the paddle: {}", g.h.runtime().children(cloud).size()));
+        expect(g.h.runtime().children(cloud).size() > 3) << std::format("live components near the paddle: {}", g.h.runtime().children(cloud).size());
         // A live switch is one switch to a reader: not also the box that places it.
         const auto wifi = g.h.tree().find({.role = Role::switch_, .name = "Wi-Fi"});
-        check(wifi.size() == 1, std::format("{} Wi-Fi switches", wifi.size()));
-        check(g.act("pause"));
+        expect(wifi.size() == 1) << std::format("{} Wi-Fi switches", wifi.size());
+        expect(g.act("pause"));
         double least = 1;
         bool breached = false;
         for (int k = 0; k < 60 * bo::steps_per_second && !g.state().over; ++k) {
@@ -544,9 +545,9 @@ int main(int argc, char** argv) {
             for (std::uint32_t i = 0; i < g.state().events; ++i) breached = breached || g.state().event[i].what == bo::Happened::breach;
             if (breached && least < 0.6) break;
         }
-        check(breached && least < 0.6 && least >= 0.5, std::format("through the cloud; zoomed out to {}", least));
+        expect(breached && least < 0.6 && least >= 0.5) << std::format("through the cloud; zoomed out to {}", least);
         g.settle();
-        check(g.h.save_png(scratch_dir("breakout-room3") / "chamber.png").has_value());
+        expect(g.h.save_png(scratch_dir("breakout-room3") / "chamber.png").has_value());
         const auto chamber = g.pixels();
         auto agrees = [&] {
             std::size_t wrong = 0;
@@ -555,50 +556,50 @@ int main(int argc, char** argv) {
             for (std::size_t i = 0; i < def.bricks.size(); ++i) wrong += scene.find(bo::brick_id(i)).has_value() != standing[i];
             return wrong;
         };
-        check_eq(agrees(), std::size_t{0});
+        expect(eq(agrees(), std::size_t{0}));
         std::println("    chamber {:016x}", chamber);
-        check_eq(chamber, std::uint64_t{0xe59fbd4073a0798f});  // GCC (LLVM: CI)
-    });
+        expect(eq(chamber, std::uint64_t{0xe59fbd4073a0798f}));  // GCC (LLVM: CI)
+    };
 
-    s.test("room 4: dark but round the ball and the paddle; the X-ray shows what hides, then recharges; the gate comes round", [] {
+    "room 4: dark but round the ball and the paddle; the X-ray shows what hides, then recharges; the gate comes round"_test = [] {
         Game g(4);
         g.smart = false;  // one who only catches: the room lasts
-        check(g.act("pause"));
+        expect(g.act("pause"));
         // The gate: closed, then open two seconds of every seven from 0:02.
         const auto gate = static_cast<std::size_t>(std::ranges::find(bo::room(4).bricks, bo::Kind::gate, &bo::BrickDef::kind) - bo::room(4).bricks.begin());
-        check(g.h.runtime().get(g.bricks()[gate], "visible").as_bool(true) && !bo::gates_open(g.state()), "closed");
+        expect(g.h.runtime().get(g.bricks()[gate], "visible").as_bool(true) && !bo::gates_open(g.state())) << "closed";
         g.play(2 * bo::steps_per_second + 10 - g.state().frame);
-        check(bo::gates_open(g.state()) && !g.h.runtime().get(g.bricks()[gate], "visible").as_bool(true), "open");
+        expect(bo::gates_open(g.state()) && !g.h.runtime().get(g.bricks()[gate], "visible").as_bool(true)) << "open";
         g.play(3 * bo::steps_per_second - g.state().frame);
-        check(g.seen().get("dark")->as_bool(), "its lights still off");
+        expect(g.seen().get("dark")->as_bool()) << "its lights still off";
         g.settle();
         const auto dark = g.pixels();
-        check(g.h.save_png(scratch_dir("breakout-room4-dark") / "dark.png").has_value());
-        check(g.act("scan"));
-        check(!g.act("scan"), "recharging");
-        check(g.seen().get("scanning")->as_bool(), "scanning");
+        expect(g.h.save_png(scratch_dir("breakout-room4-dark") / "dark.png").has_value());
+        expect(g.act("scan"));
+        expect(!g.act("scan")) << "recharging";
+        expect(g.seen().get("scanning")->as_bool()) << "scanning";
         g.play(20);
         g.settle();
         const auto scanned = g.pixels();
-        check(g.h.save_png(scratch_dir("breakout-room4") / "scan.png").has_value());
-        check(dark != scanned, "the X-ray draws");
+        expect(g.h.save_png(scratch_dir("breakout-room4") / "scan.png").has_value());
+        expect(dark != scanned) << "the X-ray draws";
         g.play(200);
-        check(!g.seen().get("scanning")->as_bool(), "over");
+        expect(!g.seen().get("scanning")->as_bool()) << "over";
         g.play(6 * bo::steps_per_second);
-        check(g.act("scan"), "recharged");
-        check_eq(g.disagreement(), std::string());
+        expect(g.act("scan")) << "recharged";
+        expect(eq(g.disagreement(), std::string()));
         std::println("    dark {:016x}, scanned {:016x}", dark, scanned);
-        check_eq(dark, std::uint64_t{0x7594d1fc283bea2b});  // GCC (LLVM: CI)
-        check_eq(scanned, std::uint64_t{0x4f01954e2d27d653});
-    });
+        expect(eq(dark, std::uint64_t{0x7594d1fc283bea2b}));  // GCC (LLVM: CI)
+        expect(eq(scanned, std::uint64_t{0x4f01954e2d27d653}));
+    };
 
-    s.test("room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down", [] {
+    "room 5: the copilot plays the top paddle from outside — the semantic tree in, guard_to out, journaled as its own; an order changes where it sends the ball; with a player below, they shut it down"_test = [] {
         Game g(5, HeadlessLevel::layout);
-        check_eq(g.state().paddles[1].active, std::int32_t{1});
-        check(!Game().act("order", Value{}.set("to", "left")), "the copilot is room 5's");
-        check(g.act("order", Value{}.set("to", "left")));
-        check(!g.act("order", Value{}.set("to", "dance")), "four orders");
-        check_eq(std::string(g.seen().get("order")->as_string()), std::string("left"));
+        expect(eq(g.state().paddles[1].active, std::int32_t{1}));
+        expect(!Game().act("order", Value{}.set("to", "left"))) << "the copilot is room 5's";
+        expect(g.act("order", Value{}.set("to", "left")));
+        expect(!g.act("order", Value{}.set("to", "dance"))) << "four orders";
+        expect(eq(std::string(g.seen().get("order")->as_string()), std::string("left")));
         // The player below: the planner, through the field's actions, the game running. Left, then right, then hold.
         std::int64_t frames = 0;
         bool went_left = false, went_right = false;
@@ -617,76 +618,76 @@ int main(int argc, char** argv) {
                 went_right = went_right || last.ends_with("aims at 1280");
             }
         }
-        check(went_left && went_right, std::format("told left, it aimed off the left wall ({}); right, the right ({})", went_left, went_right));
+        expect(went_left && went_right) << std::format("told left, it aimed off the left wall ({}); right, the right ({})", went_left, went_right);
         std::println("    over {} after {:.1f} s, score {}, lives {}", g.state().over, static_cast<double>(g.state().frame) / 120, g.state().score, g.state().lives);
-        check_eq(g.state().over, std::uint32_t{1});
+        expect(eq(g.state().over, std::uint32_t{1}));
         std::size_t guards = 0;
         for (const auto& e : g.h.runtime().action_journal()) guards += e.action == "guard_to" && e.actor.find("copilot") != std::string::npos && e.exit_code == 0;
-        check(guards > 10, std::format("{} guard_to calls by the copilot", guards));
-        check(!g.seen().get("agent")->list()->empty(), "its actions, with what it saw, in the field's value");
+        expect(guards > 10) << std::format("{} guard_to calls by the copilot", guards);
+        expect(!g.seen().get("agent")->list()->empty()) << "its actions, with what it saw, in the field's value";
         // Seen: its word and where it means to send the ball.
         Game p(5);
-        check(p.act("order", Value{}.set("to", "feed")));
-        check(p.act("launch"));
+        expect(p.act("order", Value{}.set("to", "feed")));
+        expect(p.act("launch"));
         p.h.advance(seconds(2.5));
         p.settle();
         const auto px = p.pixels();
-        check(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
+        expect(p.h.save_png(scratch_dir("breakout-room5") / "copilot.png").has_value());
         std::println("    copilot {:016x}", px);
-        check_eq(px, std::uint64_t{0x5f2cf42ec4b0fc91});  // GCC (LLVM: CI)
-    });
+        expect(eq(px, std::uint64_t{0x5f2cf42ec4b0fc91}));  // GCC (LLVM: CI)
+    };
 
-    s.test("a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it", [] {
+    "a run: room 1 shut down — the wave, the next room's skin, two contraptions offered; one taken, room 2 begins with what the run carries and drops it"_test = [] {
         Game g;
-        check(g.act("pause"));
+        expect(g.act("pause"));
         g.play(90 * bo::steps_per_second);
-        check_eq(g.state().over, std::uint32_t{1});
+        expect(eq(g.state().over, std::uint32_t{1}));
         const auto score = g.state().score;
         const auto lives = g.state().lives;
-        check(!g.act("choose", Value{}.set("gift", "wide")), "not yet: the moment first");
+        expect(!g.act("choose", Value{}.set("gift", "wide"))) << "not yet: the moment first";
         for (int k = 0; k < 200 && !g.seen().get("choosing")->as_bool(); ++k) g.act("step");
-        check(g.seen().get("choosing")->as_bool(), "choosing");
+        expect(g.seen().get("choosing")->as_bool()) << "choosing";
         const Value seen = g.seen();
         const Value* offers = seen.get("offers");
-        check(offers && offers->list() && offers->list()->size() == 2, "two offered");
-        check(std::string((*offers->list())[0].as_string()) == "wide" && std::string((*offers->list())[1].as_string()) == "magnet", "the long paddle, the magnet");
+        expect(offers && offers->list() && offers->list()->size() == 2) << "two offered";
+        expect(std::string((*offers->list())[0].as_string()) == "wide" && std::string((*offers->list())[1].as_string()) == "magnet") << "the long paddle, the magnet";
         g.settle();
-        check(g.h.runtime().get(g.h.runtime().find("main/between"), "visible").as_bool(), "the cards shown");
-        check(g.h.save_png(scratch_dir("breakout-run") / "choice.png").has_value());
+        expect(g.h.runtime().get(g.h.runtime().find("main/between"), "visible").as_bool()) << "the cards shown";
+        expect(g.h.save_png(scratch_dir("breakout-run") / "choice.png").has_value());
         const auto choice = g.pixels();
-        check(!g.act("choose", Value{}.set("gift", "pierce")), "not offered");
-        check(g.h.click("main/between/offers/offer.1/offer.1.tools/offer.1.take"), "the magnet taken");
+        expect(!g.act("choose", Value{}.set("gift", "pierce"))) << "not offered";
+        expect(g.h.click("main/between/offers/offer.1/offer.1.tools/offer.1.take")) << "the magnet taken";
         g.h.step();
         g.h.advance(seconds(0.25));
-        check_eq(g.component().props.room, std::int32_t{2});
-        check(!g.h.runtime().get(g.h.runtime().find("main/between"), "visible").as_bool(true), "the cards gone");
-        check(g.state().score == score && g.state().lives == lives, "the run's score and balls carried");
-        check(g.state().rules.gift_mask == bo::gift_bit(bo::Gift::magnet), "only the magnet drops");
+        expect(eq(g.component().props.room, std::int32_t{2}));
+        expect(!g.h.runtime().get(g.h.runtime().find("main/between"), "visible").as_bool(true)) << "the cards gone";
+        expect(g.state().score == score && g.state().lives == lives) << "the run's score and balls carried";
+        expect(g.state().rules.gift_mask == bo::gift_bit(bo::Gift::magnet)) << "only the magnet drops";
         std::int32_t slots = 0;
         for (const bo::BrickSpec& b : g.component().level().bricks) slots += b.gift == bo::Gift::magnet;
-        check_eq(slots, std::int32_t{2});
-        check_eq(g.component().run_so_far().kit.size(), std::size_t{1});
+        expect(eq(slots, std::int32_t{2}));
+        expect(eq(g.component().run_so_far().kit.size(), std::size_t{1}));
         // Out of balls: Enter, and a new run from room 1.
-        check(g.act("pause"));
+        expect(g.act("pause"));
         for (int k = 0; k < 40 * 120 && !g.state().over; ++k) {
             g.act("move_to", Value{}.set("x", 0.0));
             if (k % 30 == 0) g.act("launch");
             g.act("step");
         }
-        check_eq(g.state().over, std::uint32_t{2});
-        check(g.act("next"));
+        expect(eq(g.state().over, std::uint32_t{2}));
+        expect(g.act("next"));
         g.h.step();
         g.h.advance(seconds(0.25));
-        check(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3, "afresh");
+        expect(g.component().props.room == 1 && g.component().run_so_far().kit.empty() && g.state().score == 0 && g.state().lives == 3) << "afresh";
         std::println("    choice {:016x}", choice);
-        check_eq(choice, std::uint64_t{0x9db0d154abf33d39});  // GCC (LLVM: CI)
-    });
+        expect(eq(choice, std::uint64_t{0x9db0d154abf33d39}));  // GCC (LLVM: CI)
+    };
 
-    s.test("between rooms, a casing open: its TypeScript script edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room", [] {
+    "between rooms, a casing open: its TypeScript script edited and reloaded in place under 200 ms, a preset retuning it, a bad one keeping the rules; the rules reach the next room"_test = [] {
         Game g;
-        check(g.act("pause"));
+        expect(g.act("pause"));
         g.play(90 * bo::steps_per_second);
-        check(g.act("next"), "on to the choice");
+        expect(g.act("next")) << "on to the choice";
         g.h.step();
         auto& r = g.h.runtime();
         const auto status = [&](std::string_view card) { return std::string(r.get(r.find(std::format("main/between/offers/{}/{}.state", card, card)), "text").as_string()); };
@@ -698,77 +699,77 @@ int main(int argc, char** argv) {
         wait([&] { return g.seen().get("rules") && g.h.runtime().get(r.find("main/between"), "visible").as_bool(); });
         g.h.advance(seconds(0.5));
         // A preset: the long paddle huge and brief (wide.ts retuned to 260: its power fixed, 1100 / 260 s).
-        check(g.h.click("main/between/offers/offer.0/offer.0.presets/offer.0.brief"));
+        expect(g.h.click("main/between/offers/offer.0/offer.0.presets/offer.0.brief"));
         wait([&] { return status("offer.0").starts_with("set:") || status("offer.0").starts_with("kept"); });
-        check_eq(status("offer.0"), std::string("set: Huge · 4 s"));
+        expect(eq(status("offer.0"), std::string("set: Huge · 4 s")));
         g.h.step();
         // The casing of the magnet: edited, applied.
-        check(g.h.click("main/between/offers/offer.1/offer.1.tools/offer.1.open"));
+        expect(g.h.click("main/between/offers/offer.1/offer.1.tools/offer.1.open"));
         g.h.step();
         const NodeId box = r.find("main/between/casing/casing.script");
         const std::string source(r.get(box, "text").as_string());
-        check(bo::Workshop::tuned(source) == 3.0, source);
+        expect(bo::Workshop::tuned(source) == 3.0) << source;
         Invocation edit;
         edit.args = Value{}.set("value", bo::Workshop::retune(source, 5));
-        check(r.act(box, "set_value", edit).exit_code() == std::optional<int>(0));
-        check(g.h.click("main/between/casing/casing.tools/casing.apply"));
+        expect(r.act(box, "set_value", edit).exit_code() == std::optional<int>(0));
+        expect(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("reloaded") || casing().starts_with("kept"); });
         const std::string magnet = casing();
-        check(magnet.starts_with("reloaded in ") && std::stod(magnet.substr(12)) < 200, magnet);
-        check(g.h.save_png(scratch_dir("breakout-casing") / "casing.png").has_value());
+        expect(magnet.starts_with("reloaded in ") && std::stod(magnet.substr(12)) < 200) << magnet;
+        expect(g.h.save_png(scratch_dir("breakout-casing") / "casing.png").has_value());
         // A bad edit: the rules kept, the reason said.
         Invocation bad;
         bad.args = Value{}.set("value", std::string("import { verb } from \"openmui\";\nverb(\"gift.magnet\", { effect: \"read\" }, () => ({ magnet_catches: }));"));
-        check(r.act(box, "set_value", bad).exit_code() == std::optional<int>(0));
-        check(g.h.click("main/between/casing/casing.tools/casing.apply"));
+        expect(r.act(box, "set_value", bad).exit_code() == std::optional<int>(0));
+        expect(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("kept") || casing().starts_with("reloaded"); });
-        check(casing().starts_with("kept the rules"), casing());
-        check(g.h.click("main/between/casing/casing.tools/casing.shipped"));
+        expect(casing().starts_with("kept the rules")) << casing();
+        expect(g.h.click("main/between/casing/casing.tools/casing.shipped"));
         wait([&] { return casing().starts_with("reloaded"); });
-        check(g.h.click("main/between/casing/casing.tools/casing.close"));
-        check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.take"), "the long paddle taken");
+        expect(g.h.click("main/between/casing/casing.tools/casing.close"));
+        expect(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.take")) << "the long paddle taken";
         g.h.step();
         g.h.advance(seconds(0.25));
-        check(g.state().rules.wide_half == 260 && g.state().rules.wide_steps == 508, std::format("wide {} for {} steps", g.state().rules.wide_half, g.state().rules.wide_steps));
-        check_eq(g.state().rules.magnet_catches, std::int32_t{3});  // as shipped again
+        expect(g.state().rules.wide_half == 260 && g.state().rules.wide_steps == 508) << std::format("wide {} for {} steps", g.state().rules.wide_half, g.state().rules.wide_steps);
+        expect(eq(g.state().rules.magnet_catches, std::int32_t{3}));  // as shipped again
         // After room 2, the splitter: its casing edited to four extra balls.
-        check(g.act("pause"));
+        expect(g.act("pause"));
         g.play(90 * bo::steps_per_second);
-        check(g.act("next"), "on to the choice");
+        expect(g.act("next")) << "on to the choice";
         g.h.step();
         wait([&] { return g.h.runtime().get(r.find("main/between"), "visible").as_bool(); });
         g.h.advance(seconds(0.5));  // as above: the cards come in by the room's style before they are there to click
-        check(std::string(name_of(g, 0)) == "Splitter", name_of(g, 0));
-        check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
+        expect(std::string(name_of(g, 0)) == "Splitter") << name_of(g, 0);
+        expect(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
         g.h.step();
         g.h.advance(seconds(0.5));  // the casing comes in by the room's style too
         const std::string splitter(r.get(box, "text").as_string());
-        check(splitter.find("from \"openmui\"") != std::string::npos && bo::Workshop::tuned(splitter) == 2.0, splitter);
+        expect(splitter.find("from \"openmui\"") != std::string::npos && bo::Workshop::tuned(splitter) == 2.0) << splitter;
         Invocation four;
         four.args = Value{}.set("value", bo::Workshop::retune(splitter, 4));
-        check(r.act(box, "set_value", four).exit_code() == std::optional<int>(0));
-        check(g.h.click("main/between/casing/casing.tools/casing.apply"));
+        expect(r.act(box, "set_value", four).exit_code() == std::optional<int>(0));
+        expect(g.h.click("main/between/casing/casing.tools/casing.apply"));
         wait([&] { return casing().starts_with("reloaded") || casing().starts_with("kept"); });
         const std::string split = casing();
-        check(split.starts_with("reloaded in ") && std::stod(split.substr(12)) < 200, split);
-        check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.take"), "the splitter taken");
+        expect(split.starts_with("reloaded in ") && std::stod(split.substr(12)) < 200) << split;
+        expect(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.take")) << "the splitter taken";
         g.h.step();
         g.h.advance(seconds(0.25));
-        check(g.component().props.room == 3 && g.state().rules.multi_balls == 4, std::format("room {}, {} extra balls", g.component().props.room, g.state().rules.multi_balls));
-        check_eq(g.state().rules.gift_mask, bo::gift_bit(bo::Gift::wide) | bo::gift_bit(bo::Gift::multi));
+        expect(g.component().props.room == 3 && g.state().rules.multi_balls == 4) << std::format("room {}, {} extra balls", g.component().props.room, g.state().rules.multi_balls);
+        expect(eq(g.state().rules.gift_mask, bo::gift_bit(bo::Gift::wide) | bo::gift_bit(bo::Gift::multi)));
         std::println("    reloads: the magnet {}, the splitter {}", magnet.substr(0, magnet.find(" ms") + 3), split.substr(0, split.find(" ms") + 3));
-    });
+    };
 
-    s.test("heard: each brick as its component, a chain's notes climbing, the paddle, a beam — on its step's sample, the same everywhere; a rewind is silent", [] {
+    "heard: each brick as its component, a chain's notes climbing, the paddle, a beam — on its step's sample, the same everywhere; a rewind is silent"_test = [] {
         Game g(2);
-        check(g.act("pause"));
+        expect(g.act("pause"));
         g.play(25 * bo::steps_per_second);
         auto& sounds = const_cast<bo::Field&>(g.component()).sounds();
         const auto samples = xengine::audio::render(sounds.mixer(), g.state().frame * sounds.step_samples() + sounds.mixer().rate());
         const auto begun = sounds.mixer().begun();
-        check(begun > 20, std::format("{} sounds", begun));
+        expect(begun > 20) << std::format("{} sounds", begun);
         const auto heard = xengine::audio::hash(samples);
-        check(xengine::audio::peak(samples) > 0.05f && xengine::audio::peak(samples) <= 1.0f, std::format("peak {}", xengine::audio::peak(samples)));
+        expect(xengine::audio::peak(samples) > 0.05f && xengine::audio::peak(samples) <= 1.0f) << std::format("peak {}", xengine::audio::peak(samples));
         std::println("    heard {:016x} ({} sounds)", heard, begun);
         // Its level, measured: never clipped (a peak under −0.5 dBFS), loud enough to be heard over a room, not a wall of sound.
         double energy = 0;
@@ -779,38 +780,38 @@ int main(int argc, char** argv) {
         }
         const double rms_db = 10 * std::log10(energy / static_cast<double>(std::max<std::size_t>(1, samples.size()))), peak_db = 20 * std::log10(std::max(top, 1e-9f));
         std::println("    level: peak {:.1f} dBFS, RMS {:.1f} dBFS", peak_db, rms_db);
-        check(peak_db <= -0.5 && rms_db > -24 && rms_db < -10, std::format("peak {:.1f}, RMS {:.1f} dBFS", peak_db, rms_db));
+        expect(peak_db <= -0.5 && rms_db > -24 && rms_db < -10) << std::format("peak {:.1f}, RMS {:.1f} dBFS", peak_db, rms_db);
         // To listen to: the run as heard, its theme under it.
         const auto wav = xengine::audio::wav(samples, sounds.mixer().rate());
         std::ofstream(scratch_dir("breakout-heard") / "heard.wav", std::ios::binary).write(reinterpret_cast<const char*>(wav.data()), static_cast<std::streamsize>(wav.size()));
-        check_eq(heard, std::uint64_t{0x62ef9b47a1e4120d});  // GCC (LLVM: CI)
-    });
+        expect(eq(heard, std::uint64_t{0x62ef9b47a1e4120d}));  // GCC (LLVM: CI)
+    };
 
-    s.test("frames are pinned: room 1 under way with the aim's forecast, and the inspector", [] {
+    "frames are pinned: room 1 under way with the aim's forecast, and the inspector"_test = [] {
         Game g;
-        check(g.act("pause"));
+        expect(g.act("pause"));
         g.play(900);
         g.settle();
         const auto played = g.pixels();
         const auto dir = scratch_dir("breakout-room1");  // to look at
-        check(g.h.save_png(dir / "played.png").has_value());
+        expect(g.h.save_png(dir / "played.png").has_value());
         Game fresh;
         fresh.settle();
-        check(fresh.h.save_png(dir / "start.png").has_value());
+        expect(fresh.h.save_png(dir / "start.png").has_value());
         const auto start = fresh.pixels();
         g.h.key(Key::tab);
         g.settle();
         const auto inspector = g.pixels();
-        check(g.h.save_png(dir / "inspector.png").has_value());
+        expect(g.h.save_png(dir / "inspector.png").has_value());
         std::println("    start {:016x}, played {:016x}, inspector {:016x}", start, played, inspector);
-        check_eq(start, std::uint64_t{0xe54a8fcdd97b1865});  // GCC (LLVM: CI)
-        check_eq(played, std::uint64_t{0x85cd01f515200a90});
-        check_eq(inspector, std::uint64_t{0xc88a844d0df6a473});
-    });
+        expect(eq(start, std::uint64_t{0xe54a8fcdd97b1865}));  // GCC (LLVM: CI)
+        expect(eq(played, std::uint64_t{0x85cd01f515200a90}));
+        expect(eq(inspector, std::uint64_t{0xc88a844d0df6a473}));
+    };
 
-    s.test("the README's loop: room 1 played from its launch to its shutdown — an animated WebP under 1 MB", [] {
+    "the README's loop: room 1 played from its launch to its shutdown — an animated WebP under 1 MB"_test = [] {
         Game g(1, HeadlessLevel::pixels, 0.5f);  // 640 × 360
-        check(g.act("pause"));
+        expect(g.act("pause"));
         std::int32_t frames = 0;
         for (int k = 0; k < 400 && (g.state().over == 0 || k % 4 != 0); ++k) {
             g.play(8);  // 15 frames a second of the game's 120
@@ -823,86 +824,86 @@ int main(int argc, char** argv) {
             if (g.state().over && g.component().run_so_far().score > 0) break;
         }
         const auto file = scratch_dir("readme-widget-breakout") / "room-1.webp";
-        check(g.h.save_recording(file, {.delay_num = 1, .delay_den = 15}).has_value());
+        expect(g.h.save_recording(file, {.delay_num = 1, .delay_den = 15}).has_value());
         const auto size = std::filesystem::file_size(file);
         std::println("    the loop: {} frames, {} KB", frames, size / 1024);
-        check(size < 1024 * 1024, std::format("{} bytes", size));
-    });
+        expect(size < 1024 * 1024) << std::format("{} bytes", size);
+    };
 
-    s.test("the README's stills: a beam breaking the dam, the breakthrough, the X-ray in the dark, a casing open between rooms — 640 × 360", [] {
+    "the README's stills: a beam breaking the dam, the breakthrough, the X-ray in the dark, a casing open between rooms — 640 × 360"_test = [] {
         const auto dir = scratch_dir("readme-widget-breakout-stills");
         auto save = [&](Game& g, std::string_view name) {
             g.settle();
             const auto file = dir / std::format("{}.png", name);
-            check(g.h.save_png(file).has_value());
+            expect(g.h.save_png(file).has_value());
             std::println("    {}: {} KB", name, std::filesystem::file_size(file) / 1024);
         };
         {
             Game g(2, HeadlessLevel::pixels, 0.5f);
-            check(g.act("pause"));
-            check(g.play_until(bo::Happened::beam, 60 * bo::steps_per_second), "a beam");
+            expect(g.act("pause"));
+            expect(g.play_until(bo::Happened::beam, 60 * bo::steps_per_second)) << "a beam";
             g.play(2);
             save(g, "room-2-beam");
         }
         {
             Game g(3, HeadlessLevel::pixels, 0.5f);
-            check(g.act("pause"));
-            check(g.play_until(bo::Happened::breach, 60 * bo::steps_per_second), "the breakthrough");
+            expect(g.act("pause"));
+            expect(g.play_until(bo::Happened::breach, 60 * bo::steps_per_second)) << "the breakthrough";
             g.play(50);
             save(g, "room-3-breakthrough");
         }
         {
             Game g(4, HeadlessLevel::pixels, 0.5f);
             g.smart = false;
-            check(g.act("pause"));
+            expect(g.act("pause"));
             g.play(3 * bo::steps_per_second);
-            check(g.act("scan"));
+            expect(g.act("scan"));
             g.play(30);
             save(g, "room-4-x-ray");
         }
         {
             Game g(1, HeadlessLevel::pixels, 0.5f);
-            check(g.act("pause"));
+            expect(g.act("pause"));
             g.play(90 * bo::steps_per_second);
-            check(g.act("next"));
+            expect(g.act("next"));
             for (int k = 0; k < 120; ++k) g.h.step();  // the scripts loaded
-            check(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
+            expect(g.h.click("main/between/offers/offer.0/offer.0.tools/offer.0.open"));
             save(g, "between-rooms");
         }
-    });
+    };
 
     // ── the bots' checks ──
 
-    s.test("every room can be cleared: a player who understands the machine shuts each down within 90 s, no ball lost", [] {
+    "every room can be cleared: a player who understands the machine shuts each down within 90 s, no ball lost"_test = [] {
         for (std::int32_t r = 1; r <= bo::room_count; ++r) {
             Game g(r, HeadlessLevel::layout);
             Planner planner;
             const Played p = play_room(g.component().level(), [&](const bo::State& st) { return planner.decide(st); }, 90 * bo::steps_per_second);
             std::println("    room {}: {:.1f} s, best chain {}, {} beams, {} flips, score {}", r, static_cast<double>(p.frames) / 120, p.best, p.beams, p.flips, p.score);
-            check(p.over == 1 && p.lives_lost == 0, std::format("room {}: over {}, {} lost", r, p.over, p.lives_lost));
+            expect(p.over == 1 && p.lives_lost == 0) << std::format("room {}: over {}, {} lost", r, p.over, p.lives_lost);
         }
-    });
+    };
 
-    s.test("no unavoidable drains: a player who only catches, where the ball is going, loses no ball in a minute of any room", [] {
+    "no unavoidable drains: a player who only catches, where the ball is going, loses no ball in a minute of any room"_test = [] {
         for (std::int32_t r = 1; r <= bo::room_count; ++r) {
             Game g(r, HeadlessLevel::layout);
             const Played p = play_room(g.component().level(), [](const bo::State& st) { return catch_only(st); }, 60 * bo::steps_per_second);
-            check(p.lives_lost == 0, std::format("room {}: {} lost", r, p.lives_lost));
+            expect(p.lives_lost == 0) << std::format("room {}: {} lost", r, p.lives_lost);
         }
-    });
+    };
 
-    s.test("no endless orbits: in every room, played either way, something moves at least every 10 s", [] {
+    "no endless orbits: in every room, played either way, something moves at least every 10 s"_test = [] {
         for (std::int32_t r = 1; r <= bo::room_count; ++r) {
             Game g(r, HeadlessLevel::layout);
             Planner planner;
             const Played a = play_room(g.component().level(), [&](const bo::State& st) { return planner.decide(st); }, 90 * bo::steps_per_second);
             const Played b = play_room(g.component().level(), [](const bo::State& st) { return catch_only(st); }, 120 * bo::steps_per_second);
             std::println("    room {}: the longest still {:.1f} s and {:.1f} s", r, static_cast<double>(a.idle_most) / 120, static_cast<double>(b.idle_most) / 120);
-            check(a.idle_most < 10 * bo::steps_per_second && b.idle_most < 10 * bo::steps_per_second, std::format("room {}", r));
+            expect(a.idle_most < 10 * bo::steps_per_second && b.idle_most < 10 * bo::steps_per_second) << std::format("room {}", r);
         }
-    });
+    };
 
-    s.test("understanding the machine pays: the player who plays the switches, capacitors and kickers clears the rooms far sooner than one who only catches", [] {
+    "understanding the machine pays: the player who plays the switches, capacitors and kickers clears the rooms far sooner than one who only catches"_test = [] {
         std::int32_t sooner = 0;
         double smart = 0, plain = 0;
         for (std::int32_t r = 1; r <= bo::room_count; ++r) {
@@ -916,8 +917,6 @@ int main(int argc, char** argv) {
             std::println("    room {}: {:.1f} s against {} ", r, static_cast<double>(a.frames) / 120,
                          b.over == 1 ? std::format("{:.1f} s", static_cast<double>(b.frames) / 120) : std::string("not cleared in 120 s"));
         }
-        check(sooner >= 3 && smart < 0.6 * plain, std::format("sooner in {} rooms of 5; {:.0f} s in all against {:.0f} s", sooner, smart, plain));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(sooner >= 3 && smart < 0.6 * plain) << std::format("sooner in {} rooms of 5; {:.0f} s in all against {:.0f} s", sooner, smart, plain);
+    };
+}};

@@ -5,10 +5,12 @@ import omui;
 import mlibs.math;
 import omui.site;
 import mlibs.testing;
+import mcpplibs.mtest;
 import xrender.text;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 constexpr std::string_view root = "main/body/view/agent/page/agent_feature";
@@ -36,7 +38,7 @@ Contrast contrast(Runtime& rt, NodeId target) {
         }
         if (std::holds_alternative<xrender::EndNode>(command) && !nodes.empty()) nodes.pop_back();
     }
-    check(without.balanced() && coverage.balanced());
+    expect(without.balanced() && coverage.balanced());
     const int width = static_cast<int>(rt.size().width), height = static_cast<int>(rt.size().height);
     xrender::raster::Surface full(width, height), paper(width, height), mask(width, height);
     xrender::text::GlyphCache glyphs(rt.fonts()); xrender::CpuRenderer renderer;
@@ -44,8 +46,8 @@ Contrast contrast(Runtime& rt, NodeId target) {
     const auto a = renderer.render(source, full, resources, {.background = Color::white()});
     const auto b = renderer.render(without, paper, resources, {.background = Color::white()});
     const auto c = renderer.render(coverage, mask, resources, {.background = Color::black()});
-    check(a.missing_glyphs == 0 && b.missing_glyphs == 0 && c.missing_glyphs == 0);
-    check(a.missing_images == 0 && b.missing_images == 0 && c.missing_images == 0);
+    expect(a.missing_glyphs == 0 && b.missing_glyphs == 0 && c.missing_glyphs == 0);
+    expect(a.missing_images == 0 && b.missing_images == 0 && c.missing_images == 0);
     Contrast result;
     for (int y = 0; y < height; ++y) for (int x = 0; x < width; ++x) {
         const auto m = mask.at(x, y); if (m.r < 230) continue;
@@ -71,16 +73,15 @@ struct Page {
     }
     void design() {
         Invocation call; call.args = Value{}.set("value", "design");
-        check(h.tree().act(path("modes"), "set_value", call).exit_code() == std::optional<std::int64_t>(0));
+        expect(h.tree().act(path("modes"), "set_value", call).exit_code() == std::optional<std::int64_t>(0));
         (void)h.step();
     }
 };
 }
 
-int main(int argc, char** argv) {
-    Suite suite("site.agent-contrast");
+UTest cases{"site.agent-contrast", [] {
     const auto media = scratch_dir("agent-contrast");
-    suite.test("persistent caption strokes remain readable while the actual task changes light-dark polarity", [media] {
+    "persistent caption strokes remain readable while the actual task changes light-dark polarity"_test = [media] {
         for (const auto lang : {"en", "zh"}) for (const float width : {390.0f, 1280.0f}) {
             Page page(lang, width); const auto value = page.h.tree().node(path("specimen/title"))->value;
             page.design(); Value::List frames;
@@ -89,20 +90,19 @@ int main(int argc, char** argv) {
                 for (const auto name : {"eyebrow", "receipt"}) {
                     const auto target = page.h.runtime().find(path(std::string("specimen/") + name));
                     const auto sampled = contrast(page.h.runtime(), target);
-                    check(sampled.samples >= 3, std::format("{} {} has actual stroke interiors", lang, name));
+                    expect(sampled.samples >= 3) << std::format("{} {} has actual stroke interiors", lang, name);
                     // 8-bit raster inference has quantization error; the
                     // analytic public-Morph tests use the exact 4.5 target.
-                    check(sampled.minimum >= 4.4, std::format("{} {} {}px frame{} contrast={}", lang, name, width, frame, sampled.minimum));
+                    expect(sampled.minimum >= 4.4) << std::format("{} {} {}px frame{} contrast={}", lang, name, width, frame, sampled.minimum);
                     row.set(name, Value{}.set("minimum", sampled.minimum).set("samples", static_cast<std::int64_t>(sampled.samples)));
                 }
                 frames.push_back(std::move(row));
-                if (frame == 6 || frame == 12) check(page.h.save_png(media / std::format("{}-{}-frame{}.png", lang, static_cast<int>(width), frame)).has_value());
+                if (frame == 6 || frame == 12) expect(page.h.save_png(media / std::format("{}-{}-frame{}.png", lang, static_cast<int>(width), frame)).has_value());
                 page.h.record(); (void)page.h.step();
             }
-            check(page.h.tree().node(path("specimen/title"))->value == value, "readability protection preserves task data");
-            check(page.h.save_recording(media / std::format("{}-{}.webp", lang, static_cast<int>(width)), {.delay_num = 1, .delay_den = 60}).has_value());
+            expect(page.h.tree().node(path("specimen/title"))->value == value) << "readability protection preserves task data";
+            expect(page.h.save_recording(media / std::format("{}-{}.webp", lang, static_cast<int>(width)), {.delay_num = 1, .delay_den = 60}).has_value());
             std::println("contrast evidence {} {}: {}", lang, static_cast<int>(width), Value(std::move(frames)).json());
         }
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

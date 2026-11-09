@@ -7,11 +7,13 @@ import omui.site;
 import omui.theme;
 import omui.theme.styles;
 import mlibs.testing;
+import mcpplibs.mtest;
 import mcpplibs.os;
 import xrender.text;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 Value rect_value(Rect rect) {
@@ -66,12 +68,12 @@ Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::strin
         } else if (const auto* c = std::get_if<xrender::PushTransform>(&command)) {
             transforms.push_back(transform); transform = transform * c->transform;
         } else if (std::holds_alternative<xrender::PopTransform>(command)) {
-            check(!transforms.empty()); if (transforms.empty()) continue;
+            expect(!transforms.empty()); if (transforms.empty()) continue;
             transform = transforms.back(); transforms.pop_back();
         } else if (const auto* c = std::get_if<xrender::PushLayer>(&command)) {
             layers.push_back(opacity); opacity *= c->opacity;
         } else if (std::holds_alternative<xrender::PopLayer>(command)) {
-            check(!layers.empty()); if (layers.empty()) continue;
+            expect(!layers.empty()); if (layers.empty()) continue;
             opacity = layers.back(); layers.pop_back();
         } else if (const auto* c = std::get_if<xrender::PushClipRect>(&command)) {
             clips.push_back(clip); path_clips.push_back(path_clip); const auto rect = transform.map(c->rect);
@@ -81,14 +83,14 @@ Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::strin
             // silently treating arbitrary path geometry as a rectangle.
             clips.push_back(clip); path_clips.push_back(path_clip); path_clip = true;
         } else if (std::holds_alternative<xrender::PopClip>(command)) {
-            check(!clips.empty()); if (clips.empty()) continue;
+            expect(!clips.empty()); if (clips.empty()) continue;
             clip = clips.back(); clips.pop_back();
             path_clip = path_clips.back(); path_clips.pop_back();
         } else {
             if (owners.empty() || !runtime.valid(owners.back()) || opacity <= 0.03f) continue;
             const auto id = owners.back(); const auto path = runtime.path(id);
             if (!path.starts_with(prefix) || (actions_only && !primary(path) && !playback(path))) continue;
-            check(!path_clip, "sampled action geometry is not approximated through an arbitrary path clip");
+            expect(!path_clip) << "sampled action geometry is not approximated through an arbitrary path clip";
             auto& drawing = result[std::string(path)]; drawing.node = id;
             const auto visible = [&](Rect rect) { return clip ? rect.intersection(*clip) : rect; };
             if (const auto* c = std::get_if<xrender::FillRoundRect>(&command); c && c->paint.color.a * opacity > 0.03f) {
@@ -117,7 +119,7 @@ Drawings drawings(Runtime& runtime, xrender::text::GlyphCache& cache, std::strin
             }
         }
     }
-    check(transforms.empty() && layers.empty() && clips.empty() && owners.empty(), "the actual display state is balanced");
+    expect(transforms.empty() && layers.empty() && clips.empty() && owners.empty()) << "the actual display state is balanced";
     return result;
 }
 
@@ -137,23 +139,22 @@ struct Page {
           runtime(&h.runtime()), glyphs(runtime->fonts()), width(window_width) {
         state.mode.set("develop"); language.set(std::string(lang));
         context.runtime = &runtime; context.lang = &language; context.root = "main/viewport/agent_feature";
-        context.style = [this](std::string name) { check(theme::apply_style(*runtime, name, context.scope, false).has_value()); };
+        context.style = [this](std::string name) { expect(theme::apply_style(*runtime, name, context.scope, false).has_value()); };
         h.mount("main", column({.width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(Insets{64, 20, 40, 20})}, {
             scroll({.id = "viewport", .width = Dim(mlibs::layout::pct(100)), .height = Dim(mlibs::layout::pct(100)), .padding = Edges(24, 0)}, {
                 dynamic([this] { return std::vector<Element>{site::agent_feature(state, context, room.get())}; })})}));
         h.step(); site::tick_agent_feature(state, context);
-        check(h.click(path("preview/actions/pause"))); h.settle(seconds(0.8));
+        expect(h.click(path("preview/actions/pause"))); h.settle(seconds(0.8));
         site::tick_agent_feature(state, context); h.step();
-        check(state.preview_paused.peek() && runtime->motion_level() == MotionLevel::full && !runtime->reduce_motion(),
-              "only the scripted preview is paused; default component motion remains enabled");
+        expect(state.preview_paused.peek() && runtime->motion_level() == MotionLevel::full && !runtime->reduce_motion()) << "only the scripted preview is paused; default component motion remains enabled";
     }
     std::string path(std::string_view suffix) const { return context.root + "/" + std::string(suffix); }
     void mode(std::string_view next) {
         const auto item = h.tree().node(path("modes/") + std::string(next));
-        check(item && item->bounds); if (!item || !item->bounds) return;
+        expect(item && item->bounds); if (!item || !item->bounds) return;
         const Point at{item->bounds->x + item->bounds->width / 2, item->bounds->y + item->bounds->height / 2};
         h.click(at); site::tick_agent_feature(state, context);
-        check(state.mode.peek() == next, "a real pointer selects the next task mode");
+        expect(state.mode.peek() == next) << "a real pointer selects the next task mode";
     }
     void step() { h.step(); site::tick_agent_feature(state, context); }
     void resize(int next_width) {
@@ -184,14 +185,12 @@ struct Page {
             if (item.body) entry.set("body_union", rect_value(*item.body));
             Value::List fills;
             if (primary(id)) for (const auto glyph : item.glyphs)
-                check(std::ranges::any_of(item.bodies, [&](const auto& body) { return inside(body.rect, glyph); }),
-                      std::format("{} frame {}: primary text stays in an actual painted body", id, frame));
+                expect(std::ranges::any_of(item.bodies, [&](const auto& body) { return inside(body.rect, glyph); })) << std::format("{} frame {}: primary text stays in an actual painted body", id, frame);
             // A clipped fragment fitting the button is not proof that the
             // intended label fits. Inspect complete real glyph masks before
             // all clips, against the complete carrier before viewport clips.
             if (primary(id)) for (const auto glyph : item.unclipped_glyphs)
-                check(std::ranges::any_of(item.bodies, [&](const auto& body) { return inside(body.unclipped, glyph); }),
-                      std::format("{} frame {}: the complete intended glyph ink fits the button before clipping", id, frame));
+                expect(std::ranges::any_of(item.bodies, [&](const auto& body) { return inside(body.unclipped, glyph); })) << std::format("{} frame {}: the complete intended glyph ink fits the button before clipping", id, frame);
             for (const auto& body : item.bodies) {
                 Value fill; fill.set("rect", rect_value(body.rect)).set("unclipped_rect", rect_value(body.unclipped)).set("opacity", body.opacity).set("marker", static_cast<std::int64_t>(body.marker));
                 const auto semantic = runtime->semantic_node(body.node);
@@ -209,7 +208,7 @@ struct Page {
                             overlap += intersection.width * intersection.height;
                         }
                         if (overlap > 0) fill.set(other_id.ends_with("/pause") ? "pause_ink_overlap" : "replay_ink_overlap", overlap);
-                        check(overlap < 0.5f, std::format("{} frame {}: actual primary fill never crosses {} glyph ink", id, frame, other_id));
+                        expect(overlap < 0.5f) << std::format("{} frame {}: actual primary fill never crosses {} glyph ink", id, frame, other_id);
                     }
                     // Leaving ghosts remain collision-tested, but are not
                     // interactive targets. Probe only the current live action.
@@ -219,7 +218,7 @@ struct Page {
                         fill.set("hit_at_painted_center", runtime->valid(hit) ? runtime->path(hit) : std::string())
                             .set("pixel_owner", runtime->valid(pixel) ? runtime->path(pixel) : std::string())
                             .set("hit_matches_body", hit == body.node).set("pixel_matches_body", pixel == body.node);
-                        check(hit == body.node, std::format("{} frame {}: real hit agrees with an actual painted fill center", id, frame));
+                        expect(hit == body.node) << std::format("{} frame {}: real hit agrees with an actual painted fill center", id, frame);
                     }
                 }
                 fills.push_back(std::move(fill));
@@ -231,7 +230,7 @@ struct Page {
         if (audit_containment) {
             const auto all = drawings(*runtime, glyphs, context.root, false);
             const auto parent = all.find(path("specimen"));
-            check(parent != all.end() && !parent->second.bodies.empty(), "the sampled specimen has a real painted carrier");
+            expect(parent != all.end() && !parent->second.bodies.empty()) << "the sampled specimen has a real painted carrier";
             if (parent != all.end()) {
                 Value::List carriers;
                 for (const auto& body : parent->second.bodies) carriers.push_back(rect_value(body.rect));
@@ -245,11 +244,11 @@ struct Page {
                     };
                     for (const auto& body : child->second.bodies) {
                         paint.push_back(rect_value(body.rect));
-                        check(carried(body.rect), std::format("{} frame {}: control paint stays in the actually drawn parent", child->first, frame));
+                        expect(carried(body.rect)) << std::format("{} frame {}: control paint stays in the actually drawn parent", child->first, frame);
                     }
                     for (const auto rect : child->second.glyphs) {
                         ink.push_back(rect_value(rect));
-                        check(carried(rect), std::format("{} frame {}: actual glyph ink stays in the actually drawn parent", child->first, frame));
+                        expect(carried(rect)) << std::format("{} frame {}: actual glyph ink stays in the actually drawn parent", child->first, frame);
                     }
                     containment.push_back(Value{}.set("id", child->first).set("bodies", Value(std::move(paint))).set("glyph_ink", Value(std::move(ink))));
                 }
@@ -259,7 +258,7 @@ struct Page {
                         const auto intersection = body.rect.intersection(ink);
                         overlap += intersection.width * intersection.height;
                     }
-                    check(overlap < 0.5f, std::format("frame {}: the actual specimen carrier never covers the following preview label", frame));
+                    expect(overlap < 0.5f) << std::format("frame {}: the actual specimen carrier never covers the following preview label", frame);
                     containment.push_back(Value{}.set("id", label->first).set("specimen_overlap", overlap));
                 }
             }
@@ -270,7 +269,7 @@ struct Page {
                         const auto intersection = body.rect.intersection(ink);
                         overlap += intersection.width * intersection.height;
                     }
-                    check(overlap < 0.5f, std::format("{} frame {}: primary paint never covers the actual status glyphs", id, frame));
+                    expect(overlap < 0.5f) << std::format("{} frame {}: primary paint never covers the actual status glyphs", id, frame);
                     containment.push_back(Value{}.set("id", id).set("status_overlap", overlap));
                 }
             }
@@ -282,16 +281,16 @@ struct Page {
 void write_trace(const std::filesystem::path& file, Value::List frames) {
     const auto data = Value{}.set("source", "post-motion DisplayList with actual font glyph masks")
         .set("motion", "full").set("frames", Value(std::move(frames))).json() + '\n';
-    check(mcpplibs::os::fs::write_atomic(file, data).has_value(), file.generic_string());
+    expect(mcpplibs::os::fs::write_atomic(file, data).has_value()) << file.generic_string();
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite("site.agent-transition-layout"); (void)themes::add_styles();
+UTest cases{"site.agent-transition-layout", [] {
+     (void)themes::add_styles();
     const auto media = scratch_dir("agent-transition-layout");
     std::println("    transition evidence: {}", media.generic_string());
 
-    suite.test("both task directions keep painted actions and glyphs apart throughout every intermediate frame", [media] {
+    "both task directions keep painted actions and glyphs apart throughout every intermediate frame"_test = [media] {
         for (const int width : {360, 390, 1280}) for (const auto lang : {"en", "zh"}) {
             Page page(width, lang); Value::List frames; std::size_t bodies = 0;
             const auto action = page.runtime->screen_bounds(page.runtime->find(page.path("preview/actions")));
@@ -302,18 +301,18 @@ int main(int argc, char** argv) {
                 for (int frame = 0; frame <= 30; ++frame) {
                     frames.push_back(page.sample(sample++, bodies)); page.h.record(film);
                     if (frame == 0 || frame == 5 || frame == 15 || frame == 30)
-                        check(page.h.save_png(media / std::format("{}-{}-{}-{}.png", lang, width, mode, frame), Rect{0, 0, static_cast<float>(width), 844}).has_value());
+                        expect(page.h.save_png(media / std::format("{}-{}-{}-{}.png", lang, width, mode, frame), Rect{0, 0, static_cast<float>(width), 844}).has_value());
                     if (frame != 30) page.step();
                 }
             }
-            check(bodies >= 40, "the sequence contains actual visible primary bodies, not only target boxes");
-            check(page.moving_samples > 0, "default task motion has genuine intermediate progress and was not disabled to pass");
-            check(page.h.save_recording(media / std::format("{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
+            expect(bodies >= 40) << "the sequence contains actual visible primary bodies, not only target boxes";
+            expect(page.moving_samples > 0) << "default task motion has genuine intermediate progress and was not disabled to pass";
+            expect(page.h.save_recording(media / std::format("{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
             write_trace(media / std::format("{}-{}.motion.omui.json", lang, width), std::move(frames));
         }
-    });
+    };
 
-    suite.test("a real click during task replacement invokes the painted task action rather than Replay", [media] {
+    "a real click during task replacement invokes the painted task action rather than Replay"_test = [media] {
         for (const int width : {360, 390, 1280}) for (const auto lang : {"en", "zh"}) for (const int at_frame : {5, 9}) {
             Page page(width, lang); page.mode("design");
             for (int i = 0; i < at_frame; ++i) page.step();
@@ -324,21 +323,21 @@ int main(int argc, char** argv) {
             if (found != drawn.end()) for (const auto& body : found->second.bodies)
                 if (body.node == page.runtime->find(id) && !page.runtime->semantic_node(body.node).states.has(State::removing) &&
                     (!active_body || body.rect.width * body.rect.height > active_body->rect.width * active_body->rect.height)) active_body = &body;
-            check(active_body != nullptr, "the new task button is really painted at the probe time");
+            expect(active_body != nullptr) << "the new task button is really painted at the probe time";
             if (active_body) {
                 const auto before = page.runtime->action_journal().size();
                 page.h.click(active_body->rect.center());
                 const auto& journal = page.runtime->action_journal();
-                check(std::ranges::any_of(journal | std::views::drop(before), [&](const auto& entry) {
+                expect(std::ranges::any_of(journal | std::views::drop(before), [&](const auto& entry) {
                     return entry.path == id && entry.action == "activate" && entry.actor == "person:user" && entry.exit_code == 0;
-                }), "real pointer input records the arrange action, not a neighbouring playback action");
-                check(page.state.layout.peek() == "cards", "the task really changed its layout");
+                })) << "real pointer input records the arrange action, not a neighbouring playback action";
+                expect(page.state.layout.peek() == "cards") << "the task really changed its layout";
             }
             write_trace(media / std::format("click-{}-{}-{}.motion.omui.json", lang, width, at_frame), std::move(frames));
         }
-    });
+    };
 
-    suite.test("mode interruption and viewport resize keep sampled geometry observable without closing the framework presentation audit", [media] {
+    "mode interruption and viewport resize keep sampled geometry observable without closing the framework presentation audit"_test = [media] {
         for (const int width : {390, 1280}) for (const auto lang : {"en", "zh"}) {
             Page page(width, lang); Value::List frames; std::size_t bodies = 0;
             page.mode("design");
@@ -350,13 +349,12 @@ int main(int argc, char** argv) {
                 frames.push_back(page.sample(frame, bodies, true));
                 page.h.record(Rect{0, 0, static_cast<float>(width), 844});
                 if (frame == 5 || frame == 8 || frame == 16 || frame == 24 || frame == 36)
-                    check(page.h.save_png(media / std::format("interrupt-{}-{}-{}.png", lang, width, frame), Rect{0, 0, static_cast<float>(page.width), 844}).has_value());
+                    expect(page.h.save_png(media / std::format("interrupt-{}-{}-{}.png", lang, width, frame), Rect{0, 0, static_cast<float>(page.width), 844}).has_value());
                 if (frame != 36) page.step();
             }
-            check(page.h.save_recording(media / std::format("interrupt-{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
-            check(bodies > 0); check(page.state.title.peek() == "Review an idea", "layout and interruption preserve the actual draft");
+            expect(page.h.save_recording(media / std::format("interrupt-{}-{}.apng", lang, width), {.delay_num = 1, .delay_den = 60}).has_value());
+            expect(bodies > 0); expect(page.state.title.peek() == "Review an idea") << "layout and interruption preserve the actual draft";
             write_trace(media / std::format("interrupt-{}-{}.motion.omui.json", lang, width), std::move(frames));
         }
-    });
-    return suite.run(argc, argv);
-}
+    };
+}};

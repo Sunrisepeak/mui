@@ -221,6 +221,15 @@ std::string llms_text(const Value& api, std::string_view project) {
             if (!events.empty()) out += std::format(". Events: {}", events);
             out += ".\n";
         }
+    // What an agent may do with a running application: the protocol's operations, then Live Design's.
+    if (const Value* operations = api.get("operations"); operations && operations->map()) {
+        out += "\n## Operations\n\n";
+        for (const auto& [kind, list] : *operations->map()) {
+            if (!list.list()) continue;
+            for (const Value& operation : *list.list())
+                out += std::format("- `{}` ({}) — {}\n", operation.get("name")->as_string(), operation.get("effect")->as_string(), operation.get("summary")->as_string());
+        }
+    }
     out += "\n## Native modules\n\n";
     if (const Value* natives = api.get("natives"); natives && natives->map())
         for (const auto& [name, module] : *natives->map()) {

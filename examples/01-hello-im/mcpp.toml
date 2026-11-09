@@ -36,4 +36,5 @@ omui.sdk = { path = "../../modules/projects/omui/sdk" }
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../../modules/base/utils" }

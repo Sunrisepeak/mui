@@ -682,6 +682,12 @@ my-app/
 - 第 5 步第二块（与 W3 第一块同源）：组件目录由 view 的 `component_catalog()` 统一产出，`omui.agent:api` 汇总组件（带 `spec` 标记）、native、主题令牌和动词；协议 `describe` 加 `api: true`、player 入口写出 `api.json`、`omui describe --api`（`--json`、`--llms`）和 `omui check --portable` 都读它。
 - 命令行统一用 `mcpplibs.cmdline`（D-56，AGENTS §5、§4）：为此发布 cmdline 0.0.3（`value_type<T>()` 让解析阶段校验数值，`value_as<T>()` 读回）；SDK 提供 `RunOptions::declare`/`from` 和 `omui::command_line`（程序自己的开关与 openmui 的开关同一棵树、只解析一次）；全仓库的程序都已迁移，lint `cmdline` 拦截手写解析。
 
+**W1 第 3 步的做法（2026-11-09 定）**：仓库里还有约 44 个 `*.omui.toml`，分属十几类（music、sound、theme、style、effect、behavior、timeline、compare、subtitles、owners、native、metrics、features，以及 1 个契约）。规范的注册表另有 16 个，等规范仓库决定。
+- 规范形式是求值后的 JSON 快照，TS 是源码（D-139）。按分层，媒体、游戏这些层的读取器不能依赖 UI 层的 `omui.lang.ts`，所以 TS 统一在构建期求值。
+- 构建期：一个 mcpp 插件（`omui.build.data`，与 contracts、embed 同一套机制）把包里的 `<名字>.<种类>.omui.ts` 求值成同名的 `.omui.json`，放在构建目录里，嵌入资源时嵌入 JSON。`omui-gen` 已有确定的求值环境（`omui.gen.data`）。
+- 读取器改为读 JSON，问题用 JSON 指针定位（TS 源码的行号本来也没有）。每改完一类，就删掉这一类的 TOML 读取路径（不留兼容层）。
+- 顺序：按类迁移，每一类都满足"文件逐个转写、读取器换成 JSON、像素和音频基线逐字节不变"，各自一个检查点。最后 lint 拦截新出现的 `.omui.toml`。
+
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。
    - 进度（2026-11-09）：开发模式下每帧检查一次文件，`tools/eval/hot_reload.py` 实测"保存到语义树更新"的中位数 14.8 ms、p95 16.6 ms（未优化构建，含协议读取）。事件驱动的文件监视已向 mcpplibs.os 提出（#21）。

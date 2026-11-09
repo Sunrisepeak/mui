@@ -6,9 +6,11 @@ import xrender.raster;
 import mlibs.image;
 import mlibs.trace;
 import mlibs.testing;
+import mcpplibs.mtest;
 using namespace hanim;
 using namespace hanim::vector_render;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace render=xrender;
 namespace geom=mlibs::geom;
 namespace raster=xrender::raster;
@@ -49,7 +51,7 @@ void operator delete[](void* p,std::align_val_t,const std::nothrow_t&)noexcept{r
 
 namespace {
 template<class T,class E>T take(std::expected<T,E> result) {
-    check(bool(result));if(!result)std::abort();
+    expect(bool(result));if(!result)std::abort();
     if constexpr(!std::is_void_v<T>)return std::move(*result);
 }
 struct Fixture {
@@ -75,7 +77,7 @@ struct Storage {
 raster::Surface draw(const render::DisplayList& list) {
     raster::Surface pixels(112,64);render::CpuRenderer cpu;
     const auto result=cpu.render(list,pixels,{});
-    check(list.balanced() && !result.effects_skipped && !result.invalid_paints && !result.missing_images);
+    expect(list.balanced() && !result.effects_skipped && !result.invalid_paints && !result.missing_images);
     return pixels;
 }
 void leaf(const PreparedProgram& plan,ProgramFrameView frame,std::size_t track,render::DisplayList& output) {
@@ -89,65 +91,64 @@ std::size_t layers(const render::DisplayList& list) {
     return static_cast<std::size_t>(std::ranges::count_if(list.commands(),[](const auto& command){return std::holds_alternative<render::PushLayer>(command);}));
 }
 }
-int main(int argc,char** argv) {
-    Suite suite{"hanim.composite"};
-    suite.test("one composite blur matches explicit shared layers and differs from per-leaf blur",[] {
+UTest cases{"hanim.composite", [] {
+    "one composite blur matches explicit shared layers and differs from per-leaf blur"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(parallel(
             composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(0,4)),f.hold(f.outside))));
         const auto playback=take(f.engine.play(plan));take(f.engine.seek_progress(playback,.5));
         const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());render::DisplayList output,expected;
         const auto frame=take(f.engine.program_frame(playback)).scene;take(renderer.record(frame,output,storage.get()));
-        check(layers(output)==1,"the composite is processed once, not broadcast to two leaves");
+        expect(layers(output)==1) << "the composite is processed once, not broadcast to two leaves";
         const std::array<float,1> radius{2};
         expected.push_layer(1,render::BlendMode::normal,*render::effects().find("blur"),radius,{16,16,36,24});
         leaf(plan,frame,0,expected);leaf(plan,frame,1,expected);expected.pop_layer();leaf(plan,frame,2,expected);
-        const auto pixels=draw(output);check(pixels.hash()==draw(expected).hash());
+        const auto pixels=draw(output);expect(pixels.hash()==draw(expected).hash());
         take(f.engine.release(playback));
         const auto separate=take(f.engine.prepare(parallel(f.hold(f.a).with_effect(fx::blur(0,4)),
             f.hold(f.b).with_effect(fx::blur(0,4)),f.hold(f.outside))));
         const auto other=take(f.engine.play(separate));take(f.engine.seek_progress(other,.5));
         const auto per_leaf=take(PreparedVectorProgram::bind(separate));Storage other_storage(per_leaf.requirements());render::DisplayList second;
         take(per_leaf.record(take(f.engine.program_frame(other)).scene,second,other_storage.get()));
-        check(draw(second).hash()!=pixels.hash(),"overlapping alpha distinguishes group blur from individual blur");
-        check(pixels.at(74,16).g==255 && pixels.at(73,16).a==0 && pixels.at(75,17).a==255,"outside object keeps its sharp edges");
-        check(pixels.at(14,24).a>0,"group bounds include the filter reach");
+        expect(draw(second).hash()!=pixels.hash()) << "overlapping alpha distinguishes group blur from individual blur";
+        expect(pixels.at(74,16).g==255 && pixels.at(73,16).a==0 && pixels.at(75,17).a==255) << "outside object keeps its sharp edges";
+        expect(pixels.at(14,24).a>0) << "group bounds include the filter reach";
         const auto dir=scratch_dir("hanim-composite");
         const mlibs::image::View view{reinterpret_cast<const std::uint8_t*>(pixels.row(0)),112,64,112*4,mlibs::image::Alpha::premultiplied};
         take(mlibs::image::save_png(dir/"group-blur.png",view));
         std::println("composite CPU pixels: {} hash={} layers=1",(dir/"group-blur.png").generic_string(),pixels.hash());
-    });
-    suite.test("nested scopes preserve leaf-before-inner-before-outer order and expanded bounds",[] {
+    };
+    "nested scopes preserve leaf-before-inner-before-outer order and expanded bounds"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
             f.hold(f.a).with_effect(fx::blur(1,1)),composite(f.hold(f.b)).with_effect(fx::blur(2,2))))
             .with_effect(fx::blur(3,3)).with_effect(fx::tone({.r=.2f,.g=.4f,.b=1,.amount=.4f},{.r=.2f,.g=.4f,.b=1,.amount=.4f}))));
         const auto ref=take(f.engine.play(plan));const auto frame=take(f.engine.program_frame(ref)).scene;
         const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());render::DisplayList output;
-        take(renderer.record(frame,output,storage.get()));check(layers(output)==4);
+        take(renderer.record(frame,output,storage.get()));expect(layers(output)==4);
         std::vector<render::EffectRef> opening;
         for(const auto& command:output.commands())if(const auto* layer=std::get_if<render::PushLayer>(&command))opening.push_back(layer->effect);
-        check(opening[0].id==render::effects().find("tone")->id && opening[1].id==render::effects().find("blur")->id);
-        const auto requirements=renderer.requirements();check(requirements.scopes==2 && requirements.scope_depth==2);
-        check(storage.bounds[2].x<16 && storage.bounds[2].right()>52,"outer bounds enclose expanded child and leaf output");
+        expect(opening[0].id==render::effects().find("tone")->id && opening[1].id==render::effects().find("blur")->id);
+        const auto requirements=renderer.requirements();expect(requirements.scopes==2 && requirements.scope_depth==2);
+        expect(storage.bounds[2].x<16 && storage.bounds[2].right()>52) << "outer bounds enclose expanded child and leaf output";
         const auto initial=draw(output).hash();take(f.engine.seek_progress(ref,1));output.clear();
-        take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));check(draw(output).hash()==initial);
-    });
-    suite.test("empty composite scopes are exact identities and transform-only groups create no layers",[] {
+        take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));expect(draw(output).hash()==initial);
+    };
+    "empty composite scopes are exact identities and transform-only groups create no layers"_test = [] {
         Fixture f;const auto plain=take(f.engine.prepare(parallel(f.hold(f.a),f.hold(f.b))));
         const auto wrapped=take(f.engine.prepare(composite(parallel(composite(f.hold(f.a)),composite(f.hold(f.b))))));
         std::array<std::uint64_t,2> hashes{};std::size_t i=0;
         for(const auto& plan:{plain,wrapped}) {
             const auto ref=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));
             Storage storage(renderer.requirements());render::DisplayList output;
-            take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));check(layers(output)==0);
+            take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));expect(layers(output)==0);
             hashes[i++]=draw(output).hash();take(f.engine.release(ref));
         }
-        check(hashes[0]==hashes[1]);
+        expect(hashes[0]==hashes[1]);
         const auto transform=take(f.engine.create_object({{{.id="camera"}}}));
         const auto plan=take(f.engine.prepare(composite(f.hold(transform)).with_effect(fx::blur(2,2))));
         const auto ref=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());render::DisplayList output;
-        take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));check(output.commands().empty());
-    });
-    suite.test("scope membership follows selected segments and author order across seek boundaries",[] {
+        take(renderer.record(take(f.engine.program_frame(ref)).scene,output,storage.get()));expect(output.commands().empty());
+    };
+    "scope membership follows selected segments and author order across seek boundaries"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(sequence(
             composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(1,1)),
             composite(parallel(f.hold(f.b),f.hold(f.a))).with_effect(fx::blur(4,4)))));
@@ -155,43 +156,42 @@ int main(int argc,char** argv) {
         std::array<std::uint64_t,3> hashes{};std::size_t i=0;
         for(double time:{.5,1.,.5}) {
             take(f.engine.seek(ref,seconds(time)));output.clear();const auto frame=take(f.engine.program_frame(ref)).scene;
-            take(renderer.record(frame,output,storage.get()));check(layers(output)==1);
-            check(storage.order[0]==(time<1?0u:1u),"selected author order, not stable track identity, defines compositing");
+            take(renderer.record(frame,output,storage.get()));expect(layers(output)==1);
+            expect(storage.order[0]==(time<1?0u:1u)) << "selected author order, not stable track identity, defines compositing";
             hashes[i++]=draw(output).hash();
         }
-        check(hashes[0]!=hashes[1] && hashes[0]==hashes[2]);
-    });
-    suite.test("program bind diagnoses unsupported scopes and accounts backend expansion",[] {
+        expect(hashes[0]!=hashes[1] && hashes[0]==hashes[2]);
+    };
+    "program bind diagnoses unsupported scopes and accounts backend expansion"_test = [] {
         Fixture f;
         for(const auto& effect:std::array<EffectSpec,3>{{{"missing",{}},{"blur",{{"typo",0,1}}},{"liquid_glass",{}}}}) {
             const auto plan=take(f.engine.prepare(composite(f.hold(f.a)).with_effect(effect)));
-            const auto result=PreparedVectorProgram::bind(plan);check(!result && result.error().where.scope==0);
+            const auto result=PreparedVectorProgram::bind(plan);expect(!result && result.error().where.scope==0);
         }
         const auto plan=take(f.engine.prepare(composite(f.hold(f.a)).with_effect({"tone",{}})));
-        check(PreparedVectorProgram::bind(plan,{.max_prepared_backend_parameters=0}).error().code==VectorError::capacity,
-            "default backend parameters count even if no parameter was authored");
-        check(PreparedVectorProgram::bind(plan,{.max_prepared_effect_layers=0}).error().code==VectorError::capacity);
-    });
-    suite.test("invalid frames buffers and scope values preserve the destination",[] {
+        expect(PreparedVectorProgram::bind(plan,{.max_prepared_backend_parameters=0}).error().code==VectorError::capacity) << "default backend parameters count even if no parameter was authored";
+        expect(PreparedVectorProgram::bind(plan,{.max_prepared_effect_layers=0}).error().code==VectorError::capacity);
+    };
+    "invalid frames buffers and scope values preserve the destination"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(1,2))));
         const auto ref=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());
         const auto frame=take(f.engine.program_frame(ref)).scene;render::DisplayList output;
         output.fill_rect({0,0,2,2},render::Paint::solid({0,1,0,1}));const auto before=output.hash();
-        auto bad=frame;bad.preparation=nullptr;check(renderer.record(bad,output,storage.get()).error().code==VectorError::foreign_frame);
-        auto scratch=storage.get();scratch.scope_stack={};check(renderer.record(frame,output,scratch).error().code==VectorError::buffer_too_small);
-        scratch=storage.get();scratch.order=scratch.scope_members;check(renderer.record(frame,output,scratch).error().code==VectorError::recording_alias);
+        auto bad=frame;bad.preparation=nullptr;expect(renderer.record(bad,output,storage.get()).error().code==VectorError::foreign_frame);
+        auto scratch=storage.get();scratch.scope_stack={};expect(renderer.record(frame,output,scratch).error().code==VectorError::buffer_too_small);
+        scratch=storage.get();scratch.order=scratch.scope_members;expect(renderer.record(frame,output,scratch).error().code==VectorError::recording_alias);
         std::array<float,1> invalid{201};bad=frame;bad.scope_effect_values=invalid;
-        const auto error=renderer.record(bad,output,storage.get());check(!error && error.error().where.scope==0 && error.error().code==VectorError::invalid_parameter);
+        const auto error=renderer.record(bad,output,storage.get());expect(!error && error.error().where.scope==0 && error.error().code==VectorError::invalid_parameter);
         std::vector<ProgramTrackView> views(frame.tracks.begin(),frame.tracks.end());std::swap(views[0],views[1]);bad=frame;bad.tracks=views;
-        check(renderer.record(bad,output,storage.get()).error().code==VectorError::foreign_frame);
-        check(output.hash()==before);
+        expect(renderer.record(bad,output,storage.get()).error().code==VectorError::foreign_frame);
+        expect(output.hash()==before);
         const auto blur=*render::effects().find("blur");const auto original=*render::effects().info(blur);
-        check(render::effects().replace(blur,original));
+        expect(render::effects().replace(blur,original));
         const auto stale=renderer.record(frame,output,storage.get());
-        check(render::effects().replace(blur,original));
-        check(!stale && stale.error().code==VectorError::stale_effect && stale.error().where.scope==0 && output.hash()==before);
-    });
-    suite.test("prepared scoped playback query and warmed recording allocate nothing",[] {
+        expect(render::effects().replace(blur,original));
+        expect(!stale && stale.error().code==VectorError::stale_effect && stale.error().where.scope==0 && output.hash()==before);
+    };
+    "prepared scoped playback query and warmed recording allocate nothing"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(f.hold(f.a),f.hold(f.b))).with_effect(fx::blur(0,4))));
         const auto ref=take(f.engine.play(plan));const auto renderer=take(PreparedVectorProgram::bind(plan));Storage storage(renderer.requirements());render::DisplayList output;
         mlibs::trace::start();
@@ -202,9 +202,9 @@ int main(int argc,char** argv) {
             const auto frame=f.engine.program_frame(ref);output.clear();
             good &= frame.has_value() && renderer.record(frame->scene,output,storage.get()).has_value();
         }
-        const auto after=allocations.load();(void)mlibs::trace::stop();check(good && before==after);
-    });
-    suite.test("independent channels render one object under one shared image scope",[] {
+        const auto after=allocations.load();(void)mlibs::trace::stop();expect(good && before==after);
+    };
+    "independent channels render one object under one shared image scope"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
             anim::move_by(f.a,{20,0}).duration(seconds(2)),anim::scale_to(f.a,{1.2,1.2}).duration(seconds(1))))
             .with_effect(fx::blur(0,4))));
@@ -222,11 +222,10 @@ int main(int argc,char** argv) {
             const auto expected_renderer=take(PreparedVectorProgram::bind(expected_plan));
             Storage expected_storage(expected_renderer.requirements());render::DisplayList expected;
             take(expected_renderer.record(take(reference.engine.program_frame(expected_play)).scene,expected,expected_storage.get()));
-            check(layers(actual)==1 && draw(actual).hash()==draw(expected).hash(),
-                "the composed pose and one blur match an independently authored endpoint, including translucent fill");
+            expect(layers(actual)==1 && draw(actual).hash()==draw(expected).hash()) << "the composed pose and one blur match an independently authored endpoint, including translucent fill";
         }
-    });
-    suite.test("independent channel playback and scoped recording remain allocation free after preparation",[] {
+    };
+    "independent channel playback and scoped recording remain allocation free after preparation"_test = [] {
         Fixture f;const auto plan=take(f.engine.prepare(composite(parallel(
             anim::move_by(f.a,{20,0}).duration(seconds(2)),anim::rotate_to(f.a,.4).duration(seconds(1))))
             .with_effect(fx::blur(0,4))));
@@ -242,7 +241,6 @@ int main(int argc,char** argv) {
             const auto frame=f.engine.program_frame(playback);output.clear();
             good &= frame.has_value() && renderer.record(frame->scene,output,storage.get()).has_value();
         }
-        const auto after=allocations.load();mlibs::trace::stop();check(good && before==after);
-    });
-    return suite.run(argc,argv);
-}
+        const auto after=allocations.load();mlibs::trace::stop();expect(good && before==after);
+    };
+}};

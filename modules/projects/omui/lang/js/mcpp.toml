@@ -52,6 +52,8 @@ omui.ui.base       = { path = "../../components/base" }
 # the designer, for the structured edits of a running TypeScript application.
 omui.host.headless = { path = "../../host/headless" }
 omui.designer      = { path = "../../designer" }
+# The API an application describes, beside its declarations (declare_test).
+omui.agent         = { path = "../../agent" }
 
 # tsc runs the declaration tests' type checks (declare_test; skipped where it
 # is missing): installed from xlings while this package is developed on its

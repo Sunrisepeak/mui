@@ -5,9 +5,11 @@ import std;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 
@@ -47,14 +49,14 @@ std::uint64_t pixels(Headless& h, std::optional<Rect> region = {}) {
 }
 
 void save(Headless& h, std::string_view name) {
-    check(h.save_png(pictures() / std::format("{}.png", name)).has_value(), "reviewable real raster output");
+    expect(h.save_png(pictures() / std::format("{}.png", name)).has_value()) << "reviewable real raster output";
 }
 
 void act(Headless& h, std::string_view path, std::string_view action, Value args = {}) {
     Invocation call;
     call.actor = {"agent", "default-motion-test", {}};
     call.args = std::move(args);
-    check_eq(h.tree().act(path, action, call).exit_code().value_or(-1), std::int64_t{0});
+    expect(eq(h.tree().act(path, action, call).exit_code().value_or(-1), std::int64_t{0}));
     h.step();
 }
 
@@ -114,88 +116,84 @@ MotionSpec tween(double duration) {
 
 void expect_duration(Headless& h, std::string_view path, double expected) {
     const auto motion = moving(h, path);
-    check(motion.has_value(), std::format("{} has a real active drawing motion", path));
-    if (motion) check(std::abs((motion->end - motion->start) - expected) < 0.001,
-                      std::format("{}: expected {} s, actual {} s", path, expected, motion->end - motion->start));
+    expect(motion.has_value()) << std::format("{} has a real active drawing motion", path);
+    if (motion) expect(std::abs((motion->end - motion->start) - expected) < 0.001) << std::format("{}: expected {} s, actual {} s", path, expected, motion->end - motion->start);
 }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite{"ui.base.default-motion"};
+UTest cases{"ui.base.default-motion", [] {
     register_base_components();
 
-    suite.test("37 typed defaults reference existing compositions of shared primitives", [] {
+    "37 typed defaults reference existing compositions of shared primitives"_test = [] {
         const auto recipes = default_component_motion_recipes();
         const auto library = default_motion_library();
         const auto rules = default_motion_rules();
-        check_eq(recipes.size(), std::size_t{37});
+        expect(eq(recipes.size(), std::size_t{37}));
         std::set<std::string_view> names;
         for (const auto& recipe : recipes) {
-            check(names.insert(recipe.component).second, "one entry per component type");
+            expect(names.insert(recipe.component).second) << "one entry per component type";
             for (const auto& [slot, name] : {std::pair{"update", recipe.update}, std::pair{"state", recipe.state},
                                            std::pair{"enter", recipe.enter}, std::pair{"exit", recipe.exit}}) {
-                check(!name.empty(), std::format("{}.{} is explicit", recipe.component, slot));
+                expect(!name.empty()) << std::format("{}.{} is explicit", recipe.component, slot);
                 const auto rule = std::ranges::find_if(rules, [&](const MotionRule& r) { return r.target == recipe.component && r.slot == slot; });
-                check(rule != rules.end(), "the directory is installed in the actual framework rules");
+                expect(rule != rules.end()) << "the directory is installed in the actual framework rules";
                 if (name == "none") {
-                    if (rule != rules.end()) check(rule->spec.kind == MotionSpec::Kind::none, "input content remains immediate");
+                    if (rule != rules.end()) expect(rule->spec.kind == MotionSpec::Kind::none) << "input content remains immediate";
                     continue;
                 }
                 const auto found = library.find(name);
-                check(found != library.end(), std::format("{} exists", name));
+                expect(found != library.end()) << std::format("{} exists", name);
                 if (found == library.end()) continue;
-                check(std::popcount(found->second.primitives) >= 2, std::format("{} composes reusable primitives", name));
-                check((found->second.primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0,
-                      "shared drawing matching underlies the recipe");
+                expect(std::popcount(found->second.primitives) >= 2) << std::format("{} composes reusable primitives", name);
+                expect((found->second.primitives & static_cast<std::uint16_t>(MotionPrimitive::match_drawing)) != 0) << "shared drawing matching underlies the recipe";
                 if (rule != rules.end()) {
-                    check(rule->spec.name == name && rule->spec.primitives == found->second.primitives &&
+                    expect(rule->spec.name == name && rule->spec.primitives == found->second.primitives &&
                           rule->spec.kind == found->second.kind &&
-                          rule->spec.appear == found->second.appear && rule->spec.stretch == found->second.stretch,
-                          "installed rule is the documented composition");
-                    check(rule->layer == MotionRule::Layer::framework, "styles can override framework defaults");
+                          rule->spec.appear == found->second.appear && rule->spec.stretch == found->second.stretch) << "installed rule is the documented composition";
+                    expect(rule->layer == MotionRule::Layer::framework) << "styles can override framework defaults";
                 }
             }
         }
-        check(names.contains("actor_log") && names.contains("text_box") && names.contains("code_editor"));
-        check(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; }), "no blanket recipe for every drawing");
-    });
+        expect(names.contains("actor_log") && names.contains("text_box") && names.contains("code_editor"));
+        expect(std::ranges::none_of(rules, [](const MotionRule& r) { return r.target == "*"; })) << "no blanket recipe for every drawing";
+    };
 
-    suite.test("six real control types paint distinct middle frames and reach their actual state drawings", [] {
+    "six real control types paint distinct middle frames and reach their actual state drawings"_test = [] {
         for (const std::string type : {"checkbox", "toggle", "segmented", "progress", "accordion", "drawer"}) {
             Headless animated(options()), immediate(options());
             immediate.runtime().set_motion_level(MotionLevel::off);
             auto sample = scene(type), reference = scene(type);
             mount(animated, sample); mount(immediate, reference);
             const auto before = pixels(animated);
-            check_eq(before, pixels(immediate));
+            expect(eq(before, pixels(immediate)));
             save(animated, type + "-before");
             sample.change(animated); reference.change(immediate);
             const auto record = moving(animated, "main/subject");
-            check(record.has_value(), type + ": the actual control owns its motion handle");
+            expect(record.has_value()) << type + ": the actual control owns its motion handle";
             if (record) {
-                check(record->matched + record->to_only + record->from_only > 0, "the handle contains real paint pieces");
-                if (type == "checkbox") check(record->to_only > 0, "the checkmark appears as a part");
+                expect(record->matched + record->to_only + record->from_only > 0) << "the handle contains real paint pieces";
+                if (type == "checkbox") expect(record->to_only > 0) << "the checkmark appears as a part";
                 if (type == "toggle" || type == "segmented" || type == "progress")
-                    check(record->matched > 0, "the existing thumb, lens or value fill is matched");
+                    expect(record->matched > 0) << "the existing thumb, lens or value fill is matched";
             }
             animated.advance(seconds(0.10));
             const auto middle = pixels(animated), final = pixels(immediate);
-            check(middle != before && middle != final, type + ": painted motion is neither endpoint");
+            expect(middle != before && middle != final) << type + ": painted motion is neither endpoint";
             save(animated, type + "-middle");
             animated.settle();
-            check(pixels(animated) == final, type + ": exactly the unanimated production drawing at rest");
-            check(animated.runtime().motions().empty(), "no autonomous component animation remains");
+            expect(pixels(animated) == final) << type + ": exactly the unanimated production drawing at rest";
+            expect(animated.runtime().motions().empty()) << "no autonomous component animation remains";
             save(animated, type + "-rest");
         }
-    });
+    };
 
-    suite.test("shape-specific primitives alter real checkmarks, thumbs and selection lenses", [] {
+    "shape-specific primitives alter real checkmarks, thumbs and selection lenses"_test = [] {
         for (const std::string type : {"checkbox", "toggle", "segmented"}) {
             Theme flat = Theme::light();
             const auto recipes = default_component_motion_recipes();
             const auto recipe = std::ranges::find_if(recipes, [&](const ComponentMotionRecipe& r) { return r.component == type; });
-            check(recipe != recipes.end());
+            expect(recipe != recipes.end());
             if (recipe == recipes.end()) continue;
             MotionSpec without_shape = flat.motion_library.at(std::string(recipe->update));
             without_shape.appear.away.scale = hanim::Vec2{1, 1}; without_shape.stretch = 0;
@@ -204,19 +202,19 @@ int main(int argc, char** argv) {
             plain.runtime().set_theme(flat);
             auto sample = scene(type), reference = scene(type, "test.without-shape");
             mount(typed, sample); mount(plain, reference);
-            check_eq(pixels(typed), pixels(plain));
+            expect(eq(pixels(typed), pixels(plain)));
             sample.change(typed); reference.change(plain);
             const seconds sample_time(type == "checkbox" ? 0.10 : 0.05);
             typed.advance(sample_time); plain.advance(sample_time);
-            check(moving(typed, "main/subject").has_value() && moving(plain, "main/subject").has_value());
-            check(pixels(typed) != pixels(plain), type + ": its local growth or stretch affects actual intermediate paint");
+            expect(moving(typed, "main/subject").has_value() && moving(plain, "main/subject").has_value());
+            expect(pixels(typed) != pixels(plain)) << type + ": its local growth or stretch affects actual intermediate paint";
             save(typed, type + "-typed-shape"); save(plain, type + "-without-shape");
             typed.settle(); plain.settle();
-            check(pixels(typed) == pixels(plain), "only the journey changed");
+            expect(pixels(typed) == pixels(plain)) << "only the journey changed";
         }
-    });
+    };
 
-    suite.test("off is immediate and reduced is a short real tween for the production controls", [] {
+    "off is immediate and reduced is a short real tween for the production controls"_test = [] {
         for (const std::string type : {"checkbox", "toggle", "segmented", "progress", "accordion", "drawer"}) {
             Headless full(options()), reduced(options()), off(options());
             reduced.runtime().set_motion_level(MotionLevel::reduced);
@@ -225,21 +223,21 @@ int main(int argc, char** argv) {
             mount(full, a); mount(reduced, b); mount(off, c);
             const auto before = pixels(off);
             a.change(full); b.change(reduced); c.change(off);
-            check(off.runtime().motions().empty(), type + ": off creates no motion");
-            check(pixels(off) != before, "off still applies the new state immediately");
+            expect(off.runtime().motions().empty()) << type + ": off creates no motion";
+            expect(pixels(off) != before) << "off still applies the new state immediately";
             expect_duration(reduced, "main/subject", 0.12);
             const auto standard = moving(full, "main/subject");
-            if (standard) check(standard->end - standard->start > 0.12, "the full recipe retains its longer response");
+            if (standard) expect(standard->end - standard->start > 0.12) << "the full recipe retains its longer response";
             reduced.advance(seconds(0.05));
-            check(pixels(reduced) != before && pixels(reduced) != pixels(off), type + ": reduced has real intermediate paint");
+            expect(pixels(reduced) != before && pixels(reduced) != pixels(off)) << type + ": reduced has real intermediate paint";
             reduced.advance(seconds(0.15)); full.settle();
-            check(reduced.runtime().motions().empty(), "reduced motion has ended");
-            check_eq(pixels(reduced), pixels(off));
-            check_eq(pixels(full), pixels(off));
+            expect(reduced.runtime().motions().empty()) << "reduced motion has ended";
+            expect(eq(pixels(reduced), pixels(off)));
+            expect(eq(pixels(full), pixels(off)));
         }
-    });
+    };
 
-    suite.test("text input supersedes a running focus drawing on its first painted frame", [] {
+    "text input supersedes a running focus drawing on its first painted frame"_test = [] {
         for (bool code : {false, true}) {
             Headless animated(options()), reference(options());
             reference.runtime().set_motion_level(MotionLevel::off);
@@ -255,33 +253,33 @@ int main(int argc, char** argv) {
             animated.runtime().focus_visibly(animated.runtime().find(path));
             reference.runtime().focus_visibly(reference.runtime().find(path));
             animated.step(); reference.step();
-            check(moving(animated, path).has_value(), "focus feedback really was in progress before typing");
+            expect(moving(animated, path).has_value()) << "focus feedback really was in progress before typing";
             const Rect field = animated.runtime().screen_bounds(animated.runtime().find(path));
             // Interior pixels isolate text and its caret from any enclosing panel's focus feedback.
             const Rect interior{field.x + 8, field.y + 6, field.width - 16, field.height - 12};
             const auto old = pixels(animated, interior);
             animated.type("fresh"); reference.type("fresh");
-            check(source.peek().find("fresh") != std::string::npos && source.peek() == target.peek(), "the real editor accepted the text");
-            check(!moving(animated, path), "immediate content cancels the stale focus drawing");
-            check(pixels(animated, interior) != old, "new glyphs paint immediately, not merely semantic text");
-            check(pixels(animated, interior) == pixels(reference, interior), "the first input frame already equals the immediate editor");
+            expect(source.peek().find("fresh") != std::string::npos && source.peek() == target.peek()) << "the real editor accepted the text";
+            expect(!moving(animated, path)) << "immediate content cancels the stale focus drawing";
+            expect(pixels(animated, interior) != old) << "new glyphs paint immediately, not merely semantic text";
+            expect(pixels(animated, interior) == pixels(reference, interior)) << "the first input frame already equals the immediate editor";
             save(animated, code ? "code-input-first-frame" : "text-input-first-frame");
             // The same guarantee applies to an external two-way value write during another focus transition.
             animated.runtime().focus({}); reference.runtime().focus({});
             animated.step(); reference.step();
             source.set("replacement text"); target.set("replacement text");
             animated.step(); reference.step();
-            check(!moving(animated, path), "external value writes also supersede stale feedback");
-            check_eq(pixels(animated, interior), pixels(reference, interior));
+            expect(!moving(animated, path)) << "external value writes also supersede stale feedback";
+            expect(eq(pixels(animated, interior), pixels(reference, interior)));
         }
-    });
+    };
 
-    suite.test("scoped style layers and explicit overrides win on actual component drawings", [] {
+    "scoped style layers and explicit overrides win on actual component drawings"_test = [] {
         Headless baseline(options());
         auto default_sample = scene("checkbox");
         mount(baseline, default_sample); default_sample.change(baseline);
         const auto default_motion = moving(baseline, "main/subject");
-        check(default_motion.has_value());
+        expect(default_motion.has_value());
         const double default_duration = default_motion ? default_motion->end - default_motion->start : 0;
         // Deliberately append a lower-layer, more-specific rule last: layer
         // precedence must beat both insertion order and selector specificity.
@@ -309,19 +307,18 @@ int main(int argc, char** argv) {
             for (const std::string path : {"main/outside", "main/scope/styled", "main/scope/explicit", "main/scope/none"}) act(h, path, "toggle");
             expect_duration(h, "main/scope/styled", 0.4);
             expect_duration(h, "main/scope/explicit", 0.7);
-            check(!moving(h, "main/scope/none"), "an explicit none suppresses a style and the framework");
+            expect(!moving(h, "main/scope/none")) << "an explicit none suppresses a style and the framework";
             const auto outside = moving(h, "main/outside");
-            check(outside.has_value(), "unscoped checkbox retains its own default");
-            if (outside) check(std::abs((outside->end - outside->start) - default_duration) < 0.001,
-                               "unscoped duration still equals the actual framework reference");
+            expect(outside.has_value()) << "unscoped checkbox retains its own default";
+            if (outside) expect(std::abs((outside->end - outside->start) - default_duration) < 0.001) << "unscoped duration still equals the actual framework reference";
             const Rect rect = h.runtime().screen_bounds(h.runtime().find("main/scope/styled"));
             const auto middle = pixels(h, rect);
             h.settle();
-            check(middle != pixels(h, rect), "the selected scoped recipe animates the actual checkbox paint");
+            expect(middle != pixels(h, rect)) << "the selected scoped recipe animates the actual checkbox paint";
         }
-    });
+    };
 
-    suite.test("press.squash: a pressed button is pressed in about the finger and rings out", [] {
+    "press.squash: a pressed button is pressed in about the finger and rings out"_test = [] {
         Headless h(options());
         auto sample = button({.id = "go", .text = "Go"});
         sample.prop("motion", Source(Value("press.squash")));
@@ -341,10 +338,8 @@ int main(int argc, char** argv) {
         for (const auto& command : h.runtime().display_list().commands())
             if (const auto* push = std::get_if<xrender::PushTransform>(&command); push && push->transform.b == 0 && push->transform.a < 1)
                 pressed = std::min(pressed, push->transform.a);
-        check(pressed < .955f, std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size()));
+        expect(pressed < .955f) << std::format("pressed in past the button's own press: {} ({} motions)", pressed, h.runtime().motions().size());
         h.advance(seconds(1));
-        check(h.runtime().motions().empty(), "then at rest, pressed");
-    });
-
-    return suite.run(argc, argv);
-}
+        expect(h.runtime().motions().empty()) << "then at rest, pressed";
+    };
+}};

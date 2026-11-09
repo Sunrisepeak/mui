@@ -3,14 +3,13 @@
 import std;
 import acme.ui;
 import omui.host.headless;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
-int main(int argc, char** argv) {
-    Suite s{"plugins.contracts"};
+UTest cases{"plugins.contracts", [] {
 
-    s.test("the generated badge is a component like any other", [] {
+    "the generated badge is a component like any other"_test = [] {
         omui::Headless h({.size = {200, 100}});
         auto count = omui::signal(std::int32_t{12});
         std::vector<std::int32_t> cleared;
@@ -21,15 +20,13 @@ int main(int argc, char** argv) {
                                      }));
         h.settle();
         auto n = h.tree().node("main/inbox");
-        check(n && n->role == omui::Role::status && n->name == "Unread" && n->value == omui::Value(12), n ? omui::spec::to_value(*n).json() : "none");
-        check(acme::ui::Badge::contract().name == "badge" && acme::ui::Badge::contract().action("dismiss"));
-        check(h.runtime().bounds(h.runtime().find("main/inbox")).width == 28);
+        expect(n && n->role == omui::Role::status && n->name == "Unread" && n->value == omui::Value(12)) << (n ? omui::spec::to_value(*n).json() : "none");
+        expect(acme::ui::Badge::contract().name == "badge" && acme::ui::Badge::contract().action("dismiss"));
+        expect(h.runtime().bounds(h.runtime().find("main/inbox")).width == 28);
         omui::Invocation call;
-        check(h.tree().act("main/inbox", "dismiss", call).exit_code() == std::optional<int>(0));
-        check(count.peek() == 0 && cleared == std::vector<std::int32_t>{12}, "two-way, and the event");
-        check(acme::ui::name(acme::ui::BadgeTone::good) == "good");
-        check(!acme::ui::parse_badge_tone("loud"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(h.tree().act("main/inbox", "dismiss", call).exit_code() == std::optional<int>(0));
+        expect(count.peek() == 0 && cleared == std::vector<std::int32_t>{12}) << "two-way, and the event";
+        expect(acme::ui::name(acme::ui::BadgeTone::good) == "good");
+        expect(!acme::ui::parse_badge_tone("loud"));
+    };
+}};

@@ -2,9 +2,9 @@
 // file's text byte for byte, and the tag's table lists them by name.
 import std;
 import acme.data;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 
@@ -16,34 +16,31 @@ std::string file(std::string_view name) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"plugins.embed"};
+UTest cases{"plugins.embed", [] {
 
-    s.test("each file a partition holding its text, `-` and `.` in a stem as `_`", [] {
-        check(acme::data::first_note == file("data/first.txt"));
-        check(acme::data::second_part_two_note == file("data/second-part.two.txt"), "a dash, a dot and UTF-8");
-    });
+    "each file a partition holding its text, `-` and `.` in a stem as `_`"_test = [] {
+        expect(acme::data::first_note == file("data/first.txt"));
+        expect(acme::data::second_part_two_note == file("data/second-part.two.txt")) << "a dash, a dot and UTF-8";
+    };
 
-    s.test("the tag's table: every file of the suffix by name, no other", [] {
+    "the tag's table: every file of the suffix by name, no other"_test = [] {
         std::vector<std::string> names;
         for (const auto& [name, text] : acme::data::note_files) {
             names.emplace_back(name);
-            check(text == file("data/" + std::string(name)), std::string(name));
+            expect(text == file("data/" + std::string(name))) << std::string(name);
         }
-        check(names == std::vector<std::string>{"first.txt", "second-part.two.txt"}, "ignored.md is not a note");
-    });
+        expect(names == std::vector<std::string>{"first.txt", "second-part.two.txt"}) << "ignored.md is not a note";
+    };
 
-    s.test("files left out: no partition a file, and an empty table the same code reads", [] {
-        check(acme::data::left_files.empty(), "nothing embedded");
+    "files left out: no partition a file, and an empty table the same code reads"_test = [] {
+        expect(acme::data::left_files.empty()) << "nothing embedded";
         std::size_t n = 0;
         for (const auto& [name, text] : acme::data::left_files) n += name.size() + text.size();
-        check(n == 0);
-    });
+        expect(n == 0);
+    };
 
-    s.test("themes() and behaviors(): embed() for their directories", [] {
-        check(acme::data::dusk_theme == file("themes/dusk.theme.omui.toml"));
-        check(acme::data::pan_zoom_behavior == file("behaviors/pan-zoom.behavior.omui.toml"));
-    });
-
-    return s.run(argc, argv);
-}
+    "themes() and behaviors(): embed() for their directories"_test = [] {
+        expect(acme::data::dusk_theme == file("themes/dusk.theme.omui.toml"));
+        expect(acme::data::pan_zoom_behavior == file("behaviors/pan-zoom.behavior.omui.toml"));
+    };
+}};

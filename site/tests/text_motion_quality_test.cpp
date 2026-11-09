@@ -4,9 +4,11 @@ import std;
 import omui;
 import omui.site;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 struct Run {
@@ -48,21 +50,20 @@ struct ButtonScene {
     void sample(double progress) {
         auto& rt = h.runtime();
         rt.pause_motion(button);
-        const auto duration = rt.motion_time(button); check(duration.has_value());
+        const auto duration = rt.motion_time(button); expect(duration.has_value());
         if (duration) rt.seek_motion(button, duration->first * progress);
         (void)h.step();
     }
 };
 }
 
-int main(int argc, char** argv) {
-    Suite suite("site.text-motion-quality");
+UTest cases{"site.text-motion-quality", [] {
     const auto media = scratch_dir("text-motion-quality");
-    suite.test("unrelated default button captions remain coherent shaped runs through every sampled frame", [media] {
+    "unrelated default button captions remain coherent shaped runs through every sampled frame"_test = [media] {
         for (const auto& labels : {std::pair{"Run read → change → check", "Switch the task layout"}, std::pair{"运行读取 → 修改 → 验证", "切换任务布局"}}) {
             ButtonScene from(labels.first), target(labels.second);
             const auto before = runs(from.h.runtime(), from.button), after = runs(target.h.runtime(), target.button);
-            check(!before.empty() && !after.empty(), "actual font shaping supplies both endpoint runs");
+            expect(!before.empty() && !after.empty()) << "actual font shaping supplies both endpoint runs";
             from.label.set(labels.second); (void)from.h.step();
             bool intermediate = false;
             const auto first_pixels = site::frame_hash(from.h.pixels());
@@ -71,29 +72,28 @@ int main(int argc, char** argv) {
                 const auto current = runs(from.h.runtime(), from.button);
                 for (const auto& run : current) {
                     const auto endpoint = [&](const Run& r) { return same_run(run, r); };
-                    check(std::ranges::any_of(before, endpoint) || std::ranges::any_of(after, endpoint), "no isolated old letters are scattered among a new phrase");
-                    for (const auto& style : run.styles) check(style.transform == Affine{}, "the whole run moves; its letters keep their shaped relative positions");
+                    expect(std::ranges::any_of(before, endpoint) || std::ranges::any_of(after, endpoint)) << "no isolated old letters are scattered among a new phrase";
+                    for (const auto& style : run.styles) expect(style.transform == Affine{}) << "the whole run moves; its letters keep their shaped relative positions";
                 }
                 intermediate = intermediate || site::frame_hash(from.h.pixels()) != first_pixels;
                 from.h.record();
             }
-            check(intermediate, "the typed default remains animated");
+            expect(intermediate) << "the typed default remains animated";
             const std::string lang = std::string_view(labels.first).starts_with("Run") ? "en" : "zh";
-            check(from.h.save_recording(media / ("button-replace-" + lang + ".webp"), {.delay_num = 7, .delay_den = 100}).has_value());
-            check(from.h.save_png(media / ("button-replace-" + lang + ".png")).has_value());
+            expect(from.h.save_recording(media / ("button-replace-" + lang + ".webp"), {.delay_num = 7, .delay_den = 100}).has_value());
+            expect(from.h.save_png(media / ("button-replace-" + lang + ".png")).has_value());
         }
-    });
-    suite.test("related edits retain glyph continuity and explicit motion remains selectable", [] {
+    };
+    "related edits retain glyph continuity and explicit motion remains selectable"_test = [] {
         ButtonScene scene("Save"); scene.label.set("Saved"); (void)scene.h.step();
         const auto motions = scene.h.runtime().motions();
         const auto found = std::ranges::find(motions, scene.button, &MotionState::node);
-        check(found != motions.end() && found->glyphs_kept >= 4, "related prefixes still match actual shaped glyphs");
+        expect(found != motions.end() && found->glyphs_kept >= 4) << "related prefixes still match actual shaped glyphs";
         scene.sample(0.4);
         const auto current = runs(scene.h.runtime(), scene.button);
-        check(std::ranges::any_of(current, [](const auto& run) { return !run.styles.empty(); }));
+        expect(std::ranges::any_of(current, [](const auto& run) { return !run.styles.empty(); }));
         const auto& recipe = scene.h.runtime().theme().motion_library.at("default.action");
-        check(recipe.text == MotionSpec::TextTransition::automatic);
-        check(scene.h.runtime().theme().motion_library.at("morph").text == MotionSpec::TextTransition::glyphs, "explicit creative glyph matching remains available");
-    });
-    return suite.run(argc, argv);
-}
+        expect(recipe.text == MotionSpec::TextTransition::automatic);
+        expect(scene.h.runtime().theme().motion_library.at("morph").text == MotionSpec::TextTransition::glyphs) << "explicit creative glyph matching remains available";
+    };
+}};

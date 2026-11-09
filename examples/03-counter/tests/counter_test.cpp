@@ -6,11 +6,13 @@ import std;
 import omui;
 import tally;
 import mlibs.testing;
+import mcpplibs.mtest;
 import omui.abi;
 import omui.lang;
 import omui.lang.js;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -65,7 +67,7 @@ struct Pair {
     Pair() {
         code.mount("main", tally::view(state));
         auto d = tally::Document::open(doc.runtime(), ::document());
-        check(d.has_value(), d ? "" : d.error());
+        expect(d.has_value()) << (d ? "" : d.error());
         document = std::move(*d);
         document->view().mount(doc.runtime(), "main");
         code.settle();
@@ -77,42 +79,41 @@ struct Pair {
         if (a != b) {
             for (std::size_t i = 0; i < std::min(a.size(), b.size()); ++i)
                 if (!(a[i] == b[i])) {
-                    fail(std::format("{}: {} differs ({} / {})", when, a[i].id, a[i].name, b[i].name), where);
+                    expect(false, where) << std::format("{}: {} differs ({} / {})", when, a[i].id, a[i].name, b[i].name);
                     return;
                 }
-            fail(std::format("{}: {} nodes against {}", when, a.size(), b.size()), where);
+            expect(false, where) << std::format("{}: {} nodes against {}", when, a.size(), b.size());
         }
-        check(pixels(code) == pixels(doc), std::format("{}: the pixels", when), where);
+        expect(pixels(code) == pixels(doc), where) << std::format("{}: the pixels", when);
     }
 };
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.counter"};
+UTest cases{"example.counter", [] {
     register_base_components();
 
-    s.test("the C++ view and the document are one tree, before and after each operation", [] {
+    "the C++ view and the document are one tree, before and after each operation"_test = [] {
         Pair p;
         p.same("at the start");
         for (Headless* h : {&p.code, &p.doc}) {
-            check(h->click("main/controls/plus"));
+            expect(h->click("main/controls/plus"));
             h->settle();
-            check(h->click("main/controls/plus"));
+            expect(h->click("main/controls/plus"));
             h->settle();
         }
         p.same("after two clicks");
-        for (Headless* h : {&p.code, &p.doc}) check_eq(act(*h, "main/controls/minus", "activate"), std::int64_t{0});
+        for (Headless* h : {&p.code, &p.doc}) expect(eq(act(*h, "main/controls/minus", "activate"), std::int64_t{0}));
         p.same("after an agent's −1");
-        for (Headless* h : {&p.code, &p.doc}) check_eq(act(*h, "main/goal/value", "set_value", Value(Value::Map{{"value", Value(1)}})), std::int64_t{0});
+        for (Headless* h : {&p.code, &p.doc}) expect(eq(act(*h, "main/goal/value", "set_value", Value(Value::Map{{"value", Value(1)}})), std::int64_t{0}));
         p.same("with the goal reached");
-        check_eq(p.doc.tree().node("main/status")->name, std::string("Goal of 1 reached"));
-        for (Headless* h : {&p.code, &p.doc}) check_eq(act(*h, "main/controls/reset", "activate"), std::int64_t{0});
+        expect(eq(p.doc.tree().node("main/status")->name, std::string("Goal of 1 reached")));
+        for (Headless* h : {&p.code, &p.doc}) expect(eq(act(*h, "main/controls/reset", "activate"), std::int64_t{0}));
         p.same("after a reset");
-        check(p.doc.tree().node("main/controls/minus")->states.has(spec::State::disabled), "nothing to take away");
-        check_eq(p.state.count.peek(), 0);
-        check(p.document->view().signal("goal")->peek() == Value(1));
-    });
+        expect(p.doc.tree().node("main/controls/minus")->states.has(spec::State::disabled)) << "nothing to take away";
+        expect(eq(p.state.count.peek(), 0));
+        expect(p.document->view().signal("goal")->peek() == Value(1));
+    };
 
     // A script version against the C++ one, through every operation.
     auto script_version = [](std::string_view language, auto make_script, std::string code, std::string name) {
@@ -133,7 +134,7 @@ int main(int argc, char** argv) {
                 std::this_thread::sleep_for(std::chrono::microseconds(200));
             }
             auto result = ran.get();
-            check(result.has_value(), result ? "" : result.error().text());
+            expect(result.has_value()) << (result ? "" : result.error().text());
             auto settle = [&] {
                 for (int i = 0; i < 2000 && !host.idle(); ++i) {
                     script_host.step();
@@ -148,58 +149,58 @@ int main(int argc, char** argv) {
                 if (a != b) {
                     for (std::size_t i = 0; i < std::min(a.size(), b.size()); ++i)
                         if (!(a[i] == b[i])) {
-                            fail(std::format("{} {}: {} differs ({} / {})", language, when, a[i].id, a[i].name, b[i].name));
+                            expect(false) << std::format("{} {}: {} differs ({} / {})", language, when, a[i].id, a[i].name, b[i].name);
                             return;
                         }
-                    fail(std::format("{} {}: {} nodes against {}", language, when, a.size(), b.size()));
+                    expect(false) << std::format("{} {}: {} nodes against {}", language, when, a.size(), b.size());
                 }
-                check(pixels(code_host) == pixels(script_host), std::format("{} {}: the pixels", language, when));
+                expect(pixels(code_host) == pixels(script_host)) << std::format("{} {}: the pixels", language, when);
             };
             same("at the start");
             for (std::string_view op : {"plus", "plus", "minus"}) {
                 for (Headless* h : {&code_host, &script_host})
-                    check_eq(act(*h, std::format("main/controls/{}", op), "activate"), std::int64_t{0});
+                    expect(eq(act(*h, std::format("main/controls/{}", op), "activate"), std::int64_t{0}));
                 settle();
             }
             same("after +1, +1, −1");
             for (Headless* h : {&code_host, &script_host})
-                check_eq(act(*h, "main/goal/value", "set_value", Value(Value::Map{{"value", Value(1)}})), std::int64_t{0});
+                expect(eq(act(*h, "main/goal/value", "set_value", Value(Value::Map{{"value", Value(1)}})), std::int64_t{0}));
             settle();
             same("with the goal reached");
-            check(errors.empty(), errors.empty() ? "" : errors[0]);
+            expect(errors.empty()) << (errors.empty() ? "" : errors[0]);
         }
         abi::detach(handle);
     };
 
-    s.test("the TypeScript version is the same tree and pixels, before and after each operation", [&] {
+    "the TypeScript version is the same tree and pixels, before and after each operation"_test = [&] {
         auto js = lang::ts::compile(script_file("ts/tally.ts"));
-        check(js.has_value(), js ? "" : js.error());
+        expect(js.has_value()) << (js ? "" : js.error());
         if (!js) return;
         script_version("TypeScript", [](lang::Session& s) { return std::make_unique<lang::js::Script>(s); }, *js, "ts/tally.ts");
-    });
+    };
 
-    s.test("the document passes omui check clean and is in the canonical format", [] {
+    "the document passes omui check clean and is in the canonical format"_test = [] {
         const std::string text = text_of(document());
         const auto r = viewdoc::read(text, {.file = "tally.view.omui.json"});
-        for (const auto& d : r.diagnostics) fail(d.text("tally.view.omui.json"));
-        check(r.ok());
+        for (const auto& d : r.diagnostics) expect(false) << d.text("tally.view.omui.json");
+        expect(r.ok());
         auto formatted = viewdoc::format_document(text);
-        check(formatted && *formatted == text, "omui fmt would change it");
-    });
+        expect(formatted && *formatted == text) << "omui fmt would change it";
+    };
 
-    s.test("saving the document shows at once and keeps the count", [] {
+    "saving the document shows at once and keeps the count"_test = [] {
         const auto dir = scratch_dir("example-counter");
         const auto file = dir / "tally.view.omui.json";
         std::filesystem::copy_file(document(), file, std::filesystem::copy_options::overwrite_existing);
         Headless h(HeadlessOptions{.size = {360, 300}});
         auto d = tally::Document::open(h.runtime(), file);
-        check(d.has_value());
+        expect(d.has_value());
         if (!d) return;
         d->start(h.runtime());
         h.settle(seconds(0.05));
-        check(h.click("main/controls/plus"));
+        expect(h.click("main/controls/plus"));
         h.settle(seconds(0.05));
-        check(h.click("main/controls/plus"));
+        expect(h.click("main/controls/plus"));
         h.settle(seconds(0.05));
         std::string text = text_of(file);
         text.replace(text.find("\"+1\""), 4, "\"Add one\"");
@@ -212,9 +213,9 @@ int main(int argc, char** argv) {
         const auto start = std::chrono::steady_clock::now();
         h.advance(seconds(0.15));  // the watcher checks every 100 ms
         const auto took = std::chrono::steady_clock::now() - start;
-        check_eq(h.tree().node("main/controls/plus")->name, std::string("Add one"));
-        check_eq(h.tree().node("main/count")->name, std::string("2"));  // the count stays
-        check(took < std::chrono::milliseconds(200), std::format("reloading took {}", std::chrono::duration_cast<std::chrono::milliseconds>(took)));
+        expect(eq(h.tree().node("main/controls/plus")->name, std::string("Add one")));
+        expect(eq(h.tree().node("main/count")->name, std::string("2")));  // the count stays
+        expect(took < std::chrono::milliseconds(200)) << std::format("reloading took {}", std::chrono::duration_cast<std::chrono::milliseconds>(took));
         // A broken save changes nothing and says why.
         {
             std::ofstream out(file, std::ios::binary | std::ios::trunc);
@@ -222,11 +223,11 @@ int main(int argc, char** argv) {
         }
         std::filesystem::last_write_time(file, std::filesystem::last_write_time(file) + std::chrono::seconds(4));
         h.advance(seconds(0.15));
-        check(d->status().find("did you mean `column`?") != std::string::npos, d->status());
-        check_eq(h.tree().node("main/count")->name, std::string("2"));
-    });
+        expect(d->status().find("did you mean `column`?") != std::string::npos) << (d->status());
+        expect(eq(h.tree().node("main/count")->name, std::string("2")));
+    };
 
-    s.test("pixels", [] {
+    "pixels"_test = [] {
         Headless h(HeadlessOptions{.size = {360, 300}});
         tally::State st;
         st.count.set(7);
@@ -234,9 +235,7 @@ int main(int argc, char** argv) {
         h.settle();
         const std::uint64_t got = pixels(h);
         std::println("example.counter pixels {:016x}", got);
-        check(h.save_png(scratch_dir("example-counter-png") / "tally.png").has_value());
-        check(got == 0x9990209b82dd5910ULL, std::format("pixels {:016x}", got));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(h.save_png(scratch_dir("example-counter-png") / "tally.png").has_value());
+        expect(got == 0x9990209b82dd5910ULL) << std::format("pixels {:016x}", got);
+    };
+}};

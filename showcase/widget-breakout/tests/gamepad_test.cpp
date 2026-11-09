@@ -3,9 +3,9 @@
 import std;
 import omui;
 import omui.showcase.widget_breakout;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace bo = omui::breakout;
 
@@ -30,10 +30,9 @@ GamepadEvent pad(GamepadKind kind, GamepadButton b = GamepadButton::south) { ret
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"widget_breakout.gamepad"};
+UTest cases{"widget_breakout.gamepad", [] {
 
-    s.test("the d-pad and the stick move the paddle; south launches", [] {
+    "the d-pad and the stick move the paddle; south launches"_test = [] {
         Headless h{HeadlessOptions{.level = HeadlessLevel::layout, .size = {1280, 720}}};
         AppSpec spec = bo::app();
         h.runtime().set_theme(spec.theme);
@@ -43,22 +42,20 @@ int main(int argc, char** argv) {
         h.advance(seconds(0.25));
         h.runtime().focus(h.runtime().find("main/field"));
         const double start = paddle(h);
-        check(waiting(h), "the ball waits on the paddle");
+        expect(waiting(h)) << "the ball waits on the paddle";
         h.step({GamepadEvent{.kind = GamepadKind::connected, .device = 1, .name = "pad"}, pad(GamepadKind::down, GamepadButton::dpad_right)});
         h.advance(seconds(0.3));
         h.step({pad(GamepadKind::up, GamepadButton::dpad_right)});
         const double right = paddle(h);
-        check(right > start, std::format("the d-pad: {} → {}", start, right));
+        expect(right > start) << std::format("the d-pad: {} → {}", start, right);
         h.step({GamepadEvent{.kind = GamepadKind::axis, .device = 1, .axis = GamepadAxis::left_x, .value = -1}});
         h.advance(seconds(0.3));
         h.step({GamepadEvent{.kind = GamepadKind::axis, .device = 1, .axis = GamepadAxis::left_x, .value = 0}});
         const double left = paddle(h);
-        check(left < right, std::format("the stick: {} → {}", right, left));
+        expect(left < right) << std::format("the stick: {} → {}", right, left);
         h.step({pad(GamepadKind::down)});
         h.advance(seconds(0.1));
         h.step({pad(GamepadKind::up)});
-        check(!waiting(h), "south launched the ball");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(!waiting(h)) << "south launched the ball";
+    };
+}};

@@ -8,6 +8,7 @@ import xrender.raster;
 import mlibs.image;
 import mlibs.testing;
 import mcpplibs.mtest;
+import mcpplibs.mtest;
 import xrender.text;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -19,6 +20,7 @@ using mlibs::log::Level;
 }
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace mcpplibs::mtest;
 using namespace omui;
 

@@ -55,3 +55,4 @@ omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
 mcpplibs.os           = "0.4.1"
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"

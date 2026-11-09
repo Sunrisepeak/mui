@@ -4,9 +4,11 @@
 import std;
 import omui;
 import mlibs.testing;
+import mcpplibs.mtest;
 import notes;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -42,41 +44,40 @@ std::string essence(semantic::Tree& t) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.headless-and-agent"};
+UTest cases{"example.headless-and-agent", [] {
 
-    s.test("H0: the semantic tree alone, operated by id", [] {
+    "H0: the semantic tree alone, operated by id"_test = [] {
         App a(HeadlessLevel::semantics);
         semantic::Tree& t = a.host->tree();
-        check(t.find({.role = Role::checkbox}).size() == 2);
-        check(a.host->click("main/list/n1/star"));
-        check(a.model.notes.peek()[0].starred, "starred by activating it");
-        check(!t.node("main/compose/add")->bounds, "no layout at H0");
-        check(t.violations().empty(), std::format("{} violations", t.violations().size()));
-    });
+        expect(t.find({.role = Role::checkbox}).size() == 2);
+        expect(a.host->click("main/list/n1/star"));
+        expect(a.model.notes.peek()[0].starred) << "starred by activating it";
+        expect(!t.node("main/compose/add")->bounds) << "no layout at H0";
+        expect(t.violations().empty()) << std::format("{} violations", t.violations().size());
+    };
 
-    s.test("H1: places and hit testing, the same tree", [] {
+    "H1: places and hit testing, the same tree"_test = [] {
         App h0(HeadlessLevel::semantics), h1(HeadlessLevel::layout);
-        check(essence(h0.host->tree()) == essence(h1.host->tree()));
+        expect(essence(h0.host->tree()) == essence(h1.host->tree()));
         const Rect add = h1.host->runtime().bounds(h1.host->runtime().find("main/compose/add"));
-        check(!add.empty() && h1.host->runtime().hit_test(add.center()) == h1.host->runtime().find("main/compose/add"));
+        expect(!add.empty() && h1.host->runtime().hit_test(add.center()) == h1.host->runtime().find("main/compose/add"));
         // Starred only hides the unstarred note.
-        check(h1.host->click("main/starred-only"));
+        expect(h1.host->click("main/starred-only"));
         h1.host->settle();
-        check(h1.host->tree().find({.role = Role::checkbox}).size() == 1);
-        check(!h1.host->runtime().valid(h1.host->runtime().find("main/list/n1")));
-    });
+        expect(h1.host->tree().find({.role = Role::checkbox}).size() == 1);
+        expect(!h1.host->runtime().valid(h1.host->runtime().find("main/list/n1")));
+    };
 
-    s.test("H2: the picture", [] {
+    "H2: the picture"_test = [] {
         App a(HeadlessLevel::pixels);
-        check(a.host->save_png(scratch_dir("notes") / "notes.png").has_value());
+        expect(a.host->save_png(scratch_dir("notes") / "notes.png").has_value());
         const Rect del = a.host->runtime().bounds(a.host->runtime().find("main/delete-all"));
         const auto& px = a.host->pixels();
         const auto c = px.at(static_cast<int>(del.x + 6), static_cast<int>(del.center().y));
-        check(c.r > 180 && c.g < 80, "the danger colour");
-    });
+        expect(c.r > 180 && c.g < 80) << "the danger colour";
+    };
 
-    s.test("an agent script, with the irreversible action stopped until answered (S-1, S-2)", [] {
+    "an agent script, with the irreversible action stopped until answered (S-1, S-2)"_test = [] {
         App a(HeadlessLevel::pixels);
         agent::Protocol p(a.host->runtime(), {.app = "org.openmui.examples.notes"});
         std::ifstream in(here() / "data" / "delete-all.agent.omui.jsonl");
@@ -94,28 +95,26 @@ int main(int argc, char** argv) {
                 a.host->step();
                 p.poll();
             }
-            check(!records.empty(), std::format("line {}: no answer", n));
+            expect(!records.empty()) << std::format("line {}: no answer", n);
             if (records.empty()) continue;
             const std::int64_t exit = records.back().get("exitCode")->as_int(-1);
-            check(exit == expect.get("exit")->as_int(), std::format("line {}: exit {} for {}", n, exit, line));
+            expect(exit == expect.get("exit")->as_int()) << std::format("line {}: exit {} for {}", n, exit, line);
             if (const Value* code = expect.get("code"))
-                check(records.front().get("code") && records.front().get("code")->as_string() == code->as_string(),
-                      std::format("line {}: {}", n, records.front().json()));
+                expect(records.front().get("code") && records.front().get("code")->as_string() == code->as_string()) << std::format("line {}: {}", n, records.front().json());
             if (const Value* count = expect.get("nodes")) {
                 const Value* nodes = records.front().get("data") ? records.front().get("data")->get("nodes") : nullptr;
-                check(nodes && nodes->list() && static_cast<std::int64_t>(nodes->list()->size()) == count->as_int(),
-                      std::format("line {}: {}", n, records.front().json()));
+                expect(nodes && nodes->list() && static_cast<std::int64_t>(nodes->list()->size()) == count->as_int()) << std::format("line {}: {}", n, records.front().json());
             }
             a.host->step();
         }
-        check(n == 11, std::format("{} lines", n));
-        check(a.model.notes.peek().empty(), "deleted, once answered");
+        expect(n == 11) << std::format("{} lines", n);
+        expect(a.model.notes.peek().empty()) << "deleted, once answered";
         const auto journal = a.host->runtime().action_journal();
         const auto stopped = std::ranges::count_if(journal, [](const ActionEntry& e) { return e.exit_code == spec::exit_code::needs_answer; });
-        check(stopped == 1, "the unanswered attempt is in the journal");
-    });
+        expect(stopped == 1) << "the unanswered attempt is in the journal";
+    };
 
-    s.test("a recorded session replays exactly", [] {
+    "a recorded session replays exactly"_test = [] {
         mlibs::session::Session session;
         std::uint64_t end = 0;
         {
@@ -133,9 +132,7 @@ int main(int argc, char** argv) {
         }
         App b(HeadlessLevel::pixels);
         auto r = semantic::replay(b.host->tree(), session);
-        check(r.ok(), std::format("{}", r.mismatches));
-        check(r.digest == end && b.model.notes.peek().size() == 3 && b.model.notes.peek()[2].starred);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(r.ok()) << std::format("{}", r.mismatches);
+        expect(r.digest == end && b.model.notes.peek().size() == 3 && b.model.notes.peek()[2].starred);
+    };
+}};

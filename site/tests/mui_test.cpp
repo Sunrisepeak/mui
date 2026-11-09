@@ -9,8 +9,10 @@ import omui;
 import omui.site;
 import mlibs.image;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -68,27 +70,26 @@ struct Page {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"site.mui"};
+UTest cases{"site.mui", [] {
 
-    s.test("it sits at the page's bottom, quiet; it takes the pointer only on itself, and a click on it asks what it offers", [] {
+    "it sits at the page's bottom, quiet; it takes the pointer only on itself, and a click on it asks what it offers"_test = [] {
         Page p;
         p.run(0.5);
-        check(p.h.tree().node("main/mui")->role == Role::image && p.h.tree().node("main/mui")->name == "Mui");
-        check_eq(p.text("state"), std::string("quiet"));
-        check(p.text("palette") == "indigo" && (p.text("frame") == "sit" || p.text("frame") == "blink"), p.text("frame"));
-        check(std::abs(p.feet().y - 356) < 3, std::format("on the page's bottom: {}", p.feet().y));
+        expect(p.h.tree().node("main/mui")->role == Role::image && p.h.tree().node("main/mui")->name == "Mui");
+        expect(eq(p.text("state"), std::string("quiet")));
+        expect(p.text("palette") == "indigo" && (p.text("frame") == "sit" || p.text("frame") == "blink")) << p.text("frame");
+        expect(std::abs(p.feet().y - 356) < 3) << std::format("on the page's bottom: {}", p.feet().y);
         const Rect save = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/top/save"));
-        check(p.h.runtime().hit_test(save.center()) == p.h.runtime().find("main/body/top/save"), "the page beneath it takes the page's clicks");
+        expect(p.h.runtime().hit_test(save.center()) == p.h.runtime().find("main/body/top/save")) << "the page beneath it takes the page's clicks";
         const Point on = {p.feet().x, p.feet().y - 20};
-        check(p.h.runtime().hit_test(on) == p.h.runtime().find("main/mui"), "on itself, it takes the pointer");
+        expect(p.h.runtime().hit_test(on) == p.h.runtime().find("main/mui")) << "on itself, it takes the pointer";
         p.h.click(on);
         p.h.step();
-        check_eq(p.asked, 1);
-        check(p.person("main/mui", "activate") == 0 && p.asked == 2, "activate: the same, for a reader or an agent");
-    });
+        expect(eq(p.asked, 1));
+        expect(p.person("main/mui", "activate") == 0 && p.asked == 2) << "activate: the same, for a reader or an agent";
+    };
 
-    s.test("over a control it yields: a click on Mui where a button lies beneath is the button's (content first)", [] {
+    "over a control it yields: a click on Mui where a button lies beneath is the button's (content first)"_test = [] {
         Headless h{HeadlessOptions{.size = {640, 360}, .scale = 1}};
         register_base_components();
         register_type(component_type<site::Mascot>());
@@ -103,21 +104,21 @@ int main(int argc, char** argv) {
         const auto& feet = *now.get("feet")->list();
         const auto number = [](const Value& v) { return static_cast<float>(v.type() == Value::Type::integer ? static_cast<double>(v.as_int()) : v.as_double()); };
         const Point on{number(feet[0]), number(feet[1]) - 20};
-        check(h.runtime().hit_test(on) == h.runtime().find("main/body/under"), "the button's, not Mui's");
+        expect(h.runtime().hit_test(on) == h.runtime().find("main/body/under")) << "the button's, not Mui's";
         h.click(on);
         h.step();
-        check(pressed == 1 && asked == 0, std::format("pressed {} asked {}", pressed, asked));
-    });
+        expect(pressed == 1 && asked == 0) << std::format("pressed {} asked {}", pressed, asked);
+    };
 
-    s.test("the agent acts: Mui walks there, hops up onto the card it goes to, its eyes lit, and points; the strip saved", [] {
+    "the agent acts: Mui walks there, hops up onto the card it goes to, its eyes lit, and points; the strip saved"_test = [] {
         Page p;
         const auto dir = scratch_dir("mui");
         const Point start = p.feet();
         // The agent works on the card's neighbour first: Save, up on the page's top row.
-        check(p.agent("main/body/top/save", "activate") == 0);
+        expect(p.agent("main/body/top/save", "activate") == 0);
         p.h.step();
-        check_eq(p.text("target"), std::string("main/body/top/save"));
-        check(p.text("palette") == "agent", "its eyes lit: the agent's");
+        expect(eq(p.text("target"), std::string("main/body/top/save")));
+        expect(p.text("palette") == "agent") << "its eyes lit: the agent's";
         std::vector<std::string> frames;
         std::vector<float> xs;
         for (int k = 0; k < 8; ++k) {
@@ -126,85 +127,83 @@ int main(int argc, char** argv) {
             xs.push_back(p.feet().x);
             (void)p.h.save_png(dir / std::format("walk-{}.png", k));
         }
-        check(std::ranges::any_of(frames, [](const std::string& f) { return f.starts_with("walk"); }), "it strode");
-        check(xs.back() < start.x - 200, std::format("it went left, toward Save: {} → {}", start.x, xs.back()));
+        expect(std::ranges::any_of(frames, [](const std::string& f) { return f.starts_with("walk"); })) << "it strode";
+        expect(xs.back() < start.x - 200) << std::format("it went left, toward Save: {} → {}", start.x, xs.back());
         p.run(3);
         const Rect save = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/top/save"));
-        check(std::abs(p.feet().x - (save.x + save.width / 2)) < 60, std::format("by Save: {} (Save at {})", p.feet().x, save.x + save.width / 2));
-        check(p.feet().y > save.bottom(), "under it, not on it: a control is pointed at, not climbed");
-        check_eq(p.text("frame"), std::string("point"));
-        check_eq(p.text("state"), std::string("pointing"));
+        expect(std::abs(p.feet().x - (save.x + save.width / 2)) < 60) << std::format("by Save: {} (Save at {})", p.feet().x, save.x + save.width / 2);
+        expect(p.feet().y > save.bottom()) << "under it, not on it: a control is pointed at, not climbed";
+        expect(eq(p.text("frame"), std::string("point")));
+        expect(eq(p.text("state"), std::string("pointing")));
         (void)p.h.save_png(dir / "there.png");
-    });
+    };
 
-    s.test("the agent asks the person: Mui holds up the card; the answer is the person's own, Mui answers nothing", [] {
+    "the agent asks the person: Mui holds up the card; the answer is the person's own, Mui answers nothing"_test = [] {
         Page p;
-        check(p.agent("main/body/top/delete", "activate") == spec::exit_code::needs_answer);
+        expect(p.agent("main/body/top/delete", "activate") == spec::exit_code::needs_answer);
         p.run(6);
-        check(p.text("state") == "asking" && p.text("frame") == "hold", p.text("state") + " " + p.text("frame"));
-        check(p.deleted == 0, "nothing answered for the person");
+        expect(p.text("state") == "asking" && p.text("frame") == "hold") << p.text("state") + " " + p.text("frame");
+        expect(p.deleted == 0) << "nothing answered for the person";
         (void)p.h.save_png(scratch_dir("mui-asking") / "asking.png");
-    });
+    };
 
-    s.test("asked: it points at a node, says one line, sleeps and wakes — through the page's own actions", [] {
+    "asked: it points at a node, says one line, sleeps and wakes — through the page's own actions"_test = [] {
         Page p;
-        check(p.person("main/mui", "point_at", Value{}.set("node", "main/body/card")) == 0);
+        expect(p.person("main/mui", "point_at", Value{}.set("node", "main/body/card")) == 0);
         const auto dir = scratch_dir("mui-card");
         for (int k = 0; k < 20; ++k) {
             p.run(0.25);
             (void)p.h.save_png(dir / std::format("{:02}.png", k));
         }
-        check_eq(p.text("target"), std::string("main/body/card"));
+        expect(eq(p.text("target"), std::string("main/body/card")));
         const Rect card = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/card"));
-        check(std::abs(p.feet().y - card.y) < 4, std::format("up on the card: feet {} card top {}", p.feet().y, card.y));
-        check(p.person("main/mui", "say", Value{}.set("text", "This one.\nAnd more")) == 0);
+        expect(std::abs(p.feet().y - card.y) < 4) << std::format("up on the card: feet {} card top {}", p.feet().y, card.y);
+        expect(p.person("main/mui", "say", Value{}.set("text", "This one.\nAnd more")) == 0);
         p.h.step();
-        check_eq(p.text("said"), std::string("This one."));
-        check(p.person("main/mui", "point_at", Value{}.set("node", "main/nowhere")) != 0, "a node that is not there: refused");
-        check(p.person("main/mui", "sleep") == 0);
+        expect(eq(p.text("said"), std::string("This one.")));
+        expect(p.person("main/mui", "point_at", Value{}.set("node", "main/nowhere")) != 0) << "a node that is not there: refused";
+        expect(p.person("main/mui", "sleep") == 0);
         p.run(1);
-        check(p.text("state") == "asleep" && p.text("frame") == "sleep");
-        check(p.person("main/mui", "wake") == 0);
+        expect(p.text("state") == "asleep" && p.text("frame") == "sleep");
+        expect(p.person("main/mui", "wake") == 0);
         p.run(0.5);
-        check(p.text("state") != "asleep");
-    });
+        expect(p.text("state") != "asleep");
+    };
 
-    s.test("it comes alive from where it is told: its pixels gather there, then it drops to the page's bottom; with less motion it is simply there", [] {
+    "it comes alive from where it is told: its pixels gather there, then it drops to the page's bottom; with less motion it is simply there"_test = [] {
         Page p(false, "main/body/card");
-        check_eq(p.text("state"), std::string("arriving"));
+        expect(eq(p.text("state"), std::string("arriving")));
         const auto dir = scratch_dir("mascot-arrival");
         for (int k = 0; k < 8; ++k) {
             p.run(0.15);
             (void)p.h.save_png(dir / std::format("{:02}.png", k));
         }
         p.run(3);
-        check(p.text("state") != "arriving", p.text("state"));
+        expect(p.text("state") != "arriving") << p.text("state");
         const Rect card = p.h.runtime().screen_bounds(p.h.runtime().find("main/body/card"));
-        check(std::abs(p.feet().x - (card.x + card.width / 2)) < 20, std::format("it dropped from the card's middle: feet at {} (card centre {})", p.feet().x, card.x + card.width / 2));
-        check(std::abs(p.feet().y - 356) < 3, std::format("and landed on the page's bottom: {}", p.feet().y));
+        expect(std::abs(p.feet().x - (card.x + card.width / 2)) < 20) << std::format("it dropped from the card's middle: feet at {} (card centre {})", p.feet().x, card.x + card.width / 2);
+        expect(std::abs(p.feet().y - 356) < 3) << std::format("and landed on the page's bottom: {}", p.feet().y);
         Page still(true, "main/body/card");
-        check(still.text("state") != "arriving" && std::abs(still.feet().y - 356) < 3, "less motion: no gathering, already standing");
-    });
+        expect(still.text("state") != "arriving" && std::abs(still.feet().y - 356) < 3) << "less motion: no gathering, already standing";
+    };
 
-    s.test("while a link waits for your agent it listens, looking up; paired, it is quiet again", [] {
+    "while a link waits for your agent it listens, looking up; paired, it is quiet again"_test = [] {
         Page p;
         p.h.runtime().agent_link_changed({"waiting", "ABCD-1234", {}, {}, 47110, "agent.md"});
         p.run(0.5);
-        check(p.text("state") == "listening" && p.text("frame") == "look", p.text("state") + " " + p.text("frame"));
+        expect(p.text("state") == "listening" && p.text("frame") == "look") << p.text("state") + " " + p.text("frame");
         p.h.runtime().agent_link_changed({"paired", "ABCD-1234", "claude", {}, 47110, "agent.md"});
         p.run(0.5);
-        check(p.text("state") != "listening", p.text("state"));
-    });
+        expect(p.text("state") != "listening") << p.text("state");
+    };
 
-    s.test("less motion asked: frames change in place; it never walks", [] {
+    "less motion asked: frames change in place; it never walks"_test = [] {
         Page p(true);
         const Point start = p.feet();
-        check(p.agent("main/body/top/save", "activate") == 0);
+        expect(p.agent("main/body/top/save", "activate") == 0);
         p.run(2);
-        check(std::abs(p.feet().x - start.x) < 1, "it stays where it was");
-        check(!p.text("frame").starts_with("walk"), p.text("frame"));
-        check(p.text("palette") == "agent", "but its eyes still say the agent is here");
-    });
-
-    return s.run(argc, argv);
-}
+        expect(std::abs(p.feet().x - start.x) < 1) << "it stays where it was";
+        expect(!p.text("frame").starts_with("walk")) << p.text("frame");
+        expect(p.text("palette") == "agent") << "but its eyes still say the agent is here";
+    };
+}};

@@ -11,6 +11,7 @@ import omui.lang.js;
 import omui.ui.base;
 import mlibs.testing;
 import mcpplibs.mtest;
+import mcpplibs.mtest;
 import omui.view;
 import omui.player;
 import omui.host.headless;
@@ -23,6 +24,7 @@ import omui.theme.default_theme;
 import omui.theme.compact;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace mcpplibs::mtest;
 using namespace omui::abi;
 namespace lang = omui::lang;

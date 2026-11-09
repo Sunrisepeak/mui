@@ -9,8 +9,10 @@ import omui.viewdoc;
 import omui.ui.base;
 import omui.host.headless;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 namespace vd = omui::viewdoc;
 
@@ -51,11 +53,10 @@ struct Sample {
 };
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"viewdoc.component-motion-sweep"};
+UTest cases{"viewdoc.component-motion-sweep", [] {
     register_base_components();
 
-    s.test("every typed default: a drawing change moves, then rests on motion off's drawing", [] {
+    "every typed default: a drawing change moves, then rests on motion off's drawing"_test = [] {
         std::vector<std::string> moved, still, continuous;
         for (const auto& recipe : default_component_motion_recipes()) {
             const std::string type(recipe.component);
@@ -73,13 +74,13 @@ int main(int argc, char** argv) {
                         Sample quiet(type, level);
                         const auto held = pixels(quiet.h);
                         quiet.h.advance(seconds(0.25));
-                        check(pixels(quiet.h) == held, type + ": still with less motion");
+                        expect(pixels(quiet.h) == held) << type + ": still with less motion";
                     }
                     continue;
                 }
             }
             const auto before = pixels(off.h);
-            check(pixels(full.h) == before && pixels(reduced.h) == before, type + ": the same first drawing at every level");
+            expect(pixels(full.h) == before && pixels(reduced.h) == before) << type + ": the same first drawing at every level";
             full.change(); reduced.change(); off.change();
             const auto after = pixels(off.h);
             if (after == before) {  // a kind whose drawing does not show the state
@@ -87,16 +88,16 @@ int main(int argc, char** argv) {
                 continue;
             }
             moved.push_back(type);
-            check(off.h.runtime().motions().empty(), type + ": off moves nothing");
+            expect(off.h.runtime().motions().empty()) << type + ": off moves nothing";
             if (recipe.update == "none") {  // input content: a change of it is immediate by design
-                check(pixels(full.h) == after && pixels(reduced.h) == after, type + ": immediate, as its recipe says");
+                expect(pixels(full.h) == after && pixels(reduced.h) == after) << type + ": immediate, as its recipe says";
                 continue;
             }
             full.h.advance(seconds(0.03));
             reduced.h.advance(seconds(0.03));
             const auto middle = pixels(full.h), short_middle = pixels(reduced.h);
-            check(middle != before && middle != after, type + ": the full motion's middle is neither endpoint");
-            check(short_middle != before && short_middle != after, type + ": reduced motion still moves, briefly");
+            expect(middle != before && middle != after) << type + ": the full motion's middle is neither endpoint";
+            expect(short_middle != before && short_middle != after) << type + ": reduced motion still moves, briefly";
             full.h.settle();
             reduced.h.advance(seconds(1));
             // Compared at one time: a drawing may be a function of time (an
@@ -104,7 +105,7 @@ int main(int argc, char** argv) {
             const auto when = std::max(full.h.runtime().now(), reduced.h.runtime().now());
             for (Sample* x : {&full, &reduced, &off}) x->h.advance(when - x->h.runtime().now() + seconds(0.1));  // a frame each, then
             const auto rest = pixels(off.h);
-            check(pixels(full.h) == rest && pixels(reduced.h) == rest, type + ": at rest, exactly the immediate drawing");
+            expect(pixels(full.h) == rest && pixels(reduced.h) == rest) << type + ": at rest, exactly the immediate drawing";
             if (pixels(full.h) != rest) {
                 static const auto dir = scratch_dir("component-motion-sweep");
                 const auto saved = full.h.save_png(dir / (type + ".full.png"));
@@ -118,15 +119,15 @@ int main(int argc, char** argv) {
                 std::println("    {}: {} pixels differ, first ({}, {}); saved {}; animating {}", type, differ, x0, y0, saved.has_value(),
                              full.h.runtime().motions().size());
             }
-            check(full.h.runtime().motions().empty() && reduced.h.runtime().motions().empty(), type + ": nothing left moving");
+            expect(full.h.runtime().motions().empty() && reduced.h.runtime().motions().empty()) << type + ": nothing left moving";
         }
         std::println("    moved ({}): {}", moved.size(), moved);
         std::println("    no visible state ({}): {}", still.size(), still);
         std::println("    drawn as a function of time ({}): {}", continuous.size(), continuous);
-        check_eq(moved.size() + still.size() + continuous.size(), std::size_t{37});
-    });
+        expect(eq(moved.size() + still.size() + continuous.size(), std::size_t{37}));
+    };
 
-    s.test("every moving kind, mid-motion: hit where it is drawn, interrupted without a jump, focus free", [] {
+    "every moving kind, mid-motion: hit where it is drawn, interrupted without a jump, focus free"_test = [] {
         std::size_t judged = 0;
         for (const auto& recipe : default_component_motion_recipes()) {
             const std::string type(recipe.component);
@@ -147,8 +148,7 @@ int main(int argc, char** argv) {
                     if (node == subject) return true;
                 return false;
             };
-            check(!drawn.empty() && inside(hit),
-                  std::format("{}: mid-motion, the middle of its drawing hits it (hit {})", type, rt.valid(hit) ? rt.path(hit) : std::string("nothing")));
+            expect(!drawn.empty() && inside(hit)) << std::format("{}: mid-motion, the middle of its drawing hits it (hit {})", type, rt.valid(hit) ? rt.path(hit) : std::string("nothing"));
             // Interrupted: the change undone mid-way goes on from what is on screen. Its step
             // across the interruption is no larger than an uninterrupted run's same step.
             Sample steady(type, MotionLevel::full);
@@ -170,21 +170,20 @@ int main(int argc, char** argv) {
             full.flag.set(false);
             full.h.advance(seconds(1.0 / 60));
             const int interrupted_step = largest_step(shown, full.h.pixels());
-            check(interrupted_step <= steady_step + 24,
-                  std::format("{}: interrupted, one frame moves it by {} (uninterrupted {}): no jump", type, interrupted_step, steady_step));
+            expect(interrupted_step <= steady_step + 24) << std::format("{}: interrupted, one frame moves it by {} (uninterrupted {}): no jump", type, interrupted_step, steady_step);
             // Focus goes where it is asked while it moves.
             if (rt.semantic_node(subject).states.has(spec::State::focusable)) {
                 rt.focus(subject);
                 full.h.step();
-                check(rt.focused() == subject, type + ": focus reaches it mid-motion");
+                expect(rt.focused() == subject) << type + ": focus reaches it mid-motion";
             }
             full.h.settle();
-            check(rt.motions().empty(), type + ": and then it rests");
+            expect(rt.motions().empty()) << type + ": and then it rests";
         }
-        check(judged >= 10, std::format("{} kinds judged mid-motion", judged));
-    });
+        expect(judged >= 10) << std::format("{} kinds judged mid-motion", judged);
+    };
 
-    s.test("every text-input kind, focused while its container moves: the IME stays on what it draws", [] {
+    "every text-input kind, focused while its container moves: the IME stays on what it draws"_test = [] {
         std::vector<std::string> judged;
         for (const auto& recipe : default_component_motion_recipes()) {
             const std::string type(recipe.component);
@@ -205,22 +204,20 @@ int main(int argc, char** argv) {
             shift.set(120);
             h.step();
             h.advance(seconds(0.05));
-            check(!rt.motions().empty(), type + ": its container is moving");
+            expect(!rt.motions().empty()) << type + ": its container is moving";
             const auto ime = rt.text_input_rect();
             const Rect drawn = rt.drawn_bounds(node);
             const bool inside = ime && ime->x >= drawn.x - 1 && ime->x <= drawn.x + drawn.width + 1 && ime->y >= drawn.y - 1 &&
                 ime->y <= drawn.y + drawn.height + 1;
-            check(inside, std::format("{}: mid-motion the IME at {} is on its drawing {}", type,
+            expect(inside) << std::format("{}: mid-motion the IME at {} is on its drawing {}", type,
                                       ime ? std::format("({}, {})", ime->x, ime->y) : std::string("nothing"),
-                                      std::format("({}, {}, {}, {})", drawn.x, drawn.y, drawn.width, drawn.height)));
+                                      std::format("({}, {}, {}, {})", drawn.x, drawn.y, drawn.width, drawn.height));
             h.settle();
             const auto rest = rt.text_input_rect();
             const Rect settled = rt.drawn_bounds(node);
-            check(rest && rest->x >= settled.x - 1 && rest->x <= settled.x + settled.width + 1, type + ": and at rest");
+            expect(rest && rest->x >= settled.x - 1 && rest->x <= settled.x + settled.width + 1) << type + ": and at rest";
         }
-        check(judged.size() >= 2, std::format("text-input kinds judged: {}", judged.size()));
+        expect(judged.size() >= 2) << std::format("text-input kinds judged: {}", judged.size());
         std::println("    IME judged mid-motion: {}", judged);
-    });
-
-    return s.run(argc, argv);
-}
+    };
+}};

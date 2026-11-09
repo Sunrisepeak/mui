@@ -22,6 +22,9 @@ struct Git {
     std::filesystem::path index;  // the index the commits are written with
     std::ostream& err;
 
+    // Who a commit is by and when (GIT_AUTHOR_*, GIT_COMMITTER_*); empty: git's own.
+    std::vector<std::pair<std::string, std::optional<std::string>>> identity;
+
     // `git args…` in the repository, given `input`: its output without the last line break, or why not.
     std::expected<std::string, std::string> operator()(std::vector<std::string> args, std::string_view input = {}) const {
         const auto program = mcpplibs::os::env::find_executable("git");
@@ -31,6 +34,7 @@ struct Git {
         options.args = std::move(args);
         options.cwd = root;
         if (!index.empty()) options.env.emplace_back("GIT_INDEX_FILE", mcpplibs::os::fs::utf8(index));
+        options.env.insert(options.env.end(), identity.begin(), identity.end());
         const std::string shown = options.args.empty() ? std::string() : options.args.front();
         auto ran = mcpplibs::os::process::run(std::move(options), input);
         if (!ran) return std::unexpected(std::format("git {}: {}", shown, ran.error().message()));
@@ -84,6 +88,9 @@ int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, 
     }
     git.root = mcpplibs::os::fs::from_utf8(*top);
     git.index = history.directory() / "git.index";
+    // A design commit is its actor's, at its time; the one who syncs commits it — git's identity, or omui's
+    // where git has none (a fresh machine, CI).
+    const bool committer_known = git({"config", "user.email"}).has_value();
     // Which design commits are git's already, and as which.
     const auto ledger_file = history.directory() / "git.json";
     Value ledger(Value::Map{});
@@ -110,7 +117,15 @@ int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, 
                 if (const Value* mapped = ledger.get(parent)) args.insert(args.end(), {"-p", std::string(mapped->as_string())});
             if (commit.parents.empty()) args.insert(args.end(), {"-p", *start});
             args.insert(args.end(), {"-m", std::format("{}\n\ndesign commit {} on {}, by {}", commit.message, commit.id, commit.branch, commit.actor)});
+            std::string author;
+            for (const char c : commit.actor) author += std::isalnum(static_cast<unsigned char>(c)) || c == '.' || c == '-' ? c : '-';
+            git.identity = {{"GIT_AUTHOR_NAME", commit.actor.empty() ? std::string("person") : commit.actor},
+                            {"GIT_AUTHOR_EMAIL", std::format("{}@design.omui", author.empty() ? std::string("person") : author)},
+                            {"GIT_AUTHOR_DATE", std::format("@{} +0000", static_cast<std::int64_t>(commit.time))}};
+            if (!committer_known)
+                git.identity.insert(git.identity.end(), {{"GIT_COMMITTER_NAME", std::string("omui design sync")}, {"GIT_COMMITTER_EMAIL", std::string("sync@design.omui")}});
             auto made = tree ? git(std::move(args)) : std::unexpected(tree.error());
+            git.identity.clear();
             if (!made) {
                 err << std::format("omui design sync: design commit {}: {}\n", commit.id, made.error());
                 return 1;

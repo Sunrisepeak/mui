@@ -32,6 +32,7 @@ xrender.vector = { path = "../../../xrender/vector" }
 omui.build.contracts = { path = "../../../../../mcpp/contracts", host-module = true }
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils       = { path = "../../../../base/utils" }
 omui.host.headless = { path = "../../host/headless" }
 omui.semantic      = { path = "../../semantic" }

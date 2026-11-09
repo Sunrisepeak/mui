@@ -3,10 +3,12 @@ import std;
 import omui;
 import omui.site;
 import mlibs.testing;
+import mcpplibs.mtest;
 import mcpplibs.os;
 
 using namespace omui;
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 
 namespace {
 std::expected<site::FirstFrameOptions, std::string> options(std::initializer_list<std::string_view> args) {
@@ -21,24 +23,23 @@ std::unique_ptr<Headless> first(int width, int height, std::string_view route, s
     host->runtime().set_theme(app.theme); app.setup(host->runtime());
     for (auto& verb : app.verbs) (void)host->runtime().verbs().add(verb.desc, verb.fn);
     host->mount("main", app.view());
-    check(host->step().failure.empty());
+    expect(host->step().failure.empty());
     return host;
 }
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite suite("site.first_frame");
-    suite.test("the export command parses exact options and rejects ambiguous or malformed requests", [] {
+UTest cases{"site.first_frame", [] {
+    "the export command parses exact options and rejects ambiguous or malformed requests"_test = [] {
         const auto parsed = options({"--first-frame", "a.png", "--route", "#/zh/components/text_box", "--width", "390", "--height", "844", "--time", "0.375", "--root", "main/body"});
-        check(parsed.has_value());
+        expect(parsed.has_value());
         if (parsed) {
-            check(parsed->lang == "zh" && parsed->width == 390 && parsed->height == 844 && parsed->time == 0.375 && parsed->root == "main/body");
+            expect(parsed->lang == "zh" && parsed->width == 390 && parsed->height == 844 && parsed->time == 0.375 && parsed->root == "main/body");
         }
         const auto reduced = options({"--reduced-motion", "--first-frame", "a.png"});
-        check(reduced && reduced->reduce_motion);
+        expect(reduced && reduced->reduce_motion);
         // The command line is mcpplibs.cmdline's (D-56): `--option=value` is its other spelling of `--option value`.
         const auto joined = options({"--first-frame=a.png", "--width=390"});
-        check(joined && joined->png == "a.png" && joined->width == 390);
+        expect(joined && joined->png == "a.png" && joined->width == 390);
         for (const auto& args : std::vector<std::vector<std::string_view>>{
             {}, {"--first-frame"}, {"--first-frame", "a.jpg"}, {"--first-frame", "a.png", "--lang", "fr"},
             {"--first-frame", "a.png", "--route", "zh/components", "--lang", "en"},
@@ -54,104 +55,103 @@ int main(int argc, char** argv) {
             {"--first-frame", "a.png", "--first-frame", "b.png"}, {"--first-frame", "a.png", "--unknown", "1"},
             {"--first-frame", "a.png", "--reduced-motion", "--reduced-motion"}, {"--first-frame", "a.png", "--reduced-motion", "false"},
             {"--first-frame", "a.png", "--prerender", "index.html"}})
-            check(!site::parse_first_frame_options(args), "invalid arguments are rejected before rendering or file IO");
-    });
+            expect(!site::parse_first_frame_options(args)) << "invalid arguments are rejected before rendering or file IO";
+    };
 
-    suite.test("time zero matches an independent production first frame and exports its actual global rectangles", [] {
+    "time zero matches an independent production first frame and exports its actual global rectangles"_test = [] {
         for (const auto& [width, height, language] : {std::tuple{1280, 800, "en"}, std::tuple{390, 844, "zh"}}) {
             site::FirstFrameOptions request;
             request.png = file(std::string("home-") + language + ".png"); request.lang = language; request.width = width; request.height = height;
             const auto report = site::export_first_frame(request);
-            check(report.has_value(), report ? "" : report.error()); if (!report) continue;
+            expect(report.has_value()) << (report ? "" : report.error()); if (!report) continue;
             auto expected = first(width, height, std::string_view(language) == "zh" ? "zh" : "", language);
-            check(report->get("time")->as_double() == 0 && report->get("sampled_frames")->as_int() == 1, "exactly one frame at zero; no settle");
-            check(report->get("renderer")->as_string() == "cpu" && report->get("tier")->as_string() == "T3" && report->get("raster_bands")->as_int() == 1);
-            check(report->get("viewport")->list()->size() == 2 && report->get("viewport")->list()->at(0).as_int() == width && report->get("viewport")->list()->at(1).as_int() == height);
-            check(report->get("pixel_hash")->as_string() == std::format("{:016x}", site::frame_hash(expected->pixels())));
+            expect(report->get("time")->as_double() == 0 && report->get("sampled_frames")->as_int() == 1) << "exactly one frame at zero; no settle";
+            expect(report->get("renderer")->as_string() == "cpu" && report->get("tier")->as_string() == "T3" && report->get("raster_bands")->as_int() == 1);
+            expect(report->get("viewport")->list()->size() == 2 && report->get("viewport")->list()->at(0).as_int() == width && report->get("viewport")->list()->at(1).as_int() == height);
+            expect(report->get("pixel_hash")->as_string() == std::format("{:016x}", site::frame_hash(expected->pixels())));
             const auto png = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(request.png));
-            check(png && png->width == width && png->height == height);
+            expect(png && png->width == width && png->height == height);
             if (png) for (int y = 0; y < height; ++y) {
                 const auto actual = std::as_bytes(png->row(y));
                 const auto wanted = std::as_bytes(std::span(expected->pixels().row(y), static_cast<std::size_t>(width)));
-                check(std::ranges::equal(actual, wanted), "exported PNG pixels are the production frame");
+                expect(std::ranges::equal(actual, wanted)) << "exported PNG pixels are the production frame";
             }
             const auto semantic = expected->tree().snapshot();
             const auto* records = report->get("nodes")->list();
             const auto placed = std::ranges::count_if(semantic.nodes, [](const auto& node) { return node.bounds.has_value(); });
-            check(records && records->size() == static_cast<std::size_t>(placed));
-            check(records && records->size() + report->get("unplaced_nodes")->list()->size() == semantic.nodes.size());
+            expect(records && records->size() == static_cast<std::size_t>(placed));
+            expect(records && records->size() + report->get("unplaced_nodes")->list()->size() == semantic.nodes.size());
             if (records) for (const auto& entry : *records) {
                 const auto found = std::ranges::find(semantic.nodes, entry.get("id")->as_string(), &spec::SemanticNode::id);
-                check(found != semantic.nodes.end() && found->bounds.has_value()); if (found == semantic.nodes.end() || !found->bounds) continue;
-                check(entry.get("role")->as_string() == spec::name(found->role));
+                expect(found != semantic.nodes.end() && found->bounds.has_value()); if (found == semantic.nodes.end() || !found->bounds) continue;
+                expect(entry.get("role")->as_string() == spec::name(found->role));
                 const auto& bounds = *entry.get("bounds")->list();
-                check(bounds.size() == 4 && bounds[0].as_double() == found->bounds->x && bounds[1].as_double() == found->bounds->y &&
-                    bounds[2].as_double() == found->bounds->width && bounds[3].as_double() == found->bounds->height, "geometry comes from the actual production semantic tree");
+                expect(bounds.size() == 4 && bounds[0].as_double() == found->bounds->x && bounds[1].as_double() == found->bounds->y &&
+                    bounds[2].as_double() == found->bounds->width && bounds[3].as_double() == found->bounds->height) << "geometry comes from the actual production semantic tree";
             }
             const auto text = mcpplibs::os::fs::read(mcpplibs::os::fs::from_utf8(report->get("sidecar")->as_string()));
-            check(text.has_value());
+            expect(text.has_value());
             if (text) {
                 const auto json = parse_json(*text);
-                check(json && json->get("pixel_hash")->as_string() == report->get("pixel_hash")->as_string());
-                check(json && json->get("nodes")->list()->size() == records->size());
+                expect(json && json->get("pixel_hash")->as_string() == report->get("pixel_hash")->as_string());
+                expect(json && json->get("nodes")->list()->size() == records->size());
             }
         }
-    });
+    };
 
-    suite.test("a crop is a pixel-for-pixel region of the same complete first frame", [] {
+    "a crop is a pixel-for-pixel region of the same complete first frame"_test = [] {
         site::FirstFrameOptions whole; whole.png = file("source.png");
-        const auto complete = site::export_first_frame(whole); check(complete.has_value()); if (!complete) return;
+        const auto complete = site::export_first_frame(whole); expect(complete.has_value()); if (!complete) return;
         auto region = whole; region.png = file("visual.png"); region.root = "main/body/view/home/page/landing/scene/visual";
-        const auto report = site::export_first_frame(region); check(report.has_value(), report ? "" : report.error()); if (!report) return;
+        const auto report = site::export_first_frame(region); expect(report.has_value()) << (report ? "" : report.error()); if (!report) return;
         const auto source = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(whole.png));
         const auto cropped = mlibs::image::load_png(mcpplibs::os::fs::from_utf8(region.png));
-        check(source && cropped); if (!source || !cropped) return;
+        expect(source && cropped); if (!source || !cropped) return;
         const auto& bounds = *report->get("crop")->list();
         const int x = static_cast<int>(bounds[0].as_int()), y = static_cast<int>(bounds[1].as_int());
-        check(bounds[2].as_int() == cropped->width && bounds[3].as_int() == cropped->height);
-        check(report->get("viewport_pixel_hash")->as_string() == complete->get("pixel_hash")->as_string());
-        check(report->get("image")->get("width")->as_int() == cropped->width && report->get("image")->get("height")->as_int() == cropped->height);
+        expect(bounds[2].as_int() == cropped->width && bounds[3].as_int() == cropped->height);
+        expect(report->get("viewport_pixel_hash")->as_string() == complete->get("pixel_hash")->as_string());
+        expect(report->get("image")->get("width")->as_int() == cropped->width && report->get("image")->get("height")->as_int() == cropped->height);
         for (int row = 0; row < cropped->height; ++row)
-            check(std::ranges::equal(cropped->row(row), source->row(y + row).subspan(static_cast<std::size_t>(x) * 4, static_cast<std::size_t>(cropped->width) * 4)), "native crop contains the source pixels without recomposition");
-        check(report->get("nodes")->list()->front().get("bounds")->list()->at(0).as_double() == 0, "tree coordinates stay global rather than shifting with the crop");
-    });
+            expect(std::ranges::equal(cropped->row(row), source->row(y + row).subspan(static_cast<std::size_t>(x) * 4, static_cast<std::size_t>(cropped->width) * 4))) << "native crop contains the source pixels without recomposition";
+        expect(report->get("nodes")->list()->front().get("bounds")->list()->at(0).as_double() == 0) << "tree coordinates stay global rather than shifting with the crop";
+    };
 
-    suite.test("unknown, hidden and empty crop roots fail without manufacturing geometry", [] {
+    "unknown, hidden and empty crop roots fail without manufacturing geometry"_test = [] {
         site::FirstFrameOptions request; request.png = file("rejected.png"); request.root = "main/unknown";
-        check(!site::export_first_frame(request));
-        request.root = "main/body/settings"; check(!site::export_first_frame(request));
+        expect(!site::export_first_frame(request));
+        request.root = "main/body/settings"; expect(!site::export_first_frame(request));
         request.height = 100; request.root = "main/body/view/home/page/landing/scene/controls/pause";
-        check(!site::export_first_frame(request), "a real node outside the viewport is not replaced with a guessed rectangle");
-        check(!std::filesystem::exists(mcpplibs::os::fs::from_utf8(request.png)));
-    });
+        expect(!site::export_first_frame(request)) << "a real node outside the viewport is not replaced with a guessed rectangle";
+        expect(!std::filesystem::exists(mcpplibs::os::fs::from_utf8(request.png)));
+    };
 
-    suite.test("comparison times are exact and repeatable, without waiting for animation to settle", [] {
+    "comparison times are exact and repeatable, without waiting for animation to settle"_test = [] {
         site::FirstFrameOptions request; request.png = file("comparison-a.png"); request.time = 0.375;
-        const auto first = site::export_first_frame(request); check(first.has_value()); if (!first) return;
+        const auto first = site::export_first_frame(request); expect(first.has_value()); if (!first) return;
         request.png = file("comparison-b.png"); const auto again = site::export_first_frame(request);
-        check(again && first->get("pixel_hash")->as_string() == again->get("pixel_hash")->as_string());
-        check(first->get("time")->as_double() == 0.375 && first->get("sampled_frames")->as_int() == 24);
+        expect(again && first->get("pixel_hash")->as_string() == again->get("pixel_hash")->as_string());
+        expect(first->get("time")->as_double() == 0.375 && first->get("sampled_frames")->as_int() == 24);
         request.png = file("comparison-zero.png"); request.time = 0;
         const auto zero = site::export_first_frame(request);
-        check(zero && zero->get("pixel_hash")->as_string() != first->get("pixel_hash")->as_string(), "the real first-visit animation produces a distinct comparison frame");
-    });
+        expect(zero && zero->get("pixel_hash")->as_string() != first->get("pixel_hash")->as_string()) << "the real first-visit animation produces a distinct comparison frame";
+    };
 
-    suite.test("the reduced-motion first frame uses the actual already assembled production view", [] {
+    "the reduced-motion first frame uses the actual already assembled production view"_test = [] {
         site::FirstFrameOptions request; request.png = file("home-reduced.png"); request.reduce_motion = true;
-        const auto report = site::export_first_frame(request); check(report.has_value()); if (!report) return;
+        const auto report = site::export_first_frame(request); expect(report.has_value()); if (!report) return;
         auto expected = first(request.width, request.height, "", "en", true);
-        check(report->get("reduce_motion")->as_bool() && report->get("time")->as_double() == 0 && report->get("sampled_frames")->as_int() == 1);
-        check(expected->runtime().get(expected->runtime().find("main/body/view/home/page/landing/scene/visual/mark/letter_m"), "translate_x").as_double() == 0);
-        check(report->get("pixel_hash")->as_string() == std::format("{:016x}", site::frame_hash(expected->pixels())));
+        expect(report->get("reduce_motion")->as_bool() && report->get("time")->as_double() == 0 && report->get("sampled_frames")->as_int() == 1);
+        expect(expected->runtime().get(expected->runtime().find("main/body/view/home/page/landing/scene/visual/mark/letter_m"), "translate_x").as_double() == 0);
+        expect(report->get("pixel_hash")->as_string() == std::format("{:016x}", site::frame_hash(expected->pixels())));
         request.png = file("home-normal.png"); request.reduce_motion = false;
         const auto normal = site::export_first_frame(request);
-        check(normal && normal->get("pixel_hash")->as_string() != report->get("pixel_hash")->as_string());
-    });
+        expect(normal && normal->get("pixel_hash")->as_string() != report->get("pixel_hash")->as_string());
+    };
 
-    suite.test("file errors are returned instead of claiming a successful export", [] {
+    "file errors are returned instead of claiming a successful export"_test = [] {
         site::FirstFrameOptions request; request.png = file("missing-parent/frame.png");
         const auto result = site::export_first_frame(request);
-        check(!result && result.error().contains("PNG export failed"));
-    });
-    return suite.run(argc, argv);
-}
+        expect(!result && result.error().contains("PNG export failed"));
+    };
+}};

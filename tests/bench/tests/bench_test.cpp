@@ -4,15 +4,14 @@
 import std;
 import omui.core;
 import omui.bench;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace bench = omui::bench;
 
-int main(int argc, char** argv) {
-    Suite s{"bench"};
+UTest cases{"bench", [] {
 
-    s.test("the loop: warm-up, enough iterations, and pauses left out", [] {
+    "the loop: warm-up, enough iterations, and pauses left out"_test = [] {
         std::size_t passes = 0;
         bench::Case c{"loop", "", [&](bench::State& st) {
                           while (st.next()) {
@@ -25,31 +24,30 @@ int main(int argc, char** argv) {
                           }
                       }};
         const bench::Result r = bench::run_one(c, {.min_time_ms = 0, .min_iterations = 5, .max_iterations = 5, .warmup = 2});
-        check_eq(passes, std::size_t{7});
-        check_eq(r.iterations, std::size_t{5});
-        check(r.max_ms < 1.5, std::format("the paused sleep was measured: max {} ms", r.max_ms));
-        check(r.min_ms <= r.p50_ms && r.p50_ms <= r.p95_ms && r.p95_ms <= r.p99_ms && r.p99_ms <= r.max_ms);
-        check(r.items == 10 && r.metric("x") == std::optional<double>(4.0));
-        check(!r.metric("nothing").has_value());
-    });
+        expect(eq(passes, std::size_t{7}));
+        expect(eq(r.iterations, std::size_t{5}));
+        expect(r.max_ms < 1.5) << std::format("the paused sleep was measured: max {} ms", r.max_ms);
+        expect(r.min_ms <= r.p50_ms && r.p50_ms <= r.p95_ms && r.p95_ms <= r.p99_ms && r.p99_ms <= r.max_ms);
+        expect(r.items == 10 && r.metric("x") == std::optional<double>(4.0));
+        expect(!r.metric("nothing").has_value());
+    };
 
-    s.test("time decides once there are enough iterations", [] {
+    "time decides once there are enough iterations"_test = [] {
         bench::Case c{"slow", "", [](bench::State& st) {
                           while (st.next()) std::this_thread::sleep_for(std::chrono::milliseconds(3));
                       }};
         const bench::Result r = bench::run_one(c, {.min_time_ms = 20, .min_iterations = 2, .max_iterations = 1000, .warmup = 0});
-        check(r.iterations >= 2 && r.iterations < 20, std::format("{} iterations", r.iterations));
-    });
+        expect(r.iterations >= 2 && r.iterations < 20) << std::format("{} iterations", r.iterations);
+    };
 
-    s.test("budgets: the file, the check, and what is missing", [] {
+    "budgets: the file, the check, and what is missing"_test = [] {
         auto b = bench::parse_budgets(R"({"format":"openmui.bench.budgets@0.1","budgets":[
             {"name":"a","metric":"p95_ms","max":1,"why":"fast"},
             {"name":"b","max":5,"why":"the default metric is p95_ms"},
             {"name":"gone","max":1,"why":"not run"}]})");
-        check(b.has_value() && b->size() == 3 && (*b)[1].metric == "p95_ms", b ? "" : b.error());
-        check(!bench::parse_budgets(R"({"format":"openmui.bench.budgets@0.1","budgets":[{"name":"a","max":1}]})").has_value(),
-              "a budget must say why");
-        check(!bench::parse_budgets(R"({"budgets":[]})").has_value(), "the format is required");
+        expect(b.has_value() && b->size() == 3 && (*b)[1].metric == "p95_ms") << (b ? "" : b.error());
+        expect(!bench::parse_budgets(R"({"format":"openmui.bench.budgets@0.1","budgets":[{"name":"a","max":1}]})").has_value()) << "a budget must say why";
+        expect(!bench::parse_budgets(R"({"budgets":[]})").has_value()) << "the format is required";
         bench::Report report;
         bench::Result a;
         a.name = "a";
@@ -59,11 +57,11 @@ int main(int argc, char** argv) {
         bb.p95_ms = 4;
         report.results = {a, bb};
         const auto over = report.check(*b);
-        check(over.size() == 1 && over[0].budget.name == "a" && over[0].value == 2.0);
-        check_eq(report.check(*b, true).size(), std::size_t{2});  // and `gone`, when every budget must be met
-    });
+        expect(over.size() == 1 && over[0].budget.name == "a" && over[0].value == 2.0);
+        expect(eq(report.check(*b, true).size(), std::size_t{2}));  // and `gone`, when every budget must be met
+    };
 
-    s.test("the report is openmui.bench@0.1 JSON, and a table", [] {
+    "the report is openmui.bench@0.1 JSON, and a table"_test = [] {
         bench::Report report;
         report.label = "test";
         report.platform = "linux";
@@ -76,42 +74,40 @@ int main(int argc, char** argv) {
         r.counters = {{"nodes", 1000}};
         report.results.push_back(r);
         auto v = omui::parse_json(report.json());
-        check(v.has_value());
+        expect(v.has_value());
         if (!v) return;
-        check(v->get("format")->as_string() == "openmui.bench@0.1");
+        expect(v->get("format")->as_string() == "openmui.bench@0.1");
         const omui::Value& first = (*v->get("results")->list())[0];
-        check(first.get("name")->as_string() == "x/y" && first.get("counters")->get("nodes")->as_double() == 1000);
-        check(report.table().contains("x/y"));
-    });
+        expect(first.get("name")->as_string() == "x/y" && first.get("counters")->get("nodes")->as_double() == 1000);
+        expect(report.table().contains("x/y"));
+    };
 
-    s.test("the reference scene is M1 ⑤'s: 1000+ nodes at 1920x1080", [] {
+    "the reference scene is M1 ⑤'s: 1000+ nodes at 1920x1080"_test = [] {
         const bench::SceneFacts f = bench::reference_scene_facts();
-        check(f.nodes >= 1000 && f.width == 1920 && f.height == 1080, std::format("{} nodes", f.nodes));
-    });
+        expect(f.nodes >= 1000 && f.width == 1920 && f.height == 1080) << std::format("{} nodes", f.nodes);
+    };
 
-    s.test("every benchmark runs (one quick pass of each)", [] {
+    "every benchmark runs (one quick pass of each)"_test = [] {
         bench::add_framework_benchmarks();
         const bench::Report report = bench::run({.min_time_ms = 0, .min_iterations = 1, .max_iterations = 1, .warmup = 0});
-        check(report.results.size() == bench::cases().size() && report.results.size() >= 12);
+        expect(report.results.size() == bench::cases().size() && report.results.size() >= 12);
         // A benchmark that cannot run here (no GPU) says why; every other runs once.
         for (const bench::Result& r : report.results)
-            check(r.skipped.empty() ? r.iterations == 1 && r.max_ms > 0 : r.iterations == 0, std::format("{} {}", r.name, r.skipped));
+            expect(r.skipped.empty() ? r.iterations == 1 && r.max_ms > 0 : r.iterations == 0) << std::format("{} {}", r.name, r.skipped);
         const bench::Result* frame = report.find("ui/frame/one-label");
-        check(frame && frame->metric("nodes").value_or(0) >= 1000 && frame->metric("painted").value_or(0) > 0);
-    });
+        expect(frame && frame->metric("nodes").value_or(0) >= 1000 && frame->metric("painted").value_or(0) > 0);
+    };
 
-    s.test("the budgets file in the tree is valid", [] {
+    "the budgets file in the tree is valid"_test = [] {
         const auto file = std::filesystem::path(std::source_location::current().file_name()).parent_path().parent_path() /
                           "budgets.bench.omui.json";
         std::ifstream in(file);
         const std::string text{std::istreambuf_iterator<char>(in), {}};
         auto b = bench::parse_budgets(text);
-        check(b.has_value() && !b->empty(), b ? "" : b.error());
+        expect(b.has_value() && !b->empty()) << (b ? "" : b.error());
         if (!b) return;
         bench::add_framework_benchmarks();
         for (const bench::Budget& x : *b)
-            check(std::ranges::any_of(bench::cases(), [&](const bench::Case& c) { return c.name == x.name; }), "no benchmark " + x.name);
-    });
-
-    return s.run(argc, argv);
-}
+            expect(std::ranges::any_of(bench::cases(), [&](const bench::Case& c) { return c.name == x.name; })) << "no benchmark " + x.name;
+    };
+}};

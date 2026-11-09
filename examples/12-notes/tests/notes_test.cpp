@@ -12,8 +12,10 @@ import omui.lang.js;
 import omui.ui.markdown;
 import omui.native.fuzzy;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace omui;
 
 namespace {
@@ -79,92 +81,89 @@ std::string pixels(Headless& h) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"example.notes"};
+UTest cases{"example.notes", [] {
     register_base_components();
     register_markdown_component();
-    check(natives::fuzzy::define().has_value(), "the native module fuzzy");
+    expect(natives::fuzzy::define().has_value()) << "the native module fuzzy";
 
-    s.test("three ways of writing, one tool: search, macros, titles, tasks, a new note, an agent's verbs, pixels", [] {
+    "three ways of writing, one tool: search, macros, titles, tasks, a new note, an agent's verbs, pixels"_test = [] {
         auto m = read_manifest(here() / "mcpp.toml");
-        check(m.has_value(), m ? "" : m.error());
+        expect(m.has_value()) << (m ? "" : m.error());
         if (!m) return;
-        check(m->scripts.size() == 2 && m->views.size() == 1, "the scripts and the view document, from the manifest");
+        expect(m->scripts.size() == 2 && m->views.size() == 1) << "the scripts and the view document, from the manifest";
         Headless h(HeadlessOptions{.size = m->size});
         player::Player p(h.runtime(), *m, {lang::js::typescript()});
         auto started = p.start();
-        check(started.has_value(), started ? "" : started.error());
+        expect(started.has_value()) << (started ? "" : started.error());
         settle(h, p);
-        check(p.problems().empty(), p.problems().empty() ? "" : p.problems()[0]);
+        expect(p.problems().empty()) << (p.problems().empty() ? "" : p.problems()[0]);
 
         // The view document is in the TypeScript view's slot, not beside it.
         const auto help = h.tree().find({.name = "How it works"});
-        check(help.size() == 1 && help[0].id.starts_with("main/side/"), help.empty() ? "none" : help[0].id);
-        check(!h.tree().node("help").has_value(), "the help panel is not a view of its own");
-        check(listed(h) == std::vector<std::string>{"Groceries", "Reading", "Ideas"});
-        check_eq(name_of(h, "main/side/found"), std::string("3 shown"));
-        check(editor(h).starts_with("# Groceries"), editor(h));
-        check_eq(tasks(h), std::string("-x-"));
+        expect(help.size() == 1 && help[0].id.starts_with("main/side/")) << (help.empty() ? "none" : help[0].id);
+        expect(!h.tree().node("help").has_value()) << "the help panel is not a view of its own";
+        expect(listed(h) == std::vector<std::string>{"Groceries", "Reading", "Ideas"});
+        expect(eq(name_of(h, "main/side/found"), std::string("3 shown")));
+        expect(editor(h).starts_with("# Groceries")) << editor(h);
+        expect(eq(tasks(h), std::string("-x-")));
         const std::string first = pixels(h);
         std::println("example.notes pixels {}", first);
-        check(h.save_png(scratch_dir("example-notes") / "notes.png").has_value());
+        expect(h.save_png(scratch_dir("example-notes") / "notes.png").has_value());
 
         // Searching as you type: C++ ranks on a worker; the list follows.
-        check_eq(act(h, "main/side/search", "set_value", Value{}.set("value", "middle")), std::int64_t{0});
+        expect(eq(act(h, "main/side/search", "set_value", Value{}.set("value", "middle")), std::int64_t{0}));
         settle(h, p);
-        check(listed(h) == std::vector<std::string>{"Reading"}, std::format("{}", listed(h)));
-        check_eq(name_of(h, "main/side/found"), std::string("1 shown"));
-        check_eq(act(h, "main/side/search", "set_value", Value{}.set("value", "")), std::int64_t{0});
+        expect(listed(h) == std::vector<std::string>{"Reading"}) << std::format("{}", listed(h));
+        expect(eq(name_of(h, "main/side/found"), std::string("1 shown")));
+        expect(eq(act(h, "main/side/search", "set_value", Value{}.set("value", "")), std::int64_t{0}));
         settle(h, p);
-        check_eq(listed(h).size(), std::size_t{3});
+        expect(eq(listed(h).size(), std::size_t{3}));
 
         // Opening a note; the toolbar's macros are the macros' script's.
-        check_eq(act(h, "main/side/list/n3", "activate"), std::int64_t{0});
+        expect(eq(act(h, "main/side/list/n3", "activate"), std::int64_t{0}));
         settle(h, p);
-        check(editor(h).starts_with("# Ideas"), editor(h));
-        check_eq(act(h, "main/page/tools/task", "activate"), std::int64_t{0});
+        expect(editor(h).starts_with("# Ideas")) << editor(h);
+        expect(eq(act(h, "main/page/tools/task", "activate"), std::int64_t{0}));
         settle(h, p);
-        check(editor(h).ends_with("three ways of writing.\n- [ ] "), editor(h));
-        check_eq(tasks(h), std::string("-"));
-        check_eq(act(h, "main/page/tools/today", "activate"), std::int64_t{0});
+        expect(editor(h).ends_with("three ways of writing.\n- [ ] ")) << editor(h);
+        expect(eq(tasks(h), std::string("-")));
+        expect(eq(act(h, "main/page/tools/today", "activate"), std::int64_t{0}));
         settle(h, p);
         static const std::regex day(R"(\n\n## \d{4}-\d{2}-\d{2}\n$)");
-        check(std::regex_search(editor(h), day), editor(h));
+        expect(std::regex_search(editor(h), day)) << editor(h);
 
         // An edit: the title is the macros' to read from the text.
-        check_eq(act(h, "main/page/panes/editor", "set_value", Value{}.set("value", "# Plans\n\n- [ ] Write the README")), std::int64_t{0});
+        expect(eq(act(h, "main/page/panes/editor", "set_value", Value{}.set("value", "# Plans\n\n- [ ] Write the README")), std::int64_t{0}));
         settle(h, p);
-        check(listed(h) == std::vector<std::string>{"Groceries", "Reading", "Plans"}, std::format("{}", listed(h)));
+        expect(listed(h) == std::vector<std::string>{"Groceries", "Reading", "Plans"}) << std::format("{}", listed(h));
 
         // A task ticked in the preview is kept in the note.
-        check_eq(act(h, "main/side/list/n1", "activate"), std::int64_t{0});
+        expect(eq(act(h, "main/side/list/n1", "activate"), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/page/panes/scroll/preview", "toggle_task", Value{}.set("index", 0)), std::int64_t{0});
+        expect(eq(act(h, "main/page/panes/scroll/preview", "toggle_task", Value{}.set("index", 0)), std::int64_t{0}));
         settle(h, p);
-        check_eq(tasks(h), std::string("xx-"));
-        check_eq(act(h, "main/side/list/n2", "activate"), std::int64_t{0});
+        expect(eq(tasks(h), std::string("xx-")));
+        expect(eq(act(h, "main/side/list/n2", "activate"), std::int64_t{0}));
         settle(h, p);
-        check_eq(act(h, "main/side/list/n1", "activate"), std::int64_t{0});
+        expect(eq(act(h, "main/side/list/n1", "activate"), std::int64_t{0}));
         settle(h, p);
-        check(editor(h).contains("- [x] Milk\n- [x] Bread"), editor(h));
+        expect(editor(h).contains("- [x] Milk\n- [x] Bread")) << editor(h);
 
         // A new note.
-        check_eq(act(h, "main/side/new", "activate"), std::int64_t{0});
+        expect(eq(act(h, "main/side/new", "activate"), std::int64_t{0}));
         settle(h, p);
-        check(h.tree().node("main/side/list/n4").has_value(), "the new note is listed");
-        check_eq(editor(h), std::string("# Untitled\n\n"));
+        expect(h.tree().node("main/side/list/n4").has_value()) << "the new note is listed";
+        expect(eq(editor(h), std::string("# Untitled\n\n")));
 
         // An agent's verbs: the application's and the macros'.
         const Envelope found = verb(h, "notes.search", Value{}.set("query", "middlemarch"));
-        check_eq(found.exit_code().value_or(-1), 0);
+        expect(eq(found.exit_code().value_or(-1), 0));
         settle(h, p);
-        check(listed(h) == std::vector<std::string>{"Reading"}, std::format("{}", listed(h)));
+        expect(listed(h) == std::vector<std::string>{"Reading"}) << std::format("{}", listed(h));
         const Envelope title = verb(h, "macro.title", Value{}.set("text", "no heading\nhere"));
-        check(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")"), title.ndjson());
-        check_eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1);
+        expect(title.exit_code() == 0 && title.ndjson().contains(R"("no heading")")) << title.ndjson();
+        expect(eq(verb(h, "notes.open", Value{}.set("key", "n9")).exit_code().value_or(-1), 1));
 
-        check_eq(first, std::string("25f626398be76161"));  // the help says the macros are TypeScript (D-138)
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(first, std::string("25f626398be76161")));  // the help says the macros are TypeScript (D-138)
+    };
+}};

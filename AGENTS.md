@@ -44,6 +44,8 @@
      - Agent 在该问的时候主动问人；
      - 预演、事务、确定性、像素溯源从架构上内建，不靠事后适配；
      - Agent 交互的模型归 openas，MCP、WebMCP、A2UI 等只是适配层（D-137）。
+   - **人 × Agent × 框架协同**（D-144、D-148）：运行时生成（UI、交互、动画、组件、动作、资产）默认支持代码，开发模式下是顶级能力，发布时由开发者选择开放程度；框架记录每一次交互及其从输入到效果的因果链，Agent 经 openas 查询事实（`ui.timeline`、`ui.explain`），不依赖人的转述；读取人的记录需要授权。
+   - **观察**以语义为先，需要看时截任意区域，需要精确数据时读 SVG，不做 computer use（D-142）；Agent 需要的 API 由框架从契约自描述导出，skill 只保留 SOP（D-145）。
    - 细则见[核心设计准则 §9](.agents/docs/2026-11-05-local-global-composable-architecture-design.md#9-人与-agent-双第一优先级的设计与验收)（§9.7 是本条）。
 5. **权限由人掌握。** 开发模式对可信会话开放全部已声明能力；发布范围 = 开发者允许 ∩ 用户配置，再受会话约束；委派不能扩大权限，记录身份、委派链和结果。
 6. **一切皆插件，管线可编排**（D-65、D-66）。核心只规定模型、数据契约和管线；插件按阶段或按批调用，不按节点或像素调用；每类插件都有 CTS、trace 和日志类别。一致性测试统一用 `mlibs.cts` 框架，套件放在契约 owner 处，结果分为通过／失败／不支持（不可用永远不算通过）。控制请求不进入逐像素或逐采样的热循环。
@@ -54,6 +56,7 @@
 - **依赖只能向下**（lint `layering`）：`base`（含 `hanim.core`：只依赖标准库和 `mlibs` 的 math、utils、memory、geom）← `gfx`（含 `hanim`、`xrender`）← `content` ← `media` ← `spec` ← `ui`（omui）← `components` ← xengine 游戏层 ← 作品。UI 永远不依赖游戏层；`spec/` 只依赖标准库；除 omui 及其上层外，引擎和库都不依赖 UI；`projects/` 中的项目随时可以拆成独立仓库（D-55）。
 - **名字表示归属，目录表示分组，层级由 lint 的“路径 → 层”映射表判定**：一个项目的包可以跨层（例如 `hanim.core` 在 base 层，`hanim` 在 gfx 层）。
 - **动画**：组件不写动画（D-93，lint `motion`），只画状态和可选的部件名；变化怎么动由节点的 motion 槽和风格包配方决定，由 hanim 统一求值。UI 框架负责身份、语义、呈现和命中一致性。每个宿主只有一个 hanim Engine。表示与选择策略见[多表示方案](.agents/docs/2026-11-05-hanim-representations-selection-policy-design.md)。画布相机飞行这类导航运动是例外，需在行内写 `MOTION-OK:` 和理由。
+- **界面全平台自绘**（D-140）：窗口和系统集成面（边框、菜单栏、托盘、通知、文件对话框）可选原生或自绘，界面内容一律自绘；webview 只作可选的外部表面组件，不做 Web 前端模式（D-141）。
 - **渲染器只写一次**：xrender 的渲染图承载所有渲染特性（vector、effect，以后的 mesh、particle）；GPU 路径只依赖 `mlibs.rhi` 接口，后端（SDL_GPU、WebGPU、WebGL）是 xrender 的实现，由宿主注入；模拟等计算只依赖接口，不依赖 xrender。
 - **标准**：`spec/` 是 [`openlifa/openmui`](https://github.com/openlifa/openmui) 子模块，openas 来自 [`openlifa/openas`](https://github.com/openlifa/openas)。改标准就在标准仓库各自的单 PR 分支（`openmui-design`／`openas-design`）提交，提交人为 `Sunrisepeak <speakshen@outlook.com>`，带 `-s`；代码 Apache-2.0，规范文本 CC BY-SA 4.0。actor、效果、信封、授权以 openas 为准，运行时用 `openas::decide` 判定请求。
 
@@ -63,8 +66,8 @@
 - **格式与命名**：格式按仓库根的 `.clang-format`（与 mcpp 仓库相同：4 空格、100 列、大括号不换行、指针靠类型）；新写和改动的代码遵守，不为格式单独大面积改动未触及的代码。变量、参数用可读的词命名，不用单字母（`s`、`p`、`d`、`r` 之类），只有约定俗成的短循环计数可以例外。
 - **不用宏**：用模块分区、`inline constexpr`、`if constexpr`、`consteval`、`std::source_location`。全仓库唯一的头文件是生成的 `spec/include/openmui.h`；第三方头文件只出现在 `native/` 实现分区里。
 - 核心代码不用异常、不用 RTTI，错误用 `std::expected`；热路径没有虚函数，每帧零分配；动画、布局、光栅模块禁用 fast-math 和浮点收缩。
-- 契约优先：组件与 native 模块先写 `*.contract.omui.toml`／`*.native.omui.toml`，绑定由生成器产出。
-- 视图代码优先（各语言原生的 builder）；数据文件命名 `<名字>.<种类>.omui.{toml,json,jsonl}`；着色器用 `.slang`；可交互节点要写显式 ID，ID 不依赖显示文本；脚本不进入每帧路径。
+- 契约优先：组件与 native 模块先写契约，绑定由生成器产出。契约、操作目录、主题、动画用 TS 声明（`*.<种类>.omui.ts`，构建期由内嵌 QuickJS 确定地求值成 JSON；D-139）；迁移完成前沿用现有的 `.omui.toml`。
+- **上层语言只有 TS/JS**（D-138；Lua 和 Python 的应用绑定已决定删除）：TS 即代码也即数据，求值后的 JSON 快照是规范形式；只允许可擦除语法；TS 层尽量薄，性能敏感的部分用 C++ 实现并暴露给脚本；需要时按先动态、后固化（D-146）转成 C++。视图代码优先（C++ builder 或 TS）；数据文件命名 `<名字>.<种类>.omui.{ts,json,jsonl}`；着色器用 `.slang`；可交互节点要写显式 ID，ID 不依赖显示文本；脚本不进入每帧路径。
 - 平台相关代码经由 `mcpplibs.os`；窗口和输入经由 SDL3。
 
 ## 5. 工程与包
@@ -73,7 +76,8 @@
 - **按库／产品边界建包，不按文件拆包**（D-99）：内部职责放在所属包的 `src/<职责>/`，用 feature 选择。只有形成可独立复用的库、要单独发布，或确实需要依赖／平台／许可／构建阶段隔离时，才新建包，并在 README 写明理由。与领域无关的小工具放 `mlibs.utils`；与领域相关的小块放回所属包。成员之间只通过声明的 `path` 依赖引用。
 - **优先用 mcpp 生态**（D-56）。第三方 C 库经 mwrap 使用（D-83，lint `thirdparty`）：上游先发布，再在本仓库引用；不用 GPL／AGPL（动态链接也不行），LGPL 只能作为可选插件动态链接，MPL 不修改即可用；默认选免版税的格式。
 - **本地构建、测试等任何重负载不得占用超过本机 90% 的 CPU 或内存**，避免机器卡顿、卡死：经 `tools/dev/capped.sh` 运行（`tools/dev/capped.sh mcpp test -p …`），它按核数和内存把并发编译数限制在 90% 以内（`MCPP_JOBS`），并以低 CPU／IO 优先级执行；自己启动的并行任务（多个构建、测试、后台循环）合计也不得超过这一上限。
-- **开发效率**：检查点只跑它触及的包和直接消费者（`mcpp test -p 包 [测试名]`）；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等；后台构建未编到的包先不改，以免结果混入新旧两版。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。
+- **测试**统一用 mtest（D-147，mcpp 2026.11.8.1 起原生支持；`mlibs.testing` 待迁完后删除）。
+- **开发效率**：检查点只跑它触及的用例（`mtest plan --since` 选出，或 `mcpp test -p 包 [测试名]`）；初期不做大范围测试；全量（`mcpp test --workspace`）只在一组工作结束或改动了底层共享包时跑，并以 CI 为主。超过几分钟的任务一律后台运行，等待期间继续做不依赖它的工作，不用 `sleep` 轮询空等；后台构建未编到的包先不改，以免结果混入新旧两版。GPU 成员在本地按 CI 的环境跑（`tools/ci/gpu.sh` 加 `SDL_VIDEO_DRIVER=offscreen`）。
 - 工具都有两种界面（D-61）：完整的 CLI／openas 入口（结构化输出、退出码）和可选的 omui GUI／TUI。作品必须是真实可用的东西（D-63），并有能在 headless 下确定重现的招牌镜头。
 
 ## 6. 协作与验收

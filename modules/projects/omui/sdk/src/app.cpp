@@ -67,7 +67,8 @@ void RunOptions::declare(cmdline::App& app) {
         .option(Option("profile").takes_value().value_name("FILE").help("record a trace of the run (Chrome / Perfetto JSON)"))
         .option(Option("lang").takes_value().value_name("TAGS").help("the person's languages, best first: zh-CN,en"))
         .option(Option("window").takes_value().value_name("MODE").help("who draws the window's frame: native, framework or switchable"))
-        .option(Option("replay").takes_value().value_name("FILE").help("play a recording (ui.record) headless, then check it ends as it did"));
+        .option(Option("replay").takes_value().value_name("FILE").help("play a recording (ui.record) headless, then check it ends as it did"))
+        .option(Option("present-to").takes_value().value_name("SOCKET").help("drawn in a host's window (omui dev): its frames sent to SOCKET, its input from there"));
 }
 
 std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArgs& parsed) {
@@ -141,6 +142,10 @@ std::expected<RunOptions, std::string> RunOptions::from(const cmdline::ParsedArg
     if (auto v = parsed.value("profile")) o.profile = std::filesystem::path(*v);
     if (auto v = parsed.value("replay")) {
         o.replay = std::filesystem::path(*v);
+        o.headless = true;
+    }
+    if (auto v = parsed.value("present-to")) {
+        o.present_to = mcpplibs::os::fs::from_utf8(*v);
         o.headless = true;
     }
     if (o.serve) o.level = 3;
@@ -336,6 +341,26 @@ int replay(Headless& host, const AppSpec& app, const std::filesystem::path& file
     return same ? 0 : 1;
 }
 
+// Drawn in a host's window (W16, D-154): each frame's display list sent to the host, its person's
+// input and its window's size taken from it, on the wall clock, until the host goes.
+int present(Headless& host, const std::filesystem::path& socket) {
+    auto connected = mcpplibs::os::ipc::connection::connect(socket.parent_path(), utf8(socket.filename()));
+    if (!connected) {
+        error("no host at {}: {}", utf8(socket), connected.error().message());
+        return 1;
+    }
+    agent::Presenter presenter(host.runtime(), std::move(*connected));
+    const auto started = std::chrono::steady_clock::now();
+    while (!mcpplibs::os::interrupt::requested()) {
+        if (const auto size = presenter.resized()) host.runtime().resize(size->first, size->second);
+        const seconds now{std::chrono::duration<double>(std::chrono::steady_clock::now() - started).count()};
+        const FrameOutput frame = host.step(presenter.input(), now);
+        if (!presenter.send(frame)) break;  // the host is gone
+        (void)mcpplibs::os::interrupt::wait(std::chrono::milliseconds(frame.animating ? 8 : 16));
+    }
+    return 0;
+}
+
 int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess>& access) {
     HeadlessOptions h;
     h.level = static_cast<HeadlessLevel>(std::clamp(o.level, 0, 3));
@@ -374,6 +399,7 @@ int headless(AppSpec app, const RunOptions& o, const std::shared_ptr<AgentAccess
         }
         host.settle();
     }
+    if (!o.present_to.empty()) return present(host, o.present_to);
     if (o.serve) {
         if (!host.endpoint()) {
             error("the agent endpoint did not start");

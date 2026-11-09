@@ -151,6 +151,7 @@ struct RunOptions {
     std::vector<std::string> languages;  // --lang
     std::string           window;          // --window native|framework|switchable
     std::filesystem::path agent_guide;     // --agent-guide DIR (a headless run that writes it, then ends)
+    std::filesystem::path present_to;      // --present-to SOCKET: drawn in a host's window (omui dev, W16)
     std::filesystem::path replay;          // --replay FILE: a recording (ui.record) played headless, its end checked (W12)
 
     // The switches above, declared on a program's command line (mcpplibs.cmdline,

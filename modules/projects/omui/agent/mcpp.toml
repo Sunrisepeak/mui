@@ -34,6 +34,8 @@ mlibs.pipeline = { path = "../../../base/pipeline" }
 # `capture` as SVG (vector_capture): the display list written by xrender, its
 # islands' pixels encoded as PNG.
 xrender.vector = { path = "../../xrender/vector" }
+# :present sends and keeps images (xrender.raster's surfaces).
+xrender.raster = { path = "../../xrender/raster" }
 mlibs.image    = { path = "../../../base/image" }
 mcpplibs.os      = "0.4.1"
 

@@ -483,7 +483,7 @@ mcpplibs::cmdline::App command_line() {
                         .arg(Arg("file").required()).option(module).option(name).option(out).option(space).option(check))
         .subcommand(App("embed-index")
                         .description("a table of embedded files, by name")
-                        .arg(Arg("file=partition").required().help("FILE=PARTITION…")).option(module).option(name).option(out).option(space).option(check))
+                        .arg(Arg("file=partition").help("FILE=PARTITION… (none: an empty table)")).option(module).option(name).option(out).option(space).option(check))
         .subcommand(App("check")
                         .description("a contract's or native module's diagnostics only")
                         .arg(files).option(registry).option(json))

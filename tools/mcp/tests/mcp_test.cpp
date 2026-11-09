@@ -154,7 +154,7 @@ int main(int argc, char** argv) {
             check_eq(std::string(r.get("serverInfo")->get("name")->as_string()), std::string("openmui"));
         }
         const Value* tools = c.reply(2) ? c.reply(2)->get("result")->get("tools") : nullptr;
-        check(tools && tools->list() && tools->list()->size() == 48, "nineteen ui_* tools and Live Design's twenty-nine");
+        check(tools && tools->list() && tools->list()->size() == 49, "nineteen ui_* tools and Live Design's thirty");
         if (tools && tools->list()) {
             std::set<std::string> names;
             for (const Value& t : *tools->list()) {
@@ -165,7 +165,7 @@ int main(int argc, char** argv) {
                                                   "ui_wait", "ui_capture", "ui_drew", "ui_intend", "ui_input", "ui_clock", "ui_verbs",
                                                   "ui_timeline", "ui_explain", "ui_reload", "ui_record", "design_begin", "design_sources", "design_api",
                                                   "design_locate", "design_edit", "design_set", "design_insert", "design_remove", "design_preview", "design_preview_accept", "design_preview_reject", "design_variants",
-                                                  "design_variants_pick", "design_variants_close", "design_history", "design_history_commit", "design_history_branch",
+                                                  "design_variants_pick", "design_variants_close", "design_timeline", "design_history", "design_history_commit", "design_history_branch",
                                                   "design_history_switch", "design_history_revert", "design_history_diff", "design_history_merge", "design_history_tag", "design_expect", "design_check", "design_handover", "design_save_scenario",
                                                   "design_replay", "design_discard", "design_commit"}));
             // The hints are the catalog's effects (omui.ops.omui.ts): reads, changes, and what runs what it names.

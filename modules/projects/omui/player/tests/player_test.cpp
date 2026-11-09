@@ -486,6 +486,97 @@ UTest cases{"player", [] {
         expect(refused.exit_code().value_or(0) != 0 && refused.ndjson().contains("stand-in")) << refused.ndjson();
     };
 
+    "the timeline: lanes of branches, commits in time with their pictures; a commit pressed is seen, steps go through time, two compared"_test = [] {
+        const auto dir = scratch_dir("player-timeline");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string doc = R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+  {"type": "text", "id": "hello", "props": {"text": "one"}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", doc);
+        player::Manifest m;
+        m.id = "org.openmui.player-timeline";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        int stand_ins = 0;
+        const auto stand_in = [&](const std::map<std::string, std::string>& texts) -> std::expected<player::StandIn, std::string> {
+            ++stand_ins;
+            Headless twin(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {320, 240}});
+            player::Player shown(twin.runtime(), m, {stub()}, {});
+            if (auto started = shown.start(); !started) return std::unexpected(started.error());
+            twin.settle();
+            if (auto ran = shown.show(texts); !ran) return std::unexpected(ran.error());
+            twin.settle();
+            auto png = twin.png();
+            if (!png) return std::unexpected(png.error());
+            return player::StandIn{std::move(*png), semantic::Tree(twin.runtime()).snapshot()};
+        };
+        Headless h(HeadlessOptions{.level = HeadlessLevel::pixels, .size = {480, 360}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true, .stand_in = stand_in});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        const auto say = [&](std::string_view words) {
+            std::string text = doc;
+            text.replace(text.find("\"one\""), 5, std::format("\"{}\"", words));
+            return invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text)).first;
+        };
+        // The person's press, as their pointer would make it.
+        const auto press = [&](const std::string& path) {
+            Invocation as;
+            as.actor = {"person", "tester", {}};
+            const Envelope done = semantic::Tree(h.runtime()).act(path, "activate", as);
+            h.settle();
+            return done.exit_code().value_or(-1);
+        };
+        expect(eq(invoke("design.begin", Value{}.set("intent", "counting")).first, 0));
+        expect(eq(say("two"), 0) && eq(say("three"), 0));
+        expect(eq(invoke("design.history.branch", Value{}.set("name", "spare").set("at", "HEAD~1")).first, 0));
+        expect(eq(invoke("design.history.switch", Value{}.set("to", "spare")).first, 0));
+        expect(eq(say("deux"), 0));
+        expect(eq(invoke("design.history.switch", Value{}.set("to", "main")).first, 0));
+
+        // Shown, with pictures made for the commits in stand-ins.
+        const auto [opened, model] = invoke("design.timeline", Value{}.set("pictures", true));
+        expect(eq(opened, 0)) << model.json();
+        expect(model.get("lanes") && model.get("lanes")->list()->size() == 2 && model.get("columns")->as_int() == 4) << model.json();
+        expect(model.get("lanes")->list()->front().get("branch")->as_string() == "main") << "the branch designed on first";
+        expect(eq(stand_ins, 4)) << "a picture for each commit";
+        expect(model.json().contains(".png")) << model.json();
+        expect(h.tree().node("design-timeline/panel/bar/back").has_value()) << "shown over the application";
+        // A commit pressed: the application shows it, the branch where it was.
+        const auto& main_commits = *model.get("lanes")->list()->front().get("commits")->list();
+        const std::string first(main_commits.front().get("id")->as_string());
+        const std::string cell = std::format("design-timeline/panel/lanes/branches/lane-main/commits/commit-{}", first.substr(0, 12));
+        expect(h.tree().node(cell).has_value()) << cell;
+        expect(eq(press(cell), 0));
+        expect(eq(name_of(h, "side/hello"), std::string("one"))) << "the first commit, seen";
+        // Forward in time, then back.
+        expect(eq(invoke("design.timeline", Value{}.set("step", 1)).first, 0));
+        expect(eq(name_of(h, "side/hello"), std::string("two")));
+        expect(eq(invoke("design.timeline", Value{}.set("step", 2)).first, 0));
+        expect(eq(name_of(h, "side/hello"), std::string("deux"))) << "time, across branches";
+        expect(eq(invoke("design.timeline", Value{}.set("at", "main")).first, 0));
+        expect(eq(name_of(h, "side/hello"), std::string("three")));
+        // Two compared: the person presses Compare, then two commits.
+        expect(eq(press("design-timeline/panel/bar/compare"), 0));
+        const std::string last(main_commits.back().get("id")->as_string());
+        for (const auto& id : {first, last}) expect(eq(press(std::format("design-timeline/panel/lanes/branches/lane-main/commits/commit-{}", id.substr(0, 12))), 0));
+        const auto note = h.tree().node("design-timeline/panel/note");
+        expect(note.has_value() && note->name.contains("logic/side.stub from line 2")) << (note ? note->name : std::string("<none>"));
+        expect(eq(name_of(h, "side/hello"), std::string("three"))) << "comparing changes nothing";
+        // Put away.
+        expect(eq(invoke("design.timeline", Value{}.set("show", false)).first, 0));
+        expect(!h.tree().node("design-timeline/panel/bar/back").has_value());
+    };
+
     "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {
         const std::string base = "a\nb\nc\nd";
         const auto both = player::merge_text(base, "A\nb\nc\nd", "a\nb\nc\nD");

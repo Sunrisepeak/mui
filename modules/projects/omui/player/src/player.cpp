@@ -7,6 +7,7 @@ import omui.abi;
 import omui.theme;
 import omui.semantic;
 import omui.agent;
+import :views;
 import mlibs.trace;
 
 namespace omui {  // names this file uses unqualified, from their owner
@@ -412,6 +413,8 @@ struct Player::Impl {
                                      by ? by->actor.text() : std::string("person"), agent::tree_hash(tree), std::nullopt,
                                      changes ? changes->json() : std::string());
         if (commit) done->set("commit", commit->id);
+        shown_commit.clear();  // the branch's last commit, the step's
+        refresh_timeline();
         return done;
     }
 
@@ -498,21 +501,8 @@ struct Player::Impl {
         return Shown{std::move(*picture), semantic::changes_between(tree.snapshot(), shown->tree)};
     }
 
-    // The preview: its picture over the application, half seen, with how to take it or let it go.
     void show_preview(const std::filesystem::path& picture) {
-        const Size window = rt.size();
-        rt.mount("design-preview",
-                 stack({.width = window.width, .height = window.height, .label = "A preview of a design change"},
-                       {image({.id = "ghost", .source = generic_utf8(picture), .alt = "the design as it would be", .fit = "fill",
-                               .width = window.width, .height = window.height, .opacity = 0.55f}),
-                        row({.id = "choice", .padding = Edges(6.0f, 10.0f), .gap = 8, .align = "center", .background = "#0f172ae0", .radius = 8},
-                            {text({.text = "Preview", .style = "label", .color = "#f8fafc"}),
-                             box({.id = "accept", .padding = Edges(4.0f, 10.0f), .background = "#22c55e", .radius = 6, .label = "Accept",
-                                  .on = {{"press", [this](const Value&) { (void)accept_preview(); }}}},
-                                 {text({.text = "Accept", .style = "label", .color = "#052e16"})}),
-                             box({.id = "reject", .padding = Edges(4.0f, 10.0f), .background = "#e2e8f0", .radius = 6, .label = "Reject",
-                                  .on = {{"press", [this](const Value&) { reject_preview(); }}}},
-                                 {text({.text = "Reject", .style = "label", .color = "#0f172a"})})})}));
+        rt.mount("design-preview", preview_view(rt.size(), picture, [this](const Value&) { (void)accept_preview(); }, [this](const Value&) { reject_preview(); }));
     }
     VerbResult accept_preview() {
         if (!previewing) return std::unexpected(std::string("no preview is shown (design.preview shows one)"));
@@ -526,33 +516,8 @@ struct Player::Impl {
         rt.unmount("design-preview");
     }
 
-    // The board: each variant's picture on a card, side by side, to pick one.
-    void show_board(const std::vector<std::pair<std::string, std::filesystem::path>>& cards, std::string_view brief) {
-        const Size window = rt.size();
-        const float columns = static_cast<float>(std::max<std::size_t>(cards.size(), 1));
-        const float card_width = std::max(80.0f, (window.width - 24.0f - 12.0f * (columns - 1)) / columns);
-        const float picture_height = (card_width - 12.0f) * window.height / std::max(window.width, 1.0f);
-        std::vector<Element> shown;
-        for (const auto& [name, picture] : cards) {
-            const std::string chosen = name;
-            shown.push_back(column({.id = std::format("variant-{}", name),
-                                    .width = card_width,
-                                    .padding = 6,
-                                    .gap = 6,
-                                    .background = "#f8fafc",
-                                    .radius = 10,
-                                    .shadow = "md",
-                                    .label = std::format("Variant {}", name),
-                                    .on = {{"press", [this, chosen](const Value&) { (void)pick_variant(chosen); }}}},
-                                   {image({.source = generic_utf8(picture), .alt = std::format("variant {}", name), .fit = "contain",
-                                           .width = card_width - 12.0f, .height = picture_height}),
-                                    text({.text = name, .style = "label", .color = "#0f172a"})}));
-        }
-        rt.mount("design-variants",
-                 column({.width = window.width, .height = window.height, .padding = 12, .gap = 10, .justify = "center", .background = "#0f172ac0",
-                         .label = std::format("Variants: {}", brief)},
-                        {text({.id = "brief", .text = std::string(brief), .style = "title", .color = "#f8fafc"}),
-                         row({.id = "cards", .gap = 12, .align = "start"}, std::move(shown))}));
+    void show_board(const std::vector<Card>& cards, std::string_view brief) {
+        rt.mount("design-variants", board_view(rt.size(), brief, cards, [this](const std::string& name) { (void)pick_variant(name); }));
     }
     VerbResult pick_variant(const std::string& name) {
         const auto branch = variants.find(name);
@@ -562,6 +527,157 @@ struct Player::Impl {
         variants.clear();
         rt.unmount("design-variants");
         return step(apply_texts(*texts), std::format("variant {} picked", name));
+    }
+
+    // The timeline (D-151 §2.14): shown or not, two commits being compared,
+    // what the last press came to, and the commit the application shows.
+    bool                     timeline_open = false, comparing = false;
+    std::vector<std::string> compared;
+    std::string              timeline_note, shown_commit;
+
+    // Every commit the branches reach, oldest first.
+    std::vector<DesignCommit> commits_in_time() const {
+        std::map<std::string, DesignCommit> all;
+        for (const auto& [branch, head] : history.branches())
+            for (DesignCommit& commit : history.log(branch, 500)) all.try_emplace(commit.id, std::move(commit));
+        std::vector<DesignCommit> out;
+        for (auto& [id, commit] : all) out.push_back(std::move(commit));
+        std::ranges::sort(out, [](const DesignCommit& left, const DesignCommit& right) {
+            return left.time != right.time ? left.time < right.time : left.id < right.id;
+        });
+        return out;
+    }
+
+    std::string shown_now() const {
+        if (!shown_commit.empty()) return shown_commit;
+        const auto head = history.resolve("HEAD");
+        return head ? *head : std::string();
+    }
+
+    Timeline timeline_model() const {
+        Timeline model;
+        model.note = timeline_note.empty() ? std::string("Press a commit to see it; ◀ ▶ go through time; Compare, then two commits") : timeline_note;
+        model.comparing = comparing;
+        const auto in_time = commits_in_time();
+        model.columns = in_time.size();
+        const std::string head = history.head_branch(), shown = shown_now();
+        std::map<std::string, TimelineLane> lanes;
+        for (std::size_t column = 0; column < in_time.size(); ++column) {
+            const DesignCommit& commit = in_time[column];
+            TimelineLane& lane = lanes[commit.branch];
+            lane.branch = commit.branch;
+            lane.head = commit.branch == head;
+            lane.commits.push_back({.id = commit.id,
+                                    .message = commit.message,
+                                    .actor = commit.actor,
+                                    .column = column,
+                                    .picture = history.thumbnail(commit.id),
+                                    .shown = commit.id == shown,
+                                    .selected = std::ranges::contains(compared, commit.id)});
+        }
+        // The branch designed on first, then the rest by name.
+        if (const auto designed = lanes.find(head); designed != lanes.end()) {
+            model.lanes.push_back(std::move(designed->second));
+            lanes.erase(designed);
+        }
+        for (auto& [branch, lane] : lanes) model.lanes.push_back(std::move(lane));
+        return model;
+    }
+
+    void refresh_timeline() {
+        if (!timeline_open) return;
+        rt.mount("design-timeline",
+                 timeline_view(rt.size(), timeline_model(),
+                               {.open = [this](const std::string& id) { (void)see_commit(id); },
+                                .select = [this](const std::string& id) { select_commit(id); },
+                                .step = [this](int by) { (void)step_in_time(by); },
+                                .compare =
+                                    [this] {
+                                        comparing = !comparing;
+                                        compared.clear();
+                                        timeline_note = comparing ? "Press two commits to compare them" : "";
+                                        refresh_timeline();
+                                    },
+                                .close =
+                                    [this] {
+                                        timeline_open = false;
+                                        rt.unmount("design-timeline");
+                                    }}));
+    }
+
+    // A commit seen (the timeline's press, its steps): its texts run, the
+    // branch where it was; refused while the design has changes not committed.
+    std::expected<Value, std::string> see_commit(const std::string& id) {
+        auto texts = history.texts_of(id);
+        if (!texts) return std::unexpected(texts.error());
+        const auto head = history.texts_of("HEAD");
+        const std::string shown = shown_now();
+        const auto now = shown.empty() ? head : history.texts_of(shown);
+        if (now && *now != design_texts()) {
+            timeline_note = "The design has changes not committed: commit them first (design.history.commit)";
+            refresh_timeline();
+            return std::unexpected(timeline_note);
+        }
+        auto applied = apply_texts(*texts);
+        if (!applied) return std::unexpected(applied.error());
+        shown_commit = id;
+        if (const auto commit = history.commit_of(id)) timeline_note = std::format("{} — {}", id.substr(0, 8), commit->message);
+        refresh_timeline();
+        return applied->set("at", id);
+    }
+
+    std::expected<Value, std::string> step_in_time(int by) {
+        const auto in_time = commits_in_time();
+        if (in_time.empty()) return std::unexpected(std::string("the design has no commits yet"));
+        const std::string shown = shown_now();
+        const auto at = std::ranges::find(in_time, shown, &DesignCommit::id);
+        const auto index = at == in_time.end() ? static_cast<std::ptrdiff_t>(in_time.size()) - 1 : at - in_time.begin();
+        const auto next = std::clamp<std::ptrdiff_t>(index + by, 0, static_cast<std::ptrdiff_t>(in_time.size()) - 1);
+        return see_commit(in_time[static_cast<std::size_t>(next)].id);
+    }
+
+    static std::string joined(const std::vector<std::string>& parts) {
+        std::string out;
+        for (const auto& part : parts) out += std::format("{}{}", out.empty() ? "" : "; ", part);
+        return out;
+    }
+
+    void select_commit(const std::string& id) {
+        if (std::ranges::contains(compared, id)) return;
+        if (compared.size() == 2) compared.clear();
+        compared.push_back(id);
+        if (compared.size() == 2) {
+            const auto before = history.texts_of(compared[0]), after = history.texts_of(compared[1]);
+            std::vector<std::string> differ;
+            if (before && after)
+                for (const auto& [path, text] : *after)
+                    if (!before->contains(path) || before->at(path) != text)
+                        differ.push_back(std::format("{} from line {}", path, changed_lines(before->contains(path) ? before->at(path) : std::string(), text).get("line")->as_int()));
+            timeline_note = differ.empty() ? std::format("{} and {}: the same design", compared[0].substr(0, 8), compared[1].substr(0, 8))
+                                           : std::format("{} → {}: {}", compared[0].substr(0, 8), compared[1].substr(0, 8), joined(differ));
+        } else {
+            timeline_note = "And one more";
+        }
+        refresh_timeline();
+    }
+
+    // Pictures for the latest commits that have none, each in a stand-in (the timeline's thumbnails).
+    std::size_t picture_commits(std::size_t at_most) {
+        if (!options.stand_in) return 0;
+        auto in_time = commits_in_time();
+        std::size_t made = 0;
+        for (auto commit = in_time.rbegin(); commit != in_time.rend() && made < at_most; ++commit) {
+            if (history.thumbnail(commit->id)) continue;
+            auto texts = history.texts_of(commit->id);
+            if (!texts) continue;
+            auto shown = options.stand_in(*texts);
+            if (!shown) continue;
+            if (auto picture = history.keep_picture(shown->png)) {
+                (void)history.set_thumbnail(commit->id, *picture);
+                ++made;
+            }
+        }
+        return made;
     }
 
     // Where a script built a node: its path as design.sources names it, line and column.
@@ -649,10 +765,17 @@ struct Player::Impl {
     }
 
     void design_verbs() {
-        // Each verb as Live Design's catalog declares it (design.ops.omui.ts).
+        // Each verb as Live Design's catalog declares it (design.ops.omui.ts);
+        // the timeline, when it is shown, follows what the history's verbs did.
         auto add = [&](std::string_view name, VerbFn fn) {
             const auto entry = std::ranges::find(agent::design::catalog, name, [](const auto& op) { return op.operation.name; });
             if (entry == agent::design::catalog.end()) return problem(std::format("design: {} is not in the catalog", name));
+            if (name.starts_with("design.history.") || name.starts_with("design.variants"))
+                fn = [this, inner = std::move(fn)](const Value& args) -> VerbResult {
+                    auto done = inner(args);
+                    refresh_timeline();
+                    return done;
+                };
             if (auto r = rt.verbs().add(agent::verb_of(*entry), std::move(fn)); !r) problem(std::format("design: {}", r.error()));
         };
         add("design.sources",
@@ -781,6 +904,38 @@ struct Player::Impl {
             if (by) rt.note({.actor = by->actor.text(), .text = intent});
             return Value{}.set("intent", intent).set("branch", history.head_branch()).set("commit", start ? Value(start->id) : Value{});
         });
+        add("design.timeline", [this](const Value& args) -> VerbResult {
+            std::size_t pictured = 0;
+            if (args.get("pictures") && args.get("pictures")->as_bool()) pictured = picture_commits(12);
+            if (const Value* at = args.get("at")) {
+                if (auto seen = see_commit(std::string(at->as_string())); !seen) return std::unexpected(seen.error());
+            } else if (const Value* by = args.get("step"); by && by->is_number()) {
+                if (auto seen = step_in_time(static_cast<int>(by->as_double())); !seen) return std::unexpected(seen.error());
+            }
+            timeline_open = !args.get("show") || args.get("show")->as_bool();
+            if (timeline_open) refresh_timeline();
+            else rt.unmount("design-timeline");
+            const Timeline model = timeline_model();
+            Value::List lanes;
+            for (const TimelineLane& lane : model.lanes) {
+                Value::List commits;
+                for (const TimelineCommit& commit : lane.commits)
+                    commits.push_back(Value{}
+                                          .set("id", commit.id)
+                                          .set("message", commit.message)
+                                          .set("actor", commit.actor)
+                                          .set("column", static_cast<double>(commit.column))
+                                          .set("picture", commit.picture ? Value(generic_utf8(*commit.picture)) : Value{})
+                                          .set("shown", commit.shown));
+                lanes.push_back(Value{}.set("branch", lane.branch).set("head", lane.head).set("commits", Value(std::move(commits))));
+            }
+            return Value{}
+                .set("open", timeline_open)
+                .set("shown", shown_now())
+                .set("columns", static_cast<double>(model.columns))
+                .set("lanes", Value(std::move(lanes)))
+                .set("pictured", static_cast<double>(pictured));
+        });
         // Live Design's history (D-151): states of the design as commits on branches, under .omui/design/.
         add("design.history", [this](const Value& args) -> VerbResult {
             const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
@@ -826,8 +981,11 @@ struct Player::Impl {
             if (!texts) return std::unexpected(texts.error());
             auto applied = apply_texts(*texts);
             if (!applied) return std::unexpected(applied.error());
-            if (!branches.contains(to))  // a commit, seen: the branch stays; a commit keeps it there, design.history.branch makes it one
+            if (!branches.contains(to)) {  // a commit, seen: the branch stays; a commit keeps it there, design.history.branch makes it one
+                shown_commit = *at;
                 return applied->set("branch", history.head_branch()).set("at", *at).set("detached", true);
+            }
+            shown_commit.clear();
             (void)history.switch_to(to);
             return applied->set("branch", to).set("at", branches.at(to));
         });
@@ -843,6 +1001,7 @@ struct Player::Impl {
             const auto by = rt.current_invocation();
             auto commit = history.commit(design_texts(), std::format("back to {}", id->substr(0, 8)), by ? by->actor.text() : std::string("person"),
                                          agent::tree_hash(tree));
+            shown_commit.clear();
             if (commit) applied->set("commit", commit_value(*commit));
             return applied;
         });
@@ -903,6 +1062,7 @@ struct Player::Impl {
             const auto by = rt.current_invocation();
             auto commit = history.commit(design_texts(), std::format("merge {}", from), by ? by->actor.text() : std::string("person"), agent::tree_hash(tree),
                                          std::vector<std::string>{*ours_id, *theirs_id});
+            shown_commit.clear();
             if (commit) applied->set("commit", commit_value(*commit));
             return applied;
         });
@@ -935,7 +1095,7 @@ struct Player::Impl {
             if (brief.empty() || !list || !list->list() || list->list()->size() < 2 || list->list()->size() > 6)
                 return std::unexpected(std::string("design.variants takes a `brief` and 2 to 6 `variants`: [{name, edits: [{path, text}]}]"));
             const auto by = rt.current_invocation();
-            std::vector<std::pair<std::string, std::filesystem::path>> cards;
+            std::vector<Card> cards;
             std::map<std::string, std::string> branches;
             Value::List answered;
             for (const Value& variant : *list->list()) {
@@ -950,7 +1110,7 @@ struct Player::Impl {
                 auto commit = history.commit_on(branch, *texts, std::format("{}: {}", brief, name), by ? by->actor.text() : std::string("person"), std::string());
                 if (commit) (void)history.set_thumbnail(commit->id, shown->picture);
                 branches[name] = branch;
-                cards.emplace_back(name, shown->picture);
+                cards.push_back({name, shown->picture});
                 answered.push_back(Value{}
                                        .set("name", name)
                                        .set("branch", branch)

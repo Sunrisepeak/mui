@@ -162,6 +162,20 @@ export default defineOps({
       undo: "design.variants again, or design.history.switch to a variant's branch",
     },
     {
+      name: "design.timeline",
+      effect: "reversible",
+      summary: "The design's history and its time in one picture, shown over the application (D-151): a lane for each branch, its commits by when they were made with their pictures; a commit pressed is seen, ◀ ▶ go through time, two compared. Answers the same as data; `at` sees a commit, `step` goes back or forward, `pictures` makes the latest commits' pictures in stand-ins",
+      params: [
+        { name: "show", type: "bool", doc: "false puts it away (shown by default)", optional: true },
+        { name: "at", type: "string", doc: "see this commit (an id, a tag, a branch, name~n)", optional: true },
+        { name: "step", type: "integer", doc: "go this many commits back (negative) or forward in time", optional: true },
+        { name: "pictures", type: "bool", doc: "make pictures for the latest twelve commits without one", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "design.timeline at the commit seen before",
+    },
+    {
       name: "design.history",
       effect: "read",
       summary: "The design's history (D-151): the branch designed on, every branch and tag at its commit, a branch's commits newest first (message, who, when, the semantic tree's hash), and whether what runs now has changes not committed",

@@ -72,6 +72,47 @@ struct Player::Impl {
     // The modules scripts import by path, by name: when each was last seen
     // changed on disk (a saved module runs its script again).
     std::map<std::string, std::filesystem::file_time_type> module_stamps;
+    // What the person expects of the design, in their words and as a query
+    // that holds or does not (design.expect); design.check reads them against
+    // the tree as it is — facts, not an account of them.
+    struct Expectation {
+        std::string     say;
+        semantic::Query query;
+        bool            absent = false;
+    };
+    std::vector<Expectation> expectations;
+    // Where the person took the floor (design.handover): what they do after
+    // it, done, is a scenario's steps (design.save_scenario).
+    std::uint64_t handed_over_at = 0;
+
+    // The expectations read against the tree as it is.
+    Value check_expectations(std::span<const Expectation> list) {
+        semantic::Tree tree(rt);
+        Value::List results;
+        std::size_t held = 0;
+        for (const auto& x : list) {
+            const auto found = tree.find(x.query);
+            const bool holds = x.absent ? found.empty() : !found.empty();
+            held += holds;
+            Value::List nodes;
+            for (const auto& n : found) {
+                const Value face = spec::to_value(n);
+                nodes.push_back(Value{}.set("id", n.id).set("name", n.name).set("value", n.value).set("states", face.get("state") ? *face.get("state") : Value(Value::List{})));
+            }
+            Value one;
+            one.set("say", x.say).set("holds", holds).set("found", Value(std::move(nodes)));
+            // Not as expected: what the last press on the node came to (the recorder), or that it is not there.
+            if (!holds && !x.query.id.empty()) {
+                if (const NodeId node = rt.find(x.query.id); rt.valid(node)) {
+                    if (const auto why = rt.explain(rt.screen_bounds(node).center())) one.set("last_press", why->summary);
+                } else {
+                    one.set("why", std::format("no node {}", x.query.id));
+                }
+            }
+            results.push_back(std::move(one));
+        }
+        return Value{}.set("held", static_cast<double>(held)).set("of", static_cast<double>(list.size())).set("results", Value(std::move(results)));
+    }
     abi::OmuiRuntime                  handle = nullptr;
     std::vector<File>                 files;
     std::vector<std::pair<std::string, std::future<Status>>> pending;  // scripts running, by path
@@ -332,6 +373,88 @@ struct Player::Impl {
                 edited[path] = std::string(text->as_string());
                 announce(path, *done);
                 return done;
+            });
+        add({.name = "design.expect",
+             .summary = "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, "
+                        "value …), `absent` when they must not be there; with no query, lists what is expected",
+             .effect = Effect::read,
+             .args = {{"say", "string"}, {"query", "json"}, {"absent", "bool"}}},
+            [this](const Value& args) -> VerbResult {
+                if (const Value* q = args.get("query")) {
+                    auto query = semantic::Query::parse(*q);
+                    if (!query) return std::unexpected(std::format("query: {}", query.error()));
+                    const std::string say(args.get("say") ? args.get("say")->as_string() : q->json());
+                    expectations.push_back({say, std::move(*query), args.get("absent") && args.get("absent")->as_bool()});
+                }
+                Value::List list;
+                for (const auto& x : expectations)
+                    list.push_back(Value{}.set("say", x.say).set("query", x.query.to_value()).set("absent", x.absent));
+                return Value{}.set("expected", Value(std::move(list)));
+            });
+        add({.name = "design.check",
+             .summary = "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and "
+                        "states, and for a node that did not do what was expected, what the last press on it came to (the recorder)",
+             .effect = Effect::read},
+            [this](const Value&) -> VerbResult { return check_expectations(expectations); });
+        add({.name = "design.handover",
+             .summary = "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)",
+             .effect = Effect::read},
+            [this](const Value&) -> VerbResult {
+                const auto journal = rt.action_journal();
+                handed_over_at = journal.empty() ? 0 : journal.back().id;
+                if (const auto by = rt.current_invocation())
+                    rt.note({.actor = by->actor.text(), .text = "Your turn: try it, and tell me when you are done", .hands_back = true});
+                return Value{}.set("from", static_cast<double>(handed_over_at));
+            });
+        add({.name = "design.save_scenario",
+             .summary = "What the person did since design.handover — their actions that were done, as semantic steps (node, action, arguments) — and "
+                        "what is expected, written as tests/<name>.scenario.omui.json beside the application: a demonstration as a test",
+             .effect = Effect::reversible,
+             .args = {{"name", "string"}}},
+            [this](const Value& args) -> VerbResult {
+                const std::string name(args.get("name") ? args.get("name")->as_string() : "");
+                if (name.empty() || name.find_first_of("/\\.") != std::string::npos) return std::unexpected(std::string("`name`: a scenario's name, no path"));
+                Value::List steps;
+                for (const auto& entry : rt.action_journal())
+                    if (entry.id > handed_over_at && entry.actor.starts_with("person:") && entry.exit_code == 0 && entry.action != "input")
+                        steps.push_back(Value{}.set("node", entry.path).set("action", entry.action).set("args", entry.args));
+                Value::List expect;
+                for (const auto& x : expectations) expect.push_back(Value{}.set("say", x.say).set("query", x.query.to_value()).set("absent", x.absent));
+                const Value scenario = Value{}.set("omui", "0.1").set("scenario", name).set("steps", Value(steps)).set("expect", Value(std::move(expect)));
+                const auto file = manifest.base / "tests" / (name + ".scenario.omui.json");
+                std::error_code error;
+                std::filesystem::create_directories(file.parent_path(), error);
+                std::ofstream(file, std::ios::binary) << scenario.json() << '\n';
+                return Value{}.set("file", generic_utf8(file)).set("steps", static_cast<double>(steps.size()));
+            });
+        add({.name = "design.replay",
+             .summary = "A saved scenario played again: each step done as it was, then what is expected checked — the demonstration as a test",
+             .effect = Effect::reversible,
+             .args = {{"name", "string"}}},
+            [this](const Value& args) -> VerbResult {
+                const std::string name(args.get("name") ? args.get("name")->as_string() : "");
+                const auto text = read_file(manifest.base / "tests" / (name + ".scenario.omui.json"));
+                if (!text) return std::unexpected(std::format("no scenario `{}` (tests/{}.scenario.omui.json)", name, name));
+                auto scenario = parse_json(*text);
+                if (!scenario) return std::unexpected(std::format("{}: {}", name, scenario.error().text()));
+                semantic::Tree tree(rt);
+                Invocation as = rt.current_invocation().value_or(Invocation{});
+                Value::List done;
+                if (const Value* steps = scenario->get("steps"); steps && steps->list())
+                    for (const Value& step : *steps->list()) {
+                        as.args = step.get("args") ? *step.get("args") : Value{};
+                        const Envelope e = tree.act(step.get("node") ? step.get("node")->as_string() : "", step.get("action") ? step.get("action")->as_string() : "", as);
+                        FrameInput still;
+                        still.time = rt.now();
+                        (void)rt.frame(still);
+                        done.push_back(Value{}.set("node", step.get("node") ? *step.get("node") : Value{}).set("exit", static_cast<double>(e.exit_code().value_or(1))));
+                    }
+                std::vector<Expectation> expected;
+                if (const Value* list = scenario->get("expect"); list && list->list())
+                    for (const Value& x : *list->list())
+                        if (auto query = semantic::Query::parse(x.get("query") ? *x.get("query") : Value{}))
+                            expected.push_back({std::string(x.get("say") ? x.get("say")->as_string() : ""), std::move(*query), x.get("absent") && x.get("absent")->as_bool()});
+                return check_expectations(expected).set("steps", Value(std::move(done)));
             });
         add({.name = "design.discard", .summary = "Drops every edit not committed: each edited script runs its file's text again; the dropped texts are answered",
              .effect = Effect::reversible},

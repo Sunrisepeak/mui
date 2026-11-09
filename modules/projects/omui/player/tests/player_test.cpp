@@ -253,6 +253,16 @@ UTest cases{"player", [] {
         expect(eq(name_of(h, "side"), std::string("second"))) << "what ran before runs";
         expect(invoke("design.edit", Value{}.set("path", "logic/nothing.stub").set("text", first)).exit_code().value_or(0) != 0);
 
+        // What the person expects, checked as facts against the tree as it is.
+        expect(eq(invoke("design.expect", Value{}.set("say", "the side panel says second").set("query", Value{}.set("id", "side").set("name", "second")))
+                      .exit_code()
+                      .value_or(-1),
+                  0));
+        (void)invoke("design.expect", Value{}.set("say", "a help link is there").set("query", Value{}.set("id", "side/help")));
+        const auto checked = invoke("design.check");
+        const Value facts = data(checked);
+        expect(facts.get("held") && facts.get("held")->as_int() == 1 && facts.get("of")->as_int() == 2) << checked.ndjson();
+        expect(checked.ndjson().contains("\"why\":\"no node side/help\"")) << checked.ndjson();
         // Discard: the file's text runs again; the dropped edit answered.
         const auto discarded = invoke("design.discard");
         expect(eq(discarded.exit_code().value_or(-1), 0) && discarded.ndjson().contains("second")) << discarded.ndjson();
@@ -378,5 +388,45 @@ UTest cases{"player", [] {
         expect(png.has_value());
         if (png) std::ofstream(dir / "design-edit.strip.png", std::ios::binary).write(reinterpret_cast<const char*>(png->data()), static_cast<std::streamsize>(png->size()));
         std::println("design edit strip: {}", (dir / "design-edit.strip.png").string());
+    };
+
+    "a demonstration as a test: the person's steps after design.handover saved as a scenario with what is expected, replayed on a fresh start"_test = [] {
+        const auto dir = scratch_dir("player-scenario");
+        write(dir / "ui" / "main.view.omui.json", counter);
+        write(dir / "ui" / "badge.view.omui.json", badge_doc);
+        player::Manifest m;
+        m.id = "org.openmui.player-scenario";
+        m.base = dir;
+        m.components = {"ui/badge.view.omui.json"};
+        m.views = {"ui/main.view.omui.json"};
+        const auto as_agent = [](Headless& h, std::string_view verb, Value args = Value(Value::Map{})) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            return h.runtime().verbs().invoke(verb, call);
+        };
+        {
+            Headless h(HeadlessOptions{.size = {320, 240}});
+            player::Player p(h.runtime(), m, {stub()}, {.design = true});
+            expect(p.start().has_value());
+            h.settle();
+            expect(eq(as_agent(h, "design.handover").exit_code().value_or(-1), 0));
+            Invocation person;  // the person, at the machine
+            expect(eq(h.tree().act("main/inc", "activate", person).exit_code().value_or(-1), 0));
+            h.settle();
+            expect(eq(name_of(h, "main/n"), std::string("1 clicks")));
+            (void)as_agent(h, "design.expect", Value{}.set("say", "one click counted").set("query", Value{}.set("id", "main/n").set("name", "1 clicks")));
+            const auto saved = as_agent(h, "design.save_scenario", Value{}.set("name", "one-click"));
+            expect(eq(saved.exit_code().value_or(-1), 0) && saved.ndjson().contains("\"steps\":1")) << saved.ndjson();
+        }
+        expect(file_text(dir / "tests" / "one-click.scenario.omui.json").contains("\"node\":\"main/inc\""));
+        // A fresh start: the count is 0 again, and the scenario brings it to what was expected.
+        Headless h(HeadlessOptions{.size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true});
+        expect(p.start().has_value());
+        h.settle();
+        expect(eq(name_of(h, "main/n"), std::string("0 clicks")));
+        const auto replayed = as_agent(h, "design.replay", Value{}.set("name", "one-click"));
+        expect(eq(replayed.exit_code().value_or(-1), 0) && replayed.ndjson().contains("\"held\":1") && replayed.ndjson().contains("\"of\":1")) << replayed.ndjson();
     };
 }};

@@ -10,4 +10,6 @@ The player (component-binding §9, §10.2): what a script-first application runs
   - a saved script runs again, keeping its signals.
 - **Problems**: a file with a mistake changes nothing, and the error is logged and kept in `problems()` with its place (`ui/main.view.omui.json:1:43: error: no component is named "colum"`). What cannot start is reported together by `start()`.
 
+- **Development mode** (`PlayerOptions::design`, the entry's `--dev`, `omui dev`; D-149): the application is its own designer. `design.sources` (the text each script and imported module runs), `design.edit` (new text run at once, state kept, its semantic changes and time answered; presented — what it adds written in, what it removes unwritten — and an agent's edit noted beside it), `design.expect`/`design.check` (what the person expects, checked as facts), `design.handover`/`design.save_scenario`/`design.replay` (a demonstration saved as `tests/<name>.scenario.omui.json` and played again), `design.commit`/`design.discard`.
+
 Observability: the log category `player`, and the trace spans `player.start` and `player.reload`.

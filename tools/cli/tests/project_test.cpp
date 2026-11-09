@@ -206,7 +206,39 @@ UTest cases{"cli.project", [] {
         if (!read.empty()) {
             expect(read.front().get("agent")->get("release")->as_string() == "dual-user") << "omui.config.ts over the default";
             expect(read.front().get("record")->get("development")->as_string() == "full") << "the default where it says nothing";
+            expect(read.front().get("designer")->get("development")->as_bool() && !read.front().get("designer")->get("release")->as_bool())
+                << "the designer linked in development, left out of a release";
         }
+    };
+
+    "the designer is linked as omui.config.ts says: in development by default, in a release when the application ships it"_test = [] {
+        const auto root = temp_dir() / "designer";
+        std::filesystem::create_directories(root);
+        std::ofstream(root / "mcpp.toml") << "[package\n";  // mcpp stops at once: the commands are what is looked at
+        const auto here = std::filesystem::current_path();
+        std::filesystem::current_path(root);
+        const auto command_of = [](std::vector<std::string> line) {
+            const auto ran = records(invoke(std::move(line)).out);
+            std::string joined;
+            if (!ran.empty())
+                for (const Value& part : *ran.front().get("command")->list()) joined += std::string(part.as_string()) + " ";
+            return joined;
+        };
+        const std::string developing = command_of({"omui", "dev", "--json"});
+        const std::string shipping = command_of({"omui", "build", "--release", "--json"});
+        std::ofstream(root / "omui.config.ts") << "import { defineConfig } from \"omui/define\";\n"
+                                                  "export default defineConfig({ designer: { development: false, release: true } });\n";
+        const std::string plain = command_of({"omui", "dev", "--json"});
+        const std::string tool = command_of({"omui", "build", "--release", "--json"});
+        std::ofstream(root / "omui.config.ts") << "import { defineConfig } from \"omui/define\";\n"
+                                                  "export default defineConfig({ designer: { release: \"yes\" } });\n";
+        const auto refused = invoke({"omui", "build", "--json"});
+        std::filesystem::current_path(here);
+        expect(developing.contains("--features omui.entry.player/design -- --dev")) << developing;
+        expect(!shipping.contains("omui.entry.player/design") && shipping.contains("build --release")) << shipping;
+        expect(!plain.contains("omui.entry.player/design") && plain.contains("run -- --dev")) << plain;
+        expect(tool.contains("build --release --features omui.entry.player/design")) << tool;
+        expect(eq(refused.code, 1) && refused.err.contains("designer.release is true or false")) << refused.err;
     };
 }};
 

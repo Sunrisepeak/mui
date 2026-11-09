@@ -537,13 +537,42 @@ UTest cases{"designer", [] {
         expect(eq(name_of(h, "side/hello"), std::string("deux"))) << "time, across branches";
         expect(eq(invoke("design.timeline", Value{}.set("at", "main")).first, 0));
         expect(eq(name_of(h, "side/hello"), std::string("three")));
+        // Dragged along the scrubber: each commit the hand passes is seen; let go, a pointer passing changes nothing.
+        const auto track = h.tree().node("design-timeline/panel/scrub/track");
+        expect(track.has_value()) << "the scrubber under the lanes";
+        if (track) {
+            const Rect along = h.runtime().screen_bounds(h.runtime().find("design-timeline/panel/scrub/track"));
+            const auto at_column = [&](std::size_t column) {
+                return Point{along.x + static_cast<float>(column) * 74.0f + 34.0f, along.y + along.height / 2};
+            };
+            const auto pointer = [&](PointerKind kind, std::size_t column) {
+                PointerEvent event;
+                event.kind = kind;
+                event.position = at_column(column);
+                event.button = MouseButton::left;
+                event.buttons = kind == PointerKind::up ? 0 : 1;
+                (void)h.step({event});
+                h.settle();
+                return name_of(h, "side/hello");
+            };
+            expect(eq(pointer(PointerKind::down, 0), std::string("one"))) << "pressed on the first column";
+            expect(eq(pointer(PointerKind::move, 1), std::string("two"))) << "dragged to the second";
+            expect(eq(pointer(PointerKind::move, 3), std::string("deux"))) << "on to the last, across branches";
+            expect(eq(pointer(PointerKind::up, 3), std::string("deux")));
+            PointerEvent passing;
+            passing.kind = PointerKind::move;
+            passing.position = at_column(0);
+            (void)h.step({passing});
+            h.settle();
+            expect(eq(name_of(h, "side/hello"), std::string("deux"))) << "let go: passing over it is not a drag";
+        }
         // Two compared: the person presses Compare, then two commits.
         expect(eq(press("design-timeline/panel/bar/compare"), 0));
         const std::string last(main_commits.back().get("id")->as_string());
         for (const auto& id : {first, last}) expect(eq(press(std::format("design-timeline/panel/lanes/branches/lane-main/commits/commit-{}", id.substr(0, 12))), 0));
         const auto note = h.tree().node("design-timeline/panel/note");
         expect(note.has_value() && note->name.contains("logic/side.stub from line 2")) << (note ? note->name : std::string("<none>"));
-        expect(eq(name_of(h, "side/hello"), std::string("three"))) << "comparing changes nothing";
+        expect(eq(name_of(h, "side/hello"), std::string("deux"))) << "comparing changes nothing";
         // Put away.
         expect(eq(invoke("design.timeline", Value{}.set("show", false)).first, 0));
         expect(!h.tree().node("design-timeline/panel/bar/back").has_value());

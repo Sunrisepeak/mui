@@ -474,7 +474,7 @@ int run(std::span<const std::string> argv, std::ostream& out, std::ostream& err)
                "  omui design film     the design's history as a film (WebM): each step as it was presented, captioned\n"
                "  omui package [--format F]   the application packaged to give away (mcpp pack)\n"
                "  omui add | remove PKG    a dependency; omui deps lists them; omui tools: the xlings tools it names (--install)\n"
-               "  omui config          omui.config.ts as the player reads it: agents' level, what the recorder keeps\n"
+               "  omui config          omui.config.ts as the player reads it: agents' level, the recorder, the designer\n"
                "  omui doctor          which tools are there, which are missing\n\n"
                "  omui agent ls | describe | snapshot | changes | find | act | wait | capture | call\n"
                "  omui agent inspect | stats | profile | logs | debug | pipeline | clock   (development: what the application is doing)\n"

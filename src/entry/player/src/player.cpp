@@ -137,6 +137,7 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
 // omui.config.ts beside the manifest (defineConfig, evaluated as data):
 //   agent:  { development?: mode, release?: mode }   automatic, development, dual-user
 //   record: { development?: level, release?: level } off, errors, actions, interactions, full
+//   designer: whether the designer is linked — omui dev and omui build read it (the player runs what it was built with)
 struct Config {
     std::optional<std::string> development_agent, release_agent;
     std::optional<RecordLevel> development_record, release_record;

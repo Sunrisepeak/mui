@@ -168,11 +168,15 @@ struct Timeline {
     std::string               note;  // what the last press came to, or how to use it
     bool                      comparing = false;
 };
+// The scrubber under the lanes: pressed, dragged along, let go — each
+// column the pointer reaches is shown as it passes (playing the history back).
+enum class Scrub { press, drag, release };
 struct TimelineHandlers {
-    std::function<void(const std::string&)> open;    // a commit pressed: shown
-    std::function<void(const std::string&)> select;  // a commit pressed while comparing
-    std::function<void(int)>                step;    // back or forward in time
-    std::function<void()>                   compare, close;
+    std::function<void(const std::string&)>  open;    // a commit pressed: shown
+    std::function<void(const std::string&)>  select;  // a commit pressed while comparing
+    std::function<void(int)>                 step;    // back or forward in time
+    std::function<void(Scrub, std::size_t)>  scrub;   // the column under the pointer
+    std::function<void()>                    compare, close;
 };
 
 inline Element timeline_view(Size window, const Timeline& model, const TimelineHandlers& handlers) {
@@ -187,7 +191,7 @@ inline Element timeline_view(Size window, const Timeline& model, const TimelineH
         std::size_t next = first;
         for (const TimelineCommit& commit : lane.commits) {
             if (commit.column < first) continue;
-            for (; next < commit.column; ++next) cells.push_back(box({.width = cell, .height = thumb_height + 18}));
+            for (; next < commit.column; ++next) cells.push_back(box({.width = cell - 6, .height = thumb_height + 18}));
             const std::string id = commit.id;
             const Handler pressed = model.comparing ? Handler([handlers, id](const Value&) { handlers.select(id); })
                                                     : Handler([handlers, id](const Value&) { handlers.open(id); });
@@ -216,6 +220,32 @@ inline Element timeline_view(Size window, const Timeline& model, const TimelineH
                                         .color = Fill(std::string(lane.head ? accent : ink)), .wrap = false, .max_lines = 1})}),
                              row({.id = "commits", .gap = 6}, std::move(cells))}));
     }
+    // The scrubber: a tick a column, the shown one lit; a drag along it plays the history back.
+    std::vector<Element> ticks;
+    std::size_t shown_column = model.columns;
+    for (const TimelineLane& lane : model.lanes)
+        for (const TimelineCommit& commit : lane.commits)
+            if (commit.shown) shown_column = commit.column;
+    for (std::size_t column = first; column < model.columns; ++column)
+        ticks.push_back(box({.width = cell - 6, .height = 6, .background = Fill(std::string(column == shown_column ? accent : "#334155")), .radius = 3}));
+    const auto scrubbed = [handlers, first](Scrub kind) {
+        return Handler([handlers, first, kind](const Value& event) {
+            const double along = event.get("x") ? event.get("x")->as_double() : 0;
+            handlers.scrub(kind, first + static_cast<std::size_t>(std::max(0.0, along) / cell));
+        });
+    };
+    Element scrubber = row({.id = "scrub", .gap = 6, .align = "center"},
+                           {box({.width = lane_label}, {text({.text = "Time", .style = "caption", .color = Fill(std::string(muted))})}),
+                            row({.id = "track",
+                                 .height = 18,
+                                 .gap = 6,
+                                 .align = "center",
+                                 .label = "Drag through the design's history",
+                                 .on = {{"pointer_down", scrubbed(Scrub::press)},
+                                        {"pointer_move", scrubbed(Scrub::drag)},
+                                        {"pointer_up", scrubbed(Scrub::release)},
+                                        {"pointer_cancel", scrubbed(Scrub::release)}}},
+                                std::move(ticks))});
     Element panel = column({.id = "panel",
                             .width = window.width,
                             .height = panel_height,
@@ -231,6 +261,7 @@ inline Element timeline_view(Size window, const Timeline& model, const TimelineH
                                       model.comparing ? "#1c1917" : std::string(ink), [handlers](const Value&) { handlers.compare(); }),
                                  chip("close", "Close", "#1e293b", std::string(ink), [handlers](const Value&) { handlers.close(); })}),
                             scroll({.id = "lanes", .grow = 1}, {column({.id = "branches", .gap = 6}, std::move(lanes))}),
+                            std::move(scrubber),
                             text({.id = "note", .text = model.note, .style = "caption", .color = Fill(std::string(muted)), .wrap = false, .max_lines = 2})});
     return column({.width = window.width, .height = window.height, .justify = "end"}, {std::move(panel)});
 }

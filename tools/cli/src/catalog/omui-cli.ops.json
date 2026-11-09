@@ -20,7 +20,7 @@
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.tools", "description": "The tools the project names for xlings, and whether each is installed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
-    {"name": "omui.config", "description": "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+    {"name": "omui.config", "description": "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "omui.add", "description": "Adds a dependency to mcpp.toml (mcpp add)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "omui.remove", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"package": {"type": "string", "description": "a package of mcpp-index, as name or name@version"}}, "required": ["package"]}},

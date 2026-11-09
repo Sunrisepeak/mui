@@ -386,6 +386,7 @@ private:
                                {.open = [this](const std::string& id) { (void)see_commit(id); },
                                 .select = [this](const std::string& id) { select_commit(id); },
                                 .step = [this](int by) { (void)step_in_time(by); },
+                                .scrub = [this](Scrub kind, std::size_t column) { scrub(kind, column); },
                                 .compare =
                                     [this] {
                                         comparing = !comparing;
@@ -398,6 +399,19 @@ private:
                                         timeline_open = false;
                                         rt.unmount("design-timeline");
                                     }}));
+    }
+
+    // The scrubber dragged (D-151 §2.14): every commit the pointer passes is
+    // shown as it passes — the history played back, as fast as the hand goes.
+    bool scrubbing = false;
+    void scrub(Scrub kind, std::size_t column) {
+        if (kind == Scrub::press) scrubbing = true;
+        if (!scrubbing) return;  // the pointer only passing over it
+        if (kind == Scrub::release) scrubbing = false;
+        const auto in_time = commits_in_time();
+        if (in_time.empty()) return;
+        const DesignCommit& reached = in_time[std::min(column, in_time.size() - 1)];
+        if (reached.id != shown_now()) (void)see_commit(reached.id);
     }
 
     // A commit seen (the timeline's press, its steps): its texts run, the

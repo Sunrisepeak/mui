@@ -41,6 +41,8 @@ export interface ByMode<T> {
 export interface Config {
     agent?: ByMode<AgentMode>;
     record?: ByMode<RecordLevel>;
+    /** Whether the designer is linked (D-149): in development by default; a release leaves it out at compile time unless the application is a design tool that ships it. */
+    designer?: ByMode<boolean>;
 }
 /** `export default defineConfig({ agent: { release: "dual-user" } })`; a switch given at launch wins. */
 export declare function defineConfig(config: Config): Defined<"config">;

@@ -195,40 +195,61 @@ int tools(bool json, std::ostream& out, std::ostream& err) {
     return missing ? 1 : 0;
 }
 
-int config(bool json, std::ostream& out, std::ostream& err) {
-    // The player's defaults (D-155, D-148), then what omui.config.ts says over them.
-    Value config = Value{}
-                       .set("agent", Value{}.set("development", "development").set("release", "automatic"))
-                       .set("record", Value{}.set("development", "full").set("release", "errors"));
-    std::string from = "the defaults (no omui.config.ts)";
-    if (std::filesystem::exists("omui.config.ts")) {
-        auto data = lang::ts::evaluate("omui.config.ts");
-        if (!data) {
-            err << std::format("omui config: {}\n", data.error());
-            return 1;
-        }
-        if (data->kind != "config") {
-            err << std::format("omui config: omui.config.ts's default export is defineConfig(…), not a {}\n", data->kind);
-            return 1;
-        }
-        const auto given = parse_json(data->json);
-        if (given && given->map())
-            for (const auto& [section, value] : *given->map())
-                if (const Value* defaults = config.get(section); defaults && value.map()) {
-                    Value table = *defaults;
-                    for (const auto& [mode, level] : *value.map()) table.set(mode, level);
-                    config.set(section, std::move(table));
+// The player's defaults (D-155, D-148, D-149), then what omui.config.ts says over them: each
+// setting's value in development and in a release, and where they came from.
+struct Config {
+    Value settings;
+    std::string from;
+    bool designer(bool development) const {
+        const Value* linked = settings.get("designer")->get(development ? "development" : "release");
+        return linked->as_bool();
+    }
+};
+
+std::expected<Config, std::string> read_config() {
+    Config config{Value{}
+                      .set("agent", Value{}.set("development", "development").set("release", "automatic"))
+                      .set("record", Value{}.set("development", "full").set("release", "errors"))
+                      .set("designer", Value{}.set("development", true).set("release", false)),
+                  "the defaults (no omui.config.ts)"};
+    if (!std::filesystem::exists("omui.config.ts")) return config;
+    auto data = lang::ts::evaluate("omui.config.ts");
+    if (!data) return std::unexpected(data.error());
+    if (data->kind != "config") return std::unexpected(std::format("omui.config.ts's default export is defineConfig(…), not a {}", data->kind));
+    const auto given = parse_json(data->json);
+    if (given && given->map())
+        for (const auto& [section, value] : *given->map())
+            if (const Value* defaults = config.settings.get(section); defaults && value.map()) {
+                Value table = *defaults;
+                for (const auto& [mode, setting] : *value.map()) {
+                    if (section == "designer" && setting.type() != Value::Type::boolean)
+                        return std::unexpected(std::format("omui.config.ts: designer.{} is true or false", mode));
+                    table.set(mode, setting);
                 }
-        from = "omui.config.ts over the defaults";
+                config.settings.set(section, std::move(table));
+            }
+    config.from = "omui.config.ts over the defaults";
+    return config;
+}
+
+int config(bool json, std::ostream& out, std::ostream& err) {
+    const auto config = read_config();
+    if (!config) {
+        err << std::format("omui config: {}\n", config.error());
+        return 1;
     }
     if (json) {
-        out << Value(config).set("from", from).json() << '\n';
+        out << Value(config->settings).set("from", config->from).json() << '\n';
         return 0;
     }
-    for (const std::string_view section : {"agent", "record"})
-        for (const std::string_view mode : {"development", "release"})
-            out << std::format("{:7} {:12} {}\n", section, mode, config.get(section)->get(mode)->as_string());
-    out << std::format("({})\n", from);
+    for (const std::string_view section : {"agent", "record", "designer"})
+        for (const std::string_view mode : {"development", "release"}) {
+            const Value* setting = config->settings.get(section)->get(mode);
+            const std::string shown = setting->type() == Value::Type::boolean ? (setting->as_bool() ? "linked" : "left out")
+                                                                              : std::string(setting->as_string());
+            out << std::format("{:8} {:12} {}\n", section, mode, shown);
+        }
+    out << std::format("({})\n", config->from);
     return 0;
 }
 
@@ -318,7 +339,7 @@ cmd::App project_command(std::string_view name) {
             .option(json);
     if (name == "config")
         return App("config")
-            .description("The project's omui.config.ts as the player reads it: how far agents may go, what the recorder keeps, in development and a release")
+            .description("The project's omui.config.ts as the player reads it: how far agents may go, what the recorder keeps, whether the designer is linked, in development and a release")
             .option(json);
     return App("doctor").description("Says which tools are there and which are missing, and what each is for").option(json);
 }
@@ -383,17 +404,25 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
             return 2;
         }
         ran = run_tool("mcpp", {"new", *p.value("name"), "--template", "openmui:" + chosen}, err);
-    } else if (name == "dev") {
-        // The designer is linked in development only (D-149: a release leaves it out).
-        std::vector<std::string> args{"run", "--features", "omui.entry.player/design", "--", "--dev"};
-        if (p.is_flag_set("headless")) args.push_back("--serve");  // headless, kept running for agents
-        std::ranges::move(rest_of(p, 0), std::back_inserter(args));
-        ran = run_tool("mcpp", std::move(args), err);
-    } else if (name == "run" || name == "build") {
-        std::vector<std::string> args{std::string(name)};
-        if (p.is_flag_set("release")) args.push_back("--release");
+    } else if (name == "dev" || name == "run" || name == "build") {
+        // The designer is linked as omui.config.ts says: in development by default, left out of a
+        // release at compile time (D-149) unless the application is a design tool that ships it.
+        const auto config = read_config();
+        if (!config) {
+            err << std::format("omui {}: {}\n", name, config.error());
+            return 1;
+        }
+        const bool development = name == "dev";
+        std::vector<std::string> args{development ? "run" : std::string(name)};
+        if (!development && p.is_flag_set("release")) args.push_back("--release");
+        if (config->designer(development)) args.insert(args.end(), {"--features", "omui.entry.player/design"});
         auto rest = rest_of(p, 0);
-        if (!rest.empty() && name == "run") args.push_back("--");
+        if (development) {
+            args.insert(args.end(), {"--", "--dev"});
+            if (p.is_flag_set("headless")) args.push_back("--serve");  // headless, kept running for agents
+        } else if (!rest.empty() && name == "run") {
+            args.push_back("--");
+        }
         std::ranges::move(rest, std::back_inserter(args));
         ran = run_tool("mcpp", std::move(args), err);
     } else if (name == "test") {

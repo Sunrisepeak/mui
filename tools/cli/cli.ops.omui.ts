@@ -41,7 +41,7 @@ export default defineOps({
     { name: "omui.describe", effect: "read", summary: "What writing for the project takes: every builder, native module, theme token and verb, as JSON", result: "json", cost: "heavy" },
     { name: "omui.deps", effect: "read", summary: "The project's dependencies as its mcpp.toml declares them", result: "json", cost: "instant" },
     { name: "omui.tools", effect: "read", summary: "The tools the project names for xlings, and whether each is installed", result: "json", cost: "bounded" },
-    { name: "omui.config", effect: "read", summary: "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps", result: "json", cost: "bounded" },
+    { name: "omui.config", effect: "read", summary: "The project's omui.config.ts over the defaults: how far agents may go, what the recorder keeps, whether the designer is linked", result: "json", cost: "bounded" },
     {
       name: "omui.add",
       effect: "reversible",

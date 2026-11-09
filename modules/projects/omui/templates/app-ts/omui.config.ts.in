@@ -6,9 +6,11 @@
 //           to it. dual-user — it asks you before what cannot be undone.
 //           automatic — what the build profile says.
 //   record: off, errors, actions, interactions, full (what input did: `ui.explain`).
+//   designer: whether Live Design is linked; a release leaves it out at compile time.
 import { defineConfig } from "omui/define";
 
 export default defineConfig({
   agent: { development: "development", release: "dual-user" },
   record: { development: "full", release: "errors" },
+  designer: { development: true, release: false },
 });

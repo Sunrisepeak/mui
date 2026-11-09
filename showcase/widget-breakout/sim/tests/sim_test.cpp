@@ -15,6 +15,7 @@ import std;
 import xengine.input;
 import xengine.dynamics;
 import mlibs.simulation;
+import mlibs.hash;
 import omui.showcase.widget_breakout.sim;
 import mcpplibs.mtest;
 

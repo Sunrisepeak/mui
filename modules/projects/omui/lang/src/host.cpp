@@ -14,13 +14,29 @@ std::string Error::text() const {
 // What the script thread asks of the runtime's thread.
 struct Host::Inbox {
     std::mutex                        mutex;
+    std::condition_variable           arrived;  // a task pushed, or a wait's end told (wake)
     std::deque<std::function<void()>> tasks;
     std::atomic<int>                  in_flight{0};  // queued and not yet done
 
     void push(std::function<void()> fn) {
         in_flight.fetch_add(1);
-        std::scoped_lock lock(mutex);
-        tasks.push_back(std::move(fn));
+        {
+            std::scoped_lock lock(mutex);
+            tasks.push_back(std::move(fn));
+        }
+        arrived.notify_all();
+    }
+    // Tells a wait that what it waits for may hold now.
+    void wake() {
+        { std::scoped_lock lock(mutex); }
+        arrived.notify_all();
+    }
+    // Until a task is here or `done` holds: no polling (a timed sleep is a
+    // whole scheduler tick on Windows, about 15 ms).
+    template <class Done>
+    void wait(Done&& done) {
+        std::unique_lock lock(mutex);
+        arrived.wait(lock, [&] { return !tasks.empty() || done(); });
     }
     void drain() {
         while (true) {
@@ -154,13 +170,14 @@ void Host::run_on_script(std::function<void()> fn) {
         urgent_.push_back([&] {
             fn();
             finished.store(true);
+            inbox_->wake();
         });
     }
     wake_.notify_all();
-    // Meanwhile, what the script asks of this thread is done here.
+    // Meanwhile, what the script asks of this thread is done here, as it arrives.
     while (!finished.load()) {
         drain();
-        std::this_thread::sleep_for(std::chrono::microseconds(200));
+        inbox_->wait([&] { return finished.load(); });
     }
     drain();
 }

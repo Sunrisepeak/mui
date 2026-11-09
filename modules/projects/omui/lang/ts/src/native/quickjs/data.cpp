@@ -185,7 +185,9 @@ std::expected<Data, std::string> evaluate(const std::filesystem::path& file, con
     const std::string source{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
     std::error_code error;
     const auto absolute = std::filesystem::absolute(file, error);
-    return evaluate_source(source, mcpplibs::os::fs::utf8(error ? file : absolute), options);
+    // Named with `/` (generic) everywhere: QuickJS finds a relative import's base at the name's last `/`,
+    // so on Windows a `\`-separated name would make `./shared` no path at all.
+    return evaluate_source(source, mcpplibs::os::fs::generic_utf8(error ? file : absolute), options);
 }
 
 std::expected<Data, std::string> evaluate_source(std::string_view source, std::string_view name, const DataOptions& options) {

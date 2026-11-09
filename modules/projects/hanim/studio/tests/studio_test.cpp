@@ -141,7 +141,8 @@ UTest cases{"hanim.studio", [] {
         auto ring = drawn ? studio::Studio::open(*drawn) : std::unexpected(drawn.error());
         expect(ring.has_value()) << (ring ? "" : studio::to_text(ring.error()));
         if (ring) {
-            const auto& state = find(*ring->state(hanim::seconds(0)), "ring");
+            const auto shown = *ring->state(hanim::seconds(0));  // kept: `find` answers a part of it
+            const auto& state = find(shown, "ring");
             expect(std::abs(state.high.x - state.low.x - 20) < .01) << std::format("a ring 20 across: {}", state.high.x - state.low.x);
         }
         const auto broken_path = studio::read(R"({"version": 1, "objects": [{"id": "a", "shape": {"path": "M0 0 L5"}, "fill": "#fff"}], "program": {"do": "pulse", "object": "a"}})");

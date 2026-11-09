@@ -87,7 +87,7 @@ UTest cases{"example.headless-and-agent", [] {
             if (line.empty()) continue;
             ++n;
             auto req = parse_json(line).value();
-            const Value expect = *req.get("expect");
+            const Value wanted = *req.get("expect");
             std::erase_if(*req.map(), [](const auto& kv) { return kv.first == "expect"; });
             std::vector<Value> records;
             p.request(req.json(), [&](std::string_view l) { records.push_back(parse_json(l).value()); });
@@ -98,10 +98,10 @@ UTest cases{"example.headless-and-agent", [] {
             expect(!records.empty()) << std::format("line {}: no answer", n);
             if (records.empty()) continue;
             const std::int64_t exit = records.back().get("exitCode")->as_int(-1);
-            expect(exit == expect.get("exit")->as_int()) << std::format("line {}: exit {} for {}", n, exit, line);
-            if (const Value* code = expect.get("code"))
+            expect(exit == wanted.get("exit")->as_int()) << std::format("line {}: exit {} for {}", n, exit, line);
+            if (const Value* code = wanted.get("code"))
                 expect(records.front().get("code") && records.front().get("code")->as_string() == code->as_string()) << std::format("line {}: {}", n, records.front().json());
-            if (const Value* count = expect.get("nodes")) {
+            if (const Value* count = wanted.get("nodes")) {
                 const Value* nodes = records.front().get("data") ? records.front().get("data")->get("nodes") : nullptr;
                 expect(nodes && nodes->list() && static_cast<std::int64_t>(nodes->list()->size()) == count->as_int()) << std::format("line {}: {}", n, records.front().json());
             }

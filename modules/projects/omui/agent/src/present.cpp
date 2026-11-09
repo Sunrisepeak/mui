@@ -188,6 +188,9 @@ const xrender::DisplayList* Presentation::receive(std::chrono::milliseconds wait
         if (left.count() < 0) return nullptr;
         auto chunk = connection_.read_for(left);
         if (!chunk) {
+            // Asked again later (a signal came between, nothing yet); else the application is gone.
+            if (chunk.error().code == mcpplibs::os::errc::again || chunk.error().code == mcpplibs::os::errc::timed_out) return nullptr;
+            mlibs::log::info("present: the application's connection ended: {}", chunk.error().message());
             gone_ = true;
             return nullptr;
         }

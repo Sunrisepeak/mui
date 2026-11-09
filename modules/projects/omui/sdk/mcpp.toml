@@ -33,7 +33,7 @@ omui.ui.window     = { path = "../components/window" }
 omui.host.headless = { path = "../host/headless" }
 "mlibs.i18n"        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
-mcpplibs.os           = "0.4.1"
+mcpplibs.os           = "0.4.2"
 # The development host (:devhost) draws the application's frames itself, glyphs too.
 xrender.vector        = { path = "../../xrender/vector" }
 xrender.raster        = { path = "../../xrender/raster" }
@@ -58,7 +58,7 @@ sources = ["src/host/web/*.cppm", "src/host/web/*.cpp"]
 # SDK startup CTS exercise the actual generated profile and AppSpec run path.
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 
 [test]
 discover = ["tests/*_test.cpp"]

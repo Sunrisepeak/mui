@@ -59,7 +59,7 @@ omui.example.hello-im       = { path = "../examples/01-hello-im" }  # getting st
 omui.semantic    = { path = "../modules/projects/omui/semantic" }
 mlibs.utils       = { path = "../modules/base/utils" }
 omui.inspector   = { path = "../tools/inspector" }
-mcpplibs.os         = "0.4.1"
+mcpplibs.os         = "0.4.2"
 
 [build-dependencies]
 omui.build.contracts = { path = "../mcpp/contracts", host-module = true }
@@ -67,7 +67,7 @@ omui.build.embed     = { path = "../mcpp/embed", host-module = true }
 omui.build.toy       = { path = "../mcpp/toy", host-module = true }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 "omui.theme.default" = { path = "../modules/projects/omui/theme/default" }  # the staged theme's snapshot (quality_lab_test)
 xrender.text = { path = "../modules/projects/xrender/text" }
 mlibs.math = { path = "../modules/base/math" }

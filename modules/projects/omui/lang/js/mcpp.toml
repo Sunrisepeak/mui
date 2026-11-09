@@ -33,7 +33,7 @@ sources = ["src/native/web/*.cpp"]
 omui.abi    = { path = "../../abi" }
 omui.player = { path = "../../player" }
 openlifa.openmui = { path = "../../../../../spec" }
-mcpplibs.os       = "0.4.1"
+mcpplibs.os       = "0.4.2"
 nlohmann.json     = "3.12.0"
 
 [target.'cfg(not(os = "emscripten"))'.dependencies]
@@ -41,7 +41,7 @@ mcpplibs.mwrap.quickjs_ng = "0.17.0"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).
-mcpplibs.mtest     = "0.5.0"
+mcpplibs.mtest     = "0.5.2"
 mlibs.utils       = { path = "../../../../base/utils" }
 omui.cts           = { path = "../../cts" }
 omui.native.fuzzy  = { path = "../../native/fuzzy" }

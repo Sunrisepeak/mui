@@ -52,7 +52,7 @@ omui.showcase.style_gallery = { path = "../../showcase/style-gallery" }
 omui.theme.styles    = { path = "../../modules/projects/omui/theme/styles" }
 "mlibs.rhi"           = { path = "../../modules/gfx/rhi" }
 "xrender.rhi.sdl"       = { path = "../../modules/projects/xrender/rhi/sdl" }
-mcpplibs.os           = "0.4.1"
+mcpplibs.os           = "0.4.2"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"

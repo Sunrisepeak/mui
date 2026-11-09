@@ -28,5 +28,5 @@ sources = ["src/*.cpp"]
 mcpplibs.cmdline = "0.0.3"
 xengine.timeline = { path = "../timeline" }
 mlibs.utils      = { path = "../../../base/utils" }
-mcpplibs.os      = "0.4.1"
+mcpplibs.os      = "0.4.2"
 nlohmann.json    = "3.12.0"

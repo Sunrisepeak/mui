@@ -7,6 +7,7 @@ import omui.abi;
 import omui.theme;
 import omui.semantic;
 import mlibs.trace;
+import mcpplibs.os;
 
 namespace omui {  // names this file uses unqualified, from their owner
 using mlibs::log::Log;
@@ -90,6 +91,10 @@ struct Player::Impl {
     std::vector<std::string>          problems;
     std::uint64_t                     timer = 0;
     seconds                           period{0.1};
+    // The system's notice of the files saved (mcpplibs.os's watcher): a look at the stamps only when
+    // it says a name changed; where it gives none, a look every period as before.
+    std::optional<mcpplibs::os::fs::watcher> watcher;
+    std::set<std::filesystem::path>          watched;
 
     Impl(Runtime& r, Manifest m, std::vector<Language> l, PlayerOptions o)
         : rt(r), manifest(std::move(m)), languages(std::move(l)), options(o) {
@@ -627,10 +632,30 @@ std::vector<std::string> Player::poll() {
 void Player::watch(seconds period) {
     Impl& d = *impl_;
     d.period = period;
+    if (!d.watcher)
+        if (auto opened = mcpplibs::os::fs::watcher::open()) d.watcher.emplace(std::move(*opened));
     d.timer = d.rt.after(period, [this] {
-        impl_->timer = 0;
-        (void)poll();
-        watch(impl_->period);
+        Impl& d = *impl_;
+        d.timer = 0;
+        bool look = true;
+        if (d.watcher) {
+            // Every file the application is made of, the modules its scripts import too (they come and go).
+            bool added = false;  // a name watched from now: what it was before is not told, so a look this time
+            const auto add = [&](const std::filesystem::path& file) {
+                if (d.watched.insert(file).second) {
+                    (void)d.watcher->add(file);
+                    added = true;
+                }
+            };
+            for (const auto& f : d.files) {
+                add(d.full(f.path));
+                if (f.engine)
+                    for (const auto& m : f.engine->modules()) add(m);
+            }
+            look = added || !d.watcher->notified() || !d.watcher->changed().empty();
+        }
+        if (look) (void)poll();
+        watch(d.period);
     });
 }
 

@@ -36,7 +36,7 @@ omui.sdk = { path = "../../modules/projects/omui/sdk" }
 "xengine.cellular.present" = { path = "../../modules/projects/xengine/cellular/present" }
 # The motion workbench reads, draws and tunes hanim's animation documents.
 "hanim.studio" = { path = "../../modules/projects/hanim/studio" }
-mcpplibs.os = "0.4.1"
+mcpplibs.os = "0.4.2"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"

@@ -232,6 +232,13 @@ std::expected<Config, std::string> read_config() {
     return config;
 }
 
+// A project the player runs (TypeScript, D-138): its manifest names the player's entry. Else its
+// own main, in C++.
+bool scripted_project() {
+    const auto manifest = mcpplibs::os::fs::read("mcpp.toml");
+    return !manifest || manifest->contains("omui.entry.player");
+}
+
 int config(bool json, std::ostream& out, std::ostream& err) {
     const auto config = read_config();
     if (!config) {
@@ -283,7 +290,7 @@ cmd::App project_command(std::string_view name) {
             .option(json);
     if (name == "dev")
         return App("dev")
-            .description("Runs the application in development mode: the application is its own designer, a person and an agent design it live (D-149)")
+            .description("Runs the application in development mode: the application is its own designer, a person and an agent design it live (D-149); an application in C++ runs in the development host, rebuilt as its sources change (W16)")
             .option(Option("headless").help("no window: an agent designs through the protocol (the same operations, the same pixels)"))
             .option(json);
     if (name == "run")
@@ -404,6 +411,13 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
             return 2;
         }
         ran = run_tool("mcpp", {"new", *p.value("name"), "--template", "openmui:" + chosen}, err);
+    } else if (name == "dev" && !scripted_project()) {
+        // An application in C++ (W16, D-154): the development host owns the window; mcpp builds the
+        // application in the background as its sources change, each build drawn in the host's window.
+        std::vector<std::string> args{"--project", "."};
+        if (p.is_flag_set("headless")) args.push_back("--serve");
+        std::ranges::move(rest_of(p, 0), std::back_inserter(args));
+        ran = run_tool("omui-devhost", std::move(args), err);
     } else if (name == "dev" || name == "run" || name == "build") {
         // The designer is linked as omui.config.ts says: in development by default, left out of a
         // release at compile time (D-149) unless the application is a design tool that ships it.

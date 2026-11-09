@@ -892,7 +892,7 @@ my-app/
   - player 读取这些设置，并提供 TS 代码草稿的求值：代码是一个数据模块 `export default defineView({…})`，按数据模块的方式求值（没有 I/O、真实时间和随机数），堆 16 MB、时间 500 ms，按路径导入只能在一个空目录里。
   - SDK 的 `AppSpec::generation` 让任何应用（C++ 或 TS）在运行期间持有 `Generation`。
   - `Runtime::capture_png` 与已有的 `capture_svg` 对应，由宿主（headless、桌面）提供，预演的图片默认取自它。
-  - CI 新增 `tools/ci/generation-e2e.sh`：一个 TS 应用在发布模式下开放 limited，Agent 经 `omui agent call` 用 TS 代码起草两张卡片、预演（有前后 PNG，之后什么都不留）、提交、撤销、重做、查看版本；未允许的组件和不会结束的代码被拒绝。
+  - 端到端用例 `examples/02-hello-ts/tests/generation_e2e_test.cpp`（mtest 的 E2E，以 Agent 的方式经应用端点操作）：一个 TS 应用在发布模式下开放 limited，Agent 经 `omui agent call` 用 TS 代码起草两张卡片、预演（有前后 PNG，之后什么都不留）、提交、撤销、重做、查看版本；未允许的组件和不会结束的代码被拒绝。
 - 第三块完成（第 4 步的进场）：生成的内容按 Live Design 呈现设计步骤的方式出现——提交时新内容写入并落定，撤销时倒放，恢复某个版本时按切换呈现；呈现结束后恢复原有的呈现设置。端到端验证时发现：撤销后整个表面在退场，但它的子节点在语义树里没有 `removing` 状态，`wait settled` 因而过早返回。已修正为祖先正在移除时子节点也是 `removing`（S-4）。
 - 第四块完成：版本持久化。`GenerationOptions::directory` 保存每个版本的文档和一个索引（player 用应用旁的 `.omui/generation/`）；应用再次启动时逐个版本按当时的注册内容和开放程度重新校验，之前显示的版本等它的 slot 出现后再显示；不再通过的版本不显示，`generate.surfaces` 说明原因。端到端脚本重启应用后确认版本仍在。
 - 第五块完成：A2UI 适配（第 3 步，作为输入格式，支持流式）。`omui.agent:a2ui` 读取 A2UI v0.8 的服务端消息（surfaceUpdate、dataModelUpdate、beginRendering、deleteSurface；单条、列表或 JSON lines），组件在多次调用之间保留；每个开始渲染的 A2UI surface 在每次变化后转成视图文档，`generate.a2ui` 把它作为草稿，`commit: true` 时立即提交，流式内容随到随显示。
@@ -948,6 +948,7 @@ my-app/
 - 验收：omui.agent 的 state_test 让旧版本里输入名字、打开开关、输入密码、拖动滑块、聚焦名字；新版本（没有滑块）放回后名字、开关、焦点都在，密码不带过去，滑块报告为不在了，撤销历史为空。
 - 还没有：滚动位置（语义树里还没有）；之后的块是显示列表的跨进程传输（宿主持有窗口）和 `omui dev` 的 C++ 增量构建与切换。
 - 第三、四块完成（宿主持有窗口）：`omui.agent:present`——应用（`--present-to SOCKET`，headless、墙钟）把每帧显示列表和用到的图片（每个版本一次）、字体（按 face、粗细、倾斜描述，接收方重新驻留，因为字体引用按进程分配）发给宿主，接收宿主的输入、窗口尺寸和状态交接；SDK 的 `omui::DevHost` 持有窗口：用与应用相同的 xrender 和字体画出应用的帧，把人的输入转回应用；新版本连接后先问旧版本要状态（ui.state）、交给新版本（ui.restore），新版本的第一帧不可见地画好后在旧版本上交叉淡入，然后旧版本的连接关闭、进程结束；编译问题（`file:line:column: error:`）显示在应用之上。devhost_test 在 headless 宿主里验证：应用的帧出现在宿主窗口、宿主里的按压由应用处理、新版本带着开关状态淡入、旧版本退出、问题卡片出现和清除。xrender 的 `decode` 新增 `Remap`（读取方的字体与图片编号），mlibs.text 新增 `slant_of`。
+- 第五块完成（C++ 应用的 `omui dev`）：新程序 `omui-devhost`（`src/entry/devhost`）持有窗口（或 headless `--serve`），几次每秒查看项目的 C++ 源码、`mcpp.toml` 和 `build.mcpp`，有变化就在后台 `mcpp build`；构建成功则以 `mcpp run -- --present-to` 启动新进程交给 DevHost 接管，失败则把编译问题显示在仍在运行的版本之上。Agent 经动词 `dev.status`（构建次数、失败次数、显示的版本、问题）和 `dev.rebuild` 读取与驱动。`omui dev` 对不用 player 的项目（C++）改为启动它。mtest 的 E2E 用例 `src/entry/devhost/tests/devhost_e2e_test.cpp`（`kind::e2e`，以 Agent 的方式经宿主端点读 `dev.status`）用示例 01 验证：首次构建显示、改源码后新构建接管、写坏后问题出现且旧版本保留、修好后再接管且问题消失。
 - 第二块完成（显示列表编码）：`xrender.vector:wire` 把显示列表编码成字节再读回：每种命令（含节点和部件标记、材质、渐变、虚线、字形样式、效果层）原样保留，浮点数按位保存；图片、字体、效果按引用传递（两边持有相同的资源）。读回后哈希相同、再次编码字节相同、CPU 渲染像素相同；损坏的数据被拒绝并说明位置，不追加任何命令。wire_test 覆盖全部 22 种命令。
 
 **W8 全双工会话（I1）**：按 PPet §2.1 实现主交互会话和后台任务会话。**验收**：生成任务在后台跑的时候，人可以继续对话、修改要求、取消任务，实时渲染不受影响。

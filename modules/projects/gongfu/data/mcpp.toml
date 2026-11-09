@@ -24,5 +24,5 @@ gongfu              = { path = ".." }
 marzer.tomlplusplus = "3.4.0"
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../../base/utils" }

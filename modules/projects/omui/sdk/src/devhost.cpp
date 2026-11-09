@@ -63,6 +63,7 @@ struct DevHost::Impl {
     int                  started = 0;
     std::uint64_t        timer = 0;
     std::vector<DevProblem> problems;
+    bool                    ended_said = false;
 
     Impl(Runtime& rt, DevHostOptions given) : runtime(rt), options(std::move(given)), glyphs(fonts) {}
 
@@ -118,12 +119,14 @@ struct DevHost::Impl {
             }
         }
         if (leaving && runtime.now() - fade_began >= options.fade) leaving.reset();  // the old one's connection closes: it ends
-        if (current && current->presentation->gone() && !next) {
-            // The application ended (or crashed): its last frame stays, said.
-            if (problems.empty()) {
-                problems = {{.file = "", .line = 0, .column = 0, .text = "the application ended; a new build starts it again"}};
-                show_problems_now();
-            }
+        // The application ended (or crashed): its last frame stays, said — and unsaid when one runs again.
+        const bool ended = current && current->presentation->gone() && !next;
+        if (ended != ended_said) {
+            ended_said = ended;
+            constexpr std::string_view note = "the application ended; a new build starts it again";
+            if (ended && problems.empty()) problems.push_back({.text = std::string(note)});
+            if (!ended) std::erase_if(problems, [&](const DevProblem& problem) { return problem.file.empty() && problem.text == note; });
+            show_problems_now();
         }
         if (const NodeId shown = runtime.find("main")) runtime.invalidate_paint(shown);
     }

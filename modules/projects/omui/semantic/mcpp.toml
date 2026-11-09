@@ -28,4 +28,4 @@ mlibs.session = { path = "../../../base/session" }
 mlibs.utils    = { path = "../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"

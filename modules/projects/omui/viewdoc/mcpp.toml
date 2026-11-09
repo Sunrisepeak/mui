@@ -28,7 +28,7 @@ omui.expr  = { path = "../expr" }
 mlibs.utils = { path = "../../../base/utils" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 mlibs.math = { path = "../../../base/math" }
 omui.ui.base       = { path = "../components/base" }
 omui.host.headless = { path = "../host/headless" }

@@ -117,6 +117,7 @@ members = [
     "mcpp/embed",
     "mcpp/toy",
     "src/entry/player",
+    "src/entry/devhost",
     "tests/bench",
     "tests/bench/competitors",
     "modules/projects/omui/cts",

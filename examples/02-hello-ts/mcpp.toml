@@ -32,7 +32,9 @@ main = { from = "omui.entry.player/player" }
 omui.entry.player = { path = "../../src/entry/player" }
 
 [dev-dependencies]
-mcpplibs.mtest = "0.5.0"
+mcpplibs.mtest = "0.5.2"
 mlibs.utils = { path = "../../modules/base/utils" }
 omui.player  = { path = "../../modules/projects/omui/player" }
 omui.lang.js = { path = "../../modules/projects/omui/lang/js" }
+# generation_e2e_test reads the application as an agent does.
+omui.agent = { path = "../../modules/projects/omui/agent" }

@@ -65,6 +65,8 @@ made into code when the package builds — `build.mcpp`, omui.build.contracts):
 | `command_palette` | `dialog` | the application's commands (its verbs that take no arguments, or those it is given) found by their words, over the window's middle; arrows choose, Enter runs (as the person's choice: their answer to what reaches outside), Escape closes; each command an option of its own an agent runs |
 | `sidebar` | `navigation` | the places down an application's side, each a link of its own (`<id>/<value>`), the current one marked; pressed, arrowed (each a step taken back), chosen by an agent; collapsed to a rail of first letters |
 | `toolbar` | `toolbar` | a row (or column) of controls; the arrows move the focus between them, Home and End to the ends |
+| `chart` | `figure` | numbers over labelled steps as lines, bars or areas, a scale in round numbers (1, 2, 2.5, 5 × 10ⁿ), a legend for more than one series; pointing shows a step's values; each point an item of its own (`<id>/<series>/<step>`: its name the series and the step, its value the number), its description says what it shows |
+| `carousel` | `region` | one of several slides at a time (each as wide as it, the rest clipped); its arrows, dots (`<id>/<index>`), the arrow keys and a swipe move between them, each a step taken back; how the move looks is its slot's |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

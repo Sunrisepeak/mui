@@ -71,6 +71,9 @@ void register_base_components() {
     register_type(component_type<CommandPalette>());
     register_type(component_type<Sidebar>());
     register_type(component_type<Toolbar>());
+    // W9: what is shown to be looked at — chart, carousel.
+    register_type(component_type<Chart>());
+    register_type(component_type<Carousel>());
 }
 
 }  // namespace omui

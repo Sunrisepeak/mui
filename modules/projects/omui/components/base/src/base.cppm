@@ -76,6 +76,8 @@ export import :hover_card_contract;
 export import :command_palette_contract;
 export import :sidebar_contract;
 export import :toolbar_contract;
+export import :chart_contract;
+export import :carousel_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -101,6 +103,7 @@ export import :code;
 export import :reading;
 export import :inputs;
 export import :navigating;
+export import :showing;
 
 export namespace omui {
 

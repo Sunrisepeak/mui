@@ -28,6 +28,35 @@ inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_inse
 inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_remove{{
     {"node", "node", "a node a script built", false},
 }};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history{{
+    {"branch", "string", "whose commits (the one designed on when absent)", true},
+    {"limit", "integer", "at most this many (50)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_commit{{
+    {"message", "string", "what this state of the design is", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_branch{{
+    {"name", "string", "letters, digits, - _ . /", false},
+    {"at", "string", "a branch, a tag, a commit (an id, or a name~n)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_switch{{
+    {"to", "string", "a branch", false},
+    {"force", "bool", "drop changes not committed", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_revert{{
+    {"to", "string", "a commit: an id, a tag, a branch, or name~n (HEAD~2: two commits back)", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_diff{{
+    {"from", "string", "a commit (HEAD when absent)", true},
+    {"to", "string", "a commit (what runs now when absent)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_history_merge{{
+    {"from", "string", "a branch (or a commit)", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_history_tag{{
+    {"name", "string", "letters, digits, - _ . /", false},
+    {"at", "string", "a commit", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_expect{{
     {"say", "string", "the expectation in the person's words", true},
     {"query", "json", "the nodes it means: {\"id\": \"save\", \"state\": \"disabled\"}", true},
@@ -41,7 +70,7 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_repl
 }};
 
 // Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.
-inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 22> catalog{{
     {{"design.sources", openas::Effect::read, false}, "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.api", openas::Effect::read, false}, "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.locate", openas::Effect::read, false}, "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line", parameters_design_locate, "json", mlibs::control::Cost::bounded, "", false, false, false},
@@ -49,6 +78,14 @@ inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
     {{"design.set", openas::Effect::reversible, false}, "Sets properties of a node by editing the builder call that built it (design.locate): each value written where the property is, or added to its object — the rest of the source as it was — then run as design.edit runs an edit: the semantic changes, and the lines it changed", parameters_design_set, "json", mlibs::control::Cost::bounded, "design.set with the values before, or design.discard", false, false, false},
     {{"design.insert", openas::Effect::reversible, false}, "Adds an element, written as the script's language writes it, among the children of a node's builder call (at an index, or last), laid out as its siblings are; run as design.edit runs an edit", parameters_design_insert, "json", mlibs::control::Cost::bounded, "design.remove the node it added, or design.discard", false, false, false},
     {{"design.remove", openas::Effect::reversible, false}, "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it", parameters_design_remove, "json", mlibs::control::Cost::bounded, "design.insert its code again, or design.discard", false, false, false},
+    {{"design.history", openas::Effect::read, false}, "The design's history (D-151): the branch designed on, every branch and tag at its commit, a branch's commits newest first (message, who, when, the semantic tree's hash), and whether what runs now has changes not committed", parameters_design_history, "json", mlibs::control::Cost::bounded, "", false, false, false},
+    {{"design.history.commit", openas::Effect::reversible, false}, "Keeps the design as it runs now — every source's text — as a commit on the branch designed on, under .omui/design/ beside the application (not git's: omui design sync carries it there)", parameters_design_history_commit, "json", mlibs::control::Cost::bounded, "design.history.revert to the commit before", false, false, false},
+    {{"design.history.branch", openas::Effect::reversible, false}, "A new branch at a commit (the one designed on when absent), to try another way without losing this one; the design stays on its branch until design.history.switch", parameters_design_history_branch, "json", mlibs::control::Cost::instant, "none: a branch is a name for a commit; it changes no design", false, false, false},
+    {{"design.history.switch", openas::Effect::reversible, false}, "Designs on another branch: its last commit's texts run at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them", parameters_design_history_switch, "json", mlibs::control::Cost::bounded, "design.history.switch back", false, false, false},
+    {{"design.history.revert", openas::Effect::reversible, false}, "The design back as it was at a commit: its texts run at once, and kept as a new commit on the branch (nothing in the history is lost)", parameters_design_history_revert, "json", mlibs::control::Cost::bounded, "design.history.revert to the commit it made the step from", false, false, false},
+    {{"design.history.diff", openas::Effect::read, false}, "What changed between two states of the design, source by source: the first line that differs, the lines before and after; from a commit (HEAD) to another, or to what runs now", parameters_design_history_diff, "json", mlibs::control::Cost::bounded, "", false, false, false},
+    {{"design.history.merge", openas::Effect::reversible, false}, "Another branch's changes brought into this one, line by line from their common commit: each side's own changes taken, the same change once; if both changed the same lines nothing is merged and the sources are named. Merged, it runs at once and is a commit of both", parameters_design_history_merge, "json", mlibs::control::Cost::bounded, "design.history.revert to HEAD~1", false, false, false},
+    {{"design.history.tag", openas::Effect::reversible, false}, "A name for a commit (the last on the branch designed on when absent): a state to come back to or to show", parameters_design_history_tag, "json", mlibs::control::Cost::instant, "none: a tag is a name for a commit; it changes no design", false, false, false},
     {{"design.expect", openas::Effect::read, false}, "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, value …), `absent` when they must not be there; with no query, lists what is expected", parameters_design_expect, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"design.check", openas::Effect::read, false}, "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.handover", openas::Effect::read, false}, "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
@@ -79,6 +116,22 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {"parent": {"type": "string", "description": "a node (its id): the node whose builder call gets the child"}, "code": {"type": "string", "description": "the element: text({ id: \"help\", text: \"Help\" })"}, "index": {"type": "integer", "description": "before the child at this index (last when absent)"}}, "required": ["parent", "code"]}},
     {"name": "design.remove", "description": "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.insert its code again, or design.discard", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id): a node a script built"}}, "required": ["node"]}},
+    {"name": "design.history", "description": "The design's history (D-151): the branch designed on, every branch and tag at its commit, a branch's commits newest first (message, who, when, the semantic tree's hash), and whether what runs now has changes not committed", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"branch": {"type": "string", "description": "whose commits (the one designed on when absent)"}, "limit": {"type": "integer", "description": "at most this many (50)"}}, "required": []}},
+    {"name": "design.history.commit", "description": "Keeps the design as it runs now — every source's text — as a commit on the branch designed on, under .omui/design/ beside the application (not git's: omui design sync carries it there)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.revert to the commit before", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"message": {"type": "string", "description": "what this state of the design is"}}, "required": ["message"]}},
+    {"name": "design.history.branch", "description": "A new branch at a commit (the one designed on when absent), to try another way without losing this one; the design stays on its branch until design.history.switch", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: a branch is a name for a commit; it changes no design", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "letters, digits, - _ . /"}, "at": {"type": "string", "description": "a branch, a tag, a commit (an id, or a name~n)"}}, "required": ["name"]}},
+    {"name": "design.history.switch", "description": "Designs on another branch: its last commit's texts run at once, each changed source shown changing as a design edit; changes not committed are refused unless `force` drops them", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.switch back", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a branch"}, "force": {"type": "boolean", "description": "drop changes not committed"}}, "required": ["to"]}},
+    {"name": "design.history.revert", "description": "The design back as it was at a commit: its texts run at once, and kept as a new commit on the branch (nothing in the history is lost)", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.revert to the commit it made the step from", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"to": {"type": "string", "description": "a commit: an id, a tag, a branch, or name~n (HEAD~2: two commits back)"}}, "required": ["to"]}},
+    {"name": "design.history.diff", "description": "What changed between two states of the design, source by source: the first line that differs, the lines before and after; from a commit (HEAD) to another, or to what runs now", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"from": {"type": "string", "description": "a commit (HEAD when absent)"}, "to": {"type": "string", "description": "a commit (what runs now when absent)"}}, "required": []}},
+    {"name": "design.history.merge", "description": "Another branch's changes brought into this one, line by line from their common commit: each side's own changes taken, the same change once; if both changed the same lines nothing is merged and the sources are named. Merged, it runs at once and is a commit of both", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.history.revert to HEAD~1", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"from": {"type": "string", "description": "a branch (or a commit)"}}, "required": ["from"]}},
+    {"name": "design.history.tag", "description": "A name for a commit (the last on the branch designed on when absent): a state to come back to or to show", "effect": "reversible", "person": false, "delegated": false, "cost": "instant", "undo": "none: a tag is a name for a commit; it changes no design", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"name": {"type": "string", "description": "letters, digits, - _ . /"}, "at": {"type": "string", "description": "a commit"}}, "required": ["name"]}},
     {"name": "design.expect", "description": "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, value …), `absent` when they must not be there; with no query, lists what is expected", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"say": {"type": "string", "description": "the expectation in the person's words"}, "query": {"description": "the nodes it means: {\"id\": \"save\", \"state\": \"disabled\"}"}, "absent": {"type": "boolean", "description": "they must not be there"}}, "required": []}},
     {"name": "design.check", "description": "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

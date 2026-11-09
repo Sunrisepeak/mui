@@ -267,6 +267,13 @@ cmd::App project_command(std::string_view name) {
             .option(json);
     if (name == "remove")
         return App("remove").description("Removes a dependency from mcpp.toml: mcpp remove PACKAGE").arg(Arg("package").required()).option(json);
+    if (name == "design")
+        return App("design")
+            .description("Live Design's history (.omui/design: the design.history verbs keep it)")
+            .subcommand(App("sync")
+                            .description("Carries it into git: each design commit a commit on design/<branch>, tags as design/<tag>; the work tree untouched")
+                            .option(Option("dir").takes_value().value_name("DIR").help("the application's directory (here when absent)"))
+                            .option(json));
     if (name == "deps")
         return App("deps").description("The project's dependencies, as its mcpp.toml declares them: each package, its kind, its version or path").option(json);
     if (name == "tools")
@@ -309,6 +316,14 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
             else
                 out << std::format("{:10} {}\n", template_name, what);
         return 0;
+    }
+    if (name == "design") {
+        if (!p.has_subcommand() || p.subcommand_name() != "sync") {
+            err << "omui design: sync (omui design sync --help)\n";
+            return 2;
+        }
+        const cmd::ParsedArgs& sync = p.subcommand()->get();
+        return design_sync(mcpplibs::os::fs::from_utf8(sync.value("dir").value_or(".")), sync.is_flag_set("json"), out, err);
     }
     Ran ran;
     if (name == "new") {

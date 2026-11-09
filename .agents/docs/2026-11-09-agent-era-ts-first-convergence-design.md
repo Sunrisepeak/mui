@@ -717,8 +717,12 @@ my-app/
 - 第五块完成：`design.*` 进入操作目录和 MCP。契约是 omui.agent 的第二个目录 `design.ops.omui.ts`（10 个操作；生成器新增 `partition`，并把清单内嵌进 C++ 分区）。player 按目录注册动词，说明只写在目录里一处；omui-mcp 默认把它们作为 `design_*` 工具提供（`--no-design` 关闭）。lint `ops` 允许一个包有多个目录。
 - 第六块完成：TS 源码位置的双向映射。开发模式下 JS 引擎为每个元素记下构建它的 `文件:行:列`（取调用栈里第一个不属于 `openmui` 模块的帧；类型擦除不改变位置）。视图文档的元素新增 `origin` 字段（规范 schema 同步）；视图按节点驻留（每个来源只存一次），`ui.inspect`、`ui.drew` 优先报告脚本位置。`design.locate` 支持两个方向：给节点，返回构建它的那一行（路径、行、列、该行文本）；给路径和行，返回那一行构建的节点。编辑后节点按语义 ID 保留，位置随之更新。
 - 第七块完成：结构化操作转成源码编辑。`omui.lang.ts:edit` 用一个小词法器（字符串、模板、注释、正则整体跳过，括号配对）在元素的 origin 处找到 builder 调用，再拼接源码：设置或删除属性（写在原处，没有就按邻居的排版追加）、插入子元素（同一行或按兄弟的缩进各占一行）、把调用从子元素列表中删除（连同逗号，独占一行时连同该行）。其余字节保持不变。player 新增 `design.set`、`design.insert`、`design.remove`：经语言的 `SourceEditor` 生成新文本，按 `design.edit` 的路径运行，并返回改动的行（之前、之后）。不在子元素列表里的调用（函数的返回值、条件）会被拒绝，并提示改用 `design.edit`。
+- 第八块完成：设计历史（D-151）。`omui.player:history` 是应用旁 `.omui/design/` 下的内容寻址存储：文本对象按哈希存放，同哈希不同文本取下一个 id，存储会核对、不靠猜；提交是 JSON，另有分支、标签和 HEAD。新增动词 `design.history`（日志、分支、标签、是否有未提交的改动）及其 `.commit`、`.branch`、`.switch`、`.revert`、`.diff`、`.merge`、`.tag`：
+  - 切换和回退把目标文本经 `edit_source` 立即运行，按设计编辑呈现（hanim 过渡）；有未提交的改动时拒绝切换，除非 `force`；回退记成一次新提交，历史不丢。
+  - 合并以共同祖先为基准逐行三方合并，同一处的不同改动会列出冲突、不做合并。
+  - `omui design sync` 用 git 自身的命令和单独的 index 把每个设计提交写成 `design/<branch>` 上的 git 提交（标签为 `design/<tag>`），工作区、index 和 HEAD 都不动；`git.json` 记录已同步的提交，重复执行不会再写。
 - 下一块：
-  - 设计历史与时间线；
+  - 时间线视图；
   - hanim 呈现设计过程；
   - 预演与方案板。
 

@@ -5,8 +5,10 @@
 // what a view document gets wrong, where each is, in one list.
 import std;
 import mcpplibs.mtest;
+import mcpplibs.os;
 import omui.cli;
 import omui.core;
+import omui.player;
 
 using namespace mcpplibs::mtest;
 using namespace omui;
@@ -41,6 +43,47 @@ UTest cases{"cli.project", [] {
         for (const auto* command : {"omui new NAME", "omui dev", "omui run | build | test", "omui doctor"})
             expect(ran.out.contains(command)) << command;
         expect(ran.out.find("omui new") < ran.out.find("omui agent")) << "a project's commands before the agent's";
+    };
+
+    "design sync: Live Design's commits become git commits on design/<branch>, the work tree and HEAD untouched; again, nothing new"_test = [] {
+        const auto repository = std::filesystem::temp_directory_path() / "omui-cli-design-sync";
+        std::error_code error;
+        std::filesystem::remove_all(repository, error);
+        std::filesystem::create_directories(repository / "app", error);
+        const auto git = [&](std::vector<std::string> args) {
+            mcpplibs::os::process::spawn_options options;
+            options.program = "git";
+            options.args = std::move(args);
+            options.cwd = repository;
+            options.env = {{"GIT_AUTHOR_NAME", "omui"}, {"GIT_AUTHOR_EMAIL", "omui@example.org"}, {"GIT_COMMITTER_NAME", "omui"},
+                           {"GIT_COMMITTER_EMAIL", "omui@example.org"}};
+            auto ran = mcpplibs::os::process::run(std::move(options));
+            std::string out = ran ? ran->out : std::string();
+            while (!out.empty() && out.back() == '\n') out.pop_back();
+            return std::pair{ran && ran->status.shell_code() == 0, out};
+        };
+        if (!mcpplibs::os::env::find_executable("git")) return;  // no git here: nothing to carry it into
+        std::ofstream(repository / "app" / "app.ts", std::ios::binary) << "mount(\"main\", text({ text: \"one\" }));\n";
+        expect(git({"init", "-q", "-b", "work"}).first && git({"add", "."}).first && git({"commit", "-q", "-m", "start"}).first);
+        const std::string start = git({"rev-parse", "HEAD"}).second;
+        player::DesignHistory history(repository / "app" / ".omui" / "design");
+        expect(history.commit({{"app.ts", "mount(\"main\", text({ text: \"two\" }));\n"}}, "says two", "agent:designer", "t2").has_value());
+        expect(history.branch("loud").has_value() && history.switch_to("loud").has_value());
+        expect(history.commit({{"app.ts", "mount(\"main\", text({ text: \"THREE\" }));\n"}}, "shouts three", "agent:designer", "t3").has_value());
+        expect(history.tag("first-try", "main").has_value());
+
+        const auto ran = invoke({"omui", "design", "sync", "--dir", mcpplibs::os::fs::utf8(repository / "app"), "--json"});
+        expect(eq(ran.code, 0)) << ran.err;
+        expect(eq(records(ran.out).size(), std::size_t{2})) << ran.out;
+        expect(eq(git({"show", "design/main:app/app.ts"}).second, std::string("mount(\"main\", text({ text: \"two\" }));")));
+        expect(eq(git({"show", "design/loud:app/app.ts"}).second, std::string("mount(\"main\", text({ text: \"THREE\" }));")));
+        expect(eq(git({"rev-parse", "design/loud~1"}).second, git({"rev-parse", "design/main"}).second)) << "a branch grows from its parent's commit";
+        expect(eq(git({"rev-parse", "design/main~1"}).second, start)) << "the design grows from where the repository was";
+        expect(eq(git({"rev-parse", "design/first-try^{commit}"}).second, git({"rev-parse", "design/main"}).second)) << "tags too";
+        expect(eq(git({"rev-parse", "HEAD"}).second, start) && eq(git({"status", "--porcelain", "--untracked-files=no"}).second, std::string()))
+            << "HEAD and the work tree as they were";
+        const auto again = invoke({"omui", "design", "sync", "--dir", mcpplibs::os::fs::utf8(repository / "app")});
+        expect(eq(again.code, 0) && again.out.contains("0 design commits written")) << again.out << again.err;
     };
 
     "doctor: each tool, found or not, required or not, what it is for"_test = [] {

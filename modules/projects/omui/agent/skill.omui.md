@@ -35,7 +35,8 @@ The application is its own designer (D-149); its `design.*` verbs are the loop �
    `design.edit` {path, text} — new text runs at once, state kept; the answer is the semantic changes and the time. A text that does not run is refused with its line, nothing changed. The person sees each edit written in, and your note beside it.
 3. `design.expect` {say, query} — what the person wants, as a query that holds or not; `design.check` reads every expectation against the interface as it is (facts, with what the last press on a node came to).
 4. `design.handover` — the person tries it; when they say they are done, `design.check`, then `design.save_scenario` {name}: their steps and the expectations as a test; `design.replay` {name} plays it again.
-5. `design.commit` writes the edits to the files (the TypeScript is the one source), `design.discard` drops them.
+5. The design's history (`.omui/design/`, D-151): `design.history.commit` {message} keeps a state; `design.history.branch` {name} tries another way, `design.history.switch` {to} moves between them (shown changing), `design.history.diff`, `design.history.merge` {from} (line by line; conflicts named, nothing merged), `design.history.revert` {to: "HEAD~2"} (a new commit, nothing lost), `design.history.tag`; `omui design sync` carries it into git as design/<branch>.
+6. `design.commit` writes the edits to the files (the TypeScript is the one source), `design.discard` drops them.
 
 When you (or the person) edit the files themselves rather than through `design.edit`, `reload` reloads what was saved and answers what it did — the semantic changes, where the pixels changed (that region before and after), the motion it started sampled over time and whether it settled — so you confirm the change without comparing screenshots; `reload` with `last` says what the last automatic reload did.
 

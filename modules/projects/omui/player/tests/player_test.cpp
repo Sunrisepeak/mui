@@ -317,6 +317,91 @@ UTest cases{"player", [] {
         expect(invoke(Value{}.set("path", "logic/side.stub")).first != 0) << "a path needs a line";
     };
 
+    "the design's history: commit, branch, switch, merge line by line, diff, tag, revert — under .omui/design/, nothing lost"_test = [] {
+        const auto dir = scratch_dir("player-history");
+        std::error_code error;
+        std::filesystem::remove_all(dir / ".omui", error);
+        const std::string base = R"j({"omui": "0.1", "view": {"root": {"type": "column", "children": [
+  {"type": "text", "id": "hello", "props": {"text": "first"}},
+  {"type": "text", "id": "bye", "props": {"text": "bye"}}]}}}
+)j";
+        write(dir / "logic" / "side.stub", base);
+        player::Manifest m;
+        m.id = "org.openmui.player-history";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](std::string_view verb, Value args = Value(Value::Map{})) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke(verb, call);
+            h.settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{answer.ndjson()}};
+        };
+        const auto edit = [&](std::string_view from, std::string_view to) {
+            const std::string now = file_text(dir / "logic" / "side.stub");
+            const auto sources = invoke("design.sources").second;
+            std::string text(sources.get("scripts")->list()->front().get("text")->as_string());
+            text.replace(text.find(from), from.size(), to);
+            return invoke("design.edit", Value{}.set("path", "logic/side.stub").set("text", text)).first;
+        };
+        const auto commit = [&](std::string_view message) { return invoke("design.history.commit", Value{}.set("message", message)); };
+
+        expect(invoke("design.history").second.get("uncommitted")->as_bool()) << "nothing committed yet";
+        const auto [first_done, first] = commit("the base");
+        expect(eq(first_done, 0)) << first.json();
+        expect(commit("again").first != 0) << "nothing changed: no commit";
+        expect(eq(invoke("design.history.branch", Value{}.set("name", "quiet")).first, 0));
+        expect(eq(edit("\"first\"", "\"second\""), 0));
+        expect(eq(commit("hello says second").first, 0));
+        // Another branch: its texts run at once.
+        expect(eq(invoke("design.history.switch", Value{}.set("to", "quiet")).first, 0));
+        expect(eq(name_of(h, "side/hello"), std::string("first")));
+        expect(eq(edit("\"bye\"}", "\"later\"}"), 0));
+        expect(eq(commit("bye says later").first, 0));
+        expect(eq(invoke("design.history.switch", Value{}.set("to", "main")).first, 0));
+        expect(eq(name_of(h, "side/hello"), std::string("second")) && eq(name_of(h, "side/bye"), std::string("bye")));
+        // Merged line by line: each branch's own line.
+        const auto [merged, merge_answer] = invoke("design.history.merge", Value{}.set("from", "quiet"));
+        expect(eq(merged, 0)) << merge_answer.json();
+        expect(eq(name_of(h, "side/hello"), std::string("second")) && eq(name_of(h, "side/bye"), std::string("later")));
+        expect(merge_answer.get("commit") && merge_answer.get("commit")->get("parents")->list()->size() == 2) << merge_answer.json();
+        const auto diff = invoke("design.history.diff", Value{}.set("from", "HEAD~1").set("to", "HEAD")).second;
+        expect(diff.get("files") && diff.get("files")->list()->size() == 1 && diff.get("files")->list()->front().get("line")->as_int() == 3) << diff.json();
+        expect(eq(invoke("design.history.tag", Value{}.set("name", "v1")).first, 0));
+        // Back to the base, kept as a new commit; the tag still names the merge.
+        const auto [reverted, revert_answer] = invoke("design.history.revert", Value{}.set("to", "HEAD~2"));
+        expect(eq(reverted, 0)) << revert_answer.json();
+        expect(eq(name_of(h, "side/hello"), std::string("first")) && eq(name_of(h, "side/bye"), std::string("bye")));
+        const auto history = invoke("design.history").second;
+        expect(eq(history.get("log")->list()->size(), std::size_t{4})) << history.json();
+        expect(history.get("log")->list()->front().get("message")->as_string().starts_with("back to")) << history.json();
+        expect(history.get("tags")->get("v1") != nullptr && !history.get("uncommitted")->as_bool()) << history.json();
+        // Changes not committed are not dropped by a switch, unless asked.
+        expect(eq(edit("\"first\"", "\"draft\""), 0));
+        expect(invoke("design.history.switch", Value{}.set("to", "quiet")).first != 0);
+        expect(eq(invoke("design.history.switch", Value{}.set("to", "quiet").set("force", true)).first, 0));
+        expect(eq(name_of(h, "side/bye"), std::string("later")));
+        // The store beside the application; the file itself untouched (design.commit writes it).
+        expect(std::filesystem::exists(dir / ".omui" / "design" / "HEAD") && std::filesystem::exists(dir / ".omui" / "design" / "refs" / "heads" / "quiet"));
+        expect(eq(file_text(dir / "logic" / "side.stub"), base));
+    };
+
+    "a merge of two texts by lines: each side's change, the same change once, overlapping changes a conflict"_test = [] {
+        const std::string base = "a\nb\nc\nd";
+        const auto both = player::merge_text(base, "A\nb\nc\nd", "a\nb\nc\nD");
+        expect(!both.conflict && both.text == "A\nb\nc\nD") << both.text;
+        const auto same = player::merge_text(base, "a\nB\nc\nd", "a\nB\nc\nd");
+        expect(!same.conflict && same.text == "a\nB\nc\nd");
+        const auto inserted = player::merge_text(base, "a\nb\nx\nc\nd", "a\nb\nc\nd\ny");
+        expect(!inserted.conflict && inserted.text == "a\nb\nx\nc\nd\ny") << inserted.text;
+        expect(player::merge_text(base, "a\nX\nc\nd", "a\nY\nc\nd").conflict);
+    };
+
     "out of development mode there are no design verbs"_test = [] {
         const auto dir = scratch_dir("player-no-design");
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "x"}}}})j");

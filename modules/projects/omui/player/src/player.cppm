@@ -13,6 +13,8 @@
 // in problems() and logged.
 export module omui.player;
 
+export import :history;
+
 import std;
 import omui.core;
 import omui.view;

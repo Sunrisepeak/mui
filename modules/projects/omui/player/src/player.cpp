@@ -67,6 +67,8 @@ struct Player::Impl {
     Manifest                          manifest;
     std::vector<Language>             languages;
     PlayerOptions                     options;
+    // Live Design's history (D-151): states of the design on branches, beside the application.
+    DesignHistory                     history;
     // Live Design: the text an edited script (or a module a script imports)
     // runs now, by its name, until it is committed to its file or discarded.
     std::map<std::string, std::string> edited;
@@ -122,7 +124,7 @@ struct Player::Impl {
     seconds                           period{0.1};
 
     Impl(Runtime& r, Manifest m, std::vector<Language> l, PlayerOptions o)
-        : rt(r), manifest(std::move(m)), languages(std::move(l)), options(o) {
+        : rt(r), manifest(std::move(m)), languages(std::move(l)), options(o), history(manifest.base / ".omui" / "design") {
         handle = abi::attach(rt, manifest.id);
     }
     ~Impl() {
@@ -397,6 +399,49 @@ struct Player::Impl {
         return done;
     }
 
+    // Every source's text as it runs now (edited, or its file's): a design's state.
+    std::map<std::string, std::string> design_texts() {
+        std::map<std::string, std::string> out;
+        for (const auto& f : files) {
+            if (f.kind != File::Kind::script) continue;
+            if (const auto text = running_text(f)) out.emplace(name(f.path), *text);
+            if (!f.engine) continue;
+            for (const auto& m : f.engine->modules())
+                if (const auto text = source_text(module_name(m))) out.emplace(module_name(m), *text);
+        }
+        return out;
+    }
+
+    // A state of the design put into the running application: each source
+    // whose text differs edited as design.edit edits it (and presented so).
+    std::expected<Value, std::string> apply_texts(const std::map<std::string, std::string>& texts) {
+        Value::List changed;
+        for (const auto& [path, text] : texts) {
+            const auto now = source_text(path);
+            if (now && *now == text) continue;
+            auto done = edit_source(path, text);
+            if (!done) return std::unexpected(std::format("{}: {}", path, done.error()));
+            changed.push_back(done->set("path", path));
+        }
+        return Value{}.set("edits", Value(std::move(changed)));
+    }
+
+    static Value commit_value(const DesignCommit& commit) {
+        Value::List parents;
+        for (const auto& parent : commit.parents) parents.push_back(Value(parent));
+        Value::List paths;
+        for (const auto& [path, object] : commit.files) paths.push_back(Value(path));
+        return Value{}
+            .set("id", commit.id)
+            .set("message", commit.message)
+            .set("actor", commit.actor)
+            .set("branch", commit.branch)
+            .set("time", commit.time)
+            .set("tree", commit.tree)
+            .set("parents", Value(std::move(parents)))
+            .set("files", Value(std::move(paths)));
+    }
+
     // Where a script built a node: its path as design.sources names it, line and column.
     struct Place {
         std::string path;
@@ -596,6 +641,135 @@ struct Player::Impl {
                                   if (!language.edit.remove) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
                                   return language.edit.remove(text, place.line, place.column);
                               });
+        });
+        // Live Design's history (D-151): states of the design as commits on branches, under .omui/design/.
+        add("design.history", [this](const Value& args) -> VerbResult {
+            const std::string branch(args.get("branch") ? args.get("branch")->as_string() : history.head_branch());
+            const std::size_t limit = args.get("limit") && args.get("limit")->is_number() ? static_cast<std::size_t>(args.get("limit")->as_double()) : 50;
+            Value::List log;
+            for (const DesignCommit& commit : history.log(branch, limit)) log.push_back(commit_value(commit));
+            Value branches(Value::Map{}), tags(Value::Map{});
+            for (const auto& [name, id] : history.branches()) branches.set(name, id);
+            for (const auto& [name, id] : history.tags()) tags.set(name, id);
+            const auto head = history.texts_of("HEAD");
+            return Value{}
+                .set("head", history.head_branch())
+                .set("branches", std::move(branches))
+                .set("tags", std::move(tags))
+                .set("log", Value(std::move(log)))
+                .set("uncommitted", !head || *head != design_texts());
+        });
+        add("design.history.commit", [this](const Value& args) -> VerbResult {
+            const std::string message(args.get("message") ? args.get("message")->as_string() : "");
+            if (message.empty()) return std::unexpected(std::string("a commit says what it is: `message`"));
+            semantic::Tree tree(rt);
+            const auto by = rt.current_invocation();
+            auto commit = history.commit(design_texts(), message, by ? by->actor.text() : std::string("person"), agent::tree_hash(tree));
+            if (!commit) return std::unexpected(commit.error());
+            return commit_value(*commit);
+        });
+        add("design.history.branch", [this](const Value& args) -> VerbResult {
+            const std::string name(args.get("name") ? args.get("name")->as_string() : "");
+            const Value* at = args.get("at");
+            auto made = history.branch(name, at ? std::optional<std::string_view>(at->as_string()) : std::nullopt);
+            if (!made) return std::unexpected(made.error());
+            return Value{}.set("branch", name).set("at", *made);
+        });
+        add("design.history.switch", [this](const Value& args) -> VerbResult {
+            const std::string to(args.get("to") ? args.get("to")->as_string() : "");
+            const auto head = history.texts_of("HEAD");
+            if (head && *head != design_texts() && !(args.get("force") && args.get("force")->as_bool()))
+                return std::unexpected(std::string("the design has changes not committed: design.history.commit them, or switch with force (they are dropped)"));
+            const auto branches = history.branches();
+            if (!branches.contains(to)) return std::unexpected(std::format("no branch `{}` (design.history lists them; design.history.branch makes one)", to));
+            auto texts = history.texts_of(to);
+            if (!texts) return std::unexpected(texts.error());
+            auto applied = apply_texts(*texts);
+            if (!applied) return std::unexpected(applied.error());
+            (void)history.switch_to(to);
+            return applied->set("branch", to).set("at", branches.at(to));
+        });
+        add("design.history.revert", [this](const Value& args) -> VerbResult {
+            const std::string to(args.get("to") ? args.get("to")->as_string() : "");
+            auto id = history.resolve(to);
+            if (!id) return std::unexpected(id.error());
+            auto texts = history.texts_of(*id);
+            if (!texts) return std::unexpected(texts.error());
+            auto applied = apply_texts(*texts);
+            if (!applied) return std::unexpected(applied.error());
+            semantic::Tree tree(rt);
+            const auto by = rt.current_invocation();
+            auto commit = history.commit(design_texts(), std::format("back to {}", id->substr(0, 8)), by ? by->actor.text() : std::string("person"),
+                                         agent::tree_hash(tree));
+            if (commit) applied->set("commit", commit_value(*commit));
+            return applied;
+        });
+        add("design.history.diff", [this](const Value& args) -> VerbResult {
+            const std::string from(args.get("from") ? args.get("from")->as_string() : "HEAD");
+            auto before = history.texts_of(from);
+            if (!before) return std::unexpected(before.error());
+            std::map<std::string, std::string> after;
+            if (const Value* to = args.get("to")) {
+                auto texts = history.texts_of(to->as_string());
+                if (!texts) return std::unexpected(texts.error());
+                after = std::move(*texts);
+            } else {
+                after = design_texts();  // what runs now
+            }
+            Value::List files;
+            std::set<std::string> paths;
+            for (const auto& [path, text] : *before) paths.insert(path);
+            for (const auto& [path, text] : after) paths.insert(path);
+            for (const auto& path : paths) {
+                const std::string old_text = before->contains(path) ? before->at(path) : std::string();
+                const std::string new_text = after.contains(path) ? after.at(path) : std::string();
+                if (old_text != new_text) files.push_back(changed_lines(old_text, new_text).set("path", path));
+            }
+            return Value{}.set("from", from).set("to", args.get("to") ? *args.get("to") : Value("running")).set("files", Value(std::move(files)));
+        });
+        add("design.history.merge", [this](const Value& args) -> VerbResult {
+            const std::string from(args.get("from") ? args.get("from")->as_string() : "");
+            auto theirs_id = history.resolve(from);
+            auto ours_id = history.resolve("HEAD");
+            if (!theirs_id) return std::unexpected(theirs_id.error());
+            if (!ours_id) return std::unexpected(std::string("nothing committed on this branch to merge into"));
+            const auto base_id = history.common_ancestor("HEAD", *theirs_id);
+            auto ours = history.texts_of(*ours_id), theirs = history.texts_of(*theirs_id);
+            if (!ours || !theirs) return std::unexpected(!ours ? ours.error() : theirs.error());
+            std::map<std::string, std::string> base;
+            if (base_id)
+                if (auto texts = history.texts_of(*base_id)) base = std::move(*texts);
+            std::map<std::string, std::string> merged;
+            Value::List conflicts;
+            std::set<std::string> paths;
+            for (const auto& [path, text] : *ours) paths.insert(path);
+            for (const auto& [path, text] : *theirs) paths.insert(path);
+            for (const auto& path : paths) {
+                const std::string base_text = base.contains(path) ? base.at(path) : std::string();
+                const std::string our_text = ours->contains(path) ? ours->at(path) : base_text;
+                const std::string their_text = theirs->contains(path) ? theirs->at(path) : base_text;
+                const TextMerge result = merge_text(base_text, our_text, their_text);
+                if (result.conflict) conflicts.push_back(Value(path));
+                merged.emplace(path, result.text);
+            }
+            if (!conflicts.empty())
+                return std::unexpected(std::format("both branches changed the same lines of {}: nothing merged — design.edit one side to agree, commit, and merge again",
+                                                   Value(conflicts).json()));
+            auto applied = apply_texts(merged);
+            if (!applied) return std::unexpected(applied.error());
+            semantic::Tree tree(rt);
+            const auto by = rt.current_invocation();
+            auto commit = history.commit(design_texts(), std::format("merge {}", from), by ? by->actor.text() : std::string("person"), agent::tree_hash(tree),
+                                         std::vector<std::string>{*ours_id, *theirs_id});
+            if (commit) applied->set("commit", commit_value(*commit));
+            return applied;
+        });
+        add("design.history.tag", [this](const Value& args) -> VerbResult {
+            const std::string name(args.get("name") ? args.get("name")->as_string() : "");
+            const Value* at = args.get("at");
+            auto tagged = history.tag(name, at ? std::optional<std::string_view>(at->as_string()) : std::nullopt);
+            if (!tagged) return std::unexpected(tagged.error());
+            return Value{}.set("tag", name).set("at", *tagged);
         });
         add("design.expect",
             [this](const Value& args) -> VerbResult {

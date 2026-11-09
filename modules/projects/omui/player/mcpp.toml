@@ -29,7 +29,7 @@ omui.theme   = { path = "../theme" }
 omui.semantic = { path = "../semantic" }
 mlibs.utils   = { path = "../../../base/utils" }
 # The saved files' notice (fs::watcher): a reload looks only when the system says something changed.
-mcpplibs.os   = "0.4.2"
+mcpplibs.os   = "0.4.4"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).

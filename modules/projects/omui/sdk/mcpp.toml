@@ -33,7 +33,7 @@ omui.ui.window     = { path = "../components/window" }
 omui.host.headless = { path = "../host/headless" }
 "mlibs.i18n"        = { path = "../../../content/i18n" }
 "mlibs.i18n.cldr"   = { path = "../../../content/i18n/cldr" }
-mcpplibs.os           = "0.4.2"
+mcpplibs.os           = "0.4.4"
 # The development host (:devhost) draws the application's frames itself, glyphs too.
 xrender.vector        = { path = "../../xrender/vector" }
 xrender.raster        = { path = "../../xrender/raster" }

@@ -37,4 +37,4 @@ hanim.core          = { path = "../../hanim/core" }
 [dev-dependencies]
 mcpplibs.mtest = "0.5.2"
 mlibs.image   = { path = "../../../base/image" }
-mcpplibs.os     = "0.4.2"
+mcpplibs.os     = "0.4.4"

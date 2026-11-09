@@ -41,7 +41,7 @@ mlibs.utils    = { path = "../../../../base/utils" }
 "mlibs.rhi"         = { path = "../../../../gfx/rhi" }
 "xrender.rhi.sdl"     = { path = "../../../xrender/rhi/sdl" }
 xrender.effect   = { path = "../../../xrender/effect" }
-mcpplibs.os      = "0.4.2"
+mcpplibs.os      = "0.4.4"
 mcpplibs.mwrap.sdl3 = "3.4.18"
 
 [dev-dependencies]

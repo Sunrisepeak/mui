@@ -34,4 +34,4 @@ mcpplibs.mtest = "0.5.2"
 xrender.raster  = { path = "../raster" }
 mlibs.geom    = { path = "../../../base/geom" }
 xrender.rhi.sdl = { path = "../rhi/sdl" }
-mcpplibs.os     = "0.4.2"
+mcpplibs.os     = "0.4.4"

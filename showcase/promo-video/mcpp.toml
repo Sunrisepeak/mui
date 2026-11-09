@@ -53,7 +53,7 @@ omui.showcase.style_gallery      = { path = "../style-gallery" }
 "omui.showcase.widget_breakout"  = { path = "../widget-breakout" }
 "omui.showcase.widget_breakout.sim" = { path = "../widget-breakout/sim" }
 mcpplibs.cmdline                    = "0.0.3"
-mcpplibs.os                         = "0.4.2"
+mcpplibs.os                         = "0.4.4"
 
 [build-dependencies]
 omui.build.embed = { path = "../../mcpp/embed", host-module = true }

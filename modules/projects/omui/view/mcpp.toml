@@ -38,7 +38,7 @@ mlibs.image    = { path = "../../../base/image" }
 mlibs.text     = { path = "../../../content/text" }
 mlibs.pipeline = { path = "../../../base/pipeline" }
 mlibs.i18n     = { path = "../../../content/i18n" }
-mcpplibs.os      = "0.4.2"
+mcpplibs.os      = "0.4.4"
 
 [dev-dependencies]
 # Tests are mtest's (D-147).

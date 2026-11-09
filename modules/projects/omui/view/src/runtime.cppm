@@ -751,7 +751,7 @@ public:
     // host can: the desktop's browser, a new tab on the Web. Only http,
     // https and mailto; false when refused or nothing opens it. Every
     // address asked for is kept, in order (`opened`: what a test reads).
-    bool open_url(std::string_view url);
+    bool open_url(std::string_view url) override;
     void set_url_opener(std::function<bool(std::string_view)> open);
     [[nodiscard]] const std::vector<std::string>& opened() const noexcept;
     // A file given to the person (an export: a picture, a document) where

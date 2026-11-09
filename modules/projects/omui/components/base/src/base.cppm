@@ -61,6 +61,11 @@ export import :data_grid_contract;
 export import :combobox_contract;
 export import :tag_input_contract;
 export import :code_editor_contract;
+export import :kbd_contract;
+export import :separator_contract;
+export import :link_contract;
+export import :description_list_contract;
+export import :spinner_contract;
 export import :button;
 export import :toggle;
 export import :slider;
@@ -83,6 +88,7 @@ export import :containers;
 export import :collections;
 export import :entry;
 export import :code;
+export import :reading;
 
 export namespace omui {
 

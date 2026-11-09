@@ -50,6 +50,11 @@ made into code when the package builds — `build.mcpp`, omui.build.contracts):
 | `combobox` | `combo_box` | one value typed or chosen: its text box filters the options to those whose labels hold what is typed (regardless of case), the arrows move among them, Enter or a press chooses, Escape closes; each option an item (`<id>/<value>`); a value typed that is no option stands only when `free` |
 | `tag_input` | `group` | tags gathered by typing (Enter or a comma keeps one) or choosing a suggestion that holds what is typed; each a chip (`<id>/tag_<n>`) removed by its ×; `add`, `remove` by name, each taken back exactly (its place kept) |
 | `code_editor` | `group` | code edited in its field (`<id>/text`, a text box in its code mode): coloured by what each stretch is (the language's words, strings, numbers, comments — C++, TypeScript, Python, Lua, JSON, TOML), its lines numbered, Tab indenting (Escape, then Tab, leaves), Enter keeping the indent; set whole with `set_value`, taken back |
+| `kbd` | `text` | a key or a chord drawn as the keys themselves, each a cap (`Ctrl` `Shift` `P`), chords pressed in turn spaced apart (`G G`); `Mod` is the system's command key (⌘ or Ctrl, from the host's primary modifier); read as the keys' names ("Control+Shift+P") |
+| `separator` | `separator` | a line across as wide as it is given, or down; a word in its middle (`or`) when it has one |
+| `link` | `link` | text that goes somewhere: an address the system opens (http, https, mailto — external: an agent answers "yes", a person's click or Enter is their answer) or the application's verb (its effect); underlined in the accent |
+| `description_list` | `list` | terms beside what they mean (baselines aligned) or each above its own; each pair an item of its own (`<id>/<index>`: its name the term, its value the description) |
+| `spinner` | `progress` | something happening, how long unknown: an arc turning on the runtime's clock, `busy`; still when motion is reduced |
 
 They draw what they are now: how a change of them moves is their slots'
 (universal motion), never their own code. Their gallery (`tests/kit_test.cpp`)

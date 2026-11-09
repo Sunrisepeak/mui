@@ -452,6 +452,8 @@ bool Runtime::Impl::key_binding(NodeId id, const KeyEvent& e) {
                 else args.set(key, s);
             }
             call.args = std::move(args);
+            // The person's own key is their answer to what reaches outside (a link), as their click is.
+            call.answer = own_answer(id, t.name);
             if (a) (void)self.act(id, t.name, call);
             else (void)perform(id, t.name, call, true);  // a command of the component (next, submit)
             return true;

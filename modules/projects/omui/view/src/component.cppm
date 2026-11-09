@@ -318,6 +318,12 @@ public:
     virtual void moving(NodeId) {}
     // Scrolls every scroll view around the node so that it is in view (what
     // the `scroll_into_view` action does): a document's anchors, a list's row.
+    // An address opened by the system (its browser, its mail): a link's activation. Only
+    // http, https and mailto; false where no host opens them.
+    virtual bool open_url(std::string_view url) {
+        (void)url;
+        return false;
+    }
     virtual void scroll_into_view(NodeId node) = 0;
     // So that the node starts at the top of its view, as far as the view
     // scrolls (a document's anchor followed: its section read from the top).

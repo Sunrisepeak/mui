@@ -53,6 +53,12 @@ void register_base_components() {
     register_type(component_type<Combobox>());
     register_type(component_type<TagInput>());
     register_type(component_type<CodeEditor>());
+    // W9: what is read and points on — kbd, separator, link, description list, spinner.
+    register_type(component_type<Kbd>());
+    register_type(component_type<Separator>());
+    register_type(component_type<Link>());
+    register_type(component_type<DescriptionList>());
+    register_type(component_type<Spinner>());
 }
 
 }  // namespace omui

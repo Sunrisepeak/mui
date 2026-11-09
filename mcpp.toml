@@ -73,6 +73,7 @@ members = [
     "modules/projects/omui/native/fuzzy",
     "modules/projects/omui/native/store",
     "modules/projects/omui/player",
+    "modules/projects/omui/designer",
     "modules/projects/omui/reflect",
     "modules/projects/omui/semantic",
     "modules/projects/hanim/visual",

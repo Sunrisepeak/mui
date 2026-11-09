@@ -334,7 +334,8 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         }
         ran = run_tool("mcpp", {"new", *p.value("name"), "--template", "openmui:" + chosen}, err);
     } else if (name == "dev") {
-        std::vector<std::string> args{"run", "--", "--dev"};
+        // The designer is linked in development only (D-149: a release leaves it out).
+        std::vector<std::string> args{"run", "--features", "omui.entry.player/design", "--", "--dev"};
         if (p.is_flag_set("headless")) args.push_back("--serve");  // headless, kept running for agents
         std::ranges::move(rest_of(p, 0), std::back_inserter(args));
         ran = run_tool("mcpp", std::move(args), err);

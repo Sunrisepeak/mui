@@ -734,6 +734,12 @@ my-app/
   - 历史动词执行后时间线随之刷新。
   - 有未提交的改动时拒绝切换。
   - 浮层（预演、方案板、时间线）的视图集中在 `omui.player:views`，都是"模型加处理函数"的纯视图。
+- 第十一块完成：release 在编译期去掉设计器（第 1 步）。设计器独立成包 `omui.designer`（理由是构建阶段隔离，见其 README），包含 design.* 动词、历史、替身里的预演与方案板、时间线和浮层视图。
+  - player 只保留核心，加上一组源码 API（`sources`、`text`、`edit`、`commit_edits`、`discard_edits`、`language_of`、`source_name`、`source_file`）和一个钩子 `provide_designer`。
+  - 设计器在程序启动时自行登记（mcpp 直接链接目标文件，登记不会被丢掉）。
+  - 入口 player 只在 `design` 特性下链接它：`omui dev` 用 `mcpp run --features omui.entry.player/design -- --dev`，`omui build --release` 不带这个特性。
+  - 没有设计器的开发模式会说明这一点，应用照常运行。
+  - mcpp 的 profile 不能选择特性，命令行也不能关闭默认特性，所以由开发一侧去打开特性。
 - 下一块：
   - hanim 呈现设计过程；
   - 预演与方案板。

@@ -11,7 +11,7 @@ import std;
 import mcpplibs.os;
 import mcpplibs.cmdline;
 import omui.core;
-import omui.player;
+import omui.designer;
 
 namespace omui::cli {
 
@@ -42,8 +42,8 @@ struct Git {
 };
 
 // The design commits a branch reaches, each after its parents.
-std::vector<player::DesignCommit> in_order(const player::DesignHistory& history, const std::string& head) {
-    std::vector<player::DesignCommit> out;
+std::vector<designer::DesignCommit> in_order(const designer::DesignHistory& history, const std::string& head) {
+    std::vector<designer::DesignCommit> out;
     std::set<std::string> placed;
     std::vector<std::pair<std::string, bool>> stack{{head, false}};
     while (!stack.empty()) {
@@ -67,7 +67,7 @@ std::vector<player::DesignCommit> in_order(const player::DesignHistory& history,
 }  // namespace
 
 int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, std::ostream& err) {
-    const player::DesignHistory history(app / ".omui" / "design");
+    const designer::DesignHistory history(app / ".omui" / "design");
     const auto branches = history.branches();
     if (branches.empty()) {
         err << std::format("omui design sync: no design history in {} (design.history.commit makes one)\n", mcpplibs::os::fs::utf8(app / ".omui" / "design"));
@@ -91,7 +91,7 @@ int design_sync(const std::filesystem::path& app, bool json, std::ostream& out, 
         if (auto read = parse_json(std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()}); read && read->map()) ledger = std::move(*read);
     int written = 0;
     for (const auto& [branch, head] : branches) {
-        for (const player::DesignCommit& commit : in_order(history, head)) {
+        for (const designer::DesignCommit& commit : in_order(history, head)) {
             if (ledger.get(commit.id)) continue;
             // Over the tree the design grew from: its first parent's, or the repository's when it began.
             const Value* first_parent = commit.parents.empty() ? nullptr : ledger.get(commit.parents.front());

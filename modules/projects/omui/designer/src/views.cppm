@@ -2,13 +2,13 @@
 // (D-149, D-151): a preview half seen, a board of variants, the timeline of
 // the design's history. Each is a view of its model with the handlers it is
 // given — nothing here changes the design; the player's verbs do.
-module omui.player:views;
+module omui.designer:views;
 
 import std;
 import omui.core;
 import omui.view;
 
-namespace omui::player {
+namespace omui::designer {
 
 // The design overlays' colours: a dark glass over any application.
 inline constexpr std::string_view glass = "#0f172ae8", ink = "#f8fafc", muted = "#94a3b8", accent = "#38bdf8", paper = "#f8fafc";
@@ -161,4 +161,4 @@ inline Element timeline_view(Size window, const Timeline& model, const TimelineH
     return column({.width = window.width, .height = window.height, .justify = "end"}, {std::move(panel)});
 }
 
-}  // namespace omui::player
+}  // namespace omui::designer

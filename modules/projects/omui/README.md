@@ -35,6 +35,7 @@ The reference implementation of the [openmui](../../../spec) specification: a vi
 | [native](native) | The native-module registry: contract-typed C++ functions scripts call; the official modules inside it |
 | [abi](abi) | The C ABI (`openmui.h`) |
 | [player](player) | The player: an application's views, components and scripts, run and reloaded in place |
+| [designer](designer) | Live Design's designer: the design verbs, history, previews, variants and timeline of an application in development mode; linked by `omui dev`, left out of a release |
 | [reflect](reflect) | C++26 reflection: forms from structs (GCC 16) |
 | [host](host) | Hosts: headless and the SDL3 desktop |
 

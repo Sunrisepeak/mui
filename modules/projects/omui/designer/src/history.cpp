@@ -1,11 +1,11 @@
 // Live Design's history, kept by content (omui.player:history, D-151).
-module omui.player;
+module omui.designer;
 
 import std;
 import omui.core;
 import mlibs.hash;
 
-namespace omui::player {
+namespace omui::designer {
 
 namespace {
 
@@ -406,4 +406,4 @@ std::optional<std::string> DesignHistory::common_ancestor(std::string_view first
     return std::nullopt;
 }
 
-}  // namespace omui::player
+}  // namespace omui::designer

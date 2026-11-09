@@ -13,8 +13,6 @@
 // in problems() and logged.
 export module omui.player;
 
-export import :history;
-
 import std;
 import omui.core;
 import omui.view;
@@ -131,6 +129,18 @@ struct StandIn {
 // and languages).
 using StandInFn = std::function<std::expected<StandIn, std::string>(const std::map<std::string, std::string>& texts)>;
 
+// Live Design's designer (omui.designer, D-149): the design verbs, the
+// history, previews and the timeline, made for a player in development mode
+// when the program links one — it says so as it starts (provide_designer). A
+// release links none: development mode then says it has no designer.
+class Player;
+class Designer {
+public:
+    virtual ~Designer() = default;
+};
+using DesignerFactory = std::unique_ptr<Designer> (*)(Player& player);
+void provide_designer(DesignerFactory factory) noexcept;
+
 struct PlayerOptions {
     // Development mode (D-149): the application is its own designer. The
     // design.* verbs read the scripts' TypeScript, run new text within the
@@ -157,6 +167,32 @@ public:
     // Runs these texts in place of the sources' (by path, as design.sources
     // names them), as design.edit runs an edit: what a stand-in shows.
     Status show(const std::map<std::string, std::string>& texts);
+
+    // ── The sources, as Live Design's designer (omui.designer) works with them ──
+    // A source of the application: a script, or a module a script imports by path.
+    struct Source {
+        std::string path;         // from the manifest's directory, as the design verbs name it
+        std::string language;     // its script's language
+        std::string imported_by;  // a module: the script that imports it (empty for a script)
+        bool        edited = false;  // runs an edit not written to its file
+    };
+    [[nodiscard]] std::vector<Source> sources() const;
+    // The text a source runs now: its edit, or its file's.
+    [[nodiscard]] std::optional<std::string> text(std::string_view path) const;
+    // New text for a source, run at once with its state kept: the semantic
+    // changes and the time — or its problems, and what ran before runs again.
+    std::expected<Value, std::string> edit(std::string_view path, std::string_view text);
+    // Every edit written to its file (the TypeScript stays the one source):
+    // each file's text before. Every edit dropped: the texts dropped.
+    std::expected<Value, std::string> commit_edits();
+    Value discard_edits();
+    // The language a source is written in (a module's: its script's).
+    [[nodiscard]] const Language* language_of(std::string_view path) const;
+    // A file as the sources name it, and a source's file.
+    [[nodiscard]] std::string source_name(const std::filesystem::path& file) const;
+    [[nodiscard]] std::filesystem::path source_file(std::string_view path) const;
+    [[nodiscard]] Runtime& runtime() const noexcept;
+    [[nodiscard]] const PlayerOptions& options() const noexcept;
     // Polls on the runtime's timers, every `period`.
     void watch(seconds period = seconds(0.1));
 

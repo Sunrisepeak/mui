@@ -41,3 +41,13 @@ omui.theme.compact = { path = "../../../modules/projects/omui/theme/compact" }
 marzer.tomlplusplus = "3.4.0"
 mcpplibs.os = "0.4.1"
 mcpplibs.cmdline = "0.0.3"
+
+# Live Design's designer (D-149): linked by `omui dev`
+# (`mcpp run --features omui.entry.player/design -- --dev`), left out of a
+# release. It says it is there as the program starts; nothing here names it.
+[features]
+default = []
+design  = { sources = [] }
+
+[feature-deps.design]
+omui.designer = { path = "../../../modules/projects/omui/designer" }

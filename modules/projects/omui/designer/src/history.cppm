@@ -1,4 +1,4 @@
-// omui.player:history — Live Design's history (D-151): a design's states as
+// omui.designer:history — Live Design's history (D-151): a design's states as
 // commits, each every source's text, on branches, with tags, kept beside the
 // application under .omui/design/ and addressed by content:
 //   objects/<id>        a text, its id its hash (a different text of the same
@@ -6,13 +6,13 @@
 //   commits/<id>.json   {parents, message, actor, time, branch, tree, files: {path: object}}
 //   refs/heads/<name>   a branch's last commit; refs/tags/<name> a tag's
 //   HEAD                the branch being designed on
-// The player's design.history verbs read and write it; `omui design sync`
+// The designer's design.history verbs read and write it; `omui design sync`
 // carries it into git.
-export module omui.player:history;
+export module omui.designer:history;
 
 import std;
 
-export namespace omui::player {
+export namespace omui::designer {
 
 struct DesignCommit {
     std::string id;
@@ -92,4 +92,4 @@ struct TextMerge {
 };
 [[nodiscard]] TextMerge merge_text(std::string_view base, std::string_view ours, std::string_view theirs);
 
-}  // namespace omui::player
+}  // namespace omui::designer

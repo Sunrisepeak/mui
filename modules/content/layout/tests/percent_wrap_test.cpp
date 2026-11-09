@@ -4,9 +4,9 @@
 import std;
 import mlibs.geom;
 import mlibs.layout;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace layout = mlibs::layout;
 using mlibs::geom::Rect;
 using layout::pt;
@@ -21,10 +21,11 @@ layout::Style box(float width, float height) {
 void frame(const layout::Engine& e, layout::NodeId id, Rect expected,
            std::source_location where = std::source_location::current()) {
     const Rect actual = e.frame(id);
-    check(std::abs(actual.x - expected.x) < 0.001f && std::abs(actual.y - expected.y) < 0.001f &&
-          std::abs(actual.width - expected.width) < 0.001f && std::abs(actual.height - expected.height) < 0.001f,
-          std::format("actual ({}, {}, {} x {}), expected ({}, {}, {} x {})", actual.x, actual.y, actual.width, actual.height,
-                      expected.x, expected.y, expected.width, expected.height), where);
+    expect(std::abs(actual.x - expected.x) < 0.001f && std::abs(actual.y - expected.y) < 0.001f &&
+               std::abs(actual.width - expected.width) < 0.001f && std::abs(actual.height - expected.height) < 0.001f,
+           where)
+        << std::format("actual ({}, {}, {} x {}), expected ({}, {}, {} x {})", actual.x, actual.y, actual.width, actual.height, expected.x,
+                       expected.y, expected.width, expected.height);
 }
 layout::Style header(layout::Direction direction = layout::Direction::row) {
     layout::Style s;
@@ -52,10 +53,9 @@ struct Fixture {
 };
 }
 
-int main(int argc, char** argv) {
-    Suite suite{"layout.percent-wrap"};
+UTest cases{"layout.percent-wrap", [] {
 
-    suite.test("an auto wrapping header capped by max-width reserves all of its percentage child's wrapped lines", [] {
+    "an auto wrapping header capped by max-width reserves all of its percentage child's wrapped lines"_test = [] {
         auto s = header(); s.max_width = pt(230);
         Fixture f(s); f.compute(400);
         frame(f.engine, f.bar, {0, 0, 230, 50});
@@ -64,37 +64,37 @@ int main(int argc, char** argv) {
         frame(f.engine, f.items[1], {110, 0, 100, 20});
         frame(f.engine, f.items[2], {0, 30, 100, 20});
         frame(f.engine, f.footer, {0, 50, 10, 10});
-        check_near(f.engine.content_size(f.bar).height, 50, 0.001);
-    });
+        expect(near(f.engine.content_size(f.bar).height, 50, 0.001));
+    };
 
-    suite.test("percentage and point-sized navigation agree after the same containing width is resolved", [] {
+    "percentage and point-sized navigation agree after the same containing width is resolved"_test = [] {
         auto s = header(); s.max_width = pt(230);
         Fixture percent(s), points(s, pt(230));
         percent.compute(400); points.compute(400);
         frame(percent.engine, percent.bar, points.engine.frame(points.bar));
         frame(percent.engine, percent.nav, points.engine.frame(points.nav));
         frame(percent.engine, percent.footer, points.engine.frame(points.footer));
-        check_near(points.engine.frame(points.bar).height, 50, 0.001);
-    });
+        expect(near(points.engine.frame(points.bar).height, 50, 0.001));
+    };
 
-    suite.test("a min-width expanded auto column remeasures its row rather than reserving obsolete extra lines", [] {
+    "a min-width expanded auto column remeasures its row rather than reserving obsolete extra lines"_test = [] {
         auto s = header(layout::Direction::column); s.min_width = pt(380);
         Fixture f(s); f.compute(230);
         frame(f.engine, f.bar, {0, 0, 380, 20});
         frame(f.engine, f.nav, {0, 0, 380, 20});
         frame(f.engine, f.items[2], {220, 0, 100, 20});
         frame(f.engine, f.footer, {0, 20, 10, 10});
-    });
+    };
 
-    suite.test("a max-width narrowed auto column reserves newly wrapped lines", [] {
+    "a max-width narrowed auto column reserves newly wrapped lines"_test = [] {
         auto s = header(layout::Direction::column); s.max_width = pt(230);
         Fixture f(s); f.compute(400);
         frame(f.engine, f.bar, {0, 0, 230, 50});
         frame(f.engine, f.nav, {0, 0, 230, 50});
         frame(f.engine, f.footer, {0, 50, 10, 10});
-    });
+    };
 
-    suite.test("definite point and percentage container widths retain the same wrapping", [] {
+    "definite point and percentage container widths retain the same wrapping"_test = [] {
         for (bool percentage : {false, true}) {
             auto s = header(); s.width = percentage ? pct(60) : pt(240);
             Fixture f(s); f.compute(400);
@@ -102,9 +102,9 @@ int main(int argc, char** argv) {
             frame(f.engine, f.nav, {0, 0, 240, 50});
             frame(f.engine, f.footer, {0, 50, 10, 10});
         }
-    });
+    };
 
-    suite.test("the percentage base is the used content box including padding border and external gaps", [] {
+    "the percentage base is the used content box including padding border and external gaps"_test = [] {
         auto s = header(); s.max_width = pt(250);
         s.padding = mlibs::geom::Insets::all(10); s.border = mlibs::geom::Insets::all(2);
         s.margin.left = 4;
@@ -113,9 +113,9 @@ int main(int argc, char** argv) {
         frame(f.engine, f.nav, {12, 12, 226, 50});
         frame(f.engine, f.items[2], {0, 30, 100, 20});
         frame(f.engine, f.footer, {0, 81, 10, 10});
-    });
+    };
 
-    suite.test("percentage caps reflow through resize and content changes while unchanged constraints remain cached", [] {
+    "percentage caps reflow through resize and content changes while unchanged constraints remain cached"_test = [] {
         auto s = header(); s.max_width = pct(60);
         Fixture f(s);
         for (const auto& [width, bar_width, height] : {std::tuple{400.0f, 240.0f, 50.0f}, std::tuple{600.0f, 320.0f, 20.0f},
@@ -125,28 +125,28 @@ int main(int argc, char** argv) {
             frame(f.engine, f.footer, {0, height, 10, 10});
         }
         f.engine.reset_stats(); f.compute(400);
-        check_eq(f.engine.stats().layouts, std::uint64_t{0});
+        expect(eq(f.engine.stats().layouts, std::uint64_t{0}));
         f.engine.set_style(f.items[0], box(100, 30)); f.compute(400);
         frame(f.engine, f.bar, {0, 0, 240, 60});
         frame(f.engine, f.items[2], {0, 40, 100, 20});
         frame(f.engine, f.footer, {0, 60, 10, 10});
-    });
+    };
 
-    suite.test("nowrap retains one line and its horizontal overflow", [] {
+    "nowrap retains one line and its horizontal overflow"_test = [] {
         auto s = header(); s.max_width = pt(230);
         Fixture f(s, pct(100), layout::Wrap::no_wrap); f.compute(400);
         frame(f.engine, f.bar, {0, 0, 230, 20});
         frame(f.engine, f.nav, {0, 0, 230, 20});
         frame(f.engine, f.items[2], {220, 0, 100, 20});
         frame(f.engine, f.footer, {0, 20, 10, 10});
-        check_near(f.engine.content_size(f.nav).width, 320, 0.001);
-    });
+        expect(near(f.engine.content_size(f.nav).width, 320, 0.001));
+    };
     // The two-pass correction must stay incremental on deep, non-stretched
     // auto-width trees too. Padding changes the available width at every
     // level; only the outermost container has a max-width. Each nested
     // container has a footer, so a stale height cannot hide in an ancestor.
     for (const std::size_t depth : {4u, 8u, 12u, 16u}) {
-        suite.test(std::format("deep auto-width percentage wrap has linear work at depth {}", depth), [depth] {
+        mcpplibs::mtest::test(std::string_view(std::format("deep auto-width percentage wrap has linear work at depth {}", depth))) = [depth] {
             layout::Engine e;
             layout::Style root_style;
             root_style.direction = layout::Direction::column;
@@ -214,9 +214,9 @@ int main(int argc, char** argv) {
             e.reset_stats(); e.compute(root, {180 + 4 * static_cast<float>(depth), 10000});
             std::println("percent-wrap depth={} phase=unchanged layouts={} measures={} cache_hits={}",
                          depth, e.stats().layouts, e.stats().measures, e.stats().cache_hits);
-            check_eq(e.stats().layouts, std::size_t{0});
-            check_eq(e.stats().measures, std::size_t{0});
-            check_eq(e.stats().cache_hits, std::size_t{1});
+            expect(eq(e.stats().layouts, std::size_t{0}));
+            expect(eq(e.stats().measures, std::size_t{0}));
+            expect(eq(e.stats().cache_hits, std::size_t{1}));
             // A node may need several measurement regimes plus placement.
             // Budget at most 12 layouts and 48 cached requests per node, and
             // four leaf measurements per tree node. These grow with node
@@ -224,14 +224,10 @@ int main(int argc, char** argv) {
             // accommodate cache eviction/repeated subtree traversal.
             const std::size_t nodes = 2 * depth + 6;
             for (std::size_t phase = 0; phase < work.size(); ++phase) {
-                check(work[phase].layouts <= 12 * nodes + 24,
-                      std::format("depth {} {}: {} layouts exceed linear budget {}", depth, phases[phase], work[phase].layouts, 12 * nodes + 24));
-                check(work[phase].measures <= 4 * nodes,
-                      std::format("depth {} {}: {} measures exceed linear budget {}", depth, phases[phase], work[phase].measures, 4 * nodes));
-                check(work[phase].cache_hits <= 48 * nodes,
-                      std::format("depth {} {}: {} cache hits exceed linear budget {}", depth, phases[phase], work[phase].cache_hits, 48 * nodes));
+                expect(work[phase].layouts <= 12 * nodes + 24) << std::format("depth {} {}: {} layouts exceed linear budget {}", depth, phases[phase], work[phase].layouts, 12 * nodes + 24);
+                expect(work[phase].measures <= 4 * nodes) << std::format("depth {} {}: {} measures exceed linear budget {}", depth, phases[phase], work[phase].measures, 4 * nodes);
+                expect(work[phase].cache_hits <= 48 * nodes) << std::format("depth {} {}: {} cache hits exceed linear budget {}", depth, phases[phase], work[phase].cache_hits, 48 * nodes);
             }
-        });
+        };
     }
-    return suite.run(argc, argv);
-}
+}};

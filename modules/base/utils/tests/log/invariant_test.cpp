@@ -2,10 +2,10 @@
 // The production logger itself depends on the standard library alone.
 import std;
 import mlibs.log;
-import mlibs.testing;
+import mcpplibs.mtest;
 import mcpplibs.os;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace os = mcpplibs::os;
 
 int main(int argc, char** argv) {
@@ -15,16 +15,15 @@ int main(int argc, char** argv) {
     }
     if (argc > 1 && std::string_view(argv[1]) == "--fatal-failure")
         mlibs::log::fatal("independent fatal failure probe");
-    Suite suite{"log.invariant"};
-    suite.test("a true invariant returns without a diagnostic", [] {
+    "a true invariant returns without a diagnostic"_test = [] {
         mlibs::log::set_log_history(0);
         mlibs::log::invariant(true, "satisfied");
-        check(mlibs::log::recent_logs().empty());
-    });
+        expect(mlibs::log::recent_logs().empty());
+    };
     if constexpr (!os::is_emscripten) {
         auto probe = [](std::string mode, std::string expected) {
             const auto image = os::env::image();
-            check(image.has_value(), "the OS names this test executable");
+            expect(image.has_value()) << "the OS names this test executable";
             if (!image) return;
             os::process::spawn_options options;
             options.program = *image; options.args = {std::move(mode)};
@@ -34,18 +33,18 @@ int main(int argc, char** argv) {
             limit.grace = limit.drain = std::chrono::milliseconds(100);
             limit.out_limit = limit.err_limit = 64 * 1024;
             const auto child = os::process::run(std::move(options), limit);
-            check(child.has_value(), "an independent process executes the failing invariant");
+            expect(child.has_value()) << "an independent process executes the failing invariant";
             if (!child) return;
-            check(!child->timed_out && !child->held_open && !child->status.success(), "the invariant ends its own process");
-            check(child->err.contains("openmui: invariant failed: " + expected), child->err);
-            check(child->err.contains("invariant_test.cpp:") && child->err.contains("main"), "the fatal report preserves caller location");
+            expect(!child->timed_out && !child->held_open && !child->status.success()) << "the invariant ends its own process";
+            expect(child->err.contains("openmui: invariant failed: " + expected)) << (child->err);
+            expect(child->err.contains("invariant_test.cpp:") && child->err.contains("main")) << "the fatal report preserves caller location";
         };
-        suite.test("a false invariant reports its caller and terminates the subprocess", [&] {
+        "a false invariant reports its caller and terminates the subprocess"_test = [&] {
             probe("--invariant-failure", "independent invariant failure probe");
-        });
-        suite.test("explicit fatal reports its caller and terminates the subprocess", [&] {
+        };
+        "explicit fatal reports its caller and terminates the subprocess"_test = [&] {
             probe("--fatal-failure", "independent fatal failure probe");
-        });
+        };
     }
-    return suite.run(argc, argv);
+    return mcpplibs::mtest::run(argc, argv);
 }

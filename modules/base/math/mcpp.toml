@@ -26,4 +26,5 @@ sources = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dev-dependencies]
+mcpplibs.mtest = "0.5.0"
 mlibs.utils = { path = "../utils" }

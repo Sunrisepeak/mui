@@ -24,3 +24,6 @@ cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 [dependencies]
 mlibs.utils = { path = "../utils" }
 mlibs.math  = { path = "../math" }
+
+[dev-dependencies]
+mcpplibs.mtest = "0.5.0"

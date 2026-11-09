@@ -6,9 +6,9 @@
 import std;
 import mlibs.math;
 import mlibs.markdown;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace md = mlibs::markdown;
 
 namespace {
@@ -71,7 +71,8 @@ std::vector<std::string> all_sources() {
 
 // Appends `source` in pieces of 1 to `max` bytes and compares with parse()
 // of the prefix after every piece; returns the bytes md4c read in total.
-std::size_t stream_matches(std::string_view source, Rng& rng, std::size_t max, md::Extension ext, std::string_view what) {
+// The bytes parsed incrementally, or where the streamed document first differs from parse().
+std::expected<std::size_t, std::string> stream_matches(std::string_view source, Rng& rng, std::size_t max, md::Extension ext, std::string_view what) {
     md::Stream s(ext);
     std::size_t pos = 0, parsed = 0;
     while (pos < source.size()) {
@@ -80,31 +81,28 @@ std::size_t stream_matches(std::string_view source, Rng& rng, std::size_t max, m
         pos += n;
         parsed += s.last_parsed();
         const md::Document whole = md::parse(source.substr(0, pos), ext);
-        if (!(s.document() == whole)) {
-            fail(std::format("{}: the streamed document differs from parse() after {} of {} bytes (frozen at {})\n--- prefix\n{}", what, pos,
-                             source.size(), s.frozen(), source.substr(0, pos)));
-            return parsed;
-        }
+        if (!(s.document() == whole))
+            return std::unexpected(std::format("{}: the streamed document differs from parse() after {} of {} bytes (frozen at {})\n--- prefix\n{}", what,
+                                               pos, source.size(), s.frozen(), source.substr(0, pos)));
     }
     return parsed;
 }
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"markdown.stream"};
+UTest cases{"markdown.stream", [] {
 
-    s.test("every suite example, appended in random pieces, equals the whole parse after every piece", [] {
+    "every suite example, appended in random pieces, equals the whole parse after every piece"_test = [] {
         const auto examples = all_sources();
-        check_eq(examples.size(), std::size_t{808});
+        expect(eq(examples.size(), std::size_t{808}));
         Rng rng{20261027};
         for (std::size_t i = 0; i < examples.size(); ++i) {
-            stream_matches(examples[i], rng, 7, md::gfm, std::format("example {}", i));
-            if (failures()) return;
+            const auto streamed = stream_matches(examples[i], rng, 7, md::gfm, std::format("example {}", i));
+            expect(fatal(streamed.has_value())) << (streamed ? std::string() : streamed.error());
         }
-    });
+    };
 
-    s.test("long documents of examples (no reference definitions): equal, and they freeze", [] {
+    "long documents of examples (no reference definitions): equal, and they freeze"_test = [] {
         auto examples = all_sources();
         std::erase_if(examples, [](const std::string& e) { return e.find("]:") != std::string::npos; });
         Rng rng{7};
@@ -115,25 +113,27 @@ int main(int argc, char** argv) {
             for (std::size_t i = 0; i < 60; ++i) doc += examples[i] + "\n";
             md::Stream probe;
             probe.assign(doc);
-            const std::size_t parsed = stream_matches(doc, rng, 64, md::gfm, std::format("round {}", round));
-            if (failures()) return;
-            check(!probe.whole(), "no reference definitions, no whole re-parse");
-            check(probe.stable_blocks() > 0, std::format("round {}: some blocks froze", round));
+            const auto streamed = stream_matches(doc, rng, 64, md::gfm, std::format("round {}", round));
+            expect(fatal(streamed.has_value())) << (streamed ? std::string() : streamed.error());
+            const std::size_t parsed = *streamed;
+            expect(!probe.whole()) << "no reference definitions, no whole re-parse";
+            expect(probe.stable_blocks() > 0) << std::format("round {}: some blocks froze", round);
         }
-    });
+    };
 
-    s.test("reference definitions anywhere: the stream re-parses whole and still equals parse()", [] {
+    "reference definitions anywhere: the stream re-parses whole and still equals parse()"_test = [] {
         const std::string doc = "Intro [foo] and [bar].\n\n# Heading\n\n- a\n- b\n\nmore text\n\n[foo]: /foo \"Foo\"\n\n[bar]: /bar\n";
         Rng rng{3};
-        stream_matches(doc, rng, 5, md::gfm, "definitions");
+        const auto streamed = stream_matches(doc, rng, 5, md::gfm, "definitions");
+        expect(streamed.has_value()) << (streamed ? std::string() : streamed.error());
         md::Stream s;
         s.assign(doc);
-        check(s.whole());
-        check_eq(s.document().links.size(), std::size_t{2});
-        check_eq(s.document().links[0].href, std::string("/foo"));
-    });
+        expect(s.whole());
+        expect(eq(s.document().links.size(), std::size_t{2}));
+        expect(eq(s.document().links[0].href, std::string("/foo")));
+    };
 
-    s.test("an LLM-style answer streamed token by token re-parses only its tail", [] {
+    "an LLM-style answer streamed token by token re-parses only its tail"_test = [] {
         std::string answer;
         for (int i = 0; i < 200; ++i)
             answer += std::format("## Step {}\n\nWe compute **{}** with `f({})`, then check it:\n\n```cpp\nauto x = f({});\n\nassert(x > 0);\n```\n\n", i, i * i, i, i);
@@ -145,27 +145,25 @@ int main(int argc, char** argv) {
             pos += n;
             parsed += s.last_parsed();
         }
-        check(s.document() == md::parse(answer));
+        expect(s.document() == md::parse(answer));
         const double per_append = static_cast<double>(parsed) / (static_cast<double>(answer.size()) / 4);
         std::println("    {} bytes in {} appends: {:.0f} bytes parsed per append (whole re-parse: {:.0f})", answer.size(), answer.size() / 4,
                      per_append, static_cast<double>(answer.size()) / 2);
-        check(per_append < 400, "an append re-parses about one block, not the answer");
-        check(s.stable_blocks() + 3 >= s.document().root.children.size(), "all but the last blocks are frozen");
+        expect(per_append < 400) << "an append re-parses about one block, not the answer";
+        expect(s.stable_blocks() + 3 >= s.document().root.children.size()) << "all but the last blocks are frozen";
         // A blank line inside the fenced code is no boundary: the code stays one block.
         const auto& blocks = s.document().root.children;
-        check_eq(std::ranges::count_if(blocks, [](const md::Block& b) { return b.kind == md::Kind::code; }), std::ptrdiff_t{200});
-    });
+        expect(eq(std::ranges::count_if(blocks, [](const md::Block& b) { return b.kind == md::Kind::code; }), std::ptrdiff_t{200}));
+    };
 
-    s.test("assign and clear start over", [] {
+    "assign and clear start over"_test = [] {
         md::Stream s;
         s.append("# One\n\ntext\n\n");
         s.assign("# Two\n");
-        check(s.document() == md::parse("# Two\n"));
-        check_eq(s.document().root.children[0].anchor, std::string("two"));
+        expect(s.document() == md::parse("# Two\n"));
+        expect(eq(s.document().root.children[0].anchor, std::string("two")));
         const auto r = s.revision();
         s.clear();
-        check(s.document().root.children.empty() && s.source().empty() && s.revision() > r);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(s.document().root.children.empty() && s.source().empty() && s.revision() > r);
+    };
+}};

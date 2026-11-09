@@ -4,23 +4,24 @@
 import std;
 import mlibs.trace;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace trace = mlibs::trace;
 
-int main(int argc, char** argv) {
-    Suite s{"trace"};
+UTest cases{"trace", [] {
 
-    s.test("off: nothing is recorded", [] {
+    "off: nothing is recorded"_test = [] {
         (void)trace::stop();
         { trace::Span sp("ignored"); }
         trace::count("ignored", 1);
         trace::start();
         auto t = trace::stop();
-        check(t.events.empty());
-    });
+        expect(t.events.empty());
+    };
 
-    s.test("spans nest; counters and marks land; the summary pairs them", [] {
+    "spans nest; counters and marks land; the summary pairs them"_test = [] {
         trace::start();
         trace::name_thread("ui");
         for (int i = 0; i < 10; ++i) {
@@ -33,22 +34,22 @@ int main(int argc, char** argv) {
         }
         trace::mark("done");
         auto t = trace::stop();
-        check(t.events.size() == 10 * 5 + 1, std::format("{}", t.events.size()));
+        expect(t.events.size() == 10 * 5 + 1) << std::format("{}", t.events.size());
         auto stats = t.summary();
-        check(stats.size() == 2 && stats[0].name == "frame" && stats[0].count == 10);
+        expect(stats.size() == 2 && stats[0].name == "frame" && stats[0].count == 10);
         auto layout = std::ranges::find(stats, std::string("layout"), &trace::Stat::name);
-        check(layout != stats.end() && layout->count == 10 && layout->p50_ms >= 0.2 && layout->max_ms >= layout->p95_ms);
-        check(stats[0].total_ms >= layout->total_ms, "a frame contains its layout");
-        check(t.threads.size() == 1 && t.threads[0].second == "ui");
+        expect(layout != stats.end() && layout->count == 10 && layout->p50_ms >= 0.2 && layout->max_ms >= layout->p95_ms);
+        expect(stats[0].total_ms >= layout->total_ms) << "a frame contains its layout";
+        expect(t.threads.size() == 1 && t.threads[0].second == "ui");
         const std::string json = t.chrome_json();
-        check(json.starts_with("{\"displayTimeUnit\":\"ms\",\"traceEvents\":["));
-        check(json.find("\"ph\":\"B\"") != std::string::npos && json.find("\"ph\":\"C\"") != std::string::npos &&
+        expect(json.starts_with("{\"displayTimeUnit\":\"ms\",\"traceEvents\":["));
+        expect(json.find("\"ph\":\"B\"") != std::string::npos && json.find("\"ph\":\"C\"") != std::string::npos &&
               json.find("\"ph\":\"i\"") != std::string::npos && json.find("\"thread_name\"") != std::string::npos);
-        check(t.table().find("frame/frame") != std::string::npos);
-    });
+        expect(t.table().find("frame/frame") != std::string::npos);
+    };
 
     // A target without threads (the Web row) has one buffer to record into.
-    if (threads) s.test("threads record into their own buffers", [] {
+    if (threads) "threads record into their own buffers"_test = [] {
         trace::start();
         std::vector<std::jthread> workers;
         for (int w = 0; w < 4; ++w)
@@ -58,21 +59,21 @@ int main(int argc, char** argv) {
             });
         workers.clear();
         auto t = trace::stop();
-        check(t.events.size() == 4 * 2000 && t.threads.size() == 4 && t.dropped == 0);
+        expect(t.events.size() == 4 * 2000 && t.threads.size() == 4 && t.dropped == 0);
         auto stats = t.summary();
-        check(stats.size() == 1 && stats[0].count == 4000);
-        check(std::ranges::is_sorted(t.events, {}, &trace::Event::ns));
-    });
+        expect(stats.size() == 1 && stats[0].count == 4000);
+        expect(std::ranges::is_sorted(t.events, {}, &trace::Event::ns));
+    };
 
-    s.test("a full buffer keeps the first events and counts the rest", [] {
+    "a full buffer keeps the first events and counts the rest"_test = [] {
         trace::start({.events_per_thread = 100});
         for (int i = 0; i < 80; ++i) trace::Span sp("x");
         auto t = trace::stop();
-        check(t.events.size() == 100 && t.dropped == 60);
-        check(t.table().find("dropped") != std::string::npos);
-    });
+        expect(t.events.size() == 100 && t.dropped == 60);
+        expect(t.table().find("dropped") != std::string::npos);
+    };
 
-    s.test("percentiles are nearest-rank", [] {
+    "percentiles are nearest-rank"_test = [] {
         trace::Trace t;
         for (int i = 1; i <= 100; ++i) {
             const std::int64_t at = i * 10'000'000;
@@ -80,24 +81,22 @@ int main(int argc, char** argv) {
             t.events.push_back({trace::Kind::end, "d", "c", at + i * 1'000'000, 0, 1});
         }
         auto st = t.summary();
-        check(st.size() == 1 && st[0].p50_ms == 50 && st[0].p95_ms == 95 && st[0].p99_ms == 99 && st[0].max_ms == 100);
-        check_near(st[0].mean_ms, 50.5, 1e-9);
-    });
+        expect(st.size() == 1 && st[0].p50_ms == 50 && st[0].p95_ms == 95 && st[0].p99_ms == 99 && st[0].max_ms == 100);
+        expect(near(st[0].mean_ms, 50.5, 1e-9));
+    };
 
-    s.test("interned names outlive the strings they came from", [] {
+    "interned names outlive the strings they came from"_test = [] {
         std::string name = "stage-made-at-run-time";
         const char* a = mlibs::trace::intern(name);
         name.assign(name.size(), 'x');  // the original text is gone
-        check(std::string_view(a) == "stage-made-at-run-time");
-        check(mlibs::trace::intern("stage-made-at-run-time") == a, "the same text, the same pointer");
+        expect(std::string_view(a) == "stage-made-at-run-time");
+        expect(mlibs::trace::intern("stage-made-at-run-time") == a) << "the same text, the same pointer";
         mlibs::trace::start();
         {
             std::string temporary = "temporary";
             mlibs::trace::Span span(mlibs::trace::intern(temporary), mlibs::trace::intern("cat"));
         }
         const auto t = mlibs::trace::stop();
-        check(t.chrome_json().contains("\"name\":\"temporary\""));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(t.chrome_json().contains("\"name\":\"temporary\""));
+    };
+}};

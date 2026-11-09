@@ -5,9 +5,9 @@
 import std;
 import mlibs.pipeline;
 import mlibs.trace;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace pl = mlibs::pipeline;
 
 namespace {
@@ -99,106 +99,105 @@ const std::array<pl::Port, 1> inputs{pl::port<Text>("seed")};
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"pipeline"};
+UTest cases{"pipeline", [] {
 
-    s.test("data decides the order; declaration breaks ties", [] {
+    "data decides the order; declaration breaks ties"_test = [] {
         World w;
         auto r = registry(w);
         // Declared backwards: the build puts producers first.
         pl::Description d{"backwards", {{"print", "print", {}, {}}, {"double", "double", {}, {}}, {"count", "count", {}, {{"n", std::int64_t{4}}}}}};
         auto p = pl::Pipeline::build(d, r, inputs);
-        check(p.has_value(), p ? "" : pl::to_text(p.error()));
+        expect(p.has_value()) << (p ? "" : pl::to_text(p.error()));
         if (!p) return;
-        check(p->order() == std::vector<std::string>{"count", "double", "print"});
+        expect(p->order() == std::vector<std::string>{"count", "double", "print"});
         Text seed{"x"};
         pl::Resources res;
         res.put("seed", &seed);
-        check(p->run(res).has_value());
-        check_eq(w.text.value, std::string("2 4 6 8 "));
-        check(p->timings().size() == 3 && p->timings()[0].name == "count");
-        check(p->describe().contains("count → double → print") && p->describe().contains("writes doubled: test.Numbers"));
-        check(p->produces("doubled") && p->produces("text") && !p->produces("seed"));
-    });
+        expect(p->run(res).has_value());
+        expect(eq(w.text.value, std::string("2 4 6 8 ")));
+        expect(p->timings().size() == 3 && p->timings()[0].name == "count");
+        expect(p->describe().contains("count → double → print") && p->describe().contains("writes doubled: test.Numbers"));
+        expect(p->produces("doubled") && p->produces("text") && !p->produces("seed"));
+    };
 
-    s.test("updaters: after the producer, readers before them see the old value", [] {
+    "updaters: after the producer, readers before them see the old value"_test = [] {
         World w;
         auto r = registry(w);
         // `double` is declared before `bump`, so it reads the numbers before they are bumped.
         pl::Description d{"update", {{"count", "count", {}, {}}, {"double", "double", {}, {}}, {"bump", "bump", {}, {}}, {"print", "print", {}, {}}}};
         auto p = pl::Pipeline::build(d, r, inputs);
-        check(p.has_value(), p ? "" : pl::to_text(p.error()));
+        expect(p.has_value()) << (p ? "" : pl::to_text(p.error()));
         if (!p) return;
-        check(p->order() == std::vector<std::string>{"count", "double", "bump", "print"});
+        expect(p->order() == std::vector<std::string>{"count", "double", "bump", "print"});
         Text seed;
         pl::Resources res;
         res.put("seed", &seed);
-        check(p->run(res).has_value());
-        check_eq(w.text.value, std::string("2 4 6 "));
-        check(w.numbers.values == std::vector<int>{11, 12, 13});
+        expect(p->run(res).has_value());
+        expect(eq(w.text.value, std::string("2 4 6 ")));
+        expect(w.numbers.values == std::vector<int>{11, 12, 13});
         // Declared the other way round, the doubling sees the bumped numbers.
         pl::Description e{"update2", {{"count", "count", {}, {}}, {"bump", "bump", {}, {}}, {"double", "double", {}, {}}, {"print", "print", {}, {}}}};
         auto q = pl::Pipeline::build(e, r, inputs);
-        check(q.has_value() && q->run(res).has_value());
-        check_eq(w.text.value, std::string("22 24 26 "));
-    });
+        expect(q.has_value() && q->run(res).has_value());
+        expect(eq(w.text.value, std::string("22 24 26 ")));
+    };
 
-    s.test("the build says what is wrong, and where", [] {
+    "the build says what is wrong, and where"_test = [] {
         World w;
         auto r = registry(w);
         auto problems = [&](pl::Description d) {
             auto p = pl::Pipeline::build(d, r, inputs);
             return p ? std::string() : pl::to_text(p.error());
         };
-        check(problems({"a", {{"print", "print", {}, {}}}}).contains("reads `doubled` (test.Numbers), which no stage produces"));
-        check(problems({"b", {{"count", "count", {}, {}}, {"t", "wrongly-typed", {}, {}}}}).contains("reads `numbers` as test.Text, but it is test.Numbers"));
-        check(problems({"c", {{"count", "count", {}, {}}, {"again", "count", {}, {}}}}).contains("which stage `count` already produces"));
-        check(problems({"d", {{"x", "nonesuch", {}, {}}}}).contains("no plugin `nonesuch`"));
-        check(problems({"d", {{"x", "nonesuch", {}, {}}}}).contains("hint: stage plugins: count"));
-        check(problems({"e", {{"x", "count", {}, {}}, {"x", "double", {}, {}}}}).contains("two stages have this name"));
-        check(problems({"f", {{"count", "count", {}, {{"refuse", true}}}}}).contains("refused by its configuration"));
-        check(problems({"g", {{"count", "count", {"print"}, {}}, {"double", "double", {}, {}}, {"print", "print", {}, {}}}})
+        expect(problems({"a", {{"print", "print", {}, {}}}}).contains("reads `doubled` (test.Numbers), which no stage produces"));
+        expect(problems({"b", {{"count", "count", {}, {}}, {"t", "wrongly-typed", {}, {}}}}).contains("reads `numbers` as test.Text, but it is test.Numbers"));
+        expect(problems({"c", {{"count", "count", {}, {}}, {"again", "count", {}, {}}}}).contains("which stage `count` already produces"));
+        expect(problems({"d", {{"x", "nonesuch", {}, {}}}}).contains("no plugin `nonesuch`"));
+        expect(problems({"d", {{"x", "nonesuch", {}, {}}}}).contains("hint: stage plugins: count"));
+        expect(problems({"e", {{"x", "count", {}, {}}, {"x", "double", {}, {}}}}).contains("two stages have this name"));
+        expect(problems({"f", {{"count", "count", {}, {{"refuse", true}}}}}).contains("refused by its configuration"));
+        expect(problems({"g", {{"count", "count", {"print"}, {}}, {"double", "double", {}, {}}, {"print", "print", {}, {}}}})
                   .contains("the stages wait for each other: "));
-        check(problems({"h", {{"count", "count", {"nobody"}, {}}}}).contains("runs after `nobody`, which is not a stage"));
-    });
+        expect(problems({"h", {{"count", "count", {"nobody"}, {}}}}).contains("runs after `nobody`, which is not a stage"));
+    };
 
-    s.test("a run stops at the stage that fails, and checks what stages provide", [] {
+    "a run stops at the stage that fails, and checks what stages provide"_test = [] {
         World w;
         auto r = registry(w);
         pl::Resources res;
         auto p = pl::Pipeline::build({"f", {{"fail", "failing", {}, {}}}}, r);
-        check(p.has_value());
+        expect(p.has_value());
         auto out = p->run(res);
-        check(!out && out.error() == "stage `fail` (failing): it broke");
+        expect(!out && out.error() == "stage `fail` (failing): it broke");
         auto q = pl::Pipeline::build({"m", {{"forget", "forgetful", {}, {}}}}, r);
         auto out2 = q->run(res);
-        check(!out2 && out2.error().contains("did not provide `missing`"));
-    });
+        expect(!out2 && out2.error().contains("did not provide `missing`"));
+    };
 
-    s.test("replace, insert and remove between runs; a bad change keeps the pipeline", [] {
+    "replace, insert and remove between runs; a bad change keeps the pipeline"_test = [] {
         World w;
         auto r = registry(w);
         auto p = pl::Pipeline::build({"live", {{"count", "count", {}, {}}, {"double", "double", {}, {}}, {"print", "print", {}, {}}}}, r, inputs);
         Text seed;
         pl::Resources res;
         res.put("seed", &seed);
-        check(p->run(res).has_value());
-        check(p->replace("print", "print", {{"prefix", std::string("= ")}}, r).has_value());
-        check(p->run(res).has_value());
-        check_eq(w.text.value, std::string("= 2 4 6 "));
-        check(p->insert({"bump", "bump", {"count"}, {}}, r).has_value());
-        check(p->run(res).has_value());
-        check_eq(w.text.value, std::string("= 22 24 26 "));
-        check(p->remove("bump", r).has_value());
+        expect(p->run(res).has_value());
+        expect(p->replace("print", "print", {{"prefix", std::string("= ")}}, r).has_value());
+        expect(p->run(res).has_value());
+        expect(eq(w.text.value, std::string("= 2 4 6 ")));
+        expect(p->insert({"bump", "bump", {"count"}, {}}, r).has_value());
+        expect(p->run(res).has_value());
+        expect(eq(w.text.value, std::string("= 22 24 26 ")));
+        expect(p->remove("bump", r).has_value());
         auto bad = p->replace("double", "wrongly-typed", {}, r);
-        check(!bad, "an invalid replacement is refused");
-        check(p->order() == std::vector<std::string>{"count", "double", "print"}, "and the pipeline is what it was");
-        check(p->run(res).has_value());
-        check_eq(w.text.value, std::string("= 2 4 6 "));
-        check(!p->remove("nonesuch", r).has_value());
-    });
+        expect(!bad) << "an invalid replacement is refused";
+        expect(p->order() == std::vector<std::string>{"count", "double", "print"}) << "and the pipeline is what it was";
+        expect(p->run(res).has_value());
+        expect(eq(w.text.value, std::string("= 2 4 6 ")));
+        expect(!p->remove("nonesuch", r).has_value());
+    };
 
-    s.test("each stage is a span in its plugin's trace category", [] {
+    "each stage is a span in its plugin's trace category"_test = [] {
         World w;
         auto r = registry(w);
         auto p = pl::Pipeline::build({"traced", {{"count", "count", {}, {}}, {"double", "double", {}, {}}}}, r, inputs);
@@ -206,46 +205,43 @@ int main(int argc, char** argv) {
         pl::Resources res;
         res.put("seed", &seed);
         mlibs::trace::start();
-        check(p->run(res).has_value());
+        expect(p->run(res).has_value());
         const auto t = mlibs::trace::stop();
         const auto stats = t.summary();
-        check(std::ranges::any_of(stats, [](const auto& st) { return st.name == "count" && st.category == "test"; }));
-        check(std::ranges::any_of(stats, [](const auto& st) { return st.name == "double" && st.category == "test"; }));
-    });
+        expect(std::ranges::any_of(stats, [](const auto& st) { return st.name == "count" && st.category == "test"; }));
+        expect(std::ranges::any_of(stats, [](const auto& st) { return st.name == "double" && st.category == "test"; }));
+    };
 
-    s.test("a description writes as <name>.pipeline.omui.toml", [] {
+    "a description writes as <name>.pipeline.omui.toml"_test = [] {
         pl::Description d{"desktop", {{"raster", "openmui.render.cpu", {"damage"}, {{"parallel", true}, {"rows_per_task", std::int64_t{64}}, {"gamma", 2.0}, {"label", std::string("a \"b\"")}}}}};
         const std::string toml = pl::to_toml(d);
-        check_eq(toml, std::string("name = \"desktop\"\n\n[[stage]]\nname = \"raster\"\nplugin = \"openmui.render.cpu\"\nafter = [\"damage\"]\n"
-                                   "config = { parallel = true, rows_per_task = 64, gamma = 2.0, label = \"a \\\"b\\\"\" }\n"));
-    });
+        expect(eq(toml, std::string("name = \"desktop\"\n\n[[stage]]\nname = \"raster\"\nplugin = \"openmui.render.cpu\"\nafter = [\"damage\"]\n"
+                                   "config = { parallel = true, rows_per_task = 64, gamma = 2.0, label = \"a \\\"b\\\"\" }\n")));
+    };
 
-    s.test("resources are typed: a wrong type reads as nothing", [] {
+    "resources are typed: a wrong type reads as nothing"_test = [] {
         Numbers n;
         pl::Resources res;
         res.put("x", &n);
-        check(res.get<Numbers>("x") == &n && res.get<Text>("x") == nullptr && res.get<Numbers>("y") == nullptr);
-        check(res.has("x") && !res.has("y"));
-    });
+        expect(res.get<Numbers>("x") == &n && res.get<Text>("x") == nullptr && res.get<Numbers>("y") == nullptr);
+        expect(res.has("x") && !res.has("y"));
+    };
 
-    s.test("a stage declares its cost and its tiers, or is not registered (performance tiers §3); the tiers as bits", [] {
+    "a stage declares its cost and its tiers, or is not registered (performance tiers §3); the tiers as bits"_test = [] {
         pl::Registry r;
         auto none = r.add({.name = "acme.free", .kind = "stage"}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> { return nullptr; });
-        check(!none.has_value() && none.error().contains("declares its cost"), "refused without a cost");
-        check(r.info("acme.free") == nullptr, "not there");
-        check(r.add({.name = "acme.tool", .kind = "tool"}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> { return nullptr; })
-                  .has_value(),
-              "a kind that is not costed needs none");
+        expect(!none.has_value() && none.error().contains("declares its cost")) << "refused without a cost";
+        expect(r.info("acme.free") == nullptr) << "not there";
+        expect(r.add({.name = "acme.tool", .kind = "tool"}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> { return nullptr; })
+                  .has_value()) << "a kind that is not costed needs none";
         const pl::Cost glass{.unit = "a megapixel", .gpu_us = 400, .tiers = pl::tiers_from(pl::Tier::t2), .degrade = {"frost", ""}};
-        check(r.add({.name = "acme.glass", .kind = "stage", .cost = glass}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> {
+        expect(r.add({.name = "acme.glass", .kind = "stage", .cost = glass}, [](const pl::Config&) -> std::expected<std::unique_ptr<pl::Stage>, std::string> {
                    return nullptr;
                }).has_value());
-        check(r.info("acme.glass")->cost->runs_on(pl::Tier::t3) && !glass.runs_on(pl::Tier::t1), "from T2 up");
-        check_eq(pl::tiers_from(pl::Tier::t0), pl::all_tiers);
-        check_eq(pl::tiers_from(pl::Tier::t3), std::uint8_t{0x18});
-        check(glass.within(700, 2) && !glass.within(900, 2), "a megapixel and a half: within; more than it said: not");
-        check_eq(pl::name(pl::Tier::t4), std::string_view("T4"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(r.info("acme.glass")->cost->runs_on(pl::Tier::t3) && !glass.runs_on(pl::Tier::t1)) << "from T2 up";
+        expect(eq(pl::tiers_from(pl::Tier::t0), pl::all_tiers));
+        expect(eq(pl::tiers_from(pl::Tier::t3), std::uint8_t{0x18}));
+        expect(glass.within(700, 2) && !glass.within(900, 2)) << "a megapixel and a half: within; more than it said: not";
+        expect(eq(pl::name(pl::Tier::t4), std::string_view("T4")));
+    };
+}};

@@ -10,10 +10,10 @@
 //                ≥ 95 % of the CommonMark spec, extensions counted apart.
 import std;
 import mlibs.markdown;
-import mlibs.testing;
+import mcpplibs.mtest;
 import mcpplibs.mwrap.md4c;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace md = mlibs::markdown;
 namespace mm = mcpplibs::mwrap::md4c::macros;
 
@@ -420,14 +420,14 @@ Tally run_suite(const std::filesystem::path& file, bool show_failures) {
     Tally t;
     for (const Example& e : examples(file)) {
         const Dialect d = dialect(e.options);
-        check(d.known, std::format("{} example {}: an option this test does not map: {}", file.filename().string(), e.number, e.options));
+        expect(d.known) << std::format("{} example {}: an option this test does not map: {}", file.filename().string(), e.number, e.options);
         ++t.examples;
         const std::string mine = md::to_html(md::parse(e.markdown, d.ext));
         const std::string theirs = oracle(e.markdown, d.flags);
         if (mine == theirs) ++t.identical;
         else if (show_failures)
-            fail(std::format("{} example {} (line {}): the document's HTML differs from md4c-html\n--- md\n{}--- md4c-html\n{}--- to_html\n{}",
-                             file.filename().string(), e.number, e.line, e.markdown, theirs, mine));
+            expect(false) << std::format("{} example {} (line {}): the document's HTML differs from md4c-html\n--- md\n{}--- md4c-html\n{}--- to_html\n{}",
+                             file.filename().string(), e.number, e.line, e.markdown, theirs, mine);
         const bool ok = e.no_normalize ? mine == e.html : normalize(mine) == normalize(e.html);
         if (ok) ++t.conforming;
     }
@@ -436,28 +436,27 @@ Tally run_suite(const std::filesystem::path& file, bool show_failures) {
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"markdown.conformance"};
+UTest cases{"markdown.conformance", [] {
 
-    s.test("the normaliser agrees with normalize.py's documented cases", [] {
-        check_eq(normalize("<p>a  \t b</p>"), std::string("<p>a b</p>"));
-        check_eq(normalize("\n\t<p>\n\t\ta  b\t\t</p>\n\t"), std::string("<p>a b</p>"));
-        check_eq(normalize("<i>a  b</i> "), std::string("<i>a b</i> "));
-        check_eq(normalize("<br />"), std::string("<br>"));
-        check_eq(normalize("<a title=\"bar\" HREF=\"foo\">x</a>"), std::string("<a href=\"foo\" title=\"bar\">x</a>"));
-        check_eq(normalize("&forall;&amp;&gt;&lt;&quot;"), std::string("\xE2\x88\x80&amp;&gt;&lt;&quot;"));
-    });
+    "the normaliser agrees with normalize.py's documented cases"_test = [] {
+        expect(eq(normalize("<p>a  \t b</p>"), std::string("<p>a b</p>")));
+        expect(eq(normalize("\n\t<p>\n\t\ta  b\t\t</p>\n\t"), std::string("<p>a b</p>")));
+        expect(eq(normalize("<i>a  b</i> "), std::string("<i>a b</i> ")));
+        expect(eq(normalize("<br />"), std::string("<br>")));
+        expect(eq(normalize("<a title=\"bar\" HREF=\"foo\">x</a>"), std::string("<a href=\"foo\" title=\"bar\">x</a>")));
+        expect(eq(normalize("&forall;&amp;&gt;&lt;&quot;"), std::string("\xE2\x88\x80&amp;&gt;&lt;&quot;")));
+    };
 
-    s.test("CommonMark 0.31.2: every example, HTML from the document identical to md4c-html; ≥ 95 % conform", [] {
+    "CommonMark 0.31.2: every example, HTML from the document identical to md4c-html; ≥ 95 % conform"_test = [] {
         const Tally t = run_suite(data_dir() / "spec.txt", true);
         std::println("    spec.txt: {} examples, {} identical to md4c-html, {} conform ({:.1f} %)", t.examples, t.identical, t.conforming,
                      100.0 * t.conforming / std::max(1, t.examples));
-        check_eq(t.examples, 652);
-        check_eq(t.identical, t.examples);
-        check(t.conforming * 100 >= t.examples * 95, "the CommonMark pass rate is at least 95 %");
-    });
+        expect(eq(t.examples, 652));
+        expect(eq(t.identical, t.examples));
+        expect(t.conforming * 100 >= t.examples * 95) << "the CommonMark pass rate is at least 95 %";
+    };
 
-    s.test("GitHub's and md4c's extensions, regressions and coverage cases", [] {
+    "GitHub's and md4c's extensions, regressions and coverage cases"_test = [] {
         int examples = 0, identical = 0, conforming = 0;
         for (const auto& entry : std::filesystem::directory_iterator(data_dir())) {
             const auto name = entry.path().filename().string();
@@ -470,10 +469,8 @@ int main(int argc, char** argv) {
         }
         std::println("    extensions: {} examples, {} identical, {} conform ({:.1f} %)", examples, identical, conforming,
                      100.0 * conforming / std::max(1, examples));
-        check_eq(examples, 156);
-        check_eq(identical, examples);
-        check(conforming * 100 >= examples * 95);
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(examples, 156));
+        expect(eq(identical, examples));
+        expect(conforming * 100 >= examples * 95);
+    };
+}};

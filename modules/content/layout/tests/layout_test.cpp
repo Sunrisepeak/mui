@@ -4,8 +4,10 @@ import std;
 import mlibs.geom;
 import mlibs.layout;
 import mlibs.testing;
+import mcpplibs.mtest;
 
 using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 namespace layout = mlibs::layout;
 using layout::pt;
 using layout::pct;
@@ -18,9 +20,8 @@ void check_frame(const layout::Engine& e, layout::NodeId n, Rect expected,
     Rect f = e.frame(n);
     bool ok = std::abs(f.x - expected.x) < 1e-3 && std::abs(f.y - expected.y) < 1e-3 &&
               std::abs(f.width - expected.width) < 1e-3 && std::abs(f.height - expected.height) < 1e-3;
-    check(ok, std::format("frame {{{}, {}, {}, {}}}, expected {{{}, {}, {}, {}}}", f.x, f.y, f.width, f.height, expected.x,
-                          expected.y, expected.width, expected.height),
-          where);
+    expect(ok, where) << std::format("frame {{{}, {}, {}, {}}}, expected {{{}, {}, {}, {}}}", f.x, f.y, f.width, f.height, expected.x,
+                          expected.y, expected.width, expected.height);
 }
 
 layout::Style box(float w, float h) {
@@ -51,10 +52,9 @@ mlibs::geom::Size measure_words(void* ctx, layout::NodeId, std::optional<float> 
 
 }  // namespace
 
-int main(int argc, char** argv) {
-    Suite s{"layout"};
+UTest cases{"layout", [] {
 
-    s.test("row: padding, border, gap, fixed children", [] {
+    "row: padding, border, gap, fixed children"_test = [] {
         layout::Engine e;
         layout::Style rs;
         rs.padding = mlibs::geom::Insets::all(10);
@@ -69,9 +69,9 @@ int main(int argc, char** argv) {
         check_frame(e, root, {0, 0, 400, 300});
         check_frame(e, a, {11, 11, 50, 20});
         check_frame(e, b, {66, 11, 30, 40});
-    });
+    };
 
-    s.test("a subtree hidden and shown again is laid out again", [] {
+    "a subtree hidden and shown again is laid out again"_test = [] {
         // display: none zeroes the frames below it; showing it must not reuse
         // the cached sizes that skip positioning its grandchildren.
         layout::Engine e;
@@ -96,9 +96,9 @@ int main(int argc, char** argv) {
         e.compute(root, {200, 100});
         check_frame(e, leaf, {0, 0, 30, 10});
         check_frame(e, row, {4, 4, 30, 10});
-    });
+    };
 
-    s.test("an auto-sized column stretches its items to its min width (§9.4)", [] {
+    "an auto-sized column stretches its items to its min width (§9.4)"_test = [] {
         layout::Engine e;
         auto root = e.create();
         layout::Style ps;
@@ -118,9 +118,9 @@ int main(int argc, char** argv) {
         check_frame(e, pop, {0, 0, 160, 28});
         check_frame(e, a, {4, 4, 60, 10});      // a definite width stays
         check_frame(e, b, {4, 14, 152, 10});    // an auto one stretches to the clamped line
-    });
+    };
 
-    s.test("grow shares free space by factor, within max", [] {
+    "grow shares free space by factor, within max"_test = [] {
         layout::Engine e;
         auto root = e.create();
         layout::Style g1 = box(0, 10), g2 = box(0, 10), g3 = box(0, 10);
@@ -138,9 +138,9 @@ int main(int argc, char** argv) {
         check_frame(e, c, {350, 0, 50, 10});
         check_frame(e, a, {0, 0, 350.0f / 3, 10});
         check_frame(e, b, {350.0f / 3, 0, 700.0f / 3, 10});
-    });
+    };
 
-    s.test("shrink by base size, stopping at the automatic minimum", [] {
+    "shrink by base size, stopping at the automatic minimum"_test = [] {
         layout::Engine e;
         layout::Style rs;
         rs.align_items = layout::Align::start;
@@ -156,9 +156,9 @@ int main(int argc, char** argv) {
         // a would become 45 but its min-content (one word, 10) is lower; b becomes 15.
         check_frame(e, a, {0, 0, 45, 60});   // 45 wide: 2 words per line, 3 lines
         check_frame(e, b, {45, 0, 15, 40});  // 15 wide: 1 word per line, 2 lines
-    });
+    };
 
-    s.test("a max-width bounds what content measures: a long paragraph wraps within it (CSS)", [] {
+    "a max-width bounds what content measures: a long paragraph wraps within it (CSS)"_test = [] {
         layout::Engine e;
         layout::Style cs;
         cs.direction = layout::Direction::column;
@@ -172,9 +172,9 @@ int main(int argc, char** argv) {
         e.append(root, p);
         e.compute(root, {400, 400});
         check_frame(e, p, {0, 0, 50, 60});  // 50 wide: 3 words a line, 3 lines — not one line of 170 cut to 50
-    });
+    };
 
-    s.test("column: stretch, center, end, space-between", [] {
+    "column: stretch, center, end, space-between"_test = [] {
         layout::Engine e;
         layout::Style cs;
         cs.direction = layout::Direction::column;
@@ -192,9 +192,9 @@ int main(int argc, char** argv) {
         check_frame(e, na, {0, 0, 200, 20});
         check_frame(e, nb, {80, 40, 40, 20});
         check_frame(e, nc, {160, 80, 40, 20});
-    });
+    };
 
-    s.test("justify: around and evenly", [] {
+    "justify: around and evenly"_test = [] {
         for (auto [j, first] : {std::pair{layout::Justify::space_around, 25.0f}, std::pair{layout::Justify::space_evenly, 100.0f / 3}}) {
             layout::Engine e;
             layout::Style rs;
@@ -205,11 +205,11 @@ int main(int argc, char** argv) {
             e.append(root, a);
             e.append(root, b);
             e.compute(root, {200, 50});
-            check_near(e.frame(a).x, first, 1e-3);
+            expect(near(e.frame(a).x, first, 1e-3));
         }
-    });
+    };
 
-    s.test("wrap into lines; wrap-reverse", [] {
+    "wrap into lines; wrap-reverse"_test = [] {
         layout::Engine e;
         layout::Style rs;
         rs.wrap = layout::Wrap::wrap;
@@ -231,10 +231,10 @@ int main(int argc, char** argv) {
         rev.height = pt(100);
         e.set_style(root, rev);
         e.compute(root, {130, 200});
-        check_near(e.frame(kids[0]).y, 100 - 12, 1e-3);
-    });
+        expect(near(e.frame(kids[0]).y, 100 - 12, 1e-3));
+    };
 
-    s.test("percentages, min/max, aspect ratio", [] {
+    "percentages, min/max, aspect ratio"_test = [] {
         layout::Engine e;
         layout::Style rs;
         rs.padding = mlibs::geom::Insets::all(10);
@@ -253,9 +253,9 @@ int main(int argc, char** argv) {
         e.compute(root, {220, 200});
         check_frame(e, na, {10, 10, 100, 50});
         check_frame(e, nb, {110, 10, 100, 10});
-    });
+    };
 
-    s.test("absolute positioning in the padding box", [] {
+    "absolute positioning in the padding box"_test = [] {
         layout::Engine e;
         layout::Style rs;
         rs.padding = mlibs::geom::Insets::all(10);
@@ -277,9 +277,9 @@ int main(int argc, char** argv) {
         e.compute(root, {200, 100});
         check_frame(e, na, {200 - 2 - 5 - 30, 100 - 2 - 5 - 30, 30, 30});
         check_frame(e, nb, {2, 2, 196, 4});
-    });
+    };
 
-    s.test("grid: fixed, fr, auto, spans, auto-placement", [] {
+    "grid: fixed, fr, auto, spans, auto-placement"_test = [] {
         layout::Engine e;
         layout::Style gs;
         gs.display = layout::Display::grid;
@@ -302,9 +302,9 @@ int main(int argc, char** argv) {
         check_frame(e, cells[1], {110, 0, fr + 10 + 2 * fr, 30});
         check_frame(e, cells[2], {0, 35, 100, 30});
         check_frame(e, cells[3], {110, 35, fr, 30});
-    });
+    };
 
-    s.test("grid: explicit and negative lines; auto tracks fit content", [] {
+    "grid: explicit and negative lines; auto tracks fit content"_test = [] {
         layout::Engine e;
         layout::Style gs;
         gs.display = layout::Display::grid;
@@ -325,10 +325,10 @@ int main(int argc, char** argv) {
         // b auto-places in column 1 (the first free cell); the auto column
         // takes 70 and stretches over the free space: 200 − 50 = 150.
         check_frame(e, b, {0, 0, 70, 15});
-        check_near(e.frame(a).x, 150, 1e-3);
-    });
+        expect(near(e.frame(a).x, 150, 1e-3));
+    };
 
-    s.test("stack overlays its children", [] {
+    "stack overlays its children"_test = [] {
         layout::Engine e;
         layout::Style ss;
         ss.display = layout::Display::stack;
@@ -344,9 +344,9 @@ int main(int argc, char** argv) {
         e.compute(outer, {500, 500});
         check_frame(e, root, {0, 0, 100, 60});
         check_frame(e, small, {40, 25, 20, 10});
-    });
+    };
 
-    s.test("scroll containers keep their content's size", [] {
+    "scroll containers keep their content's size"_test = [] {
         layout::Engine e;
         layout::Style ss;
         ss.direction = layout::Direction::column;
@@ -355,11 +355,11 @@ int main(int argc, char** argv) {
         auto root = e.create(ss);
         for (int i = 0; i < 10; ++i) e.append(root, e.create(box(50, 30)));
         e.compute(root, {200, 500});
-        check_near(e.content_size(root).height, 300, 1e-3);
+        expect(near(e.content_size(root).height, 300, 1e-3));
         check_frame(e, e.children(root)[9], {0, 270, 50, 30});
-    });
+    };
 
-    s.test("a container scrolling sideways: a stretched line wider than it keeps its width, and scrolls", [] {
+    "a container scrolling sideways: a stretched line wider than it keeps its width, and scrolls"_test = [] {
         layout::Engine e;
         layout::Style ss;
         ss.direction = layout::Direction::column;
@@ -379,10 +379,10 @@ int main(int argc, char** argv) {
         e.compute(root, {500, 500});
         check_frame(e, line, {0, 0, 300, 20});
         check_frame(e, narrow, {0, 20, 100, 20});  // stretched to the view, as without scrolling
-        check_near(e.content_size(root).width, 300, 1e-3);
-    });
+        expect(near(e.content_size(root).width, 300, 1e-3));
+    };
 
-    s.test("relayout is incremental", [] {
+    "relayout is incremental"_test = [] {
         layout::Engine e;
         layout::Style cs;
         cs.direction = layout::Direction::column;
@@ -397,20 +397,20 @@ int main(int argc, char** argv) {
         e.compute(root, {300, 1000});
         e.reset_stats();
         e.compute(root, {300, 1000});
-        check_eq(e.stats().layouts, std::size_t{0}, std::source_location::current());
+        expect(eq(e.stats().layouts, std::size_t{0}), std::source_location::current());
         words[100].count = 30;
         e.mark_dirty(paras[100]);
         e.reset_stats();
         e.compute(root, {300, 1000});
         // The changed paragraph (measured and laid out under its few distinct
         // constraints) and the root; the other 199 paragraphs come from cache.
-        check(e.stats().layouts <= 6, std::format("{} nodes laid out after one change", e.stats().layouts));
-        check(e.stats().measures <= 4, std::format("{} measures after one change", e.stats().measures));
-        check_near(e.frame(paras[100]).height, 40, 1e-3);
-        check_near(e.frame(paras[101]).y, e.frame(paras[100]).y + 40, 1e-3);
-    });
+        expect(e.stats().layouts <= 6) << std::format("{} nodes laid out after one change", e.stats().layouts);
+        expect(e.stats().measures <= 4) << std::format("{} measures after one change", e.stats().measures);
+        expect(near(e.frame(paras[100]).height, 40, 1e-3));
+        expect(near(e.frame(paras[101]).y, e.frame(paras[100]).y + 40, 1e-3));
+    };
 
-    s.test("display none takes no room", [] {
+    "display none takes no room"_test = [] {
         layout::Engine e;
         auto root = e.create();
         layout::Style hidden = box(50, 50);
@@ -420,10 +420,10 @@ int main(int argc, char** argv) {
         e.append(root, b);
         e.compute(root, {100, 100});
         check_frame(e, b, {0, 0, 10, 10});
-        check(e.frame(a).empty());
-    });
+        expect(e.frame(a).empty());
+    };
 
-    s.test("pinned frames of a large tree", [] {
+    "pinned frames of a large tree"_test = [] {
         layout::Engine e;
         std::uint64_t seed = 42;
         auto next = [&] {
@@ -463,8 +463,6 @@ int main(int argc, char** argv) {
             h.f32(f.height);
         }
         std::println("    layout frames {}", h.hex());
-        check_eq(h.hex(), std::string("6030294bb8dd27d9"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(h.hex(), std::string("6030294bb8dd27d9")));
+    };
+}};

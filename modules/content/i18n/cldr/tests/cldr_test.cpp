@@ -2,32 +2,29 @@
 import std;
 import mlibs.i18n;
 import mlibs.i18n.cldr;
-import mlibs.testing;
+import mcpplibs.mtest;
 
-using namespace mlibs::testing;
+using namespace mcpplibs::mtest;
 using namespace mlibs::i18n;
 
-int main(int argc, char** argv) {
-    Suite s{"i18n.cldr"};
+UTest cases{"i18n.cldr", [] {
 
-    s.test("every pack and the likely subtags are in the program and read whole", [] {
+    "every pack and the likely subtags are in the program and read whole"_test = [] {
         for (std::string_view id : cldr::locales) {
             auto d = cldr::data(id);
-            check(d != nullptr, std::string(id));
-            if (d) check_eq(d->cldr, std::string(cldr::version));
+            expect(d != nullptr) << std::string(id);
+            if (d) expect(eq(d->cldr, std::string(cldr::version)));
         }
-        check(cldr::likely().size() > 20, "the likely subtags of en and zh");
-        check(!cldr::data("fr"), "not packed");
-    });
+        expect(cldr::likely().size() > 20) << "the likely subtags of en and zh";
+        expect(!cldr::data("fr")) << "not packed";
+    };
 
-    s.test("a library with the packs: a Traditional Chinese reader's numbers and dates", [] {
+    "a library with the packs: a Traditional Chinese reader's numbers and dates"_test = [] {
         Library lib;
         cldr::add_to(lib);
         const std::array asked{*Locale::parse("zh-HK")};
         Translator t(lib, asked, *Locale::parse("en"));
-        check_eq(t.formatter().number(123456.0, {.style = NumberOptions::Style::compact_short}).text, std::string("12萬"));
-        check_eq(t.formatter().date(CivilTime{2026, 10, 28}, DateStyle::full), std::string("2026年10月28日 星期三"));
-    });
-
-    return s.run(argc, argv);
-}
+        expect(eq(t.formatter().number(123456.0, {.style = NumberOptions::Style::compact_short}).text, std::string("12萬")));
+        expect(eq(t.formatter().date(CivilTime{2026, 10, 28}, DateStyle::full), std::string("2026年10月28日 星期三")));
+    };
+}};

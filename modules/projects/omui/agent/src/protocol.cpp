@@ -872,6 +872,8 @@ Envelope Protocol::handle(const Value& req, const Value& re, const Reply& reply,
             return e.data(Value{}.set("at", *at).set("node", Value{}).set("why", "no node drew it: the background")).result(spec::exit_code::success);
         }
         auto source = [&](NodeId node) {
+            // A script's line (development mode keeps it) before the C++ that ran the script.
+            if (const std::string_view script = runtime_.script_origin(node); !script.empty()) return Value(std::string(script));
             const std::source_location where = runtime_.origin(node);
             return where.line() == 0 ? Value{} : Value(std::format("{}:{}:{}", where.file_name(), where.line(), where.column()));
         };

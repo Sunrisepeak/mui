@@ -136,6 +136,7 @@ Value Runtime::inspect(NodeId node) const {
     if (n.type->contract) v.set("contract", n.type->contract->name);
     v.set("source", std::format("{}:{}:{}", n.where.file_name(), n.where.line(), n.where.column()));
     v.set("function", n.where.function_name());
+    if (n.origin) v.set("origin", d.origins[n.origin]);  // the script's line that built it (development mode)
     Value props = Value(Value::Map{});
     for (const auto& [k, x] : n.props) props.set(k, x);
     v.set("props", std::move(props));

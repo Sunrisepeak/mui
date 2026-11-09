@@ -12,6 +12,7 @@ import omui.ui.base;
 import mlibs.testing;
 import mcpplibs.mtest;
 import omui.view;
+import omui.player;
 import omui.cts;
 import omui.native;
 import omui.native.fuzzy;
@@ -445,6 +446,129 @@ export const label = (n: number): string => `${n} taps`;
         expect(script.script.reload_now(*js, name).has_value());
         expect(eq(r.name_of("main/caption"), std::string("2 clicks")));
         expect(eq(r.name_of("main/runs"), std::string("3/1")));
+    };
+
+    "development mode: each element knows the line and column of the script that built it, and a line its nodes (Live Design's map)"_test = [] {
+        const auto dir = scratch_dir("lang-js-origins");
+        std::ofstream(dir / "parts.ts", std::ios::binary) << R"ts(import { text } from "openmui";
+export const caption = (words: string) =>
+  text({ id: "caption", text: words });
+)ts";
+        const std::string main = R"ts(import { column, text, mount } from "openmui";
+import { caption } from "./parts";
+const title: string = "Counter";
+mount("main", column({ gap: 8 }, [
+  text({ id: "title", text: title }),
+  caption("two"),
+]));
+)ts";
+        const auto file = dir / "main.ts";
+        auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(file));
+        expect(js.has_value()) << (js ? "" : js.error());
+        if (!js) return;
+        Runtime r;
+        Js script(r);
+        script.script.keep_origins(true);
+        auto ran = script.run(*js, mcpplibs::os::fs::utf8(file));
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        omui::Runtime& view = *omui::abi::runtime_of(r.rt);
+        const auto origin = [&](std::string_view id) { return std::string(view.script_origin(view.reveal(id))); };
+        const std::string main_file = mcpplibs::os::fs::utf8(file), parts_file = mcpplibs::os::fs::utf8((dir / "parts.ts").lexically_normal());
+        // Where the builder call is written: its callee's first character — a call over several lines too
+        // (QuickJS places a call at the last position its arguments recorded: inside the last child).
+        expect(eq(origin("main/title"), main_file + ":5:3"));
+        expect(eq(origin("main/caption"), parts_file + ":3:3")) << " — in the module that built it";
+        const auto at = [&](const std::string& in, std::uint32_t line) {
+            std::vector<std::string> ids;
+            for (const omui::NodeId node : view.built_at(in, line)) ids.push_back(view.path(node));
+            return ids;
+        };
+        expect(at(main_file, 5) == std::vector<std::string>{"main/title"});
+        expect(eq(at(main_file, 4).size(), std::size_t{1})) << "the column, written over four lines from line 4";
+        expect(at(parts_file, 3) == std::vector<std::string>{"main/caption"});
+        expect(at(main_file, 3).empty()) << "a line that built nothing";
+        // Off (out of development mode), nothing is kept.
+        Runtime plain;
+        Js quiet(plain);
+        expect(quiet.run(*js, mcpplibs::os::fs::utf8(file)).has_value());
+        omui::Runtime& plain_view = *omui::abi::runtime_of(plain.rt);
+        expect(plain_view.script_origin(plain_view.reveal("main/title")).empty());
+    };
+
+    "Live Design's structured operations edit the TypeScript where each node was built: set, insert, remove — then commit writes it"_test = [] {
+        const auto dir = scratch_dir("lang-js-structured");
+        const std::string source = R"ts(import { column, text, button, mount } from "openmui";
+const title: string = "Settings";
+mount("main", column({ gap: 8 }, [
+  text({ id: "title", text: title }),
+  button({ id: "save", text: "Save" }),
+  text({ id: "note", text: "Changes apply at once" }),
+]));
+)ts";
+        std::ofstream(dir / "app.ts", std::ios::binary) << source;
+        Runtime r;
+        omui::Runtime& view = *omui::abi::runtime_of(r.rt);
+        omui::player::Manifest manifest;
+        manifest.id = "org.openmui.structured";
+        manifest.base = dir;
+        manifest.scripts = {{"ts", "app.ts"}};
+        omui::player::Player designer(view, manifest, {lang::js::typescript()}, {.design = true});
+        auto started = designer.start();
+        expect(started.has_value()) << (started ? "" : started.error());
+        const auto settle = [&] {
+            for (int frame = 0, quiet = 0; frame < 5000 && quiet < 3; ++frame) {
+                const bool moving = r.frame();
+                quiet = designer.idle() && !moving ? quiet + 1 : 0;
+                if (!quiet) std::this_thread::sleep_for(std::chrono::microseconds(100));
+            }
+        };
+        settle();
+        expect(eq(r.name_of("main/save"), std::string("Save")));
+        const auto invoke = [&](std::string_view verb, omui::Value args) {
+            omui::Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const omui::Envelope answer = view.verbs().invoke(verb, call);
+            settle();
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : omui::Value{}};
+        };
+        const auto text_of = [&] {
+            const auto sources = invoke("design.sources", omui::Value(omui::Value::Map{})).second;
+            return std::string(sources.get("scripts")->list()->front().get("text")->as_string());
+        };
+
+        // Where the save button was built, then a property set there.
+        const auto [located, place] = invoke("design.locate", omui::Value{}.set("node", "main/save"));
+        expect(eq(located, 0) && place.get("line")->as_int() == 5) << place.json();
+        const auto [set, set_answer] = invoke("design.set", omui::Value{}.set("node", "main/save").set("props", omui::Value{}.set("text", "Save all")));
+        expect(eq(set, 0)) << set_answer.json();
+        expect(eq(r.name_of("main/save"), std::string("Save all"))) << "run at once";
+        expect(text_of().contains(R"(  button({ id: "save", text: "Save all" }),)")) << text_of();
+        expect(set_answer.get("source") && set_answer.get("source")->get("line")->as_int() == 5 &&
+               set_answer.get("source")->get("before")->as_string() == R"(  button({ id: "save", text: "Save" }),)")
+            << set_answer.json();
+        // A child inserted after the title into the column (found by its line), laid out as its siblings; the note removed with its line.
+        const auto [column_found, column_place] = invoke("design.locate", omui::Value{}.set("path", "app.ts").set("line", 3));
+        const std::string column_id = column_found == 0 && !column_place.get("nodes")->list()->empty()
+                                          ? std::string(column_place.get("nodes")->list()->front().get("node")->as_string())
+                                          : std::string();
+        expect(!column_id.empty()) << column_place.json();
+        const auto [added, added_answer] =
+            invoke("design.insert", omui::Value{}.set("parent", column_id).set("code", R"(text({ id: "hint", text: "Saved on every change" }))").set("index", 1));
+        expect(eq(added, 0)) << added_answer.json();
+        expect(eq(r.name_of("main/hint"), std::string("Saved on every change")));
+        expect(text_of().contains("  text({ id: \"title\", text: title }),\n  text({ id: \"hint\", text: \"Saved on every change\" }),\n  button(")) << text_of();
+        const auto [removed, removed_answer] = invoke("design.remove", omui::Value{}.set("node", "main/note"));
+        expect(eq(removed, 0)) << removed_answer.json();
+        expect(eq(r.name_of("main/note"), std::string("<none>")));
+        expect(!text_of().contains("Changes apply at once") && text_of().contains("Save all\" }),\n]));")) << text_of();
+        // The file is untouched until commit writes it — the TypeScript the one source.
+        expect(eq(file_text(dir / "app.ts"), source));
+        const auto [committed, commit_answer] = invoke("design.commit", omui::Value(omui::Value::Map{}));
+        expect(eq(committed, 0)) << commit_answer.json();
+        expect(eq(file_text(dir / "app.ts"), text_of()));
+        auto checked = lang::ts::compile(dir / "app.ts");
+        expect(checked.has_value()) << (checked ? "" : checked.error()) << " — what was written still compiles";
     };
 
     "TypeScript: its types blanked in this process; its own modules imported by path, their types blanked too"_test = [] {

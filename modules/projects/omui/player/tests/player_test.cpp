@@ -277,6 +277,46 @@ UTest cases{"player", [] {
         expect(eq(name_of(h, "side"), std::string("second")));
     };
 
+    "design.locate: a node to the line of the script that built it, and a line to the nodes built there"_test = [] {
+        const auto dir = scratch_dir("player-locate");
+        // The origins a script engine gives its elements in development mode (file:line:column).
+        const std::string file = generic_utf8(dir / "logic" / "side.stub");
+        const std::string doc = std::format(R"j({{"omui": "0.1", "view": {{"root": {{"type": "column", "origin": "{0}:1:30", "children": [
+  {{"type": "text", "id": "hello", "origin": "{0}:2:3", "props": {{"text": "hi"}}}},
+  {{"type": "text", "id": "bye", "origin": "{0}:3:3", "props": {{"text": "bye"}}}},
+  {{"type": "text", "id": "later", "origin": "{0}:3:60", "props": {{"text": "later"}}}}]}}}}}})j",
+                                            file);
+        write(dir / "logic" / "side.stub", doc);
+        player::Manifest m;
+        m.id = "org.openmui.player-locate";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/side.stub"}};
+        Headless h(HeadlessOptions{.size = {320, 240}});
+        player::Player p(h.runtime(), m, {stub()}, {.design = true});
+        expect(p.start().has_value());
+        h.settle();
+        const auto invoke = [&](Value args) {
+            Invocation call;
+            call.args = std::move(args);
+            call.actor = {"agent", "designer", {}};
+            const Envelope answer = h.runtime().verbs().invoke("design.locate", call);
+            return std::pair{answer.exit_code().value_or(-1), answer.data_value() ? *answer.data_value() : Value{}};
+        };
+        const auto [found, place] = invoke(Value{}.set("node", "side/hello"));
+        expect(eq(found, 0)) << place.json();
+        expect(place.get("path") && place.get("path")->as_string() == "logic/side.stub") << place.json();
+        expect(place.get("line") && place.get("line")->as_int() == 2 && place.get("column")->as_int() == 3) << place.json();
+        expect(place.get("text") && place.get("text")->as_string().contains("\"id\": \"hello\"")) << place.json() << " — the line's text";
+        const auto [listed, nodes] = invoke(Value{}.set("path", "logic/side.stub").set("line", 3));
+        expect(eq(listed, 0)) << nodes.json();
+        expect(nodes.get("nodes") && nodes.get("nodes")->json().contains("side/bye") && nodes.get("nodes")->json().contains("side/later") &&
+               !nodes.get("nodes")->json().contains("side/hello"))
+            << nodes.json();
+        expect(invoke(Value{}.set("node", "side/none")).first != 0) << "no such node";
+        expect(invoke(Value{}.set("path", "logic/other.stub").set("line", 1)).first != 0) << "no such script";
+        expect(invoke(Value{}.set("path", "logic/side.stub")).first != 0) << "a path needs a line";
+    };
+
     "out of development mode there are no design verbs"_test = [] {
         const auto dir = scratch_dir("player-no-design");
         write(dir / "logic" / "side.stub", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "x"}}}})j");

@@ -7,9 +7,26 @@ import mlibs.control;
 
 export namespace omui::agent::design {
 
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_locate{{
+    {"node", "node", "a node's id: where it was built", true},
+    {"path", "string", "a script or module, as design.sources names it", true},
+    {"line", "integer", "a line of it, from 1: the nodes built there", true},
+}};
 inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_edit{{
     {"path", "string", "a script or a module it imports, as design.sources names it", false},
     {"text", "string", "its whole new text", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 2> parameters_design_set{{
+    {"node", "node", "a node a script built", false},
+    {"props", "json", "{name: value} as its contract names them (snapshot, design.api); null takes one out", false},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_insert{{
+    {"parent", "node", "the node whose builder call gets the child", false},
+    {"code", "string", "the element: text({ id: \"help\", text: \"Help\" })", false},
+    {"index", "integer", "before the child at this index (last when absent)", true},
+}};
+inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_remove{{
+    {"node", "node", "a node a script built", false},
 }};
 inline constexpr std::array<mlibs::control::Parameter, 3> parameters_design_expect{{
     {"say", "string", "the expectation in the person's words", true},
@@ -24,10 +41,14 @@ inline constexpr std::array<mlibs::control::Parameter, 1> parameters_design_repl
 }};
 
 // Design a running application live: its sources and API, edits run at once with their state kept, expectations checked, the person's turn kept as a test, edits written back to the TypeScript sources.
-inline constexpr std::array<mlibs::control::CatalogEntry, 10> catalog{{
+inline constexpr std::array<mlibs::control::CatalogEntry, 14> catalog{{
     {{"design.sources", openas::Effect::read, false}, "The scripts the application is made of: each one's path, language and the text it runs now (edited, or its file's), and the modules they import", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.api", openas::Effect::read, false}, "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
+    {{"design.locate", openas::Effect::read, false}, "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line", parameters_design_locate, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.edit", openas::Effect::reversible, false}, "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it", parameters_design_edit, "json", mlibs::control::Cost::bounded, "design.edit with the text before, or design.discard", false, false, false},
+    {{"design.set", openas::Effect::reversible, false}, "Sets properties of a node by editing the builder call that built it (design.locate): each value written where the property is, or added to its object — the rest of the source as it was — then run as design.edit runs an edit: the semantic changes, and the lines it changed", parameters_design_set, "json", mlibs::control::Cost::bounded, "design.set with the values before, or design.discard", false, false, false},
+    {{"design.insert", openas::Effect::reversible, false}, "Adds an element, written as the script's language writes it, among the children of a node's builder call (at an index, or last), laid out as its siblings are; run as design.edit runs an edit", parameters_design_insert, "json", mlibs::control::Cost::bounded, "design.remove the node it added, or design.discard", false, false, false},
+    {{"design.remove", openas::Effect::reversible, false}, "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it", parameters_design_remove, "json", mlibs::control::Cost::bounded, "design.insert its code again, or design.discard", false, false, false},
     {{"design.expect", openas::Effect::read, false}, "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, value …), `absent` when they must not be there; with no query, lists what is expected", parameters_design_expect, "json", mlibs::control::Cost::instant, "", false, false, false},
     {{"design.check", openas::Effect::read, false}, "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", {}, "json", mlibs::control::Cost::bounded, "", false, false, false},
     {{"design.handover", openas::Effect::read, false}, "Hands the floor to the person: they try the design; what they do from now, done, can be saved as a scenario (design.save_scenario)", {}, "json", mlibs::control::Cost::instant, "", false, false, false},
@@ -48,8 +69,16 @@ inline constexpr std::string_view listing = R"listing({
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
     {"name": "design.api", "description": "How the scripts are written here: each language's API over this application's components — every builder with its properties (types, choices), handlers and actions, and the functions of the module — read before writing an edit", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {}, "required": []}},
+    {"name": "design.locate", "description": "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id): a node's id: where it was built"}, "path": {"type": "string", "description": "a script or module, as design.sources names it"}, "line": {"type": "integer", "description": "a line of it, from 1: the nodes built there"}}, "required": []}},
     {"name": "design.edit", "description": "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.edit with the text before, or design.discard", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"path": {"type": "string", "description": "a script or a module it imports, as design.sources names it"}, "text": {"type": "string", "description": "its whole new text"}}, "required": ["path", "text"]}},
+    {"name": "design.set", "description": "Sets properties of a node by editing the builder call that built it (design.locate): each value written where the property is, or added to its object — the rest of the source as it was — then run as design.edit runs an edit: the semantic changes, and the lines it changed", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.set with the values before, or design.discard", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id): a node a script built"}, "props": {"description": "{name: value} as its contract names them (snapshot, design.api); null takes one out"}}, "required": ["node", "props"]}},
+    {"name": "design.insert", "description": "Adds an element, written as the script's language writes it, among the children of a node's builder call (at an index, or last), laid out as its siblings are; run as design.edit runs an edit", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.remove the node it added, or design.discard", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"parent": {"type": "string", "description": "a node (its id): the node whose builder call gets the child"}, "code": {"type": "string", "description": "the element: text({ id: \"help\", text: \"Help\" })"}, "index": {"type": "integer", "description": "before the child at this index (last when absent)"}}, "required": ["parent", "code"]}},
+    {"name": "design.remove", "description": "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it", "effect": "reversible", "person": false, "delegated": false, "cost": "bounded", "undo": "design.insert its code again, or design.discard", "undoable": false, "cancellable": false, "result": "json",
+     "inputSchema": {"type": "object", "properties": {"node": {"type": "string", "description": "a node (its id): a node a script built"}}, "required": ["node"]}},
     {"name": "design.expect", "description": "What the person expects, kept to check against: `say` in their words, `query` the nodes it means (id, role, name, state, value …), `absent` when they must not be there; with no query, lists what is expected", "effect": "read", "person": false, "delegated": false, "cost": "instant", "undo": "", "undoable": false, "cancellable": false, "result": "json",
      "inputSchema": {"type": "object", "properties": {"say": {"type": "string", "description": "the expectation in the person's words"}, "query": {"description": "the nodes it means: {\"id\": \"save\", \"state\": \"disabled\"}"}, "absent": {"type": "boolean", "description": "they must not be there"}}, "required": []}},
     {"name": "design.check", "description": "Each expectation read against the interface as it is now: holds or not, the nodes found with their name, value and states, and for a node that did not do what was expected, what the last press on it came to (the recorder)", "effect": "read", "person": false, "delegated": false, "cost": "bounded", "undo": "", "undoable": false, "cancellable": false, "result": "json",

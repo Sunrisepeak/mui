@@ -31,6 +31,18 @@ export default defineOps({
       cost: "bounded",
     },
     {
+      name: "design.locate",
+      effect: "read",
+      summary: "Between a node and its source, either way: given `node`, the line of the script that built it (its path as design.sources names it, line, column, the line's text); given `path` and `line`, the nodes built on that line",
+      params: [
+        { name: "node", type: "node", doc: "a node's id: where it was built", optional: true },
+        { name: "path", type: "string", doc: "a script or module, as design.sources names it", optional: true },
+        { name: "line", type: "integer", doc: "a line of it, from 1: the nodes built there", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+    },
+    {
       name: "design.edit",
       effect: "reversible",
       summary: "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with their lines, and nothing changed. The edit stays until design.commit writes it to the file or design.discard drops it",
@@ -41,6 +53,42 @@ export default defineOps({
       result: "json",
       cost: "bounded",
       undo: "design.edit with the text before, or design.discard",
+    },
+    {
+      name: "design.set",
+      effect: "reversible",
+      summary: "Sets properties of a node by editing the builder call that built it (design.locate): each value written where the property is, or added to its object — the rest of the source as it was — then run as design.edit runs an edit: the semantic changes, and the lines it changed",
+      params: [
+        { name: "node", type: "node", doc: "a node a script built" },
+        { name: "props", type: "json", doc: "{name: value} as its contract names them (snapshot, design.api); null takes one out" },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "design.set with the values before, or design.discard",
+    },
+    {
+      name: "design.insert",
+      effect: "reversible",
+      summary: "Adds an element, written as the script's language writes it, among the children of a node's builder call (at an index, or last), laid out as its siblings are; run as design.edit runs an edit",
+      params: [
+        { name: "parent", type: "node", doc: "the node whose builder call gets the child" },
+        { name: "code", type: "string", doc: "the element: text({ id: \"help\", text: \"Help\" })" },
+        { name: "index", type: "integer", doc: "before the child at this index (last when absent)", optional: true },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "design.remove the node it added, or design.discard",
+    },
+    {
+      name: "design.remove",
+      effect: "reversible",
+      summary: "Takes a node's builder call out of the list of children it is in (with its comma, and its line when it had one); run as design.edit runs an edit. A node built outside a list (a function's result, a condition) is refused: edit the code around it",
+      params: [
+        { name: "node", type: "node", doc: "a node a script built" },
+      ],
+      result: "json",
+      cost: "bounded",
+      undo: "design.insert its code again, or design.discard",
     },
     {
       name: "design.expect",

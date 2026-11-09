@@ -213,7 +213,10 @@ struct Player::Impl {
             problem(std::format("{}: {}", name(f.path), code.error()));
             return false;
         }
-        if (!f.engine) f.engine = f.lang->make(handle);
+        if (!f.engine) {
+            f.engine = f.lang->make(handle);
+            if (f.engine && options.design) f.engine->keep_origins(true);
+        }
         if (!f.engine) {
             problem(std::format("{}: the {} language could not start", name(f.path), f.lang->name));
             return false;
@@ -244,6 +247,13 @@ struct Player::Impl {
                 for (const auto& m : f.engine->modules())
                     if (module_name(m) == module) return &f;
         return nullptr;
+    }
+
+    // The text a script or a module runs now: an edit's, or its file's.
+    std::optional<std::string> source_text(std::string_view path) {
+        if (File* f = script_named(path)) return running_text(*f);
+        if (const auto edit = edited.find(std::string(path)); edit != edited.end()) return edit->second;
+        return read_file(full(path));
     }
 
     std::expected<std::string, std::string> compiled(const File& f, std::string_view text) const {
@@ -348,6 +358,106 @@ struct Player::Impl {
         return Value{}.set("path", name(f.path)).set("took_ms", took).set("changes", semantic::changes_between(before, tree.snapshot()));
     }
 
+    // New text for a script or a module, run at once with its state kept
+    // (design.edit, and the structured operations' edits): the semantic
+    // changes and the time, or its problems with what ran before running again.
+    std::expected<Value, std::string> edit_source(const std::string& path, std::string_view text) {
+        File* f = script_named(path);
+        if (!f) {
+            // A module a script imports: it alone is evaluated again, with its script.
+            File* owner = owner_of(path);
+            if (!owner) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
+            if (auto check = compiled(*owner, text); !check)  // its problems, before anything runs
+                return std::unexpected(std::format("{}: {}", path, check.error()));
+            const auto file = full(path);
+            const auto before = edited.find(path);
+            const std::optional<std::string> previous = before != edited.end() ? std::optional(before->second) : std::nullopt;
+            owner->engine->module_changed(file, std::string(text));
+            auto done = run_text(*owner, running_text(*owner).value_or(std::string()));
+            if (!done) {
+                owner->engine->module_changed(file, previous);
+                (void)run_text(*owner, running_text(*owner).value_or(std::string()));
+                return std::unexpected(done.error());
+            }
+            edited[path] = std::string(text);
+            done->set("path", path);
+            announce(path, *done);
+            return done;
+        }
+        const std::string previous = running_text(*f).value_or(std::string());
+        auto done = run_text(*f, text);
+        if (!done) {
+            // A run that failed part way: what ran before runs again.
+            if (!compiled(*f, text).has_value()) return std::unexpected(done.error());
+            (void)run_text(*f, previous);
+            return std::unexpected(done.error());
+        }
+        edited[path] = std::string(text);
+        announce(path, *done);
+        return done;
+    }
+
+    // Where a script built a node: its path as design.sources names it, line and column.
+    struct Place {
+        std::string path;
+        std::uint32_t line = 0, column = 0;
+    };
+    std::expected<Place, std::string> place_of(std::string_view node) const {
+        const NodeId id = rt.reveal(node);
+        if (!rt.valid(id)) return std::unexpected(std::format("no node `{}`", node));
+        // file:line:column, the file as the script ran it
+        const std::string_view origin = rt.script_origin(id);
+        const auto column_at = origin.rfind(':'), line_at = column_at == std::string_view::npos ? column_at : origin.rfind(':', column_at - 1);
+        if (line_at == std::string_view::npos) return std::unexpected(std::format("`{}` was not built by a script (or not in development mode)", node));
+        const std::string_view file = origin.substr(0, line_at);
+        Place place{module_name(std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(file.data()), file.size())))};
+        (void)std::from_chars(origin.data() + line_at + 1, origin.data() + column_at, place.line);
+        (void)std::from_chars(origin.data() + column_at + 1, origin.data() + origin.size(), place.column);
+        return place;
+    }
+
+    // A structured operation on the builder call that built `node`: the new
+    // text its language's editor makes, run as design.edit runs it, and
+    // answered with the lines it changed.
+    VerbResult structured(std::string_view node, const std::function<std::expected<std::string, std::string>(const Language&, std::string_view, const Place&)>& change) {
+        auto place = place_of(node);
+        if (!place) return std::unexpected(place.error());
+        const File* owner = script_named(place->path);
+        if (!owner) owner = owner_of(place->path);
+        if (!owner) return std::unexpected(std::format("`{}` was built by {}, which is not one of the application's sources", node, place->path));
+        const auto text = source_text(place->path);
+        if (!text) return std::unexpected(std::format("{} cannot be read", place->path));
+        auto changed = change(*owner->lang, *text, *place);
+        if (!changed) return std::unexpected(std::format("{}:{}: {}", place->path, place->line, changed.error()));
+        auto done = edit_source(place->path, *changed);
+        if (!done) return std::unexpected(done.error());
+        return done->set("path", place->path).set("source", changed_lines(*text, *changed));
+    }
+
+    // Where two texts differ, by whole lines: the first line and the lines before and after.
+    static Value changed_lines(std::string_view before, std::string_view after) {
+        const auto lines = [](std::string_view text) {
+            std::vector<std::string_view> out;
+            for (const auto line : std::views::split(text, '\n')) out.emplace_back(line.begin(), line.end());
+            return out;
+        };
+        const auto old_lines = lines(before), new_lines = lines(after);
+        std::size_t head = 0, tail = 0;
+        while (head < old_lines.size() && head < new_lines.size() && old_lines[head] == new_lines[head]) ++head;
+        while (tail + head < old_lines.size() && tail + head < new_lines.size() &&
+               old_lines[old_lines.size() - 1 - tail] == new_lines[new_lines.size() - 1 - tail])
+            ++tail;
+        const auto joined = [](std::span<const std::string_view> part) {
+            std::string out;
+            for (const auto line : part) out += std::format("{}{}", out.empty() ? "" : "\n", line);
+            return out;
+        };
+        return Value{}
+            .set("line", static_cast<double>(head + 1))
+            .set("before", joined(std::span(old_lines).subspan(head, old_lines.size() - head - tail)))
+            .set("after", joined(std::span(new_lines).subspan(head, new_lines.size() - head - tail)));
+    }
+
     // What an agent's edit did, said beside the first node it changed or
     // added (its presence shows it): the file, how many changes, the first.
     void announce(std::string_view path, const Value& answer) {
@@ -417,45 +527,76 @@ struct Player::Impl {
                 if (languages.map()->empty()) return std::unexpected(std::string("no script language here describes its API"));
                 return Value{}.set("languages", std::move(languages));
             });
-        add("design.edit",
-            [this](const Value& args) -> VerbResult {
-                const std::string path(args.get("path") ? args.get("path")->as_string() : "");
-                const Value* text = args.get("text");
-                if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
-                File* f = script_named(path);
-                if (!f) {
-                    // A module a script imports: it alone is evaluated again, with its script.
-                    File* owner = owner_of(path);
-                    if (!owner) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
-                    if (auto check = compiled(*owner, text->as_string()); !check)  // its problems, before anything runs
-                        return std::unexpected(std::format("{}: {}", path, check.error()));
-                    const auto file = full(path);
-                    const auto before = edited.find(path);
-                    const std::optional<std::string> previous = before != edited.end() ? std::optional(before->second) : std::nullopt;
-                    owner->engine->module_changed(file, std::string(text->as_string()));
-                    auto done = run_text(*owner, running_text(*owner).value_or(std::string()));
-                    if (!done) {
-                        owner->engine->module_changed(file, previous);
-                        (void)run_text(*owner, running_text(*owner).value_or(std::string()));
-                        return std::unexpected(done.error());
-                    }
-                    edited[path] = std::string(text->as_string());
-                    done->set("path", path);
-                    announce(path, *done);
-                    return done;
+        add("design.locate", [this](const Value& args) -> VerbResult {
+            if (const Value* node = args.get("node")) {
+                auto place = place_of(node->as_string());
+                if (!place) return std::unexpected(place.error());
+                Value answer = Value{}
+                                   .set("node", rt.path(rt.reveal(node->as_string())))
+                                   .set("path", place->path)
+                                   .set("line", static_cast<double>(place->line))
+                                   .set("column", static_cast<double>(place->column));
+                if (const auto text = source_text(place->path)) {
+                    std::string_view rest = *text;
+                    for (std::uint32_t skipped = 1; skipped < place->line && rest.contains('\n'); ++skipped) rest.remove_prefix(rest.find('\n') + 1);
+                    answer.set("text", std::string(rest.substr(0, rest.find('\n'))));
                 }
-                const std::string previous = running_text(*f).value_or(std::string());
-                auto done = run_text(*f, text->as_string());
-                if (!done) {
-                    // A run that failed part way: what ran before runs again.
-                    if (!compiled(*f, text->as_string()).has_value()) return std::unexpected(done.error());
-                    (void)run_text(*f, previous);
-                    return std::unexpected(done.error());
-                }
-                edited[path] = std::string(text->as_string());
-                announce(path, *done);
-                return done;
-            });
+                return answer;
+            }
+            const std::string path(args.get("path") ? args.get("path")->as_string() : "");
+            const Value* line = args.get("line");
+            if (path.empty() || !line || !line->is_number() || line->as_double() < 1)
+                return std::unexpected(std::string("design.locate takes a `node`, or a `path` and a `line` (from 1)"));
+            if (!script_named(path) && !owner_of(path)) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
+            const auto wanted = static_cast<std::uint32_t>(line->as_double());
+            std::vector<NodeId> built = rt.built_at(generic_utf8(full(path)), wanted);
+            if (built.empty()) built = rt.built_at(generic_utf8(full(path).lexically_normal()), wanted);
+            Value::List nodes;
+            for (const NodeId id : built) nodes.push_back(Value{}.set("node", rt.path(id)).set("origin", std::string(rt.script_origin(id))));
+            return Value{}.set("path", path).set("line", static_cast<double>(wanted)).set("nodes", Value(std::move(nodes)));
+        });
+        add("design.edit", [this](const Value& args) -> VerbResult {
+            const Value* text = args.get("text");
+            if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
+            return edit_source(std::string(args.get("path") ? args.get("path")->as_string() : ""), text->as_string());
+        });
+        add("design.set", [this](const Value& args) -> VerbResult {
+            const Value* properties = args.get("props");
+            if (!properties || !properties->map() || properties->map()->empty())
+                return std::unexpected(std::string("design.set takes `node` and `props`: {name: value} (null takes one out)"));
+            return structured(args.get("node") ? args.get("node")->as_string() : "",
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                                  if (!language.edit.set) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
+                                  std::string now(text);
+                                  for (const auto& [name, value] : *properties->map()) {
+                                      const std::string code = value.json();
+                                      auto next = language.edit.set(now, place.line, place.column, name,
+                                                                    value.type() == Value::Type::null ? std::nullopt : std::optional<std::string_view>(code));
+                                      if (!next) return next;
+                                      now = std::move(*next);
+                                  }
+                                  return now;
+                              });
+        });
+        add("design.insert", [this](const Value& args) -> VerbResult {
+            const Value* code = args.get("code");
+            if (!code || code->type() != Value::Type::text || code->as_string().empty())
+                return std::unexpected(std::string("design.insert takes `parent` and `code`: an element as the language writes it"));
+            std::optional<std::size_t> index;
+            if (const Value* at = args.get("index"); at && at->is_number() && at->as_double() >= 0) index = static_cast<std::size_t>(at->as_double());
+            return structured(args.get("parent") ? args.get("parent")->as_string() : "",
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                                  if (!language.edit.insert) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
+                                  return language.edit.insert(text, place.line, place.column, code->as_string(), index);
+                              });
+        });
+        add("design.remove", [this](const Value& args) -> VerbResult {
+            return structured(args.get("node") ? args.get("node")->as_string() : "",
+                              [&](const Language& language, std::string_view text, const Place& place) -> std::expected<std::string, std::string> {
+                                  if (!language.edit.remove) return std::unexpected(std::format("{} has no structured edits: use design.edit", language.name));
+                                  return language.edit.remove(text, place.line, place.column);
+                              });
+        });
         add("design.expect",
             [this](const Value& args) -> VerbResult {
                 if (const Value* q = args.get("query")) {

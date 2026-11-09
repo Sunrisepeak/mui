@@ -99,6 +99,8 @@ Value component_schema(const ComponentType& t) {
     fields.set("type", object().set("const", t.name));
     fields.set("id", refer("id"));
     fields.set("notes", typed("string"));
+    // Where a script built it (`file:line:column`), kept in development mode.
+    fields.set("origin", typed("string").set("pattern", "^.+:[0-9]+:[0-9]+$"));
     fields.set("props", std::move(props_schema));
     fields.set("on", std::move(on));
     fields.set("animate", typed("object").set("additionalProperties", refer("transition")));
@@ -213,7 +215,7 @@ enum class Kind : std::uint8_t { document, body, node, props, binding, events, o
 std::span<const std::string_view> order(Kind k) {
     static constexpr std::array<std::string_view, 5> document{"omui", "imports", "notes", "view", "component"};
     static constexpr std::array<std::string_view, 6> body{"name", "notes", "interface", "signals", "models", "root"};
-    static constexpr std::array<std::string_view, 15> node{"type", "id", "if", "for", "in", "where", "slot", "notes", "props",
+    static constexpr std::array<std::string_view, 16> node{"type", "id", "if", "for", "in", "where", "slot", "notes", "origin", "props",
                                                            "on", "animate", "children", "then", "else", "body"};
     static constexpr std::array<std::string_view, 5> binding{"expr", "bind", "tr", "args", "value"};
     static constexpr std::array<std::string_view, 6> operation{"set", "verb", "emit", "expr", "value", "args"};

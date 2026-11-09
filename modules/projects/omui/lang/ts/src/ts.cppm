@@ -13,3 +13,4 @@ export module omui.lang.ts;
 export import :strip;
 export import :data;
 export import :declare;
+export import :edit;

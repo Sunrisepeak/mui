@@ -46,6 +46,9 @@ public:
     // text (none: the file's again). The next run evaluates it again — it and
     // the script, the other modules staying as they are.
     void module_changed(const std::filesystem::path& file, std::optional<std::string> text = std::nullopt);
+    // Development mode: every element it builds from now carries where it was
+    // built (`file:line:column`), so a node maps to its source and back.
+    void keep_origins(bool on);
     // The files of the modules it has imported by path.
     [[nodiscard]] std::vector<std::filesystem::path> modules() const;
 

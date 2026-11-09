@@ -62,10 +62,31 @@ public:
         (void)file;
         (void)text;
     }
+    // Development mode: the elements its scripts build carry where they were
+    // built, so a node maps to its source and back (design.locate). Default:
+    // a language that cannot keeps none.
+    virtual void keep_origins(bool on) { (void)on; }
     // The files of the modules it has imported by path: watched as its own file is.
     [[nodiscard]] virtual std::vector<std::filesystem::path> modules() const { return {}; }
     // Nothing left to do on its thread, and nothing in flight to the runtime.
     [[nodiscard]] virtual bool idle() const = 0;
+};
+
+// Live Design's structured operations as edits of a script's text, at the
+// builder call an element's origin names (1-based line and column): each
+// answers the whole new text, or why it cannot (not a builder call there).
+struct SourceEditor {
+    // A property (as its contract names it) set to `value`, code (a JSON
+    // value's text is); none: the property taken out.
+    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view property,
+                                                          std::optional<std::string_view> value)>
+        set;
+    // `element` (code) inserted among the call's children at `index` (none: the end).
+    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column, std::string_view element,
+                                                          std::optional<std::size_t> index)>
+        insert;
+    // The call taken out of the list it is in.
+    std::function<std::expected<std::string, std::string>(std::string_view text, std::size_t line, std::size_t column)> remove;
 };
 
 struct Language {
@@ -90,6 +111,9 @@ struct Language {
     std::function<std::expected<std::vector<std::filesystem::path>, std::string>(
         std::string_view catalog_json, std::string_view natives_json, const std::filesystem::path& root, const std::filesystem::path& dir)>
         declare;
+    // Structured operations as source edits (design.set, design.insert,
+    // design.remove). Empty: the language's text is edited whole (design.edit).
+    SourceEditor edit;
 };
 
 struct PlayerOptions {

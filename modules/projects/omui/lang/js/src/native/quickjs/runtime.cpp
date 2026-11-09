@@ -43,6 +43,8 @@ struct Script::Impl {
     std::map<std::string, int>                  versions;
     std::set<std::string>                       loaded;
     int                                         active = 0;  // its JavaScript on the script thread's stack
+    bool                                        origins = false;  // elements carry where they were built (keep_origins)
+    std::map<std::string, std::string>          ran;  // each script's text as it last ran (keep_origins: where its elements were built)
 
     explicit Impl(Session& s) : session(s) {}
 
@@ -214,6 +216,59 @@ JSValue n_catalog(JSContext* ctx, JSValueConst, int, JSValueConst*) {
     return string(ctx, out);
 }
 
+// Development mode: each element's origin moved from where QuickJS placed its
+// call — the last position its arguments recorded, inside them and often in a
+// nested call, which then has the same — to the call as written (its callee's
+// first character): outward from that position to the nearest call of its
+// builder, past as many as the elements below it with that position and that
+// builder (column > row > column, all ending in one text).
+struct Placed {
+    std::string reported;
+    std::map<std::string, std::size_t> chain;  // builders below with the same position, counted
+};
+
+Placed place_origins(Script::Impl& s, Element& element, std::map<std::string, std::optional<ts::CallIndex>>& sources) {
+    Placed placed{element.origin, {}};
+    const auto below = [&](std::vector<Element>& list) {
+        for (Element& child : list) {
+            Placed under = place_origins(s, child, sources);
+            if (placed.reported.empty() && element.region) placed.reported = under.reported;  // a region has the position of what is in it
+            if (!under.reported.empty() && under.reported == placed.reported)
+                for (const auto& [builder, count] : under.chain) placed.chain[builder] += count;
+        }
+    };
+    below(element.children);
+    if (element.region) {
+        below(element.region->then);
+        below(element.region->otherwise);
+    }
+    if (element.origin.empty() || element.type.empty()) return placed;
+    const std::string_view origin = element.origin;
+    const auto column_at = origin.rfind(':');
+    const auto line_at = column_at == std::string_view::npos || column_at == 0 ? std::string_view::npos : origin.rfind(':', column_at - 1);
+    if (line_at == std::string_view::npos) return placed;
+    const std::string file(origin.substr(0, line_at));
+    std::size_t line = 0, column = 0;
+    (void)std::from_chars(origin.data() + line_at + 1, origin.data() + column_at, line);
+    (void)std::from_chars(origin.data() + column_at + 1, origin.data() + origin.size(), column);
+    auto [entry, fresh] = sources.try_emplace(file);
+    if (fresh) {
+        // The text that ran: a script's (its JavaScript keeps the TypeScript's places), an edited module's, a module's file.
+        std::optional<std::string> text;
+        if (const auto ran = s.ran.find(file); ran != s.ran.end()) text = ran->second;
+        else if (const auto edited = s.overrides.find(file); edited != s.overrides.end()) text = edited->second;
+        else if (std::ifstream in(mcpplibs::os::fs::from_utf8(file), std::ios::binary); in) text = std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        if (text)
+            if (auto index = ts::CallIndex::of(*text)) entry->second = std::move(*index);
+    }
+    const std::string builder = ts::camel_case(element.type);
+    if (entry->second)
+        if (const auto at = entry->second->enclosing(line, column, builder, placed.chain[builder]))
+            element.origin = std::format("{}:{}:{}", file, at->first, at->second);
+    ++placed.chain[builder];
+    return placed;
+}
+
 JSValue n_mount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
     auto& s = impl(ctx);
     const std::string slot = text(ctx, argv[0]);
@@ -238,6 +293,10 @@ JSValue n_mount(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
             if (auto a = alive.lock(); a && *a) (void)self->call(id, event.dump(), true);
         };
     });
+    if (root && s.origins) {
+        std::map<std::string, std::optional<ts::CallIndex>> sources;
+        (void)place_origins(s, *root, sources);
+    }
     Result<void> r = root ? s.session.mount(slot, *root) : Result<void>(std::unexpected(root.error()));
     if (!r) {
         for (int id : handlers) s.release(id);
@@ -362,6 +421,9 @@ JSValue n_themes(JSContext* ctx, JSValueConst, int, JSValueConst*) {
     const std::string out = impl(ctx).session.themes().dump();
     return JS_NewStringLen(ctx, out.data(), out.size());
 }
+
+// Whether the elements it builds carry where they were built (development mode).
+JSValue n_origins(JSContext* ctx, JSValueConst, int, JSValueConst*) { return JS_NewBool(ctx, impl(ctx).origins); }
 
 // A native module's function (component-binding §8): its result as JSON text.
 JSValue n_native_call(JSContext* ctx, JSValueConst, int, JSValueConst* argv) {
@@ -530,7 +592,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
             {"find", n_find, 1},                  {"get", n_get, 2},               {"set", n_set, 2},
             {"rows", n_rows, 1},                  {"splice", n_splice, 4},         {"log", n_log, 1},
             {"nativeCall", n_native_call, 3},     {"nativeAsync", n_native_async, 3}, {"theme", n_theme, 1},
-            {"themes", n_themes, 0}};
+            {"themes", n_themes, 0},              {"origins", n_origins, 0}};
         for (const auto& [name, fn, arity] : natives) JS_SetPropertyStr(s->ctx, n, name, JS_NewCFunction(s->ctx, fn, name, arity));
         JS_SetPropertyStr(s->ctx, global, "__omui", n);
         JS_FreeValue(s->ctx, global);
@@ -577,6 +639,7 @@ Error gone() { return Error{abi::OMUI_ERROR_REFUSED, "the script is gone"}; }
 Result<void> run_module(Script::Impl& s, const std::string& code, const std::string& name) {
     if (!*s.alive) return std::unexpected(gone());
     Script::Impl::Inside in(s);
+    if (s.origins) s.ran[name.substr(0, name.find('#'))] = code;
     JSValue r = JS_Eval(s.ctx, code.data(), code.size(), name.c_str(), JS_EVAL_TYPE_MODULE);
     if (JS_IsException(r)) return std::unexpected(Error{abi::OMUI_ERROR_INVALID_ARGUMENT, s.exception_text()});
     s.run_jobs();
@@ -652,6 +715,11 @@ std::vector<std::filesystem::path> Script::modules() const {
         for (const auto& file : s->loaded) out.push_back(mcpplibs::os::fs::from_utf8(file));
         return out;
     });
+}
+
+void Script::keep_origins(bool on) {
+    std::shared_ptr<Impl> s = impl_;
+    s->session.host().script([&] { s->origins = on; });
 }
 
 Result<void> Script::reload_now(std::string code, std::string name) {

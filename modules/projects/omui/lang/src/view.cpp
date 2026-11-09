@@ -153,6 +153,7 @@ Result<Element> element_of(const Json& j, const std::function<std::optional<Hand
     }
     e.type = j.value("type", "");
     e.id = j.value("id", "");
+    if (j.contains("origin") && j["origin"].is_string()) e.origin = j["origin"].get<std::string>();
     if (j.contains("props") && j["props"].is_object())
         for (auto it = j["props"].begin(); it != j["props"].end(); ++it) {
             const Json& p = it.value();
@@ -266,6 +267,7 @@ struct Compiler {
         }
         Json n{{"type", contract_name(e.type)}};
         if (!e.id.empty()) n["id"] = e.id;
+        if (!e.origin.empty()) n["origin"] = e.origin;
         if (!e.props.empty()) {
             Json props = Json::object();
             for (const auto& [k, p] : e.props) props[k] = prop(p);

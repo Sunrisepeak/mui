@@ -177,6 +177,9 @@ struct Element {
     // a Value (a painter's function, a model object) reaches it this way.
     std::function<void(void* instance)>              configure;
     std::source_location                             where = std::source_location::current();
+    // Where a script built it, `file:line:column` (development mode: Live
+    // Design maps a node to its source and back). Empty: built in C++, or not kept.
+    std::string                                      origin;
 
     Element& prop(std::string name, Source s);
     template <PropertyType T>

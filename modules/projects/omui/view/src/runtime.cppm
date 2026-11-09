@@ -336,6 +336,12 @@ public:
     [[nodiscard]] std::vector<NodeId> children(NodeId node) const override;
     [[nodiscard]] const ComponentType& type(NodeId node) const;
     [[nodiscard]] std::source_location origin(NodeId node) const;  // where its element was built
+    // Where a script built it, `file:line:column` (development mode keeps it;
+    // Live Design's design.locate), or empty.
+    [[nodiscard]] std::string_view script_origin(NodeId node) const;
+    // The other way: the nodes a script built on a line of a file (its path as
+    // the script was run by), in tree order.
+    [[nodiscard]] std::vector<NodeId> built_at(std::string_view file, std::uint32_t line) const;
     [[nodiscard]] Value get(NodeId node, std::string_view property) const override;
     void set(NodeId node, std::string_view property, const Value& value) override;
     // A property read from a source from now on: a signal, an expression, two-way

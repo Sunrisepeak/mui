@@ -86,9 +86,21 @@ const bindable = (type, prop) => {
 export class Element {
   constructor(fields) { Object.assign(this, fields); }
 }
+// Where the script built an element, in development mode (Live Design maps a
+// node to its source and back): the stack's first frame outside openmui's own
+// modules, its file without a reload's version.
+function origin() {
+  for (const line of String(new Error().stack).split("\n")) {
+    const at = /([^\s()]+):(\d+):(\d+)\)?\s*$/.exec(line);
+    if (!at || at[1] === "openmui" || at[1].startsWith("openmui:")) continue;
+    return at[1].replace(/#.*$/, "") + ":" + at[2] + ":" + at[3];
+  }
+  return undefined;
+}
 export function element(type, props, children) {
   if (Array.isArray(props) || props instanceof Element) { children = props; props = {}; }
   const el = { type, id: "", props: {}, on: {}, animate: null, children: [], region: null };
+  if (N.origins()) el.origin = origin();
   for (const [k, v] of Object.entries(props || {})) {
     if (v === undefined) continue;
     if (k === "id") el.id = String(v);
@@ -144,7 +156,7 @@ function serialize(el, handlers) {
   for (const [k, v] of Object.entries(el.props)) props[k] = prop(el.type, k, v);
   const on = {};
   for (const [e, f] of Object.entries(el.on)) { on[e] = handlers.length; handlers.push(f); }
-  return { type: el.type, id: el.id, props, on, animate: el.animate, children: el.children.map((c) => serialize(c, handlers)) };
+  return { type: el.type, id: el.id, props, on, animate: el.animate, children: el.children.map((c) => serialize(c, handlers)), origin: el.origin };
 }
 
 export function mount(slotName, el) {

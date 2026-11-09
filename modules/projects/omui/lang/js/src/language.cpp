@@ -19,6 +19,7 @@ public:
     std::future<player::Status> run(std::string code, std::string name) override { return status(script_.run(std::move(code), name)); }
     std::future<player::Status> reload(std::string code, std::string name) override { return status(script_.reload(std::move(code), name)); }
     void module_changed(const std::filesystem::path& file, std::optional<std::string> text) override { script_.module_changed(file, std::move(text)); }
+    void keep_origins(bool on) override { script_.keep_origins(on); }
     [[nodiscard]] std::vector<std::filesystem::path> modules() const override { return script_.modules(); }
     player::Status reload_now(std::string code, std::string name) override {
         Result<void> done = script_.reload_now(std::move(code), std::move(name));
@@ -68,14 +69,27 @@ std::string describe_typescript(std::string_view catalog_json) {
     return out;
 }
 
+// Structured design operations on the builder calls of JavaScript and
+// TypeScript alike (omui.lang.ts:edit); properties as the builders write them, in camelCase.
+player::SourceEditor source_editor() {
+    return {.set = [](std::string_view text, std::size_t line, std::size_t column, std::string_view property,
+                      std::optional<std::string_view> value) -> std::expected<std::string, std::string> {
+                const std::string name = ts::camel_case(property);
+                return value ? ts::set_property(text, line, column, name, *value) : ts::remove_property(text, line, column, name);
+            },
+            .insert = [](std::string_view text, std::size_t line, std::size_t column, std::string_view element,
+                         std::optional<std::size_t> index) { return ts::insert_child(text, line, column, element, index); },
+            .remove = [](std::string_view text, std::size_t line, std::size_t column) { return ts::remove_call(text, line, column); }};
+}
+
 }  // namespace
 
-player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, describe_typescript}; }
+player::Language javascript() { return {"js", {".js", ".mjs"}, make, {}, {}, describe_typescript, {}, source_editor()}; }
 
 player::Language typescript() {
     return {"ts", {".ts", ".mts"}, make, [](const std::filesystem::path& file) { return ts::compile(file); },
             [](std::string_view text, const std::filesystem::path& file) { return ts::compile_source(text, std::string(reinterpret_cast<const char*>(file.generic_u8string().c_str()))); },
-            describe_typescript, declare_typescript};
+            describe_typescript, declare_typescript, source_editor()};
 }
 
 }  // namespace omui::lang::js

@@ -7,6 +7,7 @@
 //   :damage     which rows a new list changes (incremental frames)
 //   :cpu        the CPU reference backend over openmui.raster
 //   :gpu        the GPU backend over omui.rhi (its shaders: :ui_shaders)
+//   :wire       a display list as bytes and back (another process draws it)
 //
 // Nothing in this package knows about nodes or views: anything that produces
 // a display list can render it.
@@ -22,3 +23,4 @@ export import :damage;
 export import :cpu;
 export import :gpu;
 export import :effects;
+export import :wire;

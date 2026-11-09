@@ -13,24 +13,20 @@ using namespace mcpplibs::mtest;
 namespace fs=mcpplibs::os::fs;
 
 namespace {
-constexpr std::string_view curve=R"([timeline]
-name = "Audition"
-rate = 60
-sample_rate = 48000
-size = [384, 256]
-[[track]]
-name = "music"
-kind = "animation"
-[[track.clip]]
-name = "fade"
-source = "gain-control"
-at = "0.25s"
-length = "1.5s"
-level = 0.75
-fade = { in = "0.1s", out = "0.2s", ease = "in_out_cubic" }
-[[track.clip.property]]
-name = "gain"
-keys = [["0s", 0.2, "in_out_cubic"], ["0.5s", 0.9], ["0.8s", 0.4, "hold"], ["1.1s", 0.7], ["1.5s", 0.1]]
+// The timeline as its author writes it: a TypeScript data module, evaluated by the command.
+constexpr std::string_view curve=R"(import { defineTimeline } from "omui/define";
+
+export default defineTimeline({
+  name: "Audition", rate: 60, sample_rate: 48000, size: [384, 256],
+  tracks: [{
+    name: "music", kind: "animation",
+    clips: [{
+      name: "fade", source: "gain-control", at: "0.25s", length: "1.5s", level: 0.75,
+      fade: { in: "0.1s", out: "0.2s", ease: "in_out_cubic" },
+      properties: [{ name: "gain", keys: [["0s", 0.2, "in_out_cubic"], ["0.5s", 0.9], ["0.8s", 0.4, "hold"], ["1.1s", 0.7], ["1.5s", 0.1]] }],
+    }],
+  }],
+});
 )";
 struct Result {int code;std::string out,err;};
 Result invoke(std::vector<std::string> args) {
@@ -41,7 +37,7 @@ Result invoke(std::vector<std::string> args) {
 UTest cases{"cli.audio", [] {
     "headless gain audition exports actual WAV and an omui visual process at three observation rates"_test = [] {
         const auto directory=scratch_dir("audio-automation");
-        const auto file=directory/"audition.timeline.omui.toml";
+        const auto file=directory/"audition.timeline.omui.ts";
         expect(fs::write_atomic(file,curve).has_value());
         std::string previous_pcm,previous_wav;
         for(const int fps : {30,60,120}) {
@@ -70,7 +66,7 @@ UTest cases{"cli.audio", [] {
     };
     "bad arguments or curve selection return diagnostics before creating output"_test = [] {
         const auto directory=scratch_dir("audio-automation-errors");
-        const auto file=directory/"audition.timeline.omui.toml";
+        const auto file=directory/"audition.timeline.omui.ts";
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"preserve");
         expect(fs::write_atomic(fs::from_utf8(prefix+".wav"),"keep").has_value());
@@ -86,7 +82,7 @@ UTest cases{"cli.audio", [] {
     };
     "report write failure returns false and identifies files already exported"_test = [] {
         const auto directory=scratch_dir("audio-automation-export-error");
-        const auto file=directory/"audition.timeline.omui.toml";
+        const auto file=directory/"audition.timeline.omui.ts";
         expect(fs::write_atomic(file,curve).has_value());
         const auto prefix=utf8(directory/"blocked");
         (void)scratch_dir("audio-automation-export-error/blocked.report.omui.json");

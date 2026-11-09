@@ -14,7 +14,7 @@ export default defineContract({
       document: {
         type: "string",
         default: "",
-        doc: "The timeline as *.timeline.omui.toml text; set again, it is read again and its history cleared.",
+        doc: "The timeline as JSON (what a *.timeline.omui.ts evaluates to); set again, it is read again and its history cleared.",
       },
       frame: { type: "i32", default: 0, doc: "The playhead, in frames at the timeline's rate; moved here, it is written back." },
       zoom: { type: "f64", default: 120, doc: "Pixels a second." },

@@ -361,6 +361,61 @@ export declare function defineTimeline(timeline: Timeline): Defined<"timeline">;
 /** A film's lines, each in both languages. */
 export declare function defineSubtitles(subtitles: { doc?: string; lines: { [id: string]: { zh: string; en: string } } }): Defined<"subtitles">;
 
+// ── videos (xengine.video) ───────────────────────────────────────────────
+
+/** A video: its size, rate and length, where its frames come from, its sound track. */
+export interface Video {
+    doc?: string;
+    width?: number;
+    height?: number;
+    /** Frames a second, or "30000/1001". */
+    fps?: number | string;
+    seconds?: number;
+    frames?: number;
+    from?: { card: "sync" } | { png: string } | { view: string };
+    audio?: {
+        rate?: number;
+        /** A piece (`theme.music.omui.ts`), relative to the description. */
+        music?: string;
+        /** One number, or from a time on. */
+        intensity?: number | { at: number; value: number }[];
+        sounds?: string;
+        recordings?: { [name: string]: string };
+        /** A sound on a frame's first sample, or at a time (seconds): one of `frame` and `at`. */
+        cues?: { sound: string; frame?: number; at?: number; gain?: number; pan?: number; pitch?: number }[];
+        /** The sync card's. */
+        beeps?: boolean;
+        doc?: string;
+    };
+}
+/** `export default defineVideo({ width: 1280, height: 720, fps: 30, seconds: 3, from: { card: "sync" } })`. */
+export declare function defineVideo(video: Video): Defined<"video">;
+
+// ── a program's own effects (xrender.effect) and canvas behaviours ───────
+
+/** A parameter: its range and default (animatable like any property). */
+export interface EffectParam {
+    name: string;
+    default?: number;
+    min?: number;
+    max?: number;
+    doc?: string;
+}
+/** A pixel effect: its Slang shader (`<name>.slang`, entry `<name>_fs` unless named) and its parameters. */
+export interface Effect {
+    name: string;
+    doc?: string;
+    shader?: string;
+    entry?: string;
+    /** How far it reaches outside its layer: logical pixels, or a parameter's name. */
+    reach?: number | string;
+    params?: EffectParam[];
+}
+/** `export default defineEffect({ name: "scanlines", reach: 0, params: [{ name: "strength", default: 0.5 }] })`. */
+export declare function defineEffect(effect: Effect): Defined<"effect">;
+/** A canvas behaviour: a state machine over a canvas's events, its states, actions and what each does. */
+export declare function defineBehavior(behaviors: { [name: string]: { on?: string; initial?: string; doc?: string; [field: string]: unknown } }): Defined<"behavior">;
+
 // ── motion recipes ───────────────────────────────────────────────────────
 
 export declare function defineMotion(motion: { [field: string]: unknown }): Defined<"motion">;

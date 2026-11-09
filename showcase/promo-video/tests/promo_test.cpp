@@ -83,14 +83,14 @@ UTest cases{"showcase.promo_video", [] {
             std::string t = text;
             t.replace(t.find(from), from.size(), to);
             const auto dir = scratch_dir("promo-broken");
-            std::ofstream(dir / "promo.timeline.omui.toml", std::ios::binary) << t;
+            std::ofstream(dir / "promo.timeline.omui.json", std::ios::binary) << t;  // an edited snapshot
             return promo::load_cut(promo::Files(dir), "promo", film().subtitles);
         };
         auto a = broken("shot:styles", "shot:stiles");
         expect(!a && a.error().front().message.find("no shot is named `stiles`") != std::string::npos) << "an unknown shot";
         auto b = broken("line:effects", "line:affects");
         expect(!b && b.error().front().message.find("no line") != std::string::npos) << "an unknown line";
-        auto c = broken("speed = -5", "speed = 5");
+        auto c = broken("\"speed\":-5", "\"speed\":5");
         expect(!c && c.error().front().message.find("before itself") != std::string::npos) << "a rewind must play frames before it";
     };
 
@@ -160,7 +160,7 @@ UTest cases{"showcase.promo_video", [] {
                                                                           (*px)->width() * 4, mlibs::image::Alpha::premultiplied})
                       .has_value());
         }
-        expect(eq(all.hex(), std::string("68d51c6fdc962699")));
+        expect(eq(all.hex(), std::string("69d4af752b650415")));  // the end card names promo.timeline.omui.ts
         promo::Player full(film(), c, {.scale = 1, .fonts = &fonts(), .parallel_raster = false});
         auto hd = full.frame(1860);
         expect(hd && (*hd)->width() == 1920 && (*hd)->height() == 1080) << "1080p";
@@ -280,7 +280,7 @@ UTest cases{"showcase.promo_video", [] {
         expect(a.frame(300) != other_program.frame(300)) << "another program: every frame another";
         // One line edited, in a copy of the files: the frames it is up on change, no other.
         const auto dir = scratch_dir("promo-digests");
-        auto text = film().files.read("promo.subtitles.omui.toml");
+        auto text = film().files.read("promo.subtitles.omui.ts");
         expect(text.has_value());
         if (!text) return;
         const std::string from = "A thousand windows, one unbroken shot", to = "A thousand windows in one unbroken shot";
@@ -289,7 +289,7 @@ UTest cases{"showcase.promo_video", [] {
         if (at == std::string::npos) return;
         std::string edited = *text;
         edited.replace(at, from.size(), to);
-        std::ofstream(dir / "promo.subtitles.omui.toml", std::ios::binary) << edited;
+        std::ofstream(dir / "promo.subtitles.omui.json", std::ios::binary) << edited;
         auto changed_film = promo::load_film(promo::Files(dir));
         expect(changed_film.has_value());
         if (!changed_film) return;

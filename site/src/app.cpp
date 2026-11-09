@@ -54,43 +54,21 @@ Theme site_theme() {
     return Theme::light();
 }
 
-constexpr std::string_view sample = R"([timeline]
-name = "a short"
-rate = 30
-
-[[marker]]
-at = "4s"
-name = "the beat"
-
-[[track]]
-name = "picture"
-kind = "video"
-
-[[track.clip]]
-name = "title"
-at = "0f"
-length = "90f"
-fade = { in = "15f", out = "15f" }
-
-[[track.clip.property]]
-name = "y"
-keys = [["0f", 40, "out_cubic"], ["20f", 0]]
-
-[[track.clip]]
-name = "the fight"
-at = "120f"
-length = "150f"
-
-[[track]]
-name = "music"
-kind = "audio"
-
-[[track.clip]]
-name = "main theme"
-at = "0f"
-length = "270f"
-fade = { out = "30f" }
-)";
+constexpr std::string_view sample = R"({"timeline": {
+  "name": "a short", "rate": 30,
+  "markers": [
+    {"at": "4s", "name": "the beat"}
+  ],
+  "tracks": [
+    {"name": "picture", "kind": "video", "clips": [
+      {"name": "title", "at": "0f", "length": "90f", "fade": {"in": "15f", "out": "15f"}, "properties": [{"name": "y", "keys": [["0f", 40, "out_cubic"], ["20f", 0]]}]},
+      {"name": "the fight", "at": "120f", "length": "150f"}
+    ]},
+    {"name": "music", "kind": "audio", "clips": [
+      {"name": "main theme", "at": "0f", "length": "270f", "fade": {"out": "30f"}}
+    ]}
+  ]
+}})";
 
 // What the site keeps between its setup and its view.
 struct Site {
@@ -143,7 +121,7 @@ struct Site {
     const xengine::timeline::Timeline* timeline_now(const std::string& text) {
         if (text != timeline_read_from || !timeline_model) {
             timeline_read_from = text;
-            auto t = xengine::timeline::read_timeline(text, "site.timeline.omui.toml");
+            auto t = xengine::timeline::read_timeline(text, "site.timeline.omui.json");
             timeline_model = t ? std::optional(std::move(*t)) : std::nullopt;
         }
         return timeline_model ? &*timeline_model : nullptr;

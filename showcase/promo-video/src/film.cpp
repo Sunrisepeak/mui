@@ -4,6 +4,7 @@ module omui.showcase.promo_video;
 import std;
 import mlibs.hash;
 import xengine.timeline;
+import omui.lang.ts;
 
 namespace omui::promo {
 
@@ -38,13 +39,32 @@ std::uint64_t Files::digest(std::span<const std::string_view> leaving_out) const
     return h.value();
 }
 
+std::string snapshot_name(std::string_view path) {
+    std::string name(path);
+    if (name.ends_with(".omui.ts")) name = name.substr(0, name.size() - std::string_view(".ts").size()) + ".json";
+    return name;
+}
+
 std::expected<std::string, std::string> Files::read(std::string_view path) const {
+    // A data module (`music/promo.music.omui.ts`) is its JSON snapshot: carried as
+    // `….omui.json`; in a directory of edited copies, the snapshot there, else
+    // the module there evaluated (D-139).
+    const std::string name = snapshot_name(path);
     if (!directory_.empty()) {
-        const auto file = directory_ / std::filesystem::path(std::u8string(path.begin(), path.end()));
-        std::ifstream in(file, std::ios::binary);
+        const auto at = [&](std::string_view relative) { return directory_ / std::filesystem::path(std::u8string(relative.begin(), relative.end())); };
+        std::ifstream in(at(name), std::ios::binary);
         if (in) return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+        if (name.ends_with(".omui.json")) {
+            const auto module = at(name.substr(0, name.size() - std::string_view(".json").size()) + ".ts");
+            std::error_code error;
+            if (std::filesystem::is_regular_file(module, error)) {
+                auto data = lang::ts::evaluate(module);
+                if (!data) return std::unexpected(data.error());
+                return std::format("{{\"{}\":{}}}", data->kind, data->json);
+            }
+        }
     }
-    if (const auto it = carried_.find(path); it != carried_.end()) return std::string(it->second);
+    if (const auto it = carried_.find(name); it != carried_.end()) return std::string(it->second);
     return std::unexpected(std::format("no file `{}`", path));
 }
 
@@ -75,7 +95,7 @@ std::string_view Shown::shot() const noexcept {
 }
 
 std::expected<Cut, std::vector<Problem>> load_cut(const Files& files, std::string_view name, const Subtitles& subtitles) {
-    const std::string file = std::format("{}.timeline.omui.toml", name);
+    const std::string file = std::format("{}.timeline.omui.json", name);  // what promo.timeline.omui.ts evaluates to
     auto text = files.read(file);
     if (!text) return std::unexpected(std::vector<Problem>{{file, 0, 0, text.error()}});
     auto t = tl::read_timeline(*text, file);

@@ -27,42 +27,21 @@ mlibs::text::FontCollection& fonts() {
     return f;
 }
 
-constexpr std::string_view promo = R"([timeline]
-name = "promo"
-rate = 30
-
-[[marker]]
-at = "2s"
-name = "beat"
-
-[[track]]
-name = "picture"
-kind = "video"
-
-[[track.clip]]
-name = "title"
-at = "0f"
-length = "60f"
-fade = { in = "10f", out = "10f" }
-
-[[track.clip.property]]
-name = "y"
-keys = [["0f", 40, "out_cubic"], ["15f", 0]]
-
-[[track.clip]]
-name = "fight"
-at = "90f"
-length = "90f"
-
-[[track]]
-name = "music"
-kind = "audio"
-
-[[track.clip]]
-name = "theme"
-at = "0f"
-length = "180f"
-)";
+constexpr std::string_view promo = R"({"timeline": {
+  "name": "promo", "rate": 30,
+  "markers": [
+    {"at": "2s", "name": "beat"}
+  ],
+  "tracks": [
+    {"name": "picture", "kind": "video", "clips": [
+      {"name": "title", "at": "0f", "length": "60f", "fade": {"in": "10f", "out": "10f"}, "properties": [{"name": "y", "keys": [["0f", 40, "out_cubic"], ["15f", 0]]}]},
+      {"name": "fight", "at": "90f", "length": "90f"}
+    ]},
+    {"name": "music", "kind": "audio", "clips": [
+      {"name": "theme", "at": "0f", "length": "180f"}
+    ]}
+  ]
+}})";
 
 struct Editor {
     Headless                 h;
@@ -173,8 +152,8 @@ UTest cases{"ui.timeline", [] {
         expect(eq(e.text(), tl::write_timeline(*tl::read_timeline(promo, "promo"))));
     };
 
-    "a document that does not read says why, at its line and column, to people and agents"_test = [] {
-        Editor e("[[track]]\nkind = \"vidoe\"\n");
+    "a document that does not read says why, at its place, to people and agents"_test = [] {
+        Editor e(R"({"timeline": {"tracks": [{"kind": "vidoe"}]}})");
         const Value v = e.seen();
         expect(v.get("problems") && v.get("problems")->list() && !v.get("problems")->list()->empty()) << "the problems in its value";
         expect((*v.get("problems")->list())[0].as_string().contains("did you mean `video`?")) << "with the nearest right word";

@@ -24,7 +24,7 @@ cmd::App audio_command() {
         .description("Offline audio controls and real visual inspection; no window or device")
         .subcommand(cmd::App("automation")
                         .description("Audition one timeline gain curve on a 220 Hz reference tone; export WAV, PNG, WebP and JSON")
-                        .arg(Arg("file").required().help("a .timeline.omui.toml file"))
+                        .arg(Arg("file").required().help("a timeline: a .timeline.omui.ts module, or its .timeline.omui.json"))
                         .option(Option("track").takes_value().help("the exact track name"))
                         .option(Option("clip").takes_value().help("the exact clip name"))
                         .option(Option("property").takes_value().help("keyed gain property (default gain)"))
@@ -48,7 +48,7 @@ int audio(const cmd::ParsedArgs& p, std::ostream& out, std::ostream&) {
     if(!integer("seconds",duration) || duration<1 || duration>10 || !integer("fps",fps) || fps<1 || fps>120 || !mlibs::time::Rate{fps,1}.exact())
         return fail("seconds must be an integer in 1..10; fps must be an exact timeline rate in 1..120",2);
     const auto file=mcpplibs::os::fs::from_utf8(a.positional(0));
-    const auto source=mcpplibs::os::fs::read(file);if(!source)return fail(source.error().message());
+    const auto source=data_text(file);if(!source)return fail(source.error());
     const auto timeline=tl::read_timeline(*source,std::string(a.positional(0)));
     if(!timeline) {Value::List issues;for(const auto& issue:timeline.error())issues.emplace_back(issue.text());report.set("problems",Value(std::move(issues)));return fail("invalid timeline");}
     // A bounded audition tool, not a resampler or an arbitrary scene player.

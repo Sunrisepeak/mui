@@ -8,7 +8,7 @@
 //
 //   :model  time, tracks, clips, keyed properties, markers; what plays when
 //   :edit   changes made of three steps, each change giving back its inverse
-//   :file   *.timeline.omui.toml read (every problem at its line and column)
+//   :file   a timeline's JSON read (every problem at its place), written back
 //           and written back as itself
 export module xengine.timeline;
 

@@ -34,28 +34,30 @@ auto done = video::encode(format, card, track, encoders, out);   // each file's 
 
 ## Descriptions
 
-A video as data, `*.video.omui.toml`: read with every problem at its line and column (the nearest right word as a hint), written back as itself (`write_description`).
+A video as data, `*.video.omui.ts`: a TypeScript data module (D-139), read as the JSON it evaluates to with every problem at its JSON pointer, line and column (the nearest right word as a hint), and written back as itself (`write_description`, JSON).
 
-```toml
-doc = "Three seconds of the sync card, with its beeps and a click on frame 30."
+```ts
+import { defineVideo } from "omui/define";
 
-[video]
-width = 1280
-height = 720
-fps = 30                     # or "30000/1001"
-seconds = 3                  # or frames = 90
-
-[frames]
-card = "sync"                # or png = "shots/{:05}.png", or view = "intro.view.omui.json"
-
-[audio]                      # none: no sound track
-music = "theme.music.omui.toml"
-intensity = [{ at = 0, value = 0.3 }, { at = 2, value = 1 }]
-sounds = "ui.sound.omui.toml"
-recordings = { voice = "voice.wav" }     # what the sounds' recording layers play
-cues = [{ sound = "click", frame = 30 }, { sound = "whoosh", at = 1.25, gain = 0.8, pan = -0.5 }]
-beeps = true
+export default defineVideo({
+  doc: "Three seconds of the sync card, with its beeps and a click on frame 30.",
+  width: 1280,
+  height: 720,
+  fps: 30,                     // or "30000/1001"
+  seconds: 3,                  // or frames: 90
+  from: { card: "sync" },      // or { png: "shots/{:05}.png" }, or { view: "intro.view.omui.json" }
+  audio: {                     // none: no sound track
+    music: "theme.music.omui.ts",
+    intensity: [{ at: 0, value: 0.3 }, { at: 2, value: 1 }],
+    sounds: "ui.sound.omui.ts",
+    recordings: { voice: "voice.wav" },   // what the sounds' recording layers play
+    cues: [{ sound: "click", frame: 30 }, { sound: "whoosh", at: 1.25, gain: 0.8, pan: -0.5 }],
+    beeps: true,
+  },
+});
 ```
+
+The music and sounds it names are read as their JSON: a `.omui.ts` module through the caller's `DataReader` (`omui video` evaluates it), anything else as it is.
 
 `soundtrack` renders it offline through `xengine.audio`'s mixer and limiter — the music with its intensity cued, each cue's sound from its exact sample (a cue on a frame from that frame's first sample) — then adds the card's beeps. `frame_source` gives the card or the PNG files.
 

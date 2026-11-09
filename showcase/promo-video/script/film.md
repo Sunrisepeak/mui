@@ -14,5 +14,5 @@ openmui's film, sixty seconds at 60 frames a second, made with openmui.
 | 0:55 | End | `mcpp new hello --template openmui` |
 
 Every shot is a live openmui scene, drawn on the headless host. The film is
-`promo.timeline.omui.toml` and the scenes' C++: any frame renders on its own,
+`promo.timeline.omui.ts` and the scenes' C++: any frame renders on its own,
 the same bytes every time.

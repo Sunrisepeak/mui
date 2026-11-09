@@ -27,7 +27,7 @@ std::string clip_text(const tl::Timeline& of, const tl::Clip& clip) {
 }  // namespace
 
 Digests::Digests(const Film& film, const Cut& cut, const PlayerOptions& o, std::uint64_t program) : film_(&film), cut_(&cut) {
-    constexpr std::array<std::string_view, 2> per_frame{".timeline.omui.toml", ".subtitles.omui.toml"};
+    constexpr std::array<std::string_view, 2> per_frame{".timeline.omui.json", ".subtitles.omui.json"};
     mlibs::hash::Fnv1a g;
     g.u64(program).u64(film.files.digest(per_frame));
     g.f32(o.size.width).f32(o.size.height).f32(o.scale).u64(o.subtitles).u64(o.timebar).u64(o.chapters);

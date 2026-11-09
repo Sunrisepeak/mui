@@ -234,6 +234,17 @@ int config(bool json, std::ostream& out, std::ostream& err) {
 
 }  // namespace
 
+std::expected<std::string, std::string> data_text(const std::filesystem::path& file) {
+    if (mcpplibs::os::fs::utf8(file.filename()).ends_with(".omui.ts")) {
+        auto data = lang::ts::evaluate(file);
+        if (!data) return std::unexpected(data.error());
+        return std::format("{{\"{}\":{}}}", data->kind, data->json);
+    }
+    auto text = mcpplibs::os::fs::read(file);
+    if (!text) return std::unexpected(std::format("{}: {}", mcpplibs::os::fs::utf8(file), text.error().message()));
+    return std::move(*text);
+}
+
 bool& tools_caught() {
     static bool caught = false;
     return caught;
@@ -361,7 +372,7 @@ int project(std::string_view name, const cmd::ParsedArgs& p, std::ostream& out, 
         record(out, sub.is_flag_set("json"), "frames", made);
         if (made.code != 0) return made.code;
         const std::string film = sub.value("out").value_or("design.webm");
-        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.toml", "--out", film};
+        const std::vector<std::string> render{"omui", "video", "render", frames + "/design.video.omui.json", "--out", film};
         return cli::run(render, out, err);
     }
     Ran ran;

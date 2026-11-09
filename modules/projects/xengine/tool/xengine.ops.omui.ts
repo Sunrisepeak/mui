@@ -1,7 +1,7 @@
 // xengine's operations (convergence plan §10.3): what an Agent does with
 // xengine's shared editing pieces through the `xengine` command (JSON out;
 // exit 0 done, 1 refused or failed with why, 2 a wrong command). Now the
-// timeline every editor shares (*.timeline.omui.toml); a game's agent player
+// timeline every editor shares (its JSON, *.timeline.omui.json); a game's agent player
 // is its own catalog (breakout's), the cellular workspace the Inspector's.
 // omui-gen ops makes the listing (media/ops/xengine.ops.json) and the
 // reference (media/ops/xengine.ops.md); effects are openas's.
@@ -16,7 +16,7 @@ export default defineOps({
       name: "timeline.check",
       effect: "read",
       summary: "The timeline (rate, size, tracks and clips, markers, length), or every problem at its line and column",
-      params: [{ name: "file", type: "path", doc: "a *.timeline.omui.toml" }],
+      params: [{ name: "file", type: "path", doc: "a *.timeline.omui.json (what a .timeline.omui.ts evaluates to: omui-gen snapshot)" }],
       result: "json",
     },
     {

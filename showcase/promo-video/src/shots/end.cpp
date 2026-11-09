@@ -82,7 +82,7 @@ public:
                                   .weight = 500.0f}),
                             type),
              column({.id = "data", .gap = 8, .align = "start", .opacity = 0.0f},
-                    {text({.id = "caption", .text = "this film is data — promo.timeline.omui.toml, and scenes in C++", .style = "code",
+                    {text({.id = "caption", .text = "this film is data — promo.timeline.omui.ts, and scenes in C++", .style = "code",
                            .color = Fill(hex(ink::muted)), .wrap = false, .size = 21.0f}),
                      std::move(editor)})});
         Element card = column(

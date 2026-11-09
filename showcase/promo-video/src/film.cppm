@@ -1,5 +1,5 @@
 // openmui.showcase.promo_video:film — the film as data: its cuts (a
-// timeline each, *.timeline.omui.toml), its lines (*.subtitles.omui.toml),
+// timeline each, *.timeline.omui.ts), its lines (*.subtitles.omui.ts),
 // the files they name, and which clip shows at a frame.
 //
 // A cut's picture track holds two kinds of clip: `shot:<name>`, a live
@@ -16,6 +16,9 @@ export namespace omui::promo {
 
 namespace tl = xengine::timeline;
 
+// A data module's snapshot's name (`x.timeline.omui.ts` → `x.timeline.omui.json`); other names as they are.
+[[nodiscard]] std::string snapshot_name(std::string_view path);
+
 // What is wrong with a file, where.
 struct Problem {
     std::string file;
@@ -26,7 +29,8 @@ struct Problem {
 
 // Where the film's files come from: those the program carries (by their
 // paths in showcase/promo-video), or a directory of edited copies, which
-// wins for every file it has.
+// wins for every file it has. A data module is read as its JSON snapshot,
+// named either way (`promo.timeline.omui.ts` or `….omui.json`).
 class Files {
 public:
     Files();
@@ -66,7 +70,7 @@ struct Cut {
     [[nodiscard]] mlibs::time::Flicks time_of(std::int64_t frame) const noexcept { return timeline.rate.frame_time(frame); }
 };
 
-// A cut by name (`promo` reads promo.timeline.omui.toml), checked: the
+// A cut by name (`promo` reads promo.timeline.omui.ts), checked: the
 // timeline's own rules, a picture track, every picture clip a shot this
 // program has or `film` (a whole-number speed, its frames earlier than
 // itself), every line one the subtitles have.

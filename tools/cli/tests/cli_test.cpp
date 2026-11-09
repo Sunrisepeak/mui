@@ -279,8 +279,10 @@ UTest cases{"cli", [] {
 
     "omui video: a description and a view rendered to files, a still, a probe, the timing; problems located"_test = [] {
         const auto dir = scratch_dir("omui-video");
-        std::ofstream(dir / "card.video.omui.toml", std::ios::binary) << "[video]\nwidth = 64\nheight = 36\nfps = 30\nseconds = 1\n\n[frames]\ncard = \"sync\"\n\n[audio]\nbeeps = true\n";
-        auto r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.toml"), "--out", utf8(dir / "out" / "card.y4m")});
+        // As its author writes it: a TypeScript data module the command evaluates.
+        std::ofstream(dir / "card.video.omui.ts", std::ios::binary)
+            << "import { defineVideo } from \"omui/define\";\n\nexport default defineVideo({ width: 64, height: 36, fps: 30, seconds: 1, from: { card: \"sync\" }, audio: { beeps: true } });\n";
+        auto r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts"), "--out", utf8(dir / "out" / "card.y4m")});
         expect(r.code == 0) << r.out + r.err;
         auto v = parse_json(r.out);
         expect(v && v->get("frames")->as_int() == 30 && v->get("samples")->as_int() == 48000 && v->get("files")->list()->size() == 2) << r.out;
@@ -291,13 +293,13 @@ UTest cases{"cli", [] {
         v = parse_json(r.out);
         expect(r.code == 0 && v && v->get("samples")->as_int() == 48000) << r.out;
         // WebM: VP9 and Opus, read back.
-        r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.toml"), "--out", utf8(dir / "out" / "card.webm"), "--speed", "8"});
+        r = omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts"), "--out", utf8(dir / "out" / "card.webm"), "--speed", "8"});
         expect(r.code == 0) << r.out + r.err;
         r = omui_cmd({"video", "probe", utf8(dir / "out" / "card.webm")});
         v = parse_json(r.out);
         expect(r.code == 0 && v && v->get("frames")->as_int() == 30 && v->get("samples")->as_int() == 48000 && v->get("video")->as_string() == "V_VP9" &&
                   v->get("audio")->as_string() == "A_OPUS" && v->get("bt709")->as_bool()) << r.out;
-        r = omui_cmd({"video", "still", utf8(dir / "card.video.omui.toml"), "--at", "0.5", "--out", utf8(dir / "f15.png")});
+        r = omui_cmd({"video", "still", utf8(dir / "card.video.omui.ts"), "--at", "0.5", "--out", utf8(dir / "f15.png")});
         v = parse_json(r.out);
         expect(r.code == 0 && v && v->get("frame")->as_int() == 15 && std::filesystem::exists(dir / "f15.png")) << r.out + r.err;
 
@@ -315,11 +317,11 @@ UTest cases{"cli", [] {
         r = omui_cmd({"video", "timing", "--fps", "30000/1001", "--frames", "5"});
         v = parse_json(r.out);
         expect(r.code == 0 && v && v->get("samples")->as_int() == 8008) << r.out;
-        std::ofstream(dir / "bad.video.omui.toml", std::ios::binary) << "[video]\nwidth = 64\nheight = 36\nfsp = 30\nseconds = 1\n";
-        r = omui_cmd({"video", "check", utf8(dir / "bad.video.omui.toml")});
+        std::ofstream(dir / "bad.video.omui.json", std::ios::binary) << "{\"video\": {\n  \"width\": 64,\n  \"height\": 36,\n  \"fsp\": 30,\n  \"seconds\": 1\n}}";
+        r = omui_cmd({"video", "check", utf8(dir / "bad.video.omui.json")});
         v = parse_json(r.out);
         expect(r.code == 1 && v && v->get("problems")->list()->at(0).get("line")->as_int() == 4) << r.out;
-        expect(eq(omui_cmd({"video", "render", utf8(dir / "card.video.omui.toml")}).code, 2));
+        expect(eq(omui_cmd({"video", "render", utf8(dir / "card.video.omui.ts")}).code, 2));
     };
 
     "omui connect and omui page: a page pairs with the code, the agent's requests reach it as the agent's, its answers come back; strangers refused"_test = [] {

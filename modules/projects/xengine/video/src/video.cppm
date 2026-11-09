@@ -15,7 +15,7 @@
 //   :encode       sources, outputs, encoders, the built-ins and the driver
 //   :card         the A/V sync and colour card: bars, a ramp, a sweep, the
 //                 frame number and timecode, a flash and a beep each second
-//   :description  `*.video.omui.toml`: a video as data, read with every
+//   :description  `*.video.omui.ts`: a video as data (its JSON), read with every
 //                 problem at its line and column, written back as itself;
 //                 its sound track rendered
 export module xengine.video;

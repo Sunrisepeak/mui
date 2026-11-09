@@ -6,9 +6,7 @@ import std;
 namespace xengine::timeline {
 
 std::string Problem::text() const {
-    std::string s = std::format("{}:{}:{}: {}", file, line, column, message);
-    if (!hint.empty()) s += std::format(" ({})", hint);
-    return s;
+    return std::format("{}:{}:{}: {}{}{}", file, line, column, at.empty() ? "" : std::format("{}: ", at), message, hint.empty() ? "" : std::format(" ({})", hint));
 }
 
 namespace {

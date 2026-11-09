@@ -709,6 +709,11 @@ my-app/
     - `xengine.audio` 读 JSON：`{"sound": {<名字>: {layers: […]}}}`、`{"music": {name, tempo, meter, patches, instruments, buses, patterns, sections, arrangement}}`。TS 形状顺手理顺：`[music]` 的字段提到顶层，各类表用复数名，音效的层叫 `layers`。有名字的条目按名字顺序读，与原来一致，文件里的书写顺序不影响播放出的每个采样；音符文本里的错误仍定位到具体记号（JSON 转义计入）。`write_sounds`、`write_music` 写 JSON，读回不变。内置音色改为 JSON 写在代码里，分组注释保留为 C++ 注释。
     - `omui-gen snapshot FILE` 输出数据模块的 JSON 快照；`omui-music` 读快照。
     - 顺带修复 B 的回归：omui-gen 把名字到类型的映射（命令参数）里叫 `note` 的参数当成说明跳过了（widget-breakout 的 `intend` 丢了 `note` 参数）。现在只在值是文本时才当说明，参数表里的键一律是名字。
+  - E 完成：时间线（2 个剪辑）、字幕、视频描述改为 TS 数据模块（`defineTimeline`、`defineSubtitles`、`defineVideo`）。
+    - `xengine.timeline`、`xengine.video` 经 `mlibs.json` 读 JSON 快照，问题带 JSON 指针；`write_timeline`、`write_description` 写 JSON，读回不变。TS 形状：`[timeline]` 的字段提到顶层，`markers`、`tracks`、`clips`、`properties` 用复数；视频的帧来源叫 `from`（与帧数 `frames` 分开）。
+    - 数据文件之间的引用写作者看到的模块名（`music/promo.music.omui.ts`）：读者按快照名找（宣传片的 `Files` 读嵌入的 `.omui.json`；`--dir` 下的改稿先找快照，否则求值目录里的模块）。`xengine.video` 不求值 TS：`soundtrack` 接受调用方的 `DataReader`，`omui video` 传入自己的求值器；`omui audio automation` 同样接受 `.timeline.omui.ts`。
+    - `omui` 命令行新增内部的 `data_text`：`.omui.ts` 求值，其余原样读。设计影片写 `design.video.omui.json`。`xengine` 工具处理时间线的 JSON（`omui-gen snapshot` 生成），tools-e2e 改用快照。
+    - 宣传片逐帧哈希只有结尾卡（第 3420 帧，字幕改为 `promo.timeline.omui.ts`）一帧变化，其余九帧与上次 CI 记录逐一相同；时间线编辑器组件、音轨（xengine.video 的声音哈希）不变。
 
 **W2 热重载（C2）**
 1. 热重载 ≤ 100 ms，按语义 ID 保留状态。**验收**：基准测试 p95 ≤ 100 ms。

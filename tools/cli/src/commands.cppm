@@ -49,6 +49,10 @@ std::expected<std::uint16_t, std::string> run_bridge(const BridgeStart& start, s
 // The document commands (documents.cpp), for run().
 namespace omui::cli {
 
+// A data file as the JSON its reader takes (D-139): a TypeScript data module
+// (`*.omui.ts`) evaluated, anything else read as it is (project.cpp).
+[[nodiscard]] std::expected<std::string, std::string> data_text(const std::filesystem::path& file);
+
 [[nodiscard]] mcpplibs::cmdline::App check_command();
 [[nodiscard]] mcpplibs::cmdline::App fmt_command();
 [[nodiscard]] mcpplibs::cmdline::App schema_command();

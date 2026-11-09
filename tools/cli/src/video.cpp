@@ -9,7 +9,7 @@
 //     omui video probe  FILE.webm | FILE.y4m | FILE.wav
 //     omui video timing --fps R [--rate HZ] [--frames N]
 //
-// FILE is a video description (`*.video.omui.toml`: the sync card, PNG files
+// FILE is a video description (`*.video.omui.ts` or its JSON: the sync card, PNG files
 // or a view, with its sound track) or a view document (`*.view.omui.json`,
 // rendered on the headless host's clock, a frame a step). OUT's name says
 // the format: `x.webm` (VP9 and Opus, through xengine.video.webm), `x.y4m`
@@ -48,7 +48,7 @@ Value problems_value(std::span<const vid::Problem> problems) {
     Value::List list;
     for (const vid::Problem& p : problems) {
         Value v;
-        v.set("file", p.file).set("line", p.line).set("column", p.column).set("message", p.message);
+        v.set("file", p.file).set("line", p.line).set("column", p.column).set("at", p.at).set("message", p.message);
         if (!p.hint.empty()) v.set("hint", p.hint);
         v.set("text", p.text());
         list.push_back(std::move(v));
@@ -127,8 +127,9 @@ std::expected<Loaded, int> load(const cmd::ParsedArgs& p, Value& report, std::os
         l.d.source = name;
         l.d.seconds = 3;
     } else {
-        auto text = mcpplibs::os::fs::read(l.file);
-        if (!text) return std::unexpected(failed(out, report, std::format("cannot read the file: {}", text.error().message())));
+        // A description module (`*.video.omui.ts`) evaluated, or its JSON (D-139).
+        auto text = data_text(l.file);
+        if (!text) return std::unexpected(failed(out, report, std::format("cannot read the file: {}", text.error())));
         auto d = vid::read_description(*text, name);
         if (!d) {
             report.set("ok", false).set("problems", problems_value(d.error()));
@@ -207,7 +208,7 @@ cmd::App with_file(std::string_view name, std::string_view what) {
     using cmd::Option;
     return cmd::App(name)
         .description(what)
-        .arg(cmd::Arg("file").required().help("a video description (*.video.omui.toml) or a view document (*.view.omui.json)"))
+        .arg(cmd::Arg("file").required().help("a video description (*.video.omui.ts, or its .json) or a view document (*.view.omui.json)"))
         .option(Option("size").takes_value().value_name("WxH").help("the size (a view's default: 1280x720)"))
         .option(Option("fps").takes_value().value_name("RATE").help("frames a second: 30, 30000/1001, 29.97 (a view's default: 30)"))
         .option(Option("seconds").takes_value().value_name("S").help("how long (a view's default: 3)"))
@@ -268,7 +269,7 @@ int render(const cmd::ParsedArgs& p, std::ostream& out, std::ostream& err) {
         if (l->d.audio) encoders.push_back(vid::wav_encoder("audio.wav"));
     }
     const auto t0 = std::chrono::steady_clock::now();
-    auto track = vid::soundtrack(l->d, l->base);
+    auto track = vid::soundtrack(l->d, l->base, [](const std::filesystem::path& file) { return data_text(file); });
     if (!track) {
         report.set("ok", false).set("problems", problems_value(track.error()));
         return print(out, report, 1);

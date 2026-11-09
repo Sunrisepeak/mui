@@ -37,7 +37,7 @@ std::optional<std::vector<std::uint8_t>> FrameStore::get(std::int64_t frame) {
 
 std::expected<Film, std::vector<Problem>> load_film(Files files) {
     prepare();
-    constexpr std::string_view file = "promo.subtitles.omui.toml";
+    constexpr std::string_view file = "promo.subtitles.omui.json";  // what promo.subtitles.omui.ts evaluates to
     auto text = files.read(file);
     if (!text) return std::unexpected(std::vector<Problem>{{std::string(file), 0, 0, text.error()}});
     auto subs = read_subtitles(*text, file);

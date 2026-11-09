@@ -11,8 +11,8 @@ int main() {
     struct Set {
         std::string_view dir, suffix, tag;
     };
-    constexpr std::array<Set, 8> sets{{{".", ".timeline.omui.toml", "timeline"},
-                                        {".", ".subtitles.omui.toml", "subtitles"},
+    constexpr std::array<Set, 8> sets{{{".", ".timeline.omui.ts", "timeline"},
+                                        {".", ".subtitles.omui.ts", "subtitles"},
                                         {".", ".style.omui.ts", "style"},
                                         {"music", ".music.omui.ts", "music"},
                                         {"sounds", ".sound.omui.ts", "sound"},

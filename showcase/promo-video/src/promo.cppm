@@ -1,7 +1,7 @@
 // openmui.showcase.promo_video — S5, openmui's film (D-51; promo-video
 // design): sixty seconds at 60 frames a second, and a fifteen-second cut,
 // made with openmui. The film is data — a timeline a cut
-// (*.timeline.omui.toml), its lines (*.subtitles.omui.toml), its score and
+// (*.timeline.omui.ts), its lines (*.subtitles.omui.ts), its score and
 // sounds — and scene code: every shot is a live openmui scene (the settings
 // panel a pixel belongs to, the counter in four languages, the Markdown
 // wall, the style workshop, an agent at work, the haunted breakout), drawn

@@ -496,11 +496,15 @@ private:
             }
         }
         // The description `omui video render` reads (xengine.video): the frames, at their rate.
-        const auto description = out / "design.video.omui.toml";
-        std::ofstream(description, std::ios::binary)
-            << std::format("doc = \"The design of {} on {}: {} steps, {} s each.\"\n\n[video]\nwidth = {}\nheight = {}\nfps = {}\nframes = {}\n\n[frames]\npng = "
-                           "\"frames/{{:05}}.png\"\n",
-                           player.manifest().id, branch, commits.size(), each, static_cast<int>(window.width), static_cast<int>(window.height), fps, frame);
+        const auto description = out / "design.video.omui.json";
+        const Value video = Value(Value::Map{})
+                                .set("doc", std::format("The design of {} on {}: {} steps, {} s each.", player.manifest().id, branch, commits.size(), each))
+                                .set("width", static_cast<int>(window.width))
+                                .set("height", static_cast<int>(window.height))
+                                .set("fps", fps)
+                                .set("frames", static_cast<std::int64_t>(frame))
+                                .set("from", Value(Value::Map{}).set("png", "frames/{:05}.png"));
+        std::ofstream(description, std::ios::binary) << indented_json(Value(Value::Map{}).set("video", video));
         return Value{}
             .set("branch", branch)
             .set("steps", static_cast<double>(commits.size()))

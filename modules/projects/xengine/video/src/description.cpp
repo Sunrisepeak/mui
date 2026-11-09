@@ -78,7 +78,17 @@ std::expected<std::unique_ptr<FrameSource>, std::vector<Problem>> frame_source(c
     return std::unexpected(std::vector{problem(d.source, "a view's frames are rendered by a host", "omui video render")});
 }
 
-std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Description& d, const std::filesystem::path& base) {
+std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Description& d, const std::filesystem::path& base, const DataReader& read) {
+    // Music and sounds as their JSON: a module through `read`.
+    const auto data = [&](std::string_view name) -> std::expected<std::string, std::string> {
+        const auto file = base / path_of(name);
+        if (read) return read(file);
+        if (name.ends_with(".omui.ts"))
+            return std::unexpected(std::string("a TypeScript data module: `omui video` evaluates it, or name its JSON (omui-gen snapshot)"));
+        auto text = read_text(file);
+        if (!text) return std::unexpected(std::string("cannot be read"));
+        return std::move(*text);
+    };
     if (!d.audio) return std::vector<float>{};
     mlibs::trace::Span span("video.soundtrack", "video");
     const Format f = d.format();
@@ -95,16 +105,16 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
         else mixer.add_recording(name, r->samples, r->rate);
     }
     if (!d.sounds.empty()) {
-        const auto text = read_text(base / path_of(d.sounds));
-        if (!text) problems.push_back(problem(d.sounds, "cannot read the sounds"));
+        const auto text = data(d.sounds);
+        if (!text) problems.push_back(problem(d.sounds, std::format("the sounds: {}", text.error())));
         else if (auto sounds = audio::read_sounds(*text, d.sounds); !sounds) problems.insert(problems.end(), sounds.error().begin(), sounds.error().end());
         else
             for (const audio::Sound& s : *sounds) mixer.add(s);
     }
     std::shared_ptr<audio::Sequencer> sequencer;
     if (!d.music.empty()) {
-        const auto text = read_text(base / path_of(d.music));
-        if (!text) problems.push_back(problem(d.music, "cannot read the music"));
+        const auto text = data(d.music);
+        if (!text) problems.push_back(problem(d.music, std::format("the music: {}", text.error())));
         else if (auto music = audio::read_music(*text, d.music); !music) problems.insert(problems.end(), music.error().begin(), music.error().end());
         else if (auto s = audio::Sequencer::attach(*music, mixer); !s) problems.insert(problems.end(), s.error().begin(), s.error().end());
         else sequencer = std::move(*s);
@@ -119,8 +129,8 @@ std::expected<std::vector<float>, std::vector<Problem>> soundtrack(const Descrip
     for (const SoundCue& c : d.cues) {
         const std::int32_t id = mixer.find(c.sound);
         if (id < 0) {
-            problems.push_back(problem(d.sounds.empty() ? std::string_view("[audio]") : std::string_view(d.sounds), std::format("no sound `{}` to cue", c.sound),
-                                       d.sounds.empty() ? "sounds = \"<file>.sound.omui.toml\"" : ""));
+            problems.push_back(problem(d.sounds.empty() ? std::string_view("audio") : std::string_view(d.sounds), std::format("no sound `{}` to cue", c.sound),
+                                       d.sounds.empty() ? "sounds: \"<file>.sound.omui.ts\"" : ""));
             continue;
         }
         plays.push_back({c.frame >= 0 ? f.timing.sample_of(c.frame) : std::llround(c.at * d.rate), id, &c});

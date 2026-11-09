@@ -42,14 +42,9 @@ imageio::Image solid(int w, int h, std::uint8_t r, std::uint8_t g, std::uint8_t 
     return img;
 }
 
-constexpr std::string_view sounds_file = R"(
-[sound.click]
-[[sound.click.layer]]
-wave = "square"
-length = 0.02
-pitch = [2000, 2000]
-envelope = { attack = 0, hold = 0.01, decay = 0.01, sustain = 0, release = 0 }
-)";
+constexpr std::string_view sounds_file = R"({"sound": {"click": {"layers": [
+  {"wave": "square", "length": 0.02, "pitch": [2000, 2000], "envelope": {"attack": 0, "hold": 0.01, "decay": 0.01, "sustain": 0, "release": 0}}
+]}}})";
 
 }  // namespace
 
@@ -236,30 +231,19 @@ UTest cases{"xengine.video", [] {
         }
     };
 
-    "a description: read, its problems at their line and column, written back as itself"_test = [] {
-        constexpr std::string_view text = R"(doc = "A test."
-
-[video]
-width = 320
-height = 180
-fps = "30000/1001"
-seconds = 3
-
-[frames]
-png = "shots/{:05}.png"
-
-[audio]
-music = "theme.music.omui.toml"
-intensity = [{ at = 0, value = 0.3 }, { at = 2, value = 1 }]
-sounds = "ui.sound.omui.toml"
-recordings = { voice = "voice.wav" }
-cues = [
-    { sound = "click", frame = 30 },
-    { sound = "whoosh", at = 1.25, gain = 0.8, pan = -0.5 },
-]
-beeps = true
+    "a description: read, its problems at their place, written back as itself"_test = [] {
+        // As write_description writes it: an entry a line where it reads best.
+        constexpr std::string_view text = R"({"video": {
+  "doc": "A test.",
+  "width": 320, "height": 180, "fps": "30000/1001", "seconds": 3,
+  "from": {"png": "shots/{:05}.png"},
+  "audio": {"music": "theme.music.omui.ts", "intensity": [{"at": 0, "value": 0.3}, {"at": 2, "value": 1}], "sounds": "ui.sound.omui.ts", "recordings": {"voice": "voice.wav"}, "cues": [
+    {"sound": "click", "frame": 30},
+    {"sound": "whoosh", "at": 1.25, "gain": 0.8, "pan": -0.5}
+  ], "beeps": true}
+}}
 )";
-        const auto d = video::read_description(text, "t.video.omui.toml");
+        const auto d = video::read_description(text, "t.video.omui.json");
         expect(d.has_value());
         if (!d) {
             for (const auto& p : d.error()) std::println("    {}", p.text());
@@ -272,32 +256,26 @@ beeps = true
         const auto back = video::read_description(written, "t");
         expect(back.has_value() && *back == *d);
 
-        const auto bad = video::read_description("[video]\nwidht = 3\nfps = 0\nseconds = 1\n[frames]\ncard = \"synk\"\n[audio]\ncues = [{ sound = \"x\", at = 1, frame = 2 }]\n", "bad.video.omui.toml");
+        const auto bad = video::read_description("{\"video\": {\n  \"widht\": 3,\n  \"fps\": 0,\n  \"seconds\": 1,\n  \"from\": {\"card\": \"synk\"},\n  \"audio\": {\"cues\": [{\"sound\": \"x\", \"at\": 1, \"frame\": 2}]}\n}}", "bad.video.omui.json");
         expect(!bad.has_value());
         if (bad) return;
         std::vector<std::string> texts;
         for (const auto& p : bad.error()) texts.push_back(p.text());
         auto has = [&](std::string_view s) { return std::ranges::any_of(texts, [&](const std::string& t) { return t.find(s) != std::string::npos; }); };
-        expect(has("bad.video.omui.toml:2:1: [video] has no key `widht` (did you mean `width`?)")) << std::format("{}", texts);
-        expect(has("bad.video.omui.toml:3:7: `fps`")) << std::format("{}", texts);
+        expect(has("bad.video.omui.json:2:12: /video/widht: a video description has no key `widht` (did you mean `width`?)")) << std::format("{}", texts);
+        expect(has("bad.video.omui.json:3:10: /video/fps: `fps`")) << std::format("{}", texts);
         expect(has("no card `synk` (did you mean `sync`?)")) << std::format("{}", texts);
         expect(has("a cue has `at` or `frame`, not both")) << std::format("{}", texts);
-        expect(!video::read_description("[video\n", "x").has_value());
+        expect(!video::read_description("{\"video\": {\n", "x").has_value());
     };
 
     "a sound track: each cue on its frame's first sample, through the mixer; the bits pinned"_test = [] {
         const auto dir = scratch_dir("video-soundtrack");
-        std::ofstream(dir / "ui.sound.omui.toml") << sounds_file;
-        const auto d = video::read_description(R"([video]
-width = 64
-height = 36
-fps = 30
-seconds = 2
-
-[audio]
-sounds = "ui.sound.omui.toml"
-cues = [{ sound = "click", frame = 30 }, { sound = "click", at = 0.5, pan = -1 }]
-)",
+        std::ofstream(dir / "ui.sound.omui.json") << sounds_file;
+        const auto d = video::read_description(R"({"video": {
+  "width": 64, "height": 36, "fps": 30, "seconds": 2,
+  "audio": {"sounds": "ui.sound.omui.json", "cues": [{"sound": "click", "frame": 30}, {"sound": "click", "at": 0.5, "pan": -1}]}
+}})",
                                                "t");
         expect(d.has_value());
         if (!d) return;
@@ -321,7 +299,7 @@ cues = [{ sound = "click", frame = 30 }, { sound = "click", at = 0.5, pan = -1 }
         // Unknown sounds and missing files are problems.
         auto no = *d;
         no.cues.push_back({.sound = "boom"});
-        no.music = "missing.music.omui.toml";
+        no.music = "missing.music.omui.json";
         const auto bad = video::soundtrack(no, dir);
         expect(!bad.has_value() && bad.error().size() == 2);
         std::println("    soundtrack {}", hex(xengine::audio::hash(*track)));

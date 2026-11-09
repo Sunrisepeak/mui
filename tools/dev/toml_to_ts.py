@@ -33,7 +33,7 @@ from pathlib import Path
 
 IDENT = re.compile(r"^[A-Za-z_$][A-Za-z0-9_$]*$")
 HEADER = re.compile(r"^\s*\[\s*([^\]]+?)\s*\]\s*(#.*)?$")
-KEY = re.compile(r"^\s*([A-Za-z0-9_\-]+|\"[^\"]+\")\s*=")
+KEY = re.compile(r"^\s*((?:[A-Za-z0-9_\-]+|\"[^\"]+\")(?:\s*\.\s*(?:[A-Za-z0-9_\-]+|\"[^\"]+\"))*)\s*=")
 WIDTH = 140
 
 
@@ -111,6 +111,21 @@ def trailing(line: str) -> str:
 HEADERS = re.compile(r"^\s*\[\[\s*([^\]]+?)\s*\]\]\s*(#.*)?$")
 
 
+def brackets(text: str) -> int:
+    """How many more brackets a line opens than it closes, outside strings and comments."""
+    count, quoted = 0, False
+    for i, c in enumerate(text):
+        if c == '"' and (i == 0 or text[i - 1] != "\\"):
+            quoted = not quoted
+        elif not quoted and c == "#":
+            break
+        elif not quoted and c in "[{":
+            count += 1
+        elif not quoted and c in "]}":
+            count -= 1
+    return count
+
+
 def scan(text: str):
     """The opening block; comments before each member and after it, by path
     (an array of tables' item by its index: ("track", 0, "clip", 2)); the
@@ -127,10 +142,15 @@ def scan(text: str):
                 out += (counts[out] - 1,)
         return out
 
+    arrays_over_lines, open_list = set(), 0
     for line in text.splitlines():
         stripped = line.strip()
         if in_string:  # inside a multi-line string: neither comments nor keys
             in_string = stripped.count('"""') % 2 == 0
+            continue
+        if open_list > 0:  # inside a list written over lines
+            if not stripped.startswith("#"):
+                open_list += brackets(line)
             continue
         if stripped.startswith("#"):
             block.append(stripped[1:].strip())
@@ -164,16 +184,19 @@ def scan(text: str):
             block = []
             continue
         if found := KEY.match(line):
-            at = table + (found.group(1).strip('"'),)
+            at = table + path_of(found.group(1))
             if block:
                 before[at] = block
             rest = line[found.end() :]
             if rest.count('"""') % 2 == 1:
                 in_string = True
+            elif brackets(rest) > 0:  # a list written over lines: kept over lines
+                arrays_over_lines.add(at)
+                open_list = brackets(rest)
             elif note := trailing(rest):
                 after[at] = note
         block = []
-    return lead, before, after, headers, arrays
+    return lead, before, after, headers, arrays | {("over lines",) + path for path in arrays_over_lines}
 
 
 class Node:
@@ -187,7 +210,9 @@ def tree(value, path: tuple, scanned) -> Node:
     _, before, after, headers, arrays = scanned
     if isinstance(value, dict):
         members = {k: tree(v, path + (k,), scanned) for k, v in value.items()}
-        return Node(members, before.get(path), after.get(path), path in headers or (bool(path) and isinstance(path[-1], int)))
+        item_of_tables = bool(path) and isinstance(path[-1], int) and path[:-1] in arrays
+        over_lines = path in headers or item_of_tables or any(m.expanded for m in members.values())
+        return Node(members, before.get(path), after.get(path), over_lines)
     if isinstance(value, list) and path in arrays:
         items = [tree(v, path + (i,), scanned) for i, v in enumerate(value)]
         for item in items:  # an item on its line when it is short and holds no comment or table of its own
@@ -195,7 +220,8 @@ def tree(value, path: tuple, scanned) -> Node:
                 item.expanded = len(literal(plain(item))) > 100
         return Node(items, before.get(path), after.get(path), True)
     if isinstance(value, list):
-        return Node([tree(v, path + (i,), scanned) if isinstance(v, dict) else v for i, v in enumerate(value)], before.get(path), after.get(path))
+        over_lines = ("over lines",) + path in arrays  # written over lines: an item a line
+        return Node([tree(v, path + (i,), scanned) if isinstance(v, dict) else v for i, v in enumerate(value)], before.get(path), after.get(path), over_lines)
     return Node(value, before.get(path), after.get(path))
 
 
@@ -243,7 +269,8 @@ def emit_members(members: dict, depth: int, out: list[str]) -> None:
         emit_value(node, f"{pad}{key(k)}: ", depth, out)
 
 
-def emit_value(node: Node, lead: str, depth: int, out: list[str]) -> None:
+def emit_value(node: Node, lead: str, level: int, out: list[str]) -> None:
+    depth = level
     pad = "  " * depth
     if node.expanded and isinstance(node.value, dict) and node.value:
         out.append(f"{lead}{{")
@@ -253,6 +280,8 @@ def emit_value(node: Node, lead: str, depth: int, out: list[str]) -> None:
         out.append(f"{lead}[")
         inner = "  " * (depth + 1)
         for item in node.value:
+            if not isinstance(item, Node):
+                item = Node(item)
             comments(item.before, inner, out)
             emit_value(item, inner, depth + 1, out)
         out.append(f"{pad}],")
@@ -270,7 +299,9 @@ def looks(path: Path, text: str, data: dict, kind: str) -> str:
     scanned = scan(text)
     root = tree(data, (), scanned).value
     lead = list(scanned[0])
-    if kind in ("theme", "style", "sound"):
+    if kind == "effect":  # one effect a file: its fields, its parameters plural
+        members = rename(root, {"param": "params"})
+    elif kind in ("theme", "style", "sound", "behavior"):
         extra = set(root) - {kind, "doc"}
         if extra or kind not in root:
             raise SystemExit(f"{path}: holds {sorted(root)}, not one [{kind}.*]")
@@ -339,10 +370,10 @@ def convert(path: Path) -> tuple[Path, str]:
         extra = set(data) - {"catalog", "operation", "tier"}
         if extra:
             raise SystemExit(f"{path}: tables omui.gen.data does not carry: {sorted(extra)}")
-    elif (kind := name.split(".")[-3]) in ("theme", "style", "sound", "music", "timeline", "subtitles") and name.endswith(".omui.toml"):
+    elif (kind := name.split(".")[-3]) in ("theme", "style", "sound", "music", "timeline", "subtitles", "behavior", "effect") and name.endswith(".omui.toml"):
         return path.with_name(name[: -len(".toml")] + ".ts"), looks(path, text, data, kind)
     else:
-        raise SystemExit(f"{path}: not a contract, native module, operation catalog, theme, style, sound or music")
+        raise SystemExit(f"{path}: not a contract, native module, operation catalog, theme, style, sound, music, timeline, subtitles, behavior or effect")
     module = "omui/define" if function == "defineOps" else "openmui/define"  # D-157: the spec's formats, the implementation's
     lines += [f'import {{ {function} }} from "{module}";', "", f"export default {function}({block(value, 0)});"]
     target = path.with_name(name[: -len(".toml")] + ".ts")

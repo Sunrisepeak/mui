@@ -540,8 +540,8 @@ UTest cases{"designer", [] {
         expect(eq(filmed, 0)) << film.json();
         expect(film.get("steps") && film.get("steps")->as_int() == 3 && film.get("frames")->as_int() == 9) << film.json();
         const auto out = dir / ".omui" / "design" / "film" / "main";
-        const std::string description = file_text(out / "design.video.omui.toml");
-        expect(description.contains("frames = 9") && description.contains("png = \"frames/{:05}.png\"") && description.contains("width = 320")) << description;
+        const std::string description = file_text(out / "design.video.omui.json");
+        expect(description.contains("\"frames\": 9") && description.contains("\"png\": \"frames/{:05}.png\"") && description.contains("\"width\": 320")) << description;
         const std::string first = file_text(out / "frames" / "00000.png"), last = file_text(out / "frames" / "00008.png");
         expect(!first.empty() && !last.empty() && first != last) << "the design changing over the film";
         expect(eq(name_of(h, "side/hello"), std::string("three"))) << "what the person sees untouched";

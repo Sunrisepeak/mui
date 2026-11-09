@@ -7,10 +7,10 @@
 # in, with no third-party code but openmui.image's PNG: a PNG sequence, Y4M
 # (raw YUV 4:2:0, BT.709, integer RGB→YUV) and WAV. Compressed output is a
 # plugin package (xengine.video.webm). Descriptions are data
-# (`*.video.omui.toml`).
+# (`*.video.omui.ts`, read as the JSON it evaluates to).
 # An independent component (D-55): the standard library, hanim.core (exact frame
 # rates, deterministic math), openmui.image, xengine.audio, mlibs.trace
-# (spans in category "video") and toml++.
+# (spans in category "video") and mlibs.json.
 [package]
 namespace   = "xengine"
 name        = "video"
@@ -27,7 +27,7 @@ kind = "runtime"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
@@ -35,7 +35,7 @@ mlibs.utils = { path = "../../../base/utils" }
 hanim.core               = { path = "../../hanim/core" }
 mlibs.image       = { path = "../../../base/image" }
 xengine.audio       = { path = "../audio" }
-marzer.tomlplusplus = "3.4.0"
+mlibs.json          = { path = "../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"

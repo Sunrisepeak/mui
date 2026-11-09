@@ -58,7 +58,7 @@ std::expected<Opened, Json> open(const std::filesystem::path& file) {
     if (!read) {
         Json problems = Json::array();
         for (const auto& p : read.error())
-            problems.push_back({{"line", p.line}, {"column", p.column}, {"message", p.message}, {"hint", p.hint}});
+            problems.push_back({{"line", p.line}, {"column", p.column}, {"at", p.at}, {"message", p.message}, {"hint", p.hint}});
         return std::unexpected(Json{{"ok", false}, {"problems", std::move(problems)}});
     }
     return Opened{std::move(*text), std::move(*read)};

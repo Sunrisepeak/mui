@@ -3,9 +3,10 @@
 # where in its source it begins, its speed, its level and fades, and
 # properties keyed with hanim's curves; markers; what plays at any moment;
 # edits (insert, remove, move, trim, split, ripple) that each give back their
-# inverse, so undo is exact; and the readable file, *.timeline.omui.toml.
-# An independent component (D-55): the standard library, hanim.core (its eases
-# and keyed tracks), mlibs.time (flicks and rates) and toml++.
+# inverse, so undo is exact; and the readable file, *.timeline.omui.ts (read
+# as the JSON it evaluates to). An independent component (D-55): the standard
+# library, hanim.core (its eases and keyed tracks), mlibs.time (flicks and
+# rates) and mlibs.json.
 [package]
 namespace   = "xengine"
 name        = "timeline"
@@ -22,13 +23,13 @@ kind = "runtime"
 kind = "lib"
 
 [build]
-sources  = ["src/*.cppm", "src/*.cpp", "src/native/*.cpp"]
+sources  = ["src/*.cppm", "src/*.cpp"]
 cxxflags = ["-ffp-contract=off", "-fno-fast-math"]
 
 [dependencies]
 hanim.core          = { path = "../../hanim/core" }
 mlibs.utils         = { path = "../../../base/utils" }
-marzer.tomlplusplus = "3.4.0"
+mlibs.json          = { path = "../../../base/json" }
 
 [dev-dependencies]
 mcpplibs.mtest = "0.5.0"

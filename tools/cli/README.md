@@ -61,7 +61,7 @@ none to make up, or not as it was after its undo). A failure exits 1.
 
 ## omui video
 
-Videos from descriptions (`*.video.omui.toml`) and view documents
+Videos from descriptions (`*.video.omui.ts`, evaluated, or their JSON) and view documents
 (`*.view.omui.json`, rendered on the headless host's clock, a step a frame),
 through [xengine.video](../../modules/projects/xengine/video) and its WebM plugin: one
 JSON object out and an exit code (0 done, 1 failed, 2 a wrong command line).

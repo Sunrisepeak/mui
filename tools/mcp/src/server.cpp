@@ -68,7 +68,7 @@ Value object_schema(Value::Map properties, std::initializer_list<std::string_vie
     return s;
 }
 
-const std::pair<std::string, Value> app_prop{"app", prop("string", "The application's endpoint name or app id (ui_apps); none: the one running")};
+const std::pair<std::string, Value> app_prop{"app", prop("string", "default: the one running")};
 
 // A tool's hints from its operation's effect: a read only reads; what can be
 // irreversible or external — or runs what it names, whose effect may be — is
@@ -655,126 +655,67 @@ Value::List Server::tools() const {
     const auto s = [](std::string_view d) { return prop("string", d); };
     const auto b = [](std::string_view d) { return prop("boolean", d); };
     const auto o = [](std::string_view d) { return prop("object", d); };
+    // One or two sentences each: every turn carries them (W4: they were most of an
+    // agent's tokens). What a tool is for in depth is the skill's and describe's (D-145).
+    const auto point = [](std::string_view d) { return Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", d); };
+    const auto integer = [](std::string_view d) { return Value{}.set("type", "integer").set("description", d); };
+    const auto steps = prop("array", "[{node, action, args?}, …]").set("items", prop("object", "a step"));
     Value::List out{
-        tool("ui_apps", "Running applications", "The openmui applications running on this machine, by endpoint name and app id.",
-             object_schema({})),
+        tool("ui_apps", "Running applications", "The openmui applications running here.", object_schema({})),
         tool("ui_snapshot", "Semantic tree",
-             "An application's semantic tree as an outline: one node a line — id, role, name, value, states and the actions it offers "
-             "(with their effect: irreversible and external ones need the user's confirmation; one marked person is the user's own, which "
-             "only they do at the machine — do not try it). Ids are stable paths; use them with ui_act.",
-             object_schema({app_prop,
-                            {"root", s("a subtree's id")},
-                            {"depth", n("levels below the root")},
-                            {"interactive", b("only nodes that can be operated")},
-                            {"offset", n("skip this many nodes (paging)")},
-                            {"limit", n("at most this many nodes")},
-                            {"children_limit", n("list at most this many child ids per node (children_total says how many)")}}), "ui.snapshot"),
-        tool("ui_find", "Find nodes", "Nodes matching a query: a role, a name glob (Save*), a state, or a full query object (spatial: within).",
-             object_schema({app_prop,
-                            {"role", s("button, text_box, checkbox, link, list_item …")},
-                            {"name", s("a name glob: Save*, *TODO*")},
-                            {"state", s("a state the nodes have: checked, disabled, focused, selected …")},
-                            {"query", o("a whole openmui.tree query, e.g. {\"role\":\"button\",\"within\":{\"id\":\"main/toolbar\"}}")},
-                            {"limit", n("at most this many")}}), "ui.find"),
+             "The application's semantic tree, a node a line: id, role, name, value, states, actions (with effects). Use the ids with ui_act.",
+             object_schema({app_prop, {"root", s("a subtree's id")}, {"depth", n("levels")}, {"interactive", b("operable nodes only")},
+                            {"offset", n("paging")}, {"limit", n("paging")}, {"children_limit", n("child ids a node")}}), "ui.snapshot"),
+        tool("ui_find", "Find nodes", "Nodes by role, name glob (Save*), state, or a query object.",
+             object_schema({app_prop, {"role", s("button, checkbox …")}, {"name", s("a glob")}, {"state", s("checked, disabled …")},
+                            {"query", o("an openmui.tree query")}, {"limit", n("at most")}}), "ui.find"),
         tool("ui_act", "Act on a node",
-             "Performs an action a node offers (activate, toggle, set_value with args {\"value\": …}, focus, scroll …), as a person "
-             "would. An irreversible or external action is put to the user first; never pass `answer` unless the user gave it. "
-             "dry_run: only say what it would do (its effect, whether it can be undone, the value after) and change nothing.",
-             object_schema({app_prop,
-                            {"node", s("the node's id")},
-                            {"action", s("an action the node lists")},
-                            {"args", o("the action's arguments")},
-                            {"answer", s("the user's answer to a confirmation they were asked for")},
-                            {"dry_run", b("only what would happen; nothing is done")}},
+             "Performs a node's action (activate, toggle, set_value {value}, focus …). Where the session's policy has the user decide an "
+             "irreversible or external one, the answer says so: pass `answer` only when the user gave it. dry_run: what it would do.",
+             object_schema({app_prop, {"node", s("its id")}, {"action", s("an action it lists")}, {"args", o("arguments")},
+                            {"answer", s("the user's answer")}, {"dry_run", b("change nothing")}},
                            {"node", "action"}), "ui.act"),
-        tool("ui_verbs", "Application verbs",
-             "The application's verbs — what ui_invoke can name: each with its effect, the answer an irreversible or external one asks "
-             "for, the arguments it takes, and whether only the user may invoke it.",
+        tool("ui_verbs", "Application verbs", "The application's verbs for ui_invoke: effects, arguments, answers asked for.",
              object_schema({app_prop}), "ui.describe"),
-        tool("ui_invoke", "Invoke a verb", "Invokes an application verb (ui_verbs lists them, with their arguments).",
-             object_schema({app_prop,
-                            {"verb", s("the verb's name")},
-                            {"args", o("its arguments")},
-                            {"answer", s("the user's answer to a confirmation they were asked for")},
-                            {"dry_run", b("only what would happen; nothing is done")}},
+        tool("ui_invoke", "Invoke a verb", "Invokes an application verb (decided as ui_act's actions are).",
+             object_schema({app_prop, {"verb", s("its name")}, {"args", o("arguments")}, {"answer", s("the user's answer")},
+                            {"dry_run", b("change nothing")}},
                            {"verb"}), "ui.invoke"),
-        tool("ui_undo", "Undo or redo",
-             "Takes back the last step of the application's history (the window's, or a scope's), or with redo puts it forward again. "
-             "Reversible actions that say how are in the history; an irreversible or external one ends it — undo stops there.",
-             object_schema({app_prop,
-                            {"redo", b("redo instead of undo")},
-                            {"scope", s("a node with its own history (default: the window)")},
-                            {"dry_run", b("only say what it would undo")}}), "ui.undo"),
-        tool("ui_transaction", "Several actions as one",
-             "Performs actions in order as one step of history: if one fails, those done are taken back and nothing stays. Only "
-             "reversible and read actions may be in it. dry_run checks every step first.",
-             object_schema({app_prop,
-                            {"steps", prop("array", "[{\"node\": id, \"action\": name, \"args\": {…}}, …]").set("items", prop("object", "a step"))},
-                            {"label", s("what the step is called in the history")},
-                            {"dry_run", b("only what each step would do")}},
-                           {"steps"}), "ui.transaction"),
+        tool("ui_undo", "Undo or redo", "Takes back (or with redo, puts forward) the last step of the history.",
+             object_schema({app_prop, {"redo", b("redo")}, {"scope", s("a node with its own history")}, {"dry_run", b("change nothing")}}), "ui.undo"),
+        tool("ui_transaction", "Several actions as one", "Reversible actions in order as one step: one fails, all are taken back.",
+             object_schema({app_prop, {"steps", steps}, {"label", s("its name in the history")}, {"dry_run", b("change nothing")}}, {"steps"}),
+             "ui.transaction"),
         tool("ui_preview", "Preview before allowing",
-             "What steps would make, shown before anything is allowed: the steps that can be taken back run unseen and are taken back; "
-             "the pictures before and after, the semantic changes, and the steps that would ask the user (shown, not done). Nothing stays. "
-             "Show it to the user before an action they must decide on.",
-             object_schema({app_prop,
-                            {"steps", prop("array", "[{\"node\": id, \"action\": name, \"args\": {…}}, …]").set("items", prop("object", "a step"))}},
-                           {"steps"}), "ui.preview"),
-        tool("ui_wait", "Wait for the interface",
-             "Waits until nodes matching a query appear (or, absent, are gone) and/or the interface has settled (nothing animating).",
-             object_schema({app_prop,
-                            {"query", o("a query that must match, e.g. {\"id\":\"main/toast\"}")},
-                            {"absent", b("the query must not match")},
-                            {"settled", b("nothing animates or is being removed")},
-                            {"timeout", prop("number", "seconds (default 5)")}}), "ui.wait"),
+             "What steps would make — pictures before and after, the semantic changes — with nothing kept. Show it to the user before a decision that is theirs.",
+             object_schema({app_prop, {"steps", steps}}, {"steps"}), "ui.preview"),
+        tool("ui_wait", "Wait for the interface", "Waits until a query matches (or not) and/or nothing animates.",
+             object_schema({app_prop, {"query", o("must match")}, {"absent", b("must not match")}, {"settled", b("nothing animates")},
+                            {"timeout", prop("number", "seconds")}}), "ui.wait"),
         tool("ui_intend", "Say what you are about to do",
-             "Tell the person, before you act, what you are about to do — the steps, or a note — or, handing the task back, what you did, "
-             "what is left and what you were unsure of (hands_back). Your presence on their screen shows it until you say another; it "
-             "changes nothing in the application.",
-             object_schema({app_prop, {"text", s("the intent, or the handoff's summary (\"\" withdraws it)")}, {"node", s("the node it is about (optional)")},
-                            {"hands_back", Value{}.set("type", "boolean").set("description", "a handoff to the person, not an intent")}},
-                           {"text"}), "ui.intend"),
-        tool("ui_drew", "What drew this pixel",
-             "The node whose drawing a pixel shows, the nodes it sits in, and where in the program each was built (file:line:column): "
-             "from something wrong in a picture to the line to change.",
-             object_schema({app_prop, {"at", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y] in logical pixels")}},
-                           {"at"}), "ui.drew"),
+             "Tells the person what you are about to do, or with hands_back what you did and what is left; it changes nothing.",
+             object_schema({app_prop, {"text", s("\"\" withdraws it")}, {"node", s("what it is about")}, {"hands_back", b("a handoff")}}, {"text"}),
+             "ui.intend"),
+        tool("ui_drew", "What drew this pixel", "The node that drew a pixel, its ancestors, and the source line each was built at.",
+             object_schema({app_prop, {"at", point("[x, y]")}}, {"at"}), "ui.drew"),
         tool("ui_capture", "Capture pixels or vectors",
-             "The pixels of the window, or of one node, as a PNG image; `region` [x, y, width, height] (logical pixels, from the node's corner "
-             "or the window's) takes a part of it, to look closer at a detail. `format: svg` gives vectors instead — exact geometry, colours, "
-             "text and which node drew each shape — when a number matters more than a look. Read the semantic tree first; capture what it cannot say.",
-             object_schema({app_prop, {"node", s("a node's id (default: the window)")}, {"region", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y, width, height]")},
-                            {"format", Value{}.set("type", "string").set("enum", Value(Value::List{Value("png"), Value("svg")})).set("description", "png (pixels, the default) or svg (vectors)")}}), "ui.capture"),
-        tool("ui_timeline", "What input did",
-             "The interaction recorder's records, oldest first: each input event (the person's or an agent's), what it hit, what stopped it — "
-             "disabled, released outside, nothing to press, outside a modal, refused — and what it activated. `since` a cause, `limit` how many.",
-             object_schema({app_prop, {"since", Value{}.set("type", "integer").set("description", "only after this cause")},
-                            {"limit", Value{}.set("type", "integer").set("description", "the last this many (200)")}}), "ui.timeline"),
+             "A PNG of the window, a node or a region; format svg gives vectors (exact geometry, which node drew what). Read the tree first.",
+             object_schema({app_prop, {"node", s("a node (default: the window)")}, {"region", point("[x, y, width, height]")},
+                            {"format", Value{}.set("type", "string").set("enum", Value(Value::List{Value("png"), Value("svg")}))}}), "ui.capture"),
+        tool("ui_timeline", "What input did", "Recent input events and what came of each: what it hit, what stopped it, what it activated.",
+             object_schema({app_prop, {"since", integer("after this cause")}, {"limit", integer("the last this many")}}), "ui.timeline"),
         tool("ui_explain", "Why a press did what it did",
-             "When the person says a click did nothing, ask the facts: the last press at [x, y] (or by its cause), from press to release — what "
-             "it hit, what stopped it, the actions it led to — and a sentence saying what happened.",
-             object_schema({app_prop, {"at", Value{}.set("type", "array").set("items", Value{}.set("type", "number")).set("description", "[x, y] where the press was")},
-                            {"cause", Value{}.set("type", "integer").set("description", "or the press's number")}}), "ui.explain"),
+             "When the user says a click did nothing: the last press at [x, y] from press to release — what it hit, what stopped it, what ran.",
+             object_schema({app_prop, {"at", point("[x, y]")}, {"cause", integer("or its number")}}), "ui.explain"),
         tool("ui_input", "Input as a person gives it",
-             "Pointer, wheel, keys and text, delivered frame by frame through the application's real input path (hit testing, focus, "
-             "gestures), as a person's devices would give them — to use the interface as a person does and find what does not work. Only "
-             "what it does is the agent's, decided as its requests are (the user's own actions refused; an irreversible one needs their answer); "
-             "an application may turn it off. Events: {type: move|click|double_click|down|up, x, y | node, button?, "
-             "mods?}, {type: drag, from: [x,y] | from_node, to: [x,y] | to_node, steps?}, {type: wheel, x, y, dx?, dy?}, {type: key|key_down|"
-             "key_up, key: A|Enter|Escape|Tab|Space|Left|PageDown…, mods?: [shift, ctrl, alt, meta], hold?: frames}, {type: keys, keys: [U, J], hold?} "
-             "(pressed together), {type: text, text}, "
-             "{type: wait, frames}. Coordinates are logical pixels, as ui_snapshot's @x,y. The answer says what each press hit, the actions "
-             "performed (by whom) and where focus is; capture: true adds the window's pixels after.",
-             object_schema({app_prop,
-                            {"events", prop("array", "the events, in order").set("items", prop("object", "an event"))},
-                            {"capture", b("the window's pixels after the input")}},
+             "Pointer, wheel, keys and text through the real input path, to test input itself (acting on nodes is the default). Events: "
+             "{type: click|double_click|move|down|up, x, y | node}, {type: drag, from, to}, {type: wheel, x, y, dy}, {type: key, key, mods?}, "
+             "{type: text, text}, {type: wait, frames}. The answer says what each press hit.",
+             object_schema({app_prop, {"events", prop("array", "in order").set("items", prop("object", "an event"))}, {"capture", b("pixels after")}},
                            {"events"}), "ui.input"),
-        tool("ui_clock", "The application's time",
-             "Shows or controls the application's clock: pause, resume, step {seconds}, seek {seconds}, rate {rate}, release.",
-             object_schema({app_prop,
-                            {"action", s("show, pause, resume, step, seek, rate, release")},
-                            {"seconds", prop("number", "for step and seek")},
-                            {"rate", prop("number", "for rate: 1 is real time")}}), "ui.clock"),
+        tool("ui_clock", "The application's time", "Shows or controls the clock: pause, resume, step, seek, rate, release.",
+             object_schema({app_prop, {"action", s("show, pause, resume, step, seek, rate, release")}, {"seconds", prop("number", "step, seek")},
+                            {"rate", prop("number", "1: real time")}}), "ui.clock"),
     };
     out.insert(out.end(), impl_->listed.begin(), impl_->listed.end());
     return out;

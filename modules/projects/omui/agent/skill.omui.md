@@ -5,7 +5,7 @@ How an Agent (or a person at a terminal) uses a running omui application without
 ## Before
 
 1. `describe` (a read): the protocol's version, the application, its operations, the session's policy (which operations are allowed and why not) and the application's verbs with their effects.
-2. Know your grant. Every request is admitted through `mlibs.control` under openas: development sessions are pre-authorized, published ones answer by the developer's and the person's settings. `act` and `invoke` run under the effect the action or the verb declares — an irreversible one needs the person's answer. A refusal is an answer, not something to retry around.
+2. Know your grant (D-155). In **development mode** (`omui dev`) you have every control a developer's own tools have: nothing is refused for want of the person's answer, and whether to ask them first is your judgement and their instructions to you — ask before what they would want to decide, not by rule. In a **release** the session's policy decides (`describe` shows it): an irreversible or external action may need the person's answer, and a refusal is an answer, not something to retry around. The person sets either level (`omui.config.ts`, `--agent-mode`); every request is still admitted through `mlibs.control` under openas.
 
 ## Doing
 

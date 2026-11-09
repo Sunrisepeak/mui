@@ -97,6 +97,46 @@ std::expected<player::Manifest, std::string> read_manifest(const std::filesystem
     return m;
 }
 
+// omui.config.ts beside the manifest (defineConfig, evaluated as data):
+//   agent:  { development?: mode, release?: mode }   automatic, development, dual-user
+//   record: { development?: level, release?: level } off, errors, actions, interactions, full
+struct Config {
+    std::optional<std::string> development_agent, release_agent;
+    std::optional<RecordLevel> development_record, release_record;
+};
+
+std::expected<Config, std::string> read_config(const std::filesystem::path& base) {
+    Config out;
+    const auto file = base / "omui.config.ts";
+    std::error_code error;
+    if (!std::filesystem::is_regular_file(file, error)) return out;
+    auto data = lang::ts::evaluate(file);
+    if (!data) return std::unexpected(data.error());
+    if (data->kind != "config") return std::unexpected(std::format("{}: its default export is defineConfig(…), not a {}", utf8(file), data->kind));
+    const auto value = parse_json(data->json);
+    if (!value) return std::unexpected(std::format("{}: {}", utf8(file), value.error().text()));
+    const auto text_at = [&](std::string_view group, std::string_view key) -> std::optional<std::string> {
+        const Value* g = value->get(group);
+        const Value* v = g ? g->get(key) : nullptr;
+        return v && v->type() == Value::Type::text ? std::optional(std::string(v->as_string())) : std::nullopt;
+    };
+    for (const auto key : {"development", "release"}) {
+        if (auto mode = text_at("agent", key)) {
+            if (!parse_agent_mode(*mode)) return std::unexpected(std::format("{}: agent.{} is automatic, development or dual-user, not `{}`", utf8(file), key, *mode));
+            (std::string_view(key) == "development" ? out.development_agent : out.release_agent) = *mode;
+        }
+        if (auto level = text_at("record", key)) {
+            constexpr std::array<std::pair<std::string_view, RecordLevel>, 5> levels{{{"off", RecordLevel::off}, {"errors", RecordLevel::errors},
+                                                                                       {"actions", RecordLevel::actions}, {"interactions", RecordLevel::interactions},
+                                                                                       {"full", RecordLevel::full}}};
+            const auto found = std::ranges::find(levels, *level, &std::pair<std::string_view, RecordLevel>::first);
+            if (found == levels.end()) return std::unexpected(std::format("{}: record.{} is off, errors, actions, interactions or full, not `{}`", utf8(file), key, *level));
+            (std::string_view(key) == "development" ? out.development_record : out.release_record) = found->second;
+        }
+    }
+    return out;
+}
+
 int player_main(int argc, char** argv) {
     std::filesystem::path manifest = "mcpp.toml";
     bool design = false;
@@ -113,17 +153,29 @@ int player_main(int argc, char** argv) {
             rest.push_back(argv[i]);
         }
     }
-    // Development mode lets the session's agents do what the application declares, as a developer's own tools would.
-    static char agent_mode[] = "--agent-mode", development[] = "development";
-    if (design && std::ranges::none_of(rest, [](const char* arg) { return std::string_view(arg) == "--agent-mode"; })) {
-        rest.push_back(agent_mode);
-        rest.push_back(development);
-    }
     auto m = read_manifest(manifest);
     if (!m) {
         std::println(std::cerr, "{}", m.error());
         return 2;
     }
+    // How far agents may go, and how much the recorder keeps (D-144, D-148,
+    // D-155): in development mode an agent has every control a developer's
+    // own tools have — whether to ask the person first is its own judgement
+    // and the person's instructions to it — and everything is recorded; in a
+    // release, what the build profile says, and errors. omui.config.ts
+    // (defineConfig) sets either; a switch the person gives wins over both.
+    auto config = read_config(m->base);
+    if (!config) {
+        std::println(std::cerr, "{}", config.error());
+        return 2;
+    }
+    std::vector<std::string> added;  // the switches the configuration adds, kept for argv
+    const std::string mode = design ? config->development_agent.value_or("development") : config->release_agent.value_or("");
+    if (!mode.empty() && std::ranges::none_of(rest, [](const char* arg) { return std::string_view(arg) == "--agent-mode"; })) {
+        added = {"--agent-mode", mode};
+    }
+    for (auto& switch_text : added) rest.push_back(switch_text.data());
+    const auto record = design ? config->development_record.value_or(RecordLevel::full) : config->release_record;
     register_markdown_component();
     // The official native modules (an application's own are registered by
     // its main, before this): `import { fuzzy } from "openmui:native/fuzzy"`.
@@ -140,7 +192,7 @@ int player_main(int argc, char** argv) {
     app.size = m->size;
     app.effects = m->effects;
     app.setup = [&](Runtime& rt) {
-        if (design) rt.set_record_level(RecordLevel::full);  // development mode keeps every interaction (D-148)
+        if (record) rt.set_record_level(*record);
         p.emplace(rt, *m, std::vector<player::Language>{lang::lua::language(), lang::js::javascript(), lang::js::typescript(),
                                                        lang::python::embedded::language()},
                   player::PlayerOptions{.design = design});

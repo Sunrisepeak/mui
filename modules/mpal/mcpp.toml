@@ -13,12 +13,9 @@ kind = "lib"
 [build]
 sources = ["src/*.cppm", "src/*.cpp", "src/dbus/*.cppm", "src/dbus/*.cpp"]
 
-# Each platform's services; what one does not give says so.
-[target.'cfg(os = "linux")'.build]
-sources = ["src/linux/*.cpp"]
-
-[target.'cfg(not(os = "linux"))'.build]
-sources = ["src/none/*.cpp"]
+# One build for every system: backends are chosen with mcpplibs.os's platform
+# questions (if constexpr; host() for an ok image). A system's own headers,
+# where a service needs them, go in the smallest native unit (src/native/<os>).
 
 [dependencies]
 mcpplibs.os = "0.4.1"

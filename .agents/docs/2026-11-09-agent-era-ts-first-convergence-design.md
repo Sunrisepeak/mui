@@ -934,6 +934,7 @@ my-app/
 - 验收：omui.sdk 的 system_test 在 headless 下用人的按压走完三种表面（过滤、进出文件夹、确认、保存名、取消；通知按下与到时消失；菜单栏让位与选择）；在 headless 下没有托盘，`set_tray` 如实返回 false。
 - 分层（维护者决定，2026-11-10）：openkal → `mcpplibs.os`（系统原语：文件与其 watcher、进程、本地连接、环境）→ **`mpal`**（`modules/mpal`，操作系统给应用的服务，不限桌面：桌面、移动、Web、嵌入式；按用途分区：notify、pick、transfer、launch、shell、secrets、power）→ omui（自绘版本与原生/自绘的选择）。输入（键盘、指针、触摸、手柄、输入法）随窗口进入宿主，不是 mpal 的服务；通知是“告诉人一件事并收回答复”的服务，答复作为该服务自己的事件返回，不走输入。
 - 第二块完成：`mpal` 建立，第一项服务 `notify`。Linux 上经会话总线调用 freedesktop Notifications：D-Bus 线格式（`mpal:dbus`：按签名与对齐编码、EXTERNAL 认证、Hello、方法调用与回复）用 `mcpplibs.os` 的本地连接自己实现，不用 libdbus（许可）和 sd-bus。其他平台如实返回 unsupported。桌面宿主把它接入 `Runtime::NativeSurfaces.notify`（暂时只用于不带动词的通知：人的答复还没有读回）。mpal 的 notify_test 用测试自己的总线（本地 socket）核对：消息布局符合规范的对齐、认证三步、Hello 的唯一名、Notify 的每个参数位置和返回的 id；没有会话总线时报告 unavailable。
+- openkal 生态（维护者要求，高优先级）：mpal 是一个构建、所有系统通用——后端用 `mcpplibs.os` 的平台问题选择（原生构建在编译期 `if constexpr (os::can_run_on(...))`，ok 镜像在加载时 `os::host()`）；按协议说话的服务（D-Bus，以后 openbus）就是普通代码，在镜像里同样可用：`mcpp test -p mpal --target x86_64-openkal` 以镜像运行全部测试并通过，CI 的 Linux x64 行加了这一步。需要系统头文件的（WinRT、Cocoa）放进最小的 native 单元，镜像里在 openkal 或 Luban 的总线承载之前如实返回 unsupported。os 与 mpal 的划分写在 mpal 的 README（原语 vs 服务）；绘制两者都不做：mpal 收像素，若要“给像素、收事件”的表面服务，另设 gfx 层的 `mpal.surface` 依赖 xrender，mpal 本身留在 base 层。
 - 下一块：通知答复的读回（ActionInvoked 信号）；Windows toast、macOS 与移动端的 notify；`pick`（Linux portal 等）从 SDL 迁到 mpal；macOS 原生菜单栏；脚本与 Agent 的入口。第 2 步的签名与自动更新等待 Ed25519 库的决定。
 
 **W16 开发宿主与 C++ 无感刷新（C16、D-154）**

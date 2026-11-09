@@ -1,9 +1,26 @@
-// The freedesktop Notifications call (mpal:notify), on any bus that has the service.
+// Notifications (mpal:notify): each system's backend, chosen with
+// mcpplibs.os's platform questions — at compile time for a native build, when
+// loaded for an ok image (openkal), which runs on every system — and the
+// freedesktop call itself, which is protocol, not a platform's headers.
 module mpal;
 
 import std;
+import mcpplibs.os;
 
 namespace mpal {
+
+namespace os = mcpplibs::os;
+
+std::expected<std::uint32_t, Error> notify(const Notification& notification) {
+    // Linux (a native build, or an image loaded there): the session bus.
+    if constexpr (os::can_run_on(os::platform::linux))
+        if (os::host() == os::platform::linux) {
+            auto bus = dbus::Bus::session();
+            if (!bus) return std::unexpected(bus.error());
+            return notify_on(*bus, notification);
+        }
+    return failure(Error::Code::unsupported, std::format("notifications on {} are not written yet (mpal README)", os::name(os::host())));
+}
 
 std::expected<std::uint32_t, Error> notify_on(dbus::Bus& bus, const Notification& notification) {
     using dbus::Value;

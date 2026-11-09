@@ -27,6 +27,10 @@ def main(argv: list[str]) -> int:
         manifest = manifest_of(Path(name))
         if manifest is None or manifest in done:
             continue
+        if "[workspace]" in manifest.read_text(encoding="utf-8"):
+            # The workspace's root holds no package: a test under a template (mcpp.toml.in) names mtest there.
+            print(f"{name}: no package manifest above it (a template's? add mcpplibs.mtest there)")
+            continue
         done.add(manifest)
         text = manifest.read_text(encoding="utf-8")
         if re.search(r"^mcpplibs\.mtest\s*=", text, re.M):

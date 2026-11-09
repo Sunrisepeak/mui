@@ -33,5 +33,7 @@ void Script::on_error(std::function<void(std::string_view)> fn) { impl_->errors 
 std::future<Result<void>> Script::run(std::string, std::string) { return not_here(*impl_); }
 std::future<Result<void>> Script::reload(std::string, std::string) { return not_here(*impl_); }
 Result<void> Script::reload_now(std::string, std::string) { return not_here(*impl_).get(); }
+void Script::module_changed(const std::filesystem::path&, std::optional<std::string>) {}
+std::vector<std::filesystem::path> Script::modules() const { return {}; }
 
 }  // namespace omui::lang::js

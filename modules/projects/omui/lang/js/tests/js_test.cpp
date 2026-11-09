@@ -391,6 +391,62 @@ for (let i = 0; i < 200; i++) verb("load.v" + (i % 4), { effect: "read" }, () =>
         expect(!broken.has_value()) << "an error is the answer";
     };
 
+    "a module edited (Live Design, a saved file): it alone evaluated again, with its script; the state kept"_test = [] {
+        const auto dir = scratch_dir("lang-js-modules");
+        std::ofstream(dir / "label.ts", std::ios::binary) << R"ts(
+(globalThis as any).labelRuns = ((globalThis as any).labelRuns ?? 0) + 1;
+export const label = (n: number): string => `${n} clicks`;
+)ts";
+        std::ofstream(dir / "other.ts", std::ios::binary) << R"ts(
+(globalThis as any).otherRuns = ((globalThis as any).otherRuns ?? 0) + 1;
+export const title = "Counter";
+)ts";
+        const std::string main = R"ts(
+import { signal, fmt, column, text, button, mount } from "openmui";
+import { label } from "./label";
+import { title } from "./other";
+const count = signal(0);
+const g = globalThis as any;
+mount("main", column({}, [
+  text({ id: "title", text: title }),
+  text({ id: "caption", text: label(2) }),
+  text({ id: "runs", text: `${g.labelRuns}/${g.otherRuns}` }),
+  text({ id: "count", text: fmt("{}", count) }),
+  button({ id: "inc", text: "+1", onActivated: () => count.update((v: number) => v + 1) }),
+]));
+)ts";
+        auto js = lang::ts::compile_source(main, mcpplibs::os::fs::utf8(dir / "main.ts"));
+        expect(js.has_value()) << (js ? "" : js.error());
+        if (!js) return;
+        Runtime r;
+        Js script(r);
+        const std::string name = mcpplibs::os::fs::utf8(dir / "main.ts");
+        auto ran = script.run(*js, name);
+        expect(ran.has_value()) << (ran ? "" : ran.error().text());
+        expect(eq(r.name_of("main/caption"), std::string("2 clicks")));
+        expect(eq(r.name_of("main/runs"), std::string("1/1")));
+        expect(eq(r.act("main/inc", "activate"), std::int64_t{0}));
+        r.settle(script.host);
+        expect(eq(r.name_of("main/count"), std::string("1")));
+        const auto modules = script.script.modules();
+        expect(eq(modules.size(), std::size_t{2})) << "both modules it imported by path";
+        // An edit to label.ts, not yet in the file: it alone is evaluated again.
+        script.script.module_changed(dir / "label.ts", R"ts(
+(globalThis as any).labelRuns = ((globalThis as any).labelRuns ?? 0) + 1;
+export const label = (n: number): string => `${n} taps`;
+)ts");
+        auto again = script.script.reload_now(*js, name);
+        expect(again.has_value()) << (again ? "" : again.error().text());
+        expect(eq(r.name_of("main/caption"), std::string("2 taps")));
+        expect(eq(r.name_of("main/runs"), std::string("2/1"))) << "other.ts kept as it was";
+        expect(eq(r.name_of("main/count"), std::string("1"))) << "the count kept";
+        // Back to the file's text.
+        script.script.module_changed(dir / "label.ts");
+        expect(script.script.reload_now(*js, name).has_value());
+        expect(eq(r.name_of("main/caption"), std::string("2 clicks")));
+        expect(eq(r.name_of("main/runs"), std::string("3/1")));
+    };
+
     "TypeScript: its types blanked in this process; its own modules imported by path, their types blanked too"_test = [] {
         const auto dir = scratch_dir("lang-js-ts");
         std::ofstream(dir / "label.ts", std::ios::binary) << R"ts(

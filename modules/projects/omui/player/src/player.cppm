@@ -56,6 +56,14 @@ public:
         (void)name;
         return std::unexpected(std::string("this language runs its scripts again from their files only"));
     }
+    // A module the script imports by path changed: its new text, or none (the
+    // file's again); the next run evaluates it again. Default: no such modules.
+    virtual void module_changed(const std::filesystem::path& file, std::optional<std::string> text) {
+        (void)file;
+        (void)text;
+    }
+    // The files of the modules it has imported by path: watched as its own file is.
+    [[nodiscard]] virtual std::vector<std::filesystem::path> modules() const { return {}; }
     // Nothing left to do on its thread, and nothing in flight to the runtime.
     [[nodiscard]] virtual bool idle() const = 0;
 };

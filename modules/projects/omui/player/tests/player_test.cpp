@@ -45,6 +45,45 @@ private:
     abi::OmuiRuntime rt_;
 };
 
+// A language whose script imports one module by path (logic/part.stub): it
+// says so, and each run mounts that module's text (its edit, or the file's).
+struct ModuleLog {
+    std::vector<std::string> changes;  // module_changed: "<file>=<text or (file)>"
+    int                      runs = 0;
+};
+
+class ModuleStub final : public player::Engine {
+public:
+    ModuleStub(abi::OmuiRuntime rt, std::filesystem::path part, ModuleLog& log) : rt_(rt), part_(std::move(part)), log_(log) {}
+    std::future<player::Status> run(std::string, std::string) override { return ready(mount()); }
+    std::future<player::Status> reload(std::string, std::string) override { return ready(mount()); }
+    player::Status reload_now(std::string, std::string) override { return mount(); }
+    [[nodiscard]] bool idle() const override { return true; }
+    void module_changed(const std::filesystem::path& file, std::optional<std::string> text) override {
+        log_.changes.push_back(std::format("{}={}", file.filename().generic_string(), text ? *text : std::string("(file)")));
+        edit_ = std::move(text);
+    }
+    [[nodiscard]] std::vector<std::filesystem::path> modules() const override { return {part_}; }
+
+private:
+    static std::future<player::Status> ready(player::Status s) {
+        std::promise<player::Status> p;
+        p.set_value(std::move(s));
+        return p.get_future();
+    }
+    player::Status mount() {
+        ++log_.runs;
+        std::ifstream in(part_, std::ios::binary);
+        const std::string code = edit_ ? *edit_ : std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+        if (abi::omuiMount(rt_, {"side", 4}, {code.data(), code.size()}) != abi::OMUI_SUCCESS) return std::unexpected(std::string("refused"));
+        return {};
+    }
+    abi::OmuiRuntime             rt_;
+    std::filesystem::path        part_;
+    ModuleLog&                   log_;
+    std::optional<std::string>   edit_;
+};
+
 player::Language stub() {
     return {"stub", {".stub"}, [](abi::OmuiRuntime rt) -> std::unique_ptr<player::Engine> { return std::make_unique<Stub>(rt); }, {}};
 }
@@ -233,5 +272,50 @@ UTest cases{"player", [] {
         player::Player p(h.runtime(), m, {stub()});
         expect(p.start().has_value());
         expect(h.runtime().verbs().find("design.edit") == nullptr);
+    };
+
+    "a module a script imports: watched as the script is; edited and committed by design.edit like a script"_test = [] {
+        const auto dir = scratch_dir("player-modules");
+        const std::string one = R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "one"}}}})j";
+        write(dir / "logic" / "main.stub", "the entry");
+        write(dir / "logic" / "part.stub", one);
+        ModuleLog log;
+        const auto part = dir / "logic" / "part.stub";
+        player::Language language{"stub", {".stub"}, [&](abi::OmuiRuntime rt) -> std::unique_ptr<player::Engine> { return std::make_unique<ModuleStub>(rt, part, log); }, {}, {}};
+        player::Manifest m;
+        m.id = "org.openmui.player-modules";
+        m.base = dir;
+        m.scripts = {{"stub", "logic/main.stub"}};
+        Headless h(HeadlessOptions{.size = {320, 240}});
+        player::Player p(h.runtime(), m, {language}, {.design = true});
+        expect(p.start().has_value());
+        h.settle();
+        expect(eq(name_of(h, "side"), std::string("one")));
+        (void)p.poll();  // the module seen once
+        // Saved on disk: its script runs again, told which module changed.
+        write(part, R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "two"}}}})j");
+        const auto reloaded = p.poll();
+        expect(std::ranges::find(reloaded, std::string("logic/part.stub")) != reloaded.end()) << std::format("{} reloaded", reloaded.size());
+        h.settle();
+        expect(eq(name_of(h, "side"), std::string("two")));
+        expect(!log.changes.empty() && log.changes.back() == "part.stub=(file)");
+        // design.sources lists it; design.edit runs new text for it.
+        Invocation call;
+        call.actor = {"agent", "designer", {}};
+        call.args = Value(Value::Map{});
+        const auto sources = h.runtime().verbs().invoke("design.sources", call);
+        expect(sources.ndjson().contains("\"imported_by\":\"logic/main.stub\"")) << sources.ndjson();
+        call.args = Value{}.set("path", "logic/part.stub").set("text", R"j({"omui": "0.1", "view": {"root": {"type": "text", "props": {"text": "three"}}}})j");
+        const auto edited = h.runtime().verbs().invoke("design.edit", call);
+        expect(eq(edited.exit_code().value_or(-1), 0)) << edited.ndjson();
+        expect(eq(name_of(h, "side"), std::string("three")));
+        expect(edited.ndjson().contains("\"after\":\"three\"")) << edited.ndjson();
+        // Committed: written to the module's file; the watcher does not run it again.
+        call.args = Value(Value::Map{});
+        const auto committed = h.runtime().verbs().invoke("design.commit", call);
+        expect(eq(committed.exit_code().value_or(-1), 0)) << committed.ndjson();
+        expect(file_text(part).contains("three"));
+        const int runs = log.runs;
+        expect(p.poll().empty() && log.runs == runs) << "committed text is not run twice";
     };
 }};

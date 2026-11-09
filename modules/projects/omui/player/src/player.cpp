@@ -66,9 +66,12 @@ struct Player::Impl {
     Manifest                          manifest;
     std::vector<Language>             languages;
     PlayerOptions                     options;
-    // Live Design: the text an edited script runs now, by its name, until
-    // it is committed to its file or discarded.
+    // Live Design: the text an edited script (or a module a script imports)
+    // runs now, by its name, until it is committed to its file or discarded.
     std::map<std::string, std::string> edited;
+    // The modules scripts import by path, by name: when each was last seen
+    // changed on disk (a saved module runs its script again).
+    std::map<std::string, std::filesystem::file_time_type> module_stamps;
     abi::OmuiRuntime                  handle = nullptr;
     std::vector<File>                 files;
     std::vector<std::pair<std::string, std::future<Status>>> pending;  // scripts running, by path
@@ -187,6 +190,20 @@ struct Player::Impl {
         return nullptr;
     }
 
+    // A module a script imports by path, as the design verbs name it (from the
+    // manifest's directory), and the script that imports it.
+    std::string module_name(const std::filesystem::path& file) const {
+        const auto inside = file.lexically_normal().lexically_relative(manifest.base.lexically_normal());
+        return generic_utf8(!inside.empty() && *inside.begin() != ".." ? inside : file);
+    }
+    File* owner_of(std::string_view module) {
+        for (auto& f : files)
+            if (f.kind == File::Kind::script && f.engine)
+                for (const auto& m : f.engine->modules())
+                    if (module_name(m) == module) return &f;
+        return nullptr;
+    }
+
     std::expected<std::string, std::string> compiled(const File& f, std::string_view text) const {
         if (f.lang->load_text) return f.lang->load_text(text, full(f.path));
         return std::string(text);
@@ -233,7 +250,21 @@ struct Player::Impl {
                                           .set("text", text ? *text : std::string())
                                           .set("edited", edited.contains(name(f.path))));
                 }
-                return Value{}.set("scripts", Value(std::move(scripts)));
+                Value::List modules;
+                for (const auto& f : files) {
+                    if (f.kind != File::Kind::script || !f.engine) continue;
+                    for (const auto& m : f.engine->modules()) {
+                        const auto module = module_name(m);
+                        const auto edit = edited.find(module);
+                        const auto text = edit != edited.end() ? std::optional(edit->second) : read_file(m);
+                        modules.push_back(Value{}
+                                              .set("path", module)
+                                              .set("imported_by", name(f.path))
+                                              .set("text", text ? *text : std::string())
+                                              .set("edited", edit != edited.end()));
+                    }
+                }
+                return Value{}.set("scripts", Value(std::move(scripts))).set("modules", Value(std::move(modules)));
             });
         add({.name = "design.edit",
              .summary = "Runs new text as a script, at once, its state kept: the semantic changes it made and how long it took — or its problems, with "
@@ -242,10 +273,29 @@ struct Player::Impl {
              .args = {{"path", "string"}, {"text", "string"}}},
             [this](const Value& args) -> VerbResult {
                 const std::string path(args.get("path") ? args.get("path")->as_string() : "");
-                File* f = script_named(path);
-                if (!f) return std::unexpected(std::format("no script `{}` (design.sources lists them)", path));
                 const Value* text = args.get("text");
                 if (!text || text->type() != Value::Type::text) return std::unexpected(std::string("the new text is `text`, a string"));
+                File* f = script_named(path);
+                if (!f) {
+                    // A module a script imports: it alone is evaluated again, with its script.
+                    File* owner = owner_of(path);
+                    if (!owner) return std::unexpected(std::format("no script or module `{}` (design.sources lists them)", path));
+                    if (auto check = compiled(*owner, text->as_string()); !check)  // its problems, before anything runs
+                        return std::unexpected(std::format("{}: {}", path, check.error()));
+                    const auto file = full(path);
+                    const auto before = edited.find(path);
+                    const std::optional<std::string> previous = before != edited.end() ? std::optional(before->second) : std::nullopt;
+                    owner->engine->module_changed(file, std::string(text->as_string()));
+                    auto done = run_text(*owner, running_text(*owner).value_or(std::string()));
+                    if (!done) {
+                        owner->engine->module_changed(file, previous);
+                        (void)run_text(*owner, running_text(*owner).value_or(std::string()));
+                        return std::unexpected(done.error());
+                    }
+                    edited[path] = std::string(text->as_string());
+                    done->set("path", path);
+                    return done;
+                }
                 const std::string previous = running_text(*f).value_or(std::string());
                 auto done = run_text(*f, text->as_string());
                 if (!done) {
@@ -261,14 +311,20 @@ struct Player::Impl {
              .effect = Effect::reversible},
             [this](const Value&) -> VerbResult {
                 Value::List dropped;
+                std::vector<File*> again;  // scripts whose modules were edited: run once more, after
                 for (auto it = edited.begin(); it != edited.end();) {
-                    File* f = script_named(it->first);
-                    const auto file_text = f ? read_file(full(f->path)) : std::nullopt;
-                    if (f && file_text)
-                        if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error());
+                    if (File* f = script_named(it->first)) {
+                        if (const auto file_text = read_file(full(f->path)))
+                            if (auto ran = run_text(*f, *file_text); !ran) problem(ran.error());
+                    } else if (File* owner = owner_of(it->first)) {
+                        owner->engine->module_changed(full(it->first), std::nullopt);
+                        if (std::ranges::find(again, owner) == again.end()) again.push_back(owner);
+                    }
                     dropped.push_back(Value{}.set("path", it->first).set("text", it->second));
                     it = edited.erase(it);
                 }
+                for (File* owner : again)
+                    if (auto ran = run_text(*owner, running_text(*owner).value_or(std::string())); !ran) problem(ran.error());
                 return Value{}.set("discarded", Value(std::move(dropped)));
             });
         add({.name = "design.commit", .summary = "Writes every edit to its script's file (TypeScript stays the one source); each file's text before is answered",
@@ -277,17 +333,21 @@ struct Player::Impl {
                 Value::List written;
                 for (auto it = edited.begin(); it != edited.end();) {
                     File* f = script_named(it->first);
-                    if (!f) {
+                    File* owner = f ? nullptr : owner_of(it->first);
+                    if (!f && !owner) {
                         it = edited.erase(it);
                         continue;
                     }
-                    const auto before = read_file(full(f->path));
+                    const auto file = full(it->first);
+                    const auto before = read_file(file);
                     {
-                        std::ofstream out(full(f->path), std::ios::binary | std::ios::trunc);
+                        std::ofstream out(file, std::ios::binary | std::ios::trunc);
                         out << it->second;
                         if (!out) return std::unexpected(std::format("{}: cannot be written", it->first));
                     }
-                    f->stamp = stamp_of(full(f->path));  // the watcher need not run it again
+                    // The watcher need not run it again: the file now says what runs.
+                    if (f) f->stamp = stamp_of(file);
+                    else module_stamps[it->first] = stamp_of(file);
                     written.push_back(Value{}.set("path", it->first).set("before", before ? *before : std::string()));
                     it = edited.erase(it);
                 }
@@ -365,6 +425,26 @@ std::vector<std::string> Player::poll() {
     Impl& d = *impl_;
     d.collect_runs();
     std::vector<std::string> reloaded;
+    // The modules scripts import by path: one saved runs its script again (it alone evaluated again).
+    for (auto& f : d.files) {
+        if (f.kind != Impl::File::Kind::script || !f.engine) continue;
+        bool changed = false;
+        for (const auto& m : f.engine->modules()) {
+            const auto module = d.module_name(m);
+            const auto now = stamp_of(m);
+            auto [seen, first] = d.module_stamps.try_emplace(module, now);
+            if (first || seen->second == now) continue;
+            seen->second = now;
+            d.edited.erase(module);  // a file saved meanwhile wins over an edit not committed
+            f.engine->module_changed(m, std::nullopt);
+            changed = true;
+            reloaded.push_back(module);
+        }
+        if (changed) {
+            mlibs::trace::Span span("player.reload", "player");
+            if (d.run(f, true)) log.info("{} reloaded (a module it imports changed)", d.name(f.path));
+        }
+    }
     for (auto& f : d.files) {
         const auto now = stamp_of(d.full(f.path));
         if (now == f.stamp) continue;

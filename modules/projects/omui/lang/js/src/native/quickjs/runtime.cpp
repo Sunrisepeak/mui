@@ -35,6 +35,13 @@ struct Script::Impl {
     std::vector<int>                            pending_slot;    // handlers of the mount in progress
     std::vector<std::pair<std::uint64_t, int>>  watches;         // this run's watches (token, function): a reload lets them go
     std::shared_ptr<bool>                       alive = std::make_shared<bool>(true);  // false once the script is destroyed
+    // Its modules by path (hot reload, Live Design): the text an edit gives a
+    // file instead of the file's, and each file's version — a changed module
+    // gets a name of its own, so the next run evaluates it again and the rest
+    // stay as they are — and the files it has loaded. On the script thread.
+    std::map<std::string, std::string>          overrides;
+    std::map<std::string, int>                  versions;
+    std::set<std::string>                       loaded;
     int                                         active = 0;  // its JavaScript on the script thread's stack
 
     explicit Impl(Session& s) : session(s) {}
@@ -436,6 +443,31 @@ std::optional<std::string> native_module_source(Script::Impl& s, std::string_vie
     return out;
 }
 
+// A module's name: "openmui" and "openmui:…" as they are; one by path, its
+// file — the name it is imported by, from the importing module's directory,
+// as it is, or with .ts, .mts, .js, .mjs, or its directory's index — with
+// "#v<n>" when the file has changed n times since the script began.
+char* normalize_module(JSContext* ctx, const char* base, const char* name, void*) {
+    auto& s = impl(ctx);
+    const std::string_view n = name;
+    if (!(n.starts_with("./") || n.starts_with("../") || n.starts_with("/"))) return js_strdup(ctx, name);
+    std::string_view from = base;
+    from = from.substr(0, from.find('#'));
+    const auto wanted = (n.starts_with("/") ? mcpplibs::os::fs::from_utf8(n) : mcpplibs::os::fs::from_utf8(from).parent_path() / mcpplibs::os::fs::from_utf8(n))
+                            .lexically_normal();
+    std::string file = mcpplibs::os::fs::utf8(wanted);
+    for (const std::string_view suffix : {"", ".ts", ".mts", ".js", ".mjs", "/index.ts", "/index.js"}) {
+        const std::string candidate = mcpplibs::os::fs::utf8(wanted) + std::string(suffix);
+        std::error_code error;
+        if (s.overrides.contains(candidate) || std::filesystem::is_regular_file(mcpplibs::os::fs::from_utf8(candidate), error)) {
+            file = candidate;
+            break;
+        }
+    }
+    if (const auto version = s.versions.find(file); version != s.versions.end() && version->second > 0) file += std::format("#v{}", version->second);
+    return js_strdup(ctx, file.c_str());
+}
+
 JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
     auto& s = impl(ctx);
     std::string_view n = name;
@@ -454,34 +486,31 @@ JSModuleDef* load_module(JSContext* ctx, const char* name, void*) {
         return def;
     }
     if (n != "openmui") {
-        // The program's own module, by path from the one importing it
-        // ("./label" is <its directory>/label): the file as it is named, or
-        // with .ts, .mts, .js, .mjs, or its directory's index; TypeScript with
-        // its types blanked.
-        const auto path = mcpplibs::os::fs::from_utf8(n);
-        std::optional<std::filesystem::path> found;
-        for (const std::string_view suffix : {"", ".ts", ".mts", ".js", ".mjs", "/index.ts", "/index.js"}) {
-            auto candidate = path;
-            candidate += mcpplibs::os::fs::from_utf8(suffix);
+        // The program's own module, by path (normalize_module resolved it to
+        // its file, a changed one's name carrying its version): the text an
+        // edit gave it, or the file's; TypeScript with its types blanked.
+        const std::string file(n.substr(0, n.find('#')));
+        std::expected<std::string, std::string> code;
+        if (const auto edited = s.overrides.find(file); edited != s.overrides.end()) {
+            code = file.ends_with(".ts") || file.ends_with(".mts") ? ts::compile_source(edited->second, file) : edited->second;
+        } else {
+            const auto path = mcpplibs::os::fs::from_utf8(file);
             std::error_code error;
-            if (std::filesystem::is_regular_file(candidate, error)) {
-                found = std::move(candidate);
-                break;
+            if (!std::filesystem::is_regular_file(path, error)) {
+                JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\", \"openmui:native/<name>\" and their own files by path)", name);
+                return nullptr;
             }
+            const auto extension = path.extension();
+            code = extension == ".ts" || extension == ".mts" ? ts::compile(path) : [&]() -> std::expected<std::string, std::string> {
+                std::ifstream in(path, std::ios::binary);
+                return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
+            }();
         }
-        if (!found) {
-            JS_ThrowReferenceError(ctx, "no module `%s` (scripts import \"openmui\", \"openmui:native/<name>\" and their own files by path)", name);
-            return nullptr;
-        }
-        const auto extension = found->extension();
-        auto code = extension == ".ts" || extension == ".mts" ? ts::compile(*found) : [&]() -> std::expected<std::string, std::string> {
-            std::ifstream in(*found, std::ios::binary);
-            return std::string{std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()};
-        }();
         if (!code) {
             JS_ThrowSyntaxError(ctx, "%s", code.error().c_str());
             return nullptr;
         }
+        s.loaded.insert(file);
         JSValue module = JS_Eval(ctx, code->data(), code->size(), name, JS_EVAL_TYPE_MODULE | JS_EVAL_FLAG_COMPILE_ONLY);
         if (JS_IsException(module)) return nullptr;
         auto* def = static_cast<JSModuleDef*>(JS_VALUE_GET_PTR(module));
@@ -503,7 +532,7 @@ Script::Script(Session& session) : impl_(std::make_shared<Impl>(session)) {
         s->rt = JS_NewRuntime();
         s->ctx = JS_NewContext(s->rt);
         JS_SetContextOpaque(s->ctx, s);
-        JS_SetModuleLoaderFunc(s->rt, nullptr, load_module, s);
+        JS_SetModuleLoaderFunc(s->rt, normalize_module, load_module, s);
         JSValue global = JS_GetGlobalObject(s->ctx);
         JSValue n = JS_NewObject(s->ctx);
         const std::initializer_list<std::tuple<const char*, JSCFunction*, int>> natives{
@@ -615,6 +644,27 @@ std::future<Result<void>> Script::reload(std::string code, std::string name) {
     std::shared_ptr<Impl> s = impl_;
     s->session.host().post([s, done, code = std::move(code), name = std::move(name)] { done->set_value(reload_module(*s, code, name)); });
     return future;
+}
+
+void Script::module_changed(const std::filesystem::path& file, std::optional<std::string> text) {
+    std::shared_ptr<Impl> s = impl_;
+    const std::string name = mcpplibs::os::fs::utf8(file.lexically_normal());
+    s->session.host().script([&] {
+        if (text)
+            s->overrides[name] = std::move(*text);
+        else
+            s->overrides.erase(name);
+        ++s->versions[name];
+    });
+}
+
+std::vector<std::filesystem::path> Script::modules() const {
+    std::shared_ptr<Impl> s = impl_;
+    return s->session.host().script([&] {
+        std::vector<std::filesystem::path> out;
+        for (const auto& file : s->loaded) out.push_back(mcpplibs::os::fs::from_utf8(file));
+        return out;
+    });
 }
 
 Result<void> Script::reload_now(std::string code, std::string name) {
